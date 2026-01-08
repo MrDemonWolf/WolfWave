@@ -104,10 +104,19 @@ final class TwitchDeviceAuth {
         var currentInterval = interval
         let tokenURL = URL(string: "https://id.twitch.tv/oauth2/token")!
         let grantType = "urn:ietf:params:oauth:grant-type:device_code"
+        var pollAttempts = 0
+        let maxAttempts = 600  // 10 minutes with 1-second base interval
 
         while true {
             try Task.checkCancellation()
-            progress("Waiting for Twitch approval...")
+            pollAttempts += 1
+
+            if pollAttempts % 10 == 0 {
+                // Update UI every 10 polls
+                progress("Still waiting for Twitch approval... Please check your browser.")
+            } else {
+                progress("Waiting for Twitch approval...")
+            }
 
             let params: [String: String] = [
                 "client_id": clientID,
@@ -131,10 +140,20 @@ final class TwitchDeviceAuth {
                 guard let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
                     let accessToken = json["access_token"] as? String
                 else {
+                    Log.error(
+                        "OAuth: Failed to parse access token from response", category: "OAuth")
                     throw TwitchDeviceAuthError.invalidResponse
                 }
-                Log.info("OAuth: Device code token obtained", category: "OAuth")
+                Log.info("OAuth: Device code token obtained successfully", category: "OAuth")
                 return accessToken
+            }
+
+            // Check if we've exceeded max polling attempts
+            guard pollAttempts < maxAttempts else {
+                Log.error(
+                    "OAuth: Device code polling timed out after \(pollAttempts) attempts",
+                    category: "OAuth")
+                throw TwitchDeviceAuthError.expiredToken
             }
 
             // Handle known error cases
@@ -148,13 +167,20 @@ final class TwitchDeviceAuth {
                     break
                 case _ where message.contains("slow_down"):
                     currentInterval += 5
+                    Log.info(
+                        "OAuth: Received slow_down; increasing poll interval to \(currentInterval)s",
+                        category: "OAuth")
                 case _ where message.contains("access_denied"):
+                    Log.error("OAuth: User denied authorization", category: "OAuth")
                     throw TwitchDeviceAuthError.accessDenied
                 case _ where message.contains("expired_token") || message.contains("invalid_grant"):
+                    Log.error("OAuth: Device code expired", category: "OAuth")
                     throw TwitchDeviceAuthError.expiredToken
                 case _ where message.contains("invalid_client"):
+                    Log.error("OAuth: Invalid client credentials", category: "OAuth")
                     throw TwitchDeviceAuthError.invalidClient
                 default:
+                    Log.error("OAuth: Unknown error - \(message)", category: "OAuth")
                     throw TwitchDeviceAuthError.unknown(message)
                 }
             }

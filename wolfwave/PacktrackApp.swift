@@ -75,6 +75,11 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         setupTwitchService()
         setupNotificationObservers()
         initializeTrackingState()
+
+        // Validate stored Twitch token on boot and set a reauth flag if needed
+        Task { [weak self] in
+            await self?.validateTwitchTokenOnBoot()
+        }
     }
 
     // MARK: - Menu State Helpers
@@ -385,6 +390,28 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     private func showWindow(_ window: NSWindow?) {
         window?.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)
+    }
+}
+
+// MARK: - Twitch Token Validation
+
+extension AppDelegate {
+    @MainActor
+    private func setReauthNeeded(_ needed: Bool) {
+        UserDefaults.standard.set(needed, forKey: "twitchReauthNeeded")
+    }
+
+    fileprivate func validateTwitchTokenOnBoot() async {
+        guard let token = KeychainService.loadTwitchToken(), !token.isEmpty else {
+            setReauthNeeded(false)  // no token stored; don't nag until user tries to auth
+            return
+        }
+
+        // Validate token and scopes
+        let isValid = await twitchService?.validateToken(token) ?? false
+        await MainActor.run {
+            setReauthNeeded(!isValid)
+        }
     }
 }
 

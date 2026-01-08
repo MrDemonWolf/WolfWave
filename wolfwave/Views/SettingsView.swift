@@ -66,6 +66,10 @@ struct SettingsView: View {
     @AppStorage("twitchDebugLogging")
     private var twitchDebugLogging = false
 
+    /// Whether a re-authentication is needed for Twitch (set on app boot)
+    @AppStorage("twitchReauthNeeded")
+    private var twitchReauthNeeded = false
+
     // MARK: - State
 
     /// The authentication token (JWT) for WebSocket connections.
@@ -91,7 +95,15 @@ struct SettingsView: View {
     @State private var twitchChannelConnected = false
 
     /// The Twitch service for connecting/disconnecting from channels
-    @State private var twitchService = TwitchChatService()
+
+    // Helper to get the shared Twitch service from AppDelegate
+    private var appDelegate: AppDelegate? {
+        NSApplication.shared.delegate as? AppDelegate
+    }
+
+    private var twitchService: TwitchChatService? {
+        appDelegate?.twitchService
+    }
 
     /// Connection status message
     @State private var connectionStatusMessage = ""
@@ -221,8 +233,17 @@ struct SettingsView: View {
                         .headline)
                 ) {
                     VStack(alignment: .leading, spacing: 10) {
-                        Spacer(minLength: 4)
-
+                        if twitchReauthNeeded {
+                            HStack(alignment: .top, spacing: 8) {
+                                Image(systemName: "exclamationmark.triangle.fill").foregroundColor(
+                                    .yellow)
+                                Text(
+                                    "Your Twitch session expired. Please sign in again to continue."
+                                )
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                            }
+                        }
                         Text(
                             "Connect the bot to your Twitch channel so it can chat and share what you're playing."
                         )
@@ -295,13 +316,17 @@ struct SettingsView: View {
                                 .padding(.top, 4)
                         }
 
-                        if twitchCredentialsSaved && twitchConnectedOnce {
+                        if twitchCredentialsSaved && twitchConnectedOnce && !twitchReauthNeeded {
                             Label(
                                 "Saved to Keychain: bot username, token, channel.",
                                 systemImage: "checkmark.seal.fill"
                             )
                             .font(.caption)
                             .foregroundColor(.green)
+                        } else if twitchReauthNeeded {
+                            Text("Re-authentication required. Click 'Sign in with Twitch'.")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
                         } else if !oauthStatusMessage.isEmpty {
                             Text(oauthStatusMessage)
                                 .font(.caption)
@@ -316,7 +341,7 @@ struct SettingsView: View {
 
                         Toggle("Log raw Twitch chat events", isOn: $twitchDebugLogging)
                             .onChange(of: twitchDebugLogging) { _, newValue in
-                                twitchService.debugLoggingEnabled = newValue
+                                twitchService?.debugLoggingEnabled = newValue
                             }
 
                         Text("Prints raw Twitch chat events to the debug console.")
@@ -325,33 +350,37 @@ struct SettingsView: View {
 
                         Divider()
 
-                        if KeychainService.loadTwitchToken() != nil {
+                        if KeychainService.loadTwitchToken() != nil && !twitchReauthNeeded {
                             HStack(spacing: 12) {
-                                Button(action: joinChannel) {
-                                    Label("Join Channel", systemImage: "arrow.right.circle.fill")
+                                Button(action: twitchChannelConnected ? leaveChannel : joinChannel)
+                                {
+                                    Label(
+                                        twitchChannelConnected ? "Leave Channel" : "Join Channel",
+                                        systemImage: twitchChannelConnected
+                                            ? "xmark.circle.fill" : "arrow.right.circle.fill"
+                                    )
                                 }
-                                .disabled(twitchChannelConnected)
+                                .foregroundColor(twitchChannelConnected ? .red : .blue)
 
-                                Button(action: leaveChannel) {
-                                    Label("Leave Channel", systemImage: "xmark.circle.fill")
-                                }
-                                .disabled(!twitchChannelConnected)
-                                .foregroundColor(.red)
+                                Image(
+                                    systemName: twitchChannelConnected
+                                        ? "checkmark.circle.fill" : "xmark.circle.fill"
+                                )
+                                .foregroundColor(twitchChannelConnected ? .green : .red)
 
                                 Spacer()
                             }
 
                             if !connectionStatusMessage.isEmpty {
                                 HStack(spacing: 8) {
-                                    Image(
-                                        systemName: twitchChannelConnected
-                                            ? "checkmark.circle.fill" : "xmark.circle.fill"
-                                    )
-                                    .foregroundColor(twitchChannelConnected ? .green : .red)
                                     Text(connectionStatusMessage)
                                         .font(.caption)
                                 }
                             }
+                        } else if twitchReauthNeeded {
+                            Text("Please re-authenticate before connecting to a channel.")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
                         }
                     }
                     .padding(8)
@@ -414,17 +443,14 @@ struct SettingsView: View {
                 twitchChannelID = savedTwitchChannelID
             }
 
-            // Resolve bot identity from OAuth if possible
-            refreshBotIdentityIfPossible()
-
             if !isWebSocketURLValid {
                 websocketEnabled = false
             }
 
-            twitchService.debugLoggingEnabled = twitchDebugLogging
+            twitchService?.debugLoggingEnabled = twitchDebugLogging
 
             // Set up Twitch service callbacks
-            twitchService.onConnectionStateChanged = { isConnected in
+            twitchService?.onConnectionStateChanged = { isConnected in
                 DispatchQueue.main.async {
                     twitchChannelConnected = isConnected
                     connectionStatusMessage =
@@ -433,7 +459,7 @@ struct SettingsView: View {
             }
 
             // Set up callback to get current song info
-            twitchService.getCurrentSongInfo = {
+            twitchService?.getCurrentSongInfo = {
                 if let appDelegate = NSApplication.shared.delegate as? AppDelegate {
                     return appDelegate.getCurrentSongInfo()
                 }
@@ -447,6 +473,15 @@ struct SettingsView: View {
             }
         } message: {
             Text("This will reset all settings and clear the stored authentication token.")
+        }
+        .onDisappear {
+            // Clean up any ongoing OAuth tasks when the view disappears
+            if let task = devicePollingTask {
+                Log.debug(
+                    "Settings: Cancelling OAuth polling task on view disappear",
+                    category: "Settings")
+                task.cancel()
+            }
         }
     }
 
@@ -483,63 +518,30 @@ struct SettingsView: View {
         )
     }
 
-    /// Refreshes the bot identity (username) using the stored OAuth token and Client ID.
-    private func refreshBotIdentityIfPossible() {
-        Log.debug("Settings: Attempting to refresh bot identity", category: "Settings")
-        guard let token = KeychainService.loadTwitchToken(),
-            let clientID = TwitchChatService.resolveClientID(),
-            !clientID.isEmpty
-        else {
-            Log.debug(
-                "Settings: Skipping bot identity refresh - missing token or client ID",
-                category: "Settings")
-            return
-        }
-
-        Task {
-            do {
-                Log.info("Settings: Fetching bot identity from Twitch", category: "Settings")
-                let identity = try await twitchService.fetchBotIdentity(
-                    token: token, clientID: clientID)
-                let resolvedUsername =
-                    identity.displayName.isEmpty ? identity.login : identity.displayName
-                Log.debug(
-                    "Settings: Saving resolved bot username to Keychain: \(resolvedUsername)",
-                    category: "Settings")
-                try KeychainService.saveTwitchUsername(resolvedUsername)
-                try KeychainService.saveTwitchBotUserID(identity.userID)
-                await MainActor.run {
-                    twitchBotUsername = resolvedUsername
-                    Log.info(
-                        "Settings: Bot identity refreshed - username: \(resolvedUsername)",
-                        category: "Settings")
-                }
-            } catch {
-                Log.error(
-                    "Settings: Failed to refresh bot identity - \(error.localizedDescription)",
-                    category: "Settings")
-            }
-        }
-    }
-
     private func startTwitchOAuth() {
         Log.info("Settings: Starting Twitch device-code flow", category: "Settings")
-        oauthStatusMessage = "Requesting device code..."
+        oauthStatusMessage = "Requesting authorization code from Twitch..."
         deviceUserCode = ""
         deviceVerificationURI = ""
         deviceAuthInProgress = true
-        devicePollingTask?.cancel()
+
+        // Cancel any existing polling task before starting a new one
+        if let existingTask = devicePollingTask {
+            Log.debug("Settings: Cancelling previous OAuth polling task", category: "Settings")
+            existingTask.cancel()
+            devicePollingTask = nil
+        }
 
         guard let clientID = TwitchChatService.resolveClientID(), !clientID.isEmpty else {
             Log.error("Settings: Twitch Client ID not configured", category: "Settings")
-            oauthStatusMessage = "Missing Twitch Client ID. Set TWITCH_CLIENT_ID in the scheme."
+            oauthStatusMessage = "⚠️ Missing Twitch Client ID. Set TWITCH_CLIENT_ID in the scheme."
             deviceAuthInProgress = false
             return
         }
 
         let helper = TwitchDeviceAuth(
             clientID: clientID,
-            scopes: ["chat:read", "chat:edit", "user:write:chat"]
+            scopes: ["user:read:chat", "user:write:chat"]
         )
 
         Task {
@@ -548,7 +550,7 @@ struct SettingsView: View {
                 await MainActor.run {
                     deviceUserCode = response.userCode
                     deviceVerificationURI = response.verificationURI
-                    oauthStatusMessage = "Go to Twitch and enter the code above."
+                    oauthStatusMessage = "✅ Code ready! Go to Twitch and enter the code above."
                 }
 
                 devicePollingTask = Task {
@@ -567,7 +569,7 @@ struct SettingsView: View {
                             deviceAuthInProgress = false
                             deviceUserCode = ""
                             deviceVerificationURI = ""
-                            oauthStatusMessage = "Authorized. Token saved."
+                            oauthStatusMessage = "✅ Authorization successful! Saving credentials..."
                             twitchOAuthToken = token
                             do {
                                 try KeychainService.saveTwitchToken(token)
@@ -576,22 +578,85 @@ struct SettingsView: View {
                                 Log.info(
                                     "Settings: OAuth token saved successfully", category: "Settings"
                                 )
-                                refreshBotIdentityIfPossible()
                             } catch {
                                 Log.error(
                                     "Settings: Failed to save token to Keychain - \(error.localizedDescription)",
                                     category: "Settings")
                                 oauthStatusMessage =
-                                    "Keychain save failed: \(error.localizedDescription)"
+                                    "⚠️ Keychain save failed: \(error.localizedDescription)"
                             }
                         }
-                    } catch {
+
+                        // Resolve bot identity now that we have a valid token
+                        guard let clientID = TwitchChatService.resolveClientID(),
+                            !clientID.isEmpty
+                        else {
+                            Log.debug(
+                                "Settings: Cannot resolve bot identity - missing client ID",
+                                category: "Settings")
+                            return
+                        }
+
+                        do {
+                            // Use static method so it works even if the service instance isn't available
+                            try await TwitchChatService.resolveBotIdentityStatic(
+                                token: token, clientID: clientID)
+
+                            // Load and display the resolved username
+                            if let username = KeychainService.loadTwitchUsername() {
+                                await MainActor.run {
+                                    twitchBotUsername = username
+                                    oauthStatusMessage = "✅ Bot identity resolved: \(username)"
+                                    Log.info(
+                                        "Settings: Bot identity resolved - \(username)",
+                                        category: "Settings")
+                                }
+                            } else {
+                                Log.error(
+                                    "Settings: Failed to load resolved username from Keychain",
+                                    category: "Settings")
+                            }
+                        } catch {
+                            Log.error(
+                                "Settings: Failed to resolve bot identity - \(error.localizedDescription)",
+                                category: "Settings")
+                            await MainActor.run {
+                                oauthStatusMessage =
+                                    "⚠️ Could not resolve bot identity: \(error.localizedDescription)"
+                            }
+                        }
+                    } catch let error as TwitchDeviceAuthError {
                         await MainActor.run {
                             oauthInProgress = false
                             deviceAuthInProgress = false
                             deviceUserCode = ""
                             deviceVerificationURI = ""
-                            oauthStatusMessage = "OAuth failed: \(error.localizedDescription)"
+
+                            switch error {
+                            case .accessDenied:
+                                oauthStatusMessage = "❌ Authorization denied by user"
+                            case .expiredToken:
+                                oauthStatusMessage = "❌ Authorization code expired"
+                            case .authorizationPending:
+                                oauthStatusMessage = "⏳ Still waiting for authorization..."
+                            case .slowDown:
+                                oauthStatusMessage = "⏸️ Polling too quickly, slowing down..."
+                            case .invalidClient:
+                                oauthStatusMessage = "❌ Invalid Twitch Client ID"
+                            default:
+                                oauthStatusMessage = "❌ OAuth failed: \(error.localizedDescription)"
+                            }
+                        }
+                    } catch {
+                        // Only show error if task wasn't cancelled
+                        if !(error is CancellationError) {
+                            await MainActor.run {
+                                oauthInProgress = false
+                                deviceAuthInProgress = false
+                                deviceUserCode = ""
+                                deviceVerificationURI = ""
+                                oauthStatusMessage = "❌ OAuth failed: \(error.localizedDescription)"
+                            }
                         }
                     }
                 }
@@ -601,7 +666,7 @@ struct SettingsView: View {
                     oauthInProgress = false
                     deviceUserCode = ""
                     deviceVerificationURI = ""
-                    oauthStatusMessage = "OAuth setup failed: \(error.localizedDescription)"
+                    oauthStatusMessage = "❌ OAuth setup failed: \(error.localizedDescription)"
                 }
             }
         }
@@ -632,7 +697,46 @@ struct SettingsView: View {
             try KeychainService.saveTwitchChannelID(twitchChannelID)
             twitchCredentialsSaved = true
             Log.info("Settings: Twitch credentials saved successfully", category: "Settings")
-            refreshBotIdentityIfPossible()
+
+            // Resolve bot identity with the saved token
+            guard !twitchOAuthToken.isEmpty else {
+                Log.debug(
+                    "Settings: Cannot resolve bot identity - token not available",
+                    category: "Settings")
+                return
+            }
+
+            guard let clientID = TwitchChatService.resolveClientID(), !clientID.isEmpty else {
+                Log.debug(
+                    "Settings: Cannot resolve bot identity - missing client ID",
+                    category: "Settings")
+                return
+            }
+
+            Task {
+                do {
+                    // Use static method so it works even if the service instance isn't available
+                    try await TwitchChatService.resolveBotIdentityStatic(
+                        token: twitchOAuthToken, clientID: clientID)
+
+                    if let username = KeychainService.loadTwitchUsername() {
+                        await MainActor.run {
+                            twitchBotUsername = username
+                            Log.info(
+                                "Settings: Bot identity resolved - \(username)",
+                                category: "Settings")
+                        }
+                    } else {
+                        Log.error(
+                            "Settings: Failed to load resolved username from Keychain",
+                            category: "Settings")
+                    }
+                } catch {
+                    Log.error(
+                        "Settings: Failed to resolve bot identity - \(error.localizedDescription)",
+                        category: "Settings")
+                }
+            }
         } catch {
             Log.error(
                 "Settings: Failed to save Twitch credentials - \(error.localizedDescription)",
@@ -683,7 +787,7 @@ struct SettingsView: View {
         clearTwitchCredentials()
 
         // Disconnect from Twitch
-        twitchService.leaveChannel()
+        twitchService?.leaveChannel()
         twitchChannelConnected = false
         connectionStatusMessage = ""
 
@@ -711,37 +815,16 @@ struct SettingsView: View {
 
         Task {
             do {
-                var botUserID = KeychainService.loadTwitchBotUserID()
-                var resolvedUsername = KeychainService.loadTwitchUsername() ?? ""
-
-                if botUserID?.isEmpty ?? true {
-                    let identity = try await twitchService.fetchBotIdentity(
-                        token: token, clientID: clientID)
-                    botUserID = identity.userID
-                    resolvedUsername =
-                        identity.displayName.isEmpty ? identity.login : identity.displayName
-                    try KeychainService.saveTwitchUsername(resolvedUsername)
-                    try KeychainService.saveTwitchBotUserID(identity.userID)
-                }
-
-                guard let botUserID else {
-                    throw NSError(
-                        domain: "Settings",
-                        code: -1,
-                        userInfo: [NSLocalizedDescriptionKey: "Missing bot user ID"]
-                    )
-                }
-
-                try twitchService.joinChannel(
-                    broadcasterID: channelID,
-                    botID: botUserID,
+                try await twitchService?.connectToChannel(
+                    channelName: channelID,
                     token: token,
                     clientID: clientID
                 )
 
                 await MainActor.run {
-                    twitchBotUsername = resolvedUsername
-                    connectionStatusMessage = "Connected as @\(resolvedUsername)"
+                    connectionStatusMessage = "Connected to Twitch"
+                    twitchChannelConnected = true
+                    Log.debug("Settings: Connected to Twitch channel", category: "Settings")
                 }
             } catch {
                 await MainActor.run {
@@ -757,7 +840,7 @@ struct SettingsView: View {
     /// Leave the Twitch channel
     private func leaveChannel() {
         Log.info("Settings: Leaving Twitch channel", category: "Settings")
-        twitchService.leaveChannel()
+        twitchService?.leaveChannel()
         twitchChannelConnected = false
         Log.info("Settings: Disconnected from Twitch channel", category: "Settings")
     }
