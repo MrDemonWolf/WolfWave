@@ -80,3 +80,6 @@ Icon\r
 
 # Ignore Xcode scheme state
 xcdebugger/
+
+# macOS system file
+.DS_Store
