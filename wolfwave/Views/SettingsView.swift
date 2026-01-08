@@ -573,6 +573,7 @@ struct SettingsView: View {
                             twitchOAuthToken = token
                             do {
                                 try KeychainService.saveTwitchToken(token)
+                                twitchReauthNeeded = false
                                 twitchCredentialsSaved = true
                                 twitchConnectedOnce = true
                                 Log.info(
@@ -693,6 +694,7 @@ struct SettingsView: View {
         do {
             Log.debug("Settings: Saving OAuth token", category: "Settings")
             try KeychainService.saveTwitchToken(twitchOAuthToken)
+            twitchReauthNeeded = false
             Log.debug("Settings: Saving channel ID", category: "Settings")
             try KeychainService.saveTwitchChannelID(twitchChannelID)
             twitchCredentialsSaved = true
