@@ -288,6 +288,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             }
             return "Now playing: \(song) by \(artist)"
         }
+
+        // No menu status; nothing to sync here
     }
 
     private func setupNotificationObservers() {
@@ -308,6 +310,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             resetNowPlayingMenu(message: "Tracking disabled")
         }
     }
+
+    // (Removed Twitch status menu row per request)
 
     private func setDefaultTrackingStateIfNeeded() {
         if UserDefaults.standard.object(forKey: Constants.UserDefaults.trackingEnabled) == nil {

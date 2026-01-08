@@ -62,10 +62,6 @@ struct SettingsView: View {
     @AppStorage(Constants.UserDefaultsKeys.currentSongCommandEnabled)
     private var currentSongCommandEnabled = false
 
-    /// Whether raw Twitch chat events should be logged for debugging
-    @AppStorage("twitchDebugLogging")
-    private var twitchDebugLogging = false
-
     /// Whether a re-authentication is needed for Twitch (set on app boot)
     @AppStorage("twitchReauthNeeded")
     private var twitchReauthNeeded = false
@@ -229,10 +225,15 @@ struct SettingsView: View {
 
                 // MARK: Twitch Bot
                 GroupBox(
-                    label: Label("Twitch Bot", systemImage: "bubble.left.and.bubble.right").font(
-                        .headline)
+                    label:
+                        HStack {
+                            Label("Twitch Bot", systemImage: "bubble.left.and.bubble.right")
+                                .font(.headline)
+                            Spacer()
+                            StatusChip(text: twitchStatusChipText, color: twitchStatusChipColor)
+                        }
                 ) {
-                    VStack(alignment: .leading, spacing: 10) {
+                    VStack(alignment: .leading, spacing: 12) {
                         if twitchReauthNeeded {
                             HStack(alignment: .top, spacing: 8) {
                                 Image(systemName: "exclamationmark.triangle.fill").foregroundColor(
@@ -244,25 +245,38 @@ struct SettingsView: View {
                                 .foregroundColor(.secondary)
                             }
                         }
-                        Text(
-                            "Connect the bot to your Twitch channel so it can chat and share what you're playing."
-                        )
-                        .font(.caption)
-                        .foregroundColor(.secondary)
+                        if !twitchCredentialsSaved {
+                            Text(
+                                "Connect Twitch so WolfWave can chat in your channel. Credentials stay in macOS Keychain."
+                            )
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                        }
 
-                        HStack {
-                            Text("Bot Username")
-                                .foregroundColor(.secondary)
-                            Spacer()
-                            Text(twitchBotUsername.isEmpty ? "Not resolved yet" : twitchBotUsername)
+                        if twitchCredentialsSaved {
+                            HStack {
+                                Text("Bot Username")
+                                    .foregroundColor(.secondary)
+                                Spacer()
+                                Text(
+                                    twitchBotUsername.isEmpty
+                                        ? "Not resolved yet" : twitchBotUsername
+                                )
                                 .fontWeight(.semibold)
+                            }
                         }
 
                         if !deviceUserCode.isEmpty {
-                            VStack(alignment: .leading, spacing: 6) {
-                                Label("Enter this code on Twitch", systemImage: "number")
+                            VStack(alignment: .leading, spacing: 8) {
+                                Label("Authorize on Twitch", systemImage: "number")
                                     .font(.caption)
                                     .foregroundColor(.secondary)
+                                Text(
+                                    "Open Twitch to authorize, or go to twitch.tv/activate on any device and enter this code."
+                                )
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+
                                 HStack {
                                     Text(deviceUserCode)
                                         .font(.title3).monospaced().bold()
@@ -276,6 +290,7 @@ struct SettingsView: View {
                                     }
                                     .buttonStyle(.borderless)
                                 }
+
                                 if !deviceVerificationURI.isEmpty {
                                     Button(action: {
                                         if let url = URL(string: deviceVerificationURI) {
@@ -284,46 +299,86 @@ struct SettingsView: View {
                                     }) {
                                         Label("Open Twitch to authorize", systemImage: "link")
                                     }
+                                    .buttonStyle(.borderedProminent)
+                                    .controlSize(.regular)
+                                    .frame(maxWidth: .infinity, alignment: .leading)
                                 }
+
+                                Link(
+                                    "Or go to twitch.tv/activate and enter the code",
+                                    destination: URL(string: "https://twitch.tv/activate")!
+                                )
+                                .font(.caption)
+                                .foregroundColor(.secondary)
                             }
+                            .padding(12)
+                            .background(
+                                RoundedRectangle(cornerRadius: 10, style: .continuous)
+                                    .fill(Color.secondary.opacity(0.12))
+                            )
+                            .padding(.bottom, 6)
                         }
 
-                        TextField("Channel to join", text: $twitchChannelID)
-                            .textFieldStyle(.roundedBorder)
+                        if twitchCredentialsSaved {
+                            TextField("Channel to join", text: $twitchChannelID)
+                                .textFieldStyle(.roundedBorder)
 
-                        Text("Channel to join (usually your Twitch username).").font(.caption)
-                            .foregroundColor(.secondary)
+                            Text("Channel to join (usually your Twitch username).")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                        }
 
                         HStack {
-                            Button(action: startTwitchOAuth) {
-                                Label("Sign in with Twitch", systemImage: "person.badge.key")
+                            if !twitchCredentialsSaved {
+                                VStack(alignment: .leading, spacing: 10) {
+                                    Button(action: startTwitchOAuth) {
+                                        Label(
+                                            "Sign in with Twitch", systemImage: "person.badge.key"
+                                        )
+                                        .frame(maxWidth: .infinity)
+                                    }
+                                    .buttonStyle(.borderedProminent)
+                                    .controlSize(.large)
+                                    .disabled(oauthInProgress || deviceAuthInProgress)
+
+                                }
+                            } else {
+                                Button("Save Channel", action: saveTwitchCredentials)
+                                    .disabled(twitchOAuthToken.isEmpty || twitchChannelID.isEmpty)
+
+                                Button(action: twitchChannelConnected ? leaveChannel : joinChannel)
+                                {
+                                    Label(
+                                        twitchChannelConnected ? "Leave channel" : "Join channel",
+                                        systemImage: twitchChannelConnected
+                                            ? "xmark.circle.fill" : "arrow.right.circle.fill"
+                                    )
+                                }
+                                .disabled(
+                                    twitchReauthNeeded
+                                        || twitchChannelID
+                                            .trimmingCharacters(in: .whitespacesAndNewlines)
+                                            .isEmpty
+                                )
+
+                                Spacer()
+
+                                Button("Clear bot info", action: clearTwitchCredentials)
+                                    .foregroundColor(.red)
                             }
-                            .disabled(oauthInProgress || deviceAuthInProgress)
 
                             Spacer()
-
-                            Button("Save Bot Info", action: saveTwitchCredentials)
-                                .disabled(twitchOAuthToken.isEmpty || twitchChannelID.isEmpty)
-
-                            Button("Clear Bot Info", action: clearTwitchCredentials)
-                                .foregroundColor(.red)
                         }
 
                         if oauthInProgress || deviceAuthInProgress {
                             ProgressView()
                                 .progressViewStyle(.linear)
+                                .tint(.accentColor)
                                 .frame(maxWidth: .infinity)
                                 .padding(.top, 4)
                         }
 
-                        if twitchCredentialsSaved && twitchConnectedOnce && !twitchReauthNeeded {
-                            Label(
-                                "Saved to Keychain: bot username, token, channel.",
-                                systemImage: "checkmark.seal.fill"
-                            )
-                            .font(.caption)
-                            .foregroundColor(.green)
-                        } else if twitchReauthNeeded {
+                        if twitchReauthNeeded {
                             Text("Re-authentication required. Click 'Sign in with Twitch'.")
                                 .font(.caption)
                                 .foregroundColor(.secondary)
@@ -333,57 +388,19 @@ struct SettingsView: View {
                                 .foregroundColor(.secondary)
                         }
 
-                        Text(
-                            "After sign-in, your bot username, OAuth token, and channel are stored securely in Keychain. The bot username is resolved from Twitch after authentication."
-                        )
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-
-                        Toggle("Log raw Twitch chat events", isOn: $twitchDebugLogging)
-                            .onChange(of: twitchDebugLogging) { _, newValue in
-                                twitchService?.debugLoggingEnabled = newValue
-                            }
-
-                        Text("Prints raw Twitch chat events to the debug console.")
+                        if twitchCredentialsSaved {
+                            Text(
+                                "Bot username, OAuth token, and channel stay in Keychain. The username resolves right after sign-in."
+                            )
                             .font(.caption)
                             .foregroundColor(.secondary)
-
-                        Divider()
-
-                        if KeychainService.loadTwitchToken() != nil && !twitchReauthNeeded {
-                            HStack(spacing: 12) {
-                                Button(action: twitchChannelConnected ? leaveChannel : joinChannel)
-                                {
-                                    Label(
-                                        twitchChannelConnected ? "Leave Channel" : "Join Channel",
-                                        systemImage: twitchChannelConnected
-                                            ? "xmark.circle.fill" : "arrow.right.circle.fill"
-                                    )
-                                }
-                                .foregroundColor(twitchChannelConnected ? .red : .blue)
-
-                                Image(
-                                    systemName: twitchChannelConnected
-                                        ? "checkmark.circle.fill" : "xmark.circle.fill"
-                                )
-                                .foregroundColor(twitchChannelConnected ? .green : .red)
-
-                                Spacer()
-                            }
-
-                            if !connectionStatusMessage.isEmpty {
-                                HStack(spacing: 8) {
-                                    Text(connectionStatusMessage)
-                                        .font(.caption)
-                                }
-                            }
-                        } else if twitchReauthNeeded {
-                            Text("Please re-authenticate before connecting to a channel.")
-                                .font(.caption)
-                                .foregroundColor(.secondary)
                         }
+
+                        // Join/Leave button moved into the button row above.
                     }
-                    .padding(8)
+                    .padding(10)
+                    .background(.thinMaterial)
+                    .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
                 }
 
                 Divider()
@@ -446,8 +463,6 @@ struct SettingsView: View {
             if !isWebSocketURLValid {
                 websocketEnabled = false
             }
-
-            twitchService?.debugLoggingEnabled = twitchDebugLogging
 
             // Set up Twitch service callbacks
             twitchService?.onConnectionStateChanged = { isConnected in
@@ -574,6 +589,10 @@ struct SettingsView: View {
                             do {
                                 try KeychainService.saveTwitchToken(token)
                                 twitchReauthNeeded = false
+                                NotificationCenter.default.post(
+                                    name: NSNotification.Name("TwitchReauthNeededChanged"),
+                                    object: nil
+                                )
                                 twitchCredentialsSaved = true
                                 twitchConnectedOnce = true
                                 Log.info(
@@ -695,6 +714,10 @@ struct SettingsView: View {
             Log.debug("Settings: Saving OAuth token", category: "Settings")
             try KeychainService.saveTwitchToken(twitchOAuthToken)
             twitchReauthNeeded = false
+            NotificationCenter.default.post(
+                name: NSNotification.Name("TwitchReauthNeededChanged"),
+                object: nil
+            )
             Log.debug("Settings: Saving channel ID", category: "Settings")
             try KeychainService.saveTwitchChannelID(twitchChannelID)
             twitchCredentialsSaved = true
@@ -762,6 +785,14 @@ struct SettingsView: View {
         twitchChannelID = ""
         twitchCredentialsSaved = false
         twitchConnectedOnce = false
+        twitchReauthNeeded = false
+        oauthStatusMessage = ""
+        deviceUserCode = ""
+        deviceVerificationURI = ""
+        NotificationCenter.default.post(
+            name: NSNotification.Name("TwitchReauthNeededChanged"),
+            object: nil
+        )
         Log.info("Settings: Twitch credentials cleared", category: "Settings")
     }
 
@@ -799,11 +830,24 @@ struct SettingsView: View {
 
     /// Join the Twitch channel
     private func joinChannel() {
-        guard let token = KeychainService.loadTwitchToken(),
-            let channelID = KeychainService.loadTwitchChannelID(),
-            !channelID.isEmpty
-        else {
-            connectionStatusMessage = "Missing channel ID or credentials"
+        guard let token = KeychainService.loadTwitchToken() else {
+            connectionStatusMessage = "Missing credentials"
+            return
+        }
+
+        // Prefer explicit channel entry; otherwise fall back to the resolved bot username
+        let resolvedChannel: String? = {
+            if let saved = KeychainService.loadTwitchChannelID(), !saved.isEmpty {
+                return saved
+            }
+            if let username = KeychainService.loadTwitchUsername(), !username.isEmpty {
+                return username
+            }
+            return nil
+        }()
+
+        guard let channelName = resolvedChannel else {
+            connectionStatusMessage = "Enter a channel or sign in first"
             return
         }
 
@@ -818,7 +862,7 @@ struct SettingsView: View {
         Task {
             do {
                 try await twitchService?.connectToChannel(
-                    channelName: channelID,
+                    channelName: channelName,
                     token: token,
                     clientID: clientID
                 )
@@ -853,5 +897,38 @@ struct SettingsView: View {
 extension SettingsView.Constants.UserDefaultsKeys {
     static var allKeys: [String] {
         [trackingEnabled, websocketEnabled, websocketURI, currentSongCommandEnabled]
+    }
+}
+
+// MARK: - StatusChip and Helpers
+
+private struct StatusChip: View {
+    let text: String
+    let color: Color
+
+    var body: some View {
+        Text(text)
+            .font(.caption2).bold()
+            .padding(.horizontal, 6)
+            .padding(.vertical, 2)
+            .foregroundColor(color)
+            .background(color.opacity(0.15))
+            .clipShape(Capsule())
+    }
+}
+
+extension SettingsView {
+    fileprivate var twitchStatusChipText: String {
+        if twitchReauthNeeded { return "Reauth needed" }
+        if twitchChannelConnected { return "Connected" }
+        if twitchCredentialsSaved { return "Ready to join" }
+        return "Not signed in"
+    }
+
+    fileprivate var twitchStatusChipColor: Color {
+        if twitchReauthNeeded { return .yellow }
+        if twitchChannelConnected { return .green }
+        if twitchCredentialsSaved { return .blue }
+        return .secondary
     }
 }
