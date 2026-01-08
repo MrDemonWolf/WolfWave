@@ -1,0 +1,82 @@
+# Xcode
+.DS_Store
+.xcuserdata/
+.xcuserstate
+*.xcscmblueprint
+
+# Build generated
+/build/
+/DerivedData/
+*.o
+*.linkfilelist
+*.hmap
+*.ipa
+*.dSYM
+*.dSYM.zip
+
+# Xcode project files that should not be committed
+*.pbxuser
+!default.pbxuser
+*.mode1v3
+!default.mode1v3
+*.mode2v3
+!default.mode2v3
+*.perspectivev3
+!default.perspectivev3
+
+# Swift Package Manager
+/.build/
+/.swiftpm/
+/.package/
+Package.pins
+# Keep Package.resolved for apps if you want deterministic builds — uncomment to track it
+# Package.resolved
+
+# CocoaPods
+/Pods/
+Podfile.lock
+
+# Carthage
+/Carthage/Build/
+
+# Fastlane
+/fastlane/report.xml
+/fastlane/Preview.html
+/fastlane/screenshots/
+
+# Provisioning profiles, certs and keys
+*.mobileprovision
+*.provisionprofile
+*.cer
+*.crt
+*.p12
+*.key
+
+# Playgrounds
+timeline.xctimeline
+playground.xcworkspace
+
+# JetBrains
+.idea/
+
+# VS Code
+.vscode/
+
+# macOS
+.DS_Store
+Icon\r
+
+# Temporary files
+*~
+*.swp
+
+# Archives
+*.zip
+*.tar.gz
+
+# Ignore secrets/env
+.env
+.env.*
+
+# Ignore Xcode scheme state
+xcdebugger/
