@@ -134,40 +134,45 @@ struct SettingsView: View {
                 Divider()
 
                 // MARK: Tracking
-                GroupBox(label: Label("Music Playback Monitor", systemImage: "music.note")) {
-                    VStack(alignment: .leading, spacing: 12) {
+                GroupBox(
+                    label: Label("Music Playback Monitor", systemImage: "music.note").font(
+                        .headline)
+                ) {
+                    VStack(alignment: .leading, spacing: 10) {
+                        Spacer(minLength: 4)
+
+                        Text("Show what you're playing from Apple Music inside PackTrack.")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
 
                         Toggle("Show what's playing from Apple Music", isOn: $trackingEnabled)
                             .onChange(of: trackingEnabled) { _, newValue in
                                 notifyTrackingSettingChanged(enabled: newValue)
                             }
-
-                        Text(
-                            "Shows your current Apple Music track in PackTrack while you listen."
-                        )
-                        .font(.caption)
-                        .foregroundColor(.secondary)
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(8)
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
 
+                Divider()
+
                 // MARK: WebSocket
                 GroupBox(
                     label: Label(
-                        "Now Playing WebSocket", systemImage: "dot.radiowaves.left.and.right")
+                        "Now Playing WebSocket", systemImage: "dot.radiowaves.left.and.right"
+                    )
+                    .font(.headline)
                 ) {
-                    VStack(alignment: .leading, spacing: 12) {
+                    VStack(alignment: .leading, spacing: 10) {
+                        Spacer(minLength: 4)
+
+                        Text("Send your now playing info to an overlay or server via WebSocket.")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
 
                         Toggle("Send now playing to your server", isOn: $websocketEnabled)
                             .disabled(!isWebSocketURLValid)
-
-                        Text(
-                            "Sends your now playing track to the WebSocket URL you provide."
-                        )
-                        .font(.caption)
-                        .foregroundColor(.secondary)
 
                         TextField(
                             "WebSocket server URL (ws:// or wss://)", text: websocketURIBinding
@@ -200,7 +205,7 @@ struct SettingsView: View {
                         }
 
                         Text(
-                            "Any token you enter is stored securely in macOS Keychain and never written to disk or UserDefaults."
+                            "Tokens are stored securely in macOS Keychain; never written to disk or UserDefaults."
                         )
                         .font(.caption)
                         .foregroundColor(.secondary)
@@ -208,12 +213,18 @@ struct SettingsView: View {
                     .padding(8)
                 }
 
+                Divider()
+
                 // MARK: Twitch Bot
-                GroupBox(label: Label("Twitch Bot", systemImage: "bubble.left.and.bubble.right")) {
-                    VStack(alignment: .leading, spacing: 12) {
+                GroupBox(
+                    label: Label("Twitch Bot", systemImage: "bubble.left.and.bubble.right").font(
+                        .headline)
+                ) {
+                    VStack(alignment: .leading, spacing: 10) {
+                        Spacer(minLength: 4)
 
                         Text(
-                            "Let the bot join your Twitch channel so it can chat and share what you're playing."
+                            "Connect the bot to your Twitch channel so it can chat and share what you're playing."
                         )
                         .font(.caption)
                         .foregroundColor(.secondary)
@@ -256,8 +267,11 @@ struct SettingsView: View {
                             }
                         }
 
-                        TextField("Channel to join (your Twitch username)", text: $twitchChannelID)
+                        TextField("Channel to join", text: $twitchChannelID)
                             .textFieldStyle(.roundedBorder)
+
+                        Text("Channel to join (usually your Twitch username).").font(.caption)
+                            .foregroundColor(.secondary)
 
                         HStack {
                             Button(action: startTwitchOAuth) {
@@ -295,7 +309,7 @@ struct SettingsView: View {
                         }
 
                         Text(
-                            "After sign-in, your bot username, OAuth token, and channel name are stored securely in Keychain. The bot username is resolved from Twitch after authentication."
+                            "After sign-in, your bot username, OAuth token, and channel are stored securely in Keychain. The bot username is resolved from Twitch after authentication."
                         )
                         .font(.caption)
                         .foregroundColor(.secondary)
@@ -305,11 +319,9 @@ struct SettingsView: View {
                                 twitchService.debugLoggingEnabled = newValue
                             }
 
-                        Text(
-                            "Prints raw Twitch chat events to the debug console for troubleshooting."
-                        )
-                        .font(.caption)
-                        .foregroundColor(.secondary)
+                        Text("Prints raw Twitch chat events to the debug console.")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
 
                         Divider()
 
@@ -345,9 +357,17 @@ struct SettingsView: View {
                     .padding(8)
                 }
 
+                Divider()
+
                 // MARK: Twitch Bot Commands
-                GroupBox(label: Label("Bot Commands", systemImage: "command")) {
-                    VStack(alignment: .leading, spacing: 12) {
+                GroupBox(label: Label("Bot Commands", systemImage: "command").font(.headline)) {
+                    VStack(alignment: .leading, spacing: 10) {
+                        Spacer(minLength: 4)
+
+                        Text("Choose which chat commands the bot responds to in Twitch chat.")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+
                         Toggle("Current Song", isOn: $currentSongCommandEnabled)
 
                         Text(
@@ -487,6 +507,7 @@ struct SettingsView: View {
                     "Settings: Saving resolved bot username to Keychain: \(resolvedUsername)",
                     category: "Settings")
                 try KeychainService.saveTwitchUsername(resolvedUsername)
+                try KeychainService.saveTwitchBotUserID(identity.userID)
                 await MainActor.run {
                     twitchBotUsername = resolvedUsername
                     Log.info(
@@ -624,6 +645,8 @@ struct SettingsView: View {
         Log.info("Settings: Clearing Twitch credentials from Keychain", category: "Settings")
         Log.debug("Settings: Deleting bot username", category: "Settings")
         KeychainService.deleteTwitchUsername()
+        Log.debug("Settings: Deleting bot user ID", category: "Settings")
+        KeychainService.deleteTwitchBotUserID()
         Log.debug("Settings: Deleting OAuth token", category: "Settings")
         KeychainService.deleteTwitchToken()
         Log.debug("Settings: Deleting channel ID", category: "Settings")
@@ -688,16 +711,30 @@ struct SettingsView: View {
 
         Task {
             do {
-                let identity = try await twitchService.fetchBotIdentity(
-                    token: token, clientID: clientID)
-                let resolvedUsername =
-                    identity.displayName.isEmpty ? identity.login : identity.displayName
+                var botUserID = KeychainService.loadTwitchBotUserID()
+                var resolvedUsername = KeychainService.loadTwitchUsername() ?? ""
 
-                try KeychainService.saveTwitchUsername(resolvedUsername)
+                if botUserID?.isEmpty ?? true {
+                    let identity = try await twitchService.fetchBotIdentity(
+                        token: token, clientID: clientID)
+                    botUserID = identity.userID
+                    resolvedUsername =
+                        identity.displayName.isEmpty ? identity.login : identity.displayName
+                    try KeychainService.saveTwitchUsername(resolvedUsername)
+                    try KeychainService.saveTwitchBotUserID(identity.userID)
+                }
+
+                guard let botUserID else {
+                    throw NSError(
+                        domain: "Settings",
+                        code: -1,
+                        userInfo: [NSLocalizedDescriptionKey: "Missing bot user ID"]
+                    )
+                }
 
                 try twitchService.joinChannel(
                     broadcasterID: channelID,
-                    botID: identity.userID,
+                    botID: botUserID,
                     token: token,
                     clientID: clientID
                 )
