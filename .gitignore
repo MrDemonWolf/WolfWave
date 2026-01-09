@@ -1,20 +1,23 @@
-# Xcode
+############################################################
+# macOS
+############################################################
 .DS_Store
-.xcuserdata/
-.xcuserstate
+Icon\r
+
+############################################################
+# Xcode
+############################################################
+DerivedData/
+build/
+
+# User-specific data
+xcuserdata/
+*.xcuserstate
+*.xccheckout
+*.moved-aside
 *.xcscmblueprint
 
-# Build generated
-/build/
-/DerivedData/
-*.o
-*.linkfilelist
-*.hmap
-*.ipa
-*.dSYM
-*.dSYM.zip
-
-# Xcode project files that should not be committed
+# Project files that should not be committed
 *.pbxuser
 !default.pbxuser
 *.mode1v3
@@ -24,62 +27,75 @@
 *.perspectivev3
 !default.perspectivev3
 
+# Build artifacts
+*.o
+*.linkfilelist
+*.hmap
+*.ipa
+*.dSYM
+*.dSYM.zip
+*.xcresult
+
+# Xcode debugger data
+xcdebugger/
+
+############################################################
 # Swift Package Manager
+############################################################
 /.build/
 /.swiftpm/
-/.package/
 Package.pins
-# Keep Package.resolved for apps if you want deterministic builds — uncomment to track it
+# For apps, keep Package.resolved tracked for reproducible builds.
+# Uncomment the next line to ignore it (not recommended for apps):
 # Package.resolved
 
+############################################################
 # CocoaPods
+############################################################
 /Pods/
-Podfile.lock
+# Podfile.lock is recommended to be committed for apps
 
+############################################################
 # Carthage
+############################################################
 /Carthage/Build/
+/Carthage/Checkouts/
 
+############################################################
 # Fastlane
+############################################################
 /fastlane/report.xml
 /fastlane/Preview.html
-/fastlane/screenshots/
+/fastlane/screenshots/**/*.png
+/fastlane/test_output
+/fastlane/readme.md
 
-# Provisioning profiles, certs and keys
-*.mobileprovision
-*.provisionprofile
-*.cer
-*.crt
-*.p12
-*.key
-
+############################################################
 # Playgrounds
+############################################################
 timeline.xctimeline
 playground.xcworkspace
 
-# JetBrains
+############################################################
+# IDEs
+############################################################
 .idea/
-
-# VS Code
 .vscode/
 
-# macOS
-.DS_Store
-Icon\r
-
+############################################################
 # Temporary files
+############################################################
 *~
 *.swp
 
+############################################################
 # Archives
+############################################################
 *.zip
 *.tar.gz
 
-# Ignore secrets/env
+############################################################
+# Secrets / env
+############################################################
 .env
 .env.*
-
-# Ignore Xcode scheme state
-xcdebugger/
-
-# macOS system file
-.DS_Store
