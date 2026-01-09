@@ -1,24 +1,117 @@
-# WolfWave
+# WolfWave - Apple Music + Twitch Companion 🎵
 
-WolfWave is a macOS menu bar app that:
+![WolfWave Banner](banner.jpg)
 
-- Tracks the currently playing song from Apple Music
-- Streams “now playing” data to a WebSocket endpoint
-- Runs a Twitch chat bot (EventSub + Helix) that can answer `!song`
-- Stores all credentials securely in macOS Keychain
+Your Stream’s Now Playing Companion! WolfWave makes it easy to share what you’re listening to with your community. Show real-time “now playing” info, let your chat ask for the current song, and keep everything secure and lightweight.
 
-## Settings Overview
+Whether you’re streaming, recording, or just vibing, WolfWave helps your audience connect with your music. Keep things simple, fast, and privacy-friendly.
 
-- **Music Tracking**: Enable/disable Apple Music monitoring
-- **WebSocket**: Provide ws:// or wss:// URL and optional JWT token
-- **Twitch Bot**: Save Twitch OAuth token and bot username in Keychain
-- **Bot Commands**: Toggle Current Song (`!song`, `!currentsong`, `!nowplaying`)
+Start your stream with a song, or let your chat discover new music with `!song`. Let’s make sharing your soundtrack effortless!
 
----
+## Features
 
-## Maintenance Commands
+- **Real-time Now Playing**: Tracks the current Apple Music song and updates instantly.
+- **Twitch Chat Integration**: Responds to `!song`, `!currentsong`, and `!nowplaying` using modern EventSub + Helix (no IRC).
+- **WebSocket Streaming**: Broadcast now-playing data to your overlay or tools (ws:// or wss://).
+- **Secure by Default**: Credentials are stored in macOS Keychain; no plain-text tokens.
 
-Convenient targets are provided via a Makefile at the repo root.
+## Getting Started
+
+To use WolfWave on macOS:
+
+1. Clone the repository:
+
+   ```bash
+   git clone https://github.com/MrDemonWolf/PackTrack.git
+   cd PackTrack
+   ```
+
+2. Open the project:
+
+   ```bash
+   make open-xcode
+   # or
+   open wolfwave.xcodeproj
+   ```
+
+3. Resolve dependencies:
+
+   ```bash
+   make update-deps
+   ```
+
+4. Build and run from Xcode (⌘R)
+
+## Usage
+
+WolfWave is user-friendly and runs from your macOS menu bar.
+
+- Menu bar icon shows your current track.
+- Toggle Apple Music tracking on/off.
+- Configure WebSocket streaming (endpoint + optional JWT).
+- Connect your Twitch bot via secure device auth.
+- Chat commands supported: `!song`, `!currentsong`, `!nowplaying`.
+
+## Change Log
+
+See Releases for updates and changes:
+
+- https://github.com/MrDemonWolf/PackTrack/releases
+
+## Development
+
+### Prerequisites
+
+- macOS 12.0+
+- Xcode 15.0+
+- Swift 5.9+
+- Command Line Tools: `xcode-select --install`
+
+### Setup
+
+1. Fork and clone the repository
+2. Open the project: `make open-xcode`
+3. Resolve dependencies: `make update-deps`
+
+### Development Commands
+
+- `make build` — Build the app
+- `make clean` — Clean build artifacts
+- `make test` — Run tests (if configured)
+- `make update-deps` — Resolve SwiftPM dependencies
+- `make open-xcode` — Open the Xcode project
+- `make env-check` — Check required environment configuration
+- `make ci` — CI-friendly build
+
+### Project Structure
+
+```
+wolfwave/
+├── Core/                    # Core utilities and services
+│   ├── KeychainService.swift
+│   └── Logger.swift
+├── Monitors/                # Music playback monitoring
+│   └── MusicPlaybackMonitor.swift
+├── Services/                # External service integrations
+│   └── Twitch/
+│       ├── TwitchChatService.swift
+│       ├── TwitchDeviceAuth.swift
+│       └── Commands/
+├── Views/                   # SwiftUI views
+│   ├── SettingsView.swift
+│   └── Twitch/
+└── Resources/              # Assets and resources
+```
+
+### Code Quality
+
+This project follows Swift best practices:
+
+- Swift 5.9+ with modern concurrency (async/await)
+- SwiftUI for user interfaces
+- Separation of concerns across Core/Services/Views
+- Secure credential storage via Keychain
+- Robust error handling
 
 ```bash
 # Build the app
@@ -41,6 +134,7 @@ make ci
 ```
 
 Notes:
+
 - `make test` will attempt to run tests if a test target exists. If none, it safely no-ops.
 
 ## Twitch Chat Bot
@@ -81,7 +175,16 @@ Register it in `BotCommandDispatcher.registerDefaultCommands()` by instantiating
 - WebSocket tokens, Twitch OAuth tokens, and Twitch bot usernames are stored in Keychain
 - Tokens are not written to UserDefaults or disk in plain text
 
-## Links
+## License
 
-- [Twitch EventSub](https://dev.twitch.tv/docs/eventsub/)
-- [Twitch Helix Chat/Send Message](https://dev.twitch.tv/docs/api/reference/#send-chat-message)
+![GitHub license](https://img.shields.io/github/license/MrDemonWolf/wolfwave.svg?style=for-the-badge&logo=github)
+
+## Contact
+
+If you have any questions, suggestions, or feedback, reach out on Discord!
+
+- Discord: [Join my server](https://mrdwolf.com/discord)
+
+Thank you for choosing WolfWave to share your music with your community!
+
+Made with ❤️ by <a href="https://www.mrdemonwolf.com">MrDemonWolf, Inc.</a>
