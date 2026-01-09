@@ -2,17 +2,46 @@
 
 WolfWave is a macOS menu bar app that:
 
-- Tracks the currently playing song from Apple Music.
-- Can push “now playing” data to a WebSocket endpoint.
-- Runs a Twitch chat bot (EventSub + Helix) that can answer chat commands like `!song`.
-- Stores all credentials securely in the macOS Keychain.
+- Tracks the currently playing song from Apple Music
+- Streams “now playing” data to a WebSocket endpoint
+- Runs a Twitch chat bot (EventSub + Helix) that can answer `!song`
+- Stores all credentials securely in macOS Keychain
 
 ## Settings Overview
 
-- **Music Tracking**: Enable/disable Apple Music monitoring; shows real-time track info in the app.
-- **WebSocket**: Enter a ws:// or wss:// URL and (optionally) a JWT token to stream “now playing” data to an overlay/server.
-- **Twitch Bot**: Save Twitch OAuth token and bot username; credentials live in Keychain.
-- **Bot Commands**: Toggle the Current Song command (`!song`, `!currentsong`, `!nowplaying`).
+- **Music Tracking**: Enable/disable Apple Music monitoring
+- **WebSocket**: Provide ws:// or wss:// URL and optional JWT token
+- **Twitch Bot**: Save Twitch OAuth token and bot username in Keychain
+- **Bot Commands**: Toggle Current Song (`!song`, `!currentsong`, `!nowplaying`)
+
+---
+
+## Maintenance Commands
+
+Convenient targets are provided via a Makefile at the repo root.
+
+```bash
+# Build the app
+make build
+
+# Clean build artifacts
+make clean
+
+# Resolve SwiftPM dependencies
+make update-deps
+
+# Open the Xcode project
+make open-xcode
+
+# Check required environment vars (e.g., TWITCH_CLIENT_ID)
+make env-check
+
+# CI-friendly: build-only
+make ci
+```
+
+Notes:
+- `make test` will attempt to run tests if a test target exists. If none, it safely no-ops.
 
 ## Twitch Chat Bot
 
@@ -31,7 +60,7 @@ The bot is implemented with `TwitchChatService` using Twitch Helix + EventSub (n
 - `SongCommand` handles `!song`, `!currentsong`, and `!nowplaying` and calls the injected `getCurrentSongInfo` closure.
 - `BotCommandDispatcher` wires commands together and is used inside `TwitchChatService`.
 
-#### Adding a New Command (example)
+### Adding a New Command (example)
 
 ```swift
 final class HelloCommand: BotCommand {
@@ -45,12 +74,12 @@ final class HelloCommand: BotCommand {
 }
 ```
 
-Register it (for now) in `BotCommandDispatcher.registerDefaultCommands()` by instantiating and calling `register(_:)`, and add any needed settings toggle before enabling it by default.
+Register it in `BotCommandDispatcher.registerDefaultCommands()` by instantiating and calling `register(_:)`. Add any Settings toggle before enabling it by default.
 
 ## Security
 
-- WebSocket tokens, Twitch OAuth tokens, and Twitch bot usernames are stored in Keychain.
-- Tokens are not written to UserDefaults or disk in plain text.
+- WebSocket tokens, Twitch OAuth tokens, and Twitch bot usernames are stored in Keychain
+- Tokens are not written to UserDefaults or disk in plain text
 
 ## Links
 

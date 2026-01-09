@@ -7,25 +7,7 @@
 
 import Foundation
 
-/// Modern Twitch Chat service using Helix API + EventSub (recommended by Twitch)
-///
-/// Uses the Twitch Helix API for sending messages and EventSub for receiving.
-/// Supports message replies with proper thread tracking.
-///
-/// Usage:
-/// ```swift
-/// let service = TwitchChatService()
-/// service.getCurrentSongInfo = { /* return current song */ }
-///
-/// service.joinChannel(
-///     broadcasterID: "12345",
-///     botID: "67890",
-///     token: "oauth:xxxxx"
-/// )
-/// ```
 final class TwitchChatService {
-    // MARK: - Types
-
     struct ChatMessage {
         let messageID: String
         let username: String
@@ -69,8 +51,6 @@ final class TwitchChatService {
         }
     }
 
-    // MARK: - Properties
-
     private let apiBaseURL = "https://api.twitch.tv/helix"
     private let commandDispatcher = BotCommandDispatcher()
 
@@ -84,19 +64,11 @@ final class TwitchChatService {
     private var botUsername: String?
     var debugLoggingEnabled = false
 
-    /// Callback to get current song info for !song command
     var getCurrentSongInfo: (() -> String)?
-
-    /// Whether bot commands (currently just current song) are enabled
     var commandsEnabled = true
-
-    /// Callback when a message is received
     var onMessageReceived: ((ChatMessage) -> Void)?
 
-    /// Callback when connection state changes
     var onConnectionStateChanged: ((Bool) -> Void)?
-
-    // MARK: - Notifications
 
     static let connectionStateChanged = NSNotification.Name("TwitchChatConnectionStateChanged")
 
@@ -106,15 +78,6 @@ final class TwitchChatService {
         let displayName: String
     }
 
-    // MARK: - Public Methods
-
-    /// Join a channel to start receiving messages
-    ///
-    /// - Parameters:
-    ///   - broadcasterID: The broadcaster's Twitch user ID (channel owner)
-    ///   - botID: The bot's Twitch user ID
-    ///   - token: OAuth token with user:write:chat scope
-    ///   - clientID: Twitch Client ID
     func joinChannel(
         broadcasterID: String,
         botID: String,
@@ -137,7 +100,6 @@ final class TwitchChatService {
         self.clientID = clientID
         self.botUsername = nil
 
-        // Set up the current song info callback for commands
         commandDispatcher.setCurrentSongInfo { [weak self] in
             self?.getCurrentSongInfo?() ?? "No track currently playing"
         }
@@ -150,22 +112,9 @@ final class TwitchChatService {
         )
         Log.info("Twitch: Joining channel \(broadcasterID)", category: "TwitchChat")
 
-        // Connect to EventSub WebSocket to receive messages
         connectToEventSub()
     }
 
-    /// Connect to a Twitch channel with automatic bot identity resolution.
-    ///
-    /// This method handles the complete setup:
-    /// 1. Resolves the bot identity (user ID and username) if needed
-    /// 2. Resolves the channel name to a user ID
-    /// 3. Joins the channel via EventSub
-    ///
-    /// - Parameters:
-    ///   - channelName: The channel to join (username)
-    ///   - token: OAuth token with user:write:chat scope
-    ///   - clientID: Twitch Client ID
-    /// - Throws: Connection error if any step fails
     func connectToChannel(channelName: String, token: String, clientID: String) async throws {
         guard !channelName.isEmpty, !token.isEmpty else {
             Log.error("Twitch: Invalid channel name or token", category: "TwitchChat")
@@ -177,7 +126,6 @@ final class TwitchChatService {
             throw ConnectionError.missingClientID
         }
 
-        // Get or resolve bot identity
         var botUserID = KeychainService.loadTwitchBotUserID()
         var resolvedUsername = KeychainService.loadTwitchUsername() ?? ""
 
@@ -196,7 +144,6 @@ final class TwitchChatService {
             throw ConnectionError.invalidCredentials
         }
 
-        // Resolve channel name to user ID
         let broadcasterUserID = try await resolveUsername(
             channelName,
             token: token,
@@ -207,7 +154,6 @@ final class TwitchChatService {
             throw ConnectionError.networkError("Could not resolve channel name to user ID")
         }
 
-        // Join the channel
         try joinChannel(
             broadcasterID: broadcasterUserID,
             botID: botUserID,
@@ -218,15 +164,6 @@ final class TwitchChatService {
         Log.info("Twitch: Connected to channel \(channelName)", category: "TwitchChat")
     }
 
-    /// Resolve and cache the bot identity (user ID and username).
-    ///
-    /// This method fetches the bot's user ID and username from Twitch and caches them locally.
-    /// Used for populating UI and internal state without connecting to a channel.
-    ///
-    /// - Parameters:
-    ///   - token: OAuth token with user:read:users scope
-    ///   - clientID: Twitch Client ID
-    /// - Throws: Connection error if the fetch fails
     func resolveBotIdentity(token: String, clientID: String) async throws {
         guard !token.isEmpty else {
             throw ConnectionError.invalidCredentials
@@ -239,7 +176,6 @@ final class TwitchChatService {
         let identity = try await fetchBotIdentity(token: token, clientID: clientID)
         let resolvedUsername = identity.displayName.isEmpty ? identity.login : identity.displayName
 
-        // Cache the identity
         try KeychainService.saveTwitchUsername(resolvedUsername)
         try KeychainService.saveTwitchBotUserID(identity.userID)
 
@@ -248,15 +184,6 @@ final class TwitchChatService {
             category: "TwitchChat")
     }
 
-    /// Static method to resolve and cache bot identity without requiring a service instance.
-    ///
-    /// This is useful for SettingsView when the service might not be available yet.
-    /// Fetches bot identity from Twitch API and caches to Keychain.
-    ///
-    /// - Parameters:
-    ///   - token: OAuth token with user:read:users scope
-    ///   - clientID: Twitch Client ID
-    /// - Throws: Connection error if the fetch fails
     static func resolveBotIdentityStatic(token: String, clientID: String) async throws {
         guard !token.isEmpty else {
             throw ConnectionError.invalidCredentials
@@ -270,7 +197,6 @@ final class TwitchChatService {
         let identity = try await service.fetchBotIdentity(token: token, clientID: clientID)
         let resolvedUsername = identity.displayName.isEmpty ? identity.login : identity.displayName
 
-        // Cache the identity
         try KeychainService.saveTwitchUsername(resolvedUsername)
         try KeychainService.saveTwitchBotUserID(identity.userID)
 
@@ -526,15 +452,12 @@ final class TwitchChatService {
             reply: reply
         )
 
-        // Process message through command dispatcher
         if commandsEnabled, let response = commandDispatcher.processMessage(text) {
             sendMessage(response, replyTo: messageID)
         }
 
         onMessageReceived?(chatMessage)
     }
-
-    // MARK: - Private Helpers
 
     private func sendAPIRequest(
         method: String,
@@ -573,8 +496,6 @@ final class TwitchChatService {
             completion(.success(data))
         }.resume()
     }
-
-    // MARK: - EventSub WebSocket
 
     private func connectToEventSub() {
         Log.debug("Twitch: Connecting to EventSub WebSocket", category: "TwitchChat")
@@ -624,7 +545,6 @@ final class TwitchChatService {
                     )
                 }
 
-                // Continue receiving messages
                 self.receiveWebSocketMessage()
 
             case .failure(let error):
@@ -659,7 +579,6 @@ final class TwitchChatService {
         case "notification":
             handleNotification(json)
         case "session_keepalive":
-            // Just keep the connection alive
             break
         default:
             break
@@ -676,9 +595,7 @@ final class TwitchChatService {
         }
 
         self.sessionID = sessionID
-        // EventSub session established
 
-        // Subscribe to chat message events
         subscribeToChannelChatMessage()
     }
 
@@ -733,7 +650,6 @@ final class TwitchChatService {
                 if (200..<300).contains(http.statusCode) {
                     Log.info("Twitch: Connected to chat", category: "TwitchChat")
 
-                    // Send connection message after successful subscription
                     DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) { [weak self] in
                         self?.sendMessage("WolfWave Application is connected! 🎵")
                     }
@@ -779,7 +695,6 @@ final class TwitchChatService {
             throw ConnectionError.networkError("Unable to resolve username")
         }
 
-        // Username resolved
         return userID
     }
 

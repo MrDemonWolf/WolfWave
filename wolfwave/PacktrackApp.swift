@@ -8,13 +8,8 @@
 import AppKit
 import SwiftUI
 
-/// The main application structure for PackTrack.
-///
-/// PackTrack is a macOS menu bar app that monitors Apple Music playback
-/// and displays currently playing tracks in the system menu bar.
 @main
 struct PacktrackApp: App {
-    /// The application delegate that handles menu bar UI and music tracking
     @NSApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
 
     var body: some Scene {
@@ -25,8 +20,6 @@ struct PacktrackApp: App {
 }
 
 class AppDelegate: NSObject, NSApplicationDelegate {
-    // MARK: - Constants
-
     fileprivate enum Constants {
         static let defaultAppName = "Pack Track"
         static let displayName = "WolfWave"
@@ -49,14 +42,11 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         }
     }
 
-    // MARK: - Properties
-
     var statusItem: NSStatusItem?
     var musicMonitor: MusicPlaybackMonitor?
     var settingsWindow: NSWindow?
     var twitchService: TwitchChatService?
 
-    /// Current song information for Twitch bot
     private var currentSong: String?
     private var currentArtist: String?
     private var currentAlbum: String?
@@ -66,8 +56,6 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             .infoDictionary?["CFBundleName"] as? String ?? Constants.displayName
     }
 
-    // MARK: - Lifecycle
-
     func applicationDidFinishLaunching(_ notification: Notification) {
         setupStatusItem()
         setupMenu()
@@ -76,23 +64,12 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         setupNotificationObservers()
         initializeTrackingState()
 
-        // Validate stored Twitch token on boot and set a reauth flag if needed
         Task { [weak self] in
             await self?.validateTwitchTokenOnBoot()
-
-            // Auto-join Twitch channel if credentials are valid
             await self?.autoJoinTwitchChannel()
         }
     }
 
-    // MARK: - Menu State Helpers
-
-    /// Resets the now playing menu items to show a status message.
-    ///
-    /// This method hides the artist and album items and displays a single
-    /// status message in gray text (e.g., "No track playing", "Tracking disabled").
-    ///
-    /// - Parameter message: The status message to display
     private func resetNowPlayingMenu(message: String) {
         guard let menu = statusItem?.menu,
             menu.items.count > Constants.MenuItemIndex.album
@@ -106,26 +83,12 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         hideMenuItem(at: Constants.MenuItemIndex.album)
     }
 
-    /// Updates the menu to display a status message.
-    ///
-    /// This is a convenience method that calls resetNowPlayingMenu on the main queue.
-    ///
-    /// - Parameter text: The status message to display
     func updateNowPlaying(_ text: String) {
         DispatchQueue.main.async { [weak self] in
             self?.resetNowPlayingMenu(message: text)
         }
     }
 
-    /// Updates the menu to display currently playing track information.
-    ///
-    /// If track information is provided, displays song, artist, and album on separate lines.
-    /// If any parameter is nil, displays "No track playing" instead.
-    ///
-    /// - Parameters:
-    ///   - song: The song name (optional)
-    ///   - artist: The artist name (optional)
-    ///   - album: The album name (optional)
     func updateTrackDisplay(song: String?, artist: String?, album: String?) {
         DispatchQueue.main.async { [weak self] in
             guard let self, let menu = self.statusItem?.menu else { return }
@@ -138,14 +101,6 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         }
     }
 
-    // MARK: - Actions
-
-    /// Handles changes to the tracking enabled/disabled setting.
-    ///
-    /// This method is called when the user toggles tracking in the settings view.
-    /// It starts or stops the music tracker accordingly and updates the menu display.
-    ///
-    /// - Parameter notification: Contains the new enabled state in userInfo["enabled"]
     @objc func trackingSettingChanged(_ notification: Notification) {
         guard let enabled = notification.userInfo?["enabled"] as? Bool else { return }
 
@@ -157,10 +112,6 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         updateNowPlaying("Tracking disabled")
     }
 
-    /// Opens the settings window.
-    ///
-    /// Creates the settings window on first open and reuses it on subsequent opens.
-    /// The window is brought to the front and the app is activated.
     @objc func openSettings() {
         if settingsWindow == nil {
             settingsWindow = createSettingsWindow()
@@ -169,25 +120,17 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         showWindow(settingsWindow)
     }
 
-    /// Shows the standard About panel for the application.
-    ///
-    /// Displays macOS's built-in About panel with app information from Info.plist.
     @objc func showAbout() {
         NSApp.orderFrontStandardAboutPanel(options: [.applicationName: appName])
         NSApp.activate(ignoringOtherApps: true)
     }
 
-    /// Returns the current song information as a formatted string.
-    ///
-    /// Used by the Twitch bot to respond to !song commands.
     func getCurrentSongInfo() -> String {
         guard let song = currentSong, let artist = currentArtist else {
             return "No track currently playing"
         }
         return "Now playing: \(song) by \(artist)"
     }
-
-    // MARK: - Private Helpers
 
     private func setupStatusItem() {
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
@@ -232,7 +175,6 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         headerItem.isEnabled = false
         menu.addItem(headerItem)
 
-        // Add three disabled items for song, artist, album
         for _ in 0..<3 {
             let item = NSMenuItem(title: "", action: nil, keyEquivalent: "")
             item.isEnabled = false
@@ -291,8 +233,6 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             }
             return "Now playing: \(song) by \(artist)"
         }
-
-        // No menu status; nothing to sync here
     }
 
     private func setupNotificationObservers() {
@@ -305,20 +245,14 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     private func initializeTrackingState() {
-        setDefaultTrackingStateIfNeeded()
+        if UserDefaults.standard.object(forKey: Constants.UserDefaults.trackingEnabled) == nil {
+            UserDefaults.standard.set(true, forKey: Constants.UserDefaults.trackingEnabled)
+        }
 
         if isTrackingEnabled() {
             musicMonitor?.startTracking()
         } else {
             resetNowPlayingMenu(message: "Tracking disabled")
-        }
-    }
-
-    // (Removed Twitch status menu row per request)
-
-    private func setDefaultTrackingStateIfNeeded() {
-        if UserDefaults.standard.object(forKey: Constants.UserDefaults.trackingEnabled) == nil {
-            UserDefaults.standard.set(true, forKey: Constants.UserDefaults.trackingEnabled)
         }
     }
 
@@ -400,8 +334,6 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     }
 }
 
-// MARK: - Twitch Token Validation
-
 extension AppDelegate {
     @MainActor
     private func setReauthNeeded(_ needed: Bool) {
@@ -410,11 +342,10 @@ extension AppDelegate {
 
     fileprivate func validateTwitchTokenOnBoot() async {
         guard let token = KeychainService.loadTwitchToken(), !token.isEmpty else {
-            setReauthNeeded(false)  // no token stored; don't nag until user tries to auth
+            setReauthNeeded(false)
             return
         }
 
-        // Validate token and scopes
         let isValid = await twitchService?.validateToken(token) ?? false
         await MainActor.run {
             setReauthNeeded(!isValid)
@@ -422,7 +353,6 @@ extension AppDelegate {
     }
 
     fileprivate func autoJoinTwitchChannel() async {
-        // Check if credentials are saved and valid
         guard let token = KeychainService.loadTwitchToken(), !token.isEmpty,
             let channelID = KeychainService.loadTwitchChannelID(), !channelID.isEmpty,
             !UserDefaults.standard.bool(forKey: "twitchReauthNeeded")
@@ -430,10 +360,8 @@ extension AppDelegate {
             return
         }
 
-        // Wait for Twitch service to be ready
-        try? await Task.sleep(nanoseconds: 2_000_000_000)  // 2 seconds
+        try? await Task.sleep(nanoseconds: 2_000_000_000)
 
-        // Join the channel
         await MainActor.run {
             guard let clientID = TwitchChatService.resolveClientID(), !clientID.isEmpty else {
                 Log.error(
@@ -462,16 +390,10 @@ extension AppDelegate {
     }
 }
 
-// MARK: - MusicPlaybackMonitorDelegate
-
-/// Extension implementing the MusicPlaybackMonitorDelegate protocol.
-///
-/// Receives callbacks from MusicPlaybackMonitor and updates the menu bar display accordingly.
 extension AppDelegate: MusicPlaybackMonitorDelegate {
     func musicPlaybackMonitor(
         _ monitor: MusicPlaybackMonitor, didUpdateTrack track: String, artist: String, album: String
     ) {
-        // Store current song info for Twitch bot
         currentSong = track
         currentArtist = artist
         currentAlbum = album
@@ -480,7 +402,6 @@ extension AppDelegate: MusicPlaybackMonitorDelegate {
     }
 
     func musicPlaybackMonitor(_ monitor: MusicPlaybackMonitor, didUpdateStatus status: String) {
-        // Clear song info when playback stops
         if status != "No track playing" {
             currentSong = nil
             currentArtist = nil

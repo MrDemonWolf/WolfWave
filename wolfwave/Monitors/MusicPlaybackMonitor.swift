@@ -8,39 +8,15 @@
 import Foundation
 import AppKit
 
-// Backward compatibility after renaming from MusicTracker
 typealias MusicTracker = MusicPlaybackMonitor
 typealias MusicTrackerDelegate = MusicPlaybackMonitorDelegate
 
-/// Delegate protocol for receiving updates about music playback status.
-///
-/// Implement this protocol to receive callbacks when the currently playing track changes
-/// or when the playback status changes (e.g., music stopped, permission needed).
 protocol MusicPlaybackMonitorDelegate: AnyObject {
-    /// Called when a new track starts playing.
-    ///
-    /// - Parameters:
-    ///   - monitor: The MusicPlaybackMonitor instance that detected the change
-    ///   - track: The name of the currently playing track
-    ///   - artist: The artist of the currently playing track
-    ///   - album: The album of the currently playing track
     func musicPlaybackMonitor(_ monitor: MusicPlaybackMonitor, didUpdateTrack track: String, artist: String, album: String)
-    
-    /// Called when the playback status changes (e.g., no track playing, permission needed).
-    ///
-    /// - Parameters:
-    ///   - monitor: The MusicPlaybackMonitor instance that detected the status change
-    ///   - status: A human-readable status message
     func musicPlaybackMonitor(_ monitor: MusicPlaybackMonitor, didUpdateStatus status: String)
 }
 
-/// Monitors Apple Music playback and reports currently playing tracks.
-///
-/// This class uses AppleScript to query the Music app and receives notifications
-/// when playback changes. It runs checks on a background queue to avoid blocking the UI.
 class MusicPlaybackMonitor {
-    // MARK: - Constants
-    
     fileprivate enum Constants {
         static let notificationName = "com.apple.Music.playerInfo"
         static let queueLabel = "com.mrdemonwolf.packtrack.musicplaybackmonitor"
@@ -57,45 +33,21 @@ class MusicPlaybackMonitor {
         }
     }
     
-    // MARK: - Properties
-    
-    /// The delegate that will receive music tracking updates
     weak var delegate: MusicPlaybackMonitorDelegate?
-    
-    /// Timer for periodic track checks (fallback if notifications miss updates)
     private var timer: DispatchSourceTimer?
-    
-    /// Stores the last track info to avoid duplicate console logs
     private var lastLoggedTrack: String?
-
-    /// Timestamp for last successful track detection, used to smooth transient idle states
     private var lastTrackSeenAt: Date = .distantPast
-    
-    /// Flag to ensure we only show the permission alert once per session
     private var hasRequestedPermission = false
-
-    /// Indicates whether tracking is currently active to avoid duplicate observers/timers
     private var isTracking = false
-    
-    /// Background queue for executing AppleScript commands without blocking the UI
     private let backgroundQueue = DispatchQueue(
         label: Constants.queueLabel,
         qos: .userInitiated
     )
 
-    /// Prevents overlapping checks; allows one pending rerun to capture latest state
     private var isCheckInProgress = false
     private var hasPendingCheck = false
-
-    /// Dedupes rapid-fire distributed notifications
     private var lastNotificationAt = Date.distantPast
     
-    // MARK: - Public Methods
-    
-    /// Starts monitoring Apple Music for playback changes.
-    ///
-    /// This method subscribes to Music.app distributed notifications and sets up a timer
-    /// as a fallback mechanism. All track checks run on a background queue.
     func startTracking() {
         guard !isTracking else { return }
         isTracking = true
@@ -106,12 +58,6 @@ class MusicPlaybackMonitor {
         setupFallbackTimer()
     }
     
-    /// Handles distributed notifications from Music.app when playback state changes.
-    ///
-    /// This method is called automatically when Music.app posts a playerInfo notification.
-    /// It triggers an immediate track check on the background queue.
-    ///
-    /// - Parameter notification: The notification from Music.app (contains playback info)
     @objc private func musicPlayerInfoChanged(_ notification: Notification) {
         let now = Date()
         guard now.timeIntervalSince(lastNotificationAt) >= Constants.notificationDedupWindow else {
@@ -119,14 +65,10 @@ class MusicPlaybackMonitor {
             return
         }
         lastNotificationAt = now
-        // Music.app sent a notification that something changed
         Log.debug("Music notification received", category: "MusicPlaybackMonitor")
         scheduleTrackCheck(reason: "notification")
     }
     
-    /// Stops monitoring Apple Music and cleans up resources.
-    ///
-    /// This method removes notification observers and invalidates the polling timer.
     func stopTracking() {
         guard isTracking else {
             Log.debug("stopTracking called while already stopped", category: "MusicPlaybackMonitor")
@@ -169,9 +111,6 @@ class MusicPlaybackMonitor {
         handleTrackInfo(trackInfo)
     }
     
-    /// Notifies the delegate of a status change on the main queue.
-    ///
-    /// - Parameter status: A status message describing the current state
     private func notifyDelegate(status: String) {
         DispatchQueue.main.async { [weak self] in
             guard let self = self else { return }
@@ -179,12 +118,6 @@ class MusicPlaybackMonitor {
         }
     }
     
-    /// Notifies the delegate of a track change on the main queue.
-    ///
-    /// - Parameters:
-    ///   - track: The track name
-    ///   - artist: The artist name
-    ///   - album: The album name
     private func notifyDelegate(track: String, artist: String, album: String) {
         DispatchQueue.main.async { [weak self] in
             guard let self = self else { return }
@@ -192,10 +125,6 @@ class MusicPlaybackMonitor {
         }
     }
     
-    /// Displays an alert to the user explaining how to grant Music.app automation permission.
-    ///
-    /// This alert provides step-by-step instructions and offers to open System Settings directly.
-    /// It's shown only once per session when AppleScript access is denied.
     private func showPermissionAlert() {
         let alert = NSAlert()
         alert.messageText = "Permission Required"
@@ -206,19 +135,12 @@ class MusicPlaybackMonitor {
         
         let response = alert.runModal()
         if response == .alertFirstButtonReturn {
-            // Open System Settings to Privacy
             if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Automation") {
                 NSWorkspace.shared.open(url)
             }
         }
     }
     
-    /// Parses track information string and notifies the delegate.
-    ///
-    /// The track info is expected to be in the format: "trackName | artist | album"
-    /// This method also logs new tracks to the console (avoiding duplicates).
-    ///
-    /// - Parameter trackInfo: A pipe-separated string containing track, artist, and album
     private func processTrackInfo(_ trackInfo: String) {
         let components = trackInfo.components(separatedBy: Constants.trackSeparator)
         guard components.count == 3 else {
@@ -231,8 +153,6 @@ class MusicPlaybackMonitor {
         notifyDelegate(track: trackName, artist: artist, album: album)
         logTrackIfNew(trackInfo, trackName: trackName, artist: artist, album: album)
     }
-    
-    // MARK: - Private Helpers
     
     private func subscribeToMusicNotifications() {
         DistributedNotificationCenter.default().addObserver(
