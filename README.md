@@ -2,11 +2,11 @@
 
 ![WolfWave Banner](banner.jpg)
 
-Your Stream’s Now Playing Companion! WolfWave makes it easy to share what you’re listening to with your community. Show real-time “now playing” info, let your chat ask for the current song, and keep everything secure and lightweight.
+Your Stream's Now Playing Companion! WolfWave makes it easy to share what you're listening to with your community. Show real-time "now playing" info, let your chat ask for the current song, and keep everything secure and lightweight.
 
-Whether you’re streaming, recording, or just vibing, WolfWave helps your audience connect with your music. Keep things simple, fast, and privacy-friendly.
+Whether you're streaming, recording, or just vibing, WolfWave helps your audience connect with your music. Keep things simple, fast, and privacy-friendly.
 
-Start your stream with a song, or let your chat discover new music with `!song`. Let’s make sharing your soundtrack effortless!
+Start your stream with a song, or let your chat discover new music with `!song`. Let's make sharing your soundtrack effortless!
 
 ## Features
 
@@ -40,11 +40,11 @@ To use WolfWave on macOS, follow these simple steps:
    make update-deps
    ```
 
-4. Build and run from Xcode (⌘R)
+4. Build and run from Xcode (⌘R) 🎉
 
 ## Usage
 
-WolfWave is user-friendly and runs from your macOS menu bar.
+WolfWave is user-friendly and runs from your macOS menu bar. Here's a quick guide to the basic features:
 
 - Menu bar icon shows your current track.
 - Toggle Apple Music tracking on/off.
@@ -52,11 +52,11 @@ WolfWave is user-friendly and runs from your macOS menu bar.
 - Connect your Twitch bot via secure device auth.
 - Chat commands supported: `!song`, `!currentsong`, `!nowplaying`.
 
-## Change Log
+# Change Log
 
 See Releases for updates and changes:
 
-- https://github.com/MrDemonWolf/PackTrack/releases
+- https://github.com/MrDemonWolf/WolfWave/releases
 
 ## Development
 
@@ -113,48 +113,14 @@ wolfwave/
 └── Resources/              # Assets and resources
 ```
 
-### Code Quality
-
-This project follows Swift best practices:
-
-- Swift 5.9+ with modern concurrency (async/await)
-- SwiftUI for user interfaces
-- Separation of concerns across Core/Services/Views
-- Secure credential storage via Keychain
-- Robust error handling
-
-```bash
-# Build the app
-make build
-
-# Clean build artifacts
-make clean
-
-# Resolve SwiftPM dependencies
-make update-deps
-
-# Open the Xcode project
-make open-xcode
-
-# Check required environment vars (e.g., TWITCH_CLIENT_ID)
-make env-check
-
-# CI-friendly: build-only
-make ci
-```
-
-Notes:
-
-- `make test` will attempt to run tests if a test target exists. If none, it safely no-ops.
-
-## Twitch Chat Bot
+### Twitch Chat Bot
 
 The bot is implemented with `TwitchChatService` using Twitch Helix + EventSub (no IRC).
 
 - Connect with saved credentials: `joinChannel(broadcasterID:botID:token:clientID:)` or `connectToChannel(channelName:token:clientID:)`.
 - Send chat messages via Helix: `sendMessage(_:)` or `sendMessage(_:replyTo:)`.
 - Supply current track info for commands: set `getCurrentSongInfo` on the service.
-- Commands can be toggled in Settings (“Bot Commands” → “Current Song”).
+- Commands can be toggled in Settings ("Bot Commands" → "Current Song").
 - The service respects `commandsEnabled` so you can disable all commands from Settings.
 
 ### Bot Command Architecture
@@ -180,7 +146,7 @@ final class HelloCommand: BotCommand {
 
 Register it in `BotCommandDispatcher.registerDefaultCommands()` by instantiating and calling `register(_:)`. Add any Settings toggle before enabling it by default.
 
-## Security
+### Security
 
 - WebSocket tokens, Twitch OAuth tokens, and Twitch bot usernames are stored in Keychain
 - Tokens are not written to UserDefaults or disk in plain text
