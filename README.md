@@ -17,13 +17,13 @@ Start your stream with a song, or let your chat discover new music with `!song`.
 
 ## Getting Started
 
-To use WolfWave on macOS:
+To use WolfWave on macOS, follow these simple steps:
 
 1. Clone the repository:
 
    ```bash
-   git clone https://github.com/MrDemonWolf/PackTrack.git
-   cd PackTrack
+   git clone https://github.com/MrDemonWolf/WolfWave.git
+   cd WolfWave
    ```
 
 2. Open the project:
@@ -82,6 +82,16 @@ See Releases for updates and changes:
 - `make open-xcode` — Open the Xcode project
 - `make env-check` — Check required environment configuration
 - `make ci` — CI-friendly build
+
+### Code Quality
+
+This project follows Swift best practices:
+
+- Swift 5.9+ with modern concurrency (async/await)
+- SwiftUI for user interfaces
+- Separation of concerns across Core/Services/Views
+- Secure credential storage via Keychain
+- Robust error handling
 
 ### Project Structure
 
