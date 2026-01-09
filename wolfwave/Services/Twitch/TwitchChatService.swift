@@ -87,13 +87,18 @@ final class TwitchChatService {
     /// Callback to get current song info for !song command
     var getCurrentSongInfo: (() -> String)?
 
+    /// Whether bot commands (currently just current song) are enabled
+    var commandsEnabled = true
+
     /// Callback when a message is received
     var onMessageReceived: ((ChatMessage) -> Void)?
 
     /// Callback when connection state changes
     var onConnectionStateChanged: ((Bool) -> Void)?
 
-    // MARK: - Types
+    // MARK: - Notifications
+
+    static let connectionStateChanged = NSNotification.Name("TwitchChatConnectionStateChanged")
 
     struct BotIdentity {
         let userID: String
@@ -138,13 +143,15 @@ final class TwitchChatService {
         }
 
         onConnectionStateChanged?(true)
-        Log.info("Twitch: Joined channel \(broadcasterID)", category: "TwitchChat")
+        NotificationCenter.default.post(
+            name: TwitchChatService.connectionStateChanged,
+            object: nil,
+            userInfo: ["isConnected": true]
+        )
+        Log.info("Twitch: Joining channel \(broadcasterID)", category: "TwitchChat")
 
         // Connect to EventSub WebSocket to receive messages
         connectToEventSub()
-
-        // Send activation message to chat
-        sendMessage("WolfWave Application is connected! 🎵")
     }
 
     /// Connect to a Twitch channel with automatic bot identity resolution.
@@ -346,6 +353,11 @@ final class TwitchChatService {
         clientID = nil
 
         onConnectionStateChanged?(false)
+        NotificationCenter.default.post(
+            name: TwitchChatService.connectionStateChanged,
+            object: nil,
+            userInfo: ["isConnected": false]
+        )
         Log.info("Twitch: Left channel", category: "TwitchChat")
     }
 
@@ -515,7 +527,7 @@ final class TwitchChatService {
         )
 
         // Process message through command dispatcher
-        if let response = commandDispatcher.processMessage(text) {
+        if commandsEnabled, let response = commandDispatcher.processMessage(text) {
             sendMessage(response, replyTo: messageID)
         }
 
@@ -720,6 +732,11 @@ final class TwitchChatService {
             if let http = response as? HTTPURLResponse {
                 if (200..<300).contains(http.statusCode) {
                     Log.info("Twitch: Connected to chat", category: "TwitchChat")
+
+                    // Send connection message after successful subscription
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) { [weak self] in
+                        self?.sendMessage("WolfWave Application is connected! 🎵")
+                    }
                 } else {
                     let responseText =
                         data.flatMap { String(data: $0, encoding: .utf8) } ?? "No response"

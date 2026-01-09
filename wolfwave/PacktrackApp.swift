@@ -79,6 +79,9 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         // Validate stored Twitch token on boot and set a reauth flag if needed
         Task { [weak self] in
             await self?.validateTwitchTokenOnBoot()
+
+            // Auto-join Twitch channel if credentials are valid
+            await self?.autoJoinTwitchChannel()
         }
     }
 
@@ -415,6 +418,46 @@ extension AppDelegate {
         let isValid = await twitchService?.validateToken(token) ?? false
         await MainActor.run {
             setReauthNeeded(!isValid)
+        }
+    }
+
+    fileprivate func autoJoinTwitchChannel() async {
+        // Check if credentials are saved and valid
+        guard let token = KeychainService.loadTwitchToken(), !token.isEmpty,
+            let channelID = KeychainService.loadTwitchChannelID(), !channelID.isEmpty,
+            !UserDefaults.standard.bool(forKey: "twitchReauthNeeded")
+        else {
+            return
+        }
+
+        // Wait for Twitch service to be ready
+        try? await Task.sleep(nanoseconds: 2_000_000_000)  // 2 seconds
+
+        // Join the channel
+        await MainActor.run {
+            guard let clientID = TwitchChatService.resolveClientID(), !clientID.isEmpty else {
+                Log.error(
+                    "AppDelegate: Cannot auto-join - missing Twitch Client ID", category: "Twitch")
+                return
+            }
+
+            Task {
+                do {
+                    try await twitchService?.connectToChannel(
+                        channelName: channelID,
+                        token: token,
+                        clientID: clientID
+                    )
+
+                    Log.info(
+                        "AppDelegate: Auto-joined Twitch channel \(channelID)", category: "Twitch")
+                } catch {
+                    Log.error(
+                        "AppDelegate: Failed to auto-join Twitch channel - \(error.localizedDescription)",
+                        category: "Twitch"
+                    )
+                }
+            }
         }
     }
 }
