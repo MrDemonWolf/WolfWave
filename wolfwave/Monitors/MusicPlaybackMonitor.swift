@@ -20,9 +20,8 @@ class MusicPlaybackMonitor {
     fileprivate enum Constants {
         static let notificationName = "com.apple.Music.playerInfo"
         static let queueLabel = "com.mrdemonwolf.packtrack.musicplaybackmonitor"
-        static let checkInterval: TimeInterval = 30.0
+        static let checkInterval: TimeInterval = 1.0
         static let trackSeparator = " | "
-        static let permissionErrorCode = -1743
         static let notificationDedupWindow: TimeInterval = 0.75
         static let idleGraceWindow: TimeInterval = 2.0
         
@@ -37,21 +36,18 @@ class MusicPlaybackMonitor {
     private var timer: DispatchSourceTimer?
     private var lastLoggedTrack: String?
     private var lastTrackSeenAt: Date = .distantPast
-    private var hasRequestedPermission = false
     private var isTracking = false
     private let backgroundQueue = DispatchQueue(
         label: Constants.queueLabel,
         qos: .userInitiated
     )
 
-    private var isCheckInProgress = false
-    private var hasPendingCheck = false
     private var lastNotificationAt = Date.distantPast
     
     func startTracking() {
         guard !isTracking else { return }
         isTracking = true
-        Log.info("Starting music playback monitoring…", category: "MusicPlaybackMonitor")
+        Log.info("Starting music playback monitoring with MediaPlayer…", category: "MusicPlaybackMonitor")
         
         subscribeToMusicNotifications()
         performInitialTrackCheck()
@@ -98,7 +94,7 @@ class MusicPlaybackMonitor {
         let output = scriptObject.executeAndReturnError(&error)
         
         if let error = error {
-            handleScriptError(error)
+            Log.error("AppleScript error: \(error)", category: "MusicPlaybackMonitor")
             return
         }
         
@@ -125,23 +121,7 @@ class MusicPlaybackMonitor {
         }
     }
     
-    private func showPermissionAlert() {
-        let alert = NSAlert()
-        alert.messageText = "Permission Required"
-        alert.informativeText = "Packtrack needs permission to access Apple Music.\n\n1. Open System Settings\n2. Go to Privacy & Security → Automation\n3. Enable 'Music' for Packtrack\n\nThen restart Packtrack."
-        alert.alertStyle = .informational
-        alert.addButton(withTitle: "Open System Settings")
-        alert.addButton(withTitle: "OK")
-        
-        let response = alert.runModal()
-        if response == .alertFirstButtonReturn {
-            if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Automation") {
-                NSWorkspace.shared.open(url)
-            }
-        }
-    }
-    
-    private func processTrackInfo(_ trackInfo: String) {
+    private func processTrackInfoString(_ trackInfo: String) {
         let components = trackInfo.components(separatedBy: Constants.trackSeparator)
         guard components.count == 3 else {
             Log.warn("Invalid track info format: \(trackInfo)", category: "MusicPlaybackMonitor")
@@ -179,34 +159,13 @@ class MusicPlaybackMonitor {
 
     private func scheduleTrackCheck(reason: String) {
         backgroundQueue.async { [weak self] in
-            guard let self else { return }
-            if self.isCheckInProgress {
-                self.hasPendingCheck = true
-                Log.debug("Queueing track check while another is running (reason: \(reason))", category: "MusicPlaybackMonitor")
-                return
-            }
-
-            self.isCheckInProgress = true
-            self.hasPendingCheck = false
-
-            while true {
-                self.checkCurrentTrack()
-                let rerun = self.hasPendingCheck
-                self.hasPendingCheck = false
-                if rerun {
-                    Log.debug("Running pending track check", category: "MusicPlaybackMonitor")
-                    continue
-                }
-                break
-            }
-
-            self.isCheckInProgress = false
+            self?.checkCurrentTrack()
         }
     }
 
     private func scheduleTrackCheck(after delay: TimeInterval, reason: String) {
         backgroundQueue.asyncAfter(deadline: .now() + delay) { [weak self] in
-            self?.scheduleTrackCheck(reason: reason)
+            self?.checkCurrentTrack()
         }
     }
     
@@ -233,19 +192,6 @@ class MusicPlaybackMonitor {
         """
     }
     
-    private func handleScriptError(_ error: NSDictionary) {
-        let errorCode = error["NSAppleScriptErrorNumber"] as? Int ?? 0
-        
-        if errorCode == Constants.permissionErrorCode && !hasRequestedPermission {
-            hasRequestedPermission = true
-            DispatchQueue.main.async { [weak self] in
-                self?.showPermissionAlert()
-            }
-        }
-        Log.warn("AppleScript permission or execution error (code: \(errorCode))", category: "MusicPlaybackMonitor")
-        notifyDelegate(status: "Needs permission")
-    }
-    
     private func handleTrackInfo(_ trackInfo: String) {
         if trackInfo.hasPrefix(Constants.Status.errorPrefix) {
             Log.error("Script error: \(trackInfo)", category: "MusicPlaybackMonitor")
@@ -263,7 +209,7 @@ class MusicPlaybackMonitor {
             Log.debug("Music app is idle (not playing)", category: "MusicPlaybackMonitor")
             notifyDelegate(status: "No track playing")
         } else {
-            processTrackInfo(trackInfo)
+            processTrackInfoString(trackInfo)
         }
     }
     
