@@ -3,11 +3,13 @@
 PROJECT=wolfwave.xcodeproj
 SCHEME=WolfWave
 
-.PHONY: help build clean test update-deps open-xcode env-check ci
+.PHONY: help build clean test update-deps open-xcode env-check ci prod-build prod-install
 
 help:
 	@echo "Available targets:"
-	@echo "  build          Build the app via xcodebuild"
+	@echo "  build          Build the app via xcodebuild (Debug)"
+	@echo "  prod-build     Build Release version for testing"
+	@echo "  prod-install   Build Release and install to /Applications"
 	@echo "  clean          Clean build artifacts"
 	@echo "  test           Run tests (if a test target exists)"
 	@echo "  update-deps    Resolve SwiftPM dependencies"
@@ -40,3 +42,14 @@ env-check:
 	fi
 
 ci: build
+
+prod-build:
+	xcodebuild -project $(PROJECT) -scheme $(SCHEME) -configuration Release build -quiet
+	@echo "✅ Release build complete. App located at: build/Release/WolfWave.app"
+
+prod-install: prod-build
+	@echo "📦 Installing WolfWave to /Applications..."
+	@rm -rf /Applications/WolfWave.app
+	@cp -r build/Release/WolfWave.app /Applications/
+	@echo "✅ WolfWave installed to /Applications"
+	@echo "🚀 Launch with: open /Applications/WolfWave.app
