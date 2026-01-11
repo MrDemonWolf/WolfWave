@@ -1,6 +1,6 @@
 # WolfWave maintenance commands
 
-PROJECT=wolfwave.xcodeproj
+PROJECT=src/wolfwave/wolfwave.xcodeproj
 SCHEME=WolfWave
 
 .PHONY: help build clean test update-deps open-xcode env-check ci prod-build prod-install
