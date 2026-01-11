@@ -1,0 +1,48 @@
+name: Build and deploy docs to GitHub Pages
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'pnpm'
+
+      - name: Install pnpm
+        run: npm install -g pnpm
+
+      - name: Install dependencies (docs)
+        run: pnpm install --frozen-lockfile
+        working-directory: docs
+
+      - name: Build docs and export static site
+        run: |
+          pnpm run build
+          pnpm exec next export -o out
+        working-directory: docs
+
+      - name: Configure GitHub Pages
+        uses: actions/configure-pages@v4
+
+      - name: Upload artifact for GitHub Pages
+        uses: actions/upload-pages-artifact@v1
+        with:
+          path: docs/out
+
+      - name: Deploy to GitHub Pages
+        uses: actions/deploy-pages@v1
