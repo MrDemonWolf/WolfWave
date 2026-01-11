@@ -8,7 +8,9 @@ const config = {
   reactStrictMode: true,
   trailingSlash: true,
   basePath: process.env.NEXT_PUBLIC_BASE_PATH || undefined,
-  assetPrefix: basePath ? `${basePath}/` : undefined,
+  assetPrefix: process.env.NEXT_PUBLIC_BASE_PATH
+    ? `${process.env.NEXT_PUBLIC_BASE_PATH}/`
+    : undefined,
 };
 
 export default withMDX(config);
