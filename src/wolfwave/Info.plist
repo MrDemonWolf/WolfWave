@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+	<dict>
+		<key>NSAppleMusicUsageDescription</key>
+		<string>WolfWave needs access to Apple Music to read your currently playing track and share Now Playing updates with your Twitch community. WolfWave does not modify your music library.</string>
+		<key>NSAppleEventsUsageDescription</key>
+		<string>WolfWave needs AppleScript access to communicate with Apple Music and retrieve information about your currently playing track. This does not modify your music playback or library.</string>
+		<key>com.apple.security.app-sandbox</key>
+		<true/>
+		<key>com.apple.security.scripting-targets</key>
+		<dict>
+			<key>Item 0</key>
+			<string>com.apple.Music</string>
+		</dict>
+		<key>com.apple.security.temporary-exception.apple-events</key>
+		<array>
+			<string>com.apple.Music</string>
+		</array>
+	</dict>
+</plist>
