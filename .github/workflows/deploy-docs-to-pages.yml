@@ -2,47 +2,54 @@ name: Build and deploy docs to GitHub Pages
 
 on:
   push:
-    branches:
-      - main
+    branches: [main]
   workflow_dispatch:
 
 jobs:
-  build-and-deploy:
+  build:
     runs-on: ubuntu-latest
     permissions:
       contents: read
-      pages: write
-      id-token: write
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - uses: actions/setup-node@v4
         with:
           node-version: '20'
           cache: 'pnpm'
+          cache-dependency-path: docs/pnpm-lock.yaml
 
-      - name: Install pnpm
-        run: npm install -g pnpm
+      - uses: actions/configure-pages@v4
+        id: pages
 
-      - name: Install dependencies (docs)
+      - name: Propagate base path (optional)
+        run: echo "NEXT_PUBLIC_BASE_PATH=${{ steps.pages.outputs.base_url }}" >> "$GITHUB_ENV"
+
+      - name: Install docs deps
+        working-directory: docs
         run: pnpm install --frozen-lockfile
+
+      - name: Build static docs
         working-directory: docs
+        run: pnpm run build
 
-      - name: Build docs and export static site
-        run: |
-          pnpm run build
-          pnpm exec next export -o out
-        working-directory: docs
-
-      - name: Configure GitHub Pages
-        uses: actions/configure-pages@v4
-
-      - name: Upload artifact for GitHub Pages
-        uses: actions/upload-pages-artifact@v4
+      - uses: actions/upload-pages-artifact@v4
         with:
           path: docs/out
 
-      - name: Deploy to GitHub Pages
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - id: deploy
         uses: actions/deploy-pages@v4
