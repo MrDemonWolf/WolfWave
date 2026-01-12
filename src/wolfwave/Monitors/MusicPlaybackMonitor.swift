@@ -7,6 +7,21 @@
 
 import Foundation
 import AppKit
+import ScriptingBridge
+
+// MARK: - Music.app ScriptingBridge Protocol
+@objc protocol MusicApplication {
+    @objc optional var currentTrack: MusicTrack { get }
+    @objc optional func playerState() -> String
+}
+
+@objc protocol MusicTrack {
+    @objc optional var name: String { get }
+    @objc optional var artist: String { get }
+    @objc optional var album: String { get }
+}
+
+extension SBApplication: MusicApplication {}
 
 typealias MusicTracker = MusicPlaybackMonitor
 typealias MusicTrackerDelegate = MusicPlaybackMonitorDelegate
@@ -24,14 +39,14 @@ class MusicPlaybackMonitor {
         static let trackSeparator = " | "
         static let notificationDedupWindow: TimeInterval = 0.75
         static let idleGraceWindow: TimeInterval = 2.0
-        
+
         enum Status {
             static let notRunning = "NOT_RUNNING"
             static let notPlaying = "NOT_PLAYING"
             static let errorPrefix = "ERROR:"
         }
     }
-    
+
     weak var delegate: MusicPlaybackMonitorDelegate?
     private var timer: DispatchSourceTimer?
     private var lastLoggedTrack: String?
@@ -77,34 +92,54 @@ class MusicPlaybackMonitor {
         Log.info("Stopped music playback monitoring", category: "MusicPlaybackMonitor")
     }
     
-    /// Queries Apple Music using AppleScript to get the currently playing track.
+    /// Queries Apple Music using ScriptingBridge to get the currently playing track.
     ///
-    /// This method executes an AppleScript that checks if Music.app is running and playing,
+    /// This method uses ScriptingBridge (Apple Events) to check if Music.app is running and playing,
     /// then retrieves the current track information. It handles various states like
     /// app not running, not playing, or permission errors.
     private func checkCurrentTrack() {
-        let script = createMusicQueryScript()
-        
-        guard let scriptObject = NSAppleScript(source: script) else {
-            Log.error("Failed to create AppleScript", category: "MusicPlaybackMonitor")
+        // Check if Music.app is running
+        let isRunning = NSRunningApplication.runningApplications(withBundleIdentifier: "com.apple.Music").first != nil
+        guard isRunning else {
+            handleTrackInfo(Constants.Status.notRunning)
             return
         }
-        
-        var error: NSDictionary?
-        let output = scriptObject.executeAndReturnError(&error)
-        
-        if let error = error {
-            Log.error("AppleScript error: \(error)", category: "MusicPlaybackMonitor")
-            return
-        }
-        
-        guard let trackInfo = output.stringValue else {
-            Log.warn("No track info returned from AppleScript", category: "MusicPlaybackMonitor")
+
+        guard let musicApp = SBApplication(bundleIdentifier: "com.apple.Music") else {
+            Log.error("Failed to create SBApplication for Music", category: "MusicPlaybackMonitor")
             notifyDelegate(status: "No track info")
             return
         }
+
+        // Get player state using KVC - playerState returns enum: stopped/playing/paused/fastForwarding/rewinding
+        guard let stateObj = musicApp.value(forKey: "playerState") else {
+            Log.warn("Unable to read playerState via ScriptingBridge", category: "MusicPlaybackMonitor")
+            notifyDelegate(status: "No track info")
+            return
+        }
+
+        // Check if playing - playerState returns FourCharCode 'kPSP' = 1800426320 for playing
+        let isPlaying: Bool
+        if let stateNum = stateObj as? NSNumber {
+            let stateValue = stateNum.uint32Value
+            isPlaying = (stateValue == 1800426320) // 'kPSP' (0x6b505350) = playing
+        } else {
+            isPlaying = false
+        }
         
-        handleTrackInfo(trackInfo)
+        if isPlaying {
+            if let track = musicApp.value(forKey: "currentTrack") as? SBObject {
+                let name = track.value(forKey: "name") as? String ?? ""
+                let artist = track.value(forKey: "artist") as? String ?? ""
+                let album = track.value(forKey: "album") as? String ?? ""
+                let combined = name + Constants.trackSeparator + artist + Constants.trackSeparator + album
+                handleTrackInfo(combined)
+            } else {
+                handleTrackInfo(Constants.Status.notPlaying)
+            }
+        } else {
+            handleTrackInfo(Constants.Status.notPlaying)
+        }
     }
     
     private func notifyDelegate(status: String) {
@@ -167,29 +202,6 @@ class MusicPlaybackMonitor {
         backgroundQueue.asyncAfter(deadline: .now() + delay) { [weak self] in
             self?.checkCurrentTrack()
         }
-    }
-    
-    private func createMusicQueryScript() -> String {
-        return """
-        tell application "Music"
-            try
-                if it is running then
-                    if player state is playing then
-                        set trackName to name of current track
-                        set trackArtist to artist of current track
-                        set trackAlbum to album of current track
-                        return trackName & "\(Constants.trackSeparator)" & trackArtist & "\(Constants.trackSeparator)" & trackAlbum
-                    else
-                        return "\(Constants.Status.notPlaying)"
-                    end if
-                else
-                    return "\(Constants.Status.notRunning)"
-                end if
-            on error errMsg
-                return "\(Constants.Status.errorPrefix)" & errMsg
-            end try
-        end tell
-        """
     }
     
     private func handleTrackInfo(_ trackInfo: String) {
