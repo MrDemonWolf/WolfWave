@@ -20,8 +20,9 @@ struct SettingsView: View {
 
     fileprivate enum Constants {
         static let defaultAppName = "WolfWave"
-        static let minWidth: CGFloat = 600
-        static let minHeight: CGFloat = 550
+        static let minWidth: CGFloat = 700
+        static let minHeight: CGFloat = 500
+        static let sidebarWidth: CGFloat = 200
         static let validSchemes = ["ws", "wss", "http", "https"]
 
         enum UserDefaultsKeys {
@@ -34,6 +35,35 @@ struct SettingsView: View {
 
         enum Notifications {
             static let trackingSettingChanged = "TrackingSettingChanged"
+        }
+    }
+    
+    // MARK: - Sidebar Navigation
+    
+    enum SettingsSection: String, CaseIterable, Identifiable {
+        case musicMonitor = "Music Monitor"
+        case appVisibility = "App Visibility"
+        case websocket = "WebSocket"
+        case twitchIntegration = "Twitch Integration"
+        case advanced = "Advanced"
+        
+        var id: String { rawValue }
+        
+        var systemIcon: String? {
+            switch self {
+            case .musicMonitor: return "music.note"
+            case .appVisibility: return "eye"
+            case .websocket: return "dot.radiowaves.left.and.right"
+            case .twitchIntegration: return nil // Uses custom image
+            case .advanced: return "gearshape"
+            }
+        }
+        
+        var customIcon: String? {
+            switch self {
+            case .twitchIntegration: return "TwitchLogo"
+            default: return nil
+            }
         }
     }
 
@@ -51,14 +81,6 @@ struct SettingsView: View {
     @AppStorage(Constants.UserDefaultsKeys.trackingEnabled)
     private var trackingEnabled = true
 
-    /// Whether WebSocket reporting is enabled
-    @AppStorage(Constants.UserDefaultsKeys.websocketEnabled)
-    private var websocketEnabled = false
-
-    /// The WebSocket server URI (ws:// or wss://)
-    @AppStorage(Constants.UserDefaultsKeys.websocketURI)
-    private var websocketURI: String?
-
     /// Whether the Current Song command is enabled
     @AppStorage(Constants.UserDefaultsKeys.currentSongCommandEnabled)
     private var currentSongCommandEnabled = false
@@ -67,13 +89,6 @@ struct SettingsView: View {
     private var dockVisibility = "both"
 
     // MARK: - State
-
-    /// The authentication token (JWT) for WebSocket connections.
-    /// Temporarily held in memory and saved to Keychain when user clicks "Save Token".
-    @State private var authToken: String = ""
-
-    /// Indicates whether the token has been successfully saved to Keychain
-    @State private var tokenSaved = false
 
     /// Twitch settings view model
     @StateObject private var twitchViewModel = TwitchViewModel()
@@ -85,240 +100,70 @@ struct SettingsView: View {
 
     /// Controls the display of the reset confirmation alert
     @State private var showingResetAlert = false
-
-    // MARK: - Validation
-
-    /// Validates the WebSocket URI format.
-    ///
-    /// Ensures the URI has a valid scheme (ws, wss, http, or https) and can be parsed as a URL.
-    /// - Returns: true if the URI is valid, false otherwise
-    private var isWebSocketURLValid: Bool {
-        guard let uri = websocketURI, !uri.isEmpty else {
-            return false
-        }
-        return isValidWebSocketURL(uri)
-    }
+    
+    /// Currently selected settings section
+    @State private var selectedSection: SettingsSection = .musicMonitor
+    
+    /// Controls sidebar visibility
+    @State private var sidebarVisibility: NavigationSplitViewVisibility = .all
 
     var body: some View {
-        ScrollView(.vertical) {
-            VStack(alignment: .leading, spacing: 16) {
-
-                // MARK: Header
-                Text("Settings")
-                    .font(.title)
-
-                Divider()
-
-                // MARK: Tracking
-                GroupBox(
-                    label: Label("Music Playback Monitor", systemImage: "music.note").font(
-                        .headline
-                    )
-                    .padding(.bottom, 4)
-                ) {
-                    VStack(alignment: .leading, spacing: 10) {
-                        Text("Monitor your Apple Music playback to display in the menu bar and share with external services like Twitch or custom WebSocket endpoints.")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-
-                        HStack {
-                            Text("Enable Apple Music monitoring")
-                            Spacer()
-                            Toggle("", isOn: $trackingEnabled)
-                                .labelsHidden()
-                                .toggleStyle(.switch)
-                                .onChange(of: trackingEnabled) { _, newValue in
-                                    notifyTrackingSettingChanged(enabled: newValue)
-                                }
-                        }
+        NavigationSplitView(columnVisibility: $sidebarVisibility) {
+            // Sidebar
+            List(SettingsSection.allCases, selection: $selectedSection) { section in
+                if let customIcon = section.customIcon {
+                    Label {
+                        Text(section.rawValue)
+                    } icon: {
+                        Image(customIcon)
+                            .renderingMode(.original)
+                            .resizable()
+                            .interpolation(.high)
+                            .scaledToFit()
+                            .frame(width: 16, height: 16)
                     }
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(10)
+                    .tag(section)
+                } else if let systemIcon = section.systemIcon {
+                    Label(section.rawValue, systemImage: systemIcon)
+                        .tag(section)
                 }
-                .frame(maxWidth: .infinity, alignment: .leading)
-
-                Divider()
-
-                // MARK: App Visibility
-                GroupBox(
-                    label: Label("App Visibility", systemImage: "eye")
-                        .font(.headline)
-                        .padding(.bottom, 4)
-                ) {
-                    VStack(alignment: .leading, spacing: 10) {
-                        Text("Choose where WolfWave appears on your Mac.")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-
-                        Picker("Show app in:", selection: $dockVisibility) {
-                            Text("Dock and Menu Bar").tag("both")
-                            Text("Menu Bar Only").tag("menuOnly")
-                            Text("Dock Only").tag("dockOnly")
-                        }
-                        .pickerStyle(.radioGroup)
-                        .onChange(of: dockVisibility) { _, newValue in
-                            applyDockVisibility(newValue)
-                        }
-
-                        if dockVisibility == "menuOnly" {
-                            Text("When menu bar only is enabled, the app will appear in the dock when settings are open.")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                        }
-                    }
-                    .padding(10)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                }
-
-                Divider()
-
-                // MARK: WebSocket
-                GroupBox(
-                    label: Label(
-                        "Now Playing WebSocket", systemImage: "dot.radiowaves.left.and.right"
-                    )
-                    .font(.headline)
-                    .padding(.bottom, 4)
-                ) {
-                    VStack(alignment: .leading, spacing: 12) {
-                        Text("Send your now playing info to an overlay or server via WebSocket.")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-
-                        VStack(alignment: .leading, spacing: 8) {
-                            TextField("WebSocket server URL (ws:// or wss://)", text: websocketURIBinding)
-                                .textFieldStyle(.roundedBorder)
-
-                            if !isWebSocketURLValid && !(websocketURI?.isEmpty ?? true) {
-                                Text("Please enter a valid WebSocket URL (ws:// or wss://).")
-                                    .font(.caption)
-                                    .foregroundStyle(.red)
-                            }
-                        }
-
-                        HStack {
-                            Text("Enable WebSocket connection")
-                            Spacer()
-                            Toggle("", isOn: $websocketEnabled)
-                                .labelsHidden()
-                                .toggleStyle(.switch)
-                                .disabled(!isWebSocketURLValid)
-                        }
-
-                        if !isWebSocketURLValid {
-                            Text("Add a WebSocket URL to enable this feature.")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                        }
-
-                        Divider()
-                            .padding(.vertical, 4)
-
-                        VStack(alignment: .leading, spacing: 8) {
-                            Text("Authentication (Optional)")
-                                .font(.caption)
-                                .fontWeight(.medium)
-                                .foregroundStyle(.secondary)
-
-                            SecureField("Auth token (JWT)", text: $authToken)
-                                .textFieldStyle(.roundedBorder)
-
-                            HStack(spacing: 8) {
-                                Button("Save Token") {
-                                    saveToken()
-                                }
-                                .disabled(authToken.isEmpty)
-                                .buttonStyle(.bordered)
-
-                                Button("Clear Token") {
-                                    clearToken()
-                                }
-                                .disabled(!tokenSaved && authToken.isEmpty)
-                                .buttonStyle(.bordered)
-                                .foregroundColor(.red)
-
-                                if tokenSaved {
-                                    Image(systemName: "checkmark.circle.fill")
-                                        .foregroundColor(.green)
-                                        .imageScale(.medium)
-                                }
-                            }
-
-                            Text("Only required if your WebSocket server uses authentication.")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                        }
-                    }
-                    .padding(10)
-                }
-
-                Divider()
-
-                // MARK: Twitch Bot
-                TwitchSettingsView(viewModel: twitchViewModel)
-
-                Divider()
-
-                // MARK: Twitch Bot Commands
-                GroupBox(
-                    label: Label("Bot Commands", systemImage: "command").font(.headline).padding(
-                        .bottom, 4)
-                ) {
-                    VStack(alignment: .leading, spacing: 10) {
-                        Text("Choose which chat commands the bot responds to in Twitch chat.")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-
-                        HStack {
-                            Text("Current Song")
-                            Spacer()
-                            Toggle("", isOn: $currentSongCommandEnabled)
-                                .labelsHidden()
-                                .toggleStyle(.switch)
-                                .onChange(of: currentSongCommandEnabled) { _, enabled in
-                                    appDelegate?.twitchService?.commandsEnabled = enabled
-                                }
-                        }
-
-                        Text(
-                            "When enabled, the bot will respond to !song, !currentsong, and !nowplaying in Twitch chat with the currently playing Apple Music track."
-                        )
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                    }
-                    .padding(10)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                }
-
-                Spacer(minLength: 10)
-
-                Divider()
-
-                // MARK: Reset
-                HStack {
-                    Button("Reset to Defaults") {
-                        showingResetAlert = true
-                    }
-                    .buttonStyle(.bordered)
-                    .foregroundColor(.red)
-                    Spacer()
-                }
-                .padding(.top, 4)
             }
-            .padding()
+            .navigationSplitViewColumnWidth(Constants.sidebarWidth)
+            .listStyle(.sidebar)
+        } detail: {
+            // Detail view
+            ScrollView {
+                VStack(alignment: .leading, spacing: 20) {
+                    detailView(for: selectedSection)
+                }
+                .padding(20)
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+            }
+            .background(.ultraThinMaterial)
+            .toolbar {
+                ToolbarItem(placement: .primaryAction) {
+                    Button(action: {
+                        withAnimation(.easeInOut(duration: 0.25)) {
+                            sidebarVisibility = sidebarVisibility == .all ? .detailOnly : .all
+                        }
+                    }) {
+                        Image(systemName: sidebarVisibility == .all ? "sidebar.left" : "sidebar.leading")
+                    }
+                }
+            }
         }
-        .background(.ultraThinMaterial)
         .frame(minWidth: Constants.minWidth, minHeight: Constants.minHeight)
+        .keyboardShortcut("w", modifiers: .command)
+        .onKeyPress { keyPress in
+            if keyPress.key == .escape || (keyPress.modifiers.contains(.command) && keyPress.key.character == "w") {
+                if sidebarVisibility == .all {
+                    sidebarVisibility = .detailOnly
+                }
+                return .handled
+            }
+            return .ignored
+        }
         .onAppear {
-            if let savedToken = KeychainService.loadToken() {
-                authToken = savedToken
-                tokenSaved = true
-            }
-
-            if !isWebSocketURLValid {
-                websocketEnabled = false
-            }
-
             // Initialize Twitch view model
             twitchViewModel.twitchService = appDelegate?.twitchService
             twitchViewModel.loadSavedCredentials()
@@ -360,31 +205,88 @@ struct SettingsView: View {
             Text("This will reset all settings and clear the stored authentication token.")
         }
     }
-
-    // MARK: - Computed Properties
-
-    private var websocketURIBinding: Binding<String> {
-        Binding(
-            get: { websocketURI ?? "" },
-            set: { newValue in
-                websocketURI = newValue
-                if !isWebSocketURLValid {
-                    websocketEnabled = false
+    
+    // MARK: - Detail Views
+    
+    @ViewBuilder
+    private func detailView(for section: SettingsSection) -> some View {
+        switch section {
+        case .musicMonitor:
+            MusicMonitorSettingsView()
+        case .appVisibility:
+            AppVisibilitySettingsView()
+        case .websocket:
+            WebSocketSettingsView()
+        case .twitchIntegration:
+            twitchIntegrationView()
+        case .advanced:
+            AdvancedSettingsView(showingResetAlert: $showingResetAlert)
+        }
+    }
+    
+    private func twitchIntegrationView() -> some View {
+        VStack(alignment: .leading, spacing: 24) {
+            VStack(alignment: .leading, spacing: 8) {
+                HStack(spacing: 8) {
+                    Image("TwitchLogo")
+                        .renderingMode(.original)
+                        .resizable()
+                        .scaledToFit()
+                        .frame(width: 18, height: 18)
+                    Text("Twitch Integration")
+                        .font(.title2)
+                        .fontWeight(.semibold)
+                    Spacer()
+                    StatusChip(text: twitchViewModel.statusChipText, color: twitchViewModel.statusChipColor)
                 }
             }
-        )
+            
+            // Twitch Bot Connection
+            TwitchSettingsView(viewModel: twitchViewModel)
+            
+            Divider()
+            
+            // Bot Commands
+            VStack(alignment: .leading, spacing: 12) {
+                VStack(alignment: .leading, spacing: 8) {
+                    HStack(spacing: 8) {
+                        Image(systemName: "bubble.left.fill")
+                            .font(.title3)
+                            .foregroundStyle(Color(nsColor: .controlAccentColor))
+                        Text("Bot Commands")
+                            .font(.headline)
+                    }
+                    
+                    Text("Choose which chat commands the bot responds to in Twitch chat.")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                }
+                
+                HStack(spacing: 12) {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("Current Song")
+                            .font(.body)
+                            .fontWeight(.medium)
+                        Text("!song, !currentsong, !nowplaying")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                    Spacer()
+                    Toggle("", isOn: $currentSongCommandEnabled)
+                        .labelsHidden()
+                        .toggleStyle(.switch)
+                        .onChange(of: currentSongCommandEnabled) { _, enabled in
+                            appDelegate?.twitchService?.commandsEnabled = enabled
+                        }
+                }
+                .padding(12)
+                .background(Color(nsColor: .controlBackgroundColor))
+                .cornerRadius(8)
+            }
+        }
     }
 
     // MARK: - Helpers
-
-    private func isValidWebSocketURL(_ urlString: String) -> Bool {
-        guard let url = URL(string: urlString),
-            let scheme = url.scheme?.lowercased()
-        else {
-            return false
-        }
-        return Constants.validSchemes.contains(scheme)
-    }
 
     private func notifyTrackingSettingChanged(enabled: Bool) {
         NotificationCenter.default.post(
@@ -392,21 +294,6 @@ struct SettingsView: View {
             object: nil,
             userInfo: ["enabled": enabled]
         )
-    }
-
-    private func saveToken() {
-        do {
-            try KeychainService.saveToken(authToken)
-            tokenSaved = true
-        } catch {
-            tokenSaved = false
-        }
-    }
-
-    private func clearToken() {
-        KeychainService.deleteToken()
-        authToken = ""
-        tokenSaved = false
     }
 
     /// Resets all settings to their default values and clears the stored token.
@@ -425,12 +312,9 @@ struct SettingsView: View {
 
         // Reset to defaults
         trackingEnabled = true
-        websocketEnabled = false
-        websocketURI = nil
         dockVisibility = "both"
 
-        // Clear tokens
-        clearToken()
+        // Clear tokens and Twitch
         twitchViewModel.clearCredentials()
 
         // Disconnect from Twitch
@@ -439,21 +323,13 @@ struct SettingsView: View {
         // Notify tracking re-enabled
         notifyTrackingSettingChanged(enabled: true)
     }
-
-    private func applyDockVisibility(_ mode: String) {
-        NotificationCenter.default.post(
-            name: NSNotification.Name("DockVisibilityChanged"),
-            object: nil,
-            userInfo: ["mode": mode]
-        )
-    }
 }
 
 // MARK: - Constants Extension
 
 extension SettingsView.Constants.UserDefaultsKeys {
     static var allKeys: [String] {
-        [trackingEnabled, websocketEnabled, websocketURI, currentSongCommandEnabled, dockVisibility]
+        [trackingEnabled, currentSongCommandEnabled, dockVisibility, websocketEnabled, websocketURI]
     }
 }
 
