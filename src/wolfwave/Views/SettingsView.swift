@@ -20,8 +20,8 @@ struct SettingsView: View {
 
     fileprivate enum Constants {
         static let defaultAppName = "WolfWave"
-        static let minWidth: CGFloat = 390
-        static let minHeight: CGFloat = 420
+        static let minWidth: CGFloat = 600
+        static let minHeight: CGFloat = 550
         static let validSchemes = ["ws", "wss", "http", "https"]
 
         enum UserDefaultsKeys {
@@ -117,14 +117,20 @@ struct SettingsView: View {
                     .padding(.bottom, 4)
                 ) {
                     VStack(alignment: .leading, spacing: 10) {
-                        Text("Show what you're playing from Apple Music inside WolfWave.")
+                        Text("Monitor your Apple Music playback to display in the menu bar and share with external services like Twitch or custom WebSocket endpoints.")
                             .font(.caption)
-                            .foregroundColor(.secondary)
+                            .foregroundStyle(.secondary)
 
-                        Toggle("Show what's playing from Apple Music", isOn: $trackingEnabled)
-                            .onChange(of: trackingEnabled) { _, newValue in
-                                notifyTrackingSettingChanged(enabled: newValue)
-                            }
+                        HStack {
+                            Text("Enable Apple Music monitoring")
+                            Spacer()
+                            Toggle("", isOn: $trackingEnabled)
+                                .labelsHidden()
+                                .toggleStyle(.switch)
+                                .onChange(of: trackingEnabled) { _, newValue in
+                                    notifyTrackingSettingChanged(enabled: newValue)
+                                }
+                        }
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(10)
@@ -142,7 +148,7 @@ struct SettingsView: View {
                     VStack(alignment: .leading, spacing: 10) {
                         Text("Choose where WolfWave appears on your Mac.")
                             .font(.caption)
-                            .foregroundColor(.secondary)
+                            .foregroundStyle(.secondary)
 
                         Picker("Show app in:", selection: $dockVisibility) {
                             Text("Dock and Menu Bar").tag("both")
@@ -157,7 +163,7 @@ struct SettingsView: View {
                         if dockVisibility == "menuOnly" {
                             Text("When menu bar only is enabled, the app will appear in the dock when settings are open.")
                                 .font(.caption)
-                                .foregroundColor(.secondary)
+                                .foregroundStyle(.secondary)
                         }
                     }
                     .padding(10)
@@ -174,49 +180,74 @@ struct SettingsView: View {
                     .font(.headline)
                     .padding(.bottom, 4)
                 ) {
-                    VStack(alignment: .leading, spacing: 10) {
+                    VStack(alignment: .leading, spacing: 12) {
                         Text("Send your now playing info to an overlay or server via WebSocket.")
                             .font(.caption)
-                            .foregroundColor(.secondary)
+                            .foregroundStyle(.secondary)
 
-                        Toggle("Send now playing to your server", isOn: $websocketEnabled)
-                            .disabled(!isWebSocketURLValid)
+                        VStack(alignment: .leading, spacing: 8) {
+                            TextField("WebSocket server URL (ws:// or wss://)", text: websocketURIBinding)
+                                .textFieldStyle(.roundedBorder)
 
-                        TextField(
-                            "WebSocket server URL (ws:// or wss://)", text: websocketURIBinding
-                        )
-                        .textFieldStyle(.roundedBorder)
-
-                        if !isWebSocketURLValid {
-                            Text("Add a WebSocket URL (ws:// or wss://) to turn this on.")
-                                .font(.caption)
-                                .foregroundColor(.secondary)
+                            if !isWebSocketURLValid && !(websocketURI?.isEmpty ?? true) {
+                                Text("Please enter a valid WebSocket URL (ws:// or wss://).")
+                                    .font(.caption)
+                                    .foregroundStyle(.red)
+                            }
                         }
-
-                        SecureField("Auth token (optional JWT)", text: $authToken)
 
                         HStack {
-                            Button("Save Token", action: saveToken)
+                            Text("Enable WebSocket connection")
+                            Spacer()
+                            Toggle("", isOn: $websocketEnabled)
+                                .labelsHidden()
+                                .toggleStyle(.switch)
+                                .disabled(!isWebSocketURLValid)
+                        }
+
+                        if !isWebSocketURLValid {
+                            Text("Add a WebSocket URL to enable this feature.")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+
+                        Divider()
+                            .padding(.vertical, 4)
+
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text("Authentication (Optional)")
+                                .font(.caption)
+                                .fontWeight(.medium)
+                                .foregroundStyle(.secondary)
+
+                            SecureField("Auth token (JWT)", text: $authToken)
+                                .textFieldStyle(.roundedBorder)
+
+                            HStack(spacing: 8) {
+                                Button("Save Token") {
+                                    saveToken()
+                                }
                                 .disabled(authToken.isEmpty)
+                                .buttonStyle(.bordered)
 
-                            Button("Clear Token", action: clearToken)
+                                Button("Clear Token") {
+                                    clearToken()
+                                }
+                                .disabled(!tokenSaved && authToken.isEmpty)
+                                .buttonStyle(.bordered)
                                 .foregroundColor(.red)
-                        }
 
-                        if tokenSaved {
-                            Label(
-                                "Token stored securely in macOS Keychain",
-                                systemImage: "checkmark.seal.fill"
-                            )
-                            .font(.caption)
-                            .foregroundColor(.green)
-                        }
+                                if tokenSaved {
+                                    Image(systemName: "checkmark.circle.fill")
+                                        .foregroundColor(.green)
+                                        .imageScale(.medium)
+                                }
+                            }
 
-                        Text(
-                            "Tokens are stored securely in macOS Keychain; never written to disk or UserDefaults."
-                        )
-                        .font(.caption)
-                        .foregroundColor(.secondary)
+                            Text("Only required if your WebSocket server uses authentication.")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
                     }
                     .padding(10)
                 }
@@ -236,18 +267,24 @@ struct SettingsView: View {
                     VStack(alignment: .leading, spacing: 10) {
                         Text("Choose which chat commands the bot responds to in Twitch chat.")
                             .font(.caption)
-                            .foregroundColor(.secondary)
+                            .foregroundStyle(.secondary)
 
-                        Toggle("Current Song", isOn: $currentSongCommandEnabled)
-                            .onChange(of: currentSongCommandEnabled) { _, enabled in
-                                appDelegate?.twitchService?.commandsEnabled = enabled
-                            }
+                        HStack {
+                            Text("Current Song")
+                            Spacer()
+                            Toggle("", isOn: $currentSongCommandEnabled)
+                                .labelsHidden()
+                                .toggleStyle(.switch)
+                                .onChange(of: currentSongCommandEnabled) { _, enabled in
+                                    appDelegate?.twitchService?.commandsEnabled = enabled
+                                }
+                        }
 
                         Text(
                             "When enabled, the bot will respond to !song, !currentsong, and !nowplaying in Twitch chat with the currently playing Apple Music track."
                         )
                         .font(.caption)
-                        .foregroundColor(.secondary)
+                        .foregroundStyle(.secondary)
                     }
                     .padding(10)
                     .frame(maxWidth: .infinity, alignment: .leading)
@@ -259,15 +296,18 @@ struct SettingsView: View {
 
                 // MARK: Reset
                 HStack {
-                    Spacer()
                     Button("Reset to Defaults") {
                         showingResetAlert = true
                     }
+                    .buttonStyle(.bordered)
                     .foregroundColor(.red)
+                    Spacer()
                 }
+                .padding(.top, 4)
             }
             .padding()
         }
+        .background(.ultraThinMaterial)
         .frame(minWidth: Constants.minWidth, minHeight: Constants.minHeight)
         .onAppear {
             if let savedToken = KeychainService.loadToken() {
