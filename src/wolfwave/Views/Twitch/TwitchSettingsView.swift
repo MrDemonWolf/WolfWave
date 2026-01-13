@@ -23,70 +23,59 @@ struct TwitchSettingsView: View {
     @ObservedObject var viewModel: TwitchViewModel
 
     var body: some View {
-        GroupBox(
-            label:
-                HStack {
-                    Label("Twitch Bot", systemImage: "bubble.left.and.bubble.right")
-                        .font(.headline)
-                        .padding(.bottom, 4)
-                    Spacer()
-                    StatusChip(text: viewModel.statusChipText, color: viewModel.statusChipColor)
-                }
-        ) {
-            VStack(alignment: .leading, spacing: 8) {
-                if viewModel.credentialsSaved {
-                    Text(
-                        "Bot username, OAuth token, and channel are kept securely in macOS Keychain. The bot username fills in automatically right after you sign in."
-                    )
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(spacing: 8) {
+                Image(systemName: "lock.shield.fill")
+                    .font(.body)
+                    .foregroundStyle(.green)
+                Text("All credentials are stored securely in macOS Keychain")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(10)
+            .background(Color.green.opacity(0.1))
+            .cornerRadius(8)
+
+            if viewModel.reauthNeeded {
+                ReauthBanner()
+            }
+
+            if !viewModel.credentialsSaved {
+                NotSignedInView(onStartOAuth: { viewModel.startOAuth() })
+            } else {
+                SignedInView(
+                    botUsername: viewModel.botUsername,
+                    channelID: $viewModel.channelID,
+                    isChannelConnected: viewModel.channelConnected,
+                    onSaveCredentials: { viewModel.saveCredentials() },
+                    onClearCredentials: { viewModel.clearCredentials() },
+                    onJoinChannel: { viewModel.joinChannel() },
+                    onLeaveChannel: { viewModel.leaveChannel() }
+                )
+            }
+
+            if !viewModel.authState.userCode.isEmpty {
+                DeviceCodeView(
+                    userCode: viewModel.authState.userCode,
+                    verificationURI: viewModel.authState.verificationURI,
+                    onCopy: { viewModel.statusMessage = "Connecting to Twitch..." }
+                )
+            }
+
+            if viewModel.authState.isInProgress {
+                ProgressView()
+                    .progressViewStyle(.linear)
+                    .tint(Color(nsColor: .controlAccentColor))
+                    .frame(maxWidth: .infinity)
+                    .padding(.top, 4)
+            }
+
+            if viewModel.reauthNeeded {
+                Text("Re-authentication required. Click 'Sign in with Twitch'.")
                     .font(.caption)
                     .foregroundColor(.secondary)
-                    .padding(.bottom, 4)
-                }
-
-                if viewModel.reauthNeeded {
-                    ReauthBanner()
-                }
-
-                if !viewModel.credentialsSaved {
-                    NotSignedInView(onStartOAuth: { viewModel.startOAuth() })
-                } else {
-                    SignedInView(
-                        botUsername: viewModel.botUsername,
-                        channelID: $viewModel.channelID,
-                        isChannelConnected: viewModel.channelConnected,
-                        onSaveCredentials: { viewModel.saveCredentials() },
-                        onClearCredentials: { viewModel.clearCredentials() },
-                        onJoinChannel: { viewModel.joinChannel() },
-                        onLeaveChannel: { viewModel.leaveChannel() }
-                    )
-                }
-
-                if !viewModel.authState.userCode.isEmpty {
-                    DeviceCodeView(
-                        userCode: viewModel.authState.userCode,
-                        verificationURI: viewModel.authState.verificationURI,
-                        onCopy: { viewModel.statusMessage = "Connecting to Twitch..." }
-                    )
-                }
-
-                if viewModel.authState.isInProgress {
-                    ProgressView()
-                        .progressViewStyle(.linear)
-                        .tint(.accentColor)
-                        .frame(maxWidth: .infinity)
-                        .padding(.top, 4)
-                }
-
-                if viewModel.reauthNeeded {
-                    Text("Re-authentication required. Click 'Sign in with Twitch'.")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                }
             }
-            .padding(10)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .background(.thinMaterial)
-            .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
         }
     }
 }
@@ -97,11 +86,22 @@ struct TwitchSettingsView: View {
 private struct ReauthBanner: View {
     var body: some View {
         HStack(alignment: .top, spacing: 8) {
-            Image(systemName: "exclamationmark.triangle.fill").foregroundColor(.yellow)
-            Text("Your Twitch session expired. Please sign in again to continue.")
+            Image(systemName: "exclamationmark.triangle.fill")
                 .font(.caption)
-                .foregroundColor(.secondary)
+                .foregroundColor(.orange)
+            VStack(alignment: .leading, spacing: 4) {
+                Text("Session Expired")
+                    .font(.body)
+                    .fontWeight(.medium)
+                Text("Your Twitch session expired. Please sign in again to continue.")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+            }
+            Spacer()
         }
+        .padding(12)
+        .background(Color.orange.opacity(0.1))
+        .cornerRadius(8)
     }
 }
 
@@ -111,21 +111,30 @@ private struct NotSignedInView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text(
-                "Connect Twitch so WolfWave can chat in your channel. Credentials stay in macOS Keychain."
-            )
-            .font(.caption)
-            .foregroundColor(.secondary)
+            Text("Connect your Twitch account to enable chat bot features")
+                .font(.caption)
+                .foregroundColor(.secondary)
 
             Button(action: onStartOAuth) {
-                Label(
-                    "Sign in with Twitch", systemImage: "person.badge.key"
-                )
+                Label {
+                    Text("Sign in with Twitch")
+                        .fontWeight(.semibold)
+                } icon: {
+                    Image("TwitchLogo")
+                        .renderingMode(.original)
+                        .resizable()
+                        .interpolation(.high)
+                        .scaledToFit()
+                        .frame(width: 16, height: 16)
+                }
                 .frame(maxWidth: .infinity)
             }
             .buttonStyle(.borderedProminent)
             .controlSize(.large)
         }
+        .padding(12)
+        .background(Color(nsColor: .controlBackgroundColor))
+        .cornerRadius(8)
     }
 }
 
@@ -140,48 +149,79 @@ private struct SignedInView: View {
     var onLeaveChannel: () -> Void
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack(alignment: .firstTextBaseline, spacing: 10) {
-                Text("Bot account")
-                    .foregroundColor(.secondary)
-                    .frame(width: 140, alignment: .leading)
-                Text(botUsername.isEmpty ? "Not set" : botUsername)
-                    .fontWeight(.semibold)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-            }
-
-            HStack(alignment: .firstTextBaseline, spacing: 10) {
-                Text("Channel to join")
-                    .foregroundColor(.secondary)
-                    .frame(width: 140, alignment: .leading)
-                if isChannelConnected {
-                    Text(channelID.isEmpty ? "Not set" : channelID)
-                        .fontWeight(.semibold)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                } else {
-                    TextField("", text: $channelID)
-                        .textFieldStyle(.roundedBorder)
-                        .frame(minWidth: 260, maxWidth: .infinity)
+        VStack(alignment: .leading, spacing: 12) {
+            VStack(alignment: .leading, spacing: 12) {
+                HStack(alignment: .center, spacing: 12) {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Bot account")
+                            .font(.caption)
+                            .fontWeight(.medium)
+                            .foregroundColor(.secondary)
+                        Text(botUsername.isEmpty ? "Not set" : botUsername)
+                            .font(.body)
+                            .fontWeight(.semibold)
+                    }
+                    Spacer()
+                    Image(systemName: "checkmark.circle.fill")
+                        .foregroundColor(.green)
+                        .imageScale(.medium)
                 }
+                .padding(12)
+                .background(Color(nsColor: .controlBackgroundColor))
+                .cornerRadius(8)
+
+                HStack(alignment: .center, spacing: 12) {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Channel")
+                            .font(.caption)
+                            .fontWeight(.medium)
+                            .foregroundColor(.secondary)
+                        if isChannelConnected {
+                            Text(channelID.isEmpty ? "Not set" : channelID)
+                                .font(.body)
+                                .fontWeight(.semibold)
+                        } else {
+                            TextField("Enter channel name", text: $channelID)
+                                .font(.body)
+                        }
+                    }
+                    Spacer()
+                    if isChannelConnected {
+                        Image(systemName: "wifi")
+                            .foregroundColor(.green)
+                            .imageScale(.medium)
+                    }
+                }
+                .padding(12)
+                .background(Color(nsColor: .controlBackgroundColor))
+                .cornerRadius(8)
             }
 
-            HStack(spacing: 10) {
-                Button("Save Channel", action: onSaveCredentials)
-                    .disabled(channelID.isEmpty || isChannelConnected)
+            HStack(spacing: 8) {
+                Button("Save Channel") {
+                    onSaveCredentials()
+                }
+                .disabled(channelID.isEmpty || isChannelConnected)
+                .buttonStyle(.bordered)
+                .controlSize(.small)
 
                 Button(action: isChannelConnected ? onLeaveChannel : onJoinChannel) {
                     Label(
-                        isChannelConnected ? "Leave channel" : "Join channel",
+                        isChannelConnected ? "Disconnect" : "Connect",
                         systemImage: isChannelConnected
-                            ? "xmark.circle.fill" : "arrow.right.circle.fill"
+                            ? "xmark.circle.fill" : "checkmark.circle.fill"
                     )
                 }
                 .disabled(
                     botUsername.isEmpty
                         || channelID.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                .buttonStyle(.bordered)
+                .controlSize(.small)
 
-                Button("Clear bot info", action: onClearCredentials)
-                    .foregroundColor(.red)
+                Button("Clear", action: onClearCredentials)
+                    .buttonStyle(.bordered)
+                    .tint(.red)
+                    .controlSize(.small)
             }
         }
     }
@@ -194,20 +234,34 @@ private struct DeviceCodeView: View {
     let onCopy: () -> Void
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Label("Authorize on Twitch", systemImage: "number")
-                .font(.caption)
-                .foregroundColor(.secondary)
-
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(spacing: 8) {
+                Image(systemName: "number")
+                    .font(.title3)
+                    .foregroundStyle(Color(nsColor: .controlAccentColor))
+                Text("Authorize on Twitch")
+                    .font(.body)
+                    .fontWeight(.medium)
+            }
+            
             Text(
                 "Open Twitch to authorize, or go to twitch.tv/activate on any device and enter this code."
             )
             .font(.caption)
             .foregroundColor(.secondary)
 
-            HStack {
-                Text(userCode)
-                    .font(.title3).monospaced().bold()
+            HStack(spacing: 12) {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Device Code")
+                        .font(.caption)
+                        .fontWeight(.medium)
+                        .foregroundColor(.secondary)
+                    Text(userCode)
+                        .font(.title3)
+                        .monospaced()
+                        .fontWeight(.bold)
+                        .tracking(1)
+                }
                 Spacer()
                 Button(action: {
                     NSPasteboard.general.clearContents()
@@ -216,33 +270,38 @@ private struct DeviceCodeView: View {
                 }) {
                     Label("Copy", systemImage: "doc.on.doc")
                 }
-                .buttonStyle(.borderless)
+                .buttonStyle(.bordered)
+                .controlSize(.small)
             }
+            .padding(12)
+            .background(Color(nsColor: .controlBackgroundColor))
+            .cornerRadius(8)
 
-            Button(action: {
-                if let url = URL(string: verificationURI) {
-                    NSWorkspace.shared.open(url)
+            VStack(spacing: 10) {
+                Button(action: {
+                    if let url = URL(string: verificationURI) {
+                        NSWorkspace.shared.open(url)
+                    }
+                }) {
+                    Label("Open Twitch to authorize", systemImage: "link.circle.fill")
+                        .frame(maxWidth: .infinity)
                 }
-            }) {
-                Label("Open Twitch to authorize", systemImage: "link")
-            }
-            .buttonStyle(.borderedProminent)
-            .controlSize(.regular)
-            .frame(maxWidth: .infinity, alignment: .leading)
+                .buttonStyle(.borderedProminent)
+                .controlSize(.regular)
 
-            Link(
-                "Or go to twitch.tv/activate and enter the code",
-                destination: URL(string: "https://twitch.tv/activate")!
-            )
-            .font(.caption)
-            .foregroundColor(.secondary)
+                Link(
+                    "Or visit twitch.tv/activate and enter the code",
+                    destination: URL(string: "https://twitch.tv/activate")!
+                )
+                .font(.caption)
+                .foregroundColor(.blue)
+            }
         }
-        .padding(10)
+        .padding(12)
         .background(
-            RoundedRectangle(cornerRadius: 10, style: .continuous)
-                .fill(Color.secondary.opacity(0.12))
+            RoundedRectangle(cornerRadius: 8, style: .continuous)
+                .fill(Color(nsColor: .controlAccentColor).opacity(0.1))
         )
-        .padding(.bottom, 6)
     }
 }
 
