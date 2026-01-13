@@ -3,19 +3,8 @@
 <plist version="1.0">
 	<dict>
 		<key>NSAppleMusicUsageDescription</key>
-		<string>WolfWave needs access to Apple Music to read your currently playing track and share Now Playing updates with your Twitch community. WolfWave does not modify your music library.</string>
+		<string>WolfWave reads your currently playing track from Apple Music to display Now Playing information in your menu bar and share it with your Twitch community. Your music library is never modified.</string>
 		<key>NSAppleEventsUsageDescription</key>
-		<string>WolfWave needs AppleScript access to communicate with Apple Music and retrieve information about your currently playing track. This does not modify your music playback or library.</string>
-		<key>com.apple.security.app-sandbox</key>
-		<true/>
-		<key>com.apple.security.scripting-targets</key>
-		<dict>
-			<key>Item 0</key>
-			<string>com.apple.Music</string>
-		</dict>
-		<key>com.apple.security.temporary-exception.apple-events</key>
-		<array>
-			<string>com.apple.Music</string>
-		</array>
+		<string>WolfWave uses Apple Events to communicate with Apple Music and retrieve the currently playing track information. This allows real-time Now Playing updates without modifying your music playback or library.</string>
 	</dict>
 </plist>

@@ -8,6 +8,17 @@
 import AppKit
 import SwiftUI
 
+// MARK: - Twitch Settings View
+
+/// SwiftUI view displaying Twitch bot configuration and connection controls.
+///
+/// This view provides:
+/// - OAuth device code flow initiation
+/// - Bot identity display (username)
+/// - Channel name configuration
+/// - Join/leave channel controls
+/// - Credential management (save/clear)
+/// - Connection status indicator
 struct TwitchSettingsView: View {
     @ObservedObject var viewModel: TwitchViewModel
 
@@ -82,6 +93,7 @@ struct TwitchSettingsView: View {
 
 // MARK: - Sub-Views
 
+/// Banner displayed when re-authentication is required.
 private struct ReauthBanner: View {
     var body: some View {
         HStack(alignment: .top, spacing: 8) {
@@ -93,6 +105,7 @@ private struct ReauthBanner: View {
     }
 }
 
+/// View displayed when the user is not signed in to Twitch.
 private struct NotSignedInView: View {
     var onStartOAuth: () -> Void
 
@@ -116,6 +129,7 @@ private struct NotSignedInView: View {
     }
 }
 
+/// View displayed when the user is signed in, showing bot info and channel controls.
 private struct SignedInView: View {
     let botUsername: String
     @Binding var channelID: String
@@ -173,6 +187,7 @@ private struct SignedInView: View {
     }
 }
 
+/// View displaying the device code authorization UI during OAuth flow.
 private struct DeviceCodeView: View {
     let userCode: String
     let verificationURI: String
@@ -233,6 +248,7 @@ private struct DeviceCodeView: View {
 
 // MARK: - Status Chip
 
+/// Colored status indicator chip.
 private struct StatusChip: View {
     let text: String
     let color: Color
