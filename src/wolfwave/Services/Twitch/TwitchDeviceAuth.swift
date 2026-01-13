@@ -2,52 +2,148 @@
 //  TwitchDeviceAuth.swift
 //  wolfwave
 //
-//  Implements the OAuth Device Code flow for Twitch, suitable for public clients
-//  where a client secret is not shipped. The flow avoids running a local HTTP
-//  server and instead asks the user to enter a short code at a verification URL.
+//  Created by MrDemonWolf, Inc. on 1/8/26.
+//
 
 import Foundation
 
+// MARK: - Device Code Response
+
+/// Response structure from Twitch's device authorization endpoint.
 struct TwitchDeviceCodeResponse {
+    /// The device verification code used for polling
     let deviceCode: String
+    
+    /// The short code the user must enter at the verification URL
     let userCode: String
+    
+    /// The URL where the user must authorize the application
     let verificationURI: String
+    
+    /// Optional complete URI that includes the user code (for QR codes)
     let verificationURIComplete: String?
+    
+    /// How long (in seconds) the device code remains valid
     let expiresIn: Int
+    
+    /// Minimum interval (in seconds) between polling attempts
     let interval: Int
 }
 
+// MARK: - Device Auth Errors
+
+/// Errors that can occur during the OAuth Device Code flow.
 enum TwitchDeviceAuthError: LocalizedError {
+    /// Server returned an invalid or unparseable response
     case invalidResponse
+    
+    /// User denied the authorization request
     case accessDenied
+    
+    /// Device code expired before user completed authorization
     case expiredToken
+    
+    /// Authorization is pending - user hasn't completed the flow yet
     case authorizationPending
+    
+    /// Client is polling too quickly - should increase interval
     case slowDown
+    
+    /// Invalid client credentials provided
     case invalidClient
+    
+    /// Other unknown error with message
     case unknown(String)
 
     var errorDescription: String? {
         switch self {
-        case .invalidResponse: return "Invalid response from Twitch"
-        case .accessDenied: return "Access denied by user"
-        case .expiredToken: return "Device code expired"
-        case .authorizationPending: return "Waiting for user authorization"
-        case .slowDown: return "Polling too quickly"
-        case .invalidClient: return "Invalid client credentials"
-        case .unknown(let msg): return msg
+        case .invalidResponse:
+            return "Invalid response from Twitch"
+        case .accessDenied:
+            return "Access denied by user"
+        case .expiredToken:
+            return "Device code expired"
+        case .authorizationPending:
+            return "Waiting for user authorization"
+        case .slowDown:
+            return "Polling too quickly"
+        case .invalidClient:
+            return "Invalid client credentials"
+        case .unknown(let msg):
+            return msg
         }
     }
 }
 
-final class TwitchDeviceAuth {
-    private let clientID: String
-    private let scopes: [String]
+// MARK: - Twitch Device Auth
 
+/// Implements OAuth Device Code flow for Twitch authentication.
+///
+/// This flow is suitable for public clients (like desktop apps) where a client secret
+/// cannot be securely embedded. Instead of running a local HTTP server, the user
+/// enters a short code at Twitch's verification URL.
+///
+/// **OAuth Device Code Flow:**
+/// 1. Request a device code from Twitch
+/// 2. Display the user code and verification URL to the user
+/// 3. Poll Twitch's token endpoint until the user authorizes
+/// 4. Receive and store the access token
+///
+/// **Usage:**
+/// ```swift
+/// let auth = TwitchDeviceAuth(
+///     clientID: "your-client-id",
+///     scopes: ["user:read:chat", "user:write:chat"]
+/// )
+///
+/// let response = try await auth.requestDeviceCode()
+/// // Show user: response.userCode and response.verificationURI
+///
+/// let token = try await auth.pollForToken(
+///     deviceCode: response.deviceCode,
+///     interval: response.interval
+/// ) { progress in
+///     print(progress)
+/// }
+/// ```
+///
+/// **References:**
+/// - [Twitch OAuth Device Code Flow](https://dev.twitch.tv/docs/authentication/getting-tokens-oauth/#device-code-grant-flow)
+final class TwitchDeviceAuth {
+    
+    // MARK: - Properties
+    
+    /// The Twitch client ID for this application
+    private let clientID: String
+    
+    /// The OAuth scopes to request (e.g., "user:read:chat", "user:write:chat")
+    private let scopes: [String]
+    
+    // MARK: - Initialization
+    
+    /// Creates a new Twitch Device Auth instance.
+    ///
+    /// - Parameters:
+    ///   - clientID: Your Twitch application's client ID.
+    ///   - scopes: Array of OAuth scope strings to request.
     init(clientID: String, scopes: [String]) {
         self.clientID = clientID
         self.scopes = scopes
     }
+    
+    // MARK: - Public Methods
 
+    
+    // MARK: - Public Methods
+    
+    /// Requests a device code from Twitch to begin the OAuth flow.
+    ///
+    /// This initiates the device authorization flow by requesting a device code
+    /// and user code from Twitch. The user must visit the verification URL and
+    /// enter the user code to authorize the application.
+    ///
+    /// - Returns: A `TwitchDeviceCodeResponse` containing the codes and URLs.
+    /// - Throws: `TwitchDeviceAuthError` if the request fails.
     func requestDeviceCode() async throws -> TwitchDeviceCodeResponse {
         Log.info("OAuth: Requesting device code from Twitch", category: "OAuth")
         guard let url = URL(string: "https://id.twitch.tv/oauth2/device") else {
@@ -97,7 +193,22 @@ final class TwitchDeviceAuth {
             interval: interval
         )
     }
-
+    
+    /// Polls Twitch's token endpoint until the user authorizes or an error occurs.
+    ///
+    /// This method continuously polls Twitch's OAuth token endpoint at the specified
+    /// interval until one of the following occurs:
+    /// - User completes authorization → returns access token
+    /// - User denies authorization → throws `.accessDenied`
+    /// - Device code expires → throws `.expiredToken`
+    /// - Maximum polling attempts exceeded → throws `.expiredToken`
+    ///
+    /// - Parameters:
+    ///   - deviceCode: The device code from `requestDeviceCode()`.
+    ///   - interval: The minimum polling interval in seconds.
+    ///   - progress: Callback for progress updates (called on background thread).
+    /// - Returns: The OAuth access token on successful authorization.
+    /// - Throws: `TwitchDeviceAuthError` if authorization fails or times out.
     func pollForToken(deviceCode: String, interval: Int, progress: @escaping (String) -> Void)
         async throws -> String
     {
@@ -189,8 +300,12 @@ final class TwitchDeviceAuth {
         }
     }
 
-    // MARK: - Helpers
-
+    // MARK: - Private Helpers
+    
+    /// Encodes parameters as application/x-www-form-urlencoded for HTTP requests.
+    ///
+    /// - Parameter params: Dictionary of key-value pairs to encode.
+    /// - Returns: URL-encoded data ready for HTTP body.
     private func formURLEncoded(params: [String: String]) -> Data {
         let allowed = CharacterSet(
             charactersIn: "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-._~")
