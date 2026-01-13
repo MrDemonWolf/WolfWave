@@ -8,20 +8,51 @@ import Combine
 import Foundation
 import SwiftUI
 
+// MARK: - Twitch View Model
+
+/// View model managing Twitch bot authentication, connection state, and operations.
+///
+/// This view model handles:
+/// - OAuth Device Code flow coordination
+/// - Bot identity resolution and caching
+/// - Channel connection lifecycle
+/// - Credential management (save/load/clear)
+/// - Re-authentication state tracking
+/// - Connection status updates
+///
+/// All operations are marked `@MainActor` for UI thread safety.
 @MainActor
 final class TwitchViewModel: ObservableObject {
+    
     // MARK: - Published State
-
+    
+    /// The bot's Twitch display username
     @Published var botUsername = ""
+    
+    /// OAuth access token (not persisted in view model, loaded from Keychain)
     @Published var oauthToken = ""
+    
+    /// The channel name/ID to join
     @Published var channelID = ""
+    
+    /// Whether credentials have been saved to Keychain
     @Published var credentialsSaved = false
+    
+    /// Whether the bot is currently connected to the channel
     @Published var channelConnected = false
+    
+    /// Whether re-authentication is required
     @Published var reauthNeeded = false
+    
+    /// Whether the bot has connected at least once this session
     @Published var connectedOnce = false
 
+    /// Status message displayed to the user
     @Published var statusMessage = ""
 
+    // MARK: - Auth State
+
+    /// Represents the current state of OAuth authentication flow.
     enum AuthState {
         case idle
         case requestingCode
@@ -57,12 +88,18 @@ final class TwitchViewModel: ObservableObject {
         }
     }
 
+    /// Current OAuth authentication state
     @Published var authState = AuthState.idle
+    
+    /// Reference to the Twitch chat service
     var twitchService: TwitchChatService?
+    
+    /// Background task for polling token during OAuth flow
     var devicePollingTask: Task<Void, Never>?
 
     // MARK: - Computed Properties
 
+    /// Status chip text based on current state
     var statusChipText: String {
         if reauthNeeded { return "Reauth needed" }
         if channelConnected { return "Connected" }
@@ -70,6 +107,7 @@ final class TwitchViewModel: ObservableObject {
         return "Not signed in"
     }
 
+    /// Status chip color based on current state
     var statusChipColor: Color {
         if reauthNeeded { return .yellow }
         if channelConnected { return .green }
@@ -77,8 +115,9 @@ final class TwitchViewModel: ObservableObject {
         return .secondary
     }
 
-    // MARK: - Methods
+    // MARK: - Public Methods
 
+    /// Loads saved credentials from macOS Keychain.
     func loadSavedCredentials() {
         if let username = KeychainService.loadTwitchUsername() {
             botUsername = username
@@ -92,6 +131,9 @@ final class TwitchViewModel: ObservableObject {
         }
     }
 
+    /// Initiates the OAuth Device Code flow.
+    ///
+    /// Requests a device code from Twitch, displays it to the user, and polls for token.
     func startOAuth() {
         Log.info("TwitchViewModel: Starting OAuth flow", category: "Twitch")
         authState = .requestingCode
@@ -152,6 +194,7 @@ final class TwitchViewModel: ObservableObject {
         }
     }
 
+    /// Saves credentials to macOS Keychain and resolves bot identity.
     func saveCredentials() {
         Log.info("TwitchViewModel: Saving Twitch credentials", category: "Twitch")
         do {
@@ -174,6 +217,7 @@ final class TwitchViewModel: ObservableObject {
         }
     }
 
+    /// Clears all stored Twitch credentials and resets state.
     func clearCredentials() {
         Log.info("TwitchViewModel: Clearing Twitch credentials", category: "Twitch")
         

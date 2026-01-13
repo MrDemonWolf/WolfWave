@@ -10,10 +10,11 @@ Start your stream with a song, or let your chat discover new music with `!song`.
 
 ## Features
 
-- **Real-time Now Playing**: Tracks the current Apple Music song and updates instantly.
+- **Real-time Now Playing**: Tracks the current Apple Music song and updates instantly using ScriptingBridge.
 - **Twitch Chat Integration**: Responds to `!song`, `!currentsong`, and `!nowplaying` using modern EventSub + Helix (no IRC).
 - **WebSocket Streaming**: Broadcast now-playing data to your overlay or tools (ws:// or wss://).
-- **Secure by Default**: Credentials are stored in macOS Keychain; no plain-text tokens.
+- **Secure by Default**: All credentials stored in macOS Keychain; no plain-text tokens.
+- **Professional Codebase**: Comprehensive documentation, MARK sections, and clean architecture throughout.
 
 ## Getting Started
 
@@ -85,37 +86,64 @@ See Releases for updates and changes:
 
 ### Code Quality
 
-This project follows Swift best practices:
+This project follows Swift best practices with professional-grade documentation:
 
-- Swift 5.9+ with modern concurrency (async/await)
-- SwiftUI for user interfaces
-- Separation of concerns across Core/Services/Views
-- Secure credential storage via Keychain
-- Robust error handling
+- **Swift 5.9+** with modern concurrency (async/await)
+- **SwiftUI** for user interfaces
+- **Comprehensive Documentation**: DocC-style comments throughout with usage examples
+- **MARK Sections**: All files organized with clear section markers for easy navigation
+- **Separation of Concerns**: Clean architecture across Core/Services/Views/Monitors
+- **Secure Credential Storage**: macOS Keychain for all sensitive data
+- **ScriptingBridge Integration**: Direct Apple Music communication without spawning subprocesses
+- **Robust Error Handling**: Typed errors with localized descriptions
+- **Type Safety**: Strongly typed models for all data structures
 
 ### Project Structure
 
 ```
 wolfwave/
 ├── Core/                    # Core utilities and services
-│   ├── KeychainService.swift
-│   └── Logger.swift
+│   ├── KeychainService.swift    # Secure credential storage (Keychain API)
+│   └── Logger.swift             # Centralized logging with categories
 ├── Monitors/                # Music playback monitoring
-│   └── MusicPlaybackMonitor.swift
+│   └── MusicPlaybackMonitor.swift  # ScriptingBridge-based Apple Music integration
 ├── Services/                # External service integrations
 │   └── Twitch/
-│       ├── TwitchChatService.swift
-│       ├── TwitchDeviceAuth.swift
-│       └── Commands/
+│       ├── TwitchChatService.swift     # EventSub WebSocket + Helix API
+│       ├── TwitchDeviceAuth.swift      # OAuth Device Code flow
+│       └── Commands/                   # Bot command system
+│           ├── BotCommand.swift        # Command protocol
+│           ├── BotCommandDispatcher.swift  # Command routing
+│           └── SongCommand.swift       # !song command implementation
 ├── Views/                   # SwiftUI views
-│   ├── SettingsView.swift
+│   ├── SettingsView.swift       # Main settings interface
 │   └── Twitch/
+│       ├── TwitchSettingsView.swift   # Twitch bot configuration UI
+│       └── TwitchViewModel.swift      # Twitch state management
 └── Resources/              # Assets and resources
+    └── Assets.xcassets/
 ```
+
+**Architecture Highlights:**
+
+- **MARK Sections**: Every file uses clear section markers (Properties, Public Methods, Private Helpers, etc.)
+- **Documentation**: Comprehensive DocC-style comments with parameter/return documentation
+- **Delegation Pattern**: `MusicPlaybackMonitorDelegate` for track updates
+- **MVVM**: ViewModels separate UI logic from business logic
+- **Async/Await**: Modern Swift concurrency throughout
 
 ### Twitch Chat Bot
 
 The bot is implemented with `TwitchChatService` using Twitch Helix + EventSub (no IRC).
+
+**Features:**
+
+- **EventSub WebSocket**: Real-time chat message notifications
+- **OAuth Device Code Flow**: Secure authentication via `TwitchDeviceAuth`
+- **Token Validation**: Automatic token validation on app launch
+- **Command System**: Extensible bot command architecture
+
+**Usage:**
 
 - Connect with saved credentials: `joinChannel(broadcasterID:botID:token:clientID:)` or `connectToChannel(channelName:token:clientID:)`.
 - Send chat messages via Helix: `sendMessage(_:)` or `sendMessage(_:replyTo:)`.
@@ -123,28 +151,61 @@ The bot is implemented with `TwitchChatService` using Twitch Helix + EventSub (n
 - Commands can be toggled in Settings ("Bot Commands" → "Current Song").
 - The service respects `commandsEnabled` so you can disable all commands from Settings.
 
+**Documentation:**
+
+- Comprehensive MARK sections organize the 700+ line service file
+- DocC-style comments document all public methods
+- Typed errors with localized descriptions (`ConnectionError`)
+- Models for chat messages, badges, and replies
+
 ### Bot Command Architecture
 
-- Commands live under `Services/Twitch/Commands`.
-- `BotCommand` protocol defines `triggers`, `description`, and `execute(message:)`.
-- `SongCommand` handles `!song`, `!currentsong`, and `!nowplaying` and calls the injected `getCurrentSongInfo` closure.
-- `BotCommandDispatcher` wires commands together and is used inside `TwitchChatService`.
+Commands live under `Services/Twitch/Commands` with a clean, extensible design:
+
+- **`BotCommand` protocol** defines `triggers`, `description`, and `execute(message:)`.
+- **`SongCommand`** handles `!song`, `!currentsong`, and `!nowplaying` and calls the injected `getCurrentSongInfo` closure.
+- **`BotCommandDispatcher`** wires commands together and is used inside `TwitchChatService`.
+
+**Code Organization:**
+
+- Each command file is fully documented with usage examples
+- Clear separation between command logic and service integration
+- Type-safe message processing with optional return values
 
 ### Adding a New Command (example)
 
 ```swift
+/// Command that greets users in chat.
+///
+/// Triggers: !hello, !hi
 final class HelloCommand: BotCommand {
-    let triggers = ["!hello"]
+    let triggers = ["!hello", "!hi"]
     let description = "Greets the chatter"
 
     func execute(message: String) -> String? {
         let trimmed = message.trimmingCharacters(in: .whitespaces).lowercased()
-        return trimmed.hasPrefix("!hello") ? "Hello, chat!" : nil
+
+        for trigger in triggers {
+            if trimmed.hasPrefix(trigger) {
+                return "Hello, chat! 👋"
+            }
+        }
+
+        return nil
     }
 }
 ```
 
-Register it in `BotCommandDispatcher.registerDefaultCommands()` by instantiating and calling `register(_:)`. Add any Settings toggle before enabling it by default.
+Register it in `BotCommandDispatcher.registerDefaultCommands()`:
+
+```swift
+private func registerDefaultCommands() {
+    register(SongCommand())
+    register(HelloCommand())  // Add your new command
+}
+```
+
+Add a Settings toggle if you want user control over enabling/disabling the command.
 
 ### Security
 
