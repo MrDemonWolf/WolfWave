@@ -4,17 +4,18 @@ const withMDX = createMDX();
 // Normalize optional NEXT_PUBLIC_BASE_PATH to a Next-compatible basePath
 const basePath = (() => {
   const envValue = process.env.NEXT_PUBLIC_BASE_PATH ?? "";
+  if (!envValue) return "";
   let path = "";
   try {
     path = new URL(envValue).pathname;
   } catch {
     path = envValue;
   }
-  // Ensure leading slash and drop trailing slash for Next basePath constraints
+  // If empty or root ("/"), don't set a basePath (Next expects empty or a prefix)
+  if (!path || path === "/") return "";
+  // Ensure leading slash and drop trailing slash
   const normalized = path.startsWith("/") ? path : `/${path}`;
-  return normalized.endsWith("/") && normalized !== "/"
-    ? normalized.slice(0, -1)
-    : normalized;
+  return normalized.endsWith("/") ? normalized.slice(0, -1) : normalized;
 })();
 
 /** @type {import('next').NextConfig} */
