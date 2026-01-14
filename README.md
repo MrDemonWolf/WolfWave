@@ -53,7 +53,7 @@ WolfWave is user-friendly and runs from your macOS menu bar. Here's a quick guid
 - Connect your Twitch bot via secure device auth.
 - Chat commands supported: `!song`, `!currentsong`, `!nowplaying`.
 
-# Change Log
+## Change Log
 
 See Releases for updates and changes:
 
