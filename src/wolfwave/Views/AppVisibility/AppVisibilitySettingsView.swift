@@ -78,3 +78,10 @@ struct AppVisibilitySettingsView: View {
         )
     }
 }
+
+// MARK: - Preview
+
+#Preview {
+    AppVisibilitySettingsView()
+        .padding()
+}
