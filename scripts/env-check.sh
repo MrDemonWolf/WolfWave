@@ -30,7 +30,7 @@ if [ -z "$xcode_ver" ]; then
   fail=1
 else
   xcode_major=$(echo "$xcode_ver" | cut -d. -f1)
-  if ! printf '%s' "$xcode_major" | grep -qE '^[0-9]+$$'; then
+  if ! printf '%s' "$xcode_major" | grep -qE '^[0-9]+$'; then
     echo "Unable to parse Xcode major version: $xcode_major"
     fail=1
   elif [ "$xcode_major" -lt 15 ]; then
@@ -50,7 +50,7 @@ if [ -z "$swift_ver" ]; then
 else
   swift_major=$(echo "$swift_ver" | cut -d. -f1)
   swift_minor=$(echo "$swift_ver" | cut -d. -f2)
-  if ! printf '%s' "$swift_major" | grep -qE '^[0-9]+$$'; then
+  if ! printf '%s' "$swift_major" | grep -qE '^[0-9]+$'; then
     echo "Unable to parse Swift major version: $swift_major"
     fail=1
   elif [ "$swift_major" -lt 5 ] || { [ "$swift_major" -eq 5 ] && [ "$swift_minor" -lt 9 ]; }; then
