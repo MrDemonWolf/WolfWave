@@ -2,7 +2,7 @@
 //  TwitchChatService.swift
 //  wolfwave
 //
-//  Created by MrDemonWolf, Inc. on 1/8/26.
+//  Created by MrDemonWolf, Inc. on 1/13/26.
 //
 
 import Foundation
@@ -11,13 +11,23 @@ import Foundation
 
 /// Service managing Twitch chat connection and bot commands via EventSub WebSocket.
 ///
-/// This service handles:
-/// - WebSocket connection to Twitch EventSub
-/// - EventSub subscription management for chat messages
-/// - Bot command processing via `BotCommandDispatcher`
-/// - Message sending and replying
-/// - OAuth token validation
-/// - User identity resolution
+/// Responsibilities:
+/// - Maintain a WebSocket connection to Twitch EventSub
+/// - Manage EventSub subscriptions (e.g., `channel.chat.message`)
+/// - Route incoming chat messages to `BotCommandDispatcher`
+/// - Provide helpers for sending chat messages and replies
+/// - Validate OAuth tokens and resolve user identities
+///
+/// Threading & callbacks:
+/// - Network and WebSocket callbacks may occur on background queues.
+/// - Consumer-facing callbacks such as `onMessageReceived` and
+///   `onConnectionStateChanged` may be invoked off the main thread; callers
+///   should dispatch to the main queue for UI work.
+///
+/// Error handling:
+/// - Connection and API failures surface via thrown `ConnectionError` values
+///   or through log messages; callers should treat these operations as
+///   potentially failing and handle errors appropriately.
 ///
 /// Example usage:
 /// ```swift
@@ -128,7 +138,14 @@ final class TwitchChatService {
     var getLastSongInfo: (() -> String)?
     
     /// Whether bot commands are enabled
+    /// Legacy single flag for enabling all commands (kept for backwards compatibility)
     var commandsEnabled = true
+
+    /// Whether the current song command (e.g. !song) is enabled
+    var currentSongCommandEnabled = true
+
+    /// Whether the last song command (e.g. !last) is enabled
+    var lastSongCommandEnabled = true
     
     /// Callback fired when a chat message is received
     var onMessageReceived: ((ChatMessage) -> Void)?
@@ -477,6 +494,13 @@ final class TwitchChatService {
 
     /// Sends a message to the current channel.
     ///
+    /// Notes:
+    /// - Messages are sent via the Helix `/chat/messages` endpoint.
+    /// - Twitch enforces rate limits; callers should handle failed sends and
+    ///   avoid spamming the API.
+    /// - The method is fire-and-forget; failures are logged and surfaced
+    ///   via the `Log` utility.
+    ///
     /// - Parameter message: The message text to send
     func sendMessage(_ message: String) {
         sendMessage(message, replyTo: nil)
@@ -604,6 +628,13 @@ final class TwitchChatService {
     // MARK: - API Requests
 
     /// Sends an API request to the Twitch Helix API.
+    ///
+    /// Notes:
+    /// - This helper performs a standard HTTP request using `URLSession`.
+    /// - The completion handler is executed on the URLSession callback
+    ///   queue (background thread). UI updates should be dispatched to the
+    ///   main queue by callers.
+    /// - HTTP errors and parsing failures are returned via the `Result`.
     ///
     /// - Parameters:
     ///   - method: The HTTP method (GET, POST, etc.)

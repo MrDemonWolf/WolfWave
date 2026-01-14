@@ -2,7 +2,7 @@
 //  SettingsView.swift
 //  wolfwave
 //
-//  Created by MrDemonWolf, Inc. on 1/8/26.
+//  Created by MrDemonWolf, Inc. on 1/13/26.
 //
 
 import AppKit
@@ -183,8 +183,9 @@ struct SettingsView: View {
             twitchViewModel.twitchService = appDelegate?.twitchService
             twitchViewModel.loadSavedCredentials()
 
-            // Apply bot command toggle to service
-            appDelegate?.twitchService?.commandsEnabled = currentSongCommandEnabled
+            // Apply bot command toggles to service
+            appDelegate?.twitchService?.currentSongCommandEnabled = currentSongCommandEnabled
+            appDelegate?.twitchService?.lastSongCommandEnabled = lastSongCommandEnabled
 
             // Set up Twitch service callbacks
             appDelegate?.twitchService?.onConnectionStateChanged = { isConnected in
@@ -291,7 +292,7 @@ struct SettingsView: View {
                         .labelsHidden()
                         .toggleStyle(.switch)
                         .onChange(of: currentSongCommandEnabled) { _, enabled in
-                            appDelegate?.twitchService?.commandsEnabled = enabled
+                            appDelegate?.twitchService?.currentSongCommandEnabled = enabled
                         }
                 }
                 .padding(12)
@@ -312,7 +313,7 @@ struct SettingsView: View {
                         .labelsHidden()
                         .toggleStyle(.switch)
                         .onChange(of: lastSongCommandEnabled) { _, enabled in
-                            appDelegate?.twitchService?.commandsEnabled = enabled
+                            appDelegate?.twitchService?.lastSongCommandEnabled = enabled
                         }
                 }
                 .padding(12)
