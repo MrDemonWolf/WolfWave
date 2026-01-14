@@ -2,6 +2,8 @@
 //  TwitchViewModel.swift
 //  wolfwave
 //
+//  Created by MrDemonWolf, Inc. on 1/13/26.
+//
 //  Manages all Twitch bot state and operations for Settings
 
 import Combine

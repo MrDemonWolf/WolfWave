@@ -19,14 +19,14 @@ import Foundation
 /// - Validate OAuth tokens and resolve user identities
 ///
 /// Threading & callbacks:
-/// - Network and WebSocket callbacks may occur on background queues.
+/// - Network and WebSocket callbacks occur on background queues.
 /// - Consumer-facing callbacks such as `onMessageReceived` and
-///   `onConnectionStateChanged` may be invoked off the main thread; callers
-///   should dispatch to the main queue for UI work.
+///   `onConnectionStateChanged` are invoked off the main thread; callers
+///   must dispatch to the main queue for UI work.
 ///
 /// Error handling:
 /// - Connection and API failures surface via thrown `ConnectionError` values
-///   or through log messages; callers should treat these operations as
+///   or through log messages. Callers must treat these operations as
 ///   potentially failing and handle errors appropriately.
 ///
 /// Example usage:
@@ -496,7 +496,7 @@ final class TwitchChatService {
     ///
     /// Notes:
     /// - Messages are sent via the Helix `/chat/messages` endpoint.
-    /// - Twitch enforces rate limits; callers should handle failed sends and
+    /// - Twitch enforces rate limits; callers must handle failed sends and
     ///   avoid spamming the API.
     /// - The method is fire-and-forget; failures are logged and surfaced
     ///   via the `Log` utility.

@@ -2,7 +2,7 @@
 //  SettingsView.swift
 //  wolfwave
 //
-//  Created by MrDemonWolf, Inc. on 1/13/26.
+//  Created by MrDemonWolf, Inc. on 1/8/26.
 //
 
 import AppKit
@@ -112,29 +112,34 @@ struct SettingsView: View {
     /// Controls sidebar visibility
     @State private var sidebarVisibility: NavigationSplitViewVisibility = .all
 
+    // Smoother animation for showing/hiding the sidebar
+    private var sidebarAnimation: Animation {
+        if #available(macOS 14.0, *) {
+            return .snappy(duration: 0.32, extraBounce: 0)
+        } else {
+            return .easeInOut(duration: 0.28)
+        }
+    }
+
     var body: some View {
         NavigationSplitView(columnVisibility: $sidebarVisibility) {
-            // Sidebar
-            List(SettingsSection.allCases, selection: $selectedSection) { section in
-                if let customIcon = section.customIcon {
-                    Label {
-                        Text(section.rawValue)
-                    } icon: {
-                        Image(customIcon)
-                            .renderingMode(.original)
-                            .resizable()
-                            .interpolation(.high)
-                            .scaledToFit()
-                            .frame(width: 16, height: 16)
+            ScrollView {
+                VStack(alignment: .leading, spacing: 8) {
+                    ForEach(SettingsSection.allCases) { section in
+                        sidebarRow(for: section)
                     }
-                    .tag(section)
-                } else if let systemIcon = section.systemIcon {
-                    Label(section.rawValue, systemImage: systemIcon)
-                        .tag(section)
                 }
+                .padding(.vertical, 12)
+                .padding(.horizontal, 10)
             }
-            .navigationSplitViewColumnWidth(Constants.sidebarWidth)
-            .listStyle(.sidebar)
+            .frame(
+                minWidth: Constants.sidebarWidth,
+                idealWidth: Constants.sidebarWidth,
+                maxWidth: Constants.sidebarWidth,
+                maxHeight: .infinity,
+                alignment: .topLeading
+            )
+            .background(Color(nsColor: .windowBackgroundColor))
         } detail: {
             // Detail view
             ScrollView {
@@ -167,6 +172,7 @@ struct SettingsView: View {
                 }
             }
         }
+        .animation(sidebarAnimation, value: sidebarVisibility)
         .frame(minWidth: Constants.minWidth, minHeight: Constants.minHeight)
         .keyboardShortcut("w", modifiers: .command)
         .onKeyPress { keyPress in
@@ -179,13 +185,11 @@ struct SettingsView: View {
             return .ignored
         }
         .onAppear {
-            // Initialize Twitch view model
+            // Link the view model to the app delegate's service (without reconnecting)
             twitchViewModel.twitchService = appDelegate?.twitchService
-            twitchViewModel.loadSavedCredentials()
 
-            // Apply bot command toggles to service
-            appDelegate?.twitchService?.currentSongCommandEnabled = currentSongCommandEnabled
-            appDelegate?.twitchService?.lastSongCommandEnabled = lastSongCommandEnabled
+            // Apply bot command toggle to service
+            appDelegate?.twitchService?.commandsEnabled = currentSongCommandEnabled
 
             // Set up Twitch service callbacks
             appDelegate?.twitchService?.onConnectionStateChanged = { isConnected in
@@ -200,16 +204,6 @@ struct SettingsView: View {
                     return appDelegate.getCurrentSongInfo()
                 }
                 return "No track currently playing"
-            }
-
-            // Auto-join channel if credentials are saved and channel is set
-            if twitchViewModel.credentialsSaved && !twitchViewModel.channelID.isEmpty
-                && !twitchViewModel.channelConnected
-            {
-                Log.info(
-                    "SettingsView: Auto-joining Twitch channel \(twitchViewModel.channelID)",
-                    category: "Settings")
-                twitchViewModel.joinChannel()
             }
         }
         .alert("Reset Settings?", isPresented: $showingResetAlert) {
@@ -237,6 +231,55 @@ struct SettingsView: View {
             twitchIntegrationView()
         case .advanced:
             AdvancedSettingsView(showingResetAlert: $showingResetAlert)
+        }
+    }
+
+    // MARK: - Sidebar Helpers
+
+    @ViewBuilder
+    private func sidebarRow(for section: SettingsSection) -> some View {
+        let isSelected = section == selectedSection
+
+        Button {
+            withAnimation(.easeInOut(duration: 0.2)) {
+                selectedSection = section
+            }
+        } label: {
+            HStack(spacing: 10) {
+                sidebarIcon(for: section, isSelected: isSelected)
+                    .frame(width: 18, height: 18)
+
+                Text(section.rawValue)
+                    .font(.body)
+                    .fontWeight(.semibold)
+                    .foregroundStyle(isSelected ? Color.white : Color.primary)
+
+                Spacer(minLength: 0)
+            }
+            .padding(.vertical, 10)
+            .padding(.horizontal, 12)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(
+                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                    .fill(isSelected ? Color(nsColor: .controlAccentColor) : Color.clear)
+            )
+        }
+        .buttonStyle(.plain)
+        .contentShape(Rectangle())
+    }
+
+    @ViewBuilder
+    private func sidebarIcon(for section: SettingsSection, isSelected: Bool) -> some View {
+        if let customIcon = section.customIcon {
+            Image(customIcon)
+                .renderingMode(.original) // keep Twitch purple
+                .resizable()
+                .interpolation(.high)
+                .scaledToFit()
+        } else if let systemIcon = section.systemIcon {
+            Image(systemName: systemIcon)
+                .font(.body)
+                .foregroundStyle(isSelected ? Color.white : Color.primary)
         }
     }
     
@@ -292,7 +335,7 @@ struct SettingsView: View {
                         .labelsHidden()
                         .toggleStyle(.switch)
                         .onChange(of: currentSongCommandEnabled) { _, enabled in
-                            appDelegate?.twitchService?.currentSongCommandEnabled = enabled
+                            appDelegate?.twitchService?.commandsEnabled = enabled
                         }
                 }
                 .padding(12)
@@ -313,7 +356,7 @@ struct SettingsView: View {
                         .labelsHidden()
                         .toggleStyle(.switch)
                         .onChange(of: lastSongCommandEnabled) { _, enabled in
-                            appDelegate?.twitchService?.lastSongCommandEnabled = enabled
+                            appDelegate?.twitchService?.commandsEnabled = enabled
                         }
                 }
                 .padding(12)

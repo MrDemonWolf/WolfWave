@@ -2,7 +2,7 @@
 //  WolfWaveApp.swift
 //  wolfwave
 //
-//  Created by MrDemonWolf, Inc. on 1/8/26.
+//  Created by MrDemonWolf, Inc. on 1/13/26.
 //
 
 import AppKit
@@ -491,6 +491,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     ///
     /// Sets up the song info callbacks so the Twitch bot can respond to !song and !last commands.
     /// Callbacks check if Music app is open and return appropriate status messages.
+    /// Also loads saved Twitch credentials from Keychain.
     private func setupTwitchService() {
         twitchService = TwitchChatService()
         twitchService?.getCurrentSongInfo = { [weak self] in
@@ -499,6 +500,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         twitchService?.getLastSongInfo = { [weak self] in
             self?.getLastSongInfo() ?? "No song is currently playing"
         }
+        
+        // Credentials are loaded from Keychain during connectToChannel()
     }
 
     // MARK: - Notification Observers
@@ -571,7 +574,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     /// - Parameters:
     ///   - index: The menu item index
     ///   - title: The new attributed title
-    ///   - hidden: Whether the item should be hidden
+    ///   - hidden: Whether the item is hidden
     private func updateMenuItem(at index: Int, with title: NSAttributedString, hidden: Bool) {
         guard let menu = statusItem?.menu, index < menu.items.count else { return }
         menu.items[index].attributedTitle = title
