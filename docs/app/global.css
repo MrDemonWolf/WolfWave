@@ -1,3 +1,46 @@
-@import 'tailwindcss';
-@import 'fumadocs-ui/css/neutral.css';
-@import 'fumadocs-ui/css/preset.css';
+@import "tailwindcss";
+@import "fumadocs-ui/css/neutral.css";
+@import "fumadocs-ui/css/preset.css";
+
+/* Brand color overrides */
+:root {
+  /* Primary / accent */
+  --fd-primary: #00aced;
+  --fd-primary-foreground: #ffffff;
+  --fd-accent: #00aced;
+  --fd-accent-foreground: #ffffff;
+
+  /* Darker secondary / accents */
+  --fd-secondary: #091533;
+  --fd-secondary-foreground: #ffffff;
+
+  /* Muted text */
+  --fd-muted-foreground: #6b7280;
+  /* Heading color (light uses secondary, dark will use primary foreground) */
+  --heading-color: var(--fd-secondary);
+}
+
+/* Dark theme tweaks (Fumadocs sets a data-theme attribute when dark) */
+:root[data-theme="dark"],
+[data-theme="dark"] {
+  --fd-primary: #00aced;
+  --fd-primary-foreground: #ffffff;
+  --fd-accent: #00aced;
+  --fd-accent-foreground: #091533;
+  --fd-secondary: #091533;
+  --fd-secondary-foreground: #00aced;
+  --fd-muted-foreground: #9aa6b2;
+  --heading-color: var(--fd-primary-foreground);
+}
+
+/* Optional small helpers for elements that need explicit contrast */
+.brand-btn-primary {
+  /* Use the darker brand color for CTAs to increase prominence */
+  background-color: var(--fd-secondary);
+  color: var(--fd-primary-foreground);
+  box-shadow: 0 1px 0 rgba(0, 0, 0, 0.06), inset 0 -1px 0 rgba(0, 0, 0, 0.04);
+}
+
+.brand-link-accent {
+  color: var(--fd-accent);
+}
