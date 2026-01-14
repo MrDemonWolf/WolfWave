@@ -60,3 +60,10 @@ struct MusicMonitorSettingsView: View {
         )
     }
 }
+
+// MARK: - Preview
+
+#Preview {
+    MusicMonitorSettingsView()
+        .padding()
+}

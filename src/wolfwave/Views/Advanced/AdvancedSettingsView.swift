@@ -69,3 +69,11 @@ struct AdvancedSettingsView: View {
         }
     }
 }
+
+// MARK: - Preview
+
+#Preview {
+    @Previewable @State var showingResetAlert = false
+    AdvancedSettingsView(showingResetAlert: $showingResetAlert)
+        .padding()
+}

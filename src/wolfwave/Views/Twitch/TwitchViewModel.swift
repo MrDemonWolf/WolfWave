@@ -92,7 +92,16 @@ final class TwitchViewModel: ObservableObject {
     @Published var authState = AuthState.idle
     
     /// Reference to the Twitch chat service
-    var twitchService: TwitchChatService?
+    var twitchService: TwitchChatService? {
+        get {
+            _twitchService ?? getTwitchServiceFromAppDelegate()
+        }
+        set {
+            _twitchService = newValue
+        }
+    }
+    
+    private var _twitchService: TwitchChatService?
     
     /// Background task for polling token during OAuth flow
     var devicePollingTask: Task<Void, Never>?
@@ -118,6 +127,8 @@ final class TwitchViewModel: ObservableObject {
     // MARK: - Public Methods
 
     /// Loads saved credentials from macOS Keychain.
+    ///
+    /// Also loads the reauth needed flag and sets up notification observers for auth state changes.
     func loadSavedCredentials() {
         if let username = KeychainService.loadTwitchUsername() {
             botUsername = username
@@ -129,11 +140,31 @@ final class TwitchViewModel: ObservableObject {
         if let channel = KeychainService.loadTwitchChannelID() {
             channelID = channel
         }
+        
+        // Load reauth needed flag from UserDefaults
+        reauthNeeded = UserDefaults.standard.bool(forKey: "twitchReauthNeeded")
+        
+        // Listen for reauth status changes
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(reAuthStatusChanged),
+            name: NSNotification.Name("TwitchReauthNeededChanged"),
+            object: nil
+        )
+    }
+
+    /// Called when the reauth needed status changes.
+    @objc private func reAuthStatusChanged() {
+        reauthNeeded = UserDefaults.standard.bool(forKey: "twitchReauthNeeded")
     }
 
     /// Initiates the OAuth Device Code flow.
     ///
-    /// Requests a device code from Twitch, displays it to the user, and polls for token.
+    /// - Requests a device code from Twitch
+    /// - Displays the code to the user for manual entry on twitch.tv/activate
+    /// - Polls for token approval
+    /// - On success, saves credentials and resolves bot identity
+    /// - On failure, displays error message to user
     func startOAuth() {
         Log.info("TwitchViewModel: Starting OAuth flow", category: "Twitch")
         authState = .requestingCode
@@ -202,6 +233,7 @@ final class TwitchViewModel: ObservableObject {
             try KeychainService.saveTwitchChannelID(channelID)
             credentialsSaved = true
             reauthNeeded = false
+            UserDefaults.standard.set(false, forKey: "twitchReauthNeeded")
             NotificationCenter.default.post(
                 name: NSNotification.Name("TwitchReauthNeededChanged"),
                 object: nil
@@ -212,6 +244,19 @@ final class TwitchViewModel: ObservableObject {
         } catch {
             Log.error(
                 "TwitchViewModel: Failed to save credentials - \(error.localizedDescription)",
+                category: "Twitch"
+            )
+        }
+    }
+
+    /// Saves just the channel ID to Keychain (auto-save on input).
+    func saveChannelID() {
+        do {
+            try KeychainService.saveTwitchChannelID(channelID)
+            Log.debug("TwitchViewModel: Channel ID saved", category: "Twitch")
+        } catch {
+            Log.error(
+                "TwitchViewModel: Failed to save channel ID - \(error.localizedDescription)",
                 category: "Twitch"
             )
         }
@@ -239,6 +284,7 @@ final class TwitchViewModel: ObservableObject {
         credentialsSaved = false
         connectedOnce = false
         reauthNeeded = false
+        UserDefaults.standard.set(false, forKey: "twitchReauthNeeded")
         statusMessage = ""
         authState = .idle
 
@@ -249,6 +295,12 @@ final class TwitchViewModel: ObservableObject {
         Log.info("TwitchViewModel: Credentials cleared", category: "Twitch")
     }
 
+    /// Joins the configured Twitch channel with the saved bot credentials.
+    ///
+    /// - Validates credentials and channel name
+    /// - Connects to Twitch EventSub WebSocket
+    /// - Updates connection state on success/failure
+    /// - Provides user-facing status messages
     func joinChannel() {
         guard let token = KeychainService.loadTwitchToken() else {
             statusMessage = "Missing credentials"
@@ -288,6 +340,7 @@ final class TwitchViewModel: ObservableObject {
         }
     }
 
+    /// Leaves the connected Twitch channel and closes EventSub connection.
     func leaveChannel() {
         Log.info("TwitchViewModel: Leaving Twitch channel", category: "Twitch")
         twitchService?.leaveChannel()
@@ -301,6 +354,17 @@ final class TwitchViewModel: ObservableObject {
         authState = state
     }
 
+    /// Retrieves the TwitchChatService from AppDelegate if twitchService is not yet set.
+    ///
+    /// This ensures the view model can always access the service, even if it was created
+    /// before SettingsView.onAppear() had a chance to assign it explicitly.
+    private func getTwitchServiceFromAppDelegate() -> TwitchChatService? {
+        if let appDelegate = NSApplication.shared.delegate as? AppDelegate {
+            return appDelegate.twitchService
+        }
+        return nil
+    }
+
     private func handleOAuthSuccess(token: String, clientID: String) async {
         authState = .inProgress
         statusMessage = "✅ Authorization successful! Saving credentials..."
@@ -309,6 +373,7 @@ final class TwitchViewModel: ObservableObject {
         do {
             try KeychainService.saveTwitchToken(token)
             reauthNeeded = false
+            UserDefaults.standard.set(false, forKey: "twitchReauthNeeded")
             NotificationCenter.default.post(
                 name: NSNotification.Name("TwitchReauthNeededChanged"),
                 object: nil
