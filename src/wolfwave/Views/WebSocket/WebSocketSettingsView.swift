@@ -12,7 +12,7 @@ struct WebSocketSettingsView: View {
     // MARK: - Constants
     
     private enum Constants {
-        static let validSchemes = ["ws", "wss", "http", "https"]
+        static let validSchemes = ["ws", "wss"]
     }
     
     // MARK: - User Settings
