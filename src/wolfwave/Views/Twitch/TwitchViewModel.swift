@@ -462,4 +462,12 @@ final class TwitchViewModel: ObservableObject {
             }
         }
     }
+
+    deinit {
+        NotificationCenter.default.removeObserver(
+            self,
+            name: NSNotification.Name("TwitchReauthNeededChanged"),
+            object: nil
+        )
+    }
 }
