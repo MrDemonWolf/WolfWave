@@ -35,11 +35,7 @@ open-xcode:
 	open $(PROJECT)
 
 env-check:
-	@if [ -z "$$TWITCH_CLIENT_ID" ]; then \
-		echo "TWITCH_CLIENT_ID is NOT set (required for Twitch auth)"; \
-	else \
-		echo "TWITCH_CLIENT_ID is set: $$TWITCH_CLIENT_ID"; \
-	fi
+	@bash ./scripts/env-check.sh
 
 ci: build
 
