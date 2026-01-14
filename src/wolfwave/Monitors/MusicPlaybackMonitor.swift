@@ -2,7 +2,7 @@
 //  MusicPlaybackMonitor.swift
 //  wolfwave
 //
-//  Created by MrDemonWolf, Inc. on 1/8/26.
+//  Created by MrDemonWolf, Inc. on 1/13/26.
 //
 
 import Foundation
@@ -42,14 +42,18 @@ protocol MusicPlaybackMonitorDelegate: AnyObject {
 /// to communicate directly with Music.app and subscribes to distributed notifications for
 /// immediate playback changes.
 ///
-/// **Usage:**
+/// Delegate notifications:
+/// - The monitor guarantees that delegate callbacks are delivered on the main thread.
+///   Consumers can safely update UI from the delegate methods.
+///
+/// Usage example:
 /// ```swift
 /// let monitor = MusicPlaybackMonitor()
 /// monitor.delegate = self
 /// monitor.startTracking()
 /// ```
 ///
-/// **Requirements:**
+/// Requirements:
 /// - Entitlements: `com.apple.security.automation.apple-events`
 /// - Info.plist: `NSAppleEventsUsageDescription`
 class MusicPlaybackMonitor {
