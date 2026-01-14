@@ -2,7 +2,7 @@
 //  TwitchDeviceAuth.swift
 //  wolfwave
 //
-//  Created by MrDemonWolf, Inc. on 1/8/26.
+//  Created by MrDemonWolf, Inc. on 1/13/26.
 //
 
 import Foundation
@@ -46,7 +46,7 @@ enum TwitchDeviceAuthError: LocalizedError {
     /// Authorization is pending - user hasn't completed the flow yet
     case authorizationPending
     
-    /// Client is polling too quickly - should increase interval
+    /// Client is polling too quickly - increase the polling interval when received
     case slowDown
     
     /// Invalid client credentials provided

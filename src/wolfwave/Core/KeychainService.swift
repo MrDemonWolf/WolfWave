@@ -8,8 +8,20 @@
 import Foundation
 import Security
 
-/// A service that handles secure storage and retrieval of authentication tokens using macOS Keychain.
-/// This ensures sensitive data like JWT tokens are never stored in UserDefaults or plain text files.
+/// A service that handles secure storage and retrieval of authentication tokens using the macOS Keychain.
+///
+/// Stored items (service: `com.mrdemonwolf.wolfwave`):
+/// - WebSocket auth token (`websocketAuthToken`)
+/// - Twitch OAuth token (`twitchBotAccountOauthToken`)
+/// - Twitch bot username (`twitchBotAccountUsername`)
+/// - Twitch bot user ID (`twitchBotAccountUserID`)
+/// - Twitch channel ID (`twitchChannelIDAccount`)
+///
+/// Notes:
+/// - Items are saved with `kSecAttrAccessibleAfterFirstUnlock` so they remain
+///   accessible while the device is unlocked after a restart.
+/// - All methods are synchronous wrappers around Keychain APIs and will throw
+///   `KeychainError` on save failures.
 enum KeychainService {
     // MARK: - Constants
 

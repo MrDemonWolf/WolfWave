@@ -2,7 +2,7 @@
 //  BotCommandDispatcher.swift
 //  wolfwave
 //
-//  Created by MrDemonWolf, Inc. on 1/8/26.
+//  Created by MrDemonWolf, Inc. on 1/13/26.
 //
 
 import Foundation
@@ -21,7 +21,9 @@ final class BotCommandDispatcher {
     /// Registers the default set of bot commands.
     private func registerDefaultCommands() {
         let songCommand = SongCommand()
+        let lastSongCommand = LastSongCommand()
         register(songCommand)
+        register(lastSongCommand)
     }
 
     /// Register a new bot command
@@ -34,6 +36,15 @@ final class BotCommandDispatcher {
         for command in commands {
             if let songCmd = command as? SongCommand {
                 songCmd.getCurrentSongInfo = callback
+            }
+        }
+    }
+
+    /// Set the last song info callback for last song commands
+    func setLastSongInfo(callback: @escaping () -> String) {
+        for command in commands {
+            if let lastSongCmd = command as? LastSongCommand {
+                lastSongCmd.getLastSongInfo = callback
             }
         }
     }

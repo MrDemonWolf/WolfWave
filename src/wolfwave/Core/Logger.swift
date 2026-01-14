@@ -2,7 +2,7 @@
 //  Logger.swift
 //  wolfwave
 //
-//  Created by MrDemonWolf, Inc. on 1/8/26.
+//  Created by MrDemonWolf, Inc. on 1/13/26.
 //
 
 import Foundation
@@ -29,7 +29,8 @@ enum LogLevel: String {
 /// A centralized logging utility for consistent, structured logging throughout the application.
 ///
 /// The logger provides emoji-prefixed, timestamped log messages with category support
-/// for easy filtering and debugging.
+/// for easy filtering and debugging. In production, consider replacing this
+/// implementation with `os_log`/`OSLog` or another structured logging backend.
 ///
 /// **Usage:**
 /// ```swift
