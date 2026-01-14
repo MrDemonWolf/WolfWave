@@ -7,6 +7,7 @@
 
 import AppKit
 import SwiftUI
+import UserNotifications
 
 // MARK: - Main App
 
@@ -85,6 +86,12 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     
     /// Currently playing album title
     private var currentAlbum: String?
+    
+    /// Last playing song title
+    private var lastSong: String?
+    
+    /// Last playing artist name
+    private var lastArtist: String?
 
     /// The application display name from Info.plist
     private var appName: String {
@@ -211,9 +218,10 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
     /// Handles window close events to restore menu-only mode if appropriate.
     ///
+    /// Defers mode restoration by 100ms to allow window state to fully update.
+    ///
     /// - Parameter notification: The window close notification
     @objc private func handleWindowClose(_ notification: Notification) {
-        // Delay slightly to allow window state to settle, then restore menu-only if appropriate
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) { [weak self] in
             self?.restoreMenuOnlyIfNeeded()
         }
@@ -223,12 +231,11 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
     /// Opens the settings window.
     ///
-    /// If the window is already open, brings it to the front. Otherwise creates a new settings window.
-    /// Temporarily shows the app in the Dock if in menu-only mode.
+    /// If the window exists, brings it to the front. Otherwise creates a new instance.
+    /// Temporarily enables Dock visibility when in menu-only mode to ensure proper window focus.
     @objc func openSettings() {
-        // Dismiss status menu to avoid focus issues
         statusItem?.menu?.cancelTracking()
-        // Temporarily show in dock if in menu-only mode
+        
         let currentMode = UserDefaults.standard.string(forKey: "dockVisibility") ?? "both"
         if currentMode == "menuOnly" {
             NSApp.setActivationPolicy(.regular)
@@ -248,11 +255,10 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
     /// Shows the standard macOS About panel.
     ///
-    /// Temporarily shows the app in the Dock if in menu-only mode.
+    /// Temporarily enables Dock visibility when in menu-only mode to ensure proper panel display.
     @objc func showAbout() {
-        // Dismiss status menu to avoid focus issues
         statusItem?.menu?.cancelTracking()
-        // Temporarily show in dock if in menu-only mode
+        
         let currentMode = UserDefaults.standard.string(forKey: "dockVisibility") ?? "both"
         if currentMode == "menuOnly" {
             NSApp.setActivationPolicy(.regular)
@@ -272,11 +278,13 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
     /// Applies a dock visibility mode.
     ///
+    /// Configures menu bar and Dock visibility based on the specified mode.
+    /// In menu-only mode, Dock appears only when application windows are visible.
+    ///
     /// - Parameter mode: The visibility mode ("menuOnly", "dockOnly", or "both")
     private func applyDockVisibility(_ mode: String) {
         switch mode {
         case "menuOnly":
-            // Keep menu bar visible; show Dock if any app windows are open
             statusItem?.isVisible = true
             let hasVisibleWindows = NSApp.windows.contains { window in
                 window.isVisible && window.canBecomeKey && window.level == .normal
@@ -294,14 +302,14 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         }
     }
     
-    /// Restores menu-only mode after windows close, if that's the current setting.
+    /// Restores menu-only mode after windows close, if configured.
+    ///
+    /// Only applies when visibility mode is "menuOnly" and no application windows remain visible.
     private func restoreMenuOnlyIfNeeded() {
         let currentMode = UserDefaults.standard.string(forKey: "dockVisibility") ?? "both"
         
-        // Only restore menu-only mode if that's the setting and no windows are visible
         guard currentMode == "menuOnly" else { return }
         
-        // Check if any app windows (not system windows) are still visible
         let hasVisibleWindows = NSApp.windows.contains { window in
             window.isVisible && window.canBecomeKey && window.level == .normal
         }
@@ -313,14 +321,53 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
     // MARK: - Song Info Provider
 
+    /// Checks if the Music app is currently running.
+    ///
+    /// - Returns: True if Music app is open, false otherwise
+    private func isMusicAppOpen() -> Bool {
+        let workspace = NSWorkspace.shared
+        let runningApps = workspace.runningApplications
+        return runningApps.contains { app in
+            app.bundleIdentifier == "com.apple.Music"
+        }
+    }
+
     /// Returns the current song information for Twitch bot commands.
     ///
-    /// - Returns: A formatted string with song and artist, or "No track currently playing"
+    /// Returns wolf-themed messages based on state:
+    /// - "🐺 Music app is not running" if Music app is closed
+    /// - "🐺 No tracks in the den" if no track has played yet
+    /// - Wolf-themed song info if a track is playing
+    ///
+    /// - Returns: A formatted string with song and artist, or a status message
     func getCurrentSongInfo() -> String {
-        guard let song = currentSong, let artist = currentArtist else {
-            return "No track currently playing"
+        guard isMusicAppOpen() else {
+            return "🐺 Music app is not running"
         }
-        return "Now playing: \(song) by \(artist)"
+        
+        guard let song = currentSong, let artist = currentArtist else {
+            return "🐺 No tracks in the den"
+        }
+        return "🐺 Now playing: \(song) by \(artist)"
+    }
+
+    /// Returns the last played song information for Twitch bot commands.
+    ///
+    /// Returns wolf-themed messages based on state:
+    /// - "🐺 Music app is not running" if Music app is closed
+    /// - "🐺 No previous tracks yet, keep the music flowing!" if no last song exists
+    /// - Wolf-themed song info if a previous track exists
+    ///
+    /// - Returns: A formatted string with song and artist, or a status message
+    func getLastSongInfo() -> String {
+        guard isMusicAppOpen() else {
+            return "🐺 Music app is not running"
+        }
+        
+        guard let song = lastSong, let artist = lastArtist else {
+            return "🐺 No previous tracks yet, keep the music flowing!"
+        }
+        return "🐺 Last howl: \(song) by \(artist)"
     }
 
     // MARK: - Status Bar Setup
@@ -442,17 +489,15 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
     /// Creates and configures the Twitch chat service.
     ///
-    /// Sets up the song info callback so the Twitch bot can respond to !song commands.
+    /// Sets up the song info callbacks so the Twitch bot can respond to !song and !last commands.
+    /// Callbacks check if Music app is open and return appropriate status messages.
     private func setupTwitchService() {
         twitchService = TwitchChatService()
         twitchService?.getCurrentSongInfo = { [weak self] in
-            guard let self = self,
-                let song = self.currentSong,
-                let artist = self.currentArtist
-            else {
-                return "No track currently playing"
-            }
-            return "Now playing: \(song) by \(artist)"
+            self?.getCurrentSongInfo() ?? "No song is currently playing"
+        }
+        twitchService?.getLastSongInfo = { [weak self] in
+            self?.getLastSongInfo() ?? "No song is currently playing"
         }
     }
 
@@ -608,10 +653,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
                 height: Constants.settingsHeight
             ))
 
-        // Make window appear in Dock
         window.collectionBehavior = [.moveToActiveSpace]
         window.canHide = true
-        // No window delegate needed; close handling is global via notifications
 
         window.center()
         return window
@@ -638,9 +681,47 @@ extension AppDelegate {
         UserDefaults.standard.set(needed, forKey: "twitchReauthNeeded")
     }
 
+    /// Displays a user notification for Twitch authentication issues.
+    ///
+    /// Uses the UserNotifications framework to display system notifications.
+    ///
+    /// - Parameters:
+    ///   - title: The notification title
+    ///   - message: The notification message body
+    private func showTwitchAuthNotification(title: String, message: String) {
+        let content = UNMutableNotificationContent()
+        content.title = title
+        content.body = message
+        content.sound = .default
+        
+        let request = UNNotificationRequest(identifier: UUID().uuidString, content: content, trigger: nil)
+        
+        UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound]) { granted, _ in
+            if granted {
+                DispatchQueue.main.async {
+                    UNUserNotificationCenter.current().add(request) { error in
+                        if let error = error {
+                            Log.error(
+                                "AppDelegate: Failed to send notification - \(error.localizedDescription)",
+                                category: "Notifications"
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    /// Opens the settings window and navigates to the Twitch Integration section.
+    private func openSettingsToTwitch() {
+        UserDefaults.standard.set("twitchIntegration", forKey: "selectedSettingsSection")
+        openSettings()
+    }
+
     /// Validates the stored Twitch token on application launch.
     ///
-    /// If the token is invalid, sets the reauth needed flag so the user is prompted to log in again.
+    /// Checks if the token is still valid with Twitch.
+    /// If invalid, sets the reauth needed flag, displays a notification, and opens Settings to Twitch section.
     fileprivate func validateTwitchTokenOnBoot() async {
         guard let token = KeychainService.loadTwitchToken(), !token.isEmpty else {
             setReauthNeeded(false)
@@ -650,15 +731,28 @@ extension AppDelegate {
         let isValid = await twitchService?.validateToken(token) ?? false
         await MainActor.run {
             setReauthNeeded(!isValid)
+            
+            if !isValid {
+                showTwitchAuthNotification(
+                    title: "Twitch Authentication Expired",
+                    message: "Your Twitch session has expired. Opening Settings..."
+                )
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in
+                    self?.openSettingsToTwitch()
+                }
+            }
         }
     }
 
     /// Automatically joins the configured Twitch channel on application launch.
     ///
-    /// Only joins if:
-    /// - A valid token exists in the keychain
-    /// - A channel ID is configured
-    /// - The token has been validated (reauth not needed)
+    /// Performs validation checks before attempting connection:
+    /// - Valid token exists in keychain
+    /// - Channel ID is configured
+    /// - Token has been validated (reauth not required)
+    ///
+    /// Introduces a 2-second delay to ensure services are fully initialized.
+    /// Notifies user if auto-join fails.
     fileprivate func autoJoinTwitchChannel() async {
         guard let token = KeychainService.loadTwitchToken(), !token.isEmpty,
             let channelID = KeychainService.loadTwitchChannelID(), !channelID.isEmpty,
@@ -673,6 +767,13 @@ extension AppDelegate {
             guard let clientID = TwitchChatService.resolveClientID(), !clientID.isEmpty else {
                 Log.error(
                     "AppDelegate: Cannot auto-join - missing Twitch Client ID", category: "Twitch")
+                self.showTwitchAuthNotification(
+                    title: "Twitch Configuration Error",
+                    message: "Missing Twitch Client ID. Opening Settings..."
+                )
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in
+                    self?.openSettingsToTwitch()
+                }
                 return
             }
 
@@ -691,6 +792,13 @@ extension AppDelegate {
                         "AppDelegate: Failed to auto-join Twitch channel - \(error.localizedDescription)",
                         category: "Twitch"
                     )
+                    self.showTwitchAuthNotification(
+                        title: "Twitch Connection Failed",
+                        message: "Could not connect to Twitch. Opening Settings..."
+                    )
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in
+                        self?.openSettingsToTwitch()
+                    }
                 }
             }
         }
@@ -702,6 +810,9 @@ extension AppDelegate {
 extension AppDelegate: MusicPlaybackMonitorDelegate {
     /// Called when the music monitor detects a new track playing.
     ///
+    /// Preserves the previous track information for !last command support.
+    /// Only updates lastSong when the track actually changes to avoid overwriting with duplicates.
+    ///
     /// - Parameters:
     ///   - monitor: The music monitor
     ///   - track: The track title
@@ -710,6 +821,12 @@ extension AppDelegate: MusicPlaybackMonitorDelegate {
     func musicPlaybackMonitor(
         _ monitor: MusicPlaybackMonitor, didUpdateTrack track: String, artist: String, album: String
     ) {
+        // Only save current as last if the track is actually changing
+        if currentSong != track {
+            lastSong = currentSong
+            lastArtist = currentArtist
+        }
+        
         currentSong = track
         currentArtist = artist
         currentAlbum = album
@@ -719,11 +836,13 @@ extension AppDelegate: MusicPlaybackMonitorDelegate {
 
     /// Called when the music monitor detects a status change (e.g., playback stopped).
     ///
+    /// Clears the current track information only when playback has actually stopped.
+    ///
     /// - Parameters:
     ///   - monitor: The music monitor
     ///   - status: The status message
     func musicPlaybackMonitor(_ monitor: MusicPlaybackMonitor, didUpdateStatus status: String) {
-        if status != "No track playing" {
+        if status == "No track playing" {
             currentSong = nil
             currentArtist = nil
             currentAlbum = nil
@@ -732,5 +851,3 @@ extension AppDelegate: MusicPlaybackMonitorDelegate {
         updateNowPlaying(status)
     }
 }
-
-// NSWindowDelegate not required; window close is handled via global notifications

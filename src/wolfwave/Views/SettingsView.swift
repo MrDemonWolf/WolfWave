@@ -30,6 +30,7 @@ struct SettingsView: View {
             static let websocketEnabled = "websocketEnabled"
             static let websocketURI = "websocketURI"
             static let currentSongCommandEnabled = "currentSongCommandEnabled"
+            static let lastSongCommandEnabled = "lastSongCommandEnabled"
             static let dockVisibility = "dockVisibility"
         }
 
@@ -81,9 +82,13 @@ struct SettingsView: View {
     @AppStorage(Constants.UserDefaultsKeys.trackingEnabled)
     private var trackingEnabled = true
 
-    /// Whether the Current Song command is enabled
+    /// Whether the Current Playing Song command is enabled
     @AppStorage(Constants.UserDefaultsKeys.currentSongCommandEnabled)
-    private var currentSongCommandEnabled = false
+    private var currentSongCommandEnabled = true
+
+    /// Whether the Last Played Song command is enabled
+    @AppStorage(Constants.UserDefaultsKeys.lastSongCommandEnabled)
+    private var lastSongCommandEnabled = true
 
     @AppStorage(Constants.UserDefaultsKeys.dockVisibility)
     private var dockVisibility = "both"
@@ -140,6 +145,16 @@ struct SettingsView: View {
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
             }
             .background(.ultraThinMaterial)
+            .onAppear {
+                // Check if a specific section was requested to be opened
+                if let requestedSection = UserDefaults.standard.string(forKey: "selectedSettingsSection") {
+                    if requestedSection == "twitchIntegration" {
+                        selectedSection = .twitchIntegration
+                    }
+                    // Clear the request after using it
+                    UserDefaults.standard.removeObject(forKey: "selectedSettingsSection")
+                }
+            }
             .toolbar {
                 ToolbarItem(placement: .primaryAction) {
                     Button(action: {
@@ -264,7 +279,7 @@ struct SettingsView: View {
                 
                 HStack(spacing: 12) {
                     VStack(alignment: .leading, spacing: 4) {
-                        Text("Current Song")
+                        Text("Current Playing Song")
                             .font(.body)
                             .fontWeight(.medium)
                         Text("!song, !currentsong, !nowplaying")
@@ -276,6 +291,27 @@ struct SettingsView: View {
                         .labelsHidden()
                         .toggleStyle(.switch)
                         .onChange(of: currentSongCommandEnabled) { _, enabled in
+                            appDelegate?.twitchService?.commandsEnabled = enabled
+                        }
+                }
+                .padding(12)
+                .background(Color(nsColor: .controlBackgroundColor))
+                .cornerRadius(8)
+
+                HStack(spacing: 12) {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("Last Played Song")
+                            .font(.body)
+                            .fontWeight(.medium)
+                        Text("!last, !lastsong, !prevsong")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                    Spacer()
+                    Toggle("", isOn: $lastSongCommandEnabled)
+                        .labelsHidden()
+                        .toggleStyle(.switch)
+                        .onChange(of: lastSongCommandEnabled) { _, enabled in
                             appDelegate?.twitchService?.commandsEnabled = enabled
                         }
                 }
@@ -329,7 +365,7 @@ struct SettingsView: View {
 
 extension SettingsView.Constants.UserDefaultsKeys {
     static var allKeys: [String] {
-        [trackingEnabled, currentSongCommandEnabled, dockVisibility, websocketEnabled, websocketURI]
+        [trackingEnabled, currentSongCommandEnabled, lastSongCommandEnabled, dockVisibility, websocketEnabled, websocketURI]
     }
 }
 
@@ -348,4 +384,11 @@ private struct StatusChip: View {
             .background(color.opacity(0.15))
             .clipShape(Capsule())
     }
+}
+
+// MARK: - Preview
+
+#Preview {
+    SettingsView()
+        .frame(minWidth: 700, minHeight: 500)
 }

@@ -224,3 +224,10 @@ struct WebSocketSettingsView: View {
         tokenSaved = false
     }
 }
+
+// MARK: - Preview
+
+#Preview {
+    WebSocketSettingsView()
+        .padding()
+}

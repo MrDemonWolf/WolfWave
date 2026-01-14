@@ -124,6 +124,9 @@ final class TwitchChatService {
     /// Callback to get current song info for bot commands
     var getCurrentSongInfo: (() -> String)?
     
+    /// Callback to get last song info for bot commands
+    var getLastSongInfo: (() -> String)?
+    
     /// Whether bot commands are enabled
     var commandsEnabled = true
     
@@ -170,6 +173,10 @@ final class TwitchChatService {
 
         commandDispatcher.setCurrentSongInfo { [weak self] in
             self?.getCurrentSongInfo?() ?? "No track currently playing"
+        }
+
+        commandDispatcher.setLastSongInfo { [weak self] in
+            self?.getLastSongInfo?() ?? "No previous track available"
         }
 
         onConnectionStateChanged?(true)
@@ -455,6 +462,16 @@ final class TwitchChatService {
                 "Twitch: Token validate request failed - \(error.localizedDescription)",
                 category: "TwitchChat")
             return false
+        }
+    }
+
+    /// Sends the connection confirmation message to the channel.
+    ///
+    /// Called automatically when the bot successfully subscribes to channel chat messages.
+    /// Sends: "WolfWave Application is connected! 🎵"
+    func sendConnectionMessage() {
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) { [weak self] in
+            self?.sendMessage("WolfWave Application is connected! 🎵")
         }
     }
 
@@ -799,7 +816,7 @@ final class TwitchChatService {
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.httpBody = try? JSONSerialization.data(withJSONObject: subscriptionBody)
 
-        URLSession.shared.dataTask(with: request) { data, response, error in
+        URLSession.shared.dataTask(with: request) { [weak self] data, response, error in
             if let error = error {
                 Log.error(
                     "Twitch: EventSub subscription error - \(error.localizedDescription)",
@@ -810,10 +827,7 @@ final class TwitchChatService {
             if let http = response as? HTTPURLResponse {
                 if (200..<300).contains(http.statusCode) {
                     Log.info("Twitch: Connected to chat", category: "TwitchChat")
-
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) { [weak self] in
-                        self?.sendMessage("WolfWave Application is connected! 🎵")
-                    }
+                    self?.sendConnectionMessage()
                 } else {
                     let responseText =
                         data.flatMap { String(data: $0, encoding: .utf8) } ?? "No response"
