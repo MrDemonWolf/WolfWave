@@ -54,7 +54,7 @@ struct MusicMonitorSettingsView: View {
     
     private func notifyTrackingSettingChanged(enabled: Bool) {
         NotificationCenter.default.post(
-            name: NSNotification.Name("TrackingSettingChanged"),
+            name: NSNotification.Name(AppConstants.Notifications.trackingSettingChanged),
             object: nil,
             userInfo: ["enabled": enabled]
         )
