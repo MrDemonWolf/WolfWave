@@ -4,6 +4,7 @@ const withMDX = createMDX();
 // Normalize optional NEXT_PUBLIC_BASE_PATH to a Next-compatible basePath
 const basePath = (() => {
   const envValue = process.env.NEXT_PUBLIC_BASE_PATH ?? "";
+  if (!envValue) return "";
   let path = "";
   try {
     path = new URL(envValue).pathname;
