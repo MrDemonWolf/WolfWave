@@ -41,6 +41,8 @@ struct AdvancedSettingsView: View {
                             .font(.headline)
                             .foregroundStyle(.red)
                     }
+                    .accessibilityElement(children: .combine)
+                    .accessibilityLabel("Danger Zone")
                     
                     Text("Resetting will permanently delete all your settings, clear stored credentials from Keychain, and disconnect any active services. This action cannot be undone.")
                         .font(.subheadline)
@@ -65,6 +67,9 @@ struct AdvancedSettingsView: View {
                 .buttonStyle(.borderedProminent)
                 .controlSize(.large)
                 .tint(.red)
+                .accessibilityLabel("Reset all settings to defaults")
+                .accessibilityHint("Permanently delete all settings and stored credentials")
+                .accessibilityIdentifier("resetAllSettingsButton")
             }
         }
     }

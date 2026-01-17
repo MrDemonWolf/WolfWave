@@ -36,6 +36,7 @@ struct AppVisibilitySettingsView: View {
                 Text("Show app in:")
                     .font(.body)
                     .fontWeight(.medium)
+                    .accessibilityHidden(true)
                 
                 Picker("", selection: $dockVisibility) {
                     Text("Dock and Menu Bar").tag("both")
@@ -47,6 +48,8 @@ struct AppVisibilitySettingsView: View {
                 .onChange(of: dockVisibility) { _, newValue in
                     applyDockVisibility(newValue)
                 }
+                .accessibilityLabel("Show app in")
+                .accessibilityIdentifier("dockVisibilityPicker")
             }
             .padding(12)
             .background(Color(nsColor: .controlBackgroundColor))
@@ -64,6 +67,8 @@ struct AppVisibilitySettingsView: View {
                 .padding(12)
                 .background(Color.blue.opacity(0.1))
                 .cornerRadius(8)
+                .accessibilityElement(children: .combine)
+                .accessibilityLabel("When menu bar only is enabled, the app will appear in the dock when settings are open.")
             }
         }
     }

@@ -268,22 +268,7 @@ struct SettingsView: View {
     
     private func twitchIntegrationView() -> some View {
         VStack(alignment: .leading, spacing: 24) {
-            VStack(alignment: .leading, spacing: 8) {
-                HStack(spacing: 8) {
-                    Image("TwitchLogo")
-                        .renderingMode(.original)
-                        .resizable()
-                        .scaledToFit()
-                        .frame(width: 18, height: 18)
-                    Text("Twitch Integration")
-                        .font(.title2)
-                        .fontWeight(.semibold)
-                    Spacer()
-                    StatusChip(text: twitchViewModel.statusChipText, color: twitchViewModel.statusChipColor)
-                }
-            }
-            
-            // Twitch Bot Connection
+            // Use the inner header inside `TwitchSettingsView` — remove outer duplicated header.
             TwitchSettingsView(viewModel: twitchViewModel)
             
             Divider()

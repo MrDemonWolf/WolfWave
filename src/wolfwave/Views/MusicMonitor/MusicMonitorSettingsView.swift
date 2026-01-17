@@ -25,6 +25,8 @@ struct MusicMonitorSettingsView: View {
                         .font(.title2)
                         .fontWeight(.semibold)
                 }
+                .accessibilityElement(children: .combine)
+                .accessibilityLabel("Music Playback Monitor")
                 
                 Text("Monitor your Apple Music playback to display in the menu bar and share with external services like Twitch or custom WebSocket endpoints.")
                     .font(.subheadline)
@@ -40,6 +42,9 @@ struct MusicMonitorSettingsView: View {
                 Toggle("", isOn: $trackingEnabled)
                     .labelsHidden()
                     .toggleStyle(.switch)
+                        .accessibilityLabel("Enable Apple Music monitoring")
+                        .accessibilityHint("Toggle to enable or disable Apple Music monitoring")
+                        .accessibilityIdentifier("musicTrackingToggle")
                     .onChange(of: trackingEnabled) { _, newValue in
                         notifyTrackingSettingChanged(enabled: newValue)
                     }

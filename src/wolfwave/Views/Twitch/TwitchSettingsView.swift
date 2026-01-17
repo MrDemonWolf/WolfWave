@@ -39,8 +39,8 @@ struct TwitchSettingsView: View {
 
                 authCard
             }
-            .frame(maxWidth: 480)
-            .padding(24)
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 24)
             .onAppear {
                 viewModel.loadSavedCredentials()
                 if let svc = viewModel.twitchService {
