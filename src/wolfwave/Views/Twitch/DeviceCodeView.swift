@@ -22,82 +22,70 @@ struct DeviceCodeView: View {
     
     @State private var isCodeCopied = false
     @State private var showCopyFeedback = false
+    @State private var isHovering = false
     
     var body: some View {
-        ZStack {
-            VStack(alignment: .leading, spacing: 16) {
-                // Section header
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("Device Code")
-                        .font(.system(size: 11, weight: .semibold))
-                        .foregroundColor(.secondary)
-                        .tracking(0.5)
-                    
-                    Text("Share this code during Twitch authorization")
-                        .font(.system(size: 12, weight: .regular))
-                        .foregroundColor(.secondary)
-                }
-                
-                // Code display with copy button
-                HStack(spacing: 10) {
-                    Text(userCode)
-                        .font(.system(size: 18, weight: .semibold, design: .monospaced))
-                        .foregroundColor(.primary)
-                        .tracking(1.2)
-                        .frame(maxWidth: .infinity, alignment: .center)
-                        .padding(.vertical, 10)
-                    
+        VStack(alignment: .leading, spacing: 12) {
+            // Header: subtle label + helper
+            VStack(alignment: .leading, spacing: 2) {
+                Text("Device Code")
+                    .font(.system(size: 11, weight: .medium))
+                    .foregroundColor(.secondary)
+                Text("Enter this code at twitch.tv/activate")
+                    .font(.system(size: 12, weight: .regular))
+                    .foregroundColor(.secondary)
+            }
+
+            // Code container - monospaced, larger and calm
+            HStack(spacing: 8) {
+                Text(userCode)
+                    .font(.system(size: 28, weight: .medium, design: .monospaced))
+                    .foregroundColor(.primary)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.6)
+                    .frame(maxWidth: .infinity, alignment: .center)
+
+                if isHovering || isCodeCopied {
                     Button(action: copyDeviceCode) {
                         Image(systemName: isCodeCopied ? "checkmark.circle.fill" : "doc.on.doc")
                             .font(.system(size: 14, weight: .regular))
                             .foregroundColor(isCodeCopied ? .green : .secondary)
                             .frame(width: 28, height: 28)
-                            .contentShape(Rectangle())
                     }
                     .buttonStyle(.plain)
-                    .help(isCodeCopied ? "Copied to clipboard" : "Copy device code")
+                    .help(isCodeCopied ? "Copied" : "Copy code")
+                    .accessibilityLabel(isCodeCopied ? "Copied" : "Copy device code")
+                    .transition(.opacity)
                 }
-                .padding(.horizontal, 10)
-                .background(Color(.controlBackgroundColor))
-                .cornerRadius(8)
-                
-                // Open link button with subtle styling
-                Link(destination: URL(string: verificationURI) ?? URL(string: "https://www.twitch.tv/activate")!) {
-                    HStack(spacing: 6) {
-                        Text("Open twitch.tv/activate")
-                            .font(.system(size: 13, weight: .medium))
-                        
-                        Image(systemName: "arrow.up.right")
-                            .font(.system(size: 10, weight: .semibold))
-                    }
-                    .frame(maxWidth: .infinity)
-                    .frame(height: 34)
-                    .foregroundColor(.white)
-                    .background(Color.accentColor)
-                    .cornerRadius(8)
-                }
-                .buttonStyle(.plain)
             }
-            
-            // Copy feedback toast
-            if showCopyFeedback {
-                VStack {
-                    HStack(spacing: 8) {
-                        Image(systemName: "checkmark.circle.fill")
-                            .foregroundColor(.green)
-                        Text("Copied to clipboard")
-                            .font(.system(size: 11, weight: .medium))
-                    }
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 8)
-                    .background(Color(.controlBackgroundColor))
-                    .cornerRadius(6)
-                    
-                    Spacer()
+            .padding(12)
+            .background(Color(nsColor: .controlBackgroundColor))
+            .overlay(
+                RoundedRectangle(cornerRadius: 8)
+                    .stroke(Color.primary.opacity(0.08), lineWidth: 1)
+            )
+            .cornerRadius(8)
+            .onHover { hovering in
+                withAnimation(.easeInOut(duration: 0.15)) {
+                    isHovering = hovering
                 }
-                .transition(.move(edge: .top).combined(with: .opacity))
             }
+
+            // Primary action: open activation URL with subtle macOS-style button
+            Button(action: openActivationURL) {
+                HStack(spacing: 8) {
+                    Text("Open Twitch")
+                        .font(.system(size: 13, weight: .medium))
+                    Image(systemName: "arrow.up.right")
+                        .font(.system(size: 11, weight: .semibold))
+                }
+                .frame(maxWidth: .infinity)
+                .frame(height: 34)
+            }
+            .buttonStyle(.borderedProminent)
+            .tint(Color(nsColor: NSColor.systemPurple).opacity(0.75))
         }
+        .overlay(copyFeedbackView.offset(y: -8), alignment: .top)
     }
     
     private func copyDeviceCode() {
@@ -108,20 +96,42 @@ struct DeviceCodeView: View {
         onCopy()
         
         // Show feedback
-        withAnimation(.easeInOut(duration: 0.2)) {
+        withAnimation(.easeInOut(duration: 0.18)) {
             showCopyFeedback = true
         }
-        
-        // Auto-dismiss feedback
-        DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
-            withAnimation(.easeInOut(duration: 0.2)) {
+
+        // Auto-dismiss feedback and reset state
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.3) {
+            withAnimation(.easeInOut(duration: 0.18)) {
                 showCopyFeedback = false
             }
         }
-        
-        // Reset button state
-        DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
+
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.3) {
             isCodeCopied = false
+        }
+    }
+
+    private func openActivationURL() {
+        if let url = URL(string: verificationURI) {
+            NSWorkspace.shared.open(url)
+        }
+    }
+
+    @ViewBuilder
+    private var copyFeedbackView: some View {
+        if showCopyFeedback {
+            HStack(spacing: 8) {
+                Image(systemName: "checkmark.circle.fill")
+                    .foregroundColor(.green)
+                Text("Copied to clipboard")
+                    .font(.system(size: 11, weight: .medium))
+            }
+            .padding(.horizontal, 12)
+            .padding(.vertical, 8)
+            .background(Color(nsColor: .controlBackgroundColor))
+            .cornerRadius(6)
+            .transition(.opacity.combined(with: .move(edge: .top)))
         }
     }
 }

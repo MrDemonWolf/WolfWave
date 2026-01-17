@@ -243,6 +243,9 @@ struct SettingsView: View {
                 RoundedRectangle(cornerRadius: 12, style: .continuous)
                     .fill(isSelected ? Color(nsColor: .controlAccentColor) : Color.clear)
             )
+                .accessibilityElement(children: .combine)
+                .accessibilityLabel(Text(section.rawValue))
+                .accessibilityIdentifier(section.rawValue.replacingOccurrences(of: " ", with: "-").lowercased())
         }
         .buttonStyle(.plain)
         .contentShape(Rectangle())

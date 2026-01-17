@@ -50,8 +50,16 @@ struct TwitchDeviceAuthDialog: View {
                 // Content area
                 VStack(spacing: 20) {
                     if isWaiting {
-                        // Waiting state
-                        WaitingAuthStateView()
+                        // Native, minimal waiting state
+                        VStack(spacing: 10) {
+                            ProgressView()
+                                .progressViewStyle(.circular)
+
+                            Text("Waiting for authorization…")
+                                .font(.system(size: 13, weight: .medium))
+                                .foregroundColor(.secondary)
+                        }
+                        .frame(maxWidth: .infinity)
                     } else {
                         // Code entry state
                         DeviceCodeEntryView(
@@ -69,7 +77,7 @@ struct TwitchDeviceAuthDialog: View {
                 // Action buttons - standard macOS layout at bottom
                 HStack(spacing: 12) {
                     Spacer()
-                    
+
                     // Cancel button (text style, lower emphasis)
                     Button(action: {
                         isWaiting = false
@@ -79,14 +87,18 @@ struct TwitchDeviceAuthDialog: View {
                             .font(.system(size: 13, weight: .regular))
                     }
                     .keyboardShortcut(.cancelAction)
-                    
-                    // Primary authorize button
+                    .buttonStyle(.plain)
+
+                    // Primary authorize button - macOS prominent with subtle Twitch tint
                     Button(action: handleAuthorizePressed) {
                         Text("Authorize on Twitch")
                             .font(.system(size: 13, weight: .semibold))
                             .frame(minWidth: 120)
                     }
+                    .buttonStyle(.borderedProminent)
+                    .tint(Color(nsColor: NSColor.systemPurple).opacity(0.78))
                     .keyboardShortcut(.defaultAction)
+                    .controlSize(.regular)
                 }
                 .padding(.horizontal, 24)
                 .padding(.vertical, 16)
@@ -219,50 +231,7 @@ private struct DeviceCodeEntryView: View {
     }
 }
 
-/// Waiting state view with smooth, premium animation
-private struct WaitingAuthStateView: View {
-    @State private var isAnimating = false
-    
-    var body: some View {
-        VStack(spacing: 20) {
-            // Premium spinner animation
-            ZStack {
-                // Background circle
-                Circle()
-                    .stroke(Color.gray, lineWidth: 1.5)
-                    .frame(width: 48, height: 48)
-                    .opacity(0.3)
-                
-                // Animated spinner
-                Circle()
-                    .trim(from: 0, to: 0.7)
-                    .stroke(Color.accentColor, style: StrokeStyle(lineWidth: 2.5, lineCap: .round))
-                    .frame(width: 48, height: 48)
-                    .rotationEffect(.degrees(isAnimating ? 360 : 0))
-                    .onAppear {
-                        withAnimation(.linear(duration: 0.8).repeatForever(autoreverses: false)) {
-                            isAnimating = true
-                        }
-                    }
-            }
-            .frame(maxWidth: .infinity, alignment: .center)
-            .padding(.vertical, 12)
-            
-            // Status text
-            VStack(spacing: 8) {
-                Text("Waiting for authorization…")
-                    .font(.system(size: 14, weight: .semibold))
-                    .foregroundColor(.primary)
-                
-                Text("This usually takes less than a minute")
-                    .font(.system(size: 12, weight: .regular))
-                    .foregroundColor(.secondary)
-            }
-            .frame(maxWidth: .infinity, alignment: .center)
-        }
-        .padding(.vertical, 8)
-    }
-}
+
 
 #Preview {
     TwitchDeviceAuthDialog(

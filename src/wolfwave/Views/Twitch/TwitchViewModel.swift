@@ -70,6 +70,42 @@ final class TwitchViewModel: ObservableObject {
         }
     }
 
+    /// High level integration states consumed by the UI to simplify view logic
+    enum IntegrationState {
+        case notConnected
+        case authorizing
+        case connected
+        case error(String)
+    }
+
+    /// Friendly, UI-focused mapping of lower-level auth state + connection flags
+    var integrationState: IntegrationState {
+        if case .error(let msg) = authState {
+            return .error(msg)
+        }
+
+        if channelConnected || credentialsSaved && connectedOnce {
+            return .connected
+        }
+
+        switch authState {
+        case .requestingCode, .waitingForAuth, .inProgress:
+            return .authorizing
+        default:
+            return .notConnected
+        }
+    }
+
+    /// Color appropriate for the integration state (UI should respect system semantic colors)
+    var integrationColor: Color {
+        switch integrationState {
+        case .connected: return .green
+        case .authorizing: return .orange
+        case .error: return .red
+        case .notConnected: return .secondary
+        }
+    }
+
     /// Current OAuth authentication state
     @Published var authState = AuthState.idle
     
