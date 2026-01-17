@@ -1,0 +1,81 @@
+import SwiftUI
+import AppKit
+
+/// A window controller that presents the Twitch device auth dialog as a native macOS window.
+/// This handles the dialog lifecycle and window management.
+/// 
+/// Features:
+/// - Floating window that stays above other windows
+/// - Minimal chrome (no minimize/zoom buttons)
+/// - Centered on screen
+/// - Follows macOS system appearance
+/// - Transient behavior (doesn't appear in Expose)
+class TwitchDeviceAuthWindowController: NSWindowController {
+    
+    // MARK: - Initialization
+    init(deviceCode: String, onAuthorize: @escaping () -> Void, onCancel: @escaping () -> Void) {
+        let hostingView = NSHostingView(
+            rootView: TwitchDeviceAuthDialog(
+                deviceCode: deviceCode,
+                onAuthorizePressed: {
+                    onAuthorize()
+                },
+                onCancelPressed: {
+                    onCancel()
+                }
+            )
+        )
+        
+        let window = NSWindow(contentViewController: NSViewController())
+        window.contentView = hostingView
+        
+        super.init(window: window)
+        
+        // Configure window properties for macOS system dialog appearance
+        window.title = "Reconnect to Twitch"
+        window.styleMask = [.titled, .closable]
+        window.isReleasedWhenClosed = false
+        window.level = .floating
+        window.collectionBehavior = [.canJoinAllSpaces, .transient]
+        
+        // Disable resize and minimize for consistent, focused dialog
+        window.standardWindowButton(.miniaturizeButton)?.isHidden = true
+        window.standardWindowButton(.zoomButton)?.isHidden = true
+        
+        // Set window size - optimized for new clean layout
+        let frame = CGRect(x: 0, y: 0, width: 480, height: 420)
+        window.setFrame(frame, display: true)
+        window.center()
+        
+        // Use system appearance for native feel
+        window.appearance = NSAppearance(named: .aqua)
+        
+        // Add subtle shadow for depth
+        window.hasShadow = true
+        
+        // Ensure window is not opaque for proper rendering
+        window.isOpaque = false
+    }
+    
+    @available(*, unavailable)
+    required init?(coder: NSCoder) {
+        fatalError("init(coder:) has not been implemented")
+    }
+}
+
+/// A SwiftUI wrapper for managing the dialog presentation.
+/// Use this in your SwiftUI app to show the authorization dialog.
+struct TwitchDeviceAuthWindow {
+    let deviceCode: String
+    let onAuthorize: () -> Void
+    let onCancel: () -> Void
+    
+    func show() {
+        let windowController = TwitchDeviceAuthWindowController(
+            deviceCode: deviceCode,
+            onAuthorize: onAuthorize,
+            onCancel: onCancel
+        )
+        windowController.showWindow(nil)
+    }
+}

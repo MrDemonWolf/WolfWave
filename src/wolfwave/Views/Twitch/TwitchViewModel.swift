@@ -2,59 +2,39 @@
 //  TwitchViewModel.swift
 //  wolfwave
 //
-//  Created by MrDemonWolf, Inc. on 1/13/26.
+//  Created by MrDemonWolf, Inc. on 1/17/26.
 //
-//  Manages all Twitch bot state and operations for Settings
 
 import Combine
 import Foundation
 import SwiftUI
 
-// MARK: - Twitch View Model
-
 /// View model managing Twitch bot authentication, connection state, and operations.
 ///
-/// This view model handles:
-/// - OAuth Device Code flow coordination
-/// - Bot identity resolution and caching
+/// Handles:
+/// - OAuth Device Code flow
+/// - Bot identity resolution
 /// - Channel connection lifecycle
-/// - Credential management (save/load/clear)
+/// - Secure credential management via Keychain
 /// - Re-authentication state tracking
-/// - Connection status updates
 ///
-/// All operations are marked `@MainActor` for UI thread safety.
+/// All operations are @MainActor marked for UI thread safety.
 @MainActor
 final class TwitchViewModel: ObservableObject {
     
     // MARK: - Published State
     
-    /// The bot's Twitch display username
     @Published var botUsername = ""
-    
-    /// OAuth access token (not persisted in view model, loaded from Keychain)
     @Published var oauthToken = ""
-    
-    /// The channel name/ID to join
     @Published var channelID = ""
-    
-    /// Whether credentials have been saved to Keychain
     @Published var credentialsSaved = false
-    
-    /// Whether the bot is currently connected to the channel
     @Published var channelConnected = false
-    
-    /// Whether re-authentication is required
     @Published var reauthNeeded = false
-    
-    /// Whether the bot has connected at least once this session
     @Published var connectedOnce = false
-
-    /// Status message displayed to the user
     @Published var statusMessage = ""
 
     // MARK: - Auth State
 
-    /// Represents the current state of OAuth authentication flow.
     enum AuthState {
         case idle
         case requestingCode
@@ -100,6 +80,18 @@ final class TwitchViewModel: ObservableObject {
         }
         set {
             _twitchService = newValue
+            // Attach a callback to keep the view model in sync with the service
+            // regardless of timing (prevents missed notifications during auto-join).
+            if let svc = newValue {
+                svc.onConnectionStateChanged = { [weak self] isConnected in
+                    Task { @MainActor in
+                        self?.channelConnected = isConnected
+                    }
+                }
+                // We're already on MainActor (TwitchViewModel is @MainActor),
+                // so update synchronously to ensure UI reflects current state immediately.
+                self.channelConnected = svc.isConnected
+            }
         }
     }
     
@@ -107,6 +99,23 @@ final class TwitchViewModel: ObservableObject {
     
     /// Background task for polling token during OAuth flow
     var devicePollingTask: Task<Void, Never>?
+    /// Outer task that drives the overall OAuth flow (request + polling)
+    var oAuthTask: Task<Void, Never>?
+
+    /// Cancel any in-progress OAuth/device-code flow and reset related state.
+    func cancelOAuth() {
+        if let poll = devicePollingTask {
+            poll.cancel()
+            devicePollingTask = nil
+        }
+        if let outer = oAuthTask {
+            outer.cancel()
+            oAuthTask = nil
+        }
+
+        authState = .idle
+        statusMessage = ""
+    }
 
     // MARK: - Computed Properties
 
@@ -144,20 +153,39 @@ final class TwitchViewModel: ObservableObject {
         }
         
         // Load reauth needed flag from UserDefaults
-        reauthNeeded = UserDefaults.standard.bool(forKey: "twitchReauthNeeded")
+        reauthNeeded = UserDefaults.standard.bool(forKey: AppConstants.UserDefaults.twitchReauthNeeded)
         
         // Listen for reauth status changes
         NotificationCenter.default.addObserver(
             self,
             selector: #selector(reAuthStatusChanged),
-            name: NSNotification.Name("TwitchReauthNeededChanged"),
+            name: NSNotification.Name(AppConstants.Notifications.twitchReauthNeededChanged),
+            object: nil
+        )
+        // Also listen for Twitch chat connection state changes posted by the service.
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(twitchConnectionStateChanged(_:)),
+            name: TwitchChatService.connectionStateChanged,
             object: nil
         )
     }
 
+    @objc private func twitchConnectionStateChanged(_ note: Notification) {
+        if let info = note.userInfo, let isConnected = info["isConnected"] as? Bool {
+            Task { @MainActor in
+                self.channelConnected = isConnected
+            }
+        }
+    }
+
+    deinit {
+        NotificationCenter.default.removeObserver(self)
+    }
+
     /// Called when the reauth needed status changes.
     @objc private func reAuthStatusChanged() {
-        reauthNeeded = UserDefaults.standard.bool(forKey: "twitchReauthNeeded")
+        reauthNeeded = UserDefaults.standard.bool(forKey: AppConstants.UserDefaults.twitchReauthNeeded)
     }
 
     /// Initiates the OAuth Device Code flow.
@@ -167,6 +195,35 @@ final class TwitchViewModel: ObservableObject {
     /// - Polls for token approval
     /// - On success, saves credentials and resolves bot identity
     /// - On failure, displays error message to user
+    /// Initiates OAuth Device Code Grant flow for Twitch authorization.
+    ///
+    /// Flow Overview:
+    /// 1. Requests device code from Twitch (requires TWITCH_CLIENT_ID)
+    /// 2. Displays user code to user for verification
+    /// 3. Polls Twitch for token while user authorizes
+    /// 4. Updates UI with progress messages
+    /// 5. On success, saves token to Keychain and calls handleOAuthSuccess
+    ///
+    /// Cancellation:
+    /// - Cancels any previous OAuth flow before starting new one
+    /// - Device polling can be cancelled independently
+    /// - Cancellation errors are ignored; UI shows "cancelled" status
+    ///
+    /// UI State Updates:
+    /// - authState cycles: idle -> requestingCode -> waitingForAuth -> authenticating -> success/error
+    /// - statusMessage updated at each step with user-facing text
+    /// - All UI updates dispatched to @MainActor
+    ///
+    /// Error Handling:
+    /// - Missing Client ID: Shows warning and sets error state
+    /// - Network/parsing errors: Handled by handleOAuthError
+    /// - User denial: Caught during polling and shown as error
+    /// - Timeout: Device code expires after ~10 minutes; polling stops
+    ///
+    /// Dependencies:
+    /// - Requires TWITCH_CLIENT_ID environment variable in Xcode scheme
+    /// - Requires internet connectivity
+    ///
     func startOAuth() {
         Log.info("TwitchViewModel: Starting OAuth flow", category: "Twitch")
         authState = .requestingCode
@@ -191,20 +248,23 @@ final class TwitchViewModel: ObservableObject {
             scopes: ["user:read:chat", "user:write:chat"]
         )
 
-        Task {
+        // Track the overall OAuth flow so it can be cancelled cleanly
+        oAuthTask = Task { @MainActor in
             do {
                 let response = try await helper.requestDeviceCode()
-                await self.updateAuthState(
+                updateAuthState(
                     .waitingForAuth(
                         userCode: response.userCode, verificationURI: response.verificationURI)
                 )
                 statusMessage = "✅ Code ready! Go to Twitch and enter the code above."
 
+                // Start polling in a child task so it can be cancelled independently
                 devicePollingTask = Task {
                     do {
                         let token = try await helper.pollForToken(
                             deviceCode: response.deviceCode,
-                            interval: response.interval
+                            interval: response.interval,
+                            expiresIn: response.expiresIn
                         ) { status in
                             Task { @MainActor in
                                 self.statusMessage = status
@@ -212,17 +272,32 @@ final class TwitchViewModel: ObservableObject {
                         }
 
                         await self.handleOAuthSuccess(token: token, clientID: clientID)
+                        await MainActor.run {
+                            self.devicePollingTask = nil
+                            self.oAuthTask = nil
+                        }
                     } catch let error as TwitchDeviceAuthError {
                         await self.handleOAuthError(error)
+                        await MainActor.run {
+                            self.devicePollingTask = nil
+                            self.oAuthTask = nil
+                        }
                     } catch {
                         if !(error is CancellationError) {
                             await self.handleOAuthError(.unknown(error.localizedDescription))
                         }
+                        await MainActor.run {
+                            self.devicePollingTask = nil
+                            self.oAuthTask = nil
+                        }
                     }
                 }
             } catch {
-                self.updateAuthState(.error(error.localizedDescription))
+                updateAuthState(.error(error.localizedDescription))
                 statusMessage = "❌ OAuth setup failed: \(error.localizedDescription)"
+                await MainActor.run {
+                    self.oAuthTask = nil
+                }
             }
         }
     }
@@ -230,20 +305,34 @@ final class TwitchViewModel: ObservableObject {
     /// Saves credentials to macOS Keychain and resolves bot identity.
     func saveCredentials() {
         Log.info("TwitchViewModel: Saving Twitch credentials", category: "Twitch")
+        
+        // Validate before saving
+        guard !oauthToken.isEmpty else {
+            statusMessage = "❌ No OAuth token to save"
+            return
+        }
+
+        guard !channelID.isEmpty else {
+            statusMessage = "❌ Please enter a channel name"
+            return
+        }
+        
         do {
             try KeychainService.saveTwitchToken(oauthToken)
-            try KeychainService.saveTwitchChannelID(channelID)
+            try KeychainService.saveTwitchChannelID(channelID.lowercased())
             credentialsSaved = true
             reauthNeeded = false
-            UserDefaults.standard.set(false, forKey: "twitchReauthNeeded")
+            UserDefaults.standard.set(false, forKey: AppConstants.UserDefaults.twitchReauthNeeded)
             NotificationCenter.default.post(
-                name: NSNotification.Name("TwitchReauthNeededChanged"),
+                name: NSNotification.Name(AppConstants.Notifications.twitchReauthNeededChanged),
                 object: nil
             )
+            statusMessage = "✅ Credentials saved successfully"
             Log.info("TwitchViewModel: Credentials saved", category: "Twitch")
 
             resolveBotIdentity()
         } catch {
+            statusMessage = "❌ Failed to save: \(error.localizedDescription)"
             Log.error(
                 "TwitchViewModel: Failed to save credentials - \(error.localizedDescription)",
                 category: "Twitch"
@@ -286,12 +375,12 @@ final class TwitchViewModel: ObservableObject {
         credentialsSaved = false
         connectedOnce = false
         reauthNeeded = false
-        UserDefaults.standard.set(false, forKey: "twitchReauthNeeded")
+        UserDefaults.standard.set(false, forKey: AppConstants.UserDefaults.twitchReauthNeeded)
         statusMessage = ""
         authState = .idle
 
         NotificationCenter.default.post(
-            name: NSNotification.Name("TwitchReauthNeededChanged"),
+            name: NSNotification.Name(AppConstants.Notifications.twitchReauthNeededChanged),
             object: nil
         )
         Log.info("TwitchViewModel: Credentials cleared", category: "Twitch")
@@ -299,55 +388,134 @@ final class TwitchViewModel: ObservableObject {
 
     /// Joins the configured Twitch channel with the saved bot credentials.
     ///
-    /// - Validates credentials and channel name
-    /// - Connects to Twitch EventSub WebSocket
-    /// - Updates connection state on success/failure
-    /// - Provides user-facing status messages
+    /// Prerequisites:
+    /// - OAuth token must be saved in Keychain (from completed OAuth flow)
+    /// - Channel name must be set and valid (alphanumeric, ≤25 chars, lowercase)
+    /// - TWITCH_CLIENT_ID must be available
+    ///
+    /// Validation:
+    /// - Checks token presence in Keychain
+    /// - Normalizes channel name (trimmed, lowercased)
+    /// - Validates length (max 25 chars per Twitch limits)
+    /// - Verifies Client ID is configured
+    ///
+    /// Connection Process:
+    /// 1. Shows "Connecting to Twitch..." status
+    /// 2. Calls TwitchChatService.connectToChannel() (async, off-thread)
+    /// 3. TwitchChatService validates and resolves user IDs
+    /// 4. Establishes EventSub WebSocket connection
+    /// 5. Updates UI state on success/failure
+    ///
+    /// UI Updates:
+    /// - Success: Shows "✅ Connected to #channel", sets channelConnected=true
+    /// - Failure: Shows error message with reason, keeps channelConnected=false
+    /// - All updates dispatched to @MainActor
+    ///
+    /// Error Handling:
+    /// - ConnectionError subclasses for specific failures (auth, network, config)
+    /// - Generic errors from system are caught and displayed
+    /// - Errors are logged; UI shows user-friendly messages
+    ///
+    /// Note: Does not validate that channel name exists on Twitch.
+    /// Validation happens during EventSub subscription in TwitchChatService.
+    ///
     func joinChannel() {
-        guard let token = KeychainService.loadTwitchToken() else {
-            statusMessage = "Missing credentials"
+        guard let token = KeychainService.loadTwitchToken(), !token.isEmpty else {
+            statusMessage = "❌ Missing credentials. Please sign in first."
+            Log.warn("TwitchViewModel: Missing OAuth token for join", category: "Twitch")
             return
         }
 
-        let channel = channelID.trimmingCharacters(in: .whitespacesAndNewlines)
+        let channel = channelID.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
         guard !channel.isEmpty else {
-            statusMessage = "Enter a channel first"
+            statusMessage = "❌ Please enter a channel name"
+            return
+        }
+
+        guard channel.count <= 25 else {
+            statusMessage = "❌ Channel name too long"
             return
         }
 
         guard let clientID = TwitchChatService.resolveClientID(), !clientID.isEmpty else {
-            statusMessage = "Missing Twitch Client ID. Set TWITCH_CLIENT_ID in the scheme."
+            statusMessage = "❌ Missing Twitch Client ID. Set TWITCH_CLIENT_ID in the scheme."
+            Log.error("TwitchViewModel: Missing client ID for join", category: "Twitch")
             return
         }
 
         Task {
             do {
+                statusMessage = "Connecting to Twitch..."
                 try await twitchService?.connectToChannel(
                     channelName: channel,
                     token: token,
                     clientID: clientID
                 )
 
-                channelConnected = true
-                statusMessage = "Connected to \(channel)"
-                Log.info(
-                    "TwitchViewModel: Connected to Twitch channel \(channel)", category: "Twitch")
+                await MainActor.run {
+                    self.channelConnected = true
+                    self.statusMessage = "✅ Connected to #\(channel)"
+                    Log.info(
+                        "TwitchViewModel: Connected to Twitch channel \(channel)", category: "Twitch")
+                }
+            } catch let error as TwitchChatService.ConnectionError {
+                let errorMsg = "❌ Failed to join: \(error.errorDescription ?? String(describing: error))"
+                await MainActor.run {
+                    self.statusMessage = errorMsg
+                    Log.error("TwitchViewModel: Connection error - \(error)", category: "Twitch")
+                }
             } catch {
-                statusMessage = "Failed to join: \(error.localizedDescription)"
-                Log.error(
-                    "TwitchViewModel: Failed to join channel - \(error.localizedDescription)",
-                    category: "Twitch"
-                )
+                let errorMsg = "❌ Failed to join: \(error.localizedDescription)"
+                await MainActor.run {
+                    self.statusMessage = errorMsg
+                    Log.error("TwitchViewModel: Failed to join channel - \(error.localizedDescription)", category: "Twitch")
+                }
             }
         }
     }
 
     /// Leaves the connected Twitch channel and closes EventSub connection.
+    ///
+    /// Cleanup:
+    /// - Calls TwitchChatService.leaveChannel() for clean disconnection
+    /// - Closes EventSub WebSocket with .goingAway code
+    /// - Sets channelConnected = false
+    ///
+    /// Thread Safety: Safe to call from any thread; dispatches to service on proper queue.
+    ///
+    /// Side Effects:
+    /// - onMessageReceived callbacks will stop being called
+    /// - Pending sends are discarded
+    /// - Connection state notifications are posted
+    ///
     func leaveChannel() {
         Log.info("TwitchViewModel: Leaving Twitch channel", category: "Twitch")
         twitchService?.leaveChannel()
         channelConnected = false
         Log.info("TwitchViewModel: Disconnected from Twitch channel", category: "Twitch")
+    }
+
+    /// Automatically joins the saved channel on app launch if credentials exist.
+    ///
+    /// Called from TwitchSettingsView.onAppear() when:
+    /// - credentialsSaved is true
+    /// - channelID is not empty
+    /// - channelConnected is false (not already connected)
+    ///
+    /// This ensures commands work immediately after app launch.
+    ///
+    /// Silently fails if:
+    /// - No saved credentials
+    /// - No saved channel ID
+    /// - Already connected
+    ///
+    func autoJoinChannel() {
+        guard credentialsSaved && !channelID.isEmpty && !channelConnected else {
+            return
+        }
+        
+        Log.info("TwitchViewModel: Auto-joining saved channel on app launch", category: "Twitch")
+        joinChannel()
     }
 
     // MARK: - Private Methods
@@ -375,9 +543,9 @@ final class TwitchViewModel: ObservableObject {
         do {
             try KeychainService.saveTwitchToken(token)
             reauthNeeded = false
-            UserDefaults.standard.set(false, forKey: "twitchReauthNeeded")
+            UserDefaults.standard.set(false, forKey: AppConstants.UserDefaults.twitchReauthNeeded)
             NotificationCenter.default.post(
-                name: NSNotification.Name("TwitchReauthNeededChanged"),
+                name: NSNotification.Name(AppConstants.Notifications.twitchReauthNeededChanged),
                 object: nil
             )
             credentialsSaved = true
@@ -410,6 +578,9 @@ final class TwitchViewModel: ObservableObject {
             statusMessage = "⚠️ Could not resolve bot identity: \(error.localizedDescription)"
             authState = .error(error.localizedDescription)
         }
+        // Ensure any polling/outer tasks are cleared after success
+        devicePollingTask = nil
+        oAuthTask = nil
     }
 
     private func handleOAuthError(_ error: TwitchDeviceAuthError) async {
@@ -430,6 +601,9 @@ final class TwitchViewModel: ObservableObject {
         }
         statusMessage = message
         authState = .error(message)
+        // Clear any polling/outer tasks on error
+        devicePollingTask = nil
+        oAuthTask = nil
     }
 
     private func resolveBotIdentity() {
@@ -463,11 +637,5 @@ final class TwitchViewModel: ObservableObject {
         }
     }
 
-    deinit {
-        NotificationCenter.default.removeObserver(
-            self,
-            name: NSNotification.Name("TwitchReauthNeededChanged"),
-            object: nil
-        )
-    }
+    // deinit handled above to remove all observers
 }

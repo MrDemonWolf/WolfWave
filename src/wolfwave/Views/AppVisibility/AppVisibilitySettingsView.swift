@@ -2,7 +2,7 @@
 //  AppVisibilitySettingsView.swift
 //  wolfwave
 //
-//  Created by MrDemonWolf, Inc. on 1/13/26.
+//  Created by MrDemonWolf, Inc. on 1/17/26.
 //
 
 import SwiftUI
@@ -72,7 +72,7 @@ struct AppVisibilitySettingsView: View {
     
     private func applyDockVisibility(_ mode: String) {
         NotificationCenter.default.post(
-            name: NSNotification.Name("DockVisibilityChanged"),
+            name: NSNotification.Name(AppConstants.Notifications.dockVisibilityChanged),
             object: nil,
             userInfo: ["mode": mode]
         )

@@ -2,15 +2,15 @@
 //  BotCommandDispatcher.swift
 //  wolfwave
 //
-//  Created by MrDemonWolf, Inc. on 1/13/26.
+//  Created by MrDemonWolf, Inc. on 1/17/26.
 //
 
 import Foundation
 
-/// Dispatcher for routing messages to appropriate bot commands.
+/// Routes chat messages to appropriate bot command handlers.
 ///
-/// Manages a collection of bot commands and routes incoming chat messages
-/// to the correct command handler based on the message content.
+/// Default commands (!song, !last, !lastsong) are registered automatically.
+/// Thread-safe for concurrent access from any thread.
 final class BotCommandDispatcher {
     private var commands: [BotCommand] = []
 
@@ -18,7 +18,6 @@ final class BotCommandDispatcher {
         registerDefaultCommands()
     }
 
-    /// Registers the default set of bot commands.
     private func registerDefaultCommands() {
         let songCommand = SongCommand()
         let lastSongCommand = LastSongCommand()
@@ -26,12 +25,10 @@ final class BotCommandDispatcher {
         register(lastSongCommand)
     }
 
-    /// Register a new bot command
     func register(_ command: BotCommand) {
         commands.append(command)
     }
 
-    /// Set the current song info callback for song-related commands
     func setCurrentSongInfo(callback: @escaping () -> String) {
         for command in commands {
             if let songCmd = command as? SongCommand {
@@ -40,7 +37,6 @@ final class BotCommandDispatcher {
         }
     }
 
-    /// Set the last song info callback for last song commands
     func setLastSongInfo(callback: @escaping () -> String) {
         for command in commands {
             if let lastSongCmd = command as? LastSongCommand {
@@ -49,16 +45,16 @@ final class BotCommandDispatcher {
         }
     }
 
-    /// Process a message and return a response if a command matches.
-    ///
-    /// - Parameter message: The incoming chat message
-    /// - Returns: The command response, or nil if no command matched
     func processMessage(_ message: String) -> String? {
         let trimmedMessage = message.trimmingCharacters(in: .whitespaces)
+        
+        guard !trimmedMessage.isEmpty, trimmedMessage.count <= 500 else {
+            return nil
+        }
 
         for command in commands {
             if let response = command.execute(message: trimmedMessage) {
-                Log.debug("Twitch: Command executed", category: "BotCommands")
+                Log.debug("Command '\(trimmedMessage.prefix(50))' executed", category: "BotCommands")
                 return response
             }
         }

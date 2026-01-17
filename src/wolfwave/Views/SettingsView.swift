@@ -2,7 +2,7 @@
 //  SettingsView.swift
 //  wolfwave
 //
-//  Created by MrDemonWolf, Inc. on 1/8/26.
+//  Created by MrDemonWolf, Inc. on 1/17/26.
 //
 
 import AppKit
@@ -19,24 +19,7 @@ struct SettingsView: View {
     // MARK: - Constants
 
     fileprivate enum Constants {
-        static let defaultAppName = "WolfWave"
-        static let minWidth: CGFloat = 700
-        static let minHeight: CGFloat = 500
-        static let sidebarWidth: CGFloat = 200
         static let validSchemes = ["ws", "wss", "http", "https"]
-
-        enum UserDefaultsKeys {
-            static let trackingEnabled = "trackingEnabled"
-            static let websocketEnabled = "websocketEnabled"
-            static let websocketURI = "websocketURI"
-            static let currentSongCommandEnabled = "currentSongCommandEnabled"
-            static let lastSongCommandEnabled = "lastSongCommandEnabled"
-            static let dockVisibility = "dockVisibility"
-        }
-
-        enum Notifications {
-            static let trackingSettingChanged = "TrackingSettingChanged"
-        }
     }
     
     // MARK: - Sidebar Navigation
@@ -73,24 +56,24 @@ struct SettingsView: View {
     /// Retrieves the app name from the bundle
     private var appName: String {
         Bundle.main.infoDictionary?["CFBundleDisplayName"] as? String ?? Bundle.main
-            .infoDictionary?["CFBundleName"] as? String ?? Constants.defaultAppName
+            .infoDictionary?["CFBundleName"] as? String ?? AppConstants.SettingsUI.defaultAppName
     }
 
     // MARK: - User Settings
 
     /// Whether music tracking is currently enabled
-    @AppStorage(Constants.UserDefaultsKeys.trackingEnabled)
+    @AppStorage(AppConstants.UserDefaults.trackingEnabled)
     private var trackingEnabled = true
 
     /// Whether the Current Playing Song command is enabled
-    @AppStorage(Constants.UserDefaultsKeys.currentSongCommandEnabled)
+    @AppStorage(AppConstants.UserDefaults.currentSongCommandEnabled)
     private var currentSongCommandEnabled = true
 
     /// Whether the Last Played Song command is enabled
-    @AppStorage(Constants.UserDefaultsKeys.lastSongCommandEnabled)
+    @AppStorage(AppConstants.UserDefaults.lastSongCommandEnabled)
     private var lastSongCommandEnabled = true
 
-    @AppStorage(Constants.UserDefaultsKeys.dockVisibility)
+    @AppStorage(AppConstants.UserDefaults.dockVisibility)
     private var dockVisibility = "both"
 
     // MARK: - State
@@ -133,9 +116,9 @@ struct SettingsView: View {
                 .padding(.horizontal, 10)
             }
             .frame(
-                minWidth: Constants.sidebarWidth,
-                idealWidth: Constants.sidebarWidth,
-                maxWidth: Constants.sidebarWidth,
+                minWidth: AppConstants.SettingsUI.sidebarWidth,
+                idealWidth: AppConstants.SettingsUI.sidebarWidth,
+                maxWidth: AppConstants.SettingsUI.sidebarWidth,
                 maxHeight: .infinity,
                 alignment: .topLeading
             )
@@ -152,12 +135,12 @@ struct SettingsView: View {
             .background(.ultraThinMaterial)
             .onAppear {
                 // Check if a specific section was requested to be opened
-                if let requestedSection = UserDefaults.standard.string(forKey: "selectedSettingsSection") {
-                    if requestedSection == "twitchIntegration" {
+                if let requestedSection = UserDefaults.standard.string(forKey: AppConstants.UserDefaults.selectedSettingsSection) {
+                    if requestedSection == AppConstants.Twitch.settingsSection {
                         selectedSection = .twitchIntegration
                     }
                     // Clear the request after using it
-                    UserDefaults.standard.removeObject(forKey: "selectedSettingsSection")
+                    UserDefaults.standard.removeObject(forKey: AppConstants.UserDefaults.selectedSettingsSection)
                 }
             }
             .toolbar {
@@ -173,7 +156,7 @@ struct SettingsView: View {
             }
         }
         .animation(sidebarAnimation, value: sidebarVisibility)
-        .frame(minWidth: Constants.minWidth, minHeight: Constants.minHeight)
+        .frame(minWidth: AppConstants.SettingsUI.minWidth, minHeight: AppConstants.SettingsUI.minHeight)
         .keyboardShortcut("w", modifiers: .command)
         .onKeyPress { keyPress in
             if keyPress.key == .escape || (keyPress.modifiers.contains(.command) && keyPress.key.character == "w") {
@@ -191,12 +174,9 @@ struct SettingsView: View {
             // Apply bot command toggle to service
             appDelegate?.twitchService?.commandsEnabled = currentSongCommandEnabled
 
-            // Set up Twitch service callbacks
-            appDelegate?.twitchService?.onConnectionStateChanged = { isConnected in
-                DispatchQueue.main.async {
-                    twitchViewModel.channelConnected = isConnected
-                }
-            }
+            // Initialize the view model's connection state from the service so the UI
+            // reflects whether we are already joined (prevents missed callbacks).
+            twitchViewModel.channelConnected = appDelegate?.twitchService?.isConnected ?? false
 
             // Set up callback to get current song info
             appDelegate?.twitchService?.getCurrentSongInfo = {
@@ -370,7 +350,7 @@ struct SettingsView: View {
 
     private func notifyTrackingSettingChanged(enabled: Bool) {
         NotificationCenter.default.post(
-            name: NSNotification.Name(Constants.Notifications.trackingSettingChanged),
+            name: NSNotification.Name(AppConstants.Notifications.trackingSettingChanged),
             object: nil,
             userInfo: ["enabled": enabled]
         )
@@ -386,7 +366,7 @@ struct SettingsView: View {
     /// 5. Notifies the app that tracking has been re-enabled
     private func resetSettings() {
         // Clear UserDefaults
-        Constants.UserDefaultsKeys.allKeys.forEach {
+        [AppConstants.UserDefaults.trackingEnabled, AppConstants.UserDefaults.currentSongCommandEnabled, AppConstants.UserDefaults.lastSongCommandEnabled, AppConstants.UserDefaults.dockVisibility, AppConstants.UserDefaults.websocketEnabled, AppConstants.UserDefaults.websocketURI].forEach {
             UserDefaults.standard.removeObject(forKey: $0)
         }
 
@@ -407,11 +387,7 @@ struct SettingsView: View {
 
 // MARK: - Constants Extension
 
-extension SettingsView.Constants.UserDefaultsKeys {
-    static var allKeys: [String] {
-        [trackingEnabled, currentSongCommandEnabled, lastSongCommandEnabled, dockVisibility, websocketEnabled, websocketURI]
-    }
-}
+
 
 // MARK: - StatusChip and Helpers
 

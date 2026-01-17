@@ -2,7 +2,7 @@
 //  MusicMonitorSettingsView.swift
 //  wolfwave
 //
-//  Created by MrDemonWolf, Inc. on 1/13/26.
+//  Created by MrDemonWolf, Inc. on 1/17/26.
 //
 
 import SwiftUI

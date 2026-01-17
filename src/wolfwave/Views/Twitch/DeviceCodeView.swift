@@ -2,106 +2,145 @@
 //  DeviceCodeView.swift
 //  wolfwave
 //
-//  Created by MrDemonWolf, Inc. on 1/13/26.
+//  Created by MrDemonWolf, Inc. on 1/17/26.
 //
 
-import AppKit
 import SwiftUI
 
-/// View displaying the OAuth Device Code authorization UI during Twitch Device Code flow.
+/// Native macOS device authorization code display.
+/// Clean, minimal, system-native presentation for inline use in settings.
 ///
-/// Presents the device code for manual entry and provides quick links to open Twitch
-/// or visit twitch.tv/activate for authorization.
+/// Follows macOS design principles:
+/// - No heavy styling or borders
+/// - Calm, trustworthy appearance
+/// - Smooth interaction feedback
+/// - Supports dark and light modes naturally
 struct DeviceCodeView: View {
     let userCode: String
     let verificationURI: String
     let onCopy: () -> Void
-
+    
+    @State private var isCodeCopied = false
+    @State private var showCopyFeedback = false
+    
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            // Header
-            HStack(spacing: 8) {
-                Image(systemName: "number")
-                    .font(.title3)
-                    .foregroundStyle(Color(nsColor: .controlAccentColor))
-                Text("Authorize on Twitch")
-                    .font(.body)
-                    .fontWeight(.medium)
+        ZStack {
+            VStack(alignment: .leading, spacing: 16) {
+                // Section header
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Device Code")
+                        .font(.system(size: 11, weight: .semibold))
+                        .foregroundColor(.secondary)
+                        .tracking(0.5)
+                    
+                    Text("Share this code during Twitch authorization")
+                        .font(.system(size: 12, weight: .regular))
+                        .foregroundColor(.secondary)
+                }
+                
+                // Code display with copy button
+                HStack(spacing: 10) {
+                    Text(userCode)
+                        .font(.system(size: 18, weight: .semibold, design: .monospaced))
+                        .foregroundColor(.primary)
+                        .tracking(1.2)
+                        .frame(maxWidth: .infinity, alignment: .center)
+                        .padding(.vertical, 10)
+                    
+                    Button(action: copyDeviceCode) {
+                        Image(systemName: isCodeCopied ? "checkmark.circle.fill" : "doc.on.doc")
+                            .font(.system(size: 14, weight: .regular))
+                            .foregroundColor(isCodeCopied ? .green : .secondary)
+                            .frame(width: 28, height: 28)
+                            .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                    .help(isCodeCopied ? "Copied to clipboard" : "Copy device code")
+                }
+                .padding(.horizontal, 10)
+                .background(Color(.controlBackgroundColor))
+                .cornerRadius(8)
+                
+                // Open link button with subtle styling
+                Link(destination: URL(string: verificationURI) ?? URL(string: "https://www.twitch.tv/activate")!) {
+                    HStack(spacing: 6) {
+                        Text("Open twitch.tv/activate")
+                            .font(.system(size: 13, weight: .medium))
+                        
+                        Image(systemName: "arrow.up.right")
+                            .font(.system(size: 10, weight: .semibold))
+                    }
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 34)
+                    .foregroundColor(.white)
+                    .background(Color.accentColor)
+                    .cornerRadius(8)
+                }
+                .buttonStyle(.plain)
             }
             
-            Text(
-                "Open Twitch to authorize, or go to twitch.tv/activate on any device and enter this code."
-            )
-            .font(.caption)
-            .foregroundColor(.secondary)
-
-            // Device Code Display
-            HStack(spacing: 12) {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("Device Code")
-                        .font(.caption)
-                        .fontWeight(.medium)
-                        .foregroundColor(.secondary)
-                    Text(userCode)
-                        .font(.title3)
-                        .monospaced()
-                        .fontWeight(.bold)
-                        .tracking(1)
+            // Copy feedback toast
+            if showCopyFeedback {
+                VStack {
+                    HStack(spacing: 8) {
+                        Image(systemName: "checkmark.circle.fill")
+                            .foregroundColor(.green)
+                        Text("Copied to clipboard")
+                            .font(.system(size: 11, weight: .medium))
+                    }
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 8)
+                    .background(Color(.controlBackgroundColor))
+                    .cornerRadius(6)
+                    
+                    Spacer()
                 }
-                Spacer()
-                Button(action: copyToClipboard) {
-                    Label("Copy", systemImage: "doc.on.doc")
-                }
-                .buttonStyle(.bordered)
-                .controlSize(.small)
-            }
-            .padding(12)
-            .background(Color(nsColor: .controlBackgroundColor))
-            .cornerRadius(8)
-
-            // Action Buttons
-            VStack(spacing: 10) {
-                Button(action: openTwitchAuthorization) {
-                    Label("Open Twitch to authorize", systemImage: "link.circle.fill")
-                        .frame(maxWidth: .infinity)
-                }
-                .buttonStyle(.borderedProminent)
-                .controlSize(.regular)
-
-                Link(
-                    "Or visit twitch.tv/activate and enter the code",
-                    destination: URL(string: "https://twitch.tv/activate")!
-                )
-                .font(.caption)
-                .foregroundColor(.blue)
+                .transition(.move(edge: .top).combined(with: .opacity))
             }
         }
-        .padding(12)
-        .background(
-            RoundedRectangle(cornerRadius: 8, style: .continuous)
-                .fill(Color(nsColor: .controlAccentColor).opacity(0.1))
-        )
     }
-
-    // MARK: - Private Methods
-
-    private func copyToClipboard() {
+    
+    private func copyDeviceCode() {
         NSPasteboard.general.clearContents()
         NSPasteboard.general.setString(userCode, forType: .string)
+        
+        isCodeCopied = true
         onCopy()
-    }
-
-    private func openTwitchAuthorization() {
-        if let url = URL(string: verificationURI) {
-            NSWorkspace.shared.open(url)
+        
+        // Show feedback
+        withAnimation(.easeInOut(duration: 0.2)) {
+            showCopyFeedback = true
+        }
+        
+        // Auto-dismiss feedback
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
+            withAnimation(.easeInOut(duration: 0.2)) {
+                showCopyFeedback = false
+            }
+        }
+        
+        // Reset button state
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
+            isCodeCopied = false
         }
     }
 }
 
 #Preview {
-    DeviceCodeView(
-        userCode: "ABCD1234",
-        verificationURI: "https://twitch.tv/activate",
-        onCopy: { }
-    )
+    VStack(spacing: 24) {
+        DeviceCodeView(
+            userCode: "ABCD-EFGH",
+            verificationURI: "https://www.twitch.tv/activate?device_code=test",
+            onCopy: { print("Copied!") }
+        )
+        
+        Divider()
+        
+        DeviceCodeView(
+            userCode: "WXYZ-QRST",
+            verificationURI: "https://www.twitch.tv/activate?device_code=test2",
+            onCopy: { print("Copied!") }
+        )
+    }
+    .padding(24)
 }
