@@ -69,6 +69,9 @@ struct WebSocketSettingsView: View {
                 VStack(alignment: .leading, spacing: 8) {
                     TextField("WebSocket server URL (ws:// or wss://)", text: websocketURIBinding)
                         .textFieldStyle(.roundedBorder)
+                        .accessibilityLabel("WebSocket server URL")
+                        .accessibilityHint("Enter the full WebSocket server URL, for example ws://example.com")
+                        .accessibilityIdentifier("websocketUrlTextField")
 
                     if !isWebSocketURLValid && !(websocketURI?.isEmpty ?? true) {
                         HStack(spacing: 6) {
@@ -104,6 +107,8 @@ struct WebSocketSettingsView: View {
                         .labelsHidden()
                         .toggleStyle(.switch)
                         .disabled(!isWebSocketURLValid)
+                        .accessibilityLabel("Enable WebSocket connection")
+                        .accessibilityIdentifier("websocketEnabledToggle")
                 }
                 .padding(12)
                 .background(Color(nsColor: .controlBackgroundColor))
@@ -129,6 +134,9 @@ struct WebSocketSettingsView: View {
 
                 SecureField("Auth token (JWT)", text: $authToken)
                     .textFieldStyle(.roundedBorder)
+                    .accessibilityLabel("Authentication token")
+                    .accessibilityHint("Paste your JWT authentication token for the WebSocket server")
+                    .accessibilityIdentifier("websocketAuthTokenField")
                 
                 HStack(spacing: 8) {
                     Image(systemName: "lock.shield.fill")
@@ -149,6 +157,8 @@ struct WebSocketSettingsView: View {
                     }
                     .disabled(authToken.isEmpty)
                     .buttonStyle(.bordered)
+                    .accessibilityLabel("Save authentication token")
+                    .accessibilityIdentifier("saveWebsocketTokenButton")
 
                     Button("Clear Token") {
                         clearToken()
@@ -156,6 +166,8 @@ struct WebSocketSettingsView: View {
                     .disabled(!tokenSaved && authToken.isEmpty)
                     .buttonStyle(.bordered)
                     .tint(.red)
+                    .accessibilityLabel("Clear authentication token")
+                    .accessibilityIdentifier("clearWebsocketTokenButton")
 
                     if tokenSaved {
                         HStack(spacing: 4) {
@@ -166,6 +178,9 @@ struct WebSocketSettingsView: View {
                                 .foregroundColor(.green)
                         }
                         .padding(.leading, 8)
+                        .accessibilityElement(children: .combine)
+                        .accessibilityLabel("Token saved")
+                        .accessibilityIdentifier("websocketTokenSavedStatus")
                     }
                     
                     Spacer()
