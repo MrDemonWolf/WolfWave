@@ -84,7 +84,10 @@ final class TwitchViewModel: ObservableObject {
             return .error(msg)
         }
 
-        if channelConnected || credentialsSaved && connectedOnce {
+        // Consider the view "connected" when we either have an active channel
+        // connection or saved credentials. This ensures leaving the channel (but
+        // still signed-in) doesn't force the UI back to the sign-in state.
+        if channelConnected || credentialsSaved {
             return .connected
         }
 
@@ -159,7 +162,7 @@ final class TwitchViewModel: ObservableObject {
     var statusChipText: String {
         if reauthNeeded { return "Reauth needed" }
         if channelConnected { return "Connected" }
-        if credentialsSaved { return "Ready to join" }
+        if credentialsSaved { return "Signed in" }
         return "Not signed in"
     }
 
@@ -167,7 +170,7 @@ final class TwitchViewModel: ObservableObject {
     var statusChipColor: Color {
         if reauthNeeded { return .yellow }
         if channelConnected { return .green }
-        if credentialsSaved { return .blue }
+        if credentialsSaved { return .secondary }
         return .secondary
     }
 

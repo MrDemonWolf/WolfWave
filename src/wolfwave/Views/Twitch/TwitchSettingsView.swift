@@ -37,7 +37,15 @@ struct TwitchSettingsView: View {
             VStack(spacing: 20) {
                 headerView
 
-                authCard
+                HStack(spacing: 0) {
+                    Spacer(minLength: 0)
+                    authCard
+                        .frame(maxWidth: 720)
+                        .transition(.opacity.combined(with: .move(edge: .bottom)))
+                    Spacer(minLength: 0)
+                }
+                
+                
             }
             .frame(maxWidth: .infinity)
             .padding(.vertical, 24)
@@ -58,25 +66,16 @@ struct TwitchSettingsView: View {
     private var headerView: some View {
         VStack(alignment: .leading, spacing: 6) {
             HStack(alignment: .center, spacing: 10) {
-                // Small state dot
-                Circle()
-                    .fill(viewModel.integrationColor)
-                    .frame(width: 10, height: 10)
-                    .accessibilityHidden(true)
-
                 Text("Twitch Integration")
                     .font(.system(size: 17, weight: .semibold))
 
                 Spacer()
 
-                HStack(spacing: 8) {
-                    Image(systemName: "shield.fill")
-                        .font(.system(size: 12))
-                        .foregroundColor(.secondary)
-                    Text("Secured")
-                        .font(.system(size: 12, weight: .regular))
-                        .foregroundColor(.secondary)
-                }
+                // Use the view model's status chip text/color so the chip is
+                // consistent with other parts of the app and can be tinted
+                // independently from the header's descriptive text.
+                StatusChip(text: viewModel.statusChipText, color: viewModel.statusChipColor)
+                    .accessibilityLabel("Twitch integration status: \(viewModel.statusChipText)")
             }
 
             Text("Enables bot features such as custom commands")
@@ -84,7 +83,26 @@ struct TwitchSettingsView: View {
                 .foregroundColor(.secondary)
         }
         .accessibilityElement(children: .combine)
-        .accessibilityLabel("Twitch Integration")
+    }
+
+    private var headerStatusText: String {
+        // Prefer to report the live channel connection explicitly so the
+        // header reflects whether the bot is actively joined to the channel.
+        if viewModel.channelConnected {
+            return "Connected"
+        }
+
+        // If we have saved credentials but are not actively joined, present
+        // the header as an actionable state: the user is "Ready to connect".
+        if viewModel.credentialsSaved {
+            return "Ready to connect"
+        }
+
+        switch viewModel.integrationState {
+        case .authorizing: return "Authorizing"
+        case .error: return "Error"
+        default: return "Not connected"
+        }
     }
 
     // keychain status moved into header as a subtle affordance
@@ -117,15 +135,19 @@ struct TwitchSettingsView: View {
                         Text("Connect your bot account to enable chat features")
                             .font(.system(size: 13))
                             .foregroundColor(.secondary)
-
                         Button(action: { viewModel.startOAuth() }) {
-                            Label("Open Twitch", systemImage: "arrow.up.right")
-                                .font(.system(size: 13, weight: .medium))
-                                .frame(maxWidth: .infinity)
-                                .frame(height: 34)
+                            HStack(spacing: 8) {
+                                Image(systemName: "arrow.up.right")
+                                Text("Open Twitch")
+                                    .font(.system(size: 14, weight: .semibold))
+                            }
+                            .frame(maxWidth: .infinity)
+                            .frame(height: 44)
                         }
                         .buttonStyle(.borderedProminent)
-                        .tint(Color(nsColor: NSColor.systemPurple).opacity(0.75))
+                        .tint(Color(nsColor: NSColor.systemPurple).opacity(0.85))
+                        .controlSize(.regular)
+                        .accessibilityLabel("Open Twitch to authorize bot")
                     }
 
                 case .authorizing:
@@ -137,11 +159,11 @@ struct TwitchSettingsView: View {
                             }
                         }
 
-                        // Inline waiting row with small spinner and single-line text + cancel
+                        // Inline waiting row with compact spinner, text and cancel
                         HStack(spacing: 10) {
                             ProgressView()
                                 .progressViewStyle(.circular)
-                                .scaleEffect(0.9)
+                                .controlSize(.small)
 
                             Text("Waiting for authorization…")
                                 .font(.system(size: 13, weight: .regular))
@@ -152,7 +174,8 @@ struct TwitchSettingsView: View {
                             Button("Cancel") {
                                 viewModel.cancelOAuth()
                             }
-                            .buttonStyle(.plain)
+                            .buttonStyle(.bordered)
+                            .controlSize(.small)
                         }
                         .padding(.top, 4)
                     }
@@ -184,7 +207,7 @@ struct TwitchSettingsView: View {
                 }
             }
         }
-        .padding(20)
+        .padding(12)
         .background(Color(nsColor: .controlBackgroundColor))
         .cornerRadius(10)
         .shadow(color: Color.black.opacity(0.02), radius: 6, x: 0, y: 2)
@@ -194,7 +217,10 @@ struct TwitchSettingsView: View {
         switch viewModel.integrationState {
         case .notConnected: return "Connect your bot account"
         case .authorizing: return "Waiting for authorization"
-        case .connected: return "Bot connected"
+        case .connected:
+            // If the bot is connected but not joined to the channel yet, show "Ready to join".
+            // If the bot is connected but not joined to the channel yet, show "Ready to connect".
+            return viewModel.channelConnected ? "Bot connected" : "Ready to connect"
         case .error: return "Authorization error"
         }
     }
@@ -365,6 +391,7 @@ private struct SignedInView: View {
     var onJoinChannel: () -> Void
     var onLeaveChannel: () -> Void
     var onChannelIDChanged: () -> Void
+    @State private var showingDisconnectConfirmation = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -460,7 +487,13 @@ private struct SignedInView: View {
 
     private var actionButtonsSection: some View {
         HStack(spacing: 8) {
-            Button(action: isChannelConnected ? onLeaveChannel : onJoinChannel) {
+            Button(action: {
+                if isChannelConnected {
+                    showingDisconnectConfirmation = true
+                } else {
+                    onJoinChannel()
+                }
+            }) {
                 Label(
                     isChannelConnected ? "Disconnect" : "Connect",
                     systemImage: isChannelConnected ? "xmark.circle.fill" : "checkmark.circle.fill"
@@ -480,6 +513,14 @@ private struct SignedInView: View {
             .accessibilityIdentifier("twitchClearCredentialsButton")
         }
         .padding([.leading, .trailing, .bottom], 12)
+        .confirmationDialog("Disconnect from channel?", isPresented: $showingDisconnectConfirmation, titleVisibility: .visible) {
+            Button("Disconnect", role: .destructive) {
+                onLeaveChannel()
+            }
+            Button("Cancel", role: .cancel) { }
+        } message: {
+            Text("This will disconnect the bot from the current channel but keep saved credentials.")
+        }
     }
 
     private var shouldDisableConnectButton: Bool {
@@ -503,13 +544,19 @@ private struct StatusChip: View {
     let color: Color
 
     var body: some View {
-        Text(text)
-            .font(.caption2).bold()
-            .padding(.horizontal, 6)
-            .padding(.vertical, 2)
-            .foregroundColor(color)
-            .background(color.opacity(0.15))
-            .clipShape(Capsule())
+        HStack(spacing: 8) {
+            Circle()
+                .fill(color)
+                .frame(width: 8, height: 8)
+
+            Text(text)
+                .font(.caption2).bold()
+                .foregroundColor(.primary)
+        }
+        .padding(.horizontal, 8)
+        .padding(.vertical, 6)
+        .background(color.opacity(0.12))
+        .clipShape(Capsule())
     }
 }
 // MARK: - Preview

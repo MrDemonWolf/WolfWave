@@ -129,7 +129,8 @@ struct SettingsView: View {
                 VStack(alignment: .leading, spacing: 20) {
                     detailView(for: selectedSection)
                 }
-                .padding(20)
+                .padding(.vertical, 20)
+                .padding(.horizontal, 12)
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
             }
             .background(.ultraThinMaterial)
