@@ -506,10 +506,6 @@ extension AppDelegate {
     }
 
     func toolbar(_ toolbar: NSToolbar, itemForItemIdentifier itemIdentifier: NSToolbarItem.Identifier, willBeInsertedIntoToolbar flag: Bool) -> NSToolbarItem? {
-        // Use system-provided toggle sidebar item
-        if itemIdentifier == .toggleSidebar {
-            return nil // Return nil to use system default
-        }
         return nil
     }
 }
