@@ -67,21 +67,26 @@ struct TwitchReauthView: View {
                 .font(.body)
                 .foregroundColor(.secondary)
             
-            // Sign in button
+            // Sign in button (smaller, subtler color)
             Button(action: { viewModel.startOAuth() }) {
                 HStack(spacing: 8) {
                     Image("TwitchLogo")
                         .renderingMode(.original)
                         .resizable()
                         .scaledToFit()
-                        .frame(width: 16, height: 16)
-                    
+                        .frame(width: 14, height: 14)
+
                     Text("Authorize on Twitch")
-                        .fontWeight(.semibold)
+                        .font(.system(size: 12, weight: .semibold))
                 }
                 .frame(maxWidth: .infinity)
+                .frame(height: 30)
             }
             .buttonStyle(.borderedProminent)
+            .controlSize(.small)
+            .tint(Color(nsColor: NSColor.systemIndigo).opacity(0.92))
+            .accessibilityLabel("Authorize on Twitch")
+            .accessibilityIdentifier("reauthAuthorizeButton")
         }
     }
     
@@ -109,6 +114,8 @@ struct TwitchReauthView: View {
                                 .font(.body)
                         }
                         .buttonStyle(.bordered)
+                        .accessibilityLabel("Copy device code")
+                        .accessibilityIdentifier("reauthCopyCodeButton")
                         .help("Copy device code")
                     }
                     .padding(.vertical, 10)
@@ -129,17 +136,27 @@ struct TwitchReauthView: View {
                         }
                         .buttonStyle(.plain)
                         .help("Open Twitch authorization page")
+                        .accessibilityLabel("Open twitch.tv/activate")
+                        .accessibilityIdentifier("reauthOpenActivateLink")
                         
                         Button(action: { openTwitchActivation() }) {
-                            HStack(spacing: 6) {
-                                Image(systemName: "globe")
-                                Text("Open Twitch to Authorize")
+                            HStack(spacing: 8) {
+                                Image("TwitchLogo")
+                                    .renderingMode(.original)
+                                    .resizable()
+                                    .scaledToFit()
+                                    .frame(width: 14, height: 14)
+                                Text("Sign in with Twitch")
+                                    .font(.system(size: 12, weight: .medium))
                             }
                             .frame(maxWidth: .infinity)
-                            .padding(.vertical, 8)
+                            .frame(height: 30)
                         }
                         .buttonStyle(.borderedProminent)
-                        .tint(.blue)
+                        .controlSize(.small)
+                        .tint(Color(red: 100/255, green: 65/255, blue: 165/255))
+                        .accessibilityLabel("Sign in with Twitch")
+                        .accessibilityIdentifier("reauthOpenTwitchButton")
                     }
                 }
                 
@@ -178,6 +195,8 @@ struct TwitchReauthView: View {
                     viewModel.cancelOAuth()
                 }
                 .keyboardShortcut(.cancelAction)
+                .accessibilityLabel("Cancel")
+                .accessibilityIdentifier("reauthCancelButton")
             }
         }
     }

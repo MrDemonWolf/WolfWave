@@ -170,8 +170,10 @@ final class TwitchViewModel: ObservableObject {
     var statusChipColor: Color {
         if reauthNeeded { return .yellow }
         if channelConnected { return .green }
-        if credentialsSaved { return .secondary }
-        return .secondary
+        // Use a blue tint when the app is signed in but not actively joined.
+        if credentialsSaved { return .blue }
+        // Not signed in: use a distinct, muted gray tint so it's visually different
+        return Color.gray.opacity(0.55)
     }
 
     // MARK: - Public Methods

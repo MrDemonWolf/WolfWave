@@ -88,17 +88,22 @@ struct TwitchDeviceAuthDialog: View {
                     }
                     .keyboardShortcut(.cancelAction)
                     .buttonStyle(.plain)
+                    .accessibilityLabel("Cancel")
+                    .accessibilityIdentifier("deviceAuthCancelButton")
 
-                    // Primary authorize button - macOS prominent with subtle Twitch tint
+                    // Primary authorize button - smaller and subtler tint
                     Button(action: handleAuthorizePressed) {
                         Text("Authorize on Twitch")
-                            .font(.system(size: 13, weight: .semibold))
-                            .frame(minWidth: 120)
+                            .font(.system(size: 12, weight: .semibold))
+                            .frame(minWidth: 100)
                     }
                     .buttonStyle(.borderedProminent)
-                    .tint(Color(nsColor: NSColor.systemPurple).opacity(0.78))
+                    .controlSize(.small)
+                    .tint(Color(nsColor: NSColor.systemIndigo).opacity(0.9))
                     .keyboardShortcut(.defaultAction)
-                    .controlSize(.regular)
+                    .accessibilityLabel("Authorize on Twitch")
+                    .accessibilityHint("Open Twitch activation page to authorize")
+                    .accessibilityIdentifier("authorizeOnTwitchButton")
                 }
                 .padding(.horizontal, 24)
                 .padding(.vertical, 16)
@@ -199,21 +204,42 @@ private struct DeviceCodeEntryView: View {
                     .tracking(1.5)
                     .frame(maxWidth: .infinity, alignment: .center)
                     .padding(.vertical, 12)
+                    .accessibilityLabel("Device code")
+                    .accessibilityValue(deviceCode)
+                    .accessibilityIdentifier("deviceAuthCodeText")
                 
                 // Copy button
                 Button(action: onCopyTapped) {
                     Image(systemName: isCodeCopied ? "checkmark.circle.fill" : "doc.on.doc")
-                        .font(.system(size: 16, weight: .regular))
+                        .font(.system(size: 15, weight: .regular))
                         .foregroundColor(isCodeCopied ? .green : .secondary)
-                        .frame(width: 32, height: 32)
+                        .frame(width: 30, height: 30)
                         .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
                 .help(isCodeCopied ? "Copied to clipboard" : "Copy device code")
+                .accessibilityLabel(isCodeCopied ? "Copied to clipboard" : "Copy device code")
+                .accessibilityIdentifier("deviceAuthCopyButton")
             }
             .padding(.horizontal, 12)
             .background(Color.gray.opacity(0.1))
             .cornerRadius(8)
+
+            // Inline copy feedback placed just above the code field
+            if isCodeCopied {
+                HStack(spacing: 8) {
+                    Image(systemName: "checkmark.circle.fill")
+                        .foregroundColor(.green)
+                    Text("Copied to clipboard")
+                        .font(.system(size: 11, weight: .medium))
+                }
+                .padding(.horizontal, 10)
+                .padding(.vertical, 6)
+                .background(Color(nsColor: .controlBackgroundColor))
+                .cornerRadius(6)
+                .transition(.opacity.combined(with: .move(edge: .top)))
+                .padding(.bottom, 6)
+            }
             
             // Subtle branding or helper text
             HStack(spacing: 4) {

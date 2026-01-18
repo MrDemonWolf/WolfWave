@@ -13,10 +13,24 @@ struct WolfWaveApp: App {
     }
 }
 
+// MARK: - Notifications & App Helpers
+
+extension Notification.Name {
+    static let toggleSettingsSidebar = Notification.Name("com.wolfwave.toggleSettingsSidebar")
+}
+
+extension AppDelegate {
+    @objc func toggleSettingsSidebar(_ sender: Any?) {
+        NotificationCenter.default.post(name: .toggleSettingsSidebar, object: nil)
+    }
+}
+
 // MARK: - App Delegate
 
 /// Manages the menu bar item, music monitoring, and Twitch integration.
-class AppDelegate: NSObject, NSApplicationDelegate {
+class AppDelegate: NSObject, NSApplicationDelegate, NSToolbarDelegate {
+    // Toolbar identifier used for the settings window
+    private static let settingsToolbarIdentifier = "com.wolfwave.settings.toolbar"
     
     // MARK: - Properties
     
@@ -443,14 +457,28 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
     private func createSettingsWindow() -> NSWindow {
         let hosting = NSHostingController(rootView: SettingsView())
-        let window = NSWindow(contentViewController: hosting)
-        window.title = "\(appName) Settings"
-        window.styleMask = [.titled, .closable, .miniaturizable, .resizable]
-        window.setContentSize(
-            NSSize(
-                width: AppConstants.UI.settingsWidth,
-                height: AppConstants.UI.settingsHeight
-            ))
+        let frame = CGRect(x: 0, y: 0, width: AppConstants.UI.settingsWidth, height: AppConstants.UI.settingsHeight)
+        let style: NSWindow.StyleMask = [.titled, .closable, .miniaturizable, .resizable, .fullSizeContentView]
+        let window = NSWindow(contentRect: frame, styleMask: style, backing: .buffered, defer: false)
+        window.contentViewController = hosting
+        
+        // Configure title bar for VoiceInk-style appearance
+        window.title = ""
+        window.titleVisibility = .hidden
+        window.titlebarAppearsTransparent = true
+        window.isMovableByWindowBackground = true
+
+        // Add a toolbar that sits in the unified title bar
+        let toolbar = NSToolbar(identifier: NSToolbar.Identifier(Self.settingsToolbarIdentifier))
+        toolbar.displayMode = .iconOnly
+        toolbar.allowsUserCustomization = false
+        toolbar.showsBaselineSeparator = false
+        toolbar.delegate = self
+        if #available(macOS 11.0, *) {
+            toolbar.centeredItemIdentifier = nil
+        }
+        window.toolbar = toolbar
+        window.toolbarStyle = .unified
 
         window.collectionBehavior = [.moveToActiveSpace]
         window.canHide = true
@@ -463,6 +491,26 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         window?.level = .normal
         window?.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)
+    }
+}
+
+// MARK: - Toolbar Delegate
+
+extension AppDelegate {
+    func toolbarAllowedItemIdentifiers(_ toolbar: NSToolbar) -> [NSToolbarItem.Identifier] {
+        return [.toggleSidebar, .flexibleSpace]
+    }
+
+    func toolbarDefaultItemIdentifiers(_ toolbar: NSToolbar) -> [NSToolbarItem.Identifier] {
+        return [.flexibleSpace, .toggleSidebar, .flexibleSpace]
+    }
+
+    func toolbar(_ toolbar: NSToolbar, itemForItemIdentifier itemIdentifier: NSToolbarItem.Identifier, willBeInsertedIntoToolbar flag: Bool) -> NSToolbarItem? {
+        // Use system-provided toggle sidebar item
+        if itemIdentifier == .toggleSidebar {
+            return nil // Return nil to use system default
+        }
+        return nil
     }
 }
 

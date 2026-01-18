@@ -26,7 +26,9 @@ class TwitchDeviceAuthWindowController: NSWindowController {
             )
         )
         
-        let window = NSWindow(contentViewController: NSViewController())
+        let frame = CGRect(x: 0, y: 0, width: 480, height: 420)
+        let style: NSWindow.StyleMask = [.titled, .closable]
+        let window = NSWindow(contentRect: frame, styleMask: style, backing: .buffered, defer: false)
         window.contentView = hostingView
         
         super.init(window: window)
@@ -42,9 +44,7 @@ class TwitchDeviceAuthWindowController: NSWindowController {
         window.standardWindowButton(.miniaturizeButton)?.isHidden = true
         window.standardWindowButton(.zoomButton)?.isHidden = true
         
-        // Set window size - optimized for new clean layout
-        let frame = CGRect(x: 0, y: 0, width: 480, height: 420)
-        window.setFrame(frame, display: true)
+        // Center window on screen
         window.center()
         
         // Use system appearance for native feel

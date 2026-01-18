@@ -106,23 +106,12 @@ struct SettingsView: View {
 
     var body: some View {
         NavigationSplitView(columnVisibility: $sidebarVisibility) {
-            ScrollView {
-                VStack(alignment: .leading, spacing: 8) {
-                    ForEach(SettingsSection.allCases) { section in
-                        sidebarRow(for: section)
-                    }
-                }
-                .padding(.vertical, 12)
-                .padding(.horizontal, 10)
+            List(SettingsSection.allCases, selection: $selectedSection) { section in
+                sidebarRow(for: section)
+                    .tag(section)
             }
-            .frame(
-                minWidth: AppConstants.SettingsUI.sidebarWidth,
-                idealWidth: AppConstants.SettingsUI.sidebarWidth,
-                maxWidth: AppConstants.SettingsUI.sidebarWidth,
-                maxHeight: .infinity,
-                alignment: .topLeading
-            )
-            .background(Color(nsColor: .windowBackgroundColor))
+            .listStyle(.sidebar)
+            .navigationSplitViewColumnWidth(min: 180, ideal: 200, max: 220)
         } detail: {
             // Detail view
             ScrollView {
@@ -144,17 +133,7 @@ struct SettingsView: View {
                     UserDefaults.standard.removeObject(forKey: AppConstants.UserDefaults.selectedSettingsSection)
                 }
             }
-            .toolbar {
-                ToolbarItem(placement: .primaryAction) {
-                    Button(action: {
-                        withAnimation(.easeInOut(duration: 0.25)) {
-                            sidebarVisibility = sidebarVisibility == .all ? .detailOnly : .all
-                        }
-                    }) {
-                        Image(systemName: sidebarVisibility == .all ? "sidebar.left" : "sidebar.leading")
-                    }
-                }
-            }
+            // Rely on the system-provided sidebar toggle for NavigationSplitView
         }
         .animation(sidebarAnimation, value: sidebarVisibility)
         .frame(minWidth: AppConstants.SettingsUI.minWidth, minHeight: AppConstants.SettingsUI.minHeight)
@@ -187,11 +166,20 @@ struct SettingsView: View {
                 return "No track currently playing"
             }
         }
+        // Listen for toggle requests from the AppDelegate toolbar button
+        .onReceive(NotificationCenter.default.publisher(for: .toggleSettingsSidebar)) { _ in
+            withAnimation(.easeInOut(duration: 0.25)) {
+                sidebarVisibility = sidebarVisibility == .all ? .detailOnly : .all
+            }
+        }
         .alert("Reset Settings?", isPresented: $showingResetAlert) {
             Button("Cancel", role: .cancel) {}
+            .accessibilityIdentifier("resetSettingsCancelButton")
+
             Button("Reset", role: .destructive) {
                 resetSettings()
             }
+            .accessibilityIdentifier("resetSettingsConfirmButton")
         } message: {
             Text("This will reset all settings and clear the stored authentication token.")
         }
@@ -219,51 +207,26 @@ struct SettingsView: View {
 
     @ViewBuilder
     private func sidebarRow(for section: SettingsSection) -> some View {
-        let isSelected = section == selectedSection
-
-        Button {
-            withAnimation(.easeInOut(duration: 0.2)) {
-                selectedSection = section
-            }
-        } label: {
-            HStack(spacing: 10) {
-                sidebarIcon(for: section, isSelected: isSelected)
-                    .frame(width: 18, height: 18)
-
-                Text(section.rawValue)
-                    .font(.body)
-                    .fontWeight(.semibold)
-                    .foregroundStyle(isSelected ? Color.white : Color.primary)
-
-                Spacer(minLength: 0)
-            }
-            .padding(.vertical, 10)
-            .padding(.horizontal, 12)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .background(
-                RoundedRectangle(cornerRadius: 12, style: .continuous)
-                    .fill(isSelected ? Color(nsColor: .controlAccentColor) : Color.clear)
-            )
-                .accessibilityElement(children: .combine)
-                .accessibilityLabel(Text(section.rawValue))
-                .accessibilityIdentifier(section.rawValue.replacingOccurrences(of: " ", with: "-").lowercased())
+        Label {
+            Text(section.rawValue)
+        } icon: {
+            sidebarIcon(for: section)
         }
-        .buttonStyle(.plain)
-        .contentShape(Rectangle())
+        .accessibilityLabel(Text(section.rawValue))
+        .accessibilityIdentifier(section.rawValue.replacingOccurrences(of: " ", with: "-").lowercased())
     }
 
     @ViewBuilder
-    private func sidebarIcon(for section: SettingsSection, isSelected: Bool) -> some View {
+    private func sidebarIcon(for section: SettingsSection) -> some View {
         if let customIcon = section.customIcon {
             Image(customIcon)
-                .renderingMode(.original) // keep Twitch purple
+                .renderingMode(.template)
                 .resizable()
                 .interpolation(.high)
                 .scaledToFit()
+                .frame(width: 16, height: 16)
         } else if let systemIcon = section.systemIcon {
             Image(systemName: systemIcon)
-                .font(.body)
-                .foregroundStyle(isSelected ? Color.white : Color.primary)
         }
     }
     
@@ -303,6 +266,8 @@ struct SettingsView: View {
                     Toggle("", isOn: $currentSongCommandEnabled)
                         .labelsHidden()
                         .toggleStyle(.switch)
+                        .accessibilityLabel("Enable Current Playing Song command")
+                        .accessibilityIdentifier("currentSongCommandToggle")
                         .onChange(of: currentSongCommandEnabled) { _, enabled in
                             appDelegate?.twitchService?.commandsEnabled = enabled
                         }
@@ -324,6 +289,8 @@ struct SettingsView: View {
                     Toggle("", isOn: $lastSongCommandEnabled)
                         .labelsHidden()
                         .toggleStyle(.switch)
+                        .accessibilityLabel("Enable Last Played Song command")
+                        .accessibilityIdentifier("lastSongCommandToggle")
                         .onChange(of: lastSongCommandEnabled) { _, enabled in
                             appDelegate?.twitchService?.commandsEnabled = enabled
                         }

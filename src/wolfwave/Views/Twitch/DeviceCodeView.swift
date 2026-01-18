@@ -35,6 +35,8 @@ struct DeviceCodeView: View {
                     .font(.system(size: 12, weight: .regular))
                     .foregroundColor(.secondary)
             }
+            .transition(.move(edge: .top).combined(with: .opacity))
+
 
             // Code container - monospaced, larger and calm
             HStack(spacing: 8) {
@@ -44,20 +46,26 @@ struct DeviceCodeView: View {
                     .lineLimit(1)
                     .minimumScaleFactor(0.6)
                     .frame(maxWidth: .infinity, alignment: .center)
+                    .accessibilityLabel("Device code")
+                    .accessibilityValue(userCode)
+                    .accessibilityIdentifier("deviceCodeText")
 
-                if isHovering || isCodeCopied {
-                    Button(action: copyDeviceCode) {
-                        Image(systemName: isCodeCopied ? "checkmark.circle.fill" : "doc.on.doc")
-                            .font(.system(size: 14, weight: .regular))
-                            .foregroundColor(isCodeCopied ? .green : .secondary)
-                            .frame(width: 28, height: 28)
-                    }
-                    .buttonStyle(.plain)
-                    .help(isCodeCopied ? "Copied" : "Copy code")
-                    .accessibilityLabel(isCodeCopied ? "Copied" : "Copy device code")
-                    .transition(.opacity)
+                // Always-visible copy button (subtle by default, highlighted on hover or when copied)
+                Button(action: copyDeviceCode) {
+                    Image(systemName: isCodeCopied ? "checkmark.circle.fill" : "doc.on.doc")
+                        .font(.system(size: 14, weight: .regular))
+                        .foregroundColor(isCodeCopied ? .green : .secondary)
+                        .frame(width: 28, height: 28)
                 }
+                .buttonStyle(.plain)
+                .help(isCodeCopied ? "Copied" : "Copy code")
+                .accessibilityLabel(isCodeCopied ? "Copied" : "Copy device code")
+                .accessibilityIdentifier("copyDeviceCodeButton")
+                .transition(.opacity)
+                .opacity((isHovering || isCodeCopied) ? 1.0 : 0.9)
+                .animation(.easeInOut(duration: 0.12), value: isHovering || isCodeCopied)
             }
+            .transition(.move(edge: .top).combined(with: .opacity))
             .padding(12)
             .background(Color(nsColor: .controlBackgroundColor))
             .overlay(
@@ -71,21 +79,32 @@ struct DeviceCodeView: View {
                 }
             }
 
-            // Primary action: open activation URL with subtle macOS-style button
+            // Primary action: open activation URL with subtler, smaller button
             Button(action: openActivationURL) {
-                HStack(spacing: 8) {
-                    Text("Open Twitch")
-                        .font(.system(size: 13, weight: .medium))
+                HStack(spacing: 6) {
+                    Text("Sign in with Twitch")
+                        .font(.system(size: 12, weight: .medium))
                     Image(systemName: "arrow.up.right")
-                        .font(.system(size: 11, weight: .semibold))
+                        .font(.system(size: 10, weight: .semibold))
                 }
                 .frame(maxWidth: .infinity)
-                .frame(height: 34)
+                .frame(height: 30)
             }
             .buttonStyle(.borderedProminent)
-            .tint(Color(nsColor: NSColor.systemPurple).opacity(0.75))
+            .controlSize(.small)
+            .tint(Color(nsColor: NSColor.systemIndigo).opacity(0.88))
+            .accessibilityLabel("Sign in with Twitch activation page")
+            .accessibilityHint("Opens twitch.tv/activate in your browser")
+            .accessibilityIdentifier("openTwitchButton")
         }
-        .overlay(copyFeedbackView.offset(y: -8), alignment: .top)
+        // Position the small "copied" toast near the copy button (top-right)
+        .overlay(
+            copyFeedbackView
+                .padding(.trailing, 6)
+                .offset(x: -8, y: -8),
+            alignment: .topTrailing
+        )
+        .animation(.spring(response: 0.35, dampingFraction: 0.82, blendDuration: 0), value: userCode)
     }
     
     private func copyDeviceCode() {
@@ -125,12 +144,15 @@ struct DeviceCodeView: View {
                 Image(systemName: "checkmark.circle.fill")
                     .foregroundColor(.green)
                 Text("Copied to clipboard")
-                    .font(.system(size: 11, weight: .medium))
+                    .font(.system(size: 12, weight: .semibold))
             }
             .padding(.horizontal, 12)
             .padding(.vertical, 8)
-            .background(Color(nsColor: .controlBackgroundColor))
-            .cornerRadius(6)
+            .background(
+                Color(nsColor: .windowBackgroundColor).opacity(0.98)
+            )
+            .cornerRadius(8)
+            .shadow(color: Color.black.opacity(0.12), radius: 6, x: 0, y: 2)
             .transition(.opacity.combined(with: .move(edge: .top)))
         }
     }
