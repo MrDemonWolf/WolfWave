@@ -7,11 +7,31 @@
 
 import SwiftUI
 
-/// Music playback monitoring settings interface.
+/// Settings for Apple Music playback monitoring.
+///
+/// Allows users to enable or disable real-time Apple Music tracking.
+/// When enabled, WolfWave monitors the current playing track and updates:
+/// - Menu bar display with current song/artist/album
+/// - Twitch chat bot command responses (!song, !last)
+/// - External WebSocket endpoints (if configured)
+///
+/// State:
+/// - Uses @AppStorage to sync with UserDefaults
+/// - Changes are posted via NotificationCenter for app-wide updates
+///
+/// UI:
+/// - Simple toggle switch
+/// - Descriptive explanation of functionality
+/// - Accessibility labels for screen readers
 struct MusicMonitorSettingsView: View {
     // MARK: - User Settings
     
-    /// Whether music tracking is currently enabled
+    /// Whether music tracking is currently enabled.
+    ///
+    /// When toggled:
+    /// 1. Starts or stops MusicPlaybackMonitor
+    /// 2. Posts trackingSettingChanged notification
+    /// 3. Updates menu bar display ("Tracking disabled" or current song)
     @AppStorage("trackingEnabled")
     private var trackingEnabled = true
     
@@ -57,6 +77,11 @@ struct MusicMonitorSettingsView: View {
     
     // MARK: - Helpers
     
+    /// Posts a notification when music tracking is toggled.
+    ///
+    /// The AppDelegate listens for this notification and starts/stops the MusicPlaybackMonitor.
+    ///
+    /// - Parameter enabled: Whether tracking is now enabled.
     private func notifyTrackingSettingChanged(enabled: Bool) {
         NotificationCenter.default.post(
             name: NSNotification.Name(AppConstants.Notifications.trackingSettingChanged),

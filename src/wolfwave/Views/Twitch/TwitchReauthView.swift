@@ -4,7 +4,6 @@
 //
 //  Created by MrDemonWolf, Inc. on 1/17/26.
 //
-//  PRODUCTION READY - DEPLOYMENT APPROVED
 //
 //  Session Expiration: Displays when OAuth token has expired and needs renewal.
 //  Provides seamless re-authentication flow without losing other app state.

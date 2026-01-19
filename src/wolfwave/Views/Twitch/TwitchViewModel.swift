@@ -590,7 +590,6 @@ final class TwitchViewModel: ObservableObject {
                 object: nil
             )
             credentialsSaved = true
-            connectedOnce = true
             Log.info("TwitchViewModel: OAuth token saved", category: "Twitch")
         } catch {
             Log.error(
@@ -645,37 +644,6 @@ final class TwitchViewModel: ObservableObject {
         // Clear any polling/outer tasks on error
         devicePollingTask = nil
         oAuthTask = nil
-    }
-
-    private func resolveBotIdentity() {
-        guard !oauthToken.isEmpty else {
-            Log.debug("TwitchViewModel: Cannot resolve - token not available", category: "Twitch")
-            return
-        }
-
-        guard let clientID = TwitchChatService.resolveClientID(), !clientID.isEmpty else {
-            Log.debug("TwitchViewModel: Cannot resolve - missing client ID", category: "Twitch")
-            return
-        }
-
-        Task {
-            do {
-                try await TwitchChatService.resolveBotIdentityStatic(
-                    token: oauthToken, clientID: clientID
-                )
-
-                if let username = KeychainService.loadTwitchUsername() {
-                    botUsername = username
-                    Log.info(
-                        "TwitchViewModel: Bot identity resolved - \(username)", category: "Twitch")
-                }
-            } catch {
-                Log.error(
-                    "TwitchViewModel: Failed to resolve bot identity - \(error.localizedDescription)",
-                    category: "Twitch"
-                )
-            }
-        }
     }
 
     // deinit handled above to remove all observers

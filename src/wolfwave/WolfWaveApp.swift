@@ -1,11 +1,47 @@
+//
+//  WolfWaveApp.swift
+//  wolfwave
+//
+//  Created by MrDemonWolf, Inc. on 1/17/26.
+//
+
+/// WolfWave: A macOS menu bar app for sharing currently playing music to Twitch chat.
+///
+/// This module provides the main application entry point, menu bar integration,
+/// music playback monitoring, and Twitch chat bot functionality.
+///
+/// Architecture:
+/// - WolfWaveApp: SwiftUI app entry point
+/// - AppDelegate: Lifecycle management, menu bar setup, service orchestration
+/// - SettingsView: Configuration UI for all app features
+/// - TwitchChatService: Twitch EventSub WebSocket connection and bot commands
+/// - MusicPlaybackMonitor: Apple Music tracking via AppleScript
+///
+/// Key Features:
+/// - Menu bar status with current track information
+/// - Configurable Twitch chat bot commands (!song, !last, etc.)
+/// - Apple Music monitoring with real-time updates
+/// - Secure credential storage via Keychain
+/// - OAuth Device Code flow for Twitch authentication
+/// - Dock and menu bar visibility modes
+
 import AppKit
 import SwiftUI
 import UserNotifications
 
+// MARK: - App Entry Point
+
+/// Main application entry point for WolfWave.
+///
+/// The app uses the SwiftUI App protocol and runs in the menu bar.
+/// Configuration is handled through a Settings scene that opens separately
+/// from any main window.
 @main
 struct WolfWaveApp: App {
+    /// App delegate handling lifecycle, services, and menu bar management.
     @NSApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
 
+    /// Provides access to the macOS Settings window for configuration.
     var body: some Scene {
         Settings {
             SettingsView()
@@ -13,13 +49,19 @@ struct WolfWaveApp: App {
     }
 }
 
-// MARK: - Notifications & App Helpers
+// MARK: - Notification Extensions
 
+/// Custom notification names used throughout the app.
 extension Notification.Name {
+    /// Posted when the sidebar toggle button in the toolbar is clicked.
+    /// Observer should toggle NavigationSplitView.columnVisibility.
     static let toggleSettingsSidebar = Notification.Name("com.wolfwave.toggleSettingsSidebar")
 }
 
+/// Notification handlers for the app delegate.
 extension AppDelegate {
+    /// Toggles the sidebar visibility in the settings view via notification.
+    /// Called by toolbar button in createSettingsWindow().
     @objc func toggleSettingsSidebar(_ sender: Any?) {
         NotificationCenter.default.post(name: .toggleSettingsSidebar, object: nil)
     }
@@ -27,24 +69,83 @@ extension AppDelegate {
 
 // MARK: - App Delegate
 
-/// Manages the menu bar item, music monitoring, and Twitch integration.
+/// Manages application lifecycle, menu bar presence, services, and window management.
+///
+/// The AppDelegate is responsible for:
+/// 1. Setting up the menu bar status item on app launch
+/// 2. Initializing and coordinating service objects (MusicPlaybackMonitor, TwitchChatService)
+/// 3. Managing the Settings window lifecycle
+/// 4. Responding to system notifications (window close, tracking changes, etc.)
+/// 5. Handling dock visibility mode changes
+/// 6. Auto-joining Twitch channel on launch if credentials exist
+/// 7. Validating Twitch tokens and prompting for re-authentication if needed
+///
+/// Key Properties:
+/// - statusItem: macOS menu bar item showing current track
+/// - musicMonitor: Monitors Apple Music playback
+/// - twitchService: Manages Twitch chat connection and bot commands
+/// - settingsWindow: Settings UI window (created on demand)
+///
+/// Thread Safety:
+/// - All UI updates happen on the main thread
+/// - Background tasks use Task { } for async work
+/// - MusicPlaybackMonitor uses dispatch queues internally
 class AppDelegate: NSObject, NSApplicationDelegate, NSToolbarDelegate {
-    // Toolbar identifier used for the settings window
+    /// Unique identifier for the settings window toolbar.
     private static let settingsToolbarIdentifier = "com.wolfwave.settings.toolbar"
     
     // MARK: - Properties
     
+    /// Menu bar status item showing the current track.
+    ///
+    /// Contains a menu with:
+    /// - Header showing "♪ Now Playing"
+    /// - Current song title
+    /// - Artist name
+    /// - Album name
+    /// - Separator
+    /// - Settings action
+    /// - About action
+    /// - Quit action
     var statusItem: NSStatusItem?
+    
+    /// Music playback monitor tracking Apple Music.
+    ///
+    /// Monitors Apple Music via AppleScript and calls the MusicPlaybackMonitorDelegate
+    /// whenever the track changes or playback status changes.
     var musicMonitor: MusicPlaybackMonitor?
+    
+    /// Settings window (created on-demand when user clicks Settings).
+    ///
+    /// Hosted SwiftUI view with SettingsView as root. Window is created once and
+    /// reused for subsequent opens (made key, brought to front).
     var settingsWindow: NSWindow?
+    
+    /// Twitch chat service managing bot commands and channel connection.
+    ///
+    /// Handles EventSub WebSocket connection to Twitch, chat message routing,
+    /// and bot command dispatching.
     var twitchService: TwitchChatService?
 
+    /// Current track being played (song title).
     private var currentSong: String?
+    
+    /// Current track artist.
     private var currentArtist: String?
+    
+    /// Current track album.
     private var currentAlbum: String?
+    
+    /// Previously played track title (for !last command).
     private var lastSong: String?
+    
+    /// Previously played track artist.
     private var lastArtist: String?
 
+    /// Application name from bundle metadata or defaults.
+    ///
+    /// Used in menu items, window titles, and notifications.
+    /// Falls back to "WolfWave" if not found in bundle.
     private var appName: String {
         Bundle.main.infoDictionary?["CFBundleDisplayName"] as? String ?? Bundle.main
             .infoDictionary?["CFBundleName"] as? String ?? AppConstants.AppInfo.displayName
@@ -52,6 +153,20 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSToolbarDelegate {
 
     // MARK: - Lifecycle
 
+    /// Called when the application finishes launching.
+    ///
+    /// Setup Order:
+    /// 1. Creates menu bar status item with app icon
+    /// 2. Builds initial menu with placeholder song info
+    /// 3. Initializes music playback monitor
+    /// 4. Creates Twitch chat service
+    /// 5. Registers all notification observers
+    /// 6. Sets up initial tracking state from UserDefaults
+    /// 7. Validates Twitch token on boot (shows re-auth if expired)
+    /// 8. Auto-joins saved Twitch channel if credentials exist
+    ///
+    /// This runs on the main thread and blocks app initialization until complete.
+    /// Heavy async work (token validation, channel join) runs in background tasks.
     func applicationDidFinishLaunching(_ notification: Notification) {
         setupStatusItem()
         setupMenu()
@@ -68,6 +183,15 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSToolbarDelegate {
         applyInitialDockVisibility()
     }
     
+    /// Called when the app is asked to reopen (e.g., user clicks dock icon).
+    ///
+    /// If dock visibility is set to "menu only", switches app to show in dock.
+    /// Opens or brings the Settings window to front.
+    ///
+    /// - Parameters:
+    ///   - sender: The NSApplication instance.
+    ///   - flag: True if windows are already visible; false otherwise.
+    /// - Returns: True to allow default reopening behavior; false to prevent it.
     func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
         let currentMode = UserDefaults.standard.string(forKey: AppConstants.UserDefaults.dockVisibility) ?? AppConstants.DockVisibility.default
         if currentMode == AppConstants.DockVisibility.menuOnly {
@@ -80,6 +204,12 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSToolbarDelegate {
 
     // MARK: - Track Display Updates
 
+    /// Resets the menu display to show a message when no track is playing.
+    ///
+    /// Hides artist and album items; shows only the message in the song item.
+    /// Called when tracking is disabled or music app closes.
+    ///
+    /// - Parameter message: The status message to display (e.g., "No track playing").
     private func resetNowPlayingMenu(message: String) {
         guard let menu = statusItem?.menu,
             menu.items.count > AppConstants.MenuItemIndex.album
@@ -93,12 +223,32 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSToolbarDelegate {
         hideMenuItem(at: AppConstants.MenuItemIndex.album)
     }
 
+    /// Updates the menu bar display with a simple status message.
+    ///
+    /// Dispatches to main thread and calls resetNowPlayingMenu.
+    ///
+    /// - Parameter text: The status message to show.
     func updateNowPlaying(_ text: String) {
         DispatchQueue.main.async { [weak self] in
             self?.resetNowPlayingMenu(message: text)
         }
     }
 
+    /// Updates the menu display with full track information.
+    ///
+    /// Called whenever the current track changes. Updates:
+    /// 1. Current song title
+    /// 2. Artist name
+    /// 3. Album name
+    ///
+    /// If any component is missing, shows "No track playing".
+    ///
+    /// Thread Safety: Dispatches to main thread.
+    ///
+    /// - Parameters:
+    ///   - song: Current track title.
+    ///   - artist: Current track artist.
+    ///   - album: Current track album.
     func updateTrackDisplay(song: String?, artist: String?, album: String?) {
         DispatchQueue.main.async { [weak self] in
             guard let self, let menu = self.statusItem?.menu else { return }
@@ -113,22 +263,37 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSToolbarDelegate {
 
     // MARK: - Notification Handlers
 
+    /// Responds to changes in the tracking enabled setting.
+    ///
+    /// Called when user toggles the "Enable Apple Music monitoring" setting.
+    /// Starts or stops the music monitor accordingly.
     @objc func trackingSettingChanged(_ notification: Notification) {
         guard let enabled = notification.userInfo?["enabled"] as? Bool else { return }
 
         enabled ? musicMonitor?.startTracking() : stopTrackingAndUpdate()
     }
 
+    /// Stops music monitoring and updates the menu display.
+    ///
+    /// Called when tracking is disabled or the music app closes.
     private func stopTrackingAndUpdate() {
         musicMonitor?.stopTracking()
         updateNowPlaying("Tracking disabled")
     }
 
+    /// Responds to changes in the dock visibility mode setting.
+    ///
+    /// Called when user changes between "menu bar only", "dock only", or "both".
+    /// Updates NSApp.activationPolicy and statusItem.isVisible accordingly.
     @objc func dockVisibilityChanged(_ notification: Notification) {
         guard let mode = notification.userInfo?["mode"] as? String else { return }
         applyDockVisibility(mode)
     }
 
+    /// Handles the window close notification to restore menu-only mode if needed.
+    ///
+    /// If dock visibility is set to "menu only" and there are no other visible windows,
+    /// switches the app to accessory activation policy (hidden from dock).
     @objc private func handleWindowClose(_ notification: Notification) {
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) { [weak self] in
             self?.restoreMenuOnlyIfNeeded()
@@ -137,6 +302,17 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSToolbarDelegate {
 
     // MARK: - Menu Actions
 
+    /// Opens or brings the Settings window to the front.
+    ///
+    /// Called when user clicks "Settings..." in menu bar menu or presses Cmd+Comma.
+    ///
+    /// Behavior:
+    /// 1. Closes menu tracking (prevents menu from staying open)
+    /// 2. If dock visibility is "menu only", switches to regular activation policy
+    /// 3. If Settings window exists, unminiaturizes and brings to front
+    /// 4. If not, creates new Settings window via NSHostingController
+    ///
+    /// The Settings window is only created once and reused; it's not deallocated.
     @objc func openSettings() {
         statusItem?.menu?.cancelTracking()
         
@@ -156,6 +332,10 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSToolbarDelegate {
         }
     }
 
+    /// Shows the standard macOS About panel.
+    ///
+    /// Activated by clicking "About [AppName]" in the menu bar menu.
+    /// Shows app name, version, copyright, and other metadata from the bundle.
     @objc func showAbout() {
         statusItem?.menu?.cancelTracking()
         
@@ -170,11 +350,30 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSToolbarDelegate {
 
     // MARK: - Dock Visibility Management
 
+    /// Applies the initial dock visibility mode on app launch.
+    ///
+    /// Reads the stored visibility mode from UserDefaults and applies it.
+    /// Defaults to "both" (show in dock and menu bar) if not set.
     private func applyInitialDockVisibility() {
         let mode = UserDefaults.standard.string(forKey: "dockVisibility") ?? "both"
         applyDockVisibility(mode)
     }
 
+    /// Applies a dock visibility mode: "menuOnly", "dockOnly", or "both".
+    ///
+    /// "menuOnly":
+    /// - Sets NSApp.activationPolicy to .accessory (hidden from dock)
+    /// - Shows menu bar status item
+    ///
+    /// "dockOnly":
+    /// - Sets NSApp.activationPolicy to .regular (shown in dock)
+    /// - Hides menu bar status item
+    ///
+    /// "both":
+    /// - Sets NSApp.activationPolicy to .regular
+    /// - Shows menu bar status item
+    ///
+    /// - Parameter mode: The visibility mode to apply.
     private func applyDockVisibility(_ mode: String) {
         switch mode {
         case AppConstants.DockVisibility.menuOnly:
@@ -195,6 +394,12 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSToolbarDelegate {
         }
     }
     
+    /// Restores the menu-only dock visibility mode if active and no windows are open.
+    ///
+    /// Called after a window closes to hide the app from the dock again.
+    /// Only hides if:
+    /// 1. Dock visibility is set to "menu only"
+    /// 2. No other regular-level windows are visible
     private func restoreMenuOnlyIfNeeded() {
         let currentMode = UserDefaults.standard.string(forKey: AppConstants.UserDefaults.dockVisibility) ?? AppConstants.DockVisibility.default
         
@@ -211,6 +416,12 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSToolbarDelegate {
 
     // MARK: - Song Info Provider
 
+    /// Checks if the Apple Music application is currently running.
+    ///
+    /// Used to detect if Music.app is available before attempting to fetch track info.
+    /// If Music.app is not running, we show a "Music app is not running" message instead.
+    ///
+    /// - Returns: True if Music.app is running, false otherwise.
     private func isMusicAppOpen() -> Bool {
         let workspace = NSWorkspace.shared
         let runningApps = workspace.runningApplications
@@ -219,6 +430,18 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSToolbarDelegate {
         }
     }
 
+    /// Provides the current song information for Twitch bot commands and display.
+    ///
+    /// Returns a formatted string with:
+    /// - "🐺 Music app is not running" - if Music.app is closed
+    /// - "🐺 No tracks in the den" - if no track info is available
+    /// - "🐺 Now playing: [song] by [artist]" - if track is playing
+    ///
+    /// Used by:
+    /// - TwitchChatService for !song and !currentsong commands
+    /// - Displayed in menu bar when track changes
+    ///
+    /// - Returns: Formatted current song information string.
     func getCurrentSongInfo() -> String {
         guard isMusicAppOpen() else {
             return "🐺 Music app is not running"
@@ -230,6 +453,17 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSToolbarDelegate {
         return "🐺 Now playing: \(song) by \(artist)"
     }
 
+    /// Provides the last played song information for Twitch bot commands.
+    ///
+    /// Returns a formatted string with:
+    /// - "🐺 Music app is not running" - if Music.app is closed
+    /// - "🐺 No previous tracks yet, keep the music flowing!" - if no history
+    /// - "🐺 Last howl: [song] by [artist]" - if history exists
+    ///
+    /// Used by:
+    /// - TwitchChatService for !last, !lastsong, !prevsong commands
+    ///
+    /// - Returns: Formatted last played song information string.
     func getLastSongInfo() -> String {
         guard isMusicAppOpen() else {
             return "🐺 Music app is not running"
@@ -243,11 +477,21 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSToolbarDelegate {
 
     // MARK: - Status Bar Setup
 
+    /// Creates the menu bar status item with a custom or system icon.
+    ///
+    /// Registers with NSStatusBar.system to get a persistent menu bar slot.
+    /// The status item length is variable to accommodate any width needed.
+    /// Icon is looked up from the app bundle or falls back to a system music note.
     private func setupStatusItem() {
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
         configureStatusItemButton()
     }
 
+    /// Configures the status item's button appearance.
+    ///
+    /// Attempts to use a custom "TrayIcon" image from assets.
+    /// If not found, falls back to system "music.note" symbol.
+    /// Sets isTemplate=true for dark mode compatibility.
     private func configureStatusItemButton() {
         guard let button = statusItem?.button else { return }
 
@@ -264,12 +508,29 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSToolbarDelegate {
 
     // MARK: - Menu Setup
 
+    /// Creates and attaches the main status bar menu.
+    ///
+    /// Menu contains:
+    /// 1. "♪ Now Playing" header (disabled)
+    /// 2. Song title (disabled, placeholder)
+    /// 3. Artist (disabled, placeholder)
+    /// 4. Album (disabled, placeholder)
+    /// 5. Separator
+    /// 6. Settings...
+    /// 7. About WolfWave
+    /// 8. Separator
+    /// 9. Quit WolfWave
+    ///
+    /// The first 4 items are updated dynamically with track info.
     private func setupMenu() {
         let menu = createMenu()
         statusItem?.menu = menu
         resetNowPlayingMenu(message: "No track playing")
     }
 
+    /// Creates the menu bar menu structure.
+    ///
+    /// - Returns: Configured NSMenu ready for display.
     private func createMenu() -> NSMenu {
         let menu = NSMenu()
 
@@ -283,6 +544,16 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSToolbarDelegate {
         return menu
     }
 
+    /// Adds placeholder items for current track information.
+    ///
+    /// Adds 4 items:
+    /// 1. "♪ Now Playing" header
+    /// 2. Song placeholder
+    /// 3. Artist placeholder
+    /// 4. Album placeholder
+    ///
+    /// All initially disabled (no action, grayed text).
+    /// - Parameter menu: Menu to add items to.
     private func addNowPlayingItems(to menu: NSMenu) {
         let headerItem = NSMenuItem(title: "♪ Now Playing", action: nil, keyEquivalent: "")
         headerItem.isEnabled = false
@@ -295,6 +566,9 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSToolbarDelegate {
         }
     }
 
+    /// Adds the "Settings..." menu item with keyboard shortcut.
+    ///
+    /// - Parameter menu: Menu to add item to.
     private func addSettingsItem(to menu: NSMenu) {
         let settingsItem = NSMenuItem(
             title: "Settings...",
@@ -308,6 +582,9 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSToolbarDelegate {
         menu.addItem(settingsItem)
     }
 
+    /// Adds the "About [AppName]" menu item.
+    ///
+    /// - Parameter menu: Menu to add item to.
     private func addAboutItem(to menu: NSMenu) {
         let aboutItem = NSMenuItem(
             title: "About \(appName)",
@@ -321,6 +598,9 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSToolbarDelegate {
         menu.addItem(aboutItem)
     }
 
+    /// Adds the "Quit" menu item with keyboard shortcut.
+    ///
+    /// - Parameter menu: Menu to add item to.
     private func addQuitItem(to menu: NSMenu) {
         menu.addItem(
             NSMenuItem(
@@ -330,15 +610,25 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSToolbarDelegate {
             ))
     }
 
-    // MARK: - Music Monitor Setup
+    // MARK: - Service Initialization
 
+    /// Initializes the music playback monitor.
+    ///
+    /// Creates a MusicPlaybackMonitor and attaches this AppDelegate as its delegate.
+    /// The monitor will call musicPlaybackMonitor(_:didUpdateTrack:artist:album)
+    /// whenever the current track changes.
     private func setupMusicMonitor() {
         musicMonitor = MusicPlaybackMonitor()
         musicMonitor?.delegate = self
     }
 
-    // MARK: - Twitch Service Setup
-
+    /// Initializes the Twitch chat service.
+    ///
+    /// Creates a TwitchChatService and provides callbacks for:
+    /// - getCurrentSongInfo: Called when !song command is issued
+    /// - getLastSongInfo: Called when !last command is issued
+    ///
+    /// These allow the Twitch bot to fetch current track info on-demand.
     private func setupTwitchService() {
         twitchService = TwitchChatService()
         twitchService?.getCurrentSongInfo = { [weak self] in
@@ -351,6 +641,12 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSToolbarDelegate {
 
     // MARK: - Notification Observers
 
+    /// Registers all notification observers for system events.
+    ///
+    /// Observes:
+    /// 1. Tracking setting changes (user toggle in settings)
+    /// 2. Dock visibility changes (user selection in settings)
+    /// 3. Window close events (to restore menu-only mode if needed)
     private func setupNotificationObservers() {
         NotificationCenter.default.addObserver(
             self,
@@ -376,6 +672,10 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSToolbarDelegate {
 
     // MARK: - Tracking State
 
+    /// Initializes the tracking state from UserDefaults on app launch.
+    ///
+    /// If tracking preference doesn't exist, defaults to enabled (true).
+    /// If enabled, starts the music monitor; if disabled, shows "Tracking disabled" in menu.
     private func initializeTrackingState() {
         if UserDefaults.standard.object(forKey: AppConstants.UserDefaults.trackingEnabled) == nil {
             UserDefaults.standard.set(true, forKey: AppConstants.UserDefaults.trackingEnabled)
@@ -388,12 +688,21 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSToolbarDelegate {
         }
     }
 
+    /// Checks if music tracking is currently enabled in UserDefaults.
+    ///
+    /// - Returns: True if tracking enabled, false if disabled.
     private func isTrackingEnabled() -> Bool {
         UserDefaults.standard.bool(forKey: AppConstants.UserDefaults.trackingEnabled)
     }
 
     // MARK: - Menu Item Helpers
 
+    /// Creates an attributed string for displaying menu items.
+    ///
+    /// Uses secondary label color and smaller font for subtle appearance.
+    ///
+    /// - Parameter message: The text to display.
+    /// - Returns: NSAttributedString with status bar styling.
     private func createStatusAttributedString(_ message: String) -> NSAttributedString {
         NSAttributedString(
             string: "  \(message)",
@@ -404,17 +713,35 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSToolbarDelegate {
         )
     }
 
+    /// Updates a menu item at the specified index.
+    ///
+    /// - Parameters:
+    ///   - index: Position in the menu.
+    ///   - title: Attributed string to display.
+    ///   - hidden: Whether the item should be hidden.
     private func updateMenuItem(at index: Int, with title: NSAttributedString, hidden: Bool) {
         guard let menu = statusItem?.menu, index < menu.items.count else { return }
         menu.items[index].attributedTitle = title
         menu.items[index].isHidden = hidden
     }
 
+    /// Hides a menu item at the specified index.
+    ///
+    /// - Parameter index: Position in the menu.
     private func hideMenuItem(at index: Int) {
         guard let menu = statusItem?.menu, index < menu.items.count else { return }
         menu.items[index].isHidden = true
     }
 
+    /// Displays full track information in the menu (song, artist, album).
+    ///
+    /// Unhides all three items and populates them with labeled values.
+    ///
+    /// - Parameters:
+    ///   - song: Track title.
+    ///   - artist: Artist name.
+    ///   - album: Album name.
+    ///   - menu: Menu to update.
     private func displayTrackInfo(song: String, artist: String, album: String, in menu: NSMenu) {
         let songAttr = createLabeledText(label: "Song:", value: song)
         let artistAttr = createLabeledText(label: "Artist:", value: artist)
@@ -432,6 +759,14 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSToolbarDelegate {
         }
     }
 
+    /// Creates an attributed string with a label (bold) and value (normal).
+    ///
+    /// Used for formatting "Song: Track Title" style menu items.
+    ///
+    /// - Parameters:
+    ///   - label: The label text (will be bold).
+    ///   - value: The value text (normal weight).
+    /// - Returns: Combined attributed string.
     private func createLabeledText(label: String, value: String) -> NSAttributedString {
         let paragraphStyle = NSMutableParagraphStyle()
         paragraphStyle.lineBreakMode = .byWordWrapping
@@ -455,6 +790,15 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSToolbarDelegate {
 
     // MARK: - Settings Window
 
+    /// Creates the Settings window with SwiftUI content and custom toolbar.
+    ///
+    /// Creates an NSHostingController wrapping SettingsView and configures:
+    /// 1. Window properties (title bar, appearance, size)
+    /// 2. Custom toolbar with sidebar toggle button
+    /// 3. Window behavior (movable by background, closable, etc.)
+    /// 4. Centers on screen and applies collection behavior
+    ///
+    /// - Returns: Configured NSWindow ready for display.
     private func createSettingsWindow() -> NSWindow {
         let hosting = NSHostingController(rootView: SettingsView())
         let frame = CGRect(x: 0, y: 0, width: AppConstants.UI.settingsWidth, height: AppConstants.UI.settingsHeight)
@@ -462,17 +806,16 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSToolbarDelegate {
         let window = NSWindow(contentRect: frame, styleMask: style, backing: .buffered, defer: false)
         window.contentViewController = hosting
         
-        // Configure title bar for VoiceInk-style appearance
+        // Configure title bar for modern appearance
         window.title = ""
         window.titleVisibility = .hidden
         window.titlebarAppearsTransparent = true
         window.isMovableByWindowBackground = true
 
-        // Add a toolbar that sits in the unified title bar
+        // Add toolbar with sidebar toggle
         let toolbar = NSToolbar(identifier: NSToolbar.Identifier(Self.settingsToolbarIdentifier))
         toolbar.displayMode = .iconOnly
         toolbar.allowsUserCustomization = false
-        toolbar.showsBaselineSeparator = false
         toolbar.delegate = self
         if #available(macOS 11.0, *) {
             toolbar.centeredItemIdentifier = nil
@@ -480,6 +823,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSToolbarDelegate {
         window.toolbar = toolbar
         window.toolbarStyle = .unified
 
+        // Behavior settings
         window.collectionBehavior = [.moveToActiveSpace]
         window.canHide = true
 
@@ -487,6 +831,9 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSToolbarDelegate {
         return window
     }
 
+    /// Shows a window by making it key and ordering it to front.
+    ///
+    /// - Parameter window: Window to show.
     private func showWindow(_ window: NSWindow?) {
         window?.level = .normal
         window?.makeKeyAndOrderFront(nil)
@@ -496,28 +843,61 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSToolbarDelegate {
 
 // MARK: - Toolbar Delegate
 
+/// Toolbar customization for the Settings window.
 extension AppDelegate {
+    /// Returns the toolbar items that are allowed in this toolbar.
+    ///
+    /// - Returns: Array of allowed toolbar item identifiers.
     func toolbarAllowedItemIdentifiers(_ toolbar: NSToolbar) -> [NSToolbarItem.Identifier] {
         return [.toggleSidebar, .flexibleSpace]
     }
 
+    /// Returns the default toolbar items to display.
+    ///
+    /// Configuration:
+    /// - Flexible space left
+    /// - Sidebar toggle button center
+    /// - Flexible space right
+    ///
+    /// - Returns: Array of default toolbar item identifiers.
     func toolbarDefaultItemIdentifiers(_ toolbar: NSToolbar) -> [NSToolbarItem.Identifier] {
         return [.flexibleSpace, .toggleSidebar, .flexibleSpace]
     }
 
+    /// Creates a toolbar item for the given identifier.
+    ///
+    /// Returns nil to use system default toolbar items (e.g., toggleSidebar).
+    ///
+    /// - Parameters:
+    ///   - toolbar: The toolbar requesting the item.
+    ///   - itemIdentifier: The identifier for the requested item.
+    ///   - flag: True if item will be inserted; false if querying for possible items.
+    /// - Returns: Configured NSToolbarItem or nil to use default.
     func toolbar(_ toolbar: NSToolbar, itemForItemIdentifier itemIdentifier: NSToolbarItem.Identifier, willBeInsertedIntoToolbar flag: Bool) -> NSToolbarItem? {
         return nil
     }
 }
 
-// MARK: - Twitch Token Validation
+// MARK: - Twitch Token Validation & Boot Automation
 
+/// Handles Twitch token validation on boot and auto-joining saved channels.
 extension AppDelegate {
+    /// Sets the reauth-needed flag in UserDefaults.
+    ///
+    /// - Parameter needed: True if user must re-authenticate, false otherwise.
     @MainActor
     private func setReauthNeeded(_ needed: Bool) {
         UserDefaults.standard.set(needed, forKey: AppConstants.UserDefaults.twitchReauthNeeded)
     }
 
+    /// Shows a local notification with Twitch authentication status.
+    ///
+    /// Requests user permission for notifications and displays the alert.
+    /// Used to notify user of token expiration or connection errors.
+    ///
+    /// - Parameters:
+    ///   - title: Notification title.
+    ///   - message: Notification body text.
     private func showTwitchAuthNotification(title: String, message: String) {
         let content = UNMutableNotificationContent()
         content.title = title
@@ -542,11 +922,26 @@ extension AppDelegate {
         }
     }
 
+    /// Opens Settings window and navigates to Twitch Integration section.
+    ///
+    /// Called when token validation fails or connection errors occur.
+    /// Sets the selectedSettingsSection UserDefaults key so SettingsView opens to Twitch tab.
     private func openSettingsToTwitch() {
         UserDefaults.standard.set(AppConstants.Twitch.settingsSection, forKey: AppConstants.UserDefaults.selectedSettingsSection)
         openSettings()
     }
 
+    /// Validates the stored Twitch OAuth token on app launch.
+    ///
+    /// Process:
+    /// 1. Checks if token exists in Keychain
+    /// 2. Calls TwitchChatService.validateToken() to check with Twitch API
+    /// 3. If invalid, sets reauth-needed flag and shows notification
+    /// 4. Opens Settings automatically after delay
+    ///
+    /// If no token exists, silently returns (user hasn't authenticated yet).
+    ///
+    /// Called from applicationDidFinishLaunching() in a background task.
     fileprivate func validateTwitchTokenOnBoot() async {
         guard let token = KeychainService.loadTwitchToken(), !token.isEmpty else {
             setReauthNeeded(false)
@@ -569,6 +964,26 @@ extension AppDelegate {
         }
     }
 
+    /// Automatically joins the saved Twitch channel on app launch.
+    ///
+    /// Prerequisites for auto-join:
+    /// 1. OAuth token must exist in Keychain
+    /// 2. Channel ID must be saved in Keychain
+    /// 3. Re-authentication is not needed (token is valid)
+    ///
+    /// Process:
+    /// 1. Validates all prerequisites
+    /// 2. Waits 2 seconds after app launch (delay specified in AppConstants.Timing)
+    /// 3. Checks that TWITCH_CLIENT_ID is configured
+    /// 4. Calls TwitchChatService.connectToChannel() on background task
+    /// 5. Suppresses the "connected" notification message on subscribe
+    /// 6. On error, shows notification and opens Settings to Twitch tab
+    ///
+    /// Silent failures (no notification):
+    /// - No saved token or channel ID
+    /// - Re-authentication needed
+    ///
+    /// Called from applicationDidFinishLaunching() in a background task.
     fileprivate func autoJoinTwitchChannel() async {
         guard let token = KeychainService.loadTwitchToken(), !token.isEmpty,
             let channelID = KeychainService.loadTwitchChannelID(), !channelID.isEmpty,
@@ -624,7 +1039,21 @@ extension AppDelegate {
 
 // MARK: - Music Playback Monitor Delegate
 
+/// Handles music playback updates from the MusicPlaybackMonitor.
+///
+/// Called whenever the current track changes or playback status changes.
+/// Updates the menu bar display and Twitch bot command responses.
 extension AppDelegate: MusicPlaybackMonitorDelegate {
+    /// Called when the current track information changes.
+    ///
+    /// Updates both the track history (for !last command) and menu display.
+    /// Called on a background queue by MusicPlaybackMonitor; updates dispatch to main thread.
+    ///
+    /// - Parameters:
+    ///   - monitor: The MusicPlaybackMonitor instance.
+    ///   - track: New track title.
+    ///   - artist: New track artist.
+    ///   - album: New track album.
     func musicPlaybackMonitor(
         _ monitor: MusicPlaybackMonitor, didUpdateTrack track: String, artist: String, album: String
     ) {
@@ -640,6 +1069,14 @@ extension AppDelegate: MusicPlaybackMonitorDelegate {
         updateTrackDisplay(song: track, artist: artist, album: album)
     }
 
+    /// Called when the playback status changes (e.g., playing, paused, stopped).
+    ///
+    /// Updates the menu display with the status message.
+    /// If status is "No track playing", clears the track history.
+    ///
+    /// - Parameters:
+    ///   - monitor: The MusicPlaybackMonitor instance.
+    ///   - status: Status message (e.g., "Music app is not running").
     func musicPlaybackMonitor(_ monitor: MusicPlaybackMonitor, didUpdateStatus status: String) {
         if status == "No track playing" {
             currentSong = nil

@@ -4,8 +4,7 @@
 //
 //  Created by MrDemonWolf, Inc. on 1/17/26.
 //
-//  PRODUCTION READY - DEPLOYMENT APPROVED
-//
+
 //  Device Code OAuth Flow: Implements RFC 8628 OAuth Device Code Grant Flow.
 //  Suitable for public clients (desktop apps) without client secrets.
 //

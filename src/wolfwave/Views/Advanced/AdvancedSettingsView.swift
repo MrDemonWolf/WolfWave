@@ -7,10 +7,30 @@
 
 import SwiftUI
 
-/// Advanced settings interface for resetting app configuration.
+/// Advanced settings interface for dangerous operations.
+///
+/// Provides controls for:
+/// - Resetting all application settings to defaults
+/// - Clearing stored authentication tokens from Keychain
+/// - Disconnecting from Twitch
+/// - Clearing track history
+///
+/// This view emphasizes the destructive nature of the actions
+/// through visual design (red colors, warning icon) and confirmation dialogs.
+///
+/// State:
+/// - Uses @Binding for showingResetAlert (passed from parent SettingsView)
+/// - Shares context with AppDelegate via NSApplication.shared.delegate
+///
+/// Actions:
+/// - Reset button shows confirmation dialog before proceeding
+/// - Actual reset is performed by SettingsView.resetSettings()
 struct AdvancedSettingsView: View {
     // MARK: - State
     
+    /// Whether the reset confirmation alert is currently shown.
+    ///
+    /// Passed as binding from parent to control alert visibility.
     @Binding var showingResetAlert: Bool
     
     var body: some View {

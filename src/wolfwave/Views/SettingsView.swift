@@ -8,22 +8,44 @@
 import AppKit
 import SwiftUI
 
-/// The main settings interface for WolfWave.
+/// Main settings UI for WolfWave application.
 ///
-/// This view provides controls for:
-/// - Enabling/disabling music tracking
-/// - Configuring WebSocket connection for remote tracking
-/// - Managing authentication tokens (stored in Keychain)
-/// - Resetting all settings to defaults
+/// Provides a split-view interface with sidebar navigation and detail panes for:
+/// - Music Playback Monitoring configuration
+/// - App Visibility (dock/menu bar modes)
+/// - WebSocket integration settings
+/// - Twitch bot authentication and commands
+/// - Advanced options (reset, debugging)
+///
+/// Architecture:
+/// - NavigationSplitView with sidebar and detail columns
+/// - Settings section enum for sidebar navigation
+/// - Detail views composed from separate view components
+/// - Sidebar toggle button in toolbar
+/// - Reset alert confirmation
+///
+/// State Management:
+/// - @StateObject for TwitchViewModel (Twitch integration state)
+/// - @AppStorage for user preferences (synced to UserDefaults)
+/// - @State for UI state (section selection, sidebar visibility)
+///
+/// Key Features:
+/// - Smooth sidebar toggle animation
+/// - Keyboard shortcuts (Esc or Cmd+W to close)
+/// - Integration with AppDelegate services
+/// - Responsive to notifications from other parts of the app
+/// - Reset all settings with confirmation dialog
 struct SettingsView: View {
     // MARK: - Constants
 
     fileprivate enum Constants {
+        /// Valid schemes for WebSocket URI validation
         static let validSchemes = ["ws", "wss", "http", "https"]
     }
     
-    // MARK: - Sidebar Navigation
+    // MARK: - Settings Section Enum
     
+    /// Navigation sections in the settings sidebar.
     enum SettingsSection: String, CaseIterable, Identifiable {
         case musicMonitor = "Music Monitor"
         case appVisibility = "App Visibility"
@@ -33,6 +55,7 @@ struct SettingsView: View {
         
         var id: String { rawValue }
         
+        /// System SF Symbol name for sidebar icon (or nil for custom image).
         var systemIcon: String? {
             switch self {
             case .musicMonitor: return "music.note"
@@ -43,6 +66,7 @@ struct SettingsView: View {
             }
         }
         
+        /// Custom image name for sidebar icon (or nil for system icon).
         var customIcon: String? {
             switch self {
             case .twitchIntegration: return "TwitchLogo"
@@ -53,7 +77,9 @@ struct SettingsView: View {
 
     // MARK: - Properties
 
-    /// Retrieves the app name from the bundle
+    /// Application name from bundle metadata, with fallback to default.
+    ///
+    /// Used in window titles, notifications, and menu items.
     private var appName: String {
         Bundle.main.infoDictionary?["CFBundleDisplayName"] as? String ?? Bundle.main
             .infoDictionary?["CFBundleName"] as? String ?? AppConstants.SettingsUI.defaultAppName
@@ -112,13 +138,15 @@ struct SettingsView: View {
             }
             .listStyle(.sidebar)
             .navigationSplitViewColumnWidth(min: 180, ideal: 200, max: 220)
+            .padding(.top, 10)
         } detail: {
             // Detail view
             ScrollView {
                 VStack(alignment: .leading, spacing: 20) {
                     detailView(for: selectedSection)
                 }
-                .padding(.vertical, 20)
+                .padding(.top, 0)
+                .padding(.bottom, 20)
                 .padding(.horizontal, 12)
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
             }

@@ -4,7 +4,6 @@
 //
 //  Created by MrDemonWolf, Inc. on 1/17/26.
 //
-//  PRODUCTION READY - DEPLOYMENT APPROVED
 //
 //  Platform Support: Universal SwiftUI view works on macOS, iOS, and iPadOS.
 //  Uses platform-conditional colors and controls for best appearance.
@@ -31,33 +30,29 @@ import SwiftUI
 
 struct TwitchSettingsView: View {
     @ObservedObject var viewModel: TwitchViewModel
+    @State private var hasStartedActivation = false
 
     var body: some View {
-        ScrollView(.vertical, showsIndicators: false) {
-            VStack(spacing: 20) {
-                headerView
+        VStack(spacing: 20) {
+            headerView
 
-                HStack(spacing: 0) {
-                    Spacer(minLength: 0)
-                    authCard
-                        .frame(maxWidth: 720)
-                        .transition(.opacity.combined(with: .move(edge: .bottom)))
-                        .animation(.spring(response: 0.35, dampingFraction: 0.82, blendDuration: 0), value: (viewModel.credentialsSaved || viewModel.channelConnected || viewModel.authState.isInProgress))
-                    Spacer(minLength: 0)
-                }
-                
-                
+            HStack(spacing: 0) {
+                Spacer(minLength: 0)
+                authCard
+                    .frame(maxWidth: 720)
+                    .transition(.opacity.combined(with: .move(edge: .bottom)))
+                    .animation(.spring(response: 0.35, dampingFraction: 0.82, blendDuration: 0), value: (viewModel.credentialsSaved || viewModel.channelConnected || viewModel.authState.isInProgress))
+                Spacer(minLength: 0)
             }
-            .frame(maxWidth: .infinity)
-            .padding(.vertical, 24)
-            .onAppear {
-                viewModel.loadSavedCredentials()
-                if let svc = viewModel.twitchService {
-                    viewModel.channelConnected = svc.isConnected
-                }
-                if viewModel.credentialsSaved && !viewModel.channelID.isEmpty && !viewModel.channelConnected {
-                    viewModel.autoJoinChannel()
-                }
+        }
+        .frame(maxWidth: .infinity)
+        .onAppear {
+            viewModel.loadSavedCredentials()
+            if let svc = viewModel.twitchService {
+                viewModel.channelConnected = svc.isConnected
+            }
+            if viewModel.credentialsSaved && !viewModel.channelID.isEmpty && !viewModel.channelConnected {
+                viewModel.autoJoinChannel()
             }
         }
     }
@@ -89,26 +84,6 @@ struct TwitchSettingsView: View {
         .accessibilityElement(children: .combine)
     }
 
-    private var headerStatusText: String {
-        // Prefer to report the live channel connection explicitly so the
-        // header reflects whether the bot is actively joined to the channel.
-        if viewModel.channelConnected {
-            return "Connected"
-        }
-
-        // If we have saved credentials but are not actively joined, present
-        // the header as an actionable state: the user is "Ready to connect".
-        if viewModel.credentialsSaved {
-            return "Ready to connect"
-        }
-
-        switch viewModel.integrationState {
-        case .authorizing: return "Authorizing"
-        case .error: return "Error"
-        default: return "Not connected"
-        }
-    }
-
     // keychain status moved into header as a subtle affordance
 
     @ViewBuilder
@@ -134,7 +109,10 @@ struct TwitchSettingsView: View {
                         Text("Connect your bot so WolfWave can send and respond to chat commands in your channel.")
                             .font(.system(size: 13))
                             .foregroundColor(.secondary)
-                        Button(action: { viewModel.startOAuth() }) {
+                        Button(action: {
+                            hasStartedActivation = false
+                            viewModel.startOAuth()
+                        }) {
                             HStack(spacing: 10) {
                                 Image("TwitchLogo")
                                     .renderingMode(.original)
@@ -158,34 +136,50 @@ struct TwitchSettingsView: View {
                 case .authorizing:
                     VStack(spacing: 12) {
                         if case .waitingForAuth(let code, let uri) = viewModel.authState {
-                            DeviceCodeView(userCode: code, verificationURI: uri) {
+                            DeviceCodeView(userCode: code, verificationURI: uri, onCopy: {
                                 // small feedback handled in DeviceCodeView
                                 viewModel.statusMessage = "Code copied"
-                            }
+                            }, onActivate: {
+                                hasStartedActivation = true
+                            })
                             .transition(.asymmetric(insertion: .move(edge: .top).combined(with: .opacity), removal: .opacity))
                             .animation(.spring(response: 0.35, dampingFraction: 0.82, blendDuration: 0), value: viewModel.authState.userCode)
                         }
 
                         // Inline waiting row with compact spinner, text and cancel
-                        HStack(spacing: 10) {
-                            ProgressView()
-                                .progressViewStyle(.circular)
+                        if hasStartedActivation {
+                            HStack(spacing: 12) {
+                                ProgressView()
+                                    .progressViewStyle(.circular)
+                                    .controlSize(.small)
+
+                                Text("Waiting for authorization…")
+                                    .font(.system(size: 13, weight: .regular))
+                                    .foregroundColor(.secondary)
+
+                                Button("Cancel") {
+                                    hasStartedActivation = false
+                                    viewModel.cancelOAuth()
+                                }
+                                .buttonStyle(.bordered)
+                                .tint(.red)
                                 .controlSize(.small)
 
-                            Text("Waiting for authorization…")
-                                .font(.system(size: 13, weight: .regular))
-                                .foregroundColor(.secondary)
-
-                            Spacer()
-
-                            Button("Cancel") {
-                                viewModel.cancelOAuth()
+                                Spacer()
                             }
-                            .buttonStyle(.bordered)
-                            .tint(.red)
-                            .controlSize(.small)
+                            .padding(.top, 4)
+                        } else if viewModel.authState.isInProgress {
+                            HStack(spacing: 12) {
+                                Button("Cancel") {
+                                    viewModel.cancelOAuth()
+                                }
+                                .buttonStyle(.bordered)
+                                .tint(.red)
+                                .controlSize(.small)
+
+                                Spacer()
+                            }
                         }
-                        .padding(.top, 4)
                     }
 
                 case .connected:
@@ -221,174 +215,10 @@ struct TwitchSettingsView: View {
         .cornerRadius(10)
         .animation(.easeInOut(duration: 0.18), value: viewModel.authState.isInProgress)
         .animation(.easeInOut(duration: 0.18), value: viewModel.channelConnected)
-}
-
-    private var cardSubtitle: String {
-        switch viewModel.integrationState {
-        case .notConnected: return "Connect your bot account"
-        case .authorizing: return "Waiting for authorization"
-        case .connected:
-            // If the bot is connected but not joined to the channel yet, show "Ready to join".
-            // If the bot is connected but not joined to the channel yet, show "Ready to connect".
-            return viewModel.channelConnected ? "Bot connected" : "Ready to connect"
-        case .error: return "Authorization error"
-        }
-    }
-    }
-    // MARK: - Auth Card
-
-// MARK: - Auth Card
-
-/// Unified card that hosts the sign-in button, device-code UI, progress, and
-/// the signed-in summary so the whole flow lives in a single visual container.
-private struct AuthCard: View {
-    @ObservedObject var viewModel: TwitchViewModel
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text("Connect your Twitch account (or your bot account) to enable chat bot features")
-                .font(.caption)
-                .foregroundColor(.secondary)
-
-            authFlowContent
-        }
-        .padding(12)
-        .background(Color(nsColor: .controlBackgroundColor))
-        .cornerRadius(8)
-    }
-
-    @ViewBuilder
-    private var authFlowContent: some View {
-        switch viewModel.authState {
-        case .idle:
-            signInButton
-        case .requestingCode:
-            loadingIndicator(text: "Requesting code...")
-        case .waitingForAuth(let userCode, let verificationURI):
-            VStack(alignment: .leading, spacing: 12) {
-                DeviceCodeView(
-                    userCode: userCode,
-                    verificationURI: verificationURI,
-                    onCopy: { viewModel.statusMessage = "Code copied to clipboard" }
-                )
-                
-                loadingIndicator(text: "Waiting for authorization on twitch.tv...")
-                
-                HStack {
-                    Spacer()
-                    Button("Cancel") {
-                        viewModel.cancelOAuth()
-                    }
-                    .buttonStyle(.bordered)
-                    .tint(.red)
-                    .controlSize(.small)
-                }
-            }
-        case .inProgress:
-            loadingWithCancel
-        case .error(let errorMessage):
-            errorView(message: errorMessage)
-        }
-    }
-
-    private var signInButton: some View {
-        Button(action: { viewModel.startOAuth() }) {
-                Label {
-                Text("Sign in with Twitch")
-                    .fontWeight(.semibold)
-            } icon: {
-                Image("TwitchLogo")
-                    .renderingMode(.original)
-                    .resizable()
-                    .scaledToFit()
-                    .frame(width: 16, height: 16)
-            }
-            .frame(maxWidth: .infinity)
-        }
-        .buttonStyle(.borderedProminent)
-        .tint(Color(red: 100/255, green: 65/255, blue: 165/255))
-    }
-
-    private var loadingWithCancel: some View {
-        VStack(spacing: 8) {
-            ProgressView()
-                .progressViewStyle(.linear)
-                .tint(.blue)
-                .frame(maxWidth: .infinity)
-
-            HStack {
-                Spacer()
-                Button("Cancel") {
-                    viewModel.cancelOAuth()
-                }
-                .buttonStyle(.bordered)
-                .tint(.red)
-                .controlSize(.small)
-            }
-        }
-    }
-
-    private func loadingIndicator(text: String) -> some View {
-        VStack(alignment: .center, spacing: 8) {
-            ProgressView()
-                .progressViewStyle(.circular)
-            Text(text)
-                .font(.caption)
-                .foregroundColor(.secondary)
-        }
-        .frame(maxWidth: .infinity)
-        .padding(12)
-    }
-
-    private func errorView(message: String) -> some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text(message)
-                .font(.caption)
-                .foregroundColor(.red)
-            Button("Try Again") {
-                viewModel.startOAuth()
-            }
-            .buttonStyle(.bordered)
-            .tint(.red)
-            .controlSize(.small)
-        }
     }
 }
 
 // MARK: - Sub-Views
-
-/// View displayed when the user is not signed in to Twitch.
-private struct NotSignedInView: View {
-    var onStartOAuth: () -> Void
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text("Connect your Twitch account to enable chat bot features")
-                .font(.caption)
-                .foregroundColor(.secondary)
-
-            Button(action: onStartOAuth) {
-                HStack(spacing: 10) {
-                    Image("TwitchLogo")
-                        .renderingMode(.original)
-                        .resizable()
-                        .scaledToFit()
-                        .frame(width: 16, height: 16)
-                    Text("Sign in with Twitch")
-                        .fontWeight(.semibold)
-                }
-                .frame(maxWidth: .infinity)
-                .frame(height: 44)
-            }
-            .buttonStyle(.borderedProminent)
-            .tint(Color(red: 100/255, green: 65/255, blue: 165/255))
-            .controlSize(.large)
-        }
-        .padding(12)
-        .background(Color(nsColor: .controlBackgroundColor))
-        .cornerRadius(8)
-    }
-}
 
 /// View displayed when the user is signed in, showing bot info and channel controls.
 private struct SignedInView: View {
@@ -397,7 +227,6 @@ private struct SignedInView: View {
     let isChannelConnected: Bool
     let reauthNeeded: Bool
     let credentialsSaved: Bool
-    var onSaveCredentials: () -> Void
     var onClearCredentials: () -> Void
     var onJoinChannel: () -> Void
     var onLeaveChannel: () -> Void

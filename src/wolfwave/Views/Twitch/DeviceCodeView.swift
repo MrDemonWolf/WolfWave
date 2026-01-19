@@ -19,6 +19,7 @@ struct DeviceCodeView: View {
     let userCode: String
     let verificationURI: String
     let onCopy: () -> Void
+    var onActivate: (() -> Void)? = nil
     
     @State private var isCodeCopied = false
     @State private var showCopyFeedback = false
@@ -134,6 +135,7 @@ struct DeviceCodeView: View {
     private func openActivationURL() {
         if let url = URL(string: verificationURI) {
             NSWorkspace.shared.open(url)
+            onActivate?()
         }
     }
 

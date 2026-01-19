@@ -1,3 +1,10 @@
+//
+//  TwitchDeviceAuthDialog.swift
+//  wolfwave
+//
+//  Created by MrDemonWolf, Inc. on 1/17/26.
+//
+
 import SwiftUI
 
 /// Clean, modern native macOS authorization dialog for Twitch device login.
