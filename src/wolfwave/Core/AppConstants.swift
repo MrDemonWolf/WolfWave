@@ -116,6 +116,9 @@ enum AppConstants {
         
         /// Settings section identifier for Twitch configuration
         static let settingsSection = "twitchIntegration"
+        
+        /// Default setting for sending connection message on subscribe
+        static let defaultSendConnectionMessage = true
     }
     
     // MARK: - Dispatch Queue Labels
@@ -134,10 +137,8 @@ enum AppConstants {
     
     // MARK: - UI Dimensions
     
-    /// Settings window and view dimensions in points.
+    /// Settings window dimensions in points.
     enum UI {
-        static let settingsWindowWidth: CGFloat = 520
-        static let settingsWindowHeight: CGFloat = 560
         static let settingsWidth: CGFloat = 520
         static let settingsHeight: CGFloat = 560
     }
@@ -173,9 +174,19 @@ enum AppConstants {
         static let album = 3
     }
     
+    // MARK: - Menu Item Labels
+    
+    /// Menu item text labels.
+    enum MenuLabels {
+        static let nowPlayingHeader = "♪ Now Playing"
+        static let settings = "Settings..."
+        static let quit = "Quit"
+        static let empty = ""
+    }
+    
     // MARK: - Settings UI
     
-    /// Settings window and panel dimensions.
+    /// Settings window configuration.
     enum SettingsUI {
         /// Default application name shown in UI
         static let defaultAppName = "WolfWave"
@@ -185,6 +196,5 @@ enum AppConstants {
         
         /// Minimum height for settings window
         static let minHeight: CGFloat = 500
-        static let sidebarWidth: CGFloat = 200
     }
 }

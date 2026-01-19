@@ -555,12 +555,12 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSToolbarDelegate {
     /// All initially disabled (no action, grayed text).
     /// - Parameter menu: Menu to add items to.
     private func addNowPlayingItems(to menu: NSMenu) {
-        let headerItem = NSMenuItem(title: "♪ Now Playing", action: nil, keyEquivalent: "")
+        let headerItem = NSMenuItem(title: AppConstants.MenuLabels.nowPlayingHeader, action: nil, keyEquivalent: "")
         headerItem.isEnabled = false
         menu.addItem(headerItem)
 
         for _ in 0..<3 {
-            let item = NSMenuItem(title: "", action: nil, keyEquivalent: "")
+            let item = NSMenuItem(title: AppConstants.MenuLabels.empty, action: nil, keyEquivalent: "")
             item.isEnabled = false
             menu.addItem(item)
         }
@@ -571,7 +571,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSToolbarDelegate {
     /// - Parameter menu: Menu to add item to.
     private func addSettingsItem(to menu: NSMenu) {
         let settingsItem = NSMenuItem(
-            title: "Settings...",
+            title: AppConstants.MenuLabels.settings,
             action: #selector(openSettings),
             keyEquivalent: ","
         )
@@ -604,7 +604,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSToolbarDelegate {
     private func addQuitItem(to menu: NSMenu) {
         menu.addItem(
             NSMenuItem(
-                title: "Quit",
+                title: AppConstants.MenuLabels.quit,
                 action: #selector(NSApplication.terminate(_:)),
                 keyEquivalent: "q"
             ))

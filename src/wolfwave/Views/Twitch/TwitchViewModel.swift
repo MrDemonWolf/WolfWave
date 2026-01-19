@@ -115,26 +115,19 @@ final class TwitchViewModel: ObservableObject {
     /// Reference to the Twitch chat service
     var twitchService: TwitchChatService? {
         get {
-            _twitchService ?? getTwitchServiceFromAppDelegate()
+            getTwitchServiceFromAppDelegate()
         }
         set {
-            _twitchService = newValue
-            // Attach a callback to keep the view model in sync with the service
-            // regardless of timing (prevents missed notifications during auto-join).
             if let svc = newValue {
                 svc.onConnectionStateChanged = { [weak self] isConnected in
                     Task { @MainActor in
                         self?.channelConnected = isConnected
                     }
                 }
-                // We're already on MainActor (TwitchViewModel is @MainActor),
-                // so update synchronously to ensure UI reflects current state immediately.
                 self.channelConnected = svc.isConnected
             }
         }
     }
-    
-    private var _twitchService: TwitchChatService?
     
     /// Background task for polling token during OAuth flow
     var devicePollingTask: Task<Void, Never>?
