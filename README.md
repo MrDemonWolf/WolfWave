@@ -2,11 +2,7 @@
 
 ![WolfWave Banner](banner.jpg)
 
-Your Stream's Now Playing Companion! WolfWave makes it easy to share what you're listening to with your community. Show real-time "now playing" info, let your chat ask for the current song, and keep everything secure and lightweight.
-
-Whether you're streaming, recording, or just vibing, WolfWave helps your audience connect with your music. Keep things simple, fast, and privacy-friendly.
-
-Start your stream with a song, or let your chat discover new music with `!song`. Let's make sharing your soundtrack effortless!
+WolfWave is a professional-grade macOS menu bar utility designed to connect Apple Music with your audience. Effortlessly broadcast real-time song data to overlays via WebSockets and interact with your Twitch community through secure, automated chat commands.
 
 ## Features
 
