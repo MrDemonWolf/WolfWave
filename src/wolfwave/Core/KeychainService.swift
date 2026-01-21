@@ -44,16 +44,16 @@ enum KeychainService {
 
     /// Account identifier for WebSocket auth token.
     private static let websocketAuthToken = "websocketAuthToken"
-    
+
     /// Account identifier for Twitch OAuth token.
     private static let twitchBotAccountOauthToken = "twitchBotAccountOauthToken"
-    
+
     /// Account identifier for Twitch bot username.
     private static let twitchBotAccountUsername = "twitchBotAccountUsername"
-    
+
     /// Account identifier for Twitch bot user ID.
     private static let twitchBotAccountUserID = "twitchBotAccountUserID"
-    
+
     /// Account identifier for Twitch channel ID.
     private static let twitchChannelIDAccount = "twitchChannelIDAccount"
 
@@ -63,7 +63,7 @@ enum KeychainService {
     enum KeychainError: LocalizedError {
         /// Failed to save data to Keychain with given Security framework status code.
         case saveFailed(OSStatus)
-        
+
         /// Invalid or corrupted data read from Keychain.
         case invalidData
 
@@ -86,6 +86,11 @@ enum KeychainService {
     /// - Parameter token: The authentication token to save.
     /// - Throws: `KeychainError.saveFailed(status)` if Keychain operation fails.
     static func saveToken(_ token: String) throws {
+        // Avoid unnecessary Keychain writes when the token hasn't changed.
+        if let existing = loadToken(), existing == token {
+            return
+        }
+
         let data = Data(token.utf8)
 
         deleteToken()
@@ -135,6 +140,11 @@ enum KeychainService {
     /// - Parameter token: The OAuth token obtained from Twitch OAuth flow.
     /// - Throws: `KeychainError.saveFailed(status)` if Keychain operation fails.
     static func saveTwitchToken(_ token: String) throws {
+        // Avoid unnecessary Keychain writes when the token hasn't changed.
+        if let existing = loadTwitchToken(), existing == token {
+            return
+        }
+
         let data = Data(token.utf8)
         var query = buildBaseQuery()
         query[kSecAttrAccount as String] = twitchBotAccountOauthToken
@@ -146,9 +156,17 @@ enum KeychainService {
         let status = SecItemAdd(query as CFDictionary, nil)
 
         guard status == errSecSuccess else {
-            Log.error("Failed to save Twitch OAuth token - OSStatus \(status)", category: "Keychain")
+            Log.error(
+                "Failed to save Twitch OAuth token - OSStatus \(status)", category: "Keychain")
             throw KeychainError.saveFailed(status)
         }
+    }
+
+    static func saveTwitchUsernameIfChanged(_ username: String) throws {
+        if let existing = loadTwitchUsername(), existing == username {
+            return
+        }
+        try saveTwitchUsername(username)
     }
 
     static func loadTwitchToken() -> String? {
@@ -190,7 +208,8 @@ enum KeychainService {
         let status = SecItemAdd(query as CFDictionary, nil)
 
         guard status == errSecSuccess else {
-            Log.error("Failed to save Twitch bot username - OSStatus \(status)", category: "Keychain")
+            Log.error(
+                "Failed to save Twitch bot username - OSStatus \(status)", category: "Keychain")
             throw KeychainError.saveFailed(status)
         }
     }

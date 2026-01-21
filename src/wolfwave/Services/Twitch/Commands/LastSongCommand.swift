@@ -24,7 +24,6 @@ final class LastSongCommand: BotCommand {
             if trimmedMessage.hasPrefix(trigger) {
                 // Check if command is enabled
                 if let isEnabled = isEnabled, !isEnabled() {
-                    Log.info("LastSongCommand: Command triggered but disabled, ignoring: \(trimmedMessage)", category: "BotCommands")
                     return nil
                 }
                 
