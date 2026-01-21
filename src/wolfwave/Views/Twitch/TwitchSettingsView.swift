@@ -56,10 +56,6 @@ struct TwitchSettingsView: View {
             if viewModel.reauthNeeded && viewModel.channelConnected {
                 viewModel.leaveChannel()
             }
-            
-            if viewModel.credentialsSaved && !viewModel.channelID.isEmpty && !viewModel.channelConnected {
-                viewModel.autoJoinChannel()
-            }
         }
     }
 
@@ -169,10 +165,6 @@ struct TwitchSettingsView: View {
 
                 case .authorizing:
                     VStack(spacing: 12) {
-                        Text("You can also go to twitch.tv/activate with the code below.")
-                            .font(.system(size: 13))
-                            .foregroundColor(.secondary)
-                        
                         if case .waitingForAuth(let code, let uri) = viewModel.authState {
                             DeviceCodeView(userCode: code, verificationURI: uri, onCopy: {
                                 // small feedback handled in DeviceCodeView
@@ -184,6 +176,11 @@ struct TwitchSettingsView: View {
                             .transition(.asymmetric(insertion: .move(edge: .top).combined(with: .opacity), removal: .opacity))
                             .animation(.spring(response: 0.35, dampingFraction: 0.82, blendDuration: 0), value: viewModel.authState.userCode)
                         }
+                        
+                        Text("You can also go to twitch.tv/activate with the code below.")
+                            .font(.system(size: 13))
+                            .foregroundColor(.secondary)
+                            .frame(maxWidth: .infinity, alignment: .leading)
 
                         // Inline waiting row with compact spinner, text and cancel
                         if hasStartedActivation {
@@ -446,6 +443,14 @@ private struct SignedInView: View {
         Image(systemName: reauthNeeded ? "exclamationmark.circle.fill" : "checkmark.circle.fill")
             .foregroundColor(reauthNeeded ? .orange : .green)
             .imageScale(.medium)
+            .onContinuousHover { phase in
+                switch phase {
+                case .active:
+                    NSCursor.pointingHand.push()
+                case .ended:
+                    NSCursor.pop()
+                }
+            }
     }
 }
 

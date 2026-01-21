@@ -194,10 +194,7 @@ final class TwitchDeviceAuth {
     ///
     /// - Returns: Device code response containing codes and polling parameters
     func requestDeviceCode() async throws -> TwitchDeviceCodeResponse {
-        Log.info("OAuth: Requesting device code from Twitch", category: "OAuth")
-        
         guard !clientID.isEmpty else {
-            Log.error("OAuth: Client ID is empty", category: "OAuth")
             throw TwitchDeviceAuthError.invalidClient
         }
         
@@ -225,7 +222,6 @@ final class TwitchDeviceAuth {
 
             guard (200..<300).contains(http.statusCode) else {
                 let message = String(data: data, encoding: .utf8) ?? "HTTP \(http.statusCode)"
-                Log.error("OAuth: Device code request failed - \(message)", category: "OAuth")
                 
                 if http.statusCode == 401 {
                     throw TwitchDeviceAuthError.invalidClient
@@ -240,12 +236,10 @@ final class TwitchDeviceAuth {
                 let expiresIn = json["expires_in"] as? Int,
                 let interval = json["interval"] as? Int
             else {
-                Log.error("OAuth: Invalid device code response structure", category: "OAuth")
                 throw TwitchDeviceAuthError.invalidResponse
             }
 
             let verificationURIComplete = json["verification_uri_complete"] as? String
-            Log.info("OAuth: Device code received; user must visit verification URI", category: "OAuth")
             return TwitchDeviceCodeResponse(
                 deviceCode: deviceCode,
                 userCode: userCode,
@@ -257,7 +251,6 @@ final class TwitchDeviceAuth {
         } catch let error as TwitchDeviceAuthError {
             throw error
         } catch {
-            Log.error("OAuth: Network error during device code request - \(error.localizedDescription)", category: "OAuth")
             throw TwitchDeviceAuthError.unknown(error.localizedDescription)
         }
     }

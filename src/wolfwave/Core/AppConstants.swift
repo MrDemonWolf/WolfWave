@@ -152,9 +152,6 @@ enum AppConstants {
         
         /// Delay before showing notifications after auth events
         static let notificationDelay: TimeInterval = 0.5
-        
-        /// Delay before auto-joining Twitch channel on app launch
-        static let twitchAutoJoinDelay: TimeInterval = 2.0
     }
     
     // MARK: - Menu Item Indices
