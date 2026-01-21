@@ -41,7 +41,10 @@ struct TwitchSettingsView: View {
                 authCard
                     .frame(maxWidth: 720)
                     .transition(.opacity.combined(with: .move(edge: .bottom)))
-                    .animation(.spring(response: 0.35, dampingFraction: 0.82, blendDuration: 0), value: (viewModel.credentialsSaved || viewModel.channelConnected || viewModel.authState.isInProgress))
+                    .animation(
+                        .spring(response: 0.35, dampingFraction: 0.82, blendDuration: 0),
+                        value: (viewModel.credentialsSaved || viewModel.channelConnected
+                            || viewModel.authState.isInProgress))
                 Spacer(minLength: 0)
             }
         }
@@ -51,33 +54,45 @@ struct TwitchSettingsView: View {
         .onAppear {
             Log.debug("TwitchSettingsView: onAppear called", category: "Twitch")
             viewModel.loadSavedCredentials()
-            
+
             // Ensure the service is set on the view model
             if viewModel.twitchService == nil {
-                Log.debug("TwitchSettingsView: ViewModel service is nil, attempting to fetch from AppDelegate", category: "Twitch")
+                Log.debug(
+                    "TwitchSettingsView: ViewModel service is nil, attempting to fetch from AppDelegate",
+                    category: "Twitch")
                 if let appDelegate = AppDelegate.shared {
                     Log.debug("TwitchSettingsView: AppDelegate.shared found", category: "Twitch")
                     viewModel.twitchService = appDelegate.twitchService
                     if viewModel.twitchService != nil {
-                        Log.info("TwitchSettingsView: Service successfully set on ViewModel", category: "Twitch")
+                        Log.info(
+                            "TwitchSettingsView: Service successfully set on ViewModel",
+                            category: "Twitch")
                     } else {
-                        Log.error("TwitchSettingsView: AppDelegate.twitchService is nil!", category: "Twitch")
+                        Log.error(
+                            "TwitchSettingsView: AppDelegate.twitchService is nil!",
+                            category: "Twitch")
                     }
                 } else {
                     Log.error("TwitchSettingsView: AppDelegate.shared is nil", category: "Twitch")
                 }
             } else {
-                Log.debug("TwitchSettingsView: ViewModel already has service reference", category: "Twitch")
+                Log.debug(
+                    "TwitchSettingsView: ViewModel already has service reference",
+                    category: "Twitch")
             }
-            
+
             if let svc = viewModel.twitchService {
                 viewModel.channelConnected = svc.isConnected
-                Log.debug("TwitchSettingsView: Service connected state: \(svc.isConnected)", category: "Twitch")
+                Log.debug(
+                    "TwitchSettingsView: Service connected state: \(svc.isConnected)",
+                    category: "Twitch")
             }
-            
+
             // If reauthentication is needed, disconnect from the channel
             if viewModel.reauthNeeded && viewModel.channelConnected {
-                Log.info("TwitchSettingsView: Reauth needed, disconnecting from channel", category: "Twitch")
+                Log.info(
+                    "TwitchSettingsView: Reauth needed, disconnecting from channel",
+                    category: "Twitch")
                 viewModel.leaveChannel()
             }
         }
@@ -98,9 +113,14 @@ struct TwitchSettingsView: View {
                 // independently from the header's descriptive text.
                 StatusChip(text: viewModel.statusChipText, color: viewModel.statusChipColor)
                     .accessibilityLabel("Twitch integration status: \(viewModel.statusChipText)")
-                    .scaleEffect(viewModel.credentialsSaved || viewModel.channelConnected ? 1.02 : 0.98)
+                    .scaleEffect(
+                        viewModel.credentialsSaved || viewModel.channelConnected ? 1.02 : 0.98
+                    )
                     .opacity(viewModel.credentialsSaved || viewModel.channelConnected ? 1.0 : 0.95)
-                    .animation(.easeInOut(duration: 0.18), value: viewModel.credentialsSaved || viewModel.channelConnected)
+                    .animation(
+                        .easeInOut(duration: 0.18),
+                        value: viewModel.credentialsSaved || viewModel.channelConnected
+                    )
                     .padding(.trailing, 4)
             }
 
@@ -161,9 +181,11 @@ struct TwitchSettingsView: View {
                 case .notConnected:
                     VStack(spacing: 12) {
                         if viewModel.authState.isInProgress || hasStartedActivation {
-                            Text("Connect your bot so WolfWave can send and respond to chat commands in your channel.")
-                                .font(.system(size: 13))
-                                .foregroundColor(.secondary)
+                            Text(
+                                "Connect your bot so WolfWave can send and respond to chat commands in your channel."
+                            )
+                            .font(.system(size: 13))
+                            .foregroundColor(.secondary)
                         }
                         Button(action: {
                             hasStartedActivation = false
@@ -184,24 +206,36 @@ struct TwitchSettingsView: View {
                         .buttonStyle(.borderedProminent)
                         .controlSize(.regular)
                         .scaleEffect(viewModel.authState.isInProgress ? 0.995 : 1.0)
-                        .animation(.easeInOut(duration: 0.12), value: viewModel.authState.isInProgress)
+                        .animation(
+                            .easeInOut(duration: 0.12), value: viewModel.authState.isInProgress
+                        )
                         .accessibilityLabel("Get started with Twitch authorization")
                     }
 
                 case .authorizing:
                     VStack(spacing: 12) {
                         if case .waitingForAuth(let code, let uri) = viewModel.authState {
-                            DeviceCodeView(userCode: code, verificationURI: uri, onCopy: {
-                                // small feedback handled in DeviceCodeView
-                                viewModel.statusMessage = "Code copied"
-                                hasStartedActivation = true
-                            }, onActivate: {
-                                hasStartedActivation = true
-                            })
-                            .transition(.asymmetric(insertion: .move(edge: .top).combined(with: .opacity), removal: .opacity))
-                            .animation(.spring(response: 0.35, dampingFraction: 0.82, blendDuration: 0), value: viewModel.authState.userCode)
+                            DeviceCodeView(
+                                userCode: code, verificationURI: uri,
+                                onCopy: {
+                                    // small feedback handled in DeviceCodeView
+                                    viewModel.statusMessage = "Code copied"
+                                    hasStartedActivation = true
+                                },
+                                onActivate: {
+                                    hasStartedActivation = true
+                                }
+                            )
+                            .transition(
+                                .asymmetric(
+                                    insertion: .move(edge: .top).combined(with: .opacity),
+                                    removal: .opacity)
+                            )
+                            .animation(
+                                .spring(response: 0.35, dampingFraction: 0.82, blendDuration: 0),
+                                value: viewModel.authState.userCode)
                         }
-                        
+
                         Text("You can also go to twitch.tv/activate with the code below.")
                             .font(.system(size: 13))
                             .foregroundColor(.secondary)
@@ -375,13 +409,19 @@ private struct SignedInView: View {
                 .accessibilityLabel("Twitch channel name")
                 .accessibilityHint("Enter the channel name for your Twitch channel")
                 .accessibilityIdentifier("twitchChannelTextField")
-                .onChange(of: channelID) { _, newValue in
-                    // Validate and normalize channel name (macOS only)
-                    let sanitized = newValue.lowercased().trimmingCharacters(in: CharacterSet.whitespacesAndNewlines)
+                .onChange(of: channelID) { oldValue, newValue in
+                    // Validate and normalize channel name only if needed
+                    let sanitized = newValue.lowercased().trimmingCharacters(
+                        in: CharacterSet.whitespacesAndNewlines)
                     if sanitized != newValue {
                         channelID = sanitized
                     }
-                    onChannelIDChanged()
+                    // Only trigger save if the value actually changed from the previous sanitized value
+                    if oldValue.lowercased().trimmingCharacters(in: .whitespacesAndNewlines)
+                        != sanitized
+                    {
+                        onChannelIDChanged()
+                    }
                 }
         }
     }
@@ -422,14 +462,17 @@ private struct SignedInView: View {
                 } else {
                     Label(
                         isChannelConnected ? "Disconnect" : "Connect",
-                        systemImage: isChannelConnected ? "xmark.circle.fill" : "checkmark.circle.fill"
+                        systemImage: isChannelConnected
+                            ? "xmark.circle.fill" : "checkmark.circle.fill"
                     )
                 }
             }
             .disabled(shouldDisableConnectButton)
             .buttonStyle(.bordered)
             .controlSize(.small)
-            .accessibilityLabel(isChannelConnected ? "Disconnect from channel" : "Connect to channel")
+            .accessibilityLabel(
+                isChannelConnected ? "Disconnect from channel" : "Connect to channel"
+            )
             .accessibilityIdentifier("twitchConnectButton")
             Spacer()
 
@@ -444,13 +487,17 @@ private struct SignedInView: View {
         .padding(.trailing, 12)
         .padding(.top, 12)
         .padding(.bottom, 12)
-        .confirmationDialog("Disconnect from channel?", isPresented: $showingDisconnectConfirmation, titleVisibility: .visible) {
+        .confirmationDialog(
+            "Disconnect from channel?", isPresented: $showingDisconnectConfirmation,
+            titleVisibility: .visible
+        ) {
             Button("Disconnect", role: .destructive) {
                 onLeaveChannel()
             }
-            Button("Cancel", role: .cancel) { }
+            Button("Cancel", role: .cancel) {}
         } message: {
-            Text("This will disconnect the bot from the current channel but keep saved credentials.")
+            Text(
+                "This will disconnect the bot from the current channel but keep saved credentials.")
         }
     }
 
@@ -512,7 +559,7 @@ private struct StatusChip: View {
     mockViewModel.credentialsSaved = true
     mockViewModel.channelConnected = true
     mockViewModel.statusMessage = "Connected to mrdemonwolf"
-    
+
     return TwitchSettingsView(viewModel: mockViewModel)
         .padding()
 }
