@@ -34,7 +34,7 @@ enum Log {
     }()
     
     /// Whether debug logging is enabled (only in DEBUG builds)
-    private static var isDebugLoggingEnabled: Bool {
+    nonisolated private static var isDebugLoggingEnabled: Bool {
         #if DEBUG
         return true
         #else

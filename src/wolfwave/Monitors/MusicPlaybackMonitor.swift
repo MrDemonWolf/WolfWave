@@ -145,8 +145,6 @@ class MusicPlaybackMonitor {
     
     // MARK: - Delegate Notifications
     
-    // MARK: - Delegate Notifications
-    
     /// Notifies the delegate of a status change on the main thread.
     private func notifyDelegate(status: String) {
         DispatchQueue.main.async { [weak self] in
