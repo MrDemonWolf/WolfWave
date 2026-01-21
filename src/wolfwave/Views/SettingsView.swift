@@ -209,6 +209,12 @@ struct SettingsView: View {
                 sidebarVisibility = sidebarVisibility == .all ? .detailOnly : .all
             }
         }
+        // Listen for toggle requests from the AppDelegate toolbar button
+        .onReceive(NotificationCenter.default.publisher(for: .toggleSettingsSidebar)) { _ in
+            withAnimation(.easeInOut(duration: 0.25)) {
+                sidebarVisibility = sidebarVisibility == .all ? .detailOnly : .all
+            }
+        }
         .alert("Reset Settings?", isPresented: $showingResetAlert) {
             Button("Cancel", role: .cancel) {}
             .accessibilityIdentifier("resetSettingsCancelButton")

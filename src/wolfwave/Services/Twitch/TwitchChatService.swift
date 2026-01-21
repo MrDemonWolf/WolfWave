@@ -665,6 +665,10 @@ final class TwitchChatService: @unchecked Sendable {
         disconnectLock.withLock { isProcessingDisconnect = true }
 
         disconnectFromEventSub()
+        
+        // Clear reconnection credentials (protected by reconnectionLock)
+        setReconnectionCredentials(channelName: nil, token: nil, clientID: nil)
+        reconnectionLock.withLock { reconnectionAttempts = 0 }
 
         // Clear reconnection credentials (protected by reconnectionLock)
         setReconnectionCredentials(channelName: nil, token: nil, clientID: nil)
@@ -674,6 +678,10 @@ final class TwitchChatService: @unchecked Sendable {
         botID = nil
         oauthToken = nil
         clientID = nil
+        
+        // Clear callbacks so no messages are processed
+        onMessageReceived = nil
+        onConnectionStateChanged = nil
 
         // Note: We do NOT clear onMessageReceived, getCurrentSongInfo, or getLastSongInfo
         // These callbacks are set by the AppDelegate and should persist across reconnections
