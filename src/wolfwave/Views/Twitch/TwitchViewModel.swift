@@ -29,6 +29,7 @@ final class TwitchViewModel: ObservableObject {
     @Published var channelID = ""
     @Published var credentialsSaved = false
     @Published var channelConnected = false
+    @Published var isConnecting = false
     @Published var reauthNeeded = false
     @Published var statusMessage = ""
 
@@ -117,21 +118,34 @@ final class TwitchViewModel: ObservableObject {
     /// Reference to the Twitch chat service with fallback to AppDelegate
     var twitchService: TwitchChatService? {
         get {
-            // Return cached service first, then try AppDelegate as fallback
+            // If we have a cached service, return it
             if let cached = cachedTwitchService {
                 return cached
             }
-            let service = getTwitchServiceFromAppDelegate()
-            if service != nil {
+            
+            // Otherwise, try to fetch from AppDelegate and cache it
+            if let appDelegate = AppDelegate.shared,
+               let service = appDelegate.twitchService {
                 cachedTwitchService = service
+                // Set up the connection state callback
+                service.onConnectionStateChanged = { [weak self] isConnected in
+                    Task { @MainActor [weak self] in
+                        self?.channelConnected = isConnected
+                    }
+                }
+                self.channelConnected = service.isConnected
+                Log.debug("TwitchViewModel: Service fetched and cached from AppDelegate", category: "Twitch")
+                return service
             }
-            return service
+            
+            Log.error("TwitchViewModel: AppDelegate.shared is nil or service not available", category: "Twitch")
+            return nil
         }
         set {
             cachedTwitchService = newValue
             if let svc = newValue {
                 svc.onConnectionStateChanged = { [weak self] isConnected in
-                    Task { @MainActor in
+                    Task { @MainActor [weak self] in
                         self?.channelConnected = isConnected
                     }
                 }
@@ -144,6 +158,26 @@ final class TwitchViewModel: ObservableObject {
     var devicePollingTask: Task<Void, Never>?
     /// Outer task that drives the overall OAuth flow (request + polling)
     var oAuthTask: Task<Void, Never>?
+
+    // MARK: - Initialization
+    
+    init() {
+        // Immediately try to get the service reference on initialization
+        if let appDelegate = AppDelegate.shared {
+            self.cachedTwitchService = appDelegate.twitchService
+            if let svc = appDelegate.twitchService {
+                svc.onConnectionStateChanged = { [weak self] isConnected in
+                    Task { @MainActor [weak self] in
+                        self?.channelConnected = isConnected
+                    }
+                }
+                self.channelConnected = svc.isConnected
+            }
+            Log.info("TwitchViewModel: Initialized with service: \(self.cachedTwitchService != nil ? "available" : "nil")", category: "Twitch")
+        } else {
+            Log.error("TwitchViewModel: AppDelegate.shared is nil during initialization", category: "Twitch")
+        }
+    }
 
     /// Cancel any in-progress OAuth/device-code flow and reset related state.
     func cancelOAuth() {
@@ -217,10 +251,48 @@ final class TwitchViewModel: ObservableObject {
     }
 
     @objc private func twitchConnectionStateChanged(_ note: Notification) {
+        Log.debug("TwitchViewModel: twitchConnectionStateChanged notification received", category: "Twitch")
         if let info = note.userInfo, let isConnected = info["isConnected"] as? Bool {
+            Log.info("TwitchViewModel: Connection state changed to: \(isConnected)", category: "Twitch")
+            
+            // Check if there's an error in the notification
+            let errorMessage = info["error"] as? String
+            
             Task { @MainActor in
                 self.channelConnected = isConnected
+                self.isConnecting = false
+                if isConnected {
+                    // Connection succeeded
+                    if !self.channelID.isEmpty {
+                        self.statusMessage = "✅ Connected to #\(self.channelID)"
+                        Log.info("TwitchViewModel: UI updated - Connected to #\(self.channelID)", category: "Twitch")
+                    } else {
+                        self.statusMessage = "✅ Connected"
+                        Log.info("TwitchViewModel: UI updated - Connected", category: "Twitch")
+                    }
+                } else {
+                    // Connection failed or disconnected
+                    if let error = errorMessage {
+                        // Check if it's a timeout error
+                        if error.contains("timed out") || error.contains("timeout") {
+                            self.statusMessage = "❌ Connection timed out. Check your network connection or firewall settings."
+                        } else {
+                            self.statusMessage = "❌ Connection failed: \(error)"
+                        }
+                        Log.error("TwitchViewModel: Connection error - \(error)", category: "Twitch")
+                    } else if self.reauthNeeded {
+                        // Disconnected due to reauth needed
+                        self.statusMessage = "⚠️ Reauth needed"
+                        Log.warn("TwitchViewModel: UI updated - Reauth needed", category: "Twitch")
+                    } else if !self.statusMessage.contains("❌") && !self.statusMessage.isEmpty {
+                        // Only update if there's no error message already shown
+                        self.statusMessage = "Disconnected"
+                        Log.info("TwitchViewModel: UI updated - Disconnected", category: "Twitch")
+                    }
+                }
             }
+        } else {
+            Log.error("TwitchViewModel: Notification userInfo missing or invalid", category: "Twitch")
         }
     }
 
@@ -452,35 +524,60 @@ final class TwitchViewModel: ObservableObject {
     /// Validation happens during EventSub subscription in TwitchChatService.
     ///
     func joinChannel() {
+        Log.info("TwitchViewModel: joinChannel() called", category: "Twitch")
+        
+        isConnecting = true
+        
         guard let token = KeychainService.loadTwitchToken(), !token.isEmpty else {
+            statusMessage = "❌ No OAuth token found. Please sign in first."
+            Log.error("TwitchViewModel: No OAuth token found", category: "Twitch")
+            isConnecting = false
             return
         }
+        
+        Log.debug("TwitchViewModel: OAuth token loaded from keychain", category: "Twitch")
 
         let channel = channelID.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
         guard !channel.isEmpty else {
+            statusMessage = "❌ Please enter a channel name"
+            isConnecting = false
             return
         }
 
         guard channel.count <= 25 else {
             statusMessage = "❌ Channel name too long"
+            isConnecting = false
             return
         }
 
         guard let clientID = TwitchChatService.resolveClientID(), !clientID.isEmpty else {
+            statusMessage = "❌ Client ID not configured"
+            isConnecting = false
             return
         }
 
         Task {
             do {
-                // Ensure service is available before attempting connection
+                Log.debug("TwitchViewModel: Starting async task for connection", category: "Twitch")
+                
+                // Access the service property which will fetch from AppDelegate if needed
                 guard let service = self.twitchService else {
                     await MainActor.run {
-                        Log.error("Twitch service is not initialized", category: "Twitch")
+                        self.statusMessage = "❌ Twitch service not initialized. Try restarting the app."
+                        self.isConnecting = false
                     }
+                    Log.error("TwitchViewModel: twitchService property returned nil", category: "Twitch")
                     return
                 }
                 
+                Log.info("TwitchViewModel: Twitch service found, starting connection to channel: \(channel)", category: "Twitch")
+                
+                await MainActor.run {
+                    self.statusMessage = "Connecting to Twitch..."
+                }
+                
                 service.shouldSendConnectionMessageOnSubscribe = true
+                Log.debug("TwitchViewModel: shouldSendConnectionMessageOnSubscribe set to true", category: "Twitch")
                 
                 try await service.connectToChannel(
                     channelName: channel,
@@ -488,16 +585,24 @@ final class TwitchViewModel: ObservableObject {
                     clientID: clientID
                 )
 
+                Log.info("TwitchViewModel: connectToChannel completed without errors", category: "Twitch")
+                
+                // Don't set channelConnected here - it will be set by the notification
+                // from the service when the EventSub session is actually established
                 await MainActor.run {
-                    self.channelConnected = true
+                    self.statusMessage = "Waiting for connection..."
                 }
             } catch let error as TwitchChatService.ConnectionError {
                 await MainActor.run {
-                    Log.error("Failed to connect to Twitch: \(error)", category: "Twitch")
+                    self.statusMessage = "❌ Connection failed: \(error)"
+                    self.channelConnected = false
+                    self.isConnecting = false
                 }
             } catch {
                 await MainActor.run {
-                    Log.error("Failed to join Twitch channel: \(error.localizedDescription)", category: "Twitch")
+                    self.statusMessage = "❌ Error: \(error.localizedDescription)"
+                    self.channelConnected = false
+                    self.isConnecting = false
                 }
             }
         }
@@ -531,14 +636,8 @@ final class TwitchViewModel: ObservableObject {
     }
 
     /// Retrieves the TwitchChatService from AppDelegate if twitchService is not yet set.
-    ///
-    /// This ensures the view model can always access the service, even if it was created
-    /// before SettingsView.onAppear() had a chance to assign it explicitly.
     private func getTwitchServiceFromAppDelegate() -> TwitchChatService? {
-        if let appDelegate = NSApplication.shared.delegate as? AppDelegate {
-            return appDelegate.twitchService
-        }
-        return nil
+        return AppDelegate.shared?.twitchService
     }
 
     private func handleOAuthSuccess(token: String, clientID: String) async {

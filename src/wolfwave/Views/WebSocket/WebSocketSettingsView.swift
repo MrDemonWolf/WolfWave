@@ -44,21 +44,21 @@ struct WebSocketSettingsView: View {
     }
     
     var body: some View {
-        VStack(alignment: .leading, spacing: 24) {
+        VStack(spacing: 20) {
             VStack(alignment: .leading, spacing: 12) {
                 HStack(spacing: 8) {
                     Image(systemName: "exclamationmark.circle.fill")
-                        .font(.title3)
+                        .font(.body)
                         .foregroundStyle(.orange)
                     Text("Work in Progress")
-                        .font(.title2)
+                        .font(.body)
                         .fontWeight(.semibold)
                         .foregroundStyle(.orange)
                 }
                 
                 Text("This feature is currently not supported and will be added in a future release.")
-                    .font(.body)
-                    .foregroundStyle(.secondary)
+                    .font(.system(size: 13, weight: .regular))
+                    .foregroundColor(.secondary)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(12)
@@ -72,21 +72,15 @@ struct WebSocketSettingsView: View {
                 }
             }
             
-            VStack(alignment: .leading, spacing: 8) {
-                HStack(spacing: 8) {
-                    Image(systemName: "dot.radiowaves.left.and.right")
-                        .font(.title3)
-                    Text("Now Playing WebSocket")
-                        .font(.title2)
-                        .fontWeight(.semibold)
-                }
+            VStack(alignment: .leading, spacing: 6) {
+                Text("Now Playing WebSocket")
+                    .font(.system(size: 17, weight: .semibold))
                 
                 Text("Send your now playing info to an overlay or server via WebSocket.")
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
+                    .font(.system(size: 13, weight: .regular))
+                    .foregroundColor(.secondary)
             }
-            
-            Divider()
+            .frame(maxWidth: .infinity, alignment: .leading)
             
             VStack(alignment: .leading, spacing: 12) {
                 Text("Server Configuration")
@@ -237,6 +231,9 @@ struct WebSocketSettingsView: View {
                 }
             }
         }
+        .frame(maxWidth: .infinity)
+        .padding(.horizontal, 20)
+        .padding(.vertical, 16)
         .onAppear {
             if let savedToken = KeychainService.loadToken() {
                 authToken = savedToken

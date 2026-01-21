@@ -138,19 +138,22 @@ final class TwitchChatService: @unchecked Sendable {
     
     private let maxReconnectionAttempts = 5
     
-    private var _reconnectChannelName: String?
-    private var _reconnectToken: String?
-    private var _reconnectClientID: String?
+    nonisolated(unsafe) private var _reconnectChannelName: String?
+    nonisolated(unsafe) private var _reconnectToken: String?
+    nonisolated(unsafe) private var _reconnectClientID: String?
+    
+    nonisolated(unsafe) private var sessionWelcomeTimer: Timer?
+    private let sessionTimerLock = NSLock()
     
     // MARK: - Reconnection Credentials (Thread-Safe)
     
-    private func getReconnectionCredentials() -> (channelName: String?, token: String?, clientID: String?) {
+    nonisolated private func getReconnectionCredentials() -> (channelName: String?, token: String?, clientID: String?) {
         reconnectionLock.withLock {
             (_reconnectChannelName, _reconnectToken, _reconnectClientID)
         }
     }
     
-    private func setReconnectionCredentials(channelName: String?, token: String?, clientID: String?) {
+    nonisolated private func setReconnectionCredentials(channelName: String?, token: String?, clientID: String?) {
         reconnectionLock.withLock {
             _reconnectChannelName = channelName
             _reconnectToken = token
@@ -367,6 +370,7 @@ final class TwitchChatService: @unchecked Sendable {
     // MARK: - Lifecycle
 
     deinit {
+        cancelSessionWelcomeTimeout()
         stopNetworkMonitoring()
         disconnectFromEventSub()
     }
@@ -411,15 +415,17 @@ final class TwitchChatService: @unchecked Sendable {
         commandDispatcher.setLastSongInfo { [weak self] in
             self?.getLastSongInfo?() ?? "No previous track available"
         }
+        
+        commandDispatcher.setCurrentSongCommandEnabled { [weak self] in
+            self?.currentSongCommandEnabled ?? true
+        }
+        
+        commandDispatcher.setLastSongCommandEnabled { [weak self] in
+            self?.lastSongCommandEnabled ?? true
+        }
 
-        // Update internal state and notify listeners that we're joined
-        self.setConnected(true)
-        onConnectionStateChanged?(true)
-        NotificationCenter.default.post(
-            name: TwitchChatService.connectionStateChanged,
-            object: nil,
-            userInfo: ["isConnected": true]
-        )
+        // Don't set connected state here - wait for EventSub session_welcome
+        // The connection state will be updated in handleSessionWelcome() when the session is actually established
         Log.info("Twitch: Joining channel \(broadcasterID)", category: "TwitchChat")
 
         connectToEventSub()
@@ -438,6 +444,8 @@ final class TwitchChatService: @unchecked Sendable {
     ///   - clientID: Twitch application client ID
     /// - Throws: `ConnectionError` if resolution or connection fails
     func connectToChannel(channelName: String, token: String, clientID: String) async throws {
+        Log.info("Twitch: connectToChannel called for channel: \(channelName)", category: "TwitchChat")
+        
         guard !channelName.isEmpty, !token.isEmpty else {
             Log.error("Twitch: Invalid channel name or token", category: "TwitchChat")
             throw ConnectionError.invalidCredentials
@@ -476,6 +484,8 @@ final class TwitchChatService: @unchecked Sendable {
             throw ConnectionError.networkError("Could not resolve channel name to user ID")
         }
 
+        Log.debug("Twitch: Calling joinChannel with broadcasterID: \(broadcasterUserID), botID: \(botUserID)", category: "TwitchChat")
+        
         try joinChannel(
             broadcasterID: broadcasterUserID,
             botID: botUserID,
@@ -483,6 +493,8 @@ final class TwitchChatService: @unchecked Sendable {
             clientID: clientID
         )
 
+        Log.info("Twitch: joinChannel completed, connection process initiated", category: "TwitchChat")
+        
         // Store credentials for automatic reconnection (protected by reconnectionLock)
         setReconnectionCredentials(channelName: channelName, token: token, clientID: clientID)
         reconnectionLock.withLock { reconnectionAttempts = 0 }
@@ -1021,20 +1033,75 @@ final class TwitchChatService: @unchecked Sendable {
     private func connectToEventSub() {
         guard let url = URL(string: "wss://eventsub.wss.twitch.tv/ws") else {
             Log.error("Twitch: Invalid EventSub URL", category: "TwitchChat")
+            setConnected(false)
             onConnectionStateChanged?(false)
+            NotificationCenter.default.post(
+                name: TwitchChatService.connectionStateChanged,
+                object: nil,
+                userInfo: ["isConnected": false]
+            )
             return
         }
 
         let config = URLSessionConfiguration.default
-        config.timeoutIntervalForRequest = 30
+        config.timeoutIntervalForRequest = 60  // Increased from 30 to 60 seconds
         config.timeoutIntervalForResource = 300
         config.waitsForConnectivity = true
+        config.requestCachePolicy = .reloadIgnoringLocalCacheData
         
-        let session = URLSession(configuration: config)
+        let session = URLSession(configuration: config, delegate: nil, delegateQueue: nil)
         webSocketTask = session.webSocketTask(with: url)
+        
+        Log.info("Twitch: Starting EventSub WebSocket connection", category: "TwitchChat")
         webSocketTask?.resume()
 
+        // Start a timer to detect if session_welcome doesn't arrive in time
+        startSessionWelcomeTimeout()
+        
         receiveWebSocketMessage()
+    }
+    
+    /// Starts a timeout timer for receiving the session_welcome message.
+    private func startSessionWelcomeTimeout() {
+        sessionTimerLock.withLock {
+            sessionWelcomeTimer?.invalidate()
+            sessionWelcomeTimer = Timer.scheduledTimer(withTimeInterval: 10.0, repeats: false) { [weak self] _ in
+                self?.handleSessionWelcomeTimeout()
+            }
+        }
+    }
+    
+    /// Called when session_welcome timeout expires.
+    private func handleSessionWelcomeTimeout() {
+        guard sessionID == nil else { return }  // If we already got a welcome, ignore
+        
+        Log.error("Twitch: Session welcome timeout - WebSocket may not be responding", category: "TwitchChat")
+        setConnected(false)
+        onConnectionStateChanged?(false)
+        NotificationCenter.default.post(
+            name: TwitchChatService.connectionStateChanged,
+            object: nil,
+            userInfo: ["isConnected": false]
+        )
+        
+        // Close the stale connection and attempt reconnect
+        disconnectFromEventSub()
+        
+        let (channelName, token, clientID) = getReconnectionCredentials()
+        let isReachable = networkReachableLock.withLock { isNetworkReachable }
+        
+        if let channelName = channelName, let token = token, let clientID = clientID, !channelName.isEmpty && !token.isEmpty && !clientID.isEmpty && isReachable {
+            Log.info("Twitch: Attempting reconnection after session welcome timeout", category: "TwitchChat")
+            attemptReconnect()
+        }
+    }
+    
+    /// Cancels the session welcome timeout timer.
+    private func cancelSessionWelcomeTimeout() {
+        sessionTimerLock.withLock {
+            sessionWelcomeTimer?.invalidate()
+            sessionWelcomeTimer = nil
+        }
     }
 
     /// Disconnects from the EventSub WebSocket and clears session state.
@@ -1044,10 +1111,23 @@ final class TwitchChatService: @unchecked Sendable {
         webSocketTask?.cancel(with: .goingAway, reason: nil)
         webSocketTask = nil
         sessionID = nil
+        
+        // Cancel the session welcome timer
+        sessionTimerLock.withLock {
+            sessionWelcomeTimer?.invalidate()
+            sessionWelcomeTimer = nil
+        }
+        
+        Log.debug("Twitch: EventSub WebSocket disconnected", category: "TwitchChat")
     }
 
     private func receiveWebSocketMessage() {
-        webSocketTask?.receive { [weak self] result in
+        guard let task = webSocketTask else {
+            Log.debug("Twitch: WebSocket task is nil, stopping receive loop", category: "TwitchChat")
+            return
+        }
+        
+        task.receive { [weak self] result in
             guard let self = self else { return }
 
             switch result {
@@ -1066,10 +1146,38 @@ final class TwitchChatService: @unchecked Sendable {
                 self.receiveWebSocketMessage()
 
             case .failure(let error):
-                Log.error(
-                    "Twitch: WebSocket connection error: \(error.localizedDescription)",
-                    category: "TwitchChat")
+                let nsError = error as NSError
+                let errorCode = nsError.code
+                let errorDomain = nsError.domain
+                
+                // Provide specific logging for timeout errors
+                if errorDomain == NSURLErrorDomain && errorCode == NSURLErrorTimedOut {
+                    Log.error(
+                        "Twitch: WebSocket connection timed out. This may be due to network issues, firewall blocking, or Twitch service problems.",
+                        category: "TwitchChat")
+                } else {
+                    Log.error(
+                        "Twitch: WebSocket connection error: \(error.localizedDescription) (Domain: \(errorDomain), Code: \(errorCode))",
+                        category: "TwitchChat")
+                }
+                
+                self.setConnected(false)
                 self.onConnectionStateChanged?(false)
+                NotificationCenter.default.post(
+                    name: TwitchChatService.connectionStateChanged,
+                    object: nil,
+                    userInfo: ["isConnected": false, "error": error.localizedDescription]
+                )
+                
+                // Attempt automatic reconnection if network is available and credentials exist
+                let (channelName, token, clientID) = self.getReconnectionCredentials()
+                let isReachable = self.networkReachableLock.withLock { self.isNetworkReachable }
+                
+                if let channelName = channelName, let token = token, let clientID = clientID,
+                   !channelName.isEmpty && !token.isEmpty && !clientID.isEmpty && isReachable {
+                    Log.info("Twitch: Attempting automatic reconnection", category: "TwitchChat")
+                    self.attemptReconnect()
+                }
             }
         }
     }
@@ -1102,6 +1210,8 @@ final class TwitchChatService: @unchecked Sendable {
 
     /// Handles the session_welcome message from EventSub.
     private func handleSessionWelcome(_ json: [String: Any]) {
+        Log.info("Twitch: handleSessionWelcome called", category: "TwitchChat")
+        
         guard let payload = json["payload"] as? [String: Any],
             let session = payload["session"] as? [String: Any],
             let sessionID = session["id"] as? String
@@ -1110,7 +1220,23 @@ final class TwitchChatService: @unchecked Sendable {
             return
         }
 
+        // Cancel the welcome timeout since we got the welcome message
+        cancelSessionWelcomeTimeout()
+        
         self.sessionID = sessionID
+        Log.info("Twitch: EventSub session established with ID: \(sessionID)", category: "TwitchChat")
+        
+        // Ensure connected state is set properly
+        setConnected(true)
+        onConnectionStateChanged?(true)
+        
+        Log.debug("Twitch: Posting connectionStateChanged notification with isConnected=true", category: "TwitchChat")
+        NotificationCenter.default.post(
+            name: TwitchChatService.connectionStateChanged,
+            object: nil,
+            userInfo: ["isConnected": true]
+        )
+        Log.debug("Twitch: Notification posted successfully", category: "TwitchChat")
 
         subscribeToChannelChatMessage()
     }
@@ -1135,6 +1261,13 @@ final class TwitchChatService: @unchecked Sendable {
         else {
             Log.error(
                 "Twitch: Missing credentials for EventSub subscription", category: "TwitchChat")
+            setConnected(false)
+            onConnectionStateChanged?(false)
+            NotificationCenter.default.post(
+                name: TwitchChatService.connectionStateChanged,
+                object: nil,
+                userInfo: ["isConnected": false]
+            )
             return
         }
 
@@ -1151,7 +1284,10 @@ final class TwitchChatService: @unchecked Sendable {
             ],
         ]
 
-        guard let url = URL(string: apiBaseURL + "/eventsub/subscriptions") else { return }
+        guard let url = URL(string: apiBaseURL + "/eventsub/subscriptions") else {
+            Log.error("Twitch: Invalid EventSub subscriptions URL", category: "TwitchChat")
+            return
+        }
 
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
@@ -1165,6 +1301,13 @@ final class TwitchChatService: @unchecked Sendable {
                 Log.error(
                     "Twitch: EventSub subscription error - \(error.localizedDescription)",
                     category: "TwitchChat")
+                self?.setConnected(false)
+                self?.onConnectionStateChanged?(false)
+                NotificationCenter.default.post(
+                    name: TwitchChatService.connectionStateChanged,
+                    object: nil,
+                    userInfo: ["isConnected": false]
+                )
                 return
             }
 
@@ -1183,6 +1326,13 @@ final class TwitchChatService: @unchecked Sendable {
                     Log.error(
                         "Twitch: EventSub subscription failed - HTTP \(http.statusCode) - \(responseText)",
                         category: "TwitchChat")
+                    self?.setConnected(false)
+                    self?.onConnectionStateChanged?(false)
+                    NotificationCenter.default.post(
+                        name: TwitchChatService.connectionStateChanged,
+                        object: nil,
+                        userInfo: ["isConnected": false]
+                    )
                 }
             }
         }.resume()

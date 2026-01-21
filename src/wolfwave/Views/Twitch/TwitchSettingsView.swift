@@ -46,14 +46,38 @@ struct TwitchSettingsView: View {
             }
         }
         .frame(maxWidth: .infinity)
+        .padding(.horizontal, 20)
+        .padding(.vertical, 16)
         .onAppear {
+            Log.debug("TwitchSettingsView: onAppear called", category: "Twitch")
             viewModel.loadSavedCredentials()
+            
+            // Ensure the service is set on the view model
+            if viewModel.twitchService == nil {
+                Log.debug("TwitchSettingsView: ViewModel service is nil, attempting to fetch from AppDelegate", category: "Twitch")
+                if let appDelegate = AppDelegate.shared {
+                    Log.debug("TwitchSettingsView: AppDelegate.shared found", category: "Twitch")
+                    viewModel.twitchService = appDelegate.twitchService
+                    if viewModel.twitchService != nil {
+                        Log.info("TwitchSettingsView: Service successfully set on ViewModel", category: "Twitch")
+                    } else {
+                        Log.error("TwitchSettingsView: AppDelegate.twitchService is nil!", category: "Twitch")
+                    }
+                } else {
+                    Log.error("TwitchSettingsView: AppDelegate.shared is nil", category: "Twitch")
+                }
+            } else {
+                Log.debug("TwitchSettingsView: ViewModel already has service reference", category: "Twitch")
+            }
+            
             if let svc = viewModel.twitchService {
                 viewModel.channelConnected = svc.isConnected
+                Log.debug("TwitchSettingsView: Service connected state: \(svc.isConnected)", category: "Twitch")
             }
             
             // If reauthentication is needed, disconnect from the channel
             if viewModel.reauthNeeded && viewModel.channelConnected {
+                Log.info("TwitchSettingsView: Reauth needed, disconnecting from channel", category: "Twitch")
                 viewModel.leaveChannel()
             }
         }
@@ -77,6 +101,7 @@ struct TwitchSettingsView: View {
                     .scaleEffect(viewModel.credentialsSaved || viewModel.channelConnected ? 1.02 : 0.98)
                     .opacity(viewModel.credentialsSaved || viewModel.channelConnected ? 1.0 : 0.95)
                     .animation(.easeInOut(duration: 0.18), value: viewModel.credentialsSaved || viewModel.channelConnected)
+                    .padding(.trailing, 4)
             }
 
             Text("Enable chat features like commands, song requests, and moderation tools.")
@@ -223,6 +248,7 @@ struct TwitchSettingsView: View {
                         botUsername: viewModel.botUsername,
                         channelID: $viewModel.channelID,
                         isChannelConnected: viewModel.channelConnected,
+                        isConnecting: viewModel.isConnecting,
                         reauthNeeded: viewModel.reauthNeeded,
                         credentialsSaved: viewModel.credentialsSaved,
                         onClearCredentials: { viewModel.clearCredentials() },
@@ -261,6 +287,7 @@ private struct SignedInView: View {
     let botUsername: String
     @Binding var channelID: String
     let isChannelConnected: Bool
+    let isConnecting: Bool
     let reauthNeeded: Bool
     let credentialsSaved: Bool
     var onClearCredentials: () -> Void
@@ -334,17 +361,17 @@ private struct SignedInView: View {
                 .fontWeight(.semibold)
                 .disabled(true)
                 .accessibilityLabel("Twitch channel name")
-                .onContinuousHover { phase in
-                    switch phase {
-                    case .active:
+                .onHover { isHovering in
+                    if isHovering {
                         NSCursor.operationNotAllowed.push()
-                    case .ended:
+                    } else {
                         NSCursor.pop()
                     }
                 }
         case (false, false):
             TextField("Enter channel name", text: $channelID)
                 .font(.body)
+                .disabled(isConnecting)
                 .accessibilityLabel("Twitch channel name")
                 .accessibilityHint("Enter the channel name for your Twitch channel")
                 .accessibilityIdentifier("twitchChannelTextField")
@@ -384,26 +411,26 @@ private struct SignedInView: View {
                     onJoinChannel()
                 }
             }) {
-                Label(
-                    isChannelConnected ? "Disconnect" : "Connect",
-                    systemImage: isChannelConnected ? "xmark.circle.fill" : "checkmark.circle.fill"
-                )
+                if isConnecting {
+                    HStack(spacing: 6) {
+                        ProgressView()
+                            .progressViewStyle(.circular)
+                            .controlSize(.small)
+                            .scaleEffect(0.8)
+                        Text("Connecting....")
+                    }
+                } else {
+                    Label(
+                        isChannelConnected ? "Disconnect" : "Connect",
+                        systemImage: isChannelConnected ? "xmark.circle.fill" : "checkmark.circle.fill"
+                    )
+                }
             }
             .disabled(shouldDisableConnectButton)
             .buttonStyle(.bordered)
             .controlSize(.small)
             .accessibilityLabel(isChannelConnected ? "Disconnect from channel" : "Connect to channel")
             .accessibilityIdentifier("twitchConnectButton")
-            .onContinuousHover { phase in
-                switch phase {
-                case .active:
-                    if shouldDisableConnectButton {
-                        NSCursor.operationNotAllowed.push()
-                    }
-                case .ended:
-                    NSCursor.pop()
-                }
-            }
             Spacer()
 
             Button("Clear", action: onClearCredentials)
@@ -429,7 +456,7 @@ private struct SignedInView: View {
 
     private var shouldDisableConnectButton: Bool {
         let validChannel = !channelID.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-        if reauthNeeded { return true }
+        if reauthNeeded || isConnecting { return true }
         // If credentials are saved we can attempt to connect even if the
         // bot username hasn't been resolved yet — rely on saved token.
         if credentialsSaved {
@@ -443,11 +470,10 @@ private struct SignedInView: View {
         Image(systemName: reauthNeeded ? "exclamationmark.circle.fill" : "checkmark.circle.fill")
             .foregroundColor(reauthNeeded ? .orange : .green)
             .imageScale(.medium)
-            .onContinuousHover { phase in
-                switch phase {
-                case .active:
+            .onHover { isHovering in
+                if isHovering {
                     NSCursor.pointingHand.push()
-                case .ended:
+                } else {
                     NSCursor.pop()
                 }
             }

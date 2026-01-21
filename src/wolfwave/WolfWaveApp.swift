@@ -631,13 +631,18 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSToolbarDelegate {
     ///
     /// These allow the Twitch bot to fetch current track info on-demand.
     private func setupTwitchService() {
+        Log.info("AppDelegate: Setting up Twitch service", category: "Twitch")
         twitchService = TwitchChatService()
+        Log.info("AppDelegate: TwitchChatService created successfully", category: "Twitch")
+        
         twitchService?.getCurrentSongInfo = { [weak self] in
             self?.getCurrentSongInfo() ?? "No song is currently playing"
         }
         twitchService?.getLastSongInfo = { [weak self] in
             self?.getLastSongInfo() ?? "No song is currently playing"
         }
+        
+        Log.debug("AppDelegate: Twitch service callbacks configured", category: "Twitch")
     }
 
     // MARK: - Notification Observers
@@ -822,7 +827,9 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSToolbarDelegate {
             toolbar.centeredItemIdentifier = nil
         }
         window.toolbar = toolbar
-        window.toolbarStyle = .unified
+        if #available(macOS 13.0, *) {
+            window.toolbarStyle = .unified
+        }
 
         // Behavior settings
         window.collectionBehavior = [.moveToActiveSpace]
