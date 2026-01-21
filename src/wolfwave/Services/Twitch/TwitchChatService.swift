@@ -138,9 +138,25 @@ final class TwitchChatService: @unchecked Sendable {
     
     private let maxReconnectionAttempts = 5
     
-    nonisolated(unsafe) private var reconnectChannelName: String?
-    nonisolated(unsafe) private var reconnectToken: String?
-    nonisolated(unsafe) private var reconnectClientID: String?
+    private var _reconnectChannelName: String?
+    private var _reconnectToken: String?
+    private var _reconnectClientID: String?
+    
+    // MARK: - Reconnection Credentials (Thread-Safe)
+    
+    private func getReconnectionCredentials() -> (channelName: String?, token: String?, clientID: String?) {
+        reconnectionLock.withLock {
+            (_reconnectChannelName, _reconnectToken, _reconnectClientID)
+        }
+    }
+    
+    private func setReconnectionCredentials(channelName: String?, token: String?, clientID: String?) {
+        reconnectionLock.withLock {
+            _reconnectChannelName = channelName
+            _reconnectToken = token
+            _reconnectClientID = clientID
+        }
+    }
     
     struct RateLimitState {
         var remaining: Int = 0
@@ -304,9 +320,10 @@ final class TwitchChatService: @unchecked Sendable {
     
     /// Attempts to reconnect to the channel with exponential backoff
     nonisolated private func attemptReconnect() {
-        guard let channelName = reconnectChannelName,
-              let token = reconnectToken,
-              let clientID = reconnectClientID else {
+        let (channelName, token, clientID) = getReconnectionCredentials()
+        guard let channelName = channelName,
+              let token = token,
+              let clientID = clientID else {
             return
         }
         
@@ -466,10 +483,8 @@ final class TwitchChatService: @unchecked Sendable {
             clientID: clientID
         )
 
-        // Store credentials for automatic reconnection
-        reconnectChannelName = channelName
-        reconnectToken = token
-        reconnectClientID = clientID
+        // Store credentials for automatic reconnection (protected by reconnectionLock)
+        setReconnectionCredentials(channelName: channelName, token: token, clientID: clientID)
         reconnectionLock.withLock { reconnectionAttempts = 0 }
         
         // Start network monitoring for automatic reconnection
@@ -619,10 +634,8 @@ final class TwitchChatService: @unchecked Sendable {
         
         disconnectFromEventSub()
         
-        // Clear reconnection credentials
-        reconnectChannelName = nil
-        reconnectToken = nil
-        reconnectClientID = nil
+        // Clear reconnection credentials (protected by reconnectionLock)
+        setReconnectionCredentials(channelName: nil, token: nil, clientID: nil)
         reconnectionLock.withLock { reconnectionAttempts = 0 }
 
         broadcasterID = nil

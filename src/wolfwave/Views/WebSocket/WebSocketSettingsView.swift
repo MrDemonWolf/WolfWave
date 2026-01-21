@@ -66,7 +66,7 @@ struct WebSocketSettingsView: View {
             .cornerRadius(8)
             .onHover { isInside in
                 if isInside {
-                    NSCursor.pointingHand.push()
+                    NSCursor.operationNotAllowed.push()
                 } else {
                     NSCursor.pop()
                 }
