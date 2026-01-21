@@ -395,6 +395,7 @@ final class TwitchChatService: @unchecked Sendable {
         self.oauthToken = token
         self.clientID = clientID
         self.botUsername = nil
+        hasSentConnectionMessage = false
 
         commandDispatcher.setCurrentSongInfo { [weak self] in
             self?.getCurrentSongInfo?() ?? "No track currently playing"
@@ -626,6 +627,7 @@ final class TwitchChatService: @unchecked Sendable {
     ///
     /// Clears all stored credentials and session state.
     func leaveChannel() {
+        Log.info("Twitch: leaveChannel() called", category: "TwitchChat")
         // Mark that we're disconnecting to prevent stale message processing
         disconnectLock.withLock { isProcessingDisconnect = true }
         
@@ -648,6 +650,7 @@ final class TwitchChatService: @unchecked Sendable {
 
         // Update internal state and notify listeners that we've left
         self.setConnected(false)
+        Log.debug("Twitch: Posting connectionStateChanged notification with isConnected=false", category: "TwitchChat")
         NotificationCenter.default.post(
             name: TwitchChatService.connectionStateChanged,
             object: nil,
@@ -726,10 +729,15 @@ final class TwitchChatService: @unchecked Sendable {
     /// Called automatically when the bot successfully subscribes to channel chat messages.
     /// Sends: "WolfWave Application is connected! 🎵"
     func sendConnectionMessage() {
+        Log.debug("Twitch: sendConnectionMessage called, will send in 1.5 seconds", category: "TwitchChat")
         DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) { [weak self] in
             guard let self = self else { return }
-            if self.hasSentConnectionMessage { return }
+            if self.hasSentConnectionMessage { 
+                Log.debug("Twitch: Connection message already sent, skipping", category: "TwitchChat")
+                return 
+            }
             self.hasSentConnectionMessage = true
+            Log.debug("Twitch: Sending connection message", category: "TwitchChat")
             self.sendMessage("WolfWave Application is connected! 🎵")
         }
     }
@@ -1186,6 +1194,7 @@ final class TwitchChatService: @unchecked Sendable {
             if let http = response as? HTTPURLResponse {
                 if (200..<300).contains(http.statusCode) {
                     Log.info("Twitch: Connected to chat", category: "TwitchChat")
+                    Log.debug("Twitch: shouldSendConnectionMessageOnSubscribe = \(self?.shouldSendConnectionMessageOnSubscribe ?? false)", category: "TwitchChat")
                     if self?.shouldSendConnectionMessageOnSubscribe == true {
                         self?.sendConnectionMessage()
                     } else {

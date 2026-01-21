@@ -94,6 +94,9 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSToolbarDelegate {
     /// Unique identifier for the settings window toolbar.
     private static let settingsToolbarIdentifier = "com.wolfwave.settings.toolbar"
     
+    /// Shared instance of AppDelegate for global access
+    static weak var shared: AppDelegate?
+    
     // MARK: - Properties
     
     /// Menu bar status item showing the current track.
@@ -168,6 +171,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSToolbarDelegate {
     /// This runs on the main thread and blocks app initialization until complete.
     /// Heavy async work (token validation, channel join) runs in background tasks.
     func applicationDidFinishLaunching(_ notification: Notification) {
+        AppDelegate.shared = self
         setupStatusItem()
         setupMenu()
         setupMusicMonitor()
