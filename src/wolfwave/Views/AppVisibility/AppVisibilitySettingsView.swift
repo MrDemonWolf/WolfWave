@@ -15,22 +15,16 @@ struct AppVisibilitySettingsView: View {
     private var dockVisibility = "both"
     
     var body: some View {
-        VStack(alignment: .leading, spacing: 24) {
-            VStack(alignment: .leading, spacing: 8) {
-                HStack(spacing: 8) {
-                    Image(systemName: "eye")
-                        .font(.title3)
-                    Text("App Visibility")
-                        .font(.title2)
-                        .fontWeight(.semibold)
-                }
+        VStack(spacing: 20) {
+            VStack(alignment: .leading, spacing: 6) {
+                Text("App Visibility")
+                    .font(.system(size: 17, weight: .semibold))
                 
                 Text("Choose where WolfWave appears on your Mac.")
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
+                    .font(.system(size: 13, weight: .regular))
+                    .foregroundColor(.secondary)
             }
-            
-            Divider()
+            .frame(maxWidth: .infinity, alignment: .leading)
             
             VStack(alignment: .leading, spacing: 12) {
                 Text("Show app in:")
@@ -71,6 +65,9 @@ struct AppVisibilitySettingsView: View {
                 .accessibilityLabel("When menu bar only is enabled, the app will appear in the dock when settings are open.")
             }
         }
+        .frame(maxWidth: .infinity)
+        .padding(.horizontal, 20)
+        .padding(.vertical, 16)
     }
     
     // MARK: - Helpers

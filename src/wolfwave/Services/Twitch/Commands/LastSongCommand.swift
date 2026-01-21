@@ -15,12 +15,18 @@ final class LastSongCommand: BotCommand {
     let description = "Displays the last played track"
 
     var getLastSongInfo: (() -> String)?
+    var isEnabled: (() -> Bool)?
 
     func execute(message: String) -> String? {
         let trimmedMessage = message.trimmingCharacters(in: .whitespaces).lowercased()
 
         for trigger in triggers {
             if trimmedMessage.hasPrefix(trigger) {
+                // Check if command is enabled
+                if let isEnabled = isEnabled, !isEnabled() {
+                    return nil
+                }
+                
                 let result = getLastSongInfo?() ?? "No previous track available"
                 return result.count <= 500 ? result : String(result.prefix(497)) + "..."
             }

@@ -179,8 +179,9 @@ struct SettingsView: View {
             // Link the view model to the app delegate's service (without reconnecting)
             twitchViewModel.twitchService = appDelegate?.twitchService
 
-            // Apply bot command toggle to service
-            appDelegate?.twitchService?.commandsEnabled = currentSongCommandEnabled
+            // Apply bot command settings to service
+            appDelegate?.twitchService?.currentSongCommandEnabled = currentSongCommandEnabled
+            appDelegate?.twitchService?.lastSongCommandEnabled = lastSongCommandEnabled
 
             // Initialize the view model's connection state from the service so the UI
             // reflects whether we are already joined (prevents missed callbacks).
@@ -192,6 +193,20 @@ struct SettingsView: View {
                     return appDelegate.getCurrentSongInfo()
                 }
                 return "No track currently playing"
+            }
+            
+            // Set up callback to get last song info
+            appDelegate?.twitchService?.getLastSongInfo = {
+                if let appDelegate = NSApplication.shared.delegate as? AppDelegate {
+                    return appDelegate.getLastSongInfo()
+                }
+                return "No previous track available"
+            }
+        }
+        // Listen for toggle requests from the AppDelegate toolbar button
+        .onReceive(NotificationCenter.default.publisher(for: .toggleSettingsSidebar)) { _ in
+            withAnimation(.easeInOut(duration: 0.25)) {
+                sidebarVisibility = sidebarVisibility == .all ? .detailOnly : .all
             }
         }
         // Listen for toggle requests from the AppDelegate toolbar button
@@ -297,7 +312,8 @@ struct SettingsView: View {
                         .accessibilityLabel("Enable Current Playing Song command")
                         .accessibilityIdentifier("currentSongCommandToggle")
                         .onChange(of: currentSongCommandEnabled) { _, enabled in
-                            appDelegate?.twitchService?.commandsEnabled = enabled
+                            appDelegate?.twitchService?.currentSongCommandEnabled = enabled
+                            Log.info("SettingsView: Current Song Command \(enabled ? "enabled" : "disabled")", category: "Twitch")
                         }
                 }
                 .padding(12)
@@ -320,7 +336,8 @@ struct SettingsView: View {
                         .accessibilityLabel("Enable Last Played Song command")
                         .accessibilityIdentifier("lastSongCommandToggle")
                         .onChange(of: lastSongCommandEnabled) { _, enabled in
-                            appDelegate?.twitchService?.commandsEnabled = enabled
+                            appDelegate?.twitchService?.lastSongCommandEnabled = enabled
+                            Log.info("SettingsView: Last Song Command \(enabled ? "enabled" : "disabled")", category: "Twitch")
                         }
                 }
                 .padding(12)
