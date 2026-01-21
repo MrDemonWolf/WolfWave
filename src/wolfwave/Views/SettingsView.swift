@@ -2,45 +2,50 @@
 //  SettingsView.swift
 //  wolfwave
 //
-//  Created by MrDemonWolf, Inc. on 1/8/26.
+//  Created by MrDemonWolf, Inc. on 1/17/26.
 //
 
 import AppKit
 import SwiftUI
 
-/// The main settings interface for WolfWave.
+/// Main settings UI for WolfWave application.
 ///
-/// This view provides controls for:
-/// - Enabling/disabling music tracking
-/// - Configuring WebSocket connection for remote tracking
-/// - Managing authentication tokens (stored in Keychain)
-/// - Resetting all settings to defaults
+/// Provides a split-view interface with sidebar navigation and detail panes for:
+/// - Music Playback Monitoring configuration
+/// - App Visibility (dock/menu bar modes)
+/// - WebSocket integration settings
+/// - Twitch bot authentication and commands
+/// - Advanced options (reset, debugging)
+///
+/// Architecture:
+/// - NavigationSplitView with sidebar and detail columns
+/// - Settings section enum for sidebar navigation
+/// - Detail views composed from separate view components
+/// - Sidebar toggle button in toolbar
+/// - Reset alert confirmation
+///
+/// State Management:
+/// - @StateObject for TwitchViewModel (Twitch integration state)
+/// - @AppStorage for user preferences (synced to UserDefaults)
+/// - @State for UI state (section selection, sidebar visibility)
+///
+/// Key Features:
+/// - Smooth sidebar toggle animation
+/// - Keyboard shortcuts (Esc or Cmd+W to close)
+/// - Integration with AppDelegate services
+/// - Responsive to notifications from other parts of the app
+/// - Reset all settings with confirmation dialog
 struct SettingsView: View {
     // MARK: - Constants
 
     fileprivate enum Constants {
-        static let defaultAppName = "WolfWave"
-        static let minWidth: CGFloat = 700
-        static let minHeight: CGFloat = 500
-        static let sidebarWidth: CGFloat = 200
+        /// Valid schemes for WebSocket URI validation
         static let validSchemes = ["ws", "wss", "http", "https"]
-
-        enum UserDefaultsKeys {
-            static let trackingEnabled = "trackingEnabled"
-            static let websocketEnabled = "websocketEnabled"
-            static let websocketURI = "websocketURI"
-            static let currentSongCommandEnabled = "currentSongCommandEnabled"
-            static let lastSongCommandEnabled = "lastSongCommandEnabled"
-            static let dockVisibility = "dockVisibility"
-        }
-
-        enum Notifications {
-            static let trackingSettingChanged = "TrackingSettingChanged"
-        }
     }
     
-    // MARK: - Sidebar Navigation
+    // MARK: - Settings Section Enum
     
+    /// Navigation sections in the settings sidebar.
     enum SettingsSection: String, CaseIterable, Identifiable {
         case musicMonitor = "Music Monitor"
         case appVisibility = "App Visibility"
@@ -50,6 +55,7 @@ struct SettingsView: View {
         
         var id: String { rawValue }
         
+        /// System SF Symbol name for sidebar icon (or nil for custom image).
         var systemIcon: String? {
             switch self {
             case .musicMonitor: return "music.note"
@@ -60,6 +66,7 @@ struct SettingsView: View {
             }
         }
         
+        /// Custom image name for sidebar icon (or nil for system icon).
         var customIcon: String? {
             switch self {
             case .twitchIntegration: return "TwitchLogo"
@@ -70,27 +77,29 @@ struct SettingsView: View {
 
     // MARK: - Properties
 
-    /// Retrieves the app name from the bundle
+    /// Application name from bundle metadata, with fallback to default.
+    ///
+    /// Used in window titles, notifications, and menu items.
     private var appName: String {
         Bundle.main.infoDictionary?["CFBundleDisplayName"] as? String ?? Bundle.main
-            .infoDictionary?["CFBundleName"] as? String ?? Constants.defaultAppName
+            .infoDictionary?["CFBundleName"] as? String ?? AppConstants.SettingsUI.defaultAppName
     }
 
     // MARK: - User Settings
 
     /// Whether music tracking is currently enabled
-    @AppStorage(Constants.UserDefaultsKeys.trackingEnabled)
+    @AppStorage(AppConstants.UserDefaults.trackingEnabled)
     private var trackingEnabled = true
 
     /// Whether the Current Playing Song command is enabled
-    @AppStorage(Constants.UserDefaultsKeys.currentSongCommandEnabled)
+    @AppStorage(AppConstants.UserDefaults.currentSongCommandEnabled)
     private var currentSongCommandEnabled = true
 
     /// Whether the Last Played Song command is enabled
-    @AppStorage(Constants.UserDefaultsKeys.lastSongCommandEnabled)
+    @AppStorage(AppConstants.UserDefaults.lastSongCommandEnabled)
     private var lastSongCommandEnabled = true
 
-    @AppStorage(Constants.UserDefaultsKeys.dockVisibility)
+    @AppStorage(AppConstants.UserDefaults.dockVisibility)
     private var dockVisibility = "both"
 
     // MARK: - State
@@ -123,57 +132,39 @@ struct SettingsView: View {
 
     var body: some View {
         NavigationSplitView(columnVisibility: $sidebarVisibility) {
-            ScrollView {
-                VStack(alignment: .leading, spacing: 8) {
-                    ForEach(SettingsSection.allCases) { section in
-                        sidebarRow(for: section)
-                    }
-                }
-                .padding(.vertical, 12)
-                .padding(.horizontal, 10)
+            List(SettingsSection.allCases, selection: $selectedSection) { section in
+                sidebarRow(for: section)
+                    .tag(section)
             }
-            .frame(
-                minWidth: Constants.sidebarWidth,
-                idealWidth: Constants.sidebarWidth,
-                maxWidth: Constants.sidebarWidth,
-                maxHeight: .infinity,
-                alignment: .topLeading
-            )
-            .background(Color(nsColor: .windowBackgroundColor))
+            .listStyle(.sidebar)
+            .navigationSplitViewColumnWidth(min: 180, ideal: 200, max: 220)
+            .padding(.top, 10)
         } detail: {
             // Detail view
             ScrollView {
                 VStack(alignment: .leading, spacing: 20) {
                     detailView(for: selectedSection)
                 }
-                .padding(20)
+                .padding(.top, 0)
+                .padding(.bottom, 20)
+                .padding(.horizontal, 12)
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
             }
             .background(.ultraThinMaterial)
             .onAppear {
                 // Check if a specific section was requested to be opened
-                if let requestedSection = UserDefaults.standard.string(forKey: "selectedSettingsSection") {
-                    if requestedSection == "twitchIntegration" {
+                if let requestedSection = UserDefaults.standard.string(forKey: AppConstants.UserDefaults.selectedSettingsSection) {
+                    if requestedSection == AppConstants.Twitch.settingsSection {
                         selectedSection = .twitchIntegration
                     }
                     // Clear the request after using it
-                    UserDefaults.standard.removeObject(forKey: "selectedSettingsSection")
+                    UserDefaults.standard.removeObject(forKey: AppConstants.UserDefaults.selectedSettingsSection)
                 }
             }
-            .toolbar {
-                ToolbarItem(placement: .primaryAction) {
-                    Button(action: {
-                        withAnimation(.easeInOut(duration: 0.25)) {
-                            sidebarVisibility = sidebarVisibility == .all ? .detailOnly : .all
-                        }
-                    }) {
-                        Image(systemName: sidebarVisibility == .all ? "sidebar.left" : "sidebar.leading")
-                    }
-                }
-            }
+            // Rely on the system-provided sidebar toggle for NavigationSplitView
         }
         .animation(sidebarAnimation, value: sidebarVisibility)
-        .frame(minWidth: Constants.minWidth, minHeight: Constants.minHeight)
+        .frame(minWidth: AppConstants.SettingsUI.minWidth, minHeight: AppConstants.SettingsUI.minHeight)
         .keyboardShortcut("w", modifiers: .command)
         .onKeyPress { keyPress in
             if keyPress.key == .escape || (keyPress.modifiers.contains(.command) && keyPress.key.character == "w") {
@@ -191,12 +182,9 @@ struct SettingsView: View {
             // Apply bot command toggle to service
             appDelegate?.twitchService?.commandsEnabled = currentSongCommandEnabled
 
-            // Set up Twitch service callbacks
-            appDelegate?.twitchService?.onConnectionStateChanged = { isConnected in
-                DispatchQueue.main.async {
-                    twitchViewModel.channelConnected = isConnected
-                }
-            }
+            // Initialize the view model's connection state from the service so the UI
+            // reflects whether we are already joined (prevents missed callbacks).
+            twitchViewModel.channelConnected = appDelegate?.twitchService?.isConnected ?? false
 
             // Set up callback to get current song info
             appDelegate?.twitchService?.getCurrentSongInfo = {
@@ -206,11 +194,20 @@ struct SettingsView: View {
                 return "No track currently playing"
             }
         }
+        // Listen for toggle requests from the AppDelegate toolbar button
+        .onReceive(NotificationCenter.default.publisher(for: .toggleSettingsSidebar)) { _ in
+            withAnimation(.easeInOut(duration: 0.25)) {
+                sidebarVisibility = sidebarVisibility == .all ? .detailOnly : .all
+            }
+        }
         .alert("Reset Settings?", isPresented: $showingResetAlert) {
             Button("Cancel", role: .cancel) {}
+            .accessibilityIdentifier("resetSettingsCancelButton")
+
             Button("Reset", role: .destructive) {
                 resetSettings()
             }
+            .accessibilityIdentifier("resetSettingsConfirmButton")
         } message: {
             Text("This will reset all settings and clear the stored authentication token.")
         }
@@ -238,69 +235,32 @@ struct SettingsView: View {
 
     @ViewBuilder
     private func sidebarRow(for section: SettingsSection) -> some View {
-        let isSelected = section == selectedSection
-
-        Button {
-            withAnimation(.easeInOut(duration: 0.2)) {
-                selectedSection = section
-            }
-        } label: {
-            HStack(spacing: 10) {
-                sidebarIcon(for: section, isSelected: isSelected)
-                    .frame(width: 18, height: 18)
-
-                Text(section.rawValue)
-                    .font(.body)
-                    .fontWeight(.semibold)
-                    .foregroundStyle(isSelected ? Color.white : Color.primary)
-
-                Spacer(minLength: 0)
-            }
-            .padding(.vertical, 10)
-            .padding(.horizontal, 12)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .background(
-                RoundedRectangle(cornerRadius: 12, style: .continuous)
-                    .fill(isSelected ? Color(nsColor: .controlAccentColor) : Color.clear)
-            )
+        Label {
+            Text(section.rawValue)
+        } icon: {
+            sidebarIcon(for: section)
         }
-        .buttonStyle(.plain)
-        .contentShape(Rectangle())
+        .accessibilityLabel(Text(section.rawValue))
+        .accessibilityIdentifier(section.rawValue.replacingOccurrences(of: " ", with: "-").lowercased())
     }
 
     @ViewBuilder
-    private func sidebarIcon(for section: SettingsSection, isSelected: Bool) -> some View {
+    private func sidebarIcon(for section: SettingsSection) -> some View {
         if let customIcon = section.customIcon {
             Image(customIcon)
-                .renderingMode(.original) // keep Twitch purple
+                .renderingMode(.template)
                 .resizable()
                 .interpolation(.high)
                 .scaledToFit()
+                .frame(width: 16, height: 16)
         } else if let systemIcon = section.systemIcon {
             Image(systemName: systemIcon)
-                .font(.body)
-                .foregroundStyle(isSelected ? Color.white : Color.primary)
         }
     }
     
     private func twitchIntegrationView() -> some View {
         VStack(alignment: .leading, spacing: 24) {
-            VStack(alignment: .leading, spacing: 8) {
-                HStack(spacing: 8) {
-                    Image("TwitchLogo")
-                        .renderingMode(.original)
-                        .resizable()
-                        .scaledToFit()
-                        .frame(width: 18, height: 18)
-                    Text("Twitch Integration")
-                        .font(.title2)
-                        .fontWeight(.semibold)
-                    Spacer()
-                    StatusChip(text: twitchViewModel.statusChipText, color: twitchViewModel.statusChipColor)
-                }
-            }
-            
-            // Twitch Bot Connection
+            // Use the inner header inside `TwitchSettingsView` — remove outer duplicated header.
             TwitchSettingsView(viewModel: twitchViewModel)
             
             Divider()
@@ -334,6 +294,8 @@ struct SettingsView: View {
                     Toggle("", isOn: $currentSongCommandEnabled)
                         .labelsHidden()
                         .toggleStyle(.switch)
+                        .accessibilityLabel("Enable Current Playing Song command")
+                        .accessibilityIdentifier("currentSongCommandToggle")
                         .onChange(of: currentSongCommandEnabled) { _, enabled in
                             appDelegate?.twitchService?.commandsEnabled = enabled
                         }
@@ -355,6 +317,8 @@ struct SettingsView: View {
                     Toggle("", isOn: $lastSongCommandEnabled)
                         .labelsHidden()
                         .toggleStyle(.switch)
+                        .accessibilityLabel("Enable Last Played Song command")
+                        .accessibilityIdentifier("lastSongCommandToggle")
                         .onChange(of: lastSongCommandEnabled) { _, enabled in
                             appDelegate?.twitchService?.commandsEnabled = enabled
                         }
@@ -370,7 +334,7 @@ struct SettingsView: View {
 
     private func notifyTrackingSettingChanged(enabled: Bool) {
         NotificationCenter.default.post(
-            name: NSNotification.Name(Constants.Notifications.trackingSettingChanged),
+            name: NSNotification.Name(AppConstants.Notifications.trackingSettingChanged),
             object: nil,
             userInfo: ["enabled": enabled]
         )
@@ -386,7 +350,7 @@ struct SettingsView: View {
     /// 5. Notifies the app that tracking has been re-enabled
     private func resetSettings() {
         // Clear UserDefaults
-        Constants.UserDefaultsKeys.allKeys.forEach {
+        [AppConstants.UserDefaults.trackingEnabled, AppConstants.UserDefaults.currentSongCommandEnabled, AppConstants.UserDefaults.lastSongCommandEnabled, AppConstants.UserDefaults.dockVisibility, AppConstants.UserDefaults.websocketEnabled, AppConstants.UserDefaults.websocketURI].forEach {
             UserDefaults.standard.removeObject(forKey: $0)
         }
 
@@ -407,11 +371,7 @@ struct SettingsView: View {
 
 // MARK: - Constants Extension
 
-extension SettingsView.Constants.UserDefaultsKeys {
-    static var allKeys: [String] {
-        [trackingEnabled, currentSongCommandEnabled, lastSongCommandEnabled, dockVisibility, websocketEnabled, websocketURI]
-    }
-}
+
 
 // MARK: - StatusChip and Helpers
 

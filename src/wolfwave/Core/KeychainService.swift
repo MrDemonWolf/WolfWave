@@ -2,51 +2,69 @@
 //  KeychainService.swift
 //  wolfwave
 //
-//  Created by MrDemonWolf, Inc. on 1/8/26.
+//  Created by MrDemonWolf, Inc. on 1/17/26.
 //
 
 import Foundation
 import Security
 
-/// A service that handles secure storage and retrieval of authentication tokens using the macOS Keychain.
+/// Secure credential storage using the macOS Keychain.
 ///
-/// Stored items (service: `com.mrdemonwolf.wolfwave`):
-/// - WebSocket auth token (`websocketAuthToken`)
-/// - Twitch OAuth token (`twitchBotAccountOauthToken`)
-/// - Twitch bot username (`twitchBotAccountUsername`)
-/// - Twitch bot user ID (`twitchBotAccountUserID`)
-/// - Twitch channel ID (`twitchChannelIDAccount`)
+/// Provides a type-safe interface for storing and retrieving sensitive credentials.
+/// All items use `kSecAttrAccessibleAfterFirstUnlock` accessibility for persistence after unlock.
 ///
-/// Notes:
-/// - Items are saved with `kSecAttrAccessibleAfterFirstUnlock` so they remain
-///   accessible while the device is unlocked after a restart.
-/// - All methods are synchronous wrappers around Keychain APIs and will throw
-///   `KeychainError` on save failures.
+/// Stored Credentials:
+/// - **WebSocket Auth Token**: Generic password for WebSocket authentication
+/// - **Twitch OAuth Token**: User's OAuth token for Twitch API and chat
+/// - **Twitch Username**: Bot account username for display and identification
+/// - **Twitch User ID**: Bot account user ID for EventSub subscriptions
+/// - **Twitch Channel ID**: Target channel for bot commands
+///
+/// Error Handling:
+/// - All save operations throw `KeychainError` on failure
+/// - Load operations return nil if not found or on error
+/// - Delete operations succeed silently if item doesn't exist
+///
+/// Thread Safety:
+/// - Keychain operations are thread-safe (backed by Security framework)
+/// - Safe to call from any thread
+///
+/// Usage Example:
+/// ```swift
+/// try KeychainService.saveTwitchToken("oauth_token_here")
+/// if let token = KeychainService.loadTwitchToken() {
+///     // Use token for Twitch API calls
+/// }
+/// ```
 enum KeychainService {
     // MARK: - Constants
 
-    /// The service identifier for keychain items
+    /// Service identifier for Keychain items (bundle-like identifier).
     private static let service = "com.mrdemonwolf.wolfwave"
 
-    /// The account name for the WebSocket authentication token
+    /// Account identifier for WebSocket auth token.
     private static let websocketAuthToken = "websocketAuthToken"
-
-    /// The account name for the Twitch OAuth token
+    
+    /// Account identifier for Twitch OAuth token.
     private static let twitchBotAccountOauthToken = "twitchBotAccountOauthToken"
-
-    /// The account name for the Twitch bot username
+    
+    /// Account identifier for Twitch bot username.
     private static let twitchBotAccountUsername = "twitchBotAccountUsername"
-
-    /// The account name for the Twitch bot user ID
+    
+    /// Account identifier for Twitch bot user ID.
     private static let twitchBotAccountUserID = "twitchBotAccountUserID"
-
-    /// The account name for the Twitch channel ID
+    
+    /// Account identifier for Twitch channel ID.
     private static let twitchChannelIDAccount = "twitchChannelIDAccount"
 
-    // MARK: - Error
+    // MARK: - Error Types
 
+    /// Errors that can occur during Keychain operations.
     enum KeychainError: LocalizedError {
+        /// Failed to save data to Keychain with given Security framework status code.
         case saveFailed(OSStatus)
+        
+        /// Invalid or corrupted data read from Keychain.
         case invalidData
 
         var errorDescription: String? {
@@ -59,36 +77,31 @@ enum KeychainService {
         }
     }
 
-    // MARK: - Public Methods
+    // MARK: - Public Methods - WebSocket Token
 
-    /// Saves an authentication token securely to the macOS Keychain.
+    /// Saves a WebSocket authentication token to Keychain.
     ///
-    /// This method will first delete any existing token with the same service and account,
-    /// then add the new token to ensure no duplicates exist.
+    /// Removes any existing token before saving to ensure only one token exists.
     ///
-    /// - Parameter token: The authentication token string to save
-    /// - Throws: KeychainError if the token cannot be saved to the Keychain
+    /// - Parameter token: The authentication token to save.
+    /// - Throws: `KeychainError.saveFailed(status)` if Keychain operation fails.
     static func saveToken(_ token: String) throws {
-        Log.debug("Keychain: Saving WebSocket auth token", category: "Keychain")
         let data = Data(token.utf8)
 
-        // Remove existing item to avoid duplicates
         deleteToken()
 
-        // Add new item
         let query = buildQuery(withData: data)
         let status = SecItemAdd(query as CFDictionary, nil)
 
         guard status == errSecSuccess else {
-            Log.error("Keychain: Failed to save token - OSStatus \(status)", category: "Keychain")
+            Log.error("Failed to save token - OSStatus \(status)", category: "Keychain")
             throw KeychainError.saveFailed(status)
         }
-        Log.info("Keychain: WebSocket auth token saved successfully", category: "Keychain")
     }
 
-    /// Retrieves the stored authentication token from the macOS Keychain.
+    /// Loads the WebSocket authentication token from Keychain.
     ///
-    /// - Returns: The stored token string if found, or nil if no token exists or an error occurs
+    /// - Returns: The stored token string, or nil if not found or on error.
     static func loadToken() -> String? {
         var query = buildBaseQuery()
         query[kSecReturnData as String] = true
@@ -107,47 +120,37 @@ enum KeychainService {
         return token
     }
 
-    /// Removes the stored authentication token from the macOS Keychain.
+    /// Deletes the WebSocket authentication token from Keychain.
     ///
-    /// This method will silently succeed even if no token exists.
+    /// Succeeds silently if token doesn't exist.
     static func deleteToken() {
         let query = buildBaseQuery()
         SecItemDelete(query as CFDictionary)
     }
 
-    // MARK: - Twitch Token Methods
+    // MARK: - Public Methods - Twitch OAuth Token
 
-    /// Saves a Twitch OAuth token securely to the macOS Keychain.
+    /// Saves the Twitch OAuth token to Keychain.
     ///
-    /// - Parameter token: The Twitch OAuth token string to save
-    /// - Throws: KeychainError if the token cannot be saved to the Keychain
+    /// - Parameter token: The OAuth token obtained from Twitch OAuth flow.
+    /// - Throws: `KeychainError.saveFailed(status)` if Keychain operation fails.
     static func saveTwitchToken(_ token: String) throws {
-        Log.debug("Keychain: Saving Twitch OAuth token", category: "Keychain")
         let data = Data(token.utf8)
         var query = buildBaseQuery()
         query[kSecAttrAccount as String] = twitchBotAccountOauthToken
 
-        // Remove existing item to avoid duplicates
-        Log.debug("Keychain: Removing existing Twitch OAuth token", category: "Keychain")
         SecItemDelete(query as CFDictionary)
 
-        // Add new item
         query[kSecValueData as String] = data
         query[kSecAttrAccessible as String] = kSecAttrAccessibleAfterFirstUnlock
         let status = SecItemAdd(query as CFDictionary, nil)
 
         guard status == errSecSuccess else {
-            Log.error(
-                "Keychain: Failed to save Twitch OAuth token - OSStatus \(status)",
-                category: "Keychain")
+            Log.error("Failed to save Twitch OAuth token - OSStatus \(status)", category: "Keychain")
             throw KeychainError.saveFailed(status)
         }
-        Log.info("Keychain: Twitch OAuth token saved successfully", category: "Keychain")
     }
 
-    /// Retrieves the stored Twitch OAuth token from the macOS Keychain.
-    ///
-    /// - Returns: The stored Twitch OAuth token string if found, or nil if no token exists
     static func loadTwitchToken() -> String? {
         var query = buildBaseQuery()
         query[kSecAttrAccount as String] = twitchBotAccountOauthToken
@@ -167,7 +170,6 @@ enum KeychainService {
         return token
     }
 
-    /// Removes the stored Twitch OAuth token from the macOS Keychain.
     static func deleteTwitchToken() {
         var query = buildBaseQuery()
         query[kSecAttrAccount as String] = twitchBotAccountOauthToken
@@ -176,37 +178,23 @@ enum KeychainService {
 
     // MARK: - Twitch Username Methods
 
-    /// Saves a Twitch bot username to the macOS Keychain.
-    ///
-    /// - Parameter username: The Twitch bot username to save
-    /// - Throws: KeychainError if the username cannot be saved to the Keychain
     static func saveTwitchUsername(_ username: String) throws {
-        Log.debug("Keychain: Saving Twitch bot username: \(username)", category: "Keychain")
         let data = Data(username.utf8)
         var query = buildBaseQuery()
         query[kSecAttrAccount as String] = twitchBotAccountUsername
 
-        // Remove existing item to avoid duplicates
-        Log.debug("Keychain: Removing existing Twitch bot username", category: "Keychain")
         SecItemDelete(query as CFDictionary)
 
-        // Add new item
         query[kSecValueData as String] = data
         query[kSecAttrAccessible as String] = kSecAttrAccessibleAfterFirstUnlock
         let status = SecItemAdd(query as CFDictionary, nil)
 
         guard status == errSecSuccess else {
-            Log.error(
-                "Keychain: Failed to save Twitch bot username - OSStatus \(status)",
-                category: "Keychain")
+            Log.error("Failed to save Twitch bot username - OSStatus \(status)", category: "Keychain")
             throw KeychainError.saveFailed(status)
         }
-        Log.info("Keychain: Twitch bot username saved successfully", category: "Keychain")
     }
 
-    /// Retrieves the stored Twitch bot username from the macOS Keychain.
-    ///
-    /// - Returns: The stored Twitch bot username if found, or nil if no username exists
     static func loadTwitchUsername() -> String? {
         var query = buildBaseQuery()
         query[kSecAttrAccount as String] = twitchBotAccountUsername
@@ -226,7 +214,6 @@ enum KeychainService {
         return username
     }
 
-    /// Removes the stored Twitch bot username from the macOS Keychain.
     static func deleteTwitchUsername() {
         var query = buildBaseQuery()
         query[kSecAttrAccount as String] = twitchBotAccountUsername
@@ -235,7 +222,6 @@ enum KeychainService {
 
     // MARK: - Twitch Bot User ID Methods
 
-    /// Saves a Twitch bot user ID to the macOS Keychain.
     static func saveTwitchBotUserID(_ userID: String) throws {
         let data = Data(userID.utf8)
         var query = buildBaseQuery()
@@ -252,7 +238,6 @@ enum KeychainService {
         }
     }
 
-    /// Retrieves the stored Twitch bot user ID from the macOS Keychain.
     static func loadTwitchBotUserID() -> String? {
         var query = buildBaseQuery()
         query[kSecAttrAccount as String] = twitchBotAccountUserID
@@ -272,7 +257,6 @@ enum KeychainService {
         return userID
     }
 
-    /// Removes the stored Twitch bot user ID from the macOS Keychain.
     static func deleteTwitchBotUserID() {
         var query = buildBaseQuery()
         query[kSecAttrAccount as String] = twitchBotAccountUserID
@@ -281,19 +265,13 @@ enum KeychainService {
 
     // MARK: - Twitch Channel ID Methods
 
-    /// Saves a Twitch channel ID to the macOS Keychain.
-    ///
-    /// - Parameter channelID: The Twitch channel ID to save
-    /// - Throws: KeychainError if the channel ID cannot be saved to the Keychain
     static func saveTwitchChannelID(_ channelID: String) throws {
         let data = Data(channelID.utf8)
         var query = buildBaseQuery()
         query[kSecAttrAccount as String] = twitchChannelIDAccount
 
-        // Remove existing item to avoid duplicates
         SecItemDelete(query as CFDictionary)
 
-        // Add new item
         query[kSecValueData as String] = data
         query[kSecAttrAccessible as String] = kSecAttrAccessibleAfterFirstUnlock
         let status = SecItemAdd(query as CFDictionary, nil)
@@ -303,9 +281,6 @@ enum KeychainService {
         }
     }
 
-    /// Retrieves the stored Twitch channel ID from the macOS Keychain.
-    ///
-    /// - Returns: The stored Twitch channel ID if found, or nil if no channel ID exists
     static func loadTwitchChannelID() -> String? {
         var query = buildBaseQuery()
         query[kSecAttrAccount as String] = twitchChannelIDAccount
@@ -325,7 +300,6 @@ enum KeychainService {
         return channelID
     }
 
-    /// Removes the stored Twitch channel ID from the macOS Keychain.
     static func deleteTwitchChannelID() {
         var query = buildBaseQuery()
         query[kSecAttrAccount as String] = twitchChannelIDAccount
@@ -334,7 +308,6 @@ enum KeychainService {
 
     // MARK: - Private Helpers
 
-    /// Builds the base keychain query dictionary
     private static func buildBaseQuery() -> [String: Any] {
         return [
             kSecClass as String: kSecClassGenericPassword,
@@ -343,7 +316,6 @@ enum KeychainService {
         ]
     }
 
-    /// Builds a keychain query with data for saving
     private static func buildQuery(withData data: Data) -> [String: Any] {
         var query = buildBaseQuery()
         query[kSecValueData as String] = data

@@ -2,7 +2,7 @@
 //  WebSocketSettingsView.swift
 //  wolfwave
 //
-//  Created by MrDemonWolf, Inc. on 1/13/26.
+//  Created by MrDemonWolf, Inc. on 1/17/26.
 //
 
 import SwiftUI
@@ -45,6 +45,33 @@ struct WebSocketSettingsView: View {
     
     var body: some View {
         VStack(alignment: .leading, spacing: 24) {
+            VStack(alignment: .leading, spacing: 12) {
+                HStack(spacing: 8) {
+                    Image(systemName: "exclamationmark.circle.fill")
+                        .font(.title3)
+                        .foregroundStyle(.orange)
+                    Text("Work in Progress")
+                        .font(.title2)
+                        .fontWeight(.semibold)
+                        .foregroundStyle(.orange)
+                }
+                
+                Text("This feature is currently not supported and will be added in a future release.")
+                    .font(.body)
+                    .foregroundStyle(.secondary)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(12)
+            .background(Color.orange.opacity(0.1))
+            .cornerRadius(8)
+            .onHover { isInside in
+                if isInside {
+                    NSCursor.operationNotAllowed.push()
+                } else {
+                    NSCursor.pop()
+                }
+            }
+            
             VStack(alignment: .leading, spacing: 8) {
                 HStack(spacing: 8) {
                     Image(systemName: "dot.radiowaves.left.and.right")
@@ -69,6 +96,17 @@ struct WebSocketSettingsView: View {
                 VStack(alignment: .leading, spacing: 8) {
                     TextField("WebSocket server URL (ws:// or wss://)", text: websocketURIBinding)
                         .textFieldStyle(.roundedBorder)
+                        .disabled(true)
+                        .accessibilityLabel("WebSocket server URL")
+                        .accessibilityHint("Enter the full WebSocket server URL, for example ws://example.com")
+                        .accessibilityIdentifier("websocketUrlTextField")
+                        .onHover { isInside in
+                            if isInside {
+                                NSCursor.operationNotAllowed.push()
+                            } else {
+                                NSCursor.pop()
+                            }
+                        }
 
                     if !isWebSocketURLValid && !(websocketURI?.isEmpty ?? true) {
                         HStack(spacing: 6) {
@@ -103,7 +141,16 @@ struct WebSocketSettingsView: View {
                     Toggle("", isOn: $websocketEnabled)
                         .labelsHidden()
                         .toggleStyle(.switch)
-                        .disabled(!isWebSocketURLValid)
+                        .disabled(true)
+                        .accessibilityLabel("Enable WebSocket connection")
+                        .accessibilityIdentifier("websocketEnabledToggle")
+                        .onHover { isInside in
+                            if isInside {
+                                NSCursor.operationNotAllowed.push()
+                            } else {
+                                NSCursor.pop()
+                            }
+                        }
                 }
                 .padding(12)
                 .background(Color(nsColor: .controlBackgroundColor))
@@ -129,6 +176,17 @@ struct WebSocketSettingsView: View {
 
                 SecureField("Auth token (JWT)", text: $authToken)
                     .textFieldStyle(.roundedBorder)
+                    .disabled(true)
+                    .accessibilityLabel("Authentication token")
+                    .accessibilityHint("Paste your JWT authentication token for the WebSocket server")
+                    .accessibilityIdentifier("websocketAuthTokenField")
+                    .onHover { isInside in
+                        if isInside {
+                            NSCursor.operationNotAllowed.push()
+                        } else {
+                            NSCursor.pop()
+                        }
+                    }
                 
                 HStack(spacing: 8) {
                     Image(systemName: "lock.shield.fill")
@@ -147,15 +205,19 @@ struct WebSocketSettingsView: View {
                     Button("Save Token") {
                         saveToken()
                     }
-                    .disabled(authToken.isEmpty)
+                    .disabled(true)
                     .buttonStyle(.bordered)
+                    .accessibilityLabel("Save authentication token")
+                    .accessibilityIdentifier("saveWebsocketTokenButton")
 
                     Button("Clear Token") {
                         clearToken()
                     }
-                    .disabled(!tokenSaved && authToken.isEmpty)
+                    .disabled(true)
                     .buttonStyle(.bordered)
                     .tint(.red)
+                    .accessibilityLabel("Clear authentication token")
+                    .accessibilityIdentifier("clearWebsocketTokenButton")
 
                     if tokenSaved {
                         HStack(spacing: 4) {
@@ -166,6 +228,9 @@ struct WebSocketSettingsView: View {
                                 .foregroundColor(.green)
                         }
                         .padding(.leading, 8)
+                        .accessibilityElement(children: .combine)
+                        .accessibilityLabel("Token saved")
+                        .accessibilityIdentifier("websocketTokenSavedStatus")
                     }
                     
                     Spacer()
