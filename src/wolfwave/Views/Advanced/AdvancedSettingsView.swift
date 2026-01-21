@@ -34,22 +34,16 @@ struct AdvancedSettingsView: View {
     @Binding var showingResetAlert: Bool
     
     var body: some View {
-        VStack(alignment: .leading, spacing: 24) {
-            VStack(alignment: .leading, spacing: 8) {
-                HStack(spacing: 8) {
-                    Image(systemName: "gearshape")
-                        .font(.title3)
-                    Text("Advanced")
-                        .font(.title2)
-                        .fontWeight(.semibold)
-                }
+        VStack(spacing: 20) {
+            VStack(alignment: .leading, spacing: 6) {
+                Text("Advanced")
+                    .font(.system(size: 17, weight: .semibold))
                 
                 Text("Reset all settings and clear stored credentials.")
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
+                    .font(.system(size: 13, weight: .regular))
+                    .foregroundColor(.secondary)
             }
-            
-            Divider()
+            .frame(maxWidth: .infinity, alignment: .leading)
             
             VStack(alignment: .leading, spacing: 16) {
                 VStack(alignment: .leading, spacing: 12) {
@@ -92,6 +86,9 @@ struct AdvancedSettingsView: View {
                 .accessibilityIdentifier("resetAllSettingsButton")
             }
         }
+        .frame(maxWidth: .infinity)
+        .padding(.horizontal, 20)
+        .padding(.vertical, 16)
     }
 }
 

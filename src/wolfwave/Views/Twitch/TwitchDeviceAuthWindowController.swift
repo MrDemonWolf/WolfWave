@@ -71,10 +71,8 @@ class TwitchDeviceAuthWindowController: NSWindowController, NSWindowDelegate {
     
     // MARK: - NSWindowDelegate
     
-    func windowWillClose(_ notification: Notification) {
-        // Clear the retained controller reference when window closes
-        TwitchDeviceAuthWindow.retainedTwitchController = nil
-    }
+    // Note: We don't clear the retained reference in windowWillClose since the
+    // window controller manages its own lifecycle through the retained reference
 }
 
 /// A SwiftUI wrapper for managing the dialog presentation.
@@ -84,17 +82,16 @@ struct TwitchDeviceAuthWindow {
     let onAuthorize: () -> Void
     let onCancel: () -> Void
     
-    // Retained reference to keep the window controller alive while the window is open
-    static var retainedTwitchController: TwitchDeviceAuthWindowController?
+    @State private var retainedController: TwitchDeviceAuthWindowController?
     
-    func show() {
+    mutating func show() {
         let windowController = TwitchDeviceAuthWindowController(
             deviceCode: deviceCode,
             onAuthorize: onAuthorize,
             onCancel: onCancel
         )
         // Retain the controller to prevent deallocation while window is open
-        TwitchDeviceAuthWindow.retainedTwitchController = windowController
+        self.retainedController = windowController
         windowController.showWindow(nil)
     }
 }

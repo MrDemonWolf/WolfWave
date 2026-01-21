@@ -99,3 +99,6 @@ playground.xcworkspace
 ############################################################
 .env
 .env.*
+ 
+# Local DMG/output folder created by Makefile prod build
+builds/

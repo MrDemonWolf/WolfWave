@@ -44,6 +44,22 @@ final class BotCommandDispatcher {
             }
         }
     }
+    
+    func setCurrentSongCommandEnabled(callback: @escaping () -> Bool) {
+        for command in commands {
+            if let songCmd = command as? SongCommand {
+                songCmd.isEnabled = callback
+            }
+        }
+    }
+    
+    func setLastSongCommandEnabled(callback: @escaping () -> Bool) {
+        for command in commands {
+            if let lastSongCmd = command as? LastSongCommand {
+                lastSongCmd.isEnabled = callback
+            }
+        }
+    }
 
     func processMessage(_ message: String) -> String? {
         let trimmedMessage = message.trimmingCharacters(in: .whitespaces)

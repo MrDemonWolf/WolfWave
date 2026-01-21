@@ -36,24 +36,17 @@ struct MusicMonitorSettingsView: View {
     private var trackingEnabled = true
     
     var body: some View {
-        VStack(alignment: .leading, spacing: 24) {
-            VStack(alignment: .leading, spacing: 8) {
-                HStack(spacing: 8) {
-                    Image(systemName: "music.note")
-                        .font(.title3)
-                    Text("Music Playback Monitor")
-                        .font(.title2)
-                        .fontWeight(.semibold)
-                }
-                .accessibilityElement(children: .combine)
-                .accessibilityLabel("Music Playback Monitor")
+        VStack(spacing: 20) {
+            VStack(alignment: .leading, spacing: 6) {
+                Text("Music Playback Monitor")
+                    .font(.system(size: 17, weight: .semibold))
+                    .accessibilityLabel("Music Playback Monitor")
                 
                 Text("Monitor your Apple Music playback to display in the menu bar and share with external services like Twitch or custom WebSocket endpoints.")
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
+                    .font(.system(size: 13, weight: .regular))
+                    .foregroundColor(.secondary)
             }
-            
-            Divider()
+            .frame(maxWidth: .infinity, alignment: .leading)
             
             HStack {
                 Text("Enable Apple Music monitoring")
@@ -62,9 +55,9 @@ struct MusicMonitorSettingsView: View {
                 Toggle("", isOn: $trackingEnabled)
                     .labelsHidden()
                     .toggleStyle(.switch)
-                        .accessibilityLabel("Enable Apple Music monitoring")
-                        .accessibilityHint("Toggle to enable or disable Apple Music monitoring")
-                        .accessibilityIdentifier("musicTrackingToggle")
+                    .accessibilityLabel("Enable Apple Music monitoring")
+                    .accessibilityHint("Toggle to enable or disable Apple Music monitoring")
+                    .accessibilityIdentifier("musicTrackingToggle")
                     .onChange(of: trackingEnabled) { _, newValue in
                         notifyTrackingSettingChanged(enabled: newValue)
                     }
@@ -73,6 +66,9 @@ struct MusicMonitorSettingsView: View {
             .background(Color(nsColor: .controlBackgroundColor))
             .cornerRadius(8)
         }
+        .frame(maxWidth: .infinity)
+        .padding(.horizontal, 20)
+        .padding(.vertical, 16)
     }
     
     // MARK: - Helpers
