@@ -151,9 +151,6 @@ struct TwitchDeviceAuthDialog: View {
             if let encodedCode = deviceCode.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed),
                let url = URL(string: "https://www.twitch.tv/activate?device_code=\(encodedCode)") {
                 NSWorkspace.shared.open(url)
-            } else {
-                // Log failure if encoding/URL construction fails
-                Logger.shared.log("Failed to encode device code or construct authorization URL", level: .error, category: "TwitchDeviceAuth")
             }
             onAuthorizePressed()
         }
