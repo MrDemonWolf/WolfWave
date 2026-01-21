@@ -16,10 +16,14 @@ enum LogLevel: String {
 
 /// Structured logging utility with emoji prefixes and categories.
 ///
+/// Debug logs are only emitted in development builds (#DEBUG flag).
+/// Production builds only emit info, warning, and error logs.
+///
 /// Usage:
 /// ```swift
 /// Log.info("Message", category: "Category")
 /// Log.error("Error message", category: "Network")
+/// Log.debug("Debug info", category: "Dev")  // Only in development
 /// ```
 enum Log {
     
@@ -29,12 +33,22 @@ enum Log {
         return formatter
     }()
     
+    /// Whether debug logging is enabled (only in DEBUG builds)
+    private static var isDebugLoggingEnabled: Bool {
+        #if DEBUG
+        return true
+        #else
+        return false
+        #endif
+    }
+    
     nonisolated static func log(_ message: String, level: LogLevel = .info, category: String = "App") {
         let timestamp = formatter.string(from: Date())
         print("[\(level.rawValue)] [\(category)] [\(timestamp)] \(message)")
     }
     
     nonisolated static func debug(_ message: String, category: String = "App") {
+        guard isDebugLoggingEnabled else { return }
         log(message, level: .debug, category: category)
     }
     

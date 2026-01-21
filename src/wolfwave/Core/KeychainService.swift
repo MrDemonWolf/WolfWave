@@ -86,7 +86,6 @@ enum KeychainService {
     /// - Parameter token: The authentication token to save.
     /// - Throws: `KeychainError.saveFailed(status)` if Keychain operation fails.
     static func saveToken(_ token: String) throws {
-        Log.debug("Saving WebSocket auth token", category: "Keychain")
         let data = Data(token.utf8)
 
         deleteToken()
@@ -98,7 +97,6 @@ enum KeychainService {
             Log.error("Failed to save token - OSStatus \(status)", category: "Keychain")
             throw KeychainError.saveFailed(status)
         }
-        Log.info("WebSocket auth token saved successfully", category: "Keychain")
     }
 
     /// Loads the WebSocket authentication token from Keychain.
@@ -137,12 +135,10 @@ enum KeychainService {
     /// - Parameter token: The OAuth token obtained from Twitch OAuth flow.
     /// - Throws: `KeychainError.saveFailed(status)` if Keychain operation fails.
     static func saveTwitchToken(_ token: String) throws {
-        Log.debug("Saving Twitch OAuth token", category: "Keychain")
         let data = Data(token.utf8)
         var query = buildBaseQuery()
         query[kSecAttrAccount as String] = twitchBotAccountOauthToken
 
-        Log.debug("Removing existing Twitch OAuth token", category: "Keychain")
         SecItemDelete(query as CFDictionary)
 
         query[kSecValueData as String] = data
@@ -153,7 +149,6 @@ enum KeychainService {
             Log.error("Failed to save Twitch OAuth token - OSStatus \(status)", category: "Keychain")
             throw KeychainError.saveFailed(status)
         }
-        Log.info("Twitch OAuth token saved successfully", category: "Keychain")
     }
 
     static func loadTwitchToken() -> String? {
@@ -184,12 +179,10 @@ enum KeychainService {
     // MARK: - Twitch Username Methods
 
     static func saveTwitchUsername(_ username: String) throws {
-        Log.debug("Saving Twitch bot username: \(username)", category: "Keychain")
         let data = Data(username.utf8)
         var query = buildBaseQuery()
         query[kSecAttrAccount as String] = twitchBotAccountUsername
 
-        Log.debug("Removing existing Twitch bot username", category: "Keychain")
         SecItemDelete(query as CFDictionary)
 
         query[kSecValueData as String] = data
@@ -200,7 +193,6 @@ enum KeychainService {
             Log.error("Failed to save Twitch bot username - OSStatus \(status)", category: "Keychain")
             throw KeychainError.saveFailed(status)
         }
-        Log.info("Twitch bot username saved successfully", category: "Keychain")
     }
 
     static func loadTwitchUsername() -> String? {

@@ -77,8 +77,7 @@ extension AppDelegate {
 /// 3. Managing the Settings window lifecycle
 /// 4. Responding to system notifications (window close, tracking changes, etc.)
 /// 5. Handling dock visibility mode changes
-/// 6. Auto-joining Twitch channel on launch if credentials exist
-/// 7. Validating Twitch tokens and prompting for re-authentication if needed
+/// 6. Validating Twitch tokens and prompting for re-authentication if needed
 ///
 /// Key Properties:
 /// - statusItem: macOS menu bar item showing current track
@@ -166,10 +165,9 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSToolbarDelegate {
     /// 5. Registers all notification observers
     /// 6. Sets up initial tracking state from UserDefaults
     /// 7. Validates Twitch token on boot (shows re-auth if expired)
-    /// 8. Auto-joins saved Twitch channel if credentials exist
     ///
     /// This runs on the main thread and blocks app initialization until complete.
-    /// Heavy async work (token validation, channel join) runs in background tasks.
+    /// Heavy async work (token validation) runs in background tasks.
     func applicationDidFinishLaunching(_ notification: Notification) {
         AppDelegate.shared = self
         setupStatusItem()
@@ -181,7 +179,6 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSToolbarDelegate {
 
         Task { [weak self] in
             await self?.validateTwitchTokenOnBoot()
-            await self?.autoJoinTwitchChannel()
         }
 
         applyInitialDockVisibility()
@@ -882,9 +879,9 @@ extension AppDelegate {
     }
 }
 
-// MARK: - Twitch Token Validation & Boot Automation
+// MARK: - Twitch Token Validation
 
-/// Handles Twitch token validation on boot and auto-joining saved channels.
+/// Handles Twitch token validation on boot.
 extension AppDelegate {
     /// Sets the reauth-needed flag in UserDefaults.
     ///
@@ -963,78 +960,6 @@ extension AppDelegate {
                 )
                 DispatchQueue.main.asyncAfter(deadline: .now() + AppConstants.Timing.notificationDelay) { [weak self] in
                     self?.openSettingsToTwitch()
-                }
-            }
-        }
-    }
-
-    /// Automatically joins the saved Twitch channel on app launch.
-    ///
-    /// Prerequisites for auto-join:
-    /// 1. OAuth token must exist in Keychain
-    /// 2. Channel ID must be saved in Keychain
-    /// 3. Re-authentication is not needed (token is valid)
-    ///
-    /// Process:
-    /// 1. Validates all prerequisites
-    /// 2. Waits 2 seconds after app launch (delay specified in AppConstants.Timing)
-    /// 3. Checks that TWITCH_CLIENT_ID is configured
-    /// 4. Calls TwitchChatService.connectToChannel() on background task
-    /// 5. Suppresses the "connected" notification message on subscribe
-    /// 6. On error, shows notification and opens Settings to Twitch tab
-    ///
-    /// Silent failures (no notification):
-    /// - No saved token or channel ID
-    /// - Re-authentication needed
-    ///
-    /// Called from applicationDidFinishLaunching() in a background task.
-    fileprivate func autoJoinTwitchChannel() async {
-        guard let token = KeychainService.loadTwitchToken(), !token.isEmpty,
-            let channelID = KeychainService.loadTwitchChannelID(), !channelID.isEmpty,
-            !UserDefaults.standard.bool(forKey: AppConstants.UserDefaults.twitchReauthNeeded)
-        else {
-            return
-        }
-
-        try? await Task.sleep(nanoseconds: UInt64(AppConstants.Timing.twitchAutoJoinDelay * 1_000_000_000))
-
-        await MainActor.run {
-            guard let clientID = TwitchChatService.resolveClientID(), !clientID.isEmpty else {
-                Log.error("Missing Twitch Client ID", category: "Twitch")
-                self.showTwitchAuthNotification(
-                    title: "Twitch Configuration Error",
-                    message: "Missing Twitch Client ID. Opening Settings..."
-                )
-                DispatchQueue.main.asyncAfter(deadline: .now() + AppConstants.Timing.notificationDelay) { [weak self] in
-                    self?.openSettingsToTwitch()
-                }
-                return
-            }
-
-            Task {
-                do {
-                    self.twitchService?.shouldSendConnectionMessageOnSubscribe = false
-                    try await twitchService?.connectToChannel(
-                        channelName: channelID,
-                        token: token,
-                        clientID: clientID
-                    )
-
-                    self.twitchService?.shouldSendConnectionMessageOnSubscribe = true
-
-                    Log.info("Auto-joined Twitch channel \(channelID)", category: "Twitch")
-                } catch {
-                    Log.error(
-                        "Failed to auto-join Twitch channel: \(error.localizedDescription)",
-                        category: "Twitch"
-                    )
-                    self.showTwitchAuthNotification(
-                        title: "Twitch Connection Failed",
-                        message: "Could not connect to Twitch. Opening Settings..."
-                    )
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in
-                        self?.openSettingsToTwitch()
-                    }
                 }
             }
         }

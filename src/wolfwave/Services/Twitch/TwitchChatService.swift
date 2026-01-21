@@ -275,7 +275,6 @@ final class TwitchChatService: @unchecked Sendable {
         }
         
         monitor.start(queue: networkMonitorQueue)
-        Log.info("Twitch: Network monitoring started", category: "TwitchChat")
     }
     
     /// Stops network connectivity monitoring
@@ -283,7 +282,6 @@ final class TwitchChatService: @unchecked Sendable {
         if let monitor = networkPathMonitor {
             monitor.cancel()
             networkPathMonitor = nil
-            Log.info("Twitch: Network monitoring stopped", category: "TwitchChat")
         }
     }
     
@@ -296,7 +294,6 @@ final class TwitchChatService: @unchecked Sendable {
         
         if !wasReachable && isReachable {
             // Network became available after being unavailable
-            Log.info("Twitch: Network became available, attempting reconnection", category: "TwitchChat")
             attemptReconnect()
         } else if wasReachable && !isReachable {
             // Network became unavailable
@@ -310,7 +307,6 @@ final class TwitchChatService: @unchecked Sendable {
         guard let channelName = reconnectChannelName,
               let token = reconnectToken,
               let clientID = reconnectClientID else {
-            Log.debug("Twitch: Cannot reconnect, missing stored credentials", category: "TwitchChat")
             return
         }
         
@@ -329,22 +325,16 @@ final class TwitchChatService: @unchecked Sendable {
             
             Task {
                 do {
-                    Log.info(
-                        "Twitch: Attempting reconnect (attempt \(attempts + 1)/\(self.maxReconnectionAttempts))",
-                        category: "TwitchChat")
-                    
                     try await self.connectToChannel(channelName: channelName, token: token, clientID: clientID)
                     
                     // Reset attempts on successful connection
                     self.reconnectionLock.withLock {
                         self.reconnectionAttempts = 0
                     }
-                    Log.info("Twitch: Reconnection successful", category: "TwitchChat")
                 } catch {
                     self.reconnectionLock.withLock {
                         self.reconnectionAttempts += 1
                     }
-                    Log.warn("Twitch: Reconnection failed - \(error.localizedDescription)", category: "TwitchChat")
                     
                     // If still under max attempts and network is reachable, schedule next attempt
                     let updatedAttempts = self.reconnectionLock.withLock { self.reconnectionAttempts }
@@ -510,10 +500,6 @@ final class TwitchChatService: @unchecked Sendable {
 
         try KeychainService.saveTwitchUsername(resolvedUsername)
         try KeychainService.saveTwitchBotUserID(identity.userID)
-
-        Log.debug(
-            "Twitch: Resolved bot identity - username: \(resolvedUsername)",
-            category: "TwitchChat")
     }
 
     /// Static method to resolve bot identity without an instance.
@@ -729,15 +715,12 @@ final class TwitchChatService: @unchecked Sendable {
     /// Called automatically when the bot successfully subscribes to channel chat messages.
     /// Sends: "WolfWave Application is connected! 🎵"
     func sendConnectionMessage() {
-        Log.debug("Twitch: sendConnectionMessage called, will send in 1.5 seconds", category: "TwitchChat")
         DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) { [weak self] in
             guard let self = self else { return }
             if self.hasSentConnectionMessage { 
-                Log.debug("Twitch: Connection message already sent, skipping", category: "TwitchChat")
                 return 
             }
             self.hasSentConnectionMessage = true
-            Log.debug("Twitch: Sending connection message", category: "TwitchChat")
             self.sendMessage("WolfWave Application is connected! 🎵")
         }
     }
@@ -791,7 +774,6 @@ final class TwitchChatService: @unchecked Sendable {
 
         let trimmed = message.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else {
-            Log.debug("Twitch: Skipped sending empty message", category: "TwitchChat")
             return
         }
 
@@ -822,12 +804,12 @@ final class TwitchChatService: @unchecked Sendable {
                 {
                     let isSent = messageData["is_sent"] as? Bool ?? false
                     if isSent {
-                        Log.debug("Twitch: Message sent successfully", category: "TwitchChat")
+                        // Message sent successfully
                     } else {
                         Log.warn("Twitch: Message dropped by Twitch", category: "TwitchChat")
                     }
                 } else {
-                    Log.debug("Twitch: Message send response parsed but empty", category: "TwitchChat")
+                    // Message send response empty
                 }
             case .failure(let error):
                 Log.error(
@@ -870,13 +852,8 @@ final class TwitchChatService: @unchecked Sendable {
         guard !isDisconnecting else {
             return
         }
-        
-        if debugLoggingEnabled {
-            Log.debug("Twitch: Raw EventSub message: \(json)", category: "TwitchChat")
-        }
 
         guard let event = json["event"] as? [String: Any] else {
-            Log.debug("Twitch: EventSub message missing 'event' field", category: "TwitchChat")
             return
         }
 
@@ -888,7 +865,6 @@ final class TwitchChatService: @unchecked Sendable {
         let text = (messageText?["text"] as? String ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
 
         guard !messageID.isEmpty, !username.isEmpty, !userID.isEmpty, !text.isEmpty else {
-            Log.debug("Twitch: EventSub message missing required fields", category: "TwitchChat")
             return
         }
 
@@ -1027,7 +1003,6 @@ final class TwitchChatService: @unchecked Sendable {
 
     /// Connects to the Twitch EventSub WebSocket endpoint.
     private func connectToEventSub() {
-        Log.debug("Twitch: Connecting to EventSub WebSocket", category: "TwitchChat")
         guard let url = URL(string: "wss://eventsub.wss.twitch.tv/ws") else {
             Log.error("Twitch: Invalid EventSub URL", category: "TwitchChat")
             onConnectionStateChanged?(false)
@@ -1043,7 +1018,6 @@ final class TwitchChatService: @unchecked Sendable {
         webSocketTask = session.webSocketTask(with: url)
         webSocketTask?.resume()
 
-        Log.info("Twitch: EventSub WebSocket task resumed", category: "TwitchChat")
         receiveWebSocketMessage()
     }
 
@@ -1054,7 +1028,6 @@ final class TwitchChatService: @unchecked Sendable {
         webSocketTask?.cancel(with: .goingAway, reason: nil)
         webSocketTask = nil
         sessionID = nil
-        Log.info("Twitch: Disconnected from EventSub WebSocket", category: "TwitchChat")
     }
 
     private func receiveWebSocketMessage() {
@@ -1069,24 +1042,16 @@ final class TwitchChatService: @unchecked Sendable {
                 case .data(let data):
                     if let text = String(data: data, encoding: .utf8) {
                         self.handleWebSocketMessage(text)
-                    } else {
-                        Log.warn(
-                            "Twitch: Failed to decode WebSocket data as UTF-8",
-                            category: "TwitchChat"
-                        )
                     }
                 @unknown default:
-                    Log.warn(
-                        "Twitch: Unknown WebSocket message type received",
-                        category: "TwitchChat"
-                    )
+                    break
                 }
 
                 self.receiveWebSocketMessage()
 
             case .failure(let error):
                 Log.error(
-                    "Twitch: WebSocket error - \(error.localizedDescription)",
+                    "Twitch: WebSocket connection error: \(error.localizedDescription)",
                     category: "TwitchChat")
                 self.onConnectionStateChanged?(false)
             }
@@ -1099,10 +1064,6 @@ final class TwitchChatService: @unchecked Sendable {
             let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any]
         else {
             return
-        }
-
-        if debugLoggingEnabled {
-            Log.debug("Twitch: WebSocket message - \(text)", category: "TwitchChat")
         }
 
         guard let metadata = json["metadata"] as? [String: Any],

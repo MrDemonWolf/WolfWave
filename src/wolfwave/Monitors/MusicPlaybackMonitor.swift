@@ -72,7 +72,6 @@ class MusicPlaybackMonitor {
     func startTracking() {
         guard !isTracking else { return }
         isTracking = true
-        Log.info("Starting music playback monitoring", category: "MusicPlaybackMonitor")
         
         subscribeToMusicNotifications()
         performInitialTrackCheck()
@@ -81,20 +80,17 @@ class MusicPlaybackMonitor {
     
     func stopTracking() {
         guard isTracking else {
-            Log.debug("stopTracking called while already stopped", category: "MusicPlaybackMonitor")
             return
         }
         DistributedNotificationCenter.default().removeObserver(self)
         timer?.cancel()
         timer = nil
         isTracking = false
-        Log.info("Stopped music playback monitoring", category: "MusicPlaybackMonitor")
     }
     
     @objc private func musicPlayerInfoChanged(_ notification: Notification) {
         let now = Date()
         guard now.timeIntervalSince(lastNotificationAt) >= Constants.notificationDedupWindow else {
-            Log.debug("Skipping duplicate notification", category: "MusicPlaybackMonitor")
             return
         }
         lastNotificationAt = now
@@ -113,12 +109,10 @@ class MusicPlaybackMonitor {
         }
 
         guard let musicApp = SBApplication(bundleIdentifier: Constants.musicBundleIdentifier) else {
-            Log.error("Failed to create SBApplication for Music", category: "MusicPlaybackMonitor")
             notifyDelegate(status: "No track info")
             return
         }
         guard let stateObj = musicApp.value(forKey: "playerState") else {
-            Log.warn("Unable to read playerState via ScriptingBridge", category: "MusicPlaybackMonitor")
             notifyDelegate(status: "No track info")
             return
         }
@@ -175,7 +169,6 @@ class MusicPlaybackMonitor {
     private func processTrackInfoString(_ trackInfo: String) {
         let components = trackInfo.components(separatedBy: Constants.trackSeparator)
         guard components.count == 3 else {
-            Log.warn("Invalid track info format: \(trackInfo)", category: "MusicPlaybackMonitor")
             return
         }
         
@@ -188,10 +181,8 @@ class MusicPlaybackMonitor {
     /// Handles track info string and routes to appropriate handler based on status.
     private func handleTrackInfo(_ trackInfo: String) {
         if trackInfo.hasPrefix(Constants.Status.errorPrefix) {
-            Log.error("Script error: \(trackInfo)", category: "MusicPlaybackMonitor")
             notifyDelegate(status: "Script error")
         } else if trackInfo == Constants.Status.notRunning {
-            Log.info("Music app is not running", category: "MusicPlaybackMonitor")
             notifyDelegate(status: "Music not running")
         } else if trackInfo == Constants.Status.notPlaying {
             handleNotPlayingState()
@@ -204,18 +195,16 @@ class MusicPlaybackMonitor {
     private func handleNotPlayingState() {
         let idleDuration = Date().timeIntervalSince(lastTrackSeenAt)
         if idleDuration < Constants.idleGraceWindow {
-            Log.debug("Ignoring transient idle (\(String(format: "%.1f", idleDuration))s since last track)", category: "MusicPlaybackMonitor")
             scheduleTrackCheck(after: 0.5, reason: "idle-grace-recheck")
             return
         }
-        Log.debug("Music app is idle (not playing)", category: "MusicPlaybackMonitor")
         notifyDelegate(status: "No track playing")
     }
     
     /// Logs track information if it's different from the last logged track.
     private func logTrackIfNew(_ trackInfo: String, trackName: String, artist: String, album: String) {
         guard lastLoggedTrack != trackInfo else { return }
-        Log.info("Now Playing → \(trackName) — \(artist) [\(album)]", category: "MusicPlaybackMonitor")
+        Log.info("Now Playing → \(trackName) — \(artist) [\(album)]", category: "Music")
         lastLoggedTrack = trackInfo
     }
     
