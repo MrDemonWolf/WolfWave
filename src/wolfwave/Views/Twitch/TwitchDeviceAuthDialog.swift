@@ -147,8 +147,13 @@ struct TwitchDeviceAuthDialog: View {
         
         // Open browser after brief delay for visual feedback
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-            if let url = URL(string: "https://www.twitch.tv/activate?device_code=\(deviceCode)") {
+            // Safely encode the device code for URL
+            if let encodedCode = deviceCode.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed),
+               let url = URL(string: "https://www.twitch.tv/activate?device_code=\(encodedCode)") {
                 NSWorkspace.shared.open(url)
+            } else {
+                // Log failure if encoding/URL construction fails
+                Logger.shared.log("Failed to encode device code or construct authorization URL", level: .error, category: "TwitchDeviceAuth")
             }
             onAuthorizePressed()
         }
@@ -165,16 +170,12 @@ struct TwitchDeviceAuthDialog: View {
             showCopyFeedback = true
         }
         
-        // Auto-dismiss feedback
+        // Auto-dismiss feedback and reset button state in sync
         DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
             withAnimation(.easeInOut(duration: 0.2)) {
                 showCopyFeedback = false
+                isCodeCopied = false
             }
-        }
-        
-        // Reset button state
-        DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
-            isCodeCopied = false
         }
     }
 }

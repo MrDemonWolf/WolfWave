@@ -92,7 +92,6 @@ final class TwitchChatService: @unchecked Sendable {
 
     private var broadcasterID: String?
     private var botID: String?
-    private var hasSentConnectionMessage = false
     
     var shouldSendConnectionMessageOnSubscribe = true
     
@@ -114,6 +113,7 @@ final class TwitchChatService: @unchecked Sendable {
     static let connectionStateChanged = NSNotification.Name("TwitchChatConnectionStateChanged")
 
     nonisolated(unsafe) private var _connected = false
+    nonisolated(unsafe) private var hasSentConnectionMessage = false
     private let connectionLock = NSLock()
 
     var isConnected: Bool {
@@ -385,7 +385,7 @@ final class TwitchChatService: @unchecked Sendable {
         self.oauthToken = token
         self.clientID = clientID
         self.botUsername = nil
-        hasSentConnectionMessage = false
+        connectionLock.withLock { self.hasSentConnectionMessage = false }
 
         commandDispatcher.setCurrentSongInfo { [weak self] in
             self?.getCurrentSongInfo?() ?? "No track currently playing"
@@ -643,7 +643,9 @@ final class TwitchChatService: @unchecked Sendable {
             userInfo: ["isConnected": false]
         )
         DispatchQueue.main.async {
-            self.hasSentConnectionMessage = false
+            self.connectionLock.withLock {
+                self.hasSentConnectionMessage = false
+            }
         }
 
         Log.info("Twitch: Left channel", category: "TwitchChat")
@@ -717,10 +719,11 @@ final class TwitchChatService: @unchecked Sendable {
     func sendConnectionMessage() {
         DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) { [weak self] in
             guard let self = self else { return }
-            if self.hasSentConnectionMessage { 
-                return 
+            let hasSent = self.connectionLock.withLock { self.hasSentConnectionMessage }
+            if hasSent {
+                return
             }
-            self.hasSentConnectionMessage = true
+            self.connectionLock.withLock { self.hasSentConnectionMessage = true }
             self.sendMessage("WolfWave Application is connected! 🎵")
         }
     }

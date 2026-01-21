@@ -17,7 +17,7 @@ import AppKit
 /// - Centered on screen
 /// - Follows macOS system appearance
 /// - Transient behavior (doesn't appear in Expose)
-class TwitchDeviceAuthWindowController: NSWindowController {
+class TwitchDeviceAuthWindowController: NSWindowController, NSWindowDelegate {
     
     // MARK: - Initialization
     init(deviceCode: String, onAuthorize: @escaping () -> Void, onCancel: @escaping () -> Void) {
@@ -47,15 +47,15 @@ class TwitchDeviceAuthWindowController: NSWindowController {
         window.level = .floating
         window.collectionBehavior = [.canJoinAllSpaces, .transient]
         
+        // Set delegate for window lifecycle management
+        window.delegate = self
+        
         // Disable resize and minimize for consistent, focused dialog
         window.standardWindowButton(.miniaturizeButton)?.isHidden = true
         window.standardWindowButton(.zoomButton)?.isHidden = true
         
         // Center window on screen
         window.center()
-        
-        // Use system appearance for native feel
-        window.appearance = NSAppearance(named: .aqua)
         
         // Add subtle shadow for depth
         window.hasShadow = true
@@ -68,6 +68,13 @@ class TwitchDeviceAuthWindowController: NSWindowController {
     required init?(coder: NSCoder) {
         fatalError("init(coder:) has not been implemented")
     }
+    
+    // MARK: - NSWindowDelegate
+    
+    func windowWillClose(_ notification: Notification) {
+        // Clear the retained controller reference when window closes
+        TwitchDeviceAuthWindow.retainedTwitchController = nil
+    }
 }
 
 /// A SwiftUI wrapper for managing the dialog presentation.
@@ -77,12 +84,17 @@ struct TwitchDeviceAuthWindow {
     let onAuthorize: () -> Void
     let onCancel: () -> Void
     
+    // Retained reference to keep the window controller alive while the window is open
+    static var retainedTwitchController: TwitchDeviceAuthWindowController?
+    
     func show() {
         let windowController = TwitchDeviceAuthWindowController(
             deviceCode: deviceCode,
             onAuthorize: onAuthorize,
             onCancel: onCancel
         )
+        // Retain the controller to prevent deallocation while window is open
+        TwitchDeviceAuthWindow.retainedTwitchController = windowController
         windowController.showWindow(nil)
     }
 }

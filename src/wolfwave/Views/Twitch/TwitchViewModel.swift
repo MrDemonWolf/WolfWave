@@ -472,11 +472,17 @@ final class TwitchViewModel: ObservableObject {
 
         Task {
             do {
-                // Get the service reference and enable connection message for manual joins
-                let service = self.twitchService
-                service?.shouldSendConnectionMessageOnSubscribe = true
+                // Ensure service is available before attempting connection
+                guard let service = self.twitchService else {
+                    await MainActor.run {
+                        Log.error("Twitch service is not initialized", category: "Twitch")
+                    }
+                    return
+                }
                 
-                try await service?.connectToChannel(
+                service.shouldSendConnectionMessageOnSubscribe = true
+                
+                try await service.connectToChannel(
                     channelName: channel,
                     token: token,
                     clientID: clientID

@@ -64,11 +64,10 @@ struct WebSocketSettingsView: View {
             .padding(12)
             .background(Color.orange.opacity(0.1))
             .cornerRadius(8)
-            .onContinuousHover { phase in
-                switch phase {
-                case .active:
+            .onHover { isInside in
+                if isInside {
                     NSCursor.pointingHand.push()
-                case .ended:
+                } else {
                     NSCursor.pop()
                 }
             }
@@ -101,11 +100,10 @@ struct WebSocketSettingsView: View {
                         .accessibilityLabel("WebSocket server URL")
                         .accessibilityHint("Enter the full WebSocket server URL, for example ws://example.com")
                         .accessibilityIdentifier("websocketUrlTextField")
-                        .onContinuousHover { phase in
-                            switch phase {
-                            case .active:
+                        .onHover { isInside in
+                            if isInside {
                                 NSCursor.operationNotAllowed.push()
-                            case .ended:
+                            } else {
                                 NSCursor.pop()
                             }
                         }
@@ -146,11 +144,10 @@ struct WebSocketSettingsView: View {
                         .disabled(true)
                         .accessibilityLabel("Enable WebSocket connection")
                         .accessibilityIdentifier("websocketEnabledToggle")
-                        .onContinuousHover { phase in
-                            switch phase {
-                            case .active:
+                        .onHover { isInside in
+                            if isInside {
                                 NSCursor.operationNotAllowed.push()
-                            case .ended:
+                            } else {
                                 NSCursor.pop()
                             }
                         }
@@ -183,11 +180,10 @@ struct WebSocketSettingsView: View {
                     .accessibilityLabel("Authentication token")
                     .accessibilityHint("Paste your JWT authentication token for the WebSocket server")
                     .accessibilityIdentifier("websocketAuthTokenField")
-                    .onContinuousHover { phase in
-                        switch phase {
-                        case .active:
+                    .onHover { isInside in
+                        if isInside {
                             NSCursor.operationNotAllowed.push()
-                        case .ended:
+                        } else {
                             NSCursor.pop()
                         }
                     }

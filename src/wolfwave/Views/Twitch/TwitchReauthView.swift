@@ -107,7 +107,7 @@ struct TwitchReauthView: View {
                             .tracking(2)
                             .frame(maxWidth: .infinity, alignment: .leading)
                         
-                        Button(action: { viewModel.statusMessage = "Code copied to clipboard!" }) {
+                        Button(action: { copyDeviceCode() }) {
                             Image(systemName: "doc.on.doc")
                                 .font(.body)
                         }
@@ -199,6 +199,13 @@ struct TwitchReauthView: View {
     }
     
     // MARK: - Helper Methods
+    
+    private func copyDeviceCode() {
+        let pasteboard = NSPasteboard.general
+        pasteboard.clearContents()
+        pasteboard.setString(viewModel.authState.userCode, forType: .string)
+        viewModel.statusMessage = "Code copied to clipboard!"
+    }
     
     private func openTwitchActivation() {
         let urlString = viewModel.authState.verificationURI
