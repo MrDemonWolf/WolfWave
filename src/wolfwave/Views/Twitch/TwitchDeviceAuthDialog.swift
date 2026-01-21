@@ -106,7 +106,6 @@ struct TwitchDeviceAuthDialog: View {
                     }
                     .buttonStyle(.borderedProminent)
                     .controlSize(.small)
-                    .tint(Color(nsColor: NSColor.systemIndigo).opacity(0.9))
                     .keyboardShortcut(.defaultAction)
                     .accessibilityLabel("Authorize on Twitch")
                     .accessibilityHint("Open Twitch activation page to authorize")

@@ -51,6 +51,12 @@ struct TwitchSettingsView: View {
             if let svc = viewModel.twitchService {
                 viewModel.channelConnected = svc.isConnected
             }
+            
+            // If reauthentication is needed, disconnect from the channel
+            if viewModel.reauthNeeded && viewModel.channelConnected {
+                viewModel.leaveChannel()
+            }
+            
             if viewModel.credentialsSaved && !viewModel.channelID.isEmpty && !viewModel.channelConnected {
                 viewModel.autoJoinChannel()
             }
@@ -86,59 +92,92 @@ struct TwitchSettingsView: View {
 
     // keychain status moved into header as a subtle affordance
 
+    private var authCardHeaderTitle: String {
+        if viewModel.reauthNeeded {
+            return "Sign In Again"
+        } else if viewModel.credentialsSaved && viewModel.botUsername != "" {
+            return "All Set!"
+        } else {
+            return "Enable the Twitch Bot"
+        }
+    }
+
+    private var authCardHeaderSubtitle: String {
+        if viewModel.reauthNeeded {
+            return "Your authorization expired. Please sign in again."
+        } else if viewModel.credentialsSaved && viewModel.botUsername != "" {
+            return ""
+        } else if viewModel.authState.isInProgress {
+            return "A window will open for you to authorize. Just follow the steps."
+        } else {
+            return "Click below to connect your Twitch bot."
+        }
+    }
+
     @ViewBuilder
     private var authCard: some View {
         VStack(spacing: 14) {
             // Card header (compact, copy-friendly — no logo)
-            VStack(alignment: .leading, spacing: 2) {
-                Text("Authorize Twitch Bot")
-                    .font(.system(size: 11, weight: .medium))
-                    .foregroundColor(.secondary)
+            // Only show header when not connected
+            if case .connected = viewModel.integrationState {
+                // Header hidden when connected
+            } else {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(authCardHeaderTitle)
+                        .font(.system(size: 11, weight: .medium))
+                        .foregroundColor(.secondary)
 
-                Text("Enter this code at twitch.tv/activate to link your bot account and enable chat features.")
-                    .font(.system(size: 12, weight: .regular))
-                    .foregroundColor(.secondary)
+                    Text(authCardHeaderSubtitle)
+                        .font(.system(size: 12, weight: .regular))
+                        .foregroundColor(.secondary)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
             }
-            .frame(maxWidth: .infinity)
 
             // Main content switches by integration state
             Group {
                 switch viewModel.integrationState {
                 case .notConnected:
                     VStack(spacing: 12) {
-                        Text("Connect your bot so WolfWave can send and respond to chat commands in your channel.")
-                            .font(.system(size: 13))
-                            .foregroundColor(.secondary)
+                        if viewModel.authState.isInProgress || hasStartedActivation {
+                            Text("Connect your bot so WolfWave can send and respond to chat commands in your channel.")
+                                .font(.system(size: 13))
+                                .foregroundColor(.secondary)
+                        }
                         Button(action: {
                             hasStartedActivation = false
                             viewModel.startOAuth()
                         }) {
-                            HStack(spacing: 10) {
+                            HStack(spacing: 8) {
                                 Image("TwitchLogo")
                                     .renderingMode(.original)
                                     .resizable()
                                     .scaledToFit()
-                                    .frame(width: 16, height: 16)
-                                Text("Sign in with Twitch")
-                                    .font(.system(size: 14, weight: .semibold))
+                                    .frame(width: 14, height: 14)
+                                Text("Get Started with Twitch")
+                                    .font(.system(size: 13, weight: .semibold))
                             }
                             .frame(maxWidth: .infinity)
-                            .frame(height: 44)
+                            .frame(height: 32)
                         }
                         .buttonStyle(.borderedProminent)
-                        .tint(Color(red: 100/255, green: 65/255, blue: 165/255))
                         .controlSize(.regular)
                         .scaleEffect(viewModel.authState.isInProgress ? 0.995 : 1.0)
                         .animation(.easeInOut(duration: 0.12), value: viewModel.authState.isInProgress)
-                        .accessibilityLabel("Sign in with Twitch to authorize bot")
+                        .accessibilityLabel("Get started with Twitch authorization")
                     }
 
                 case .authorizing:
                     VStack(spacing: 12) {
+                        Text("You can also go to twitch.tv/activate with the code below.")
+                            .font(.system(size: 13))
+                            .foregroundColor(.secondary)
+                        
                         if case .waitingForAuth(let code, let uri) = viewModel.authState {
                             DeviceCodeView(userCode: code, verificationURI: uri, onCopy: {
                                 // small feedback handled in DeviceCodeView
                                 viewModel.statusMessage = "Code copied"
+                                hasStartedActivation = true
                             }, onActivate: {
                                 hasStartedActivation = true
                             })
@@ -157,6 +196,8 @@ struct TwitchSettingsView: View {
                                     .font(.system(size: 13, weight: .regular))
                                     .foregroundColor(.secondary)
 
+                                Spacer()
+
                                 Button("Cancel") {
                                     hasStartedActivation = false
                                     viewModel.cancelOAuth()
@@ -164,20 +205,18 @@ struct TwitchSettingsView: View {
                                 .buttonStyle(.bordered)
                                 .tint(.red)
                                 .controlSize(.small)
-
-                                Spacer()
                             }
                             .padding(.top, 4)
-                        } else if viewModel.authState.isInProgress {
+                        } else {
                             HStack(spacing: 12) {
+                                Spacer()
+
                                 Button("Cancel") {
                                     viewModel.cancelOAuth()
                                 }
                                 .buttonStyle(.bordered)
                                 .tint(.red)
                                 .controlSize(.small)
-
-                                Spacer()
                             }
                         }
                     }
@@ -189,7 +228,6 @@ struct TwitchSettingsView: View {
                         isChannelConnected: viewModel.channelConnected,
                         reauthNeeded: viewModel.reauthNeeded,
                         credentialsSaved: viewModel.credentialsSaved,
-                        onSaveCredentials: { viewModel.saveCredentials() },
                         onClearCredentials: { viewModel.clearCredentials() },
                         onJoinChannel: { viewModel.joinChannel() },
                         onLeaveChannel: { viewModel.leaveChannel() },
@@ -210,7 +248,8 @@ struct TwitchSettingsView: View {
                 }
             }
         }
-        .padding(12)
+        .padding(.vertical, 12)
+        .padding(.horizontal, 12)
         .background(Color(nsColor: .controlBackgroundColor))
         .cornerRadius(10)
         .animation(.easeInOut(duration: 0.18), value: viewModel.authState.isInProgress)
@@ -263,7 +302,9 @@ private struct SignedInView: View {
             Spacer()
             statusIcon(reauthNeeded: reauthNeeded)
         }
-        .padding(12)
+        .padding(.leading, 12)
+        .padding(.trailing, 12)
+        .padding(.vertical, 12)
     }
 
     private var channelSection: some View {
@@ -278,7 +319,9 @@ private struct SignedInView: View {
             Spacer()
             connectionIcon
         }
-        .padding(12)
+        .padding(.leading, 12)
+        .padding(.trailing, 12)
+        .padding(.vertical, 12)
     }
 
     @ViewBuilder
@@ -289,9 +332,19 @@ private struct SignedInView: View {
                 .font(.body)
                 .fontWeight(.semibold)
         case (false, true):
-            Text(channelID.isEmpty ? "Not set" : channelID)
+            TextField("Not set", text: .constant(channelID))
                 .font(.body)
                 .fontWeight(.semibold)
+                .disabled(true)
+                .accessibilityLabel("Twitch channel name")
+                .onContinuousHover { phase in
+                    switch phase {
+                    case .active:
+                        NSCursor.operationNotAllowed.push()
+                    case .ended:
+                        NSCursor.pop()
+                    }
+                }
         case (false, false):
             TextField("Enter channel name", text: $channelID)
                 .font(.body)
@@ -344,6 +397,16 @@ private struct SignedInView: View {
             .controlSize(.small)
             .accessibilityLabel(isChannelConnected ? "Disconnect from channel" : "Connect to channel")
             .accessibilityIdentifier("twitchConnectButton")
+            .onContinuousHover { phase in
+                switch phase {
+                case .active:
+                    if shouldDisableConnectButton {
+                        NSCursor.operationNotAllowed.push()
+                    }
+                case .ended:
+                    NSCursor.pop()
+                }
+            }
             Spacer()
 
             Button("Clear", action: onClearCredentials)
@@ -353,7 +416,10 @@ private struct SignedInView: View {
                 .accessibilityLabel("Clear saved Twitch credentials")
                 .accessibilityIdentifier("twitchClearCredentialsButton")
         }
-        .padding([.leading, .trailing, .bottom], 12)
+        .padding(.leading, 12)
+        .padding(.trailing, 12)
+        .padding(.top, 12)
+        .padding(.bottom, 12)
         .confirmationDialog("Disconnect from channel?", isPresented: $showingDisconnectConfirmation, titleVisibility: .visible) {
             Button("Disconnect", role: .destructive) {
                 onLeaveChannel()

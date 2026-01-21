@@ -45,6 +45,26 @@ struct WebSocketSettingsView: View {
     
     var body: some View {
         VStack(alignment: .leading, spacing: 24) {
+            VStack(alignment: .leading, spacing: 12) {
+                HStack(spacing: 8) {
+                    Image(systemName: "exclamationmark.circle.fill")
+                        .font(.title3)
+                        .foregroundStyle(.orange)
+                    Text("Work in Progress")
+                        .font(.title2)
+                        .fontWeight(.semibold)
+                        .foregroundStyle(.orange)
+                }
+                
+                Text("This feature is currently not supported and will be added in a future release.")
+                    .font(.body)
+                    .foregroundStyle(.secondary)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(12)
+            .background(Color.orange.opacity(0.1))
+            .cornerRadius(8)
+            
             VStack(alignment: .leading, spacing: 8) {
                 HStack(spacing: 8) {
                     Image(systemName: "dot.radiowaves.left.and.right")
@@ -69,6 +89,7 @@ struct WebSocketSettingsView: View {
                 VStack(alignment: .leading, spacing: 8) {
                     TextField("WebSocket server URL (ws:// or wss://)", text: websocketURIBinding)
                         .textFieldStyle(.roundedBorder)
+                        .disabled(true)
                         .accessibilityLabel("WebSocket server URL")
                         .accessibilityHint("Enter the full WebSocket server URL, for example ws://example.com")
                         .accessibilityIdentifier("websocketUrlTextField")
@@ -106,7 +127,7 @@ struct WebSocketSettingsView: View {
                     Toggle("", isOn: $websocketEnabled)
                         .labelsHidden()
                         .toggleStyle(.switch)
-                        .disabled(!isWebSocketURLValid)
+                        .disabled(true)
                         .accessibilityLabel("Enable WebSocket connection")
                         .accessibilityIdentifier("websocketEnabledToggle")
                 }
@@ -134,6 +155,7 @@ struct WebSocketSettingsView: View {
 
                 SecureField("Auth token (JWT)", text: $authToken)
                     .textFieldStyle(.roundedBorder)
+                    .disabled(true)
                     .accessibilityLabel("Authentication token")
                     .accessibilityHint("Paste your JWT authentication token for the WebSocket server")
                     .accessibilityIdentifier("websocketAuthTokenField")
@@ -155,7 +177,7 @@ struct WebSocketSettingsView: View {
                     Button("Save Token") {
                         saveToken()
                     }
-                    .disabled(authToken.isEmpty)
+                    .disabled(true)
                     .buttonStyle(.bordered)
                     .accessibilityLabel("Save authentication token")
                     .accessibilityIdentifier("saveWebsocketTokenButton")
@@ -163,7 +185,7 @@ struct WebSocketSettingsView: View {
                     Button("Clear Token") {
                         clearToken()
                     }
-                    .disabled(!tokenSaved && authToken.isEmpty)
+                    .disabled(true)
                     .buttonStyle(.bordered)
                     .tint(.red)
                     .accessibilityLabel("Clear authentication token")

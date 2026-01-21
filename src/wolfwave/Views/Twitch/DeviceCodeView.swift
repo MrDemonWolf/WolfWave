@@ -32,7 +32,7 @@ struct DeviceCodeView: View {
                 Text("Device Code")
                     .font(.system(size: 11, weight: .medium))
                     .foregroundColor(.secondary)
-                Text("Enter this code at twitch.tv/activate")
+                Text("Click the button below to quickly sign in with Twitch and enable chat features")
                     .font(.system(size: 12, weight: .regular))
                     .foregroundColor(.secondary)
             }
@@ -83,7 +83,7 @@ struct DeviceCodeView: View {
             // Primary action: open activation URL with subtler, smaller button
             Button(action: openActivationURL) {
                 HStack(spacing: 6) {
-                    Text("Sign in with Twitch")
+                    Text("Continue to Twitch to Authorize")
                         .font(.system(size: 12, weight: .medium))
                     Image(systemName: "arrow.up.right")
                         .font(.system(size: 10, weight: .semibold))
@@ -93,8 +93,7 @@ struct DeviceCodeView: View {
             }
             .buttonStyle(.borderedProminent)
             .controlSize(.small)
-            .tint(Color(nsColor: NSColor.systemIndigo).opacity(0.88))
-            .accessibilityLabel("Sign in with Twitch activation page")
+            .accessibilityLabel("Continue to Twitch to authorize")
             .accessibilityHint("Opens twitch.tv/activate in your browser")
             .accessibilityIdentifier("openTwitchButton")
         }

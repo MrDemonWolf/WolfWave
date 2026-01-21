@@ -33,7 +33,7 @@ class TwitchDeviceAuthWindowController: NSWindowController {
             )
         )
         
-        let frame = CGRect(x: 0, y: 0, width: , height: 420)
+        let frame = CGRect(x: 0, y: 0, width: 460, height: 420)
         let style: NSWindow.StyleMask = [.titled, .closable]
         let window = NSWindow(contentRect: frame, styleMask: style, backing: .buffered, defer: false)
         window.contentView = hostingView

@@ -83,7 +83,6 @@ struct TwitchReauthView: View {
             }
             .buttonStyle(.borderedProminent)
             .controlSize(.small)
-            .tint(Color(nsColor: NSColor.systemIndigo).opacity(0.92))
             .accessibilityLabel("Authorize on Twitch")
             .accessibilityIdentifier("reauthAuthorizeButton")
         }
@@ -129,13 +128,13 @@ struct TwitchReauthView: View {
                     // Helper text and button
                     VStack(alignment: .leading, spacing: 8) {
                         Button(action: { openTwitchActivation() }) {
-                            Text("Go to twitch.tv/activate and enter this code")
+                            Text("Click below to authorize your Twitch account")
                                 .font(.caption)
                                 .foregroundColor(.blue)
                         }
                         .buttonStyle(.plain)
-                        .help("Open Twitch authorization page")
-                        .accessibilityLabel("Open twitch.tv/activate")
+                        .help("Open Twitch authorization")
+                        .accessibilityLabel("Authorize Twitch account")
                         .accessibilityIdentifier("reauthOpenActivateLink")
                         
                         Button(action: { openTwitchActivation() }) {
@@ -153,7 +152,6 @@ struct TwitchReauthView: View {
                         }
                         .buttonStyle(.borderedProminent)
                         .controlSize(.small)
-                        .tint(Color(red: 100/255, green: 65/255, blue: 165/255))
                         .accessibilityLabel("Sign in with Twitch")
                         .accessibilityIdentifier("reauthOpenTwitchButton")
                     }
