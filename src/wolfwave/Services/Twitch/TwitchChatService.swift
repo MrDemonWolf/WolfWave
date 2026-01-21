@@ -424,36 +424,21 @@ final class TwitchChatService: @unchecked Sendable {
         // Reset the disconnect flag so messages can be processed
         disconnectLock.withLock { isProcessingDisconnect = false }
 
-        Log.debug("Twitch: Setting up command dispatcher callbacks", category: "TwitchChat")
-
         commandDispatcher.setCurrentSongInfo { [weak self] in
-            let result = self?.getCurrentSongInfo?() ?? "No track currently playing"
-            Log.debug(
-                "Twitch: SongCommand callback executed, result: \(result)", category: "BotCommands")
-            return result
+            self?.getCurrentSongInfo?() ?? "No track currently playing"
         }
 
         commandDispatcher.setLastSongInfo { [weak self] in
-            let result = self?.getLastSongInfo?() ?? "No previous track available"
-            Log.debug(
-                "Twitch: LastSongCommand callback executed, result: \(result)",
-                category: "BotCommands")
-            return result
+            self?.getLastSongInfo?() ?? "No previous track available"
         }
 
         commandDispatcher.setCurrentSongCommandEnabled { [weak self] in
-            let enabled = self?.currentSongCommandEnabled ?? true
-            Log.debug("Twitch: SongCommand enabled check: \(enabled)", category: "BotCommands")
-            return enabled
+            self?.currentSongCommandEnabled ?? true
         }
 
         commandDispatcher.setLastSongCommandEnabled { [weak self] in
-            let enabled = self?.lastSongCommandEnabled ?? true
-            Log.debug("Twitch: LastSongCommand enabled check: \(enabled)", category: "BotCommands")
-            return enabled
+            self?.lastSongCommandEnabled ?? true
         }
-
-        Log.info("Twitch: Command dispatcher callbacks configured", category: "TwitchChat")
 
         // Don't set connected state here - wait for EventSub session_welcome
         // The connection state will be updated in handleSessionWelcome() when the session is actually established
@@ -983,18 +968,10 @@ final class TwitchChatService: @unchecked Sendable {
             reply: reply
         )
 
-        Log.debug("Twitch: Received message from \(username): \(text)", category: "TwitchChat")
-        Log.debug("Twitch: commandsEnabled = \(commandsEnabled)", category: "TwitchChat")
-
         if commandsEnabled {
             if let response = commandDispatcher.processMessage(text) {
-                Log.info("Twitch: Sending bot response: \(response)", category: "BotCommands")
                 sendMessage(response, replyTo: messageID)
-            } else {
-                Log.debug("Twitch: No command matched for message: \(text)", category: "TwitchChat")
             }
-        } else {
-            Log.debug("Twitch: Commands disabled, ignoring message", category: "TwitchChat")
         }
 
         onMessageReceived?(chatMessage)
