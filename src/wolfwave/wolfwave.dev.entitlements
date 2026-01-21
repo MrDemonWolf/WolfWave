@@ -19,5 +19,9 @@
                 <string>com.apple.Music</string>
             </array>
         </dict>
+        <key>com.apple.security.keychain-access-groups</key>
+        <array>
+            <string>$(AppIdentifierPrefix)com.mrdemonwolf.wolfwave</string>
+        </array>
     </dict>
 </plist>

@@ -2,7 +2,7 @@
 //  LastSongCommand.swift
 //  wolfwave
 //
-//  Created by MrDemonWolf, Inc. on 1/13/26.
+//  Created by MrDemonWolf, Inc. on 1/17/26.
 //
 
 import Foundation
@@ -14,16 +14,15 @@ final class LastSongCommand: BotCommand {
     let triggers = ["!last", "!lastsong", "!prevsong"]
     let description = "Displays the last played track"
 
-    /// Callback to get the last song information
     var getLastSongInfo: (() -> String)?
 
     func execute(message: String) -> String? {
         let trimmedMessage = message.trimmingCharacters(in: .whitespaces).lowercased()
 
-        // Check if message starts with any of our triggers
         for trigger in triggers {
             if trimmedMessage.hasPrefix(trigger) {
-                return getLastSongInfo?()
+                let result = getLastSongInfo?() ?? "No previous track available"
+                return result.count <= 500 ? result : String(result.prefix(497)) + "..."
             }
         }
 

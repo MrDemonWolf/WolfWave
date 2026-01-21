@@ -2,15 +2,35 @@
 //  AdvancedSettingsView.swift
 //  wolfwave
 //
-//  Created by MrDemonWolf, Inc. on 1/13/26.
+//  Created by MrDemonWolf, Inc. on 1/17/26.
 //
 
 import SwiftUI
 
-/// Advanced settings interface for resetting app configuration.
+/// Advanced settings interface for dangerous operations.
+///
+/// Provides controls for:
+/// - Resetting all application settings to defaults
+/// - Clearing stored authentication tokens from Keychain
+/// - Disconnecting from Twitch
+/// - Clearing track history
+///
+/// This view emphasizes the destructive nature of the actions
+/// through visual design (red colors, warning icon) and confirmation dialogs.
+///
+/// State:
+/// - Uses @Binding for showingResetAlert (passed from parent SettingsView)
+/// - Shares context with AppDelegate via NSApplication.shared.delegate
+///
+/// Actions:
+/// - Reset button shows confirmation dialog before proceeding
+/// - Actual reset is performed by SettingsView.resetSettings()
 struct AdvancedSettingsView: View {
     // MARK: - State
     
+    /// Whether the reset confirmation alert is currently shown.
+    ///
+    /// Passed as binding from parent to control alert visibility.
     @Binding var showingResetAlert: Bool
     
     var body: some View {
@@ -41,6 +61,8 @@ struct AdvancedSettingsView: View {
                             .font(.headline)
                             .foregroundStyle(.red)
                     }
+                    .accessibilityElement(children: .combine)
+                    .accessibilityLabel("Danger Zone")
                     
                     Text("Resetting will permanently delete all your settings, clear stored credentials from Keychain, and disconnect any active services. This action cannot be undone.")
                         .font(.subheadline)
@@ -65,6 +87,9 @@ struct AdvancedSettingsView: View {
                 .buttonStyle(.borderedProminent)
                 .controlSize(.large)
                 .tint(.red)
+                .accessibilityLabel("Reset all settings to defaults")
+                .accessibilityHint("Permanently delete all settings and stored credentials")
+                .accessibilityIdentifier("resetAllSettingsButton")
             }
         }
     }

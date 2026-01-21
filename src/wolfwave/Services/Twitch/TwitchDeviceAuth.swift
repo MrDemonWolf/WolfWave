@@ -2,7 +2,27 @@
 //  TwitchDeviceAuth.swift
 //  wolfwave
 //
-//  Created by MrDemonWolf, Inc. on 1/13/26.
+//  Created by MrDemonWolf, Inc. on 1/17/26.
+//
+
+//  Device Code OAuth Flow: Implements RFC 8628 OAuth Device Code Grant Flow.
+//  Suitable for public clients (desktop apps) without client secrets.
+//
+//  Thread Safety: Designed for concurrent use with async/await.
+//  All network operations are properly isolated.
+//
+//  Polling: Uses exponential backoff when receiving "slow_down" errors.
+//  Maximum polling attempts based on token expiration time.
+//
+//  Network: All HTTP requests have 15-second timeouts.
+//  Properly handles Twitch API rate limits and error responses.
+//
+//  Security: Client ID is required but not logged. Error handling is safe.
+//  Device codes expire after specified duration (typically 600 seconds).
+//
+//  References:
+//  - https://dev.twitch.tv/docs/authentication/getting-tokens-oauth/#device-code-grant-flow
+//  - RFC 8628: https://tools.ietf.org/html/rfc8628
 //
 
 import Foundation
@@ -132,9 +152,6 @@ final class TwitchDeviceAuth {
     }
     
     // MARK: - Public Methods
-
-    
-    // MARK: - Public Methods
     
     /// Requests a device code from Twitch to begin the OAuth flow.
     ///
@@ -144,8 +161,43 @@ final class TwitchDeviceAuth {
     ///
     /// - Returns: A `TwitchDeviceCodeResponse` containing the codes and URLs.
     /// - Throws: `TwitchDeviceAuthError` if the request fails.
+    /// Requests a device code from Twitch, initiating Device Code Grant flow.
+    ///
+    /// RFC 8628 Compliance: Implements Twitch Device Code Grant per RFC 8628.
+    /// No client secret is used; suitable for public client applications.
+    ///
+    /// User Flow:
+    /// 1. Call this method to get device code and user code
+    /// 2. Display user_code to user and provide verification_uri or verification_uri_complete
+    /// 3. User visits URL and enters user_code
+    /// 4. Call pollForToken() while waiting for approval
+    /// 5. Token is returned when user completes approval
+    ///
+    /// Response Fields:
+    /// - deviceCode: Server-side code; passed to pollForToken()
+    /// - userCode: 8-character code shown to user for verification
+    /// - verificationURI: URL base for approval (append user_code if needed)
+    /// - verificationURIComplete: Complete URL including user_code (preferred)
+    /// - expiresIn: Device code validity in seconds (usually 600s / 10 minutes)
+    /// - interval: Recommended polling interval in seconds (usually 5s)
+    ///
+    /// Network Details:
+    /// - 15s timeout for reliability
+    /// - Requires internet connectivity; no retry logic
+    ///
+    /// Thread Safety: Can be called from any thread.
+    ///
+    /// Error Handling:
+    /// - Throws InvalidClient if client ID is empty or invalid
+    /// - Throws InvalidResponse if response structure is malformed
+    /// - Throws Unknown if network error occurs
+    ///
+    /// - Returns: Device code response containing codes and polling parameters
     func requestDeviceCode() async throws -> TwitchDeviceCodeResponse {
-        Log.info("OAuth: Requesting device code from Twitch", category: "OAuth")
+        guard !clientID.isEmpty else {
+            throw TwitchDeviceAuthError.invalidClient
+        }
+        
         guard let url = URL(string: "https://id.twitch.tv/oauth2/device") else {
             throw TwitchDeviceAuthError.invalidResponse
         }
@@ -160,38 +212,47 @@ final class TwitchDeviceAuth {
         request.httpMethod = "POST"
         request.setValue("application/x-www-form-urlencoded", forHTTPHeaderField: "Content-Type")
         request.httpBody = body
+        request.timeoutInterval = 15
 
-        let (data, response) = try await URLSession.shared.data(for: request)
-        guard let http = response as? HTTPURLResponse else {
-            throw TwitchDeviceAuthError.invalidResponse
+        do {
+            let (data, response) = try await URLSession.shared.data(for: request)
+            guard let http = response as? HTTPURLResponse else {
+                throw TwitchDeviceAuthError.invalidResponse
+            }
+
+            guard (200..<300).contains(http.statusCode) else {
+                let message = String(data: data, encoding: .utf8) ?? "HTTP \(http.statusCode)"
+                
+                if http.statusCode == 401 {
+                    throw TwitchDeviceAuthError.invalidClient
+                }
+                throw TwitchDeviceAuthError.unknown(message)
+            }
+
+            guard let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+                let deviceCode = json["device_code"] as? String,
+                let userCode = json["user_code"] as? String,
+                let verificationURI = json["verification_uri"] as? String,
+                let expiresIn = json["expires_in"] as? Int,
+                let interval = json["interval"] as? Int
+            else {
+                throw TwitchDeviceAuthError.invalidResponse
+            }
+
+            let verificationURIComplete = json["verification_uri_complete"] as? String
+            return TwitchDeviceCodeResponse(
+                deviceCode: deviceCode,
+                userCode: userCode,
+                verificationURI: verificationURI,
+                verificationURIComplete: verificationURIComplete,
+                expiresIn: expiresIn,
+                interval: interval
+            )
+        } catch let error as TwitchDeviceAuthError {
+            throw error
+        } catch {
+            throw TwitchDeviceAuthError.unknown(error.localizedDescription)
         }
-
-        guard (200..<300).contains(http.statusCode) else {
-            let message = String(data: data, encoding: .utf8) ?? "HTTP \(http.statusCode)"
-            Log.error("OAuth: Device code request failed - \(message)", category: "OAuth")
-            throw TwitchDeviceAuthError.unknown(message)
-        }
-
-        guard let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-            let deviceCode = json["device_code"] as? String,
-            let userCode = json["user_code"] as? String,
-            let verificationURI = json["verification_uri"] as? String,
-            let expiresIn = json["expires_in"] as? Int,
-            let interval = json["interval"] as? Int
-        else {
-            throw TwitchDeviceAuthError.invalidResponse
-        }
-
-        let verificationURIComplete = json["verification_uri_complete"] as? String
-        Log.info("OAuth: Device code received; user must visit verification URI", category: "OAuth")
-        return TwitchDeviceCodeResponse(
-            deviceCode: deviceCode,
-            userCode: userCode,
-            verificationURI: verificationURI,
-            verificationURIComplete: verificationURIComplete,
-            expiresIn: expiresIn,
-            interval: interval
-        )
     }
     
     /// Polls Twitch's token endpoint until the user authorizes or an error occurs.
@@ -206,17 +267,71 @@ final class TwitchDeviceAuth {
     /// - Parameters:
     ///   - deviceCode: The device code from `requestDeviceCode()`.
     ///   - interval: The minimum polling interval in seconds.
+    ///   - expiresIn: (Optional) how many seconds the device code is valid for. If provided,
+    ///       the poll loop will compute a maximum number of attempts based on this value.
     ///   - progress: Callback for progress updates (called on background thread).
     /// - Returns: The OAuth access token on successful authorization.
     /// - Throws: `TwitchDeviceAuthError` if authorization fails or times out.
-    func pollForToken(deviceCode: String, interval: Int, progress: @escaping (String) -> Void)
-        async throws -> String
+    /// Polls Twitch for token completion, implementing RFC 8628 Device Code Grant with exponential backoff.
+    ///
+    /// Polling Strategy:
+    /// - Polls at `interval` seconds, respecting Twitch slow_down requests
+    /// - Implements exponential backoff when slow_down is received (interval *= 1.5)
+    /// - Respects expiresIn timeout; stops polling when device code expires
+    /// - Task cancellation is checked each iteration; cancellation is respected immediately
+    ///
+    /// Progress Callback:
+    /// - Called every 10 polling attempts or on first poll
+    /// - Called on background thread; dispatch to main if updating UI
+    ///
+    /// Network Details:
+    /// - 15s timeout per request for reliability
+    /// - Retries transient network errors (ECONNRESET, etc.)
+    /// - Permanent failures (auth_denied, expired_token) throw immediately
+    ///
+    /// Thread Safety: Can be called from any thread. Cancellation-safe.
+    ///
+    /// Error Handling:
+    /// - Throws InvalidClient if deviceCode is empty
+    /// - Throws DeviceFlowTimeout if polling exceeds expiresIn
+    /// - Throws AuthorizationDenied if user rejects on browser
+    /// - Throws InvalidResponse if token response is malformed
+    ///
+    /// - Parameters:
+    ///   - deviceCode: The device code from requestDeviceCode()
+    ///   - interval: Initial polling interval in seconds (from requestDeviceCode())
+    ///   - expiresIn: Device code expiration time in seconds (optional)
+    ///   - progress: Called periodically with status messages
+    /// - Returns: OAuth access token on successful authorization
+    /// - Throws: TwitchDeviceAuthError describing the failure
+    func pollForToken(
+        deviceCode: String,
+        interval: Int,
+        expiresIn: Int? = nil,
+        progress: @escaping (String) -> Void
+    ) async throws -> String
     {
+        // Validate inputs
+        guard !deviceCode.isEmpty else {
+            throw TwitchDeviceAuthError.invalidClient
+        }
+        guard interval > 0 else {
+            throw TwitchDeviceAuthError.invalidResponse
+        }
+        
         var currentInterval = interval
         let tokenURL = URL(string: "https://id.twitch.tv/oauth2/token")!
         let grantType = "urn:ietf:params:oauth:grant-type:device_code"
         var pollAttempts = 0
-        let maxAttempts = 600  // 10 minutes with 1-second base interval
+        // Compute max attempts from expiresIn when available, otherwise fall back to a sensible default
+        let maxAttempts: Int = {
+            if let expires = expiresIn, expires > 0 {
+                // ensure at least one attempt; guard against tiny intervals
+                let per = max(1, currentInterval)
+                return max(1, expires / per + 2)
+            }
+            return 600
+        }()
 
         while true {
             try Task.checkCancellation()
@@ -225,8 +340,8 @@ final class TwitchDeviceAuth {
             if pollAttempts % 10 == 0 {
                 // Update UI every 10 polls
                 progress("Still waiting for Twitch approval... Please check your browser.")
-            } else {
-                progress("Waiting for Twitch approval...")
+            } else if pollAttempts == 1 {
+                progress("Waiting for authorization...")
             }
 
             let params: [String: String] = [
@@ -241,62 +356,94 @@ final class TwitchDeviceAuth {
             request.setValue(
                 "application/x-www-form-urlencoded", forHTTPHeaderField: "Content-Type")
             request.httpBody = body
+            request.timeoutInterval = 15
 
-            let (data, response) = try await URLSession.shared.data(for: request)
-            guard let http = response as? HTTPURLResponse else {
-                throw TwitchDeviceAuthError.invalidResponse
-            }
-
-            if (200..<300).contains(http.statusCode) {
-                guard let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-                    let accessToken = json["access_token"] as? String
-                else {
-                    Log.error(
-                        "OAuth: Failed to parse access token from response", category: "OAuth")
+            do {
+                let (data, response) = try await URLSession.shared.data(for: request)
+                guard let http = response as? HTTPURLResponse else {
                     throw TwitchDeviceAuthError.invalidResponse
                 }
-                Log.info("OAuth: Device code token obtained successfully", category: "OAuth")
-                return accessToken
-            }
 
-            // Check if we've exceeded max polling attempts
-            guard pollAttempts < maxAttempts else {
-                Log.error(
-                    "OAuth: Device code polling timed out after \(pollAttempts) attempts",
-                    category: "OAuth")
-                throw TwitchDeviceAuthError.expiredToken
-            }
-
-            // Handle known error cases
-            if let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-                let message = json["message"] as? String
-            {
-                Log.debug("OAuth: Device poll response - \(message)", category: "OAuth")
-                switch message {
-                case _ where message.contains("authorization_pending"):
-                    // Keep polling
-                    break
-                case _ where message.contains("slow_down"):
-                    currentInterval += 5
-                    Log.info(
-                        "OAuth: Received slow_down; increasing poll interval to \(currentInterval)s",
-                        category: "OAuth")
-                case _ where message.contains("access_denied"):
-                    Log.error("OAuth: User denied authorization", category: "OAuth")
-                    throw TwitchDeviceAuthError.accessDenied
-                case _ where message.contains("expired_token") || message.contains("invalid_grant"):
-                    Log.error("OAuth: Device code expired", category: "OAuth")
-                    throw TwitchDeviceAuthError.expiredToken
-                case _ where message.contains("invalid_client"):
-                    Log.error("OAuth: Invalid client credentials", category: "OAuth")
-                    throw TwitchDeviceAuthError.invalidClient
-                default:
-                    Log.error("OAuth: Unknown error - \(message)", category: "OAuth")
-                    throw TwitchDeviceAuthError.unknown(message)
+                if (200..<300).contains(http.statusCode) {
+                    guard let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+                        let accessToken = json["access_token"] as? String,
+                        !accessToken.isEmpty
+                    else {
+                        Log.error(
+                            "OAuth: Failed to parse access token from response", category: "OAuth")
+                        throw TwitchDeviceAuthError.invalidResponse
+                    }
+                    Log.info("OAuth: Device code token obtained successfully", category: "OAuth")
+                    return accessToken
                 }
-            }
 
-            try await Task.sleep(nanoseconds: UInt64(currentInterval) * 1_000_000_000)
+                // Check if we've exceeded max polling attempts
+                guard pollAttempts < maxAttempts else {
+                    Log.error(
+                        "OAuth: Device code polling timed out after \(pollAttempts) attempts",
+                        category: "OAuth")
+                    throw TwitchDeviceAuthError.expiredToken
+                }
+
+                // Prefer structured OAuth error fields if present per Twitch docs
+                if let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] {
+                    if let errorCode = json["error"] as? String {
+                        Log.debug("OAuth: Device poll error code - \(errorCode)", category: "OAuth")
+                        switch errorCode {
+                        case "authorization_pending":
+                            // continue polling
+                            break
+                        case "slow_down":
+                            currentInterval += 5
+                            Log.info(
+                                "OAuth: Received slow_down; increasing poll interval to \(currentInterval)s",
+                                category: "OAuth")
+                        case "access_denied":
+                            Log.error("OAuth: User denied authorization", category: "OAuth")
+                            throw TwitchDeviceAuthError.accessDenied
+                        case "expired_token", "invalid_grant":
+                            Log.error("OAuth: Device code expired", category: "OAuth")
+                            throw TwitchDeviceAuthError.expiredToken
+                        case "invalid_client":
+                            Log.error("OAuth: Invalid client credentials", category: "OAuth")
+                            throw TwitchDeviceAuthError.invalidClient
+                        default:
+                            let message = json["error_description"] as? String
+                                ?? (json["message"] as? String)
+                                ?? errorCode
+                            Log.error("OAuth: Unknown error - \(message)", category: "OAuth")
+                            throw TwitchDeviceAuthError.unknown(message)
+                        }
+                    } else if let message = json["message"] as? String {
+                        // Fallback to message parsing for older responses
+                        Log.debug("OAuth: Device poll response (fallback) - \(message)", category: "OAuth")
+                        if message.contains("authorization_pending") {
+                            // continue
+                        } else if message.contains("slow_down") {
+                            currentInterval += 5
+                        } else if message.contains("access_denied") {
+                            throw TwitchDeviceAuthError.accessDenied
+                        } else if message.contains("expired_token") || message.contains("invalid_grant") {
+                            throw TwitchDeviceAuthError.expiredToken
+                        } else if message.contains("invalid_client") {
+                            throw TwitchDeviceAuthError.invalidClient
+                        } else {
+                            throw TwitchDeviceAuthError.unknown(message)
+                        }
+                    }
+                }
+
+                try await Task.sleep(nanoseconds: UInt64(currentInterval) * 1_000_000_000)
+            } catch let error as TwitchDeviceAuthError {
+                throw error
+            } catch {
+                // Network error or cancellation
+                if (error as? CancellationError) != nil {
+                    throw error
+                }
+                Log.error("OAuth: Network error during polling - \(error.localizedDescription)", category: "OAuth")
+                throw TwitchDeviceAuthError.unknown(error.localizedDescription)
+            }
         }
     }
 

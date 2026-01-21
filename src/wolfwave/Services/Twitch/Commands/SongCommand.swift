@@ -2,7 +2,7 @@
 //  SongCommand.swift
 //  wolfwave
 //
-//  Created by MrDemonWolf, Inc. on 1/8/26.
+//  Created by MrDemonWolf, Inc. on 1/17/26.
 //
 
 import Foundation
@@ -14,16 +14,15 @@ final class SongCommand: BotCommand {
     let triggers = ["!song", "!currentsong", "!nowplaying"]
     let description = "Displays the currently playing track"
 
-    /// Callback to get the current song information
     var getCurrentSongInfo: (() -> String)?
 
     func execute(message: String) -> String? {
         let trimmedMessage = message.trimmingCharacters(in: .whitespaces).lowercased()
 
-        // Check if message starts with any of our triggers
         for trigger in triggers {
             if trimmedMessage.hasPrefix(trigger) {
-                return getCurrentSongInfo?()
+                let result = getCurrentSongInfo?() ?? "No track currently playing"
+                return result.count <= 500 ? result : String(result.prefix(497)) + "..."
             }
         }
 
