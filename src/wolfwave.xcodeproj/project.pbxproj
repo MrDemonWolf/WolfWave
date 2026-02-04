@@ -8,6 +8,7 @@
 
 /* Begin PBXFileReference section */
 		D40965CA2F0F906C00B292B6 /* WolfWave.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = WolfWave.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		D4CFGXCC00000000000000F1 /* Config.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; name = Config.xcconfig; path = wolfwave/Config.xcconfig; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -47,6 +48,7 @@
 			children = (
 				D40965CC2F0F906C00B292B6 /* wolfwave */,
 				D40965CB2F0F906C00B292B6 /* Products */,
+				D4CFGXCC00000000000000F1 /* Config.xcconfig */,
 			);
 			sourceTree = "<group>";
 		};
@@ -140,6 +142,7 @@
 /* Begin XCBuildConfiguration section */
 		D40965D32F0F906D00B292B6 /* Debug */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = D4CFGXCC00000000000000F1 /* Config.xcconfig */;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
 				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
@@ -204,6 +207,7 @@
 		};
 		D40965D42F0F906D00B292B6 /* Release */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = D4CFGXCC00000000000000F1 /* Config.xcconfig */;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
 				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
@@ -292,7 +296,7 @@
 				INFOPLIST_KEY_LSUIElement = YES;
 				INFOPLIST_KEY_NSAppleEventsUsageDescription = "WolfWave needs access to Apple Music to log your currently playing tracks";
 				INFOPLIST_KEY_NSAppleMusicUsageDescription = "WolfWave needs access to see what's playing in Apple Music";
-				INFOPLIST_KEY_NSHumanReadableCopyright = "© 2026 MrDemnWolf, Inc. All rights reserved.";
+				INFOPLIST_KEY_NSHumanReadableCopyright = "© 2026 MrDemonWolf, Inc. All rights reserved.";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/../Frameworks",
@@ -351,7 +355,7 @@
 				INFOPLIST_KEY_LSUIElement = NO;
 				INFOPLIST_KEY_NSAppleEventsUsageDescription = "WolfWave needs access to Apple Music to log your currently playing tracks";
 				INFOPLIST_KEY_NSAppleMusicUsageDescription = "WolfWave needs access to see what's playing in Apple Music";
-				INFOPLIST_KEY_NSHumanReadableCopyright = "© 2026 MrDemnWolf, Inc. All rights reserved.";
+				INFOPLIST_KEY_NSHumanReadableCopyright = "© 2026 MrDemonWolf, Inc. All rights reserved.";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/../Frameworks",

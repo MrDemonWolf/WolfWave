@@ -23,21 +23,31 @@ To use WolfWave on macOS, follow these simple steps:
    cd WolfWave
    ```
 
-2. Open the project:
+2. Configure your Twitch Client ID:
+
+   ```bash
+   cp src/wolfwave/Config.xcconfig.example src/wolfwave/Config.xcconfig
+   ```
+
+   Open `src/wolfwave/Config.xcconfig` and set your Twitch Client ID:
+
+   ```
+   TWITCH_CLIENT_ID = your_client_id_here
+   ```
+
+   Create a Twitch application at [dev.twitch.tv/console/apps](https://dev.twitch.tv/console/apps) to get a Client ID. This is a public identifier (not a secret) that gets baked into the app at build time via `Info.plist`.
+
+   > `Config.xcconfig` is gitignored — each contributor uses their own.
+
+3. Open the project:
 
    ```bash
    make open-xcode
    # or
-   open wolfwave.xcodeproj
+   open src/wolfwave.xcodeproj
    ```
 
-3. Resolve dependencies:
-
-   ```bash
-   make update-deps
-   ```
-
-4. Build and run from Xcode (⌘R) 🎉
+4. Build and run from Xcode (⌘R)
 
 ## Usage
 
@@ -67,18 +77,20 @@ See Releases for updates and changes:
 ### Setup
 
 1. Fork and clone the repository
-2. Open the project: `make open-xcode`
-3. Resolve dependencies: `make update-deps`
+2. Copy `src/wolfwave/Config.xcconfig.example` to `src/wolfwave/Config.xcconfig` and set your Twitch Client ID
+3. Open the project: `make open-xcode`
+4. Resolve dependencies: `make update-deps`
 
 ### Development Commands
 
-- `make build` — Build the app
+- `make build` — Debug build
 - `make clean` — Clean build artifacts
 - `make test` — Run tests (if configured)
 - `make update-deps` — Resolve SwiftPM dependencies
 - `make open-xcode` — Open the Xcode project
-- `make env-check` — Check required environment configuration
 - `make ci` — CI-friendly build
+- `make prod-build TWITCH_CLIENT_ID=your_id` — Release build with DMG in `builds/`
+- `make prod-install TWITCH_CLIENT_ID=your_id` — Release build and install to `/Applications`
 
 ### Code Quality
 

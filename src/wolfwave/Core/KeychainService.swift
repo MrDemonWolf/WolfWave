@@ -253,6 +253,8 @@ enum KeychainService {
         let status = SecItemAdd(query as CFDictionary, nil)
 
         guard status == errSecSuccess else {
+            Log.error(
+                "Failed to save Twitch bot user ID - OSStatus \(status)", category: "Keychain")
             throw KeychainError.saveFailed(status)
         }
     }
@@ -296,6 +298,8 @@ enum KeychainService {
         let status = SecItemAdd(query as CFDictionary, nil)
 
         guard status == errSecSuccess else {
+            Log.error(
+                "Failed to save Twitch channel ID - OSStatus \(status)", category: "Keychain")
             throw KeychainError.saveFailed(status)
         }
     }

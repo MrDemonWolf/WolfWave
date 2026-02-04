@@ -11,7 +11,7 @@
 //  Thread Safety: Designed for concurrent use with async/await.
 //  All network operations are properly isolated.
 //
-//  Polling: Uses exponential backoff when receiving "slow_down" errors.
+//  Polling: Uses linear backoff (+5s) when receiving "slow_down" errors.
 //  Maximum polling attempts based on token expiration time.
 //
 //  Network: All HTTP requests have 15-second timeouts.
@@ -153,14 +153,6 @@ final class TwitchDeviceAuth {
     
     // MARK: - Public Methods
     
-    /// Requests a device code from Twitch to begin the OAuth flow.
-    ///
-    /// This initiates the device authorization flow by requesting a device code
-    /// and user code from Twitch. The user must visit the verification URL and
-    /// enter the user code to authorize the application.
-    ///
-    /// - Returns: A `TwitchDeviceCodeResponse` containing the codes and URLs.
-    /// - Throws: `TwitchDeviceAuthError` if the request fails.
     /// Requests a device code from Twitch, initiating Device Code Grant flow.
     ///
     /// RFC 8628 Compliance: Implements Twitch Device Code Grant per RFC 8628.
@@ -193,6 +185,7 @@ final class TwitchDeviceAuth {
     /// - Throws Unknown if network error occurs
     ///
     /// - Returns: Device code response containing codes and polling parameters
+    /// - Throws: `TwitchDeviceAuthError` if the request fails
     func requestDeviceCode() async throws -> TwitchDeviceCodeResponse {
         guard !clientID.isEmpty else {
             throw TwitchDeviceAuthError.invalidClient
@@ -255,28 +248,11 @@ final class TwitchDeviceAuth {
         }
     }
     
-    /// Polls Twitch's token endpoint until the user authorizes or an error occurs.
-    ///
-    /// This method continuously polls Twitch's OAuth token endpoint at the specified
-    /// interval until one of the following occurs:
-    /// - User completes authorization → returns access token
-    /// - User denies authorization → throws `.accessDenied`
-    /// - Device code expires → throws `.expiredToken`
-    /// - Maximum polling attempts exceeded → throws `.expiredToken`
-    ///
-    /// - Parameters:
-    ///   - deviceCode: The device code from `requestDeviceCode()`.
-    ///   - interval: The minimum polling interval in seconds.
-    ///   - expiresIn: (Optional) how many seconds the device code is valid for. If provided,
-    ///       the poll loop will compute a maximum number of attempts based on this value.
-    ///   - progress: Callback for progress updates (called on background thread).
-    /// - Returns: The OAuth access token on successful authorization.
-    /// - Throws: `TwitchDeviceAuthError` if authorization fails or times out.
-    /// Polls Twitch for token completion, implementing RFC 8628 Device Code Grant with exponential backoff.
+    /// Polls Twitch for token completion, implementing RFC 8628 Device Code Grant with linear backoff.
     ///
     /// Polling Strategy:
     /// - Polls at `interval` seconds, respecting Twitch slow_down requests
-    /// - Implements exponential backoff when slow_down is received (interval *= 1.5)
+    /// - Increases interval by 5 seconds when slow_down is received (per Twitch spec)
     /// - Respects expiresIn timeout; stops polling when device code expires
     /// - Task cancellation is checked each iteration; cancellation is respected immediately
     ///
@@ -320,7 +296,9 @@ final class TwitchDeviceAuth {
         }
         
         var currentInterval = interval
-        let tokenURL = URL(string: "https://id.twitch.tv/oauth2/token")!
+        guard let tokenURL = URL(string: "https://id.twitch.tv/oauth2/token") else {
+            throw TwitchDeviceAuthError.invalidResponse
+        }
         let grantType = "urn:ietf:params:oauth:grant-type:device_code"
         var pollAttempts = 0
         // Compute max attempts from expiresIn when available, otherwise fall back to a sensible default

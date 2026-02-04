@@ -32,7 +32,7 @@ struct MusicMonitorSettingsView: View {
     /// 1. Starts or stops MusicPlaybackMonitor
     /// 2. Posts trackingSettingChanged notification
     /// 3. Updates menu bar display ("Tracking disabled" or current song)
-    @AppStorage("trackingEnabled")
+    @AppStorage(AppConstants.UserDefaults.trackingEnabled)
     private var trackingEnabled = true
     
     var body: some View {

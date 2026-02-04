@@ -38,9 +38,9 @@ ci: build
 
 
 prod-build:
-	@TWITCH_CLIENT_ID="$(TWITCH_CLIENT_ID)" xcodebuild -project $(PROJECT) -scheme $(SCHEME) -configuration Release -derivedDataPath build build -quiet
-	@BUILD_DIR=$$(TWITCH_CLIENT_ID="$(TWITCH_CLIENT_ID)" xcodebuild -project $(PROJECT) -scheme $(SCHEME) -configuration Release -derivedDataPath build -showBuildSettings | awk -F'= ' '/CONFIGURATION_BUILD_DIR/ {print $$2; exit}'); \
-	WRAPPER=$$(TWITCH_CLIENT_ID="$(TWITCH_CLIENT_ID)" xcodebuild -project $(PROJECT) -scheme $(SCHEME) -configuration Release -derivedDataPath build -showBuildSettings | awk -F'= ' '/WRAPPER_NAME/ {print $$2; exit}'); \
+	@xcodebuild -project $(PROJECT) -scheme $(SCHEME) -configuration Release -derivedDataPath build build -quiet TWITCH_CLIENT_ID="$(TWITCH_CLIENT_ID)"
+	@BUILD_DIR=$$(xcodebuild -project $(PROJECT) -scheme $(SCHEME) -configuration Release -derivedDataPath build -showBuildSettings TWITCH_CLIENT_ID="$(TWITCH_CLIENT_ID)" | awk -F'= ' '/CONFIGURATION_BUILD_DIR/ {print $$2; exit}'); \
+	WRAPPER=$$(xcodebuild -project $(PROJECT) -scheme $(SCHEME) -configuration Release -derivedDataPath build -showBuildSettings TWITCH_CLIENT_ID="$(TWITCH_CLIENT_ID)" | awk -F'= ' '/WRAPPER_NAME/ {print $$2; exit}'); \
 	APP_PATH=$$BUILD_DIR/$$WRAPPER; \
 	if [ -z "$$BUILD_DIR" ] || [ -z "$$WRAPPER" ] || [ ! -d "$$APP_PATH" ]; then echo "❌ Release build finished but .app not found at: $$APP_PATH"; exit 1; fi; \
 	echo "✅ Release build complete. App located at: $$APP_PATH"
@@ -48,7 +48,7 @@ prod-build:
 	@echo "📦 Creating fancy DMG in builds/ ..."
 	@rm -rf builds/staging || true
 	@mkdir -p builds/staging
-	@APP_PATH=$$(TWITCH_CLIENT_ID="$(TWITCH_CLIENT_ID)" xcodebuild -project $(PROJECT) -scheme $(SCHEME) -configuration Release -derivedDataPath build -showBuildSettings | awk -F'= ' '/CONFIGURATION_BUILD_DIR/ {dir=$$2} /WRAPPER_NAME/ {name=$$2} END {print dir "/" name}'); \
+	@APP_PATH=$$(xcodebuild -project $(PROJECT) -scheme $(SCHEME) -configuration Release -derivedDataPath build -showBuildSettings TWITCH_CLIENT_ID="$(TWITCH_CLIENT_ID)" | awk -F'= ' '/CONFIGURATION_BUILD_DIR/ {dir=$$2} /WRAPPER_NAME/ {name=$$2} END {print dir "/" name}'); \
 	if [ -z "$$APP_PATH" ] || [ ! -d "$$APP_PATH" ]; then echo "❌ .app not found at: $$APP_PATH; aborting"; exit 1; fi; \
 	cp -R "$$APP_PATH" builds/staging/
 	@# create an Applications link in staging (will be recreated inside mounted image for correct Finder metadata)

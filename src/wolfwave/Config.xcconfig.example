@@ -1,0 +1,15 @@
+// WolfWave build configuration (example)
+// Copy this file to Config.xcconfig and customize values.
+// Do NOT commit Config.xcconfig to source control.
+
+// Twitch
+// Your default Twitch Client ID for builds. This will be expanded into Info.plist
+// via <key>TWITCH_CLIENT_ID</key><string>$(TWITCH_CLIENT_ID)</string>
+TWITCH_CLIENT_ID = your_default_client_id_here
+
+// You can add per-environment overrides by creating separate xcconfigs
+// and assigning them to specific build configurations or schemes.
+// For example:
+//   Config.Debug.xcconfig    -> used by Debug configuration
+//   Config.Release.xcconfig  -> used by Release configuration
+// Each can redefine TWITCH_CLIENT_ID as needed.

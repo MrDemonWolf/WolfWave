@@ -209,9 +209,7 @@ class MusicPlaybackMonitor {
     }
     
     // MARK: - Setup & Scheduling
-    
-    // MARK: - Setup & Scheduling
-    
+
     /// Subscribes to distributed notifications from Music.app.
     private func subscribeToMusicNotifications() {
         DistributedNotificationCenter.default().addObserver(

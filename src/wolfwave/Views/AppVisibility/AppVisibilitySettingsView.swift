@@ -11,8 +11,8 @@ import SwiftUI
 struct AppVisibilitySettingsView: View {
     // MARK: - User Settings
     
-    @AppStorage("dockVisibility")
-    private var dockVisibility = "both"
+    @AppStorage(AppConstants.UserDefaults.dockVisibility)
+    private var dockVisibility = AppConstants.DockVisibility.default
     
     var body: some View {
         VStack(spacing: 20) {

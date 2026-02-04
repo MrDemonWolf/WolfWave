@@ -99,6 +99,7 @@ playground.xcworkspace
 ############################################################
 .env
 .env.*
- 
+src/wolfwave/Config.xcconfig
+
 # Local DMG/output folder created by Makefile prod build
 builds/

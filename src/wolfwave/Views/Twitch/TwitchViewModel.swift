@@ -246,6 +246,18 @@ final class TwitchViewModel: ObservableObject {
         reauthNeeded = UserDefaults.standard.bool(
             forKey: AppConstants.UserDefaults.twitchReauthNeeded)
 
+        // Remove any existing observers before registering to prevent duplicates
+        NotificationCenter.default.removeObserver(
+            self,
+            name: NSNotification.Name(AppConstants.Notifications.twitchReauthNeededChanged),
+            object: nil
+        )
+        NotificationCenter.default.removeObserver(
+            self,
+            name: TwitchChatService.connectionStateChanged,
+            object: nil
+        )
+
         // Listen for reauth status changes
         NotificationCenter.default.addObserver(
             self,
@@ -317,6 +329,9 @@ final class TwitchViewModel: ObservableObject {
     }
 
     deinit {
+        devicePollingTask?.cancel()
+        oAuthTask?.cancel()
+        channelIDSaveTask?.cancel()
         NotificationCenter.default.removeObserver(self)
     }
 
@@ -372,7 +387,7 @@ final class TwitchViewModel: ObservableObject {
         }
 
         guard let clientID = TwitchChatService.resolveClientID(), !clientID.isEmpty else {
-            statusMessage = "⚠️ Missing Twitch Client ID. Set TWITCH_CLIENT_ID in the scheme."
+            statusMessage = "⚠️ Missing Twitch Client ID. Set TWITCH_CLIENT_ID in Config.xcconfig."
             authState = .error("Missing Client ID")
             return
         }
