@@ -50,13 +50,6 @@
             ReferencedContainer = "container:wolfwave.xcodeproj">
          </BuildableReference>
       </BuildableProductRunnable>
-      <EnvironmentVariables>
-         <EnvironmentVariable
-            key = "TWITCH_CLIENT_ID"
-            value = "a2tjxxrtjfr9sqhgpzbxx11cnxo7rt"
-            isEnabled = "YES">
-         </EnvironmentVariable>
-      </EnvironmentVariables>
    </LaunchAction>
    <ProfileAction
       buildConfiguration = "Release"

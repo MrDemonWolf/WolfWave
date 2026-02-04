@@ -356,7 +356,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSToolbarDelegate {
     /// Reads the stored visibility mode from UserDefaults and applies it.
     /// Defaults to "both" (show in dock and menu bar) if not set.
     private func applyInitialDockVisibility() {
-        let mode = UserDefaults.standard.string(forKey: "dockVisibility") ?? "both"
+        let mode = UserDefaults.standard.string(forKey: AppConstants.UserDefaults.dockVisibility) ?? AppConstants.DockVisibility.default
         applyDockVisibility(mode)
     }
 
@@ -633,6 +633,14 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSToolbarDelegate {
     private func setupTwitchService() {
         Log.info("AppDelegate: Setting up Twitch service", category: "Twitch")
         twitchService = TwitchChatService()
+
+        // Resolve Twitch Client ID and log helpful messages
+        if TwitchChatService.resolveClientID() != nil {
+            Log.debug("AppDelegate: Resolved Twitch Client ID from Info.plist", category: "Twitch")
+        } else {
+            Log.error("AppDelegate: No Twitch Client ID found. Copy Config.xcconfig.example to Config.xcconfig and set your Client ID.", category: "Twitch")
+        }
+
         Log.info("AppDelegate: TwitchChatService created successfully", category: "Twitch")
         
         twitchService?.getCurrentSongInfo = { [weak self] in
@@ -1023,3 +1031,5 @@ extension AppDelegate: MusicPlaybackMonitorDelegate {
         updateNowPlaying(status)
     }
 }
+
+

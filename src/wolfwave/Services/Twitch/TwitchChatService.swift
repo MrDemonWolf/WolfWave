@@ -578,22 +578,25 @@ final class TwitchChatService: @unchecked Sendable {
             category: "TwitchChat")
     }
 
-    /// Resolves the Twitch Client ID from environment or Info.plist.
+    /// Resolves the Twitch Client ID from Info.plist (set via Config.xcconfig at build time).
     ///
     /// Checks in order:
-    /// 1. `TWITCH_CLIENT_ID` environment variable
-    /// 2. `TwitchClientID` key in Info.plist
+    /// 1. `TWITCH_CLIENT_ID` key in Info.plist (expanded from Config.xcconfig at build time)
+    /// 2. `TWITCH_CLIENT_ID` environment variable (for dev/CI overrides)
     ///
     /// - Returns: The client ID if found, otherwise nil
     static func resolveClientID() -> String? {
-        if let env = ProcessInfo.processInfo.environment["TWITCH_CLIENT_ID"], !env.isEmpty {
-            return env
-        }
-
-        if let plistValue = Bundle.main.object(forInfoDictionaryKey: "TwitchClientID") as? String,
-            !plistValue.isEmpty
+        // Primary: Info.plist value (expanded from Config.xcconfig at build time)
+        if let plistValue = Bundle.main.object(forInfoDictionaryKey: "TWITCH_CLIENT_ID") as? String,
+            !plistValue.isEmpty,
+            !plistValue.hasPrefix("$(") // Skip if xcconfig variable wasn't expanded
         {
             return plistValue
+        }
+
+        // Fallback: environment variable (for dev/CI overrides without rebuilding)
+        if let env = ProcessInfo.processInfo.environment["TWITCH_CLIENT_ID"], !env.isEmpty {
+            return env
         }
 
         return nil
@@ -670,22 +673,13 @@ final class TwitchChatService: @unchecked Sendable {
         setReconnectionCredentials(channelName: nil, token: nil, clientID: nil)
         reconnectionLock.withLock { reconnectionAttempts = 0 }
 
-        // Clear reconnection credentials (protected by reconnectionLock)
-        setReconnectionCredentials(channelName: nil, token: nil, clientID: nil)
-        reconnectionLock.withLock { reconnectionAttempts = 0 }
-
         broadcasterID = nil
         botID = nil
         oauthToken = nil
         clientID = nil
-        
+
         // Clear callbacks so no messages are processed
         onMessageReceived = nil
-        onConnectionStateChanged = nil
-
-        // Note: We do NOT clear onMessageReceived, getCurrentSongInfo, or getLastSongInfo
-        // These callbacks are set by the AppDelegate and should persist across reconnections
-        // Only clear the connection state callback
         onConnectionStateChanged = nil
 
         // Update internal state and notify listeners that we've left
