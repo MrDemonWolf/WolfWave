@@ -1,0 +1,78 @@
+---
+title: Security
+description: Security practices in WolfWave
+---
+
+WolfWave is designed with security as a priority. All sensitive data is handled securely using macOS system APIs.
+
+## Credential Storage
+
+All sensitive credentials are stored in the macOS Keychain:
+
+- **WebSocket tokens** - JWT tokens for WebSocket authentication
+- **Twitch OAuth tokens** - Access tokens for Twitch API
+- **Twitch bot usernames** - Associated account information
+
+<Callout type="warn">
+  Tokens are **never** written to UserDefaults or stored on disk in plain text.
+</Callout>
+
+## Keychain Integration
+
+The `KeychainService` provides a secure interface for credential management:
+
+```swift
+// Store a credential
+KeychainService.shared.store(token: "your-token", for: .twitchOAuth)
+
+// Retrieve a credential
+let token = KeychainService.shared.retrieve(for: .twitchOAuth)
+
+// Delete a credential
+KeychainService.shared.delete(for: .twitchOAuth)
+```
+
+## Twitch Authentication
+
+WolfWave uses the **OAuth Device Code Flow** for Twitch authentication:
+
+1. The app requests a device code from Twitch
+2. User is directed to authorize on Twitch's website
+3. The app polls for completion and receives tokens
+4. Tokens are securely stored in Keychain
+
+This flow:
+
+- Never requires the user to enter credentials in the app
+- Uses Twitch's secure authorization pages
+- Provides standard OAuth2 token security
+
+## Token Validation
+
+On app launch, stored tokens are validated:
+
+- Invalid or expired tokens trigger re-authentication
+- Token refresh is handled automatically when possible
+- Users are prompted to re-authorize if needed
+
+## Build Configuration
+
+The Twitch Client ID is stored in `Config.xcconfig`:
+
+- This file is gitignored to prevent accidental commits
+- Each developer uses their own Client ID
+- The value is baked into `Info.plist` at build time
+
+<Callout type="info">
+  The Client ID is a public identifier, not a secret. It identifies your
+  application to Twitch.
+</Callout>
+
+## Best Practices
+
+When contributing to WolfWave:
+
+1. **Never log sensitive data** - Avoid logging tokens or credentials
+2. **Use KeychainService** - Always use the Keychain for credential storage
+3. **Validate inputs** - Sanitize user inputs before processing
+4. **Handle errors gracefully** - Don't expose internal errors to users
