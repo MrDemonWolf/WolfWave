@@ -1,0 +1,91 @@
+---
+title: Bot Commands
+description: How the bot command system works and how to add new commands
+---
+
+WolfWave includes an extensible bot command system for Twitch chat integration.
+
+## Built-in Commands
+
+| Command        | Description                      |
+| -------------- | -------------------------------- |
+| `!song`        | Shows the currently playing song |
+| `!currentsong` | Shows the currently playing song |
+| `!nowplaying`  | Shows the currently playing song |
+| `!lastsong`    | Shows the last played song       |
+
+## Architecture
+
+Commands live under `Services/Twitch/Commands` with a clean, extensible design:
+
+- **`BotCommand` protocol** defines `triggers`, `description`, and `execute(message:)`
+- **`SongCommand`** handles `!song`, `!currentsong`, and `!nowplaying` and calls the injected `getCurrentSongInfo` closure
+- **`LastSongCommand`** handles `!lastsong` and shows the previously played track
+- **`BotCommandDispatcher`** wires commands together and is used inside `TwitchChatService`
+
+### Code Organization
+
+- Each command file is fully documented with usage examples
+- Clear separation between command logic and service integration
+- Type-safe message processing with optional return values
+
+## Adding a New Command
+
+Here's an example of creating a custom command:
+
+```swift
+/// Command that greets users in chat.
+///
+/// Triggers: !hello, !hi
+final class HelloCommand: BotCommand {
+    let triggers = ["!hello", "!hi"]
+    let description = "Greets the chatter"
+
+    func execute(message: String) -> String? {
+        let trimmed = message.trimmingCharacters(in: .whitespaces).lowercased()
+
+        for trigger in triggers {
+            if trimmed.hasPrefix(trigger) {
+                return "Hello, chat! 👋"
+            }
+        }
+
+        return nil
+    }
+}
+```
+
+### Register the Command
+
+Add your command in `BotCommandDispatcher.registerDefaultCommands()`:
+
+```swift
+private func registerDefaultCommands() {
+    register(SongCommand())
+    register(LastSongCommand())
+    register(HelloCommand())  // Add your new command
+}
+```
+
+### Add a Settings Toggle (Optional)
+
+If you want users to be able to enable/disable your command, add a toggle in the appropriate settings view.
+
+## Command Protocol
+
+The `BotCommand` protocol defines the interface for all commands:
+
+```swift
+protocol BotCommand {
+    /// The trigger phrases that activate this command (e.g., ["!song", "!currentsong"])
+    var triggers: [String] { get }
+
+    /// Human-readable description of what the command does
+    var description: String { get }
+
+    /// Execute the command and return an optional response
+    /// - Parameter message: The full chat message
+    /// - Returns: Response to send to chat, or nil if no response
+    func execute(message: String) -> String?
+}
+```

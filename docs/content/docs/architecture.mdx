@@ -1,0 +1,104 @@
+---
+title: Architecture
+description: WolfWave project structure and architecture overview
+---
+
+WolfWave follows a clean architecture with clear separation of concerns.
+
+## Project Structure
+
+```
+wolfwave/
+├── Core/                    # Core utilities and services
+│   ├── AppConstants.swift       # Application constants
+│   ├── KeychainService.swift    # Secure credential storage (Keychain API)
+│   └── Logger.swift             # Centralized logging with categories
+├── Monitors/                # Music playback monitoring
+│   └── MusicPlaybackMonitor.swift  # ScriptingBridge-based Apple Music integration
+├── Services/                # External service integrations
+│   └── Twitch/
+│       ├── TwitchChatService.swift     # EventSub WebSocket + Helix API
+│       ├── TwitchDeviceAuth.swift      # OAuth Device Code flow
+│       └── Commands/                   # Bot command system
+│           ├── BotCommand.swift        # Command protocol
+│           ├── BotCommandDispatcher.swift  # Command routing
+│           ├── SongCommand.swift       # !song command implementation
+│           └── LastSongCommand.swift   # !lastsong command implementation
+├── Views/                   # SwiftUI views
+│   ├── SettingsView.swift       # Main settings interface
+│   ├── Advanced/                # Advanced settings
+│   ├── AppVisibility/           # App visibility settings
+│   ├── MusicMonitor/            # Music monitor settings
+│   ├── Twitch/                  # Twitch-related views
+│   │   ├── TwitchSettingsView.swift   # Twitch bot configuration UI
+│   │   ├── TwitchViewModel.swift      # Twitch state management
+│   │   ├── DeviceCodeView.swift       # Device auth UI
+│   │   └── ...
+│   └── WebSocket/               # WebSocket settings
+└── Resources/              # Assets and resources
+    └── Assets.xcassets/
+```
+
+## Architecture Highlights
+
+### MARK Sections
+
+Every file uses clear section markers for easy navigation:
+
+```swift
+// MARK: - Properties
+// MARK: - Initialization
+// MARK: - Public Methods
+// MARK: - Private Helpers
+```
+
+### Documentation
+
+Comprehensive DocC-style comments with parameter/return documentation throughout the codebase.
+
+### Delegation Pattern
+
+`MusicPlaybackMonitorDelegate` is used for track update notifications, following Apple's delegation pattern.
+
+### MVVM Architecture
+
+ViewModels separate UI logic from business logic:
+
+- `TwitchViewModel` manages Twitch connection state
+- Views observe ViewModel changes via `@StateObject` / `@ObservedObject`
+
+### Modern Concurrency
+
+Swift's async/await is used throughout for asynchronous operations:
+
+```swift
+func fetchData() async throws -> Data {
+    // Modern async implementation
+}
+```
+
+## Key Components
+
+### KeychainService
+
+Secure storage for sensitive credentials using the macOS Keychain API. All tokens and secrets are stored securely, never in UserDefaults or plain text.
+
+### MusicPlaybackMonitor
+
+Uses ScriptingBridge for direct Apple Music communication without spawning subprocesses. Provides real-time track updates via delegation.
+
+### TwitchChatService
+
+Full Twitch integration using:
+
+- **Helix API** for sending messages and API requests
+- **EventSub WebSocket** for real-time chat message notifications
+- **OAuth Device Code Flow** for secure authentication
+
+### BotCommandDispatcher
+
+Extensible command routing system that:
+
+- Registers available commands
+- Matches incoming messages to triggers
+- Executes commands and returns responses

@@ -1,0 +1,58 @@
+---
+title: Usage Guide
+description: How to use WolfWave
+---
+
+WolfWave is user-friendly and runs from your macOS menu bar. Here's a guide to the features:
+
+## Menu Bar
+
+The WolfWave icon appears in your macOS menu bar and shows your current track information.
+
+## Features
+
+### Apple Music Tracking
+
+Toggle Apple Music tracking on/off from the menu. When enabled, WolfWave monitors your currently playing track in real-time using ScriptingBridge.
+
+### WebSocket Streaming
+
+Configure WebSocket streaming to broadcast now-playing data to your overlays or other tools:
+
+- Set your WebSocket endpoint (ws:// or wss://)
+- Optionally configure JWT authentication
+- Data updates automatically when the track changes
+
+### Twitch Bot Integration
+
+Connect your Twitch bot via secure device code authentication:
+
+1. Open the Twitch settings
+2. Click "Connect" to start the device auth flow
+3. Follow the on-screen instructions to authorize
+4. Your bot will automatically connect to your channel
+
+## Chat Commands
+
+Once connected, your viewers can use these commands in chat:
+
+| Command        | Description                      |
+| -------------- | -------------------------------- |
+| `!song`        | Shows the currently playing song |
+| `!currentsong` | Shows the currently playing song |
+| `!nowplaying`  | Shows the currently playing song |
+
+<Callout type="info">
+  Commands can be toggled on/off in Settings under "Bot Commands" → "Current
+  Song".
+</Callout>
+
+## Settings
+
+Access settings from the menu bar icon to configure:
+
+- **Music Monitor**: Enable/disable Apple Music tracking
+- **WebSocket**: Configure your WebSocket endpoint and authentication
+- **Twitch**: Connect your Twitch account and configure the bot
+- **App Visibility**: Control app appearance settings
+- **Advanced**: Additional configuration options

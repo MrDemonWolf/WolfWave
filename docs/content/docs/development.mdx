@@ -1,0 +1,73 @@
+---
+title: Development
+description: Guide for developing and contributing to WolfWave
+---
+
+This guide covers everything you need to contribute to WolfWave.
+
+## Prerequisites
+
+- macOS 12.0+
+- Xcode 15.0+
+- Swift 5.9+
+- Command Line Tools: `xcode-select --install`
+
+## Setup
+
+1. Fork and clone the repository
+2. Copy `src/wolfwave/Config.xcconfig.example` to `src/wolfwave/Config.xcconfig` and set your Twitch Client ID
+3. Open the project: `make open-xcode`
+4. Resolve dependencies: `make update-deps`
+
+## Development Commands
+
+| Command                                      | Description                                  |
+| -------------------------------------------- | -------------------------------------------- |
+| `make build`                                 | Debug build                                  |
+| `make clean`                                 | Clean build artifacts                        |
+| `make test`                                  | Run tests (if configured)                    |
+| `make update-deps`                           | Resolve SwiftPM dependencies                 |
+| `make open-xcode`                            | Open the Xcode project                       |
+| `make ci`                                    | CI-friendly build                            |
+| `make prod-build TWITCH_CLIENT_ID=your_id`   | Release build with DMG in `builds/`          |
+| `make prod-install TWITCH_CLIENT_ID=your_id` | Release build and install to `/Applications` |
+
+## Code Quality
+
+This project follows Swift best practices with professional-grade documentation:
+
+- **Swift 5.9+** with modern concurrency (async/await)
+- **SwiftUI** for user interfaces
+- **Comprehensive Documentation**: DocC-style comments throughout with usage examples
+- **MARK Sections**: All files organized with clear section markers for easy navigation
+- **Separation of Concerns**: Clean architecture across Core/Services/Views/Monitors
+- **Secure Credential Storage**: macOS Keychain for all sensitive data
+- **ScriptingBridge Integration**: Direct Apple Music communication without spawning subprocesses
+- **Robust Error Handling**: Typed errors with localized descriptions
+- **Type Safety**: Strongly typed models for all data structures
+
+## Twitch Chat Service
+
+The bot is implemented with `TwitchChatService` using Twitch Helix + EventSub (no IRC).
+
+### Features
+
+- **EventSub WebSocket**: Real-time chat message notifications
+- **OAuth Device Code Flow**: Secure authentication via `TwitchDeviceAuth`
+- **Token Validation**: Automatic token validation on app launch
+- **Command System**: Extensible bot command architecture
+
+### Usage
+
+- Connect with saved credentials: `joinChannel(broadcasterID:botID:token:clientID:)` or `connectToChannel(channelName:token:clientID:)`
+- Send chat messages via Helix: `sendMessage(_:)` or `sendMessage(_:replyTo:)`
+- Supply current track info for commands: set `getCurrentSongInfo` on the service
+- Commands can be toggled in Settings ("Bot Commands" → "Current Song")
+- The service respects `commandsEnabled` so you can disable all commands from Settings
+
+### Documentation
+
+- Comprehensive MARK sections organize the 700+ line service file
+- DocC-style comments document all public methods
+- Typed errors with localized descriptions (`ConnectionError`)
+- Models for chat messages, badges, and replies
