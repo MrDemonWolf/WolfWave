@@ -11,7 +11,7 @@ export function baseOptions(): BaseLayoutProps {
     links: [
       { text: "Docs", url: "/docs" },
       { text: "Features", url: "/docs/features" },
-      { text: "Twitch", url: "/docs/twitch" },
+      { text: "GitHub", url: "https://github.com/MrDemonWolf/WolfWave" },
       { text: "Support", url: "https://mdwolf.net/discord" },
     ],
     themeSwitch: {
