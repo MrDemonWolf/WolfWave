@@ -1,0 +1,103 @@
+---
+title: Features
+description: Complete feature list for WolfWave
+---
+
+WolfWave is packed with features to connect your Apple Music with your streaming audience.
+
+## Music Integration
+
+### Real-time Now Playing
+
+- **ScriptingBridge Integration**: Direct communication with Apple Music without spawning subprocesses
+- **Instant Updates**: Track changes are detected and broadcast immediately
+- **Complete Track Info**: Artist, song title, album, and artwork
+- **Last Played Tracking**: Keep history of your recently played songs
+
+### Music Monitor Controls
+
+- Toggle tracking on/off from the menu bar
+- Lightweight background monitoring
+- No impact on Apple Music performance
+
+## Twitch Integration
+
+### Modern API Implementation
+
+- **EventSub WebSocket**: Real-time chat message notifications using Twitch's modern API
+- **Helix API**: Full integration with Twitch's current API (no deprecated IRC)
+- **OAuth Device Code Flow**: Secure authentication without entering credentials in the app
+
+### Chat Commands
+
+Built-in commands for your viewers:
+
+| Command        | Description                      |
+| -------------- | -------------------------------- |
+| `!song`        | Shows the currently playing song |
+| `!currentsong` | Shows the currently playing song |
+| `!nowplaying`  | Shows the currently playing song |
+| `!lastsong`    | Shows the last played song       |
+
+### Bot Features
+
+- **Command Toggles**: Enable/disable individual commands from settings
+- **Extensible System**: Easy to add custom commands
+- **Reply Support**: Commands can reply to specific messages
+- **Automatic Reconnection**: Handles connection drops gracefully
+
+## WebSocket Streaming
+
+### Overlay Integration
+
+- **Real-time Data**: Broadcast now-playing data to your stream overlays
+- **Protocol Support**: Works with ws:// and wss:// endpoints
+- **JWT Authentication**: Optional token-based authentication for secure connections
+
+### Data Format
+
+Song data is broadcast in a structured format for easy integration with your overlay tools.
+
+## Security
+
+### Keychain Integration
+
+- All credentials stored in macOS Keychain
+- No plain-text token storage
+- Secure OAuth token management
+
+### Token Management
+
+- Automatic token validation on app launch
+- Secure token refresh when possible
+- Clear re-authentication prompts when needed
+
+## User Interface
+
+### Menu Bar App
+
+- Lightweight menu bar presence
+- Quick access to current track
+- Easy settings access
+
+### Settings Interface
+
+- **Music Monitor**: Control tracking behavior
+- **App Visibility**: Configure dock/menu bar appearance
+- **WebSocket**: Set up streaming endpoints
+- **Twitch Integration**: Manage bot connection and commands
+- **Advanced**: Reset settings and debugging options
+
+## Technical Features
+
+### Performance
+
+- Minimal CPU and memory usage
+- Non-blocking async operations
+- Efficient polling and event handling
+
+### Architecture
+
+- Clean separation of concerns (MVVM pattern)
+- Comprehensive error handling
+- Professional-grade documentation throughout
