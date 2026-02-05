@@ -12,7 +12,7 @@ export function baseOptions(): BaseLayoutProps {
       { text: "Docs", url: "/docs" },
       { text: "Features", url: "/docs/features" },
       { text: "Twitch", url: "/docs/twitch" },
-      { text: "Support", url: "https://mrdwolf.com/discord" },
+      { text: "Support", url: "https://mdwolf.net/discord" },
     ],
     themeSwitch: {
       enabled: true,

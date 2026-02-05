@@ -2,6 +2,7 @@
   "title": "Documentation",
   "pages": [
     "index",
+    "features",
     "getting-started",
     "usage",
     "bot-commands",

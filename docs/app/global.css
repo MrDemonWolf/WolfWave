@@ -1,27 +1,33 @@
 @import "tailwindcss";
-@import "fumadocs-ui/css/neutral.css";
+@import "fumadocs-ui/css/blue.css";
 @import "fumadocs-ui/css/preset.css";
 
-/* Override and clarify dark-mode color variables to ensure readable contrast */
+/* Blue theme dark mode color variables */
 :root {
-  --color-fd-muted-foreground: hsl(210 8% 6%);
+  --color-fd-primary: hsl(217 91% 60%);
+  --color-fd-primary-foreground: hsl(0 0% 100%);
+  --color-fd-muted-foreground: hsl(215 20% 35%);
 }
 .dark {
-  --color-fd-muted: hsl(210 6% 8%);
-  --color-fd-secondary: hsl(210 6% 10%);
-  --color-fd-muted-foreground: hsl(210 6% 72%);
-  --color-fd-ring: hsl(0 0% 55%);
-  --color-fd-overlay: hsla(0 0% 0% / 0.18);
+  --color-fd-background: hsl(222 47% 6%);
+  --color-fd-muted: hsl(222 47% 8%);
+  --color-fd-secondary: hsl(222 47% 12%);
+  --color-fd-muted-foreground: hsl(215 20% 75%);
+  --color-fd-primary: hsl(217 91% 60%);
+  --color-fd-primary-foreground: hsl(0 0% 100%);
+  --color-fd-ring: hsl(217 91% 50%);
+  --color-fd-overlay: hsla(222 47% 0% / 0.5);
+  --color-fd-border: hsl(222 47% 18%);
 
   /* Shiki code theme tokens used by the code blocks */
   --shiki-dark: #e1e4e8;
-  --shiki-dark-bg: #0b1117;
+  --shiki-dark-bg: #0d1117;
 
   /* Slate fallbacks used by various components */
   --color-slate-200: #e5e7eb;
   --color-slate-300: #d1d5db;
   --color-slate-400: #9ca3af;
-  --color-slate-800: #1f2937;
+  --color-slate-800: #1e293b;
 }
 
 /* Improve default dark body/text contrast */
@@ -30,7 +36,7 @@
     color-scheme: dark;
   }
   body {
-    background-color: var(--color-fd-muted, #0b0b0b);
+    background-color: var(--color-fd-background, #0a0f1a);
     color: var(--color-fd-muted-foreground, #e5e7eb);
   }
 }
