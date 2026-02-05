@@ -1,27 +1,25 @@
 ---
-title: Getting Started
-description: How to install and configure WolfWave
+title: Building from Source
+description: How to build and configure WolfWave for development
 ---
 
-To use WolfWave on macOS, follow these simple steps:
+This guide is for developers who want to build WolfWave from source. If you just want to use WolfWave, see the [Installation](/docs/installation) guide.
 
 ## Prerequisites
 
 - macOS 12.0+
-- Xcode 15.0+ (for building from source)
+- Xcode 15.0+
 - Swift 5.9+
 - Command Line Tools: `xcode-select --install`
 
-## Installation
-
-### 1. Clone the Repository
+## Clone the Repository
 
 ```bash
 git clone https://github.com/MrDemonWolf/WolfWave.git
 cd WolfWave
 ```
 
-### 2. Configure Twitch Client ID
+## Configure Twitch Client ID
 
 Copy the example configuration file:
 
@@ -46,7 +44,7 @@ TWITCH_CLIENT_ID = your_client_id_here
   `Config.xcconfig` is gitignored — each contributor uses their own.
 </Callout>
 
-### 3. Open the Project
+## Open the Project
 
 ```bash
 make open-xcode
@@ -54,7 +52,7 @@ make open-xcode
 open src/wolfwave.xcodeproj
 ```
 
-### 4. Build and Run
+## Build and Run
 
 Build and run from Xcode using ⌘R.
 
@@ -71,3 +69,10 @@ To build and install directly to `/Applications`:
 ```bash
 make prod-install TWITCH_CLIENT_ID=your_id
 ```
+
+## Next Steps
+
+<Cards>
+  <Card title="Development Guide" href="/docs/development" />
+  <Card title="Architecture" href="/docs/architecture" />
+</Cards>

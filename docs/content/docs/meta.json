@@ -3,6 +3,7 @@
   "pages": [
     "index",
     "features",
+    "installation",
     "getting-started",
     "usage",
     "bot-commands",

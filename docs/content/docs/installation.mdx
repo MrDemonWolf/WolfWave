@@ -1,0 +1,73 @@
+---
+title: Installation
+description: Download and set up WolfWave on your Mac
+---
+
+Get WolfWave running on your Mac in minutes.
+
+## Download
+
+Download the latest DMG from the [GitHub Releases](https://github.com/MrDemonWolf/WolfWave/releases) page.
+
+<Callout type="info">WolfWave requires **macOS 12.0 or later**.</Callout>
+
+## Install
+
+1. Open the downloaded `.dmg` file
+2. Drag **WolfWave** to your **Applications** folder
+3. Eject the DMG
+
+## First Launch
+
+1. Open WolfWave from your Applications folder
+2. You may see a security prompt — click **Open** to allow
+3. WolfWave will appear in your menu bar
+
+<Callout type="warn">
+  If macOS blocks the app, go to **System Settings → Privacy & Security** and
+  click **Open Anyway**.
+</Callout>
+
+## Initial Setup
+
+### Grant Permissions
+
+WolfWave needs permission to read your Apple Music playback:
+
+1. When prompted, click **OK** to allow Apple Music access
+2. If not prompted, go to **System Settings → Privacy & Security → Automation**
+3. Enable **WolfWave → Music**
+
+### Connect Twitch (Optional)
+
+To enable chat commands like `!song`:
+
+1. Click the WolfWave menu bar icon
+2. Open **Settings → Twitch Integration**
+3. Click **Connect with Twitch**
+4. Follow the device authorization flow in your browser
+5. Return to WolfWave — you're connected!
+
+### Configure WebSocket (Optional)
+
+To stream now-playing data to overlays:
+
+1. Open **Settings → WebSocket**
+2. Enter your WebSocket endpoint URL
+3. Add JWT token if required
+4. Enable the connection
+
+## You're Ready!
+
+WolfWave is now tracking your Apple Music playback. Your viewers can use:
+
+- `!song` — Shows the current track
+- `!currentsong` — Shows the current track
+- `!nowplaying` — Shows the current track
+- `!lastsong` — Shows the previous track
+
+<Cards>
+  <Card title="Usage Guide" href="/docs/usage" />
+  <Card title="Bot Commands" href="/docs/bot-commands" />
+  <Card title="Features" href="/docs/features" />
+</Cards>
