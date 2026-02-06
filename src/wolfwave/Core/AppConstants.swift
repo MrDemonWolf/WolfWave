@@ -69,6 +69,9 @@ enum AppConstants {
         
         /// Whether "last song" bot command is enabled (Bool, default: true)
         static let lastSongCommandEnabled = "lastSongCommandEnabled"
+
+        /// Whether the first-launch onboarding wizard has been completed (Bool, default: false)
+        static let hasCompletedOnboarding = "hasCompletedOnboarding"
     }
     
     // MARK: - Dock Visibility Modes
@@ -182,16 +185,57 @@ enum AppConstants {
     }
     
     // MARK: - Settings UI
-    
+
     /// Settings window configuration.
     enum SettingsUI {
         /// Default application name shown in UI
         static let defaultAppName = "WolfWave"
-        
+
         /// Minimum width for settings window
-        static let minWidth: CGFloat = 700
-        
+        static let minWidth: CGFloat = 640
+
         /// Minimum height for settings window
-        static let minHeight: CGFloat = 500
+        static let minHeight: CGFloat = 480
+
+        /// Maximum width for settings window
+        static let maxWidth: CGFloat = 900
+
+        /// Maximum height for settings window
+        static let maxHeight: CGFloat = 700
+
+        /// Ideal width for settings window
+        static let idealWidth: CGFloat = 720
+
+        /// Ideal height for settings window
+        static let idealHeight: CGFloat = 540
+
+        /// Maximum content width for detail pane
+        static let maxContentWidth: CGFloat = 560
+
+        /// Standard horizontal padding for content sections
+        static let contentPaddingH: CGFloat = 24
+
+        /// Standard vertical padding for content sections
+        static let contentPaddingV: CGFloat = 20
+
+        /// Standard spacing between sections
+        static let sectionSpacing: CGFloat = 24
+
+        /// Standard card padding
+        static let cardPadding: CGFloat = 14
+
+        /// Standard card corner radius
+        static let cardCornerRadius: CGFloat = 10
+    }
+
+    // MARK: - Onboarding UI
+
+    /// Onboarding wizard window configuration.
+    enum OnboardingUI {
+        /// Width of the onboarding window
+        static let windowWidth: CGFloat = 520
+
+        /// Height of the onboarding window
+        static let windowHeight: CGFloat = 440
     }
 }

@@ -49,23 +49,6 @@ struct WolfWaveApp: App {
     }
 }
 
-// MARK: - Notification Extensions
-
-/// Custom notification names used throughout the app.
-extension Notification.Name {
-    /// Posted when the sidebar toggle button in the toolbar is clicked.
-    /// Observer should toggle NavigationSplitView.columnVisibility.
-    static let toggleSettingsSidebar = Notification.Name("com.wolfwave.toggleSettingsSidebar")
-}
-
-/// Notification handlers for the app delegate.
-extension AppDelegate {
-    /// Toggles the sidebar visibility in the settings view via notification.
-    /// Called by toolbar button in createSettingsWindow().
-    @objc func toggleSettingsSidebar(_ sender: Any?) {
-        NotificationCenter.default.post(name: .toggleSettingsSidebar, object: nil)
-    }
-}
 
 // MARK: - App Delegate
 
@@ -122,6 +105,11 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSToolbarDelegate {
     /// Hosted SwiftUI view with SettingsView as root. Window is created once and
     /// reused for subsequent opens (made key, brought to front).
     var settingsWindow: NSWindow?
+
+    /// Onboarding wizard window (shown on first launch only).
+    ///
+    /// Created once during first launch. Dismissed and nilled after completion.
+    var onboardingWindow: NSWindow?
     
     /// Twitch chat service managing bot commands and channel connection.
     ///
@@ -177,8 +165,13 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSToolbarDelegate {
         setupNotificationObservers()
         initializeTrackingState()
 
-        Task { [weak self] in
-            await self?.validateTwitchTokenOnBoot()
+        // Show onboarding on first launch, or validate Twitch token on subsequent launches
+        if !OnboardingViewModel.hasCompletedOnboarding {
+            showOnboarding()
+        } else {
+            Task { [weak self] in
+                await self?.validateTwitchTokenOnBoot()
+            }
         }
 
         applyInitialDockVisibility()
@@ -800,6 +793,67 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSToolbarDelegate {
                 attributes: [.paragraphStyle: paragraphStyle]
             ))
         return attributed
+    }
+
+    // MARK: - Onboarding Window
+
+    /// Shows the first-launch onboarding wizard in a dedicated window.
+    ///
+    /// Creates a non-resizable, centered window hosting `OnboardingView`.
+    /// On completion, the window is closed and normal app flow continues.
+    private func showOnboarding() {
+        let onboardingView = OnboardingView(onComplete: { [weak self] in
+            self?.dismissOnboarding()
+        })
+
+        let hosting = NSHostingController(rootView: onboardingView)
+        let frame = CGRect(
+            x: 0, y: 0,
+            width: AppConstants.OnboardingUI.windowWidth,
+            height: AppConstants.OnboardingUI.windowHeight
+        )
+        let style: NSWindow.StyleMask = [.titled, .closable, .fullSizeContentView]
+        let window = NSWindow(
+            contentRect: frame,
+            styleMask: style,
+            backing: .buffered,
+            defer: false
+        )
+        window.contentViewController = hosting
+        window.title = "Welcome to WolfWave"
+        window.titleVisibility = .hidden
+        window.titlebarAppearsTransparent = true
+        window.isMovableByWindowBackground = true
+        window.center()
+        window.collectionBehavior = [.moveToActiveSpace]
+
+        // Ensure app is visible during onboarding
+        NSApp.setActivationPolicy(.regular)
+
+        onboardingWindow = window
+        showWindow(onboardingWindow)
+
+        Log.info("Onboarding window shown for first launch", category: "Onboarding")
+    }
+
+    /// Dismisses the onboarding wizard and transitions to normal app state.
+    ///
+    /// Called when the user clicks Finish or Skip in the onboarding wizard.
+    /// Closes the onboarding window, validates Twitch token if credentials
+    /// were saved during onboarding, and restores dock visibility.
+    private func dismissOnboarding() {
+        onboardingWindow?.close()
+        onboardingWindow = nil
+
+        // Validate Twitch token if one was saved during onboarding
+        Task { [weak self] in
+            await self?.validateTwitchTokenOnBoot()
+        }
+
+        // Restore dock visibility to configured state
+        applyInitialDockVisibility()
+
+        Log.info("Onboarding dismissed, transitioning to normal app state", category: "Onboarding")
     }
 
     // MARK: - Settings Window
