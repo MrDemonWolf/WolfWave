@@ -121,15 +121,6 @@ struct SettingsView: View {
     /// Controls sidebar visibility
     @State private var sidebarVisibility: NavigationSplitViewVisibility = .all
 
-    // Smoother animation for showing/hiding the sidebar
-    private var sidebarAnimation: Animation {
-        if #available(macOS 14.0, *) {
-            return .snappy(duration: 0.32, extraBounce: 0)
-        } else {
-            return .easeInOut(duration: 0.28)
-        }
-    }
-
     var body: some View {
         NavigationSplitView(columnVisibility: $sidebarVisibility) {
             List(SettingsSection.allCases, selection: $selectedSection) { section in
@@ -140,41 +131,34 @@ struct SettingsView: View {
             .navigationSplitViewColumnWidth(min: 180, ideal: 200, max: 220)
             .padding(.top, 10)
         } detail: {
-            // Detail view
             ScrollView {
-                VStack(alignment: .leading, spacing: 20) {
+                VStack(alignment: .leading, spacing: AppConstants.SettingsUI.sectionSpacing) {
                     detailView(for: selectedSection)
                 }
-                .padding(.top, 0)
-                .padding(.bottom, 20)
-                .padding(.horizontal, 12)
-                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+                .frame(maxWidth: AppConstants.SettingsUI.maxContentWidth, alignment: .topLeading)
+                .frame(maxWidth: .infinity, alignment: .center)
+                .padding(.horizontal, AppConstants.SettingsUI.contentPaddingH)
+                .padding(.vertical, AppConstants.SettingsUI.contentPaddingV)
             }
-            .background(.ultraThinMaterial)
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .background(Color(nsColor: .windowBackgroundColor))
             .onAppear {
-                // Check if a specific section was requested to be opened
                 if let requestedSection = UserDefaults.standard.string(forKey: AppConstants.UserDefaults.selectedSettingsSection) {
                     if requestedSection == AppConstants.Twitch.settingsSection {
                         selectedSection = .twitchIntegration
                     }
-                    // Clear the request after using it
                     UserDefaults.standard.removeObject(forKey: AppConstants.UserDefaults.selectedSettingsSection)
                 }
             }
-            // Rely on the system-provided sidebar toggle for NavigationSplitView
         }
-        .animation(sidebarAnimation, value: sidebarVisibility)
-        .frame(minWidth: AppConstants.SettingsUI.minWidth, minHeight: AppConstants.SettingsUI.minHeight)
-        .keyboardShortcut("w", modifiers: .command)
-        .onKeyPress { keyPress in
-            if keyPress.key == .escape || (keyPress.modifiers.contains(.command) && keyPress.key.character == "w") {
-                if sidebarVisibility == .all {
-                    sidebarVisibility = .detailOnly
-                }
-                return .handled
-            }
-            return .ignored
-        }
+        .frame(
+            minWidth: AppConstants.SettingsUI.minWidth,
+            idealWidth: AppConstants.SettingsUI.idealWidth,
+            maxWidth: AppConstants.SettingsUI.maxWidth,
+            minHeight: AppConstants.SettingsUI.minHeight,
+            idealHeight: AppConstants.SettingsUI.idealHeight,
+            maxHeight: AppConstants.SettingsUI.maxHeight
+        )
         .onAppear {
             // Link the view model to the app delegate's service (without reconnecting)
             twitchViewModel.twitchService = appDelegate?.twitchService
@@ -203,18 +187,7 @@ struct SettingsView: View {
                 return "No previous track available"
             }
         }
-        // Listen for toggle requests from the AppDelegate toolbar button
-        .onReceive(NotificationCenter.default.publisher(for: .toggleSettingsSidebar)) { _ in
-            withAnimation(.easeInOut(duration: 0.25)) {
-                sidebarVisibility = sidebarVisibility == .all ? .detailOnly : .all
-            }
-        }
-        // Listen for toggle requests from the AppDelegate toolbar button
-        .onReceive(NotificationCenter.default.publisher(for: .toggleSettingsSidebar)) { _ in
-            withAnimation(.easeInOut(duration: 0.25)) {
-                sidebarVisibility = sidebarVisibility == .all ? .detailOnly : .all
-            }
-        }
+        .navigationSplitViewStyle(.balanced)
         .alert("Reset Settings?", isPresented: $showingResetAlert) {
             Button("Cancel", role: .cancel) {}
             .accessibilityIdentifier("resetSettingsCancelButton")
@@ -274,75 +247,97 @@ struct SettingsView: View {
     }
     
     private func twitchIntegrationView() -> some View {
-        VStack(alignment: .leading, spacing: 24) {
-            // Use the inner header inside `TwitchSettingsView` — remove outer duplicated header.
+        VStack(alignment: .leading, spacing: AppConstants.SettingsUI.sectionSpacing) {
             TwitchSettingsView(viewModel: twitchViewModel)
-            
+
             Divider()
-            
-            // Bot Commands
-            VStack(alignment: .leading, spacing: 12) {
-                VStack(alignment: .leading, spacing: 8) {
+                .padding(.vertical, 4)
+
+            // Bot Commands Section
+            VStack(alignment: .leading, spacing: 16) {
+                VStack(alignment: .leading, spacing: 6) {
                     HStack(spacing: 8) {
                         Image(systemName: "bubble.left.fill")
-                            .font(.title3)
+                            .font(.system(size: 15))
                             .foregroundStyle(Color(nsColor: .controlAccentColor))
                         Text("Bot Commands")
-                            .font(.headline)
+                            .font(.system(size: 15, weight: .semibold))
                     }
-                    
+
                     Text("Choose which chat commands the bot responds to in Twitch chat.")
-                        .font(.subheadline)
+                        .font(.system(size: 13))
                         .foregroundStyle(.secondary)
                 }
-                
-                HStack(spacing: 12) {
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text("Current Playing Song")
-                            .font(.body)
-                            .fontWeight(.medium)
-                        Text("!song, !currentsong, !nowplaying")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    }
-                    Spacer()
-                    Toggle("", isOn: $currentSongCommandEnabled)
-                        .labelsHidden()
-                        .toggleStyle(.switch)
-                        .accessibilityLabel("Enable Current Playing Song command")
-                        .accessibilityIdentifier("currentSongCommandToggle")
-                        .onChange(of: currentSongCommandEnabled) { _, enabled in
-                            appDelegate?.twitchService?.currentSongCommandEnabled = enabled
-                            Log.info("SettingsView: Current Song Command \(enabled ? "enabled" : "disabled")", category: "Twitch")
-                        }
-                }
-                .padding(12)
-                .background(Color(nsColor: .controlBackgroundColor))
-                .cornerRadius(8)
 
-                HStack(spacing: 12) {
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text("Last Played Song")
-                            .font(.body)
-                            .fontWeight(.medium)
-                        Text("!last, !lastsong, !prevsong")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
+                VStack(spacing: 1) {
+                    commandToggleRow(
+                        title: "Current Playing Song",
+                        subtitle: "!song, !currentsong, !nowplaying",
+                        isOn: $currentSongCommandEnabled,
+                        accessibilityLabel: "Enable Current Playing Song command",
+                        accessibilityIdentifier: "currentSongCommandToggle",
+                        isFirst: true
+                    ) { enabled in
+                        appDelegate?.twitchService?.currentSongCommandEnabled = enabled
+                        Log.info("SettingsView: Current Song Command \(enabled ? "enabled" : "disabled")", category: "Twitch")
                     }
-                    Spacer()
-                    Toggle("", isOn: $lastSongCommandEnabled)
-                        .labelsHidden()
-                        .toggleStyle(.switch)
-                        .accessibilityLabel("Enable Last Played Song command")
-                        .accessibilityIdentifier("lastSongCommandToggle")
-                        .onChange(of: lastSongCommandEnabled) { _, enabled in
-                            appDelegate?.twitchService?.lastSongCommandEnabled = enabled
-                            Log.info("SettingsView: Last Song Command \(enabled ? "enabled" : "disabled")", category: "Twitch")
-                        }
+
+                    commandToggleRow(
+                        title: "Last Played Song",
+                        subtitle: "!last, !lastsong, !prevsong",
+                        isOn: $lastSongCommandEnabled,
+                        accessibilityLabel: "Enable Last Played Song command",
+                        accessibilityIdentifier: "lastSongCommandToggle",
+                        isLast: true
+                    ) { enabled in
+                        appDelegate?.twitchService?.lastSongCommandEnabled = enabled
+                        Log.info("SettingsView: Last Song Command \(enabled ? "enabled" : "disabled")", category: "Twitch")
+                    }
                 }
-                .padding(12)
                 .background(Color(nsColor: .controlBackgroundColor))
-                .cornerRadius(8)
+                .clipShape(RoundedRectangle(cornerRadius: AppConstants.SettingsUI.cardCornerRadius))
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func commandToggleRow(
+        title: String,
+        subtitle: String,
+        isOn: Binding<Bool>,
+        accessibilityLabel: String,
+        accessibilityIdentifier: String,
+        isFirst: Bool = false,
+        isLast: Bool = false,
+        onChange: @escaping (Bool) -> Void
+    ) -> some View {
+        HStack(spacing: 12) {
+            VStack(alignment: .leading, spacing: 3) {
+                Text(title)
+                    .font(.system(size: 13, weight: .medium))
+                Text(subtitle)
+                    .font(.system(size: 11))
+                    .foregroundStyle(.secondary)
+            }
+            Spacer()
+            Toggle("", isOn: isOn)
+                .labelsHidden()
+                .toggleStyle(.switch)
+                .controlSize(.small)
+                .pointerCursor()
+                .accessibilityLabel(accessibilityLabel)
+                .accessibilityIdentifier(accessibilityIdentifier)
+                .onChange(of: isOn.wrappedValue) { _, newValue in
+                    onChange(newValue)
+                }
+        }
+        .padding(.horizontal, AppConstants.SettingsUI.cardPadding)
+        .padding(.vertical, 12)
+        .background(Color(nsColor: .controlBackgroundColor))
+        .overlay(alignment: .bottom) {
+            if !isLast {
+                Divider()
+                    .padding(.leading, AppConstants.SettingsUI.cardPadding)
             }
         }
     }
@@ -367,7 +362,7 @@ struct SettingsView: View {
     /// 5. Notifies the app that tracking has been re-enabled
     private func resetSettings() {
         // Clear UserDefaults
-        [AppConstants.UserDefaults.trackingEnabled, AppConstants.UserDefaults.currentSongCommandEnabled, AppConstants.UserDefaults.lastSongCommandEnabled, AppConstants.UserDefaults.dockVisibility, AppConstants.UserDefaults.websocketEnabled, AppConstants.UserDefaults.websocketURI].forEach {
+        [AppConstants.UserDefaults.trackingEnabled, AppConstants.UserDefaults.currentSongCommandEnabled, AppConstants.UserDefaults.lastSongCommandEnabled, AppConstants.UserDefaults.dockVisibility, AppConstants.UserDefaults.websocketEnabled, AppConstants.UserDefaults.websocketURI, AppConstants.UserDefaults.hasCompletedOnboarding].forEach {
             UserDefaults.standard.removeObject(forKey: $0)
         }
 
@@ -390,20 +385,26 @@ struct SettingsView: View {
 
 
 
-// MARK: - StatusChip and Helpers
+// MARK: - StatusChip
 
 private struct StatusChip: View {
     let text: String
     let color: Color
 
     var body: some View {
-        Text(text)
-            .font(.caption2).bold()
-            .padding(.horizontal, 6)
-            .padding(.vertical, 2)
-            .foregroundColor(color)
-            .background(color.opacity(0.15))
-            .clipShape(Capsule())
+        HStack(spacing: 6) {
+            Circle()
+                .fill(color)
+                .frame(width: 6, height: 6)
+
+            Text(text)
+                .font(.system(size: 11, weight: .semibold))
+                .foregroundStyle(.primary)
+        }
+        .padding(.horizontal, 10)
+        .padding(.vertical, 5)
+        .background(color.opacity(0.1))
+        .clipShape(Capsule())
     }
 }
 
@@ -411,5 +412,8 @@ private struct StatusChip: View {
 
 #Preview {
     SettingsView()
-        .frame(minWidth: 700, minHeight: 500)
+        .frame(
+            width: AppConstants.SettingsUI.idealWidth,
+            height: AppConstants.SettingsUI.idealHeight
+        )
 }

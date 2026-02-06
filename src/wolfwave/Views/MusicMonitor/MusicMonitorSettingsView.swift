@@ -36,25 +36,34 @@ struct MusicMonitorSettingsView: View {
     private var trackingEnabled = true
     
     var body: some View {
-        VStack(spacing: 20) {
+        VStack(alignment: .leading, spacing: 16) {
+            // Section Header
             VStack(alignment: .leading, spacing: 6) {
                 Text("Music Playback Monitor")
                     .font(.system(size: 17, weight: .semibold))
                     .accessibilityLabel("Music Playback Monitor")
-                
+
                 Text("Monitor your Apple Music playback to display in the menu bar and share with external services like Twitch or custom WebSocket endpoints.")
-                    .font(.system(size: 13, weight: .regular))
-                    .foregroundColor(.secondary)
+                    .font(.system(size: 13))
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
             }
-            .frame(maxWidth: .infinity, alignment: .leading)
-            
-            HStack {
-                Text("Enable Apple Music monitoring")
-                    .font(.body)
+
+            // Toggle Card
+            HStack(spacing: 12) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Enable Apple Music monitoring")
+                        .font(.system(size: 13, weight: .medium))
+                    Text("Track currently playing songs")
+                        .font(.system(size: 11))
+                        .foregroundStyle(.tertiary)
+                }
                 Spacer()
                 Toggle("", isOn: $trackingEnabled)
                     .labelsHidden()
                     .toggleStyle(.switch)
+                    .controlSize(.small)
+                    .pointerCursor()
                     .accessibilityLabel("Enable Apple Music monitoring")
                     .accessibilityHint("Toggle to enable or disable Apple Music monitoring")
                     .accessibilityIdentifier("musicTrackingToggle")
@@ -62,13 +71,10 @@ struct MusicMonitorSettingsView: View {
                         notifyTrackingSettingChanged(enabled: newValue)
                     }
             }
-            .padding(12)
+            .padding(AppConstants.SettingsUI.cardPadding)
             .background(Color(nsColor: .controlBackgroundColor))
-            .cornerRadius(8)
+            .clipShape(RoundedRectangle(cornerRadius: AppConstants.SettingsUI.cardCornerRadius))
         }
-        .frame(maxWidth: .infinity)
-        .padding(.horizontal, 20)
-        .padding(.vertical, 16)
     }
     
     // MARK: - Helpers

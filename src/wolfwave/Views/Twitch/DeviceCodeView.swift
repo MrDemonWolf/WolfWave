@@ -59,6 +59,7 @@ struct DeviceCodeView: View {
                         .frame(width: 28, height: 28)
                 }
                 .buttonStyle(.plain)
+                .pointerCursor()
                 .help(isCodeCopied ? "Copied" : "Copy code")
                 .accessibilityLabel(isCodeCopied ? "Copied" : "Copy device code")
                 .accessibilityIdentifier("copyDeviceCodeButton")
@@ -73,11 +74,19 @@ struct DeviceCodeView: View {
                 RoundedRectangle(cornerRadius: 8)
                     .stroke(Color.primary.opacity(0.08), lineWidth: 1)
             )
-            .cornerRadius(8)
+            .clipShape(RoundedRectangle(cornerRadius: 8))
             .onHover { hovering in
                 withAnimation(.easeInOut(duration: 0.15)) {
                     isHovering = hovering
                 }
+                if hovering {
+                    NSCursor.pointingHand.push()
+                } else {
+                    NSCursor.pop()
+                }
+            }
+            .onTapGesture {
+                copyDeviceCode()
             }
 
             // Primary action: open activation URL with subtler, smaller button
@@ -93,6 +102,7 @@ struct DeviceCodeView: View {
             }
             .buttonStyle(.borderedProminent)
             .controlSize(.small)
+            .pointerCursor()
             .accessibilityLabel("Continue to Twitch to authorize")
             .accessibilityHint("Opens twitch.tv/activate in your browser")
             .accessibilityIdentifier("openTwitchButton")

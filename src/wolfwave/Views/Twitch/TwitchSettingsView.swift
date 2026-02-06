@@ -33,24 +33,16 @@ struct TwitchSettingsView: View {
     @State private var hasStartedActivation = false
 
     var body: some View {
-        VStack(spacing: 20) {
+        VStack(alignment: .leading, spacing: 16) {
             headerView
 
-            HStack(spacing: 0) {
-                Spacer(minLength: 0)
-                authCard
-                    .frame(maxWidth: 720)
-                    .transition(.opacity.combined(with: .move(edge: .bottom)))
-                    .animation(
-                        .spring(response: 0.35, dampingFraction: 0.82, blendDuration: 0),
-                        value: (viewModel.credentialsSaved || viewModel.channelConnected
-                            || viewModel.authState.isInProgress))
-                Spacer(minLength: 0)
-            }
+            authCard
+                .transition(.opacity.combined(with: .move(edge: .bottom)))
+                .animation(
+                    .spring(response: 0.35, dampingFraction: 0.82, blendDuration: 0),
+                    value: (viewModel.credentialsSaved || viewModel.channelConnected
+                        || viewModel.authState.isInProgress))
         }
-        .frame(maxWidth: .infinity)
-        .padding(.horizontal, 20)
-        .padding(.vertical, 16)
         .onAppear {
             Log.debug("TwitchSettingsView: onAppear called", category: "Twitch")
             viewModel.loadSavedCredentials()
@@ -108,25 +100,14 @@ struct TwitchSettingsView: View {
 
                 Spacer()
 
-                // Use the view model's status chip text/color so the chip is
-                // consistent with other parts of the app and can be tinted
-                // independently from the header's descriptive text.
                 StatusChip(text: viewModel.statusChipText, color: viewModel.statusChipColor)
                     .accessibilityLabel("Twitch integration status: \(viewModel.statusChipText)")
-                    .scaleEffect(
-                        viewModel.credentialsSaved || viewModel.channelConnected ? 1.02 : 0.98
-                    )
-                    .opacity(viewModel.credentialsSaved || viewModel.channelConnected ? 1.0 : 0.95)
-                    .animation(
-                        .easeInOut(duration: 0.18),
-                        value: viewModel.credentialsSaved || viewModel.channelConnected
-                    )
-                    .padding(.trailing, 4)
+                    .animation(.easeInOut(duration: 0.2), value: viewModel.statusChipText)
             }
 
             Text("Enable chat features like commands, song requests, and moderation tools.")
-                .font(.system(size: 13, weight: .regular))
-                .foregroundColor(.secondary)
+                .font(.system(size: 13))
+                .foregroundStyle(.secondary)
         }
         .accessibilityElement(children: .combine)
     }
@@ -205,6 +186,7 @@ struct TwitchSettingsView: View {
                         }
                         .buttonStyle(.borderedProminent)
                         .controlSize(.regular)
+                        .pointerCursor()
                         .scaleEffect(viewModel.authState.isInProgress ? 0.995 : 1.0)
                         .animation(
                             .easeInOut(duration: 0.12), value: viewModel.authState.isInProgress
@@ -261,6 +243,7 @@ struct TwitchSettingsView: View {
                                 .buttonStyle(.bordered)
                                 .tint(.red)
                                 .controlSize(.small)
+                                .pointerCursor()
                             }
                             .padding(.top, 4)
                         } else {
@@ -273,6 +256,7 @@ struct TwitchSettingsView: View {
                                 .buttonStyle(.bordered)
                                 .tint(.red)
                                 .controlSize(.small)
+                                .pointerCursor()
                             }
                         }
                     }
@@ -299,18 +283,18 @@ struct TwitchSettingsView: View {
                         HStack {
                             Button("Retry") { viewModel.startOAuth() }
                                 .buttonStyle(.bordered)
+                                .pointerCursor()
                             Spacer()
                         }
                     }
                 }
             }
         }
-        .padding(.vertical, 12)
-        .padding(.horizontal, 12)
+        .padding(AppConstants.SettingsUI.cardPadding)
         .background(Color(nsColor: .controlBackgroundColor))
-        .cornerRadius(10)
-        .animation(.easeInOut(duration: 0.18), value: viewModel.authState.isInProgress)
-        .animation(.easeInOut(duration: 0.18), value: viewModel.channelConnected)
+        .clipShape(RoundedRectangle(cornerRadius: AppConstants.SettingsUI.cardCornerRadius))
+        .animation(.easeInOut(duration: 0.2), value: viewModel.authState.isInProgress)
+        .animation(.easeInOut(duration: 0.2), value: viewModel.channelConnected)
     }
 }
 
@@ -331,17 +315,17 @@ private struct SignedInView: View {
     @State private var showingDisconnectConfirmation = false
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            VStack(alignment: .leading, spacing: 0) {
-                botAccountSection
-                Divider()
-                channelSection
-                Divider()
-                actionButtonsSection
-            }
-            .background(Color(nsColor: .controlBackgroundColor))
-            .cornerRadius(8)
+        VStack(alignment: .leading, spacing: 0) {
+            botAccountSection
+            Divider()
+                .padding(.leading, AppConstants.SettingsUI.cardPadding)
+            channelSection
+            Divider()
+                .padding(.leading, AppConstants.SettingsUI.cardPadding)
+            actionButtonsSection
         }
+        .background(Color(nsColor: .controlBackgroundColor))
+        .clipShape(RoundedRectangle(cornerRadius: AppConstants.SettingsUI.cardCornerRadius))
     }
 
     // MARK: - Sections
@@ -350,18 +334,15 @@ private struct SignedInView: View {
         HStack(alignment: .center, spacing: 12) {
             VStack(alignment: .leading, spacing: 2) {
                 Text("Bot account")
-                    .font(.caption)
-                    .fontWeight(.medium)
-                    .foregroundColor(.secondary)
+                    .font(.system(size: 11, weight: .medium))
+                    .foregroundStyle(.secondary)
                 Text(botUsername.isEmpty ? "Not set" : botUsername)
-                    .font(.body)
-                    .fontWeight(.semibold)
+                    .font(.system(size: 13, weight: .semibold))
             }
             Spacer()
             statusIcon(reauthNeeded: reauthNeeded)
         }
-        .padding(.leading, 12)
-        .padding(.trailing, 12)
+        .padding(.horizontal, AppConstants.SettingsUI.cardPadding)
         .padding(.vertical, 12)
     }
 
@@ -369,16 +350,14 @@ private struct SignedInView: View {
         HStack(alignment: .center, spacing: 12) {
             VStack(alignment: .leading, spacing: 2) {
                 Text("Channel")
-                    .font(.caption)
-                    .fontWeight(.medium)
-                    .foregroundColor(.secondary)
+                    .font(.system(size: 11, weight: .medium))
+                    .foregroundStyle(.secondary)
                 channelInputView
             }
             Spacer()
             connectionIcon
         }
-        .padding(.leading, 12)
-        .padding(.trailing, 12)
+        .padding(.horizontal, AppConstants.SettingsUI.cardPadding)
         .padding(.vertical, 12)
     }
 
@@ -387,36 +366,25 @@ private struct SignedInView: View {
         switch (isChannelConnected, reauthNeeded) {
         case (true, _):
             Text(channelID.isEmpty ? "Not set" : channelID)
-                .font(.body)
-                .fontWeight(.semibold)
+                .font(.system(size: 13, weight: .semibold))
         case (false, true):
-            TextField("Not set", text: .constant(channelID))
-                .font(.body)
-                .fontWeight(.semibold)
-                .disabled(true)
-                .accessibilityLabel("Twitch channel name")
-                .onHover { isHovering in
-                    if isHovering {
-                        NSCursor.operationNotAllowed.push()
-                    } else {
-                        NSCursor.pop()
-                    }
-                }
+            Text(channelID.isEmpty ? "Not set" : channelID)
+                .font(.system(size: 13, weight: .semibold))
+                .foregroundStyle(.secondary)
         case (false, false):
             TextField("Enter channel name", text: $channelID)
-                .font(.body)
+                .font(.system(size: 13))
+                .textFieldStyle(.plain)
                 .disabled(isConnecting)
                 .accessibilityLabel("Twitch channel name")
                 .accessibilityHint("Enter the channel name for your Twitch channel")
                 .accessibilityIdentifier("twitchChannelTextField")
                 .onChange(of: channelID) { oldValue, newValue in
-                    // Validate and normalize channel name only if needed
                     let sanitized = newValue.lowercased().trimmingCharacters(
                         in: CharacterSet.whitespacesAndNewlines)
                     if sanitized != newValue {
                         channelID = sanitized
                     }
-                    // Only trigger save if the value actually changed from the previous sanitized value
                     if oldValue.lowercased().trimmingCharacters(in: .whitespacesAndNewlines)
                         != sanitized
                     {
@@ -431,19 +399,19 @@ private struct SignedInView: View {
         switch (isChannelConnected, reauthNeeded) {
         case (true, _):
             Image(systemName: "wifi")
-                .foregroundColor(.green)
-                .imageScale(.medium)
+                .foregroundStyle(.green)
+                .font(.system(size: 14))
         case (false, true):
             Image(systemName: "wifi.slash")
-                .foregroundColor(.orange)
-                .imageScale(.medium)
+                .foregroundStyle(.orange)
+                .font(.system(size: 14))
         case (false, false):
             EmptyView()
         }
     }
 
     private var actionButtonsSection: some View {
-        HStack(spacing: 12) {
+        HStack(spacing: 10) {
             Button(action: {
                 if isChannelConnected {
                     showingDisconnectConfirmation = true
@@ -455,9 +423,9 @@ private struct SignedInView: View {
                     HStack(spacing: 6) {
                         ProgressView()
                             .progressViewStyle(.circular)
-                            .controlSize(.small)
-                            .scaleEffect(0.8)
-                        Text("Connecting....")
+                            .controlSize(.mini)
+                        Text("Connecting...")
+                            .font(.system(size: 12))
                     }
                 } else {
                     Label(
@@ -465,28 +433,31 @@ private struct SignedInView: View {
                         systemImage: isChannelConnected
                             ? "xmark.circle.fill" : "checkmark.circle.fill"
                     )
+                    .font(.system(size: 12, weight: .medium))
                 }
             }
             .disabled(shouldDisableConnectButton)
             .buttonStyle(.bordered)
             .controlSize(.small)
+            .pointerCursor()
             .accessibilityLabel(
                 isChannelConnected ? "Disconnect from channel" : "Connect to channel"
             )
             .accessibilityIdentifier("twitchConnectButton")
+
             Spacer()
 
-            Button("Clear", action: onClearCredentials)
+            Button("Clear Credentials", action: onClearCredentials)
+                .font(.system(size: 12))
                 .buttonStyle(.bordered)
                 .tint(.red)
                 .controlSize(.small)
+                .pointerCursor()
                 .accessibilityLabel("Clear saved Twitch credentials")
                 .accessibilityIdentifier("twitchClearCredentialsButton")
         }
-        .padding(.leading, 12)
-        .padding(.trailing, 12)
-        .padding(.top, 12)
-        .padding(.bottom, 12)
+        .padding(.horizontal, AppConstants.SettingsUI.cardPadding)
+        .padding(.vertical, 12)
         .confirmationDialog(
             "Disconnect from channel?", isPresented: $showingDisconnectConfirmation,
             titleVisibility: .visible
@@ -496,8 +467,7 @@ private struct SignedInView: View {
             }
             Button("Cancel", role: .cancel) {}
         } message: {
-            Text(
-                "This will disconnect the bot from the current channel but keep saved credentials.")
+            Text("This will disconnect the bot from the current channel but keep saved credentials.")
         }
     }
 
@@ -515,15 +485,8 @@ private struct SignedInView: View {
     @ViewBuilder
     private func statusIcon(reauthNeeded: Bool) -> some View {
         Image(systemName: reauthNeeded ? "exclamationmark.circle.fill" : "checkmark.circle.fill")
-            .foregroundColor(reauthNeeded ? .orange : .green)
-            .imageScale(.medium)
-            .onHover { isHovering in
-                if isHovering {
-                    NSCursor.pointingHand.push()
-                } else {
-                    NSCursor.pop()
-                }
-            }
+            .foregroundStyle(reauthNeeded ? .orange : .green)
+            .font(.system(size: 14))
     }
 }
 
@@ -535,18 +498,18 @@ private struct StatusChip: View {
     let color: Color
 
     var body: some View {
-        HStack(spacing: 8) {
+        HStack(spacing: 6) {
             Circle()
                 .fill(color)
-                .frame(width: 8, height: 8)
+                .frame(width: 6, height: 6)
 
             Text(text)
-                .font(.caption2).bold()
-                .foregroundColor(.primary)
+                .font(.system(size: 11, weight: .semibold))
+                .foregroundStyle(.primary)
         }
-        .padding(.horizontal, 8)
-        .padding(.vertical, 6)
-        .background(color.opacity(0.12))
+        .padding(.horizontal, 10)
+        .padding(.vertical, 5)
+        .background(color.opacity(0.1))
         .clipShape(Capsule())
     }
 }
