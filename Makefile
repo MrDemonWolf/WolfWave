@@ -2,6 +2,7 @@
 
 PROJECT=src/wolfwave.xcodeproj
 SCHEME=WolfWave
+DESTINATION=platform=macOS,arch=arm64
 
 .PHONY: help build clean test update-deps open-xcode ci prod-build prod-install
 
@@ -17,15 +18,15 @@ help:
 	@echo "  ci             Run build (CI-friendly)"
 
 build:
-	xcodebuild -project $(PROJECT) -scheme $(SCHEME) -configuration Debug build -quiet
+	xcodebuild -project $(PROJECT) -scheme $(SCHEME) -destination '$(DESTINATION)' -configuration Debug build -quiet
 
 clean:
-	xcodebuild -project $(PROJECT) -scheme $(SCHEME) clean -quiet
+	xcodebuild -project $(PROJECT) -scheme $(SCHEME) -destination '$(DESTINATION)' clean -quiet
 
 # Runs tests if the scheme has a Test action. Will not fail CI if none.
 # macOS destination is inferred; adjust if needed.
 test:
-	- xcodebuild -project $(PROJECT) -scheme $(SCHEME) -configuration Debug test -quiet
+	- xcodebuild -project $(PROJECT) -scheme $(SCHEME) -destination '$(DESTINATION)' -configuration Debug test -quiet
 
 update-deps:
 	xcodebuild -project $(PROJECT) -resolvePackageDependencies -quiet
