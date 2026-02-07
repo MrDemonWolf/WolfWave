@@ -44,6 +44,8 @@ struct OnboardingView: View {
             // Step content
             stepContent
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .clipped()
+                .animation(.easeInOut(duration: 0.25), value: viewModel.currentStep)
 
             Divider()
 
@@ -78,20 +80,19 @@ struct OnboardingView: View {
 
     @ViewBuilder
     private var stepContent: some View {
-        switch viewModel.currentStep {
-        case .welcome:
-            OnboardingWelcomeStepView()
-                .transition(.asymmetric(
-                    insertion: .move(edge: .trailing).combined(with: .opacity),
-                    removal: .move(edge: .leading).combined(with: .opacity)
-                ))
-        case .twitchConnect:
-            OnboardingTwitchStepView(twitchViewModel: twitchViewModel)
-                .transition(.asymmetric(
-                    insertion: .move(edge: .trailing).combined(with: .opacity),
-                    removal: .move(edge: .leading).combined(with: .opacity)
-                ))
+        Group {
+            switch viewModel.currentStep {
+            case .welcome:
+                OnboardingWelcomeStepView()
+            case .twitchConnect:
+                OnboardingTwitchStepView(twitchViewModel: twitchViewModel)
+            }
         }
+        .id(viewModel.currentStep)
+        .transition(.asymmetric(
+            insertion: .move(edge: .trailing).combined(with: .opacity),
+            removal: .move(edge: .leading).combined(with: .opacity)
+        ))
     }
 
     // MARK: - Navigation Bar

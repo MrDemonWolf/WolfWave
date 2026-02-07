@@ -6,7 +6,7 @@
 //
 
 import Combine
-import SwiftUI
+import Foundation
 
 /// View model for the first-launch onboarding wizard.
 ///
@@ -49,20 +49,22 @@ final class OnboardingViewModel: ObservableObject {
         OnboardingStep.allCases.count
     }
 
-    /// Advances to the next step with animation.
+    /// Advances to the next step.
+    ///
+    /// Animation is driven by `.animation(_:value:)` on the view container
+    /// to avoid competing animation drivers.
     func goToNextStep() {
         guard let next = OnboardingStep(rawValue: currentStep.rawValue + 1) else { return }
-        withAnimation(.easeInOut(duration: 0.25)) {
-            currentStep = next
-        }
+        currentStep = next
     }
 
-    /// Returns to the previous step with animation.
+    /// Returns to the previous step.
+    ///
+    /// Animation is driven by `.animation(_:value:)` on the view container
+    /// to avoid competing animation drivers.
     func goToPreviousStep() {
         guard let prev = OnboardingStep(rawValue: currentStep.rawValue - 1) else { return }
-        withAnimation(.easeInOut(duration: 0.25)) {
-            currentStep = prev
-        }
+        currentStep = prev
     }
 
     // MARK: - Completion

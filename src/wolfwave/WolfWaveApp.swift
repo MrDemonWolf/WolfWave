@@ -839,21 +839,26 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSToolbarDelegate {
     /// Dismisses the onboarding wizard and transitions to normal app state.
     ///
     /// Called when the user clicks Finish or Skip in the onboarding wizard.
-    /// Closes the onboarding window, validates Twitch token if credentials
-    /// were saved during onboarding, and restores dock visibility.
+    /// Defers window teardown to the next run loop iteration so the SwiftUI
+    /// view's call stack can fully unwind before its hosting window is destroyed
+    /// (prevents EXC_BAD_ACCESS).
     private func dismissOnboarding() {
-        onboardingWindow?.close()
-        onboardingWindow = nil
+        DispatchQueue.main.async { [weak self] in
+            guard let self else { return }
 
-        // Validate Twitch token if one was saved during onboarding
-        Task { [weak self] in
-            await self?.validateTwitchTokenOnBoot()
+            self.onboardingWindow?.close()
+            self.onboardingWindow = nil
+
+            // Validate Twitch token if one was saved during onboarding
+            Task { [weak self] in
+                await self?.validateTwitchTokenOnBoot()
+            }
+
+            // Restore dock visibility to configured state
+            self.applyInitialDockVisibility()
+
+            Log.info("Onboarding dismissed, transitioning to normal app state", category: "Onboarding")
         }
-
-        // Restore dock visibility to configured state
-        applyInitialDockVisibility()
-
-        Log.info("Onboarding dismissed, transitioning to normal app state", category: "Onboarding")
     }
 
     // MARK: - Settings Window
