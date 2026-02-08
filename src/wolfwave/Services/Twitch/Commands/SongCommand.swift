@@ -18,10 +18,10 @@ final class SongCommand: BotCommand {
     var isEnabled: (() -> Bool)?
 
     func execute(message: String) -> String? {
-        let trimmedMessage = message.trimmingCharacters(in: .whitespaces).lowercased()
+        let lowered = message.lowercased()
 
         for trigger in triggers {
-            if trimmedMessage.hasPrefix(trigger) {
+            if lowered.hasPrefix(trigger) {
                 // Check if command is enabled
                 if let isEnabled = isEnabled, !isEnabled() {
                     return nil

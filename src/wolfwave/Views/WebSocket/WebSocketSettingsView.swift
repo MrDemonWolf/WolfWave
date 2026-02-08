@@ -44,196 +44,184 @@ struct WebSocketSettingsView: View {
     }
     
     var body: some View {
-        VStack(spacing: 20) {
-            VStack(alignment: .leading, spacing: 12) {
-                HStack(spacing: 8) {
-                    Image(systemName: "exclamationmark.circle.fill")
-                        .font(.body)
-                        .foregroundStyle(.orange)
+        VStack(alignment: .leading, spacing: 16) {
+            // Work in Progress Banner
+            HStack(alignment: .top, spacing: 10) {
+                Image(systemName: "exclamationmark.circle.fill")
+                    .font(.system(size: 14))
+                    .foregroundStyle(.orange)
+                VStack(alignment: .leading, spacing: 4) {
                     Text("Work in Progress")
-                        .font(.body)
-                        .fontWeight(.semibold)
+                        .font(.system(size: 13, weight: .semibold))
                         .foregroundStyle(.orange)
+                    Text("This feature is currently not supported and will be added in a future release.")
+                        .font(.system(size: 12))
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
                 }
-                
-                Text("This feature is currently not supported and will be added in a future release.")
-                    .font(.system(size: 13, weight: .regular))
-                    .foregroundColor(.secondary)
             }
-            .frame(maxWidth: .infinity, alignment: .leading)
             .padding(12)
-            .background(Color.orange.opacity(0.1))
-            .cornerRadius(8)
-            .onHover { isInside in
-                if isInside {
-                    NSCursor.operationNotAllowed.push()
-                } else {
-                    NSCursor.pop()
-                }
-            }
-            
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(Color.orange.opacity(0.08))
+            .clipShape(RoundedRectangle(cornerRadius: 8))
+            .allowsHitTesting(false)
+
+            // Section Header
             VStack(alignment: .leading, spacing: 6) {
                 Text("Now Playing WebSocket")
                     .font(.system(size: 17, weight: .semibold))
-                
+
                 Text("Send your now playing info to an overlay or server via WebSocket.")
-                    .font(.system(size: 13, weight: .regular))
-                    .foregroundColor(.secondary)
+                    .font(.system(size: 13))
+                    .foregroundStyle(.secondary)
             }
-            .frame(maxWidth: .infinity, alignment: .leading)
-            
+
+            // Server Configuration Card
             VStack(alignment: .leading, spacing: 12) {
                 Text("Server Configuration")
-                    .font(.body)
-                    .fontWeight(.medium)
-                
-                VStack(alignment: .leading, spacing: 8) {
-                    TextField("WebSocket server URL (ws:// or wss://)", text: websocketURIBinding)
-                        .textFieldStyle(.roundedBorder)
-                        .disabled(true)
-                        .accessibilityLabel("WebSocket server URL")
-                        .accessibilityHint("Enter the full WebSocket server URL, for example ws://example.com")
-                        .accessibilityIdentifier("websocketUrlTextField")
-                        .onHover { isInside in
-                            if isInside {
-                                NSCursor.operationNotAllowed.push()
-                            } else {
-                                NSCursor.pop()
-                            }
-                        }
+                    .font(.system(size: 13, weight: .medium))
 
-                    if !isWebSocketURLValid && !(websocketURI?.isEmpty ?? true) {
-                        HStack(spacing: 6) {
-                            Image(systemName: "exclamationmark.circle.fill")
-                                .font(.caption)
-                            Text("Please enter a valid WebSocket URL (ws:// or wss://).")
-                                .font(.caption)
-                        }
-                        .foregroundStyle(.red)
+                TextField("WebSocket server URL (ws:// or wss://)", text: websocketURIBinding)
+                    .textFieldStyle(.roundedBorder)
+                    .disabled(true)
+                    .accessibilityLabel("WebSocket server URL")
+                    .accessibilityHint("Enter the full WebSocket server URL, for example ws://example.com")
+                    .accessibilityIdentifier("websocketUrlTextField")
+
+                if !isWebSocketURLValid && !(websocketURI?.isEmpty ?? true) {
+                    HStack(spacing: 6) {
+                        Image(systemName: "exclamationmark.circle.fill")
+                            .font(.system(size: 11))
+                        Text("Please enter a valid WebSocket URL (ws:// or wss://).")
+                            .font(.system(size: 11))
                     }
+                    .foregroundStyle(.red)
                 }
-                
+
                 if !isWebSocketURLValid {
-                    HStack(spacing: 8) {
+                    HStack(alignment: .top, spacing: 8) {
                         Image(systemName: "info.circle.fill")
-                            .font(.caption)
+                            .font(.system(size: 12))
                             .foregroundStyle(.blue)
                         Text("Add a WebSocket URL to enable this feature.")
-                            .font(.caption)
+                            .font(.system(size: 12))
                             .foregroundStyle(.secondary)
                     }
+                    .padding(10)
                     .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(12)
-                    .background(Color.blue.opacity(0.1))
-                    .cornerRadius(8)
+                    .background(Color.blue.opacity(0.08))
+                    .clipShape(RoundedRectangle(cornerRadius: 6))
                 }
-                
-                HStack {
-                    Text("Enable WebSocket connection")
-                        .font(.body)
+
+                Divider()
+                    .padding(.vertical, 4)
+
+                HStack(spacing: 12) {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Enable WebSocket connection")
+                            .font(.system(size: 13, weight: .medium))
+                        Text("Broadcast now playing data")
+                            .font(.system(size: 11))
+                            .foregroundStyle(.tertiary)
+                    }
                     Spacer()
                     Toggle("", isOn: $websocketEnabled)
                         .labelsHidden()
                         .toggleStyle(.switch)
+                        .controlSize(.small)
                         .disabled(true)
                         .accessibilityLabel("Enable WebSocket connection")
                         .accessibilityIdentifier("websocketEnabledToggle")
-                        .onHover { isInside in
-                            if isInside {
-                                NSCursor.operationNotAllowed.push()
-                            } else {
-                                NSCursor.pop()
-                            }
-                        }
                 }
-                .padding(12)
-                .background(Color(nsColor: .controlBackgroundColor))
-                .cornerRadius(8)
             }
+            .padding(AppConstants.SettingsUI.cardPadding)
+            .background(Color(nsColor: .controlBackgroundColor))
+            .clipShape(RoundedRectangle(cornerRadius: AppConstants.SettingsUI.cardCornerRadius))
+            .allowsHitTesting(false)
 
             Divider()
-            
+                .padding(.vertical, 4)
+
+            // Authentication Section
             VStack(alignment: .leading, spacing: 12) {
-                VStack(alignment: .leading, spacing: 8) {
+                VStack(alignment: .leading, spacing: 6) {
                     HStack(spacing: 8) {
                         Image(systemName: "lock.fill")
-                            .font(.title3)
+                            .font(.system(size: 14))
                             .foregroundStyle(.secondary)
                         Text("Authentication (Optional)")
-                            .font(.headline)
+                            .font(.system(size: 15, weight: .semibold))
                     }
-                    
+
                     Text("Only required if your WebSocket server uses authentication.")
-                        .font(.caption)
+                        .font(.system(size: 12))
                         .foregroundStyle(.secondary)
                 }
 
-                SecureField("Auth token (JWT)", text: $authToken)
-                    .textFieldStyle(.roundedBorder)
-                    .disabled(true)
-                    .accessibilityLabel("Authentication token")
-                    .accessibilityHint("Paste your JWT authentication token for the WebSocket server")
-                    .accessibilityIdentifier("websocketAuthTokenField")
-                    .onHover { isInside in
-                        if isInside {
-                            NSCursor.operationNotAllowed.push()
-                        } else {
-                            NSCursor.pop()
+                VStack(alignment: .leading, spacing: 12) {
+                    SecureField("Auth token (JWT)", text: $authToken)
+                        .textFieldStyle(.roundedBorder)
+                        .disabled(true)
+                        .accessibilityLabel("Authentication token")
+                        .accessibilityHint("Paste your JWT authentication token for the WebSocket server")
+                        .accessibilityIdentifier("websocketAuthTokenField")
+
+                    HStack(alignment: .top, spacing: 8) {
+                        Image(systemName: "lock.shield.fill")
+                            .font(.system(size: 12))
+                            .foregroundStyle(.green)
+                        Text("Authentication tokens are stored securely in macOS Keychain")
+                            .font(.system(size: 11))
+                            .foregroundStyle(.secondary)
+                    }
+                    .padding(10)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .background(Color.green.opacity(0.08))
+                    .clipShape(RoundedRectangle(cornerRadius: 6))
+
+                    HStack(spacing: 8) {
+                        Button("Save Token") {
+                            saveToken()
                         }
-                    }
-                
-                HStack(spacing: 8) {
-                    Image(systemName: "lock.shield.fill")
-                        .font(.body)
-                        .foregroundStyle(.green)
-                    Text("Authentication tokens are stored securely in macOS Keychain")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(10)
-                .background(Color.green.opacity(0.1))
-                .cornerRadius(8)
+                        .disabled(true)
+                        .buttonStyle(.bordered)
+                        .controlSize(.small)
+                        .accessibilityLabel("Save authentication token")
+                        .accessibilityIdentifier("saveWebsocketTokenButton")
 
-                HStack(spacing: 8) {
-                    Button("Save Token") {
-                        saveToken()
-                    }
-                    .disabled(true)
-                    .buttonStyle(.bordered)
-                    .accessibilityLabel("Save authentication token")
-                    .accessibilityIdentifier("saveWebsocketTokenButton")
-
-                    Button("Clear Token") {
-                        clearToken()
-                    }
-                    .disabled(true)
-                    .buttonStyle(.bordered)
-                    .tint(.red)
-                    .accessibilityLabel("Clear authentication token")
-                    .accessibilityIdentifier("clearWebsocketTokenButton")
-
-                    if tokenSaved {
-                        HStack(spacing: 4) {
-                            Image(systemName: "checkmark.circle.fill")
-                                .foregroundColor(.green)
-                            Text("Saved")
-                                .font(.caption)
-                                .foregroundColor(.green)
+                        Button("Clear Token") {
+                            clearToken()
                         }
-                        .padding(.leading, 8)
-                        .accessibilityElement(children: .combine)
-                        .accessibilityLabel("Token saved")
-                        .accessibilityIdentifier("websocketTokenSavedStatus")
+                        .disabled(true)
+                        .buttonStyle(.bordered)
+                        .controlSize(.small)
+                        .tint(.red)
+                        .accessibilityLabel("Clear authentication token")
+                        .accessibilityIdentifier("clearWebsocketTokenButton")
+
+                        if tokenSaved {
+                            HStack(spacing: 4) {
+                                Image(systemName: "checkmark.circle.fill")
+                                    .foregroundStyle(.green)
+                                Text("Saved")
+                                    .font(.system(size: 11))
+                                    .foregroundStyle(.green)
+                            }
+                            .padding(.leading, 4)
+                            .accessibilityElement(children: .combine)
+                            .accessibilityLabel("Token saved")
+                            .accessibilityIdentifier("websocketTokenSavedStatus")
+                        }
+
+                        Spacer()
                     }
-                    
-                    Spacer()
                 }
+                .padding(AppConstants.SettingsUI.cardPadding)
+                .background(Color(nsColor: .controlBackgroundColor))
+                .clipShape(RoundedRectangle(cornerRadius: AppConstants.SettingsUI.cardCornerRadius))
+                .allowsHitTesting(false)
             }
         }
-        .frame(maxWidth: .infinity)
-        .padding(.horizontal, 20)
-        .padding(.vertical, 16)
         .onAppear {
             if let savedToken = KeychainService.loadToken() {
                 authToken = savedToken

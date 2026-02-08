@@ -1,0 +1,187 @@
+name: Build, Notarize & Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Skip GitHub Release creation (build + notarize only)'
+        required: false
+        default: 'false'
+
+env:
+  SCHEME: WolfWave
+  PROJECT: src/wolfwave.xcodeproj
+  CONFIGURATION: Release
+
+jobs:
+  build-and-release:
+    runs-on: macos-15
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # ── Install Developer ID certificate ──────────────────────────────
+      - name: Install signing certificate
+        env:
+          CERTIFICATE_P12: ${{ secrets.DEVELOPER_ID_CERT_P12 }}
+          CERTIFICATE_PASSWORD: ${{ secrets.DEVELOPER_ID_CERT_PASSWORD }}
+          KEYCHAIN_PASSWORD: ${{ github.run_id }}
+        run: |
+          CERT_PATH=$RUNNER_TEMP/certificate.p12
+          KEYCHAIN_PATH=$RUNNER_TEMP/signing.keychain-db
+
+          echo "$CERTIFICATE_P12" | base64 --decode > "$CERT_PATH"
+
+          security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security set-keychain-settings -lut 21600 "$KEYCHAIN_PATH"
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security import "$CERT_PATH" -P "$CERTIFICATE_PASSWORD" \
+            -A -t cert -f pkcs12 -k "$KEYCHAIN_PATH"
+          security set-key-partition-list -S apple-tool:,apple: \
+            -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security list-keychain -d user -s "$KEYCHAIN_PATH" login.keychain-db
+
+          echo "✅ Certificate installed"
+
+      # ── Create Config.xcconfig from secrets ───────────────────────────
+      - name: Create Config.xcconfig
+        run: |
+          cat > src/wolfwave/Config.xcconfig <<EOF
+          TWITCH_CLIENT_ID = ${{ secrets.TWITCH_CLIENT_ID }}
+          DISCORD_CLIENT_ID = ${{ secrets.DISCORD_CLIENT_ID }}
+          EOF
+
+      # ── Resolve version from tag or project ───────────────────────────
+      - name: Resolve version
+        id: version
+        run: |
+          if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
+            VERSION="${GITHUB_REF#refs/tags/v}"
+          else
+            VERSION=$(xcodebuild -project "$PROJECT" -scheme "$SCHEME" \
+              -configuration "$CONFIGURATION" -showBuildSettings 2>/dev/null \
+              | awk -F'= ' '/MARKETING_VERSION/ {gsub(/^[ \t]+/,"",$2); print $2; exit}')
+          fi
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "dmg_name=WolfWave-${VERSION}-arm64.dmg" >> "$GITHUB_OUTPUT"
+          echo "📌 Version: $VERSION"
+
+      # ── Build Release ─────────────────────────────────────────────────
+      - name: Build Release
+        run: |
+          xcodebuild -project "$PROJECT" -scheme "$SCHEME" \
+            -configuration "$CONFIGURATION" \
+            -destination 'platform=macOS,arch=arm64' \
+            -derivedDataPath build build -quiet
+
+      # ── Locate .app ───────────────────────────────────────────────────
+      - name: Locate .app bundle
+        id: app
+        run: |
+          APP_PATH=$(xcodebuild -project "$PROJECT" -scheme "$SCHEME" \
+            -configuration "$CONFIGURATION" -derivedDataPath build \
+            -showBuildSettings 2>/dev/null \
+            | awk -F'= ' '/CONFIGURATION_BUILD_DIR/ {dir=$2} /WRAPPER_NAME/ {name=$2} END {gsub(/^[ \t]+/,"",dir); gsub(/^[ \t]+/,"",name); print dir "/" name}')
+          if [ ! -d "$APP_PATH" ]; then
+            echo "❌ .app not found at $APP_PATH"
+            exit 1
+          fi
+          echo "path=$APP_PATH" >> "$GITHUB_OUTPUT"
+          echo "✅ App: $APP_PATH"
+
+      # ── Create DMG ────────────────────────────────────────────────────
+      - name: Create DMG
+        env:
+          DMG_NAME: ${{ steps.version.outputs.dmg_name }}
+          APP_PATH: ${{ steps.app.outputs.path }}
+        run: |
+          mkdir -p builds/staging
+          cp -R "$APP_PATH" builds/staging/
+          ln -sf /Applications builds/staging/Applications
+
+          hdiutil create -srcfolder builds/staging \
+            -volname "WolfWave" -fs HFS+ -format UDRW -ov \
+            builds/_tmp.dmg >/dev/null
+
+          MOUNTPOINT=$(hdiutil attach -readwrite -noverify -noautoopen \
+            builds/_tmp.dmg | awk '/\/Volumes\// {print $NF}')
+          sleep 1
+
+          osascript \
+            -e 'tell application "Finder"' \
+            -e '  tell disk "WolfWave"' \
+            -e '    open' \
+            -e '    set current view of container window to icon view' \
+            -e '    set toolbar visible of container window to false' \
+            -e '    set statusbar visible of container window to false' \
+            -e '    set the bounds of container window to {200, 200, 740, 520}' \
+            -e '    set viewOptions to the icon view options of container window' \
+            -e '    set arrangement of viewOptions to not arranged' \
+            -e '    set icon size of viewOptions to 100' \
+            -e '    set text size of viewOptions to 12' \
+            -e '    set position of item "WolfWave.app" of container window to {140, 160}' \
+            -e '    set position of item "Applications" of container window to {400, 160}' \
+            -e '    close' \
+            -e '    open' \
+            -e '    delay 1' \
+            -e '  end tell' \
+            -e 'end tell' 2>/dev/null || true
+
+          sync; sleep 1
+          hdiutil detach "$MOUNTPOINT" -quiet 2>/dev/null || true
+          sleep 1
+
+          hdiutil convert builds/_tmp.dmg -format UDZO \
+            -imagekey zlib-level=9 -o "builds/$DMG_NAME" >/dev/null
+          rm -f builds/_tmp.dmg builds/staging
+
+          echo "✅ DMG: builds/$DMG_NAME"
+
+      # ── Sign the DMG ──────────────────────────────────────────────────
+      - name: Sign DMG
+        env:
+          DMG_NAME: ${{ steps.version.outputs.dmg_name }}
+        run: |
+          codesign --force --sign "Developer ID Application" "builds/$DMG_NAME"
+          echo "✅ DMG signed"
+
+      # ── Notarize ──────────────────────────────────────────────────────
+      - name: Notarize DMG
+        env:
+          DMG_NAME: ${{ steps.version.outputs.dmg_name }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          APPLE_APP_PASSWORD: ${{ secrets.APPLE_APP_PASSWORD }}
+        run: |
+          echo "📤 Submitting to Apple notary service..."
+          xcrun notarytool submit "builds/$DMG_NAME" \
+            --apple-id "$APPLE_ID" \
+            --team-id "$APPLE_TEAM_ID" \
+            --password "$APPLE_APP_PASSWORD" \
+            --wait
+          echo "📎 Stapling ticket..."
+          xcrun stapler staple "builds/$DMG_NAME"
+          echo "✅ Notarized and stapled"
+
+      # ── Create GitHub Release ─────────────────────────────────────────
+      - name: Create GitHub Release
+        if: startsWith(github.ref, 'refs/tags/v') && github.event.inputs.dry_run != 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VERSION: ${{ steps.version.outputs.version }}
+          DMG_NAME: ${{ steps.version.outputs.dmg_name }}
+        run: |
+          gh release create "v$VERSION" "builds/$DMG_NAME" \
+            --title "WolfWave v$VERSION" \
+            --generate-notes
+
+      # ── Cleanup keychain ──────────────────────────────────────────────
+      - name: Cleanup
+        if: always()
+        run: |
+          security delete-keychain $RUNNER_TEMP/signing.keychain-db 2>/dev/null || true

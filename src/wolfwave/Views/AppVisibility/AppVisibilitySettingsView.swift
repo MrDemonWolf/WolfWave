@@ -15,59 +15,61 @@ struct AppVisibilitySettingsView: View {
     private var dockVisibility = AppConstants.DockVisibility.default
     
     var body: some View {
-        VStack(spacing: 20) {
+        VStack(alignment: .leading, spacing: 16) {
+            // Section Header
             VStack(alignment: .leading, spacing: 6) {
                 Text("App Visibility")
                     .font(.system(size: 17, weight: .semibold))
-                
+
                 Text("Choose where WolfWave appears on your Mac.")
-                    .font(.system(size: 13, weight: .regular))
-                    .foregroundColor(.secondary)
+                    .font(.system(size: 13))
+                    .foregroundStyle(.secondary)
             }
-            .frame(maxWidth: .infinity, alignment: .leading)
-            
+
+            // Picker Card
             VStack(alignment: .leading, spacing: 12) {
                 Text("Show app in:")
-                    .font(.body)
-                    .fontWeight(.medium)
+                    .font(.system(size: 13, weight: .medium))
                     .accessibilityHidden(true)
-                
+
                 Picker("", selection: $dockVisibility) {
                     Text("Dock and Menu Bar").tag("both")
                     Text("Menu Bar Only").tag("menuOnly")
                     Text("Dock Only").tag("dockOnly")
                 }
                 .pickerStyle(.radioGroup)
-                .frame(maxWidth: .infinity, alignment: .leading)
+                .pointerCursor()
                 .onChange(of: dockVisibility) { _, newValue in
                     applyDockVisibility(newValue)
                 }
                 .accessibilityLabel("Show app in")
                 .accessibilityIdentifier("dockVisibilityPicker")
             }
-            .padding(12)
+            .padding(AppConstants.SettingsUI.cardPadding)
             .background(Color(nsColor: .controlBackgroundColor))
-            .cornerRadius(8)
-            
+            .clipShape(RoundedRectangle(cornerRadius: AppConstants.SettingsUI.cardCornerRadius))
+
+            // Info Notice
             if dockVisibility == "menuOnly" {
-                HStack(spacing: 8) {
+                HStack(alignment: .top, spacing: 10) {
                     Image(systemName: "info.circle.fill")
-                        .font(.caption)
+                        .font(.system(size: 13))
                         .foregroundStyle(.blue)
                     Text("When menu bar only is enabled, the app will appear in the dock when settings are open.")
-                        .font(.caption)
+                        .font(.system(size: 12))
                         .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
                 }
                 .padding(12)
-                .background(Color.blue.opacity(0.1))
-                .cornerRadius(8)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(Color.blue.opacity(0.08))
+                .clipShape(RoundedRectangle(cornerRadius: 8))
                 .accessibilityElement(children: .combine)
                 .accessibilityLabel("When menu bar only is enabled, the app will appear in the dock when settings are open.")
+                .transition(.opacity.combined(with: .move(edge: .top)))
+                .animation(.easeInOut(duration: 0.2), value: dockVisibility)
             }
         }
-        .frame(maxWidth: .infinity)
-        .padding(.horizontal, 20)
-        .padding(.vertical, 16)
     }
     
     // MARK: - Helpers

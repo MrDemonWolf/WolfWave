@@ -27,16 +27,11 @@ struct DeviceCodeView: View {
     
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            // Header: subtle label + helper
-            VStack(alignment: .leading, spacing: 2) {
-                Text("Device Code")
-                    .font(.system(size: 11, weight: .medium))
-                    .foregroundColor(.secondary)
-                Text("Click the button below to quickly sign in with Twitch and enable chat features")
-                    .font(.system(size: 12, weight: .regular))
-                    .foregroundColor(.secondary)
-            }
-            .transition(.move(edge: .top).combined(with: .opacity))
+            // Header: subtle label
+            Text("Device Code")
+                .font(.system(size: 11, weight: .medium))
+                .foregroundColor(.secondary)
+                .transition(.move(edge: .top).combined(with: .opacity))
 
 
             // Code container - monospaced, larger and calm
@@ -59,6 +54,7 @@ struct DeviceCodeView: View {
                         .frame(width: 28, height: 28)
                 }
                 .buttonStyle(.plain)
+                .pointerCursor()
                 .help(isCodeCopied ? "Copied" : "Copy code")
                 .accessibilityLabel(isCodeCopied ? "Copied" : "Copy device code")
                 .accessibilityIdentifier("copyDeviceCodeButton")
@@ -73,11 +69,19 @@ struct DeviceCodeView: View {
                 RoundedRectangle(cornerRadius: 8)
                     .stroke(Color.primary.opacity(0.08), lineWidth: 1)
             )
-            .cornerRadius(8)
+            .clipShape(RoundedRectangle(cornerRadius: 8))
             .onHover { hovering in
                 withAnimation(.easeInOut(duration: 0.15)) {
                     isHovering = hovering
                 }
+                if hovering {
+                    NSCursor.pointingHand.push()
+                } else {
+                    NSCursor.pop()
+                }
+            }
+            .onTapGesture {
+                copyDeviceCode()
             }
 
             // Primary action: open activation URL with subtler, smaller button
@@ -93,6 +97,7 @@ struct DeviceCodeView: View {
             }
             .buttonStyle(.borderedProminent)
             .controlSize(.small)
+            .pointerCursor()
             .accessibilityLabel("Continue to Twitch to authorize")
             .accessibilityHint("Opens twitch.tv/activate in your browser")
             .accessibilityIdentifier("openTwitchButton")
@@ -124,9 +129,6 @@ struct DeviceCodeView: View {
             withAnimation(.easeInOut(duration: 0.18)) {
                 showCopyFeedback = false
             }
-        }
-
-        DispatchQueue.main.asyncAfter(deadline: .now() + 1.3) {
             isCodeCopied = false
         }
     }

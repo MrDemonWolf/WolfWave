@@ -32,12 +32,14 @@ WolfWave is packed with features to connect your Apple Music with your streaming
 
 Built-in commands for your viewers:
 
-| Command        | Description                      |
-| -------------- | -------------------------------- |
-| `!song`        | Shows the currently playing song |
-| `!currentsong` | Shows the currently playing song |
-| `!nowplaying`  | Shows the currently playing song |
-| `!lastsong`    | Shows the last played song       |
+| Command        | Description              |
+| -------------- | ------------------------ |
+| `!song`        | Current playing song     |
+| `!currentsong` | Current playing song     |
+| `!nowplaying`  | Current playing song     |
+| `!lastsong`    | Previously played song   |
+| `!last`        | Previously played song   |
+| `!prevsong`    | Previously played song   |
 
 ### Bot Features
 
@@ -45,6 +47,23 @@ Built-in commands for your viewers:
 - **Extensible System**: Easy to add custom commands
 - **Reply Support**: Commands can reply to specific messages
 - **Automatic Reconnection**: Handles connection drops gracefully
+
+## Discord Rich Presence
+
+### Listening Status
+
+Show what you're listening to directly on your Discord profile — just like Spotify, but for Apple Music.
+
+- **"Listening to Apple Music"**: Activity type 2 displays a listening status on your profile
+- **Dynamic Album Artwork**: Album art is fetched automatically from the iTunes Search API — no manual setup needed
+- **Track Details**: Displays artist, song title, and album name
+- **Playback Progress**: Shows elapsed time and track duration
+- **Auto-connect**: Connects to Discord automatically when the app launches
+- **Auto-reconnect**: Reconnects when Discord restarts or becomes available
+
+### How It Works
+
+WolfWave communicates with Discord via the local IPC socket — no bot token or server required. You only need a Discord Application ID from the [Discord Developer Portal](https://discord.com/developers/applications).
 
 ## WebSocket Streaming
 
@@ -58,6 +77,15 @@ Built-in commands for your viewers:
 
 Song data is broadcast in a structured format for easy integration with your overlay tools.
 
+## First-Launch Onboarding
+
+A guided setup wizard walks new users through initial configuration on first launch:
+
+- Apple Music permissions
+- Twitch account connection
+- Discord Rich Presence setup
+- WebSocket configuration
+
 ## Security
 
 ### Keychain Integration
@@ -65,6 +93,12 @@ Song data is broadcast in a structured format for easy integration with your ove
 - All credentials stored in macOS Keychain
 - No plain-text token storage
 - Secure OAuth token management
+
+### Code Signing & Notarization
+
+- App is signed with a Developer ID certificate
+- Notarized by Apple for Gatekeeper trust
+- Hardened Runtime enabled with no exceptions
 
 ### Token Management
 
@@ -86,6 +120,7 @@ Song data is broadcast in a structured format for easy integration with your ove
 - **App Visibility**: Configure dock/menu bar appearance
 - **WebSocket**: Set up streaming endpoints
 - **Twitch Integration**: Manage bot connection and commands
+- **Discord**: Enable/disable Rich Presence and view connection status
 - **Advanced**: Reset settings and debugging options
 
 ## Technical Features
@@ -100,4 +135,4 @@ Song data is broadcast in a structured format for easy integration with your ove
 
 - Clean separation of concerns (MVVM pattern)
 - Comprehensive error handling
-- Professional-grade documentation throughout
+- Zero external dependencies — all native Apple frameworks

@@ -87,7 +87,14 @@ final class TwitchChatService: @unchecked Sendable {
     private let commandDispatcher = BotCommandDispatcher()
 
     nonisolated(unsafe) private var webSocketTask: URLSessionWebSocketTask?
-    private let urlSession = URLSession.shared
+    private let urlSession: URLSession = {
+        let config = URLSessionConfiguration.default
+        config.timeoutIntervalForRequest = 60
+        config.timeoutIntervalForResource = 300
+        config.waitsForConnectivity = true
+        config.requestCachePolicy = .reloadIgnoringLocalCacheData
+        return URLSession(configuration: config)
+    }()
     nonisolated(unsafe) private var sessionID: String?
 
     private var broadcasterID: String?
@@ -673,22 +680,13 @@ final class TwitchChatService: @unchecked Sendable {
         setReconnectionCredentials(channelName: nil, token: nil, clientID: nil)
         reconnectionLock.withLock { reconnectionAttempts = 0 }
 
-        // Clear reconnection credentials (protected by reconnectionLock)
-        setReconnectionCredentials(channelName: nil, token: nil, clientID: nil)
-        reconnectionLock.withLock { reconnectionAttempts = 0 }
-
         broadcasterID = nil
         botID = nil
         oauthToken = nil
         clientID = nil
 
-        // Clear callbacks so no messages are processed
-        onMessageReceived = nil
-        onConnectionStateChanged = nil
-
-        // Note: We do NOT clear onMessageReceived, getCurrentSongInfo, or getLastSongInfo
-        // These callbacks are set by the AppDelegate and should persist across reconnections
-        // Only clear the connection state callback
+        // Clear connection state callback; onMessageReceived, getCurrentSongInfo,
+        // and getLastSongInfo are set by AppDelegate and persist across reconnections.
         onConnectionStateChanged = nil
 
         // Update internal state and notify listeners that we've left
@@ -1089,14 +1087,7 @@ final class TwitchChatService: @unchecked Sendable {
             return
         }
 
-        let config = URLSessionConfiguration.default
-        config.timeoutIntervalForRequest = 60  // Increased from 30 to 60 seconds
-        config.timeoutIntervalForResource = 300
-        config.waitsForConnectivity = true
-        config.requestCachePolicy = .reloadIgnoringLocalCacheData
-
-        let session = URLSession(configuration: config, delegate: nil, delegateQueue: nil)
-        webSocketTask = session.webSocketTask(with: url)
+        webSocketTask = urlSession.webSocketTask(with: url)
 
         Log.info("Twitch: Starting EventSub WebSocket connection", category: "TwitchChat")
         webSocketTask?.resume()

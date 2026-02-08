@@ -23,5 +23,13 @@
         <array>
             <string>$(AppIdentifierPrefix)com.mrdemonwolf.wolfwave</string>
         </array>
+        <key>com.apple.security.temporary-exception.files.absolute-path.read-write</key>
+        <array>
+            <string>/var/folders/</string>
+        </array>
+        <key>com.apple.security.temporary-exception.sbpl</key>
+        <array>
+            <string>(allow network-outbound (remote unix-socket (path-regex #"^/private/var/folders/.+/T/discord-ipc-[0-9]$")))</string>
+        </array>
     </dict>
 </plist>

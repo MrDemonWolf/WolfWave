@@ -5,6 +5,20 @@ description: Security practices in WolfWave
 
 WolfWave is designed with security as a priority. All sensitive data is handled securely using macOS system APIs.
 
+## Code Signing & Notarization
+
+WolfWave is distributed as a signed and notarized DMG:
+
+- **Developer ID Application** certificate for distribution signing
+- **Hardened Runtime** enabled with all exceptions explicitly disabled
+- **App Sandbox** enabled with scoped entitlements
+- **Apple notarization** ensures the app is free of known malware
+- **Stapled ticket** allows offline Gatekeeper verification
+
+<Callout type="info">
+  The app is signed and notarized by Apple — no Gatekeeper warnings on first launch.
+</Callout>
+
 ## Credential Storage
 
 All sensitive credentials are stored in the macOS Keychain:
@@ -57,16 +71,46 @@ On app launch, stored tokens are validated:
 
 ## Build Configuration
 
-The Twitch Client ID is stored in `Config.xcconfig`:
+API keys are stored in `Config.xcconfig`:
 
 - This file is gitignored to prevent accidental commits
-- Each developer uses their own Client ID
-- The value is baked into `Info.plist` at build time
+- Each developer uses their own keys
+- Values are baked into `Info.plist` at build time
+
+| Key | Purpose | Sensitivity |
+|-----|---------|------------|
+| `TWITCH_CLIENT_ID` | Identifies the app to Twitch | Public (not a secret) |
+| `DISCORD_CLIENT_ID` | Identifies the app to Discord | Public (not a secret) |
 
 <Callout type="info">
-  The Client ID is a public identifier, not a secret. It identifies your
-  application to Twitch.
+  Both values are public OAuth client identifiers, not secrets. They identify your
+  application to the respective services.
 </Callout>
+
+## Entitlements
+
+WolfWave runs inside the macOS App Sandbox with the minimum required entitlements:
+
+| Entitlement | Purpose |
+|-------------|---------|
+| `app-sandbox` | Required for notarization |
+| `network.client` | Twitch API, WebSocket, iTunes artwork API |
+| `automation.apple-events` | ScriptingBridge to Apple Music |
+| `scripting-targets` | Scoped to Music.app only |
+| `keychain-access-groups` | Secure credential storage |
+| `temporary-exception.sbpl` | Discord IPC socket access |
+
+## Network Security
+
+All external network traffic uses encrypted transport:
+
+| Endpoint | Protocol | Purpose |
+|----------|----------|---------|
+| `api.twitch.tv/helix` | HTTPS | Twitch Helix API |
+| `id.twitch.tv/oauth2` | HTTPS | Twitch OAuth |
+| `eventsub.wss.twitch.tv/ws` | WSS | Twitch EventSub WebSocket |
+| `itunes.apple.com/search` | HTTPS | Album artwork for Discord Rich Presence |
+| Local Unix socket | IPC | Discord Rich Presence |
 
 ## Best Practices
 

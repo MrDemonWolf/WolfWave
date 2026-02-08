@@ -16,6 +16,8 @@ wolfwave/
 ├── Monitors/                # Music playback monitoring
 │   └── MusicPlaybackMonitor.swift  # ScriptingBridge-based Apple Music integration
 ├── Services/                # External service integrations
+│   ├── Discord/
+│   │   └── DiscordRPCService.swift  # Discord Rich Presence via IPC socket
 │   └── Twitch/
 │       ├── TwitchChatService.swift     # EventSub WebSocket + Helix API
 │       ├── TwitchDeviceAuth.swift      # OAuth Device Code flow
@@ -28,7 +30,12 @@ wolfwave/
 │   ├── SettingsView.swift       # Main settings interface
 │   ├── Advanced/                # Advanced settings
 │   ├── AppVisibility/           # App visibility settings
+│   ├── Discord/                 # Discord Rich Presence settings
+│   │   └── DiscordSettingsView.swift
 │   ├── MusicMonitor/            # Music monitor settings
+│   ├── Onboarding/              # First-launch onboarding wizard
+│   ├── Shared/                  # Shared UI components
+│   │   └── TwitchGlitchShape.swift
 │   ├── Twitch/                  # Twitch-related views
 │   │   ├── TwitchSettingsView.swift   # Twitch bot configuration UI
 │   │   ├── TwitchViewModel.swift      # Twitch state management
@@ -94,6 +101,15 @@ Full Twitch integration using:
 - **Helix API** for sending messages and API requests
 - **EventSub WebSocket** for real-time chat message notifications
 - **OAuth Device Code Flow** for secure authentication
+
+### DiscordRPCService
+
+Discord Rich Presence integration using:
+
+- **Local IPC Socket**: Communicates with Discord via Unix domain socket — no bot token or server required
+- **iTunes Search API**: Fetches album artwork dynamically with in-memory caching
+- **Auto-reconnect**: Detects Discord availability and reconnects automatically
+- **Sandbox Compatible**: Uses SBPL entitlements for socket access within the App Sandbox
 
 ### BotCommandDispatcher
 

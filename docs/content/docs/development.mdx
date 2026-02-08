@@ -7,30 +7,32 @@ This guide covers everything you need to contribute to WolfWave.
 
 ## Prerequisites
 
-- macOS 12.0+
-- Xcode 15.0+
+- macOS 15.0+
+- Xcode 16.0+
 - Swift 5.9+
 - Command Line Tools: `xcode-select --install`
 
 ## Setup
 
 1. Fork and clone the repository
-2. Copy `src/wolfwave/Config.xcconfig.example` to `src/wolfwave/Config.xcconfig` and set your Twitch Client ID
-3. Open the project: `make open-xcode`
-4. Resolve dependencies: `make update-deps`
+2. Copy `src/wolfwave/Config.xcconfig.example` to `src/wolfwave/Config.xcconfig`
+3. Set your Twitch Client ID and Discord Client ID in `Config.xcconfig`
+4. Open the project: `make open-xcode`
+5. Resolve dependencies: `make update-deps`
 
 ## Development Commands
 
-| Command                                      | Description                                  |
-| -------------------------------------------- | -------------------------------------------- |
-| `make build`                                 | Debug build                                  |
-| `make clean`                                 | Clean build artifacts                        |
-| `make test`                                  | Run tests (if configured)                    |
-| `make update-deps`                           | Resolve SwiftPM dependencies                 |
-| `make open-xcode`                            | Open the Xcode project                       |
-| `make ci`                                    | CI-friendly build                            |
-| `make prod-build TWITCH_CLIENT_ID=your_id`   | Release build with DMG in `builds/`          |
-| `make prod-install TWITCH_CLIENT_ID=your_id` | Release build and install to `/Applications` |
+| Command            | Description                              |
+| ------------------ | ---------------------------------------- |
+| `make build`       | Debug build                              |
+| `make clean`       | Clean build artifacts                    |
+| `make test`        | Run tests (if configured)                |
+| `make update-deps` | Resolve SwiftPM dependencies             |
+| `make open-xcode`  | Open the Xcode project                   |
+| `make ci`          | CI-friendly build                        |
+| `make prod-build`  | Release build + DMG in `builds/`         |
+| `make prod-install`| Release build + install to `/Applications`|
+| `make notarize`    | Notarize the DMG (requires Developer ID) |
 
 ## Code Quality
 
@@ -45,6 +47,7 @@ This project follows Swift best practices with professional-grade documentation:
 - **ScriptingBridge Integration**: Direct Apple Music communication without spawning subprocesses
 - **Robust Error Handling**: Typed errors with localized descriptions
 - **Type Safety**: Strongly typed models for all data structures
+- **Zero Dependencies**: All functionality uses native Apple frameworks
 
 ## Twitch Chat Service
 
@@ -71,3 +74,46 @@ The bot is implemented with `TwitchChatService` using Twitch Helix + EventSub (n
 - DocC-style comments document all public methods
 - Typed errors with localized descriptions (`ConnectionError`)
 - Models for chat messages, badges, and replies
+
+## Discord Rich Presence Service
+
+`DiscordRPCService` communicates with Discord via the local IPC Unix domain socket.
+
+### Features
+
+- **IPC Socket Client**: Connects to Discord's local Unix domain socket (`discord-ipc-{0..9}`)
+- **Dynamic Artwork**: Fetches album art from the iTunes Search API with caching
+- **Auto-reconnect**: Automatic reconnection with backoff when Discord restarts
+- **Sandbox Compatible**: Works within the macOS App Sandbox via SBPL entitlements
+
+### Usage
+
+- Start the service: `connect()` — discovers and connects to Discord's IPC socket
+- Update presence: `updatePresence(track:artist:album:duration:elapsed:)` — sets the listening activity
+- Clear presence: `clearPresence()` — removes the activity from the user's profile
+- The service is wired into the music playback delegate in `WolfWaveApp.swift`
+
+## CI/CD
+
+The project includes a GitHub Actions workflow (`.github/workflows/release.yml`) that automates the release process.
+
+### Required GitHub Secrets
+
+| Secret                       | Description                          |
+| ---------------------------- | ------------------------------------ |
+| `DEVELOPER_ID_CERT_P12`     | Base64-encoded Developer ID .p12     |
+| `DEVELOPER_ID_CERT_PASSWORD`| Password for the .p12 file           |
+| `APPLE_ID`                  | Apple ID email for notarization      |
+| `APPLE_TEAM_ID`             | Developer Team ID                    |
+| `APPLE_APP_PASSWORD`        | App-specific password                |
+| `TWITCH_CLIENT_ID`          | Twitch application Client ID        |
+| `DISCORD_CLIENT_ID`         | Discord application ID               |
+
+### Triggering a Release
+
+```bash
+git tag v1.0.0
+git push origin v1.0.0
+```
+
+This will build, sign, notarize, and create a GitHub Release with the DMG attached.

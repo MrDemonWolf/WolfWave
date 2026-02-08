@@ -10,8 +10,6 @@ export function baseOptions(): BaseLayoutProps {
     githubUrl: "https://github.com/MrDemonWolf/WolfWave",
     links: [
       { text: "Docs", url: "/docs" },
-      { text: "Features", url: "/docs/features" },
-      { text: "GitHub", url: "https://github.com/MrDemonWolf/WolfWave" },
       { text: "Support", url: "https://mdwolf.net/discord" },
     ],
     themeSwitch: {

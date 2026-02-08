@@ -409,6 +409,13 @@ final class TwitchViewModel: ObservableObject {
 
                 // Start polling in a child task so it can be cancelled independently
                 devicePollingTask = Task {
+                    defer {
+                        Task { @MainActor in
+                            self.devicePollingTask = nil
+                            self.oAuthTask = nil
+                        }
+                    }
+
                     do {
                         let token = try await helper.pollForToken(
                             deviceCode: response.deviceCode,
@@ -421,23 +428,11 @@ final class TwitchViewModel: ObservableObject {
                         }
 
                         await self.handleOAuthSuccess(token: token, clientID: clientID)
-                        await MainActor.run {
-                            self.devicePollingTask = nil
-                            self.oAuthTask = nil
-                        }
                     } catch let error as TwitchDeviceAuthError {
                         await self.handleOAuthError(error)
-                        await MainActor.run {
-                            self.devicePollingTask = nil
-                            self.oAuthTask = nil
-                        }
                     } catch {
                         if !(error is CancellationError) {
                             await self.handleOAuthError(.unknown(error.localizedDescription))
-                        }
-                        await MainActor.run {
-                            self.devicePollingTask = nil
-                            self.oAuthTask = nil
                         }
                     }
                 }

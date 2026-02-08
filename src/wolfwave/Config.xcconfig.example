@@ -7,6 +7,12 @@
 // via <key>TWITCH_CLIENT_ID</key><string>$(TWITCH_CLIENT_ID)</string>
 TWITCH_CLIENT_ID = your_default_client_id_here
 
+// Discord
+// Your Discord Application ID (from https://discord.com/developers/applications).
+// Used for Rich Presence — shows "Listening to Apple Music" on your Discord profile.
+// This will be expanded into Info.plist via $(DISCORD_CLIENT_ID).
+DISCORD_CLIENT_ID = your_discord_application_id_here
+
 // You can add per-environment overrides by creating separate xcconfigs
 // and assigning them to specific build configurations or schemes.
 // For example:

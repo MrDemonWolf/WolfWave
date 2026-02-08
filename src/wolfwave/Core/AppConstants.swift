@@ -38,6 +38,12 @@ enum AppConstants {
         
         /// Posted when Twitch re-authentication is needed (token expired or revoked).
         static let twitchReauthNeededChanged = "TwitchReauthNeededChanged"
+
+        /// Posted when the user toggles Discord Rich Presence setting. UserInfo contains "enabled" Bool.
+        static let discordPresenceChanged = "DiscordPresenceChanged"
+
+        /// Posted when the Discord RPC connection state changes. UserInfo contains "state" String.
+        static let discordStateChanged = "DiscordStateChanged"
     }
     
     // MARK: - UserDefaults Keys
@@ -69,6 +75,12 @@ enum AppConstants {
         
         /// Whether "last song" bot command is enabled (Bool, default: true)
         static let lastSongCommandEnabled = "lastSongCommandEnabled"
+
+        /// Whether the first-launch onboarding wizard has been completed (Bool, default: false)
+        static let hasCompletedOnboarding = "hasCompletedOnboarding"
+
+        /// Whether Discord Rich Presence is enabled (Bool, default: false)
+        static let discordPresenceEnabled = "discordPresenceEnabled"
     }
     
     // MARK: - Dock Visibility Modes
@@ -121,6 +133,35 @@ enum AppConstants {
         static let defaultSendConnectionMessage = true
     }
     
+    // MARK: - Discord Integration
+
+    /// Discord Rich Presence constants.
+    enum Discord {
+        /// Settings section identifier for Discord configuration
+        static let settingsSection = "discordPresence"
+
+        /// IPC socket filename prefix (append 0–9 to find active socket)
+        static let ipcSocketPrefix = "discord-ipc-"
+
+        /// Number of IPC socket slots to try (0 through 9)
+        static let ipcSocketSlots = 10
+
+        /// Discord RPC protocol version
+        static let rpcVersion = 1
+
+        /// Activity type for "Listening" (shows "Listening to …" on profile)
+        static let listeningActivityType = 2
+
+        /// Reconnect base delay in seconds (doubled on each consecutive failure)
+        static let reconnectBaseDelay: TimeInterval = 5.0
+
+        /// Maximum reconnect delay cap in seconds
+        static let reconnectMaxDelay: TimeInterval = 60.0
+
+        /// Interval in seconds for polling Discord availability when not connected
+        static let availabilityPollInterval: TimeInterval = 15.0
+    }
+
     // MARK: - Dispatch Queue Labels
     
     /// Dispatch queue identifiers for background operations.
@@ -133,6 +174,9 @@ enum AppConstants {
         
         /// Queue for Twitch network operations
         static let twitchNetworkMonitor = "com.mrdemonwolf.wolfwave.networkmonitor"
+
+        /// Queue for Discord IPC operations
+        static let discordIPC = "com.mrdemonwolf.wolfwave.discordipc"
     }
     
     // MARK: - UI Dimensions
@@ -182,16 +226,57 @@ enum AppConstants {
     }
     
     // MARK: - Settings UI
-    
+
     /// Settings window configuration.
     enum SettingsUI {
         /// Default application name shown in UI
         static let defaultAppName = "WolfWave"
-        
+
         /// Minimum width for settings window
-        static let minWidth: CGFloat = 700
-        
+        static let minWidth: CGFloat = 640
+
         /// Minimum height for settings window
-        static let minHeight: CGFloat = 500
+        static let minHeight: CGFloat = 480
+
+        /// Maximum width for settings window
+        static let maxWidth: CGFloat = 900
+
+        /// Maximum height for settings window
+        static let maxHeight: CGFloat = 700
+
+        /// Ideal width for settings window
+        static let idealWidth: CGFloat = 720
+
+        /// Ideal height for settings window
+        static let idealHeight: CGFloat = 540
+
+        /// Maximum content width for detail pane
+        static let maxContentWidth: CGFloat = 560
+
+        /// Standard horizontal padding for content sections
+        static let contentPaddingH: CGFloat = 24
+
+        /// Standard vertical padding for content sections
+        static let contentPaddingV: CGFloat = 20
+
+        /// Standard spacing between sections
+        static let sectionSpacing: CGFloat = 24
+
+        /// Standard card padding
+        static let cardPadding: CGFloat = 14
+
+        /// Standard card corner radius
+        static let cardCornerRadius: CGFloat = 10
+    }
+
+    // MARK: - Onboarding UI
+
+    /// Onboarding wizard window configuration.
+    enum OnboardingUI {
+        /// Width of the onboarding window
+        static let windowWidth: CGFloat = 520
+
+        /// Height of the onboarding window
+        static let windowHeight: CGFloat = 500
     }
 }
