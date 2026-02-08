@@ -9,7 +9,7 @@ Get WolfWave running on your Mac in minutes.
 
 Download the latest DMG from the [GitHub Releases](https://github.com/MrDemonWolf/WolfWave/releases) page.
 
-<Callout type="info">WolfWave requires **macOS 12.0 or later**.</Callout>
+<Callout type="info">WolfWave requires **macOS 15.0 or later**.</Callout>
 
 ## Install
 
@@ -20,15 +20,16 @@ Download the latest DMG from the [GitHub Releases](https://github.com/MrDemonWol
 ## First Launch
 
 1. Open WolfWave from your Applications folder
-2. You may see a security prompt — click **Open** to allow
-3. WolfWave will appear in your menu bar
+2. The onboarding wizard will guide you through initial setup
+3. WolfWave will appear in your menu bar once setup is complete
 
-<Callout type="warn">
-  If macOS blocks the app, go to **System Settings → Privacy & Security** and
-  click **Open Anyway**.
+<Callout type="info">
+  WolfWave is signed and notarized by Apple — no Gatekeeper warnings on first launch.
 </Callout>
 
-## Initial Setup
+## Onboarding Wizard
+
+On first launch, WolfWave walks you through everything you need:
 
 ### Grant Permissions
 
@@ -42,20 +43,31 @@ WolfWave needs permission to read your Apple Music playback:
 
 To enable chat commands like `!song`:
 
-1. Click the WolfWave menu bar icon
-2. Open **Settings → Twitch Integration**
-3. Click **Connect with Twitch**
-4. Follow the device authorization flow in your browser
-5. Return to WolfWave — you're connected!
+1. Click **Connect with Twitch** in the onboarding wizard
+2. Follow the device authorization flow in your browser
+3. Return to WolfWave — you're connected!
+
+### Enable Discord Rich Presence (Optional)
+
+To show what you're listening to on your Discord profile:
+
+1. Enable Discord Rich Presence in the onboarding wizard
+2. Make sure Discord is running on your Mac
+3. WolfWave will connect automatically
+
+<Callout type="info">
+  You'll need a Discord Application ID from the
+  [Discord Developer Portal](https://discord.com/developers/applications). See the
+  [Usage Guide](/docs/usage#discord-rich-presence) for setup details.
+</Callout>
 
 ### Configure WebSocket (Optional)
 
 To stream now-playing data to overlays:
 
-1. Open **Settings → WebSocket**
-2. Enter your WebSocket endpoint URL
-3. Add JWT token if required
-4. Enable the connection
+1. Enter your WebSocket endpoint URL
+2. Add JWT token if required
+3. Enable the connection
 
 ## You're Ready!
 
@@ -65,6 +77,8 @@ WolfWave is now tracking your Apple Music playback. Your viewers can use:
 - `!currentsong` — Shows the current track
 - `!nowplaying` — Shows the current track
 - `!lastsong` — Shows the previous track
+- `!last` — Shows the previous track
+- `!prevsong` — Shows the previous track
 
 <Cards>
   <Card title="Usage Guide" href="/docs/usage" />

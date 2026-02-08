@@ -426,14 +426,17 @@ final class TwitchDeviceAuth {
     }
 
     // MARK: - Private Helpers
-    
+
+    /// Characters allowed without percent-encoding in form URL encoding (RFC 3986 unreserved).
+    private static let urlEncodingAllowed = CharacterSet(
+        charactersIn: "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-._~")
+
     /// Encodes parameters as application/x-www-form-urlencoded for HTTP requests.
     ///
     /// - Parameter params: Dictionary of key-value pairs to encode.
     /// - Returns: URL-encoded data ready for HTTP body.
     private func formURLEncoded(params: [String: String]) -> Data {
-        let allowed = CharacterSet(
-            charactersIn: "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-._~")
+        let allowed = Self.urlEncodingAllowed
         let body =
             params
             .map { key, value in

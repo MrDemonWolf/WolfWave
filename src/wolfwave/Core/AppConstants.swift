@@ -38,6 +38,12 @@ enum AppConstants {
         
         /// Posted when Twitch re-authentication is needed (token expired or revoked).
         static let twitchReauthNeededChanged = "TwitchReauthNeededChanged"
+
+        /// Posted when the user toggles Discord Rich Presence setting. UserInfo contains "enabled" Bool.
+        static let discordPresenceChanged = "DiscordPresenceChanged"
+
+        /// Posted when the Discord RPC connection state changes. UserInfo contains "state" String.
+        static let discordStateChanged = "DiscordStateChanged"
     }
     
     // MARK: - UserDefaults Keys
@@ -72,6 +78,9 @@ enum AppConstants {
 
         /// Whether the first-launch onboarding wizard has been completed (Bool, default: false)
         static let hasCompletedOnboarding = "hasCompletedOnboarding"
+
+        /// Whether Discord Rich Presence is enabled (Bool, default: false)
+        static let discordPresenceEnabled = "discordPresenceEnabled"
     }
     
     // MARK: - Dock Visibility Modes
@@ -124,6 +133,35 @@ enum AppConstants {
         static let defaultSendConnectionMessage = true
     }
     
+    // MARK: - Discord Integration
+
+    /// Discord Rich Presence constants.
+    enum Discord {
+        /// Settings section identifier for Discord configuration
+        static let settingsSection = "discordPresence"
+
+        /// IPC socket filename prefix (append 0–9 to find active socket)
+        static let ipcSocketPrefix = "discord-ipc-"
+
+        /// Number of IPC socket slots to try (0 through 9)
+        static let ipcSocketSlots = 10
+
+        /// Discord RPC protocol version
+        static let rpcVersion = 1
+
+        /// Activity type for "Listening" (shows "Listening to …" on profile)
+        static let listeningActivityType = 2
+
+        /// Reconnect base delay in seconds (doubled on each consecutive failure)
+        static let reconnectBaseDelay: TimeInterval = 5.0
+
+        /// Maximum reconnect delay cap in seconds
+        static let reconnectMaxDelay: TimeInterval = 60.0
+
+        /// Interval in seconds for polling Discord availability when not connected
+        static let availabilityPollInterval: TimeInterval = 15.0
+    }
+
     // MARK: - Dispatch Queue Labels
     
     /// Dispatch queue identifiers for background operations.
@@ -136,6 +174,9 @@ enum AppConstants {
         
         /// Queue for Twitch network operations
         static let twitchNetworkMonitor = "com.mrdemonwolf.wolfwave.networkmonitor"
+
+        /// Queue for Discord IPC operations
+        static let discordIPC = "com.mrdemonwolf.wolfwave.discordipc"
     }
     
     // MARK: - UI Dimensions
@@ -236,6 +277,6 @@ enum AppConstants {
         static let windowWidth: CGFloat = 520
 
         /// Height of the onboarding window
-        static let windowHeight: CGFloat = 440
+        static let windowHeight: CGFloat = 500
     }
 }

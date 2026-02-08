@@ -13,14 +13,14 @@ import Foundation
 /// Thread-safe for concurrent access from any thread.
 final class BotCommandDispatcher {
     private var commands: [BotCommand] = []
+    private let songCommand = SongCommand()
+    private let lastSongCommand = LastSongCommand()
 
     init() {
         registerDefaultCommands()
     }
 
     private func registerDefaultCommands() {
-        let songCommand = SongCommand()
-        let lastSongCommand = LastSongCommand()
         register(songCommand)
         register(lastSongCommand)
     }
@@ -30,40 +30,24 @@ final class BotCommandDispatcher {
     }
 
     func setCurrentSongInfo(callback: @escaping () -> String) {
-        for command in commands {
-            if let songCmd = command as? SongCommand {
-                songCmd.getCurrentSongInfo = callback
-            }
-        }
+        songCommand.getCurrentSongInfo = callback
     }
 
     func setLastSongInfo(callback: @escaping () -> String) {
-        for command in commands {
-            if let lastSongCmd = command as? LastSongCommand {
-                lastSongCmd.getLastSongInfo = callback
-            }
-        }
+        lastSongCommand.getLastSongInfo = callback
     }
-    
+
     func setCurrentSongCommandEnabled(callback: @escaping () -> Bool) {
-        for command in commands {
-            if let songCmd = command as? SongCommand {
-                songCmd.isEnabled = callback
-            }
-        }
+        songCommand.isEnabled = callback
     }
-    
+
     func setLastSongCommandEnabled(callback: @escaping () -> Bool) {
-        for command in commands {
-            if let lastSongCmd = command as? LastSongCommand {
-                lastSongCmd.isEnabled = callback
-            }
-        }
+        lastSongCommand.isEnabled = callback
     }
 
     func processMessage(_ message: String) -> String? {
         let trimmedMessage = message.trimmingCharacters(in: .whitespaces)
-        
+
         guard !trimmedMessage.isEmpty, trimmedMessage.count <= 500 else {
             return nil
         }

@@ -32,19 +32,55 @@ Connect your Twitch bot via secure device code authentication:
 3. Follow the on-screen instructions to authorize
 4. Your bot will automatically connect to your channel
 
+### Discord Rich Presence
+
+Show what you're listening to on your Discord profile — just like Spotify, but for Apple Music.
+
+#### Setup
+
+1. Create a Discord application at [discord.com/developers/applications](https://discord.com/developers/applications)
+2. Copy the **Application ID**
+3. (Optional) Upload an Apple Music logo as a Rich Presence asset named `apple_music`
+4. Add the Application ID to your `Config.xcconfig` as `DISCORD_CLIENT_ID`
+5. Enable Discord Rich Presence in **Settings → Discord**
+
+#### What It Shows
+
+When a song is playing, your Discord profile will display:
+
+- **"Listening to Apple Music"** activity status
+- **Song title** and **artist name**
+- **Album name**
+- **Album artwork** (fetched automatically from the iTunes Search API)
+- **Playback progress** with elapsed time and duration
+
+<Callout type="info">
+  Album artwork is fetched dynamically — no need to manually upload art assets to Discord.
+  If you upload an `apple_music` asset to your Discord app, it will appear as a small icon
+  alongside the album art.
+</Callout>
+
+#### Requirements
+
+- Discord must be running on your Mac
+- WolfWave connects automatically via Discord's local IPC socket
+- No bot token or server setup required
+
 ## Chat Commands
 
 Once connected, your viewers can use these commands in chat:
 
-| Command        | Description                      |
-| -------------- | -------------------------------- |
-| `!song`        | Shows the currently playing song |
-| `!currentsong` | Shows the currently playing song |
-| `!nowplaying`  | Shows the currently playing song |
+| Command        | Description              |
+| -------------- | ------------------------ |
+| `!song`        | Current playing song     |
+| `!currentsong` | Current playing song     |
+| `!nowplaying`  | Current playing song     |
+| `!lastsong`    | Previously played song   |
+| `!last`        | Previously played song   |
+| `!prevsong`    | Previously played song   |
 
 <Callout type="info">
-  Commands can be toggled on/off in Settings under "Bot Commands" → "Current
-  Song".
+  Commands can be toggled on/off in Settings under "Bot Commands".
 </Callout>
 
 ## Settings
@@ -54,5 +90,6 @@ Access settings from the menu bar icon to configure:
 - **Music Monitor**: Enable/disable Apple Music tracking
 - **WebSocket**: Configure your WebSocket endpoint and authentication
 - **Twitch**: Connect your Twitch account and configure the bot
+- **Discord**: Enable/disable Rich Presence and view connection status
 - **App Visibility**: Control app appearance settings
 - **Advanced**: Additional configuration options

@@ -43,9 +43,9 @@ class MusicPlaybackMonitor {
         static let musicBundleIdentifier = "com.apple.Music"
         static let notificationName = "com.apple.Music.playerInfo"
         static let queueLabel = "com.mrdemonwolf.wolfwave.musicplaybackmonitor"
-        // Increased interval to reduce background polling and disk/CPU activity.
-        // Adjust if you need more responsive updates.
-        static let checkInterval: TimeInterval = 2.0
+        // Fallback polling interval. Distributed notifications handle real-time
+        // changes; this only catches missed events, so 5s is sufficient.
+        static let checkInterval: TimeInterval = 5.0
         static let trackSeparator = " | "
         static let notificationDedupWindow: TimeInterval = 0.75
         static let idleGraceWindow: TimeInterval = 2.0
@@ -68,7 +68,7 @@ class MusicPlaybackMonitor {
     
     private let backgroundQueue = DispatchQueue(
         label: Constants.queueLabel,
-        qos: .userInitiated
+        qos: .utility
     )
     
     func startTracking() {

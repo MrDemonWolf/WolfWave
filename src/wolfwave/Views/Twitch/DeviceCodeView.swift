@@ -27,16 +27,11 @@ struct DeviceCodeView: View {
     
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            // Header: subtle label + helper
-            VStack(alignment: .leading, spacing: 2) {
-                Text("Device Code")
-                    .font(.system(size: 11, weight: .medium))
-                    .foregroundColor(.secondary)
-                Text("Click the button below to quickly sign in with Twitch and enable chat features")
-                    .font(.system(size: 12, weight: .regular))
-                    .foregroundColor(.secondary)
-            }
-            .transition(.move(edge: .top).combined(with: .opacity))
+            // Header: subtle label
+            Text("Device Code")
+                .font(.system(size: 11, weight: .medium))
+                .foregroundColor(.secondary)
+                .transition(.move(edge: .top).combined(with: .opacity))
 
 
             // Code container - monospaced, larger and calm
@@ -134,9 +129,6 @@ struct DeviceCodeView: View {
             withAnimation(.easeInOut(duration: 0.18)) {
                 showCopyFeedback = false
             }
-        }
-
-        DispatchQueue.main.asyncAfter(deadline: .now() + 1.3) {
             isCodeCopied = false
         }
     }

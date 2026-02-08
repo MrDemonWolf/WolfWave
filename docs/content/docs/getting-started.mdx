@@ -7,8 +7,8 @@ This guide is for developers who want to build WolfWave from source. If you just
 
 ## Prerequisites
 
-- macOS 12.0+
-- Xcode 15.0+
+- macOS 15.0+
+- Xcode 16.0+
 - Swift 5.9+
 - Command Line Tools: `xcode-select --install`
 
@@ -19,7 +19,7 @@ git clone https://github.com/MrDemonWolf/WolfWave.git
 cd WolfWave
 ```
 
-## Configure Twitch Client ID
+## Configure API Keys
 
 Copy the example configuration file:
 
@@ -27,17 +27,18 @@ Copy the example configuration file:
 cp src/wolfwave/Config.xcconfig.example src/wolfwave/Config.xcconfig
 ```
 
-Open `src/wolfwave/Config.xcconfig` and set your Twitch Client ID:
+Open `src/wolfwave/Config.xcconfig` and set your keys:
 
 ```
-TWITCH_CLIENT_ID = your_client_id_here
+TWITCH_CLIENT_ID = your_twitch_client_id_here
+DISCORD_CLIENT_ID = your_discord_client_id_here
 ```
 
 <Callout type="info">
-  Create a Twitch application at
-  [dev.twitch.tv/console/apps](https://dev.twitch.tv/console/apps) to get a
-  Client ID. This is a public identifier (not a secret) that gets baked into the
-  app at build time via `Info.plist`.
+  Get a Twitch Client ID at
+  [dev.twitch.tv/console/apps](https://dev.twitch.tv/console/apps). Get a Discord
+  Application ID at
+  [discord.com/developers/applications](https://discord.com/developers/applications).
 </Callout>
 
 <Callout type="warn">
@@ -61,14 +62,44 @@ Build and run from Xcode using ⌘R.
 For a release build with DMG output:
 
 ```bash
-make prod-build TWITCH_CLIENT_ID=your_id
+make prod-build
 ```
+
+The DMG will be created at `builds/WolfWave-{version}-arm64.dmg`. If a Developer ID Application certificate is found in your Keychain, the app will be re-signed for distribution automatically.
 
 To build and install directly to `/Applications`:
 
 ```bash
-make prod-install TWITCH_CLIENT_ID=your_id
+make prod-install
 ```
+
+## Notarization
+
+After building the DMG, notarize it for Gatekeeper-trusted distribution:
+
+```bash
+APPLE_ID=you@example.com \
+APPLE_TEAM_ID=YOUR_TEAM_ID \
+APPLE_APP_PASSWORD=xxxx-xxxx-xxxx-xxxx \
+make notarize
+```
+
+<Callout type="info">
+  Generate an app-specific password at
+  [appleid.apple.com](https://appleid.apple.com/account/manage) under **Sign-In and
+  Security → App-Specific Passwords**.
+</Callout>
+
+## CI/CD
+
+Pushing a version tag triggers the GitHub Actions workflow which automatically builds, notarizes, and creates a GitHub Release:
+
+```bash
+git tag v1.0.0
+git push origin v1.0.0
+```
+
+See the [Development Guide](/docs/development) for required GitHub secrets.
 
 ## Next Steps
 

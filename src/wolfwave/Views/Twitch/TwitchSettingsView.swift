@@ -130,7 +130,7 @@ struct TwitchSettingsView: View {
         } else if viewModel.credentialsSaved && viewModel.botUsername != "" {
             return ""
         } else if viewModel.authState.isInProgress {
-            return "A window will open for you to authorize. Just follow the steps."
+            return "Enter the code on Twitch to authorize WolfWave."
         } else {
             return "Click below to connect your Twitch bot."
         }
@@ -143,6 +143,8 @@ struct TwitchSettingsView: View {
             // Only show header when not connected
             if case .connected = viewModel.integrationState {
                 // Header hidden when connected
+            } else if case .authorizing = viewModel.integrationState {
+                // Header hidden when authorizing — helper text provides instruction
             } else {
                 VStack(alignment: .leading, spacing: 2) {
                     Text(authCardHeaderTitle)
@@ -196,6 +198,17 @@ struct TwitchSettingsView: View {
 
                 case .authorizing:
                     VStack(spacing: 12) {
+                        HStack(spacing: 0) {
+                            Text("Visit ")
+                            Link("twitch.tv/activate",
+                                 destination: URL(string: "https://www.twitch.tv/activate")!)
+                                .pointerCursor()
+                            Text(" and enter this code:")
+                        }
+                        .font(.system(size: 13))
+                        .foregroundColor(.secondary)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+
                         if case .waitingForAuth(let code, let uri) = viewModel.authState {
                             DeviceCodeView(
                                 userCode: code, verificationURI: uri,
@@ -218,46 +231,25 @@ struct TwitchSettingsView: View {
                                 value: viewModel.authState.userCode)
                         }
 
-                        Text("You can also go to twitch.tv/activate with the code below.")
-                            .font(.system(size: 13))
-                            .foregroundColor(.secondary)
-                            .frame(maxWidth: .infinity, alignment: .leading)
-
-                        // Inline waiting row with compact spinner, text and cancel
-                        if hasStartedActivation {
-                            HStack(spacing: 12) {
-                                ProgressView()
-                                    .progressViewStyle(.circular)
-                                    .controlSize(.small)
-
-                                Text("Waiting for authorization…")
-                                    .font(.system(size: 13, weight: .regular))
-                                    .foregroundColor(.secondary)
-
-                                Spacer()
-
-                                Button("Cancel") {
-                                    hasStartedActivation = false
-                                    viewModel.cancelOAuth()
-                                }
-                                .buttonStyle(.bordered)
-                                .tint(.red)
+                        // Always-visible spinner + cancel row once device code is shown
+                        HStack(spacing: 8) {
+                            ProgressView()
+                                .progressViewStyle(.circular)
                                 .controlSize(.small)
-                                .pointerCursor()
-                            }
-                            .padding(.top, 4)
-                        } else {
-                            HStack(spacing: 12) {
-                                Spacer()
 
-                                Button("Cancel") {
-                                    viewModel.cancelOAuth()
-                                }
-                                .buttonStyle(.bordered)
-                                .tint(.red)
-                                .controlSize(.small)
-                                .pointerCursor()
+                            Text("Waiting for authorization…")
+                                .font(.system(size: 13))
+                                .foregroundColor(.secondary)
+
+                            Spacer()
+
+                            Button("Cancel") {
+                                viewModel.cancelOAuth()
                             }
+                            .buttonStyle(.bordered)
+                            .tint(.red)
+                            .controlSize(.small)
+                            .pointerCursor()
                         }
                     }
 
@@ -293,8 +285,6 @@ struct TwitchSettingsView: View {
         .padding(AppConstants.SettingsUI.cardPadding)
         .background(Color(nsColor: .controlBackgroundColor))
         .clipShape(RoundedRectangle(cornerRadius: AppConstants.SettingsUI.cardCornerRadius))
-        .animation(.easeInOut(duration: 0.2), value: viewModel.authState.isInProgress)
-        .animation(.easeInOut(duration: 0.2), value: viewModel.channelConnected)
     }
 }
 

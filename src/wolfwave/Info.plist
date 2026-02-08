@@ -4,6 +4,8 @@
 	<dict>
 		<key>TWITCH_CLIENT_ID</key>
 		<string>$(TWITCH_CLIENT_ID)</string>
+		<key>DISCORD_CLIENT_ID</key>
+		<string>$(DISCORD_CLIENT_ID)</string>
 		<key>NSAppleMusicUsageDescription</key>
 		<string>WolfWave reads your currently playing track from Apple Music to display Now Playing information in your menu bar and share it with your Twitch community. Your music library is never modified.</string>
 		<key>NSAppleEventsUsageDescription</key>

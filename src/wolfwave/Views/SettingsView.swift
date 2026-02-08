@@ -51,6 +51,7 @@ struct SettingsView: View {
         case appVisibility = "App Visibility"
         case websocket = "WebSocket"
         case twitchIntegration = "Twitch Integration"
+        case discord = "Discord"
         case advanced = "Advanced"
         
         var id: String { rawValue }
@@ -62,6 +63,7 @@ struct SettingsView: View {
             case .appVisibility: return "eye"
             case .websocket: return "dot.radiowaves.left.and.right"
             case .twitchIntegration: return nil // Uses custom image
+            case .discord: return "gamecontroller"
             case .advanced: return "gearshape"
             }
         }
@@ -70,6 +72,7 @@ struct SettingsView: View {
         var customIcon: String? {
             switch self {
             case .twitchIntegration: return "TwitchLogo"
+            case .discord: return nil
             default: return nil
             }
         }
@@ -141,7 +144,7 @@ struct SettingsView: View {
                 .padding(.vertical, AppConstants.SettingsUI.contentPaddingV)
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .background(Color(nsColor: .windowBackgroundColor))
+            .background(Color(nsColor: .underPageBackgroundColor))
             .onAppear {
                 if let requestedSection = UserDefaults.standard.string(forKey: AppConstants.UserDefaults.selectedSettingsSection) {
                     if requestedSection == AppConstants.Twitch.settingsSection {
@@ -214,6 +217,8 @@ struct SettingsView: View {
             WebSocketSettingsView()
         case .twitchIntegration:
             twitchIntegrationView()
+        case .discord:
+            DiscordSettingsView()
         case .advanced:
             AdvancedSettingsView(showingResetAlert: $showingResetAlert)
         }
@@ -234,12 +239,9 @@ struct SettingsView: View {
 
     @ViewBuilder
     private func sidebarIcon(for section: SettingsSection) -> some View {
-        if let customIcon = section.customIcon {
-            Image(customIcon)
-                .renderingMode(.template)
-                .resizable()
-                .interpolation(.high)
-                .scaledToFit()
+        if section.customIcon != nil {
+            TwitchGlitchShape()
+                .fill(style: FillStyle(eoFill: true))
                 .frame(width: 16, height: 16)
         } else if let systemIcon = section.systemIcon {
             Image(systemName: systemIcon)
@@ -362,7 +364,7 @@ struct SettingsView: View {
     /// 5. Notifies the app that tracking has been re-enabled
     private func resetSettings() {
         // Clear UserDefaults
-        [AppConstants.UserDefaults.trackingEnabled, AppConstants.UserDefaults.currentSongCommandEnabled, AppConstants.UserDefaults.lastSongCommandEnabled, AppConstants.UserDefaults.dockVisibility, AppConstants.UserDefaults.websocketEnabled, AppConstants.UserDefaults.websocketURI, AppConstants.UserDefaults.hasCompletedOnboarding].forEach {
+        [AppConstants.UserDefaults.trackingEnabled, AppConstants.UserDefaults.currentSongCommandEnabled, AppConstants.UserDefaults.lastSongCommandEnabled, AppConstants.UserDefaults.dockVisibility, AppConstants.UserDefaults.websocketEnabled, AppConstants.UserDefaults.websocketURI, AppConstants.UserDefaults.hasCompletedOnboarding, AppConstants.UserDefaults.discordPresenceEnabled].forEach {
             UserDefaults.standard.removeObject(forKey: $0)
         }
 

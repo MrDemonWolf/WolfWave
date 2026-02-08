@@ -34,9 +34,6 @@ struct AdvancedSettingsView: View {
     /// Passed as binding from parent to control alert visibility.
     @Binding var showingResetAlert: Bool
 
-    /// Whether the onboarding has been completed (controls button state).
-    @State private var onboardingCompleted = OnboardingViewModel.hasCompletedOnboarding
-
     /// Whether the onboarding reset confirmation alert is shown.
     @State private var showingOnboardingResetAlert = false
 
@@ -58,7 +55,7 @@ struct AdvancedSettingsView: View {
                     Text("Onboarding")
                         .font(.system(size: 13, weight: .semibold))
 
-                    Text("Reset the setup wizard so it shows again on next launch.")
+                    Text("Run the setup wizard again to reconfigure WolfWave.")
                         .font(.system(size: 12))
                         .foregroundStyle(.secondary)
                         .fixedSize(horizontal: false, vertical: true)
@@ -71,10 +68,9 @@ struct AdvancedSettingsView: View {
                 }
                 .buttonStyle(.bordered)
                 .controlSize(.regular)
-                .disabled(!onboardingCompleted)
                 .pointerCursor()
                 .accessibilityLabel("Reset onboarding wizard")
-                .accessibilityHint("The setup wizard will show again on next launch")
+                .accessibilityHint("Opens the setup wizard")
             }
             .padding(AppConstants.SettingsUI.cardPadding)
             .background(Color(nsColor: .controlBackgroundColor))
@@ -83,11 +79,11 @@ struct AdvancedSettingsView: View {
                 Button("Cancel", role: .cancel) {}
                 Button("Reset") {
                     UserDefaults.standard.removeObject(forKey: AppConstants.UserDefaults.hasCompletedOnboarding)
-                    onboardingCompleted = false
                     Log.info("Onboarding reset by user", category: "Onboarding")
+                    AppDelegate.shared?.showOnboarding()
                 }
             } message: {
-                Text("The setup wizard will appear again on next launch.")
+                Text("This will open the setup wizard now.")
             }
 
             // Danger Zone Card

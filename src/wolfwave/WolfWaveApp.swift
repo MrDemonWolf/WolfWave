@@ -72,7 +72,7 @@ struct WolfWaveApp: App {
 /// - All UI updates happen on the main thread
 /// - Background tasks use Task { } for async work
 /// - MusicPlaybackMonitor uses dispatch queues internally
-class AppDelegate: NSObject, NSApplicationDelegate, NSToolbarDelegate {
+class AppDelegate: NSObject, NSApplicationDelegate, NSToolbarDelegate, NSWindowDelegate {
     /// Unique identifier for the settings window toolbar.
     private static let settingsToolbarIdentifier = "com.wolfwave.settings.toolbar"
     
@@ -116,6 +116,12 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSToolbarDelegate {
     /// Handles EventSub WebSocket connection to Twitch, chat message routing,
     /// and bot command dispatching.
     var twitchService: TwitchChatService?
+
+    /// Discord Rich Presence service.
+    ///
+    /// Manages the local IPC socket connection to Discord for showing
+    /// "Listening to Apple Music" on the user's Discord profile.
+    var discordService: DiscordRPCService?
 
     /// Current track being played (song title).
     private var currentSong: String?
@@ -162,6 +168,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSToolbarDelegate {
         setupMenu()
         setupMusicMonitor()
         setupTwitchService()
+        setupDiscordService()
         setupNotificationObservers()
         initializeTrackingState()
 
@@ -273,6 +280,24 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSToolbarDelegate {
     private func stopTrackingAndUpdate() {
         musicMonitor?.stopTracking()
         updateNowPlaying("Tracking disabled")
+    }
+
+    /// Responds to changes in the Discord Rich Presence enabled setting.
+    ///
+    /// Called when user toggles the "Enable Discord Rich Presence" setting.
+    /// Enables or disables the Discord IPC service accordingly.
+    @objc func discordPresenceSettingChanged(_ notification: Notification) {
+        guard let enabled = notification.userInfo?["enabled"] as? Bool else { return }
+        discordService?.setEnabled(enabled)
+
+        // If enabling and we have current track info, push it immediately
+        if enabled, let song = currentSong, let artist = currentArtist {
+            discordService?.updatePresence(
+                track: song,
+                artist: artist,
+                album: currentAlbum ?? ""
+            )
+        }
     }
 
     /// Responds to changes in the dock visibility mode setting.
@@ -646,6 +671,44 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSToolbarDelegate {
         Log.debug("AppDelegate: Twitch service callbacks configured", category: "Twitch")
     }
 
+    // MARK: - Discord Service
+
+    /// Initializes the Discord Rich Presence service.
+    ///
+    /// Creates a DiscordRPCService and registers a state-change callback that
+    /// posts notifications for the settings UI. Enables the service if the user
+    /// has previously turned on Discord presence in settings.
+    private func setupDiscordService() {
+        discordService = DiscordRPCService()
+
+        if DiscordRPCService.resolveClientID() != nil {
+            Log.debug("AppDelegate: Resolved Discord Client ID from Info.plist", category: "Discord")
+        } else {
+            Log.info("AppDelegate: No Discord Client ID found. Set DISCORD_CLIENT_ID in Config.xcconfig to enable Rich Presence.", category: "Discord")
+        }
+
+        discordService?.onStateChange = { [weak self] newState in
+            let stateString: String
+            switch newState {
+            case .connected: stateString = "connected"
+            case .connecting: stateString = "connecting"
+            case .disconnected: stateString = "disconnected"
+            }
+
+            NotificationCenter.default.post(
+                name: NSNotification.Name(AppConstants.Notifications.discordStateChanged),
+                object: self,
+                userInfo: ["state": stateString]
+            )
+        }
+
+        // Enable if user previously turned it on
+        let enabled = UserDefaults.standard.bool(forKey: AppConstants.UserDefaults.discordPresenceEnabled)
+        if enabled {
+            discordService?.setEnabled(true)
+        }
+    }
+
     // MARK: - Notification Observers
 
     /// Registers all notification observers for system events.
@@ -673,6 +736,13 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSToolbarDelegate {
             self,
             selector: #selector(handleWindowClose(_:)),
             name: NSWindow.willCloseNotification,
+            object: nil
+        )
+
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(discordPresenceSettingChanged),
+            name: NSNotification.Name(AppConstants.Notifications.discordPresenceChanged),
             object: nil
         )
     }
@@ -801,7 +871,14 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSToolbarDelegate {
     ///
     /// Creates a non-resizable, centered window hosting `OnboardingView`.
     /// On completion, the window is closed and normal app flow continues.
-    private func showOnboarding() {
+    func showOnboarding() {
+        // If the onboarding window is already visible, just bring it forward
+        if let existing = onboardingWindow, existing.isVisible {
+            existing.makeKeyAndOrderFront(nil)
+            NSApp.activate(ignoringOtherApps: true)
+            return
+        }
+
         let onboardingView = OnboardingView(onComplete: { [weak self] in
             self?.dismissOnboarding()
         })
@@ -824,7 +901,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSToolbarDelegate {
         window.titleVisibility = .hidden
         window.titlebarAppearsTransparent = true
         window.isMovableByWindowBackground = true
-        window.center()
+        window.delegate = self
         window.collectionBehavior = [.moveToActiveSpace]
 
         // Ensure app is visible during onboarding
@@ -832,8 +909,9 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSToolbarDelegate {
 
         onboardingWindow = window
         showWindow(onboardingWindow)
+        window.center()
 
-        Log.info("Onboarding window shown for first launch", category: "Onboarding")
+        Log.info("Onboarding window shown", category: "Onboarding")
     }
 
     /// Dismisses the onboarding wizard and transitions to normal app state.
@@ -846,8 +924,14 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSToolbarDelegate {
         DispatchQueue.main.async { [weak self] in
             guard let self else { return }
 
-            self.onboardingWindow?.close()
+            // Detach the reference first so windowWillClose (called
+            // synchronously from close()) will skip its cleanup path.
+            let window = self.onboardingWindow
             self.onboardingWindow = nil
+
+            // orderOut hides without triggering delegate callbacks,
+            // avoiding re-entrant deallocation during the close lifecycle.
+            window?.orderOut(nil)
 
             // Validate Twitch token if one was saved during onboarding
             Task { [weak self] in
@@ -858,6 +942,33 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSToolbarDelegate {
             self.applyInitialDockVisibility()
 
             Log.info("Onboarding dismissed, transitioning to normal app state", category: "Onboarding")
+        }
+    }
+
+    // MARK: - NSWindowDelegate
+
+    /// Handles the onboarding window being closed via the X button.
+    ///
+    /// Treats closing the window as completing onboarding so the Reset button
+    /// in Advanced settings works correctly and state is properly cleaned up.
+    ///
+    /// The reference cleanup (`onboardingWindow = nil`) is deferred to the next
+    /// run-loop iteration so the window and its hosted SwiftUI views can finish
+    /// their close lifecycle before ARC deallocates them.
+    func windowWillClose(_ notification: Notification) {
+        guard let window = notification.object as? NSWindow,
+              window === onboardingWindow else { return }
+
+        // Mark onboarding as completed so Reset Onboarding works
+        UserDefaults.standard.set(true, forKey: AppConstants.UserDefaults.hasCompletedOnboarding)
+
+        Log.info("Onboarding window closed via title bar", category: "Onboarding")
+
+        // Defer reference cleanup so the window finishes its close
+        // lifecycle before being deallocated (prevents EXC_BAD_ACCESS).
+        DispatchQueue.main.async { [weak self] in
+            self?.onboardingWindow = nil
+            self?.applyInitialDockVisibility()
         }
     }
 
@@ -1070,6 +1181,13 @@ extension AppDelegate: MusicPlaybackMonitorDelegate {
         currentAlbum = album
 
         updateTrackDisplay(song: track, artist: artist, album: album)
+
+        // Update Discord Rich Presence with the new track
+        discordService?.updatePresence(
+            track: track,
+            artist: artist,
+            album: album
+        )
     }
 
     /// Called when the playback status changes (e.g., playing, paused, stopped).
@@ -1088,6 +1206,11 @@ extension AppDelegate: MusicPlaybackMonitorDelegate {
         }
 
         updateNowPlaying(status)
+
+        // Clear Discord Rich Presence when not playing
+        if currentSong == nil {
+            discordService?.clearPresence()
+        }
     }
 }
 
