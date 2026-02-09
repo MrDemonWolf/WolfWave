@@ -9,15 +9,17 @@ const inter = Inter({
 
 export const metadata: Metadata = {
   title: {
-    default: "WolfWave - Apple Music + Twitch Companion",
+    default: "WolfWave - Your Music, Everywhere",
     template: "%s | WolfWave",
   },
   description:
-    "Professional macOS menu bar utility that connects Apple Music with your Twitch audience via WebSockets and secure chat commands.",
+    "Professional macOS menu bar utility that bridges Apple Music with Twitch, Discord, and your stream overlays.",
   keywords: [
     "WolfWave",
     "Apple Music",
     "Twitch",
+    "Discord",
+    "Rich Presence",
     "macOS",
     "menu bar",
     "WebSocket",
@@ -27,21 +29,25 @@ export const metadata: Metadata = {
   ],
   authors: [{ name: "MrDemonWolf, Inc." }],
   creator: "MrDemonWolf, Inc.",
+  icons: {
+    icon: "/icon.png",
+    apple: "/apple-icon.png",
+  },
   openGraph: {
     type: "website",
     locale: "en_US",
     siteName: "WolfWave",
-    title: "WolfWave - Apple Music + Twitch Companion",
+    title: "WolfWave - Your Music, Everywhere",
     description:
-      "Professional macOS menu bar utility that connects Apple Music with your Twitch audience via WebSockets and secure chat commands.",
+      "Professional macOS menu bar utility that bridges Apple Music with Twitch, Discord, and your stream overlays.",
   },
   twitter: {
     card: "summary_large_image",
-    title: "WolfWave - Apple Music + Twitch Companion",
+    title: "WolfWave - Your Music, Everywhere",
     description:
-      "Professional macOS menu bar utility that connects Apple Music with your Twitch audience via WebSockets and secure chat commands.",
+      "Professional macOS menu bar utility that bridges Apple Music with Twitch, Discord, and your stream overlays.",
   },
-  metadataBase: new URL("https://wolfwave.mdwolf.net"),
+  metadataBase: new URL("https://mrdemonwolf.github.io/wolfwave"),
 };
 
 export default function Layout({ children }: LayoutProps<"/">) {

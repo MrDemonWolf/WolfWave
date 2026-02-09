@@ -1,6 +1,12 @@
-# WolfWave - Apple Music + Twitch Companion
+<p align="center">
+  <img src="logo.png" alt="WolfWave" width="200" />
+</p>
 
-WolfWave is a professional-grade macOS menu bar utility designed to connect Apple Music with your audience. Effortlessly broadcast real-time song data to overlays via WebSockets, interact with your Twitch community through secure automated chat commands, and show what you're listening to on Discord.
+<h1 align="center">WolfWave - Your Music, Everywhere</h1>
+
+<!-- ![WolfWave Banner](banner.jpg) -->
+
+WolfWave is a professional-grade macOS menu bar utility that bridges Apple Music with the platforms you use. Effortlessly broadcast real-time song data to stream overlays via WebSockets, interact with your Twitch community through automated chat commands, and show what you're listening to on Discord.
 
 ## Features
 
@@ -92,14 +98,14 @@ See [Releasing & Notarization](/docs/content/docs/getting-started.mdx) in the do
 
 ## Documentation
 
-For complete documentation, visit: **[wolfwave.mdwolf.net](https://wolfwave.mdwolf.net)**
+For complete documentation, visit: **[mrdemonwolf.github.io/wolfwave](https://mrdemonwolf.github.io/wolfwave)**
 
-- [Features](https://wolfwave.mdwolf.net/docs/features) — Complete feature list
-- [Installation](https://wolfwave.mdwolf.net/docs/installation) — Download and setup
-- [Usage Guide](https://wolfwave.mdwolf.net/docs/usage) — How to use WolfWave
-- [Bot Commands](https://wolfwave.mdwolf.net/docs/bot-commands) — Chat command reference
-- [Development](https://wolfwave.mdwolf.net/docs/development) — Contributing guide
-- [Architecture](https://wolfwave.mdwolf.net/docs/architecture) — Project structure
+- [Features](https://mrdemonwolf.github.io/wolfwave/docs/features) — Complete feature list
+- [Installation](https://mrdemonwolf.github.io/wolfwave/docs/installation) — Download and setup
+- [Usage Guide](https://mrdemonwolf.github.io/wolfwave/docs/usage) — How to use WolfWave
+- [Bot Commands](https://mrdemonwolf.github.io/wolfwave/docs/bot-commands) — Chat command reference
+- [Development](https://mrdemonwolf.github.io/wolfwave/docs/development) — Contributing guide
+- [Architecture](https://mrdemonwolf.github.io/wolfwave/docs/architecture) — Project structure
 
 ## License
 
@@ -107,7 +113,7 @@ For complete documentation, visit: **[wolfwave.mdwolf.net](https://wolfwave.mdwo
 
 ## Support
 
-Questions or feedback? Join the Discord: [mdwolf.net/discord](https://mdwolf.net/discord)
+Questions or feedback? Join the Discord: [mrdwolf.net/discord](https://mrdwolf.net/discord)
 
 ---
 

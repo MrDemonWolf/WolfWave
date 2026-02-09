@@ -2,11 +2,13 @@
   "title": "Documentation",
   "pages": [
     "index",
+    "---Guide---",
     "features",
     "installation",
-    "getting-started",
     "usage",
     "bot-commands",
+    "---Developers---",
+    "getting-started",
     "development",
     "architecture",
     "security"
