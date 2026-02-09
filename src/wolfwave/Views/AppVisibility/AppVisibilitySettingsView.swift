@@ -49,6 +49,7 @@ struct AppVisibilitySettingsView: View {
                 .accessibilityLabel("Display mode")
                 .accessibilityIdentifier("dockVisibilityPicker")
             }
+            .frame(maxWidth: .infinity, alignment: .leading)
             .cardStyle()
 
             // Info Notice

@@ -91,14 +91,35 @@ make open-xcode
 
 ## Releasing
 
-Pushing a version tag triggers the CI/CD pipeline which builds, notarizes, and creates a GitHub Release:
+### 1. Build the DMG
+
+```bash
+make prod-build
+```
+
+This builds a Release `.app`, re-signs it with your Developer ID certificate, and packages it into `builds/WolfWave-<VERSION>-arm64.dmg`.
+
+### 2. Notarize
+
+```bash
+APPLE_ID=you@example.com \
+APPLE_TEAM_ID=XXXXXXXXXX \
+APPLE_APP_PASSWORD=xxxx-xxxx-xxxx-xxxx \
+make notarize
+```
+
+This signs the DMG, submits it to Apple's notary service, waits for approval, and staples the ticket.
+
+> Generate an app-specific password at [appleid.apple.com](https://appleid.apple.com) under **Sign-In and Security > App-Specific Passwords**.
+
+### 3. Tag and release
 
 ```bash
 git tag v1.0.0
 git push origin v1.0.0
 ```
 
-See [Releasing & Notarization](/docs/content/docs/getting-started.mdx) in the docs for full CI/CD setup instructions.
+Pushing a tag triggers CI which builds the DMG and creates a GitHub Release automatically. You can then replace the CI-built DMG with your locally notarized one, or upload it manually.
 
 ## Documentation
 
