@@ -449,8 +449,6 @@ final class TwitchChatService: @unchecked Sendable {
 
         // Don't set connected state here - wait for EventSub session_welcome
         // The connection state will be updated in handleSessionWelcome() when the session is actually established
-        Log.info("Twitch: Joining channel \(broadcasterID)", category: "TwitchChat")
-
         connectToEventSub()
     }
 
@@ -467,9 +465,6 @@ final class TwitchChatService: @unchecked Sendable {
     ///   - clientID: Twitch application client ID
     /// - Throws: `ConnectionError` if resolution or connection fails
     func connectToChannel(channelName: String, token: String, clientID: String) async throws {
-        Log.info(
-            "Twitch: connectToChannel called for channel: \(channelName)", category: "TwitchChat")
-
         guard !channelName.isEmpty, !token.isEmpty else {
             Log.error("Twitch: Invalid channel name or token", category: "TwitchChat")
             throw ConnectionError.invalidCredentials
@@ -489,9 +484,6 @@ final class TwitchChatService: @unchecked Sendable {
             resolvedUsername = identity.displayName.isEmpty ? identity.login : identity.displayName
             try KeychainService.saveTwitchUsername(resolvedUsername)
             try KeychainService.saveTwitchBotUserID(identity.userID)
-            Log.debug(
-                "Twitch: Resolved bot identity - username: \(resolvedUsername)",
-                category: "TwitchChat")
         }
 
         guard let botUserID = botUserID else {
@@ -508,19 +500,12 @@ final class TwitchChatService: @unchecked Sendable {
             throw ConnectionError.networkError("Could not resolve channel name to user ID")
         }
 
-        Log.debug(
-            "Twitch: Calling joinChannel with broadcasterID: \(broadcasterUserID), botID: \(botUserID)",
-            category: "TwitchChat")
-
         try joinChannel(
             broadcasterID: broadcasterUserID,
             botID: botUserID,
             token: token,
             clientID: clientID
         )
-
-        Log.info(
-            "Twitch: joinChannel completed, connection process initiated", category: "TwitchChat")
 
         // Store credentials for automatic reconnection (protected by reconnectionLock)
         setReconnectionCredentials(channelName: channelName, token: token, clientID: clientID)
@@ -579,10 +564,6 @@ final class TwitchChatService: @unchecked Sendable {
 
         try KeychainService.saveTwitchUsername(resolvedUsername)
         try KeychainService.saveTwitchBotUserID(identity.userID)
-
-        Log.debug(
-            "Twitch: Resolved bot identity (static) - username: \(resolvedUsername)",
-            category: "TwitchChat")
     }
 
     /// Resolves the Twitch Client ID from Info.plist (set via Config.xcconfig at build time).
@@ -691,9 +672,6 @@ final class TwitchChatService: @unchecked Sendable {
 
         // Update internal state and notify listeners that we've left
         self.setConnected(false)
-        Log.debug(
-            "Twitch: Posting connectionStateChanged notification with isConnected=false",
-            category: "TwitchChat")
         NotificationCenter.default.post(
             name: TwitchChatService.connectionStateChanged,
             object: nil,
@@ -1053,13 +1031,6 @@ final class TwitchChatService: @unchecked Sendable {
             // Update rate limit state from response headers
             if let httpResponse = response as? HTTPURLResponse {
                 self?.updateRateLimitState(endpoint: endpoint, from: httpResponse.allHeaderFields)
-
-                // Log rate limit status for debugging
-                if let remaining = httpResponse.allHeaderFields["Ratelimit-Remaining"] as? String {
-                    Log.debug(
-                        "Twitch: Rate limit remaining: \(remaining)",
-                        category: "TwitchChat")
-                }
             }
 
             guard let data = data else {
@@ -1088,8 +1059,6 @@ final class TwitchChatService: @unchecked Sendable {
         }
 
         webSocketTask = urlSession.webSocketTask(with: url)
-
-        Log.info("Twitch: Starting EventSub WebSocket connection", category: "TwitchChat")
         webSocketTask?.resume()
 
         // Start a timer to detect if session_welcome doesn't arrive in time
@@ -1167,8 +1136,6 @@ final class TwitchChatService: @unchecked Sendable {
 
     private func receiveWebSocketMessage() {
         guard let task = webSocketTask else {
-            Log.debug(
-                "Twitch: WebSocket task is nil, stopping receive loop", category: "TwitchChat")
             return
         }
 
@@ -1191,6 +1158,12 @@ final class TwitchChatService: @unchecked Sendable {
                 self.receiveWebSocketMessage()
 
             case .failure(let error):
+                // Suppress errors caused by intentional disconnect (e.g., leaveChannel())
+                let isDisconnecting = self.disconnectLock.withLock { self.isProcessingDisconnect }
+                guard !isDisconnecting else {
+                    return
+                }
+
                 let nsError = error as NSError
                 let errorCode = nsError.code
                 let errorDomain = nsError.domain
@@ -1256,8 +1229,6 @@ final class TwitchChatService: @unchecked Sendable {
 
     /// Handles the session_welcome message from EventSub.
     private func handleSessionWelcome(_ json: [String: Any]) {
-        Log.info("Twitch: handleSessionWelcome called", category: "TwitchChat")
-
         guard let payload = json["payload"] as? [String: Any],
             let session = payload["session"] as? [String: Any],
             let sessionID = session["id"] as? String
@@ -1270,22 +1241,16 @@ final class TwitchChatService: @unchecked Sendable {
         cancelSessionWelcomeTimeout()
 
         self.sessionID = sessionID
-        Log.info(
-            "Twitch: EventSub session established with ID: \(sessionID)", category: "TwitchChat")
 
         // Ensure connected state is set properly
         setConnected(true)
         onConnectionStateChanged?(true)
 
-        Log.debug(
-            "Twitch: Posting connectionStateChanged notification with isConnected=true",
-            category: "TwitchChat")
         NotificationCenter.default.post(
             name: TwitchChatService.connectionStateChanged,
             object: nil,
             userInfo: ["isConnected": true]
         )
-        Log.debug("Twitch: Notification posted successfully", category: "TwitchChat")
 
         subscribeToChannelChatMessage()
     }
@@ -1363,15 +1328,8 @@ final class TwitchChatService: @unchecked Sendable {
             if let http = response as? HTTPURLResponse {
                 if (200..<300).contains(http.statusCode) {
                     Log.info("Twitch: Connected to chat", category: "TwitchChat")
-                    Log.debug(
-                        "Twitch: shouldSendConnectionMessageOnSubscribe = \(self?.shouldSendConnectionMessageOnSubscribe ?? false)",
-                        category: "TwitchChat")
                     if self?.shouldSendConnectionMessageOnSubscribe == true {
                         self?.sendConnectionMessage()
-                    } else {
-                        Log.debug(
-                            "Twitch: Suppressed connection message on subscribe",
-                            category: "TwitchChat")
                     }
                 } else {
                     let responseText =
@@ -1392,6 +1350,41 @@ final class TwitchChatService: @unchecked Sendable {
     }
 
     // MARK: - Username Resolution
+
+    /// Result of checking whether a Twitch channel exists.
+    enum ChannelValidationResult {
+        case exists
+        case notFound
+        case authenticationFailed
+        case error(String)
+    }
+
+    /// Validates whether a Twitch channel name exists by resolving it to a user ID.
+    ///
+    /// Wraps `resolveUsername()` and translates thrown errors into a `ChannelValidationResult`.
+    ///
+    /// - Parameters:
+    ///   - channelName: The Twitch channel name to validate
+    ///   - token: OAuth access token
+    ///   - clientID: Twitch application client ID
+    /// - Returns: A `ChannelValidationResult` indicating whether the channel exists
+    func validateChannelExists(_ channelName: String, token: String, clientID: String) async -> ChannelValidationResult {
+        do {
+            let userID = try await resolveUsername(channelName, token: token, clientID: clientID)
+            return userID.isEmpty ? .notFound : .exists
+        } catch let error as ConnectionError {
+            switch error {
+            case .authenticationFailed:
+                return .authenticationFailed
+            case .networkError(let msg) where msg == "Unable to resolve username":
+                return .notFound
+            default:
+                return .error(error.localizedDescription)
+            }
+        } catch {
+            return .error(error.localizedDescription)
+        }
+    }
 
     /// Resolves a Twitch username to a user ID.
     ///

@@ -21,16 +21,20 @@ struct AppVisibilitySettingsView: View {
                 Text("App Visibility")
                     .font(.system(size: 17, weight: .semibold))
 
-                Text("Choose where WolfWave appears on your Mac.")
+                Text("Control how WolfWave appears in your Dock and menu bar.")
                     .font(.system(size: 13))
                     .foregroundStyle(.secondary)
             }
 
             // Picker Card
             VStack(alignment: .leading, spacing: 12) {
-                Text("Show app in:")
-                    .font(.system(size: 13, weight: .medium))
-                    .accessibilityHidden(true)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Display Mode")
+                        .font(.system(size: 13, weight: .medium))
+                    Text("Choose where you want WolfWave to appear")
+                        .font(.system(size: 11))
+                        .foregroundStyle(.tertiary)
+                }
 
                 Picker("", selection: $dockVisibility) {
                     Text("Dock and Menu Bar").tag("both")
@@ -42,12 +46,10 @@ struct AppVisibilitySettingsView: View {
                 .onChange(of: dockVisibility) { _, newValue in
                     applyDockVisibility(newValue)
                 }
-                .accessibilityLabel("Show app in")
+                .accessibilityLabel("Display mode")
                 .accessibilityIdentifier("dockVisibilityPicker")
             }
-            .padding(AppConstants.SettingsUI.cardPadding)
-            .background(Color(nsColor: .controlBackgroundColor))
-            .clipShape(RoundedRectangle(cornerRadius: AppConstants.SettingsUI.cardCornerRadius))
+            .cardStyle()
 
             // Info Notice
             if dockVisibility == "menuOnly" {
@@ -55,7 +57,7 @@ struct AppVisibilitySettingsView: View {
                     Image(systemName: "info.circle.fill")
                         .font(.system(size: 13))
                         .foregroundStyle(.blue)
-                    Text("When menu bar only is enabled, the app will appear in the dock when settings are open.")
+                    Text("The app will temporarily appear in the Dock while the settings window is open.")
                         .font(.system(size: 12))
                         .foregroundStyle(.secondary)
                         .fixedSize(horizontal: false, vertical: true)
@@ -65,7 +67,7 @@ struct AppVisibilitySettingsView: View {
                 .background(Color.blue.opacity(0.08))
                 .clipShape(RoundedRectangle(cornerRadius: 8))
                 .accessibilityElement(children: .combine)
-                .accessibilityLabel("When menu bar only is enabled, the app will appear in the dock when settings are open.")
+                .accessibilityLabel("The app will temporarily appear in the Dock while the settings window is open.")
                 .transition(.opacity.combined(with: .move(edge: .top)))
                 .animation(.easeInOut(duration: 0.2), value: dockVisibility)
             }

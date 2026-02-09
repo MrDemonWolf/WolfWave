@@ -649,26 +649,19 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSToolbarDelegate, NSWindowD
     ///
     /// These allow the Twitch bot to fetch current track info on-demand.
     private func setupTwitchService() {
-        Log.info("AppDelegate: Setting up Twitch service", category: "Twitch")
         twitchService = TwitchChatService()
 
         // Resolve Twitch Client ID and log helpful messages
-        if TwitchChatService.resolveClientID() != nil {
-            Log.debug("AppDelegate: Resolved Twitch Client ID from Info.plist", category: "Twitch")
-        } else {
+        if TwitchChatService.resolveClientID() == nil {
             Log.error("AppDelegate: No Twitch Client ID found. Copy Config.xcconfig.example to Config.xcconfig and set your Client ID.", category: "Twitch")
         }
 
-        Log.info("AppDelegate: TwitchChatService created successfully", category: "Twitch")
-        
         twitchService?.getCurrentSongInfo = { [weak self] in
             self?.getCurrentSongInfo() ?? "No song is currently playing"
         }
         twitchService?.getLastSongInfo = { [weak self] in
             self?.getLastSongInfo() ?? "No song is currently playing"
         }
-        
-        Log.debug("AppDelegate: Twitch service callbacks configured", category: "Twitch")
     }
 
     // MARK: - Discord Service
@@ -910,8 +903,6 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSToolbarDelegate, NSWindowD
         onboardingWindow = window
         showWindow(onboardingWindow)
         window.center()
-
-        Log.info("Onboarding window shown", category: "Onboarding")
     }
 
     /// Dismisses the onboarding wizard and transitions to normal app state.
@@ -961,8 +952,6 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSToolbarDelegate, NSWindowD
 
         // Mark onboarding as completed so Reset Onboarding works
         UserDefaults.standard.set(true, forKey: AppConstants.UserDefaults.hasCompletedOnboarding)
-
-        Log.info("Onboarding window closed via title bar", category: "Onboarding")
 
         // Defer reference cleanup so the window finishes its close
         // lifecycle before being deallocated (prevents EXC_BAD_ACCESS).

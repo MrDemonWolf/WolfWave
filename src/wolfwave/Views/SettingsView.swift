@@ -51,7 +51,7 @@ struct SettingsView: View {
         case appVisibility = "App Visibility"
         case websocket = "WebSocket"
         case twitchIntegration = "Twitch Integration"
-        case discord = "Discord"
+        case discord = "Discord Integration"
         case advanced = "Advanced"
         
         var id: String { rawValue }
@@ -63,16 +63,16 @@ struct SettingsView: View {
             case .appVisibility: return "eye"
             case .websocket: return "dot.radiowaves.left.and.right"
             case .twitchIntegration: return nil // Uses custom image
-            case .discord: return "gamecontroller"
+            case .discord: return nil // Uses custom image
             case .advanced: return "gearshape"
             }
         }
-        
+
         /// Custom image name for sidebar icon (or nil for system icon).
         var customIcon: String? {
             switch self {
-            case .twitchIntegration: return "TwitchLogo"
-            case .discord: return nil
+            case .twitchIntegration: return "TwitchGlitch"
+            case .discord: return "DiscordLogo"
             default: return nil
             }
         }
@@ -190,6 +190,7 @@ struct SettingsView: View {
                 return "No previous track available"
             }
         }
+        .toolbar(removing: .sidebarToggle)
         .navigationSplitViewStyle(.balanced)
         .alert("Reset Settings?", isPresented: $showingResetAlert) {
             Button("Cancel", role: .cancel) {}
@@ -239,9 +240,11 @@ struct SettingsView: View {
 
     @ViewBuilder
     private func sidebarIcon(for section: SettingsSection) -> some View {
-        if section.customIcon != nil {
-            TwitchGlitchShape()
-                .fill(style: FillStyle(eoFill: true))
+        if let customIcon = section.customIcon {
+            Image(customIcon)
+                .renderingMode(.template)
+                .resizable()
+                .aspectRatio(contentMode: .fit)
                 .frame(width: 16, height: 16)
         } else if let systemIcon = section.systemIcon {
             Image(systemName: systemIcon)
@@ -266,15 +269,15 @@ struct SettingsView: View {
                             .font(.system(size: 15, weight: .semibold))
                     }
 
-                    Text("Choose which chat commands the bot responds to in Twitch chat.")
+                    Text("Control which commands your viewers can use in chat.")
                         .font(.system(size: 13))
                         .foregroundStyle(.secondary)
                 }
 
                 VStack(spacing: 1) {
                     commandToggleRow(
-                        title: "Current Playing Song",
-                        subtitle: "!song, !currentsong, !nowplaying",
+                        title: "Now Playing Command",
+                        subtitle: "Viewers type !song to see what's playing",
                         isOn: $currentSongCommandEnabled,
                         accessibilityLabel: "Enable Current Playing Song command",
                         accessibilityIdentifier: "currentSongCommandToggle",
@@ -285,8 +288,8 @@ struct SettingsView: View {
                     }
 
                     commandToggleRow(
-                        title: "Last Played Song",
-                        subtitle: "!last, !lastsong, !prevsong",
+                        title: "Previous Song Command",
+                        subtitle: "Viewers type !last to see the previous track",
                         isOn: $lastSongCommandEnabled,
                         accessibilityLabel: "Enable Last Played Song command",
                         accessibilityIdentifier: "lastSongCommandToggle",

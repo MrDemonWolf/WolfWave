@@ -54,7 +54,7 @@ struct WebSocketSettingsView: View {
                     Text("Work in Progress")
                         .font(.system(size: 13, weight: .semibold))
                         .foregroundStyle(.orange)
-                    Text("This feature is currently not supported and will be added in a future release.")
+                    Text("This feature is under development and will be available in a future update.")
                         .font(.system(size: 12))
                         .foregroundStyle(.secondary)
                         .fixedSize(horizontal: false, vertical: true)
@@ -68,17 +68,17 @@ struct WebSocketSettingsView: View {
 
             // Section Header
             VStack(alignment: .leading, spacing: 6) {
-                Text("Now Playing WebSocket")
+                Text("WebSocket Overlay")
                     .font(.system(size: 17, weight: .semibold))
 
-                Text("Send your now playing info to an overlay or server via WebSocket.")
+                Text("Stream your now-playing data to a browser overlay or external server in real time.")
                     .font(.system(size: 13))
                     .foregroundStyle(.secondary)
             }
 
             // Server Configuration Card
             VStack(alignment: .leading, spacing: 12) {
-                Text("Server Configuration")
+                Text("Server Connection")
                     .font(.system(size: 13, weight: .medium))
 
                 TextField("WebSocket server URL (ws:// or wss://)", text: websocketURIBinding)
@@ -118,9 +118,9 @@ struct WebSocketSettingsView: View {
 
                 HStack(spacing: 12) {
                     VStack(alignment: .leading, spacing: 2) {
-                        Text("Enable WebSocket connection")
+                        Text("WebSocket Broadcasting")
                             .font(.system(size: 13, weight: .medium))
-                        Text("Broadcast now playing data")
+                        Text("Sends track info to connected overlays and servers")
                             .font(.system(size: 11))
                             .foregroundStyle(.tertiary)
                     }
@@ -134,9 +134,7 @@ struct WebSocketSettingsView: View {
                         .accessibilityIdentifier("websocketEnabledToggle")
                 }
             }
-            .padding(AppConstants.SettingsUI.cardPadding)
-            .background(Color(nsColor: .controlBackgroundColor))
-            .clipShape(RoundedRectangle(cornerRadius: AppConstants.SettingsUI.cardCornerRadius))
+            .cardStyle()
             .allowsHitTesting(false)
 
             Divider()
@@ -149,11 +147,11 @@ struct WebSocketSettingsView: View {
                         Image(systemName: "lock.fill")
                             .font(.system(size: 14))
                             .foregroundStyle(.secondary)
-                        Text("Authentication (Optional)")
+                        Text("Authentication")
                             .font(.system(size: 15, weight: .semibold))
                     }
 
-                    Text("Only required if your WebSocket server uses authentication.")
+                    Text("Required only if your server expects a token for connections.")
                         .font(.system(size: 12))
                         .foregroundStyle(.secondary)
                 }
@@ -170,7 +168,7 @@ struct WebSocketSettingsView: View {
                         Image(systemName: "lock.shield.fill")
                             .font(.system(size: 12))
                             .foregroundStyle(.green)
-                        Text("Authentication tokens are stored securely in macOS Keychain")
+                        Text("Tokens are stored securely in your Mac's Keychain")
                             .font(.system(size: 11))
                             .foregroundStyle(.secondary)
                     }
@@ -216,9 +214,7 @@ struct WebSocketSettingsView: View {
                         Spacer()
                     }
                 }
-                .padding(AppConstants.SettingsUI.cardPadding)
-                .background(Color(nsColor: .controlBackgroundColor))
-                .clipShape(RoundedRectangle(cornerRadius: AppConstants.SettingsUI.cardCornerRadius))
+                .cardStyle()
                 .allowsHitTesting(false)
             }
         }

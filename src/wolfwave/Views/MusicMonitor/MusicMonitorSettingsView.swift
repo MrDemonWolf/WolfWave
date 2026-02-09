@@ -43,7 +43,7 @@ struct MusicMonitorSettingsView: View {
                     .font(.system(size: 17, weight: .semibold))
                     .accessibilityLabel("Music Playback Monitor")
 
-                Text("Monitor your Apple Music playback to display in the menu bar and share with external services like Twitch or custom WebSocket endpoints.")
+                Text("Automatically detect what's playing in Apple Music and share it with Twitch chat, Discord, and stream overlays.")
                     .font(.system(size: 13))
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
@@ -52,9 +52,9 @@ struct MusicMonitorSettingsView: View {
             // Toggle Card
             HStack(spacing: 12) {
                 VStack(alignment: .leading, spacing: 2) {
-                    Text("Enable Apple Music monitoring")
+                    Text("Apple Music Tracking")
                         .font(.system(size: 13, weight: .medium))
-                    Text("Track currently playing songs")
+                    Text("Detects song changes in real time and updates your integrations")
                         .font(.system(size: 11))
                         .foregroundStyle(.tertiary)
                 }
@@ -71,9 +71,7 @@ struct MusicMonitorSettingsView: View {
                         notifyTrackingSettingChanged(enabled: newValue)
                     }
             }
-            .padding(AppConstants.SettingsUI.cardPadding)
-            .background(Color(nsColor: .controlBackgroundColor))
-            .clipShape(RoundedRectangle(cornerRadius: AppConstants.SettingsUI.cardCornerRadius))
+            .cardStyle()
         }
     }
     

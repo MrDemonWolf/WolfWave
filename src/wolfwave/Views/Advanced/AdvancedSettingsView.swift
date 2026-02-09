@@ -44,7 +44,7 @@ struct AdvancedSettingsView: View {
                 Text("Advanced")
                     .font(.system(size: 17, weight: .semibold))
 
-                Text("Manage onboarding, reset settings, and clear stored credentials.")
+                Text("Manage your setup wizard and reset WolfWave to its default state.")
                     .font(.system(size: 13))
                     .foregroundStyle(.secondary)
             }
@@ -52,17 +52,17 @@ struct AdvancedSettingsView: View {
             // Onboarding Card
             VStack(alignment: .leading, spacing: 12) {
                 VStack(alignment: .leading, spacing: 4) {
-                    Text("Onboarding")
+                    Text("Setup Wizard")
                         .font(.system(size: 13, weight: .semibold))
 
-                    Text("Run the setup wizard again to reconfigure WolfWave.")
+                    Text("Walk through the initial setup steps again to reconfigure your integrations.")
                         .font(.system(size: 12))
                         .foregroundStyle(.secondary)
                         .fixedSize(horizontal: false, vertical: true)
                 }
 
                 Button(action: { showingOnboardingResetAlert = true }) {
-                    Label("Reset Onboarding", systemImage: "arrow.counterclockwise")
+                    Label("Rerun Setup Wizard", systemImage: "arrow.counterclockwise")
                         .font(.system(size: 13, weight: .medium))
                         .frame(maxWidth: .infinity)
                 }
@@ -72,9 +72,7 @@ struct AdvancedSettingsView: View {
                 .accessibilityLabel("Reset onboarding wizard")
                 .accessibilityHint("Opens the setup wizard")
             }
-            .padding(AppConstants.SettingsUI.cardPadding)
-            .background(Color(nsColor: .controlBackgroundColor))
-            .clipShape(RoundedRectangle(cornerRadius: AppConstants.SettingsUI.cardCornerRadius))
+            .cardStyle()
             .alert("Reset Onboarding?", isPresented: $showingOnboardingResetAlert) {
                 Button("Cancel", role: .cancel) {}
                 Button("Reset") {
@@ -83,7 +81,7 @@ struct AdvancedSettingsView: View {
                     AppDelegate.shared?.showOnboarding()
                 }
             } message: {
-                Text("This will open the setup wizard now.")
+                Text("This will open the setup wizard. Your current settings will not be changed.")
             }
 
             // Danger Zone Card
@@ -100,7 +98,7 @@ struct AdvancedSettingsView: View {
                     .accessibilityElement(children: .combine)
                     .accessibilityLabel("Danger Zone")
 
-                    Text("Resetting will permanently delete all your settings, clear stored credentials from Keychain, and disconnect any active services. This action cannot be undone.")
+                    Text("This will erase all preferences, remove saved accounts from Keychain, and disconnect from Twitch and Discord. This cannot be undone.")
                         .font(.system(size: 12))
                         .foregroundStyle(.secondary)
                         .fixedSize(horizontal: false, vertical: true)
