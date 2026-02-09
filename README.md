@@ -10,7 +10,7 @@
 
 <!-- ![WolfWave Banner](banner.jpg) -->
 
-WolfWave is a professional-grade macOS menu bar utility that bridges Apple Music with the platforms you use. Effortlessly broadcast real-time song data to stream overlays via WebSockets, interact with your Twitch community through automated chat commands, and show what you're listening to on Discord.
+A native macOS menu bar app that bridges Apple Music with Twitch, Discord, and your stream overlays. Real-time now playing detection, automated chat commands, Discord Rich Presence with dynamic album art, and WebSocket streaming — all from your menu bar.
 
 ## Features
 
