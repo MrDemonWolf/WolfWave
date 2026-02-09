@@ -292,7 +292,7 @@
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = wolfwave/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = WolfWave;
-				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.music";
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.entertainment";
 				INFOPLIST_KEY_LSUIElement = YES;
 				INFOPLIST_KEY_NSAppleEventsUsageDescription = "WolfWave needs access to Apple Music to log your currently playing tracks";
 				INFOPLIST_KEY_NSAppleMusicUsageDescription = "WolfWave needs access to see what's playing in Apple Music";
@@ -302,7 +302,7 @@
 					"@executable_path/../Frameworks",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 15.6;
-				MARKETING_VERSION = 1.0;
+				MARKETING_VERSION = 1.0.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.mrdemonwolf.wolfwave;
 				PRODUCT_NAME = WolfWave;
 				REGISTER_APP_GROUPS = YES;
@@ -351,7 +351,7 @@
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = wolfwave/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = WolfWave;
-				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.music";
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.entertainment";
 				INFOPLIST_KEY_LSUIElement = NO;
 				INFOPLIST_KEY_NSAppleEventsUsageDescription = "WolfWave needs access to Apple Music to log your currently playing tracks";
 				INFOPLIST_KEY_NSAppleMusicUsageDescription = "WolfWave needs access to see what's playing in Apple Music";
@@ -361,7 +361,7 @@
 					"@executable_path/../Frameworks",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 15.6;
-				MARKETING_VERSION = 1.0;
+				MARKETING_VERSION = 1.0.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.mrdemonwolf.wolfwave;
 				PRODUCT_NAME = WolfWave;
 				REGISTER_APP_GROUPS = YES;
