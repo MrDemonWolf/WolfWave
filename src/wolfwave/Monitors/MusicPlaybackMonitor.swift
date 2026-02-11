@@ -9,9 +9,6 @@ import Foundation
 import AppKit
 import ScriptingBridge
 
-typealias MusicTracker = MusicPlaybackMonitor
-typealias MusicTrackerDelegate = MusicPlaybackMonitorDelegate
-
 /// Delegate protocol for receiving music playback updates.
 protocol MusicPlaybackMonitorDelegate: AnyObject {
     /// Called when a new track starts playing.

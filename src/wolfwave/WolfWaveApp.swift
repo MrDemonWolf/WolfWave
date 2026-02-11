@@ -144,6 +144,14 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSToolbarDelegate, NSWindowD
     /// Previously played track artist.
     private var lastArtist: String?
 
+    /// Current dock visibility mode from UserDefaults.
+    ///
+    /// Returns the stored mode or defaults to `AppConstants.DockVisibility.default`.
+    private var currentDockVisibilityMode: String {
+        UserDefaults.standard.string(forKey: AppConstants.UserDefaults.dockVisibility)
+            ?? AppConstants.DockVisibility.default
+    }
+
     /// Application name from bundle metadata or defaults.
     ///
     /// Used in menu items, window titles, and notifications.
@@ -200,8 +208,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSToolbarDelegate, NSWindowD
     ///   - flag: True if windows are already visible; false otherwise.
     /// - Returns: True to allow default reopening behavior; false to prevent it.
     func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
-        let currentMode = UserDefaults.standard.string(forKey: AppConstants.UserDefaults.dockVisibility) ?? AppConstants.DockVisibility.default
-        if currentMode == AppConstants.DockVisibility.menuOnly {
+        if currentDockVisibilityMode == AppConstants.DockVisibility.menuOnly {
             NSApp.setActivationPolicy(.regular)
         }
 
@@ -343,8 +350,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSToolbarDelegate, NSWindowD
     @objc func openSettings() {
         statusItem?.menu?.cancelTracking()
         
-        let currentMode = UserDefaults.standard.string(forKey: AppConstants.UserDefaults.dockVisibility) ?? AppConstants.DockVisibility.default
-        if currentMode == AppConstants.DockVisibility.menuOnly {
+        if currentDockVisibilityMode == AppConstants.DockVisibility.menuOnly {
             NSApp.setActivationPolicy(.regular)
         }
 
@@ -366,11 +372,10 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSToolbarDelegate, NSWindowD
     @objc func showAbout() {
         statusItem?.menu?.cancelTracking()
         
-        let currentMode = UserDefaults.standard.string(forKey: AppConstants.UserDefaults.dockVisibility) ?? AppConstants.DockVisibility.default
-        if currentMode == AppConstants.DockVisibility.menuOnly {
+        if currentDockVisibilityMode == AppConstants.DockVisibility.menuOnly {
             NSApp.setActivationPolicy(.regular)
         }
-        
+
         NSApp.orderFrontStandardAboutPanel(options: [.applicationName: appName])
         NSApp.activate(ignoringOtherApps: true)
     }
@@ -382,8 +387,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSToolbarDelegate, NSWindowD
     /// Reads the stored visibility mode from UserDefaults and applies it.
     /// Defaults to "both" (show in dock and menu bar) if not set.
     private func applyInitialDockVisibility() {
-        let mode = UserDefaults.standard.string(forKey: AppConstants.UserDefaults.dockVisibility) ?? AppConstants.DockVisibility.default
-        applyDockVisibility(mode)
+        applyDockVisibility(currentDockVisibilityMode)
     }
 
     /// Applies a dock visibility mode: "menuOnly", "dockOnly", or "both".
@@ -428,9 +432,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSToolbarDelegate, NSWindowD
     /// 1. Dock visibility is set to "menu only"
     /// 2. No other regular-level windows are visible
     private func restoreMenuOnlyIfNeeded() {
-        let currentMode = UserDefaults.standard.string(forKey: AppConstants.UserDefaults.dockVisibility) ?? AppConstants.DockVisibility.default
-        
-        guard currentMode == AppConstants.DockVisibility.menuOnly else { return }
+        guard currentDockVisibilityMode == AppConstants.DockVisibility.menuOnly else { return }
         
         let hasVisibleWindows = NSApp.windows.contains { window in
             window.isVisible && window.canBecomeKey && window.level == .normal

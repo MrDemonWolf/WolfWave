@@ -26,10 +26,8 @@ struct DiscordSettingsView: View {
     /// Current Discord connection state, updated via notification from AppDelegate.
     @State private var connectionState: DiscordRPCService.ConnectionState = .disconnected
 
-    /// Whether a valid Discord Client ID is configured.
-    private var hasClientID: Bool {
-        DiscordRPCService.resolveClientID() != nil
-    }
+    /// Whether a valid Discord Client ID is configured (cached on appear).
+    @State private var hasClientID: Bool = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
@@ -83,6 +81,7 @@ struct DiscordSettingsView: View {
             }
         }
         .onAppear {
+            hasClientID = DiscordRPCService.resolveClientID() != nil
             refreshConnectionState()
         }
         .onReceive(

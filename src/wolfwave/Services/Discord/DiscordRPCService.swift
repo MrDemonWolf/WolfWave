@@ -115,9 +115,7 @@ final class DiscordRPCService: @unchecked Sendable {
     /// When enabled, immediately attempts to connect to Discord.
     /// When disabled, disconnects and stops polling.
     func setEnabled(_ enabled: Bool) {
-        enabledLock.lock()
-        isEnabled = enabled
-        enabledLock.unlock()
+        enabledLock.withLock { isEnabled = enabled }
 
         if enabled {
             ipcQueue.async { [weak self] in
@@ -649,18 +647,14 @@ final class DiscordRPCService: @unchecked Sendable {
     private func handleConnectionLost() {
         disconnect()
 
-        enabledLock.lock()
-        let shouldReconnect = isEnabled
-        enabledLock.unlock()
+        let shouldReconnect = enabledLock.withLock { isEnabled }
 
         guard shouldReconnect else { return }
 
         Log.info("Discord: Scheduling reconnect in \(reconnectDelay)s", category: "Discord")
         ipcQueue.asyncAfter(deadline: .now() + reconnectDelay) { [weak self] in
             guard let self else { return }
-            self.enabledLock.lock()
-            let stillEnabled = self.isEnabled
-            self.enabledLock.unlock()
+            let stillEnabled = self.enabledLock.withLock { self.isEnabled }
             guard stillEnabled else { return }
             self.connectIfNeeded()
         }
@@ -681,9 +675,7 @@ final class DiscordRPCService: @unchecked Sendable {
         )
         timer.setEventHandler { [weak self] in
             guard let self else { return }
-            self.enabledLock.lock()
-            let enabled = self.isEnabled
-            self.enabledLock.unlock()
+            let enabled = self.enabledLock.withLock { self.isEnabled }
             guard enabled, self.state == .disconnected else { return }
             self.connectIfNeeded()
         }

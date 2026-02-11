@@ -10,11 +10,12 @@ import Foundation
 /// Routes chat messages to appropriate bot command handlers.
 ///
 /// Default commands (!song, !last, !lastsong) are registered automatically.
-/// Thread-safe for concurrent access from any thread.
+/// Thread-safe: all access to shared state is synchronized via `NSLock`.
 final class BotCommandDispatcher {
     private var commands: [BotCommand] = []
     private let songCommand = SongCommand()
     private let lastSongCommand = LastSongCommand()
+    private let lock = NSLock()
 
     init() {
         registerDefaultCommands()
@@ -26,23 +27,33 @@ final class BotCommandDispatcher {
     }
 
     func register(_ command: BotCommand) {
-        commands.append(command)
+        lock.withLock {
+            commands.append(command)
+        }
     }
 
     func setCurrentSongInfo(callback: @escaping () -> String) {
-        songCommand.getCurrentSongInfo = callback
+        lock.withLock {
+            songCommand.getCurrentSongInfo = callback
+        }
     }
 
     func setLastSongInfo(callback: @escaping () -> String) {
-        lastSongCommand.getLastSongInfo = callback
+        lock.withLock {
+            lastSongCommand.getLastSongInfo = callback
+        }
     }
 
     func setCurrentSongCommandEnabled(callback: @escaping () -> Bool) {
-        songCommand.isEnabled = callback
+        lock.withLock {
+            songCommand.isEnabled = callback
+        }
     }
 
     func setLastSongCommandEnabled(callback: @escaping () -> Bool) {
-        lastSongCommand.isEnabled = callback
+        lock.withLock {
+            lastSongCommand.isEnabled = callback
+        }
     }
 
     func processMessage(_ message: String) -> String? {
@@ -52,7 +63,9 @@ final class BotCommandDispatcher {
             return nil
         }
 
-        for command in commands {
+        let snapshot = lock.withLock { commands }
+
+        for command in snapshot {
             if let response = command.execute(message: trimmedMessage) {
                 Log.debug("Command '\(trimmedMessage.prefix(50))' executed", category: "BotCommands")
                 return response

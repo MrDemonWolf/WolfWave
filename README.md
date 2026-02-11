@@ -16,7 +16,7 @@ A native macOS menu bar app that bridges Apple Music with Twitch, Discord, and y
 
 - **Real-time Now Playing** — Track Apple Music and broadcast instantly via ScriptingBridge
 - **Twitch Chat Bot** — `!song`, `!currentsong`, `!nowplaying`, `!lastsong` via EventSub + Helix
-- **Discord Rich Presence** — Show "Listening to Apple Music" on your Discord profile with dynamic album art
+- **Discord Rich Presence** — Show "Listening to Apple Music" on your Discord profile with dynamic album art and playback progress
 - **WebSocket Streaming** — Send now-playing data to overlays (ws:// or wss://)
 - **Secure by Default** — All credentials stored in macOS Keychain; no plain-text tokens
 - **First-Launch Onboarding** — Guided setup wizard for new users
