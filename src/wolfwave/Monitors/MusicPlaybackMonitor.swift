@@ -15,7 +15,7 @@ typealias MusicTrackerDelegate = MusicPlaybackMonitorDelegate
 /// Delegate protocol for receiving music playback updates.
 protocol MusicPlaybackMonitorDelegate: AnyObject {
     /// Called when a new track starts playing.
-    func musicPlaybackMonitor(_ monitor: MusicPlaybackMonitor, didUpdateTrack track: String, artist: String, album: String)
+    func musicPlaybackMonitor(_ monitor: MusicPlaybackMonitor, didUpdateTrack track: String, artist: String, album: String, duration: TimeInterval, elapsed: TimeInterval)
     
     /// Called when the playback status changes (not running, not playing, etc.).
     func musicPlaybackMonitor(_ monitor: MusicPlaybackMonitor, didUpdateStatus status: String)
@@ -65,6 +65,8 @@ class MusicPlaybackMonitor {
     private var lastTrackSeenAt: Date = .distantPast
     private var lastNotificationAt: Date = .distantPast
     private var isTracking = false
+    private var pendingDuration: TimeInterval = 0
+    private var pendingElapsed: TimeInterval = 0
     
     private let backgroundQueue = DispatchQueue(
         label: Constants.queueLabel,
@@ -134,7 +136,11 @@ class MusicPlaybackMonitor {
                 let name = track.value(forKey: "name") as? String ?? ""
                 let artist = track.value(forKey: "artist") as? String ?? ""
                 let album = track.value(forKey: "album") as? String ?? ""
-                
+                let duration = track.value(forKey: "duration") as? Double ?? 0
+                let elapsed = musicApp.value(forKey: "playerPosition") as? Double ?? 0
+                self.pendingDuration = duration
+                self.pendingElapsed = elapsed
+
                 let combined = name + Constants.trackSeparator + artist + Constants.trackSeparator + album
                 handleTrackInfo(combined)
             } else {
@@ -156,10 +162,10 @@ class MusicPlaybackMonitor {
     }
     
     /// Notifies the delegate of a track change on the main thread.
-    private func notifyDelegate(track: String, artist: String, album: String) {
+    private func notifyDelegate(track: String, artist: String, album: String, duration: TimeInterval, elapsed: TimeInterval) {
         DispatchQueue.main.async { [weak self] in
             guard let self = self else { return }
-            self.delegate?.musicPlaybackMonitor(self, didUpdateTrack: track, artist: artist, album: album)
+            self.delegate?.musicPlaybackMonitor(self, didUpdateTrack: track, artist: artist, album: album, duration: duration, elapsed: elapsed)
         }
     }
     
@@ -174,7 +180,7 @@ class MusicPlaybackMonitor {
         
         let (trackName, artist, album) = (components[0], components[1], components[2])
         lastTrackSeenAt = Date()
-        notifyDelegate(track: trackName, artist: artist, album: album)
+        notifyDelegate(track: trackName, artist: artist, album: album, duration: pendingDuration, elapsed: pendingElapsed)
         logTrackIfNew(trackInfo, trackName: trackName, artist: artist, album: album)
     }
     
