@@ -131,6 +131,12 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSToolbarDelegate, NSWindowD
     
     /// Current track album.
     private var currentAlbum: String?
+
+    /// Current track duration in seconds.
+    private var currentDuration: TimeInterval = 0
+
+    /// Current track elapsed time in seconds.
+    private var currentElapsed: TimeInterval = 0
     
     /// Previously played track title (for !last command).
     private var lastSong: String?
@@ -295,7 +301,9 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSToolbarDelegate, NSWindowD
             discordService?.updatePresence(
                 track: song,
                 artist: artist,
-                album: currentAlbum ?? ""
+                album: currentAlbum ?? "",
+                duration: currentDuration,
+                elapsed: currentElapsed
             )
         }
     }
@@ -1158,16 +1166,18 @@ extension AppDelegate: MusicPlaybackMonitorDelegate {
     ///   - artist: New track artist.
     ///   - album: New track album.
     func musicPlaybackMonitor(
-        _ monitor: MusicPlaybackMonitor, didUpdateTrack track: String, artist: String, album: String
+        _ monitor: MusicPlaybackMonitor, didUpdateTrack track: String, artist: String, album: String, duration: TimeInterval, elapsed: TimeInterval
     ) {
         if currentSong != track {
             lastSong = currentSong
             lastArtist = currentArtist
         }
-        
+
         currentSong = track
         currentArtist = artist
         currentAlbum = album
+        currentDuration = duration
+        currentElapsed = elapsed
 
         updateTrackDisplay(song: track, artist: artist, album: album)
 
@@ -1175,7 +1185,9 @@ extension AppDelegate: MusicPlaybackMonitorDelegate {
         discordService?.updatePresence(
             track: track,
             artist: artist,
-            album: album
+            album: album,
+            duration: duration,
+            elapsed: elapsed
         )
     }
 
