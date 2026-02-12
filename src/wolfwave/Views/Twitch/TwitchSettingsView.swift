@@ -235,19 +235,76 @@ struct TwitchSettingsView: View {
                     }
 
                 case .connected:
-                    SignedInView(
-                        botUsername: viewModel.botUsername,
-                        channelID: $viewModel.channelID,
-                        isChannelConnected: viewModel.channelConnected,
-                        isConnecting: viewModel.isConnecting,
-                        reauthNeeded: viewModel.reauthNeeded,
-                        credentialsSaved: viewModel.credentialsSaved,
-                        channelValidationState: viewModel.channelValidationState,
-                        onClearCredentials: { viewModel.clearCredentials() },
-                        onJoinChannel: { viewModel.joinChannel() },
-                        onLeaveChannel: { viewModel.leaveChannel() },
-                        onChannelIDChanged: { viewModel.saveChannelID() }
-                    )
+                    if viewModel.reauthNeeded && viewModel.authState.isInProgress {
+                        VStack(spacing: 12) {
+                            HStack(spacing: 0) {
+                                Text("Visit ")
+                                Link("twitch.tv/activate",
+                                     destination: URL(string: "https://www.twitch.tv/activate")!)
+                                    .pointerCursor()
+                                Text(" and enter this code:")
+                            }
+                            .font(.system(size: 13))
+                            .foregroundColor(.secondary)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+
+                            if case .waitingForAuth(let code, let uri) = viewModel.authState {
+                                DeviceCodeView(
+                                    userCode: code, verificationURI: uri,
+                                    onCopy: {
+                                        viewModel.statusMessage = "Code copied"
+                                        hasStartedActivation = true
+                                    },
+                                    onActivate: {
+                                        hasStartedActivation = true
+                                    }
+                                )
+                                .transition(
+                                    .asymmetric(
+                                        insertion: .move(edge: .top).combined(with: .opacity),
+                                        removal: .opacity)
+                                )
+                                .animation(
+                                    .spring(response: 0.35, dampingFraction: 0.82, blendDuration: 0),
+                                    value: viewModel.authState.userCode)
+                            }
+
+                            HStack(spacing: 8) {
+                                ProgressView()
+                                    .progressViewStyle(.circular)
+                                    .controlSize(.small)
+
+                                Text("Waiting for authorization…")
+                                    .font(.system(size: 13))
+                                    .foregroundColor(.secondary)
+
+                                Spacer()
+
+                                Button("Cancel") {
+                                    viewModel.cancelOAuth()
+                                }
+                                .buttonStyle(.bordered)
+                                .tint(.red)
+                                .controlSize(.small)
+                                .pointerCursor()
+                            }
+                        }
+                    } else {
+                        SignedInView(
+                            botUsername: viewModel.botUsername,
+                            channelID: $viewModel.channelID,
+                            isChannelConnected: viewModel.channelConnected,
+                            isConnecting: viewModel.isConnecting,
+                            reauthNeeded: viewModel.reauthNeeded,
+                            credentialsSaved: viewModel.credentialsSaved,
+                            channelValidationState: viewModel.channelValidationState,
+                            onReauth: { viewModel.startOAuth() },
+                            onClearCredentials: { viewModel.clearCredentials() },
+                            onJoinChannel: { viewModel.joinChannel() },
+                            onLeaveChannel: { viewModel.leaveChannel() },
+                            onChannelIDChanged: { viewModel.saveChannelID() }
+                        )
+                    }
 
                 case .error(let message):
                     VStack(spacing: 8) {
@@ -279,6 +336,7 @@ private struct SignedInView: View {
     let reauthNeeded: Bool
     let credentialsSaved: Bool
     let channelValidationState: TwitchViewModel.ChannelValidationState
+    var onReauth: () -> Void
     var onClearCredentials: () -> Void
     var onJoinChannel: () -> Void
     var onLeaveChannel: () -> Void
@@ -437,38 +495,57 @@ private struct SignedInView: View {
 
     private var actionButtonsSection: some View {
         HStack(spacing: 10) {
-            Button(action: {
-                if isChannelConnected {
-                    showingDisconnectConfirmation = true
-                } else {
-                    onJoinChannel()
-                }
-            }) {
-                if isConnecting {
-                    HStack(spacing: 6) {
-                        ProgressView()
-                            .progressViewStyle(.circular)
-                            .controlSize(.mini)
-                        Text("Connecting...")
-                            .font(.system(size: 12))
+            if reauthNeeded {
+                Button(action: onReauth) {
+                    HStack(spacing: 8) {
+                        Image("TwitchLogo")
+                            .renderingMode(.original)
+                            .resizable()
+                            .scaledToFit()
+                            .frame(width: 14, height: 14)
+                        Text("Sign In Again")
+                            .font(.system(size: 12, weight: .semibold))
                     }
-                } else {
-                    Label(
-                        isChannelConnected ? "Disconnect" : "Connect",
-                        systemImage: isChannelConnected
-                            ? "xmark.circle.fill" : "checkmark.circle.fill"
-                    )
-                    .font(.system(size: 12, weight: .medium))
                 }
+                .buttonStyle(.borderedProminent)
+                .controlSize(.small)
+                .pointerCursor()
+                .accessibilityLabel("Sign in again with Twitch")
+                .accessibilityIdentifier("twitchReauthButton")
+            } else {
+                Button(action: {
+                    if isChannelConnected {
+                        showingDisconnectConfirmation = true
+                    } else {
+                        onJoinChannel()
+                    }
+                }) {
+                    if isConnecting {
+                        HStack(spacing: 6) {
+                            ProgressView()
+                                .progressViewStyle(.circular)
+                                .controlSize(.mini)
+                            Text("Connecting...")
+                                .font(.system(size: 12))
+                        }
+                    } else {
+                        Label(
+                            isChannelConnected ? "Disconnect" : "Connect",
+                            systemImage: isChannelConnected
+                                ? "xmark.circle.fill" : "checkmark.circle.fill"
+                        )
+                        .font(.system(size: 12, weight: .medium))
+                    }
+                }
+                .disabled(shouldDisableConnectButton)
+                .buttonStyle(.bordered)
+                .controlSize(.small)
+                .pointerCursor()
+                .accessibilityLabel(
+                    isChannelConnected ? "Disconnect from channel" : "Connect to channel"
+                )
+                .accessibilityIdentifier("twitchConnectButton")
             }
-            .disabled(shouldDisableConnectButton)
-            .buttonStyle(.bordered)
-            .controlSize(.small)
-            .pointerCursor()
-            .accessibilityLabel(
-                isChannelConnected ? "Disconnect from channel" : "Connect to channel"
-            )
-            .accessibilityIdentifier("twitchConnectButton")
 
             Spacer()
 
