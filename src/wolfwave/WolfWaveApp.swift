@@ -129,6 +129,12 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSToolbarDelegate, NSWindowD
     /// notifications when an update is available.
     var updateChecker: UpdateCheckerService?
 
+    /// WebSocket server for broadcasting now-playing data to stream overlays.
+    ///
+    /// Listens on a configurable local port and sends JSON messages to
+    /// connected clients (e.g., OBS browser sources).
+    var websocketServer: WebSocketServerService?
+
     /// Current track being played (song title).
     private(set) var currentSong: String?
 
@@ -189,6 +195,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSToolbarDelegate, NSWindowD
         setupMusicMonitor()
         setupTwitchService()
         setupDiscordService()
+        setupWebSocketServer()
         setupUpdateChecker()
         setupNotificationObservers()
         initializeTrackingState()
@@ -693,10 +700,51 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSToolbarDelegate, NSWindowD
             )
         }
 
+        // Forward artwork URLs to the WebSocket server
+        discordService?.onArtworkResolved = { [weak self] url, track, artist in
+            self?.websocketServer?.updateArtworkURL(url)
+        }
+
         // Enable if user previously turned it on
         let enabled = UserDefaults.standard.bool(forKey: AppConstants.UserDefaults.discordPresenceEnabled)
         if enabled {
             discordService?.setEnabled(true)
+        }
+    }
+
+    // MARK: - WebSocket Server
+
+    /// Initializes the WebSocket server for streaming now-playing data to overlays.
+    ///
+    /// Reads the port from UserDefaults (defaulting to 8765), creates the service,
+    /// and enables it if the user has previously turned on WebSocket in settings.
+    private func setupWebSocketServer() {
+        let storedPort = UserDefaults.standard.integer(forKey: AppConstants.UserDefaults.websocketServerPort)
+        let port: UInt16 = storedPort > 0 ? UInt16(clamping: storedPort) : AppConstants.WebSocketServer.defaultPort
+
+        websocketServer = WebSocketServerService(port: port)
+
+        websocketServer?.onStateChange = { [weak self] newState, clientCount in
+            NotificationCenter.default.post(
+                name: NSNotification.Name(AppConstants.Notifications.websocketServerStateChanged),
+                object: self,
+                userInfo: ["state": newState.rawValue, "clients": clientCount]
+            )
+        }
+
+        let enabled = UserDefaults.standard.bool(forKey: AppConstants.UserDefaults.websocketEnabled)
+        if enabled {
+            websocketServer?.setEnabled(true)
+        }
+    }
+
+    /// Responds to changes in the WebSocket server settings (enable/disable, port change).
+    @objc func websocketServerSettingChanged(_ notification: Notification) {
+        let enabled = UserDefaults.standard.bool(forKey: AppConstants.UserDefaults.websocketEnabled)
+        websocketServer?.setEnabled(enabled)
+
+        if let port = notification.userInfo?["port"] as? UInt16 {
+            websocketServer?.updatePort(port)
         }
     }
 
@@ -745,6 +793,13 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSToolbarDelegate, NSWindowD
             self,
             selector: #selector(discordPresenceSettingChanged),
             name: NSNotification.Name(AppConstants.Notifications.discordPresenceChanged),
+            object: nil
+        )
+
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(websocketServerSettingChanged),
+            name: NSNotification.Name(AppConstants.Notifications.websocketServerChanged),
             object: nil
         )
 
@@ -1158,6 +1213,15 @@ extension AppDelegate: MusicPlaybackMonitorDelegate {
 
         postNowPlayingUpdate(song: track, artist: artist, album: album)
 
+        // Update WebSocket server with the new track
+        websocketServer?.updateNowPlaying(
+            track: track,
+            artist: artist,
+            album: album,
+            duration: duration,
+            elapsed: elapsed
+        )
+
         // Update Discord Rich Presence with the new track
         discordService?.updatePresence(
             track: track,
@@ -1185,9 +1249,10 @@ extension AppDelegate: MusicPlaybackMonitorDelegate {
 
         postNowPlayingUpdate(song: nil, artist: nil, album: nil)
 
-        // Clear Discord Rich Presence when not playing
+        // Clear Discord Rich Presence and WebSocket when not playing
         if currentSong == nil {
             discordService?.clearPresence()
+            websocketServer?.clearNowPlaying()
         }
     }
 }

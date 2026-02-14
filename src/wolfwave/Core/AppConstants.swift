@@ -45,12 +45,17 @@ enum AppConstants {
         /// Posted when the Discord RPC connection state changes. UserInfo contains "state" String.
         static let discordStateChanged = "DiscordStateChanged"
 
-        /// Posted when the currently playing track changes.
-        /// UserInfo contains optional "track", "artist", "album" Strings. Nil values mean no track is playing.
+        /// Posted when now-playing track information changes. UserInfo contains track, artist, album.
         static let nowPlayingChanged = "NowPlayingChanged"
 
-        /// Posted when the update checker state changes (new version found or check completed).
+        /// Posted when the update checker finishes a check. UserInfo contains "isUpdateAvailable" Bool, "latestVersion" String.
         static let updateStateChanged = "UpdateStateChanged"
+
+        /// Posted when the user toggles the WebSocket server or changes its port.
+        static let websocketServerChanged = "WebSocketServerChanged"
+
+        /// Posted when the WebSocket server connection state changes.
+        static let websocketServerStateChanged = "WebSocketServerStateChanged"
     }
     
     // MARK: - UserDefaults Keys
@@ -89,14 +94,17 @@ enum AppConstants {
         /// Whether Discord Rich Presence is enabled (Bool, default: false)
         static let discordPresenceEnabled = "discordPresenceEnabled"
 
-        /// Date of last update check (Date stored as TimeInterval)
-        static let updateLastCheckDate = "updateLastCheckDate"
-
-        /// Version string the user has chosen to skip (e.g. "1.1.0")
-        static let updateSkippedVersion = "updateSkippedVersion"
+        /// WebSocket server port number (UInt16, default: 8765)
+        static let websocketServerPort = "websocketServerPort"
 
         /// Whether automatic update checking is enabled (Bool, default: true)
         static let updateCheckEnabled = "updateCheckEnabled"
+
+        /// Timestamp of the last update check (TimeInterval)
+        static let updateLastCheckDate = "updateLastCheckDate"
+
+        /// Version string the user has chosen to skip (String)
+        static let updateSkippedVersion = "updateSkippedVersion"
     }
     
     // MARK: - Dock Visibility Modes
@@ -178,6 +186,63 @@ enum AppConstants {
         static let availabilityPollInterval: TimeInterval = 15.0
     }
 
+    // MARK: - Update Checker
+
+    /// Update checker timing and configuration constants.
+    enum Update {
+        /// Interval between periodic update checks (24 hours in seconds)
+        static let checkInterval: TimeInterval = 86400
+
+        /// HTTP request timeout in seconds
+        static let requestTimeout: TimeInterval = 15.0
+
+        /// Delay before first update check after launch
+        static let launchCheckDelay: TimeInterval = 10.0
+    }
+
+    // MARK: - URLs
+
+    /// Application URLs for documentation, legal, and GitHub.
+    enum URLs {
+        /// Documentation site URL
+        static let docs = "https://mrdemonwolf.github.io/wolfwave"
+
+        /// Privacy policy page URL
+        static let privacyPolicy = "https://mrdemonwolf.github.io/wolfwave/docs/legal/privacy-policy"
+
+        /// Terms of service page URL
+        static let termsOfService = "https://mrdemonwolf.github.io/wolfwave/docs/legal/terms-of-service"
+
+        /// GitHub repository URL
+        static let github = "https://github.com/mrdemonwolf/wolfwave"
+
+        /// GitHub Releases API endpoint
+        static let githubReleasesAPI = "https://api.github.com/repos/mrdemonwolf/wolfwave/releases/latest"
+
+        /// GitHub Releases page URL
+        static let githubReleases = "https://github.com/mrdemonwolf/wolfwave/releases"
+    }
+
+    // MARK: - WebSocket Server
+
+    /// WebSocket server configuration constants.
+    enum WebSocketServer {
+        /// Default port for the local WebSocket server
+        static let defaultPort: UInt16 = 8765
+
+        /// Minimum allowed port number (below 1024 requires root)
+        static let minPort: UInt16 = 1024
+
+        /// Maximum allowed port number
+        static let maxPort: UInt16 = 65535
+
+        /// Interval in seconds between progress broadcasts during playback
+        static let progressBroadcastInterval: TimeInterval = 1.0
+
+        /// Delay before retrying after a listener failure
+        static let retryDelay: TimeInterval = 5.0
+    }
+
     // MARK: - Dispatch Queue Labels
     
     /// Dispatch queue identifiers for background operations.
@@ -193,6 +258,9 @@ enum AppConstants {
 
         /// Queue for Discord IPC operations
         static let discordIPC = "com.mrdemonwolf.wolfwave.discordipc"
+
+        /// Queue for WebSocket server operations
+        static let websocketServer = "com.mrdemonwolf.wolfwave.websocketserver"
     }
     
     // MARK: - UI Dimensions

@@ -59,6 +59,10 @@ final class DiscordRPCService: @unchecked Sendable {
     /// Callback invoked on the main thread whenever connection state changes.
     var onStateChange: ((ConnectionState) -> Void)?
 
+    /// Callback invoked when artwork URL is resolved for a track.
+    /// Parameters: (artworkURL, track, artist)
+    var onArtworkResolved: ((String, String, String) -> Void)?
+
     /// Discord Application ID resolved from Info.plist / environment.
     private let clientID: String
 
@@ -176,6 +180,10 @@ final class DiscordRPCService: @unchecked Sendable {
                             artworkURL: url,
                             duration: duration, elapsed: elapsed
                         )
+                    }
+                    // Notify listeners (e.g., WebSocket server) of the resolved artwork
+                    DispatchQueue.main.async { [weak self] in
+                        self?.onArtworkResolved?(url, track, artist)
                     }
                 }
             }

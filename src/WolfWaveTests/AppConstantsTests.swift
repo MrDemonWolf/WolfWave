@@ -116,4 +116,24 @@ final class AppConstantsTests: XCTestCase {
         XCTAssertGreaterThan(AppConstants.Discord.reconnectBaseDelay, 0)
         XCTAssertGreaterThan(AppConstants.Discord.reconnectMaxDelay, AppConstants.Discord.reconnectBaseDelay)
     }
+
+    // MARK: - WebSocket Server Constants
+
+    func testWebSocketDefaultPort() {
+        XCTAssertEqual(AppConstants.WebSocketServer.defaultPort, 8765)
+    }
+
+    func testWebSocketPortRange() {
+        XCTAssertLessThan(AppConstants.WebSocketServer.minPort, AppConstants.WebSocketServer.maxPort)
+        XCTAssertGreaterThanOrEqual(AppConstants.WebSocketServer.defaultPort, AppConstants.WebSocketServer.minPort)
+        XCTAssertLessThanOrEqual(AppConstants.WebSocketServer.defaultPort, AppConstants.WebSocketServer.maxPort)
+    }
+
+    func testWebSocketProgressInterval() {
+        XCTAssertGreaterThan(AppConstants.WebSocketServer.progressBroadcastInterval, 0)
+    }
+
+    func testWebSocketRetryDelay() {
+        XCTAssertGreaterThan(AppConstants.WebSocketServer.retryDelay, 0)
+    }
 }

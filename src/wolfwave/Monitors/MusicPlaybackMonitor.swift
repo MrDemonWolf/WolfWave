@@ -133,12 +133,10 @@ class MusicPlaybackMonitor {
                 let name = track.value(forKey: "name") as? String ?? ""
                 let artist = track.value(forKey: "artist") as? String ?? ""
                 let album = track.value(forKey: "album") as? String ?? ""
-                let duration = track.value(forKey: "duration") as? Double ?? 0
-                let elapsed = musicApp.value(forKey: "playerPosition") as? Double ?? 0
-                self.pendingDuration = duration
-                self.pendingElapsed = elapsed
+                let duration = (track.value(forKey: "duration") as? Double) ?? 0
+                let elapsed = (musicApp.value(forKey: "playerPosition") as? Double) ?? 0
 
-                let combined = name + Constants.trackSeparator + artist + Constants.trackSeparator + album
+                let combined = name + Constants.trackSeparator + artist + Constants.trackSeparator + album + Constants.trackSeparator + String(duration) + Constants.trackSeparator + String(elapsed)
                 handleTrackInfo(combined)
             } else {
                 handleTrackInfo(Constants.Status.notPlaying)
@@ -171,13 +169,18 @@ class MusicPlaybackMonitor {
     /// Processes track info string received from Music.app and notifies the delegate.
     private func processTrackInfoString(_ trackInfo: String) {
         let components = trackInfo.components(separatedBy: Constants.trackSeparator)
-        guard components.count == 3 else {
+        guard components.count >= 3 else {
             return
         }
-        
-        let (trackName, artist, album) = (components[0], components[1], components[2])
+
+        let trackName = components[0]
+        let artist = components[1]
+        let album = components[2]
+        let duration = components.count > 3 ? (Double(components[3]) ?? 0) : 0
+        let elapsed = components.count > 4 ? (Double(components[4]) ?? 0) : 0
+
         lastTrackSeenAt = Date()
-        notifyDelegate(track: trackName, artist: artist, album: album, duration: pendingDuration, elapsed: pendingElapsed)
+        notifyDelegate(track: trackName, artist: artist, album: album, duration: duration, elapsed: elapsed)
         logTrackIfNew(trackInfo, trackName: trackName, artist: artist, album: album)
     }
     
