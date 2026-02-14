@@ -7,49 +7,36 @@
 
 import SwiftUI
 
-/// Settings for the local WebSocket server that broadcasts now-playing data to stream overlays.
-///
-/// Displays server configuration (port, enable/disable toggle), connection status,
-/// and the widget URL for OBS browser sources.
+/// Stream overlay settings: server port, enable/disable toggle, status, and widget URL.
 struct WebSocketSettingsView: View {
     // MARK: - User Settings
 
-    /// Whether the WebSocket server is enabled.
     @AppStorage(AppConstants.UserDefaults.websocketEnabled)
     private var websocketEnabled = false
 
-    /// Server port number stored in UserDefaults.
     @AppStorage(AppConstants.UserDefaults.websocketServerPort)
     private var storedPort: Int = Int(AppConstants.WebSocketServer.defaultPort)
 
     // MARK: - State
 
-    /// Port field text (validated before applying).
     @State private var portText: String = ""
-
-    /// Current server state, updated via notification.
     @State private var serverState: WebSocketServerService.ServerState = .stopped
-
-    /// Number of connected WebSocket clients.
     @State private var clientCount: Int = 0
-
-    /// Whether the widget URL was recently copied to clipboard.
     @State private var copiedWidgetURL = false
-
-    /// Whether the connection URL was recently copied to clipboard.
     @State private var copiedConnectionURL = false
 
-    /// Computed widget URL based on current port.
     private var widgetURL: String {
+        #if DEBUG
+        "http://localhost:3000/widget/?port=\(storedPort)"
+        #else
         "https://mrdemonwolf.github.io/wolfwave/widget/?port=\(storedPort)"
+        #endif
     }
 
-    /// Computed local WebSocket connection URL.
     private var connectionURL: String {
         "ws://localhost:\(storedPort)"
     }
 
-    /// Whether the current port text is a valid port number.
     private var isPortValid: Bool {
         guard let port = UInt16(portText) else { return false }
         return port >= AppConstants.WebSocketServer.minPort
@@ -58,10 +45,9 @@ struct WebSocketSettingsView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
-            // Section Header
             VStack(alignment: .leading, spacing: 6) {
                 HStack(alignment: .center, spacing: 10) {
-                    Text("Stream Overlay WebSocket")
+                    Text("Stream Overlay")
                         .font(.system(size: 17, weight: .semibold))
 
                     Spacer()
@@ -71,15 +57,13 @@ struct WebSocketSettingsView: View {
                         .animation(.easeInOut(duration: 0.2), value: clientCount)
                 }
 
-                Text("Run a local WebSocket server to send now-playing data to OBS browser source overlays.")
+                Text("Display your currently playing track as an overlay on your stream.")
                     .font(.system(size: 13))
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
             }
 
-            // Server Configuration Card
             VStack(alignment: .leading, spacing: 12) {
-                // Port field
                 HStack(spacing: 12) {
                     VStack(alignment: .leading, spacing: 2) {
                         Text("Port")
@@ -115,7 +99,6 @@ struct WebSocketSettingsView: View {
                 Divider()
                     .padding(.vertical, 2)
 
-                // Enable toggle
                 HStack(spacing: 12) {
                     VStack(alignment: .leading, spacing: 2) {
                         Text("Enable WebSocket server")
@@ -140,7 +123,6 @@ struct WebSocketSettingsView: View {
                 Divider()
                     .padding(.vertical, 2)
 
-                // Connection URL
                 HStack(spacing: 8) {
                     VStack(alignment: .leading, spacing: 2) {
                         Text("Connection URL")
@@ -176,31 +158,28 @@ struct WebSocketSettingsView: View {
             Divider()
                 .padding(.vertical, 4)
 
-            // Widget URL Card
             VStack(alignment: .leading, spacing: 12) {
                 VStack(alignment: .leading, spacing: 6) {
                     HStack(spacing: 8) {
                         Image(systemName: "rectangle.inset.filled.and.person.filled")
                             .font(.system(size: 14))
                             .foregroundStyle(Color(nsColor: .controlAccentColor))
-                        Text("OBS Widget")
+                        Text("Browser Source URL")
                             .font(.system(size: 15, weight: .semibold))
                     }
 
-                    Text("Add this URL as a Browser Source in OBS to show your now-playing info on stream.")
+                    Text("Copy this URL and paste it into a Browser Source in OBS.")
                         .font(.system(size: 12))
                         .foregroundStyle(.secondary)
                         .fixedSize(horizontal: false, vertical: true)
                 }
 
-                HStack(spacing: 8) {
+                VStack(alignment: .leading, spacing: 8) {
                     Text(widgetURL)
                         .font(.system(size: 11, design: .monospaced))
                         .textSelection(.enabled)
-                        .lineLimit(1)
-                        .truncationMode(.middle)
-
-                    Spacer()
+                        .lineLimit(2)
+                        .fixedSize(horizontal: false, vertical: true)
 
                     Button {
                         copyToClipboard(widgetURL)
@@ -284,7 +263,6 @@ struct WebSocketSettingsView: View {
 
     // MARK: - Helpers
 
-    /// Reads the current server state from AppDelegate.
     private func refreshServerState() {
         if let appDelegate = AppDelegate.shared {
             serverState = appDelegate.websocketServer?.state ?? .stopped
@@ -292,14 +270,12 @@ struct WebSocketSettingsView: View {
         }
     }
 
-    /// Applies the port text field value to UserDefaults and notifies the server.
     private func applyPort() {
         guard isPortValid, let port = UInt16(portText) else { return }
         storedPort = Int(port)
         notifyServerSettingChanged(port: port)
     }
 
-    /// Posts a notification to toggle or reconfigure the server.
     private func notifyServerSettingChanged(port: UInt16? = nil) {
         var userInfo: [String: Any] = [:]
         if let port {
@@ -312,7 +288,6 @@ struct WebSocketSettingsView: View {
         )
     }
 
-    /// Copies text to the system clipboard.
     private func copyToClipboard(_ text: String) {
         NSPasteboard.general.clearContents()
         NSPasteboard.general.setString(text, forType: .string)

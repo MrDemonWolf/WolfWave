@@ -7,11 +7,7 @@
 
 import SwiftUI
 
-/// Welcome step of the onboarding wizard.
-///
-/// Displays the app icon, tagline, and three feature highlights
-/// explaining what WolfWave does. This is the first thing users
-/// see on their initial launch.
+/// Welcome step displaying the app icon, tagline, and feature highlights.
 struct OnboardingWelcomeStepView: View {
 
     // MARK: - Body
@@ -20,14 +16,12 @@ struct OnboardingWelcomeStepView: View {
         VStack(spacing: 24) {
             Spacer()
 
-            // App icon
             Image(nsImage: NSApp.applicationIconImage)
                 .resizable()
                 .scaledToFit()
                 .frame(width: 80, height: 80)
                 .accessibilityLabel("WolfWave app icon")
 
-            // Title and tagline
             VStack(spacing: 8) {
                 Text("Welcome to WolfWave")
                     .font(.system(size: 24, weight: .bold))
@@ -38,8 +32,7 @@ struct OnboardingWelcomeStepView: View {
                     .multilineTextAlignment(.center)
             }
 
-            // Feature highlights
-            VStack(alignment: .leading, spacing: 14) {
+            VStack(alignment: .leading, spacing: 16) {
                 featureRow(
                     icon: "music.note",
                     title: "Music Monitoring",
@@ -71,7 +64,6 @@ struct OnboardingWelcomeStepView: View {
 
     // MARK: - Helpers
 
-    /// Creates a feature highlight row with an icon, title, and description.
     @ViewBuilder
     private func featureRow(icon: String, color: Color = .accentColor, title: String, description: String) -> some View {
         HStack(alignment: .top, spacing: 12) {

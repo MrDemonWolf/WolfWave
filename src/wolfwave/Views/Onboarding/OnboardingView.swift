@@ -7,18 +7,10 @@
 
 import SwiftUI
 
-/// Root view for the first-launch onboarding wizard.
+/// First-launch onboarding wizard with progress dots, step content, and navigation.
 ///
-/// Presents a step-by-step guided flow in a dedicated window:
-/// 1. Welcome — App overview with feature highlights
-/// 2. Twitch Connection — Optional OAuth Device Code flow (skippable)
-///
-/// Structure:
-/// - Top: Progress dots indicator
-/// - Center: Step content (swappable with page transitions)
-/// - Bottom: Navigation buttons (Back, Next/Skip/Finish)
-///
-/// Hosted in a dedicated `NSWindow` created by `AppDelegate.showOnboarding()`.
+/// Steps: Welcome, Twitch, Discord, OBS Widget. Hosted in a dedicated `NSWindow`
+/// created by `AppDelegate.showOnboarding()`.
 struct OnboardingView: View {
 
     // MARK: - State
@@ -26,30 +18,23 @@ struct OnboardingView: View {
     @StateObject private var viewModel = OnboardingViewModel()
     @StateObject private var twitchViewModel = TwitchViewModel()
 
-    /// Whether Discord Rich Presence was enabled during onboarding.
     @AppStorage(AppConstants.UserDefaults.discordPresenceEnabled)
     private var discordPresenceEnabled = false
 
-    /// Whether the WebSocket server was enabled during onboarding.
     @AppStorage(AppConstants.UserDefaults.websocketEnabled)
     private var websocketEnabled = false
 
-    /// Callback invoked when onboarding completes or is skipped.
-    ///
-    /// AppDelegate uses this to close the onboarding window and transition
-    /// to the normal app state.
+    /// Called when onboarding completes to dismiss the window.
     var onComplete: () -> Void
 
     // MARK: - Body
 
     var body: some View {
         VStack(spacing: 0) {
-            // Progress indicator
             progressDots
                 .padding(.top, 20)
                 .padding(.bottom, 16)
 
-            // Step content
             stepContent
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .clipped()
@@ -57,7 +42,6 @@ struct OnboardingView: View {
 
             Divider()
 
-            // Navigation bar
             navigationBar
                 .padding(.horizontal, 24)
                 .padding(.vertical, 16)
@@ -111,7 +95,6 @@ struct OnboardingView: View {
 
     private var navigationBar: some View {
         HStack {
-            // Back button (hidden on first step)
             if !viewModel.isFirstStep {
                 Button("Back") {
                     viewModel.goToPreviousStep()
@@ -123,7 +106,6 @@ struct OnboardingView: View {
 
             Spacer()
 
-            // Skip button on optional steps
             if shouldShowSkip {
                 Button("Skip") {
                     viewModel.goToNextStep()
@@ -133,7 +115,6 @@ struct OnboardingView: View {
                 .pointerCursor()
             }
 
-            // Primary action button
             if viewModel.isLastStep {
                 Button("Finish") {
                     finishOnboarding()
@@ -154,7 +135,7 @@ struct OnboardingView: View {
 
     // MARK: - Helpers
 
-    /// Whether the current step should show a "Skip" button.
+    /// Returns `true` for optional steps the user hasn't yet enabled.
     private var shouldShowSkip: Bool {
         switch viewModel.currentStep {
         case .twitchConnect:
@@ -168,7 +149,7 @@ struct OnboardingView: View {
         }
     }
 
-    /// Completes onboarding: persists the flag and notifies AppDelegate.
+    /// Persists the completion flag and notifies AppDelegate.
     private func finishOnboarding() {
         viewModel.completeOnboarding()
         onComplete()

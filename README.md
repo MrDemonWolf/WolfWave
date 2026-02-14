@@ -78,6 +78,14 @@ make open-xcode
 >
 > Get a Discord Application ID at [discord.com/developers/applications](https://discord.com/developers/applications)
 
+### Docs Site (Local)
+
+```bash
+cd docs && pnpm install && pnpm dev
+```
+
+Open **http://localhost:3000/widget/?port=8765** to preview the OBS stream widget locally.
+
 ### Development Scripts
 
 | Command            | Description                              |

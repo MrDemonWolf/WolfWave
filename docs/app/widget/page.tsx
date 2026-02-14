@@ -45,7 +45,6 @@ function Widget() {
   const hideTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const elapsedRef = useRef({ value: 0, timestamp: 0, isPlaying: false });
 
-  // Progress animation loop using requestAnimationFrame
   const startProgressLoop = useCallback(() => {
     if (rafRef.current) cancelAnimationFrame(rafRef.current);
 
@@ -67,7 +66,6 @@ function Widget() {
     }
   }, []);
 
-  // Show/hide logic
   const showWidget = useCallback(() => {
     setVisible(true);
     if (hideTimerRef.current) clearTimeout(hideTimerRef.current);
@@ -78,7 +76,6 @@ function Widget() {
     }
   }, [autohide]);
 
-  // Handle incoming WebSocket messages
   const handleMessage = useCallback(
     (event: MessageEvent) => {
       try {
@@ -127,17 +124,13 @@ function Widget() {
             break;
           }
           case "welcome":
-            // Connection confirmed
             break;
         }
-      } catch {
-        // Ignore malformed messages
-      }
+      } catch {}
     },
     [showWidget, startProgressLoop, stopProgressLoop]
   );
 
-  // WebSocket connection
   useEffect(() => {
     let isMounted = true;
 
@@ -151,6 +144,7 @@ function Widget() {
       ws.onopen = () => {
         if (!isMounted) return;
         setStatus("connected");
+        console.log(`[WolfWave Widget] Connected to ws://localhost:${port}`);
       };
 
       ws.onmessage = (event) => {
@@ -161,14 +155,12 @@ function Widget() {
       ws.onclose = () => {
         if (!isMounted) return;
         setStatus("disconnected");
+        console.log("[WolfWave Widget] Disconnected — retrying in 5s");
         wsRef.current = null;
-        // Auto-reconnect after 5 seconds
         reconnectRef.current = setTimeout(connect, 5000);
       };
 
-      ws.onerror = () => {
-        // onclose will fire after onerror
-      };
+      ws.onerror = () => {};
     };
 
     connect();
@@ -194,7 +186,6 @@ function Widget() {
 
   return (
     <div className="fixed inset-0 flex items-end justify-center p-4 bg-transparent">
-      {/* Widget container */}
       <div
         className={`
           max-w-[500px] w-full h-[100px] rounded-xl
@@ -205,7 +196,6 @@ function Widget() {
       >
         {nowPlaying && (
           <>
-            {/* Blurred background */}
             {nowPlaying.artworkURL && (
               <div
                 className="absolute inset-0 scale-[1.4] blur-[20px] opacity-90 bg-cover bg-center"
@@ -215,26 +205,31 @@ function Widget() {
               />
             )}
 
-            {/* Dark overlay */}
             <div className="absolute inset-0 bg-black/50" />
 
-            {/* Content */}
             <div className="relative flex h-full">
-              {/* Album art */}
-              {!hideAlbumArt && nowPlaying.artworkURL && (
+              {!hideAlbumArt && (
                 <div className="flex-shrink-0 p-[5px]">
-                  <img
-                    src={nowPlaying.artworkURL}
-                    alt={`${nowPlaying.album} artwork`}
-                    className="w-[90px] h-[90px] rounded-[10px] object-cover"
-                    crossOrigin="anonymous"
-                  />
+                  {nowPlaying.artworkURL ? (
+                    <img
+                      src={nowPlaying.artworkURL}
+                      alt={`${nowPlaying.album} artwork`}
+                      className="w-[90px] h-[90px] rounded-[10px] object-cover"
+                      crossOrigin="anonymous"
+                    />
+                  ) : (
+                    <div className="w-[90px] h-[90px] rounded-[10px] bg-white/10 flex items-center justify-center">
+                      <img
+                        src="/icon.png"
+                        alt="WolfWave"
+                        className="w-[50px] h-[50px] opacity-60"
+                      />
+                    </div>
+                  )}
                 </div>
               )}
 
-              {/* Track info + progress */}
               <div className="flex flex-col flex-1 min-w-0 justify-center px-3 py-2">
-                {/* Song info */}
                 <div className="min-w-0">
                   <p className="text-lg font-bold text-white leading-tight truncate [text-shadow:_2px_2px_2px_rgb(0_0_0)]">
                     {nowPlaying.track}
@@ -244,9 +239,7 @@ function Widget() {
                   </p>
                 </div>
 
-                {/* Progress section */}
                 <div className="mt-auto">
-                  {/* Progress bar */}
                   <div className="h-[4px] bg-white/20 w-full rounded-full overflow-hidden">
                     <div
                       className="h-full bg-white rounded-full transition-[width] duration-1000 ease-linear"
@@ -254,7 +247,6 @@ function Widget() {
                     />
                   </div>
 
-                  {/* Time display */}
                   <div className="flex justify-between mt-0.5">
                     <span className="text-[10px] text-white/70">
                       {formatTime(elapsed)}
@@ -270,37 +262,6 @@ function Widget() {
         )}
       </div>
 
-      {/* Connection status indicator (hidden in OBS, visible during setup) */}
-      {!nowPlaying && (
-        <div className="fixed top-4 left-4">
-          <div className="flex items-center gap-2">
-            <div
-              className={`w-2 h-2 rounded-full ${
-                status === "connected"
-                  ? "bg-green-500"
-                  : status === "connecting"
-                    ? "bg-yellow-500 animate-pulse"
-                    : "bg-red-500"
-              }`}
-            />
-            <span
-              className={`text-xs font-semibold ${
-                status === "connected"
-                  ? "text-green-500"
-                  : status === "connecting"
-                    ? "text-yellow-500"
-                    : "text-red-500"
-              }`}
-            >
-              {status === "connected"
-                ? "Connected"
-                : status === "connecting"
-                  ? "Connecting..."
-                  : `Disconnected — retrying ws://localhost:${port}`}
-            </span>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
@@ -310,15 +271,7 @@ function Widget() {
 export default function WidgetPage() {
   return (
     <div className="bg-transparent min-h-screen">
-      <Suspense
-        fallback={
-          <div className="fixed top-4 left-4">
-            <span className="text-xs font-semibold text-yellow-500">
-              Loading...
-            </span>
-          </div>
-        }
-      >
+      <Suspense fallback={null}>
         <Widget />
       </Suspense>
     </div>

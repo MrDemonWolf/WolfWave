@@ -7,18 +7,11 @@
 
 import SwiftUI
 
-/// Discord connection step of the onboarding wizard.
-///
-/// Presents a simple toggle to enable Discord Rich Presence.
-/// When enabled, WolfWave shows "Listening to Apple Music" on the
-/// user's Discord profile with track, artist, and album info.
-///
-/// This step is optional — users can skip it from the navigation bar.
+/// Optional onboarding step to enable Discord Rich Presence.
 struct OnboardingDiscordStepView: View {
 
     // MARK: - Properties
 
-    /// Binding to the Discord Rich Presence enabled state.
     @Binding var presenceEnabled: Bool
 
     // MARK: - Body
@@ -27,7 +20,6 @@ struct OnboardingDiscordStepView: View {
         VStack(spacing: 20) {
             Spacer()
 
-            // Header
             VStack(spacing: 8) {
                 Image(systemName: "gamecontroller.fill")
                     .font(.system(size: 36))
@@ -42,14 +34,12 @@ struct OnboardingDiscordStepView: View {
                     .foregroundStyle(.secondary)
             }
 
-            // Description
             VStack(spacing: 16) {
                 Text("Show what you're listening to on your Discord profile, just like Spotify does.")
                     .font(.system(size: 13))
                     .foregroundStyle(.secondary)
                     .multilineTextAlignment(.center)
 
-                // Enable toggle
                 HStack(spacing: 12) {
                     VStack(alignment: .leading, spacing: 2) {
                         Text("Enable Discord Rich Presence")

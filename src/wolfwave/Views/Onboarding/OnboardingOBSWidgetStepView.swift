@@ -7,29 +7,24 @@
 
 import SwiftUI
 
-/// OBS Widget step of the onboarding wizard.
-///
-/// Presents a toggle to enable the local WebSocket server that powers
-/// the OBS browser source widget. Shows the widget URL for easy copy.
-///
-/// This step is optional — users can skip it from the navigation bar.
+/// Optional onboarding step to enable the OBS stream overlay WebSocket server.
 struct OnboardingOBSWidgetStepView: View {
 
     // MARK: - Properties
 
-    /// Binding to the WebSocket server enabled state.
     @Binding var websocketEnabled: Bool
 
-    /// Server port from UserDefaults.
     @AppStorage(AppConstants.UserDefaults.websocketServerPort)
     private var storedPort: Int = Int(AppConstants.WebSocketServer.defaultPort)
 
-    /// Whether the widget URL was recently copied.
     @State private var copiedURL = false
 
-    /// Computed widget URL based on current port.
     private var widgetURL: String {
+        #if DEBUG
+        "http://localhost:3000/widget/?port=\(storedPort)"
+        #else
         "https://mrdemonwolf.github.io/wolfwave/widget/?port=\(storedPort)"
+        #endif
     }
 
     // MARK: - Body
@@ -38,7 +33,6 @@ struct OnboardingOBSWidgetStepView: View {
         VStack(spacing: 20) {
             Spacer()
 
-            // Header
             VStack(spacing: 8) {
                 Image(systemName: "rectangle.inset.filled.and.person.filled")
                     .font(.system(size: 36))
@@ -53,14 +47,12 @@ struct OnboardingOBSWidgetStepView: View {
                     .foregroundStyle(.secondary)
             }
 
-            // Content
             VStack(spacing: 16) {
                 Text("Show what you're listening to on your stream with a browser source overlay in OBS.")
                     .font(.system(size: 13))
                     .foregroundStyle(.secondary)
                     .multilineTextAlignment(.center)
 
-                // Enable toggle
                 HStack(spacing: 12) {
                     VStack(alignment: .leading, spacing: 2) {
                         Text("Enable OBS Widget Server")
@@ -100,7 +92,6 @@ struct OnboardingOBSWidgetStepView: View {
                                 .foregroundStyle(.secondary)
                         }
 
-                        // Widget URL with copy
                         VStack(alignment: .leading, spacing: 6) {
                             Text("Add this URL as a Browser Source in OBS:")
                                 .font(.system(size: 11))

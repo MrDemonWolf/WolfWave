@@ -8,20 +8,13 @@
 import Combine
 import Foundation
 
-/// View model for the first-launch onboarding wizard.
-///
-/// Manages step navigation, progress tracking, and onboarding completion persistence.
-/// The wizard walks users through a welcome overview and optional Twitch connection.
-///
-/// Steps:
-/// 1. Welcome — App overview with feature highlights
-/// 2. Twitch Connection — Optional OAuth Device Code flow
+/// Manages step navigation and completion persistence for the onboarding wizard.
 @MainActor
 final class OnboardingViewModel: ObservableObject {
 
     // MARK: - Step Definition
 
-    /// Onboarding wizard steps, ordered by presentation sequence.
+    /// Ordered onboarding steps.
     enum OnboardingStep: Int, CaseIterable {
         case welcome = 0
         case twitchConnect = 1
@@ -31,39 +24,29 @@ final class OnboardingViewModel: ObservableObject {
 
     // MARK: - Published State
 
-    /// The currently displayed onboarding step.
     @Published var currentStep: OnboardingStep = .welcome
 
     // MARK: - Navigation
 
-    /// Whether the current step is the first step in the wizard.
     var isFirstStep: Bool {
         currentStep == OnboardingStep.allCases.first
     }
 
-    /// Whether the current step is the last step in the wizard.
     var isLastStep: Bool {
         currentStep == OnboardingStep.allCases.last
     }
 
-    /// Total number of steps in the wizard.
     var totalSteps: Int {
         OnboardingStep.allCases.count
     }
 
-    /// Advances to the next step.
-    ///
-    /// Animation is driven by `.animation(_:value:)` on the view container
-    /// to avoid competing animation drivers.
+    /// Advances to the next step if one exists.
     func goToNextStep() {
         guard let next = OnboardingStep(rawValue: currentStep.rawValue + 1) else { return }
         currentStep = next
     }
 
-    /// Returns to the previous step.
-    ///
-    /// Animation is driven by `.animation(_:value:)` on the view container
-    /// to avoid competing animation drivers.
+    /// Returns to the previous step if one exists.
     func goToPreviousStep() {
         guard let prev = OnboardingStep(rawValue: currentStep.rawValue - 1) else { return }
         currentStep = prev
@@ -71,18 +54,13 @@ final class OnboardingViewModel: ObservableObject {
 
     // MARK: - Completion
 
-    /// Marks onboarding as completed and persists the flag.
-    ///
-    /// Called when the user clicks "Finish" or "Skip" in the wizard.
-    /// After this, the onboarding window will not appear on subsequent launches.
+    /// Persists the onboarding-completed flag so the wizard won't show again.
     func completeOnboarding() {
         UserDefaults.standard.set(true, forKey: AppConstants.UserDefaults.hasCompletedOnboarding)
         Log.info("Onboarding completed", category: "Onboarding")
     }
 
-    /// Whether the first-launch onboarding has been completed previously.
-    ///
-    /// Used by AppDelegate to decide whether to show the onboarding window on launch.
+    /// Whether onboarding has been completed on a previous launch.
     static var hasCompletedOnboarding: Bool {
         UserDefaults.standard.bool(forKey: AppConstants.UserDefaults.hasCompletedOnboarding)
     }
