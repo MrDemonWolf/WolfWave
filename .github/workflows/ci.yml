@@ -27,6 +27,9 @@ jobs:
           xcodebuild -project "$PROJECT" -scheme "$SCHEME" \
             -destination 'platform=macOS,arch=arm64' \
             -configuration Debug test \
+            CODE_SIGN_IDENTITY="-" \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGNING_ALLOWED=NO \
             -resultBundlePath TestResults.xcresult
 
       - name: Upload Test Results
