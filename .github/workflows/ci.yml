@@ -1,0 +1,37 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+env:
+  SCHEME: WolfWave
+  PROJECT: src/wolfwave.xcodeproj
+
+jobs:
+  test:
+    name: Build & Test
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Create Config.xcconfig
+        run: |
+          printf 'TWITCH_CLIENT_ID = placeholder\nDISCORD_CLIENT_ID = placeholder\n' \
+            > src/wolfwave/Config.xcconfig
+
+      - name: Build & Test
+        run: |
+          xcodebuild -project "$PROJECT" -scheme "$SCHEME" \
+            -destination 'platform=macOS,arch=arm64' \
+            -configuration Debug test \
+            -resultBundlePath TestResults.xcresult
+
+      - name: Upload Test Results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: TestResults
+          path: TestResults.xcresult
