@@ -763,7 +763,7 @@ extension AppDelegate {
     /// Validates the stored Twitch token on launch; prompts for re-auth if expired.
     fileprivate func validateTwitchTokenOnBoot() async {
         guard let token = KeychainService.loadTwitchToken(), !token.isEmpty else {
-            await setReauthNeeded(false)
+            await MainActor.run { setReauthNeeded(false) }
             return
         }
 
