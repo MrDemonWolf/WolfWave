@@ -26,6 +26,14 @@ struct OnboardingView: View {
     @StateObject private var viewModel = OnboardingViewModel()
     @StateObject private var twitchViewModel = TwitchViewModel()
 
+    /// Whether Discord Rich Presence was enabled during onboarding.
+    @AppStorage(AppConstants.UserDefaults.discordPresenceEnabled)
+    private var discordPresenceEnabled = false
+
+    /// Whether the WebSocket server was enabled during onboarding.
+    @AppStorage(AppConstants.UserDefaults.websocketEnabled)
+    private var websocketEnabled = false
+
     /// Callback invoked when onboarding completes or is skipped.
     ///
     /// AppDelegate uses this to close the onboarding window and transition
@@ -87,7 +95,9 @@ struct OnboardingView: View {
             case .twitchConnect:
                 OnboardingTwitchStepView(twitchViewModel: twitchViewModel)
             case .discordConnect:
-                OnboardingDiscordStepView()
+                OnboardingDiscordStepView(presenceEnabled: $discordPresenceEnabled)
+            case .obsWidget:
+                OnboardingOBSWidgetStepView(websocketEnabled: $websocketEnabled)
             }
         }
         .id(viewModel.currentStep)
@@ -113,17 +123,10 @@ struct OnboardingView: View {
 
             Spacer()
 
-            // Skip button on optional integration steps
-            if viewModel.currentStep == .twitchConnect && !twitchViewModel.credentialsSaved {
+            // Skip button on optional steps
+            if shouldShowSkip {
                 Button("Skip") {
                     viewModel.goToNextStep()
-                }
-                .buttonStyle(.bordered)
-                .controlSize(.regular)
-                .pointerCursor()
-            } else if viewModel.currentStep == .discordConnect {
-                Button("Skip") {
-                    finishOnboarding()
                 }
                 .buttonStyle(.bordered)
                 .controlSize(.regular)
@@ -150,6 +153,20 @@ struct OnboardingView: View {
     }
 
     // MARK: - Helpers
+
+    /// Whether the current step should show a "Skip" button.
+    private var shouldShowSkip: Bool {
+        switch viewModel.currentStep {
+        case .twitchConnect:
+            return !twitchViewModel.credentialsSaved
+        case .discordConnect:
+            return !discordPresenceEnabled
+        case .obsWidget:
+            return !websocketEnabled
+        default:
+            return false
+        }
+    }
 
     /// Completes onboarding: persists the flag and notifies AppDelegate.
     private func finishOnboarding() {

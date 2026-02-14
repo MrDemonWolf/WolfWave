@@ -66,25 +66,42 @@ Show what you're listening to directly on your Discord profile — just like Spo
 
 WolfWave communicates with Discord via the local IPC socket — no bot token or server required. You only need a Discord Application ID from the [Discord Developer Portal](https://discord.com/developers/applications).
 
-## WebSocket Streaming
+## OBS Stream Widget
 
-### Overlay Integration
+### Browser Source Overlay
 
-- **Real-time Data**: Broadcast now-playing data to your stream overlays
-- **Protocol Support**: Works with ws:// and wss:// endpoints
-- **JWT Authentication**: Optional token-based authentication for secure connections
+Show what you're listening to directly on your stream with a built-in browser source widget for OBS.
 
-### Data Format
+- **Local WebSocket Server**: Runs on your Mac using Network.framework — no external services needed
+- **Multi-client Support**: Multiple OBS scenes or browser tabs can connect simultaneously
+- **Real-time Updates**: Track changes, progress, and playback state broadcast instantly
+- **Album Art & Blur**: Displays album artwork with a blurred background overlay
+- **Progress Bar**: Smooth progress bar with client-side interpolation for 60fps rendering
+- **Auto-reconnect**: Widget reconnects automatically if the server restarts
 
-Song data is broadcast in a structured format for easy integration with your overlay tools.
+### How It Works
+
+1. Enable the WebSocket server in **Settings → OBS Widget**
+2. Copy the widget URL
+3. Add it as a **Browser Source** in OBS (recommended size: 500 × 120)
+4. The widget connects to `ws://localhost:8765` and displays your now-playing info
+
+### JSON Message Format
+
+The server broadcasts structured JSON messages:
+- `welcome` — Sent on initial connection
+- `now_playing` — Track name, artist, album, duration, elapsed, artwork URL
+- `progress` — Elapsed time updates every second during playback
+- `playback_state` — Play/pause/stop state changes
 
 ## First-Launch Onboarding
 
 A guided 3-step onboarding wizard walks new users through initial configuration on first launch:
 
-1. **Welcome** — Feature overview highlighting Music Monitoring, Twitch Chat Bot, Discord Rich Presence, Stream Overlays, and Menu Bar integration
-2. **Twitch Connection** — Optional OAuth Device Code flow to connect your Twitch account (skippable)
-3. **Discord Rich Presence** — Visual preview of what your Discord profile will look like, with a toggle to enable (skippable)
+1. **Welcome** — App overview with feature highlights
+2. **Twitch Connection** — Optional OAuth Device Code flow to link your Twitch account
+3. **Discord Rich Presence** — Optional toggle to enable listening status on Discord
+4. **OBS Stream Widget** — Optional toggle to enable the WebSocket server with widget URL
 
 ## Security
 
@@ -118,7 +135,7 @@ A guided 3-step onboarding wizard walks new users through initial configuration 
 
 - **Music Monitor**: Control tracking behavior, live now-playing preview
 - **App Visibility**: Configure dock/menu bar appearance
-- **WebSocket**: Set up streaming endpoints
+- **OBS Widget**: Enable the stream overlay WebSocket server
 - **Twitch Integration**: Manage bot connection and commands
 - **Discord**: Enable/disable Rich Presence and view connection status
 - **Advanced**: Software updates, setup wizard, reset settings

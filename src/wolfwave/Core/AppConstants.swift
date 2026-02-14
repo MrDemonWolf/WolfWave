@@ -379,6 +379,6 @@ enum AppConstants {
         static let windowWidth: CGFloat = 520
 
         /// Height of the onboarding window
-        static let windowHeight: CGFloat = 500
+        static let windowHeight: CGFloat = 540
     }
 }

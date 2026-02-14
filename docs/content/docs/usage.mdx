@@ -17,13 +17,21 @@ Toggle Apple Music tracking on/off from **Settings → Music Playback Monitor**.
 
 A live **Now Playing** preview card in the Music Monitor settings shows the current track, artist, and album — styled after Apple Music.
 
-### WebSocket Streaming
+### OBS Stream Widget
 
-Configure WebSocket streaming to broadcast now-playing data to your overlays or other tools:
+Show your now-playing track on stream with a browser source overlay:
 
-- Set your WebSocket endpoint (ws:// or wss://)
-- Optionally configure JWT authentication
-- Data updates automatically when the track changes
+1. Open **Settings → OBS Widget**
+2. Enable the WebSocket server
+3. Copy the **Widget URL**
+4. In OBS, add a **Browser Source** and paste the URL
+5. Set the source size to **500 × 120** for best results
+
+The widget displays album art, track name, artist, and a progress bar. It connects to the local WebSocket server and updates in real time as your music changes.
+
+<Callout type="info">
+  Enable "Shutdown source when not visible" in OBS for clean reconnects when switching scenes.
+</Callout>
 
 ### Twitch Bot Integration
 
@@ -89,9 +97,8 @@ Once connected, your viewers can use these commands in chat:
 
 Access settings from the menu bar icon to configure:
 
-- **Music Monitor**: Enable/disable Apple Music tracking, live now-playing preview
-- **App Visibility**: Control dock/menu bar appearance
-- **WebSocket**: Configure your WebSocket endpoint and authentication
-- **Twitch**: Connect your Twitch account, configure the bot, and toggle individual commands
+- **Music Monitor**: Enable/disable Apple Music tracking
+- **OBS Widget**: Enable the stream overlay WebSocket server and copy the widget URL
+- **Twitch**: Connect your Twitch account and configure the bot
 - **Discord**: Enable/disable Rich Presence and view connection status
 - **Advanced**: Software updates, reset onboarding, reset all settings

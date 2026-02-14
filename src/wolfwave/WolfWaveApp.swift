@@ -724,12 +724,10 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSToolbarDelegate, NSWindowD
 
         websocketServer = WebSocketServerService(port: port)
 
-        websocketServer?.onStateChange = { [weak self] newState, clientCount in
-            NotificationCenter.default.post(
-                name: NSNotification.Name(AppConstants.Notifications.websocketServerStateChanged),
-                object: self,
-                userInfo: ["state": newState.rawValue, "clients": clientCount]
-            )
+        // The service already posts websocketServerStateChanged notifications internally,
+        // so the onStateChange callback is only used for logging.
+        websocketServer?.onStateChange = { newState, clientCount in
+            Log.debug("WebSocket: State changed to \(newState.rawValue) (\(clientCount) clients)", category: "WebSocket")
         }
 
         let enabled = UserDefaults.standard.bool(forKey: AppConstants.UserDefaults.websocketEnabled)

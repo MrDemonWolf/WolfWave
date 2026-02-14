@@ -26,6 +26,7 @@ final class OnboardingViewModel: ObservableObject {
         case welcome = 0
         case twitchConnect = 1
         case discordConnect = 2
+        case obsWidget = 3
     }
 
     // MARK: - Published State

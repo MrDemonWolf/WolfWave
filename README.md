@@ -17,10 +17,10 @@ A native macOS menu bar app that bridges Apple Music with Twitch, Discord, and y
 - **Real-time Now Playing** — Track Apple Music and broadcast instantly via ScriptingBridge
 - **Twitch Chat Bot** — `!song`, `!currentsong`, `!nowplaying`, `!lastsong` via EventSub + Helix
 - **Discord Rich Presence** — Show "Listening to Apple Music" on your Discord profile with dynamic album art and playback progress
-- **WebSocket Streaming** — Send now-playing data to overlays (ws:// or wss://)
+- **OBS Stream Widget** — Built-in browser source overlay for OBS via local WebSocket server
 - **Automatic Updates** — Checks GitHub Releases for new versions with Homebrew and DMG support
 - **Secure by Default** — All credentials stored in macOS Keychain; no plain-text tokens
-- **First-Launch Onboarding** — Guided 3-step setup wizard (Welcome, Twitch, Discord)
+- **First-Launch Onboarding** — Guided setup wizard (Welcome, Twitch, Discord, OBS Widget)
 
 ## Getting Started
 
@@ -47,9 +47,9 @@ A native macOS menu bar app that bridges Apple Music with Twitch, Discord, and y
 
 Enable in **Settings > Discord** to show what you're listening to on your Discord profile. Album artwork is fetched automatically from the iTunes Search API — no manual setup needed.
 
-### WebSocket Streaming
+### OBS Stream Widget
 
-Configure in **Settings > WebSocket** to broadcast now-playing data to your stream overlays in real-time.
+Enable in **Settings > OBS Widget** to start a local WebSocket server that powers a browser source overlay for OBS. Copy the widget URL and add it as a Browser Source (500 x 120) to display your now-playing track on stream.
 
 ## Development
 

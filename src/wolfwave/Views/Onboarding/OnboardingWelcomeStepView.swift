@@ -32,7 +32,7 @@ struct OnboardingWelcomeStepView: View {
                 Text("Welcome to WolfWave")
                     .font(.system(size: 24, weight: .bold))
 
-                Text("Bridge Apple Music with Twitch, Discord, and stream overlays")
+                Text("Bridge Apple Music to your stream")
                     .font(.system(size: 15))
                     .foregroundStyle(.secondary)
                     .multilineTextAlignment(.center)
@@ -53,19 +53,13 @@ struct OnboardingWelcomeStepView: View {
                 )
                 featureRow(
                     icon: "gamecontroller.fill",
-                    color: Color(red: 0.345, green: 0.396, blue: 0.949),  // Discord #5865F2
                     title: "Discord Rich Presence",
-                    description: "Show what you're listening to on your Discord profile with album art."
+                    description: "Shows what you're listening to on your Discord profile."
                 )
                 featureRow(
-                    icon: "rectangle.on.rectangle",
-                    title: "Stream Overlays",
-                    description: "Stream now-playing data to browser overlays via WebSocket."
-                )
-                featureRow(
-                    icon: "menubar.rectangle",
-                    title: "Menu Bar App",
-                    description: "Lives in your menu bar for quick access without getting in the way."
+                    icon: "rectangle.inset.filled.and.person.filled",
+                    title: "OBS Stream Widget",
+                    description: "Display now-playing info as a browser source overlay on your stream."
                 )
             }
             .padding(.horizontal, 32)

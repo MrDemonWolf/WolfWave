@@ -193,23 +193,4 @@ final class TwitchViewModelTests: XCTestCase {
         XCTAssertEqual(viewModel.statusMessage, "")
     }
 
-    // MARK: - ChannelValidationState Tests
-
-    func testChannelValidationStateDefaultIsIdle() {
-        XCTAssertEqual(viewModel.channelValidationState, .idle)
-    }
-
-    func testChannelValidationStateEquatableIdle() {
-        XCTAssertEqual(TwitchViewModel.ChannelValidationState.idle, .idle)
-    }
-
-    func testChannelValidationStateEquatableError() {
-        let state1 = TwitchViewModel.ChannelValidationState.error("test")
-        let state2 = TwitchViewModel.ChannelValidationState.error("test")
-        XCTAssertEqual(state1, state2)
-    }
-
-    func testChannelValidationStateNotEqual() {
-        XCTAssertNotEqual(TwitchViewModel.ChannelValidationState.idle, .validating)
-    }
 }

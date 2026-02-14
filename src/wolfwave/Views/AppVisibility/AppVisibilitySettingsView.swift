@@ -50,7 +50,9 @@ struct AppVisibilitySettingsView: View {
                 .accessibilityIdentifier("dockVisibilityPicker")
             }
             .frame(maxWidth: .infinity, alignment: .leading)
-            .cardStyle()
+            .padding(AppConstants.SettingsUI.cardPadding)
+            .background(Color(nsColor: .controlBackgroundColor))
+            .clipShape(RoundedRectangle(cornerRadius: AppConstants.SettingsUI.cardCornerRadius))
 
             // Info Notice
             if dockVisibility == "menuOnly" {

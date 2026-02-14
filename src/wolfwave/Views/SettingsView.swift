@@ -49,7 +49,7 @@ struct SettingsView: View {
     enum SettingsSection: String, CaseIterable, Identifiable {
         case musicMonitor = "Music Monitor"
         case appVisibility = "App Visibility"
-        case websocket = "WebSocket"
+        case websocket = "OBS Widget"
         case twitchIntegration = "Twitch Integration"
         case discord = "Discord Integration"
         case advanced = "Advanced"

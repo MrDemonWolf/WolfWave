@@ -93,6 +93,25 @@ The bot is implemented with `TwitchChatService` using Twitch Helix + EventSub (n
 - Clear presence: `clearPresence()` — removes the activity from the user's profile
 - The service is wired into the music playback delegate in `WolfWaveApp.swift`
 
+## WebSocket Server Service
+
+`WebSocketServerService` runs a local WebSocket server using Network.framework to broadcast now-playing data to stream overlay clients.
+
+### Features
+
+- **Network.framework NWListener**: Native WebSocket server with auto-ping support
+- **Multi-client Support**: Multiple browser sources or tools can connect simultaneously
+- **Progress Broadcasting**: 1-second interval timer broadcasts elapsed time during playback
+- **Auto-retry**: Reconnects the listener after failures with configurable delay
+
+### Usage
+
+- Enable/disable: `setEnabled(_:)` — starts or stops the `NWListener`
+- Update port: `updatePort(_:)` — restarts the server on a new port if running
+- Track change: `updateNowPlaying(track:artist:album:duration:elapsed:artworkURL:)` — broadcasts `now_playing` JSON
+- Clear: `clearNowPlaying()` — broadcasts `playback_state` with `isPlaying: false`
+- The service is wired into the music playback delegate in `WolfWaveApp.swift`
+
 ## Update Checker Service
 
 `UpdateCheckerService` queries the GitHub Releases API to detect new versions.
@@ -131,7 +150,8 @@ Or press **Cmd+U** in Xcode. The test target (`WolfWaveTests`) is a hosted unit 
 | `BotCommandDispatcherTests` | 14 | Message routing, callbacks, length guards, whitespace |
 | `OnboardingViewModelTests` | 15 | Step navigation, boundaries, UserDefaults persistence |
 | `TwitchViewModelTests` | 26 | AuthState/IntegrationState enums, computed properties |
-| `AppConstantsTests` | 18 | Constant integrity, URL validity, dimension bounds |
+| `AppConstantsTests` | 22 | Constant integrity, URL validity, dimension bounds, WebSocket constants |
+| `WebSocketServerServiceTests` | 15 | Server state, port validation, constants, notifications |
 
 ### Adding New Tests
 
