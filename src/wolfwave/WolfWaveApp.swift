@@ -1042,7 +1042,7 @@ extension AppDelegate {
     /// Called from applicationDidFinishLaunching() in a background task.
     fileprivate func validateTwitchTokenOnBoot() async {
         guard let token = KeychainService.loadTwitchToken(), !token.isEmpty else {
-            setReauthNeeded(false)
+            await setReauthNeeded(false)
             return
         }
 
