@@ -86,7 +86,7 @@ make open-xcode
 | `make clean`       | Clean build artifacts                    |
 | `make prod-build`  | Release build + DMG                      |
 | `make notarize`    | Notarize the DMG (requires Developer ID) |
-| `make test`        | Run tests                                |
+| `make test`        | Run unit tests (124 tests)               |
 | `make open-xcode`  | Open Xcode project                       |
 | `make update-deps` | Resolve SwiftPM dependencies             |
 
@@ -121,6 +121,16 @@ git push origin v1.0.0
 ```
 
 Pushing a tag triggers CI which builds the DMG and creates a GitHub Release automatically. You can then replace the CI-built DMG with your locally notarized one, or upload it manually.
+
+## Testing
+
+Run the full test suite with:
+
+```bash
+make test
+```
+
+Or in Xcode with **Cmd+U**. Tests cover bot commands, version comparison, onboarding navigation, Twitch view model state, and app constants integrity. The CI pipeline runs tests automatically on every push and pull request to `main`.
 
 ## Documentation
 

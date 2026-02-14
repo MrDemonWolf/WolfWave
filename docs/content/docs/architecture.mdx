@@ -8,7 +8,16 @@ WolfWave follows a clean architecture with clear separation of concerns.
 ## Project Structure
 
 ```
-wolfwave/
+src/
+├── WolfWaveTests/           # Unit tests (XCTest)
+│   ├── AppConstantsTests.swift
+│   ├── BotCommandDispatcherTests.swift
+│   ├── LastSongCommandTests.swift
+│   ├── OnboardingViewModelTests.swift
+│   ├── SongCommandTests.swift
+│   ├── TwitchViewModelTests.swift
+│   └── UpdateCheckerServiceTests.swift
+└── wolfwave/
 ├── Core/                    # Core utilities and services
 │   ├── AppConstants.swift       # Application constants
 │   ├── KeychainService.swift    # Secure credential storage (Keychain API)

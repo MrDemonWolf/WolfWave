@@ -13,7 +13,7 @@ WolfWave is a native macOS menu bar app that bridges Apple Music with Twitch, Di
 ```bash
 make build          # Debug build via xcodebuild
 make clean          # Clean build artifacts
-make test           # Run tests (if test target exists)
+make test           # Run unit tests (124 tests across 7 test files)
 make update-deps    # Resolve SwiftPM dependencies
 make open-xcode     # Open Xcode project
 make ci             # CI-friendly build (alias for build)
@@ -57,9 +57,31 @@ Xcode project is at `src/wolfwave.xcodeproj` with scheme `WolfWave`. Build and r
 - **Bot commands**: Register new commands in `BotCommandDispatcher.registerDefaultCommands()`. Each command implements `BotCommand` protocol. Max response 500 chars, target <100ms execution.
 - **Discord IPC**: Unix domain socket at `$TMPDIR/discord-ipc-{0..9}`. SBPL entitlements enable socket access within App Sandbox.
 
+## Testing
+
+Unit tests live in `src/WolfWaveTests/` and use XCTest with `@testable import WolfWave`. The test target is a hosted unit test bundle (`TEST_HOST` = WolfWave.app).
+
+### Test files
+
+- `UpdateCheckerServiceTests.swift` — Version comparison (semver edge cases), install method detection
+- `SongCommandTests.swift` — Trigger matching, case insensitivity, enable/disable, response truncation
+- `LastSongCommandTests.swift` — Same patterns for `!last`/`!lastsong`/`!prevsong` triggers
+- `BotCommandDispatcherTests.swift` — Message routing, callback wiring, length guards, whitespace handling
+- `OnboardingViewModelTests.swift` — Step navigation, boundary conditions, UserDefaults persistence
+- `TwitchViewModelTests.swift` — AuthState/IntegrationState enums, computed properties, cancelOAuth
+- `AppConstantsTests.swift` — Constant values, URL validity, dimension bounds, cross-references
+
+### Writing tests
+
+- Use `@testable import WolfWave` (module name matches `PRODUCT_NAME`)
+- `SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor` applies to test classes too — XCTest runs on main thread
+- Test files are auto-discovered via `PBXFileSystemSynchronizedRootGroup` — just add `.swift` files to `src/WolfWaveTests/`
+- Focus on pure logic (version comparison, command matching, state machines) — avoid tests that need AppDelegate, Keychain, or network
+
 ## CI/CD
 
-GitHub Actions workflow at `.github/workflows/release.yml` builds, signs, notarizes, and creates a GitHub Release on tag push (`v*`). Required secrets: `DEVELOPER_ID_CERT_P12`, `DEVELOPER_ID_CERT_PASSWORD`, `APPLE_ID`, `APPLE_TEAM_ID`, `APPLE_APP_PASSWORD`, `TWITCH_CLIENT_ID`, `DISCORD_CLIENT_ID`.
+- `.github/workflows/ci.yml` — Runs `xcodebuild test` on every push/PR to `main`. Creates placeholder `Config.xcconfig` for CI builds.
+- `.github/workflows/release.yml` — Builds, signs, notarizes, and creates a GitHub Release on tag push (`v*`). Required secrets: `DEVELOPER_ID_CERT_P12`, `DEVELOPER_ID_CERT_PASSWORD`, `APPLE_ID`, `APPLE_TEAM_ID`, `APPLE_APP_PASSWORD`, `TWITCH_CLIENT_ID`, `DISCORD_CLIENT_ID`.
 
 ## Documentation
 

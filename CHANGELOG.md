@@ -6,6 +6,8 @@ All notable changes to this project will be documented in this file.
 
 ### Added
 
+- **Unit Test Suite**: 124 unit tests across 7 test files covering bot commands, version comparison, onboarding navigation, Twitch view model state, and app constants integrity. Test target auto-discovers new `.swift` files.
+- **CI Pipeline**: GitHub Actions workflow (`.github/workflows/ci.yml`) runs tests on every push and pull request to `main`.
 - **Automatic Update Checker**: Checks GitHub Releases for new versions on launch and every 24 hours. Detects Homebrew vs DMG install method and shows appropriate update instructions. Software Update card in Advanced settings with "Check Now", auto-check toggle, and "Skip This Version".
 - **Discord Onboarding Step**: 3rd onboarding step with a visual Rich Presence preview and enable toggle.
 - **Now Playing Preview Card**: Apple Music-styled now-playing card in Music Monitor settings showing current track, artist, and album.
