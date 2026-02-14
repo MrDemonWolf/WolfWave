@@ -2,12 +2,13 @@
 //  TwitchViewModelTests.swift
 //  WolfWaveTests
 //
-//  Created by Claude on 2/13/26.
+//  Created by MrDemonWolf, Inc. on 2/13/26.
 //
 
 import XCTest
 @testable import WolfWave
 
+@MainActor
 final class TwitchViewModelTests: XCTestCase {
     var viewModel: TwitchViewModel!
 

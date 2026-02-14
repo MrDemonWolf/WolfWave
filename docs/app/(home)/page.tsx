@@ -33,14 +33,14 @@ const features = [
 ] as const;
 
 const steps = [
-  { number: "1", title: "Download", description: "Grab the latest DMG from GitHub Releases. Signed and notarized by Apple." },
+  { number: "1", title: "Download", description: "Grab the latest DMG from GitHub Releases." },
   { number: "2", title: "Configure", description: "Follow the onboarding wizard to connect Twitch, Discord, and your overlays." },
   { number: "3", title: "Stream", description: "Play music and it appears on Twitch, Discord, and your overlays automatically." },
 ] as const;
 
 const highlights = [
   { icon: Zap, title: "Zero Dependencies", description: "Built entirely with native Apple frameworks. No Electron, no bloat." },
-  { icon: Shield, title: "Secure by Default", description: "All tokens in macOS Keychain. App Sandbox enabled. Signed and notarized." },
+  { icon: Shield, title: "Secure by Default", description: "All tokens in macOS Keychain. App Sandbox enabled. Hardened Runtime." },
   { icon: Cpu, title: "Modern APIs", description: "Twitch EventSub + Helix, Discord IPC, and ScriptingBridge. No workarounds." },
 ] as const;
 

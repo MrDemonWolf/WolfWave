@@ -2,7 +2,7 @@
 //  BotCommandDispatcherTests.swift
 //  WolfWaveTests
 //
-//  Created by Claude on 2/13/26.
+//  Created by MrDemonWolf, Inc. on 2/13/26.
 //
 
 import XCTest
@@ -54,7 +54,7 @@ final class BotCommandDispatcherTests: XCTestCase {
     }
 
     func testExactly500CharsProcessed() {
-        let message = "!song" + String(repeating: " ", count: 495)
+        let message = "!song" + String(repeating: "x", count: 495)
         dispatcher.setCurrentSongInfo { "Artist - Song" }
         let result = dispatcher.processMessage(message)
         XCTAssertNotNil(result)

@@ -289,6 +289,11 @@ final class UpdateCheckerService: @unchecked Sendable {
     ///   - candidate: The version to check (e.g. "1.2.0").
     ///   - current: The version to compare against (e.g. "1.1.0").
     /// - Returns: True if `candidate` is strictly newer than `current`.
+    ///
+    /// - Note: Pre-release identifiers (e.g. "-beta", "-rc.1") are ignored by the
+    ///   current implementation — `compactMap { Int($0) }` strips non-numeric segments,
+    ///   so "1.1.0-beta" is treated identically to "1.1.0". If pre-release GitHub
+    ///   releases need to be distinguished, consider adopting full SemVer parsing.
     func isNewerVersion(_ candidate: String, than current: String) -> Bool {
         let candidateParts = candidate.split(separator: ".").compactMap { Int($0) }
         let currentParts = current.split(separator: ".").compactMap { Int($0) }

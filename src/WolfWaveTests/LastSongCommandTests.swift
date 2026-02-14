@@ -2,7 +2,7 @@
 //  LastSongCommandTests.swift
 //  WolfWaveTests
 //
-//  Created by Claude on 2/13/26.
+//  Created by MrDemonWolf, Inc. on 2/13/26.
 //
 
 import XCTest
