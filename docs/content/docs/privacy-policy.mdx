@@ -1,0 +1,81 @@
+---
+title: Privacy Policy
+description: Privacy Policy for WolfWave
+---
+
+**Effective Date:** February 12, 2026
+**Last Updated:** February 12, 2026
+
+MrDemonWolf, Inc. ("we", "us", or "our") operates the WolfWave application. This Privacy Policy explains how we handle information when you use WolfWave.
+
+## Information We Collect
+
+### Information You Provide
+
+- **Twitch Account Credentials** — When you connect your Twitch account via OAuth Device Code Flow, WolfWave receives an OAuth access token from Twitch. This token is stored locally in your macOS Keychain and is never transmitted to us.
+- **Channel Name** — The Twitch channel name you enter for bot connection is stored locally in your macOS Keychain.
+- **Discord Application ID** — Your Discord Application ID is stored in the app's build configuration and used to connect to Discord's local IPC socket.
+
+### Information Collected Automatically
+
+- **Now Playing Data** — WolfWave reads the currently playing track, artist, and album from Apple Music on your device using ScriptingBridge. This data is only used locally and shared with the services you explicitly enable (Twitch chat, Discord Rich Presence, WebSocket).
+
+## How We Use Information
+
+WolfWave processes data **entirely on your device**. We do not operate servers, collect analytics, or transmit any data to MrDemonWolf, Inc. All data flows directly between your Mac and the third-party services you connect:
+
+| Data | Destination | Purpose |
+|------|-------------|---------|
+| Now playing info | Twitch chat (via Helix API) | Respond to `!song` and `!last` commands |
+| Now playing info | Discord (via local IPC socket) | Display Rich Presence status |
+| Now playing info | Your WebSocket endpoint | Stream data to overlays |
+| Album artwork query | iTunes Search API | Fetch album art for Discord Rich Presence |
+
+## Data Storage
+
+- **Credentials** are stored in the macOS Keychain, encrypted by the operating system.
+- **User preferences** are stored in the app's UserDefaults on your device.
+- **No data is stored on external servers** operated by MrDemonWolf, Inc.
+
+## Third-Party Services
+
+WolfWave integrates with third-party services that have their own privacy policies:
+
+- [Twitch Privacy Policy](https://www.twitch.tv/p/legal/privacy-notice/)
+- [Discord Privacy Policy](https://discord.com/privacy)
+- [Apple Privacy Policy](https://www.apple.com/legal/privacy/)
+
+We encourage you to review these policies. WolfWave only sends the minimum data required for each integration to function.
+
+## Data Sharing
+
+We do **not** sell, rent, or share your personal information with third parties. WolfWave does not contain advertising or tracking SDKs.
+
+## Data Retention
+
+All data is stored locally on your device. You can clear all stored data at any time by:
+
+1. Using **Settings → Advanced → Reset Settings** within the app
+2. Uninstalling WolfWave (removes UserDefaults and Keychain entries)
+
+## Security
+
+- All network communication uses encrypted transport (HTTPS/WSS)
+- Credentials are stored in the macOS Keychain with hardware-backed encryption
+- The app is sandboxed with minimum required entitlements
+- The app is signed with a Developer ID certificate and notarized by Apple
+
+## Children's Privacy
+
+WolfWave is not directed at children under 13. We do not knowingly collect information from children.
+
+## Changes to This Policy
+
+We may update this Privacy Policy from time to time. Changes will be posted on this page with an updated "Last Updated" date.
+
+## Contact
+
+If you have questions about this Privacy Policy, please contact us:
+
+- **GitHub**: [github.com/MrDemonWolf/WolfWave](https://github.com/MrDemonWolf/WolfWave/issues)
+- **Company**: MrDemonWolf, Inc.

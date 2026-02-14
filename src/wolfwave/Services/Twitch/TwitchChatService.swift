@@ -111,8 +111,18 @@ final class TwitchChatService: @unchecked Sendable {
     var getLastSongInfo: (() -> String)?
 
     var commandsEnabled = true
-    var currentSongCommandEnabled = true
-    var lastSongCommandEnabled = true
+    var currentSongCommandEnabled: Bool = {
+        if UserDefaults.standard.object(forKey: AppConstants.UserDefaults.currentSongCommandEnabled) != nil {
+            return UserDefaults.standard.bool(forKey: AppConstants.UserDefaults.currentSongCommandEnabled)
+        }
+        return true
+    }()
+    var lastSongCommandEnabled: Bool = {
+        if UserDefaults.standard.object(forKey: AppConstants.UserDefaults.lastSongCommandEnabled) != nil {
+            return UserDefaults.standard.bool(forKey: AppConstants.UserDefaults.lastSongCommandEnabled)
+        }
+        return true
+    }()
 
     var onMessageReceived: ((ChatMessage) -> Void)?
     var onConnectionStateChanged: ((Bool) -> Void)?

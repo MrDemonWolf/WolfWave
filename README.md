@@ -18,8 +18,9 @@ A native macOS menu bar app that bridges Apple Music with Twitch, Discord, and y
 - **Twitch Chat Bot** — `!song`, `!currentsong`, `!nowplaying`, `!lastsong` via EventSub + Helix
 - **Discord Rich Presence** — Show "Listening to Apple Music" on your Discord profile with dynamic album art and playback progress
 - **WebSocket Streaming** — Send now-playing data to overlays (ws:// or wss://)
+- **Automatic Updates** — Checks GitHub Releases for new versions with Homebrew and DMG support
 - **Secure by Default** — All credentials stored in macOS Keychain; no plain-text tokens
-- **First-Launch Onboarding** — Guided setup wizard for new users
+- **First-Launch Onboarding** — Guided 3-step setup wizard (Welcome, Twitch, Discord)
 
 ## Getting Started
 
@@ -131,6 +132,8 @@ For complete documentation, visit: **[mrdemonwolf.github.io/wolfwave](https://mr
 - [Bot Commands](https://mrdemonwolf.github.io/wolfwave/docs/bot-commands) — Chat command reference
 - [Development](https://mrdemonwolf.github.io/wolfwave/docs/development) — Contributing guide
 - [Architecture](https://mrdemonwolf.github.io/wolfwave/docs/architecture) — Project structure
+- [Privacy Policy](https://mrdemonwolf.github.io/wolfwave/docs/privacy-policy) — Privacy practices
+- [Terms of Service](https://mrdemonwolf.github.io/wolfwave/docs/terms-of-service) — Usage terms
 
 ## License
 

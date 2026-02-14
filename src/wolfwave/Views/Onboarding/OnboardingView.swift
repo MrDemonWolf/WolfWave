@@ -86,6 +86,8 @@ struct OnboardingView: View {
                 OnboardingWelcomeStepView()
             case .twitchConnect:
                 OnboardingTwitchStepView(twitchViewModel: twitchViewModel)
+            case .discordConnect:
+                OnboardingDiscordStepView()
             }
         }
         .id(viewModel.currentStep)
@@ -111,8 +113,15 @@ struct OnboardingView: View {
 
             Spacer()
 
-            // Skip button on Twitch step (only when auth not completed)
+            // Skip button on optional integration steps
             if viewModel.currentStep == .twitchConnect && !twitchViewModel.credentialsSaved {
+                Button("Skip") {
+                    viewModel.goToNextStep()
+                }
+                .buttonStyle(.bordered)
+                .controlSize(.regular)
+                .pointerCursor()
+            } else if viewModel.currentStep == .discordConnect {
                 Button("Skip") {
                     finishOnboarding()
                 }

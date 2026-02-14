@@ -277,7 +277,7 @@ struct SettingsView: View {
                 VStack(spacing: 1) {
                     commandToggleRow(
                         title: "Now Playing Command",
-                        subtitle: "Viewers type !song to see what's playing",
+                        subtitle: "!song  ·  !currentsong  ·  !nowplaying",
                         isOn: $currentSongCommandEnabled,
                         accessibilityLabel: "Enable Current Playing Song command",
                         accessibilityIdentifier: "currentSongCommandToggle",
@@ -289,7 +289,7 @@ struct SettingsView: View {
 
                     commandToggleRow(
                         title: "Previous Song Command",
-                        subtitle: "Viewers type !last to see the previous track",
+                        subtitle: "!last  ·  !lastsong  ·  !prevsong",
                         isOn: $lastSongCommandEnabled,
                         accessibilityLabel: "Enable Last Played Song command",
                         accessibilityIdentifier: "lastSongCommandToggle",
@@ -367,7 +367,7 @@ struct SettingsView: View {
     /// 5. Notifies the app that tracking has been re-enabled
     private func resetSettings() {
         // Clear UserDefaults
-        [AppConstants.UserDefaults.trackingEnabled, AppConstants.UserDefaults.currentSongCommandEnabled, AppConstants.UserDefaults.lastSongCommandEnabled, AppConstants.UserDefaults.dockVisibility, AppConstants.UserDefaults.websocketEnabled, AppConstants.UserDefaults.websocketURI, AppConstants.UserDefaults.hasCompletedOnboarding, AppConstants.UserDefaults.discordPresenceEnabled].forEach {
+        [AppConstants.UserDefaults.trackingEnabled, AppConstants.UserDefaults.currentSongCommandEnabled, AppConstants.UserDefaults.lastSongCommandEnabled, AppConstants.UserDefaults.dockVisibility, AppConstants.UserDefaults.websocketEnabled, AppConstants.UserDefaults.websocketURI, AppConstants.UserDefaults.hasCompletedOnboarding, AppConstants.UserDefaults.discordPresenceEnabled, AppConstants.UserDefaults.updateLastCheckDate, AppConstants.UserDefaults.updateSkippedVersion, AppConstants.UserDefaults.updateCheckEnabled].forEach {
             UserDefaults.standard.removeObject(forKey: $0)
         }
 

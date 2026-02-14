@@ -11,30 +11,33 @@ import SwiftUI
 ///
 /// Allows users to enable or disable real-time Apple Music tracking.
 /// When enabled, WolfWave monitors the current playing track and updates:
-/// - Menu bar display with current song/artist/album
 /// - Twitch chat bot command responses (!song, !last)
+/// - Discord Rich Presence
 /// - External WebSocket endpoints (if configured)
+///
+/// Also displays a live now-playing preview card styled after Apple Music.
 ///
 /// State:
 /// - Uses @AppStorage to sync with UserDefaults
-/// - Changes are posted via NotificationCenter for app-wide updates
+/// - Observes NowPlayingChanged notifications for live track updates
 ///
 /// UI:
-/// - Simple toggle switch
-/// - Descriptive explanation of functionality
+/// - Toggle switch for enabling/disabling tracking
+/// - Apple Music-styled now-playing preview card
 /// - Accessibility labels for screen readers
 struct MusicMonitorSettingsView: View {
     // MARK: - User Settings
-    
+
     /// Whether music tracking is currently enabled.
-    ///
-    /// When toggled:
-    /// 1. Starts or stops MusicPlaybackMonitor
-    /// 2. Posts trackingSettingChanged notification
-    /// 3. Updates menu bar display ("Tracking disabled" or current song)
     @AppStorage(AppConstants.UserDefaults.trackingEnabled)
     private var trackingEnabled = true
-    
+
+    // MARK: - Now Playing State
+
+    @State private var currentTrack: String?
+    @State private var currentArtist: String?
+    @State private var currentAlbum: String?
+
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
             // Section Header
@@ -72,16 +75,123 @@ struct MusicMonitorSettingsView: View {
                     }
             }
             .cardStyle()
+
+            // Now Playing Preview
+            nowPlayingCard
+                .animation(.easeInOut(duration: 0.25), value: currentTrack)
+        }
+        .onAppear {
+            loadCurrentTrack()
+        }
+        .onReceive(
+            NotificationCenter.default.publisher(
+                for: NSNotification.Name(AppConstants.Notifications.nowPlayingChanged)
+            )
+        ) { notification in
+            currentTrack = notification.userInfo?["track"] as? String
+            currentArtist = notification.userInfo?["artist"] as? String
+            currentAlbum = notification.userInfo?["album"] as? String
         }
     }
-    
+
+    // MARK: - Now Playing Card
+
+    @ViewBuilder
+    private var nowPlayingCard: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            // Header
+            HStack(spacing: 6) {
+                Image(systemName: "music.note")
+                    .font(.system(size: 11, weight: .semibold))
+                    .foregroundStyle(Color.accentColor)
+                Text("Now Playing")
+                    .font(.system(size: 11, weight: .semibold))
+                    .foregroundStyle(.secondary)
+            }
+
+            if let track = currentTrack {
+                // Track info
+                HStack(spacing: 12) {
+                    // Album art placeholder
+                    ZStack {
+                        RoundedRectangle(cornerRadius: 6)
+                            .fill(Color.accentColor.opacity(0.15))
+                        Image(systemName: "music.note")
+                            .font(.system(size: 18, weight: .medium))
+                            .foregroundStyle(Color.accentColor)
+                    }
+                    .frame(width: 48, height: 48)
+
+                    VStack(alignment: .leading, spacing: 3) {
+                        Text(track)
+                            .font(.system(size: 13, weight: .semibold))
+                            .lineLimit(1)
+
+                        if let artist = currentArtist {
+                            Text(artist)
+                                .font(.system(size: 12))
+                                .foregroundStyle(.secondary)
+                                .lineLimit(1)
+                        }
+
+                        if let album = currentAlbum {
+                            Text(album)
+                                .font(.system(size: 11))
+                                .foregroundStyle(.tertiary)
+                                .lineLimit(1)
+                        }
+                    }
+
+                    Spacer()
+                }
+            } else {
+                // Empty state
+                HStack(spacing: 12) {
+                    ZStack {
+                        RoundedRectangle(cornerRadius: 6)
+                            .fill(Color(nsColor: .separatorColor).opacity(0.3))
+                        Image(systemName: "music.note")
+                            .font(.system(size: 18, weight: .medium))
+                            .foregroundStyle(.tertiary)
+                    }
+                    .frame(width: 48, height: 48)
+
+                    Text(trackingEnabled ? "No track playing" : "Tracking disabled")
+                        .font(.system(size: 13))
+                        .foregroundStyle(.tertiary)
+
+                    Spacer()
+                }
+            }
+        }
+        .cardStyle()
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel(nowPlayingAccessibilityLabel)
+    }
+
     // MARK: - Helpers
-    
+
+    /// Accessibility label for the now playing card.
+    private var nowPlayingAccessibilityLabel: String {
+        if let track = currentTrack {
+            var label = "Now playing: \(track)"
+            if let artist = currentArtist { label += " by \(artist)" }
+            if let album = currentAlbum { label += " on \(album)" }
+            return label
+        }
+        return trackingEnabled ? "No track playing" : "Tracking disabled"
+    }
+
+    /// Loads the current track from AppDelegate on view appear.
+    private func loadCurrentTrack() {
+        guard let appDelegate = AppDelegate.shared else { return }
+        // Access the stored track info via the delegate's public accessors
+        currentTrack = appDelegate.currentSong
+        currentArtist = appDelegate.currentArtist
+        currentAlbum = appDelegate.currentAlbum
+    }
+
     /// Posts a notification when music tracking is toggled.
-    ///
-    /// The AppDelegate listens for this notification and starts/stops the MusicPlaybackMonitor.
-    ///
-    /// - Parameter enabled: Whether tracking is now enabled.
     private func notifyTrackingSettingChanged(enabled: Bool) {
         NotificationCenter.default.post(
             name: NSNotification.Name(AppConstants.Notifications.trackingSettingChanged),

@@ -576,13 +576,6 @@ private struct SignedInView: View {
     private var shouldDisableConnectButton: Bool {
         let validChannel = !channelID.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
         if reauthNeeded || isConnecting { return true }
-        // Disable when channel validation has determined the name is invalid or errored
-        switch channelValidationState {
-        case .invalid, .error:
-            return true
-        default:
-            break
-        }
         // If credentials are saved we can attempt to connect even if the
         // bot username hasn't been resolved yet — rely on saved token.
         if credentialsSaved {

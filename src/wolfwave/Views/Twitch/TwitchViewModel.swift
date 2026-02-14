@@ -174,8 +174,6 @@ final class TwitchViewModel: ObservableObject {
     var oAuthTask: Task<Void, Never>?
     /// Debounce task for saving channel ID to avoid excessive Keychain writes
     private var channelIDSaveTask: Task<Void, Never>?
-    /// Task for validating channel name existence after save
-    private var channelValidationTask: Task<Void, Never>?
 
     // MARK: - Initialization
 
@@ -325,7 +323,6 @@ final class TwitchViewModel: ObservableObject {
         devicePollingTask?.cancel()
         oAuthTask?.cancel()
         channelIDSaveTask?.cancel()
-        channelValidationTask?.cancel()
         NotificationCenter.default.removeObserver(self)
     }
 
@@ -475,11 +472,9 @@ final class TwitchViewModel: ObservableObject {
 
     /// Saves just the channel ID to Keychain (auto-save on input).
     /// Debounced to avoid excessive writes - waits 1 second after last keystroke.
-    /// After saving, triggers channel name validation against the Twitch API.
     func saveChannelID() {
-        // Cancel any pending save task and validation task
+        // Cancel any pending save task
         channelIDSaveTask?.cancel()
-        channelValidationTask?.cancel()
         channelValidationState = .idle
 
         // Create a new task that waits 1 second before saving
@@ -498,12 +493,6 @@ final class TwitchViewModel: ObservableObject {
                     "Failed to save channel ID: \(error.localizedDescription)",
                     category: "Keychain"
                 )
-                return
-            }
-
-            // Trigger validation if channel name is non-empty
-            if !channel.isEmpty {
-                self.validateChannelName(channel)
             }
         }
     }
@@ -531,8 +520,6 @@ final class TwitchViewModel: ObservableObject {
         UserDefaults.standard.set(false, forKey: AppConstants.UserDefaults.twitchReauthNeeded)
         statusMessage = ""
         authState = .idle
-        channelValidationTask?.cancel()
-        channelValidationTask = nil
         channelValidationState = .idle
 
         NotificationCenter.default.post(
@@ -617,6 +604,43 @@ final class TwitchViewModel: ObservableObject {
                     return
                 }
 
+                // Validate channel exists before attempting connection
+                await MainActor.run {
+                    self.channelValidationState = .validating
+                    self.statusMessage = "Verifying channel..."
+                }
+
+                let validationResult = await service.validateChannelExists(
+                    channel, token: token, clientID: clientID)
+
+                switch validationResult {
+                case .exists:
+                    await MainActor.run {
+                        self.channelValidationState = .valid
+                    }
+                case .notFound:
+                    await MainActor.run {
+                        self.channelValidationState = .invalid
+                        self.statusMessage = "❌ Channel \"\(channel)\" not found on Twitch"
+                        self.isConnecting = false
+                    }
+                    return
+                case .authenticationFailed:
+                    await MainActor.run {
+                        self.channelValidationState = .error("Authentication failed")
+                        self.statusMessage = "❌ Authentication failed. Try signing in again."
+                        self.isConnecting = false
+                    }
+                    return
+                case .error(let message):
+                    await MainActor.run {
+                        self.channelValidationState = .error(message)
+                        self.statusMessage = "❌ Validation error: \(message)"
+                        self.isConnecting = false
+                    }
+                    return
+                }
+
                 Log.info(
                     "TwitchViewModel: Twitch service found, starting connection to channel: \(channel)",
                     category: "Twitch")
@@ -676,51 +700,6 @@ final class TwitchViewModel: ObservableObject {
     }
 
     // MARK: - Private Methods
-
-    /// Validates whether a channel name exists on Twitch.
-    ///
-    /// Loads token and client ID from Keychain/config, calls the service's
-    /// `validateChannelExists()`, and updates published validation state.
-    /// Shows an alert if the channel is not found.
-    private func validateChannelName(_ channelName: String) {
-        channelValidationTask?.cancel()
-
-        channelValidationState = .validating
-
-        channelValidationTask = Task { @MainActor in
-            guard !Task.isCancelled else { return }
-
-            guard let token = KeychainService.loadTwitchToken(), !token.isEmpty else {
-                self.channelValidationState = .idle
-                return
-            }
-
-            guard let clientID = TwitchChatService.resolveClientID(), !clientID.isEmpty else {
-                self.channelValidationState = .idle
-                return
-            }
-
-            guard let service = self.twitchService else {
-                self.channelValidationState = .idle
-                return
-            }
-
-            let result = await service.validateChannelExists(channelName, token: token, clientID: clientID)
-
-            guard !Task.isCancelled else { return }
-
-            switch result {
-            case .exists:
-                self.channelValidationState = .valid
-            case .notFound:
-                self.channelValidationState = .invalid
-            case .authenticationFailed:
-                self.channelValidationState = .error("Authentication failed")
-            case .error(let message):
-                self.channelValidationState = .error(message)
-            }
-        }
-    }
 
     private func updateAuthState(_ state: AuthState) {
         authState = state

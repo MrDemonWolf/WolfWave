@@ -2,6 +2,33 @@
 
 All notable changes to this project will be documented in this file.
 
+## [Unreleased]
+
+### Added
+
+- **Automatic Update Checker**: Checks GitHub Releases for new versions on launch and every 24 hours. Detects Homebrew vs DMG install method and shows appropriate update instructions. Software Update card in Advanced settings with "Check Now", auto-check toggle, and "Skip This Version".
+- **Discord Onboarding Step**: 3rd onboarding step with a visual Rich Presence preview and enable toggle.
+- **Now Playing Preview Card**: Apple Music-styled now-playing card in Music Monitor settings showing current track, artist, and album.
+- **About Panel Credits**: Clickable links to Documentation, Privacy Policy, and Terms of Service in the About panel.
+- **Privacy Policy**: Full privacy policy page at docs site covering data handling, third-party services, and security practices.
+- **Terms of Service**: Terms of service page at docs site covering usage terms, disclaimers, and liability.
+- **Privacy Manifest**: `PrivacyInfo.xcprivacy` for App Store compliance.
+
+### Changed
+
+- **Channel Validation**: Moved Twitch channel name validation from keystroke-triggered to connect-button-triggered. No more API calls while typing — validation happens when you click Connect.
+- **Bot Command Toggles**: Fixed bug where disabling a command toggle didn't persist across app restarts. Commands now read their enabled state from UserDefaults at initialization.
+- **Command Aliases in Settings**: Bot command toggle rows now show all trigger aliases (e.g., `!song · !currentsong · !nowplaying`).
+- **Onboarding Welcome Step**: Updated to list all features (Music Monitoring, Twitch Chat Bot, Discord Rich Presence, Stream Overlays, Menu Bar) with brand-colored icons.
+- **Onboarding Window**: Now centers on screen before showing to prevent flash at origin.
+- **Menu Bar Simplified**: Removed now-playing display from the tray icon menu. Menu now contains only Settings, About, and Quit.
+- **macOS System Colors**: UI uses system accent colors and semantic colors for automatic light/dark mode support.
+- **Documentation**: Updated all docs for current features, added Legal section with PP and TOS.
+
+### Removed
+
+- Now-playing track display from the menu bar dropdown (moved to Music Monitor settings preview).
+
 ## [1.0.0]
 
 ### Added

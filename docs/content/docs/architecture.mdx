@@ -18,6 +18,8 @@ wolfwave/
 ├── Services/                # External service integrations
 │   ├── Discord/
 │   │   └── DiscordRPCService.swift  # Discord Rich Presence via IPC socket
+│   ├── UpdateChecker/
+│   │   └── UpdateCheckerService.swift  # GitHub Releases version checker
 │   └── Twitch/
 │       ├── TwitchChatService.swift     # EventSub WebSocket + Helix API
 │       ├── TwitchDeviceAuth.swift      # OAuth Device Code flow
@@ -34,6 +36,11 @@ wolfwave/
 │   │   └── DiscordSettingsView.swift
 │   ├── MusicMonitor/            # Music monitor settings
 │   ├── Onboarding/              # First-launch onboarding wizard
+│   │   ├── OnboardingView.swift
+│   │   ├── OnboardingViewModel.swift
+│   │   ├── OnboardingWelcomeStepView.swift
+│   │   ├── OnboardingTwitchStepView.swift
+│   │   └── OnboardingDiscordStepView.swift
 │   ├── Shared/                  # Shared UI components
 │   │   └── TwitchGlitchShape.swift
 │   ├── Twitch/                  # Twitch-related views
@@ -111,6 +118,16 @@ Discord Rich Presence integration using:
 - **Playback Progress**: Displays elapsed time and duration as a progress bar on Discord
 - **Auto-reconnect**: Detects Discord availability and reconnects automatically
 - **Sandbox Compatible**: Uses SBPL entitlements for socket access within the App Sandbox
+
+### UpdateCheckerService
+
+Automatic update checker that:
+
+- Queries the GitHub Releases API for the latest version
+- Compares semantic versions (major.minor.patch) against the running app
+- Detects install method (Homebrew vs DMG) via bundle path inspection
+- Posts notifications for the settings UI and macOS notification center
+- Runs on a 24-hour schedule with a 10-second launch delay
 
 ### BotCommandDispatcher
 

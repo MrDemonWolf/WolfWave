@@ -93,6 +93,24 @@ The bot is implemented with `TwitchChatService` using Twitch Helix + EventSub (n
 - Clear presence: `clearPresence()` — removes the activity from the user's profile
 - The service is wired into the music playback delegate in `WolfWaveApp.swift`
 
+## Update Checker Service
+
+`UpdateCheckerService` queries the GitHub Releases API to detect new versions.
+
+### Features
+
+- **GitHub Releases API**: Fetches the latest release tag and compares semantic versions
+- **Install Method Detection**: Detects Homebrew vs DMG install via bundle path inspection
+- **Periodic Checking**: Runs on a 24-hour schedule with a configurable launch delay
+- **Skip Version**: Users can dismiss specific versions they don't want to install
+
+### Usage
+
+- Start periodic checking: `startPeriodicChecking()` — delayed first check, then every 24h
+- Manual check: `checkForUpdates() async -> UpdateInfo?` — returns latest version info
+- Detect install method: `detectInstallMethod() -> InstallMethod` — `.homebrew` or `.dmg`
+- The service is initialized in `WolfWaveApp.swift` and wired into the notification system
+
 ## CI/CD
 
 The project includes a GitHub Actions workflow (`.github/workflows/release.yml`) that automates the release process.
