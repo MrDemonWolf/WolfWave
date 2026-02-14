@@ -25,6 +25,7 @@ final class OnboardingViewModel: ObservableObject {
     enum OnboardingStep: Int, CaseIterable {
         case welcome = 0
         case twitchConnect = 1
+        case discordConnect = 2
     }
 
     // MARK: - Published State

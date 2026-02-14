@@ -115,9 +115,7 @@ final class DiscordRPCService: @unchecked Sendable {
     /// When enabled, immediately attempts to connect to Discord.
     /// When disabled, disconnects and stops polling.
     func setEnabled(_ enabled: Bool) {
-        enabledLock.lock()
-        isEnabled = enabled
-        enabledLock.unlock()
+        enabledLock.withLock { isEnabled = enabled }
 
         if enabled {
             ipcQueue.async { [weak self] in
@@ -296,7 +294,6 @@ final class DiscordRPCService: @unchecked Sendable {
 
             // Upscale from 100×100 to 512×512 for better quality on Discord
             let highRes = artworkUrl.replacingOccurrences(of: "100x100", with: "512x512")
-            Log.debug("Discord: Found artwork for \"\(track)\"", category: "Discord")
             completion(highRes)
         }.resume()
     }
@@ -409,14 +406,12 @@ final class DiscordRPCService: @unchecked Sendable {
         var mib: [Int32] = [CTL_KERN, KERN_PROCARGS2, discordPID]
         var size: size_t = 0
         guard sysctl(&mib, 3, nil, &size, nil, 0) == 0, size > 0 else {
-            Log.debug("Discord: sysctl size query failed for PID \(discordPID)", category: "Discord")
             return nil
         }
 
         // Read the process args buffer
         var buffer = [UInt8](repeating: 0, count: size)
         guard sysctl(&mib, 3, &buffer, &size, nil, 0) == 0 else {
-            Log.debug("Discord: sysctl read failed for PID \(discordPID)", category: "Discord")
             return nil
         }
 
@@ -518,7 +513,6 @@ final class DiscordRPCService: @unchecked Sendable {
 
                 if result == 0 {
                     socketFD = fd
-                    Log.info("Discord: Connected to IPC socket slot \(slot)", category: "Discord")
 
                     if performHandshake() {
                         state = .connected
@@ -565,7 +559,6 @@ final class DiscordRPCService: @unchecked Sendable {
             return false
         }
 
-        Log.info("Discord: Handshake successful", category: "Discord")
         return true
     }
 
@@ -575,7 +568,6 @@ final class DiscordRPCService: @unchecked Sendable {
         Darwin.close(socketFD)
         socketFD = -1
         state = .disconnected
-        Log.info("Discord: Disconnected", category: "Discord")
     }
 
     // MARK: - Frame I/O
@@ -655,18 +647,14 @@ final class DiscordRPCService: @unchecked Sendable {
     private func handleConnectionLost() {
         disconnect()
 
-        enabledLock.lock()
-        let shouldReconnect = isEnabled
-        enabledLock.unlock()
+        let shouldReconnect = enabledLock.withLock { isEnabled }
 
         guard shouldReconnect else { return }
 
         Log.info("Discord: Scheduling reconnect in \(reconnectDelay)s", category: "Discord")
         ipcQueue.asyncAfter(deadline: .now() + reconnectDelay) { [weak self] in
             guard let self else { return }
-            self.enabledLock.lock()
-            let stillEnabled = self.isEnabled
-            self.enabledLock.unlock()
+            let stillEnabled = self.enabledLock.withLock { self.isEnabled }
             guard stillEnabled else { return }
             self.connectIfNeeded()
         }
@@ -687,9 +675,7 @@ final class DiscordRPCService: @unchecked Sendable {
         )
         timer.setEventHandler { [weak self] in
             guard let self else { return }
-            self.enabledLock.lock()
-            let enabled = self.isEnabled
-            self.enabledLock.unlock()
+            let enabled = self.enabledLock.withLock { self.isEnabled }
             guard enabled, self.state == .disconnected else { return }
             self.connectIfNeeded()
         }

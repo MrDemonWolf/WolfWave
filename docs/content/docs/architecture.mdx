@@ -8,7 +8,16 @@ WolfWave follows a clean architecture with clear separation of concerns.
 ## Project Structure
 
 ```
-wolfwave/
+src/
+├── WolfWaveTests/           # Unit tests (XCTest)
+│   ├── AppConstantsTests.swift
+│   ├── BotCommandDispatcherTests.swift
+│   ├── LastSongCommandTests.swift
+│   ├── OnboardingViewModelTests.swift
+│   ├── SongCommandTests.swift
+│   ├── TwitchViewModelTests.swift
+│   └── UpdateCheckerServiceTests.swift
+└── wolfwave/
 ├── Core/                    # Core utilities and services
 │   ├── AppConstants.swift       # Application constants
 │   ├── KeychainService.swift    # Secure credential storage (Keychain API)
@@ -18,6 +27,8 @@ wolfwave/
 ├── Services/                # External service integrations
 │   ├── Discord/
 │   │   └── DiscordRPCService.swift  # Discord Rich Presence via IPC socket
+│   ├── UpdateChecker/
+│   │   └── UpdateCheckerService.swift  # GitHub Releases version checker
 │   └── Twitch/
 │       ├── TwitchChatService.swift     # EventSub WebSocket + Helix API
 │       ├── TwitchDeviceAuth.swift      # OAuth Device Code flow
@@ -34,6 +45,11 @@ wolfwave/
 │   │   └── DiscordSettingsView.swift
 │   ├── MusicMonitor/            # Music monitor settings
 │   ├── Onboarding/              # First-launch onboarding wizard
+│   │   ├── OnboardingView.swift
+│   │   ├── OnboardingViewModel.swift
+│   │   ├── OnboardingWelcomeStepView.swift
+│   │   ├── OnboardingTwitchStepView.swift
+│   │   └── OnboardingDiscordStepView.swift
 │   ├── Shared/                  # Shared UI components
 │   │   └── TwitchGlitchShape.swift
 │   ├── Twitch/                  # Twitch-related views
@@ -65,7 +81,7 @@ Comprehensive DocC-style comments with parameter/return documentation throughout
 
 ### Delegation Pattern
 
-`MusicPlaybackMonitorDelegate` is used for track update notifications, following Apple's delegation pattern.
+`MusicPlaybackMonitorDelegate` is used for track update notifications, following Apple's delegation pattern. The delegate receives track name, artist, album, duration, and elapsed time on every update.
 
 ### MVVM Architecture
 
@@ -92,7 +108,7 @@ Secure storage for sensitive credentials using the macOS Keychain API. All token
 
 ### MusicPlaybackMonitor
 
-Uses ScriptingBridge for direct Apple Music communication without spawning subprocesses. Provides real-time track updates via delegation.
+Uses ScriptingBridge for direct Apple Music communication without spawning subprocesses. Provides real-time track updates (including duration and elapsed time) via delegation.
 
 ### TwitchChatService
 
@@ -108,8 +124,19 @@ Discord Rich Presence integration using:
 
 - **Local IPC Socket**: Communicates with Discord via Unix domain socket — no bot token or server required
 - **iTunes Search API**: Fetches album artwork dynamically with in-memory caching
+- **Playback Progress**: Displays elapsed time and duration as a progress bar on Discord
 - **Auto-reconnect**: Detects Discord availability and reconnects automatically
 - **Sandbox Compatible**: Uses SBPL entitlements for socket access within the App Sandbox
+
+### UpdateCheckerService
+
+Automatic update checker that:
+
+- Queries the GitHub Releases API for the latest version
+- Compares semantic versions (major.minor.patch) against the running app
+- Detects install method (Homebrew vs DMG) via bundle path inspection
+- Posts notifications for the settings UI and macOS notification center
+- Runs on a 24-hour schedule with a 10-second launch delay
 
 ### BotCommandDispatcher
 

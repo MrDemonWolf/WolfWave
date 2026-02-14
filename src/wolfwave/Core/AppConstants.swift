@@ -44,6 +44,13 @@ enum AppConstants {
 
         /// Posted when the Discord RPC connection state changes. UserInfo contains "state" String.
         static let discordStateChanged = "DiscordStateChanged"
+
+        /// Posted when the currently playing track changes.
+        /// UserInfo contains optional "track", "artist", "album" Strings. Nil values mean no track is playing.
+        static let nowPlayingChanged = "NowPlayingChanged"
+
+        /// Posted when the update checker state changes (new version found or check completed).
+        static let updateStateChanged = "UpdateStateChanged"
     }
     
     // MARK: - UserDefaults Keys
@@ -81,6 +88,15 @@ enum AppConstants {
 
         /// Whether Discord Rich Presence is enabled (Bool, default: false)
         static let discordPresenceEnabled = "discordPresenceEnabled"
+
+        /// Date of last update check (Date stored as TimeInterval)
+        static let updateLastCheckDate = "updateLastCheckDate"
+
+        /// Version string the user has chosen to skip (e.g. "1.1.0")
+        static let updateSkippedVersion = "updateSkippedVersion"
+
+        /// Whether automatic update checking is enabled (Bool, default: true)
+        static let updateCheckEnabled = "updateCheckEnabled"
     }
     
     // MARK: - Dock Visibility Modes
@@ -198,33 +214,51 @@ enum AppConstants {
         static let notificationDelay: TimeInterval = 0.5
     }
     
-    // MARK: - Menu Item Indices
-    
-    /// Status bar menu item indices for quick access to menu items.
-    enum MenuItemIndex {
-        /// Header item showing "♪ Now Playing"
-        static let header = 0
-        
-        /// Current song title
-        static let song = 1
-        
-        /// Current artist name
-        static let artist = 2
-        
-        /// Current album name
-        static let album = 3
-    }
-    
     // MARK: - Menu Item Labels
-    
+
     /// Menu item text labels.
     enum MenuLabels {
-        static let nowPlayingHeader = "♪ Now Playing"
         static let settings = "Settings..."
         static let quit = "Quit"
-        static let empty = ""
+    }
+
+    // MARK: - External URLs
+
+    /// URLs for documentation, legal pages, and external resources.
+    enum URLs {
+        /// Base URL for the WolfWave documentation site
+        static let docs = "https://mrdemonwolf.github.io/wolfwave/docs"
+
+        /// Privacy Policy page URL
+        static let privacyPolicy = "https://mrdemonwolf.github.io/wolfwave/docs/privacy-policy"
+
+        /// Terms of Service page URL
+        static let termsOfService = "https://mrdemonwolf.github.io/wolfwave/docs/terms-of-service"
+
+        /// GitHub repository URL
+        static let github = "https://github.com/MrDemonWolf/WolfWave"
+
+        /// GitHub Releases API endpoint for latest release
+        static let githubReleasesAPI = "https://api.github.com/repos/MrDemonWolf/WolfWave/releases/latest"
+
+        /// GitHub Releases page for latest release (browser URL)
+        static let githubReleases = "https://github.com/MrDemonWolf/WolfWave/releases/latest"
     }
     
+    // MARK: - Update Checker
+
+    /// Timing constants for the automatic update checker.
+    enum Update {
+        /// Delay after launch before first update check (seconds)
+        static let launchCheckDelay: TimeInterval = 10.0
+
+        /// Interval between periodic update checks (24 hours)
+        static let checkInterval: TimeInterval = 86400
+
+        /// HTTP request timeout for GitHub API calls (seconds)
+        static let requestTimeout: TimeInterval = 15.0
+    }
+
     // MARK: - Settings UI
 
     /// Settings window configuration.

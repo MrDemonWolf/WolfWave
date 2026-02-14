@@ -123,20 +123,40 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSToolbarDelegate, NSWindowD
     /// "Listening to Apple Music" on the user's Discord profile.
     var discordService: DiscordRPCService?
 
+    /// Update checker service.
+    ///
+    /// Periodically queries GitHub Releases for newer versions and posts
+    /// notifications when an update is available.
+    var updateChecker: UpdateCheckerService?
+
     /// Current track being played (song title).
-    private var currentSong: String?
-    
+    private(set) var currentSong: String?
+
     /// Current track artist.
-    private var currentArtist: String?
-    
+    private(set) var currentArtist: String?
+
     /// Current track album.
-    private var currentAlbum: String?
+    private(set) var currentAlbum: String?
+
+    /// Current track duration in seconds.
+    private var currentDuration: TimeInterval = 0
+
+    /// Current track elapsed time in seconds.
+    private var currentElapsed: TimeInterval = 0
     
     /// Previously played track title (for !last command).
     private var lastSong: String?
     
     /// Previously played track artist.
     private var lastArtist: String?
+
+    /// Current dock visibility mode from UserDefaults.
+    ///
+    /// Returns the stored mode or defaults to `AppConstants.DockVisibility.default`.
+    private var currentDockVisibilityMode: String {
+        UserDefaults.standard.string(forKey: AppConstants.UserDefaults.dockVisibility)
+            ?? AppConstants.DockVisibility.default
+    }
 
     /// Application name from bundle metadata or defaults.
     ///
@@ -169,6 +189,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSToolbarDelegate, NSWindowD
         setupMusicMonitor()
         setupTwitchService()
         setupDiscordService()
+        setupUpdateChecker()
         setupNotificationObservers()
         initializeTrackingState()
 
@@ -194,8 +215,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSToolbarDelegate, NSWindowD
     ///   - flag: True if windows are already visible; false otherwise.
     /// - Returns: True to allow default reopening behavior; false to prevent it.
     func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
-        let currentMode = UserDefaults.standard.string(forKey: AppConstants.UserDefaults.dockVisibility) ?? AppConstants.DockVisibility.default
-        if currentMode == AppConstants.DockVisibility.menuOnly {
+        if currentDockVisibilityMode == AppConstants.DockVisibility.menuOnly {
             NSApp.setActivationPolicy(.regular)
         }
 
@@ -205,60 +225,23 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSToolbarDelegate, NSWindowD
 
     // MARK: - Track Display Updates
 
-    /// Resets the menu display to show a message when no track is playing.
-    ///
-    /// Hides artist and album items; shows only the message in the song item.
-    /// Called when tracking is disabled or music app closes.
-    ///
-    /// - Parameter message: The status message to display (e.g., "No track playing").
-    private func resetNowPlayingMenu(message: String) {
-        guard let menu = statusItem?.menu,
-            menu.items.count > AppConstants.MenuItemIndex.album
-        else {
-            return
-        }
-
-        let statusText = createStatusAttributedString(message)
-        updateMenuItem(at: AppConstants.MenuItemIndex.song, with: statusText, hidden: false)
-        hideMenuItem(at: AppConstants.MenuItemIndex.artist)
-        hideMenuItem(at: AppConstants.MenuItemIndex.album)
-    }
-
-    /// Updates the menu bar display with a simple status message.
-    ///
-    /// Dispatches to main thread and calls resetNowPlayingMenu.
-    ///
-    /// - Parameter text: The status message to show.
-    func updateNowPlaying(_ text: String) {
-        DispatchQueue.main.async { [weak self] in
-            self?.resetNowPlayingMenu(message: text)
-        }
-    }
-
-    /// Updates the menu display with full track information.
-    ///
-    /// Called whenever the current track changes. Updates:
-    /// 1. Current song title
-    /// 2. Artist name
-    /// 3. Album name
-    ///
-    /// If any component is missing, shows "No track playing".
-    ///
-    /// Thread Safety: Dispatches to main thread.
+    /// Posts a notification with track information for observers (e.g. settings view).
     ///
     /// - Parameters:
-    ///   - song: Current track title.
+    ///   - song: Current track title (nil clears the display).
     ///   - artist: Current track artist.
     ///   - album: Current track album.
-    func updateTrackDisplay(song: String?, artist: String?, album: String?) {
-        DispatchQueue.main.async { [weak self] in
-            guard let self, let menu = self.statusItem?.menu else { return }
-
-            if let song, let artist, let album {
-                self.displayTrackInfo(song: song, artist: artist, album: album, in: menu)
-            } else {
-                self.resetNowPlayingMenu(message: "No track playing")
-            }
+    func postNowPlayingUpdate(song: String?, artist: String?, album: String?) {
+        DispatchQueue.main.async {
+            var userInfo: [String: Any] = [:]
+            if let song { userInfo["track"] = song }
+            if let artist { userInfo["artist"] = artist }
+            if let album { userInfo["album"] = album }
+            NotificationCenter.default.post(
+                name: NSNotification.Name(AppConstants.Notifications.nowPlayingChanged),
+                object: nil,
+                userInfo: userInfo.isEmpty ? nil : userInfo
+            )
         }
     }
 
@@ -279,7 +262,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSToolbarDelegate, NSWindowD
     /// Called when tracking is disabled or the music app closes.
     private func stopTrackingAndUpdate() {
         musicMonitor?.stopTracking()
-        updateNowPlaying("Tracking disabled")
+        postNowPlayingUpdate(song: nil, artist: nil, album: nil)
     }
 
     /// Responds to changes in the Discord Rich Presence enabled setting.
@@ -295,7 +278,9 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSToolbarDelegate, NSWindowD
             discordService?.updatePresence(
                 track: song,
                 artist: artist,
-                album: currentAlbum ?? ""
+                album: currentAlbum ?? "",
+                duration: currentDuration,
+                elapsed: currentElapsed
             )
         }
     }
@@ -335,8 +320,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSToolbarDelegate, NSWindowD
     @objc func openSettings() {
         statusItem?.menu?.cancelTracking()
         
-        let currentMode = UserDefaults.standard.string(forKey: AppConstants.UserDefaults.dockVisibility) ?? AppConstants.DockVisibility.default
-        if currentMode == AppConstants.DockVisibility.menuOnly {
+        if currentDockVisibilityMode == AppConstants.DockVisibility.menuOnly {
             NSApp.setActivationPolicy(.regular)
         }
 
@@ -351,20 +335,69 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSToolbarDelegate, NSWindowD
         }
     }
 
-    /// Shows the standard macOS About panel.
+    /// Shows the standard macOS About panel with credits linking to docs and legal pages.
     ///
     /// Activated by clicking "About [AppName]" in the menu bar menu.
-    /// Shows app name, version, copyright, and other metadata from the bundle.
+    /// Shows app name, version, copyright, credits with clickable links to
+    /// Documentation, Privacy Policy, and Terms of Service.
     @objc func showAbout() {
         statusItem?.menu?.cancelTracking()
-        
-        let currentMode = UserDefaults.standard.string(forKey: AppConstants.UserDefaults.dockVisibility) ?? AppConstants.DockVisibility.default
-        if currentMode == AppConstants.DockVisibility.menuOnly {
+
+        if currentDockVisibilityMode == AppConstants.DockVisibility.menuOnly {
             NSApp.setActivationPolicy(.regular)
         }
-        
-        NSApp.orderFrontStandardAboutPanel(options: [.applicationName: appName])
+
+        let credits = buildAboutCredits()
+        NSApp.orderFrontStandardAboutPanel(options: [
+            .applicationName: appName,
+            .credits: credits
+        ])
         NSApp.activate(ignoringOtherApps: true)
+    }
+
+    /// Builds the attributed string for the About panel credits section.
+    ///
+    /// Contains clickable links to Documentation, Privacy Policy, and Terms of Service.
+    ///
+    /// - Returns: Configured NSAttributedString with centered, linked text.
+    private func buildAboutCredits() -> NSAttributedString {
+        let paragraphStyle = NSMutableParagraphStyle()
+        paragraphStyle.alignment = .center
+        paragraphStyle.lineSpacing = 4
+
+        let baseAttributes: [NSAttributedString.Key: Any] = [
+            .font: NSFont.systemFont(ofSize: 11),
+            .foregroundColor: NSColor.secondaryLabelColor,
+            .paragraphStyle: paragraphStyle,
+        ]
+
+        let linkAttributes: [NSAttributedString.Key: Any] = [
+            .font: NSFont.systemFont(ofSize: 11),
+            .paragraphStyle: paragraphStyle,
+        ]
+
+        let credits = NSMutableAttributedString()
+
+        // Documentation link
+        let docsLink = NSMutableAttributedString(string: "Documentation", attributes: linkAttributes)
+        docsLink.addAttribute(.link, value: AppConstants.URLs.docs, range: NSRange(location: 0, length: docsLink.length))
+        credits.append(docsLink)
+
+        credits.append(NSAttributedString(string: "  ·  ", attributes: baseAttributes))
+
+        // Privacy Policy link
+        let ppLink = NSMutableAttributedString(string: "Privacy Policy", attributes: linkAttributes)
+        ppLink.addAttribute(.link, value: AppConstants.URLs.privacyPolicy, range: NSRange(location: 0, length: ppLink.length))
+        credits.append(ppLink)
+
+        credits.append(NSAttributedString(string: "  ·  ", attributes: baseAttributes))
+
+        // Terms of Service link
+        let tosLink = NSMutableAttributedString(string: "Terms of Service", attributes: linkAttributes)
+        tosLink.addAttribute(.link, value: AppConstants.URLs.termsOfService, range: NSRange(location: 0, length: tosLink.length))
+        credits.append(tosLink)
+
+        return credits
     }
 
     // MARK: - Dock Visibility Management
@@ -374,8 +407,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSToolbarDelegate, NSWindowD
     /// Reads the stored visibility mode from UserDefaults and applies it.
     /// Defaults to "both" (show in dock and menu bar) if not set.
     private func applyInitialDockVisibility() {
-        let mode = UserDefaults.standard.string(forKey: AppConstants.UserDefaults.dockVisibility) ?? AppConstants.DockVisibility.default
-        applyDockVisibility(mode)
+        applyDockVisibility(currentDockVisibilityMode)
     }
 
     /// Applies a dock visibility mode: "menuOnly", "dockOnly", or "both".
@@ -420,9 +452,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSToolbarDelegate, NSWindowD
     /// 1. Dock visibility is set to "menu only"
     /// 2. No other regular-level windows are visible
     private func restoreMenuOnlyIfNeeded() {
-        let currentMode = UserDefaults.standard.string(forKey: AppConstants.UserDefaults.dockVisibility) ?? AppConstants.DockVisibility.default
-        
-        guard currentMode == AppConstants.DockVisibility.menuOnly else { return }
+        guard currentDockVisibilityMode == AppConstants.DockVisibility.menuOnly else { return }
         
         let hasVisibleWindows = NSApp.windows.contains { window in
             window.isVisible && window.canBecomeKey && window.level == .normal
@@ -530,21 +560,13 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSToolbarDelegate, NSWindowD
     /// Creates and attaches the main status bar menu.
     ///
     /// Menu contains:
-    /// 1. "♪ Now Playing" header (disabled)
-    /// 2. Song title (disabled, placeholder)
-    /// 3. Artist (disabled, placeholder)
-    /// 4. Album (disabled, placeholder)
-    /// 5. Separator
-    /// 6. Settings...
-    /// 7. About WolfWave
-    /// 8. Separator
-    /// 9. Quit WolfWave
-    ///
-    /// The first 4 items are updated dynamically with track info.
+    /// 1. Settings...
+    /// 2. About WolfWave
+    /// 3. Separator
+    /// 4. Quit WolfWave
     private func setupMenu() {
         let menu = createMenu()
         statusItem?.menu = menu
-        resetNowPlayingMenu(message: "No track playing")
     }
 
     /// Creates the menu bar menu structure.
@@ -553,36 +575,12 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSToolbarDelegate, NSWindowD
     private func createMenu() -> NSMenu {
         let menu = NSMenu()
 
-        addNowPlayingItems(to: menu)
-        menu.addItem(.separator())
         addSettingsItem(to: menu)
         addAboutItem(to: menu)
         menu.addItem(.separator())
         addQuitItem(to: menu)
 
         return menu
-    }
-
-    /// Adds placeholder items for current track information.
-    ///
-    /// Adds 4 items:
-    /// 1. "♪ Now Playing" header
-    /// 2. Song placeholder
-    /// 3. Artist placeholder
-    /// 4. Album placeholder
-    ///
-    /// All initially disabled (no action, grayed text).
-    /// - Parameter menu: Menu to add items to.
-    private func addNowPlayingItems(to menu: NSMenu) {
-        let headerItem = NSMenuItem(title: AppConstants.MenuLabels.nowPlayingHeader, action: nil, keyEquivalent: "")
-        headerItem.isEnabled = false
-        menu.addItem(headerItem)
-
-        for _ in 0..<3 {
-            let item = NSMenuItem(title: AppConstants.MenuLabels.empty, action: nil, keyEquivalent: "")
-            item.isEnabled = false
-            menu.addItem(item)
-        }
     }
 
     /// Adds the "Settings..." menu item with keyboard shortcut.
@@ -649,26 +647,19 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSToolbarDelegate, NSWindowD
     ///
     /// These allow the Twitch bot to fetch current track info on-demand.
     private func setupTwitchService() {
-        Log.info("AppDelegate: Setting up Twitch service", category: "Twitch")
         twitchService = TwitchChatService()
 
         // Resolve Twitch Client ID and log helpful messages
-        if TwitchChatService.resolveClientID() != nil {
-            Log.debug("AppDelegate: Resolved Twitch Client ID from Info.plist", category: "Twitch")
-        } else {
+        if TwitchChatService.resolveClientID() == nil {
             Log.error("AppDelegate: No Twitch Client ID found. Copy Config.xcconfig.example to Config.xcconfig and set your Client ID.", category: "Twitch")
         }
 
-        Log.info("AppDelegate: TwitchChatService created successfully", category: "Twitch")
-        
         twitchService?.getCurrentSongInfo = { [weak self] in
             self?.getCurrentSongInfo() ?? "No song is currently playing"
         }
         twitchService?.getLastSongInfo = { [weak self] in
             self?.getLastSongInfo() ?? "No song is currently playing"
         }
-        
-        Log.debug("AppDelegate: Twitch service callbacks configured", category: "Twitch")
     }
 
     // MARK: - Discord Service
@@ -709,6 +700,17 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSToolbarDelegate, NSWindowD
         }
     }
 
+    // MARK: - Update Checker
+
+    /// Initializes the update checker service and starts periodic checking.
+    ///
+    /// Creates an UpdateCheckerService that queries GitHub Releases on a schedule.
+    /// The first check is delayed to avoid slowing down launch.
+    private func setupUpdateChecker() {
+        updateChecker = UpdateCheckerService()
+        updateChecker?.startPeriodicChecking()
+    }
+
     // MARK: - Notification Observers
 
     /// Registers all notification observers for system events.
@@ -745,6 +747,13 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSToolbarDelegate, NSWindowD
             name: NSNotification.Name(AppConstants.Notifications.discordPresenceChanged),
             object: nil
         )
+
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(handleUpdateStateChanged),
+            name: NSNotification.Name(AppConstants.Notifications.updateStateChanged),
+            object: nil
+        )
     }
 
     // MARK: - Tracking State
@@ -761,7 +770,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSToolbarDelegate, NSWindowD
         if isTrackingEnabled() {
             musicMonitor?.startTracking()
         } else {
-            resetNowPlayingMenu(message: "Tracking disabled")
+            postNowPlayingUpdate(song: nil, artist: nil, album: nil)
         }
     }
 
@@ -770,99 +779,6 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSToolbarDelegate, NSWindowD
     /// - Returns: True if tracking enabled, false if disabled.
     private func isTrackingEnabled() -> Bool {
         UserDefaults.standard.bool(forKey: AppConstants.UserDefaults.trackingEnabled)
-    }
-
-    // MARK: - Menu Item Helpers
-
-    /// Creates an attributed string for displaying menu items.
-    ///
-    /// Uses secondary label color and smaller font for subtle appearance.
-    ///
-    /// - Parameter message: The text to display.
-    /// - Returns: NSAttributedString with status bar styling.
-    private func createStatusAttributedString(_ message: String) -> NSAttributedString {
-        NSAttributedString(
-            string: "  \(message)",
-            attributes: [
-                .foregroundColor: NSColor.secondaryLabelColor,
-                .font: NSFont.systemFont(ofSize: NSFont.systemFontSize - 1),
-            ]
-        )
-    }
-
-    /// Updates a menu item at the specified index.
-    ///
-    /// - Parameters:
-    ///   - index: Position in the menu.
-    ///   - title: Attributed string to display.
-    ///   - hidden: Whether the item should be hidden.
-    private func updateMenuItem(at index: Int, with title: NSAttributedString, hidden: Bool) {
-        guard let menu = statusItem?.menu, index < menu.items.count else { return }
-        menu.items[index].attributedTitle = title
-        menu.items[index].isHidden = hidden
-    }
-
-    /// Hides a menu item at the specified index.
-    ///
-    /// - Parameter index: Position in the menu.
-    private func hideMenuItem(at index: Int) {
-        guard let menu = statusItem?.menu, index < menu.items.count else { return }
-        menu.items[index].isHidden = true
-    }
-
-    /// Displays full track information in the menu (song, artist, album).
-    ///
-    /// Unhides all three items and populates them with labeled values.
-    ///
-    /// - Parameters:
-    ///   - song: Track title.
-    ///   - artist: Artist name.
-    ///   - album: Album name.
-    ///   - menu: Menu to update.
-    private func displayTrackInfo(song: String, artist: String, album: String, in menu: NSMenu) {
-        let songAttr = createLabeledText(label: "Song:", value: song)
-        let artistAttr = createLabeledText(label: "Artist:", value: artist)
-        let albumAttr = createLabeledText(label: "Album:", value: album)
-
-        menu.items[AppConstants.MenuItemIndex.song].attributedTitle = songAttr
-        menu.items[AppConstants.MenuItemIndex.artist].attributedTitle = artistAttr
-        menu.items[AppConstants.MenuItemIndex.album].attributedTitle = albumAttr
-
-        [
-            AppConstants.MenuItemIndex.song, AppConstants.MenuItemIndex.artist,
-            AppConstants.MenuItemIndex.album,
-        ].forEach {
-            menu.items[$0].isHidden = false
-        }
-    }
-
-    /// Creates an attributed string with a label (bold) and value (normal).
-    ///
-    /// Used for formatting "Song: Track Title" style menu items.
-    ///
-    /// - Parameters:
-    ///   - label: The label text (will be bold).
-    ///   - value: The value text (normal weight).
-    /// - Returns: Combined attributed string.
-    private func createLabeledText(label: String, value: String) -> NSAttributedString {
-        let paragraphStyle = NSMutableParagraphStyle()
-        paragraphStyle.lineBreakMode = .byWordWrapping
-        
-        let attributed = NSMutableAttributedString()
-        attributed.append(
-            NSAttributedString(
-                string: "  \(label) ",
-                attributes: [
-                    .font: NSFont.boldSystemFont(ofSize: NSFont.systemFontSize),
-                    .paragraphStyle: paragraphStyle
-                ]
-            ))
-        attributed.append(
-            NSAttributedString(
-                string: value,
-                attributes: [.paragraphStyle: paragraphStyle]
-            ))
-        return attributed
     }
 
     // MARK: - Onboarding Window
@@ -908,10 +824,8 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSToolbarDelegate, NSWindowD
         NSApp.setActivationPolicy(.regular)
 
         onboardingWindow = window
-        showWindow(onboardingWindow)
         window.center()
-
-        Log.info("Onboarding window shown", category: "Onboarding")
+        showWindow(onboardingWindow)
     }
 
     /// Dismisses the onboarding wizard and transitions to normal app state.
@@ -961,8 +875,6 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSToolbarDelegate, NSWindowD
 
         // Mark onboarding as completed so Reset Onboarding works
         UserDefaults.standard.set(true, forKey: AppConstants.UserDefaults.hasCompletedOnboarding)
-
-        Log.info("Onboarding window closed via title bar", category: "Onboarding")
 
         // Defer reference cleanup so the window finishes its close
         // lifecycle before being deallocated (prevents EXC_BAD_ACCESS).
@@ -1130,7 +1042,7 @@ extension AppDelegate {
     /// Called from applicationDidFinishLaunching() in a background task.
     fileprivate func validateTwitchTokenOnBoot() async {
         guard let token = KeychainService.loadTwitchToken(), !token.isEmpty else {
-            setReauthNeeded(false)
+            await setReauthNeeded(false)
             return
         }
 
@@ -1145,6 +1057,68 @@ extension AppDelegate {
                 )
                 DispatchQueue.main.asyncAfter(deadline: .now() + AppConstants.Timing.notificationDelay) { [weak self] in
                     self?.openSettingsToTwitch()
+                }
+            }
+        }
+    }
+}
+
+// MARK: - Update Notifications
+
+/// Handles update-available notifications from UpdateCheckerService.
+extension AppDelegate {
+    /// Called when the update checker finishes a check.
+    ///
+    /// If an update is available and the user hasn't skipped that version,
+    /// shows a macOS notification with install instructions.
+    @objc func handleUpdateStateChanged(_ notification: Notification) {
+        guard let isAvailable = notification.userInfo?["isUpdateAvailable"] as? Bool,
+              let version = notification.userInfo?["latestVersion"] as? String,
+              isAvailable else { return }
+
+        showUpdateNotification(version: version, installMethod: updateChecker?.detectInstallMethod() ?? .dmg)
+    }
+
+    /// Shows a macOS notification for an available update.
+    ///
+    /// Checks the skipped version preference before showing. Uses a version-specific
+    /// notification identifier to avoid duplicates.
+    ///
+    /// - Parameters:
+    ///   - version: The new version string (e.g. "1.1.0").
+    ///   - installMethod: How the app was installed (affects the message text).
+    private func showUpdateNotification(version: String, installMethod: InstallMethod) {
+        let skippedVersion = UserDefaults.standard.string(forKey: AppConstants.UserDefaults.updateSkippedVersion)
+        guard skippedVersion != version else {
+            Log.debug("UpdateChecker: Skipping notification for v\(version) (user skipped)", category: "Update")
+            return
+        }
+
+        let content = UNMutableNotificationContent()
+        content.title = "WolfWave Update Available"
+        content.sound = .default
+
+        switch installMethod {
+        case .homebrew:
+            content.body = "Version \(version) is available. Run: brew upgrade wolfwave"
+        case .dmg:
+            content.body = "Version \(version) is available. Open Settings to download."
+        }
+
+        let request = UNNotificationRequest(
+            identifier: "update-\(version)",
+            content: content,
+            trigger: nil
+        )
+
+        UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound]) { granted, _ in
+            if granted {
+                DispatchQueue.main.async {
+                    UNUserNotificationCenter.current().add(request) { error in
+                        if let error {
+                            Log.error("Failed to send update notification: \(error.localizedDescription)", category: "Update")
+                        }
+                    }
                 }
             }
         }
@@ -1169,24 +1143,28 @@ extension AppDelegate: MusicPlaybackMonitorDelegate {
     ///   - artist: New track artist.
     ///   - album: New track album.
     func musicPlaybackMonitor(
-        _ monitor: MusicPlaybackMonitor, didUpdateTrack track: String, artist: String, album: String
+        _ monitor: MusicPlaybackMonitor, didUpdateTrack track: String, artist: String, album: String, duration: TimeInterval, elapsed: TimeInterval
     ) {
         if currentSong != track {
             lastSong = currentSong
             lastArtist = currentArtist
         }
-        
+
         currentSong = track
         currentArtist = artist
         currentAlbum = album
+        currentDuration = duration
+        currentElapsed = elapsed
 
-        updateTrackDisplay(song: track, artist: artist, album: album)
+        postNowPlayingUpdate(song: track, artist: artist, album: album)
 
         // Update Discord Rich Presence with the new track
         discordService?.updatePresence(
             track: track,
             artist: artist,
-            album: album
+            album: album,
+            duration: duration,
+            elapsed: elapsed
         )
     }
 
@@ -1205,7 +1183,7 @@ extension AppDelegate: MusicPlaybackMonitorDelegate {
             currentAlbum = nil
         }
 
-        updateNowPlaying(status)
+        postNowPlayingUpdate(song: nil, artist: nil, album: nil)
 
         // Clear Discord Rich Presence when not playing
         if currentSong == nil {

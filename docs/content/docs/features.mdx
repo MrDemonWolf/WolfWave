@@ -16,7 +16,8 @@ WolfWave is packed with features to connect your Apple Music with your streaming
 
 ### Music Monitor Controls
 
-- Toggle tracking on/off from the menu bar
+- Toggle tracking on/off from Settings
+- Live now-playing preview card in the Music Monitor settings (styled after Apple Music)
 - Lightweight background monitoring
 - No impact on Apple Music performance
 
@@ -79,12 +80,11 @@ Song data is broadcast in a structured format for easy integration with your ove
 
 ## First-Launch Onboarding
 
-A guided setup wizard walks new users through initial configuration on first launch:
+A guided 3-step onboarding wizard walks new users through initial configuration on first launch:
 
-- Apple Music permissions
-- Twitch account connection
-- Discord Rich Presence setup
-- WebSocket configuration
+1. **Welcome** — Feature overview highlighting Music Monitoring, Twitch Chat Bot, Discord Rich Presence, Stream Overlays, and Menu Bar integration
+2. **Twitch Connection** — Optional OAuth Device Code flow to connect your Twitch account (skippable)
+3. **Discord Rich Presence** — Visual preview of what your Discord profile will look like, with a toggle to enable (skippable)
 
 ## Security
 
@@ -111,17 +111,47 @@ A guided setup wizard walks new users through initial configuration on first lau
 ### Menu Bar App
 
 - Lightweight menu bar presence
-- Quick access to current track
-- Easy settings access
+- Quick access to Settings, About, and Quit
+- Minimal and unobtrusive
 
 ### Settings Interface
 
-- **Music Monitor**: Control tracking behavior
+- **Music Monitor**: Control tracking behavior, live now-playing preview
 - **App Visibility**: Configure dock/menu bar appearance
 - **WebSocket**: Set up streaming endpoints
 - **Twitch Integration**: Manage bot connection and commands
 - **Discord**: Enable/disable Rich Presence and view connection status
-- **Advanced**: Reset settings and debugging options
+- **Advanced**: Software updates, setup wizard, reset settings
+
+### About Panel
+
+The About panel includes clickable links to:
+
+- **Documentation** — Full docs site
+- **Privacy Policy** — Data handling practices
+- **Terms of Service** — Usage terms
+
+## Automatic Updates
+
+WolfWave checks for new versions automatically via the GitHub Releases API.
+
+### How It Works
+
+- Checks on launch (after a short delay) and every 24 hours
+- Compares the latest release tag against your running version
+- Detects whether you installed via Homebrew or DMG download
+- Shows a macOS notification when a new version is available
+
+### Settings Controls
+
+In **Settings → Advanced → Software Update**:
+
+- View your current version and available updates
+- **Homebrew users**: Copyable `brew upgrade wolfwave` command
+- **DMG users**: One-click "Download Update" button
+- **Skip This Version**: Dismiss a specific release
+- **Check automatically**: Toggle periodic checking on/off
+- **Check Now**: Manual check on demand
 
 ## Technical Features
 

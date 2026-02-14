@@ -32,13 +32,14 @@ struct OnboardingWelcomeStepView: View {
                 Text("Welcome to WolfWave")
                     .font(.system(size: 24, weight: .bold))
 
-                Text("Connect Apple Music to Twitch")
+                Text("Bridge Apple Music with Twitch, Discord, and stream overlays")
                     .font(.system(size: 15))
                     .foregroundStyle(.secondary)
+                    .multilineTextAlignment(.center)
             }
 
             // Feature highlights
-            VStack(alignment: .leading, spacing: 16) {
+            VStack(alignment: .leading, spacing: 14) {
                 featureRow(
                     icon: "music.note",
                     title: "Music Monitoring",
@@ -46,8 +47,20 @@ struct OnboardingWelcomeStepView: View {
                 )
                 featureRow(
                     icon: "message.fill",
+                    color: Color(red: 0.569, green: 0.275, blue: 1.0),  // Twitch #9146FF
                     title: "Twitch Chat Bot",
                     description: "Viewers can use !song and !last commands to see what you're playing."
+                )
+                featureRow(
+                    icon: "gamecontroller.fill",
+                    color: Color(red: 0.345, green: 0.396, blue: 0.949),  // Discord #5865F2
+                    title: "Discord Rich Presence",
+                    description: "Show what you're listening to on your Discord profile with album art."
+                )
+                featureRow(
+                    icon: "rectangle.on.rectangle",
+                    title: "Stream Overlays",
+                    description: "Stream now-playing data to browser overlays via WebSocket."
                 )
                 featureRow(
                     icon: "menubar.rectangle",
@@ -66,11 +79,11 @@ struct OnboardingWelcomeStepView: View {
 
     /// Creates a feature highlight row with an icon, title, and description.
     @ViewBuilder
-    private func featureRow(icon: String, title: String, description: String) -> some View {
+    private func featureRow(icon: String, color: Color = .accentColor, title: String, description: String) -> some View {
         HStack(alignment: .top, spacing: 12) {
             Image(systemName: icon)
                 .font(.system(size: 18))
-                .foregroundStyle(Color.accentColor)
+                .foregroundStyle(color)
                 .frame(width: 28, alignment: .center)
 
             VStack(alignment: .leading, spacing: 2) {

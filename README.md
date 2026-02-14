@@ -16,10 +16,11 @@ A native macOS menu bar app that bridges Apple Music with Twitch, Discord, and y
 
 - **Real-time Now Playing** — Track Apple Music and broadcast instantly via ScriptingBridge
 - **Twitch Chat Bot** — `!song`, `!currentsong`, `!nowplaying`, `!lastsong` via EventSub + Helix
-- **Discord Rich Presence** — Show "Listening to Apple Music" on your Discord profile with dynamic album art
+- **Discord Rich Presence** — Show "Listening to Apple Music" on your Discord profile with dynamic album art and playback progress
 - **WebSocket Streaming** — Send now-playing data to overlays (ws:// or wss://)
+- **Automatic Updates** — Checks GitHub Releases for new versions with Homebrew and DMG support
 - **Secure by Default** — All credentials stored in macOS Keychain; no plain-text tokens
-- **First-Launch Onboarding** — Guided setup wizard for new users
+- **First-Launch Onboarding** — Guided 3-step setup wizard (Welcome, Twitch, Discord)
 
 ## Getting Started
 
@@ -85,20 +86,51 @@ make open-xcode
 | `make clean`       | Clean build artifacts                    |
 | `make prod-build`  | Release build + DMG                      |
 | `make notarize`    | Notarize the DMG (requires Developer ID) |
-| `make test`        | Run tests                                |
+| `make test`        | Run unit tests (124 tests)               |
 | `make open-xcode`  | Open Xcode project                       |
 | `make update-deps` | Resolve SwiftPM dependencies             |
 
 ## Releasing
 
-Pushing a version tag triggers the CI/CD pipeline which builds, notarizes, and creates a GitHub Release:
+### 1. Build the DMG
+
+```bash
+make prod-build
+```
+
+This builds a Release `.app`, re-signs it with your Developer ID certificate, and packages it into `builds/WolfWave-<VERSION>-arm64.dmg`.
+
+### 2. Notarize
+
+```bash
+APPLE_ID=you@example.com \
+APPLE_TEAM_ID=XXXXXXXXXX \
+APPLE_APP_PASSWORD=xxxx-xxxx-xxxx-xxxx \
+make notarize
+```
+
+This signs the DMG, submits it to Apple's notary service, waits for approval, and staples the ticket.
+
+> Generate an app-specific password at [appleid.apple.com](https://appleid.apple.com) under **Sign-In and Security > App-Specific Passwords**.
+
+### 3. Tag and release
 
 ```bash
 git tag v1.0.0
 git push origin v1.0.0
 ```
 
-See [Releasing & Notarization](/docs/content/docs/getting-started.mdx) in the docs for full CI/CD setup instructions.
+Pushing a tag triggers CI which builds the DMG and creates a GitHub Release automatically. You can then replace the CI-built DMG with your locally notarized one, or upload it manually.
+
+## Testing
+
+Run the full test suite with:
+
+```bash
+make test
+```
+
+Or in Xcode with **Cmd+U**. Tests cover bot commands, version comparison, onboarding navigation, Twitch view model state, and app constants integrity. The CI pipeline runs tests automatically on every push and pull request to `main`.
 
 ## Documentation
 
@@ -110,6 +142,8 @@ For complete documentation, visit: **[mrdemonwolf.github.io/wolfwave](https://mr
 - [Bot Commands](https://mrdemonwolf.github.io/wolfwave/docs/bot-commands) — Chat command reference
 - [Development](https://mrdemonwolf.github.io/wolfwave/docs/development) — Contributing guide
 - [Architecture](https://mrdemonwolf.github.io/wolfwave/docs/architecture) — Project structure
+- [Privacy Policy](https://mrdemonwolf.github.io/wolfwave/docs/privacy-policy) — Privacy practices
+- [Terms of Service](https://mrdemonwolf.github.io/wolfwave/docs/terms-of-service) — Usage terms
 
 ## License
 
