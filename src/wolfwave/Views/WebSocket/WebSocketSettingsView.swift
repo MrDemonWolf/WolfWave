@@ -47,7 +47,7 @@ struct WebSocketSettingsView: View {
         VStack(alignment: .leading, spacing: 16) {
             VStack(alignment: .leading, spacing: 6) {
                 HStack(alignment: .center, spacing: 10) {
-                    Text("Stream Overlay")
+                    Text("OBS Widget")
                         .font(.system(size: 17, weight: .semibold))
 
                     Spacer()
@@ -68,7 +68,7 @@ struct WebSocketSettingsView: View {
                     VStack(alignment: .leading, spacing: 2) {
                         Text("Port")
                             .font(.system(size: 13, weight: .medium))
-                        Text("Default: \(AppConstants.WebSocketServer.defaultPort)")
+                        Text(verbatim: "Default: \(AppConstants.WebSocketServer.defaultPort)")
                             .font(.system(size: 11))
                             .foregroundStyle(.tertiary)
                     }
@@ -90,7 +90,7 @@ struct WebSocketSettingsView: View {
                     HStack(spacing: 6) {
                         Image(systemName: "exclamationmark.circle.fill")
                             .font(.system(size: 11))
-                        Text("Port must be between \(AppConstants.WebSocketServer.minPort) and \(AppConstants.WebSocketServer.maxPort).")
+                        Text(verbatim: "Port must be between \(AppConstants.WebSocketServer.minPort) and \(AppConstants.WebSocketServer.maxPort).")
                             .font(.system(size: 11))
                     }
                     .foregroundStyle(.red)
