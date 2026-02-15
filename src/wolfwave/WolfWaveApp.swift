@@ -770,15 +770,13 @@ extension AppDelegate {
         let isValid = await twitchService?.validateToken(token) ?? false
         await MainActor.run {
             setReauthNeeded(!isValid)
-            
+
             if !isValid {
                 showTwitchAuthNotification(
                     title: "Twitch Authentication Expired",
-                    message: "Your Twitch session has expired. Opening Settings..."
+                    message: "Your Twitch session has expired. Please re-authorize in Settings."
                 )
-                DispatchQueue.main.asyncAfter(deadline: .now() + AppConstants.Timing.notificationDelay) { [weak self] in
-                    self?.openSettingsToTwitch()
-                }
+                openSettingsToTwitch()
             }
         }
     }

@@ -235,76 +235,19 @@ struct TwitchSettingsView: View {
                     }
 
                 case .connected:
-                    if viewModel.reauthNeeded && viewModel.authState.isInProgress {
-                        VStack(spacing: 12) {
-                            HStack(spacing: 0) {
-                                Text("Visit ")
-                                Link("twitch.tv/activate",
-                                     destination: URL(string: "https://www.twitch.tv/activate")!)
-                                    .pointerCursor()
-                                Text(" and enter this code:")
-                            }
-                            .font(.system(size: 13))
-                            .foregroundColor(.secondary)
-                            .frame(maxWidth: .infinity, alignment: .leading)
-
-                            if case .waitingForAuth(let code, let uri) = viewModel.authState {
-                                DeviceCodeView(
-                                    userCode: code, verificationURI: uri,
-                                    onCopy: {
-                                        viewModel.statusMessage = "Code copied"
-                                        hasStartedActivation = true
-                                    },
-                                    onActivate: {
-                                        hasStartedActivation = true
-                                    }
-                                )
-                                .transition(
-                                    .asymmetric(
-                                        insertion: .move(edge: .top).combined(with: .opacity),
-                                        removal: .opacity)
-                                )
-                                .animation(
-                                    .spring(response: 0.35, dampingFraction: 0.82, blendDuration: 0),
-                                    value: viewModel.authState.userCode)
-                            }
-
-                            HStack(spacing: 8) {
-                                ProgressView()
-                                    .progressViewStyle(.circular)
-                                    .controlSize(.small)
-
-                                Text("Waiting for authorization…")
-                                    .font(.system(size: 13))
-                                    .foregroundColor(.secondary)
-
-                                Spacer()
-
-                                Button("Cancel") {
-                                    viewModel.cancelOAuth()
-                                }
-                                .buttonStyle(.bordered)
-                                .tint(.red)
-                                .controlSize(.small)
-                                .pointerCursor()
-                            }
-                        }
-                    } else {
-                        SignedInView(
-                            botUsername: viewModel.botUsername,
-                            channelID: $viewModel.channelID,
-                            isChannelConnected: viewModel.channelConnected,
-                            isConnecting: viewModel.isConnecting,
-                            reauthNeeded: viewModel.reauthNeeded,
-                            credentialsSaved: viewModel.credentialsSaved,
-                            channelValidationState: viewModel.channelValidationState,
-                            onReauth: { viewModel.startOAuth() },
-                            onClearCredentials: { viewModel.clearCredentials() },
-                            onJoinChannel: { viewModel.joinChannel() },
-                            onLeaveChannel: { viewModel.leaveChannel() },
-                            onChannelIDChanged: { viewModel.saveChannelID() }
-                        )
-                    }
+                    SignedInView(
+                        botUsername: viewModel.botUsername,
+                        channelID: $viewModel.channelID,
+                        isChannelConnected: viewModel.channelConnected,
+                        isConnecting: viewModel.isConnecting,
+                        reauthNeeded: viewModel.reauthNeeded,
+                        credentialsSaved: viewModel.credentialsSaved,
+                        onClearCredentials: { viewModel.clearCredentials() },
+                        onJoinChannel: { viewModel.joinChannel() },
+                        onLeaveChannel: { viewModel.leaveChannel() },
+                        onChannelIDChanged: { viewModel.saveChannelID() },
+                        onReauth: { viewModel.clearCredentials(); viewModel.startOAuth() }
+                    )
 
                 case .error(let message):
                     VStack(spacing: 8) {
@@ -341,6 +284,7 @@ private struct SignedInView: View {
     var onJoinChannel: () -> Void
     var onLeaveChannel: () -> Void
     var onChannelIDChanged: () -> Void
+    var onReauth: () -> Void
     @State private var showingDisconnectConfirmation = false
 
     var body: some View {
@@ -497,20 +441,14 @@ private struct SignedInView: View {
         HStack(spacing: 10) {
             if reauthNeeded {
                 Button(action: onReauth) {
-                    HStack(spacing: 8) {
-                        Image("TwitchLogo")
-                            .renderingMode(.original)
-                            .resizable()
-                            .scaledToFit()
-                            .frame(width: 14, height: 14)
-                        Text("Sign In Again")
-                            .font(.system(size: 12, weight: .semibold))
-                    }
+                    Label("Re-auth", systemImage: "arrow.clockwise.circle.fill")
+                        .font(.system(size: 12, weight: .medium))
                 }
-                .buttonStyle(.borderedProminent)
+                .buttonStyle(.bordered)
+                .tint(.orange)
                 .controlSize(.small)
                 .pointerCursor()
-                .accessibilityLabel("Sign in again with Twitch")
+                .accessibilityLabel("Re-authorize Twitch account")
                 .accessibilityIdentifier("twitchReauthButton")
             } else {
                 Button(action: {
@@ -575,7 +513,7 @@ private struct SignedInView: View {
 
     private var shouldDisableConnectButton: Bool {
         let validChannel = !channelID.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-        if reauthNeeded || isConnecting { return true }
+        if isConnecting { return true }
         // If credentials are saved we can attempt to connect even if the
         // bot username hasn't been resolved yet — rely on saved token.
         if credentialsSaved {
