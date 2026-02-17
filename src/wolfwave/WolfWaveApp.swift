@@ -90,12 +90,8 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSToolbarDelegate, NSWindowD
     
     /// Reopens the Settings window when the dock icon is clicked.
     func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
-        if currentDockVisibilityMode == AppConstants.DockVisibility.menuOnly {
-            NSApp.setActivationPolicy(.regular)
-        }
-
         openSettings()
-        return true
+        return false
     }
 
     // MARK: - Track Display Updates
@@ -154,7 +150,10 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSToolbarDelegate, NSWindowD
 
     /// Restores accessory activation policy after the last window closes (menu-only mode).
     @objc private func handleWindowClose(_ notification: Notification) {
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) { [weak self] in
+        if let window = notification.object as? NSWindow, window === settingsWindow {
+            settingsWindow = nil
+        }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) { [weak self] in
             self?.restoreMenuOnlyIfNeeded()
         }
     }
