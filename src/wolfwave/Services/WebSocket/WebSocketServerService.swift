@@ -128,6 +128,22 @@ final class WebSocketServerService: @unchecked Sendable {
         broadcastNowPlaying()
     }
 
+    /// Broadcasts widget theme/customization config to all connected clients.
+    func broadcastWidgetConfig() {
+        let defaults = UserDefaults.standard
+        let config: [String: Any] = [
+            "type": "widget_config",
+            "data": [
+                "theme": defaults.string(forKey: AppConstants.UserDefaults.widgetTheme) ?? "Default",
+                "layout": defaults.string(forKey: AppConstants.UserDefaults.widgetLayout) ?? "Horizontal",
+                "textColor": defaults.string(forKey: AppConstants.UserDefaults.widgetTextColor) ?? "#FFFFFF",
+                "backgroundColor": defaults.string(forKey: AppConstants.UserDefaults.widgetBackgroundColor) ?? "#1A1A2E",
+                "fontFamily": defaults.string(forKey: AppConstants.UserDefaults.widgetFontFamily) ?? "System",
+            ],
+        ]
+        broadcastJSON(config)
+    }
+
     /// Marks playback as stopped and broadcasts the state change.
     func clearNowPlaying() {
         playbackLock.lock()

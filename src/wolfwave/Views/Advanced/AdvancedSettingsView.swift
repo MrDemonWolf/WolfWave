@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import UniformTypeIdentifiers
 
 /// Advanced settings interface providing software update controls and dangerous operations.
 ///
@@ -36,31 +37,30 @@ struct AdvancedSettingsView: View {
     /// Whether the onboarding reset confirmation alert is shown.
     @State private var showingOnboardingResetAlert = false
 
-    /// Whether automatic update checking is enabled.
-    @AppStorage(AppConstants.UserDefaults.updateCheckEnabled)
-    private var updateCheckEnabled = true
+    /// Opens a save panel to export the application log file.
+    private func exportLogs() {
+        guard let logURL = Log.exportLogFile() else {
+            Log.warn("No log file available for export", category: "App")
+            return
+        }
 
-    /// Version string the user chose to skip.
-    @AppStorage(AppConstants.UserDefaults.updateSkippedVersion)
-    private var skippedVersion: String = ""
+        let panel = NSSavePanel()
+        panel.nameFieldStringValue = "wolfwave-logs.log"
+        panel.allowedContentTypes = [.plainText]
+        panel.canCreateDirectories = true
 
-    /// Latest version reported by the update checker.
-    @State private var latestVersion: String?
-
-    /// Whether an update is currently available (respects skipped version).
-    @State private var updateAvailable = false
-
-    /// Whether a manual check is in progress.
-    @State private var isCheckingForUpdates = false
-
-    /// Current app version from bundle.
-    private var currentVersion: String {
-        Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "0.0.0"
-    }
-
-    /// Reference to the AppDelegate for accessing the update checker.
-    private var appDelegate: AppDelegate? {
-        AppDelegate.shared
+        panel.begin { response in
+            guard response == .OK, let destination = panel.url else { return }
+            do {
+                if FileManager.default.fileExists(atPath: destination.path) {
+                    try FileManager.default.removeItem(at: destination)
+                }
+                try FileManager.default.copyItem(at: logURL, to: destination)
+                Log.info("Logs exported to \(destination.path)", category: "App")
+            } catch {
+                Log.error("Failed to export logs: \(error.localizedDescription)", category: "App")
+            }
+        }
     }
 
     var body: some View {
@@ -121,6 +121,33 @@ struct AdvancedSettingsView: View {
             } message: {
                 Text("This will open the setup wizard. Your current settings will not be changed.")
             }
+
+            // Log Export Card
+            VStack(alignment: .leading, spacing: 12) {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Diagnostics")
+                        .font(.system(size: 13, weight: .semibold))
+
+                    Text("Export application logs for debugging and support.")
+                        .font(.system(size: 12))
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+
+                Button(action: exportLogs) {
+                    Label("Export Logs", systemImage: "square.and.arrow.up")
+                        .font(.system(size: 13, weight: .medium))
+                        .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.bordered)
+                .controlSize(.regular)
+                .pointerCursor()
+                .accessibilityLabel("Export application logs")
+                .accessibilityHint("Save logs to a file for debugging")
+            }
+            .padding(AppConstants.SettingsUI.cardPadding)
+            .background(Color(nsColor: .controlBackgroundColor))
+            .clipShape(RoundedRectangle(cornerRadius: AppConstants.SettingsUI.cardCornerRadius))
 
             // Danger Zone Card
             VStack(alignment: .leading, spacing: 16) {

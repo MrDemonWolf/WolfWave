@@ -175,6 +175,10 @@ final class TwitchViewModel: ObservableObject {
     /// Debounce task for saving channel ID to avoid excessive Keychain writes
     private var channelIDSaveTask: Task<Void, Never>?
 
+    /// Tracked notification observer tokens for proper cleanup
+    private var reauthObserver: NSObjectProtocol?
+    private var connectionObserver: NSObjectProtocol?
+
     // MARK: - Initialization
 
     init() {
@@ -248,35 +252,43 @@ final class TwitchViewModel: ObservableObject {
         reauthNeeded = UserDefaults.standard.bool(
             forKey: AppConstants.UserDefaults.twitchReauthNeeded)
 
-        // Remove any existing observers before registering to prevent duplicates
-        NotificationCenter.default.removeObserver(
-            self,
-            name: NSNotification.Name(AppConstants.Notifications.twitchReauthNeededChanged),
-            object: nil
-        )
-        NotificationCenter.default.removeObserver(
-            self,
-            name: TwitchChatService.connectionStateChanged,
-            object: nil
-        )
+        // Remove existing observers via tracked tokens to prevent leaks
+        if let token = reauthObserver {
+            NotificationCenter.default.removeObserver(token)
+            reauthObserver = nil
+        }
+        if let token = connectionObserver {
+            NotificationCenter.default.removeObserver(token)
+            connectionObserver = nil
+        }
 
-        // Listen for reauth status changes
-        NotificationCenter.default.addObserver(
-            self,
-            selector: #selector(reAuthStatusChanged),
-            name: NSNotification.Name(AppConstants.Notifications.twitchReauthNeededChanged),
-            object: nil
-        )
-        // Also listen for Twitch chat connection state changes posted by the service.
-        NotificationCenter.default.addObserver(
-            self,
-            selector: #selector(twitchConnectionStateChanged(_:)),
-            name: TwitchChatService.connectionStateChanged,
-            object: nil
-        )
+        // Listen for reauth status changes (tracked via token)
+        reauthObserver = NotificationCenter.default.addObserver(
+            forName: NSNotification.Name(AppConstants.Notifications.twitchReauthNeededChanged),
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            self?.reauthNeeded = UserDefaults.standard.bool(
+                forKey: AppConstants.UserDefaults.twitchReauthNeeded)
+        }
+
+        // Listen for Twitch chat connection state changes (tracked via token)
+        connectionObserver = NotificationCenter.default.addObserver(
+            forName: TwitchChatService.connectionStateChanged,
+            object: nil,
+            queue: .main
+        ) { [weak self] note in
+            self?.handleTwitchConnectionNotification(note)
+        }
     }
 
-    @objc private func twitchConnectionStateChanged(_ note: Notification) {
+    /// Handles a Twitch connection state change notification.
+    ///
+    /// Used by both the block-based observer and legacy @objc selector paths.
+    private func handleTwitchConnectionNotification(_ note: Notification) {
+        Log.debug(
+            "TwitchViewModel: twitchConnectionStateChanged notification received",
+            category: "Twitch")
         if let info = note.userInfo, let isConnected = info["isConnected"] as? Bool {
             // Check if there's an error in the notification
             let errorMessage = info["error"] as? String
@@ -323,13 +335,12 @@ final class TwitchViewModel: ObservableObject {
         devicePollingTask?.cancel()
         oAuthTask?.cancel()
         channelIDSaveTask?.cancel()
-        NotificationCenter.default.removeObserver(self)
-    }
-
-    /// Called when the reauth needed status changes.
-    @objc private func reAuthStatusChanged() {
-        reauthNeeded = UserDefaults.standard.bool(
-            forKey: AppConstants.UserDefaults.twitchReauthNeeded)
+        if let token = reauthObserver {
+            NotificationCenter.default.removeObserver(token)
+        }
+        if let token = connectionObserver {
+            NotificationCenter.default.removeObserver(token)
+        }
     }
 
     /// Initiates the OAuth Device Code flow.
@@ -674,6 +685,33 @@ final class TwitchViewModel: ObservableObject {
                     self.channelConnected = false
                     self.isConnecting = false
                 }
+            }
+        }
+    }
+
+    /// Validates the stored OAuth token against the Twitch API without making a full connection.
+    ///
+    /// Performs a lightweight HTTP GET to the Twitch token validation endpoint
+    /// to verify the token is still valid and has the required scopes.
+    func testConnection() {
+        guard let token = KeychainService.loadTwitchToken(), !token.isEmpty else {
+            statusMessage = "❌ No OAuth token found"
+            return
+        }
+
+        guard let service = twitchService else {
+            statusMessage = "❌ Twitch service not available"
+            return
+        }
+
+        statusMessage = "Testing token…"
+
+        Task {
+            let isValid = await service.validateToken(token)
+            await MainActor.run {
+                self.statusMessage = isValid
+                    ? "✅ Token is valid — scopes OK"
+                    : "❌ Token is invalid or expired"
             }
         }
     }

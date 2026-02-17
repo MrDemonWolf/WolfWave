@@ -135,3 +135,18 @@ extension View {
         modifier(SectionHeaderModifier())
     }
 }
+
+// MARK: - Color Hex Initializer
+
+extension Color {
+    /// Creates a Color from a hex string (e.g. "#FF0000" or "FF0000").
+    init?(hex: String) {
+        var hexString = hex.trimmingCharacters(in: .whitespacesAndNewlines)
+        if hexString.hasPrefix("#") { hexString.removeFirst() }
+        guard hexString.count == 6, let value = UInt64(hexString, radix: 16) else { return nil }
+        let r = Double((value >> 16) & 0xFF) / 255.0
+        let g = Double((value >> 8) & 0xFF) / 255.0
+        let b = Double(value & 0xFF) / 255.0
+        self.init(red: r, green: g, blue: b)
+    }
+}

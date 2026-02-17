@@ -26,8 +26,16 @@ struct DiscordSettingsView: View {
     /// Current Discord connection state, updated via notification from AppDelegate.
     @State private var connectionState: DiscordRPCService.ConnectionState = .disconnected
 
-    /// Whether a valid Discord Client ID is configured (cached on appear).
-    @State private var hasClientID: Bool = false
+    /// Whether a test connection is in progress.
+    @State private var isTesting = false
+
+    /// Result message from the last test connection attempt.
+    @State private var testResultMessage = ""
+
+    /// Whether a valid Discord Client ID is configured.
+    private var hasClientID: Bool {
+        DiscordRPCService.resolveClientID() != nil
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
@@ -73,6 +81,43 @@ struct DiscordSettingsView: View {
                     }
             }
             .cardStyle()
+
+            // Test Connection
+            if presenceEnabled && hasClientID {
+                HStack(spacing: 10) {
+                    Button {
+                        testDiscordConnection()
+                    } label: {
+                        HStack(spacing: 6) {
+                            if isTesting {
+                                ProgressView()
+                                    .progressViewStyle(.circular)
+                                    .controlSize(.mini)
+                            } else {
+                                Image(systemName: "antenna.radiowaves.left.and.right")
+                                    .font(.system(size: 11))
+                            }
+                            Text(isTesting ? "Testing…" : "Test Connection")
+                                .font(.system(size: 12, weight: .medium))
+                        }
+                    }
+                    .buttonStyle(.bordered)
+                    .controlSize(.small)
+                    .disabled(isTesting)
+                    .pointerCursor()
+                    .accessibilityLabel("Test Discord connection")
+                    .accessibilityIdentifier("discordTestConnectionButton")
+
+                    if !testResultMessage.isEmpty {
+                        Text(testResultMessage)
+                            .font(.system(size: 12))
+                            .foregroundStyle(testResultMessage.contains("✅") ? .green : .red)
+                            .transition(.opacity)
+                    }
+
+                    Spacer()
+                }
+            }
 
             if !hasClientID {
                 Text("Set DISCORD_CLIENT_ID in Config.xcconfig to enable this feature.")
@@ -126,6 +171,32 @@ struct DiscordSettingsView: View {
     private func refreshConnectionState() {
         if let appDelegate = AppDelegate.shared {
             connectionState = appDelegate.discordService?.state ?? .disconnected
+        }
+    }
+
+    /// Tests the Discord IPC connection and displays a result message.
+    private func testDiscordConnection() {
+        isTesting = true
+        testResultMessage = ""
+
+        guard let service = AppDelegate.shared?.discordService else {
+            testResultMessage = "❌ Discord service not available"
+            isTesting = false
+            return
+        }
+
+        service.testConnection { success in
+            withAnimation {
+                testResultMessage = success
+                    ? "✅ Connected to Discord"
+                    : "❌ Cannot reach Discord — is it running?"
+                isTesting = false
+            }
+
+            // Auto-clear the message after 5 seconds
+            DispatchQueue.main.asyncAfter(deadline: .now() + 5) {
+                withAnimation { testResultMessage = "" }
+            }
         }
     }
 

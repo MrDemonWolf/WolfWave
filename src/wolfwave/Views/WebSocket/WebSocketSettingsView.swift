@@ -17,6 +17,21 @@ struct WebSocketSettingsView: View {
     @AppStorage(AppConstants.UserDefaults.websocketServerPort)
     private var storedPort: Int = Int(AppConstants.WebSocketServer.defaultPort)
 
+    @AppStorage(AppConstants.UserDefaults.widgetTheme)
+    private var widgetTheme = "Default"
+
+    @AppStorage(AppConstants.UserDefaults.widgetLayout)
+    private var widgetLayout = "Horizontal"
+
+    @AppStorage(AppConstants.UserDefaults.widgetTextColor)
+    private var widgetTextColor = "#FFFFFF"
+
+    @AppStorage(AppConstants.UserDefaults.widgetBackgroundColor)
+    private var widgetBackgroundColor = "#1A1A2E"
+
+    @AppStorage(AppConstants.UserDefaults.widgetFontFamily)
+    private var widgetFontFamily = "System"
+
     // MARK: - State
 
     @State private var portText: String = ""
@@ -205,7 +220,7 @@ struct WebSocketSettingsView: View {
                     Image(systemName: "info.circle.fill")
                         .font(.system(size: 12))
                         .foregroundStyle(.blue)
-                    Text("Set the Browser Source size to **500 x 120** for best results. Enable \"Shutdown source when not visible\" for clean reconnects.")
+                    Text("Set the Browser Source size to **\(AppConstants.Widget.recommendedDimensionsText)** for best results. Enable \"Shutdown source when not visible\" for clean reconnects.")
                         .font(.system(size: 11))
                         .foregroundStyle(.secondary)
                         .fixedSize(horizontal: false, vertical: true)
@@ -214,6 +229,132 @@ struct WebSocketSettingsView: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .background(Color.blue.opacity(0.08))
                 .clipShape(RoundedRectangle(cornerRadius: 6))
+            }
+            .padding(AppConstants.SettingsUI.cardPadding)
+            .background(Color(nsColor: .controlBackgroundColor))
+            .clipShape(RoundedRectangle(cornerRadius: AppConstants.SettingsUI.cardCornerRadius))
+
+            Divider()
+                .padding(.vertical, 4)
+
+            // MARK: Widget Appearance
+
+            VStack(alignment: .leading, spacing: 12) {
+                VStack(alignment: .leading, spacing: 6) {
+                    HStack(spacing: 8) {
+                        Image(systemName: "paintbrush.fill")
+                            .font(.system(size: 14))
+                            .foregroundStyle(Color(nsColor: .controlAccentColor))
+                        Text("Widget Appearance")
+                            .font(.system(size: 15, weight: .semibold))
+                    }
+
+                    Text("Customize the look of your stream overlay widget.")
+                        .font(.system(size: 12))
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+
+                HStack(spacing: 12) {
+                    Text("Theme")
+                        .font(.system(size: 13, weight: .medium))
+                    Spacer()
+                    Picker("", selection: $widgetTheme) {
+                        ForEach(AppConstants.Widget.themes, id: \.self) { theme in
+                            Text(theme).tag(theme)
+                        }
+                    }
+                    .labelsHidden()
+                    .frame(width: 140)
+                    .accessibilityLabel("Widget theme")
+                    .accessibilityIdentifier("widgetThemePicker")
+                    .onChange(of: widgetTheme) { _, _ in
+                        broadcastWidgetConfig()
+                    }
+                }
+
+                Divider()
+
+                HStack(spacing: 12) {
+                    Text("Layout")
+                        .font(.system(size: 13, weight: .medium))
+                    Spacer()
+                    Picker("", selection: $widgetLayout) {
+                        ForEach(AppConstants.Widget.layouts, id: \.self) { layout in
+                            Text(layout).tag(layout)
+                        }
+                    }
+                    .labelsHidden()
+                    .frame(width: 140)
+                    .accessibilityLabel("Widget layout")
+                    .accessibilityIdentifier("widgetLayoutPicker")
+                    .onChange(of: widgetLayout) { _, _ in
+                        broadcastWidgetConfig()
+                    }
+                }
+
+                Divider()
+
+                HStack(spacing: 12) {
+                    Text("Text Color")
+                        .font(.system(size: 13, weight: .medium))
+                    Spacer()
+                    HStack(spacing: 6) {
+                        Circle()
+                            .fill(Color(hex: widgetTextColor) ?? .white)
+                            .frame(width: 14, height: 14)
+                            .overlay(Circle().stroke(Color.primary.opacity(0.2), lineWidth: 1))
+                        TextField("#FFFFFF", text: $widgetTextColor)
+                            .textFieldStyle(.roundedBorder)
+                            .frame(width: 90)
+                            .font(.system(size: 12, design: .monospaced))
+                            .multilineTextAlignment(.center)
+                            .accessibilityLabel("Widget text color")
+                            .accessibilityIdentifier("widgetTextColorField")
+                            .onSubmit { broadcastWidgetConfig() }
+                    }
+                }
+
+                HStack(spacing: 12) {
+                    Text("Background Color")
+                        .font(.system(size: 13, weight: .medium))
+                    Spacer()
+                    HStack(spacing: 6) {
+                        Circle()
+                            .fill(Color(hex: widgetBackgroundColor) ?? .black)
+                            .frame(width: 14, height: 14)
+                            .overlay(Circle().stroke(Color.primary.opacity(0.2), lineWidth: 1))
+                        TextField("#1A1A2E", text: $widgetBackgroundColor)
+                            .textFieldStyle(.roundedBorder)
+                            .frame(width: 90)
+                            .font(.system(size: 12, design: .monospaced))
+                            .multilineTextAlignment(.center)
+                            .accessibilityLabel("Widget background color")
+                            .accessibilityIdentifier("widgetBackgroundColorField")
+                            .onSubmit { broadcastWidgetConfig() }
+                    }
+                }
+
+                Divider()
+
+                HStack(spacing: 12) {
+                    Text("Font")
+                        .font(.system(size: 13, weight: .medium))
+                    Spacer()
+                    Picker("", selection: $widgetFontFamily) {
+                        Text("System").tag("System")
+                        Text("Monospaced").tag("Monospaced")
+                        Text("Rounded").tag("Rounded")
+                        Text("Serif").tag("Serif")
+                    }
+                    .labelsHidden()
+                    .frame(width: 140)
+                    .accessibilityLabel("Widget font")
+                    .accessibilityIdentifier("widgetFontPicker")
+                    .onChange(of: widgetFontFamily) { _, _ in
+                        broadcastWidgetConfig()
+                    }
+                }
             }
             .padding(AppConstants.SettingsUI.cardPadding)
             .background(Color(nsColor: .controlBackgroundColor))
@@ -291,6 +432,10 @@ struct WebSocketSettingsView: View {
     private func copyToClipboard(_ text: String) {
         NSPasteboard.general.clearContents()
         NSPasteboard.general.setString(text, forType: .string)
+    }
+
+    private func broadcastWidgetConfig() {
+        AppDelegate.shared?.websocketServer?.broadcastWidgetConfig()
     }
 }
 

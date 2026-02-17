@@ -151,10 +151,16 @@ final class TwitchChatService: @unchecked Sendable {
     nonisolated(unsafe) private var isNetworkReachable = true
     private let networkReachableLock = NSLock()
 
+    /// Tracks total network-triggered reconnect cycles to prevent infinite loops
+    /// when the network path flaps repeatedly.
+    nonisolated(unsafe) private var networkReconnectCycles = 0
+    private let maxNetworkReconnectCycles = AppConstants.Twitch.maxNetworkReconnectCycles
+    nonisolated(unsafe) private var lastNetworkReconnectTime: TimeInterval = 0
+
     nonisolated(unsafe) private var reconnectionAttempts = 0
     private let reconnectionLock = NSLock()
 
-    private let maxReconnectionAttempts = 5
+    private let maxReconnectionAttempts = AppConstants.Twitch.maxReconnectionAttempts
 
     nonisolated(unsafe) private var _reconnectChannelName: String?
     nonisolated(unsafe) private var _reconnectToken: String?
@@ -330,7 +336,10 @@ final class TwitchChatService: @unchecked Sendable {
         }
     }
 
-    /// Handles network path changes and triggers reconnection if needed
+    /// Handles network path changes and triggers reconnection if needed.
+    ///
+    /// Rate-limits network-triggered reconnects to prevent infinite loops when
+    /// the network path flaps rapidly between available/unavailable states.
     nonisolated private func handleNetworkPathChange(_ path: NWPath) {
         let isReachable = path.status == .satisfied
         let wasReachable = networkReachableLock.withLock { isNetworkReachable }
@@ -339,7 +348,31 @@ final class TwitchChatService: @unchecked Sendable {
 
         if !wasReachable && isReachable {
             // Network became available after being unavailable
-            attemptReconnect()
+            let now = Date().timeIntervalSince1970
+            let shouldReconnect = reconnectionLock.withLock { () -> Bool in
+                // Reset cycle counter if enough time has passed
+                if now - lastNetworkReconnectTime > AppConstants.Twitch.networkReconnectCooldown {
+                    networkReconnectCycles = 0
+                }
+
+                guard networkReconnectCycles < maxNetworkReconnectCycles else {
+                    return false
+                }
+
+                networkReconnectCycles += 1
+                lastNetworkReconnectTime = now
+                // Reset per-attempt counter for the new cycle
+                reconnectionAttempts = 0
+                return true
+            }
+
+            if shouldReconnect {
+                attemptReconnect()
+            } else {
+                Log.error(
+                    "Twitch: Max network reconnect cycles reached, not reconnecting",
+                    category: "TwitchChat")
+            }
         } else if wasReachable && !isReachable {
             // Network became unavailable
             Log.warn("Twitch: Network unavailable, disconnecting", category: "TwitchChat")
@@ -519,7 +552,10 @@ final class TwitchChatService: @unchecked Sendable {
 
         // Store credentials for automatic reconnection (protected by reconnectionLock)
         setReconnectionCredentials(channelName: channelName, token: token, clientID: clientID)
-        reconnectionLock.withLock { reconnectionAttempts = 0 }
+        reconnectionLock.withLock {
+            reconnectionAttempts = 0
+            networkReconnectCycles = 0
+        }
 
         // Start network monitoring for automatic reconnection
         if networkPathMonitor == nil {
@@ -762,34 +798,39 @@ final class TwitchChatService: @unchecked Sendable {
     /// Called automatically when the bot successfully subscribes to channel chat messages.
     /// Sends: "WolfWave Application is connected! 🎵"
     func sendConnectionMessage() {
-        DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) { [weak self] in
+        DispatchQueue.main.asyncAfter(deadline: .now() + AppConstants.Twitch.connectionMessageDelay) { [weak self] in
             guard let self = self else { return }
             let hasSent = self.connectionLock.withLock { self.hasSentConnectionMessage }
             if hasSent {
                 return
             }
             self.connectionLock.withLock { self.hasSentConnectionMessage = true }
-            self.sendMessage("WolfWave Application is connected! 🎵")
+            self.sendMessage(AppConstants.Twitch.connectionMessage)
         }
     }
 
+    // MARK: - Message Sending
+
+    /// Maximum number of retry attempts for a failed message send.
+    private let maxMessageRetries = AppConstants.Twitch.maxMessageRetries
+
+    /// Pending message awaiting retry.
+    private struct PendingMessage {
+        let message: String
+        let parentMessageID: String?
+        var attempts: Int
+    }
+
+    /// Queue of messages pending retry.
+    nonisolated(unsafe) private var pendingMessages: [PendingMessage] = []
+    private let pendingMessagesLock = NSLock()
+
     /// Sends a message to the current channel.
     ///
-    /// Notes:
-    /// - Messages are sent via the Helix `/chat/messages` endpoint.
-    /// - Twitch enforces rate limits; callers must handle failed sends and
-    ///   avoid spamming the API.
-    /// - Messages longer than 500 characters are truncated.
-    /// - The method is fire-and-forget; failures are logged and surfaced
-    ///   via the `Log` utility.
+    /// Messages are sent via the Helix `/chat/messages` endpoint. Failed sends
+    /// are retried up to `maxMessageRetries` times with exponential backoff.
     ///
     /// - Parameter message: The message text to send
-    // MARK: - Message Sending
-    // IMPORTANT: Message sending is NOT queued. If connection is lost, the message is silently dropped.
-    // Implement higher-level retry logic at the caller if guaranteed delivery is required.
-    // Rate limits: Twitch enforces per-channel message rate limits. Exceeding limits will cause
-    // temporary message delivery failures which are logged but not thrown.
-
     func sendMessage(_ message: String) {
         sendMessage(message, replyTo: nil)
     }
@@ -802,10 +843,9 @@ final class TwitchChatService: @unchecked Sendable {
     /// - Empty messages (whitespace only) are silently ignored
     /// - Messages over 500 characters are truncated to 497 + "..."
     ///
-    /// Error Handling:
-    /// - If not connected, a warning is logged and the message is dropped
-    /// - API failures are logged but not thrown; implement retry at caller if needed
-    /// - Twitch "dropped" responses are logged as warnings
+    /// Retry Behavior:
+    /// - Failed sends are retried up to 3 times with exponential backoff (1s, 2s, 4s)
+    /// - Messages are dropped after max retries are exhausted
     ///
     /// - Parameters:
     ///   - message: The message text to send (truncated to 500 chars if needed)
@@ -816,7 +856,8 @@ final class TwitchChatService: @unchecked Sendable {
             let token = oauthToken,
             let clientID = clientID
         else {
-            Log.warn("Twitch: Not connected", category: "TwitchChat")
+            Log.warn("Twitch: Not connected, queuing message for retry", category: "TwitchChat")
+            queueMessageForRetry(message: message, parentMessageID: parentMessageID, attempts: 0)
             return
         }
 
@@ -825,7 +866,9 @@ final class TwitchChatService: @unchecked Sendable {
             return
         }
 
-        let finalMessage = trimmed.count > 500 ? String(trimmed.prefix(497)) + "..." : trimmed
+        let maxLen = AppConstants.Twitch.maxMessageLength
+        let suffix = AppConstants.Twitch.messageTruncationSuffix
+        let finalMessage = trimmed.count > maxLen ? String(trimmed.prefix(maxLen - suffix.count)) + suffix : trimmed
 
         var body: [String: Any] = [
             "broadcaster_id": broadcasterID,
@@ -843,7 +886,7 @@ final class TwitchChatService: @unchecked Sendable {
             body: body,
             token: token,
             clientID: clientID
-        ) { result in
+        ) { [weak self] result in
             switch result {
             case .success(let data):
                 if let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
@@ -856,15 +899,60 @@ final class TwitchChatService: @unchecked Sendable {
                     } else {
                         Log.warn("Twitch: Message dropped by Twitch", category: "TwitchChat")
                     }
-                } else {
-                    // Message send response empty
                 }
             case .failure(let error):
                 Log.error(
                     "Twitch: Failed to send message - \(error.localizedDescription)",
                     category: "TwitchChat")
+                self?.queueMessageForRetry(
+                    message: message, parentMessageID: parentMessageID, attempts: 0)
             }
         }
+    }
+
+    /// Queues a message for retry with exponential backoff.
+    private func queueMessageForRetry(message: String, parentMessageID: String?, attempts: Int) {
+        guard attempts < maxMessageRetries else {
+            Log.error(
+                "Twitch: Message dropped after \(maxMessageRetries) retry attempts",
+                category: "TwitchChat")
+            return
+        }
+
+        let pending = PendingMessage(
+            message: message, parentMessageID: parentMessageID, attempts: attempts + 1)
+        pendingMessagesLock.withLock { pendingMessages.append(pending) }
+
+        let delay = pow(2.0, Double(attempts))
+        Log.debug(
+            "Twitch: Scheduling message retry \(attempts + 1)/\(maxMessageRetries) in \(delay)s",
+            category: "TwitchChat")
+
+        DispatchQueue.global().asyncAfter(deadline: .now() + delay) { [weak self] in
+            self?.retryPendingMessages()
+        }
+    }
+
+    /// Retries pending messages from the queue.
+    private func retryPendingMessages() {
+        let message: PendingMessage? = pendingMessagesLock.withLock {
+            guard !pendingMessages.isEmpty else { return nil }
+            return pendingMessages.removeFirst()
+        }
+
+        guard let message else { return }
+
+        // Check if we have valid credentials now
+        guard broadcasterID != nil, botID != nil, oauthToken != nil, clientID != nil else {
+            // Still not connected, re-queue with incremented attempts
+            queueMessageForRetry(
+                message: message.message,
+                parentMessageID: message.parentMessageID,
+                attempts: message.attempts)
+            return
+        }
+
+        sendMessage(message.message, replyTo: message.parentMessageID)
     }
 
     // MARK: - Message Parsing
@@ -966,7 +1054,10 @@ final class TwitchChatService: @unchecked Sendable {
         )
 
         if commandsEnabled {
-            if let response = commandDispatcher.processMessage(text) {
+            let isMod = badges.contains { $0.setID == "moderator" || $0.setID == "broadcaster" }
+            if let response = commandDispatcher.processMessage(
+                text, userID: userID, isModerator: isMod
+            ) {
                 sendMessage(response, replyTo: messageID)
             }
         }
@@ -1081,7 +1172,7 @@ final class TwitchChatService: @unchecked Sendable {
     private func startSessionWelcomeTimeout() {
         sessionTimerLock.withLock {
             sessionWelcomeTimer?.invalidate()
-            sessionWelcomeTimer = Timer.scheduledTimer(withTimeInterval: 10.0, repeats: false) {
+            sessionWelcomeTimer = Timer.scheduledTimer(withTimeInterval: AppConstants.Twitch.sessionWelcomeTimeout, repeats: false) {
                 [weak self] _ in
                 self?.handleSessionWelcomeTimeout()
             }

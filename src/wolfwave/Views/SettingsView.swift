@@ -97,6 +97,16 @@ struct SettingsView: View {
     @AppStorage(AppConstants.UserDefaults.lastSongCommandEnabled)
     private var lastSongCommandEnabled = true
 
+    /// Cooldown settings for bot commands
+    @AppStorage(AppConstants.UserDefaults.songCommandGlobalCooldown)
+    private var songGlobalCooldown: Double = 3.0
+    @AppStorage(AppConstants.UserDefaults.songCommandUserCooldown)
+    private var songUserCooldown: Double = 10.0
+    @AppStorage(AppConstants.UserDefaults.lastSongCommandGlobalCooldown)
+    private var lastSongGlobalCooldown: Double = 3.0
+    @AppStorage(AppConstants.UserDefaults.lastSongCommandUserCooldown)
+    private var lastSongUserCooldown: Double = 10.0
+
     @AppStorage(AppConstants.UserDefaults.dockVisibility)
     private var dockVisibility = "both"
 
@@ -131,6 +141,7 @@ struct SettingsView: View {
         } detail: {
             ScrollView {
                 VStack(alignment: .leading, spacing: AppConstants.SettingsUI.sectionSpacing) {
+                    UpdateBannerView().listening()
                     detailView(for: selectedSection)
                 }
                 .frame(maxWidth: AppConstants.SettingsUI.maxContentWidth, alignment: .topLeading)
@@ -278,20 +289,46 @@ struct SettingsView: View {
                         Log.info("SettingsView: Current Song Command \(enabled ? "enabled" : "disabled")", category: "Twitch")
                     }
 
+                    if currentSongCommandEnabled {
+                        cooldownRow(
+                            label: "!song cooldowns",
+                            globalCooldown: $songGlobalCooldown,
+                            userCooldown: $songUserCooldown
+                        )
+                    }
+
                     commandToggleRow(
                         title: "Previous Song Command",
                         subtitle: "!last  ·  !lastsong  ·  !prevsong",
                         isOn: $lastSongCommandEnabled,
                         accessibilityLabel: "Enable Last Played Song command",
                         accessibilityIdentifier: "lastSongCommandToggle",
-                        isLast: true
+                        isLast: !lastSongCommandEnabled
                     ) { enabled in
                         appDelegate?.twitchService?.lastSongCommandEnabled = enabled
                         Log.info("SettingsView: Last Song Command \(enabled ? "enabled" : "disabled")", category: "Twitch")
                     }
+
+                    if lastSongCommandEnabled {
+                        cooldownRow(
+                            label: "!last cooldowns",
+                            globalCooldown: $lastSongGlobalCooldown,
+                            userCooldown: $lastSongUserCooldown,
+                            isLast: true
+                        )
+                    }
                 }
                 .background(Color(nsColor: .controlBackgroundColor))
                 .clipShape(RoundedRectangle(cornerRadius: AppConstants.SettingsUI.cardCornerRadius))
+
+                HStack(spacing: 6) {
+                    Image(systemName: "info.circle.fill")
+                        .font(.system(size: 11))
+                        .foregroundStyle(.secondary)
+                    Text("Moderators and the broadcaster bypass all cooldowns.")
+                        .font(.system(size: 11))
+                        .foregroundStyle(.secondary)
+                }
             }
         }
     }
@@ -329,6 +366,48 @@ struct SettingsView: View {
         }
         .padding(.horizontal, AppConstants.SettingsUI.cardPadding)
         .padding(.vertical, 12)
+        .background(Color(nsColor: .controlBackgroundColor))
+        .overlay(alignment: .bottom) {
+            if !isLast {
+                Divider()
+                    .padding(.leading, AppConstants.SettingsUI.cardPadding)
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func cooldownRow(
+        label: String,
+        globalCooldown: Binding<Double>,
+        userCooldown: Binding<Double>,
+        isLast: Bool = false
+    ) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text(label)
+                .font(.system(size: 11, weight: .medium))
+                .foregroundStyle(.secondary)
+                .textCase(.uppercase)
+
+            HStack(spacing: 12) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Global: \(Int(globalCooldown.wrappedValue))s")
+                        .font(.system(size: 11))
+                        .foregroundStyle(.secondary)
+                    Slider(value: globalCooldown, in: 0...30, step: 1)
+                        .controlSize(.small)
+                }
+
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Per-user: \(Int(userCooldown.wrappedValue))s")
+                        .font(.system(size: 11))
+                        .foregroundStyle(.secondary)
+                    Slider(value: userCooldown, in: 0...60, step: 1)
+                        .controlSize(.small)
+                }
+            }
+        }
+        .padding(.horizontal, AppConstants.SettingsUI.cardPadding)
+        .padding(.vertical, 8)
         .background(Color(nsColor: .controlBackgroundColor))
         .overlay(alignment: .bottom) {
             if !isLast {

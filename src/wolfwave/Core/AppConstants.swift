@@ -105,6 +105,33 @@ enum AppConstants {
 
         /// Version string the user has chosen to skip (String)
         static let updateSkippedVersion = "updateSkippedVersion"
+
+        /// Global cooldown for !song command in seconds (Double, default: 3.0)
+        static let songCommandGlobalCooldown = "songCommandGlobalCooldown"
+
+        /// Per-user cooldown for !song command in seconds (Double, default: 10.0)
+        static let songCommandUserCooldown = "songCommandUserCooldown"
+
+        /// Global cooldown for !last command in seconds (Double, default: 3.0)
+        static let lastSongCommandGlobalCooldown = "lastSongCommandGlobalCooldown"
+
+        /// Per-user cooldown for !last command in seconds (Double, default: 10.0)
+        static let lastSongCommandUserCooldown = "lastSongCommandUserCooldown"
+
+        /// Widget theme name (String, default: "Default")
+        static let widgetTheme = "widgetTheme"
+
+        /// Widget layout style (String, default: "Horizontal")
+        static let widgetLayout = "widgetLayout"
+
+        /// Widget primary text color hex (String, default: "#FFFFFF")
+        static let widgetTextColor = "widgetTextColor"
+
+        /// Widget background color hex (String, default: "#1A1A2E")
+        static let widgetBackgroundColor = "widgetBackgroundColor"
+
+        /// Widget font family (String, default: "System")
+        static let widgetFontFamily = "widgetFontFamily"
     }
     
     // MARK: - Dock Visibility Modes
@@ -149,12 +176,55 @@ enum AppConstants {
     enum Twitch {
         /// Base URL for Twitch Helix API endpoints
         static let apiBaseURL = "https://api.twitch.tv/helix"
-        
+
         /// Settings section identifier for Twitch configuration
         static let settingsSection = "twitchIntegration"
-        
+
         /// Default setting for sending connection message on subscribe
         static let defaultSendConnectionMessage = true
+
+        /// Timeout in seconds for receiving the session_welcome WebSocket message
+        static let sessionWelcomeTimeout: TimeInterval = 10.0
+
+        /// Maximum length for bot chat messages (Twitch limit)
+        static let maxMessageLength = 500
+
+        /// Truncation suffix appended when a message exceeds `maxMessageLength`
+        static let messageTruncationSuffix = "..."
+
+        /// Connection confirmation message sent when the bot joins a channel
+        static let connectionMessage = "WolfWave Application is connected! 🎵"
+
+        /// Maximum reconnection attempts before giving up
+        static let maxReconnectionAttempts = 5
+
+        /// Maximum network-triggered reconnect cycles to prevent infinite loops
+        static let maxNetworkReconnectCycles = 5
+
+        /// Cooldown period in seconds before resetting network reconnect cycle counter
+        static let networkReconnectCooldown: TimeInterval = 60.0
+
+        /// Maximum retry attempts for failed message sends
+        static let maxMessageRetries = 3
+
+        /// Delay before sending connection message after subscribing (seconds)
+        static let connectionMessageDelay: TimeInterval = 1.5
+    }
+
+    // MARK: - Widget
+
+    /// Widget overlay configuration.
+    enum Widget {
+        /// Recommended browser source dimensions for OBS overlay
+        static let recommendedWidth = 500
+        static let recommendedHeight = 120
+        static let recommendedDimensionsText = "\(recommendedWidth) x \(recommendedHeight)"
+
+        /// Available widget themes
+        static let themes = ["Default", "Dark", "Light", "Transparent"]
+
+        /// Available widget layout styles
+        static let layouts = ["Horizontal", "Vertical", "Compact"]
     }
     
     // MARK: - Discord Integration

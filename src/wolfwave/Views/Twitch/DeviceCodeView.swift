@@ -166,7 +166,7 @@ struct DeviceCodeView: View {
         DeviceCodeView(
             userCode: "ABCD-EFGH",
             verificationURI: "https://www.twitch.tv/activate?device_code=test",
-            onCopy: { print("Copied!") }
+            onCopy: { Log.debug("Copied!", category: "Preview") }
         )
         
         Divider()
@@ -174,7 +174,7 @@ struct DeviceCodeView: View {
         DeviceCodeView(
             userCode: "WXYZ-QRST",
             verificationURI: "https://www.twitch.tv/activate?device_code=test2",
-            onCopy: { print("Copied!") }
+            onCopy: { Log.debug("Copied!", category: "Preview") }
         )
     }
     .padding(24)

@@ -346,6 +346,8 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSToolbarDelegate, NSWindowD
     private func createMenu() -> NSMenu {
         let menu = NSMenu()
 
+        addCopyWidgetURLItem(to: menu)
+        menu.addItem(.separator())
         addSettingsItem(to: menu)
         addAboutItem(to: menu)
         menu.addItem(.separator())
@@ -378,6 +380,28 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSToolbarDelegate, NSWindowD
             accessibilityDescription: "About"
         )
         menu.addItem(aboutItem)
+    }
+
+    private func addCopyWidgetURLItem(to menu: NSMenu) {
+        let item = NSMenuItem(
+            title: "Copy Widget URL",
+            action: #selector(copyWidgetURL),
+            keyEquivalent: ""
+        )
+        item.image = NSImage(
+            systemSymbolName: "link",
+            accessibilityDescription: "Copy Widget URL"
+        )
+        menu.addItem(item)
+    }
+
+    @objc private func copyWidgetURL() {
+        let port = UserDefaults.standard.object(forKey: AppConstants.UserDefaults.websocketServerPort) as? UInt16
+            ?? AppConstants.WebSocketServer.defaultPort
+        let url = "http://localhost:\(port)"
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.setString(url, forType: .string)
+        Log.info("Widget URL copied to clipboard: \(url)", category: "App")
     }
 
     private func addQuitItem(to menu: NSMenu) {
@@ -481,36 +505,12 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSToolbarDelegate, NSWindowD
 
     // MARK: - Widget Artwork
 
-    private var widgetArtworkCache: [String: String] = [:]
-
-    /// Fetches album artwork from the iTunes Search API and forwards it to the WebSocket server.
+    /// Fetches album artwork via the shared ArtworkService and forwards it to the WebSocket server.
     private func fetchArtworkForWidget(track: String, artist: String) {
-        let cacheKey = "\(track)|\(artist)"
-
-        if let cached = widgetArtworkCache[cacheKey] {
-            websocketServer?.updateArtworkURL(cached)
-            return
+        ArtworkService.shared.fetchArtworkURL(track: track, artist: artist) { [weak self] url in
+            guard let url else { return }
+            self?.websocketServer?.updateArtworkURL(url)
         }
-
-        let query = "\(track) \(artist)"
-        guard let encoded = query.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed),
-              let url = URL(string: "https://itunes.apple.com/search?media=music&entity=song&limit=1&term=\(encoded)") else {
-            return
-        }
-
-        URLSession.shared.dataTask(with: url) { [weak self] data, _, error in
-            guard let data, error == nil,
-                  let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-                  let results = json["results"] as? [[String: Any]],
-                  let first = results.first,
-                  let artworkUrl = first["artworkUrl100"] as? String else {
-                return
-            }
-
-            let highRes = artworkUrl.replacingOccurrences(of: "100x100", with: "512x512")
-            self?.widgetArtworkCache[cacheKey] = highRes
-            self?.websocketServer?.updateArtworkURL(highRes)
-        }.resume()
     }
 
     // MARK: - Update Checker

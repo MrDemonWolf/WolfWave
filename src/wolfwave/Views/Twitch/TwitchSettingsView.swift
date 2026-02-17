@@ -246,7 +246,8 @@ struct TwitchSettingsView: View {
                         onJoinChannel: { viewModel.joinChannel() },
                         onLeaveChannel: { viewModel.leaveChannel() },
                         onChannelIDChanged: { viewModel.saveChannelID() },
-                        onReauth: { viewModel.clearCredentials(); viewModel.startOAuth() }
+                        onReauth: { viewModel.clearCredentials(); viewModel.startOAuth() },
+                        onTestConnection: { viewModel.testConnection() }
                     )
 
                 case .error(let message):
@@ -285,6 +286,7 @@ private struct SignedInView: View {
     var onLeaveChannel: () -> Void
     var onChannelIDChanged: () -> Void
     var onReauth: () -> Void
+    var onTestConnection: () -> Void
     @State private var showingDisconnectConfirmation = false
 
     var body: some View {
@@ -483,6 +485,16 @@ private struct SignedInView: View {
                     isChannelConnected ? "Disconnect from channel" : "Connect to channel"
                 )
                 .accessibilityIdentifier("twitchConnectButton")
+
+                Button(action: onTestConnection) {
+                    Label("Test", systemImage: "antenna.radiowaves.left.and.right")
+                        .font(.system(size: 12, weight: .medium))
+                }
+                .buttonStyle(.bordered)
+                .controlSize(.small)
+                .pointerCursor()
+                .accessibilityLabel("Test Twitch token validity")
+                .accessibilityIdentifier("twitchTestConnectionButton")
             }
 
             Spacer()
