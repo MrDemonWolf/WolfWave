@@ -24,6 +24,9 @@ struct MusicMonitorSettingsView: View {
     private var trackingEnabled = true
 
     @State private var permissionDenied = false
+    @State private var currentTrack: String?
+    @State private var currentArtist: String?
+    @State private var currentAlbum: String?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
@@ -194,7 +197,29 @@ struct MusicMonitorSettingsView: View {
         .accessibilityLabel(nowPlayingAccessibilityLabel)
     }
 
+    // MARK: - Computed Properties
+
+    /// Accessibility label for the now-playing card.
+    private var nowPlayingAccessibilityLabel: String {
+        if let track = currentTrack {
+            var label = "Now playing: \(track)"
+            if let artist = currentArtist { label += " by \(artist)" }
+            if let album = currentAlbum { label += " on \(album)" }
+            return label
+        }
+        return trackingEnabled ? "No track playing" : "Tracking disabled"
+    }
+
     // MARK: - Helpers
+
+    /// Loads the current track info from AppDelegate.
+    private func loadCurrentTrack() {
+        if let appDelegate = AppDelegate.shared {
+            currentTrack = appDelegate.currentSong
+            currentArtist = appDelegate.currentArtist
+            currentAlbum = appDelegate.currentAlbum
+        }
+    }
 
     /// Posts a notification when music tracking is toggled.
     private func notifyTrackingSettingChanged(enabled: Bool) {

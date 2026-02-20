@@ -33,9 +33,7 @@ struct DiscordSettingsView: View {
     @State private var testResultMessage = ""
 
     /// Whether a valid Discord Client ID is configured.
-    private var hasClientID: Bool {
-        DiscordRPCService.resolveClientID() != nil
-    }
+    @State private var hasClientID = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {

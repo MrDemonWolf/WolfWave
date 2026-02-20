@@ -373,43 +373,6 @@ enum AppConstants {
         static let quit = "Quit"
     }
 
-    // MARK: - External URLs
-
-    /// URLs for documentation, legal pages, and external resources.
-    enum URLs {
-        /// Base URL for the WolfWave documentation site
-        static let docs = "https://mrdemonwolf.github.io/wolfwave/docs"
-
-        /// Privacy Policy page URL
-        static let privacyPolicy = "https://mrdemonwolf.github.io/wolfwave/docs/privacy-policy"
-
-        /// Terms of Service page URL
-        static let termsOfService = "https://mrdemonwolf.github.io/wolfwave/docs/terms-of-service"
-
-        /// GitHub repository URL
-        static let github = "https://github.com/MrDemonWolf/WolfWave"
-
-        /// GitHub Releases API endpoint for latest release
-        static let githubReleasesAPI = "https://api.github.com/repos/MrDemonWolf/WolfWave/releases/latest"
-
-        /// GitHub Releases page for latest release (browser URL)
-        static let githubReleases = "https://github.com/MrDemonWolf/WolfWave/releases/latest"
-    }
-    
-    // MARK: - Update Checker
-
-    /// Timing constants for the automatic update checker.
-    enum Update {
-        /// Delay after launch before first update check (seconds)
-        static let launchCheckDelay: TimeInterval = 10.0
-
-        /// Interval between periodic update checks (24 hours)
-        static let checkInterval: TimeInterval = 86400
-
-        /// HTTP request timeout for GitHub API calls (seconds)
-        static let requestTimeout: TimeInterval = 15.0
-    }
-
     // MARK: - Settings UI
 
     /// Settings window configuration.

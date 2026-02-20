@@ -242,11 +242,12 @@ struct TwitchSettingsView: View {
                         isConnecting: viewModel.isConnecting,
                         reauthNeeded: viewModel.reauthNeeded,
                         credentialsSaved: viewModel.credentialsSaved,
+                        channelValidationState: viewModel.channelValidationState,
+                        onReauth: { viewModel.clearCredentials(); viewModel.startOAuth() },
                         onClearCredentials: { viewModel.clearCredentials() },
                         onJoinChannel: { viewModel.joinChannel() },
                         onLeaveChannel: { viewModel.leaveChannel() },
                         onChannelIDChanged: { viewModel.saveChannelID() },
-                        onReauth: { viewModel.clearCredentials(); viewModel.startOAuth() },
                         onTestConnection: { viewModel.testConnection() }
                     )
 
@@ -285,7 +286,6 @@ private struct SignedInView: View {
     var onJoinChannel: () -> Void
     var onLeaveChannel: () -> Void
     var onChannelIDChanged: () -> Void
-    var onReauth: () -> Void
     var onTestConnection: () -> Void
     @State private var showingDisconnectConfirmation = false
 

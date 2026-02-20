@@ -37,6 +37,31 @@ struct AdvancedSettingsView: View {
     /// Whether the onboarding reset confirmation alert is shown.
     @State private var showingOnboardingResetAlert = false
 
+    /// Whether a software update is available.
+    @State private var updateAvailable = false
+
+    /// The latest version string from GitHub Releases.
+    @State private var latestVersion: String?
+
+    /// Version the user chose to skip.
+    @AppStorage(AppConstants.UserDefaults.updateSkippedVersion)
+    private var skippedVersion: String = ""
+
+    /// Reference to AppDelegate for update checker access.
+    private var appDelegate: AppDelegate? { AppDelegate.shared }
+
+    /// Whether automatic update checking is enabled.
+    @AppStorage(AppConstants.UserDefaults.updateCheckEnabled)
+    private var updateCheckEnabled = true
+
+    /// Whether a manual update check is in progress.
+    @State private var isCheckingForUpdates = false
+
+    /// Current app version from the bundle.
+    private var currentVersion: String {
+        Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "Unknown"
+    }
+
     /// Opens a save panel to export the application log file.
     private func exportLogs() {
         guard let logURL = Log.exportLogFile() else {

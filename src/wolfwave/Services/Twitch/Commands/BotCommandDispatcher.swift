@@ -13,6 +13,7 @@ import Foundation
 /// Includes cooldown enforcement with moderator bypass.
 /// Thread-safe for concurrent access from any thread.
 final class BotCommandDispatcher {
+    private let lock = NSLock()
     private var commands: [BotCommand] = []
     private let songCommand = SongCommand()
     private let lastSongCommand = LastSongCommand()
