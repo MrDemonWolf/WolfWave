@@ -56,7 +56,8 @@ class MusicPlaybackMonitor {
     }
     
     weak var delegate: MusicPlaybackMonitorDelegate?
-    
+
+    private var currentCheckInterval: TimeInterval = Constants.checkInterval
     private var timer: DispatchSourceTimer?
     private var lastLoggedTrack: String?
     private var lastTrackSeenAt: Date = .distantPast
@@ -87,6 +88,20 @@ class MusicPlaybackMonitor {
         timer?.cancel()
         timer = nil
         isTracking = false
+    }
+
+    /// Updates the fallback polling interval and reschedules the timer.
+    ///
+    /// Distributed notifications still provide real-time updates; this only
+    /// affects how often the fallback timer fires to catch missed events.
+    ///
+    /// - Parameter interval: New polling interval in seconds.
+    func updateCheckInterval(_ interval: TimeInterval) {
+        guard isTracking else { return }
+        currentCheckInterval = interval
+        timer?.cancel()
+        timer = nil
+        setupFallbackTimer()
     }
     
     @objc private func musicPlayerInfoChanged(_ notification: Notification) {
@@ -237,7 +252,7 @@ class MusicPlaybackMonitor {
     /// It fires every `checkInterval` seconds on the background queue.
     private func setupFallbackTimer() {
         let timer = DispatchSource.makeTimerSource(queue: backgroundQueue)
-        timer.schedule(deadline: .now() + Constants.checkInterval, repeating: Constants.checkInterval)
+        timer.schedule(deadline: .now() + currentCheckInterval, repeating: currentCheckInterval)
         timer.setEventHandler { [weak self] in
             self?.scheduleTrackCheck(reason: "timer")
         }

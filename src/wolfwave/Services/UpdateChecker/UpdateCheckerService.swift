@@ -118,10 +118,17 @@ final class UpdateCheckerService: @unchecked Sendable {
     }
 
     /// Schedules the repeating 24-hour timer on the main RunLoop.
+    ///
+    /// When the system is in reduced-power mode, the timer still fires but the
+    /// network request is deferred until normal power resumes.
     private func scheduleTimer() {
         checkTimer?.invalidate()
         checkTimer = Timer.scheduledTimer(withTimeInterval: AppConstants.Update.checkInterval, repeats: true) { [weak self] _ in
             guard let self else { return }
+            if PowerStateMonitor.shared.isReducedMode {
+                Log.debug("UpdateChecker: Skipping periodic check — system is in reduced-power mode", category: "Update")
+                return
+            }
             Task {
                 await self.checkForUpdates()
             }

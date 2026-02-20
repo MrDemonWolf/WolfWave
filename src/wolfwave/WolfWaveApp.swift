@@ -74,6 +74,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSToolbarDelegate, NSWindowD
         setupDiscordService()
         setupWebSocketServer()
         setupUpdateChecker()
+        setupPowerStateMonitor()
         setupNotificationObservers()
         initializeTrackingState()
 
@@ -150,11 +151,17 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSToolbarDelegate, NSWindowD
 
     /// Restores accessory activation policy after the last window closes (menu-only mode).
     @objc private func handleWindowClose(_ notification: Notification) {
-        if let window = notification.object as? NSWindow, window === settingsWindow {
-            settingsWindow = nil
-        }
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) { [weak self] in
-            self?.restoreMenuOnlyIfNeeded()
+        let isSettingsWindow = (notification.object as? NSWindow) === settingsWindow
+
+        // Defer all cleanup so the window and its SwiftUI/CAMetalLayer hierarchy
+        // can finish tearing down before we drop the last strong reference or
+        // switch activation policy.
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in
+            guard let self else { return }
+            if isSettingsWindow {
+                self.settingsWindow = nil
+            }
+            self.restoreMenuOnlyIfNeeded()
         }
     }
 
@@ -267,11 +274,14 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSToolbarDelegate, NSWindowD
     /// Hides the dock icon if menu-only mode is active and no windows remain visible.
     private func restoreMenuOnlyIfNeeded() {
         guard currentDockVisibilityMode == AppConstants.DockVisibility.menuOnly else { return }
-        
+
         let hasVisibleWindows = NSApp.windows.contains { window in
-            window.isVisible && window.canBecomeKey && window.level == .normal
+            guard window.isVisible, window.canBecomeKey, window.level == .normal else { return false }
+            // Exclude the system About panel — it is owned by AppKit and closes asynchronously
+            guard window.className != "NSAboutPanel" else { return false }
+            return true
         }
-        
+
         if !hasVisibleWindows {
             NSApp.setActivationPolicy(.accessory)
         }
@@ -411,6 +421,39 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSToolbarDelegate, NSWindowD
                 action: #selector(NSApplication.terminate(_:)),
                 keyEquivalent: "q"
             ))
+    }
+
+    // MARK: - Power State
+
+    /// Initializes the power state monitor and registers for power state change notifications.
+    private func setupPowerStateMonitor() {
+        _ = PowerStateMonitor.shared
+
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(powerStateChanged),
+            name: NSNotification.Name(AppConstants.Notifications.powerStateChanged),
+            object: nil
+        )
+    }
+
+    /// Adjusts service polling intervals when system power state changes.
+    @objc func powerStateChanged(_ notification: Notification) {
+        let reduced = PowerStateMonitor.shared.isReducedMode
+
+        musicMonitor?.updateCheckInterval(
+            reduced ? AppConstants.PowerManagement.reducedMusicCheckInterval : 5.0
+        )
+        discordService?.updatePollInterval(
+            reduced ? AppConstants.PowerManagement.reducedDiscordPollInterval
+                    : AppConstants.Discord.availabilityPollInterval
+        )
+        websocketServer?.updateProgressInterval(
+            reduced ? AppConstants.PowerManagement.reducedProgressBroadcastInterval
+                    : AppConstants.WebSocketServer.progressBroadcastInterval
+        )
+
+        Log.info("Power state changed: reduced=\(reduced)", category: "Power")
     }
 
     // MARK: - Service Initialization

@@ -49,10 +49,10 @@ enum Log {
     // MARK: - File Logging
 
     /// Maximum log file size before rotation (5 MB).
-    private static let maxLogFileSize: UInt64 = 5 * 1024 * 1024
+    nonisolated private static let maxLogFileSize: UInt64 = 5 * 1024 * 1024
 
     /// Lock protecting file write operations.
-    nonisolated(unsafe) private static let fileLock = NSLock()
+    nonisolated private static let fileLock = NSLock()
 
     /// File handle for the current log file.
     nonisolated(unsafe) private static var fileHandle: FileHandle?
@@ -61,10 +61,17 @@ enum Log {
     nonisolated(unsafe) private static var _logFileURL: URL?
 
     /// Returns the log file URL, creating the directory and file if needed.
-    private static var logFileURL: URL {
+    nonisolated private static var logFileURL: URL {
         if let url = _logFileURL { return url }
 
-        let appSupport = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first!
+        guard let appSupport = FileManager.default.urls(
+            for: .applicationSupportDirectory, in: .userDomainMask
+        ).first else {
+            let fallback = FileManager.default.temporaryDirectory
+                .appendingPathComponent("wolfwave.log")
+            _logFileURL = fallback
+            return fallback
+        }
         let logsDir = appSupport.appendingPathComponent("WolfWave/Logs", isDirectory: true)
 
         try? FileManager.default.createDirectory(at: logsDir, withIntermediateDirectories: true)
@@ -81,7 +88,7 @@ enum Log {
     }
 
     /// Writes a formatted log line to the log file.
-    private static func writeToFile(_ line: String) {
+    nonisolated private static func writeToFile(_ line: String) {
         fileLock.lock()
         defer { fileLock.unlock() }
 
@@ -107,7 +114,7 @@ enum Log {
     }
 
     /// Rotates the log file by renaming the current file and starting fresh.
-    private static func rotateLogFile(at url: URL) {
+    nonisolated private static func rotateLogFile(at url: URL) {
         fileHandle?.closeFile()
         fileHandle = nil
 

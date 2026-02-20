@@ -96,6 +96,7 @@ final class TwitchChatService: @unchecked Sendable {
         return URLSession(configuration: config)
     }()
     nonisolated(unsafe) private var sessionID: String?
+    private let webSocketLock = NSLock()
 
     private var broadcasterID: String?
     private var botID: String?
@@ -1159,8 +1160,13 @@ final class TwitchChatService: @unchecked Sendable {
             return
         }
 
-        webSocketTask = urlSession.webSocketTask(with: url)
-        webSocketTask?.resume()
+        let task = urlSession.webSocketTask(with: url)
+        webSocketLock.lock()
+        webSocketTask = task
+        webSocketLock.unlock()
+
+        Log.info("Twitch: Starting EventSub WebSocket connection", category: "TwitchChat")
+        task.resume()
 
         // Start a timer to detect if session_welcome doesn't arrive in time
         startSessionWelcomeTimeout()
@@ -1170,18 +1176,24 @@ final class TwitchChatService: @unchecked Sendable {
 
     /// Starts a timeout timer for receiving the session_welcome message.
     private func startSessionWelcomeTimeout() {
-        sessionTimerLock.withLock {
-            sessionWelcomeTimer?.invalidate()
-            sessionWelcomeTimer = Timer.scheduledTimer(withTimeInterval: AppConstants.Twitch.sessionWelcomeTimeout, repeats: false) {
-                [weak self] _ in
-                self?.handleSessionWelcomeTimeout()
+        cancelSessionWelcomeTimeout()
+        DispatchQueue.main.async { [weak self] in
+            guard let self else { return }
+            self.sessionTimerLock.withLock {
+                self.sessionWelcomeTimer = Timer.scheduledTimer(
+                    withTimeInterval: AppConstants.Twitch.sessionWelcomeTimeout,
+                    repeats: false
+                ) { [weak self] _ in
+                    self?.handleSessionWelcomeTimeout()
+                }
             }
         }
     }
 
     /// Called when session_welcome timeout expires.
     private func handleSessionWelcomeTimeout() {
-        guard sessionID == nil else { return }  // If we already got a welcome, ignore
+        let hasSession = webSocketLock.withLock { sessionID != nil }
+        guard !hasSession else { return }  // If we already got a welcome, ignore
 
         Log.error(
             "Twitch: Session welcome timeout - WebSocket may not be responding",
@@ -1222,9 +1234,12 @@ final class TwitchChatService: @unchecked Sendable {
     nonisolated private func disconnectFromEventSub() {
         // Mark disconnected first so UI consumers see the updated state
         self.setConnected(false)
-        webSocketTask?.cancel(with: .goingAway, reason: nil)
+        webSocketLock.lock()
+        let task = webSocketTask
         webSocketTask = nil
         sessionID = nil
+        webSocketLock.unlock()
+        task?.cancel(with: .goingAway, reason: nil)
 
         // Cancel the session welcome timer
         sessionTimerLock.withLock {
@@ -1236,7 +1251,10 @@ final class TwitchChatService: @unchecked Sendable {
     }
 
     private func receiveWebSocketMessage() {
-        guard let task = webSocketTask else {
+        let task: URLSessionWebSocketTask? = webSocketLock.withLock { webSocketTask }
+        guard let task else {
+            Log.debug(
+                "Twitch: WebSocket task is nil, stopping receive loop", category: "TwitchChat")
             return
         }
 
@@ -1341,7 +1359,11 @@ final class TwitchChatService: @unchecked Sendable {
         // Cancel the welcome timeout since we got the welcome message
         cancelSessionWelcomeTimeout()
 
+        webSocketLock.lock()
         self.sessionID = sessionID
+        webSocketLock.unlock()
+        Log.info(
+            "Twitch: EventSub session established with ID: \(sessionID)", category: "TwitchChat")
 
         // Ensure connected state is set properly
         setConnected(true)
@@ -1368,7 +1390,8 @@ final class TwitchChatService: @unchecked Sendable {
 
     /// Subscribes to the channel.chat.message EventSub event.
     private func subscribeToChannelChatMessage() {
-        guard let sessionID = sessionID,
+        let currentSessionID: String? = webSocketLock.withLock { sessionID }
+        guard let sessionID = currentSessionID,
             let broadcasterID = broadcasterID,
             let botID = botID,
             let token = oauthToken,

@@ -53,6 +53,7 @@ final class WebSocketServerService: @unchecked Sendable {
     private var lastElapsedUpdate: Date?
     private let playbackLock = NSLock()
     private var progressTimer: DispatchSourceTimer?
+    private var currentProgressInterval: TimeInterval = AppConstants.WebSocketServer.progressBroadcastInterval
 
     // MARK: - Init
 
@@ -144,6 +145,20 @@ final class WebSocketServerService: @unchecked Sendable {
         broadcastJSON(config)
     }
 
+    /// Updates the progress broadcast interval and restarts the timer if currently broadcasting.
+    ///
+    /// - Parameter interval: New broadcast interval in seconds.
+    func updateProgressInterval(_ interval: TimeInterval) {
+        serverQueue.async { [weak self] in
+            guard let self else { return }
+            self.currentProgressInterval = interval
+            // Restart progress timer with new interval if one is active
+            if self.progressTimer != nil {
+                self.startProgressTimer()
+            }
+        }
+    }
+
     /// Marks playback as stopped and broadcasts the state change.
     func clearNowPlaying() {
         playbackLock.lock()
@@ -169,7 +184,13 @@ final class WebSocketServerService: @unchecked Sendable {
         parameters.defaultProtocolStack.applicationProtocols.insert(wsOptions, at: 0)
 
         do {
-            listener = try NWListener(using: parameters, on: NWEndpoint.Port(rawValue: port)!)
+            guard let nwPort = NWEndpoint.Port(rawValue: port) else {
+                Log.error("WebSocket: Invalid port \(port)", category: "WebSocket")
+                state = .error
+                notifyStateChange()
+                return
+            }
+            listener = try NWListener(using: parameters, on: nwPort)
         } catch {
             Log.error("WebSocket: Failed to create listener: \(error)", category: "WebSocket")
             state = .error
@@ -250,13 +271,15 @@ final class WebSocketServerService: @unchecked Sendable {
             guard let self else { return }
             switch state {
             case .ready:
-                Log.info("WebSocket: Client connected (\(self.connectionCount + 1) total)", category: "WebSocket")
                 self.connectionsLock.lock()
                 self.connections.append(connection)
+                let count = self.connections.count
                 self.connectionsLock.unlock()
+                Log.info("WebSocket: Client connected (\(count) total)", category: "WebSocket")
                 self.notifyStateChange()
                 self.sendWelcome(to: connection)
                 self.sendCurrentState(to: connection)
+                self.sendWidgetConfig(to: connection)
                 self.receiveMessage(from: connection)
             case .failed(let error):
                 Log.debug("WebSocket: Client failed: \(error)", category: "WebSocket")
@@ -299,6 +322,22 @@ final class WebSocketServerService: @unchecked Sendable {
 
     private func sendWelcome(to connection: NWConnection) {
         sendJSON(["type": "welcome", "server": "WolfWave", "version": "1.0.0"], to: connection)
+    }
+
+    /// Sends the current widget theme/layout config to a newly connected client.
+    private func sendWidgetConfig(to connection: NWConnection) {
+        let defaults = UserDefaults.standard
+        let config: [String: Any] = [
+            "type": "widget_config",
+            "data": [
+                "theme": defaults.string(forKey: AppConstants.UserDefaults.widgetTheme) ?? "Default",
+                "layout": defaults.string(forKey: AppConstants.UserDefaults.widgetLayout) ?? "Horizontal",
+                "textColor": defaults.string(forKey: AppConstants.UserDefaults.widgetTextColor) ?? "#FFFFFF",
+                "backgroundColor": defaults.string(forKey: AppConstants.UserDefaults.widgetBackgroundColor) ?? "#1A1A2E",
+                "fontFamily": defaults.string(forKey: AppConstants.UserDefaults.widgetFontFamily) ?? "System",
+            ],
+        ]
+        sendJSON(config, to: connection)
     }
 
     /// Sends the full current playback snapshot to a newly connected client.
@@ -391,8 +430,8 @@ final class WebSocketServerService: @unchecked Sendable {
 
         let timer = DispatchSource.makeTimerSource(queue: serverQueue)
         timer.schedule(
-            deadline: .now() + AppConstants.WebSocketServer.progressBroadcastInterval,
-            repeating: AppConstants.WebSocketServer.progressBroadcastInterval
+            deadline: .now() + currentProgressInterval,
+            repeating: currentProgressInterval
         )
         timer.setEventHandler { [weak self] in self?.broadcastProgress() }
         timer.activate()

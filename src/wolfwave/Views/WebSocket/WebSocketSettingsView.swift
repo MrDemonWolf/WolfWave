@@ -196,24 +196,43 @@ struct WebSocketSettingsView: View {
                         .lineLimit(2)
                         .fixedSize(horizontal: false, vertical: true)
 
-                    Button {
-                        copyToClipboard(widgetURL)
-                        copiedWidgetURL = true
-                        DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
-                            copiedWidgetURL = false
+                    HStack(spacing: 8) {
+                        Button {
+                            copyToClipboard(widgetURL)
+                            copiedWidgetURL = true
+                            DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
+                                copiedWidgetURL = false
+                            }
+                        } label: {
+                            HStack(spacing: 4) {
+                                Image(systemName: copiedWidgetURL ? "checkmark" : "doc.on.doc")
+                                    .font(.system(size: 11))
+                                Text(copiedWidgetURL ? "Copied" : "Copy URL")
+                                    .font(.system(size: 11))
+                            }
                         }
-                    } label: {
-                        HStack(spacing: 4) {
-                            Image(systemName: copiedWidgetURL ? "checkmark" : "doc.on.doc")
-                                .font(.system(size: 11))
-                            Text(copiedWidgetURL ? "Copied" : "Copy URL")
-                                .font(.system(size: 11))
+                        .buttonStyle(.bordered)
+                        .controlSize(.small)
+                        .accessibilityLabel("Copy widget URL")
+                        .accessibilityIdentifier("copyWidgetURLButton")
+
+                        Button {
+                            if let url = URL(string: widgetURL) {
+                                NSWorkspace.shared.open(url)
+                            }
+                        } label: {
+                            HStack(spacing: 4) {
+                                Image(systemName: "safari")
+                                    .font(.system(size: 11))
+                                Text("Open")
+                                    .font(.system(size: 11))
+                            }
                         }
+                        .buttonStyle(.bordered)
+                        .controlSize(.small)
+                        .accessibilityLabel("Open widget in browser")
+                        .accessibilityIdentifier("openWidgetURLButton")
                     }
-                    .buttonStyle(.bordered)
-                    .controlSize(.small)
-                    .accessibilityLabel("Copy widget URL")
-                    .accessibilityIdentifier("copyWidgetURLButton")
                 }
 
                 HStack(alignment: .top, spacing: 8) {
@@ -293,45 +312,47 @@ struct WebSocketSettingsView: View {
                     }
                 }
 
-                Divider()
+                if widgetTheme == "Default" {
+                    Divider()
 
-                HStack(spacing: 12) {
-                    Text("Text Color")
-                        .font(.system(size: 13, weight: .medium))
-                    Spacer()
-                    HStack(spacing: 6) {
-                        Circle()
-                            .fill(Color(hex: widgetTextColor) ?? .white)
-                            .frame(width: 14, height: 14)
-                            .overlay(Circle().stroke(Color.primary.opacity(0.2), lineWidth: 1))
-                        TextField("#FFFFFF", text: $widgetTextColor)
-                            .textFieldStyle(.roundedBorder)
-                            .frame(width: 90)
-                            .font(.system(size: 12, design: .monospaced))
-                            .multilineTextAlignment(.center)
-                            .accessibilityLabel("Widget text color")
-                            .accessibilityIdentifier("widgetTextColorField")
-                            .onSubmit { broadcastWidgetConfig() }
+                    HStack(spacing: 12) {
+                        Text("Text Color")
+                            .font(.system(size: 13, weight: .medium))
+                        Spacer()
+                        HStack(spacing: 6) {
+                            Circle()
+                                .fill(Color(hex: widgetTextColor) ?? .white)
+                                .frame(width: 14, height: 14)
+                                .overlay(Circle().stroke(Color.primary.opacity(0.2), lineWidth: 1))
+                            TextField("#FFFFFF", text: $widgetTextColor)
+                                .textFieldStyle(.roundedBorder)
+                                .frame(width: 90)
+                                .font(.system(size: 12, design: .monospaced))
+                                .multilineTextAlignment(.center)
+                                .accessibilityLabel("Widget text color")
+                                .accessibilityIdentifier("widgetTextColorField")
+                                .onSubmit { broadcastWidgetConfig() }
+                        }
                     }
-                }
 
-                HStack(spacing: 12) {
-                    Text("Background Color")
-                        .font(.system(size: 13, weight: .medium))
-                    Spacer()
-                    HStack(spacing: 6) {
-                        Circle()
-                            .fill(Color(hex: widgetBackgroundColor) ?? .black)
-                            .frame(width: 14, height: 14)
-                            .overlay(Circle().stroke(Color.primary.opacity(0.2), lineWidth: 1))
-                        TextField("#1A1A2E", text: $widgetBackgroundColor)
-                            .textFieldStyle(.roundedBorder)
-                            .frame(width: 90)
-                            .font(.system(size: 12, design: .monospaced))
-                            .multilineTextAlignment(.center)
-                            .accessibilityLabel("Widget background color")
-                            .accessibilityIdentifier("widgetBackgroundColorField")
-                            .onSubmit { broadcastWidgetConfig() }
+                    HStack(spacing: 12) {
+                        Text("Background Color")
+                            .font(.system(size: 13, weight: .medium))
+                        Spacer()
+                        HStack(spacing: 6) {
+                            Circle()
+                                .fill(Color(hex: widgetBackgroundColor) ?? .black)
+                                .frame(width: 14, height: 14)
+                                .overlay(Circle().stroke(Color.primary.opacity(0.2), lineWidth: 1))
+                            TextField("#1A1A2E", text: $widgetBackgroundColor)
+                                .textFieldStyle(.roundedBorder)
+                                .frame(width: 90)
+                                .font(.system(size: 12, design: .monospaced))
+                                .multilineTextAlignment(.center)
+                                .accessibilityLabel("Widget background color")
+                                .accessibilityIdentifier("widgetBackgroundColorField")
+                                .onSubmit { broadcastWidgetConfig() }
+                        }
                     }
                 }
 
@@ -342,13 +363,19 @@ struct WebSocketSettingsView: View {
                         .font(.system(size: 13, weight: .medium))
                     Spacer()
                     Picker("", selection: $widgetFontFamily) {
-                        Text("System").tag("System")
-                        Text("Monospaced").tag("Monospaced")
-                        Text("Rounded").tag("Rounded")
-                        Text("Serif").tag("Serif")
+                        Section("Built-in") {
+                            ForEach(AppConstants.Widget.builtInFonts, id: \.self) { font in
+                                Text(font).tag(font)
+                            }
+                        }
+                        Section("Google Fonts") {
+                            ForEach(AppConstants.Widget.googleFonts, id: \.self) { font in
+                                Text(font).tag(font)
+                            }
+                        }
                     }
                     .labelsHidden()
-                    .frame(width: 140)
+                    .frame(width: 180)
                     .accessibilityLabel("Widget font")
                     .accessibilityIdentifier("widgetFontPicker")
                     .onChange(of: widgetFontFamily) { _, _ in

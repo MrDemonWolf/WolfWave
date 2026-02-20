@@ -56,6 +56,9 @@ enum AppConstants {
 
         /// Posted when the WebSocket server connection state changes.
         static let websocketServerStateChanged = "WebSocketServerStateChanged"
+
+        /// Posted when system power state changes (Low Power Mode or thermal pressure).
+        static let powerStateChanged = "PowerStateChanged"
     }
     
     // MARK: - UserDefaults Keys
@@ -202,7 +205,7 @@ enum AppConstants {
         static let maxNetworkReconnectCycles = 5
 
         /// Cooldown period in seconds before resetting network reconnect cycle counter
-        static let networkReconnectCooldown: TimeInterval = 60.0
+        nonisolated static let networkReconnectCooldown: TimeInterval = 60.0
 
         /// Maximum retry attempts for failed message sends
         static let maxMessageRetries = 3
@@ -221,10 +224,20 @@ enum AppConstants {
         static let recommendedDimensionsText = "\(recommendedWidth) x \(recommendedHeight)"
 
         /// Available widget themes
-        static let themes = ["Default", "Dark", "Light", "Transparent"]
+        static let themes = ["Default", "Dark", "Light", "Transparent", "Glass (Light)", "Glass (Dark)", "Neon", "Techy"]
 
         /// Available widget layout styles
         static let layouts = ["Horizontal", "Vertical", "Compact"]
+
+        /// Built-in system font options (CSS system font stacks)
+        static let builtInFonts = ["System", "Monospaced", "Rounded", "Serif"]
+
+        /// Google Fonts available for the widget overlay (loaded dynamically)
+        static let googleFonts = [
+            "Montserrat", "Roboto", "Open Sans", "Lato", "Poppins",
+            "Fira Code", "JetBrains Mono", "Oswald", "Bebas Neue",
+            "Raleway", "Press Start 2P", "Permanent Marker",
+        ]
     }
     
     // MARK: - Discord Integration
@@ -439,6 +452,21 @@ enum AppConstants {
 
         /// Standard card corner radius
         static let cardCornerRadius: CGFloat = 10
+    }
+
+    // MARK: - Power Management
+
+    /// Reduced-rate timing constants used when the system is in Low Power Mode
+    /// or under serious/critical thermal pressure.
+    enum PowerManagement {
+        /// Music monitor fallback polling interval in reduced-power mode (15s vs normal 5s)
+        static let reducedMusicCheckInterval: TimeInterval = 15.0
+
+        /// Discord availability poll interval in reduced-power mode (60s vs normal 15s)
+        static let reducedDiscordPollInterval: TimeInterval = 60.0
+
+        /// WebSocket progress broadcast interval in reduced-power mode (3s vs normal 1s)
+        static let reducedProgressBroadcastInterval: TimeInterval = 3.0
     }
 
     // MARK: - Onboarding UI

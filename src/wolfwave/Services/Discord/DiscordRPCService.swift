@@ -81,6 +81,9 @@ final class DiscordRPCService: @unchecked Sendable {
     /// Timer source for availability polling / reconnect.
     private var pollTimer: DispatchSourceTimer?
 
+    /// Current availability poll interval (may be widened in reduced-power mode).
+    private var currentPollInterval: TimeInterval = AppConstants.Discord.availabilityPollInterval
+
     /// Whether the service is enabled by the user.
     private var isEnabled = false
 
@@ -205,6 +208,20 @@ final class DiscordRPCService: @unchecked Sendable {
                         self?.onArtworkResolved?(url, track, artist)
                     }
                 }
+            }
+        }
+    }
+
+    /// Updates the availability poll interval and restarts the timer if currently polling.
+    ///
+    /// - Parameter interval: New poll interval in seconds.
+    func updatePollInterval(_ interval: TimeInterval) {
+        ipcQueue.async { [weak self] in
+            guard let self else { return }
+            self.currentPollInterval = interval
+            // Restart polling with the new interval if a timer is active
+            if self.pollTimer != nil {
+                self.startPolling()
             }
         }
     }
@@ -605,12 +622,19 @@ final class DiscordRPCService: @unchecked Sendable {
         let frameData = header + jsonData
 
         let written = frameData.withUnsafeBytes { buf -> Int in
-            guard let baseAddress = buf.baseAddress else { return -1 }
+            guard let baseAddress = buf.baseAddress else {
+                Log.error("Discord: sendFrame buffer baseAddress is nil", category: "Discord")
+                return -1
+            }
             return Darwin.write(socketFD, baseAddress, frameData.count)
         }
 
         if written != frameData.count {
-            Log.error("Discord: Write failed (wrote \(written)/\(frameData.count))", category: "Discord")
+            if written < 0 {
+                Log.error("Discord: Write failed with errno \(errno) (\(String(cString: strerror(errno))))", category: "Discord")
+            } else {
+                Log.error("Discord: Partial write (wrote \(written)/\(frameData.count))", category: "Discord")
+            }
             handleConnectionLost()
             return false
         }
@@ -626,10 +650,18 @@ final class DiscordRPCService: @unchecked Sendable {
 
         var headerBuf = Data(count: 8)
         let headerRead = headerBuf.withUnsafeMutableBytes { buf -> Int in
-            guard let baseAddress = buf.baseAddress else { return -1 }
+            guard let baseAddress = buf.baseAddress else {
+                Log.error("Discord: readFrame header buffer baseAddress is nil", category: "Discord")
+                return -1
+            }
             return Darwin.read(socketFD, baseAddress, 8)
         }
-        guard headerRead == 8 else { return nil }
+        if headerRead != 8 {
+            if headerRead < 0 {
+                Log.error("Discord: Header read failed with errno \(errno) (\(String(cString: strerror(errno))))", category: "Discord")
+            }
+            return nil
+        }
 
         let opcode = headerBuf.withUnsafeBytes { buf in
             UInt32(littleEndian: buf.load(fromByteOffset: 0, as: UInt32.self))
@@ -642,10 +674,18 @@ final class DiscordRPCService: @unchecked Sendable {
 
         var bodyBuf = Data(count: Int(length))
         let bodyRead = bodyBuf.withUnsafeMutableBytes { buf -> Int in
-            guard let baseAddress = buf.baseAddress else { return -1 }
+            guard let baseAddress = buf.baseAddress else {
+                Log.error("Discord: readFrame body buffer baseAddress is nil", category: "Discord")
+                return -1
+            }
             return Darwin.read(socketFD, baseAddress, Int(length))
         }
-        guard bodyRead == Int(length) else { return nil }
+        if bodyRead != Int(length) {
+            if bodyRead < 0 {
+                Log.error("Discord: Body read failed with errno \(errno) (\(String(cString: strerror(errno))))", category: "Discord")
+            }
+            return nil
+        }
 
         let json = try? JSONSerialization.jsonObject(with: bodyBuf) as? [String: Any]
         return (opcode, json)
@@ -680,8 +720,8 @@ final class DiscordRPCService: @unchecked Sendable {
 
         let timer = DispatchSource.makeTimerSource(queue: ipcQueue)
         timer.schedule(
-            deadline: .now() + AppConstants.Discord.availabilityPollInterval,
-            repeating: AppConstants.Discord.availabilityPollInterval
+            deadline: .now() + currentPollInterval,
+            repeating: currentPollInterval
         )
         timer.setEventHandler { [weak self] in
             guard let self else { return }
