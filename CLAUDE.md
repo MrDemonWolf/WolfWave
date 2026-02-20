@@ -13,7 +13,7 @@ WolfWave is a native macOS menu bar app that bridges Apple Music with Twitch, Di
 ```bash
 make build          # Debug build via xcodebuild
 make clean          # Clean build artifacts
-make test           # Run tests (if test target exists)
+make test           # Run unit tests (124 tests across 7 test files)
 make update-deps    # Resolve SwiftPM dependencies
 make open-xcode     # Open Xcode project
 make ci             # CI-friendly build (alias for build)
@@ -34,7 +34,7 @@ Xcode project is at `src/wolfwave.xcodeproj` with scheme `WolfWave`. Build and r
 
 ### Core flow
 
-`WolfWaveApp.swift` → AppDelegate manages the menu bar status item, initializes services (MusicPlaybackMonitor, TwitchChatService, DiscordRPCService), handles settings window lifecycle, and wires song info callbacks into the Twitch and Discord services.
+`WolfWaveApp.swift` → AppDelegate manages the menu bar status item, initializes services (MusicPlaybackMonitor, TwitchChatService, DiscordRPCService, UpdateCheckerService), handles settings window lifecycle, and wires song info callbacks into the Twitch and Discord services.
 
 ### Source layout (`src/wolfwave/`)
 
@@ -43,8 +43,9 @@ Xcode project is at `src/wolfwave.xcodeproj` with scheme `WolfWave`. Build and r
 - **Services/Twitch/** — `TwitchChatService.swift` (EventSub WebSocket + Helix chat API, thread-safe with NSLock, network path monitoring for reconnection), `TwitchDeviceAuth.swift` (OAuth Device Code flow)
 - **Services/Twitch/Commands/** — `BotCommand` protocol (`triggers`, `description`, `execute(message:) -> String?`), concrete commands (`SongCommand`, `LastSongCommand`), `BotCommandDispatcher` for routing
 - **Services/Discord/** — `DiscordRPCService.swift` (Discord Rich Presence via local IPC Unix domain socket, iTunes Search API artwork fetching with cache, auto-reconnect with backoff)
+- **Services/UpdateChecker/** — `UpdateCheckerService.swift` (GitHub Releases API version checker, semantic version comparison, Homebrew/DMG install detection, 24h periodic checking)
 - **Views/** — SwiftUI settings with `NavigationSplitView` sidebar; sections: Music Monitor, App Visibility, WebSocket, Twitch, Discord, Advanced. `TwitchViewModel` is the main observable for auth/connection state.
-- **Views/Onboarding/** — First-launch onboarding wizard
+- **Views/Onboarding/** — First-launch onboarding wizard (3-step: Welcome, Twitch, Discord)
 - **Views/Shared/** — Shared UI components (e.g., `TwitchGlitchShape`)
 
 ### Key patterns
@@ -52,13 +53,35 @@ Xcode project is at `src/wolfwave.xcodeproj` with scheme `WolfWave`. Build and r
 - **Credentials**: All tokens/secrets stored via `KeychainService` (never UserDefaults). Keys defined in `AppConstants.Keychain`.
 - **Settings**: User preferences in `UserDefaults` via `@AppStorage`. Keys centralized in `AppConstants.UserDefaults`.
 - **Notifications**: Loose coupling via `NotificationCenter` (e.g., `TrackingSettingChanged`, `DockVisibilityChanged`). Names in `AppConstants.Notifications`.
-- **Thread safety**: `NSLock` for shared state mutations in `TwitchChatService` and `DiscordRPCService`.
+- **Thread safety**: `NSLock` for shared state mutations in `TwitchChatService`, `DiscordRPCService`, and `UpdateCheckerService`.
 - **Bot commands**: Register new commands in `BotCommandDispatcher.registerDefaultCommands()`. Each command implements `BotCommand` protocol. Max response 500 chars, target <100ms execution.
 - **Discord IPC**: Unix domain socket at `$TMPDIR/discord-ipc-{0..9}`. SBPL entitlements enable socket access within App Sandbox.
 
+## Testing
+
+Unit tests live in `src/WolfWaveTests/` and use XCTest with `@testable import WolfWave`. The test target is a hosted unit test bundle (`TEST_HOST` = WolfWave.app).
+
+### Test files
+
+- `UpdateCheckerServiceTests.swift` — Version comparison (semver edge cases), install method detection
+- `SongCommandTests.swift` — Trigger matching, case insensitivity, enable/disable, response truncation
+- `LastSongCommandTests.swift` — Same patterns for `!last`/`!lastsong`/`!prevsong` triggers
+- `BotCommandDispatcherTests.swift` — Message routing, callback wiring, length guards, whitespace handling
+- `OnboardingViewModelTests.swift` — Step navigation, boundary conditions, UserDefaults persistence
+- `TwitchViewModelTests.swift` — AuthState/IntegrationState enums, computed properties, cancelOAuth
+- `AppConstantsTests.swift` — Constant values, URL validity, dimension bounds, cross-references
+
+### Writing tests
+
+- Use `@testable import WolfWave` (module name matches `PRODUCT_NAME`)
+- `SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor` applies to test classes too — XCTest runs on main thread
+- Test files are auto-discovered via `PBXFileSystemSynchronizedRootGroup` — just add `.swift` files to `src/WolfWaveTests/`
+- Focus on pure logic (version comparison, command matching, state machines) — avoid tests that need AppDelegate, Keychain, or network
+
 ## CI/CD
 
-GitHub Actions workflow at `.github/workflows/release.yml` builds, signs, notarizes, and creates a GitHub Release on tag push (`v*`). Required secrets: `DEVELOPER_ID_CERT_P12`, `DEVELOPER_ID_CERT_PASSWORD`, `APPLE_ID`, `APPLE_TEAM_ID`, `APPLE_APP_PASSWORD`, `TWITCH_CLIENT_ID`, `DISCORD_CLIENT_ID`.
+- `.github/workflows/ci.yml` — Runs `xcodebuild test` on every push/PR to `main`. Creates placeholder `Config.xcconfig` for CI builds.
+- `.github/workflows/release.yml` — Builds, signs, notarizes, and creates a GitHub Release on tag push (`v*`). Required secrets: `DEVELOPER_ID_CERT_P12`, `DEVELOPER_ID_CERT_PASSWORD`, `APPLE_ID`, `APPLE_TEAM_ID`, `APPLE_APP_PASSWORD`, `TWITCH_CLIENT_ID`, `DISCORD_CLIENT_ID`.
 
 ## Documentation
 

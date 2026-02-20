@@ -28,7 +28,9 @@ final class LastSongCommand: BotCommand {
                 }
                 
                 let result = getLastSongInfo?() ?? "No previous track available"
-                return result.count <= 500 ? result : String(result.prefix(497)) + "..."
+                let maxLen = AppConstants.Twitch.maxMessageLength
+                let suffix = AppConstants.Twitch.messageTruncationSuffix
+                return result.count <= maxLen ? result : String(result.prefix(maxLen - suffix.count)) + suffix
             }
         }
 

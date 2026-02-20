@@ -1,6 +1,6 @@
 # WolfWave — Notarization & DMG Distribution Compliance
 
-Last audited: 2026-02-08
+Last audited: 2026-02-14
 Bundle ID: `com.mrdemonwolf.wolfwave`
 Deployment target: macOS 15.6
 Distribution: DMG (outside Mac App Store)
@@ -13,15 +13,15 @@ Distribution: DMG (outside Mac App Store)
 |---|---|---|
 | Hardened Runtime | PASS | Enabled, all exceptions OFF |
 | App Sandbox | PASS | Enabled with scoped entitlements |
-| Code Signing (Release) | **NEEDS FIX** | Must use "Developer ID Application" |
-| Notarization Workflow | **NEEDS FIX** | Missing from Makefile |
+| Code Signing (Release) | PASS | Xcode + GitHub Actions sign with Developer ID Application |
+| Notarization Workflow | PASS | `make notarize` + `release.yml` automated pipeline |
 | Info.plist | PASS | All required keys present |
 | App Icon | PASS | Present (Xcode auto-generation) |
 | Third-Party Dependencies | PASS | Zero — no frameworks, SPM, or pods |
 | Build Scripts | PASS | No custom build phase scripts |
 | Private API Usage | PASS | None detected |
 | Deprecated API Usage | PASS | None detected |
-| Credential Security | WARN | Config.xcconfig may be git-tracked |
+| Credential Security | PASS | Not tracked in git; `.gitignore` entry confirmed |
 | Network Security | PASS | All external traffic HTTPS/WSS |
 
 ---
@@ -42,9 +42,9 @@ Distribution: DMG (outside Mac App Store)
 | Config | Current | Required |
 |---|---|---|
 | Debug | Apple Development | Apple Development (OK) |
-| Release | Apple Development | **Developer ID Application** |
+| Release | Developer ID Application | Developer ID Application (OK) |
 
-**Action:** Change Release `CODE_SIGN_IDENTITY[sdk=macosx*]` to `"Developer ID Application"` in `project.pbxproj`.
+Release builds are signed via Xcode (local) and GitHub Actions `release.yml` (CI), which imports the Developer ID certificate from repository secrets.
 
 ---
 
@@ -58,12 +58,13 @@ Distribution: DMG (outside Mac App Store)
 | `network.client` | `true` | Twitch API, WebSocket, iTunes artwork API |
 | `automation.apple-events` | `true` | ScriptingBridge to Apple Music |
 | `scripting-targets` | `com.apple.Music` | Scoped to Music.app only |
+| `network.server` | `true` | Local WebSocket server for stream overlay |
 | `keychain-access-groups` | `$(AppIdentifierPrefix)com.mrdemonwolf.wolfwave` | Secure credential storage |
 | `temporary-exception.files.absolute-path.read-write` | `/var/folders/` | Discord IPC socket file access |
 | `temporary-exception.sbpl` | Unix socket regex | Discord IPC `connect()` on `/private/var/folders/.../T/discord-ipc-[0-9]` |
 
 ### Dev (`wolfwave.dev.entitlements`)
-Same as Release, plus:
+Same as Release (including `network.server`), plus:
 | Entitlement | Value | Justification |
 |---|---|---|
 | `temporary-exception.apple-events` | `com.apple.Music` | Dev-only: broader AppleScript access |
@@ -120,6 +121,7 @@ No `Process`, `NSTask`, or `posix_spawn` usage.
 | `eventsub.wss.twitch.tv/ws` | WSS | Twitch EventSub WebSocket |
 | `itunes.apple.com/search` | HTTPS | Album artwork for Discord Rich Presence |
 | Local Unix socket | IPC | Discord Rich Presence |
+| `localhost:{port}` | WebSocket | Stream overlay server (local only) |
 
 All external network traffic uses encrypted transport (HTTPS/WSS).
 
@@ -131,6 +133,7 @@ All external network traffic uses encrypted transport (HTTPS/WSS).
 - SwiftUI, AppKit, Foundation
 - Security (Keychain)
 - ScriptingBridge (Apple Music)
+- Network (WebSocket server via `NWListener`)
 - UserNotifications
 
 This eliminates signing/notarization issues from third-party binaries.
@@ -139,17 +142,23 @@ This eliminates signing/notarization issues from third-party binaries.
 
 ## 6. DMG Build & Notarization Workflow
 
-### Current (`make prod-build`)
-1. Builds Release via `xcodebuild`
+### `make prod-build`
+1. Builds Release via `xcodebuild` (signed with Developer ID Application)
 2. Copies `.app` to staging directory
 3. Creates DMG with `hdiutil`
+4. Optionally re-signs DMG with Developer ID if certificate is found
 
-### Missing steps for notarization
-After DMG creation, the Makefile must:
-1. Sign the `.app` with Developer ID: `codesign --deep --force --options runtime --sign "Developer ID Application: ..." WolfWave.app`
-2. Sign the DMG: `codesign --force --sign "Developer ID Application: ..." WolfWave.dmg`
-3. Submit to Apple: `xcrun notarytool submit WolfWave.dmg --apple-id ... --team-id ... --password ... --wait`
-4. Staple the ticket: `xcrun stapler staple WolfWave.dmg`
+### `make notarize`
+1. Signs the DMG with Developer ID Application
+2. Submits to Apple via `xcrun notarytool submit` (requires `APPLE_ID`, `APPLE_TEAM_ID`, `APPLE_APP_PASSWORD` env vars)
+3. Waits for notarization to complete
+4. Staples the notarization ticket to the DMG
+
+### GitHub Actions (`release.yml`)
+Automates the full pipeline on tag push (`v*`):
+1. Imports Developer ID certificate from repository secrets
+2. Builds, signs, notarizes, and staples the DMG
+3. Creates a GitHub Release with the notarized DMG attached
 
 ---
 
@@ -157,10 +166,10 @@ After DMG creation, the Makefile must:
 
 | File | Contains | Risk |
 |---|---|---|
-| `Config.xcconfig` | `TWITCH_CLIENT_ID`, `DISCORD_CLIENT_ID` | Low (public client IDs, not secrets) |
+| `Config.xcconfig` | `TWITCH_CLIENT_ID`, `DISCORD_CLIENT_ID` | None (public client IDs, not secrets) |
 | `Config.xcconfig.example` | Placeholder values | None |
 
-- `Config.xcconfig` is in `.gitignore` but may have been tracked before the gitignore entry was added
+- `Config.xcconfig` is in `.gitignore` and has never been committed to git
 - Both values are public OAuth client IDs (no client secret), not actual secrets
 - All sensitive tokens (Twitch OAuth tokens) are stored in Keychain, never in UserDefaults or files
 
@@ -168,10 +177,10 @@ After DMG creation, the Makefile must:
 
 ## 8. Checklist Before Release
 
-- [ ] Change Release `CODE_SIGN_IDENTITY` to `"Developer ID Application"`
+- [x] Code signing identity set to Developer ID Application (Xcode + `release.yml`)
+- [x] Notarization steps in Makefile (`make notarize` target)
+- [x] `Config.xcconfig` verified not tracked in git
 - [ ] Ensure Developer ID certificate is installed in Keychain
-- [ ] Add notarization steps to Makefile `prod-build` target
-- [ ] Verify `Config.xcconfig` is not tracked in git history with real credentials
-- [ ] Test full flow: `make prod-build` -> notarize -> staple -> distribute DMG
+- [ ] Test full flow: `make prod-build` → `make notarize` → distribute DMG
 - [ ] Verify DMG opens without Gatekeeper warnings on a fresh Mac
 - [ ] Bump `MARKETING_VERSION` and `CURRENT_PROJECT_VERSION` for release

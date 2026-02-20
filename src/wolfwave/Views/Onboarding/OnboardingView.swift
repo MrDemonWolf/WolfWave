@@ -7,18 +7,10 @@
 
 import SwiftUI
 
-/// Root view for the first-launch onboarding wizard.
+/// First-launch onboarding wizard with progress dots, step content, and navigation.
 ///
-/// Presents a step-by-step guided flow in a dedicated window:
-/// 1. Welcome — App overview with feature highlights
-/// 2. Twitch Connection — Optional OAuth Device Code flow (skippable)
-///
-/// Structure:
-/// - Top: Progress dots indicator
-/// - Center: Step content (swappable with page transitions)
-/// - Bottom: Navigation buttons (Back, Next/Skip/Finish)
-///
-/// Hosted in a dedicated `NSWindow` created by `AppDelegate.showOnboarding()`.
+/// Steps: Welcome, Twitch, Discord, OBS Widget. Hosted in a dedicated `NSWindow`
+/// created by `AppDelegate.showOnboarding()`.
 struct OnboardingView: View {
 
     // MARK: - State
@@ -26,22 +18,23 @@ struct OnboardingView: View {
     @StateObject private var viewModel = OnboardingViewModel()
     @StateObject private var twitchViewModel = TwitchViewModel()
 
-    /// Callback invoked when onboarding completes or is skipped.
-    ///
-    /// AppDelegate uses this to close the onboarding window and transition
-    /// to the normal app state.
+    @AppStorage(AppConstants.UserDefaults.discordPresenceEnabled)
+    private var discordPresenceEnabled = false
+
+    @AppStorage(AppConstants.UserDefaults.websocketEnabled)
+    private var websocketEnabled = false
+
+    /// Called when onboarding completes to dismiss the window.
     var onComplete: () -> Void
 
     // MARK: - Body
 
     var body: some View {
         VStack(spacing: 0) {
-            // Progress indicator
             progressDots
                 .padding(.top, 20)
                 .padding(.bottom, 16)
 
-            // Step content
             stepContent
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .clipped()
@@ -49,7 +42,6 @@ struct OnboardingView: View {
 
             Divider()
 
-            // Navigation bar
             navigationBar
                 .padding(.horizontal, 24)
                 .padding(.vertical, 16)
@@ -86,6 +78,10 @@ struct OnboardingView: View {
                 OnboardingWelcomeStepView()
             case .twitchConnect:
                 OnboardingTwitchStepView(twitchViewModel: twitchViewModel)
+            case .discordConnect:
+                OnboardingDiscordStepView(presenceEnabled: $discordPresenceEnabled)
+            case .obsWidget:
+                OnboardingOBSWidgetStepView(websocketEnabled: $websocketEnabled)
             }
         }
         .id(viewModel.currentStep)
@@ -99,7 +95,6 @@ struct OnboardingView: View {
 
     private var navigationBar: some View {
         HStack {
-            // Back button (hidden on first step)
             if !viewModel.isFirstStep {
                 Button("Back") {
                     viewModel.goToPreviousStep()
@@ -111,17 +106,15 @@ struct OnboardingView: View {
 
             Spacer()
 
-            // Skip button on Twitch step (only when auth not completed)
-            if viewModel.currentStep == .twitchConnect && !twitchViewModel.credentialsSaved {
+            if shouldShowSkip {
                 Button("Skip") {
-                    finishOnboarding()
+                    viewModel.goToNextStep()
                 }
                 .buttonStyle(.bordered)
                 .controlSize(.regular)
                 .pointerCursor()
             }
 
-            // Primary action button
             if viewModel.isLastStep {
                 Button("Finish") {
                     finishOnboarding()
@@ -142,7 +135,21 @@ struct OnboardingView: View {
 
     // MARK: - Helpers
 
-    /// Completes onboarding: persists the flag and notifies AppDelegate.
+    /// Returns `true` for optional steps the user hasn't yet enabled.
+    private var shouldShowSkip: Bool {
+        switch viewModel.currentStep {
+        case .twitchConnect:
+            return !twitchViewModel.credentialsSaved
+        case .discordConnect:
+            return !discordPresenceEnabled
+        case .obsWidget:
+            return !websocketEnabled
+        default:
+            return false
+        }
+    }
+
+    /// Persists the completion flag and notifies AppDelegate.
     private func finishOnboarding() {
         viewModel.completeOnboarding()
         onComplete()

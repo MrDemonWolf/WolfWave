@@ -7,11 +7,7 @@
 
 import SwiftUI
 
-/// Welcome step of the onboarding wizard.
-///
-/// Displays the app icon, tagline, and three feature highlights
-/// explaining what WolfWave does. This is the first thing users
-/// see on their initial launch.
+/// Welcome step displaying the app icon, tagline, and feature highlights.
 struct OnboardingWelcomeStepView: View {
 
     // MARK: - Body
@@ -20,24 +16,22 @@ struct OnboardingWelcomeStepView: View {
         VStack(spacing: 24) {
             Spacer()
 
-            // App icon
             Image(nsImage: NSApp.applicationIconImage)
                 .resizable()
                 .scaledToFit()
                 .frame(width: 80, height: 80)
                 .accessibilityLabel("WolfWave app icon")
 
-            // Title and tagline
             VStack(spacing: 8) {
                 Text("Welcome to WolfWave")
                     .font(.system(size: 24, weight: .bold))
 
-                Text("Connect Apple Music to Twitch")
+                Text("Bridge Apple Music to your stream")
                     .font(.system(size: 15))
                     .foregroundStyle(.secondary)
+                    .multilineTextAlignment(.center)
             }
 
-            // Feature highlights
             VStack(alignment: .leading, spacing: 16) {
                 featureRow(
                     icon: "music.note",
@@ -46,13 +40,19 @@ struct OnboardingWelcomeStepView: View {
                 )
                 featureRow(
                     icon: "message.fill",
+                    color: Color(red: 0.569, green: 0.275, blue: 1.0),  // Twitch #9146FF
                     title: "Twitch Chat Bot",
                     description: "Viewers can use !song and !last commands to see what you're playing."
                 )
                 featureRow(
-                    icon: "menubar.rectangle",
-                    title: "Menu Bar App",
-                    description: "Lives in your menu bar for quick access without getting in the way."
+                    icon: "gamecontroller.fill",
+                    title: "Discord Rich Presence",
+                    description: "Shows what you're listening to on your Discord profile."
+                )
+                featureRow(
+                    icon: "rectangle.inset.filled.and.person.filled",
+                    title: "OBS Stream Widget",
+                    description: "Display now-playing info as a browser source overlay on your stream."
                 )
             }
             .padding(.horizontal, 32)
@@ -64,13 +64,12 @@ struct OnboardingWelcomeStepView: View {
 
     // MARK: - Helpers
 
-    /// Creates a feature highlight row with an icon, title, and description.
     @ViewBuilder
-    private func featureRow(icon: String, title: String, description: String) -> some View {
+    private func featureRow(icon: String, color: Color = .accentColor, title: String, description: String) -> some View {
         HStack(alignment: .top, spacing: 12) {
             Image(systemName: icon)
                 .font(.system(size: 18))
-                .foregroundStyle(Color.accentColor)
+                .foregroundStyle(color)
                 .frame(width: 28, alignment: .center)
 
             VStack(alignment: .leading, spacing: 2) {

@@ -2,12 +2,13 @@
 @import "fumadocs-ui/css/ocean.css";
 @import "fumadocs-ui/css/preset.css";
 
-/* Blue theme dark mode color variables */
+/* Blue theme color variables */
 :root {
   --color-fd-primary: hsl(217 91% 60%);
   --color-fd-primary-foreground: hsl(0 0% 100%);
   --color-fd-muted-foreground: hsl(215 20% 35%);
 }
+
 .dark {
   --color-fd-background: hsl(222 47% 6%);
   --color-fd-muted: hsl(222 47% 8%);
@@ -19,18 +20,15 @@
   --color-fd-overlay: hsla(222 47% 0% / 0.5);
   --color-fd-border: hsl(222 47% 18%);
 
-  /* Shiki code theme tokens used by the code blocks */
   --shiki-dark: #e1e4e8;
   --shiki-dark-bg: #0d1117;
 
-  /* Slate fallbacks used by various components */
   --color-slate-200: #e5e7eb;
   --color-slate-300: #d1d5db;
   --color-slate-400: #9ca3af;
   --color-slate-800: #1e293b;
 }
 
-/* Improve default dark body/text contrast */
 @media (prefers-color-scheme: dark) {
   :root:not(.light) {
     color-scheme: dark;
@@ -39,4 +37,66 @@
     background-color: var(--color-fd-background, #0a0f1a);
     color: var(--color-fd-muted-foreground, #e5e7eb);
   }
+}
+
+/* Hero gradient text */
+.gradient-text {
+  background: linear-gradient(135deg, hsl(217 91% 60%), hsl(262 83% 58%), hsl(217 91% 60%));
+  background-size: 200% 200%;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  animation: gradient-shift 6s ease infinite;
+}
+
+@keyframes gradient-shift {
+  0%, 100% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+}
+
+/* Hero background glow */
+.hero-glow {
+  position: absolute;
+  top: -30%;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 700px;
+  height: 500px;
+  background: radial-gradient(
+    ellipse at center,
+    hsla(217 91% 60% / 0.08) 0%,
+    hsla(262 83% 58% / 0.04) 40%,
+    transparent 70%
+  );
+  pointer-events: none;
+  z-index: 0;
+}
+
+.dark .hero-glow {
+  background: radial-gradient(
+    ellipse at center,
+    hsla(217 91% 60% / 0.06) 0%,
+    hsla(262 83% 58% / 0.03) 40%,
+    transparent 70%
+  );
+}
+
+/* Feature cards */
+.feature-card {
+  padding: 1rem;
+  border-radius: 0.75rem;
+  border: 1px solid hsl(215 20% 93%);
+  transition: border-color 0.2s ease;
+}
+
+.dark .feature-card {
+  border-color: hsl(222 47% 15%);
+}
+
+.feature-card:hover {
+  border-color: hsl(217 91% 80%);
+}
+
+.dark .feature-card:hover {
+  border-color: hsl(217 91% 35%);
 }

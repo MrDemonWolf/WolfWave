@@ -1,4 +1,4 @@
-name: Build, Notarize & Release
+name: Build & Release
 
 on:
   push:
@@ -7,7 +7,7 @@ on:
   workflow_dispatch:
     inputs:
       dry_run:
-        description: 'Skip GitHub Release creation (build + notarize only)'
+        description: 'Skip GitHub Release creation (build only)'
         required: false
         default: 'false'
 
@@ -25,36 +25,13 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      # ── Install Developer ID certificate ──────────────────────────────
-      - name: Install signing certificate
-        env:
-          CERTIFICATE_P12: ${{ secrets.DEVELOPER_ID_CERT_P12 }}
-          CERTIFICATE_PASSWORD: ${{ secrets.DEVELOPER_ID_CERT_PASSWORD }}
-          KEYCHAIN_PASSWORD: ${{ github.run_id }}
-        run: |
-          CERT_PATH=$RUNNER_TEMP/certificate.p12
-          KEYCHAIN_PATH=$RUNNER_TEMP/signing.keychain-db
-
-          echo "$CERTIFICATE_P12" | base64 --decode > "$CERT_PATH"
-
-          security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
-          security set-keychain-settings -lut 21600 "$KEYCHAIN_PATH"
-          security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
-          security import "$CERT_PATH" -P "$CERTIFICATE_PASSWORD" \
-            -A -t cert -f pkcs12 -k "$KEYCHAIN_PATH"
-          security set-key-partition-list -S apple-tool:,apple: \
-            -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
-          security list-keychain -d user -s "$KEYCHAIN_PATH" login.keychain-db
-
-          echo "✅ Certificate installed"
-
       # ── Create Config.xcconfig from secrets ───────────────────────────
       - name: Create Config.xcconfig
         run: |
-          cat > src/wolfwave/Config.xcconfig <<EOF
-          TWITCH_CLIENT_ID = ${{ secrets.TWITCH_CLIENT_ID }}
-          DISCORD_CLIENT_ID = ${{ secrets.DISCORD_CLIENT_ID }}
-          EOF
+          printf 'TWITCH_CLIENT_ID = %s\nDISCORD_CLIENT_ID = %s\n' \
+            "${{ secrets.TWITCH_CLIENT_ID }}" \
+            "${{ secrets.DISCORD_CLIENT_ID }}" \
+            > src/wolfwave/Config.xcconfig
 
       # ── Resolve version from tag or project ───────────────────────────
       - name: Resolve version
@@ -138,35 +115,17 @@ jobs:
 
           hdiutil convert builds/_tmp.dmg -format UDZO \
             -imagekey zlib-level=9 -o "builds/$DMG_NAME" >/dev/null
-          rm -f builds/_tmp.dmg builds/staging
+          rm -f builds/_tmp.dmg
+          rm -rf builds/staging
 
           echo "✅ DMG: builds/$DMG_NAME"
 
-      # ── Sign the DMG ──────────────────────────────────────────────────
-      - name: Sign DMG
-        env:
-          DMG_NAME: ${{ steps.version.outputs.dmg_name }}
-        run: |
-          codesign --force --sign "Developer ID Application" "builds/$DMG_NAME"
-          echo "✅ DMG signed"
-
-      # ── Notarize ──────────────────────────────────────────────────────
-      - name: Notarize DMG
-        env:
-          DMG_NAME: ${{ steps.version.outputs.dmg_name }}
-          APPLE_ID: ${{ secrets.APPLE_ID }}
-          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
-          APPLE_APP_PASSWORD: ${{ secrets.APPLE_APP_PASSWORD }}
-        run: |
-          echo "📤 Submitting to Apple notary service..."
-          xcrun notarytool submit "builds/$DMG_NAME" \
-            --apple-id "$APPLE_ID" \
-            --team-id "$APPLE_TEAM_ID" \
-            --password "$APPLE_APP_PASSWORD" \
-            --wait
-          echo "📎 Stapling ticket..."
-          xcrun stapler staple "builds/$DMG_NAME"
-          echo "✅ Notarized and stapled"
+      # ── Upload DMG as artifact ─────────────────────────────────────────
+      - name: Upload DMG artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ steps.version.outputs.dmg_name }}
+          path: builds/${{ steps.version.outputs.dmg_name }}
 
       # ── Create GitHub Release ─────────────────────────────────────────
       - name: Create GitHub Release
@@ -179,9 +138,3 @@ jobs:
           gh release create "v$VERSION" "builds/$DMG_NAME" \
             --title "WolfWave v$VERSION" \
             --generate-notes
-
-      # ── Cleanup keychain ──────────────────────────────────────────────
-      - name: Cleanup
-        if: always()
-        run: |
-          security delete-keychain $RUNNER_TEMP/signing.keychain-db 2>/dev/null || true

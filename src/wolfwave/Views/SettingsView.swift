@@ -47,32 +47,27 @@ struct SettingsView: View {
     
     /// Navigation sections in the settings sidebar.
     enum SettingsSection: String, CaseIterable, Identifiable {
-        case musicMonitor = "Music Monitor"
-        case appVisibility = "App Visibility"
-        case websocket = "WebSocket"
+        case websocket = "OBS Widget"
         case twitchIntegration = "Twitch Integration"
-        case discord = "Discord"
+        case discord = "Discord Integration"
         case advanced = "Advanced"
-        
+
         var id: String { rawValue }
-        
+
         /// System SF Symbol name for sidebar icon (or nil for custom image).
         var systemIcon: String? {
             switch self {
-            case .musicMonitor: return "music.note"
-            case .appVisibility: return "eye"
             case .websocket: return "dot.radiowaves.left.and.right"
             case .twitchIntegration: return nil // Uses custom image
-            case .discord: return "gamecontroller"
+            case .discord: return nil // Uses custom image
             case .advanced: return "gearshape"
             }
         }
-        
+
         /// Custom image name for sidebar icon (or nil for system icon).
         var customIcon: String? {
             switch self {
             case .twitchIntegration: return "TwitchLogo"
-            case .discord: return nil
             default: return nil
             }
         }
@@ -102,6 +97,16 @@ struct SettingsView: View {
     @AppStorage(AppConstants.UserDefaults.lastSongCommandEnabled)
     private var lastSongCommandEnabled = true
 
+    /// Cooldown settings for bot commands
+    @AppStorage(AppConstants.UserDefaults.songCommandGlobalCooldown)
+    private var songGlobalCooldown: Double = 3.0
+    @AppStorage(AppConstants.UserDefaults.songCommandUserCooldown)
+    private var songUserCooldown: Double = 10.0
+    @AppStorage(AppConstants.UserDefaults.lastSongCommandGlobalCooldown)
+    private var lastSongGlobalCooldown: Double = 3.0
+    @AppStorage(AppConstants.UserDefaults.lastSongCommandUserCooldown)
+    private var lastSongUserCooldown: Double = 10.0
+
     @AppStorage(AppConstants.UserDefaults.dockVisibility)
     private var dockVisibility = "both"
 
@@ -119,7 +124,7 @@ struct SettingsView: View {
     @State private var showingResetAlert = false
     
     /// Currently selected settings section
-    @State private var selectedSection: SettingsSection = .musicMonitor
+    @State private var selectedSection: SettingsSection = .twitchIntegration
     
     /// Controls sidebar visibility
     @State private var sidebarVisibility: NavigationSplitViewVisibility = .all
@@ -136,6 +141,7 @@ struct SettingsView: View {
         } detail: {
             ScrollView {
                 VStack(alignment: .leading, spacing: AppConstants.SettingsUI.sectionSpacing) {
+                    UpdateBannerView().listening()
                     detailView(for: selectedSection)
                 }
                 .frame(maxWidth: AppConstants.SettingsUI.maxContentWidth, alignment: .topLeading)
@@ -190,6 +196,7 @@ struct SettingsView: View {
                 return "No previous track available"
             }
         }
+        .toolbar(removing: .sidebarToggle)
         .navigationSplitViewStyle(.balanced)
         .alert("Reset Settings?", isPresented: $showingResetAlert) {
             Button("Cancel", role: .cancel) {}
@@ -209,10 +216,6 @@ struct SettingsView: View {
     @ViewBuilder
     private func detailView(for section: SettingsSection) -> some View {
         switch section {
-        case .musicMonitor:
-            MusicMonitorSettingsView()
-        case .appVisibility:
-            AppVisibilitySettingsView()
         case .websocket:
             WebSocketSettingsView()
         case .twitchIntegration:
@@ -239,9 +242,11 @@ struct SettingsView: View {
 
     @ViewBuilder
     private func sidebarIcon(for section: SettingsSection) -> some View {
-        if section.customIcon != nil {
-            TwitchGlitchShape()
-                .fill(style: FillStyle(eoFill: true))
+        if let customIcon = section.customIcon {
+            Image(customIcon)
+                .renderingMode(.template)
+                .resizable()
+                .aspectRatio(contentMode: .fit)
                 .frame(width: 16, height: 16)
         } else if let systemIcon = section.systemIcon {
             Image(systemName: systemIcon)
@@ -266,15 +271,15 @@ struct SettingsView: View {
                             .font(.system(size: 15, weight: .semibold))
                     }
 
-                    Text("Choose which chat commands the bot responds to in Twitch chat.")
+                    Text("Control which commands your viewers can use in chat.")
                         .font(.system(size: 13))
                         .foregroundStyle(.secondary)
                 }
 
                 VStack(spacing: 1) {
                     commandToggleRow(
-                        title: "Current Playing Song",
-                        subtitle: "!song, !currentsong, !nowplaying",
+                        title: "Now Playing Command",
+                        subtitle: "!song  ·  !currentsong  ·  !nowplaying",
                         isOn: $currentSongCommandEnabled,
                         accessibilityLabel: "Enable Current Playing Song command",
                         accessibilityIdentifier: "currentSongCommandToggle",
@@ -284,20 +289,46 @@ struct SettingsView: View {
                         Log.info("SettingsView: Current Song Command \(enabled ? "enabled" : "disabled")", category: "Twitch")
                     }
 
+                    if currentSongCommandEnabled {
+                        cooldownRow(
+                            label: "!song cooldowns",
+                            globalCooldown: $songGlobalCooldown,
+                            userCooldown: $songUserCooldown
+                        )
+                    }
+
                     commandToggleRow(
-                        title: "Last Played Song",
-                        subtitle: "!last, !lastsong, !prevsong",
+                        title: "Previous Song Command",
+                        subtitle: "!last  ·  !lastsong  ·  !prevsong",
                         isOn: $lastSongCommandEnabled,
                         accessibilityLabel: "Enable Last Played Song command",
                         accessibilityIdentifier: "lastSongCommandToggle",
-                        isLast: true
+                        isLast: !lastSongCommandEnabled
                     ) { enabled in
                         appDelegate?.twitchService?.lastSongCommandEnabled = enabled
                         Log.info("SettingsView: Last Song Command \(enabled ? "enabled" : "disabled")", category: "Twitch")
                     }
+
+                    if lastSongCommandEnabled {
+                        cooldownRow(
+                            label: "!last cooldowns",
+                            globalCooldown: $lastSongGlobalCooldown,
+                            userCooldown: $lastSongUserCooldown,
+                            isLast: true
+                        )
+                    }
                 }
                 .background(Color(nsColor: .controlBackgroundColor))
                 .clipShape(RoundedRectangle(cornerRadius: AppConstants.SettingsUI.cardCornerRadius))
+
+                HStack(spacing: 6) {
+                    Image(systemName: "info.circle.fill")
+                        .font(.system(size: 11))
+                        .foregroundStyle(.secondary)
+                    Text("Moderators and the broadcaster bypass all cooldowns.")
+                        .font(.system(size: 11))
+                        .foregroundStyle(.secondary)
+                }
             }
         }
     }
@@ -344,6 +375,48 @@ struct SettingsView: View {
         }
     }
 
+    @ViewBuilder
+    private func cooldownRow(
+        label: String,
+        globalCooldown: Binding<Double>,
+        userCooldown: Binding<Double>,
+        isLast: Bool = false
+    ) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text(label)
+                .font(.system(size: 11, weight: .medium))
+                .foregroundStyle(.secondary)
+                .textCase(.uppercase)
+
+            HStack(spacing: 12) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Global: \(Int(globalCooldown.wrappedValue))s")
+                        .font(.system(size: 11))
+                        .foregroundStyle(.secondary)
+                    Slider(value: globalCooldown, in: 0...30, step: 1)
+                        .controlSize(.small)
+                }
+
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Per-user: \(Int(userCooldown.wrappedValue))s")
+                        .font(.system(size: 11))
+                        .foregroundStyle(.secondary)
+                    Slider(value: userCooldown, in: 0...60, step: 1)
+                        .controlSize(.small)
+                }
+            }
+        }
+        .padding(.horizontal, AppConstants.SettingsUI.cardPadding)
+        .padding(.vertical, 8)
+        .background(Color(nsColor: .controlBackgroundColor))
+        .overlay(alignment: .bottom) {
+            if !isLast {
+                Divider()
+                    .padding(.leading, AppConstants.SettingsUI.cardPadding)
+            }
+        }
+    }
+
     // MARK: - Helpers
 
     private func notifyTrackingSettingChanged(enabled: Bool) {
@@ -364,7 +437,7 @@ struct SettingsView: View {
     /// 5. Notifies the app that tracking has been re-enabled
     private func resetSettings() {
         // Clear UserDefaults
-        [AppConstants.UserDefaults.trackingEnabled, AppConstants.UserDefaults.currentSongCommandEnabled, AppConstants.UserDefaults.lastSongCommandEnabled, AppConstants.UserDefaults.dockVisibility, AppConstants.UserDefaults.websocketEnabled, AppConstants.UserDefaults.websocketURI, AppConstants.UserDefaults.hasCompletedOnboarding, AppConstants.UserDefaults.discordPresenceEnabled].forEach {
+        [AppConstants.UserDefaults.trackingEnabled, AppConstants.UserDefaults.currentSongCommandEnabled, AppConstants.UserDefaults.lastSongCommandEnabled, AppConstants.UserDefaults.dockVisibility, AppConstants.UserDefaults.websocketEnabled, AppConstants.UserDefaults.websocketURI, AppConstants.UserDefaults.websocketServerPort, AppConstants.UserDefaults.hasCompletedOnboarding, AppConstants.UserDefaults.discordPresenceEnabled].forEach {
             UserDefaults.standard.removeObject(forKey: $0)
         }
 

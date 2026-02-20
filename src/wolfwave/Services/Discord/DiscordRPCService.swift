@@ -59,6 +59,10 @@ final class DiscordRPCService: @unchecked Sendable {
     /// Callback invoked on the main thread whenever connection state changes.
     var onStateChange: ((ConnectionState) -> Void)?
 
+    /// Callback invoked when artwork URL is resolved for a track.
+    /// Parameters: (artworkURL, track, artist)
+    var onArtworkResolved: ((String, String, String) -> Void)?
+
     /// Discord Application ID resolved from Info.plist / environment.
     private let clientID: String
 
@@ -77,6 +81,9 @@ final class DiscordRPCService: @unchecked Sendable {
     /// Timer source for availability polling / reconnect.
     private var pollTimer: DispatchSourceTimer?
 
+    /// Current availability poll interval (may be widened in reduced-power mode).
+    private var currentPollInterval: TimeInterval = AppConstants.Discord.availabilityPollInterval
+
     /// Whether the service is enabled by the user.
     private var isEnabled = false
 
@@ -85,9 +92,6 @@ final class DiscordRPCService: @unchecked Sendable {
 
     /// Process ID sent with SET_ACTIVITY (Discord requires it).
     private let pid = ProcessInfo.processInfo.processIdentifier
-
-    /// Cache of iTunes artwork URLs. Key: "artist|track", Value: artwork URL string.
-    private var artworkCache: [String: String] = [:]
 
     /// Tracks the last artwork lookup key to avoid redundant re-sends.
     private var lastArtworkKey: String?
@@ -115,9 +119,7 @@ final class DiscordRPCService: @unchecked Sendable {
     /// When enabled, immediately attempts to connect to Discord.
     /// When disabled, disconnects and stops polling.
     func setEnabled(_ enabled: Bool) {
-        enabledLock.lock()
-        isEnabled = enabled
-        enabledLock.unlock()
+        enabledLock.withLock { isEnabled = enabled }
 
         if enabled {
             ipcQueue.async { [weak self] in
@@ -130,6 +132,31 @@ final class DiscordRPCService: @unchecked Sendable {
                 self?.clearPresence()
                 self?.disconnect()
             }
+        }
+    }
+
+    /// Tests the Discord IPC connection by attempting to connect if not already connected.
+    ///
+    /// Reports back via the completion handler (on the main thread) whether the
+    /// connection is active. If already connected, returns immediately with `true`.
+    /// Otherwise triggers a connection attempt and waits briefly for the result.
+    func testConnection(completion: @escaping (Bool) -> Void) {
+        ipcQueue.async { [weak self] in
+            guard let self else {
+                DispatchQueue.main.async { completion(false) }
+                return
+            }
+
+            if self.state == .connected {
+                DispatchQueue.main.async { completion(true) }
+                return
+            }
+
+            // Attempt connection
+            self.connectIfNeeded()
+            let result = self.state == .connected
+
+            DispatchQueue.main.async { completion(result) }
         }
     }
 
@@ -155,10 +182,8 @@ final class DiscordRPCService: @unchecked Sendable {
         ipcQueue.async { [weak self] in
             guard let self, self.state == .connected else { return }
 
-            let cacheKey = "\(artist)|\(track)"
-
-            // Send immediately with cached artwork (or nil on first encounter)
-            let cachedArtwork = self.artworkCache[cacheKey]
+            // Check shared artwork cache for immediate use
+            let cachedArtwork = ArtworkService.shared.cachedArtworkURL(track: track, artist: artist)
             self.sendPresenceActivity(
                 track: track, artist: artist, album: album,
                 artworkURL: cachedArtwork,
@@ -170,7 +195,6 @@ final class DiscordRPCService: @unchecked Sendable {
                 self.fetchArtworkURL(track: track, artist: artist) { [weak self] url in
                     guard let self, let url else { return }
                     self.ipcQueue.async {
-                        self.artworkCache[cacheKey] = url
                         guard self.state == .connected else { return }
                         // Re-send presence with the artwork
                         self.sendPresenceActivity(
@@ -179,7 +203,25 @@ final class DiscordRPCService: @unchecked Sendable {
                             duration: duration, elapsed: elapsed
                         )
                     }
+                    // Notify listeners (e.g., WebSocket server) of the resolved artwork
+                    DispatchQueue.main.async { [weak self] in
+                        self?.onArtworkResolved?(url, track, artist)
+                    }
                 }
+            }
+        }
+    }
+
+    /// Updates the availability poll interval and restarts the timer if currently polling.
+    ///
+    /// - Parameter interval: New poll interval in seconds.
+    func updatePollInterval(_ interval: TimeInterval) {
+        ipcQueue.async { [weak self] in
+            guard let self else { return }
+            self.currentPollInterval = interval
+            // Restart polling with the new interval if a timer is active
+            if self.pollTimer != nil {
+                self.startPolling()
             }
         }
     }
@@ -263,42 +305,19 @@ final class DiscordRPCService: @unchecked Sendable {
         sendFrame(opcode: .frame, payload: payload)
     }
 
-    // MARK: - iTunes Artwork Lookup
+    // MARK: - Artwork Lookup
 
-    /// Fetches album artwork URL from the iTunes Search API.
+    /// Fetches album artwork URL via the shared ArtworkService.
     ///
-    /// Searches for the track by name and artist and returns the first result's
-    /// artwork URL scaled to 512×512. The completion handler is called on an
-    /// arbitrary URLSession queue.
+    /// Delegates to `ArtworkService.shared` which provides a unified cache
+    /// and single API layer for all artwork lookups across the app.
     ///
     /// - Parameters:
     ///   - track: Song title.
     ///   - artist: Artist name.
     ///   - completion: Called with the artwork URL, or nil if not found or on error.
     private func fetchArtworkURL(track: String, artist: String, completion: @escaping (String?) -> Void) {
-        let query = "\(track) \(artist)"
-        guard let encoded = query.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed),
-              let url = URL(string: "https://itunes.apple.com/search?media=music&entity=song&limit=1&term=\(encoded)") else {
-            completion(nil)
-            return
-        }
-
-        URLSession.shared.dataTask(with: url) { data, _, error in
-            guard let data, error == nil,
-                  let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-                  let results = json["results"] as? [[String: Any]],
-                  let first = results.first,
-                  let artworkUrl = first["artworkUrl100"] as? String else {
-                Log.debug("Discord: iTunes artwork lookup failed for \"\(track)\" by \(artist)", category: "Discord")
-                completion(nil)
-                return
-            }
-
-            // Upscale from 100×100 to 512×512 for better quality on Discord
-            let highRes = artworkUrl.replacingOccurrences(of: "100x100", with: "512x512")
-            Log.debug("Discord: Found artwork for \"\(track)\"", category: "Discord")
-            completion(highRes)
-        }.resume()
+        ArtworkService.shared.fetchArtworkURL(track: track, artist: artist, completion: completion)
     }
 
     // MARK: - Client ID Resolution
@@ -409,22 +428,21 @@ final class DiscordRPCService: @unchecked Sendable {
         var mib: [Int32] = [CTL_KERN, KERN_PROCARGS2, discordPID]
         var size: size_t = 0
         guard sysctl(&mib, 3, nil, &size, nil, 0) == 0, size > 0 else {
-            Log.debug("Discord: sysctl size query failed for PID \(discordPID)", category: "Discord")
             return nil
         }
 
         // Read the process args buffer
         var buffer = [UInt8](repeating: 0, count: size)
         guard sysctl(&mib, 3, &buffer, &size, nil, 0) == 0 else {
-            Log.debug("Discord: sysctl read failed for PID \(discordPID)", category: "Discord")
             return nil
         }
 
         // KERN_PROCARGS2 layout:
         //   [argc: Int32][exec_path\0][padding\0...][argv[0]\0]...[argv[n]\0][env[0]\0]...
         guard size > MemoryLayout<Int32>.size else { return nil }
-        let argc = buffer.withUnsafeBufferPointer { buf in
-            buf.baseAddress!.withMemoryRebound(to: Int32.self, capacity: 1) { $0.pointee }
+        let argc = buffer.withUnsafeBufferPointer { buf -> Int32 in
+            guard let baseAddress = buf.baseAddress else { return 0 }
+            return baseAddress.withMemoryRebound(to: Int32.self, capacity: 1) { $0.pointee }
         }
 
         // Collect all null-terminated strings after the header
@@ -504,7 +522,8 @@ final class DiscordRPCService: @unchecked Sendable {
                 withUnsafeMutablePointer(to: &addr.sun_path) { sunPathPtr in
                     sunPathPtr.withMemoryRebound(to: CChar.self, capacity: pathBytes.count) { dest in
                         pathBytes.withUnsafeBufferPointer { src in
-                            _ = memcpy(dest, src.baseAddress!, pathBytes.count)
+                            guard let srcBase = src.baseAddress else { return }
+                            _ = memcpy(dest, srcBase, pathBytes.count)
                         }
                     }
                 }
@@ -518,7 +537,6 @@ final class DiscordRPCService: @unchecked Sendable {
 
                 if result == 0 {
                     socketFD = fd
-                    Log.info("Discord: Connected to IPC socket slot \(slot)", category: "Discord")
 
                     if performHandshake() {
                         state = .connected
@@ -565,7 +583,6 @@ final class DiscordRPCService: @unchecked Sendable {
             return false
         }
 
-        Log.info("Discord: Handshake successful", category: "Discord")
         return true
     }
 
@@ -575,7 +592,6 @@ final class DiscordRPCService: @unchecked Sendable {
         Darwin.close(socketFD)
         socketFD = -1
         state = .disconnected
-        Log.info("Discord: Disconnected", category: "Discord")
     }
 
     // MARK: - Frame I/O
@@ -605,12 +621,20 @@ final class DiscordRPCService: @unchecked Sendable {
 
         let frameData = header + jsonData
 
-        let written = frameData.withUnsafeBytes { buf in
-            Darwin.write(socketFD, buf.baseAddress!, frameData.count)
+        let written = frameData.withUnsafeBytes { buf -> Int in
+            guard let baseAddress = buf.baseAddress else {
+                Log.error("Discord: sendFrame buffer baseAddress is nil", category: "Discord")
+                return -1
+            }
+            return Darwin.write(socketFD, baseAddress, frameData.count)
         }
 
         if written != frameData.count {
-            Log.error("Discord: Write failed (wrote \(written)/\(frameData.count))", category: "Discord")
+            if written < 0 {
+                Log.error("Discord: Write failed with errno \(errno) (\(String(cString: strerror(errno))))", category: "Discord")
+            } else {
+                Log.error("Discord: Partial write (wrote \(written)/\(frameData.count))", category: "Discord")
+            }
             handleConnectionLost()
             return false
         }
@@ -625,10 +649,19 @@ final class DiscordRPCService: @unchecked Sendable {
         guard socketFD >= 0 else { return nil }
 
         var headerBuf = Data(count: 8)
-        let headerRead = headerBuf.withUnsafeMutableBytes { buf in
-            Darwin.read(socketFD, buf.baseAddress!, 8)
+        let headerRead = headerBuf.withUnsafeMutableBytes { buf -> Int in
+            guard let baseAddress = buf.baseAddress else {
+                Log.error("Discord: readFrame header buffer baseAddress is nil", category: "Discord")
+                return -1
+            }
+            return Darwin.read(socketFD, baseAddress, 8)
         }
-        guard headerRead == 8 else { return nil }
+        if headerRead != 8 {
+            if headerRead < 0 {
+                Log.error("Discord: Header read failed with errno \(errno) (\(String(cString: strerror(errno))))", category: "Discord")
+            }
+            return nil
+        }
 
         let opcode = headerBuf.withUnsafeBytes { buf in
             UInt32(littleEndian: buf.load(fromByteOffset: 0, as: UInt32.self))
@@ -640,10 +673,19 @@ final class DiscordRPCService: @unchecked Sendable {
         guard length > 0, length < 65536 else { return (opcode, nil) }
 
         var bodyBuf = Data(count: Int(length))
-        let bodyRead = bodyBuf.withUnsafeMutableBytes { buf in
-            Darwin.read(socketFD, buf.baseAddress!, Int(length))
+        let bodyRead = bodyBuf.withUnsafeMutableBytes { buf -> Int in
+            guard let baseAddress = buf.baseAddress else {
+                Log.error("Discord: readFrame body buffer baseAddress is nil", category: "Discord")
+                return -1
+            }
+            return Darwin.read(socketFD, baseAddress, Int(length))
         }
-        guard bodyRead == Int(length) else { return nil }
+        if bodyRead != Int(length) {
+            if bodyRead < 0 {
+                Log.error("Discord: Body read failed with errno \(errno) (\(String(cString: strerror(errno))))", category: "Discord")
+            }
+            return nil
+        }
 
         let json = try? JSONSerialization.jsonObject(with: bodyBuf) as? [String: Any]
         return (opcode, json)
@@ -655,18 +697,14 @@ final class DiscordRPCService: @unchecked Sendable {
     private func handleConnectionLost() {
         disconnect()
 
-        enabledLock.lock()
-        let shouldReconnect = isEnabled
-        enabledLock.unlock()
+        let shouldReconnect = enabledLock.withLock { isEnabled }
 
         guard shouldReconnect else { return }
 
         Log.info("Discord: Scheduling reconnect in \(reconnectDelay)s", category: "Discord")
         ipcQueue.asyncAfter(deadline: .now() + reconnectDelay) { [weak self] in
             guard let self else { return }
-            self.enabledLock.lock()
-            let stillEnabled = self.isEnabled
-            self.enabledLock.unlock()
+            let stillEnabled = self.enabledLock.withLock { self.isEnabled }
             guard stillEnabled else { return }
             self.connectIfNeeded()
         }
@@ -682,14 +720,12 @@ final class DiscordRPCService: @unchecked Sendable {
 
         let timer = DispatchSource.makeTimerSource(queue: ipcQueue)
         timer.schedule(
-            deadline: .now() + AppConstants.Discord.availabilityPollInterval,
-            repeating: AppConstants.Discord.availabilityPollInterval
+            deadline: .now() + currentPollInterval,
+            repeating: currentPollInterval
         )
         timer.setEventHandler { [weak self] in
             guard let self else { return }
-            self.enabledLock.lock()
-            let enabled = self.isEnabled
-            self.enabledLock.unlock()
+            let enabled = self.enabledLock.withLock { self.isEnabled }
             guard enabled, self.state == .disconnected else { return }
             self.connectIfNeeded()
         }
