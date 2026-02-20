@@ -45,12 +45,20 @@ enum AppConstants {
         /// Posted when the Discord RPC connection state changes. UserInfo contains "state" String.
         static let discordStateChanged = "DiscordStateChanged"
 
-        /// Posted when the currently playing track changes.
-        /// UserInfo contains optional "track", "artist", "album" Strings. Nil values mean no track is playing.
+        /// Posted when now-playing track information changes. UserInfo contains track, artist, album.
         static let nowPlayingChanged = "NowPlayingChanged"
 
-        /// Posted when the update checker state changes (new version found or check completed).
+        /// Posted when the update checker finishes a check. UserInfo contains "isUpdateAvailable" Bool, "latestVersion" String.
         static let updateStateChanged = "UpdateStateChanged"
+
+        /// Posted when the user toggles the WebSocket server or changes its port.
+        static let websocketServerChanged = "WebSocketServerChanged"
+
+        /// Posted when the WebSocket server connection state changes.
+        static let websocketServerStateChanged = "WebSocketServerStateChanged"
+
+        /// Posted when system power state changes (Low Power Mode or thermal pressure).
+        static let powerStateChanged = "PowerStateChanged"
     }
     
     // MARK: - UserDefaults Keys
@@ -89,14 +97,44 @@ enum AppConstants {
         /// Whether Discord Rich Presence is enabled (Bool, default: false)
         static let discordPresenceEnabled = "discordPresenceEnabled"
 
-        /// Date of last update check (Date stored as TimeInterval)
-        static let updateLastCheckDate = "updateLastCheckDate"
-
-        /// Version string the user has chosen to skip (e.g. "1.1.0")
-        static let updateSkippedVersion = "updateSkippedVersion"
+        /// WebSocket server port number (UInt16, default: 8765)
+        static let websocketServerPort = "websocketServerPort"
 
         /// Whether automatic update checking is enabled (Bool, default: true)
         static let updateCheckEnabled = "updateCheckEnabled"
+
+        /// Timestamp of the last update check (TimeInterval)
+        static let updateLastCheckDate = "updateLastCheckDate"
+
+        /// Version string the user has chosen to skip (String)
+        static let updateSkippedVersion = "updateSkippedVersion"
+
+        /// Global cooldown for !song command in seconds (Double, default: 3.0)
+        static let songCommandGlobalCooldown = "songCommandGlobalCooldown"
+
+        /// Per-user cooldown for !song command in seconds (Double, default: 10.0)
+        static let songCommandUserCooldown = "songCommandUserCooldown"
+
+        /// Global cooldown for !last command in seconds (Double, default: 3.0)
+        static let lastSongCommandGlobalCooldown = "lastSongCommandGlobalCooldown"
+
+        /// Per-user cooldown for !last command in seconds (Double, default: 10.0)
+        static let lastSongCommandUserCooldown = "lastSongCommandUserCooldown"
+
+        /// Widget theme name (String, default: "Default")
+        static let widgetTheme = "widgetTheme"
+
+        /// Widget layout style (String, default: "Horizontal")
+        static let widgetLayout = "widgetLayout"
+
+        /// Widget primary text color hex (String, default: "#FFFFFF")
+        static let widgetTextColor = "widgetTextColor"
+
+        /// Widget background color hex (String, default: "#1A1A2E")
+        static let widgetBackgroundColor = "widgetBackgroundColor"
+
+        /// Widget font family (String, default: "System")
+        static let widgetFontFamily = "widgetFontFamily"
     }
     
     // MARK: - Dock Visibility Modes
@@ -141,12 +179,65 @@ enum AppConstants {
     enum Twitch {
         /// Base URL for Twitch Helix API endpoints
         static let apiBaseURL = "https://api.twitch.tv/helix"
-        
+
         /// Settings section identifier for Twitch configuration
         static let settingsSection = "twitchIntegration"
-        
+
         /// Default setting for sending connection message on subscribe
         static let defaultSendConnectionMessage = true
+
+        /// Timeout in seconds for receiving the session_welcome WebSocket message
+        static let sessionWelcomeTimeout: TimeInterval = 10.0
+
+        /// Maximum length for bot chat messages (Twitch limit)
+        static let maxMessageLength = 500
+
+        /// Truncation suffix appended when a message exceeds `maxMessageLength`
+        static let messageTruncationSuffix = "..."
+
+        /// Connection confirmation message sent when the bot joins a channel
+        static let connectionMessage = "WolfWave Application is connected! 🎵"
+
+        /// Maximum reconnection attempts before giving up
+        static let maxReconnectionAttempts = 5
+
+        /// Maximum network-triggered reconnect cycles to prevent infinite loops
+        static let maxNetworkReconnectCycles = 5
+
+        /// Cooldown period in seconds before resetting network reconnect cycle counter
+        nonisolated static let networkReconnectCooldown: TimeInterval = 60.0
+
+        /// Maximum retry attempts for failed message sends
+        static let maxMessageRetries = 3
+
+        /// Delay before sending connection message after subscribing (seconds)
+        static let connectionMessageDelay: TimeInterval = 1.5
+    }
+
+    // MARK: - Widget
+
+    /// Widget overlay configuration.
+    enum Widget {
+        /// Recommended browser source dimensions for OBS overlay
+        static let recommendedWidth = 500
+        static let recommendedHeight = 120
+        static let recommendedDimensionsText = "\(recommendedWidth) x \(recommendedHeight)"
+
+        /// Available widget themes
+        static let themes = ["Default", "Dark", "Light", "Transparent", "Glass (Light)", "Glass (Dark)", "Neon", "Techy"]
+
+        /// Available widget layout styles
+        static let layouts = ["Horizontal", "Vertical", "Compact"]
+
+        /// Built-in system font options (CSS system font stacks)
+        static let builtInFonts = ["System", "Monospaced", "Rounded", "Serif"]
+
+        /// Google Fonts available for the widget overlay (loaded dynamically)
+        static let googleFonts = [
+            "Montserrat", "Roboto", "Open Sans", "Lato", "Poppins",
+            "Fira Code", "JetBrains Mono", "Oswald", "Bebas Neue",
+            "Raleway", "Press Start 2P", "Permanent Marker",
+        ]
     }
     
     // MARK: - Discord Integration
@@ -178,6 +269,63 @@ enum AppConstants {
         static let availabilityPollInterval: TimeInterval = 15.0
     }
 
+    // MARK: - Update Checker
+
+    /// Update checker timing and configuration constants.
+    enum Update {
+        /// Interval between periodic update checks (24 hours in seconds)
+        static let checkInterval: TimeInterval = 86400
+
+        /// HTTP request timeout in seconds
+        static let requestTimeout: TimeInterval = 15.0
+
+        /// Delay before first update check after launch
+        static let launchCheckDelay: TimeInterval = 10.0
+    }
+
+    // MARK: - URLs
+
+    /// Application URLs for documentation, legal, and GitHub.
+    enum URLs {
+        /// Documentation site URL
+        static let docs = "https://mrdemonwolf.github.io/wolfwave"
+
+        /// Privacy policy page URL
+        static let privacyPolicy = "https://mrdemonwolf.github.io/wolfwave/docs/legal/privacy-policy"
+
+        /// Terms of service page URL
+        static let termsOfService = "https://mrdemonwolf.github.io/wolfwave/docs/legal/terms-of-service"
+
+        /// GitHub repository URL
+        static let github = "https://github.com/mrdemonwolf/wolfwave"
+
+        /// GitHub Releases API endpoint
+        static let githubReleasesAPI = "https://api.github.com/repos/mrdemonwolf/wolfwave/releases/latest"
+
+        /// GitHub Releases page URL
+        static let githubReleases = "https://github.com/mrdemonwolf/wolfwave/releases"
+    }
+
+    // MARK: - WebSocket Server
+
+    /// WebSocket server configuration constants.
+    enum WebSocketServer {
+        /// Default port for the local WebSocket server
+        static let defaultPort: UInt16 = 8765
+
+        /// Minimum allowed port number (below 1024 requires root)
+        static let minPort: UInt16 = 1024
+
+        /// Maximum allowed port number
+        static let maxPort: UInt16 = 65535
+
+        /// Interval in seconds between progress broadcasts during playback
+        static let progressBroadcastInterval: TimeInterval = 1.0
+
+        /// Delay before retrying after a listener failure
+        static let retryDelay: TimeInterval = 5.0
+    }
+
     // MARK: - Dispatch Queue Labels
     
     /// Dispatch queue identifiers for background operations.
@@ -193,6 +341,9 @@ enum AppConstants {
 
         /// Queue for Discord IPC operations
         static let discordIPC = "com.mrdemonwolf.wolfwave.discordipc"
+
+        /// Queue for WebSocket server operations
+        static let websocketServer = "com.mrdemonwolf.wolfwave.websocketserver"
     }
     
     // MARK: - UI Dimensions
@@ -220,43 +371,6 @@ enum AppConstants {
     enum MenuLabels {
         static let settings = "Settings..."
         static let quit = "Quit"
-    }
-
-    // MARK: - External URLs
-
-    /// URLs for documentation, legal pages, and external resources.
-    enum URLs {
-        /// Base URL for the WolfWave documentation site
-        static let docs = "https://mrdemonwolf.github.io/wolfwave/docs"
-
-        /// Privacy Policy page URL
-        static let privacyPolicy = "https://mrdemonwolf.github.io/wolfwave/docs/privacy-policy"
-
-        /// Terms of Service page URL
-        static let termsOfService = "https://mrdemonwolf.github.io/wolfwave/docs/terms-of-service"
-
-        /// GitHub repository URL
-        static let github = "https://github.com/MrDemonWolf/WolfWave"
-
-        /// GitHub Releases API endpoint for latest release
-        static let githubReleasesAPI = "https://api.github.com/repos/MrDemonWolf/WolfWave/releases/latest"
-
-        /// GitHub Releases page for latest release (browser URL)
-        static let githubReleases = "https://github.com/MrDemonWolf/WolfWave/releases/latest"
-    }
-    
-    // MARK: - Update Checker
-
-    /// Timing constants for the automatic update checker.
-    enum Update {
-        /// Delay after launch before first update check (seconds)
-        static let launchCheckDelay: TimeInterval = 10.0
-
-        /// Interval between periodic update checks (24 hours)
-        static let checkInterval: TimeInterval = 86400
-
-        /// HTTP request timeout for GitHub API calls (seconds)
-        static let requestTimeout: TimeInterval = 15.0
     }
 
     // MARK: - Settings UI
@@ -303,6 +417,21 @@ enum AppConstants {
         static let cardCornerRadius: CGFloat = 10
     }
 
+    // MARK: - Power Management
+
+    /// Reduced-rate timing constants used when the system is in Low Power Mode
+    /// or under serious/critical thermal pressure.
+    enum PowerManagement {
+        /// Music monitor fallback polling interval in reduced-power mode (15s vs normal 5s)
+        static let reducedMusicCheckInterval: TimeInterval = 15.0
+
+        /// Discord availability poll interval in reduced-power mode (60s vs normal 15s)
+        static let reducedDiscordPollInterval: TimeInterval = 60.0
+
+        /// WebSocket progress broadcast interval in reduced-power mode (3s vs normal 1s)
+        static let reducedProgressBroadcastInterval: TimeInterval = 3.0
+    }
+
     // MARK: - Onboarding UI
 
     /// Onboarding wizard window configuration.
@@ -311,6 +440,6 @@ enum AppConstants {
         static let windowWidth: CGFloat = 520
 
         /// Height of the onboarding window
-        static let windowHeight: CGFloat = 500
+        static let windowHeight: CGFloat = 540
     }
 }

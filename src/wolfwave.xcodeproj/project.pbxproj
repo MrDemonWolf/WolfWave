@@ -371,7 +371,7 @@
 				INFOPLIST_KEY_LSUIElement = YES;
 				INFOPLIST_KEY_NSAppleEventsUsageDescription = "WolfWave needs access to Apple Music to log your currently playing tracks";
 				INFOPLIST_KEY_NSAppleMusicUsageDescription = "WolfWave needs access to see what's playing in Apple Music";
-				INFOPLIST_KEY_NSHumanReadableCopyright = "\U00a9 2026 MrDemonWolf, Inc. All rights reserved.";
+				INFOPLIST_KEY_NSHumanReadableCopyright = "© 2026 MrDemonWolf, Inc. All rights reserved.";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/../Frameworks",
@@ -430,7 +430,7 @@
 				INFOPLIST_KEY_LSUIElement = NO;
 				INFOPLIST_KEY_NSAppleEventsUsageDescription = "WolfWave needs access to Apple Music to log your currently playing tracks";
 				INFOPLIST_KEY_NSAppleMusicUsageDescription = "WolfWave needs access to see what's playing in Apple Music";
-				INFOPLIST_KEY_NSHumanReadableCopyright = "\U00a9 2026 MrDemonWolf, Inc. All rights reserved.";
+				INFOPLIST_KEY_NSHumanReadableCopyright = "© 2026 MrDemonWolf, Inc. All rights reserved.";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/../Frameworks",

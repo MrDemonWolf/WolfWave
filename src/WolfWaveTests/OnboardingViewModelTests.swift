@@ -30,8 +30,8 @@ final class OnboardingViewModelTests: XCTestCase {
         XCTAssertEqual(viewModel.currentStep, .welcome)
     }
 
-    func testTotalStepsEquals3() {
-        XCTAssertEqual(viewModel.totalSteps, 3)
+    func testTotalStepsEquals4() {
+        XCTAssertEqual(viewModel.totalSteps, 4)
     }
 
     func testIsFirstStepAtWelcome() {
@@ -55,11 +55,19 @@ final class OnboardingViewModelTests: XCTestCase {
         XCTAssertEqual(viewModel.currentStep, .discordConnect)
     }
 
+    func testGoToNextStepThreeTimesReachesOBSWidget() {
+        viewModel.goToNextStep()
+        viewModel.goToNextStep()
+        viewModel.goToNextStep()
+        XCTAssertEqual(viewModel.currentStep, .obsWidget)
+    }
+
     func testGoToNextStepAtLastStepStays() {
         viewModel.goToNextStep()
         viewModel.goToNextStep()
         viewModel.goToNextStep()
-        XCTAssertEqual(viewModel.currentStep, .discordConnect)
+        viewModel.goToNextStep()
+        XCTAssertEqual(viewModel.currentStep, .obsWidget)
     }
 
     // MARK: - Backward Navigation
@@ -89,7 +97,14 @@ final class OnboardingViewModelTests: XCTestCase {
         XCTAssertFalse(viewModel.isFirstStep)
     }
 
-    func testIsLastStepAtDiscordConnect() {
+    func testIsNotLastStepAtDiscordConnect() {
+        viewModel.goToNextStep()
+        viewModel.goToNextStep()
+        XCTAssertFalse(viewModel.isLastStep)
+    }
+
+    func testIsLastStepAtOBSWidget() {
+        viewModel.goToNextStep()
         viewModel.goToNextStep()
         viewModel.goToNextStep()
         XCTAssertTrue(viewModel.isLastStep)
@@ -126,6 +141,12 @@ final class OnboardingViewModelTests: XCTestCase {
         XCTAssertEqual(viewModel.currentStep, .twitchConnect)
 
         viewModel.goToNextStep()
+        XCTAssertEqual(viewModel.currentStep, .discordConnect)
+
+        viewModel.goToNextStep()
+        XCTAssertEqual(viewModel.currentStep, .obsWidget)
+
+        viewModel.goToPreviousStep()
         XCTAssertEqual(viewModel.currentStep, .discordConnect)
 
         viewModel.goToPreviousStep()

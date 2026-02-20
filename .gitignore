@@ -103,3 +103,5 @@ src/wolfwave/Config.xcconfig
 
 # Local DMG/output folder created by Makefile prod build
 builds/
+# Claude Code
+.claude

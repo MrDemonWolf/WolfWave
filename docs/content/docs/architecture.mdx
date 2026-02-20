@@ -16,7 +16,8 @@ src/
 │   ├── OnboardingViewModelTests.swift
 │   ├── SongCommandTests.swift
 │   ├── TwitchViewModelTests.swift
-│   └── UpdateCheckerServiceTests.swift
+│   ├── UpdateCheckerServiceTests.swift
+│   └── WebSocketServerServiceTests.swift
 └── wolfwave/
 ├── Core/                    # Core utilities and services
 │   ├── AppConstants.swift       # Application constants
@@ -29,6 +30,8 @@ src/
 │   │   └── DiscordRPCService.swift  # Discord Rich Presence via IPC socket
 │   ├── UpdateChecker/
 │   │   └── UpdateCheckerService.swift  # GitHub Releases version checker
+│   ├── WebSocket/
+│   │   └── WebSocketServerService.swift  # Local WebSocket server (Network.framework)
 │   └── Twitch/
 │       ├── TwitchChatService.swift     # EventSub WebSocket + Helix API
 │       ├── TwitchDeviceAuth.swift      # OAuth Device Code flow
@@ -49,7 +52,8 @@ src/
 │   │   ├── OnboardingViewModel.swift
 │   │   ├── OnboardingWelcomeStepView.swift
 │   │   ├── OnboardingTwitchStepView.swift
-│   │   └── OnboardingDiscordStepView.swift
+│   │   ├── OnboardingDiscordStepView.swift
+│   │   └── OnboardingOBSWidgetStepView.swift
 │   ├── Shared/                  # Shared UI components
 │   │   └── TwitchGlitchShape.swift
 │   ├── Twitch/                  # Twitch-related views
@@ -57,7 +61,8 @@ src/
 │   │   ├── TwitchViewModel.swift      # Twitch state management
 │   │   ├── DeviceCodeView.swift       # Device auth UI
 │   │   └── ...
-│   └── WebSocket/               # WebSocket settings
+│   └── WebSocket/               # OBS Widget settings
+│       └── WebSocketSettingsView.swift
 └── Resources/              # Assets and resources
     └── Assets.xcassets/
 ```
@@ -127,6 +132,16 @@ Discord Rich Presence integration using:
 - **Playback Progress**: Displays elapsed time and duration as a progress bar on Discord
 - **Auto-reconnect**: Detects Discord availability and reconnects automatically
 - **Sandbox Compatible**: Uses SBPL entitlements for socket access within the App Sandbox
+
+### WebSocketServerService
+
+Local WebSocket server for OBS stream overlays using:
+
+- **Network.framework NWListener**: Native WebSocket server with auto-ping and multi-client support
+- **JSON Broadcasting**: Sends `welcome`, `now_playing`, `progress`, and `playback_state` messages
+- **Progress Timer**: 1-second interval broadcasts with elapsed-time estimation to avoid polling ScriptingBridge
+- **Thread Safety**: `NSLock` instances for connections, playback state, and enabled flag
+- **Auto-retry**: Reconnects the listener after failures with configurable delay
 
 ### UpdateCheckerService
 

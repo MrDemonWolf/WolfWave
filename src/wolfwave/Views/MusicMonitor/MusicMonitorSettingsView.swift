@@ -15,25 +15,15 @@ import SwiftUI
 /// - Discord Rich Presence
 /// - External WebSocket endpoints (if configured)
 ///
-/// Also displays a live now-playing preview card styled after Apple Music.
-///
-/// State:
-/// - Uses @AppStorage to sync with UserDefaults
-/// - Observes NowPlayingChanged notifications for live track updates
-///
-/// UI:
-/// - Toggle switch for enabling/disabling tracking
-/// - Apple Music-styled now-playing preview card
-/// - Accessibility labels for screen readers
+/// Also detects whether Apple Events permission has been granted for Apple Music
+/// and shows guidance if the permission has been denied.
 struct MusicMonitorSettingsView: View {
     // MARK: - User Settings
 
-    /// Whether music tracking is currently enabled.
     @AppStorage(AppConstants.UserDefaults.trackingEnabled)
     private var trackingEnabled = true
 
-    // MARK: - Now Playing State
-
+    @State private var permissionDenied = false
     @State private var currentTrack: String?
     @State private var currentArtist: String?
     @State private var currentAlbum: String?
@@ -50,6 +40,41 @@ struct MusicMonitorSettingsView: View {
                     .font(.system(size: 13))
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
+            }
+
+            // Permission warning
+            if permissionDenied {
+                HStack(spacing: 10) {
+                    Image(systemName: "exclamationmark.triangle.fill")
+                        .font(.system(size: 14))
+                        .foregroundStyle(.orange)
+
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Apple Music access denied")
+                            .font(.system(size: 12, weight: .semibold))
+                        Text("WolfWave needs permission to read playback info from Apple Music. Open System Settings to grant access.")
+                            .font(.system(size: 11))
+                            .foregroundStyle(.secondary)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+
+                    Spacer()
+
+                    Button("Open Settings") {
+                        if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Automation") {
+                            NSWorkspace.shared.open(url)
+                        }
+                    }
+                    .buttonStyle(.bordered)
+                    .controlSize(.small)
+                }
+                .padding(12)
+                .background(Color.orange.opacity(0.08))
+                .clipShape(RoundedRectangle(cornerRadius: AppConstants.SettingsUI.cardCornerRadius))
+                .overlay(
+                    RoundedRectangle(cornerRadius: AppConstants.SettingsUI.cardCornerRadius)
+                        .stroke(Color.orange.opacity(0.2), lineWidth: 1)
+                )
             }
 
             // Toggle Card
@@ -91,6 +116,9 @@ struct MusicMonitorSettingsView: View {
             currentTrack = notification.userInfo?["track"] as? String
             currentArtist = notification.userInfo?["artist"] as? String
             currentAlbum = notification.userInfo?["album"] as? String
+        }
+        .onAppear {
+            checkMusicPermission()
         }
     }
 
@@ -169,9 +197,9 @@ struct MusicMonitorSettingsView: View {
         .accessibilityLabel(nowPlayingAccessibilityLabel)
     }
 
-    // MARK: - Helpers
+    // MARK: - Computed Properties
 
-    /// Accessibility label for the now playing card.
+    /// Accessibility label for the now-playing card.
     private var nowPlayingAccessibilityLabel: String {
         if let track = currentTrack {
             var label = "Now playing: \(track)"
@@ -182,13 +210,15 @@ struct MusicMonitorSettingsView: View {
         return trackingEnabled ? "No track playing" : "Tracking disabled"
     }
 
-    /// Loads the current track from AppDelegate on view appear.
+    // MARK: - Helpers
+
+    /// Loads the current track info from AppDelegate.
     private func loadCurrentTrack() {
-        guard let appDelegate = AppDelegate.shared else { return }
-        // Access the stored track info via the delegate's public accessors
-        currentTrack = appDelegate.currentSong
-        currentArtist = appDelegate.currentArtist
-        currentAlbum = appDelegate.currentAlbum
+        if let appDelegate = AppDelegate.shared {
+            currentTrack = appDelegate.currentSong
+            currentArtist = appDelegate.currentArtist
+            currentAlbum = appDelegate.currentAlbum
+        }
     }
 
     /// Posts a notification when music tracking is toggled.
@@ -198,6 +228,18 @@ struct MusicMonitorSettingsView: View {
             object: nil,
             userInfo: ["enabled": enabled]
         )
+    }
+
+    /// Checks whether the app has Apple Events permission for Apple Music.
+    ///
+    /// Uses a lightweight ScriptingBridge query to detect whether the system
+    /// has denied Apple Events automation for `com.apple.Music`.
+    private func checkMusicPermission() {
+        let target = NSAppleEventDescriptor(bundleIdentifier: AppConstants.Music.bundleIdentifier)
+        let status = AEDeterminePermissionToAutomateTarget(
+            target.aeDesc, typeWildCard, typeWildCard, true
+        )
+        permissionDenied = (status == OSStatus(errAEEventNotPermitted))
     }
 }
 
