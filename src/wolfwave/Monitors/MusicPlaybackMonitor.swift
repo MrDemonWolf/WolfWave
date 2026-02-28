@@ -98,7 +98,7 @@ class MusicPlaybackMonitor {
     /// - Parameter interval: New polling interval in seconds.
     func updateCheckInterval(_ interval: TimeInterval) {
         guard isTracking else { return }
-        currentCheckInterval = interval
+        currentCheckInterval = max(interval, 1.0)
         timer?.cancel()
         timer = nil
         setupFallbackTimer()
@@ -224,9 +224,10 @@ class MusicPlaybackMonitor {
     
     /// Logs track information if it's different from the last logged track.
     private func logTrackIfNew(_ trackInfo: String, trackName: String, artist: String, album: String) {
-        guard lastLoggedTrack != trackInfo else { return }
+        let dedupKey = trackName + Constants.trackSeparator + artist + Constants.trackSeparator + album
+        guard lastLoggedTrack != dedupKey else { return }
         Log.info("Now Playing → \(trackName) — \(artist) [\(album)]", category: "Music")
-        lastLoggedTrack = trackInfo
+        lastLoggedTrack = dedupKey
     }
     
     // MARK: - Setup & Scheduling

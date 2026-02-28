@@ -157,9 +157,8 @@ enum Log {
     ///
     /// - Returns: The log file URL, or nil if logs directory could not be created.
     nonisolated static func exportLogFile() -> URL? {
-        let url = logFileURL
-        // Flush any pending writes
         fileLock.lock()
+        let url = logFileURL
         fileHandle?.synchronizeFile()
         fileLock.unlock()
         return FileManager.default.fileExists(atPath: url.path) ? url : nil

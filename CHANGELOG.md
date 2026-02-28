@@ -21,8 +21,8 @@ All notable changes to this project will be documented in this file.
 - **OBS Widget Onboarding Step**: 4th onboarding step with WebSocket server toggle and widget URL display.
 - **Update Banner**: Dismissible in-app banner when a new version is available, with download button linking to the release page.
 - **Log Export**: Export application logs to a file via save panel in Advanced settings.
-- **Unit Test Suite**: 124+ unit tests across 8 test files covering bot commands, version comparison, onboarding navigation, Twitch view model state, WebSocket server, and app constants integrity.
-- **CI Pipeline**: GitHub Actions workflow runs tests on every push and pull request to `main`.
+- **Unit Test Suite**: 190 unit tests across 14 test files covering bot commands, version comparison, onboarding navigation, Twitch view model state, WebSocket server, app constants integrity, cooldown management, Keychain service, artwork service, power state monitor, music playback monitor, and Twitch device auth.
+- **CI Pipeline**: GitHub Actions workflow runs tests on every push and pull request to `main`. Release workflow imports Developer ID certificate, code signs the app and DMG, notarizes via `notarytool`, staples the ticket, and cleans up the temporary keychain.
 - **Automatic Update Checker**: Checks GitHub Releases for new versions on launch and every 24 hours. Detects Homebrew vs DMG install method and shows appropriate update instructions. Software Update card in Advanced settings with "Check Now", auto-check toggle, and "Skip This Version".
 - **Discord Onboarding Step**: 3rd onboarding step with a visual Rich Presence preview and enable toggle.
 - **Now Playing Preview Card**: Apple Music-styled now-playing card in Music Monitor settings showing current track, artist, and album with live updates.

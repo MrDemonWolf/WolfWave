@@ -148,7 +148,11 @@ function Widget() {
           case "welcome":
             break;
         }
-      } catch {}
+      } catch (error) {
+        if (process.env.NODE_ENV !== "production") {
+          console.error("[Widget] Failed to handle message:", error, event.data);
+        }
+      }
     },
     [showWidget, startProgressLoop, stopProgressLoop]
   );

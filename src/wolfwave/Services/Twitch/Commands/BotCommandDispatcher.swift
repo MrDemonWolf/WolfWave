@@ -74,7 +74,8 @@ final class BotCommandDispatcher {
 
         let lowered = trimmedMessage.lowercased()
 
-        for command in commands {
+        let snapshot = lock.withLock { commands }
+        for command in snapshot {
             for trigger in command.triggers {
                 if lowered.hasPrefix(trigger) {
                     // Load cooldown overrides from UserDefaults

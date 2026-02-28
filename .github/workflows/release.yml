@@ -188,7 +188,8 @@ jobs:
             --apple-id "$APPLE_ID" \
             --team-id "$APPLE_TEAM_ID" \
             --password "$APPLE_APP_PASSWORD" \
-            --wait
+            --wait \
+            --timeout 30m
           echo "✅ Notarization complete"
 
       # ── Staple notarization ticket ──────────────────────────────────

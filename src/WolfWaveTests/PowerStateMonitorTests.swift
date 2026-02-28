@@ -30,9 +30,9 @@ final class PowerStateMonitorTests: XCTestCase {
         let _ = PowerStateMonitor.shared.isReducedMode
     }
 
-    func testIsReducedModeReturnsBool() {
+    func testIsReducedModeDefaultsToFalse() {
+        // On CI/test runners without Low Power Mode, isReducedMode should be false
         let value = PowerStateMonitor.shared.isReducedMode
-        // Value depends on system state but should be a valid boolean
-        XCTAssertTrue(value == true || value == false)
+        XCTAssertFalse(value, "Expected isReducedMode to be false in test environment")
     }
 }

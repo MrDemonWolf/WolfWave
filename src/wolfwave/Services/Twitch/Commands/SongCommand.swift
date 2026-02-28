@@ -30,7 +30,9 @@ final class SongCommand: BotCommand {
                 let result = getCurrentSongInfo?() ?? "No track currently playing"
                 let maxLen = AppConstants.Twitch.maxMessageLength
                 let suffix = AppConstants.Twitch.messageTruncationSuffix
-                return result.count <= maxLen ? result : String(result.prefix(maxLen - suffix.count)) + suffix
+                guard result.count > maxLen else { return result }
+                let prefixLen = max(maxLen - suffix.count, 0)
+                return String(result.prefix(prefixLen)) + suffix
             }
         }
 

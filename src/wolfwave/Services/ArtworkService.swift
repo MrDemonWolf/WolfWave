@@ -81,7 +81,7 @@ final class ArtworkService: @unchecked Sendable {
             // Upscale from 100×100 to 512×512 for better quality
             let highRes = artworkUrl.replacingOccurrences(of: "100x100", with: "512x512")
 
-            self?.cacheQueue.async {
+            self?.cacheQueue.sync {
                 self?.cache[cacheKey] = highRes
             }
 

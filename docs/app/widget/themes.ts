@@ -243,12 +243,12 @@ export function resolveTheme(config: WidgetConfigData): ResolvedThemeStyles {
 
   // For Default theme, allow custom text/background color overrides
   if (config.theme === "Default") {
-    if (config.textColor && config.textColor !== "#FFFFFF") {
+    if (config.textColor && config.textColor !== defaultWidgetConfig.textColor) {
       resolved.textPrimary = config.textColor;
       resolved.textSecondary = config.textColor;
       resolved.progressFillBg = config.textColor;
     }
-    if (config.backgroundColor && config.backgroundColor !== "#1A1A2E") {
+    if (config.backgroundColor && config.backgroundColor !== defaultWidgetConfig.backgroundColor) {
       resolved.overlayBg = config.backgroundColor;
     }
   }

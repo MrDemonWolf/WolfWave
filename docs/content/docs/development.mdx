@@ -26,7 +26,7 @@ This guide covers everything you need to contribute to WolfWave.
 | ------------------ | ---------------------------------------- |
 | `make build`       | Debug build                              |
 | `make clean`       | Clean build artifacts                    |
-| `make test`        | Run unit tests (124 tests)               |
+| `make test`        | Run unit tests (190 tests)               |
 | `make update-deps` | Resolve SwiftPM dependencies             |
 | `make open-xcode`  | Open the Xcode project                   |
 | `make ci`          | CI-friendly build                        |
@@ -152,6 +152,12 @@ Or press **Cmd+U** in Xcode. The test target (`WolfWaveTests`) is a hosted unit 
 | `TwitchViewModelTests` | 26 | AuthState/IntegrationState enums, computed properties |
 | `AppConstantsTests` | 22 | Constant integrity, URL validity, dimension bounds, WebSocket constants |
 | `WebSocketServerServiceTests` | 15 | Server state, port validation, constants, notifications |
+| `CooldownManagerTests` | 10 | Global/per-user cooldown, moderator bypass, reset |
+| `KeychainServiceTests` | 8 | Error descriptions, save-if-changed, load missing, delete |
+| `ArtworkServiceTests` | 6 | Cache miss/hit, cache key format, completion calls |
+| `PowerStateMonitorTests` | 4 | Singleton, state property access |
+| `MusicPlaybackMonitorTests` | 8 | Init, start/stop lifecycle, interval update |
+| `TwitchDeviceAuthTests` | 12 | Error descriptions, response properties, input validation |
 
 ### Adding New Tests
 

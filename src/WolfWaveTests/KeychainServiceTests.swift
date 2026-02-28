@@ -12,16 +12,16 @@ final class KeychainServiceTests: XCTestCase {
 
     // MARK: - Error Description Tests
 
-    func testSaveFailedErrorDescription() {
+    func testSaveFailedErrorDescription() throws {
         let error = KeychainService.KeychainError.saveFailed(-25300)
-        XCTAssertNotNil(error.errorDescription)
-        XCTAssertTrue(error.errorDescription!.contains("-25300"))
+        let description = try XCTUnwrap(error.errorDescription)
+        XCTAssertTrue(description.contains("-25300"))
     }
 
-    func testInvalidDataErrorDescription() {
+    func testInvalidDataErrorDescription() throws {
         let error = KeychainService.KeychainError.invalidData
-        XCTAssertNotNil(error.errorDescription)
-        XCTAssertTrue(error.errorDescription!.contains("Invalid"))
+        let description = try XCTUnwrap(error.errorDescription)
+        XCTAssertTrue(description.contains("Invalid"))
     }
 
     func testSaveFailedWithDifferentStatus() {
