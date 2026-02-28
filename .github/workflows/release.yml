@@ -48,6 +48,40 @@ jobs:
           echo "dmg_name=WolfWave-${VERSION}-arm64.dmg" >> "$GITHUB_OUTPUT"
           echo "📌 Version: $VERSION"
 
+      # ── Import Developer ID certificate ──────────────────────────────
+      - name: Import Developer ID certificate
+        env:
+          CERT_P12: ${{ secrets.DEVELOPER_ID_CERT_P12 }}
+          CERT_PASSWORD: ${{ secrets.DEVELOPER_ID_CERT_PASSWORD }}
+        run: |
+          KEYCHAIN_PATH="$RUNNER_TEMP/build.keychain-db"
+          CERT_PATH="$RUNNER_TEMP/certificate.p12"
+
+          # Decode certificate
+          echo "$CERT_P12" | base64 --decode > "$CERT_PATH"
+
+          # Create temporary keychain
+          security create-keychain -p "" "$KEYCHAIN_PATH"
+          security set-keychain-settings -lut 21600 "$KEYCHAIN_PATH"
+          security unlock-keychain -p "" "$KEYCHAIN_PATH"
+
+          # Import certificate
+          security import "$CERT_PATH" \
+            -k "$KEYCHAIN_PATH" \
+            -P "$CERT_PASSWORD" \
+            -T /usr/bin/codesign \
+            -T /usr/bin/security
+
+          # Allow codesign to access keychain without UI prompt
+          security set-key-partition-list -S apple-tool:,apple: -k "" "$KEYCHAIN_PATH"
+
+          # Add to search list
+          security list-keychains -d user -s "$KEYCHAIN_PATH" login.keychain-db
+
+          # Clean up certificate file
+          rm -f "$CERT_PATH"
+          echo "✅ Developer ID certificate imported"
+
       # ── Build Release ─────────────────────────────────────────────────
       - name: Build Release
         run: |
@@ -70,6 +104,18 @@ jobs:
           fi
           echo "path=$APP_PATH" >> "$GITHUB_OUTPUT"
           echo "✅ App: $APP_PATH"
+
+      # ── Code sign .app ──────────────────────────────────────────────
+      - name: Code sign .app bundle
+        env:
+          APP_PATH: ${{ steps.app.outputs.path }}
+        run: |
+          codesign --deep --force --verify --verbose \
+            --sign "Developer ID Application" \
+            --options runtime \
+            --timestamp \
+            "$APP_PATH"
+          echo "✅ App signed"
 
       # ── Create DMG ────────────────────────────────────────────────────
       - name: Create DMG
@@ -120,6 +166,40 @@ jobs:
 
           echo "✅ DMG: builds/$DMG_NAME"
 
+      # ── Sign DMG ───────────────────────────────────────────────────────
+      - name: Sign DMG
+        env:
+          DMG_NAME: ${{ steps.version.outputs.dmg_name }}
+        run: |
+          codesign --sign "Developer ID Application" \
+            --timestamp \
+            "builds/$DMG_NAME"
+          echo "✅ DMG signed"
+
+      # ── Notarize DMG ────────────────────────────────────────────────
+      - name: Notarize DMG
+        env:
+          DMG_NAME: ${{ steps.version.outputs.dmg_name }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          APPLE_APP_PASSWORD: ${{ secrets.APPLE_APP_PASSWORD }}
+        run: |
+          xcrun notarytool submit "builds/$DMG_NAME" \
+            --apple-id "$APPLE_ID" \
+            --team-id "$APPLE_TEAM_ID" \
+            --password "$APPLE_APP_PASSWORD" \
+            --wait \
+            --timeout 30m
+          echo "✅ Notarization complete"
+
+      # ── Staple notarization ticket ──────────────────────────────────
+      - name: Staple notarization ticket
+        env:
+          DMG_NAME: ${{ steps.version.outputs.dmg_name }}
+        run: |
+          xcrun stapler staple "builds/$DMG_NAME"
+          echo "✅ Notarization ticket stapled"
+
       # ── Upload DMG as artifact ─────────────────────────────────────────
       - name: Upload DMG artifact
         uses: actions/upload-artifact@v4
@@ -138,3 +218,10 @@ jobs:
           gh release create "v$VERSION" "builds/$DMG_NAME" \
             --title "WolfWave v$VERSION" \
             --generate-notes
+
+      # ── Cleanup ─────────────────────────────────────────────────────
+      - name: Cleanup keychain
+        if: always()
+        run: |
+          KEYCHAIN_PATH="$RUNNER_TEMP/build.keychain-db"
+          security delete-keychain "$KEYCHAIN_PATH" 2>/dev/null || true

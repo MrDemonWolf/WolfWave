@@ -81,7 +81,7 @@ struct AdvancedSettingsView: View {
                     try FileManager.default.removeItem(at: destination)
                 }
                 try FileManager.default.copyItem(at: logURL, to: destination)
-                Log.info("Logs exported to \(destination.path)", category: "App")
+                Log.info("Logs exported to \(destination.lastPathComponent)", category: "App")
             } catch {
                 Log.error("Failed to export logs: \(error.localizedDescription)", category: "App")
             }

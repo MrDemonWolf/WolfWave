@@ -79,29 +79,3 @@ class TwitchDeviceAuthWindowController: NSWindowController, NSWindowDelegate {
     }
 }
 
-/// A SwiftUI wrapper for managing the dialog presentation.
-/// Use this in your SwiftUI app to show the authorization dialog.
-struct TwitchDeviceAuthWindow {
-    let deviceCode: String
-    let onAuthorize: () -> Void
-    let onCancel: () -> Void
-    
-    @State private var retainedController: TwitchDeviceAuthWindowController?
-    
-    mutating func show() {
-        let windowController = TwitchDeviceAuthWindowController(
-            deviceCode: deviceCode,
-            onAuthorize: onAuthorize,
-            onCancel: onCancel
-        )
-        // Retain the controller to prevent deallocation while window is open
-        self.retainedController = windowController
-        windowController.showWindow(nil)
-    }
-
-    /// Releases the retained controller to break the retain cycle when done.
-    mutating func dismiss() {
-        retainedController?.close()
-        retainedController = nil
-    }
-}

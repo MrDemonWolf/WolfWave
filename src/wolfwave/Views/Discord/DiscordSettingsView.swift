@@ -32,6 +32,9 @@ struct DiscordSettingsView: View {
     /// Result message from the last test connection attempt.
     @State private var testResultMessage = ""
 
+    /// Task for clearing test result message after delay.
+    @State private var clearTask: Task<Void, Never>?
+
     /// Whether a valid Discord Client ID is configured.
     @State private var hasClientID = false
 
@@ -192,7 +195,10 @@ struct DiscordSettingsView: View {
             }
 
             // Auto-clear the message after 5 seconds
-            DispatchQueue.main.asyncAfter(deadline: .now() + 5) {
+            clearTask?.cancel()
+            clearTask = Task { @MainActor in
+                try? await Task.sleep(nanoseconds: 5_000_000_000)
+                guard !Task.isCancelled else { return }
                 withAnimation { testResultMessage = "" }
             }
         }

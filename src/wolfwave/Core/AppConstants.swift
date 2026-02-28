@@ -59,6 +59,9 @@ enum AppConstants {
 
         /// Posted when system power state changes (Low Power Mode or thermal pressure).
         static let powerStateChanged = "PowerStateChanged"
+
+        /// Posted when Twitch chat connection state changes. UserInfo contains "isConnected" Bool.
+        static let twitchConnectionStateChanged = "TwitchChatConnectionStateChanged"
     }
     
     // MARK: - UserDefaults Keys

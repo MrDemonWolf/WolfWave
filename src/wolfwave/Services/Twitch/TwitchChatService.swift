@@ -128,7 +128,7 @@ final class TwitchChatService: @unchecked Sendable {
     var onMessageReceived: ((ChatMessage) -> Void)?
     var onConnectionStateChanged: ((Bool) -> Void)?
 
-    static let connectionStateChanged = NSNotification.Name("TwitchChatConnectionStateChanged")
+    static let connectionStateChanged = NSNotification.Name(AppConstants.Notifications.twitchConnectionStateChanged)
 
     nonisolated(unsafe) private var _connected = false
     nonisolated(unsafe) private var hasSentConnectionMessage = false

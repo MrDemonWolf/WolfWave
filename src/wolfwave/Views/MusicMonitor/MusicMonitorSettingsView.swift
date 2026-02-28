@@ -237,7 +237,7 @@ struct MusicMonitorSettingsView: View {
     private func checkMusicPermission() {
         let target = NSAppleEventDescriptor(bundleIdentifier: AppConstants.Music.bundleIdentifier)
         let status = AEDeterminePermissionToAutomateTarget(
-            target.aeDesc, typeWildCard, typeWildCard, true
+            target.aeDesc, typeWildCard, typeWildCard, false
         )
         permissionDenied = (status == OSStatus(errAEEventNotPermitted))
     }

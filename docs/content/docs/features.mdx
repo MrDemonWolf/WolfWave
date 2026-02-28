@@ -84,7 +84,7 @@ Show what you're listening to directly on your stream with a built-in browser so
 1. Enable the WebSocket server in **Settings → OBS Widget**
 2. Copy the widget URL
 3. Add it as a **Browser Source** in OBS (recommended size: 500 × 120)
-4. The widget connects to `ws://localhost:8765` and displays your now-playing info
+4. The widget connects to the WebSocket address shown in your OBS Widget settings and displays your now-playing info
 
 ### JSON Message Format
 
@@ -96,7 +96,7 @@ The server broadcasts structured JSON messages:
 
 ## First-Launch Onboarding
 
-A guided 3-step onboarding wizard walks new users through initial configuration on first launch:
+A guided 4-step onboarding wizard walks new users through initial configuration on first launch:
 
 1. **Welcome** — App overview with feature highlights
 2. **Twitch Connection** — Optional OAuth Device Code flow to link your Twitch account

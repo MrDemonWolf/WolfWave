@@ -92,20 +92,23 @@ struct UpdateBannerView: View {
             ) { notification in
                 guard let userInfo = notification.userInfo,
                       let available = userInfo["isUpdateAvailable"] as? Bool,
-                      available,
                       let version = userInfo["latestVersion"] as? String
                 else { return }
 
-                latestVersion = version
-                if let urlString = userInfo["releaseURL"] as? String,
-                   let url = URL(string: urlString)
-                {
-                    releaseURL = url
+                if available {
+                    latestVersion = version
+                    if let urlString = userInfo["releaseURL"] as? String,
+                       let url = URL(string: urlString)
+                    {
+                        releaseURL = url
+                    } else {
+                        releaseURL = URL(string: AppConstants.URLs.githubReleases)
+                    }
+                    isUpdateAvailable = true
+                    isDismissed = false
                 } else {
-                    releaseURL = URL(string: AppConstants.URLs.githubReleases)
+                    isUpdateAvailable = false
                 }
-                isUpdateAvailable = true
-                isDismissed = false
             }
     }
 }
