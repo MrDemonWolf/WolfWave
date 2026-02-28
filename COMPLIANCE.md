@@ -29,6 +29,7 @@ Distribution: DMG (outside Mac App Store)
 ## 1. Code Signing
 
 ### Hardened Runtime
+
 - `ENABLE_HARDENED_RUNTIME = YES` in both Debug and Release
 - All runtime exceptions explicitly set to `NO`:
   - `RUNTIME_EXCEPTION_ALLOW_DYLD_ENVIRONMENT_VARIABLES = NO`
@@ -39,6 +40,7 @@ Distribution: DMG (outside Mac App Store)
   - `RUNTIME_EXCEPTION_DISABLE_LIBRARY_VALIDATION = NO`
 
 ### Signing Identity
+
 | Config | Current | Required |
 |---|---|---|
 | Debug | Apple Development | Apple Development (OK) |
@@ -64,12 +66,15 @@ Release builds are signed via Xcode (local) and GitHub Actions `release.yml` (CI
 | `temporary-exception.sbpl` | Unix socket regex | Discord IPC `connect()` on `/private/var/folders/.../T/discord-ipc-[0-9]` |
 
 ### Dev (`wolfwave.dev.entitlements`)
+
 Same as Release (including `network.server`), plus:
+
 | Entitlement | Value | Justification |
 |---|---|---|
 | `temporary-exception.apple-events` | `com.apple.Music` | Dev-only: broader AppleScript access |
 
 ### Notes
+
 - The `temporary-exception.files` and `temporary-exception.sbpl` entitlements are required for Discord Rich Presence IPC socket access from within the sandbox. These will pass notarization (notarytool checks malware + signing, not entitlement scope). They would be rejected for Mac App Store submission.
 - The `/var/folders/` file path exception is broad. Narrowing is not feasible with the temporary-exception format since Discord's IPC socket path contains a user-specific hash.
 
@@ -94,9 +99,11 @@ Same as Release (including `network.server`), plus:
 ## 4. Source Code Audit
 
 ### No private API usage
+
 All APIs are public Apple frameworks or POSIX/Darwin system calls.
 
 ### Low-level APIs used (all legitimate)
+
 | API | File | Purpose |
 |---|---|---|
 | `sysctl(KERN_PROCARGS2)` | `DiscordRPCService.swift` | Read Discord's TMPDIR from process env |
@@ -105,15 +112,19 @@ All APIs are public Apple frameworks or POSIX/Darwin system calls.
 | `Darwin.read()` / `Darwin.write()` | `DiscordRPCService.swift` | IPC frame I/O |
 
 ### No deprecated APIs
+
 All `#available` checks are forward-compatibility guards for newer macOS features.
 
 ### No dynamic loading
+
 No `dlopen`, `dlsym`, `NSBundle.load`, or similar dynamic library loading.
 
 ### No external process spawning
+
 No `Process`, `NSTask`, or `posix_spawn` usage.
 
 ### Network endpoints
+
 | Endpoint | Protocol | Purpose |
 |---|---|---|
 | `api.twitch.tv/helix` | HTTPS | Twitch Helix API |
@@ -150,18 +161,21 @@ This eliminates signing/notarization issues from third-party binaries.
 ## 6. DMG Build & Notarization Workflow
 
 ### `make prod-build`
+
 1. Builds Release via `xcodebuild` (signed with Developer ID Application)
 2. Copies `.app` to staging directory
 3. Creates DMG with `hdiutil`
 4. Optionally re-signs DMG with Developer ID if certificate is found
 
 ### `make notarize`
+
 1. Signs the DMG with Developer ID Application
 2. Submits to Apple via `xcrun notarytool submit` (requires `APPLE_ID`, `APPLE_TEAM_ID`, `APPLE_APP_PASSWORD` env vars)
 3. Waits for notarization to complete
 4. Staples the notarization ticket to the DMG
 
 ### GitHub Actions (`release.yml`)
+
 Automates the full pipeline on tag push (`v*`):
 1. Imports Developer ID certificate from repository secrets
 2. Builds, signs, notarizes, and staples the DMG
