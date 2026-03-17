@@ -6,14 +6,14 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 WolfWave is a native macOS menu bar app that bridges Apple Music with Twitch, Discord, and stream overlays. It tracks the currently playing song via ScriptingBridge and broadcasts it to Twitch chat via bot commands (EventSub + Helix API), shows "Listening to Apple Music" on Discord via Rich Presence, and streams now-playing data to overlays via WebSocket.
 
-**Stack**: Swift 5.9+, SwiftUI, AppKit, macOS 15.0+, Xcode 16+. Zero external dependencies — all functionality uses native Apple frameworks.
+**Stack**: Swift 5.9+, SwiftUI, AppKit, macOS 15.0+, Xcode 16+. Minimal dependencies (Sparkle for auto-updates) — all other functionality uses native Apple frameworks.
 
 ## Build & Development Commands
 
 ```bash
 make build          # Debug build via xcodebuild
 make clean          # Clean build artifacts
-make test           # Run unit tests (124 tests across 7 test files)
+make test           # Run unit tests (210 tests across 16 test files)
 make update-deps    # Resolve SwiftPM dependencies
 make open-xcode     # Open Xcode project
 make ci             # CI-friendly build (alias for build)
