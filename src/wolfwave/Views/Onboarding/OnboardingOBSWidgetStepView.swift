@@ -34,8 +34,11 @@ struct OnboardingOBSWidgetStepView: View {
             Spacer()
 
             VStack(spacing: 8) {
-                Image(systemName: "rectangle.inset.filled.and.person.filled")
-                    .font(.system(size: 36))
+                Image("OBSLogo")
+                    .renderingMode(.template)
+                    .resizable()
+                    .aspectRatio(contentMode: .fit)
+                    .frame(width: 36, height: 36)
                     .foregroundStyle(.blue)
                     .accessibilityHidden(true)
 
@@ -83,15 +86,6 @@ struct OnboardingOBSWidgetStepView: View {
 
                 if websocketEnabled {
                     VStack(spacing: 10) {
-                        HStack(spacing: 8) {
-                            Image(systemName: "checkmark.circle.fill")
-                                .font(.system(size: 14))
-                                .foregroundStyle(.green)
-                            Text("Widget server enabled!")
-                                .font(.system(size: 13))
-                                .foregroundStyle(.secondary)
-                        }
-
                         VStack(alignment: .leading, spacing: 6) {
                             Text("Add this URL as a Browser Source in OBS:")
                                 .font(.system(size: 11))

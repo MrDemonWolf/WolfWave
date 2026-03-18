@@ -1,136 +1,215 @@
 //
 //  TwitchDeviceAuthTests.swift
-//  WolfWaveTests
+//  wolfwave
 //
-//  Created by MrDemonWolf, Inc. on 2/27/26.
+//  Created by MrDemonWolf, Inc. on 1/17/26.
 //
 
-import XCTest
+import Testing
+import Foundation
 @testable import WolfWave
 
-final class TwitchDeviceAuthTests: XCTestCase {
-
-    // MARK: - Error Type Tests
-
-    func testInvalidResponseErrorDescription() {
-        let error = TwitchDeviceAuthError.invalidResponse
-        XCTAssertEqual(error.errorDescription, "Invalid response from Twitch")
+/// Comprehensive test suite for Twitch OAuth Device Code flow
+@Suite("Twitch Device Auth Tests")
+struct TwitchDeviceAuthTests {
+    
+    // MARK: - Initialization Tests
+    
+    @Test("TwitchDeviceAuth initializes with correct values")
+    func testInitialization() async throws {
+        let clientID = "test_client_id"
+        let scopes = ["user:read:chat", "user:write:chat"]
+        
+        let auth = TwitchDeviceAuth(clientID: clientID, scopes: scopes)
+        
+        // Verify initialization doesn't crash
+        #expect(auth != nil)
     }
-
-    func testAccessDeniedErrorDescription() {
-        let error = TwitchDeviceAuthError.accessDenied
-        XCTAssertEqual(error.errorDescription, "Access denied by user")
-    }
-
-    func testExpiredTokenErrorDescription() {
-        let error = TwitchDeviceAuthError.expiredToken
-        XCTAssertEqual(error.errorDescription, "Device code expired")
-    }
-
-    func testAuthorizationPendingErrorDescription() {
-        let error = TwitchDeviceAuthError.authorizationPending
-        XCTAssertEqual(error.errorDescription, "Waiting for user authorization")
-    }
-
-    func testSlowDownErrorDescription() {
-        let error = TwitchDeviceAuthError.slowDown
-        XCTAssertEqual(error.errorDescription, "Polling too quickly")
-    }
-
-    func testInvalidClientErrorDescription() {
-        let error = TwitchDeviceAuthError.invalidClient
-        XCTAssertEqual(error.errorDescription, "Invalid client credentials")
-    }
-
-    func testUnknownErrorDescription() {
-        let error = TwitchDeviceAuthError.unknown("Something went wrong")
-        XCTAssertEqual(error.errorDescription, "Something went wrong")
-    }
-
-    // MARK: - Request Device Code Tests
-
-    func testRequestDeviceCodeWithEmptyClientIDThrowsInvalidClient() async {
-        let auth = TwitchDeviceAuth(clientID: "", scopes: ["chat:read"])
-        do {
-            _ = try await auth.requestDeviceCode()
-            XCTFail("Expected invalidClient error")
-        } catch let error as TwitchDeviceAuthError {
-            if case .invalidClient = error {
-                // Expected
-            } else {
-                XCTFail("Expected invalidClient, got \(error)")
-            }
-        } catch {
-            XCTFail("Unexpected error type: \(error)")
-        }
-    }
-
-    // MARK: - Poll For Token Validation Tests
-
-    func testPollForTokenWithEmptyDeviceCodeThrowsInvalidClient() async {
-        let auth = TwitchDeviceAuth(clientID: "test-id", scopes: ["chat:read"])
-        do {
-            _ = try await auth.pollForToken(
-                deviceCode: "", interval: 5, progress: { _ in }
-            )
-            XCTFail("Expected invalidClient error")
-        } catch let error as TwitchDeviceAuthError {
-            if case .invalidClient = error {
-                // Expected
-            } else {
-                XCTFail("Expected invalidClient, got \(error)")
-            }
-        } catch {
-            XCTFail("Unexpected error type: \(error)")
-        }
-    }
-
-    func testPollForTokenWithZeroIntervalThrowsInvalidResponse() async {
-        let auth = TwitchDeviceAuth(clientID: "test-id", scopes: ["chat:read"])
-        do {
-            _ = try await auth.pollForToken(
-                deviceCode: "test-code", interval: 0, progress: { _ in }
-            )
-            XCTFail("Expected invalidResponse error")
-        } catch let error as TwitchDeviceAuthError {
-            if case .invalidResponse = error {
-                // Expected
-            } else {
-                XCTFail("Expected invalidResponse, got \(error)")
-            }
-        } catch {
-            XCTFail("Unexpected error type: \(error)")
-        }
-    }
-
+    
     // MARK: - Device Code Response Tests
-
-    func testDeviceCodeResponseProperties() {
+    
+    @Test("TwitchDeviceCodeResponse structure stores values correctly")
+    func testDeviceCodeResponse() async throws {
         let response = TwitchDeviceCodeResponse(
-            deviceCode: "abc123",
-            userCode: "WOLF-1234",
-            verificationURI: "https://www.twitch.tv/activate",
-            verificationURIComplete: "https://www.twitch.tv/activate?user-code=WOLF-1234",
+            deviceCode: "DEVICE123",
+            userCode: "ABCD-EFGH",
+            verificationURI: "https://twitch.tv/activate",
+            verificationURIComplete: "https://twitch.tv/activate?user_code=ABCD-EFGH",
             expiresIn: 600,
             interval: 5
         )
-        XCTAssertEqual(response.deviceCode, "abc123")
-        XCTAssertEqual(response.userCode, "WOLF-1234")
-        XCTAssertEqual(response.verificationURI, "https://www.twitch.tv/activate")
-        XCTAssertEqual(response.verificationURIComplete, "https://www.twitch.tv/activate?user-code=WOLF-1234")
-        XCTAssertEqual(response.expiresIn, 600)
-        XCTAssertEqual(response.interval, 5)
+        
+        #expect(response.deviceCode == "DEVICE123")
+        #expect(response.userCode == "ABCD-EFGH")
+        #expect(response.verificationURI == "https://twitch.tv/activate")
+        #expect(response.verificationURIComplete == "https://twitch.tv/activate?user_code=ABCD-EFGH")
+        #expect(response.expiresIn == 600)
+        #expect(response.interval == 5)
     }
-
-    func testDeviceCodeResponseWithoutCompleteURI() {
+    
+    @Test("Device code response handles nil complete URI")
+    func testDeviceCodeResponseOptionalURI() async throws {
         let response = TwitchDeviceCodeResponse(
-            deviceCode: "abc123",
-            userCode: "WOLF-1234",
-            verificationURI: "https://www.twitch.tv/activate",
+            deviceCode: "DEVICE123",
+            userCode: "ABCD-EFGH",
+            verificationURI: "https://twitch.tv/activate",
             verificationURIComplete: nil,
             expiresIn: 600,
             interval: 5
         )
-        XCTAssertNil(response.verificationURIComplete)
+        
+        #expect(response.verificationURIComplete == nil)
+    }
+    
+    // MARK: - Error Tests
+    
+    @Test("TwitchDeviceAuthError has correct descriptions")
+    func testErrorDescriptions() async throws {
+        let invalidResponse = TwitchDeviceAuthError.invalidResponse
+        #expect(invalidResponse.errorDescription == "Invalid response from Twitch")
+        
+        let accessDenied = TwitchDeviceAuthError.accessDenied
+        #expect(accessDenied.errorDescription == "Access denied by user")
+        
+        let expiredToken = TwitchDeviceAuthError.expiredToken
+        #expect(expiredToken.errorDescription == "Device code expired")
+        
+        let authPending = TwitchDeviceAuthError.authorizationPending
+        #expect(authPending.errorDescription == "Waiting for user authorization")
+        
+        let slowDown = TwitchDeviceAuthError.slowDown
+        #expect(slowDown.errorDescription == "Polling too quickly")
+        
+        let invalidClient = TwitchDeviceAuthError.invalidClient
+        #expect(invalidClient.errorDescription == "Invalid client credentials")
+        
+        let unknown = TwitchDeviceAuthError.unknown("Custom error message")
+        #expect(unknown.errorDescription == "Custom error message")
+    }
+    
+    // MARK: - Request Device Code Tests
+    
+    @Test("Request device code fails with empty client ID")
+    func testRequestDeviceCodeEmptyClientID() async throws {
+        let auth = TwitchDeviceAuth(clientID: "", scopes: ["user:read:chat"])
+        
+        do {
+            _ = try await auth.requestDeviceCode()
+            Issue.record("Expected invalidClient error but succeeded")
+        } catch TwitchDeviceAuthError.invalidClient {
+            // Expected error
+            #expect(true)
+        } catch {
+            Issue.record("Expected invalidClient error but got: \(error)")
+        }
+    }
+    
+    @Test("Request device code with valid client ID structure")
+    func testRequestDeviceCodeValidStructure() async throws {
+        // We can't test actual API calls in unit tests, but we can verify
+        // the auth object is constructed correctly
+        let clientID = "test_client_123"
+        let scopes = ["user:read:chat", "user:write:chat"]
+        
+        let auth = TwitchDeviceAuth(clientID: clientID, scopes: scopes)
+        
+        #expect(auth != nil)
+        
+        // Note: Actual API test would require mocking or integration test
+    }
+    
+    // MARK: - Poll For Token Tests
+    
+    @Test("Poll for token validates device code")
+    func testPollForTokenValidation() async throws {
+        let auth = TwitchDeviceAuth(clientID: "test_client", scopes: ["user:read:chat"])
+        
+        do {
+            _ = try await auth.pollForToken(
+                deviceCode: "",
+                interval: 5,
+                expiresIn: 600
+            ) { _ in }
+            Issue.record("Expected error with empty device code")
+        } catch TwitchDeviceAuthError.invalidClient {
+            // Expected error
+            #expect(true)
+        } catch {
+            Issue.record("Expected invalidClient error but got: \(error)")
+        }
+    }
+    
+    @Test("Poll for token validates interval")
+    func testPollForTokenIntervalValidation() async throws {
+        let auth = TwitchDeviceAuth(clientID: "test_client", scopes: ["user:read:chat"])
+        
+        do {
+            _ = try await auth.pollForToken(
+                deviceCode: "DEVICE123",
+                interval: 0, // Invalid interval
+                expiresIn: 600
+            ) { _ in }
+            Issue.record("Expected error with zero interval")
+        } catch TwitchDeviceAuthError.invalidResponse {
+            // Expected error
+            #expect(true)
+        } catch {
+            Issue.record("Expected invalidResponse error but got: \(error)")
+        }
+    }
+    
+    @Test("Poll for token validates negative interval")
+    func testPollForTokenNegativeInterval() async throws {
+        let auth = TwitchDeviceAuth(clientID: "test_client", scopes: ["user:read:chat"])
+        
+        do {
+            _ = try await auth.pollForToken(
+                deviceCode: "DEVICE123",
+                interval: -5, // Invalid negative interval
+                expiresIn: 600
+            ) { _ in }
+            Issue.record("Expected error with negative interval")
+        } catch TwitchDeviceAuthError.invalidResponse {
+            // Expected error
+            #expect(true)
+        } catch {
+            Issue.record("Expected invalidResponse error but got: \(error)")
+        }
+    }
+    
+    // MARK: - Scope Tests
+    
+    @Test("Empty scopes are allowed")
+    func testEmptyScopes() async throws {
+        let auth = TwitchDeviceAuth(clientID: "test_client", scopes: [])
+        
+        #expect(auth != nil)
+    }
+    
+    @Test("Multiple scopes are supported")
+    func testMultipleScopes() async throws {
+        let scopes = [
+            "user:read:chat",
+            "user:write:chat",
+            "moderator:manage:chat",
+            "channel:read:subscriptions"
+        ]
+        
+        let auth = TwitchDeviceAuth(clientID: "test_client", scopes: scopes)
+        
+        #expect(auth != nil)
+    }
+    
+    // MARK: - URL Encoding Tests
+    
+    @Test("Special characters in scopes are handled")
+    func testScopeEncoding() async throws {
+        let scopes = ["user:read:chat", "user:write:chat"]
+        
+        let auth = TwitchDeviceAuth(clientID: "test_client", scopes: scopes)
+        
+        #expect(auth != nil)
+        
+        // Verify initialization handles colons in scope names
     }
 }

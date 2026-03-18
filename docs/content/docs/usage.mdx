@@ -23,11 +23,11 @@ Show your now-playing track on stream with a browser source overlay:
 
 1. Open **Settings → OBS Widget**
 2. Enable the WebSocket server
-3. Copy the **Widget URL**
+3. Copy the **Widget URL** (`http://localhost:8766`)
 4. In OBS, add a **Browser Source** and paste the URL
 5. Set the source size to **500 × 120** for best results
 
-The widget displays album art, track name, artist, and a progress bar. It connects to the local WebSocket server and updates in real time as your music changes.
+The widget is served directly by the app — no external URL or internet connection required. It displays album art, track name, artist, and a progress bar, connecting to the local WebSocket server and updating in real time as your music changes.
 
 <Callout type="info">
   Enable "Shutdown source when not visible" in OBS for clean reconnects when switching scenes.
@@ -48,11 +48,7 @@ Show what you're listening to on your Discord profile — just like Spotify, but
 
 #### Setup
 
-1. Create a Discord application at [discord.com/developers/applications](https://discord.com/developers/applications)
-2. Copy the **Application ID**
-3. (Optional) Upload an Apple Music logo as a Rich Presence asset named `apple_music`
-4. Add the Application ID to your `Config.xcconfig` as `DISCORD_CLIENT_ID`
-5. Enable Discord Rich Presence in **Settings → Discord**
+Enable Discord Rich Presence in **Settings → Discord**. WolfWave connects automatically via Discord's local IPC socket — no bot token or server required.
 
 #### What It Shows
 
@@ -90,15 +86,14 @@ Once connected, your viewers can use these commands in chat:
 | `!prevsong`    | Previously played song   |
 
 <Callout type="info">
-  Commands can be toggled on/off in Settings under "Bot Commands".
+  Commands can be toggled on/off in **Settings → Twitch → Bot Commands**. You can also configure global and per-user cooldowns to prevent command spam — moderators and the broadcaster bypass all cooldowns.
 </Callout>
 
 ## Settings
 
 Access settings from the menu bar icon to configure:
 
-- **Music Monitor**: Enable/disable Apple Music tracking
 - **OBS Widget**: Enable the stream overlay WebSocket server and copy the widget URL
-- **Twitch**: Connect your Twitch account and configure the bot
-- **Discord**: Enable/disable Rich Presence and view connection status
+- **Twitch Integration**: Connect your Twitch account, configure bot commands, and set cooldowns
+- **Discord Integration**: Enable/disable Rich Presence and view connection status
 - **Advanced**: Software updates, reset onboarding, reset all settings

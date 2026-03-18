@@ -33,9 +33,9 @@ protocol BotCommand {
 // MARK: - Default Cooldown Values
 
 extension BotCommand {
-    /// Default global cooldown: 3 seconds between any uses.
-    var globalCooldown: TimeInterval { 3.0 }
+    /// Default global cooldown: 15 seconds between any uses.
+    var globalCooldown: TimeInterval { 15.0 }
 
-    /// Default per-user cooldown: 10 seconds between uses by the same user.
-    var userCooldown: TimeInterval { 10.0 }
+    /// Default per-user cooldown: 15 seconds between uses by the same user.
+    var userCooldown: TimeInterval { 15.0 }
 }

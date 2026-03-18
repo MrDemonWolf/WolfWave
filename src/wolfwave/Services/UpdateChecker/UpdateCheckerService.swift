@@ -158,10 +158,37 @@ final class UpdateCheckerService: @unchecked Sendable {
             return latestUpdateInfo
         }
 
+        // Allow mocking an update via env var for development testing
+        if let mockVersion = ProcessInfo.processInfo.environment["WOLFWAVE_MOCK_UPDATE"],
+           !mockVersion.isEmpty {
+            Log.debug("UpdateChecker: Using mock update version '\(mockVersion)' from env var", category: "Update")
+            let info = UpdateInfo(
+                latestVersion: mockVersion,
+                isUpdateAvailable: isNewerVersion(mockVersion, than: currentVersion),
+                downloadURL: nil,
+                releaseURL: nil,
+                releaseNotes: "Mock release for development testing.",
+                installMethod: detectInstallMethod()
+            )
+            storeUpdateInfo(info)
+            DispatchQueue.main.async {
+                NotificationCenter.default.post(
+                    name: NSNotification.Name(AppConstants.Notifications.updateStateChanged),
+                    object: nil,
+                    userInfo: [
+                        "isUpdateAvailable": info.isUpdateAvailable,
+                        "latestVersion": info.latestVersion,
+                    ]
+                )
+            }
+            return info
+        }
+
         Log.info("UpdateChecker: Checking for updates...", category: "Update")
 
-        guard let url = URL(string: AppConstants.URLs.githubReleasesAPI) else {
-            Log.error("UpdateChecker: Invalid API URL", category: "Update")
+        let apiURL = AppConstants.URLs.githubReleasesAPI
+        guard let url = URL(string: apiURL) else {
+            Log.error("UpdateChecker: Invalid API URL: \(apiURL)", category: "Update")
             return nil
         }
 
@@ -172,9 +199,16 @@ final class UpdateCheckerService: @unchecked Sendable {
         do {
             let (data, response) = try await session.data(for: request)
 
-            guard let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode == 200 else {
-                let statusCode = (response as? HTTPURLResponse)?.statusCode ?? -1
-                Log.error("UpdateChecker: GitHub API returned status \(statusCode)", category: "Update")
+            guard let httpResponse = response as? HTTPURLResponse else {
+                Log.error("UpdateChecker: Invalid response from GitHub API", category: "Update")
+                return nil
+            }
+            if httpResponse.statusCode == 404 {
+                Log.info("UpdateChecker: No releases found on GitHub (404) — nothing to compare", category: "Update")
+                return nil
+            }
+            guard httpResponse.statusCode == 200 else {
+                Log.error("UpdateChecker: GitHub API returned status \(httpResponse.statusCode)", category: "Update")
                 return nil
             }
 

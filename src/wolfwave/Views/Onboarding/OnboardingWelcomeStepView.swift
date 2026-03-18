@@ -33,29 +33,28 @@ struct OnboardingWelcomeStepView: View {
             }
 
             VStack(alignment: .leading, spacing: 16) {
-                featureRow(
-                    icon: "music.note",
+                brandFeatureRow(
+                    image: "AppleMusicLogo",
                     title: "Music Monitoring",
                     description: "Tracks your currently playing song from Apple Music in real time."
                 )
-                featureRow(
-                    icon: "message.fill",
-                    color: Color(red: 0.569, green: 0.275, blue: 1.0),  // Twitch #9146FF
+                brandFeatureRow(
+                    image: "TwitchLogo",
+                    renderOriginal: true,
                     title: "Twitch Chat Bot",
                     description: "Viewers can use !song and !last commands to see what you're playing."
                 )
-                featureRow(
-                    icon: "gamecontroller.fill",
+                brandFeatureRow(
+                    image: "DiscordLogo",
                     title: "Discord Rich Presence",
                     description: "Shows what you're listening to on your Discord profile."
                 )
-                featureRow(
-                    icon: "rectangle.inset.filled.and.person.filled",
+                brandFeatureRow(
+                    image: "OBSLogo",
                     title: "OBS Stream Widget",
                     description: "Display now-playing info as a browser source overlay on your stream."
                 )
             }
-            .padding(.horizontal, 32)
 
             Spacer()
         }
@@ -65,10 +64,13 @@ struct OnboardingWelcomeStepView: View {
     // MARK: - Helpers
 
     @ViewBuilder
-    private func featureRow(icon: String, color: Color = .accentColor, title: String, description: String) -> some View {
+    private func brandFeatureRow(image: String, renderOriginal: Bool = false, color: Color = .accentColor, title: String, description: String) -> some View {
         HStack(alignment: .top, spacing: 12) {
-            Image(systemName: icon)
-                .font(.system(size: 18))
+            Image(image)
+                .renderingMode(renderOriginal ? .original : .template)
+                .resizable()
+                .aspectRatio(contentMode: .fit)
+                .frame(width: 18, height: 18)
                 .foregroundStyle(color)
                 .frame(width: 28, alignment: .center)
 

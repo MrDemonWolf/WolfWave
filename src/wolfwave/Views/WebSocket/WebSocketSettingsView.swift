@@ -17,6 +17,9 @@ struct WebSocketSettingsView: View {
     @AppStorage(AppConstants.UserDefaults.websocketServerPort)
     private var storedPort: Int = Int(AppConstants.WebSocketServer.defaultPort)
 
+    @AppStorage(AppConstants.UserDefaults.widgetHTTPEnabled)
+    private var widgetHTTPEnabled = true
+
     @AppStorage(AppConstants.UserDefaults.widgetTheme)
     private var widgetTheme = "Default"
 
@@ -40,12 +43,12 @@ struct WebSocketSettingsView: View {
     @State private var copiedWidgetURL = false
     @State private var copiedConnectionURL = false
 
+    private let cardPadding = AppConstants.SettingsUI.cardPadding
+
     private var widgetURL: String {
-        #if DEBUG
-        "http://localhost:3000/widget/?port=\(storedPort)"
-        #else
-        "https://mrdemonwolf.github.io/wolfwave/widget/?port=\(storedPort)"
-        #endif
+        let widgetPort = UserDefaults.standard.integer(forKey: AppConstants.UserDefaults.widgetPort)
+        let port = widgetPort > 0 ? widgetPort : Int(AppConstants.WebSocketServer.widgetDefaultPort)
+        return "http://localhost:\(port)"
     }
 
     private var connectionURL: String {
@@ -59,7 +62,7 @@ struct WebSocketSettingsView: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 16) {
+        VStack(alignment: .leading, spacing: AppConstants.SettingsUI.sectionSpacing) {
             VStack(alignment: .leading, spacing: 6) {
                 HStack(alignment: .center, spacing: 10) {
                     Text("OBS Widget")
@@ -78,314 +81,11 @@ struct WebSocketSettingsView: View {
                     .fixedSize(horizontal: false, vertical: true)
             }
 
-            VStack(alignment: .leading, spacing: 12) {
-                HStack(spacing: 12) {
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text("Port")
-                            .font(.system(size: 13, weight: .medium))
-                        Text(verbatim: "Default: \(AppConstants.WebSocketServer.defaultPort)")
-                            .font(.system(size: 11))
-                            .foregroundStyle(.tertiary)
-                    }
+            serverSettingsCard
 
-                    Spacer()
+            browserSourceCard
 
-                    TextField("Port", text: $portText)
-                        .textFieldStyle(.roundedBorder)
-                        .frame(width: 80)
-                        .multilineTextAlignment(.center)
-                        .accessibilityLabel("Server port")
-                        .accessibilityIdentifier("websocketPortField")
-                        .onSubmit {
-                            applyPort()
-                        }
-                }
-
-                if !portText.isEmpty && !isPortValid {
-                    HStack(spacing: 6) {
-                        Image(systemName: "exclamationmark.circle.fill")
-                            .font(.system(size: 11))
-                        Text(verbatim: "Port must be between \(AppConstants.WebSocketServer.minPort) and \(AppConstants.WebSocketServer.maxPort).")
-                            .font(.system(size: 11))
-                    }
-                    .foregroundStyle(.red)
-                }
-
-                Divider()
-                    .padding(.vertical, 2)
-
-                HStack(spacing: 12) {
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text("Enable WebSocket server")
-                            .font(.system(size: 13, weight: .medium))
-                        Text("Broadcast now playing data to connected overlays")
-                            .font(.system(size: 11))
-                            .foregroundStyle(.tertiary)
-                    }
-                    Spacer()
-                    Toggle("", isOn: $websocketEnabled)
-                        .labelsHidden()
-                        .toggleStyle(.switch)
-                        .controlSize(.small)
-                        .pointerCursor()
-                        .accessibilityLabel("Enable WebSocket server")
-                        .accessibilityIdentifier("websocketEnabledToggle")
-                        .onChange(of: websocketEnabled) { _, newValue in
-                            notifyServerSettingChanged()
-                        }
-                }
-
-                Divider()
-                    .padding(.vertical, 2)
-
-                HStack(spacing: 8) {
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text("Connection URL")
-                            .font(.system(size: 11, weight: .medium))
-                            .foregroundStyle(.secondary)
-                        Text(connectionURL)
-                            .font(.system(size: 12, design: .monospaced))
-                            .textSelection(.enabled)
-                    }
-
-                    Spacer()
-
-                    Button {
-                        copyToClipboard(connectionURL)
-                        copiedConnectionURL = true
-                        DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
-                            copiedConnectionURL = false
-                        }
-                    } label: {
-                        Image(systemName: copiedConnectionURL ? "checkmark" : "doc.on.doc")
-                            .font(.system(size: 11))
-                    }
-                    .buttonStyle(.bordered)
-                    .controlSize(.small)
-                    .accessibilityLabel("Copy connection URL")
-                    .accessibilityIdentifier("copyConnectionURLButton")
-                }
-            }
-            .padding(AppConstants.SettingsUI.cardPadding)
-            .background(Color(nsColor: .controlBackgroundColor))
-            .clipShape(RoundedRectangle(cornerRadius: AppConstants.SettingsUI.cardCornerRadius))
-
-            Divider()
-                .padding(.vertical, 4)
-
-            VStack(alignment: .leading, spacing: 12) {
-                VStack(alignment: .leading, spacing: 6) {
-                    HStack(spacing: 8) {
-                        Image(systemName: "rectangle.inset.filled.and.person.filled")
-                            .font(.system(size: 14))
-                            .foregroundStyle(Color(nsColor: .controlAccentColor))
-                        Text("Browser Source URL")
-                            .font(.system(size: 15, weight: .semibold))
-                    }
-
-                    Text("Copy this URL and paste it into a Browser Source in OBS.")
-                        .font(.system(size: 12))
-                        .foregroundStyle(.secondary)
-                        .fixedSize(horizontal: false, vertical: true)
-                }
-
-                VStack(alignment: .leading, spacing: 8) {
-                    Text(widgetURL)
-                        .font(.system(size: 11, design: .monospaced))
-                        .textSelection(.enabled)
-                        .lineLimit(2)
-                        .fixedSize(horizontal: false, vertical: true)
-
-                    HStack(spacing: 8) {
-                        Button {
-                            copyToClipboard(widgetURL)
-                            copiedWidgetURL = true
-                            DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
-                                copiedWidgetURL = false
-                            }
-                        } label: {
-                            HStack(spacing: 4) {
-                                Image(systemName: copiedWidgetURL ? "checkmark" : "doc.on.doc")
-                                    .font(.system(size: 11))
-                                Text(copiedWidgetURL ? "Copied" : "Copy URL")
-                                    .font(.system(size: 11))
-                            }
-                        }
-                        .buttonStyle(.bordered)
-                        .controlSize(.small)
-                        .accessibilityLabel("Copy widget URL")
-                        .accessibilityIdentifier("copyWidgetURLButton")
-
-                        Button {
-                            if let url = URL(string: widgetURL) {
-                                NSWorkspace.shared.open(url)
-                            }
-                        } label: {
-                            HStack(spacing: 4) {
-                                Image(systemName: "safari")
-                                    .font(.system(size: 11))
-                                Text("Open")
-                                    .font(.system(size: 11))
-                            }
-                        }
-                        .buttonStyle(.bordered)
-                        .controlSize(.small)
-                        .accessibilityLabel("Open widget in browser")
-                        .accessibilityIdentifier("openWidgetURLButton")
-                    }
-                }
-
-                HStack(alignment: .top, spacing: 8) {
-                    Image(systemName: "info.circle.fill")
-                        .font(.system(size: 12))
-                        .foregroundStyle(.blue)
-                    Text("Set the Browser Source size to **\(AppConstants.Widget.recommendedDimensionsText)** for best results. Enable \"Shutdown source when not visible\" for clean reconnects.")
-                        .font(.system(size: 11))
-                        .foregroundStyle(.secondary)
-                        .fixedSize(horizontal: false, vertical: true)
-                }
-                .padding(10)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .background(Color.blue.opacity(0.08))
-                .clipShape(RoundedRectangle(cornerRadius: 6))
-            }
-            .padding(AppConstants.SettingsUI.cardPadding)
-            .background(Color(nsColor: .controlBackgroundColor))
-            .clipShape(RoundedRectangle(cornerRadius: AppConstants.SettingsUI.cardCornerRadius))
-
-            Divider()
-                .padding(.vertical, 4)
-
-            // MARK: Widget Appearance
-
-            VStack(alignment: .leading, spacing: 12) {
-                VStack(alignment: .leading, spacing: 6) {
-                    HStack(spacing: 8) {
-                        Image(systemName: "paintbrush.fill")
-                            .font(.system(size: 14))
-                            .foregroundStyle(Color(nsColor: .controlAccentColor))
-                        Text("Widget Appearance")
-                            .font(.system(size: 15, weight: .semibold))
-                    }
-
-                    Text("Customize the look of your stream overlay widget.")
-                        .font(.system(size: 12))
-                        .foregroundStyle(.secondary)
-                        .fixedSize(horizontal: false, vertical: true)
-                }
-
-                HStack(spacing: 12) {
-                    Text("Theme")
-                        .font(.system(size: 13, weight: .medium))
-                    Spacer()
-                    Picker("", selection: $widgetTheme) {
-                        ForEach(AppConstants.Widget.themes, id: \.self) { theme in
-                            Text(theme).tag(theme)
-                        }
-                    }
-                    .labelsHidden()
-                    .frame(width: 140)
-                    .accessibilityLabel("Widget theme")
-                    .accessibilityIdentifier("widgetThemePicker")
-                    .onChange(of: widgetTheme) { _, _ in
-                        broadcastWidgetConfig()
-                    }
-                }
-
-                Divider()
-
-                HStack(spacing: 12) {
-                    Text("Layout")
-                        .font(.system(size: 13, weight: .medium))
-                    Spacer()
-                    Picker("", selection: $widgetLayout) {
-                        ForEach(AppConstants.Widget.layouts, id: \.self) { layout in
-                            Text(layout).tag(layout)
-                        }
-                    }
-                    .labelsHidden()
-                    .frame(width: 140)
-                    .accessibilityLabel("Widget layout")
-                    .accessibilityIdentifier("widgetLayoutPicker")
-                    .onChange(of: widgetLayout) { _, _ in
-                        broadcastWidgetConfig()
-                    }
-                }
-
-                if widgetTheme == "Default" {
-                    Divider()
-
-                    HStack(spacing: 12) {
-                        Text("Text Color")
-                            .font(.system(size: 13, weight: .medium))
-                        Spacer()
-                        HStack(spacing: 6) {
-                            Circle()
-                                .fill(Color(hex: widgetTextColor) ?? .white)
-                                .frame(width: 14, height: 14)
-                                .overlay(Circle().stroke(Color.primary.opacity(0.2), lineWidth: 1))
-                            TextField("#FFFFFF", text: $widgetTextColor)
-                                .textFieldStyle(.roundedBorder)
-                                .frame(width: 90)
-                                .font(.system(size: 12, design: .monospaced))
-                                .multilineTextAlignment(.center)
-                                .accessibilityLabel("Widget text color")
-                                .accessibilityIdentifier("widgetTextColorField")
-                                .onSubmit { broadcastWidgetConfig() }
-                        }
-                    }
-
-                    HStack(spacing: 12) {
-                        Text("Background Color")
-                            .font(.system(size: 13, weight: .medium))
-                        Spacer()
-                        HStack(spacing: 6) {
-                            Circle()
-                                .fill(Color(hex: widgetBackgroundColor) ?? .black)
-                                .frame(width: 14, height: 14)
-                                .overlay(Circle().stroke(Color.primary.opacity(0.2), lineWidth: 1))
-                            TextField("#1A1A2E", text: $widgetBackgroundColor)
-                                .textFieldStyle(.roundedBorder)
-                                .frame(width: 90)
-                                .font(.system(size: 12, design: .monospaced))
-                                .multilineTextAlignment(.center)
-                                .accessibilityLabel("Widget background color")
-                                .accessibilityIdentifier("widgetBackgroundColorField")
-                                .onSubmit { broadcastWidgetConfig() }
-                        }
-                    }
-                }
-
-                Divider()
-
-                HStack(spacing: 12) {
-                    Text("Font")
-                        .font(.system(size: 13, weight: .medium))
-                    Spacer()
-                    Picker("", selection: $widgetFontFamily) {
-                        Section("Built-in") {
-                            ForEach(AppConstants.Widget.builtInFonts, id: \.self) { font in
-                                Text(font).tag(font)
-                            }
-                        }
-                        Section("Google Fonts") {
-                            ForEach(AppConstants.Widget.googleFonts, id: \.self) { font in
-                                Text(font).tag(font)
-                            }
-                        }
-                    }
-                    .labelsHidden()
-                    .frame(width: 180)
-                    .accessibilityLabel("Widget font")
-                    .accessibilityIdentifier("widgetFontPicker")
-                    .onChange(of: widgetFontFamily) { _, _ in
-                        broadcastWidgetConfig()
-                    }
-                }
-            }
-            .padding(AppConstants.SettingsUI.cardPadding)
-            .background(Color(nsColor: .controlBackgroundColor))
-            .clipShape(RoundedRectangle(cornerRadius: AppConstants.SettingsUI.cardCornerRadius))
+            widgetAppearanceCard
         }
         .onAppear {
             portText = String(storedPort)
@@ -404,6 +104,386 @@ struct WebSocketSettingsView: View {
                 clientCount = clients
             }
         }
+    }
+
+    // MARK: - Server Settings Card
+
+    private var serverSettingsCard: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            // Port row
+            HStack(spacing: 12) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Port")
+                        .font(.system(size: 13, weight: .medium))
+                    Text(verbatim: "Default: \(AppConstants.WebSocketServer.defaultPort)")
+                        .font(.system(size: 11))
+                        .foregroundStyle(.tertiary)
+                }
+
+                Spacer()
+
+                TextField("Port", text: $portText)
+                    .textFieldStyle(.roundedBorder)
+                    .frame(width: 80)
+                    .multilineTextAlignment(.center)
+                    .accessibilityLabel("Server port")
+                    .accessibilityIdentifier("websocketPortField")
+                    .onSubmit {
+                        applyPort()
+                    }
+            }
+            .padding(.horizontal, cardPadding)
+            .padding(.vertical, 12)
+
+            if !portText.isEmpty && !isPortValid {
+                HStack(spacing: 6) {
+                    Image(systemName: "exclamationmark.circle.fill")
+                        .font(.system(size: 11))
+                    Text(verbatim: "Port must be between \(AppConstants.WebSocketServer.minPort) and \(AppConstants.WebSocketServer.maxPort).")
+                        .font(.system(size: 11))
+                }
+                .foregroundStyle(.red)
+                .padding(.horizontal, cardPadding)
+                .padding(.bottom, 8)
+            }
+
+            Divider()
+                .padding(.leading, cardPadding)
+
+            // Enable toggle row
+            HStack(spacing: 12) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Enable WebSocket server")
+                        .font(.system(size: 13, weight: .medium))
+                    Text("Broadcast now playing data to connected overlays")
+                        .font(.system(size: 11))
+                        .foregroundStyle(.tertiary)
+                }
+                Spacer()
+                Toggle("", isOn: $websocketEnabled)
+                    .labelsHidden()
+                    .toggleStyle(.switch)
+                    .controlSize(.small)
+                    .pointerCursor()
+                    .accessibilityLabel("Enable WebSocket server")
+                    .accessibilityIdentifier("websocketEnabledToggle")
+                    .onChange(of: websocketEnabled) { _, newValue in
+                        notifyServerSettingChanged()
+                    }
+            }
+            .padding(.horizontal, cardPadding)
+            .padding(.vertical, 12)
+
+            Divider()
+                .padding(.leading, cardPadding)
+
+            // Widget HTTP server toggle row
+            HStack(spacing: 12) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Enable Widget Web Server")
+                        .font(.system(size: 13, weight: .medium))
+                    Text("Serves the overlay page at the Browser Source URL")
+                        .font(.system(size: 11))
+                        .foregroundStyle(.tertiary)
+                }
+                Spacer()
+                Toggle("", isOn: $widgetHTTPEnabled)
+                    .labelsHidden()
+                    .toggleStyle(.switch)
+                    .controlSize(.small)
+                    .pointerCursor()
+                    .disabled(!websocketEnabled)
+                    .accessibilityLabel("Enable Widget Web Server")
+                    .accessibilityIdentifier("widgetHTTPEnabledToggle")
+                    .onChange(of: widgetHTTPEnabled) { _, _ in
+                        NotificationCenter.default.post(
+                            name: NSNotification.Name(AppConstants.Notifications.widgetHTTPServerChanged),
+                            object: nil
+                        )
+                    }
+            }
+            .padding(.horizontal, cardPadding)
+            .padding(.vertical, 12)
+            .opacity(websocketEnabled ? 1.0 : 0.5)
+
+            Divider()
+                .padding(.leading, cardPadding)
+
+            // Connection URL row
+            HStack(spacing: 8) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Connection URL")
+                        .font(.system(size: 11, weight: .medium))
+                        .foregroundStyle(.secondary)
+                    Text(connectionURL)
+                        .font(.system(size: 12, design: .monospaced))
+                        .textSelection(.enabled)
+                }
+
+                Spacer()
+
+                Button {
+                    copyToClipboard(connectionURL)
+                    copiedConnectionURL = true
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
+                        copiedConnectionURL = false
+                    }
+                } label: {
+                    Image(systemName: copiedConnectionURL ? "checkmark" : "doc.on.doc")
+                        .font(.system(size: 11))
+                }
+                .buttonStyle(.bordered)
+                .controlSize(.small)
+                .accessibilityLabel("Copy connection URL")
+                .accessibilityIdentifier("copyConnectionURLButton")
+            }
+            .padding(.horizontal, cardPadding)
+            .padding(.vertical, 12)
+        }
+        .background(Color(nsColor: .controlBackgroundColor))
+        .clipShape(RoundedRectangle(cornerRadius: AppConstants.SettingsUI.cardCornerRadius))
+    }
+
+    // MARK: - Browser Source Card
+
+    private var browserSourceCard: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            VStack(alignment: .leading, spacing: 6) {
+                HStack(spacing: 8) {
+                    Image(systemName: "rectangle.inset.filled.and.person.filled")
+                        .font(.system(size: 14))
+                        .foregroundStyle(Color(nsColor: .controlAccentColor))
+                    Text("Browser Source URL")
+                        .font(.system(size: 15, weight: .semibold))
+                }
+
+                Text("Copy this URL and paste it into a Browser Source in OBS.")
+                    .font(.system(size: 12))
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+
+            VStack(alignment: .leading, spacing: 8) {
+                Text(widgetURL)
+                    .font(.system(size: 11, design: .monospaced))
+                    .textSelection(.enabled)
+                    .lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
+
+                HStack(spacing: 8) {
+                    Button {
+                        copyToClipboard(widgetURL)
+                        copiedWidgetURL = true
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
+                            copiedWidgetURL = false
+                        }
+                    } label: {
+                        HStack(spacing: 4) {
+                            Image(systemName: copiedWidgetURL ? "checkmark" : "doc.on.doc")
+                                .font(.system(size: 11))
+                            Text(copiedWidgetURL ? "Copied" : "Copy URL")
+                                .font(.system(size: 11))
+                        }
+                    }
+                    .buttonStyle(.bordered)
+                    .controlSize(.small)
+                    .accessibilityLabel("Copy widget URL")
+                    .accessibilityIdentifier("copyWidgetURLButton")
+
+                    Button {
+                        if let url = URL(string: widgetURL) {
+                            NSWorkspace.shared.open(url)
+                        }
+                    } label: {
+                        HStack(spacing: 4) {
+                            Image(systemName: "safari")
+                                .font(.system(size: 11))
+                            Text("Open")
+                                .font(.system(size: 11))
+                        }
+                    }
+                    .buttonStyle(.bordered)
+                    .controlSize(.small)
+                    .accessibilityLabel("Open widget in browser")
+                    .accessibilityIdentifier("openWidgetURLButton")
+                }
+            }
+
+            HStack(alignment: .top, spacing: 8) {
+                Image(systemName: "info.circle.fill")
+                    .font(.system(size: 12))
+                    .foregroundStyle(.blue)
+                Text("Set the Browser Source size to **\(AppConstants.Widget.recommendedDimensionsText)** for best results. Enable \"Shutdown source when not visible\" for clean reconnects.")
+                    .font(.system(size: 11))
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            .padding(10)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(Color.blue.opacity(0.08))
+            .clipShape(RoundedRectangle(cornerRadius: 6))
+        }
+        .cardStyle()
+    }
+
+    // MARK: - Widget Appearance Card
+
+    private var widgetAppearanceCard: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            // Header
+            VStack(alignment: .leading, spacing: 6) {
+                HStack(spacing: 8) {
+                    Image(systemName: "paintbrush.fill")
+                        .font(.system(size: 14))
+                        .foregroundStyle(Color(nsColor: .controlAccentColor))
+                    Text("Widget Appearance")
+                        .font(.system(size: 15, weight: .semibold))
+                }
+
+                Text("Customize the look of your stream overlay widget.")
+                    .font(.system(size: 12))
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            .padding(.horizontal, cardPadding)
+            .padding(.top, cardPadding)
+            .padding(.bottom, 12)
+
+            Divider()
+                .padding(.leading, cardPadding)
+
+            // Theme row
+            HStack(spacing: 12) {
+                Text("Theme")
+                    .font(.system(size: 13, weight: .medium))
+                Spacer()
+                Picker("", selection: $widgetTheme) {
+                    ForEach(AppConstants.Widget.themes, id: \.self) { theme in
+                        Text(theme).tag(theme)
+                    }
+                }
+                .labelsHidden()
+                .frame(width: 140)
+                .accessibilityLabel("Widget theme")
+                .accessibilityIdentifier("widgetThemePicker")
+                .onChange(of: widgetTheme) { _, _ in
+                    broadcastWidgetConfig()
+                }
+            }
+            .padding(.horizontal, cardPadding)
+            .padding(.vertical, 12)
+
+            Divider()
+                .padding(.leading, cardPadding)
+
+            // Layout row
+            HStack(spacing: 12) {
+                Text("Layout")
+                    .font(.system(size: 13, weight: .medium))
+                Spacer()
+                Picker("", selection: $widgetLayout) {
+                    ForEach(AppConstants.Widget.layouts, id: \.self) { layout in
+                        Text(layout).tag(layout)
+                    }
+                }
+                .labelsHidden()
+                .frame(width: 140)
+                .accessibilityLabel("Widget layout")
+                .accessibilityIdentifier("widgetLayoutPicker")
+                .onChange(of: widgetLayout) { _, _ in
+                    broadcastWidgetConfig()
+                }
+            }
+            .padding(.horizontal, cardPadding)
+            .padding(.vertical, 12)
+
+            if widgetTheme == "Default" {
+                Divider()
+                    .padding(.leading, cardPadding)
+
+                // Text Color row
+                HStack(spacing: 12) {
+                    Text("Text Color")
+                        .font(.system(size: 13, weight: .medium))
+                    Spacer()
+                    HStack(spacing: 6) {
+                        Circle()
+                            .fill(Color(hex: widgetTextColor) ?? .white)
+                            .frame(width: 14, height: 14)
+                            .overlay(Circle().stroke(Color.primary.opacity(0.2), lineWidth: 1))
+                        TextField("#FFFFFF", text: $widgetTextColor)
+                            .textFieldStyle(.roundedBorder)
+                            .frame(width: 90)
+                            .font(.system(size: 12, design: .monospaced))
+                            .multilineTextAlignment(.center)
+                            .accessibilityLabel("Widget text color")
+                            .accessibilityIdentifier("widgetTextColorField")
+                            .onSubmit { broadcastWidgetConfig() }
+                    }
+                }
+                .padding(.horizontal, cardPadding)
+                .padding(.vertical, 12)
+
+                Divider()
+                    .padding(.leading, cardPadding)
+
+                // Background Color row
+                HStack(spacing: 12) {
+                    Text("Background Color")
+                        .font(.system(size: 13, weight: .medium))
+                    Spacer()
+                    HStack(spacing: 6) {
+                        Circle()
+                            .fill(Color(hex: widgetBackgroundColor) ?? .black)
+                            .frame(width: 14, height: 14)
+                            .overlay(Circle().stroke(Color.primary.opacity(0.2), lineWidth: 1))
+                        TextField("#1A1A2E", text: $widgetBackgroundColor)
+                            .textFieldStyle(.roundedBorder)
+                            .frame(width: 90)
+                            .font(.system(size: 12, design: .monospaced))
+                            .multilineTextAlignment(.center)
+                            .accessibilityLabel("Widget background color")
+                            .accessibilityIdentifier("widgetBackgroundColorField")
+                            .onSubmit { broadcastWidgetConfig() }
+                    }
+                }
+                .padding(.horizontal, cardPadding)
+                .padding(.vertical, 12)
+            }
+
+            Divider()
+                .padding(.leading, cardPadding)
+
+            // Font row
+            HStack(spacing: 12) {
+                Text("Font")
+                    .font(.system(size: 13, weight: .medium))
+                Spacer()
+                Picker("", selection: $widgetFontFamily) {
+                    Section("Built-in") {
+                        ForEach(AppConstants.Widget.builtInFonts, id: \.self) { font in
+                            Text(font).tag(font)
+                        }
+                    }
+                    Section("Google Fonts") {
+                        ForEach(AppConstants.Widget.googleFonts, id: \.self) { font in
+                            Text(font).tag(font)
+                        }
+                    }
+                }
+                .labelsHidden()
+                .frame(width: 180)
+                .accessibilityLabel("Widget font")
+                .accessibilityIdentifier("widgetFontPicker")
+                .onChange(of: widgetFontFamily) { _, _ in
+                    broadcastWidgetConfig()
+                }
+            }
+            .padding(.horizontal, cardPadding)
+            .padding(.vertical, 12)
+        }
+        .background(Color(nsColor: .controlBackgroundColor))
+        .clipShape(RoundedRectangle(cornerRadius: AppConstants.SettingsUI.cardCornerRadius))
     }
 
     // MARK: - Subviews
@@ -491,7 +571,72 @@ private struct StatusChip: View {
 
 // MARK: - Preview
 
-#Preview {
+#Preview("WebSocket Listening with Clients") {
+    @Previewable @AppStorage(AppConstants.UserDefaults.websocketEnabled) var websocketEnabled = true
+    @Previewable @AppStorage(AppConstants.UserDefaults.widgetHTTPEnabled) var widgetHTTPEnabled = true
+    
+    let view = WebSocketSettingsView()
+    return view
+        .padding()
+        .frame(width: 700)
+        .onAppear {
+            // Simulate server listening with clients
+            NotificationCenter.default.post(
+                name: NSNotification.Name(AppConstants.Notifications.websocketServerStateChanged),
+                object: nil,
+                userInfo: [
+                    "state": "listening",
+                    "clients": 2
+                ]
+            )
+        }
+}
+
+#Preview("WebSocket Stopped") {
+    @Previewable @AppStorage(AppConstants.UserDefaults.websocketEnabled) var websocketEnabled = false
+    
     WebSocketSettingsView()
         .padding()
+        .frame(width: 700)
 }
+#Preview("WebSocket Starting") {
+    @Previewable @AppStorage(AppConstants.UserDefaults.websocketEnabled) var websocketEnabled = true
+    
+    let view = WebSocketSettingsView()
+    return view
+        .padding()
+        .frame(width: 700)
+        .onAppear {
+            NotificationCenter.default.post(
+                name: NSNotification.Name(AppConstants.Notifications.websocketServerStateChanged),
+                object: nil,
+                userInfo: ["state": "starting"]
+            )
+        }
+}
+
+#Preview("WebSocket Error State") {
+    @Previewable @AppStorage(AppConstants.UserDefaults.websocketEnabled) var websocketEnabled = true
+    
+    let view = WebSocketSettingsView()
+    return view
+        .padding()
+        .frame(width: 700)
+        .onAppear {
+            NotificationCenter.default.post(
+                name: NSNotification.Name(AppConstants.Notifications.websocketServerStateChanged),
+                object: nil,
+                userInfo: ["state": "error"]
+            )
+        }
+}
+
+#Preview("Custom Theme Settings") {
+    @Previewable @AppStorage(AppConstants.UserDefaults.websocketEnabled) var websocketEnabled = true
+    @Previewable @AppStorage(AppConstants.UserDefaults.widgetTheme) var widgetTheme = "Default"
+    
+    WebSocketSettingsView()
+        .padding()
+        .frame(width: 700)
+}
+

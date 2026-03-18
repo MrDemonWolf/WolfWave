@@ -100,6 +100,28 @@ WolfWave runs inside the macOS App Sandbox with the minimum required entitlement
 | `keychain-access-groups` | Secure credential storage |
 | `temporary-exception.sbpl` | Discord IPC socket access |
 
+## WebSocket Server Security
+
+The built-in WebSocket server binds exclusively to `127.0.0.1` (IPv4 loopback):
+
+- Only local connections are accepted — the server is **not reachable** from other machines on the network
+- This ensures that now-playing data is only available to local clients (e.g., OBS browser sources running on the same machine)
+
+## JSON Response Validation
+
+All Twitch API and EventSub JSON parsing uses explicit `do/catch` with structured logging:
+
+- Malformed or unexpected responses are logged with details rather than silently ignored
+- Parse failures are handled gracefully without crashing or leaving the service in a broken state
+
+## EventSub Metadata Validation
+
+Every incoming EventSub message is validated before processing:
+
+- `message_id` and `message_timestamp` are required on every message
+- Messages older than **10 minutes** are rejected to prevent replay attacks
+- Subscription type is verified before processing notifications — unexpected types are ignored
+
 ## Network Security
 
 All external network traffic uses encrypted transport:
@@ -110,6 +132,7 @@ All external network traffic uses encrypted transport:
 | `id.twitch.tv/oauth2` | HTTPS | Twitch OAuth |
 | `eventsub.wss.twitch.tv/ws` | WSS | Twitch EventSub WebSocket |
 | `itunes.apple.com/search` | HTTPS | Album artwork for Discord Rich Presence |
+| `localhost:8765` | WebSocket (local) | OBS widget now-playing server (loopback only) |
 | Local Unix socket | IPC | Discord Rich Presence |
 
 ## Best Practices

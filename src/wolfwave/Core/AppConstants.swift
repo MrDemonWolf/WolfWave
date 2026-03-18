@@ -48,7 +48,7 @@ enum AppConstants {
         /// Posted when now-playing track information changes. UserInfo contains track, artist, album.
         static let nowPlayingChanged = "NowPlayingChanged"
 
-        /// Posted when the update checker finishes a check. UserInfo contains "isUpdateAvailable" Bool, "latestVersion" String.
+        /// Posted when Sparkle finds or completes an update check. UserInfo contains "isUpdateAvailable" Bool, "latestVersion" String.
         static let updateStateChanged = "UpdateStateChanged"
 
         /// Posted when the user toggles the WebSocket server or changes its port.
@@ -56,6 +56,9 @@ enum AppConstants {
 
         /// Posted when the WebSocket server connection state changes.
         static let websocketServerStateChanged = "WebSocketServerStateChanged"
+
+        /// Posted when the widget HTTP server enabled state changes.
+        static let widgetHTTPServerChanged = "WidgetHTTPServerChanged"
 
         /// Posted when system power state changes (Low Power Mode or thermal pressure).
         static let powerStateChanged = "PowerStateChanged"
@@ -103,26 +106,29 @@ enum AppConstants {
         /// WebSocket server port number (UInt16, default: 8765)
         static let websocketServerPort = "websocketServerPort"
 
-        /// Whether automatic update checking is enabled (Bool, default: true)
+        /// Whether automatic update checking is enabled via Sparkle (Bool, default: true)
         static let updateCheckEnabled = "updateCheckEnabled"
-
-        /// Timestamp of the last update check (TimeInterval)
-        static let updateLastCheckDate = "updateLastCheckDate"
 
         /// Version string the user has chosen to skip (String)
         static let updateSkippedVersion = "updateSkippedVersion"
 
-        /// Global cooldown for !song command in seconds (Double, default: 3.0)
+        /// Timestamp of the last update check (TimeInterval / Double)
+        static let updateLastCheckDate = "updateLastCheckDate"
+
+        /// Global cooldown for !song command in seconds (Double, default: 15.0)
         static let songCommandGlobalCooldown = "songCommandGlobalCooldown"
 
-        /// Per-user cooldown for !song command in seconds (Double, default: 10.0)
+        /// Per-user cooldown for !song command in seconds (Double, default: 15.0)
         static let songCommandUserCooldown = "songCommandUserCooldown"
 
-        /// Global cooldown for !last command in seconds (Double, default: 3.0)
+        /// Global cooldown for !last command in seconds (Double, default: 15.0)
         static let lastSongCommandGlobalCooldown = "lastSongCommandGlobalCooldown"
 
-        /// Per-user cooldown for !last command in seconds (Double, default: 10.0)
+        /// Per-user cooldown for !last command in seconds (Double, default: 15.0)
         static let lastSongCommandUserCooldown = "lastSongCommandUserCooldown"
+
+        /// Whether the broadcaster bypasses bot command cooldowns (Bool, default: true)
+        static let broadcasterBypassCooldowns = "broadcasterBypassCooldowns"
 
         /// Widget theme name (String, default: "Default")
         static let widgetTheme = "widgetTheme"
@@ -138,6 +144,12 @@ enum AppConstants {
 
         /// Widget font family (String, default: "System")
         static let widgetFontFamily = "widgetFontFamily"
+
+        /// Widget HTTP server port number (UInt16, default: 8766)
+        static let widgetPort = "widgetPort"
+
+        /// Whether the widget HTTP server is enabled (Bool, default: true)
+        static let widgetHTTPEnabled = "widgetHTTPEnabled"
     }
     
     // MARK: - Dock Visibility Modes
@@ -272,18 +284,18 @@ enum AppConstants {
         static let availabilityPollInterval: TimeInterval = 15.0
     }
 
-    // MARK: - Update Checker
+    // MARK: - Sparkle Updater
 
-    /// Update checker timing and configuration constants.
+    /// Sparkle automatic update configuration.
     enum Update {
         /// Interval between periodic update checks (24 hours in seconds)
         static let checkInterval: TimeInterval = 86400
 
-        /// HTTP request timeout in seconds
-        static let requestTimeout: TimeInterval = 15.0
+        /// Timeout for update-check HTTP requests (seconds)
+        static let requestTimeout: TimeInterval = 15
 
-        /// Delay before first update check after launch
-        static let launchCheckDelay: TimeInterval = 10.0
+        /// Delay before the first update check after app launch (seconds)
+        static let launchCheckDelay: TimeInterval = 10
     }
 
     // MARK: - URLs
@@ -299,14 +311,64 @@ enum AppConstants {
         /// Terms of service page URL
         static let termsOfService = "https://mrdemonwolf.github.io/wolfwave/docs/legal/terms-of-service"
 
-        /// GitHub repository URL
-        static let github = "https://github.com/mrdemonwolf/wolfwave"
+        /// Resolves the GitHub repository owner from Info.plist or environment.
+        ///
+        /// Lookup order:
+        /// 1. `GITHUB_REPO_OWNER` key in Info.plist (expanded from Config.xcconfig at build time)
+        /// 2. `GITHUB_REPO_OWNER` environment variable (for dev/CI overrides)
+        /// 3. Fallback to "mrdemonwolf"
+        ///
+        /// - Returns: The repository owner string.
+        static func resolveGitHubRepoOwner() -> String {
+            if let plistValue = Bundle.main.object(forInfoDictionaryKey: "GITHUB_REPO_OWNER") as? String,
+               !plistValue.isEmpty,
+               plistValue != "$(GITHUB_REPO_OWNER)" {
+                return plistValue
+            }
 
-        /// GitHub Releases API endpoint
-        static let githubReleasesAPI = "https://api.github.com/repos/mrdemonwolf/wolfwave/releases/latest"
+            if let env = ProcessInfo.processInfo.environment["GITHUB_REPO_OWNER"], !env.isEmpty {
+                return env
+            }
 
-        /// GitHub Releases page URL
-        static let githubReleases = "https://github.com/mrdemonwolf/wolfwave/releases"
+            return "mrdemonwolf"
+        }
+
+        /// Resolves the GitHub repository name from Info.plist or environment.
+        ///
+        /// Lookup order:
+        /// 1. `GITHUB_REPO_NAME` key in Info.plist (expanded from Config.xcconfig at build time)
+        /// 2. `GITHUB_REPO_NAME` environment variable (for dev/CI overrides)
+        /// 3. Fallback to "wolfwave"
+        ///
+        /// - Returns: The repository name string.
+        static func resolveGitHubRepoName() -> String {
+            if let plistValue = Bundle.main.object(forInfoDictionaryKey: "GITHUB_REPO_NAME") as? String,
+               !plistValue.isEmpty,
+               plistValue != "$(GITHUB_REPO_NAME)" {
+                return plistValue
+            }
+
+            if let env = ProcessInfo.processInfo.environment["GITHUB_REPO_NAME"], !env.isEmpty {
+                return env
+            }
+
+            return "wolfwave"
+        }
+
+        /// GitHub repository URL (resolved from config)
+        static var github: String {
+            "https://github.com/\(resolveGitHubRepoOwner())/\(resolveGitHubRepoName())"
+        }
+
+        /// GitHub Releases API endpoint (resolved from config)
+        static var githubReleasesAPI: String {
+            "https://api.github.com/repos/\(resolveGitHubRepoOwner())/\(resolveGitHubRepoName())/releases/latest"
+        }
+
+        /// GitHub Releases page URL (resolved from config)
+        static var githubReleases: String {
+            "https://github.com/\(resolveGitHubRepoOwner())/\(resolveGitHubRepoName())/releases"
+        }
     }
 
     // MARK: - WebSocket Server
@@ -327,6 +389,9 @@ enum AppConstants {
 
         /// Delay before retrying after a listener failure
         static let retryDelay: TimeInterval = 5.0
+
+        /// Default port for the local widget HTTP server
+        static let widgetDefaultPort: UInt16 = 8766
     }
 
     // MARK: - Dispatch Queue Labels
@@ -384,7 +449,7 @@ enum AppConstants {
         static let defaultAppName = "WolfWave"
 
         /// Minimum width for settings window
-        static let minWidth: CGFloat = 640
+        static let minWidth: CGFloat = 680
 
         /// Minimum height for settings window
         static let minHeight: CGFloat = 480

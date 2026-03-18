@@ -123,20 +123,45 @@ enum Log {
         try? FileManager.default.removeItem(at: backupURL)
         try? FileManager.default.moveItem(at: url, to: backupURL)
         FileManager.default.createFile(atPath: url.path, contents: nil)
+        
+        // Clean up old log files (keep only the most recent backup)
+        cleanupOldLogs(in: url.deletingLastPathComponent())
+    }
+    
+    /// Removes old log files beyond the most recent backup
+    nonisolated private static func cleanupOldLogs(in directory: URL) {
+        let fileManager = FileManager.default
+        guard let files = try? fileManager.contentsOfDirectory(
+            at: directory,
+            includingPropertiesForKeys: [.creationDateKey],
+            options: .skipsHiddenFiles
+        ) else { return }
+        
+        // Find all .log files except the current one
+        let logFiles = files.filter { url in
+            let name = url.lastPathComponent
+            return name.hasPrefix("wolfwave.log") && name != "wolfwave.log" && name != "wolfwave.log.1"
+        }
+        
+        // Delete old log files
+        for file in logFiles {
+            try? fileManager.removeItem(at: file)
+        }
     }
 
     // MARK: - Public API
 
     nonisolated static func log(_ message: String, level: LogLevel = .info, category: String = "App") {
+        let redactedMessage = redactSensitiveInfo(message)
         let timestamp = formatter.string(from: Date())
-        let line = "[\(level.rawValue)] [\(category)] [\(timestamp)] \(message)"
+        let line = "[\(level.rawValue)] [\(category)] [\(timestamp)] \(redactedMessage)"
         print(line)
         writeToFile(line)
     }
 
-    nonisolated static func debug(_ message: String, category: String = "App") {
+    nonisolated static func debug(_ message: @autoclosure () -> String, category: String = "App") {
         guard isDebugLoggingEnabled else { return }
-        log(message, level: .debug, category: category)
+        log(message(), level: .debug, category: category)
     }
 
     nonisolated static func info(_ message: String, category: String = "App") {
@@ -149,6 +174,47 @@ enum Log {
 
     nonisolated static func error(_ message: String, category: String = "App") {
         log(message, level: .error, category: category)
+        // Flush immediately for errors to ensure they're written if app crashes
+        flush()
+    }
+    
+    /// Flushes any buffered log data to disk immediately.
+    nonisolated static func flush() {
+        fileLock.lock()
+        defer { fileLock.unlock() }
+        fileHandle?.synchronizeFile()
+    }
+    
+    // MARK: - PII Redaction
+    
+    /// Redacts sensitive information from log messages
+    nonisolated private static func redactSensitiveInfo(_ message: String) -> String {
+        var redacted = message
+        
+        // Redact OAuth tokens (oauth_XXXX or Bearer XXXX patterns)
+        if let result = try? NSRegularExpression(pattern: #"oauth_[a-zA-Z0-9_-]+"#)
+            .stringByReplacingMatches(in: redacted, range: NSRange(redacted.startIndex..., in: redacted), withTemplate: "oauth_[REDACTED]") {
+            redacted = result
+        }
+        
+        if let result = try? NSRegularExpression(pattern: #"Bearer\s+[a-zA-Z0-9_-]+"#)
+            .stringByReplacingMatches(in: redacted, range: NSRange(redacted.startIndex..., in: redacted), withTemplate: "Bearer [REDACTED]") {
+            redacted = result
+        }
+        
+        // Redact what looks like access tokens (long alphanumeric strings)
+        if let result = try? NSRegularExpression(pattern: #"\b[a-zA-Z0-9]{30,}\b"#)
+            .stringByReplacingMatches(in: redacted, range: NSRange(redacted.startIndex..., in: redacted), withTemplate: "[TOKEN_REDACTED]") {
+            redacted = result
+        }
+        
+        // Redact Client-ID values
+        if let result = try? NSRegularExpression(pattern: #"Client-ID[:\s]+[a-zA-Z0-9]+"#)
+            .stringByReplacingMatches(in: redacted, range: NSRange(redacted.startIndex..., in: redacted), withTemplate: "Client-ID: [REDACTED]") {
+            redacted = result
+        }
+        
+        return redacted
     }
 
     // MARK: - Export
@@ -162,5 +228,16 @@ enum Log {
         fileHandle?.synchronizeFile()
         fileLock.unlock()
         return FileManager.default.fileExists(atPath: url.path) ? url : nil
+    }
+    
+    // MARK: - Cleanup
+    
+    /// Closes the log file handle. Called automatically at app termination.
+    nonisolated static func shutdown() {
+        fileLock.lock()
+        defer { fileLock.unlock() }
+        fileHandle?.synchronizeFile()
+        fileHandle?.closeFile()
+        fileHandle = nil
     }
 }

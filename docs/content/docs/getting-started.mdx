@@ -92,14 +92,14 @@ make notarize
 
 ## CI/CD
 
-Pushing a version tag triggers the GitHub Actions workflow which automatically builds, notarizes, and creates a GitHub Release:
+Pushing a version tag triggers the GitHub Actions release workflow, which creates a draft GitHub Release:
 
 ```bash
 git tag v1.0.0
 git push origin v1.0.0
 ```
 
-See the [Development Guide](/docs/development) for required GitHub secrets.
+After the workflow completes, build and notarize locally with `make prod-build && make notarize`, upload the DMG to the draft release, and publish it. Required secrets (`TWITCH_CLIENT_ID`, `DISCORD_CLIENT_ID`) must be configured in your repository's Actions secrets. See the [Development Guide](/docs/development) and [PUBLISH.md](https://github.com/MrDemonWolf/WolfWave/blob/main/PUBLISH.md) for the full release checklist.
 
 ## Next Steps
 

@@ -11,10 +11,18 @@ WolfWave follows a clean architecture with clear separation of concerns.
 src/
 ├── WolfWaveTests/           # Unit tests (XCTest)
 │   ├── AppConstantsTests.swift
+│   ├── ArtworkServiceTests.swift
 │   ├── BotCommandDispatcherTests.swift
+│   ├── CooldownManagerTests.swift
+│   ├── KeychainServiceTests.swift
 │   ├── LastSongCommandTests.swift
+│   ├── LoggerTests.swift
+│   ├── MusicPlaybackMonitorTests.swift
 │   ├── OnboardingViewModelTests.swift
+│   ├── PowerStateMonitorTests.swift
 │   ├── SongCommandTests.swift
+│   ├── TwitchChatServiceTests.swift
+│   ├── TwitchDeviceAuthTests.swift
 │   ├── TwitchViewModelTests.swift
 │   ├── UpdateCheckerServiceTests.swift
 │   └── WebSocketServerServiceTests.swift
@@ -22,22 +30,27 @@ src/
 ├── Core/                    # Core utilities and services
 │   ├── AppConstants.swift       # Application constants
 │   ├── KeychainService.swift    # Secure credential storage (Keychain API)
-│   └── Logger.swift             # Centralized logging with categories
+│   ├── Logger.swift             # Centralized logging with categories
+│   └── PowerStateMonitor.swift  # Low Power Mode and thermal pressure detection
 ├── Monitors/                # Music playback monitoring
 │   └── MusicPlaybackMonitor.swift  # ScriptingBridge-based Apple Music integration
 ├── Services/                # External service integrations
+│   ├── ArtworkService.swift     # iTunes Search API artwork fetching with cache
 │   ├── Discord/
 │   │   └── DiscordRPCService.swift  # Discord Rich Presence via IPC socket
 │   ├── UpdateChecker/
-│   │   └── UpdateCheckerService.swift  # GitHub Releases version checker
+│   │   ├── SparkleUpdaterService.swift   # Sparkle framework auto-update integration
+│   │   └── UpdateCheckerService.swift    # GitHub Releases version checker
 │   ├── WebSocket/
-│   │   └── WebSocketServerService.swift  # Local WebSocket server (Network.framework)
+│   │   ├── WebSocketServerService.swift  # Local WebSocket server (Network.framework)
+│   │   └── WidgetHTTPService.swift       # Local HTTP server serving widget.html (port 8766)
 │   └── Twitch/
 │       ├── TwitchChatService.swift     # EventSub WebSocket + Helix API
 │       ├── TwitchDeviceAuth.swift      # OAuth Device Code flow
 │       └── Commands/                   # Bot command system
 │           ├── BotCommand.swift        # Command protocol
 │           ├── BotCommandDispatcher.swift  # Command routing
+│           ├── CooldownManager.swift   # Global and per-user cooldown system
 │           ├── SongCommand.swift       # !song command implementation
 │           └── LastSongCommand.swift   # !lastsong command implementation
 ├── Views/                   # SwiftUI views
@@ -55,7 +68,9 @@ src/
 │   │   ├── OnboardingDiscordStepView.swift
 │   │   └── OnboardingOBSWidgetStepView.swift
 │   ├── Shared/                  # Shared UI components
-│   │   └── TwitchGlitchShape.swift
+│   │   ├── TwitchGlitchShape.swift
+│   │   ├── UpdateBannerView.swift
+│   │   └── ViewModifiers.swift
 │   ├── Twitch/                  # Twitch-related views
 │   │   ├── TwitchSettingsView.swift   # Twitch bot configuration UI
 │   │   ├── TwitchViewModel.swift      # Twitch state management
@@ -64,7 +79,8 @@ src/
 │   └── WebSocket/               # OBS Widget settings
 │       └── WebSocketSettingsView.swift
 └── Resources/              # Assets and resources
-    └── Assets.xcassets/
+    ├── Assets.xcassets/
+    └── widget.html             # Self-contained OBS widget (served by WidgetHTTPService)
 ```
 
 ## Architecture Highlights
@@ -142,6 +158,17 @@ Local WebSocket server for OBS stream overlays using:
 - **Progress Timer**: 1-second interval broadcasts with elapsed-time estimation to avoid polling ScriptingBridge
 - **Thread Safety**: `NSLock` instances for connections, playback state, and enabled flag
 - **Auto-retry**: Reconnects the listener after failures with configurable delay
+
+Owns a `WidgetHTTPService` instance that starts and stops alongside it.
+
+### WidgetHTTPService
+
+Tiny companion HTTP server that serves the bundled `widget.html` to OBS:
+
+- **Loopback-only**: Binds to `127.0.0.1:8766` — never exposed to the network
+- **`GET /`** → `200 OK` with `widget.html` bytes from the app bundle
+- **All other requests** → `404 Not Found`
+- **Lifecycle**: Owned by `WebSocketServerService`; starts/stops with the WS server
 
 ### UpdateCheckerService
 

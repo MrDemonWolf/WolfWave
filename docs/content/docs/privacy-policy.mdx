@@ -3,8 +3,14 @@ title: Privacy Policy
 description: Privacy Policy for WolfWave
 ---
 
+export function ContactEmail() {
+  if (typeof window === 'undefined') return <span>legal [at] mrdemonwolf.com</span>
+  const email = ['legal', String.fromCharCode(64), 'mrdemonwolf.com'].join('')
+  return <a href={`mailto:${email}`}>{email}</a>
+}
+
 **Effective Date:** February 12, 2026
-**Last Updated:** February 12, 2026
+**Last Updated:** March 15, 2026
 
 MrDemonWolf, Inc. ("we", "us", or "our") operates the WolfWave application. This Privacy Policy explains how we handle information when you use WolfWave.
 
@@ -77,5 +83,6 @@ We may update this Privacy Policy from time to time. Changes will be posted on t
 
 If you have questions about this Privacy Policy, please contact us:
 
+- **Email**: <ContactEmail />
 - **GitHub**: [github.com/MrDemonWolf/WolfWave](https://github.com/MrDemonWolf/WolfWave/issues)
 - **Company**: MrDemonWolf, Inc.

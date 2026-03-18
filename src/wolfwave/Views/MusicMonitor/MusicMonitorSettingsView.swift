@@ -245,7 +245,80 @@ struct MusicMonitorSettingsView: View {
 
 // MARK: - Preview
 
-#Preview {
+#Preview("Default State") {
     MusicMonitorSettingsView()
         .padding()
+        .frame(width: 600)
 }
+#Preview("With Current Track") {
+    let view = MusicMonitorSettingsView()
+    return view
+        .padding()
+        .frame(width: 600)
+        .onAppear {
+            // Simulate a track playing
+            NotificationCenter.default.post(
+                name: NSNotification.Name(AppConstants.Notifications.nowPlayingChanged),
+                object: nil,
+                userInfo: [
+                    "track": "Blinding Lights",
+                    "artist": "The Weeknd",
+                    "album": "After Hours"
+                ]
+            )
+        }
+}
+
+#Preview("Permission Denied") {
+    @Previewable @State var trackingEnabled = true
+    
+    struct PermissionDeniedView: View {
+        var body: some View {
+            VStack(alignment: .leading, spacing: 16) {
+                VStack(alignment: .leading, spacing: 6) {
+                    Text("Music Playback Monitor")
+                        .font(.system(size: 17, weight: .semibold))
+                    
+                    Text("Automatically detect what's playing in Apple Music and share it with Twitch chat, Discord, and stream overlays.")
+                        .font(.system(size: 13))
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                
+                // Permission warning
+                HStack(spacing: 10) {
+                    Image(systemName: "exclamationmark.triangle.fill")
+                        .font(.system(size: 14))
+                        .foregroundStyle(.orange)
+                    
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Apple Music access denied")
+                            .font(.system(size: 12, weight: .semibold))
+                        Text("WolfWave needs permission to read playback info from Apple Music. Open System Settings to grant access.")
+                            .font(.system(size: 11))
+                            .foregroundStyle(.secondary)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                    
+                    Spacer()
+                    
+                    Button("Open Settings") { }
+                        .buttonStyle(.bordered)
+                        .controlSize(.small)
+                }
+                .padding(12)
+                .background(Color.orange.opacity(0.08))
+                .clipShape(RoundedRectangle(cornerRadius: 8))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 8)
+                        .stroke(Color.orange.opacity(0.2), lineWidth: 1)
+                )
+            }
+        }
+    }
+    
+    return PermissionDeniedView()
+        .padding()
+        .frame(width: 600)
+}
+

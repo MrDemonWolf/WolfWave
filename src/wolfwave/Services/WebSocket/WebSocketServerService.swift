@@ -40,6 +40,7 @@ final class WebSocketServerService: @unchecked Sendable {
     )
     private var isEnabled = false
     private let enabledLock = NSLock()
+    private var widgetHTTP: WidgetHTTPService?
 
     // MARK: - Playback State
 
@@ -77,6 +78,28 @@ final class WebSocketServerService: @unchecked Sendable {
             serverQueue.async { [weak self] in self?.startServer() }
         } else {
             serverQueue.async { [weak self] in self?.stopServer() }
+        }
+    }
+
+    /// Starts or stops the widget HTTP server independently.
+    func setWidgetHTTPEnabled(_ enabled: Bool) {
+        serverQueue.async { [weak self] in
+            guard let self else { return }
+            if enabled {
+                // Only start if WebSocket server is listening and HTTP isn't already running
+                guard self.state == .listening, self.widgetHTTP == nil else { return }
+                let storedWidgetPort = UserDefaults.standard.integer(forKey: AppConstants.UserDefaults.widgetPort)
+                let widgetPort: UInt16 = storedWidgetPort > 0
+                    ? (UInt16(exactly: storedWidgetPort) ?? AppConstants.WebSocketServer.widgetDefaultPort)
+                    : AppConstants.WebSocketServer.widgetDefaultPort
+                self.widgetHTTP = WidgetHTTPService(port: widgetPort)
+                self.widgetHTTP?.start()
+                Log.info("WebSocket: Widget HTTP server started", category: "WebSocket")
+            } else {
+                self.widgetHTTP?.stop()
+                self.widgetHTTP = nil
+                Log.info("WebSocket: Widget HTTP server stopped", category: "WebSocket")
+            }
         }
     }
 
@@ -190,7 +213,8 @@ final class WebSocketServerService: @unchecked Sendable {
                 notifyStateChange()
                 return
             }
-            listener = try NWListener(using: parameters, on: nwPort)
+            parameters.requiredLocalEndpoint = NWEndpoint.hostPort(host: .ipv4(.loopback), port: nwPort)
+            listener = try NWListener(using: parameters)
         } catch {
             Log.error("WebSocket: Failed to create listener: \(error)", category: "WebSocket")
             state = .error
@@ -225,9 +249,22 @@ final class WebSocketServerService: @unchecked Sendable {
         }
 
         listener?.start(queue: serverQueue)
+
+        let widgetHTTPEnabled = UserDefaults.standard.object(forKey: AppConstants.UserDefaults.widgetHTTPEnabled) as? Bool ?? true
+        if widgetHTTPEnabled {
+            let storedWidgetPort = UserDefaults.standard.integer(forKey: AppConstants.UserDefaults.widgetPort)
+            let widgetPort: UInt16 = storedWidgetPort > 0
+                ? (UInt16(exactly: storedWidgetPort) ?? AppConstants.WebSocketServer.widgetDefaultPort)
+                : AppConstants.WebSocketServer.widgetDefaultPort
+            widgetHTTP = WidgetHTTPService(port: widgetPort)
+            widgetHTTP?.start()
+        }
     }
 
     private func stopServer() {
+        widgetHTTP?.stop()
+        widgetHTTP = nil
+
         stopProgressTimer()
 
         listener?.cancel()

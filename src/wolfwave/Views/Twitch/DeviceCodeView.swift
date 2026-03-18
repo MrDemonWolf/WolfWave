@@ -161,7 +161,7 @@ struct DeviceCodeView: View {
     }
 }
 
-#Preview {
+#Preview("Standard Code") {
     VStack(spacing: 24) {
         DeviceCodeView(
             userCode: "ABCD-EFGH",
@@ -178,4 +178,35 @@ struct DeviceCodeView: View {
         )
     }
     .padding(24)
+    .frame(width: 500)
 }
+#Preview("Long Code") {
+    DeviceCodeView(
+        userCode: "ABCDEFGH-IJKLMNOP",
+        verificationURI: "https://www.twitch.tv/activate",
+        onCopy: { print("Copied!") }
+    )
+    .padding(24)
+    .frame(width: 500)
+}
+
+#Preview("Compact Card") {
+    VStack(alignment: .leading, spacing: 12) {
+        Text("Enter this code on Twitch")
+            .font(.system(size: 13))
+            .foregroundStyle(.secondary)
+        
+        DeviceCodeView(
+            userCode: "MNOP-QRST",
+            verificationURI: "https://www.twitch.tv/activate",
+            onCopy: { print("Code copied") },
+            onActivate: { print("Activation button tapped") }
+        )
+    }
+    .padding()
+    .background(Color(nsColor: .controlBackgroundColor))
+    .clipShape(RoundedRectangle(cornerRadius: 12))
+    .padding(24)
+    .frame(width: 400)
+}
+

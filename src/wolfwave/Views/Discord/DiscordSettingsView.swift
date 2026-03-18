@@ -26,13 +26,18 @@ struct DiscordSettingsView: View {
     /// Current Discord connection state, updated via notification from AppDelegate.
     @State private var connectionState: DiscordRPCService.ConnectionState = .disconnected
 
-    /// Whether a test connection is in progress.
-    @State private var isTesting = false
+    /// Result of the "Test Connection" button.
+    enum TestConnectionResult: Equatable {
+        case idle
+        case testing
+        case success
+        case failure
+    }
+    
+    /// Current test connection result state.
+    @State private var testConnectionResult: TestConnectionResult = .idle
 
-    /// Result message from the last test connection attempt.
-    @State private var testResultMessage = ""
-
-    /// Task for clearing test result message after delay.
+    /// Task for clearing test result after delay.
     @State private var clearTask: Task<Void, Never>?
 
     /// Whether a valid Discord Client ID is configured.
@@ -89,32 +94,35 @@ struct DiscordSettingsView: View {
                     Button {
                         testDiscordConnection()
                     } label: {
-                        HStack(spacing: 6) {
-                            if isTesting {
+                        switch testConnectionResult {
+                        case .idle:
+                            Label("Test Connection", systemImage: "antenna.radiowaves.left.and.right")
+                                .font(.system(size: 12, weight: .medium))
+                        case .testing:
+                            HStack(spacing: 6) {
                                 ProgressView()
                                     .progressViewStyle(.circular)
                                     .controlSize(.mini)
-                            } else {
-                                Image(systemName: "antenna.radiowaves.left.and.right")
-                                    .font(.system(size: 11))
+                                Text("Testing...")
+                                    .font(.system(size: 12))
                             }
-                            Text(isTesting ? "Testing…" : "Test Connection")
+                        case .success:
+                            Label("Connected", systemImage: "checkmark.circle.fill")
+                                .font(.system(size: 12, weight: .medium))
+                        case .failure:
+                            Label("Failed", systemImage: "xmark.circle.fill")
                                 .font(.system(size: 12, weight: .medium))
                         }
                     }
                     .buttonStyle(.bordered)
+                    .tint(testConnectionButtonTint)
                     .controlSize(.small)
-                    .disabled(isTesting)
+                    .disabled(testConnectionResult == .testing)
                     .pointerCursor()
+                    .animation(.easeInOut(duration: 0.2), value: testConnectionResult)
+                    .help("Verifies Discord is running and can accept Rich Presence updates")
                     .accessibilityLabel("Test Discord connection")
                     .accessibilityIdentifier("discordTestConnectionButton")
-
-                    if !testResultMessage.isEmpty {
-                        Text(testResultMessage)
-                            .font(.system(size: 12))
-                            .foregroundStyle(testResultMessage.contains("✅") ? .green : .red)
-                            .transition(.opacity)
-                    }
 
                     Spacer()
                 }
@@ -168,6 +176,18 @@ struct DiscordSettingsView: View {
 
     // MARK: - Helpers
 
+    /// Computed tint color for the test connection button based on result state.
+    private var testConnectionButtonTint: Color? {
+        switch testConnectionResult {
+        case .success:
+            return .green
+        case .failure:
+            return .red
+        case .idle, .testing:
+            return nil
+        }
+    }
+
     /// Reads the current connection state from the AppDelegate's Discord service.
     private func refreshConnectionState() {
         if let appDelegate = AppDelegate.shared {
@@ -175,31 +195,32 @@ struct DiscordSettingsView: View {
         }
     }
 
-    /// Tests the Discord IPC connection and displays a result message.
+    /// Tests the Discord IPC connection and displays a result in the button.
     private func testDiscordConnection() {
-        isTesting = true
-        testResultMessage = ""
+        testConnectionResult = .testing
 
         guard let service = AppDelegate.shared?.discordService else {
-            testResultMessage = "❌ Discord service not available"
-            isTesting = false
+            testConnectionResult = .failure
+            scheduleResultReset()
             return
         }
 
         service.testConnection { success in
             withAnimation {
-                testResultMessage = success
-                    ? "✅ Connected to Discord"
-                    : "❌ Cannot reach Discord — is it running?"
-                isTesting = false
+                testConnectionResult = success ? .success : .failure
             }
-
-            // Auto-clear the message after 5 seconds
-            clearTask?.cancel()
-            clearTask = Task { @MainActor in
-                try? await Task.sleep(nanoseconds: 5_000_000_000)
-                guard !Task.isCancelled else { return }
-                withAnimation { testResultMessage = "" }
+            scheduleResultReset()
+        }
+    }
+    
+    /// Resets the test connection result to idle after 3 seconds.
+    private func scheduleResultReset() {
+        clearTask?.cancel()
+        clearTask = Task { @MainActor in
+            try? await Task.sleep(nanoseconds: 3_000_000_000)
+            guard !Task.isCancelled else { return }
+            withAnimation {
+                testConnectionResult = .idle
             }
         }
     }
@@ -239,7 +260,58 @@ private struct StatusChip: View {
 
 // MARK: - Preview
 
-#Preview {
+#Preview("Disconnected") {
+    @Previewable @AppStorage(AppConstants.UserDefaults.discordPresenceEnabled) var presenceEnabled = false
+    
     DiscordSettingsView()
         .padding()
+        .frame(width: 600)
 }
+#Preview("Connected") {
+    @Previewable @AppStorage(AppConstants.UserDefaults.discordPresenceEnabled) var presenceEnabled = true
+    
+    let view = DiscordSettingsView()
+    return view
+        .padding()
+        .frame(width: 600)
+        .onAppear {
+            NotificationCenter.default.post(
+                name: NSNotification.Name(AppConstants.Notifications.discordStateChanged),
+                object: nil,
+                userInfo: ["state": "connected"]
+            )
+        }
+}
+
+#Preview("Connecting") {
+    @Previewable @AppStorage(AppConstants.UserDefaults.discordPresenceEnabled) var presenceEnabled = true
+    
+    let view = DiscordSettingsView()
+    return view
+        .padding()
+        .frame(width: 600)
+        .onAppear {
+            NotificationCenter.default.post(
+                name: NSNotification.Name(AppConstants.Notifications.discordStateChanged),
+                object: nil,
+                userInfo: ["state": "connecting"]
+            )
+        }
+}
+
+#Preview("Discord Not Running") {
+    @Previewable @AppStorage(AppConstants.UserDefaults.discordPresenceEnabled) var presenceEnabled = true
+    
+    let view = DiscordSettingsView()
+    return view
+        .padding()
+        .frame(width: 600)
+        .onAppear {
+            NotificationCenter.default.post(
+                name: NSNotification.Name(AppConstants.Notifications.discordStateChanged),
+                object: nil,
+                userInfo: ["state": "disconnected"]
+            )
+        }
+}
+

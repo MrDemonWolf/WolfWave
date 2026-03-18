@@ -243,6 +243,7 @@ struct TwitchSettingsView: View {
                         reauthNeeded: viewModel.reauthNeeded,
                         credentialsSaved: viewModel.credentialsSaved,
                         channelValidationState: viewModel.channelValidationState,
+                        testAuthResult: viewModel.testAuthResult,
                         onReauth: { viewModel.clearCredentials(); viewModel.startOAuth() },
                         onClearCredentials: { viewModel.clearCredentials() },
                         onJoinChannel: { viewModel.joinChannel() },
@@ -281,6 +282,7 @@ private struct SignedInView: View {
     let reauthNeeded: Bool
     let credentialsSaved: Bool
     let channelValidationState: TwitchViewModel.ChannelValidationState
+    let testAuthResult: TwitchViewModel.TestAuthResult
     var onReauth: () -> Void
     var onClearCredentials: () -> Void
     var onJoinChannel: () -> Void
@@ -487,12 +489,34 @@ private struct SignedInView: View {
                 .accessibilityIdentifier("twitchConnectButton")
 
                 Button(action: onTestConnection) {
-                    Label("Test", systemImage: "antenna.radiowaves.left.and.right")
-                        .font(.system(size: 12, weight: .medium))
+                    switch testAuthResult {
+                    case .idle:
+                        Label("Test Auth", systemImage: "antenna.radiowaves.left.and.right")
+                            .font(.system(size: 12, weight: .medium))
+                    case .testing:
+                        HStack(spacing: 6) {
+                            ProgressView()
+                                .progressViewStyle(.circular)
+                                .controlSize(.mini)
+                            Text("Testing...")
+                                .font(.system(size: 12))
+                        }
+                    case .success:
+                        Label("Passed", systemImage: "checkmark.circle.fill")
+                            .font(.system(size: 12, weight: .medium))
+                    case .failure:
+                        Label("Failed", systemImage: "xmark.circle.fill")
+                            .font(.system(size: 12, weight: .medium))
+                    }
                 }
+                .frame(minWidth: 95)
                 .buttonStyle(.bordered)
+                .tint(testAuthButtonTint)
                 .controlSize(.small)
+                .disabled(testAuthResult == .testing)
                 .pointerCursor()
+                .animation(.easeInOut(duration: 0.2), value: testAuthResult)
+                .help("Validates your Twitch token and checks required permissions")
                 .accessibilityLabel("Test Twitch token validity")
                 .accessibilityIdentifier("twitchTestConnectionButton")
             }
@@ -520,6 +544,14 @@ private struct SignedInView: View {
             Button("Cancel", role: .cancel) {}
         } message: {
             Text("This will disconnect the bot from the current channel but keep saved credentials.")
+        }
+    }
+
+    private var testAuthButtonTint: Color? {
+        switch testAuthResult {
+        case .idle, .testing: return nil
+        case .success: return .green
+        case .failure: return .red
         }
     }
 
@@ -567,14 +599,129 @@ private struct StatusChip: View {
 }
 // MARK: - Preview
 
-#Preview {
-    let mockViewModel = TwitchViewModel()
-    mockViewModel.botUsername = "MrDemonWolf"
-    mockViewModel.channelID = "mrdemonwolf"
-    mockViewModel.credentialsSaved = true
-    mockViewModel.channelConnected = true
-    mockViewModel.statusMessage = "Connected to mrdemonwolf"
-
-    return TwitchSettingsView(viewModel: mockViewModel)
+#Preview("Not Connected") {
+    let mockViewModel: TwitchViewModel = {
+        let vm = TwitchViewModel()
+        vm.credentialsSaved = false
+        vm.channelConnected = false
+        return vm
+    }()
+    TwitchSettingsView(viewModel: mockViewModel)
         .padding()
+        .frame(width: 700)
 }
+
+#Preview("Connected State") {
+    let mockViewModel: TwitchViewModel = {
+        let vm = TwitchViewModel()
+        vm.botUsername = "MrDemonWolf"
+        vm.channelID = "mrdemonwolf"
+        vm.credentialsSaved = true
+        vm.channelConnected = true
+        vm.statusMessage = "Connected to mrdemonwolf"
+        return vm
+    }()
+    TwitchSettingsView(viewModel: mockViewModel)
+        .padding()
+        .frame(width: 700)
+}
+
+#Preview("Authorizing State") {
+    let mockViewModel: TwitchViewModel = {
+        let vm = TwitchViewModel()
+        vm.authState = .waitingForAuth(
+            userCode: "ABCD-WXYZ",
+            verificationURI: "https://www.twitch.tv/activate"
+        )
+        return vm
+    }()
+    TwitchSettingsView(viewModel: mockViewModel)
+        .padding()
+        .frame(width: 700)
+}
+
+#Preview("Connected - Not Joined Channel") {
+    let mockViewModel: TwitchViewModel = {
+        let vm = TwitchViewModel()
+        vm.botUsername = "MrDemonWolf"
+        vm.channelID = ""
+        vm.credentialsSaved = true
+        vm.channelConnected = false
+        return vm
+    }()
+    TwitchSettingsView(viewModel: mockViewModel)
+        .padding()
+        .frame(width: 700)
+}
+
+#Preview("Reauth Needed") {
+    let mockViewModel: TwitchViewModel = {
+        let vm = TwitchViewModel()
+        vm.botUsername = "MrDemonWolf"
+        vm.channelID = "mrdemonwolf"
+        vm.credentialsSaved = true
+        vm.channelConnected = false
+        vm.reauthNeeded = true
+        return vm
+    }()
+    TwitchSettingsView(viewModel: mockViewModel)
+        .padding()
+        .frame(width: 700)
+}
+
+#Preview("Error State") {
+    let mockViewModel: TwitchViewModel = {
+        let vm = TwitchViewModel()
+        vm.authState = .error("Failed to authenticate. Please try again.")
+        return vm
+    }()
+    TwitchSettingsView(viewModel: mockViewModel)
+        .padding()
+        .frame(width: 700)
+}
+
+#Preview("Validating Channel") {
+    let mockViewModel: TwitchViewModel = {
+        let vm = TwitchViewModel()
+        vm.botUsername = "MrDemonWolf"
+        vm.channelID = "mrdemonwolf"
+        vm.credentialsSaved = true
+        vm.channelConnected = false
+        vm.channelValidationState = .validating
+        return vm
+    }()
+    TwitchSettingsView(viewModel: mockViewModel)
+        .padding()
+        .frame(width: 700)
+}
+
+#Preview("Channel Verified") {
+    let mockViewModel: TwitchViewModel = {
+        let vm = TwitchViewModel()
+        vm.botUsername = "MrDemonWolf"
+        vm.channelID = "mrdemonwolf"
+        vm.credentialsSaved = true
+        vm.channelConnected = false
+        vm.channelValidationState = .valid
+        return vm
+    }()
+    TwitchSettingsView(viewModel: mockViewModel)
+        .padding()
+        .frame(width: 700)
+}
+
+#Preview("Channel Invalid") {
+    let mockViewModel: TwitchViewModel = {
+        let vm = TwitchViewModel()
+        vm.botUsername = "MrDemonWolf"
+        vm.channelID = "invalidchannel123"
+        vm.credentialsSaved = true
+        vm.channelConnected = false
+        vm.channelValidationState = .invalid
+        return vm
+    }()
+    TwitchSettingsView(viewModel: mockViewModel)
+        .padding()
+        .frame(width: 700)
+}
+

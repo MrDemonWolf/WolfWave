@@ -41,7 +41,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSToolbarDelegate, NSWindowD
     var onboardingWindow: NSWindow?
     var twitchService: TwitchChatService?
     var discordService: DiscordRPCService?
-    var updateChecker: UpdateCheckerService?
+    var sparkleUpdater: SparkleUpdaterService?
     var websocketServer: WebSocketServerService?
 
     private(set) var currentSong: String?
@@ -66,6 +66,9 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSToolbarDelegate, NSWindowD
 
     /// Initializes all services, registers observers, and shows onboarding or validates tokens.
     func applicationDidFinishLaunching(_ notification: Notification) {
+        Foundation.UserDefaults.standard.register(defaults: [
+            AppConstants.UserDefaults.broadcasterBypassCooldowns: true
+        ])
         AppDelegate.shared = self
         setupStatusItem()
         setupMenu()
@@ -73,7 +76,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSToolbarDelegate, NSWindowD
         setupTwitchService()
         setupDiscordService()
         setupWebSocketServer()
-        setupUpdateChecker()
+        setupSparkleUpdater()
         setupPowerStateMonitor()
         setupNotificationObservers()
         initializeTrackingState()
@@ -91,7 +94,12 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSToolbarDelegate, NSWindowD
     
     /// Reopens the Settings window when the dock icon is clicked.
     func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
-        openSettings()
+        if let onboarding = onboardingWindow, onboarding.isVisible {
+            onboarding.makeKeyAndOrderFront(nil)
+            NSApp.activate(ignoringOtherApps: true)
+        } else {
+            openSettings()
+        }
         return false
     }
 
@@ -149,22 +157,6 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSToolbarDelegate, NSWindowD
         applyDockVisibility(mode)
     }
 
-    /// Restores accessory activation policy after the last window closes (menu-only mode).
-    @objc private func handleWindowClose(_ notification: Notification) {
-        let isSettingsWindow = (notification.object as? NSWindow) === settingsWindow
-
-        // Defer all cleanup so the window and its SwiftUI/CAMetalLayer hierarchy
-        // can finish tearing down before we drop the last strong reference or
-        // switch activation policy.
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in
-            guard let self else { return }
-            if isSettingsWindow {
-                self.settingsWindow = nil
-            }
-            self.restoreMenuOnlyIfNeeded()
-        }
-    }
-
     // MARK: - Menu Actions
 
     /// Opens or brings the Settings window to the front.
@@ -176,11 +168,23 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSToolbarDelegate, NSWindowD
         }
 
         if let window = settingsWindow {
-            window.level = .normal
-            if window.isMiniaturized { window.deminiaturize(nil) }
-            window.makeKeyAndOrderFront(nil)
-            NSApp.activate(ignoringOtherApps: true)
+            if window.isVisible {
+                // Window is already visible — just bring it forward
+                window.level = .normal
+                window.makeKeyAndOrderFront(nil)
+                NSApp.activate(ignoringOtherApps: true)
+            } else if window.isMiniaturized {
+                // Window is miniaturized — restore it
+                window.deminiaturize(nil)
+                window.makeKeyAndOrderFront(nil)
+                NSApp.activate(ignoringOtherApps: true)
+            } else {
+                // Window exists but is closing or in weird state — wait for it to fully close
+                // The windowWillClose delegate will nil out settingsWindow when ready
+                Log.debug("Settings window exists but is not visible - waiting for close to complete", category: "App")
+            }
         } else {
+            // No window exists — create and show a new one
             settingsWindow = createSettingsWindow()
             showWindow(settingsWindow)
         }
@@ -236,7 +240,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSToolbarDelegate, NSWindowD
         credits.append(NSAttributedString(string: "  ·  ", attributes: baseAttributes))
 
         // Terms of Service link
-        let tosLink = NSMutableAttributedString(string: "Terms of Service", attributes: linkAttributes)
+        let tosLink = NSMutableAttributedString(string: "Terms", attributes: linkAttributes)
         tosLink.addAttribute(.link, value: AppConstants.URLs.termsOfService, range: NSRange(location: 0, length: tosLink.length))
         credits.append(tosLink)
 
@@ -299,7 +303,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSToolbarDelegate, NSWindowD
     }
 
     /// Returns a formatted string with the current track for Twitch bot commands.
-    func getCurrentSongInfo() -> String {
+    nonisolated func getCurrentSongInfo() -> String {
         guard isMusicAppOpen() else {
             return "🐺 Music app is not running"
         }
@@ -311,7 +315,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSToolbarDelegate, NSWindowD
     }
 
     /// Returns a formatted string with the previously played track for Twitch bot commands.
-    func getLastSongInfo() -> String {
+    nonisolated func getLastSongInfo() -> String {
         guard isMusicAppOpen() else {
             return "🐺 Music app is not running"
         }
@@ -546,6 +550,12 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSToolbarDelegate, NSWindowD
         }
     }
 
+    /// Toggles the widget HTTP server independently from the WebSocket server.
+    @objc func widgetHTTPServerSettingChanged(_ notification: Notification) {
+        let enabled = UserDefaults.standard.object(forKey: AppConstants.UserDefaults.widgetHTTPEnabled) as? Bool ?? true
+        websocketServer?.setWidgetHTTPEnabled(enabled)
+    }
+
     // MARK: - Widget Artwork
 
     /// Fetches album artwork via the shared ArtworkService and forwards it to the WebSocket server.
@@ -556,12 +566,20 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSToolbarDelegate, NSWindowD
         }
     }
 
-    // MARK: - Update Checker
+    // MARK: - Sparkle Updater
 
-    /// Creates the update checker and starts periodic version checks.
-    private func setupUpdateChecker() {
-        updateChecker = UpdateCheckerService()
-        updateChecker?.startPeriodicChecking()
+    /// Creates the Sparkle updater and starts automatic update checking.
+    ///
+    /// Sparkle handles all aspects of the update process:
+    /// - Checking for updates on a schedule
+    /// - Downloading and verifying packages
+    /// - Installing updates with user confirmation
+    /// - Code signature verification
+    ///
+    /// Note: Sparkle is automatically disabled for Homebrew installations.
+    private func setupSparkleUpdater() {
+        sparkleUpdater = SparkleUpdaterService()
+        Log.info("AppDelegate: Sparkle updater initialized", category: "Update")
     }
 
     // MARK: - Notification Observers
@@ -583,11 +601,19 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSToolbarDelegate, NSWindowD
         )
 
         NotificationCenter.default.addObserver(
-            self,
-            selector: #selector(handleWindowClose(_:)),
-            name: NSWindow.willCloseNotification,
-            object: nil
-        )
+            forName: NSWindow.willCloseNotification,
+            object: nil,
+            queue: .main
+        ) { [weak self] notification in
+            guard let self,
+                  let window = notification.object as? NSWindow,
+                  window !== self.settingsWindow,
+                  window !== self.onboardingWindow else { return }
+            // Defer slightly so the window is fully off-screen before we check
+            DispatchQueue.main.async { [weak self] in
+                self?.restoreMenuOnlyIfNeeded()
+            }
+        }
 
         NotificationCenter.default.addObserver(
             self,
@@ -600,6 +626,13 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSToolbarDelegate, NSWindowD
             self,
             selector: #selector(websocketServerSettingChanged),
             name: NSNotification.Name(AppConstants.Notifications.websocketServerChanged),
+            object: nil
+        )
+
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(widgetHTTPServerSettingChanged),
+            name: NSNotification.Name(AppConstants.Notifications.widgetHTTPServerChanged),
             object: nil
         )
 
@@ -663,12 +696,22 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSToolbarDelegate, NSWindowD
         window.titlebarAppearsTransparent = true
         window.isMovableByWindowBackground = true
         window.delegate = self
+        window.isReleasedWhenClosed = false
         window.collectionBehavior = [.moveToActiveSpace]
 
         NSApp.setActivationPolicy(.regular)
 
         onboardingWindow = window
-        window.center()
+
+        if let screen = NSScreen.main {
+            let screenFrame = screen.visibleFrame
+            let x = screenFrame.midX - frame.width / 2
+            let y = screenFrame.midY - frame.height / 2
+            window.setFrameOrigin(NSPoint(x: x, y: y))
+        } else {
+            window.center()
+        }
+
         showWindow(onboardingWindow)
     }
 
@@ -676,16 +719,11 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSToolbarDelegate, NSWindowD
     private func dismissOnboarding() {
         DispatchQueue.main.async { [weak self] in
             guard let self else { return }
-
-            let window = self.onboardingWindow
-            self.onboardingWindow = nil
-            window?.orderOut(nil)
+            self.onboardingWindow?.close()
 
             Task { [weak self] in
                 await self?.validateTwitchTokenOnBoot()
             }
-
-            self.applyInitialDockVisibility()
 
             Log.info("Onboarding dismissed, transitioning to normal app state", category: "Onboarding")
         }
@@ -693,16 +731,26 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSToolbarDelegate, NSWindowD
 
     // MARK: - NSWindowDelegate
 
-    /// Marks onboarding as completed when the window is closed via the title bar.
+    /// Handles cleanup when any owned window closes (onboarding or settings).
     func windowWillClose(_ notification: Notification) {
-        guard let window = notification.object as? NSWindow,
-              window === onboardingWindow else { return }
+        guard let window = notification.object as? NSWindow else { return }
 
-        UserDefaults.standard.set(true, forKey: AppConstants.UserDefaults.hasCompletedOnboarding)
-
-        DispatchQueue.main.async { [weak self] in
-            self?.onboardingWindow = nil
-            self?.applyInitialDockVisibility()
+        if window === onboardingWindow {
+            UserDefaults.standard.set(true, forKey: AppConstants.UserDefaults.hasCompletedOnboarding)
+            UserDefaults.standard.synchronize()
+            // Defer niling and dock restoration to let AppKit finish the close animation
+            // so that isVisible returns false before hasVisibleWindows is checked.
+            DispatchQueue.main.async { [weak self] in
+                self?.onboardingWindow = nil
+                self?.restoreMenuOnlyIfNeeded()
+            }
+        } else if window === settingsWindow {
+            // Defer niling and dock restoration to let AppKit finish the close animation
+            // so that isVisible returns false before hasVisibleWindows is checked.
+            DispatchQueue.main.async { [weak self] in
+                self?.settingsWindow = nil
+                self?.restoreMenuOnlyIfNeeded()
+            }
         }
     }
 
@@ -735,6 +783,8 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSToolbarDelegate, NSWindowD
 
         window.collectionBehavior = [.moveToActiveSpace]
         window.canHide = true
+        window.isReleasedWhenClosed = false
+        window.delegate = self
 
         window.center()
         return window
@@ -759,7 +809,15 @@ extension AppDelegate {
     }
 
     func toolbar(_ toolbar: NSToolbar, itemForItemIdentifier itemIdentifier: NSToolbarItem.Identifier, willBeInsertedIntoToolbar flag: Bool) -> NSToolbarItem? {
-        return nil
+        switch itemIdentifier {
+        case .toggleSidebar:
+            let item = NSToolbarItem(itemIdentifier: .toggleSidebar)
+            return item
+        case .flexibleSpace:
+            return NSToolbarItem(itemIdentifier: .flexibleSpace)
+        default:
+            return nil
+        }
     }
 }
 
@@ -828,50 +886,16 @@ extension AppDelegate {
 
 extension AppDelegate {
     /// Shows a notification if a new version is available.
+    ///
+    /// Note: With Sparkle, this is handled automatically by the framework.
+    /// This method is kept for compatibility but may not be needed.
     @objc func handleUpdateStateChanged(_ notification: Notification) {
         guard let isAvailable = notification.userInfo?["isUpdateAvailable"] as? Bool,
               let version = notification.userInfo?["latestVersion"] as? String,
               isAvailable else { return }
 
-        showUpdateNotification(version: version, installMethod: updateChecker?.detectInstallMethod() ?? .dmg)
-    }
-
-    /// Sends a local notification for the given version unless the user has skipped it.
-    private func showUpdateNotification(version: String, installMethod: InstallMethod) {
-        let skippedVersion = UserDefaults.standard.string(forKey: AppConstants.UserDefaults.updateSkippedVersion)
-        guard skippedVersion != version else {
-            Log.debug("UpdateChecker: Skipping notification for v\(version) (user skipped)", category: "Update")
-            return
-        }
-
-        let content = UNMutableNotificationContent()
-        content.title = "WolfWave Update Available"
-        content.sound = .default
-
-        switch installMethod {
-        case .homebrew:
-            content.body = "Version \(version) is available. Run: brew upgrade wolfwave"
-        case .dmg:
-            content.body = "Version \(version) is available. Open Settings to download."
-        }
-
-        let request = UNNotificationRequest(
-            identifier: "update-\(version)",
-            content: content,
-            trigger: nil
-        )
-
-        UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound]) { granted, _ in
-            if granted {
-                DispatchQueue.main.async {
-                    UNUserNotificationCenter.current().add(request) { error in
-                        if let error {
-                            Log.error("Failed to send update notification: \(error.localizedDescription)", category: "Update")
-                        }
-                    }
-                }
-            }
-        }
+        // Sparkle handles notifications, but we log for debugging
+        Log.info("AppDelegate: Update available notification received — v\(version)", category: "Update")
     }
 }
 

@@ -78,27 +78,34 @@ final class BotCommandDispatcher {
         for command in snapshot {
             for trigger in command.triggers {
                 if lowered.hasPrefix(trigger) {
+                    let canonical = canonicalTrigger(for: trigger)
                     // Load cooldown overrides from UserDefaults
                     let (globalCD, userCD) = cooldownValues(for: trigger, command: command)
 
-                    // Check cooldown (mods bypass)
+                    // Check cooldown using canonical key (mods bypass)
                     if cooldownManager.isOnCooldown(
-                        trigger: trigger,
+                        trigger: canonical,
                         userID: userID,
                         isModerator: isModerator,
                         globalCooldown: globalCD,
                         userCooldown: userCD
                     ) {
+                        let remaining = cooldownManager.remainingCooldown(
+                            trigger: canonical,
+                            userID: userID,
+                            globalCooldown: globalCD,
+                            userCooldown: userCD
+                        )
                         Log.debug(
-                            "Command '\(trigger)' on cooldown for user \(userID)",
+                            "Command '\(trigger)' (group: \(canonical)) on cooldown for user \(userID) — global: \(String(format: "%.1f", remaining.global))s remaining, per-user: \(String(format: "%.1f", remaining.perUser))s remaining",
                             category: "BotCommands")
                         return nil
                     }
 
                     if let response = command.execute(message: trimmedMessage) {
-                        cooldownManager.recordUse(trigger: trigger, userID: userID)
+                        cooldownManager.recordUse(trigger: canonical, userID: userID)
                         Log.debug(
-                            "Command '\(trimmedMessage.prefix(50))' executed",
+                            "Command '\(trigger)' (group: \(canonical)) executed — cooldown set: global=\(String(format: "%.1f", globalCD))s, per-user=\(String(format: "%.1f", userCD))s",
                             category: "BotCommands")
                         return response
                     }
@@ -116,6 +123,20 @@ final class BotCommandDispatcher {
     }
 
     // MARK: - Private Helpers
+
+    /// Maps any command alias to its canonical (primary) trigger for cooldown grouping.
+    ///
+    /// All aliases of a command share a single cooldown bucket keyed by the canonical trigger.
+    private func canonicalTrigger(for trigger: String) -> String {
+        switch trigger {
+        case "!song", "!currentsong", "!nowplaying":
+            return "!song"
+        case "!last", "!lastsong", "!prevsong":
+            return "!last"
+        default:
+            return trigger
+        }
+    }
 
     /// Returns the effective cooldown values for a trigger, checking UserDefaults overrides.
     private func cooldownValues(for trigger: String, command: BotCommand) -> (TimeInterval, TimeInterval) {

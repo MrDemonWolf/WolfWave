@@ -44,10 +44,18 @@ final class TwitchViewModel: ObservableObject {
     @Published var reauthNeeded = false
     @Published var statusMessage = ""
     @Published var channelValidationState: ChannelValidationState = .idle
+    @Published var testAuthResult: TestAuthResult = .idle
+
+    // MARK: - Test Auth State
+
+    /// State of the "Test Auth" button feedback.
+    enum TestAuthResult: Equatable {
+        case idle, testing, success, failure
+    }
 
     // MARK: - Auth State
 
-    enum AuthState {
+    enum AuthState: Equatable {
         case idle
         case requestingCode
         case waitingForAuth(userCode: String, verificationURI: String)
@@ -126,10 +134,16 @@ final class TwitchViewModel: ObservableObject {
 
     /// Cached reference to the Twitch chat service
     private var cachedTwitchService: TwitchChatService?
+    
+    /// Lock for thread-safe access to cached service
+    private let serviceLock = NSLock()
 
     /// Reference to the Twitch chat service with fallback to AppDelegate
     var twitchService: TwitchChatService? {
         get {
+            serviceLock.lock()
+            defer { serviceLock.unlock() }
+            
             // If we have a cached service, return it
             if let cached = cachedTwitchService {
                 return cached
@@ -156,6 +170,9 @@ final class TwitchViewModel: ObservableObject {
             return nil
         }
         set {
+            serviceLock.lock()
+            defer { serviceLock.unlock() }
+            
             cachedTwitchService = newValue
             if let svc = newValue {
                 svc.onConnectionStateChanged = { [weak self] isConnected in
@@ -268,8 +285,10 @@ final class TwitchViewModel: ObservableObject {
             object: nil,
             queue: .main
         ) { [weak self] _ in
-            self?.reauthNeeded = UserDefaults.standard.bool(
-                forKey: AppConstants.UserDefaults.twitchReauthNeeded)
+            Task { @MainActor [weak self] in
+                self?.reauthNeeded = UserDefaults.standard.bool(
+                    forKey: AppConstants.UserDefaults.twitchReauthNeeded)
+            }
         }
 
         // Listen for Twitch chat connection state changes (tracked via token)
@@ -278,56 +297,52 @@ final class TwitchViewModel: ObservableObject {
             object: nil,
             queue: .main
         ) { [weak self] note in
-            self?.handleTwitchConnectionNotification(note)
+            let isConnected = note.userInfo?["isConnected"] as? Bool
+            let errorMessage = note.userInfo?["error"] as? String
+            Task { @MainActor [weak self] in
+                self?.handleTwitchConnectionState(
+                    isConnected: isConnected, errorMessage: errorMessage)
+            }
         }
     }
 
-    /// Handles a Twitch connection state change notification.
-    ///
-    /// Used by both the block-based observer and legacy @objc selector paths.
-    private func handleTwitchConnectionNotification(_ note: Notification) {
-        Log.debug(
-            "TwitchViewModel: twitchConnectionStateChanged notification received",
-            category: "Twitch")
-        if let info = note.userInfo, let isConnected = info["isConnected"] as? Bool {
-            // Check if there's an error in the notification
-            let errorMessage = info["error"] as? String
-
-            Task { @MainActor in
-                self.channelConnected = isConnected
-                self.isConnecting = false
-                if isConnected {
-                    // Connection succeeded
-                    if !self.channelID.isEmpty {
-                        self.statusMessage = "✅ Connected to #\(self.channelID)"
-                    } else {
-                        self.statusMessage = "✅ Connected"
-                    }
-                } else {
-                    // Connection failed or disconnected
-                    if let error = errorMessage {
-                        // Check if it's a timeout error
-                        if error.contains("timed out") || error.contains("timeout") {
-                            self.statusMessage =
-                                "❌ Connection timed out. Check your network connection or firewall settings."
-                        } else {
-                            self.statusMessage = "❌ Connection failed: \(error)"
-                        }
-                        Log.error(
-                            "TwitchViewModel: Connection error - \(error)", category: "Twitch")
-                    } else if self.reauthNeeded {
-                        // Disconnected due to reauth needed
-                        self.statusMessage = "⚠️ Reauth needed"
-                        Log.warn("TwitchViewModel: UI updated - Reauth needed", category: "Twitch")
-                    } else if !self.statusMessage.contains("❌") && !self.statusMessage.isEmpty {
-                        // Only update if there's no error message already shown
-                        self.statusMessage = "Disconnected"
-                    }
-                }
-            }
-        } else {
+    /// Updates connection UI state from extracted notification values.
+    private func handleTwitchConnectionState(isConnected: Bool?, errorMessage: String?) {
+        guard let isConnected else {
             Log.error(
                 "TwitchViewModel: Notification userInfo missing or invalid", category: "Twitch")
+            return
+        }
+
+        self.channelConnected = isConnected
+        self.isConnecting = false
+        if isConnected {
+            // Connection succeeded
+            if !self.channelID.isEmpty {
+                self.statusMessage = "✅ Connected to #\(self.channelID)"
+            } else {
+                self.statusMessage = "✅ Connected"
+            }
+        } else {
+            // Connection failed or disconnected
+            if let error = errorMessage {
+                // Check if it's a timeout error
+                if error.contains("timed out") || error.contains("timeout") {
+                    self.statusMessage =
+                        "❌ Connection timed out. Check your network connection or firewall settings."
+                } else {
+                    self.statusMessage = "❌ Connection failed: \(error)"
+                }
+                Log.error(
+                    "TwitchViewModel: Connection error - \(error)", category: "Twitch")
+            } else if self.reauthNeeded {
+                // Disconnected due to reauth needed
+                self.statusMessage = "⚠️ Reauth needed"
+                Log.warn("TwitchViewModel: UI updated - Reauth needed", category: "Twitch")
+            } else if !self.statusMessage.contains("❌") && !self.statusMessage.isEmpty {
+                // Only update if there's no error message already shown
+                self.statusMessage = "Disconnected"
+            }
         }
     }
 
@@ -341,6 +356,11 @@ final class TwitchViewModel: ObservableObject {
         if let token = connectionObserver {
             NotificationCenter.default.removeObserver(token)
         }
+        
+        // Clean up service lock
+        serviceLock.lock()
+        cachedTwitchService = nil
+        serviceLock.unlock()
     }
 
     /// Initiates the OAuth Device Code flow.
@@ -419,12 +439,16 @@ final class TwitchViewModel: ObservableObject {
                     }
 
                     do {
+                        // Check for cancellation before starting poll
+                        try Task.checkCancellation()
+                        
                         let token = try await helper.pollForToken(
                             deviceCode: response.deviceCode,
                             interval: response.interval,
                             expiresIn: response.expiresIn
                         ) { status in
-                            Task { @MainActor in
+                            Task { @MainActor [weak self] in
+                                guard let self else { return }
                                 self.statusMessage = status
                             }
                         }
@@ -432,10 +456,14 @@ final class TwitchViewModel: ObservableObject {
                         await self.handleOAuthSuccess(token: token, clientID: clientID)
                     } catch let error as TwitchDeviceAuthError {
                         await self.handleOAuthError(error)
-                    } catch {
-                        if !(error is CancellationError) {
-                            await self.handleOAuthError(.unknown(error.localizedDescription))
+                    } catch is CancellationError {
+                        // Task was cancelled - clean exit
+                        await MainActor.run { [weak self] in
+                            self?.statusMessage = "Authorization cancelled"
+                            self?.authState = .idle
                         }
+                    } catch {
+                        await self.handleOAuthError(.unknown(error.localizedDescription))
                     }
                 }
             } catch {
@@ -696,23 +724,41 @@ final class TwitchViewModel: ObservableObject {
     func testConnection() {
         guard let token = KeychainService.loadTwitchToken(), !token.isEmpty else {
             statusMessage = "❌ No OAuth token found"
+            testAuthResult = .failure
+            scheduleTestAuthReset()
             return
         }
 
         guard let service = twitchService else {
             statusMessage = "❌ Twitch service not available"
+            testAuthResult = .failure
+            scheduleTestAuthReset()
             return
         }
 
         statusMessage = "Testing token…"
+        testAuthResult = .testing
 
         Task {
             let isValid = await service.validateToken(token)
             await MainActor.run {
-                self.statusMessage = isValid
-                    ? "✅ Token is valid — scopes OK"
-                    : "❌ Token is invalid or expired"
+                if isValid {
+                    self.statusMessage = "✅ Token is valid — scopes OK"
+                    self.testAuthResult = .success
+                } else {
+                    self.statusMessage = "❌ Token is invalid or expired"
+                    self.testAuthResult = .failure
+                }
+                self.scheduleTestAuthReset()
             }
+        }
+    }
+
+    /// Resets `testAuthResult` back to `.idle` after 3 seconds.
+    private func scheduleTestAuthReset() {
+        Task { @MainActor in
+            try? await Task.sleep(nanoseconds: 3_000_000_000)
+            self.testAuthResult = .idle
         }
     }
 

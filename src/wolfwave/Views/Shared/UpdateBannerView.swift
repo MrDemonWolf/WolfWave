@@ -76,14 +76,8 @@ struct UpdateBannerView: View {
     func listening() -> some View {
         self
             .onAppear {
-                if let appDelegate = AppDelegate.shared,
-                   let info = appDelegate.updateChecker?.latestUpdateInfo,
-                   info.isUpdateAvailable
-                {
-                    latestVersion = info.latestVersion
-                    releaseURL = info.releaseURL
-                    isUpdateAvailable = true
-                }
+                // Update state is delivered via NotificationCenter (handled by onReceive below).
+                // Sparkle manages its own update checking lifecycle.
             }
             .onReceive(
                 NotificationCenter.default.publisher(
@@ -112,3 +106,71 @@ struct UpdateBannerView: View {
             }
     }
 }
+// MARK: - Preview
+
+#Preview("Update Available") {
+    VStack(spacing: 16) {
+        let view = UpdateBannerView()
+        view
+            .onAppear {
+                NotificationCenter.default.post(
+                    name: NSNotification.Name(AppConstants.Notifications.updateStateChanged),
+                    object: nil,
+                    userInfo: [
+                        "isUpdateAvailable": true,
+                        "latestVersion": "1.2.0",
+                        "releaseURL": "https://github.com/mrdemonwolf/wolfwave/releases/tag/v1.2.0"
+                    ]
+                )
+            }
+        
+        Text("Settings content would appear below...")
+            .foregroundStyle(.secondary)
+    }
+    .padding()
+    .frame(width: 600)
+}
+
+#Preview("No Update") {
+    VStack(spacing: 16) {
+        UpdateBannerView().listening()
+        
+        Text("No banner should appear")
+            .foregroundStyle(.secondary)
+    }
+    .padding()
+    .frame(width: 600)
+}
+
+#Preview("Banner in Settings Context") {
+    ScrollView {
+        VStack(alignment: .leading, spacing: 16) {
+            let view = UpdateBannerView()
+            view
+                .onAppear {
+                    NotificationCenter.default.post(
+                        name: NSNotification.Name(AppConstants.Notifications.updateStateChanged),
+                        object: nil,
+                        userInfo: [
+                            "isUpdateAvailable": true,
+                            "latestVersion": "2.0.0",
+                            "releaseURL": "https://github.com/mrdemonwolf/wolfwave/releases"
+                        ]
+                    )
+                }
+            
+            VStack(alignment: .leading, spacing: 8) {
+                Text("General Settings")
+                    .font(.system(size: 17, weight: .semibold))
+                
+                Text("This is where your settings would appear.")
+                    .font(.system(size: 13))
+                    .foregroundStyle(.secondary)
+            }
+            .cardStyle()
+        }
+        .padding()
+    }
+    .frame(width: 600, height: 400)
+}
+

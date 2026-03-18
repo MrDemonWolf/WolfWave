@@ -81,7 +81,7 @@ make open-xcode
 ### Docs Site (Local)
 
 ```bash
-cd docs && pnpm install && pnpm dev
+cd docs && bun install && bun run dev
 ```
 
 Open **http://localhost:3000/widget/?port=8765** to preview the OBS stream widget locally.
@@ -94,41 +94,21 @@ Open **http://localhost:3000/widget/?port=8765** to preview the OBS stream widge
 | `make clean`       | Clean build artifacts                    |
 | `make prod-build`  | Release build + DMG                      |
 | `make notarize`    | Notarize the DMG (requires Developer ID) |
-| `make test`        | Run unit tests (190 tests)               |
+| `make test`        | Run unit tests                           |
 | `make open-xcode`  | Open Xcode project                       |
 | `make update-deps` | Resolve SwiftPM dependencies             |
 
 ## Releasing
 
-### 1. Build the DMG
+See **[PUBLISH.md](PUBLISH.md)** for the full release checklist covering pre-release checks, build & sign, notarization, tagging, and post-release verification.
+
+Quick summary:
 
 ```bash
-make prod-build
+make prod-build                # Release build → DMG
+make notarize                  # Sign + notarize + staple
+git tag v1.0.0 && git push origin v1.0.0  # Triggers CI release
 ```
-
-This builds a Release `.app`, re-signs it with your Developer ID certificate, and packages it into `builds/WolfWave-<VERSION>-arm64.dmg`.
-
-### 2. Notarize
-
-```bash
-APPLE_ID=you@example.com \
-APPLE_TEAM_ID=XXXXXXXXXX \
-APPLE_APP_PASSWORD=xxxx-xxxx-xxxx-xxxx \
-make notarize
-```
-
-This signs the DMG, submits it to Apple's notary service, waits for approval, and staples the ticket.
-
-> Generate an app-specific password at [appleid.apple.com](https://appleid.apple.com) under **Sign-In and Security > App-Specific Passwords**.
-
-### 3. Tag and release
-
-```bash
-git tag v1.0.0
-git push origin v1.0.0
-```
-
-Pushing a tag triggers CI which builds the DMG and creates a GitHub Release automatically. You can then replace the CI-built DMG with your locally notarized one, or upload it manually.
 
 ## Testing
 

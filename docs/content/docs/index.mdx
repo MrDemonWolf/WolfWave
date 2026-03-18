@@ -3,17 +3,16 @@ title: Introduction
 description: WolfWave - Apple Music + Twitch Companion
 ---
 
-WolfWave is a professional-grade macOS menu bar utility designed to connect Apple Music with your audience. Effortlessly broadcast real-time song data to overlays via WebSockets, interact with your Twitch community through secure automated chat commands, and show what you're listening to on Discord.
+WolfWave is a native macOS menu bar app that bridges Apple Music with your stream. It broadcasts the currently playing song to Twitch chat, shows "Listening to Apple Music" on Discord, and streams now-playing data to OBS overlays — all with zero external dependencies.
 
 ## Features
 
-- **Real-time Now Playing**: Tracks the current Apple Music song and updates instantly using ScriptingBridge.
-- **Twitch Chat Integration**: Responds to `!song`, `!currentsong`, `!nowplaying`, `!lastsong`, and more using modern EventSub + Helix (no IRC).
-- **Discord Rich Presence**: Show "Listening to Apple Music" on your Discord profile with dynamic album art.
-- **WebSocket Streaming**: Broadcast now-playing data to your overlay or tools (ws:// or wss://).
-- **Automatic Updates**: Checks GitHub Releases for new versions with Homebrew and DMG support.
-- **Secure by Default**: All credentials stored in macOS Keychain; no plain-text tokens.
-- **First-Launch Onboarding**: Guided setup wizard walks you through initial configuration.
+- **Real-time Now Playing**: Instant track detection via ScriptingBridge — no polling hacks.
+- **Twitch Chat Bot**: Responds to `!song`, `!lastsong`, and more via the modern EventSub + Helix API (no deprecated IRC).
+- **Discord Rich Presence**: "Listening to Apple Music" status with dynamic album art, elapsed time, and track details.
+- **OBS Stream Overlay**: Built-in WebSocket server + bundled widget served at `http://localhost:8766` — add it as a Browser Source in OBS with no external dependencies.
+- **Secure Credentials**: All tokens stored in macOS Keychain — never in plain text.
+- **Guided Onboarding**: First-launch wizard walks you through Twitch, Discord, and OBS setup in minutes.
 
 ## Quick Links
 

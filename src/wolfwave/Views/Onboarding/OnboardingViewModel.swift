@@ -57,6 +57,7 @@ final class OnboardingViewModel: ObservableObject {
     /// Persists the onboarding-completed flag so the wizard won't show again.
     func completeOnboarding() {
         UserDefaults.standard.set(true, forKey: AppConstants.UserDefaults.hasCompletedOnboarding)
+        UserDefaults.standard.synchronize()
         Log.info("Onboarding completed", category: "Onboarding")
     }
 

@@ -45,6 +45,7 @@ Built-in commands for your viewers:
 ### Bot Features
 
 - **Command Toggles**: Enable/disable individual commands from settings
+- **Cooldown System**: Configurable global and per-user cooldowns with moderator bypass
 - **Extensible System**: Easy to add custom commands
 - **Reply Support**: Commands can reply to specific messages
 - **Automatic Reconnection**: Handles connection drops gracefully
@@ -72,7 +73,8 @@ WolfWave communicates with Discord via the local IPC socket — no bot token or 
 
 Show what you're listening to directly on your stream with a built-in browser source widget for OBS.
 
-- **Local WebSocket Server**: Runs on your Mac using Network.framework — no external services needed
+- **Fully Bundled**: The widget is served directly by the app — no external URL or internet required
+- **Local HTTP Server**: Runs at `http://localhost:8766` alongside the WebSocket server
 - **Multi-client Support**: Multiple OBS scenes or browser tabs can connect simultaneously
 - **Real-time Updates**: Track changes, progress, and playback state broadcast instantly
 - **Album Art & Blur**: Displays album artwork with a blurred background overlay
@@ -82,9 +84,9 @@ Show what you're listening to directly on your stream with a built-in browser so
 ### How It Works
 
 1. Enable the WebSocket server in **Settings → OBS Widget**
-2. Copy the widget URL
+2. Copy the Widget URL (`http://localhost:8766`)
 3. Add it as a **Browser Source** in OBS (recommended size: 500 × 120)
-4. The widget connects to the WebSocket address shown in your OBS Widget settings and displays your now-playing info
+4. The widget loads from the app, connects to the local WebSocket, and displays your now-playing info
 
 ### JSON Message Format
 
@@ -133,11 +135,9 @@ A guided 4-step onboarding wizard walks new users through initial configuration 
 
 ### Settings Interface
 
-- **Music Monitor**: Control tracking behavior, live now-playing preview
-- **App Visibility**: Configure dock/menu bar appearance
-- **OBS Widget**: Enable the stream overlay WebSocket server
-- **Twitch Integration**: Manage bot connection and commands
-- **Discord**: Enable/disable Rich Presence and view connection status
+- **OBS Widget**: Enable the stream overlay WebSocket server and copy the widget URL
+- **Twitch Integration**: Manage bot connection, commands, and cooldown settings
+- **Discord Integration**: Enable/disable Rich Presence and view connection status
 - **Advanced**: Software updates, setup wizard, reset settings
 
 ### About Panel
@@ -178,8 +178,16 @@ In **Settings → Advanced → Software Update**:
 - Non-blocking async operations
 - Efficient polling and event handling
 
+### Power Management
+
+WolfWave adapts automatically to Low Power Mode and thermal pressure to conserve battery:
+
+- **Music check interval**: 15s in low-power mode (vs 5s normal)
+- **Discord poll interval**: 60s in low-power mode (vs 15s normal)
+- **WebSocket broadcast interval**: 3s in low-power mode (vs 1s normal)
+
 ### Architecture
 
 - Clean separation of concerns (MVVM pattern)
 - Comprehensive error handling
-- Zero external dependencies — all native Apple frameworks
+- Minimal external dependencies — native Apple frameworks plus Sparkle for auto-updates

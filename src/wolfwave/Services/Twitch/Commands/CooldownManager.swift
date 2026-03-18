@@ -88,6 +88,40 @@ final class CooldownManager {
         }
     }
 
+    /// Returns remaining cooldown times for debug logging.
+    ///
+    /// - Parameters:
+    ///   - trigger: The command trigger string (canonical key).
+    ///   - userID: The Twitch user ID of the caller.
+    ///   - globalCooldown: Global cooldown duration in seconds.
+    ///   - userCooldown: Per-user cooldown duration in seconds.
+    /// - Returns: Tuple of remaining global and per-user cooldown seconds.
+    func remainingCooldown(
+        trigger: String,
+        userID: String,
+        globalCooldown: TimeInterval,
+        userCooldown: TimeInterval
+    ) -> (global: TimeInterval, perUser: TimeInterval) {
+        let now = Date()
+        return lock.withLock {
+            let globalRemaining: TimeInterval
+            if globalCooldown > 0, let lastGlobal = globalCooldowns[trigger] {
+                globalRemaining = max(0, globalCooldown - now.timeIntervalSince(lastGlobal))
+            } else {
+                globalRemaining = 0
+            }
+
+            let perUserRemaining: TimeInterval
+            if userCooldown > 0, let lastUser = userCooldowns["\(userID):\(trigger)"] {
+                perUserRemaining = max(0, userCooldown - now.timeIntervalSince(lastUser))
+            } else {
+                perUserRemaining = 0
+            }
+
+            return (globalRemaining, perUserRemaining)
+        }
+    }
+
     /// Clears all cooldown state (e.g., on disconnect).
     func reset() {
         lock.withLock {

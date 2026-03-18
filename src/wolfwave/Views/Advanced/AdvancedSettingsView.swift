@@ -47,7 +47,7 @@ struct AdvancedSettingsView: View {
     @AppStorage(AppConstants.UserDefaults.updateSkippedVersion)
     private var skippedVersion: String = ""
 
-    /// Reference to AppDelegate for update checker access.
+    /// Reference to AppDelegate for Sparkle updater access.
     private var appDelegate: AppDelegate? { AppDelegate.shared }
 
     /// Whether automatic update checking is enabled.
@@ -56,6 +56,9 @@ struct AdvancedSettingsView: View {
 
     /// Whether a manual update check is in progress.
     @State private var isCheckingForUpdates = false
+
+    /// Whether the app was installed via Homebrew (Sparkle is disabled in this case)
+    @State private var isHomebrewInstall = false
 
     /// Current app version from the bundle.
     private var currentVersion: String {
@@ -95,19 +98,13 @@ struct AdvancedSettingsView: View {
                 Text("Advanced")
                     .font(.system(size: 17, weight: .semibold))
 
-                Text("Check for updates, manage your setup wizard, and reset WolfWave to its default state.")
+                Text("Check for updates, manage your setup wizard, export diagnostic logs, and reset WolfWave to its default state.")
                     .font(.system(size: 13))
                     .foregroundStyle(.secondary)
             }
 
-            // Music Monitor
-            MusicMonitorSettingsView()
-
-            Divider()
-                .padding(.vertical, 4)
-
-            // App Visibility
-            AppVisibilitySettingsView()
+            // Software Update
+            softwareUpdateCard
 
             Divider()
                 .padding(.vertical, 4)
@@ -174,6 +171,9 @@ struct AdvancedSettingsView: View {
             .background(Color(nsColor: .controlBackgroundColor))
             .clipShape(RoundedRectangle(cornerRadius: AppConstants.SettingsUI.cardCornerRadius))
 
+            Divider()
+                .padding(.vertical, 4)
+
             // Danger Zone Card
             VStack(alignment: .leading, spacing: 16) {
                 VStack(alignment: .leading, spacing: 8) {
@@ -215,6 +215,12 @@ struct AdvancedSettingsView: View {
                     .stroke(Color.red.opacity(0.2), lineWidth: 1)
             )
         }
+        .onAppear {
+            // Detect if installed via Homebrew
+            let path = Bundle.main.bundlePath
+            let homebrewPaths = ["/opt/homebrew/", "/usr/local/Cellar/", "/Homebrew/"]
+            isHomebrewInstall = homebrewPaths.contains { path.contains($0) }
+        }
         .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name(AppConstants.Notifications.updateStateChanged))) { notification in
             if let version = notification.userInfo?["latestVersion"] as? String,
                let available = notification.userInfo?["isUpdateAvailable"] as? Bool {
@@ -228,6 +234,74 @@ struct AdvancedSettingsView: View {
 
     @ViewBuilder
     private var softwareUpdateCard: some View {
+        if isHomebrewInstall {
+            homebrewUpdateCard
+        } else {
+            sparkleUpdateCard
+        }
+    }
+
+    /// Update card shown for Homebrew installations (Sparkle disabled)
+    @ViewBuilder
+    private var homebrewUpdateCard: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            VStack(alignment: .leading, spacing: 4) {
+                Text("Software Update")
+                    .font(.system(size: 13, weight: .semibold))
+
+                Text("Current version: \(currentVersion)")
+                    .font(.system(size: 12))
+                    .foregroundStyle(.secondary)
+            }
+
+            HStack(spacing: 10) {
+                Image(systemName: "info.circle.fill")
+                    .font(.system(size: 14))
+                    .foregroundStyle(.blue)
+
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Homebrew Installation Detected")
+                        .font(.system(size: 12, weight: .semibold))
+                    Text("Use Homebrew to check for and install updates.")
+                        .font(.system(size: 11))
+                        .foregroundStyle(.secondary)
+                }
+
+                Spacer()
+            }
+            .padding(10)
+            .background(Color.blue.opacity(0.08))
+            .clipShape(RoundedRectangle(cornerRadius: 6))
+
+            HStack(spacing: 8) {
+                Text("$ brew upgrade wolfwave")
+                    .font(.system(size: 12, design: .monospaced))
+                    .foregroundStyle(.primary)
+
+                Spacer()
+
+                Button {
+                    NSPasteboard.general.clearContents()
+                    NSPasteboard.general.setString("brew upgrade wolfwave", forType: .string)
+                } label: {
+                    Image(systemName: "doc.on.doc")
+                        .font(.system(size: 11))
+                }
+                .buttonStyle(.borderless)
+                .pointerCursor()
+                .accessibilityLabel("Copy brew command")
+            }
+            .padding(.horizontal, 10)
+            .padding(.vertical, 8)
+            .background(Color(nsColor: .textBackgroundColor))
+            .clipShape(RoundedRectangle(cornerRadius: 6))
+        }
+        .cardStyle()
+    }
+
+    /// Update card shown for DMG installations (uses Sparkle)
+    @ViewBuilder
+    private var sparkleUpdateCard: some View {
         VStack(alignment: .leading, spacing: 12) {
             // Header row: title + version badge
             HStack {
@@ -253,135 +327,125 @@ struct AdvancedSettingsView: View {
                 }
             }
 
-            // Update instructions (only when update is available)
-            if updateAvailable {
-                let installMethod = appDelegate?.updateChecker?.detectInstallMethod() ?? .dmg
+            // Info banner explaining Sparkle's auto-update capability
+            if !updateAvailable {
+                HStack(spacing: 10) {
+                    Image(systemName: "checkmark.circle.fill")
+                        .font(.system(size: 14))
+                        .foregroundStyle(.green)
 
-                if installMethod == .homebrew {
-                    // Homebrew command
-                    HStack(spacing: 8) {
-                        Text("$ brew upgrade wolfwave")
-                            .font(.system(size: 12, design: .monospaced))
-                            .foregroundStyle(.primary)
-
-                        Spacer()
-
-                        Button {
-                            NSPasteboard.general.clearContents()
-                            NSPasteboard.general.setString("brew upgrade wolfwave", forType: .string)
-                        } label: {
-                            Image(systemName: "doc.on.doc")
-                                .font(.system(size: 11))
-                        }
-                        .buttonStyle(.borderless)
-                        .pointerCursor()
-                        .accessibilityLabel("Copy brew command")
-                    }
-                    .padding(.horizontal, 10)
-                    .padding(.vertical, 8)
-                    .background(Color(nsColor: .textBackgroundColor))
-                    .clipShape(RoundedRectangle(cornerRadius: 6))
-                } else {
-                    // DMG download button
-                    Button {
-                        openDownloadURL()
-                    } label: {
-                        Label("Download Update", systemImage: "arrow.down.circle.fill")
-                            .font(.system(size: 13, weight: .medium))
-                            .frame(maxWidth: .infinity)
-                    }
-                    .buttonStyle(.borderedProminent)
-                    .controlSize(.regular)
-                    .pointerCursor()
-                    .accessibilityLabel("Download update")
-                }
-
-                // Skip This Version
-                Button {
-                    if let version = latestVersion {
-                        skippedVersion = version
-                        updateAvailable = false
-                        Log.info("UpdateChecker: User skipped version \(version)", category: "Update")
-                    }
-                } label: {
-                    Text("Skip This Version")
-                        .font(.system(size: 12))
+                    Text("Automatic updates enabled — you'll be notified when new versions are available.")
+                        .font(.system(size: 11))
                         .foregroundStyle(.secondary)
                 }
-                .buttonStyle(.plain)
-                .pointerCursor()
-                .accessibilityLabel("Skip this version")
+                .padding(10)
+                .background(Color.green.opacity(0.08))
+                .clipShape(RoundedRectangle(cornerRadius: 6))
             }
 
             Divider()
 
             // Bottom row: auto-check toggle + Check Now button
             HStack {
-                Toggle("Check automatically", isOn: $updateCheckEnabled)
-                    .toggleStyle(.checkbox)
-                    .font(.system(size: 12))
-                    .onChange(of: updateCheckEnabled) { _, newValue in
-                        if newValue {
-                            appDelegate?.updateChecker?.startPeriodicChecking()
-                        } else {
-                            appDelegate?.updateChecker?.stopPeriodicChecking()
-                        }
+                Toggle("Check automatically", isOn: Binding(
+                    get: { appDelegate?.sparkleUpdater?.automaticCheckEnabled ?? true },
+                    set: { newValue in
+                        appDelegate?.sparkleUpdater?.automaticCheckEnabled = newValue
                     }
+                ))
+                .toggleStyle(.checkbox)
+                .font(.system(size: 12))
 
                 Spacer()
 
                 Button {
-                    isCheckingForUpdates = true
-                    Task {
-                        // Clear the interval gate so manual check always runs
-                        UserDefaults.standard.removeObject(forKey: AppConstants.UserDefaults.updateLastCheckDate)
-                        let info = await appDelegate?.updateChecker?.checkForUpdates()
-                        await MainActor.run {
-                            isCheckingForUpdates = false
-                            if let info {
-                                latestVersion = info.latestVersion
-                                updateAvailable = info.isUpdateAvailable && skippedVersion != info.latestVersion
-                            }
-                        }
-                    }
+                    // Trigger Sparkle's update check
+                    appDelegate?.sparkleUpdater?.checkForUpdates()
                 } label: {
-                    if isCheckingForUpdates {
-                        ProgressView()
-                            .controlSize(.small)
-                            .frame(width: 14, height: 14)
-                    } else {
-                        Text("Check Now")
-                            .font(.system(size: 12, weight: .medium))
-                    }
+                    Text("Check Now")
+                        .font(.system(size: 12, weight: .medium))
                 }
                 .buttonStyle(.bordered)
                 .controlSize(.small)
-                .disabled(isCheckingForUpdates)
                 .pointerCursor()
                 .accessibilityLabel("Check for updates now")
             }
         }
         .cardStyle()
     }
-
-    // MARK: - Helpers
-
-    /// Opens the DMG download URL or falls back to the GitHub releases page.
-    private func openDownloadURL() {
-        let url = appDelegate?.updateChecker?.latestUpdateInfo?.downloadURL
-            ?? appDelegate?.updateChecker?.latestUpdateInfo?.releaseURL
-            ?? URL(string: AppConstants.URLs.githubReleases)
-
-        if let url {
-            NSWorkspace.shared.open(url)
-        }
-    }
 }
 
 // MARK: - Preview
 
-#Preview {
+#Preview("Default State") {
     @Previewable @State var showingResetAlert = false
     AdvancedSettingsView(showingResetAlert: $showingResetAlert)
         .padding()
+        .frame(width: 700)
 }
+#Preview("With Update Available") {
+    @Previewable @State var showingResetAlert = false
+    @Previewable @AppStorage(AppConstants.UserDefaults.updateCheckEnabled) var updateCheckEnabled = true
+    
+    let view = AdvancedSettingsView(showingResetAlert: $showingResetAlert)
+    return view
+        .padding()
+        .frame(width: 700)
+        .onAppear {
+            NotificationCenter.default.post(
+                name: NSNotification.Name(AppConstants.Notifications.updateStateChanged),
+                object: nil,
+                userInfo: [
+                    "latestVersion": "1.2.0",
+                    "isUpdateAvailable": true
+                ]
+            )
+        }
+}
+
+#Preview("Checking for Updates") {
+    @Previewable @State var showingResetAlert = false
+    
+    struct CheckingView: View {
+        var body: some View {
+            VStack(alignment: .leading, spacing: 16) {
+                Text("Advanced")
+                    .font(.system(size: 17, weight: .semibold))
+                
+                VStack(alignment: .leading, spacing: 12) {
+                    HStack {
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("Software Update")
+                                .font(.system(size: 13, weight: .semibold))
+                            
+                            Text("Current version: 1.1.0")
+                                .font(.system(size: 12))
+                                .foregroundStyle(.secondary)
+                        }
+                        Spacer()
+                    }
+                    
+                    Divider()
+                    
+                    HStack {
+                        Toggle("Check automatically", isOn: .constant(true))
+                            .toggleStyle(.checkbox)
+                            .font(.system(size: 12))
+                        
+                        Spacer()
+                        
+                        ProgressView()
+                            .controlSize(.small)
+                            .frame(width: 14, height: 14)
+                    }
+                }
+                .cardStyle()
+            }
+        }
+    }
+    
+    return CheckingView()
+        .padding()
+        .frame(width: 700)
+}
+

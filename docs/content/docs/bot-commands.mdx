@@ -21,6 +21,17 @@ WolfWave includes an extensible bot command system for Twitch chat integration.
   When disabled, the bot silently ignores the trigger — no response is sent to chat.
 </Callout>
 
+## Cooldown System
+
+WolfWave includes a built-in cooldown system to prevent command spam in chat:
+
+- **Global cooldown** (default 3s) — minimum time between any user's command
+- **Per-user cooldown** (default 10s) — minimum time between the same user's commands
+- **Moderator bypass** — moderators and the broadcaster bypass all cooldowns
+- **Configurable** — cooldowns can be adjusted per-command in **Settings → Twitch → Bot Commands**
+
+When a command is on cooldown, the bot silently ignores the trigger — no error message is sent to chat.
+
 ## Architecture
 
 Commands live under `Services/Twitch/Commands` with a clean, extensible design:

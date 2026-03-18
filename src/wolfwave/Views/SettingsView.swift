@@ -38,15 +38,11 @@ import SwiftUI
 struct SettingsView: View {
     // MARK: - Constants
 
-    fileprivate enum Constants {
-        /// Valid schemes for WebSocket URI validation
-        static let validSchemes = ["ws", "wss", "http", "https"]
-    }
-    
     // MARK: - Settings Section Enum
     
     /// Navigation sections in the settings sidebar.
     enum SettingsSection: String, CaseIterable, Identifiable {
+        case general = "General"
         case websocket = "OBS Widget"
         case twitchIntegration = "Twitch Integration"
         case discord = "Discord Integration"
@@ -57,17 +53,20 @@ struct SettingsView: View {
         /// System SF Symbol name for sidebar icon (or nil for custom image).
         var systemIcon: String? {
             switch self {
-            case .websocket: return "dot.radiowaves.left.and.right"
+            case .general: return "gear"
+            case .websocket: return nil // Uses custom image
             case .twitchIntegration: return nil // Uses custom image
             case .discord: return nil // Uses custom image
-            case .advanced: return "gearshape"
+            case .advanced: return "gearshape.2"
             }
         }
 
         /// Custom image name for sidebar icon (or nil for system icon).
         var customIcon: String? {
             switch self {
+            case .websocket: return "OBSLogo"
             case .twitchIntegration: return "TwitchLogo"
+            case .discord: return "DiscordLogo"
             default: return nil
             }
         }
@@ -99,13 +98,16 @@ struct SettingsView: View {
 
     /// Cooldown settings for bot commands
     @AppStorage(AppConstants.UserDefaults.songCommandGlobalCooldown)
-    private var songGlobalCooldown: Double = 3.0
+    private var songGlobalCooldown: Double = 15.0
     @AppStorage(AppConstants.UserDefaults.songCommandUserCooldown)
-    private var songUserCooldown: Double = 10.0
+    private var songUserCooldown: Double = 15.0
     @AppStorage(AppConstants.UserDefaults.lastSongCommandGlobalCooldown)
-    private var lastSongGlobalCooldown: Double = 3.0
+    private var lastSongGlobalCooldown: Double = 15.0
     @AppStorage(AppConstants.UserDefaults.lastSongCommandUserCooldown)
-    private var lastSongUserCooldown: Double = 10.0
+    private var lastSongUserCooldown: Double = 15.0
+
+    @AppStorage(AppConstants.UserDefaults.broadcasterBypassCooldowns)
+    private var broadcasterBypassCooldowns: Bool = true
 
     @AppStorage(AppConstants.UserDefaults.dockVisibility)
     private var dockVisibility = "both"
@@ -124,7 +126,7 @@ struct SettingsView: View {
     @State private var showingResetAlert = false
     
     /// Currently selected settings section
-    @State private var selectedSection: SettingsSection = .twitchIntegration
+    @State private var selectedSection: SettingsSection = .general
     
     /// Controls sidebar visibility
     @State private var sidebarVisibility: NavigationSplitViewVisibility = .all
@@ -141,7 +143,6 @@ struct SettingsView: View {
         } detail: {
             ScrollView {
                 VStack(alignment: .leading, spacing: AppConstants.SettingsUI.sectionSpacing) {
-                    UpdateBannerView().listening()
                     detailView(for: selectedSection)
                 }
                 .frame(maxWidth: AppConstants.SettingsUI.maxContentWidth, alignment: .topLeading)
@@ -149,6 +150,7 @@ struct SettingsView: View {
                 .padding(.horizontal, AppConstants.SettingsUI.contentPaddingH)
                 .padding(.vertical, AppConstants.SettingsUI.contentPaddingV)
             }
+            .padding(.top, 8)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .background(Color(nsColor: .underPageBackgroundColor))
             .onAppear {
@@ -172,10 +174,6 @@ struct SettingsView: View {
             // Link the view model to the app delegate's service (without reconnecting)
             twitchViewModel.twitchService = appDelegate?.twitchService
 
-            // Apply bot command settings to service
-            appDelegate?.twitchService?.currentSongCommandEnabled = currentSongCommandEnabled
-            appDelegate?.twitchService?.lastSongCommandEnabled = lastSongCommandEnabled
-
             // Initialize the view model's connection state from the service so the UI
             // reflects whether we are already joined (prevents missed callbacks).
             twitchViewModel.channelConnected = appDelegate?.twitchService?.isConnected ?? false
@@ -197,6 +195,7 @@ struct SettingsView: View {
             }
         }
         .toolbar(removing: .sidebarToggle)
+        .toolbarBackgroundVisibility(.hidden, for: .windowToolbar)
         .navigationSplitViewStyle(.balanced)
         .alert("Reset Settings?", isPresented: $showingResetAlert) {
             Button("Cancel", role: .cancel) {}
@@ -216,6 +215,8 @@ struct SettingsView: View {
     @ViewBuilder
     private func detailView(for section: SettingsSection) -> some View {
         switch section {
+        case .general:
+            GeneralSettingsView()
         case .websocket:
             WebSocketSettingsView()
         case .twitchIntegration:
@@ -285,7 +286,6 @@ struct SettingsView: View {
                         accessibilityIdentifier: "currentSongCommandToggle",
                         isFirst: true
                     ) { enabled in
-                        appDelegate?.twitchService?.currentSongCommandEnabled = enabled
                         Log.info("SettingsView: Current Song Command \(enabled ? "enabled" : "disabled")", category: "Twitch")
                     }
 
@@ -305,7 +305,6 @@ struct SettingsView: View {
                         accessibilityIdentifier: "lastSongCommandToggle",
                         isLast: !lastSongCommandEnabled
                     ) { enabled in
-                        appDelegate?.twitchService?.lastSongCommandEnabled = enabled
                         Log.info("SettingsView: Last Song Command \(enabled ? "enabled" : "disabled")", category: "Twitch")
                     }
 
@@ -325,10 +324,13 @@ struct SettingsView: View {
                     Image(systemName: "info.circle.fill")
                         .font(.system(size: 11))
                         .foregroundStyle(.secondary)
-                    Text("Moderators and the broadcaster bypass all cooldowns.")
+                    Text("Moderators always bypass cooldowns.")
                         .font(.system(size: 11))
                         .foregroundStyle(.secondary)
                 }
+                Toggle("Broadcaster bypasses cooldowns", isOn: $broadcasterBypassCooldowns)
+                    .font(.system(size: 11))
+                    .toggleStyle(.checkbox)
             }
         }
     }
@@ -393,7 +395,7 @@ struct SettingsView: View {
                     Text("Global: \(Int(globalCooldown.wrappedValue))s")
                         .font(.system(size: 11))
                         .foregroundStyle(.secondary)
-                    Slider(value: globalCooldown, in: 0...30, step: 1)
+                    Slider(value: globalCooldown, in: 0...30, step: 5)
                         .controlSize(.small)
                 }
 
@@ -401,7 +403,7 @@ struct SettingsView: View {
                     Text("Per-user: \(Int(userCooldown.wrappedValue))s")
                         .font(.system(size: 11))
                         .foregroundStyle(.secondary)
-                    Slider(value: userCooldown, in: 0...60, step: 1)
+                    Slider(value: userCooldown, in: 0...60, step: 5)
                         .controlSize(.small)
                 }
             }

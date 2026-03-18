@@ -90,7 +90,26 @@ struct AppVisibilitySettingsView: View {
 
 // MARK: - Preview
 
-#Preview {
+#Preview("Dock and Menu Bar") {
+    @Previewable @AppStorage(AppConstants.UserDefaults.dockVisibility) var dockVisibility = "both"
+    
     AppVisibilitySettingsView()
         .padding()
+        .frame(width: 600)
 }
+#Preview("Menu Bar Only") {
+    @Previewable @AppStorage(AppConstants.UserDefaults.dockVisibility) var dockVisibility = "menuOnly"
+    
+    AppVisibilitySettingsView()
+        .padding()
+        .frame(width: 600)
+}
+
+#Preview("Dock Only") {
+    @Previewable @AppStorage(AppConstants.UserDefaults.dockVisibility) var dockVisibility = "dockOnly"
+    
+    AppVisibilitySettingsView()
+        .padding()
+        .frame(width: 600)
+}
+

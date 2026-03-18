@@ -21,8 +21,11 @@ struct OnboardingDiscordStepView: View {
             Spacer()
 
             VStack(spacing: 8) {
-                Image(systemName: "gamecontroller.fill")
-                    .font(.system(size: 36))
+                Image("DiscordLogo")
+                    .renderingMode(.template)
+                    .resizable()
+                    .aspectRatio(contentMode: .fit)
+                    .frame(width: 36, height: 36)
                     .foregroundStyle(.indigo)
                     .accessibilityHidden(true)
 

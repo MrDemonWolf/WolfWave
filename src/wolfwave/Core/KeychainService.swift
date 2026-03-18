@@ -211,6 +211,11 @@ enum KeychainService {
     /// This is more efficient than delete+add: a single Keychain roundtrip for updates,
     /// with an automatic fallback to add when the item doesn't exist yet.
     private static func upsertItem(account: String, value: String) throws {
+        guard !value.isEmpty else {
+            Log.warn("Keychain: Attempted to save empty value for account \(account)", category: "Keychain")
+            throw KeychainError.invalidData
+        }
+        
         let data = Data(value.utf8)
         let searchQuery = queryFor(account: account)
         let updateAttributes: [String: Any] = [

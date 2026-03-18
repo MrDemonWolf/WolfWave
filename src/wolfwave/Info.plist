@@ -1,14 +1,10 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
-	<dict>
-		<key>TWITCH_CLIENT_ID</key>
-		<string>$(TWITCH_CLIENT_ID)</string>
-		<key>DISCORD_CLIENT_ID</key>
-		<string>$(DISCORD_CLIENT_ID)</string>
-		<key>NSAppleMusicUsageDescription</key>
-		<string>WolfWave reads your currently playing track from Apple Music to display Now Playing information in your menu bar and share it with your Twitch community. Your music library is never modified.</string>
-		<key>NSAppleEventsUsageDescription</key>
-		<string>WolfWave uses Apple Events to communicate with Apple Music and retrieve the currently playing track information. This allows real-time Now Playing updates without modifying your music playback or library.</string>
-	</dict>
+<dict>
+	<key>NSAppleMusicUsageDescription</key>
+	<string>WolfWave reads your currently playing track from Apple Music to display Now Playing information in your menu bar and share it with your Twitch community. Your music library is never modified.</string>
+	<key>NSAppleEventsUsageDescription</key>
+	<string>WolfWave uses Apple Events to communicate with Apple Music and retrieve the currently playing track information. This allows real-time Now Playing updates without modifying your music playback or library.</string>
+</dict>
 </plist>

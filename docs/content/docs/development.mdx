@@ -26,13 +26,14 @@ This guide covers everything you need to contribute to WolfWave.
 | ------------------ | ---------------------------------------- |
 | `make build`       | Debug build                              |
 | `make clean`       | Clean build artifacts                    |
-| `make test`        | Run unit tests (190 tests)               |
+| `make test`        | Run unit tests                           |
 | `make update-deps` | Resolve SwiftPM dependencies             |
 | `make open-xcode`  | Open the Xcode project                   |
 | `make ci`          | CI-friendly build                        |
 | `make prod-build`  | Release build + DMG in `builds/`         |
 | `make prod-install`| Release build + install to `/Applications`|
 | `make notarize`    | Notarize the DMG (requires Developer ID) |
+| `make verify-notarize` | Verify notarization of DMG           |
 
 ## Code Quality
 
@@ -47,7 +48,7 @@ This project follows Swift best practices with professional-grade documentation:
 - **ScriptingBridge Integration**: Direct Apple Music communication without spawning subprocesses
 - **Robust Error Handling**: Typed errors with localized descriptions
 - **Type Safety**: Strongly typed models for all data structures
-- **Zero Dependencies**: All functionality uses native Apple frameworks
+- **Minimal Dependencies**: Native Apple frameworks plus Sparkle for auto-updates
 
 ## Twitch Chat Service
 
@@ -144,20 +145,23 @@ Or press **Cmd+U** in Xcode. The test target (`WolfWaveTests`) is a hosted unit 
 
 | Test File | Tests | Coverage |
 | --- | --- | --- |
-| `UpdateCheckerServiceTests` | 17 | Version comparison, install method detection |
-| `SongCommandTests` | 18 | Trigger matching, case insensitivity, enable/disable, truncation |
-| `LastSongCommandTests` | 16 | Same patterns for last song triggers |
-| `BotCommandDispatcherTests` | 14 | Message routing, callbacks, length guards, whitespace |
-| `OnboardingViewModelTests` | 15 | Step navigation, boundaries, UserDefaults persistence |
-| `TwitchViewModelTests` | 26 | AuthState/IntegrationState enums, computed properties |
-| `AppConstantsTests` | 22 | Constant integrity, URL validity, dimension bounds, WebSocket constants |
-| `WebSocketServerServiceTests` | 15 | Server state, port validation, constants, notifications |
-| `CooldownManagerTests` | 10 | Global/per-user cooldown, moderator bypass, reset |
-| `KeychainServiceTests` | 8 | Error descriptions, save-if-changed, load missing, delete |
+| `AppConstantsTests` | 18 | Constant integrity, URL validity, dimension bounds, WebSocket constants |
 | `ArtworkServiceTests` | 6 | Cache miss/hit, cache key format, completion calls |
-| `PowerStateMonitorTests` | 4 | Singleton, state property access |
+| `BotCommandDispatcherTests` | 17 | Message routing, callbacks, length guards, whitespace |
+| `CooldownManagerTests` | 10 | Global/per-user cooldown, moderator bypass, reset |
+| `KeychainServiceTests` | 14 | Error descriptions, save-if-changed, load missing, delete |
+| `LastSongCommandTests` | 16 | Same patterns for last song triggers |
+| `LoggerTests` | 12 | Log level formatting, file rotation, category filtering |
 | `MusicPlaybackMonitorTests` | 8 | Init, start/stop lifecycle, interval update |
+| `OnboardingViewModelTests` | 19 | Step navigation, boundaries, UserDefaults persistence |
+| `PowerStateMonitorTests` | 4 | Singleton, state property access |
+| `SongCommandTests` | 17 | Trigger matching, case insensitivity, enable/disable, truncation |
+| `TwitchChatServiceTests` | 8 | Connection state, message handling, service lifecycle |
 | `TwitchDeviceAuthTests` | 12 | Error descriptions, response properties, input validation |
+| `TwitchViewModelTests` | 16 | AuthState/IntegrationState enums, computed properties |
+| `UpdateCheckerServiceTests` | 17 | Version comparison, install method detection |
+| `WebSocketServerServiceTests` | 16 | Server state, port validation, constants, notifications |
+| **Total** | **210** | |
 
 ### Adding New Tests
 
@@ -168,19 +172,16 @@ Test files are auto-discovered — just add `.swift` files to `src/WolfWaveTests
 The project includes two GitHub Actions workflows:
 
 - **CI** (`.github/workflows/ci.yml`): Runs `xcodebuild test` on every push and pull request to `main`. Automatically creates a placeholder `Config.xcconfig` for builds.
-- **Release** (`.github/workflows/release.yml`): Builds, signs, notarizes, and creates a GitHub Release on tag push (`v*`).
+- **Release** (`.github/workflows/release.yml`): Creates a **draft** GitHub Release on tag push (`v*`). The developer then builds, signs, and notarizes locally.
 
 ### Required GitHub Secrets
 
 | Secret                       | Description                          |
 | ---------------------------- | ------------------------------------ |
-| `DEVELOPER_ID_CERT_P12`     | Base64-encoded Developer ID .p12     |
-| `DEVELOPER_ID_CERT_PASSWORD`| Password for the .p12 file           |
-| `APPLE_ID`                  | Apple ID email for notarization      |
-| `APPLE_TEAM_ID`             | Developer Team ID                    |
-| `APPLE_APP_PASSWORD`        | App-specific password                |
 | `TWITCH_CLIENT_ID`          | Twitch application Client ID        |
 | `DISCORD_CLIENT_ID`         | Discord application ID               |
+
+Code signing, notarization, and DMG creation are handled locally — the CI workflow only needs the client IDs to create a valid build for the draft release. `GITHUB_TOKEN` is provided automatically by GitHub Actions.
 
 ### Triggering a Release
 
@@ -189,4 +190,6 @@ git tag v1.0.0
 git push origin v1.0.0
 ```
 
-This will build, sign, notarize, and create a GitHub Release with the DMG attached.
+This creates a draft GitHub Release. After the workflow completes, build and notarize locally with `make prod-build && make notarize`, upload the DMG to the draft release, and publish it.
+
+For a complete step-by-step release checklist, see [PUBLISH.md](https://github.com/MrDemonWolf/WolfWave/blob/main/PUBLISH.md) in the repository root.
