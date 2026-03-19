@@ -17,7 +17,39 @@ env:
   CONFIGURATION: Release
 
 jobs:
+  test:
+    name: Run Tests
+    runs-on: macos-15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Create Config.xcconfig
+        run: |
+          printf 'TWITCH_CLIENT_ID = %s\nDISCORD_CLIENT_ID = %s\n' \
+            "${{ secrets.TWITCH_CLIENT_ID }}" \
+            "${{ secrets.DISCORD_CLIENT_ID }}" \
+            > src/wolfwave/Config.xcconfig
+
+      - name: Run Tests
+        run: |
+          xcodebuild -project "$PROJECT" -scheme "$SCHEME" \
+            -destination 'platform=macOS,arch=arm64' \
+            -configuration Debug test \
+            CODE_SIGN_IDENTITY="-" \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGNING_ALLOWED=NO \
+            -resultBundlePath TestResults.xcresult
+
+      - name: Upload Test Results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ReleaseTestResults
+          path: TestResults.xcresult
+
   create-draft-release:
+    needs: test
     runs-on: macos-15
     permissions:
       contents: write

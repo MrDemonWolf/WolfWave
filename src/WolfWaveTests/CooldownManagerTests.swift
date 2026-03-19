@@ -125,4 +125,40 @@ final class CooldownManagerTests: XCTestCase {
             globalCooldown: 60.0, userCooldown: 60.0
         ))
     }
+
+    // MARK: - Remaining Cooldown Tests
+
+    func testRemainingCooldownForNeverUsedTrigger() {
+        let remaining = manager.remainingCooldown(
+            trigger: "!unused", userID: "user1",
+            globalCooldown: 15.0, userCooldown: 15.0
+        )
+        XCTAssertEqual(remaining.global, 0)
+        XCTAssertEqual(remaining.perUser, 0)
+    }
+
+    func testRemainingCooldownForRecentlyUsedTrigger() {
+        manager.recordUse(trigger: "!song", userID: "user1")
+        let remaining = manager.remainingCooldown(
+            trigger: "!song", userID: "user1",
+            globalCooldown: 60.0, userCooldown: 60.0
+        )
+        XCTAssertGreaterThan(remaining.global, 0)
+        XCTAssertGreaterThan(remaining.perUser, 0)
+    }
+
+    func testResetThenIsOnCooldownReturnsFalse() {
+        manager.recordUse(trigger: "!song", userID: "user1")
+        XCTAssertTrue(manager.isOnCooldown(
+            trigger: "!song", userID: "user1", isModerator: false,
+            globalCooldown: 60.0, userCooldown: 60.0
+        ))
+
+        manager.reset()
+
+        XCTAssertFalse(manager.isOnCooldown(
+            trigger: "!song", userID: "user1", isModerator: false,
+            globalCooldown: 60.0, userCooldown: 60.0
+        ))
+    }
 }

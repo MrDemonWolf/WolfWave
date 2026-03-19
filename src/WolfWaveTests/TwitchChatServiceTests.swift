@@ -174,26 +174,97 @@ struct TwitchChatServiceTests {
     @Test("Last song command enabled reads from UserDefaults")
     func testLastSongCommandEnabledUserDefaults() async throws {
         let service = TwitchChatService()
-        
+
         // Clear any existing value
         UserDefaults.standard.removeObject(forKey: AppConstants.UserDefaults.lastSongCommandEnabled)
-        
+
         // Should default to false
         #expect(service.lastSongCommandEnabled == false)
 
         // Set to false
         UserDefaults.standard.set(false, forKey: AppConstants.UserDefaults.lastSongCommandEnabled)
-        
+
         // Should now read false (computed property)
         #expect(service.lastSongCommandEnabled == false)
-        
+
         // Set to true
         UserDefaults.standard.set(true, forKey: AppConstants.UserDefaults.lastSongCommandEnabled)
-        
+
         // Should now read true
         #expect(service.lastSongCommandEnabled == true)
-        
+
         // Cleanup
         UserDefaults.standard.removeObject(forKey: AppConstants.UserDefaults.lastSongCommandEnabled)
+    }
+
+    // MARK: - Toggle Tests
+
+    @Test("Commands enabled toggle works")
+    func testCommandsEnabledToggle() async throws {
+        let service = TwitchChatService()
+        #expect(service.commandsEnabled == true)
+        service.commandsEnabled = false
+        #expect(service.commandsEnabled == false)
+        service.commandsEnabled = true
+        #expect(service.commandsEnabled == true)
+    }
+
+    @Test("Debug logging enabled toggle works")
+    func testDebugLoggingEnabledToggle() async throws {
+        let service = TwitchChatService()
+        #expect(service.debugLoggingEnabled == false)
+        service.debugLoggingEnabled = true
+        #expect(service.debugLoggingEnabled == true)
+        service.debugLoggingEnabled = false
+        #expect(service.debugLoggingEnabled == false)
+    }
+
+    // MARK: - Re-initialization Tests
+
+    @Test("Service re-initialization does not crash")
+    func testServiceReInitialization() async throws {
+        var service: TwitchChatService? = TwitchChatService()
+        #expect(service != nil)
+        service = nil
+        service = TwitchChatService()
+        #expect(service?.isConnected == false)
+    }
+
+    // MARK: - Connection Error Distinctness Tests
+
+    @Test("Connection error cases are distinct")
+    func testConnectionErrorCasesAreDistinct() async throws {
+        let errors: [TwitchChatService.ConnectionError] = [
+            .invalidCredentials,
+            .missingClientID,
+            .networkError("test"),
+            .authenticationFailed,
+        ]
+
+        let descriptions = errors.compactMap { $0.errorDescription }
+        #expect(descriptions.count == errors.count)
+
+        // All descriptions should be unique
+        let uniqueDescriptions = Set(descriptions)
+        #expect(uniqueDescriptions.count == descriptions.count)
+    }
+
+    // MARK: - ChatMessage Edge Case Tests
+
+    @Test("ChatMessage with empty badges and nil reply")
+    func testChatMessageEmptyBadgesNilReply() async throws {
+        let message = TwitchChatService.ChatMessage(
+            messageID: "msg-001",
+            username: "TestUser",
+            userID: "user-001",
+            message: "Hello",
+            channel: "channel-001",
+            badges: [],
+            reply: nil
+        )
+
+        #expect(message.badges.isEmpty)
+        #expect(message.reply == nil)
+        #expect(message.messageID == "msg-001")
     }
 }

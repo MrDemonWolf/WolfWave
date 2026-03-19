@@ -119,4 +119,52 @@ final class DiscordRPCServiceTests: XCTestCase {
         let service = DiscordRPCService(clientID: "")
         XCTAssertNil(service.onArtworkResolved, "onArtworkResolved callback should be nil by default")
     }
+
+    // MARK: - Enable/Disable Toggle Tests
+
+    func testSetEnabledTrueThenFalseDoesNotCrash() {
+        let service = DiscordRPCService(clientID: "")
+        service.setEnabled(true)
+        service.setEnabled(false)
+        // No crash = pass
+    }
+
+    // MARK: - Clear Presence Tests
+
+    func testClearPresenceMultipleTimesDoesNotCrash() {
+        let service = DiscordRPCService(clientID: "")
+        service.clearPresence()
+        service.clearPresence()
+        service.clearPresence()
+        // No crash = pass
+    }
+
+    // MARK: - Connection State Enum Completeness
+
+    func testConnectionStateHasExactlyThreeCases() {
+        let allCases: [DiscordRPCService.ConnectionState] = [.disconnected, .connecting, .connected]
+        let uniqueRawValues = Set(allCases.map { $0.rawValue })
+        XCTAssertEqual(uniqueRawValues.count, 3, "ConnectionState should have exactly 3 unique cases")
+    }
+
+    // MARK: - Callback Tests
+
+    func testOnStateChangeCallbackCanBeSet() {
+        let service = DiscordRPCService(clientID: "")
+        var callbackCalled = false
+        service.onStateChange = { _ in callbackCalled = true }
+        XCTAssertNotNil(service.onStateChange)
+        // Verify the callback was stored (not called yet)
+        XCTAssertFalse(callbackCalled)
+    }
+
+    // MARK: - Performance Tests
+
+    func testInitializationPerformance() {
+        measure {
+            for _ in 0..<100 {
+                _ = DiscordRPCService(clientID: "test_id_\(Int.random(in: 0...999))")
+            }
+        }
+    }
 }

@@ -12,7 +12,7 @@ DMG_NAME = WolfWave-$(VERSION)-arm64.dmg
 
 .SHELLFLAGS = -ec
 
-.PHONY: help build clean test update-deps open-xcode ci prod-build prod-install notarize verify-notarize
+.PHONY: help build clean test test-verbose test-ci update-deps open-xcode ci prod-build prod-install notarize verify-notarize
 
 help:
 	@echo "Available targets:"
@@ -25,7 +25,9 @@ help:
 	@echo "  update-deps    Resolve SwiftPM dependencies"
 	@echo "  open-xcode     Open the Xcode project"
 	@echo "  verify-notarize Verify notarization of builds/$(DMG_NAME)"
-	@echo "  ci             CI-friendly build"
+	@echo "  test-verbose   Run tests with full output"
+	@echo "  test-ci        Run tests in CI mode (no signing, result bundle)"
+	@echo "  ci             Run CI test suite"
 
 # ---------------------------------------------------------------------------
 # Development
@@ -43,13 +45,25 @@ test:
 	-xcodebuild -project $(PROJECT) -scheme $(SCHEME) \
 		-destination '$(DESTINATION)' -configuration Debug test -quiet
 
+test-verbose:
+	xcodebuild -project $(PROJECT) -scheme $(SCHEME) \
+		-destination '$(DESTINATION)' -configuration Debug test
+
+test-ci:
+	xcodebuild -project $(PROJECT) -scheme $(SCHEME) \
+		-destination '$(DESTINATION)' -configuration Debug test \
+		CODE_SIGN_IDENTITY="-" \
+		CODE_SIGNING_REQUIRED=NO \
+		CODE_SIGNING_ALLOWED=NO \
+		-resultBundlePath TestResults.xcresult
+
 update-deps:
 	xcodebuild -project $(PROJECT) -resolvePackageDependencies -quiet
 
 open-xcode:
 	open $(PROJECT)
 
-ci: build
+ci: test-ci
 
 # ---------------------------------------------------------------------------
 # Release build + DMG

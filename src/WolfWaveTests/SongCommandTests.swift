@@ -123,4 +123,29 @@ final class SongCommandTests: XCTestCase {
     func testDescriptionValue() {
         XCTAssertEqual(command.description, "Displays the currently playing track")
     }
+
+    // MARK: - Boundary Truncation Tests
+
+    func testCallbackReturning501CharsTruncates() {
+        let text = String(repeating: "b", count: 501)
+        command.getCurrentSongInfo = { text }
+        let result = command.execute(message: "!song")!
+        XCTAssertEqual(result.count, 500)
+        XCTAssertTrue(result.hasSuffix("..."))
+    }
+
+    func testNilCallbackReturnsDefaultMessage() {
+        command.getCurrentSongInfo = nil
+        let result = command.execute(message: "!song")
+        XCTAssertEqual(result, "No track currently playing")
+    }
+
+    func testDescriptionPropertyIsNonEmpty() {
+        XCTAssertFalse(command.description.isEmpty)
+    }
+
+    func testDefaultCooldownValues() {
+        XCTAssertEqual(command.globalCooldown, 15.0)
+        XCTAssertEqual(command.userCooldown, 15.0)
+    }
 }
