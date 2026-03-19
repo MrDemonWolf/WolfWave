@@ -166,15 +166,15 @@ struct DeviceCodeView: View {
         DeviceCodeView(
             userCode: "ABCD-EFGH",
             verificationURI: "https://www.twitch.tv/activate?device_code=test",
-            onCopy: { Log.debug("Copied!", category: "Preview") }
+            onCopy: { }
         )
-        
+
         Divider()
-        
+
         DeviceCodeView(
             userCode: "WXYZ-QRST",
             verificationURI: "https://www.twitch.tv/activate?device_code=test2",
-            onCopy: { Log.debug("Copied!", category: "Preview") }
+            onCopy: { }
         )
     }
     .padding(24)
@@ -184,7 +184,7 @@ struct DeviceCodeView: View {
     DeviceCodeView(
         userCode: "ABCDEFGH-IJKLMNOP",
         verificationURI: "https://www.twitch.tv/activate",
-        onCopy: { print("Copied!") }
+        onCopy: { }
     )
     .padding(24)
     .frame(width: 500)
@@ -199,8 +199,8 @@ struct DeviceCodeView: View {
         DeviceCodeView(
             userCode: "MNOP-QRST",
             verificationURI: "https://www.twitch.tv/activate",
-            onCopy: { print("Code copied") },
-            onActivate: { print("Activation button tapped") }
+            onCopy: { },
+            onActivate: { }
         )
     }
     .padding()

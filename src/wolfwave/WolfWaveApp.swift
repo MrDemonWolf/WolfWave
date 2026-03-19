@@ -29,8 +29,7 @@ struct WolfWaveApp: App {
 // MARK: - App Delegate
 
 /// Orchestrates the menu bar, services, and window lifecycle.
-class AppDelegate: NSObject, NSApplicationDelegate, NSToolbarDelegate, NSWindowDelegate {
-    private static let settingsToolbarIdentifier = "com.wolfwave.settings.toolbar"
+class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMenuDelegate {
     static weak var shared: AppDelegate?
 
     // MARK: - Properties
@@ -66,9 +65,6 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSToolbarDelegate, NSWindowD
 
     /// Initializes all services, registers observers, and shows onboarding or validates tokens.
     func applicationDidFinishLaunching(_ notification: Notification) {
-        Foundation.UserDefaults.standard.register(defaults: [
-            AppConstants.UserDefaults.broadcasterBypassCooldowns: true
-        ])
         AppDelegate.shared = self
         setupStatusItem()
         setupMenu()
@@ -80,6 +76,8 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSToolbarDelegate, NSWindowD
         setupPowerStateMonitor()
         setupNotificationObservers()
         initializeTrackingState()
+
+        Log.debug("AppDelegate: hasCompletedOnboarding = \(OnboardingViewModel.hasCompletedOnboarding)", category: "App")
 
         if !OnboardingViewModel.hasCompletedOnboarding {
             showOnboarding()
@@ -181,7 +179,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSToolbarDelegate, NSWindowD
             } else {
                 // Window exists but is closing or in weird state — wait for it to fully close
                 // The windowWillClose delegate will nil out settingsWindow when ready
-                Log.debug("Settings window exists but is not visible - waiting for close to complete", category: "App")
+                Log.debug("AppDelegate: Settings window exists but is not visible - waiting for close to complete", category: "App")
             }
         } else {
             // No window exists — create and show a new one
@@ -244,6 +242,13 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSToolbarDelegate, NSWindowD
         tosLink.addAttribute(.link, value: AppConstants.URLs.termsOfService, range: NSRange(location: 0, length: tosLink.length))
         credits.append(tosLink)
 
+        // Trademark disclaimer
+        credits.append(NSAttributedString(string: "\n\n", attributes: baseAttributes))
+        credits.append(NSAttributedString(
+            string: "Twitch, Discord, OBS, and Apple Music are trademarks of their respective owners. WolfWave is not affiliated with or endorsed by any of them.",
+            attributes: baseAttributes
+        ))
+
         return credits
     }
 
@@ -303,27 +308,27 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSToolbarDelegate, NSWindowD
     }
 
     /// Returns a formatted string with the current track for Twitch bot commands.
-    nonisolated func getCurrentSongInfo() -> String {
+    func getCurrentSongInfo() -> String {
         guard isMusicAppOpen() else {
-            return "🐺 Music app is not running"
+            return "🐺 Please open Apple Music"
         }
         
         guard let song = currentSong, let artist = currentArtist else {
-            return "🐺 No tracks in the den"
+            return "🐺 No music playing"
         }
-        return "🐺 Now playing: \(song) by \(artist)"
+        return "🐺 Playing: \(song) by \(artist)"
     }
 
     /// Returns a formatted string with the previously played track for Twitch bot commands.
-    nonisolated func getLastSongInfo() -> String {
+    func getLastSongInfo() -> String {
         guard isMusicAppOpen() else {
-            return "🐺 Music app is not running"
+            return "🐺 Please open Apple Music"
         }
         
         guard let song = lastSong, let artist = lastArtist else {
             return "🐺 No previous tracks yet, keep the music flowing!"
-        }
-        return "🐺 Last howl: \(song) by \(artist)"
+        }	
+        return "🐺 Previous: \(song) by \(artist)"
     }
 
     // MARK: - Status Bar Setup
@@ -351,26 +356,92 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSToolbarDelegate, NSWindowD
 
     // MARK: - Menu Setup
 
-    /// Builds and attaches the status bar dropdown menu.
+    /// Builds and attaches the status bar dropdown menu with dynamic rebuilding.
     private func setupMenu() {
-        let menu = createMenu()
+        let menu = NSMenu()
+        menu.delegate = self
         statusItem?.menu = menu
     }
 
-    private func createMenu() -> NSMenu {
-        let menu = NSMenu()
+    // MARK: - NSMenuDelegate
 
-        addCopyWidgetURLItem(to: menu)
+    /// Rebuilds the menu each time it opens so items reflect live state.
+    func menuNeedsUpdate(_ menu: NSMenu) {
+        menu.removeAllItems()
+
+        // Now Playing section
+        if let song = currentSong {
+            let songItem = NSMenuItem(title: song, action: nil, keyEquivalent: "")
+            songItem.attributedTitle = NSAttributedString(
+                string: song,
+                attributes: [.font: NSFont.boldSystemFont(ofSize: 13)]
+            )
+            songItem.isEnabled = false
+            menu.addItem(songItem)
+
+            if let artist = currentArtist {
+                let artistItem = NSMenuItem(title: "by \(artist)", action: nil, keyEquivalent: "")
+                artistItem.isEnabled = false
+                menu.addItem(artistItem)
+            }
+
+            menu.addItem(.separator())
+        }
+
+        // Quick Toggles
+        let trackingItem = NSMenuItem(
+            title: "Sync Music",
+            action: #selector(toggleTracking),
+            keyEquivalent: ""
+        )
+        trackingItem.state = UserDefaults.standard.bool(forKey: AppConstants.UserDefaults.trackingEnabled) ? .on : .off
+        menu.addItem(trackingItem)
+
+        // Twitch toggle — only show if credentials are saved
+        if KeychainService.loadTwitchToken() != nil {
+            let twitchItem = NSMenuItem(
+                title: "Twitch Chat",
+                action: #selector(toggleTwitchConnection),
+                keyEquivalent: ""
+            )
+            twitchItem.state = (twitchService?.isConnected ?? false) ? .on : .off
+            menu.addItem(twitchItem)
+        }
+
+        let discordItem = NSMenuItem(
+            title: "Discord Status",
+            action: #selector(toggleDiscordPresence),
+            keyEquivalent: ""
+        )
+        discordItem.state = UserDefaults.standard.bool(forKey: AppConstants.UserDefaults.discordPresenceEnabled) ? .on : .off
+        menu.addItem(discordItem)
+
+        let overlayItem = NSMenuItem(
+            title: "Stream Widgets",
+            action: #selector(toggleWebSocket),
+            keyEquivalent: ""
+        )
+        overlayItem.state = UserDefaults.standard.bool(forKey: AppConstants.UserDefaults.websocketEnabled) ? .on : .off
+        menu.addItem(overlayItem)
+
         menu.addItem(.separator())
-        addSettingsItem(to: menu)
-        addAboutItem(to: menu)
-        menu.addItem(.separator())
-        addQuitItem(to: menu)
 
-        return menu
-    }
+        // Copy Widget URL — only if websocket enabled
+        if UserDefaults.standard.bool(forKey: AppConstants.UserDefaults.websocketEnabled) {
+            let copyItem = NSMenuItem(
+                title: "Copy Overlay Link",
+                action: #selector(copyWidgetURL),
+                keyEquivalent: ""
+            )
+            copyItem.image = NSImage(
+                systemSymbolName: "link",
+                accessibilityDescription: "Copy Overlay Link"
+            )
+            menu.addItem(copyItem)
+            menu.addItem(.separator())
+        }
 
-    private func addSettingsItem(to menu: NSMenu) {
+        // Standard items
         let settingsItem = NSMenuItem(
             title: AppConstants.MenuLabels.settings,
             action: #selector(openSettings),
@@ -381,9 +452,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSToolbarDelegate, NSWindowD
             accessibilityDescription: "Settings"
         )
         menu.addItem(settingsItem)
-    }
 
-    private func addAboutItem(to menu: NSMenu) {
         let aboutItem = NSMenuItem(
             title: "About \(appName)",
             action: #selector(showAbout),
@@ -394,37 +463,71 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSToolbarDelegate, NSWindowD
             accessibilityDescription: "About"
         )
         menu.addItem(aboutItem)
-    }
 
-    private func addCopyWidgetURLItem(to menu: NSMenu) {
-        let item = NSMenuItem(
-            title: "Copy Widget URL",
-            action: #selector(copyWidgetURL),
-            keyEquivalent: ""
-        )
-        item.image = NSImage(
-            systemSymbolName: "link",
-            accessibilityDescription: "Copy Widget URL"
-        )
-        menu.addItem(item)
-    }
+        menu.addItem(.separator())
 
-    @objc private func copyWidgetURL() {
-        let port = UserDefaults.standard.object(forKey: AppConstants.UserDefaults.websocketServerPort) as? UInt16
-            ?? AppConstants.WebSocketServer.defaultPort
-        let url = "http://localhost:\(port)"
-        NSPasteboard.general.clearContents()
-        NSPasteboard.general.setString(url, forType: .string)
-        Log.info("Widget URL copied to clipboard: \(url)", category: "App")
-    }
-
-    private func addQuitItem(to menu: NSMenu) {
         menu.addItem(
             NSMenuItem(
                 title: AppConstants.MenuLabels.quit,
                 action: #selector(NSApplication.terminate(_:)),
                 keyEquivalent: "q"
             ))
+    }
+
+    // MARK: - Menu Toggle Actions
+
+    @objc private func toggleTracking() {
+        let current = UserDefaults.standard.bool(forKey: AppConstants.UserDefaults.trackingEnabled)
+        let newValue = !current
+        UserDefaults.standard.set(newValue, forKey: AppConstants.UserDefaults.trackingEnabled)
+        NotificationCenter.default.post(
+            name: NSNotification.Name(AppConstants.Notifications.trackingSettingChanged),
+            object: nil,
+            userInfo: ["enabled": newValue]
+        )
+    }
+
+    @objc private func toggleTwitchConnection() {
+        if twitchService?.isConnected ?? false {
+            twitchService?.leaveChannel()
+        } else {
+            // Connecting requires channel + credentials — open Twitch settings
+            UserDefaults.standard.set(AppConstants.Twitch.settingsSection, forKey: AppConstants.UserDefaults.selectedSettingsSection)
+            openSettings()
+        }
+    }
+
+    @objc private func toggleDiscordPresence() {
+        let current = UserDefaults.standard.bool(forKey: AppConstants.UserDefaults.discordPresenceEnabled)
+        let newValue = !current
+        UserDefaults.standard.set(newValue, forKey: AppConstants.UserDefaults.discordPresenceEnabled)
+        NotificationCenter.default.post(
+            name: NSNotification.Name(AppConstants.Notifications.discordPresenceChanged),
+            object: nil,
+            userInfo: ["enabled": newValue]
+        )
+    }
+
+    @objc private func toggleWebSocket() {
+        let current = UserDefaults.standard.bool(forKey: AppConstants.UserDefaults.websocketEnabled)
+        let newValue = !current
+        UserDefaults.standard.set(newValue, forKey: AppConstants.UserDefaults.websocketEnabled)
+        NotificationCenter.default.post(
+            name: NSNotification.Name(AppConstants.Notifications.websocketServerChanged),
+            object: nil,
+            userInfo: nil
+        )
+    }
+
+    @objc private func copyWidgetURL() {
+        let storedWidgetPort = UserDefaults.standard.integer(forKey: AppConstants.UserDefaults.widgetPort)
+        let port = storedWidgetPort > 0
+            ? UInt16(clamping: storedWidgetPort)
+            : AppConstants.WebSocketServer.widgetDefaultPort
+        let url = "http://localhost:\(port)"
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.setString(url, forType: .string)
+        Log.debug("AppDelegate: Widget URL copied to clipboard: \(url)", category: "App")
     }
 
     // MARK: - Power State
@@ -457,7 +560,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSToolbarDelegate, NSWindowD
                     : AppConstants.WebSocketServer.progressBroadcastInterval
         )
 
-        Log.info("Power state changed: reduced=\(reduced)", category: "Power")
+        Log.debug("AppDelegate: Power state changed: reduced=\(reduced)", category: "App")
     }
 
     // MARK: - Service Initialization
@@ -477,10 +580,14 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSToolbarDelegate, NSWindowD
         }
 
         twitchService?.getCurrentSongInfo = { [weak self] in
-            self?.getCurrentSongInfo() ?? "No song is currently playing"
+            MainActor.assumeIsolated {
+                self?.getCurrentSongInfo() ?? "No song is currently playing"
+            }
         }
         twitchService?.getLastSongInfo = { [weak self] in
-            self?.getLastSongInfo() ?? "No song is currently playing"
+            MainActor.assumeIsolated {
+                self?.getLastSongInfo() ?? "No song is currently playing"
+            }
         }
     }
 
@@ -531,7 +638,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSToolbarDelegate, NSWindowD
         websocketServer = WebSocketServerService(port: port)
 
         websocketServer?.onStateChange = { newState, clientCount in
-            Log.debug("WebSocket: State changed to \(newState.rawValue) (\(clientCount) clients)", category: "WebSocket")
+            Log.debug("AppDelegate: WebSocket state changed to \(newState.rawValue) (\(clientCount) clients)", category: "WebSocket")
         }
 
         let enabled = UserDefaults.standard.bool(forKey: AppConstants.UserDefaults.websocketEnabled)
@@ -552,7 +659,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSToolbarDelegate, NSWindowD
 
     /// Toggles the widget HTTP server independently from the WebSocket server.
     @objc func widgetHTTPServerSettingChanged(_ notification: Notification) {
-        let enabled = UserDefaults.standard.object(forKey: AppConstants.UserDefaults.widgetHTTPEnabled) as? Bool ?? true
+        let enabled = UserDefaults.standard.object(forKey: AppConstants.UserDefaults.widgetHTTPEnabled) as? Bool ?? false
         websocketServer?.setWidgetHTTPEnabled(enabled)
     }
 
@@ -725,7 +832,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSToolbarDelegate, NSWindowD
                 await self?.validateTwitchTokenOnBoot()
             }
 
-            Log.info("Onboarding dismissed, transitioning to normal app state", category: "Onboarding")
+            Log.info("AppDelegate: Onboarding dismissed, transitioning to normal app state", category: "App")
         }
     }
 
@@ -769,18 +876,6 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSToolbarDelegate, NSWindowD
         window.titlebarAppearsTransparent = true
         window.isMovableByWindowBackground = true
 
-        let toolbar = NSToolbar(identifier: NSToolbar.Identifier(Self.settingsToolbarIdentifier))
-        toolbar.displayMode = .iconOnly
-        toolbar.allowsUserCustomization = false
-        toolbar.delegate = self
-        if #available(macOS 11.0, *) {
-            toolbar.centeredItemIdentifier = nil
-        }
-        window.toolbar = toolbar
-        if #available(macOS 13.0, *) {
-            window.toolbarStyle = .unified
-        }
-
         window.collectionBehavior = [.moveToActiveSpace]
         window.canHide = true
         window.isReleasedWhenClosed = false
@@ -797,29 +892,6 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSToolbarDelegate, NSWindowD
     }
 }
 
-// MARK: - Toolbar Delegate
-
-extension AppDelegate {
-    func toolbarAllowedItemIdentifiers(_ toolbar: NSToolbar) -> [NSToolbarItem.Identifier] {
-        return [.toggleSidebar, .flexibleSpace]
-    }
-
-    func toolbarDefaultItemIdentifiers(_ toolbar: NSToolbar) -> [NSToolbarItem.Identifier] {
-        return [.flexibleSpace, .toggleSidebar, .flexibleSpace]
-    }
-
-    func toolbar(_ toolbar: NSToolbar, itemForItemIdentifier itemIdentifier: NSToolbarItem.Identifier, willBeInsertedIntoToolbar flag: Bool) -> NSToolbarItem? {
-        switch itemIdentifier {
-        case .toggleSidebar:
-            let item = NSToolbarItem(itemIdentifier: .toggleSidebar)
-            return item
-        case .flexibleSpace:
-            return NSToolbarItem(itemIdentifier: .flexibleSpace)
-        default:
-            return nil
-        }
-    }
-}
 
 // MARK: - Twitch Token Validation
 
@@ -844,8 +916,8 @@ extension AppDelegate {
                     UNUserNotificationCenter.current().add(request) { error in
                         if let error = error {
                             Log.error(
-                                "Failed to send notification: \(error.localizedDescription)",
-                                category: "Notifications"
+                                "AppDelegate: Failed to send notification: \(error.localizedDescription)",
+                                category: "App"
                             )
                         }
                     }

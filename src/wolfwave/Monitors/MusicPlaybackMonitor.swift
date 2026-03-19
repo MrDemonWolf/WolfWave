@@ -110,7 +110,7 @@ class MusicPlaybackMonitor {
             return
         }
         lastNotificationAt = now
-        Log.debug("Music notification received", category: "MusicPlaybackMonitor")
+        Log.debug("MusicPlaybackMonitor: Music notification received", category: "Music")
         scheduleTrackCheck(reason: "notification")
     }
     
@@ -226,7 +226,7 @@ class MusicPlaybackMonitor {
     private func logTrackIfNew(_ trackInfo: String, trackName: String, artist: String, album: String) {
         let dedupKey = trackName + Constants.trackSeparator + artist + Constants.trackSeparator + album
         guard lastLoggedTrack != dedupKey else { return }
-        Log.info("Now Playing → \(trackName) — \(artist) [\(album)]", category: "Music")
+        Log.debug("MusicPlaybackMonitor: Now Playing → \(trackName) — \(artist) [\(album)]", category: "Music")
         lastLoggedTrack = dedupKey
     }
     

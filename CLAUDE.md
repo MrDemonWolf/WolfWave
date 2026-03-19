@@ -34,7 +34,7 @@ Xcode project is at `src/wolfwave.xcodeproj` with scheme `WolfWave`. Build and r
 
 ### Core flow
 
-`WolfWaveApp.swift` → AppDelegate manages the menu bar status item, initializes services (MusicPlaybackMonitor, TwitchChatService, DiscordRPCService, UpdateCheckerService), handles settings window lifecycle, and wires song info callbacks into the Twitch and Discord services.
+`WolfWaveApp.swift` → AppDelegate manages the menu bar status item, initializes services (MusicPlaybackMonitor, TwitchChatService, DiscordRPCService, UpdateCheckerService), handles settings window lifecycle, and wires song info callbacks into the Twitch and Discord services. The system tray menu is dynamic (rebuilt via `NSMenuDelegate` on each open) with now-playing info, quick toggles, and conditional items.
 
 ### Source layout (`src/wolfwave/`)
 
@@ -44,18 +44,19 @@ Xcode project is at `src/wolfwave.xcodeproj` with scheme `WolfWave`. Build and r
 - **Services/Twitch/Commands/** — `BotCommand` protocol (`triggers`, `description`, `execute(message:) -> String?`), concrete commands (`SongCommand`, `LastSongCommand`), `BotCommandDispatcher` for routing
 - **Services/Discord/** — `DiscordRPCService.swift` (Discord Rich Presence via local IPC Unix domain socket, iTunes Search API artwork fetching with cache, auto-reconnect with backoff)
 - **Services/UpdateChecker/** — `UpdateCheckerService.swift` (GitHub Releases API version checker, semantic version comparison, Homebrew/DMG install detection, 24h periodic checking)
-- **Views/** — SwiftUI settings with `NavigationSplitView` sidebar; sections: Music Monitor, App Visibility, WebSocket, Twitch, Discord, Advanced. `TwitchViewModel` is the main observable for auth/connection state.
-- **Views/Onboarding/** — First-launch onboarding wizard (3-step: Welcome, Twitch, Discord)
+- **Views/** — SwiftUI settings with `NavigationSplitView` sidebar; sections: Music Monitor, App Visibility, Stream Overlay, Twitch, Discord, Advanced. `TwitchViewModel` is the main observable for auth/connection state.
+- **Views/Onboarding/** — First-launch onboarding wizard (4-step: Welcome, Twitch, Discord, OBS Widget). Window size: 600x480.
 - **Views/Shared/** — Shared UI components (e.g., `TwitchGlitchShape`)
 
 ### Key patterns
 
 - **Credentials**: All tokens/secrets stored via `KeychainService` (never UserDefaults). Keys defined in `AppConstants.Keychain`.
-- **Settings**: User preferences in `UserDefaults` via `@AppStorage`. Keys centralized in `AppConstants.UserDefaults`.
+- **Settings**: User preferences in `UserDefaults` via `@AppStorage`. Keys centralized in `AppConstants.UserDefaults`. Note: `currentSongCommandEnabled`, `lastSongCommandEnabled`, and `widgetHTTPEnabled` all default to `false`.
 - **Notifications**: Loose coupling via `NotificationCenter` (e.g., `TrackingSettingChanged`, `DockVisibilityChanged`). Names in `AppConstants.Notifications`.
 - **Thread safety**: `NSLock` for shared state mutations in `TwitchChatService`, `DiscordRPCService`, and `UpdateCheckerService`.
 - **Bot commands**: Register new commands in `BotCommandDispatcher.registerDefaultCommands()`. Each command implements `BotCommand` protocol. Max response 500 chars, target <100ms execution.
 - **Discord IPC**: Unix domain socket at `$TMPDIR/discord-ipc-{0..9}`. SBPL entitlements enable socket access within App Sandbox.
+- **ADHD-friendly text**: All user-facing text should be short, punchy, and jargon-free.
 
 ## Testing
 

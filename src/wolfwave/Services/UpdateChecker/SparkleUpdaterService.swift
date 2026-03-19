@@ -48,7 +48,7 @@ final class SparkleUpdaterService: NSObject {
         set {
             updater?.automaticallyChecksForUpdates = newValue
             UserDefaults.standard.set(newValue, forKey: AppConstants.UserDefaults.updateCheckEnabled)
-            Log.info("SparkleUpdater: Automatic checking \(newValue ? "enabled" : "disabled")", category: "Update")
+            Log.info("SparkleUpdaterService: Automatic checking \(newValue ? "enabled" : "disabled")", category: "Update")
         }
     }
     
@@ -59,7 +59,7 @@ final class SparkleUpdaterService: NSObject {
         }
         set {
             updater?.updateCheckInterval = newValue
-            Log.info("SparkleUpdater: Check interval set to \(Int(newValue))s", category: "Update")
+            Log.info("SparkleUpdaterService: Check interval set to \(Int(newValue))s", category: "Update")
         }
     }
     
@@ -77,18 +77,22 @@ final class SparkleUpdaterService: NSObject {
         super.init()
         
         if isHomebrewInstall {
-            Log.info("SparkleUpdater: Homebrew installation detected — Sparkle disabled", category: "Update")
+            Log.info("SparkleUpdaterService: Homebrew installation detected — Sparkle disabled", category: "Update")
             return
         }
-        
+
+        #if DEBUG
+        Log.info("SparkleUpdaterService: Debug build detected — Sparkle disabled", category: "Update")
+        #else
         setupSparkle()
+        #endif
     }
     
     // MARK: - Setup
     
     /// Initializes and configures the Sparkle updater controller.
     private func setupSparkle() {
-        Log.info("SparkleUpdater: Initializing Sparkle framework", category: "Update")
+        Log.info("SparkleUpdaterService: Initializing Sparkle framework", category: "Update")
         
         // Create the updater controller
         // startingUpdater: true means Sparkle will start checking immediately if enabled
@@ -112,7 +116,7 @@ final class SparkleUpdaterService: NSObject {
             // Automatically download updates in background (user still confirms install)
             updater.automaticallyDownloadsUpdates = false
             
-            Log.info("SparkleUpdater: Configuration complete (auto-check: \(checkEnabled), interval: \(Int(AppConstants.Update.checkInterval))s)", category: "Update")
+            Log.info("SparkleUpdaterService: Configuration complete (auto-check: \(checkEnabled), interval: \(Int(AppConstants.Update.checkInterval))s)", category: "Update")
         }
     }
     
@@ -124,17 +128,22 @@ final class SparkleUpdaterService: NSObject {
     /// the user can choose to download and install it immediately.
     func checkForUpdates() {
         guard !isHomebrewInstall else {
-            Log.warn("SparkleUpdater: Manual check ignored — app is managed by Homebrew", category: "Update")
+            Log.warn("SparkleUpdaterService: Manual check ignored — app is managed by Homebrew", category: "Update")
             return
         }
-        
+
+        #if DEBUG
+        Log.info("SparkleUpdaterService: Manual check ignored — debug build", category: "Update")
+        return
+        #else
         guard let updater = updater else {
-            Log.error("SparkleUpdater: Cannot check for updates — updater not initialized", category: "Update")
+            Log.error("SparkleUpdaterService: Cannot check for updates — updater not initialized", category: "Update")
             return
         }
-        
-        Log.info("SparkleUpdater: Manual update check triggered", category: "Update")
+
+        Log.info("SparkleUpdaterService: Manual update check triggered", category: "Update")
         updater.checkForUpdates()
+        #endif
     }
     
     /// Checks for updates silently in the background.
@@ -143,14 +152,19 @@ final class SparkleUpdaterService: NSObject {
     /// No dialog is shown if the app is already up to date.
     func checkForUpdatesInBackground() {
         guard !isHomebrewInstall else { return }
-        
+
+        #if DEBUG
+        Log.debug("SparkleUpdaterService: Background check skipped — debug build", category: "Update")
+        return
+        #else
         guard let updater = updater else {
-            Log.error("SparkleUpdater: Cannot check for updates — updater not initialized", category: "Update")
+            Log.error("SparkleUpdaterService: Cannot check for updates — updater not initialized", category: "Update")
             return
         }
-        
-        Log.debug("SparkleUpdater: Background update check triggered", category: "Update")
+
+        Log.debug("SparkleUpdaterService: Background update check triggered", category: "Update")
         updater.checkForUpdatesInBackground()
+        #endif
     }
     
     /// Returns the URL for the Sparkle appcast feed.
@@ -165,17 +179,35 @@ final class SparkleUpdaterService: NSObject {
 // MARK: - SPUUpdaterDelegate
 
 extension SparkleUpdaterService: SPUUpdaterDelegate {
+    #if DEBUG
+    /// Returns the appcast feed URL for the given updater.
+    ///
+    /// In Debug builds, returns a `file://` URL to the bundled `dev-appcast.xml`
+    /// so Sparkle doesn't try to fetch the (nonexistent) remote appcast.
+    /// Falls back to the `SUFeedURL` value in Info.plist if the resource is missing.
+    ///
+    /// - Parameter updater: The Sparkle updater requesting the feed URL.
+    /// - Returns: The appcast URL string, or `nil` to use the Info.plist default.
+    func feedURLString(for updater: SPUUpdater) -> String? {
+        if let devAppcast = Bundle.main.url(forResource: "dev-appcast", withExtension: "xml") {
+            Log.debug("SparkleUpdaterService: Using bundled dev appcast", category: "Update")
+            return devAppcast.absoluteString
+        }
+        return nil  // Fall back to Info.plist SUFeedURL
+    }
+    #endif
+
     /// Called when Sparkle is about to check for updates.
     ///
     /// We can use this to post notifications, update UI, or cancel the check.
     func updater(_ updater: SPUUpdater, willScheduleUpdateCheckAfterDelay delay: TimeInterval) {
-        Log.debug("SparkleUpdater: Next check scheduled in \(Int(delay))s", category: "Update")
+        Log.debug("SparkleUpdaterService: Next check scheduled in \(Int(delay))s", category: "Update")
     }
     
     /// Called when an update check finds a newer version.
     func updater(_ updater: SPUUpdater, didFindValidUpdate item: SUAppcastItem) {
         let version = item.displayVersionString
-        Log.info("SparkleUpdater: Update found — v\(version)", category: "Update")
+        Log.info("SparkleUpdaterService: Update found — v\(version)", category: "Update")
         
         // Post notification so UI can update
         DispatchQueue.main.async {
@@ -193,7 +225,7 @@ extension SparkleUpdaterService: SPUUpdaterDelegate {
     
     /// Called when an update check completes without finding a newer version.
     func updaterDidNotFindUpdate(_ updater: SPUUpdater) {
-        Log.info("SparkleUpdater: No update available — app is up to date", category: "Update")
+        Log.info("SparkleUpdaterService: No update available — app is up to date", category: "Update")
         
         // Post notification so UI can update
         DispatchQueue.main.async {
@@ -210,13 +242,13 @@ extension SparkleUpdaterService: SPUUpdaterDelegate {
     
     /// Called when an update check fails (network error, malformed feed, etc.)
     func updater(_ updater: SPUUpdater, failedToDownloadUpdate item: SUAppcastItem, error: Error) {
-        Log.error("SparkleUpdater: Failed to download update — \(error.localizedDescription)", category: "Update")
+        Log.error("SparkleUpdaterService: Failed to download update — \(error.localizedDescription)", category: "Update")
     }
     
     /// Called when an update is about to be installed.
     func updater(_ updater: SPUUpdater, willInstallUpdate item: SUAppcastItem) {
         let version = item.displayVersionString
-        Log.info("SparkleUpdater: Installing update — v\(version)", category: "Update")
+        Log.info("SparkleUpdaterService: Installing update — v\(version)", category: "Update")
     }
     
     /// Determines whether Sparkle should postpone an update that's ready to install.
@@ -231,7 +263,7 @@ extension SparkleUpdaterService: SPUUpdaterDelegate {
     
     /// Called after an update has been successfully installed and the app is about to relaunch.
     func updaterWillRelaunchApplication(_ updater: SPUUpdater) {
-        Log.info("SparkleUpdater: Update installed successfully — relaunching app", category: "Update")
+        Log.info("SparkleUpdaterService: Update installed successfully — relaunching app", category: "Update")
     }
     
     /// Allows customization of update permission prompts.
@@ -247,11 +279,11 @@ extension SparkleUpdaterService: SPUUpdaterDelegate {
     func updater(_ updater: SPUUpdater, userDidMake choice: SPUUserUpdateChoice, forUpdate updateItem: SUAppcastItem, state: SPUUserUpdateState) {
         switch choice {
         case .skip:
-            Log.info("SparkleUpdater: User skipped update v\(updateItem.displayVersionString)", category: "Update")
+            Log.info("SparkleUpdaterService: User skipped update v\(updateItem.displayVersionString)", category: "Update")
         case .install:
-            Log.info("SparkleUpdater: User chose to install update v\(updateItem.displayVersionString)", category: "Update")
+            Log.info("SparkleUpdaterService: User chose to install update v\(updateItem.displayVersionString)", category: "Update")
         case .dismiss:
-            Log.info("SparkleUpdater: User dismissed update dialog", category: "Update")
+            Log.info("SparkleUpdaterService: User dismissed update dialog", category: "Update")
         @unknown default:
             break
         }

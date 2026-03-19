@@ -45,11 +45,11 @@ A native macOS menu bar app that bridges Apple Music with Twitch, Discord, and y
 
 ### Discord Rich Presence
 
-Enable in **Settings > Discord** to show what you're listening to on your Discord profile. Album artwork is fetched automatically from the iTunes Search API — no manual setup needed.
+Enable in **Settings > Discord Integration** to show what you're listening to on your Discord profile. Album artwork is fetched automatically from the iTunes Search API — no manual setup needed.
 
 ### OBS Stream Widget
 
-Enable in **Settings > OBS Widget** to start a local WebSocket server that powers a browser source overlay for OBS. Copy the widget URL and add it as a Browser Source (500 x 120) to display your now-playing track on stream.
+Enable in **Settings > Stream Widgets** to start a local WebSocket server that powers a browser source overlay for OBS. Copy the widget URL and add it as a Browser Source (500 x 120) to display your now-playing track on stream.
 
 ## Development
 

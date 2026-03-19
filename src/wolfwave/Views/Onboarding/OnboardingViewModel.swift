@@ -58,7 +58,7 @@ final class OnboardingViewModel: ObservableObject {
     func completeOnboarding() {
         UserDefaults.standard.set(true, forKey: AppConstants.UserDefaults.hasCompletedOnboarding)
         UserDefaults.standard.synchronize()
-        Log.info("Onboarding completed", category: "Onboarding")
+        Log.info("OnboardingViewModel: Onboarding completed", category: "App")
     }
 
     /// Whether onboarding has been completed on a previous launch.

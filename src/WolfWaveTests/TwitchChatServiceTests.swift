@@ -22,8 +22,8 @@ struct TwitchChatServiceTests {
         #expect(service.commandsEnabled == true)
         #expect(service.debugLoggingEnabled == false)
         #expect(service.isConnected == false)
-        #expect(service.currentSongCommandEnabled == true)
-        #expect(service.lastSongCommandEnabled == true)
+        #expect(service.currentSongCommandEnabled == false)
+        #expect(service.lastSongCommandEnabled == false)
     }
     
     // MARK: - Client ID Resolution Tests
@@ -152,9 +152,9 @@ struct TwitchChatServiceTests {
         // Clear any existing value
         UserDefaults.standard.removeObject(forKey: AppConstants.UserDefaults.currentSongCommandEnabled)
         
-        // Should default to true
-        #expect(service.currentSongCommandEnabled == true)
-        
+        // Should default to false
+        #expect(service.currentSongCommandEnabled == false)
+
         // Set to false
         UserDefaults.standard.set(false, forKey: AppConstants.UserDefaults.currentSongCommandEnabled)
         
@@ -178,9 +178,9 @@ struct TwitchChatServiceTests {
         // Clear any existing value
         UserDefaults.standard.removeObject(forKey: AppConstants.UserDefaults.lastSongCommandEnabled)
         
-        // Should default to true
-        #expect(service.lastSongCommandEnabled == true)
-        
+        // Should default to false
+        #expect(service.lastSongCommandEnabled == false)
+
         // Set to false
         UserDefaults.standard.set(false, forKey: AppConstants.UserDefaults.lastSongCommandEnabled)
         

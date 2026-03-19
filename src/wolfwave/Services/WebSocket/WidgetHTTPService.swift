@@ -34,6 +34,10 @@ final class WidgetHTTPService {
         self.port = port
     }
 
+    deinit {
+        stop()
+    }
+
     // MARK: - Lifecycle
 
     func start() {
@@ -42,7 +46,7 @@ final class WidgetHTTPService {
         let parameters = NWParameters.tcp
 
         guard let nwPort = NWEndpoint.Port(rawValue: port) else {
-            Log.error("WidgetHTTP: Invalid port \(port)", category: "WidgetHTTP")
+            Log.error("WidgetHTTPService: Invalid port \(port)", category: "WebSocket")
             return
         }
         parameters.requiredLocalEndpoint = NWEndpoint.hostPort(
@@ -53,7 +57,7 @@ final class WidgetHTTPService {
         do {
             listener = try NWListener(using: parameters)
         } catch {
-            Log.error("WidgetHTTP: Failed to create listener: \(error)", category: "WidgetHTTP")
+            Log.error("WidgetHTTPService: Failed to create listener: \(error)", category: "WebSocket")
             return
         }
 
@@ -61,9 +65,9 @@ final class WidgetHTTPService {
             guard let self else { return }
             switch state {
             case .ready:
-                Log.info("WidgetHTTP: Listening on port \(self.port)", category: "WidgetHTTP")
+                Log.info("WidgetHTTPService: Listening on port \(self.port)", category: "WebSocket")
             case .failed(let error):
-                Log.error("WidgetHTTP: Listener failed: \(error)", category: "WidgetHTTP")
+                Log.error("WidgetHTTPService: Listener failed: \(error)", category: "WebSocket")
                 self.listener = nil
             default:
                 break
@@ -80,7 +84,7 @@ final class WidgetHTTPService {
     func stop() {
         listener?.cancel()
         listener = nil
-        Log.info("WidgetHTTP: Server stopped", category: "WidgetHTTP")
+        Log.info("WidgetHTTPService: Server stopped", category: "WebSocket")
     }
 
     // MARK: - Connection Handling
@@ -104,6 +108,8 @@ final class WidgetHTTPService {
 
         if method == "GET" && (path == "/" || path.isEmpty) {
             serveWidget(to: connection)
+        } else if method == "GET" && path == "/favicon.ico" {
+            serveFavicon(to: connection)
         } else {
             send404(to: connection)
         }
@@ -114,7 +120,7 @@ final class WidgetHTTPService {
     private func serveWidget(to connection: NWConnection) {
         guard let url = Bundle.main.url(forResource: "widget", withExtension: "html"),
               let body = try? Data(contentsOf: url) else {
-            Log.error("WidgetHTTP: widget.html not found in bundle", category: "WidgetHTTP")
+            Log.error("WidgetHTTPService: widget.html not found in bundle", category: "WebSocket")
             send404(to: connection)
             return
         }
@@ -122,6 +128,26 @@ final class WidgetHTTPService {
         let header = "HTTP/1.1 200 OK\r\n" +
             "Content-Type: text/html; charset=utf-8\r\n" +
             "Content-Length: \(body.count)\r\n" +
+            "Connection: close\r\n\r\n"
+        var response = Data(header.utf8)
+        response.append(body)
+
+        connection.send(content: response, completion: .contentProcessed { _ in
+            connection.cancel()
+        })
+    }
+
+    private func serveFavicon(to connection: NWConnection) {
+        guard let url = Bundle.main.url(forResource: "favicon", withExtension: "ico"),
+              let body = try? Data(contentsOf: url) else {
+            send404(to: connection)
+            return
+        }
+
+        let header = "HTTP/1.1 200 OK\r\n" +
+            "Content-Type: image/x-icon\r\n" +
+            "Content-Length: \(body.count)\r\n" +
+            "Cache-Control: public, max-age=86400\r\n" +
             "Connection: close\r\n\r\n"
         var response = Data(header.utf8)
         response.append(body)

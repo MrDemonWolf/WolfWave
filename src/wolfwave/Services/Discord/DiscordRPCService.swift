@@ -469,7 +469,7 @@ final class DiscordRPCService: @unchecked Sendable {
         for i in envStart..<strings.count {
             if strings[i].hasPrefix("TMPDIR=") {
                 let value = String(strings[i].dropFirst(7))
-                Log.debug("Discord: Read TMPDIR from Discord process: \(value)", category: "Discord")
+                Log.debug("DiscordRPCService: Read TMPDIR from Discord process: \(value)", category: "Discord")
                 return value
             }
         }
@@ -486,7 +486,7 @@ final class DiscordRPCService: @unchecked Sendable {
     private func connectIfNeeded() {
         guard state == .disconnected else { return }
         guard !clientID.isEmpty else {
-            Log.warn("Discord: No client ID configured — skipping connection", category: "Discord")
+            Log.warn("DiscordRPCService: No client ID configured — skipping connection", category: "Discord")
             return
         }
 
@@ -494,13 +494,13 @@ final class DiscordRPCService: @unchecked Sendable {
 
         let candidates = tempDirectoryCandidates()
         guard !candidates.isEmpty else {
-            Log.error("Discord: Cannot determine any temp directory", category: "Discord")
+            Log.error("DiscordRPCService: Cannot determine any temp directory", category: "Discord")
             state = .disconnected
             return
         }
 
         for basePath in candidates {
-            Log.debug("Discord: Searching for IPC socket in \(basePath)", category: "Discord")
+            Log.debug("DiscordRPCService: Searching for IPC socket in \(basePath)", category: "Discord")
 
             for slot in 0..<AppConstants.Discord.ipcSocketSlots {
                 let socketPath = (basePath as NSString).appendingPathComponent(
@@ -543,19 +543,19 @@ final class DiscordRPCService: @unchecked Sendable {
                         reconnectDelay = AppConstants.Discord.reconnectBaseDelay
                         return
                     } else {
-                        Log.warn("Discord: Handshake failed on slot \(slot)", category: "Discord")
+                        Log.warn("DiscordRPCService: Handshake failed on slot \(slot)", category: "Discord")
                         Darwin.close(fd)
                         socketFD = -1
                     }
                 } else {
                     let err = errno
-                    Log.debug("Discord: connect() failed on slot \(slot): errno \(err) (\(String(cString: strerror(err))))", category: "Discord")
+                    Log.debug("DiscordRPCService: connect() failed on slot \(slot): errno \(err) (\(String(cString: strerror(err))))", category: "Discord")
                     Darwin.close(fd)
                 }
             }
         }
 
-        Log.debug("Discord: No active IPC socket found in any candidate directory", category: "Discord")
+        Log.debug("DiscordRPCService: No active IPC socket found in any candidate directory", category: "Discord")
         state = .disconnected
     }
 
@@ -574,12 +574,12 @@ final class DiscordRPCService: @unchecked Sendable {
 
         // Read the READY response
         guard let (opcode, _) = readFrame() else {
-            Log.warn("Discord: No handshake response", category: "Discord")
+            Log.warn("DiscordRPCService: No handshake response", category: "Discord")
             return false
         }
 
         if opcode == Opcode.close.rawValue {
-            Log.warn("Discord: Received CLOSE during handshake", category: "Discord")
+            Log.warn("DiscordRPCService: Received CLOSE during handshake", category: "Discord")
             return false
         }
 
@@ -609,7 +609,7 @@ final class DiscordRPCService: @unchecked Sendable {
         guard socketFD >= 0 else { return false }
 
         guard let jsonData = try? JSONSerialization.data(withJSONObject: payload) else {
-            Log.error("Discord: Failed to serialize payload", category: "Discord")
+            Log.error("DiscordRPCService: Failed to serialize payload", category: "Discord")
             return false
         }
 
@@ -623,7 +623,7 @@ final class DiscordRPCService: @unchecked Sendable {
 
         let written = frameData.withUnsafeBytes { buf -> Int in
             guard let baseAddress = buf.baseAddress else {
-                Log.error("Discord: sendFrame buffer baseAddress is nil", category: "Discord")
+                Log.error("DiscordRPCService: sendFrame buffer baseAddress is nil", category: "Discord")
                 return -1
             }
             return Darwin.write(socketFD, baseAddress, frameData.count)
@@ -631,9 +631,9 @@ final class DiscordRPCService: @unchecked Sendable {
 
         if written != frameData.count {
             if written < 0 {
-                Log.error("Discord: Write failed with errno \(errno) (\(String(cString: strerror(errno))))", category: "Discord")
+                Log.error("DiscordRPCService: Write failed with errno \(errno) (\(String(cString: strerror(errno))))", category: "Discord")
             } else {
-                Log.error("Discord: Partial write (wrote \(written)/\(frameData.count))", category: "Discord")
+                Log.error("DiscordRPCService: Partial write (wrote \(written)/\(frameData.count))", category: "Discord")
             }
             handleConnectionLost()
             return false
@@ -651,14 +651,14 @@ final class DiscordRPCService: @unchecked Sendable {
         var headerBuf = Data(count: 8)
         let headerRead = headerBuf.withUnsafeMutableBytes { buf -> Int in
             guard let baseAddress = buf.baseAddress else {
-                Log.error("Discord: readFrame header buffer baseAddress is nil", category: "Discord")
+                Log.error("DiscordRPCService:readFrame header buffer baseAddress is nil", category: "Discord")
                 return -1
             }
             return Darwin.read(socketFD, baseAddress, 8)
         }
         if headerRead != 8 {
             if headerRead < 0 {
-                Log.error("Discord: Header read failed with errno \(errno) (\(String(cString: strerror(errno))))", category: "Discord")
+                Log.error("DiscordRPCService: Header read failed with errno \(errno) (\(String(cString: strerror(errno))))", category: "Discord")
             }
             return nil
         }
@@ -675,14 +675,14 @@ final class DiscordRPCService: @unchecked Sendable {
         var bodyBuf = Data(count: Int(length))
         let bodyRead = bodyBuf.withUnsafeMutableBytes { buf -> Int in
             guard let baseAddress = buf.baseAddress else {
-                Log.error("Discord: readFrame body buffer baseAddress is nil", category: "Discord")
+                Log.error("DiscordRPCService:readFrame body buffer baseAddress is nil", category: "Discord")
                 return -1
             }
             return Darwin.read(socketFD, baseAddress, Int(length))
         }
         if bodyRead != Int(length) {
             if bodyRead < 0 {
-                Log.error("Discord: Body read failed with errno \(errno) (\(String(cString: strerror(errno))))", category: "Discord")
+                Log.error("DiscordRPCService: Body read failed with errno \(errno) (\(String(cString: strerror(errno))))", category: "Discord")
             }
             return nil
         }
@@ -701,7 +701,7 @@ final class DiscordRPCService: @unchecked Sendable {
 
         guard shouldReconnect else { return }
 
-        Log.info("Discord: Scheduling reconnect in \(reconnectDelay)s", category: "Discord")
+        Log.info("DiscordRPCService: Scheduling reconnect in \(reconnectDelay)s", category: "Discord")
         ipcQueue.asyncAfter(deadline: .now() + reconnectDelay) { [weak self] in
             guard let self else { return }
             let stillEnabled = self.enabledLock.withLock { self.isEnabled }

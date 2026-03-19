@@ -76,7 +76,7 @@ struct TwitchSettingsView: View {
     private var headerView: some View {
         VStack(alignment: .leading, spacing: 6) {
             HStack(alignment: .center, spacing: 10) {
-                Text("Twitch Integration")
+                Text("Twitch")
                     .font(.system(size: 17, weight: .semibold))
 
                 Spacer()
@@ -86,7 +86,7 @@ struct TwitchSettingsView: View {
                     .animation(.easeInOut(duration: 0.2), value: viewModel.statusChipText)
             }
 
-            Text("Connect your Twitch account to let viewers interact with your music through chat commands.")
+            Text("Let your viewers use chat commands to see what is playing.")
                 .font(.system(size: 13))
                 .foregroundStyle(.secondary)
         }
@@ -97,7 +97,7 @@ struct TwitchSettingsView: View {
 
     private var authCardHeaderTitle: String {
         if viewModel.reauthNeeded {
-            return "Sign In Again"
+            return "Log In Again"
         } else if viewModel.credentialsSaved && viewModel.botUsername != "" {
             return "All Set!"
         } else {
@@ -107,13 +107,13 @@ struct TwitchSettingsView: View {
 
     private var authCardHeaderSubtitle: String {
         if viewModel.reauthNeeded {
-            return "Your authorization expired. Please sign in again."
+            return "Your login expired. Please log in again."
         } else if viewModel.credentialsSaved && viewModel.botUsername != "" {
             return ""
         } else if viewModel.authState.isInProgress {
-            return "Enter the code below on Twitch to grant access."
+            return "Enter the code below on Twitch to connect."
         } else {
-            return "Sign in with your Twitch account to get started."
+            return "Connect your Twitch account to start."
         }
     }
 
@@ -146,7 +146,7 @@ struct TwitchSettingsView: View {
                     VStack(spacing: 12) {
                         if viewModel.authState.isInProgress || hasStartedActivation {
                             Text(
-                                "WolfWave will use your account to read and respond to chat commands in your channel."
+                                "WolfWave needs to connect to your account to read chat."
                             )
                             .font(.system(size: 13))
                             .foregroundColor(.secondary)
@@ -155,17 +155,10 @@ struct TwitchSettingsView: View {
                             hasStartedActivation = false
                             viewModel.startOAuth()
                         }) {
-                            HStack(spacing: 8) {
-                                Image("TwitchLogo")
-                                    .renderingMode(.original)
-                                    .resizable()
-                                    .scaledToFit()
-                                    .frame(width: 14, height: 14)
-                                Text("Sign In with Twitch")
-                                    .font(.system(size: 13, weight: .semibold))
-                            }
-                            .frame(maxWidth: .infinity)
-                            .frame(height: 32)
+                            Text("Connect Twitch")
+                                .font(.system(size: 13, weight: .semibold))
+                                .frame(maxWidth: .infinity)
+                                .frame(height: 32)
                         }
                         .buttonStyle(.borderedProminent)
                         .controlSize(.regular)
@@ -181,9 +174,12 @@ struct TwitchSettingsView: View {
                     VStack(spacing: 12) {
                         HStack(spacing: 0) {
                             Text("Visit ")
-                            Link("twitch.tv/activate",
-                                 destination: URL(string: "https://www.twitch.tv/activate")!)
-                                .pointerCursor()
+                            if let activateURL = URL(string: "https://www.twitch.tv/activate") {
+                                Link("twitch.tv/activate", destination: activateURL)
+                                    .pointerCursor()
+                            } else {
+                                Text("twitch.tv/activate")
+                            }
                             Text(" and enter this code:")
                         }
                         .font(.system(size: 13))
@@ -218,7 +214,7 @@ struct TwitchSettingsView: View {
                                 .progressViewStyle(.circular)
                                 .controlSize(.small)
 
-                            Text("Waiting for authorization…")
+                            Text("Waiting for you...")
                                 .font(.system(size: 13))
                                 .foregroundColor(.secondary)
 
@@ -310,7 +306,7 @@ private struct SignedInView: View {
     private var botAccountSection: some View {
         HStack(alignment: .center, spacing: 12) {
             VStack(alignment: .leading, spacing: 2) {
-                Text("Bot account")
+                Text("Bot Account")
                     .font(.system(size: 11, weight: .medium))
                     .foregroundStyle(.secondary)
                 Text(botUsername.isEmpty ? "Not set" : botUsername)
@@ -403,7 +399,7 @@ private struct SignedInView: View {
                 .font(.system(size: 13, weight: .semibold))
                 .foregroundStyle(.secondary)
         case (false, false):
-            TextField("Enter channel name", text: $channelID)
+            TextField("Channel Name", text: $channelID)
                 .font(.system(size: 13))
                 .textFieldStyle(.plain)
                 .disabled(isConnecting)
@@ -491,7 +487,7 @@ private struct SignedInView: View {
                 Button(action: onTestConnection) {
                     switch testAuthResult {
                     case .idle:
-                        Label("Test Auth", systemImage: "antenna.radiowaves.left.and.right")
+                        Label("Test Login", systemImage: "antenna.radiowaves.left.and.right")
                             .font(.system(size: 12, weight: .medium))
                     case .testing:
                         HStack(spacing: 6) {
@@ -523,7 +519,7 @@ private struct SignedInView: View {
 
             Spacer()
 
-            Button("Clear Credentials", action: onClearCredentials)
+            Button("Log Out", action: onClearCredentials)
                 .font(.system(size: 12))
                 .buttonStyle(.bordered)
                 .tint(.red)

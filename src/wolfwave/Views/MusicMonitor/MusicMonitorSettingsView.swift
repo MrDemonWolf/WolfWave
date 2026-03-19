@@ -32,11 +32,11 @@ struct MusicMonitorSettingsView: View {
         VStack(alignment: .leading, spacing: 16) {
             // Section Header
             VStack(alignment: .leading, spacing: 6) {
-                Text("Music Playback Monitor")
+                Text("Music Sync")
                     .font(.system(size: 17, weight: .semibold))
                     .accessibilityLabel("Music Playback Monitor")
 
-                Text("Automatically detect what's playing in Apple Music and share it with Twitch chat, Discord, and stream overlays.")
+                Text("Connects to Apple Music to share your songs with Twitch and Discord.")
                     .font(.system(size: 13))
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
@@ -50,9 +50,9 @@ struct MusicMonitorSettingsView: View {
                         .foregroundStyle(.orange)
 
                     VStack(alignment: .leading, spacing: 2) {
-                        Text("Apple Music access denied")
+                        Text("Need Apple Music Permission")
                             .font(.system(size: 12, weight: .semibold))
-                        Text("WolfWave needs permission to read playback info from Apple Music. Open System Settings to grant access.")
+                        Text("WolfWave needs permission to see what song is playing. Click here to fix it.")
                             .font(.system(size: 11))
                             .foregroundStyle(.secondary)
                             .fixedSize(horizontal: false, vertical: true)
@@ -80,9 +80,9 @@ struct MusicMonitorSettingsView: View {
             // Toggle Card
             HStack(spacing: 12) {
                 VStack(alignment: .leading, spacing: 2) {
-                    Text("Apple Music Tracking")
+                    Text("Sync Music")
                         .font(.system(size: 13, weight: .medium))
-                    Text("Detects song changes in real time and updates your integrations")
+                    Text("Updates your stream and status when the song changes")
                         .font(.system(size: 11))
                         .foregroundStyle(.tertiary)
                 }
@@ -184,7 +184,7 @@ struct MusicMonitorSettingsView: View {
                     }
                     .frame(width: 48, height: 48)
 
-                    Text(trackingEnabled ? "No track playing" : "Tracking disabled")
+                    Text(trackingEnabled ? "Nothing playing right now" : "Sync is off")
                         .font(.system(size: 13))
                         .foregroundStyle(.tertiary)
 

@@ -348,25 +348,25 @@ final class TwitchDeviceAuth {
                         !accessToken.isEmpty
                     else {
                         Log.error(
-                            "OAuth: Failed to parse access token from response", category: "OAuth")
+                            "TwitchDeviceAuth: Failed to parse access token from response", category: "Twitch")
                         throw TwitchDeviceAuthError.invalidResponse
                     }
-                    Log.info("OAuth: Device code token obtained successfully", category: "OAuth")
+                    Log.info("TwitchDeviceAuth: Device code token obtained successfully", category: "Twitch")
                     return accessToken
                 }
 
                 // Check if we've exceeded max polling attempts
                 guard pollAttempts < maxAttempts else {
                     Log.error(
-                        "OAuth: Device code polling timed out after \(pollAttempts) attempts",
-                        category: "OAuth")
+                        "TwitchDeviceAuth: Device code polling timed out after \(pollAttempts) attempts",
+                        category: "Twitch")
                     throw TwitchDeviceAuthError.expiredToken
                 }
 
                 // Prefer structured OAuth error fields if present per Twitch docs
                 if let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] {
                     if let errorCode = json["error"] as? String {
-                        Log.debug("OAuth: Device poll error code - \(errorCode)", category: "OAuth")
+                        Log.debug("TwitchDeviceAuth: Device poll error code - \(errorCode)", category: "Twitch")
                         switch errorCode {
                         case "authorization_pending":
                             // continue polling
@@ -374,27 +374,27 @@ final class TwitchDeviceAuth {
                         case "slow_down":
                             currentInterval += 5
                             Log.info(
-                                "OAuth: Received slow_down; increasing poll interval to \(currentInterval)s",
-                                category: "OAuth")
+                                "TwitchDeviceAuth: Received slow_down; increasing poll interval to \(currentInterval)s",
+                                category: "Twitch")
                         case "access_denied":
-                            Log.error("OAuth: User denied authorization", category: "OAuth")
+                            Log.error("TwitchDeviceAuth: User denied authorization", category: "Twitch")
                             throw TwitchDeviceAuthError.accessDenied
                         case "expired_token", "invalid_grant":
-                            Log.error("OAuth: Device code expired", category: "OAuth")
+                            Log.error("TwitchDeviceAuth: Device code expired", category: "Twitch")
                             throw TwitchDeviceAuthError.expiredToken
                         case "invalid_client":
-                            Log.error("OAuth: Invalid client credentials", category: "OAuth")
+                            Log.error("TwitchDeviceAuth: Invalid client credentials", category: "Twitch")
                             throw TwitchDeviceAuthError.invalidClient
                         default:
                             let message = json["error_description"] as? String
                                 ?? (json["message"] as? String)
                                 ?? errorCode
-                            Log.error("OAuth: Unknown error - \(message)", category: "OAuth")
+                            Log.error("TwitchDeviceAuth: Unknown error - \(message)", category: "Twitch")
                             throw TwitchDeviceAuthError.unknown(message)
                         }
                     } else if let message = json["message"] as? String {
                         // Fallback to message parsing for older responses
-                        Log.debug("OAuth: Device poll response (fallback) - \(message)", category: "OAuth")
+                        Log.debug("TwitchDeviceAuth: Device poll response (fallback) - \(message)", category: "Twitch")
                         if message.contains("authorization_pending") {
                             // continue
                         } else if message.contains("slow_down") {
@@ -419,7 +419,7 @@ final class TwitchDeviceAuth {
                 if (error as? CancellationError) != nil {
                     throw error
                 }
-                Log.error("OAuth: Network error during polling - \(error.localizedDescription)", category: "OAuth")
+                Log.error("TwitchDeviceAuth: Network error during polling - \(error.localizedDescription)", category: "Twitch")
                 throw TwitchDeviceAuthError.unknown(error.localizedDescription)
             }
         }

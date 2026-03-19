@@ -266,8 +266,8 @@ private struct DeviceCodeEntryView: View {
 #Preview {
     TwitchDeviceAuthDialog(
         deviceCode: "ABCD-EFGH",
-        onAuthorizePressed: { Log.debug("Authorize pressed", category: "Preview") },
-        onCancelPressed: { Log.debug("Cancel pressed", category: "Preview") }
+        onAuthorizePressed: { },
+        onCancelPressed: { }
     )
     .frame(width: 440, height: 380)
 }

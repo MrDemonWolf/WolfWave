@@ -45,7 +45,7 @@ struct OnboardingTwitchStepView: View {
                 Text("Connect to Twitch")
                     .font(.system(size: 20, weight: .bold))
 
-                Text("Optional — you can set this up later in Settings.")
+                Text("Totally optional. You can always do this later.")
                     .font(.system(size: 13))
                     .foregroundStyle(.secondary)
             }
@@ -83,7 +83,7 @@ struct OnboardingTwitchStepView: View {
 
     private var notConnectedContent: some View {
         VStack(spacing: 16) {
-            Text("Link your Twitch account to let viewers see what music you're playing via chat commands.")
+            Text("Connect your Twitch so viewers can type !song in chat to see what's playing.")
                 .font(.system(size: 13))
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
@@ -92,22 +92,16 @@ struct OnboardingTwitchStepView: View {
                 hasStartedActivation = false
                 twitchViewModel.startOAuth()
             }) {
-                HStack(spacing: 8) {
-                    Image("TwitchLogo")
-                        .renderingMode(.original)
-                        .resizable()
-                        .scaledToFit()
-                        .frame(width: 14, height: 14)
-                    Text("Connect with Twitch")
-                        .font(.system(size: 13, weight: .semibold))
-                }
-                .frame(maxWidth: .infinity)
-                .frame(height: 32)
+                Text("Sign in with Twitch")
+                    .font(.system(size: 13, weight: .semibold))
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 32)
             }
             .buttonStyle(.borderedProminent)
+            .tint(Color(red: 0.57, green: 0.28, blue: 1.0))
             .controlSize(.regular)
             .pointerCursor()
-            .accessibilityLabel("Connect with Twitch authorization")
+            .accessibilityLabel("Sign in with Twitch authorization")
         }
     }
 
@@ -129,39 +123,25 @@ struct OnboardingTwitchStepView: View {
                 )
             }
 
-            if hasStartedActivation {
-                HStack(spacing: 12) {
-                    ProgressView()
-                        .progressViewStyle(.circular)
-                        .controlSize(.small)
-
-                    Text("Waiting for authorization\u{2026}")
-                        .font(.system(size: 13))
-                        .foregroundStyle(.secondary)
-
-                    Spacer()
-
-                    Button("Cancel") {
-                        hasStartedActivation = false
-                        twitchViewModel.cancelOAuth()
-                    }
-                    .buttonStyle(.bordered)
-                    .tint(.red)
+            HStack(spacing: 12) {
+                ProgressView()
+                    .progressViewStyle(.circular)
                     .controlSize(.small)
-                    .pointerCursor()
-                }
-            } else {
-                HStack {
-                    Spacer()
 
-                    Button("Cancel") {
-                        twitchViewModel.cancelOAuth()
-                    }
-                    .buttonStyle(.bordered)
-                    .tint(.red)
-                    .controlSize(.small)
-                    .pointerCursor()
+                Text("Waiting for authorization\u{2026}")
+                    .font(.system(size: 13))
+                    .foregroundStyle(.secondary)
+
+                Spacer()
+
+                Button("Cancel") {
+                    hasStartedActivation = false
+                    twitchViewModel.cancelOAuth()
                 }
+                .buttonStyle(.bordered)
+                .tint(.red)
+                .controlSize(.small)
+                .pointerCursor()
             }
         }
     }

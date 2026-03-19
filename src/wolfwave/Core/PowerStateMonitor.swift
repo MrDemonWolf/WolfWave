@@ -29,6 +29,10 @@ final class PowerStateMonitor {
     /// Whether the system is in a reduced-power state (Low Power Mode or serious/critical thermal pressure).
     private(set) var isReducedMode: Bool = false
 
+    deinit {
+        NotificationCenter.default.removeObserver(self)
+    }
+
     private init() {
         updateState()
 

@@ -115,12 +115,12 @@ final class TwitchChatService: @unchecked Sendable {
     
     /// Whether the current song command is enabled (computed from UserDefaults on each access)
     var currentSongCommandEnabled: Bool {
-        UserDefaults.standard.object(forKey: AppConstants.UserDefaults.currentSongCommandEnabled) as? Bool ?? true
+        UserDefaults.standard.object(forKey: AppConstants.UserDefaults.currentSongCommandEnabled) as? Bool ?? false
     }
-    
+
     /// Whether the last song command is enabled (computed from UserDefaults on each access)
     var lastSongCommandEnabled: Bool {
-        UserDefaults.standard.object(forKey: AppConstants.UserDefaults.lastSongCommandEnabled) as? Bool ?? true
+        UserDefaults.standard.object(forKey: AppConstants.UserDefaults.lastSongCommandEnabled) as? Bool ?? false
     }
 
     var onMessageReceived: (@Sendable (ChatMessage) -> Void)?
@@ -261,8 +261,8 @@ final class TwitchChatService: @unchecked Sendable {
 
             if state.remaining <= 5 && state.remaining > 0 {
                 Log.warn(
-                    "Twitch: Approaching rate limit on \(endpoint): \(state.remaining)/\(state.limit) remaining",
-                    category: "TwitchChat")
+                    "TwitchChatService: Approaching rate limit on \(endpoint): \(state.remaining)/\(state.limit) remaining",
+                    category: "Twitch")
             }
         }
     }
@@ -275,8 +275,8 @@ final class TwitchChatService: @unchecked Sendable {
         }
 
         Log.info(
-            "Twitch: Request queued due to rate limit. Retry after \(String(format: "%.1f", waitTime))s",
-            category: "TwitchChat")
+            "TwitchChatService: Request queued due to rate limit. Retry after \(String(format: "%.1f", waitTime))s",
+            category: "Twitch")
 
         requestQueueLock.withLock {
             requestQueue.append(request)
@@ -369,12 +369,12 @@ final class TwitchChatService: @unchecked Sendable {
                 attemptReconnect()
             } else {
                 Log.error(
-                    "Twitch: Max network reconnect cycles reached, not reconnecting",
-                    category: "TwitchChat")
+                    "TwitchChatService: Max network reconnect cycles reached, not reconnecting",
+                    category: "Twitch")
             }
         } else if wasReachable && !isReachable {
             // Network became unavailable
-            Log.warn("Twitch: Network unavailable, disconnecting", category: "TwitchChat")
+            Log.warn("TwitchChatService: Network unavailable, disconnecting", category: "Twitch")
             disconnectFromEventSub()
         }
     }
@@ -386,14 +386,14 @@ final class TwitchChatService: @unchecked Sendable {
             let token = token,
             let clientID = clientID
         else {
-            Log.debug("Twitch: Cannot reconnect - missing credentials", category: "TwitchChat")
+            Log.debug("TwitchChatService: Cannot reconnect - missing credentials", category: "Twitch")
             return
         }
 
         let attempts = reconnectionLock.withLock { reconnectionAttempts }
 
         if attempts >= maxReconnectionAttempts {
-            Log.error("Twitch: Max reconnection attempts reached (\(maxReconnectionAttempts))", category: "TwitchChat")
+            Log.error("TwitchChatService: Max reconnection attempts reached (\(maxReconnectionAttempts))", category: "Twitch")
             // Reset attempts after hitting the limit to allow manual reconnection later
             reconnectionLock.withLock {
                 reconnectionAttempts = 0
@@ -404,7 +404,7 @@ final class TwitchChatService: @unchecked Sendable {
         // Exponential backoff: 1s, 2s, 4s, 8s, 16s
         let delaySeconds = min(pow(2.0, Double(attempts)), 16.0)
         
-        Log.info("Twitch: Scheduling reconnection attempt \(attempts + 1)/\(maxReconnectionAttempts) in \(String(format: "%.1f", delaySeconds))s", category: "TwitchChat")
+        Log.info("TwitchChatService: Scheduling reconnection attempt \(attempts + 1)/\(maxReconnectionAttempts) in \(String(format: "%.1f", delaySeconds))s", category: "Twitch")
 
         DispatchQueue.global().asyncAfter(deadline: .now() + delaySeconds) { [weak self] in
             guard let self = self else { return }
@@ -418,13 +418,13 @@ final class TwitchChatService: @unchecked Sendable {
                     self.reconnectionLock.withLock {
                         self.reconnectionAttempts = 0
                     }
-                    Log.info("Twitch: Reconnection successful", category: "TwitchChat")
+                    Log.info("TwitchChatService: Reconnection successful", category: "Twitch")
                 } catch {
                     self.reconnectionLock.withLock {
                         self.reconnectionAttempts += 1
                     }
                     
-                    Log.warn("Twitch: Reconnection attempt failed: \(error.localizedDescription)", category: "TwitchChat")
+                    Log.warn("TwitchChatService: Reconnection attempt failed: \(error.localizedDescription)", category: "Twitch")
 
                     // If still under max attempts and network is reachable, schedule next attempt
                     let updatedAttempts = self.reconnectionLock.withLock {
@@ -434,7 +434,7 @@ final class TwitchChatService: @unchecked Sendable {
                     if updatedAttempts < self.maxReconnectionAttempts && isReachable {
                         self.attemptReconnect()
                     } else if !isReachable {
-                        Log.info("Twitch: Network no longer reachable, stopping reconnection attempts", category: "TwitchChat")
+                        Log.info("TwitchChatService: Network no longer reachable, stopping reconnection attempts", category: "Twitch")
                     }
                 }
             }
@@ -466,12 +466,12 @@ final class TwitchChatService: @unchecked Sendable {
         clientID: String
     ) throws {
         guard !broadcasterID.isEmpty, !botID.isEmpty, !token.isEmpty else {
-            Log.error("Twitch: Invalid credentials for channel join", category: "TwitchChat")
+            Log.error("TwitchChatService: Invalid credentials for channel join", category: "Twitch")
             throw ConnectionError.invalidCredentials
         }
 
         guard !clientID.isEmpty else {
-            Log.error("Twitch: Missing client ID for channel join", category: "TwitchChat")
+            Log.error("TwitchChatService: Missing client ID for channel join", category: "Twitch")
             throw ConnectionError.missingClientID
         }
 
@@ -494,11 +494,11 @@ final class TwitchChatService: @unchecked Sendable {
         }
 
         commandDispatcher.setCurrentSongCommandEnabled { [weak self] in
-            self?.currentSongCommandEnabled ?? true
+            self?.currentSongCommandEnabled ?? false
         }
 
         commandDispatcher.setLastSongCommandEnabled { [weak self] in
-            self?.lastSongCommandEnabled ?? true
+            self?.lastSongCommandEnabled ?? false
         }
 
         // Don't set connected state here - wait for EventSub session_welcome
@@ -520,12 +520,12 @@ final class TwitchChatService: @unchecked Sendable {
     /// - Throws: `ConnectionError` if resolution or connection fails
     func connectToChannel(channelName: String, token: String, clientID: String) async throws {
         guard !channelName.isEmpty, !token.isEmpty else {
-            Log.error("Twitch: Invalid channel name or token", category: "TwitchChat")
+            Log.error("TwitchChatService: Invalid channel name or token", category: "Twitch")
             throw ConnectionError.invalidCredentials
         }
 
         guard !clientID.isEmpty else {
-            Log.error("Twitch: Missing client ID for channel connect", category: "TwitchChat")
+            Log.error("TwitchChatService: Missing client ID for channel connect", category: "Twitch")
             throw ConnectionError.missingClientID
         }
 
@@ -573,7 +573,7 @@ final class TwitchChatService: @unchecked Sendable {
             startNetworkMonitoring()
         }
 
-        Log.info("Twitch: Connected to channel \(channelName)", category: "TwitchChat")
+        Log.info("TwitchChatService: Connected to channel \(channelName)", category: "Twitch")
     }
 
     /// Resolves and stores the bot's identity (user ID and username).
@@ -658,7 +658,7 @@ final class TwitchChatService: @unchecked Sendable {
     /// - Throws: `ConnectionError` if the API request fails or returns 401 Unauthorized
     func fetchBotIdentity(token: String, clientID: String) async throws -> BotIdentity {
         guard let url = URL(string: apiBaseURL + "/users") else {
-            Log.error("Twitch: Failed to construct users endpoint URL", category: "TwitchChat")
+            Log.error("TwitchChatService: Failed to construct users endpoint URL", category: "Twitch")
             throw ConnectionError.networkError("Invalid users endpoint")
         }
 
@@ -676,19 +676,19 @@ final class TwitchChatService: @unchecked Sendable {
         guard (200..<300).contains(http.statusCode) else {
             if http.statusCode == 401 {
                 Log.error(
-                    "Twitch: Authentication failed (401) - invalid or expired OAuth token",
-                    category: "TwitchChat")
+                    "TwitchChatService: Authentication failed (401) - invalid or expired OAuth token",
+                    category: "Twitch")
                 throw ConnectionError.authenticationFailed
             }
             Log.error(
-                "Twitch: Users endpoint error HTTP \(http.statusCode)", category: "TwitchChat")
+                "TwitchChatService: Users endpoint error HTTP \(http.statusCode)", category: "Twitch")
             throw ConnectionError.networkError("Users endpoint returned \(http.statusCode)")
         }
 
         let json: [String: Any]
         do {
             guard let parsed = try JSONSerialization.jsonObject(with: data) as? [String: Any] else {
-                Log.error("Twitch: User identity response is not a JSON object", category: "TwitchChat")
+                Log.error("TwitchChatService: User identity response is not a JSON object", category: "Twitch")
                 throw ConnectionError.networkError("Unable to decode user identity JSON")
             }
             json = parsed
@@ -697,7 +697,7 @@ final class TwitchChatService: @unchecked Sendable {
             if let connectionError = error as? ConnectionError {
                 throw connectionError
             }
-            Log.error("Twitch: Failed to decode user identity JSON - \(error.localizedDescription)", category: "TwitchChat")
+            Log.error("TwitchChatService: Failed to decode user identity JSON - \(error.localizedDescription)", category: "Twitch")
             throw ConnectionError.networkError("Unable to decode user identity JSON: \(error.localizedDescription)")
         }
 
@@ -706,7 +706,7 @@ final class TwitchChatService: @unchecked Sendable {
             let userID = first["id"] as? String,
             let login = first["login"] as? String
         else {
-            Log.error("Twitch: Failed to parse user identity from response", category: "TwitchChat")
+            Log.error("TwitchChatService: Failed to parse user identity from response", category: "Twitch")
             throw ConnectionError.networkError("Unable to parse user identity")
         }
 
@@ -722,7 +722,7 @@ final class TwitchChatService: @unchecked Sendable {
     ///
     /// Clears all stored credentials and session state.
     func leaveChannel() {
-        Log.info("Twitch: leaveChannel() called", category: "TwitchChat")
+        Log.info("TwitchChatService:leaveChannel() called", category: "Twitch")
         // Mark that we're disconnecting to prevent stale message processing
         disconnectLock.withLock { isProcessingDisconnect = true }
 
@@ -754,7 +754,7 @@ final class TwitchChatService: @unchecked Sendable {
             }
         }
 
-        Log.info("Twitch: Left channel", category: "TwitchChat")
+        Log.info("TwitchChatService: Left channel", category: "Twitch")
     }
 
     /// Validates an OAuth token with Twitch and verifies required scopes.
@@ -769,7 +769,7 @@ final class TwitchChatService: @unchecked Sendable {
         _ token: String, requiredScopes: [String] = ["user:read:chat", "user:write:chat"]
     ) async -> Bool {
         guard let url = URL(string: "https://id.twitch.tv/oauth2/validate") else {
-            Log.error("Twitch: Invalid validate URL", category: "TwitchChat")
+            Log.error("TwitchChatService: Invalid validate URL", category: "Twitch")
             return false
         }
 
@@ -785,16 +785,16 @@ final class TwitchChatService: @unchecked Sendable {
             guard (200..<300).contains(http.statusCode) else {
                 if http.statusCode == 401 {
                     Log.warn(
-                        "Twitch: Stored OAuth token is invalid or expired", category: "TwitchChat")
+                        "TwitchChatService: Stored OAuth token is invalid or expired", category: "Twitch")
                 } else {
                     Log.warn(
-                        "Twitch: Token validate HTTP \(http.statusCode)", category: "TwitchChat")
+                        "TwitchChatService: Token validate HTTP \(http.statusCode)", category: "Twitch")
                 }
                 return false
             }
 
             guard let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
-                Log.warn("Twitch: Could not parse token validate response", category: "TwitchChat")
+                Log.warn("TwitchChatService: Could not parse token validate response", category: "Twitch")
                 return false
             }
 
@@ -803,8 +803,8 @@ final class TwitchChatService: @unchecked Sendable {
                 let missing = requiredScopes.filter { !scopes.contains($0) }
                 if !missing.isEmpty {
                     Log.warn(
-                        "Twitch: Token missing required scopes: \(missing.joined(separator: ", "))",
-                        category: "TwitchChat")
+                        "TwitchChatService: Token missing required scopes: \(missing.joined(separator: ", "))",
+                        category: "Twitch")
                     return false
                 }
             }
@@ -812,8 +812,8 @@ final class TwitchChatService: @unchecked Sendable {
             return true
         } catch {
             Log.error(
-                "Twitch: Token validate request failed - \(error.localizedDescription)",
-                category: "TwitchChat")
+                "TwitchChatService: Token validate request failed - \(error.localizedDescription)",
+                category: "Twitch")
             return false
         }
     }
@@ -881,7 +881,7 @@ final class TwitchChatService: @unchecked Sendable {
             let token = oauthToken,
             let clientID = clientID
         else {
-            Log.warn("Twitch: Not connected, queuing message for retry", category: "TwitchChat")
+            Log.warn("TwitchChatService: Not connected, queuing message for retry", category: "Twitch")
             queueMessageForRetry(message: message, parentMessageID: parentMessageID, attempts: 0)
             return
         }
@@ -919,22 +919,22 @@ final class TwitchChatService: @unchecked Sendable {
                         let dataArray = json["data"] as? [[String: Any]],
                         let messageData = dataArray.first
                     else {
-                        Log.warn("Twitch: Could not parse send-message response", category: "TwitchChat")
+                        Log.warn("TwitchChatService: Could not parse send-message response", category: "Twitch")
                         return
                     }
                     let isSent = messageData["is_sent"] as? Bool ?? false
                     if isSent {
                         // Message sent successfully
                     } else {
-                        Log.warn("Twitch: Message dropped by Twitch", category: "TwitchChat")
+                        Log.warn("TwitchChatService: Message dropped by Twitch", category: "Twitch")
                     }
                 } catch {
-                    Log.warn("Twitch: Failed to decode send-message response - \(error.localizedDescription)", category: "TwitchChat")
+                    Log.warn("TwitchChatService: Failed to decode send-message response - \(error.localizedDescription)", category: "Twitch")
                 }
             case .failure(let error):
                 Log.error(
-                    "Twitch: Failed to send message - \(error.localizedDescription)",
-                    category: "TwitchChat")
+                    "TwitchChatService: Failed to send message - \(error.localizedDescription)",
+                    category: "Twitch")
                 self?.queueMessageForRetry(
                     message: message, parentMessageID: parentMessageID, attempts: 0)
             }
@@ -945,8 +945,8 @@ final class TwitchChatService: @unchecked Sendable {
     private func queueMessageForRetry(message: String, parentMessageID: String?, attempts: Int) {
         guard attempts < maxMessageRetries else {
             Log.error(
-                "Twitch: Message dropped after \(maxMessageRetries) retry attempts",
-                category: "TwitchChat")
+                "TwitchChatService: Message dropped after \(maxMessageRetries) retry attempts",
+                category: "Twitch")
             return
         }
 
@@ -956,8 +956,8 @@ final class TwitchChatService: @unchecked Sendable {
 
         let delay = pow(2.0, Double(attempts))
         Log.debug(
-            "Twitch: Scheduling message retry \(attempts + 1)/\(maxMessageRetries) in \(delay)s",
-            category: "TwitchChat")
+            "TwitchChatService: Scheduling message retry \(attempts + 1)/\(maxMessageRetries) in \(delay)s",
+            category: "Twitch")
 
         DispatchQueue.global().asyncAfter(deadline: .now() + delay) { [weak self] in
             self?.retryPendingMessages()
@@ -1087,8 +1087,7 @@ final class TwitchChatService: @unchecked Sendable {
         if commandsEnabled {
             let isModerator = badges.contains { $0.setID == "moderator" }
             let isBroadcaster = badges.contains { $0.setID == "broadcaster" }
-            let broadcasterBypass = Foundation.UserDefaults.standard.bool(forKey: AppConstants.UserDefaults.broadcasterBypassCooldowns)
-            let bypassCooldown = isModerator || (isBroadcaster && broadcasterBypass)
+            let bypassCooldown = isModerator || isBroadcaster
             if let response = commandDispatcher.processMessage(
                 text, userID: userID, isModerator: bypassCooldown
             ) {
@@ -1157,7 +1156,7 @@ final class TwitchChatService: @unchecked Sendable {
             do {
                 request.httpBody = try JSONSerialization.data(withJSONObject: body)
             } catch {
-                Log.error("Twitch: Failed to serialize request body - \(error.localizedDescription)", category: "TwitchChat")
+                Log.error("TwitchChatService: Failed to serialize request body - \(error.localizedDescription)", category: "Twitch")
                 completion(.failure(ConnectionError.networkError("Failed to serialize request body")))
                 return
             }
@@ -1209,7 +1208,7 @@ final class TwitchChatService: @unchecked Sendable {
     /// Connects to the Twitch EventSub WebSocket endpoint.
     private func connectToEventSub() {
         guard let url = URL(string: "wss://eventsub.wss.twitch.tv/ws") else {
-            Log.error("Twitch: Invalid EventSub URL", category: "TwitchChat")
+            Log.error("TwitchChatService: Invalid EventSub URL", category: "Twitch")
             setConnected(false)
             onConnectionStateChanged?(false)
             NotificationCenter.default.post(
@@ -1225,7 +1224,7 @@ final class TwitchChatService: @unchecked Sendable {
         webSocketTask = task
         webSocketLock.unlock()
 
-        Log.info("Twitch: Starting EventSub WebSocket connection", category: "TwitchChat")
+        Log.info("TwitchChatService: Starting EventSub WebSocket connection", category: "Twitch")
         task.resume()
 
         // Start a timer to detect if session_welcome doesn't arrive in time
@@ -1257,8 +1256,8 @@ final class TwitchChatService: @unchecked Sendable {
         guard !hasSession else { return }  // If we already got a welcome, ignore
 
         Log.error(
-            "Twitch: Session welcome timeout - WebSocket may not be responding",
-            category: "TwitchChat")
+            "TwitchChatService: Session welcome timeout - WebSocket may not be responding",
+            category: "Twitch")
         setConnected(false)
         onConnectionStateChanged?(false)
         NotificationCenter.default.post(
@@ -1277,8 +1276,8 @@ final class TwitchChatService: @unchecked Sendable {
             !channelName.isEmpty && !token.isEmpty && !clientID.isEmpty && isReachable
         {
             Log.info(
-                "Twitch: Attempting reconnection after session welcome timeout",
-                category: "TwitchChat")
+                "TwitchChatService: Attempting reconnection after session welcome timeout",
+                category: "Twitch")
             attemptReconnect()
         }
     }
@@ -1308,14 +1307,14 @@ final class TwitchChatService: @unchecked Sendable {
             sessionWelcomeTimer = nil
         }
 
-        Log.debug("Twitch: EventSub WebSocket disconnected", category: "TwitchChat")
+        Log.debug("TwitchChatService: EventSub WebSocket disconnected", category: "Twitch")
     }
 
     private func receiveWebSocketMessage() {
         let task: URLSessionWebSocketTask? = webSocketLock.withLock { webSocketTask }
         guard let task else {
             Log.debug(
-                "Twitch: WebSocket task is nil, stopping receive loop", category: "TwitchChat")
+                "TwitchChatService: WebSocket task is nil, stopping receive loop", category: "Twitch")
             return
         }
 
@@ -1351,12 +1350,12 @@ final class TwitchChatService: @unchecked Sendable {
                 // Provide specific logging for timeout errors
                 if errorDomain == NSURLErrorDomain && errorCode == NSURLErrorTimedOut {
                     Log.error(
-                        "Twitch: WebSocket connection timed out. This may be due to network issues, firewall blocking, or Twitch service problems.",
-                        category: "TwitchChat")
+                        "TwitchChatService: WebSocket connection timed out. This may be due to network issues, firewall blocking, or Twitch service problems.",
+                        category: "Twitch")
                 } else {
                     Log.error(
-                        "Twitch: WebSocket connection error: \(error.localizedDescription) (Domain: \(errorDomain), Code: \(errorCode))",
-                        category: "TwitchChat")
+                        "TwitchChatService: WebSocket connection error: \(error.localizedDescription) (Domain: \(errorDomain), Code: \(errorCode))",
+                        category: "Twitch")
                 }
 
                 self.setConnected(false)
@@ -1374,7 +1373,7 @@ final class TwitchChatService: @unchecked Sendable {
                 if let channelName = channelName, let token = token, let clientID = clientID,
                     !channelName.isEmpty && !token.isEmpty && !clientID.isEmpty && isReachable
                 {
-                    Log.info("Twitch: Attempting automatic reconnection", category: "TwitchChat")
+                    Log.info("TwitchChatService: Attempting automatic reconnection", category: "Twitch")
                     self.attemptReconnect()
                 }
             }
@@ -1384,19 +1383,19 @@ final class TwitchChatService: @unchecked Sendable {
     /// Handles a received WebSocket message.
     private func handleWebSocketMessage(_ text: String) {
         guard let data = text.data(using: .utf8) else {
-            Log.warn("Twitch: WebSocket message is not valid UTF-8", category: "TwitchChat")
+            Log.warn("TwitchChatService: WebSocket message is not valid UTF-8", category: "Twitch")
             return
         }
 
         let json: [String: Any]
         do {
             guard let parsed = try JSONSerialization.jsonObject(with: data) as? [String: Any] else {
-                Log.warn("Twitch: WebSocket message is not a JSON object", category: "TwitchChat")
+                Log.warn("TwitchChatService: WebSocket message is not a JSON object", category: "Twitch")
                 return
             }
             json = parsed
         } catch {
-            Log.warn("Twitch: Failed to parse WebSocket message JSON - \(error.localizedDescription)", category: "TwitchChat")
+            Log.warn("TwitchChatService: Failed to parse WebSocket message JSON - \(error.localizedDescription)", category: "Twitch")
             return
         }
 
@@ -1407,7 +1406,7 @@ final class TwitchChatService: @unchecked Sendable {
             let messageTimestamp = metadata["message_timestamp"] as? String,
             !messageTimestamp.isEmpty
         else {
-            Log.warn("Twitch: EventSub message missing required metadata fields", category: "TwitchChat")
+            Log.warn("TwitchChatService: EventSub message missing required metadata fields", category: "Twitch")
             return
         }
 
@@ -1415,7 +1414,7 @@ final class TwitchChatService: @unchecked Sendable {
         if let timestamp = ISO8601DateFormatter().date(from: messageTimestamp) {
             let age = Date().timeIntervalSince(timestamp)
             if age > 600 {
-                Log.warn("Twitch: Rejecting stale EventSub message (age: \(Int(age))s)", category: "TwitchChat")
+                Log.warn("TwitchChatService: Rejecting stale EventSub message (age: \(Int(age))s)", category: "Twitch")
                 return
             }
         }
@@ -1438,7 +1437,7 @@ final class TwitchChatService: @unchecked Sendable {
             let session = payload["session"] as? [String: Any],
             let sessionID = session["id"] as? String
         else {
-            Log.error("Twitch: Failed to parse session ID", category: "TwitchChat")
+            Log.error("TwitchChatService: Failed to parse session ID", category: "Twitch")
             return
         }
 
@@ -1449,7 +1448,7 @@ final class TwitchChatService: @unchecked Sendable {
         self.sessionID = sessionID
         webSocketLock.unlock()
         Log.info(
-            "Twitch: EventSub session established with ID: \(sessionID)", category: "TwitchChat")
+            "TwitchChatService: EventSub session established with ID: \(sessionID)", category: "Twitch")
 
         // Ensure connected state is set properly
         setConnected(true)
@@ -1475,11 +1474,11 @@ final class TwitchChatService: @unchecked Sendable {
             let subType = subscription["type"] as? String
         {
             guard subType == "channel.chat.message" else {
-                Log.info("Twitch: Ignoring unexpected EventSub type: \(subType)", category: "TwitchChat")
+                Log.info("TwitchChatService: Ignoring unexpected EventSub type: \(subType)", category: "Twitch")
                 return
             }
         } else {
-            Log.warn("Twitch: EventSub notification missing subscription type", category: "TwitchChat")
+            Log.warn("TwitchChatService: EventSub notification missing subscription type", category: "Twitch")
             return
         }
 
@@ -1498,7 +1497,7 @@ final class TwitchChatService: @unchecked Sendable {
             let clientID = clientID
         else {
             Log.error(
-                "Twitch: Missing credentials for EventSub subscription", category: "TwitchChat")
+                "TwitchChatService: Missing credentials for EventSub subscription", category: "Twitch")
             setConnected(false)
             onConnectionStateChanged?(false)
             NotificationCenter.default.post(
@@ -1523,7 +1522,7 @@ final class TwitchChatService: @unchecked Sendable {
         ]
 
         guard let url = URL(string: apiBaseURL + "/eventsub/subscriptions") else {
-            Log.error("Twitch: Invalid EventSub subscriptions URL", category: "TwitchChat")
+            Log.error("TwitchChatService: Invalid EventSub subscriptions URL", category: "Twitch")
             return
         }
 
@@ -1535,15 +1534,15 @@ final class TwitchChatService: @unchecked Sendable {
         do {
             request.httpBody = try JSONSerialization.data(withJSONObject: subscriptionBody)
         } catch {
-            Log.error("Twitch: Failed to serialize EventSub subscription body - \(error.localizedDescription)", category: "TwitchChat")
+            Log.error("TwitchChatService: Failed to serialize EventSub subscription body - \(error.localizedDescription)", category: "Twitch")
             return
         }
 
         URLSession.shared.dataTask(with: request) { [weak self] data, response, error in
             if let error = error {
                 Log.error(
-                    "Twitch: EventSub subscription error - \(error.localizedDescription)",
-                    category: "TwitchChat")
+                    "TwitchChatService: EventSub subscription error - \(error.localizedDescription)",
+                    category: "Twitch")
                 self?.setConnected(false)
                 self?.onConnectionStateChanged?(false)
                 NotificationCenter.default.post(
@@ -1556,7 +1555,7 @@ final class TwitchChatService: @unchecked Sendable {
 
             if let http = response as? HTTPURLResponse {
                 if (200..<300).contains(http.statusCode) {
-                    Log.info("Twitch: Connected to chat", category: "TwitchChat")
+                    Log.info("TwitchChatService: Connected to chat", category: "Twitch")
                     if self?.shouldSendConnectionMessageOnSubscribe == true {
                         self?.sendConnectionMessage()
                     }
@@ -1564,8 +1563,8 @@ final class TwitchChatService: @unchecked Sendable {
                     let responseText =
                         data.flatMap { String(data: $0, encoding: .utf8) } ?? "No response"
                     Log.error(
-                        "Twitch: EventSub subscription failed - HTTP \(http.statusCode) - \(responseText)",
-                        category: "TwitchChat")
+                        "TwitchChatService: EventSub subscription failed - HTTP \(http.statusCode) - \(responseText)",
+                        category: "Twitch")
                     self?.setConnected(false)
                     self?.onConnectionStateChanged?(false)
                     NotificationCenter.default.post(
@@ -1689,8 +1688,8 @@ final class TwitchChatService: @unchecked Sendable {
             throw error
         } catch {
             Log.error(
-                "Twitch: Failed to resolve username - \(error.localizedDescription)",
-                category: "TwitchChat")
+                "TwitchChatService: Failed to resolve username - \(error.localizedDescription)",
+                category: "Twitch")
             throw ConnectionError.networkError(error.localizedDescription)
         }
     }

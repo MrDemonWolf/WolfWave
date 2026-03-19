@@ -529,8 +529,8 @@ final class TwitchViewModel: ObservableObject {
                 try KeychainService.saveTwitchChannelID(channel)
             } catch {
                 Log.error(
-                    "Failed to save channel ID: \(error.localizedDescription)",
-                    category: "Keychain"
+                    "TwitchViewModel: Failed to save channel ID: \(error.localizedDescription)",
+                    category: "Twitch"
                 )
             }
         }
@@ -810,8 +810,8 @@ final class TwitchViewModel: ObservableObject {
             credentialsSaved = true
         } catch {
             Log.error(
-                "Failed to save OAuth token: \(error.localizedDescription)",
-                category: "Keychain"
+                "TwitchViewModel: Failed to save OAuth token: \(error.localizedDescription)",
+                category: "Twitch"
             )
             statusMessage = "⚠️ Keychain save failed: \(error.localizedDescription)"
             authState = .error(error.localizedDescription)
@@ -828,7 +828,7 @@ final class TwitchViewModel: ObservableObject {
             }
         } catch {
             Log.error(
-                "Failed to resolve bot identity: \(error.localizedDescription)",
+                "TwitchViewModel: Failed to resolve bot identity: \(error.localizedDescription)",
                 category: "Twitch"
             )
             statusMessage = "⚠️ Could not resolve bot identity: \(error.localizedDescription)"

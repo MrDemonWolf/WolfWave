@@ -9,7 +9,7 @@ import SwiftUI
 
 /// First-launch onboarding wizard with progress dots, step content, and navigation.
 ///
-/// Steps: Welcome, Twitch, Discord, OBS Widget. Hosted in a dedicated `NSWindow`
+/// Steps: Welcome, Twitch, Discord, WebSocket & OBS Widget. Hosted in a dedicated `NSWindow`
 /// created by `AppDelegate.showOnboarding()`.
 struct OnboardingView: View {
 
@@ -104,10 +104,20 @@ struct OnboardingView: View {
                 .pointerCursor()
             }
 
+            if viewModel.isFirstStep {
+                Button("Skip All") {
+                    finishOnboarding()
+                }
+                .buttonStyle(.plain)
+                .foregroundStyle(.secondary)
+                .pointerCursor()
+            }
+
             Spacer()
 
             if shouldShowSkip {
                 Button("Skip") {
+                    cancelTwitchOAuthIfNeeded()
                     viewModel.goToNextStep()
                 }
                 .buttonStyle(.bordered)
@@ -124,6 +134,7 @@ struct OnboardingView: View {
                 .pointerCursor()
             } else {
                 Button("Next") {
+                    cancelTwitchOAuthIfNeeded()
                     viewModel.goToNextStep()
                 }
                 .buttonStyle(.borderedProminent)
@@ -146,6 +157,14 @@ struct OnboardingView: View {
             return !websocketEnabled
         default:
             return false
+        }
+    }
+
+    /// Cancels any in-progress Twitch OAuth polling when leaving the Twitch step.
+    private func cancelTwitchOAuthIfNeeded() {
+        guard viewModel.currentStep == .twitchConnect else { return }
+        if case .authorizing = twitchViewModel.integrationState {
+            twitchViewModel.cancelOAuth()
         }
     }
 

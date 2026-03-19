@@ -4,49 +4,83 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>WolfWave Widget</title>
+<link rel="icon" href="/favicon.ico" type="image/x-icon">
 <style>
-* { margin: 0; padding: 0; box-sizing: border-box; }
-html, body { width: 100%; height: 100%; background: transparent; overflow: hidden; }
-#root {
-  position: fixed; inset: 0;
-  display: flex; align-items: flex-end; justify-content: center;
-  padding: 16px; background: transparent;
-}
+/* Base reset */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+/* Body */
+body { width: 100%; height: 100%; background: transparent; overflow: hidden; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+
+/* Root container */
+#root { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; padding: 1rem; background: transparent; }
+
+/* Widget show/hide transition */
 #widget {
   width: 100%; overflow: hidden; position: relative;
-  transition: opacity 0.5s ease, transform 0.5s ease;
+  transition: opacity 0.5s cubic-bezier(0.34, 1.56, 0.64, 1),
+              transform 0.5s cubic-bezier(0.34, 1.56, 0.64, 1),
+              filter 0.4s cubic-bezier(0.4, 0, 0.2, 1);
 }
-#widget.hidden { opacity: 0; transform: translateY(16px); }
-#widget.visible { opacity: 1; transform: translateY(0); }
-.layout-horizontal { display: flex; height: 100%; }
-.layout-vertical { display: flex; flex-direction: column; height: 100%; align-items: center; padding: 8px; }
-.layout-compact { display: flex; height: 100%; align-items: center; padding: 0 4px; }
-.art-placeholder { display: flex; align-items: center; justify-content: center; }
-.progress-track { width: 100%; border-radius: 99px; overflow: hidden; }
-.progress-fill { height: 100%; border-radius: 99px; transition: width 1s linear; }
-.progress-times { display: flex; justify-content: space-between; margin-top: 2px; }
+#widget.hidden {
+  opacity: 0;
+  transform: translateY(12px) scale(0.97);
+  filter: blur(2px);
+}
+#widget.visible {
+  opacity: 1;
+  transform: translateY(0) scale(1);
+  filter: blur(0px);
+}
+
+/* Blur layer */
 .blur-layer {
   position: absolute; inset: 0; transform: scale(1.4);
   filter: blur(20px); opacity: 0.9;
   background-size: cover; background-position: center;
 }
-.overlay-layer { position: absolute; inset: 0; }
-.content-layer { position: relative; height: 100%; }
-#status {
-  position: fixed; inset: 0;
-  display: flex; align-items: center; justify-content: center;
-  background: rgba(0,0,0,0.6); color: #fff;
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-  font-size: 13px; text-align: center; padding: 16px;
-  transition: opacity 0.3s ease;
+
+/* Noise texture */
+.noise-layer {
+  position: absolute; inset: 0;
+  pointer-events: none; z-index: 10;
+  opacity: 0.04; border-radius: inherit;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  background-repeat: repeat;
+  background-size: 128px 128px;
 }
-#status.hidden { opacity: 0; pointer-events: none; }
-#status .status-text { max-width: 300px; line-height: 1.4; }
+
+/* Overlay layer */
+.overlay-layer { position: absolute; inset: 0; }
+
+/* Layout helpers */
+.flex { display: flex; }
+.flex-col { display: flex; flex-direction: column; }
+.items-center { align-items: center; }
+.justify-center { justify-content: center; }
+.h-full { height: 100%; }
+.w-full { width: 100%; }
+.relative { position: relative; }
+.shrink-0 { flex-shrink: 0; }
+.min-w-0 { min-width: 0; }
+.flex-1 { flex: 1; }
+
+/* Progress bar */
+.progress-track {
+  width: 100%; border-radius: 9999px; overflow: hidden;
+}
+.progress-fill {
+  height: 100%; border-radius: 9999px;
+  transition: width 1s linear;
+}
+.time-row {
+  display: flex; justify-content: space-between; margin-top: 2px;
+}
+
 </style>
 </head>
 <body>
 <div id="root">
-  <div id="status"></div>
   <div id="widget" class="hidden"></div>
 </div>
 <script>
@@ -56,32 +90,15 @@ const wsPort = params.get('port') || params.get('wsPort') || '8765';
 const autohide = Number(params.get('duration') || '0');
 const hideAlbumArt = params.has('hideAlbumArt');
 
+// MARK: - Font Resolution
+function resolveFontFamily(name) {
+  if (!name || name === 'System Default' || name === 'System') {
+    return '-apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif';
+  }
+  return '"' + name + '", sans-serif';
+}
+
 // MARK: - Theme Data
-const fontMap = {
-  'System': '-apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
-  'Monospaced': '"SF Mono", "Fira Code", monospace',
-  'Rounded': 'ui-rounded, "SF Pro Rounded", system-ui',
-  'Serif': '"New York", "Iowan Old Style", Georgia, serif',
-  'Montserrat': '"Montserrat", sans-serif',
-  'Roboto': '"Roboto", sans-serif',
-  'Open Sans': '"Open Sans", sans-serif',
-  'Lato': '"Lato", sans-serif',
-  'Poppins': '"Poppins", sans-serif',
-  'Fira Code': '"Fira Code", monospace',
-  'JetBrains Mono': '"JetBrains Mono", monospace',
-  'Oswald': '"Oswald", sans-serif',
-  'Bebas Neue': '"Bebas Neue", sans-serif',
-  'Raleway': '"Raleway", sans-serif',
-  'Press Start 2P': '"Press Start 2P", monospace',
-  'Permanent Marker': '"Permanent Marker", cursive',
-};
-
-const googleFonts = [
-  'Montserrat','Roboto','Open Sans','Lato','Poppins',
-  'Fira Code','JetBrains Mono','Oswald','Bebas Neue',
-  'Raleway','Press Start 2P','Permanent Marker',
-];
-
 const themePresets = {
   'Default': {
     containerBg: 'transparent', containerBorder: 'none',
@@ -89,8 +106,8 @@ const themePresets = {
     backdropFilter: 'none', overlayBg: 'rgba(0,0,0,0.50)',
     textPrimary: '#FFFFFF', textSecondary: 'rgba(255,255,255,0.90)',
     textMuted: 'rgba(255,255,255,0.70)', textShadow: '2px 2px 2px rgb(0 0 0)',
-    fontFamily: fontMap['System'],
-    progressTrackBg: 'rgba(255,255,255,0.20)', progressFillBg: '#FFFFFF',
+    progressTrackBg: 'rgba(255,255,255,0.20)',
+    progressFillBg: '#FFFFFF',
     showArtworkBlur: true,
   },
   'Dark': {
@@ -99,7 +116,6 @@ const themePresets = {
     backdropFilter: 'none', overlayBg: 'transparent',
     textPrimary: '#E4E4E7', textSecondary: '#A1A1AA',
     textMuted: '#71717A', textShadow: 'none',
-    fontFamily: fontMap['System'],
     progressTrackBg: 'rgba(255,255,255,0.08)', progressFillBg: '#A78BFA',
     showArtworkBlur: false,
   },
@@ -109,38 +125,15 @@ const themePresets = {
     backdropFilter: 'blur(16px)', overlayBg: 'transparent',
     textPrimary: '#18181B', textSecondary: '#3F3F46',
     textMuted: '#71717A', textShadow: 'none',
-    fontFamily: fontMap['System'],
     progressTrackBg: 'rgba(0,0,0,0.08)', progressFillBg: '#3B82F6',
     showArtworkBlur: false,
   },
-  'Transparent': {
-    containerBg: 'transparent', containerBorder: 'none',
-    containerShadow: 'none', containerRadius: '12px',
-    backdropFilter: 'none', overlayBg: 'transparent',
-    textPrimary: '#FFFFFF', textSecondary: 'rgba(255,255,255,0.90)',
-    textMuted: 'rgba(255,255,255,0.70)',
-    textShadow: '1px 1px 4px rgba(0,0,0,0.9), 0 0 8px rgba(0,0,0,0.5)',
-    fontFamily: fontMap['System'],
-    progressTrackBg: 'rgba(255,255,255,0.20)', progressFillBg: '#FFFFFF',
-    showArtworkBlur: false,
-  },
-  'Glass (Light)': {
-    containerBg: 'rgba(255,255,255,0.15)', containerBorder: '1px solid rgba(255,255,255,0.20)',
-    containerShadow: '0 8px 32px rgba(0,0,0,0.08)', containerRadius: '16px',
-    backdropFilter: 'blur(24px)', overlayBg: 'transparent',
-    textPrimary: '#1D1D1F', textSecondary: '#3F3F46',
-    textMuted: '#71717A', textShadow: 'none',
-    fontFamily: fontMap['System'],
-    progressTrackBg: 'rgba(0,0,0,0.08)', progressFillBg: '#007AFF',
-    showArtworkBlur: false,
-  },
-  'Glass (Dark)': {
+  'Glass': {
     containerBg: 'rgba(0,0,0,0.30)', containerBorder: '1px solid rgba(255,255,255,0.10)',
     containerShadow: '0 8px 32px rgba(0,0,0,0.20)', containerRadius: '16px',
     backdropFilter: 'blur(24px)', overlayBg: 'transparent',
     textPrimary: '#F5F5F7', textSecondary: 'rgba(245,245,247,0.80)',
     textMuted: 'rgba(245,245,247,0.50)', textShadow: 'none',
-    fontFamily: fontMap['System'],
     progressTrackBg: 'rgba(255,255,255,0.10)', progressFillBg: '#007AFF',
     showArtworkBlur: false,
   },
@@ -150,18 +143,7 @@ const themePresets = {
     containerRadius: '12px', backdropFilter: 'none', overlayBg: 'transparent',
     textPrimary: '#00FFAA', textSecondary: '#00E5FF',
     textMuted: 'rgba(0,255,170,0.50)', textShadow: '0 0 8px rgba(0,255,170,0.50)',
-    fontFamily: fontMap['Monospaced'],
     progressTrackBg: 'rgba(0,255,170,0.15)', progressFillBg: 'linear-gradient(90deg, #00FFAA, #00E5FF)',
-    showArtworkBlur: false,
-  },
-  'Techy': {
-    containerBg: 'rgba(15,23,42,0.90)', containerBorder: '1px solid rgba(56,189,248,0.30)',
-    containerShadow: '0 4px 16px rgba(0,0,0,0.40)', containerRadius: '8px',
-    backdropFilter: 'none', overlayBg: 'transparent',
-    textPrimary: '#E2E8F0', textSecondary: '#94A3B8',
-    textMuted: '#64748B', textShadow: 'none',
-    fontFamily: fontMap['Monospaced'],
-    progressTrackBg: 'rgba(56,189,248,0.15)', progressFillBg: '#38BDF8',
     showArtworkBlur: false,
   },
 };
@@ -174,7 +156,7 @@ const layoutDimensions = {
 
 const defaultConfig = {
   theme: 'Default', layout: 'Horizontal',
-  textColor: '#FFFFFF', backgroundColor: '#1A1A2E', fontFamily: 'System',
+  textColor: '#FFFFFF', backgroundColor: '#1A1A2E', fontFamily: 'System Default',
 };
 
 // MARK: - State
@@ -188,17 +170,7 @@ let hideTimer = null;
 let ws = null;
 let reconnectTimer = null;
 let reconnectAttempts = 0;
-
-// MARK: - Status Display
-function showStatus(text) {
-  var el = document.getElementById('status');
-  if (el) { el.innerHTML = '<div class="status-text">' + escapeHtml(text) + '</div>'; el.classList.remove('hidden'); }
-}
-
-function hideStatus() {
-  var el = document.getElementById('status');
-  if (el) { el.classList.add('hidden'); }
-}
+let hasReceivedTrack = false;
 
 // MARK: - Helpers
 function formatTime(secs) {
@@ -218,8 +190,8 @@ function escapeHtml(str) {
 function resolveTheme(config) {
   const preset = themePresets[config.theme] || themePresets['Default'];
   const resolved = Object.assign({}, preset);
-  resolved.fontFamily = fontMap[config.fontFamily] || fontMap['System'];
-  if (config.theme === 'Default') {
+  resolved.fontFamily = resolveFontFamily(config.fontFamily);
+  if (config.theme === 'Default' || config.theme === 'Glass') {
     if (config.textColor && config.textColor !== defaultConfig.textColor) {
       resolved.textPrimary = config.textColor;
       resolved.textSecondary = config.textColor;
@@ -230,18 +202,6 @@ function resolveTheme(config) {
     }
   }
   return resolved;
-}
-
-function preloadGoogleFonts() {
-  if (document.getElementById('gfonts-preload')) return;
-  const families = googleFonts
-    .map(function(f) { return 'family=' + encodeURIComponent(f) + ':wght@400;700'; })
-    .join('&');
-  const link = document.createElement('link');
-  link.id = 'gfonts-preload';
-  link.rel = 'stylesheet';
-  link.href = 'https://fonts.googleapis.com/css2?' + families + '&display=swap';
-  document.head.appendChild(link);
 }
 
 // MARK: - Progress Loop
@@ -279,7 +239,7 @@ function hideWidget() {
   if (el) { el.classList.remove('visible'); el.classList.add('hidden'); }
 }
 
-// MARK: - Render (progress updates only — runs every RAF frame)
+// MARK: - Render (progress updates only -- runs every RAF frame)
 function updateProgress() {
   if (!nowPlaying) return;
   const duration = nowPlaying.duration || 0;
@@ -293,7 +253,7 @@ function updateProgress() {
   if (remainingEl) remainingEl.textContent = '-' + formatTime(remaining);
 }
 
-// MARK: - Render (full rebuild — on track change or config change)
+// MARK: - Render (full rebuild -- on track change or config change)
 function buildWidget() {
   if (!nowPlaying) return;
   const el = document.getElementById('widget');
@@ -318,52 +278,56 @@ function buildWidget() {
   // Artwork HTML
   function artImg(w, h, radius) {
     if (!nowPlaying.artworkURL) {
-      return '<div class="art-placeholder" style="width:' + w + 'px;height:' + h + 'px;border-radius:' + radius + ';background:rgba(255,255,255,0.10);">'
+      return '<div class="flex items-center justify-center" style="width:' + w + 'px;height:' + h + 'px;border-radius:' + radius + ';background:rgba(255,255,255,0.10);">'
         + '<svg width="' + Math.round(w * 0.5) + '" height="' + Math.round(h * 0.5) + '" viewBox="0 0 24 24" fill="' + theme.textMuted + '">'
         + '<path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"/></svg>'
         + '</div>';
     }
     return '<img src="' + nowPlaying.artworkURL + '" crossorigin="anonymous" '
-      + 'style="width:' + w + 'px;height:' + h + 'px;border-radius:' + radius + ';object-fit:cover;">';
+      + 'style="width:' + w + 'px;height:' + h + 'px;border-radius:' + radius + ';object-fit:cover;box-shadow:0 2px 8px rgba(0,0,0,0.3);">';
   }
 
   // Progress bar HTML
   const barH = layout === 'Vertical' ? '3px' : '4px';
   const timeSize = layout === 'Vertical' ? '9px' : '10px';
+  const fillStyle = 'width:' + progress + '%;background:' + theme.progressFillBg + ';height:100%;border-radius:9999px;transition:width 1s linear;';
   const progressBar =
     '<div class="progress-track" style="background:' + theme.progressTrackBg + ';height:' + barH + ';">'
-    + '<div class="progress-fill" style="width:' + progress + '%;background:' + theme.progressFillBg + ';height:100%;border-radius:99px;transition:width 1s linear;"></div>'
+    + '<div class="progress-fill" style="' + fillStyle + '"></div>'
     + '</div>'
-    + '<div class="progress-times">'
+    + '<div class="time-row">'
     + '<span class="elapsed-time" style="color:' + theme.textMuted + ';font-family:' + theme.fontFamily + ';font-size:' + timeSize + ';">' + formatTime(elapsed) + '</span>'
     + '<span class="remaining-time" style="color:' + theme.textMuted + ';font-family:' + theme.fontFamily + ';font-size:' + timeSize + ';">-' + formatTime(remaining) + '</span>'
     + '</div>';
 
-  // Blur / overlay layers
+  // Blur / overlay / noise layers
   const blurLayer = (theme.showArtworkBlur && nowPlaying.artworkURL)
     ? '<div class="blur-layer" style="background-image:url(' + nowPlaying.artworkURL + ');"></div>'
     : '';
   const overlayLayer = (theme.overlayBg && theme.overlayBg !== 'transparent')
     ? '<div class="overlay-layer" style="background:' + theme.overlayBg + ';"></div>'
     : '';
+  const noiseLayer = '<div class="noise-layer"></div>';
 
   // Layout HTML
   let layoutHTML = '';
   if (layout === 'Horizontal') {
     const art = hideAlbumArt ? '' : '<div style="flex-shrink:0;padding:5px;">' + artImg(90, 90, '10px') + '</div>';
-    layoutHTML = '<div class="layout-horizontal">'
+    layoutHTML = '<div class="flex h-full">'
       + art
       + '<div style="display:flex;flex-direction:column;flex:1;min-width:0;justify-content:center;padding:8px 12px 8px 0;">'
       + '<div style="min-width:0;">'
       + '<p style="font-size:18px;font-weight:700;line-height:1.2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:' + theme.textPrimary + ';text-shadow:' + theme.textShadow + ';font-family:' + theme.fontFamily + ';">' + escapeHtml(nowPlaying.track) + '</p>'
       + '<p style="font-size:13px;font-style:italic;font-weight:300;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:' + theme.textSecondary + ';text-shadow:' + theme.textShadow + ';font-family:' + theme.fontFamily + ';">' + escapeHtml(nowPlaying.artist) + '</p>'
       + '</div>'
-      + '<div style="margin-top:auto;">' + progressBar + '</div>'
+      + '<div style="display:flex;align-items:center;margin-top:auto;gap:6px;">'
+      + '<div style="flex:1;min-width:0;">' + progressBar + '</div>'
+      + '</div>'
       + '</div>'
       + '</div>';
   } else if (layout === 'Vertical') {
-    const art = hideAlbumArt ? '' : '<div style="flex-shrink:0;">' + artImg(200, 200, '10px') + '</div>';
-    layoutHTML = '<div class="layout-vertical">'
+    const art = hideAlbumArt ? '' : '<div class="shrink-0">' + artImg(200, 200, '10px') + '</div>';
+    layoutHTML = '<div class="flex-col h-full items-center" style="padding:8px;">'
       + art
       + '<div style="display:flex;flex-direction:column;flex:1;min-width:0;width:100%;align-items:center;justify-content:center;margin-top:4px;">'
       + '<p style="font-size:13px;font-weight:700;text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%;color:' + theme.textPrimary + ';text-shadow:' + theme.textShadow + ';font-family:' + theme.fontFamily + ';">' + escapeHtml(nowPlaying.track) + '</p>'
@@ -373,25 +337,25 @@ function buildWidget() {
       + '</div>';
   } else { // Compact
     const art = hideAlbumArt ? '' : '<div style="flex-shrink:0;padding:5px;">' + artImg(46, 46, '8px') + '</div>';
-    layoutHTML = '<div class="layout-compact">'
+    layoutHTML = '<div class="flex h-full items-center" style="padding:0 4px;">'
       + art
       + '<div style="flex:1;min-width:0;padding:0 8px;">'
       + '<p style="font-size:13px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:' + theme.textPrimary + ';text-shadow:' + theme.textShadow + ';font-family:' + theme.fontFamily + ';">'
       + escapeHtml(nowPlaying.track)
-      + '<span style="color:' + theme.textMuted + '';"> &mdash; </span>'
+      + '<span style="color:' + theme.textMuted + ';">&mdash;</span>'
       + '<span style="color:' + theme.textSecondary + ';">' + escapeHtml(nowPlaying.artist) + '</span>'
       + '</p>'
       + '</div>'
       + '</div>';
   }
 
-  el.innerHTML = blurLayer + overlayLayer + '<div class="content-layer">' + layoutHTML + '</div>';
+  el.innerHTML = blurLayer + overlayLayer + noiseLayer + '<div class="relative h-full">' + layoutHTML + '</div>';
 }
 
 // MARK: - WebSocket
 function connect() {
   if (ws) return;
-  showStatus('Connecting...');
+  console.log('[WolfWave Widget] Connecting to ws://localhost:' + wsPort);
   ws = new WebSocket('ws://localhost:' + wsPort);
 
   ws.onopen = function() {
@@ -400,25 +364,27 @@ function connect() {
   };
 
   ws.onmessage = function(event) {
-    try { handleMessage(JSON.parse(event.data)); } catch(e) {}
+    try {
+      handleMessage(JSON.parse(event.data));
+    } catch(e) {
+      console.warn('[WolfWave Widget] Failed to parse message:', e);
+    }
   };
 
   ws.onclose = function() {
     ws = null;
     nowPlaying = null;
+    hasReceivedTrack = false;
     stopProgressLoop();
     hideWidget();
     reconnectAttempts++;
-    if (reconnectAttempts >= 3) {
-      showStatus('WebSocket server is not running. Please enable it in WolfWave settings.');
-    } else {
-      showStatus('Connecting...');
-    }
-    console.log('[WolfWave Widget] Disconnected — retrying in 5s');
+    console.log('[WolfWave Widget] Disconnected — reconnect attempt ' + reconnectAttempts);
     reconnectTimer = setTimeout(connect, 5000);
   };
 
-  ws.onerror = function() {};
+  ws.onerror = function(e) {
+    console.warn('[WolfWave Widget] WebSocket error:', e);
+  };
 }
 
 function handleMessage(msg) {
@@ -428,6 +394,8 @@ function handleMessage(msg) {
       nowPlaying = data;
       elapsedRef = { value: data.elapsed, timestamp: Date.now(), isPlaying: data.isPlaying };
       elapsed = data.elapsed;
+      const isFirstTrack = !hasReceivedTrack;
+      hasReceivedTrack = true;
       buildWidget();
       if (data.isPlaying) {
         showWidget();
@@ -459,14 +427,15 @@ function handleMessage(msg) {
       break;
     }
     case 'welcome':
-      hideStatus();
       reconnectAttempts = 0;
+      if (!hasReceivedTrack) {
+        console.log('[WolfWave Widget] Connected, waiting for music...');
+      }
       break;
   }
 }
 
 // MARK: - Init
-preloadGoogleFonts();
 connect();
 </script>
 </body>

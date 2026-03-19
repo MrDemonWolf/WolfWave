@@ -91,10 +91,10 @@ enum AppConstants {
         /// WebSocket endpoint URI (String)
         static let websocketURI = "websocketURI"
         
-        /// Whether "current song" bot command is enabled (Bool, default: true)
+        /// Whether "current song" bot command is enabled (Bool, default: false)
         static let currentSongCommandEnabled = "currentSongCommandEnabled"
-        
-        /// Whether "last song" bot command is enabled (Bool, default: true)
+
+        /// Whether "last song" bot command is enabled (Bool, default: false)
         static let lastSongCommandEnabled = "lastSongCommandEnabled"
 
         /// Whether the first-launch onboarding wizard has been completed (Bool, default: false)
@@ -112,8 +112,6 @@ enum AppConstants {
         /// Version string the user has chosen to skip (String)
         static let updateSkippedVersion = "updateSkippedVersion"
 
-        /// Timestamp of the last update check (TimeInterval / Double)
-        static let updateLastCheckDate = "updateLastCheckDate"
 
         /// Global cooldown for !song command in seconds (Double, default: 15.0)
         static let songCommandGlobalCooldown = "songCommandGlobalCooldown"
@@ -126,9 +124,6 @@ enum AppConstants {
 
         /// Per-user cooldown for !last command in seconds (Double, default: 15.0)
         static let lastSongCommandUserCooldown = "lastSongCommandUserCooldown"
-
-        /// Whether the broadcaster bypasses bot command cooldowns (Bool, default: true)
-        static let broadcasterBypassCooldowns = "broadcasterBypassCooldowns"
 
         /// Widget theme name (String, default: "Default")
         static let widgetTheme = "widgetTheme"
@@ -148,7 +143,7 @@ enum AppConstants {
         /// Widget HTTP server port number (UInt16, default: 8766)
         static let widgetPort = "widgetPort"
 
-        /// Whether the widget HTTP server is enabled (Bool, default: true)
+        /// Whether the widget HTTP server is enabled (Bool, default: false)
         static let widgetHTTPEnabled = "widgetHTTPEnabled"
     }
     
@@ -211,7 +206,7 @@ enum AppConstants {
         static let messageTruncationSuffix = "..."
 
         /// Connection confirmation message sent when the bot joins a channel
-        static let connectionMessage = "WolfWave Application is connected! 🎵"
+        static let connectionMessage = "WolfWave is connected! 🎵"
 
         /// Maximum reconnection attempts before giving up
         static let maxReconnectionAttempts = 5
@@ -239,20 +234,10 @@ enum AppConstants {
         static let recommendedDimensionsText = "\(recommendedWidth) x \(recommendedHeight)"
 
         /// Available widget themes
-        static let themes = ["Default", "Dark", "Light", "Transparent", "Glass (Light)", "Glass (Dark)", "Neon", "Techy"]
+        static let themes = ["Default", "Dark", "Light", "Glass", "Neon"]
 
         /// Available widget layout styles
         static let layouts = ["Horizontal", "Vertical", "Compact"]
-
-        /// Built-in system font options (CSS system font stacks)
-        static let builtInFonts = ["System", "Monospaced", "Rounded", "Serif"]
-
-        /// Google Fonts available for the widget overlay (loaded dynamically)
-        static let googleFonts = [
-            "Montserrat", "Roboto", "Open Sans", "Lato", "Poppins",
-            "Fira Code", "JetBrains Mono", "Oswald", "Bebas Neue",
-            "Raleway", "Press Start 2P", "Permanent Marker",
-        ]
     }
     
     // MARK: - Discord Integration
@@ -291,11 +276,6 @@ enum AppConstants {
         /// Interval between periodic update checks (24 hours in seconds)
         static let checkInterval: TimeInterval = 86400
 
-        /// Timeout for update-check HTTP requests (seconds)
-        static let requestTimeout: TimeInterval = 15
-
-        /// Delay before the first update check after app launch (seconds)
-        static let launchCheckDelay: TimeInterval = 10
     }
 
     // MARK: - URLs
@@ -505,9 +485,9 @@ enum AppConstants {
     /// Onboarding wizard window configuration.
     enum OnboardingUI {
         /// Width of the onboarding window
-        static let windowWidth: CGFloat = 520
+        static let windowWidth: CGFloat = 600
 
         /// Height of the onboarding window
-        static let windowHeight: CGFloat = 540
+        static let windowHeight: CGFloat = 480
     }
 }

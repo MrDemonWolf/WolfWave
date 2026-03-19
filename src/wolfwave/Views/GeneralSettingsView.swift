@@ -23,7 +23,7 @@ struct GeneralSettingsView: View {
                 Text("General")
                     .font(.system(size: 17, weight: .semibold))
 
-                Text("Configure core WolfWave settings for music tracking and app appearance.")
+                Text("Manage how WolfWave tracks your music and where it shows up.")
                     .font(.system(size: 13))
                     .foregroundStyle(.secondary)
             }

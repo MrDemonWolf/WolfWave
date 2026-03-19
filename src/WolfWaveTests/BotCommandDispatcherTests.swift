@@ -131,46 +131,23 @@ final class BotCommandDispatcherTests: XCTestCase {
         defaults.removeObject(forKey: AppConstants.UserDefaults.songCommandUserCooldown)
     }
 
-    func testBroadcasterSubjectToCooldownWhenBypassDisabled() {
+    func testBroadcasterAlwaysBypassesCooldown() {
         dispatcher.setCurrentSongInfo { "Artist - Song" }
 
         let defaults = UserDefaults.standard
         defaults.set(15.0, forKey: AppConstants.UserDefaults.songCommandGlobalCooldown)
         defaults.set(15.0, forKey: AppConstants.UserDefaults.songCommandUserCooldown)
-        defaults.set(false, forKey: AppConstants.UserDefaults.broadcasterBypassCooldowns)
 
-        // Simulate broadcaster (isModerator: false means no bypass)
-        let first = dispatcher.processMessage("!song", userID: "broadcaster1", isModerator: false)
-        XCTAssertNotNil(first, "First !song call should succeed")
-
-        let second = dispatcher.processMessage("!song", userID: "broadcaster1", isModerator: false)
-        XCTAssertNil(second, "Broadcaster should be subject to cooldown when bypass is disabled")
-
-        // Cleanup
-        defaults.removeObject(forKey: AppConstants.UserDefaults.songCommandGlobalCooldown)
-        defaults.removeObject(forKey: AppConstants.UserDefaults.songCommandUserCooldown)
-        defaults.removeObject(forKey: AppConstants.UserDefaults.broadcasterBypassCooldowns)
-    }
-
-    func testBroadcasterBypassesCooldownWhenBypassEnabled() {
-        dispatcher.setCurrentSongInfo { "Artist - Song" }
-
-        let defaults = UserDefaults.standard
-        defaults.set(15.0, forKey: AppConstants.UserDefaults.songCommandGlobalCooldown)
-        defaults.set(15.0, forKey: AppConstants.UserDefaults.songCommandUserCooldown)
-        defaults.set(true, forKey: AppConstants.UserDefaults.broadcasterBypassCooldowns)
-
-        // Simulate broadcaster with bypass enabled (isModerator: true)
+        // Broadcaster always bypasses cooldowns (isModerator: true)
         let first = dispatcher.processMessage("!song", userID: "broadcaster1", isModerator: true)
         XCTAssertNotNil(first, "First !song call should succeed")
 
         let second = dispatcher.processMessage("!song", userID: "broadcaster1", isModerator: true)
-        XCTAssertNotNil(second, "Broadcaster should bypass cooldown when bypass is enabled")
+        XCTAssertNotNil(second, "Broadcaster should always bypass cooldown")
 
         // Cleanup
         defaults.removeObject(forKey: AppConstants.UserDefaults.songCommandGlobalCooldown)
         defaults.removeObject(forKey: AppConstants.UserDefaults.songCommandUserCooldown)
-        defaults.removeObject(forKey: AppConstants.UserDefaults.broadcasterBypassCooldowns)
     }
 
     func testLastSongAliasesShareCooldown() {

@@ -51,7 +51,6 @@ struct AppConstantsTests {
         #expect(!AppConstants.UserDefaults.websocketEnabled.isEmpty)
         #expect(!AppConstants.UserDefaults.currentSongCommandEnabled.isEmpty)
         #expect(!AppConstants.UserDefaults.lastSongCommandEnabled.isEmpty)
-        #expect(!AppConstants.UserDefaults.broadcasterBypassCooldowns.isEmpty)
     }
     
     // MARK: - Dock Visibility Tests
@@ -104,9 +103,8 @@ struct AppConstantsTests {
         #expect(AppConstants.Widget.recommendedWidth == 500)
         #expect(AppConstants.Widget.recommendedHeight == 120)
         #expect(!AppConstants.Widget.themes.isEmpty)
+        #expect(AppConstants.Widget.themes.count == 5)
         #expect(!AppConstants.Widget.layouts.isEmpty)
-        #expect(!AppConstants.Widget.builtInFonts.isEmpty)
-        #expect(!AppConstants.Widget.googleFonts.isEmpty)
     }
     
     // MARK: - Discord Tests
@@ -128,8 +126,6 @@ struct AppConstantsTests {
     @Test("Update checker constants are defined")
     func testUpdateCheckerConstants() async throws {
         #expect(AppConstants.Update.checkInterval == 86400) // 24 hours
-        #expect(AppConstants.Update.requestTimeout == 15.0)
-        #expect(AppConstants.Update.launchCheckDelay == 10.0)
     }
     
     // MARK: - URLs Tests
@@ -216,8 +212,8 @@ struct AppConstantsTests {
     func testOnboardingUIConstants() async throws {
         #expect(AppConstants.OnboardingUI.windowWidth > 0)
         #expect(AppConstants.OnboardingUI.windowHeight > 0)
-        #expect(AppConstants.OnboardingUI.windowWidth == 520)
-        #expect(AppConstants.OnboardingUI.windowHeight == 540)
+        #expect(AppConstants.OnboardingUI.windowWidth == 600)
+        #expect(AppConstants.OnboardingUI.windowHeight == 480)
     }
     
     // MARK: - Menu Labels Tests

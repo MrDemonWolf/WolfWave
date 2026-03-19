@@ -63,6 +63,13 @@ The `AppDelegate` (via `@NSApplicationDelegateAdaptor`) acts as the central orch
 - **Constants**: All strings, keys, and timing values must be centralized in `AppConstants.swift`.
 - **Documentation**: Use DocC-style `///` comments for all public methods and properties.
 
+## User Experience Guidelines
+
+- **Tone**: Use friendly, non-technical language. Avoid jargon like "IPC", "WebSocket", "Rich Presence", or "Listener".
+- **Clarity**: distinct actions (e.g., "Sync Music" instead of "Music Tracking").
+- **Accessibility**: Ensure all UI elements have `accessibilityLabel` and `accessibilityIdentifier` for UI testing and screen readers.
+- **Onboarding**: The app is designed to be "dummy-friendly". Onboarding and empty states should guide the user clearly.
+
 ## Security & Privacy
 
 - **No Secrets in Code**: Never commit API keys or tokens.

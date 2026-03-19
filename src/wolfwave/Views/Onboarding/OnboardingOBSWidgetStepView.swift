@@ -19,12 +19,12 @@ struct OnboardingOBSWidgetStepView: View {
 
     @State private var copiedURL = false
 
+    @AppStorage(AppConstants.UserDefaults.widgetPort)
+    private var storedWidgetPort: Int = Int(AppConstants.WebSocketServer.widgetDefaultPort)
+
     private var widgetURL: String {
-        #if DEBUG
-        "http://localhost:3000/widget/?port=\(storedPort)"
-        #else
-        "https://mrdemonwolf.github.io/wolfwave/widget/?port=\(storedPort)"
-        #endif
+        let widgetPort = storedWidgetPort > 0 ? storedWidgetPort : Int(AppConstants.WebSocketServer.widgetDefaultPort)
+        return "http://localhost:\(widgetPort)/?port=\(storedPort)"
     }
 
     // MARK: - Body
@@ -42,25 +42,25 @@ struct OnboardingOBSWidgetStepView: View {
                     .foregroundStyle(.blue)
                     .accessibilityHidden(true)
 
-                Text("OBS Stream Widget")
+                Text("Stream Overlay")
                     .font(.system(size: 20, weight: .bold))
 
-                Text("Optional — you can set this up later in Settings.")
+                Text("Totally optional. You can always do this later.")
                     .font(.system(size: 13))
                     .foregroundStyle(.secondary)
             }
 
             VStack(spacing: 16) {
-                Text("Show what you're listening to on your stream with a browser source overlay in OBS.")
+                Text("Show a now-playing widget on your stream via OBS.")
                     .font(.system(size: 13))
                     .foregroundStyle(.secondary)
                     .multilineTextAlignment(.center)
 
                 HStack(spacing: 12) {
                     VStack(alignment: .leading, spacing: 2) {
-                        Text("Enable OBS Widget Server")
+                        Text("Enable stream overlay")
                             .font(.system(size: 13, weight: .medium))
-                        Text("Starts a local server to send now-playing data")
+                        Text("Runs a small local server so OBS can display your track")
                             .font(.system(size: 11))
                             .foregroundStyle(.tertiary)
                     }
@@ -85,44 +85,55 @@ struct OnboardingOBSWidgetStepView: View {
                 .clipShape(RoundedRectangle(cornerRadius: 10))
 
                 if websocketEnabled {
-                    VStack(spacing: 10) {
-                        VStack(alignment: .leading, spacing: 6) {
-                            Text("Add this URL as a Browser Source in OBS:")
-                                .font(.system(size: 11))
+                    VStack(spacing: 12) {
+                        HStack(spacing: 8) {
+                            Image(systemName: "checkmark.circle.fill")
+                                .font(.system(size: 14))
+                                .foregroundStyle(.green)
+                            Text("Overlay enabled!")
+                                .font(.system(size: 13))
                                 .foregroundStyle(.secondary)
+                        }
 
-                            HStack(spacing: 8) {
-                                Text(widgetURL)
-                                    .font(.system(size: 11, design: .monospaced))
-                                    .textSelection(.enabled)
-                                    .lineLimit(1)
-                                    .truncationMode(.middle)
+                        HStack(spacing: 8) {
+                            Text(widgetURL)
+                                .font(.system(size: 11, design: .monospaced))
+                                .textSelection(.enabled)
+                                .lineLimit(1)
+                                .truncationMode(.middle)
 
-                                Spacer()
+                            Spacer()
 
-                                Button {
-                                    NSPasteboard.general.clearContents()
-                                    NSPasteboard.general.setString(widgetURL, forType: .string)
-                                    copiedURL = true
-                                    DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
-                                        copiedURL = false
-                                    }
-                                } label: {
-                                    HStack(spacing: 4) {
-                                        Image(systemName: copiedURL ? "checkmark" : "doc.on.doc")
-                                            .font(.system(size: 11))
-                                        Text(copiedURL ? "Copied" : "Copy")
-                                            .font(.system(size: 11))
-                                    }
+                            Button {
+                                NSPasteboard.general.clearContents()
+                                NSPasteboard.general.setString(widgetURL, forType: .string)
+                                copiedURL = true
+                                DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
+                                    copiedURL = false
                                 }
-                                .buttonStyle(.bordered)
-                                .controlSize(.small)
-                                .accessibilityLabel("Copy widget URL")
+                            } label: {
+                                HStack(spacing: 4) {
+                                    Image(systemName: copiedURL ? "checkmark" : "doc.on.doc")
+                                        .font(.system(size: 11))
+                                    Text(copiedURL ? "Copied" : "Copy")
+                                        .font(.system(size: 11))
+                                }
                             }
+                            .buttonStyle(.bordered)
+                            .controlSize(.small)
+                            .accessibilityLabel("Copy widget URL")
                         }
                         .padding(10)
                         .background(Color(nsColor: .controlBackgroundColor))
                         .clipShape(RoundedRectangle(cornerRadius: 8))
+
+                        Text("Add as a Browser Source in OBS")
+                            .font(.system(size: 11))
+                            .foregroundStyle(.secondary)
+
+                        Text("Customize colors and layout in Settings → Stream Widgets")
+                            .font(.system(size: 11))
+                            .foregroundStyle(.secondary)
                     }
                     .transition(.opacity.combined(with: .move(edge: .top)))
                 }

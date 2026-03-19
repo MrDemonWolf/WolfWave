@@ -43,31 +43,21 @@ struct SettingsView: View {
     /// Navigation sections in the settings sidebar.
     enum SettingsSection: String, CaseIterable, Identifiable {
         case general = "General"
-        case websocket = "OBS Widget"
+        case websocket = "Stream Widgets"
         case twitchIntegration = "Twitch Integration"
         case discord = "Discord Integration"
         case advanced = "Advanced"
 
         var id: String { rawValue }
 
-        /// System SF Symbol name for sidebar icon (or nil for custom image).
-        var systemIcon: String? {
+        /// SF Symbol name for the sidebar icon.
+        var systemIcon: String {
             switch self {
             case .general: return "gear"
-            case .websocket: return nil // Uses custom image
-            case .twitchIntegration: return nil // Uses custom image
-            case .discord: return nil // Uses custom image
+            case .websocket: return "tv.badge.wifi"
+            case .twitchIntegration: return "message.badge.waveform"
+            case .discord: return "headphones"
             case .advanced: return "gearshape.2"
-            }
-        }
-
-        /// Custom image name for sidebar icon (or nil for system icon).
-        var customIcon: String? {
-            switch self {
-            case .websocket: return "OBSLogo"
-            case .twitchIntegration: return "TwitchLogo"
-            case .discord: return "DiscordLogo"
-            default: return nil
             }
         }
     }
@@ -90,11 +80,11 @@ struct SettingsView: View {
 
     /// Whether the Current Playing Song command is enabled
     @AppStorage(AppConstants.UserDefaults.currentSongCommandEnabled)
-    private var currentSongCommandEnabled = true
+    private var currentSongCommandEnabled = false
 
     /// Whether the Last Played Song command is enabled
     @AppStorage(AppConstants.UserDefaults.lastSongCommandEnabled)
-    private var lastSongCommandEnabled = true
+    private var lastSongCommandEnabled = false
 
     /// Cooldown settings for bot commands
     @AppStorage(AppConstants.UserDefaults.songCommandGlobalCooldown)
@@ -105,9 +95,6 @@ struct SettingsView: View {
     private var lastSongGlobalCooldown: Double = 15.0
     @AppStorage(AppConstants.UserDefaults.lastSongCommandUserCooldown)
     private var lastSongUserCooldown: Double = 15.0
-
-    @AppStorage(AppConstants.UserDefaults.broadcasterBypassCooldowns)
-    private var broadcasterBypassCooldowns: Bool = true
 
     @AppStorage(AppConstants.UserDefaults.dockVisibility)
     private var dockVisibility = "both"
@@ -138,7 +125,7 @@ struct SettingsView: View {
                     .tag(section)
             }
             .listStyle(.sidebar)
-            .navigationSplitViewColumnWidth(min: 180, ideal: 200, max: 220)
+            .navigationSplitViewColumnWidth(min: 200, ideal: 220, max: 280)
             .padding(.top, 10)
         } detail: {
             ScrollView {
@@ -180,18 +167,22 @@ struct SettingsView: View {
 
             // Set up callback to get current song info
             appDelegate?.twitchService?.getCurrentSongInfo = {
-                if let appDelegate = NSApplication.shared.delegate as? AppDelegate {
-                    return appDelegate.getCurrentSongInfo()
+                MainActor.assumeIsolated {
+                    if let appDelegate = NSApplication.shared.delegate as? AppDelegate {
+                        return appDelegate.getCurrentSongInfo()
+                    }
+                    return "No track currently playing"
                 }
-                return "No track currently playing"
             }
-            
+
             // Set up callback to get last song info
             appDelegate?.twitchService?.getLastSongInfo = {
-                if let appDelegate = NSApplication.shared.delegate as? AppDelegate {
-                    return appDelegate.getLastSongInfo()
+                MainActor.assumeIsolated {
+                    if let appDelegate = NSApplication.shared.delegate as? AppDelegate {
+                        return appDelegate.getLastSongInfo()
+                    }
+                    return "No previous track available"
                 }
-                return "No previous track available"
             }
         }
         .toolbar(removing: .sidebarToggle)
@@ -206,7 +197,7 @@ struct SettingsView: View {
             }
             .accessibilityIdentifier("resetSettingsConfirmButton")
         } message: {
-            Text("This will reset all settings and clear the stored authentication token.")
+            Text("This will reset everything. You will need to log in again.")
         }
     }
     
@@ -232,26 +223,9 @@ struct SettingsView: View {
 
     @ViewBuilder
     private func sidebarRow(for section: SettingsSection) -> some View {
-        Label {
-            Text(section.rawValue)
-        } icon: {
-            sidebarIcon(for: section)
-        }
-        .accessibilityLabel(Text(section.rawValue))
-        .accessibilityIdentifier(section.rawValue.replacingOccurrences(of: " ", with: "-").lowercased())
-    }
-
-    @ViewBuilder
-    private func sidebarIcon(for section: SettingsSection) -> some View {
-        if let customIcon = section.customIcon {
-            Image(customIcon)
-                .renderingMode(.template)
-                .resizable()
-                .aspectRatio(contentMode: .fit)
-                .frame(width: 16, height: 16)
-        } else if let systemIcon = section.systemIcon {
-            Image(systemName: systemIcon)
-        }
+        Label(section.rawValue, systemImage: section.systemIcon)
+            .accessibilityLabel(Text(section.rawValue))
+            .accessibilityIdentifier(section.rawValue.replacingOccurrences(of: " ", with: "-").lowercased())
     }
     
     private func twitchIntegrationView() -> some View {
@@ -272,21 +246,21 @@ struct SettingsView: View {
                             .font(.system(size: 15, weight: .semibold))
                     }
 
-                    Text("Control which commands your viewers can use in chat.")
+                    Text("Choose which commands your viewers can use in chat.")
                         .font(.system(size: 13))
                         .foregroundStyle(.secondary)
                 }
 
                 VStack(spacing: 1) {
                     commandToggleRow(
-                        title: "Now Playing Command",
+                        title: "!song Command",
                         subtitle: "!song  ·  !currentsong  ·  !nowplaying",
                         isOn: $currentSongCommandEnabled,
                         accessibilityLabel: "Enable Current Playing Song command",
                         accessibilityIdentifier: "currentSongCommandToggle",
                         isFirst: true
                     ) { enabled in
-                        Log.info("SettingsView: Current Song Command \(enabled ? "enabled" : "disabled")", category: "Twitch")
+                        Log.debug("SettingsView: Current Song Command \(enabled ? "enabled" : "disabled")", category: "Twitch")
                     }
 
                     if currentSongCommandEnabled {
@@ -298,14 +272,14 @@ struct SettingsView: View {
                     }
 
                     commandToggleRow(
-                        title: "Previous Song Command",
+                        title: "!last Command",
                         subtitle: "!last  ·  !lastsong  ·  !prevsong",
                         isOn: $lastSongCommandEnabled,
                         accessibilityLabel: "Enable Last Played Song command",
                         accessibilityIdentifier: "lastSongCommandToggle",
                         isLast: !lastSongCommandEnabled
                     ) { enabled in
-                        Log.info("SettingsView: Last Song Command \(enabled ? "enabled" : "disabled")", category: "Twitch")
+                        Log.debug("SettingsView: Last Song Command \(enabled ? "enabled" : "disabled")", category: "Twitch")
                     }
 
                     if lastSongCommandEnabled {
@@ -324,13 +298,10 @@ struct SettingsView: View {
                     Image(systemName: "info.circle.fill")
                         .font(.system(size: 11))
                         .foregroundStyle(.secondary)
-                    Text("Moderators always bypass cooldowns.")
+                    Text("Mods and you don't have to wait for cooldowns.")
                         .font(.system(size: 11))
                         .foregroundStyle(.secondary)
                 }
-                Toggle("Broadcaster bypasses cooldowns", isOn: $broadcasterBypassCooldowns)
-                    .font(.system(size: 11))
-                    .toggleStyle(.checkbox)
             }
         }
     }
@@ -438,8 +409,22 @@ struct SettingsView: View {
     /// 4. Deletes Twitch credentials from Keychain
     /// 5. Notifies the app that tracking has been re-enabled
     private func resetSettings() {
+        // Disconnect Discord before clearing UserDefaults
+        NotificationCenter.default.post(
+            name: NSNotification.Name(AppConstants.Notifications.discordPresenceChanged),
+            object: nil,
+            userInfo: ["enabled": false]
+        )
+
+        // Disconnect WebSocket server before clearing UserDefaults
+        NotificationCenter.default.post(
+            name: NSNotification.Name(AppConstants.Notifications.websocketServerChanged),
+            object: nil,
+            userInfo: ["enabled": false]
+        )
+
         // Clear UserDefaults
-        [AppConstants.UserDefaults.trackingEnabled, AppConstants.UserDefaults.currentSongCommandEnabled, AppConstants.UserDefaults.lastSongCommandEnabled, AppConstants.UserDefaults.dockVisibility, AppConstants.UserDefaults.websocketEnabled, AppConstants.UserDefaults.websocketURI, AppConstants.UserDefaults.websocketServerPort, AppConstants.UserDefaults.hasCompletedOnboarding, AppConstants.UserDefaults.discordPresenceEnabled].forEach {
+        [AppConstants.UserDefaults.trackingEnabled, AppConstants.UserDefaults.currentSongCommandEnabled, AppConstants.UserDefaults.lastSongCommandEnabled, AppConstants.UserDefaults.dockVisibility, AppConstants.UserDefaults.websocketEnabled, AppConstants.UserDefaults.websocketURI, AppConstants.UserDefaults.websocketServerPort, AppConstants.UserDefaults.hasCompletedOnboarding, AppConstants.UserDefaults.discordPresenceEnabled, AppConstants.UserDefaults.widgetHTTPEnabled].forEach {
             UserDefaults.standard.removeObject(forKey: $0)
         }
 

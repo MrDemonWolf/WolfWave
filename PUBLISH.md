@@ -1,100 +1,113 @@
-# Release Guide
+# Publishing Guide — WolfWave v1.0.0
 
-Step-by-step checklist for publishing a new WolfWave release.
+Steps to build, sign, notarize, and distribute the v1.0.0 release.
 
-## Pre-Release Checklist
+## Prerequisites
 
-- [ ] All tests pass (`make test`)
-- [ ] Build succeeds (`make build`)
-- [ ] CHANGELOG.md updated — move [Unreleased] items to versioned section
-- [ ] Version bumped in Xcode project (`CFBundleShortVersionString` + `CFBundleVersion`)
-- [ ] README.md test count matches actual (`make test` output)
-- [ ] No debug code or hardcoded secrets left in source
-- [ ] `Config.xcconfig.example` is up to date with any new keys
-- [ ] Documentation site builds (`cd docs && bun run build`)
-- [ ] Sparkle appcast feed URL configured (if using Sparkle for auto-updates)
+- Xcode 16+ with command-line tools installed
+- Active Apple Developer Program membership
+- Developer ID Application certificate installed in Keychain
+- `Config.xcconfig` populated with `TWITCH_CLIENT_ID` and `DISCORD_CLIENT_ID`
 
-## Build & Sign
+## 1. Code Signing
 
-- [ ] Run `make prod-build` — creates DMG in `builds/`
-- [ ] Run `make notarize` — signs DMG, submits to Apple notary, staples ticket
-- [ ] Run `make verify-notarize` — confirms notarization succeeded
-
-### Notarization Environment Variables
+The `make prod-build` target automatically re-signs with **Developer ID Application** if the certificate is present. Verify your signing identity:
 
 ```bash
-APPLE_ID=you@example.com \
-APPLE_TEAM_ID=YOUR_TEAM_ID \
-APPLE_APP_PASSWORD=xxxx-xxxx-xxxx-xxxx \
+security find-identity -v -p codesigning
+```
+
+Ensure `--options runtime` (hardened runtime) is enabled — required for notarization.
+
+## 2. Build the DMG
+
+```bash
+make prod-build
+```
+
+Produces `builds/WolfWave-1.0.0-arm64.dmg` containing the signed `.app` bundle.
+
+## 3. Notarize
+
+```bash
 make notarize
 ```
 
-> Generate an app-specific password at [appleid.apple.com](https://appleid.apple.com/account/manage) under **Sign-In and Security > App-Specific Passwords**.
+Required environment variables (also used by CI):
+- `APPLE_ID` — Your Apple ID email
+- `APPLE_TEAM_ID` — 10-character team identifier
+- `APPLE_APP_PASSWORD` — App-specific password from appleid.apple.com
 
-## Release
+Verify notarization after completion:
 
-- [ ] Create git tag: `git tag v<VERSION>`
-- [ ] Push tag: `git push origin v<VERSION>`
-- [ ] CI creates draft GitHub Release (`.github/workflows/release.yml`)
-- [ ] Upload notarized DMG to the GitHub Release
-- [ ] Edit release notes (copy from CHANGELOG.md)
-- [ ] Publish the release (un-draft)
+```bash
+make verify-notarize
+```
 
-## Post-Release
+## 4. Create GitHub Release
 
-- [ ] Verify download works from GitHub Releases page
-- [ ] Test fresh install from DMG on a clean machine
-- [ ] Deploy docs site (push to `main` triggers GitHub Pages)
-- [ ] Announce release (Discord, socials)
-- [ ] Update Homebrew cask if applicable
+Tag and push:
 
-## Required Secrets & Credentials
+```bash
+git tag v1.0.0
+git push origin v1.0.0
+```
 
-### Local (for manual builds)
+The `release.yml` workflow will automatically:
+- Build and sign the app
+- Notarize the DMG
+- Create a GitHub Release with the DMG attached
 
-| Credential | Where to get it |
-| --- | --- |
-| Developer ID Application certificate | Apple Developer portal > Certificates |
-| Apple ID | Your Apple Developer account email |
-| Apple Team ID | Apple Developer portal > Membership |
-| App-specific password | [appleid.apple.com](https://appleid.apple.com) > App-Specific Passwords |
+Alternatively, create the release manually:
 
-### GitHub Actions (for CI releases)
+```bash
+gh release create v1.0.0 builds/WolfWave-1.0.0-arm64.dmg \
+  --title "WolfWave v1.0.0" \
+  --notes-file CHANGELOG.md
+```
 
-| Secret | Description |
-| --- | --- |
+## 5. Update Appcast XML
+
+Sparkle checks `SUFeedURL` for updates. After the release:
+
+1. Generate the appcast entry with Sparkle's `generate_appcast` tool or manually update `appcast.xml`
+2. Include the DMG URL, version, file size, and Ed25519 signature
+3. Upload `appcast.xml` as a release asset so it is available at:
+   ```
+   https://github.com/MrDemonWolf/wolfwave/releases/latest/download/appcast.xml
+   ```
+
+## 6. Homebrew Cask (Optional)
+
+To submit a Homebrew cask:
+
+1. Fork [homebrew-cask](https://github.com/Homebrew/homebrew-cask)
+2. Create `Casks/w/wolfwave.rb` with the DMG URL, SHA-256, and app name
+3. Open a pull request against `homebrew-cask`
+
+Requires the DMG to be notarized and publicly downloadable.
+
+## 7. Documentation Site
+
+The docs site (Fumadocs / Next.js) lives in `docs/`. Deploy to GitHub Pages:
+
+```bash
+cd docs
+npm install && npm run build
+```
+
+Ensure the GitHub Pages source is set to the `gh-pages` branch or GitHub Actions output. Update any version references in the docs content (`docs/content/docs/`) to reflect v1.0.0.
+
+## CI/CD Secrets Reference
+
+The following repository secrets must be configured for automated releases:
+
+| Secret | Purpose |
+|--------|---------|
 | `DEVELOPER_ID_CERT_P12` | Base64-encoded Developer ID certificate |
-| `DEVELOPER_ID_CERT_PASSWORD` | Password for the P12 certificate |
-| `APPLE_ID` | Apple Developer account email |
-| `APPLE_TEAM_ID` | Apple Developer Team ID |
-| `APPLE_APP_PASSWORD` | App-specific password for notarization |
-| `TWITCH_CLIENT_ID` | Twitch application Client ID |
-| `DISCORD_CLIENT_ID` | Discord application ID |
-
-> `GITHUB_TOKEN` is provided automatically by GitHub Actions.
-
-## Troubleshooting
-
-### Certificate expired or missing
-
-- Open Keychain Access and check for a valid "Developer ID Application" certificate
-- Re-download from [Apple Developer portal](https://developer.apple.com/account/resources/certificates/list) if expired
-- For CI, re-export the P12 and update the `DEVELOPER_ID_CERT_P12` secret
-
-### Notarization rejected
-
-- Run `xcrun notarytool log <submission-id>` to see rejection details
-- Common causes: unsigned frameworks, hardened runtime not enabled, missing entitlements
-- Ensure `CODE_SIGN_INJECT_BASE_ENTITLEMENTS = NO` is set for release builds
-
-### CI workflow fails
-
-- Check that all required secrets are configured in repo Settings > Secrets
-- Verify the tag matches the `v*` pattern (e.g., `v1.2.0`)
-- Review the Actions log for specific build or signing errors
-
-### DMG won't open on other machines
-
-- Verify notarization: `make verify-notarize`
-- Check stapling: `xcrun stapler validate builds/WolfWave-*.dmg`
-- If Gatekeeper still blocks, the DMG may not be properly stapled — re-run `xcrun stapler staple`
+| `DEVELOPER_ID_CERT_PASSWORD` | Certificate password |
+| `APPLE_ID` | Apple ID for notarization |
+| `APPLE_TEAM_ID` | Apple Developer team ID |
+| `APPLE_APP_PASSWORD` | App-specific password |
+| `TWITCH_CLIENT_ID` | Twitch application client ID |
+| `DISCORD_CLIENT_ID` | Discord application client ID |

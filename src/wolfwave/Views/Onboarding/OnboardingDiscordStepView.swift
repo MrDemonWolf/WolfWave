@@ -32,22 +32,22 @@ struct OnboardingDiscordStepView: View {
                 Text("Discord Rich Presence")
                     .font(.system(size: 20, weight: .bold))
 
-                Text("Optional — you can set this up later in Settings.")
+                Text("Totally optional. You can always do this later.")
                     .font(.system(size: 13))
                     .foregroundStyle(.secondary)
             }
 
             VStack(spacing: 16) {
-                Text("Show what you're listening to on your Discord profile, just like Spotify does.")
+                Text("Your Discord status will show what song you're listening to — just like Spotify.")
                     .font(.system(size: 13))
                     .foregroundStyle(.secondary)
                     .multilineTextAlignment(.center)
 
                 HStack(spacing: 12) {
                     VStack(alignment: .leading, spacing: 2) {
-                        Text("Enable Discord Rich Presence")
+                        Text("Show music on Discord")
                             .font(.system(size: 13, weight: .medium))
-                        Text("Displays current track on your Discord profile")
+                        Text("Updates your Discord status with the current song")
                             .font(.system(size: 11))
                             .foregroundStyle(.tertiary)
                     }

@@ -94,11 +94,11 @@ final class WebSocketServerService: @unchecked Sendable {
                     : AppConstants.WebSocketServer.widgetDefaultPort
                 self.widgetHTTP = WidgetHTTPService(port: widgetPort)
                 self.widgetHTTP?.start()
-                Log.info("WebSocket: Widget HTTP server started", category: "WebSocket")
+                Log.info("WebSocketServerService: Widget HTTP server started", category: "WebSocket")
             } else {
                 self.widgetHTTP?.stop()
                 self.widgetHTTP = nil
-                Log.info("WebSocket: Widget HTTP server stopped", category: "WebSocket")
+                Log.info("WebSocketServerService: Widget HTTP server stopped", category: "WebSocket")
             }
         }
     }
@@ -208,7 +208,7 @@ final class WebSocketServerService: @unchecked Sendable {
 
         do {
             guard let nwPort = NWEndpoint.Port(rawValue: port) else {
-                Log.error("WebSocket: Invalid port \(port)", category: "WebSocket")
+                Log.error("WebSocketServerService: Invalid port \(port)", category: "WebSocket")
                 state = .error
                 notifyStateChange()
                 return
@@ -216,7 +216,7 @@ final class WebSocketServerService: @unchecked Sendable {
             parameters.requiredLocalEndpoint = NWEndpoint.hostPort(host: .ipv4(.loopback), port: nwPort)
             listener = try NWListener(using: parameters)
         } catch {
-            Log.error("WebSocket: Failed to create listener: \(error)", category: "WebSocket")
+            Log.error("WebSocketServerService: Failed to create listener: \(error)", category: "WebSocket")
             state = .error
             notifyStateChange()
             scheduleRetry()
@@ -228,10 +228,10 @@ final class WebSocketServerService: @unchecked Sendable {
             switch newState {
             case .ready:
                 self.state = .listening
-                Log.info("WebSocket: Listening on port \(self.port)", category: "WebSocket")
+                Log.info("WebSocketServerService: Listening on port \(self.port)", category: "WebSocket")
                 self.notifyStateChange()
             case .failed(let error):
-                Log.error("WebSocket: Listener failed: \(error)", category: "WebSocket")
+                Log.error("WebSocketServerService: Listener failed: \(error)", category: "WebSocket")
                 self.state = .error
                 self.notifyStateChange()
                 self.listener = nil
@@ -250,7 +250,7 @@ final class WebSocketServerService: @unchecked Sendable {
 
         listener?.start(queue: serverQueue)
 
-        let widgetHTTPEnabled = UserDefaults.standard.object(forKey: AppConstants.UserDefaults.widgetHTTPEnabled) as? Bool ?? true
+        let widgetHTTPEnabled = UserDefaults.standard.object(forKey: AppConstants.UserDefaults.widgetHTTPEnabled) as? Bool ?? false
         if widgetHTTPEnabled {
             let storedWidgetPort = UserDefaults.standard.integer(forKey: AppConstants.UserDefaults.widgetPort)
             let widgetPort: UInt16 = storedWidgetPort > 0
@@ -279,7 +279,7 @@ final class WebSocketServerService: @unchecked Sendable {
 
         state = .stopped
         notifyStateChange()
-        Log.info("WebSocket: Server stopped", category: "WebSocket")
+        Log.info("WebSocketServerService: Server stopped", category: "WebSocket")
     }
 
     /// Retries starting the server after a delay if still enabled.
@@ -290,7 +290,7 @@ final class WebSocketServerService: @unchecked Sendable {
 
         guard shouldRetry else { return }
 
-        Log.info("WebSocket: Retrying in \(AppConstants.WebSocketServer.retryDelay)s", category: "WebSocket")
+        Log.info("WebSocketServerService: Retrying in \(AppConstants.WebSocketServer.retryDelay)s", category: "WebSocket")
         serverQueue.asyncAfter(deadline: .now() + AppConstants.WebSocketServer.retryDelay) { [weak self] in
             guard let self else { return }
             self.enabledLock.lock()
@@ -312,14 +312,14 @@ final class WebSocketServerService: @unchecked Sendable {
                 self.connections.append(connection)
                 let count = self.connections.count
                 self.connectionsLock.unlock()
-                Log.info("WebSocket: Client connected (\(count) total)", category: "WebSocket")
+                Log.info("WebSocketServerService: Client connected (\(count) total)", category: "WebSocket")
                 self.notifyStateChange()
                 self.sendWelcome(to: connection)
                 self.sendCurrentState(to: connection)
                 self.sendWidgetConfig(to: connection)
                 self.receiveMessage(from: connection)
             case .failed(let error):
-                Log.debug("WebSocket: Client failed: \(error)", category: "WebSocket")
+                Log.debug("WebSocketServerService: Client failed: \(error)", category: "WebSocket")
                 self.removeConnection(connection)
             case .cancelled:
                 self.removeConnection(connection)
@@ -336,7 +336,7 @@ final class WebSocketServerService: @unchecked Sendable {
         let count = connections.count
         connectionsLock.unlock()
 
-        Log.debug("WebSocket: Client disconnected (\(count) remaining)", category: "WebSocket")
+        Log.debug("WebSocketServerService: Client disconnected (\(count) remaining)", category: "WebSocket")
         notifyStateChange()
     }
 
@@ -494,7 +494,7 @@ final class WebSocketServerService: @unchecked Sendable {
             contentContext: context,
             isComplete: true,
             completion: .contentProcessed { error in
-                if let error { Log.debug("WebSocket: Send failed: \(error)", category: "WebSocket") }
+                if let error { Log.debug("WebSocketServerService: Send failed: \(error)", category: "WebSocket") }
             }
         )
     }

@@ -48,7 +48,7 @@ struct DiscordSettingsView: View {
             // Section Header
             VStack(alignment: .leading, spacing: 6) {
                 HStack(alignment: .center, spacing: 10) {
-                    Text("Discord Integration")
+                    Text("Discord Status")
                         .font(.system(size: 17, weight: .semibold))
 
                     Spacer()
@@ -57,7 +57,7 @@ struct DiscordSettingsView: View {
                         .animation(.easeInOut(duration: 0.2), value: connectionState)
                 }
 
-                Text("Display your currently playing Apple Music track on your Discord profile, similar to Spotify's listening activity.")
+                Text("Show your music on your Discord profile.")
                     .font(.system(size: 13))
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
@@ -66,9 +66,9 @@ struct DiscordSettingsView: View {
             // Toggle Card
             HStack(spacing: 12) {
                 VStack(alignment: .leading, spacing: 2) {
-                    Text("Rich Presence")
+                    Text("Show Status")
                         .font(.system(size: 13, weight: .medium))
-                    Text("Displays song, artist, and album art on your Discord profile")
+                    Text("Displays the song and cover art on your profile")
                         .font(.system(size: 11))
                         .foregroundStyle(.tertiary)
                 }
@@ -96,7 +96,7 @@ struct DiscordSettingsView: View {
                     } label: {
                         switch testConnectionResult {
                         case .idle:
-                            Label("Test Connection", systemImage: "antenna.radiowaves.left.and.right")
+                            Label("Check Discord", systemImage: "antenna.radiowaves.left.and.right")
                                 .font(.system(size: 12, weight: .medium))
                         case .testing:
                             HStack(spacing: 6) {
@@ -120,7 +120,7 @@ struct DiscordSettingsView: View {
                     .disabled(testConnectionResult == .testing)
                     .pointerCursor()
                     .animation(.easeInOut(duration: 0.2), value: testConnectionResult)
-                    .help("Verifies Discord is running and can accept Rich Presence updates")
+                    .help("Checks if Discord is open and ready.")
                     .accessibilityLabel("Test Discord connection")
                     .accessibilityIdentifier("discordTestConnectionButton")
 

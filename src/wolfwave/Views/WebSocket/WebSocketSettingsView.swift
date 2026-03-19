@@ -18,7 +18,10 @@ struct WebSocketSettingsView: View {
     private var storedPort: Int = Int(AppConstants.WebSocketServer.defaultPort)
 
     @AppStorage(AppConstants.UserDefaults.widgetHTTPEnabled)
-    private var widgetHTTPEnabled = true
+    private var widgetHTTPEnabled = false
+
+    @AppStorage(AppConstants.UserDefaults.widgetPort)
+    private var storedWidgetPort: Int = Int(AppConstants.WebSocketServer.widgetDefaultPort)
 
     @AppStorage(AppConstants.UserDefaults.widgetTheme)
     private var widgetTheme = "Default"
@@ -33,11 +36,13 @@ struct WebSocketSettingsView: View {
     private var widgetBackgroundColor = "#1A1A2E"
 
     @AppStorage(AppConstants.UserDefaults.widgetFontFamily)
-    private var widgetFontFamily = "System"
+    private var widgetFontFamily = "System Default"
 
     // MARK: - State
 
+    @State private var fontSearch = ""
     @State private var portText: String = ""
+    @State private var widgetPortText: String = ""
     @State private var serverState: WebSocketServerService.ServerState = .stopped
     @State private var clientCount: Int = 0
     @State private var copiedWidgetURL = false
@@ -46,8 +51,7 @@ struct WebSocketSettingsView: View {
     private let cardPadding = AppConstants.SettingsUI.cardPadding
 
     private var widgetURL: String {
-        let widgetPort = UserDefaults.standard.integer(forKey: AppConstants.UserDefaults.widgetPort)
-        let port = widgetPort > 0 ? widgetPort : Int(AppConstants.WebSocketServer.widgetDefaultPort)
+        let port = storedWidgetPort > 0 ? storedWidgetPort : Int(AppConstants.WebSocketServer.widgetDefaultPort)
         return "http://localhost:\(port)"
     }
 
@@ -61,11 +65,23 @@ struct WebSocketSettingsView: View {
             && port <= AppConstants.WebSocketServer.maxPort
     }
 
+    private var isWidgetPortValid: Bool {
+        guard let port = UInt16(widgetPortText) else { return false }
+        return port >= AppConstants.WebSocketServer.minPort
+            && port <= AppConstants.WebSocketServer.maxPort
+    }
+
+    private var availableFonts: [String] {
+        let allFonts = NSFontManager.shared.availableFontFamilies.sorted()
+        if fontSearch.isEmpty { return allFonts }
+        return allFonts.filter { $0.localizedCaseInsensitiveContains(fontSearch) }
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: AppConstants.SettingsUI.sectionSpacing) {
             VStack(alignment: .leading, spacing: 6) {
                 HStack(alignment: .center, spacing: 10) {
-                    Text("OBS Widget")
+                    Text("Stream Widgets")
                         .font(.system(size: 17, weight: .semibold))
 
                     Spacer()
@@ -75,7 +91,7 @@ struct WebSocketSettingsView: View {
                         .animation(.easeInOut(duration: 0.2), value: clientCount)
                 }
 
-                Text("Display your currently playing track as an overlay on your stream.")
+                Text("Show your current song on your stream using a widget.")
                     .font(.system(size: 13))
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
@@ -89,6 +105,7 @@ struct WebSocketSettingsView: View {
         }
         .onAppear {
             portText = String(storedPort)
+            widgetPortText = String(storedWidgetPort)
             refreshServerState()
         }
         .onReceive(
@@ -110,6 +127,33 @@ struct WebSocketSettingsView: View {
 
     private var serverSettingsCard: some View {
         VStack(alignment: .leading, spacing: 0) {
+            // Enable toggle row
+            HStack(spacing: 12) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Enable Widget Server")
+                        .font(.system(size: 13, weight: .medium))
+                    Text("Required for the widget to work")
+                        .font(.system(size: 11))
+                        .foregroundStyle(.tertiary)
+                }
+                Spacer()
+                Toggle("", isOn: $websocketEnabled)
+                    .labelsHidden()
+                    .toggleStyle(.switch)
+                    .controlSize(.small)
+                    .pointerCursor()
+                    .accessibilityLabel("Enable WebSocket server")
+                    .accessibilityIdentifier("websocketEnabledToggle")
+                    .onChange(of: websocketEnabled) { _, newValue in
+                        notifyServerSettingChanged()
+                    }
+            }
+            .padding(.horizontal, cardPadding)
+            .padding(.vertical, 12)
+
+            Divider()
+                .padding(.leading, cardPadding)
+
             // Port row
             HStack(spacing: 12) {
                 VStack(alignment: .leading, spacing: 2) {
@@ -150,69 +194,10 @@ struct WebSocketSettingsView: View {
             Divider()
                 .padding(.leading, cardPadding)
 
-            // Enable toggle row
-            HStack(spacing: 12) {
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("Enable WebSocket server")
-                        .font(.system(size: 13, weight: .medium))
-                    Text("Broadcast now playing data to connected overlays")
-                        .font(.system(size: 11))
-                        .foregroundStyle(.tertiary)
-                }
-                Spacer()
-                Toggle("", isOn: $websocketEnabled)
-                    .labelsHidden()
-                    .toggleStyle(.switch)
-                    .controlSize(.small)
-                    .pointerCursor()
-                    .accessibilityLabel("Enable WebSocket server")
-                    .accessibilityIdentifier("websocketEnabledToggle")
-                    .onChange(of: websocketEnabled) { _, newValue in
-                        notifyServerSettingChanged()
-                    }
-            }
-            .padding(.horizontal, cardPadding)
-            .padding(.vertical, 12)
-
-            Divider()
-                .padding(.leading, cardPadding)
-
-            // Widget HTTP server toggle row
-            HStack(spacing: 12) {
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("Enable Widget Web Server")
-                        .font(.system(size: 13, weight: .medium))
-                    Text("Serves the overlay page at the Browser Source URL")
-                        .font(.system(size: 11))
-                        .foregroundStyle(.tertiary)
-                }
-                Spacer()
-                Toggle("", isOn: $widgetHTTPEnabled)
-                    .labelsHidden()
-                    .toggleStyle(.switch)
-                    .controlSize(.small)
-                    .pointerCursor()
-                    .disabled(!websocketEnabled)
-                    .accessibilityLabel("Enable Widget Web Server")
-                    .accessibilityIdentifier("widgetHTTPEnabledToggle")
-                    .onChange(of: widgetHTTPEnabled) { _, _ in
-                        NotificationCenter.default.post(
-                            name: NSNotification.Name(AppConstants.Notifications.widgetHTTPServerChanged),
-                            object: nil
-                        )
-                    }
-            }
-            .padding(.horizontal, cardPadding)
-            .padding(.vertical, 12)
-            .opacity(websocketEnabled ? 1.0 : 0.5)
-
-            Divider()
-                .padding(.leading, cardPadding)
-
             // Connection URL row
             HStack(spacing: 8) {
                 VStack(alignment: .leading, spacing: 2) {
-                    Text("Connection URL")
+                    Text("Local Address")
                         .font(.system(size: 11, weight: .medium))
                         .foregroundStyle(.secondary)
                     Text(connectionURL)
@@ -239,6 +224,7 @@ struct WebSocketSettingsView: View {
             }
             .padding(.horizontal, cardPadding)
             .padding(.vertical, 12)
+
         }
         .background(Color(nsColor: .controlBackgroundColor))
         .clipShape(RoundedRectangle(cornerRadius: AppConstants.SettingsUI.cardCornerRadius))
@@ -247,22 +233,104 @@ struct WebSocketSettingsView: View {
     // MARK: - Browser Source Card
 
     private var browserSourceCard: some View {
-        VStack(alignment: .leading, spacing: 12) {
+        VStack(alignment: .leading, spacing: 0) {
+            // Header
             VStack(alignment: .leading, spacing: 6) {
                 HStack(spacing: 8) {
                     Image(systemName: "rectangle.inset.filled.and.person.filled")
                         .font(.system(size: 14))
                         .foregroundStyle(Color(nsColor: .controlAccentColor))
-                    Text("Browser Source URL")
+                    Text("OBS Setup")
                         .font(.system(size: 15, weight: .semibold))
                 }
 
-                Text("Copy this URL and paste it into a Browser Source in OBS.")
+                Text("Copy this link and add it as a 'Browser' source in OBS.")
                     .font(.system(size: 12))
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
             }
+            .padding(.horizontal, cardPadding)
+            .padding(.top, cardPadding)
+            .padding(.bottom, 12)
 
+            Divider()
+                .padding(.leading, cardPadding)
+
+            // Widget HTTP server toggle row
+            HStack(spacing: 12) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Enable Visual Widget")
+                        .font(.system(size: 13, weight: .medium))
+                    Text("This creates the webpage for your stream")
+                        .font(.system(size: 11))
+                        .foregroundStyle(.tertiary)
+                }
+                Spacer()
+                Toggle("", isOn: $widgetHTTPEnabled)
+                    .labelsHidden()
+                    .toggleStyle(.switch)
+                    .controlSize(.small)
+                    .pointerCursor()
+                    .disabled(!websocketEnabled)
+                    .accessibilityLabel("Enable Widget Web Server")
+                    .accessibilityIdentifier("widgetHTTPEnabledToggle")
+                    .onChange(of: widgetHTTPEnabled) { _, _ in
+                        NotificationCenter.default.post(
+                            name: NSNotification.Name(AppConstants.Notifications.widgetHTTPServerChanged),
+                            object: nil
+                        )
+                    }
+            }
+            .padding(.horizontal, cardPadding)
+            .padding(.vertical, 12)
+            .opacity(websocketEnabled ? 1.0 : 0.5)
+
+            Divider()
+                .padding(.leading, cardPadding)
+
+            // Widget port row
+            HStack(spacing: 12) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Widget Port (Advanced)")
+                        .font(.system(size: 13, weight: .medium))
+                    Text(verbatim: "Default: \(AppConstants.WebSocketServer.widgetDefaultPort)")
+                        .font(.system(size: 11))
+                        .foregroundStyle(.tertiary)
+                }
+
+                Spacer()
+
+                TextField("Port", text: $widgetPortText)
+                    .textFieldStyle(.roundedBorder)
+                    .frame(width: 80)
+                    .multilineTextAlignment(.center)
+                    .disabled(!websocketEnabled || !widgetHTTPEnabled)
+                    .accessibilityLabel("Widget server port")
+                    .accessibilityIdentifier("widgetPortField")
+                    .onSubmit {
+                        applyWidgetPort()
+                    }
+            }
+            .padding(.horizontal, cardPadding)
+            .padding(.vertical, 12)
+            .opacity(websocketEnabled && widgetHTTPEnabled ? 1.0 : 0.5)
+
+            if !widgetPortText.isEmpty && !isWidgetPortValid {
+                HStack(spacing: 6) {
+                    Image(systemName: "exclamationmark.circle.fill")
+                        .font(.system(size: 11))
+                    Text(verbatim: "Port must be between \(AppConstants.WebSocketServer.minPort) and \(AppConstants.WebSocketServer.maxPort).")
+                        .font(.system(size: 11))
+                }
+                .foregroundStyle(.red)
+                .padding(.horizontal, cardPadding)
+                .padding(.bottom, 8)
+            }
+
+            Divider()
+                .padding(.leading, cardPadding)
+
+            // Browser Source URL
             VStack(alignment: .leading, spacing: 8) {
                 Text(widgetURL)
                     .font(.system(size: 11, design: .monospaced))
@@ -281,7 +349,7 @@ struct WebSocketSettingsView: View {
                         HStack(spacing: 4) {
                             Image(systemName: copiedWidgetURL ? "checkmark" : "doc.on.doc")
                                 .font(.system(size: 11))
-                            Text(copiedWidgetURL ? "Copied" : "Copy URL")
+                            Text(copiedWidgetURL ? "Copied" : "Copy Link")
                                 .font(.system(size: 11))
                         }
                     }
@@ -304,16 +372,20 @@ struct WebSocketSettingsView: View {
                     }
                     .buttonStyle(.bordered)
                     .controlSize(.small)
+                    .disabled(!websocketEnabled || !widgetHTTPEnabled)
                     .accessibilityLabel("Open widget in browser")
                     .accessibilityIdentifier("openWidgetURLButton")
                 }
             }
+            .padding(.horizontal, cardPadding)
+            .padding(.vertical, 12)
 
+            // Info tip
             HStack(alignment: .top, spacing: 8) {
                 Image(systemName: "info.circle.fill")
                     .font(.system(size: 12))
                     .foregroundStyle(.blue)
-                Text("Set the Browser Source size to **\(AppConstants.Widget.recommendedDimensionsText)** for best results. Enable \"Shutdown source when not visible\" for clean reconnects.")
+                Text("In OBS, set the Width and Height to **\(AppConstants.Widget.recommendedDimensionsText)** for best results. Enable \"Shutdown source when not visible\" for clean reconnects.")
                     .font(.system(size: 11))
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
@@ -322,8 +394,11 @@ struct WebSocketSettingsView: View {
             .frame(maxWidth: .infinity, alignment: .leading)
             .background(Color.blue.opacity(0.08))
             .clipShape(RoundedRectangle(cornerRadius: 6))
+            .padding(.horizontal, cardPadding)
+            .padding(.bottom, cardPadding)
         }
-        .cardStyle()
+        .background(Color(nsColor: .controlBackgroundColor))
+        .clipShape(RoundedRectangle(cornerRadius: AppConstants.SettingsUI.cardCornerRadius))
     }
 
     // MARK: - Widget Appearance Card
@@ -340,7 +415,7 @@ struct WebSocketSettingsView: View {
                         .font(.system(size: 15, weight: .semibold))
                 }
 
-                Text("Customize the look of your stream overlay widget.")
+                Text("Tweak colors, fonts, and layout for your overlay.")
                     .font(.system(size: 12))
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
@@ -397,7 +472,7 @@ struct WebSocketSettingsView: View {
             .padding(.horizontal, cardPadding)
             .padding(.vertical, 12)
 
-            if widgetTheme == "Default" {
+            if widgetTheme == "Default" || widgetTheme == "Glass" {
                 Divider()
                     .padding(.leading, cardPadding)
 
@@ -460,15 +535,10 @@ struct WebSocketSettingsView: View {
                     .font(.system(size: 13, weight: .medium))
                 Spacer()
                 Picker("", selection: $widgetFontFamily) {
-                    Section("Built-in") {
-                        ForEach(AppConstants.Widget.builtInFonts, id: \.self) { font in
-                            Text(font).tag(font)
-                        }
-                    }
-                    Section("Google Fonts") {
-                        ForEach(AppConstants.Widget.googleFonts, id: \.self) { font in
-                            Text(font).tag(font)
-                        }
+                    Text("System Default").tag("System Default")
+                    Divider()
+                    ForEach(availableFonts, id: \.self) { font in
+                        Text(font).tag(font)
                     }
                 }
                 .labelsHidden()
@@ -522,6 +592,15 @@ struct WebSocketSettingsView: View {
         guard isPortValid, let port = UInt16(portText) else { return }
         storedPort = Int(port)
         notifyServerSettingChanged(port: port)
+    }
+
+    private func applyWidgetPort() {
+        guard isWidgetPortValid, let port = UInt16(widgetPortText) else { return }
+        storedWidgetPort = Int(port)
+        NotificationCenter.default.post(
+            name: NSNotification.Name(AppConstants.Notifications.widgetHTTPServerChanged),
+            object: nil
+        )
     }
 
     private func notifyServerSettingChanged(port: UInt16? = nil) {
