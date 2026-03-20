@@ -1,0 +1,77 @@
+<svg viewBox="8 2 84 94" width="512" height="512" xmlns="http://www.w3.org/2000/svg">
+  <!--
+    WolfWave — logo.svg
+    Color version · transparent background
+    MrDemonWolf, Inc. · github.com/MrDemonWolf/wolfwave
+  -->
+  <defs>
+    <linearGradient id="bar" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%"   stop-color="#0FACED"/>
+      <stop offset="100%" stop-color="#0FACED" stop-opacity=".28"/>
+    </linearGradient>
+    <filter id="eye-glow" x="-100%" y="-100%" width="300%" height="300%">
+      <feGaussianBlur stdDeviation="2" result="b"/>
+      <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+    <filter id="ear-glow" x="-80%" y="-40%" width="260%" height="180%">
+      <feGaussianBlur stdDeviation="2" result="b"/>
+      <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  </defs>
+
+  <!-- EQ BARS LEFT -->
+  <rect x="25"   y="38" width="4.5" height="35" rx="2.25" fill="url(#bar)"/>
+  <rect x="18.5" y="47" width="4.5" height="26" rx="2.25" fill="url(#bar)" opacity=".75"/>
+  <rect x="12"   y="55" width="4.5" height="18" rx="2.25" fill="url(#bar)" opacity=".50"/>
+  <rect x="5.5"  y="62" width="4.5" height="11" rx="2.25" fill="url(#bar)" opacity=".28"/>
+
+  <!-- EQ BARS RIGHT -->
+  <rect x="70.5" y="38" width="4.5" height="35" rx="2.25" fill="url(#bar)"/>
+  <rect x="77"   y="47" width="4.5" height="26" rx="2.25" fill="url(#bar)" opacity=".75"/>
+  <rect x="83.5" y="55" width="4.5" height="18" rx="2.25" fill="url(#bar)" opacity=".50"/>
+  <rect x="90"   y="62" width="4.5" height="11" rx="2.25" fill="url(#bar)" opacity=".28"/>
+
+  <!-- EARS OUTER -->
+  <polygon points="29,40 33,4 48,35"  fill="#6A8FB0"/>
+  <polygon points="71,40 67,4 52,35"  fill="#6A8FB0"/>
+
+  <!-- EARS INNER — cyan -->
+  <polygon points="32,38 35.5,9 46,33" fill="#0FACED"/>
+  <polygon points="68,38 64.5,9 54,33" fill="#0FACED"/>
+  <polygon points="32,38 35.5,9 46,33" fill="#0FACED" filter="url(#ear-glow)" opacity=".28"/>
+  <polygon points="68,38 64.5,9 54,33" fill="#0FACED" filter="url(#ear-glow)" opacity=".28"/>
+
+  <!-- SKULL -->
+  <path d="M50,18 C61,16 72,26 72,42 L70,57 L62,67 L50,71 L38,67 L30,57 L28,42 C28,26 39,16 50,18Z"
+        fill="#A8C4DC"/>
+
+  <!-- MUZZLE -->
+  <path d="M38,53 Q50,51 62,53 L60,67 Q50,77 40,67Z"
+        fill="#C8DDF0"/>
+
+  <!-- NOSE -->
+  <path d="M42,53 C42,46 58,46 58,53 C58,61 51,65 50,65 C49,65 42,61 42,53Z"
+        fill="#060E20"/>
+  <ellipse cx="46" cy="51.5" rx="3" ry="1.8" fill="#142030" opacity=".5"/>
+
+  <!-- LEFT EYE -->
+  <path d="M32,43 C34,37.5 44.5,37.5 46.5,43 C44.5,48.5 34,48.5 32,43Z"
+        fill="#060E20"/>
+  <ellipse cx="39.5" cy="43" rx="4.5" ry="3.8" fill="#0FACED" filter="url(#eye-glow)"/>
+  <ellipse cx="39.5" cy="43" rx="3.0" ry="2.6" fill="#0FACED"/>
+  <circle  cx="39.5" cy="43" r="1.4" fill="#071220"/>
+  <circle  cx="40.8" cy="41.5" r="1.2" fill="#D4F6FF"/>
+
+  <!-- RIGHT EYE -->
+  <path d="M53.5,43 C55.5,37.5 66,37.5 68,43 C66,48.5 55.5,48.5 53.5,43Z"
+        fill="#060E20"/>
+  <ellipse cx="60.5" cy="43" rx="4.5" ry="3.8" fill="#0FACED" filter="url(#eye-glow)"/>
+  <ellipse cx="60.5" cy="43" rx="3.0" ry="2.6" fill="#0FACED"/>
+  <circle  cx="60.5" cy="43" r="1.4" fill="#071220"/>
+  <circle  cx="61.8" cy="41.5" r="1.2" fill="#D4F6FF"/>
+
+  <!-- BROW — V shape, the wolf read -->
+  <path d="M29,40 Q38,34 46.5,39 Q50,36.5 53.5,39 Q62,34 71,40"
+        fill="none" stroke="#2A3E54" stroke-width="3"
+        stroke-linecap="round" stroke-linejoin="round"/>
+</svg>
