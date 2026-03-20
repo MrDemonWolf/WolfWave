@@ -6,8 +6,7 @@ export function baseOptions(): BaseLayoutProps {
     nav: {
       title: (
         <div className="flex items-center gap-2">
-          <img src={getAssetPath("/logo-light.png")} alt="WolfWave" className="h-6 w-auto dark:hidden" />
-          <img src={getAssetPath("/logo-dark.png")} alt="WolfWave" className="h-6 w-auto hidden dark:block" />
+          <img src={getAssetPath("/logo.svg")} alt="WolfWave" className="h-6 w-auto" />
           <span className="font-bold text-lg tracking-tight">WolfWave</span>
         </div>
       ),

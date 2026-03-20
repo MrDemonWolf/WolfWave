@@ -54,8 +54,7 @@ export default function HomePage() {
         <div className="mx-auto max-w-4xl text-center relative z-10">
           <div className="mb-8 flex justify-center">
              <div className="rounded-2xl bg-slate-900/5 dark:bg-white/5 p-4 backdrop-blur-sm ring-1 ring-slate-900/10 dark:ring-white/10 shadow-xl">
-               <img src={getAssetPath("/logo-light.png")} alt="WolfWave Logo" className="h-16 w-auto dark:hidden" />
-               <img src={getAssetPath("/logo-dark.png")} alt="WolfWave Logo" className="h-16 w-auto hidden dark:block" />
+               <img src={getAssetPath("/logo.svg")} alt="WolfWave Logo" className="h-16 w-auto" />
              </div>
           </div>
           <h1 className="text-4xl sm:text-6xl lg:text-7xl font-extrabold tracking-tight leading-[1.05] mb-8">
