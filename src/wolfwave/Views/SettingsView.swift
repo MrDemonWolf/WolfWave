@@ -43,14 +43,14 @@ struct SettingsView: View {
     /// Navigation sections in the settings sidebar.
     enum SettingsSection: String, CaseIterable, Identifiable {
         case general = "General"
-        case websocket = "Stream Widgets"
+        case websocket = "Now-Playing Widget"
         case twitchIntegration = "Twitch Integration"
         case discord = "Discord Integration"
         case advanced = "Advanced"
 
         var id: String { rawValue }
 
-        /// SF Symbol name for the sidebar icon.
+        /// SF Symbol name for the sidebar icon (used as fallback when no brand icon exists).
         var systemIcon: String {
             switch self {
             case .general: return "gear"
@@ -58,6 +58,16 @@ struct SettingsView: View {
             case .twitchIntegration: return "message.badge.waveform"
             case .discord: return "headphones"
             case .advanced: return "gearshape.2"
+            }
+        }
+
+        /// Asset catalog name for brand icons, `nil` for sections using SF Symbols.
+        var brandIcon: String? {
+            switch self {
+            case .twitchIntegration: return "TwitchLogo"
+            case .discord: return "DiscordLogo"
+            case .websocket: return "OBSLogo"
+            default: return nil
             }
         }
     }
@@ -223,9 +233,22 @@ struct SettingsView: View {
 
     @ViewBuilder
     private func sidebarRow(for section: SettingsSection) -> some View {
-        Label(section.rawValue, systemImage: section.systemIcon)
+        if let brandIcon = section.brandIcon {
+            Label {
+                Text(section.rawValue)
+            } icon: {
+                Image(brandIcon)
+                    .resizable()
+                    .aspectRatio(contentMode: .fit)
+                    .frame(width: 16, height: 16)
+            }
             .accessibilityLabel(Text(section.rawValue))
             .accessibilityIdentifier(section.rawValue.replacingOccurrences(of: " ", with: "-").lowercased())
+        } else {
+            Label(section.rawValue, systemImage: section.systemIcon)
+                .accessibilityLabel(Text(section.rawValue))
+                .accessibilityIdentifier(section.rawValue.replacingOccurrences(of: " ", with: "-").lowercased())
+        }
     }
     
     private func twitchIntegrationView() -> some View {
@@ -246,7 +269,7 @@ struct SettingsView: View {
                             .font(.system(size: 15, weight: .semibold))
                     }
 
-                    Text("Choose which commands your viewers can use in chat.")
+                    Text("Choose which commands people can use in chat.")
                         .font(.system(size: 13))
                         .foregroundStyle(.secondary)
                 }
@@ -424,7 +447,7 @@ struct SettingsView: View {
         )
 
         // Clear UserDefaults
-        [AppConstants.UserDefaults.trackingEnabled, AppConstants.UserDefaults.currentSongCommandEnabled, AppConstants.UserDefaults.lastSongCommandEnabled, AppConstants.UserDefaults.dockVisibility, AppConstants.UserDefaults.websocketEnabled, AppConstants.UserDefaults.websocketURI, AppConstants.UserDefaults.websocketServerPort, AppConstants.UserDefaults.hasCompletedOnboarding, AppConstants.UserDefaults.discordPresenceEnabled, AppConstants.UserDefaults.widgetHTTPEnabled].forEach {
+        [AppConstants.UserDefaults.trackingEnabled, AppConstants.UserDefaults.currentSongCommandEnabled, AppConstants.UserDefaults.lastSongCommandEnabled, AppConstants.UserDefaults.dockVisibility, AppConstants.UserDefaults.websocketEnabled, AppConstants.UserDefaults.websocketURI, AppConstants.UserDefaults.websocketServerPort, AppConstants.UserDefaults.hasCompletedOnboarding, AppConstants.UserDefaults.discordPresenceEnabled, AppConstants.UserDefaults.widgetHTTPEnabled, AppConstants.UserDefaults.widgetPort, AppConstants.UserDefaults.widgetTheme, AppConstants.UserDefaults.widgetLayout, AppConstants.UserDefaults.widgetTextColor, AppConstants.UserDefaults.widgetBackgroundColor, AppConstants.UserDefaults.widgetFontFamily, AppConstants.UserDefaults.songCommandGlobalCooldown, AppConstants.UserDefaults.songCommandUserCooldown, AppConstants.UserDefaults.lastSongCommandGlobalCooldown, AppConstants.UserDefaults.lastSongCommandUserCooldown].forEach {
             UserDefaults.standard.removeObject(forKey: $0)
         }
 

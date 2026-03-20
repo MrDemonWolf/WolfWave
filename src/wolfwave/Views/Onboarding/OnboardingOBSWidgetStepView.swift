@@ -42,7 +42,7 @@ struct OnboardingOBSWidgetStepView: View {
                     .foregroundStyle(.blue)
                     .accessibilityHidden(true)
 
-                Text("Stream Overlay")
+                Text("Now-Playing Widget")
                     .font(.system(size: 20, weight: .bold))
 
                 Text("Totally optional. You can always do this later.")
@@ -51,16 +51,16 @@ struct OnboardingOBSWidgetStepView: View {
             }
 
             VStack(spacing: 16) {
-                Text("Show a now-playing widget on your stream via OBS.")
+                Text("Display a now-playing widget in OBS or any browser.")
                     .font(.system(size: 13))
                     .foregroundStyle(.secondary)
                     .multilineTextAlignment(.center)
 
                 HStack(spacing: 12) {
                     VStack(alignment: .leading, spacing: 2) {
-                        Text("Enable stream overlay")
+                        Text("Enable now-playing widget")
                             .font(.system(size: 13, weight: .medium))
-                        Text("Runs a small local server so OBS can display your track")
+                        Text("Runs a small local server so your widget stays up to date")
                             .font(.system(size: 11))
                             .foregroundStyle(.tertiary)
                     }
@@ -70,7 +70,7 @@ struct OnboardingOBSWidgetStepView: View {
                         .toggleStyle(.switch)
                         .controlSize(.regular)
                         .pointerCursor()
-                        .accessibilityLabel("Enable OBS Widget server")
+                        .accessibilityLabel("Enable now-playing widget server")
                         .accessibilityIdentifier("onboardingWebsocketToggle")
                         .onChange(of: websocketEnabled) { _, newValue in
                             NotificationCenter.default.post(
@@ -131,7 +131,7 @@ struct OnboardingOBSWidgetStepView: View {
                             .font(.system(size: 11))
                             .foregroundStyle(.secondary)
 
-                        Text("Customize colors and layout in Settings → Stream Widgets")
+                        Text("Customize colors and layout in Settings → Now-Playing Widget")
                             .font(.system(size: 11))
                             .foregroundStyle(.secondary)
                     }

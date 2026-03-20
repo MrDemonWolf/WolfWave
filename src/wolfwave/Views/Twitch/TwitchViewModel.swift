@@ -191,6 +191,7 @@ final class TwitchViewModel: ObservableObject {
     var oAuthTask: Task<Void, Never>?
     /// Debounce task for saving channel ID to avoid excessive Keychain writes
     private var channelIDSaveTask: Task<Void, Never>?
+    private var pendingAuthResetTask: Task<Void, Never>?
 
     /// Tracked notification observer tokens for proper cleanup
     private var reauthObserver: NSObjectProtocol?
@@ -350,6 +351,7 @@ final class TwitchViewModel: ObservableObject {
         devicePollingTask?.cancel()
         oAuthTask?.cancel()
         channelIDSaveTask?.cancel()
+        pendingAuthResetTask?.cancel()
         if let token = reauthObserver {
             NotificationCenter.default.removeObserver(token)
         }
@@ -756,8 +758,10 @@ final class TwitchViewModel: ObservableObject {
 
     /// Resets `testAuthResult` back to `.idle` after 3 seconds.
     private func scheduleTestAuthReset() {
-        Task { @MainActor in
+        pendingAuthResetTask?.cancel()
+        pendingAuthResetTask = Task { @MainActor in
             try? await Task.sleep(nanoseconds: 3_000_000_000)
+            guard !Task.isCancelled else { return }
             self.testAuthResult = .idle
         }
     }
@@ -834,6 +838,10 @@ final class TwitchViewModel: ObservableObject {
             statusMessage = "⚠️ Could not resolve bot identity: \(error.localizedDescription)"
             authState = .error(error.localizedDescription)
         }
+        // Ensure botUsername is up-to-date from Keychain even if the
+        // identity resolution path above didn't set it (e.g. partial failure).
+        self.botUsername = KeychainService.loadTwitchUsername() ?? ""
+
         // Ensure any polling/outer tasks are cleared after success
         devicePollingTask = nil
         oAuthTask = nil

@@ -24,8 +24,11 @@ final class TwitchDeviceAuthErrorTests: XCTestCase {
         ]
 
         for error in errors {
-            XCTAssertNotNil(error.errorDescription, "Error \(error) should have a non-nil errorDescription")
-            XCTAssertFalse(error.errorDescription!.isEmpty, "Error \(error) should have a non-empty errorDescription")
+            guard let desc = error.errorDescription else {
+                XCTFail("Expected non-nil errorDescription for \(error)")
+                return
+            }
+            XCTAssertFalse(desc.isEmpty, "Error \(error) should have a non-empty errorDescription")
         }
     }
 
@@ -85,7 +88,10 @@ final class TwitchDeviceAuthErrorTests: XCTestCase {
         ]
 
         for error in errors {
-            let desc = error.errorDescription!
+            guard let desc = error.errorDescription else {
+                XCTFail("Expected non-nil errorDescription for \(error)")
+                return
+            }
             // Should not contain technical jargon like "nil", "null", error codes
             XCTAssertFalse(desc.contains("nil"), "Description should not contain 'nil': \(desc)")
             XCTAssertFalse(desc.contains("null"), "Description should not contain 'null': \(desc)")

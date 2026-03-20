@@ -1,31 +1,42 @@
 <p align="center">
-  <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="logo-dark.png" />
-    <source media="(prefers-color-scheme: light)" srcset="logo-light.png" />
-    <img src="logo-light.png" alt="WolfWave" width="200" />
-  </picture>
+  <img src="assets/logo.svg" alt="WolfWave" width="200" />
 </p>
 
 <h1 align="center">WolfWave - Your Music, Everywhere</h1>
 
-<!-- ![WolfWave Banner](banner.jpg) -->
+<p align="center">
+  A native macOS menu bar app that shares what you're listening to on Apple Music with your Twitch chat, Discord profile, and stream overlays — automatically.
+</p>
 
-A native macOS menu bar app that bridges Apple Music with Twitch, Discord, and your stream overlays. Real-time now playing detection, automated chat commands, Discord Rich Presence with dynamic album art, and WebSocket streaming — all from your menu bar.
+<p align="center">
+  <a href="https://github.com/MrDemonWolf/WolfWave/releases">Download</a> &bull;
+  <a href="https://mrdemonwolf.github.io/wolfwave">Docs</a> &bull;
+  <a href="CHANGELOG.md">Changelog</a> &bull;
+  <a href="https://mrdwolf.net/discord">Discord</a>
+</p>
 
 ## Features
 
-- **Real-time Now Playing** — Track Apple Music and broadcast instantly via ScriptingBridge
-- **Twitch Chat Bot** — `!song`, `!currentsong`, `!nowplaying`, `!lastsong` via EventSub + Helix
-- **Discord Rich Presence** — Show "Listening to Apple Music" on your Discord profile with dynamic album art and playback progress
-- **OBS Stream Widget** — Built-in browser source overlay for OBS via local WebSocket server
-- **Automatic Updates** — Checks GitHub Releases for new versions with Homebrew and DMG support
-- **Secure by Default** — All credentials stored in macOS Keychain; no plain-text tokens
-- **First-Launch Onboarding** — Guided setup wizard (Welcome, Twitch, Discord, OBS Widget)
+- **Now Playing in Twitch Chat** — Viewers type `!song` and instantly see what you're listening to
+- **Discord Rich Presence** — Show "Listening to Apple Music" on your profile with album art
+- **OBS Stream Widget** — Drop-in browser source overlay that displays your current track
+- **Automatic Updates** — Stay up to date via Sparkle (DMG) or Homebrew (`brew upgrade --cask`)
+- **Secure by Default** — Credentials stored in macOS Keychain, never plain text
+- **Easy Setup** — Guided onboarding wizard gets you connected in minutes
 
 ## Getting Started
 
-1. Download the latest DMG from the [GitHub Releases](https://github.com/MrDemonWolf/WolfWave/releases) page
-2. Open the DMG and drag **WolfWave** to your **Applications** folder
+### Homebrew (recommended)
+
+```bash
+brew tap mrdemonwolf/den
+brew install --cask wolfwave
+```
+
+### Manual Download
+
+1. Grab the latest `.dmg` from [GitHub Releases](https://github.com/MrDemonWolf/WolfWave/releases)
+2. Open the DMG and drag **WolfWave** to **Applications**
 3. Launch WolfWave and follow the onboarding wizard
 
 > The app is signed and notarized by Apple — no Gatekeeper warnings.
@@ -34,22 +45,20 @@ A native macOS menu bar app that bridges Apple Music with Twitch, Discord, and y
 
 ### Chat Commands
 
-| Command        | Description              |
-| -------------- | ------------------------ |
-| `!song`        | Current playing song     |
-| `!currentsong` | Current playing song     |
-| `!nowplaying`  | Current playing song     |
-| `!lastsong`    | Previously played song   |
-| `!last`        | Previously played song   |
-| `!prevsong`    | Previously played song   |
+Your viewers can use these commands in Twitch chat:
+
+| Command                                | What it does             |
+| -------------------------------------- | ------------------------ |
+| `!song` · `!currentsong` · `!nowplaying` | Shows the current track  |
+| `!lastsong` · `!last` · `!prevsong`      | Shows the previous track |
 
 ### Discord Rich Presence
 
-Enable in **Settings > Discord** to show what you're listening to on your Discord profile. Album artwork is fetched automatically from the iTunes Search API — no manual setup needed.
+Enable in **Settings > Discord Integration** to show what you're listening to on your Discord profile. Album artwork is fetched automatically — no manual setup needed.
 
 ### OBS Stream Widget
 
-Enable in **Settings > OBS Widget** to start a local WebSocket server that powers a browser source overlay for OBS. Copy the widget URL and add it as a Browser Source (500 x 120) to display your now-playing track on stream.
+Enable in **Settings > Stream Widgets** to start a local WebSocket server that powers a browser source overlay. Copy the widget URL and add it as a Browser Source (500 x 120) in OBS to display your now-playing track on stream.
 
 ## Development
 
@@ -94,41 +103,10 @@ Open **http://localhost:3000/widget/?port=8765** to preview the OBS stream widge
 | `make clean`       | Clean build artifacts                    |
 | `make prod-build`  | Release build + DMG                      |
 | `make notarize`    | Notarize the DMG (requires Developer ID) |
-| `make test`        | Run unit tests (190 tests)               |
+| `make test`        | Run unit tests (210 tests)               |
 | `make open-xcode`  | Open Xcode project                       |
 | `make update-deps` | Resolve SwiftPM dependencies             |
 
-## Releasing
-
-### 1. Build the DMG
-
-```bash
-make prod-build
-```
-
-This builds a Release `.app`, re-signs it with your Developer ID certificate, and packages it into `builds/WolfWave-<VERSION>-arm64.dmg`.
-
-### 2. Notarize
-
-```bash
-APPLE_ID=you@example.com \
-APPLE_TEAM_ID=XXXXXXXXXX \
-APPLE_APP_PASSWORD=xxxx-xxxx-xxxx-xxxx \
-make notarize
-```
-
-This signs the DMG, submits it to Apple's notary service, waits for approval, and staples the ticket.
-
-> Generate an app-specific password at [appleid.apple.com](https://appleid.apple.com) under **Sign-In and Security > App-Specific Passwords**.
-
-### 3. Tag and release
-
-```bash
-git tag v1.0.0
-git push origin v1.0.0
-```
-
-Pushing a tag triggers CI which builds the DMG and creates a GitHub Release automatically. You can then replace the CI-built DMG with your locally notarized one, or upload it manually.
 
 ## Testing
 
@@ -142,16 +120,17 @@ Or in Xcode with **Cmd+U**. Tests cover bot commands, version comparison, onboar
 
 ## Documentation
 
-For complete documentation, visit: **[mrdemonwolf.github.io/wolfwave](https://mrdemonwolf.github.io/wolfwave)**
+Full docs at **[mrdemonwolf.github.io/wolfwave](https://mrdemonwolf.github.io/wolfwave)**
 
-- [Features](https://mrdemonwolf.github.io/wolfwave/docs/features) — Complete feature list
-- [Installation](https://mrdemonwolf.github.io/wolfwave/docs/installation) — Download and setup
-- [Usage Guide](https://mrdemonwolf.github.io/wolfwave/docs/usage) — How to use WolfWave
-- [Bot Commands](https://mrdemonwolf.github.io/wolfwave/docs/bot-commands) — Chat command reference
-- [Development](https://mrdemonwolf.github.io/wolfwave/docs/development) — Contributing guide
-- [Architecture](https://mrdemonwolf.github.io/wolfwave/docs/architecture) — Project structure
-- [Privacy Policy](https://mrdemonwolf.github.io/wolfwave/docs/privacy-policy) — Privacy practices
-- [Terms of Service](https://mrdemonwolf.github.io/wolfwave/docs/terms-of-service) — Usage terms
+- [Installation](https://mrdemonwolf.github.io/wolfwave/docs/installation)
+- [Usage Guide](https://mrdemonwolf.github.io/wolfwave/docs/usage)
+- [Bot Commands](https://mrdemonwolf.github.io/wolfwave/docs/bot-commands)
+- [Features](https://mrdemonwolf.github.io/wolfwave/docs/features)
+- [Privacy Policy](https://mrdemonwolf.github.io/wolfwave/docs/privacy-policy)
+
+## Contributing
+
+Want to contribute? Check out the [Development Guide](https://mrdemonwolf.github.io/wolfwave/docs/development) for build instructions, architecture overview, and testing info.
 
 ## License
 

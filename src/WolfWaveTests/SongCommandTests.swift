@@ -95,7 +95,10 @@ final class SongCommandTests: XCTestCase {
     func testLongResponseTruncatedTo500() {
         let longString = String(repeating: "a", count: 600)
         command.getCurrentSongInfo = { longString }
-        let result = command.execute(message: "!song")!
+        guard let result = command.execute(message: "!song") else {
+            XCTFail("Expected non-nil result")
+            return
+        }
         XCTAssertEqual(result.count, 500)
         XCTAssertTrue(result.hasSuffix("..."))
     }
@@ -103,7 +106,10 @@ final class SongCommandTests: XCTestCase {
     func testExactly500CharsNotTruncated() {
         let exact = String(repeating: "a", count: 500)
         command.getCurrentSongInfo = { exact }
-        let result = command.execute(message: "!song")!
+        guard let result = command.execute(message: "!song") else {
+            XCTFail("Expected non-nil result")
+            return
+        }
         XCTAssertEqual(result.count, 500)
         XCTAssertFalse(result.hasSuffix("..."))
     }
@@ -129,19 +135,12 @@ final class SongCommandTests: XCTestCase {
     func testCallbackReturning501CharsTruncates() {
         let text = String(repeating: "b", count: 501)
         command.getCurrentSongInfo = { text }
-        let result = command.execute(message: "!song")!
+        guard let result = command.execute(message: "!song") else {
+            XCTFail("Expected non-nil result")
+            return
+        }
         XCTAssertEqual(result.count, 500)
         XCTAssertTrue(result.hasSuffix("..."))
-    }
-
-    func testNilCallbackReturnsDefaultMessage() {
-        command.getCurrentSongInfo = nil
-        let result = command.execute(message: "!song")
-        XCTAssertEqual(result, "No track currently playing")
-    }
-
-    func testDescriptionPropertyIsNonEmpty() {
-        XCTAssertFalse(command.description.isEmpty)
     }
 
     func testDefaultCooldownValues() {

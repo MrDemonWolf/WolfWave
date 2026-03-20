@@ -300,14 +300,16 @@ enum AppConstants {
         ///
         /// - Returns: The repository owner string.
         static func resolveGitHubRepoOwner() -> String {
-            if let plistValue = Bundle.main.object(forInfoDictionaryKey: "GITHUB_REPO_OWNER") as? String,
-               !plistValue.isEmpty,
-               plistValue != "$(GITHUB_REPO_OWNER)" {
-                return plistValue
+            if let plistValue = Bundle.main.object(forInfoDictionaryKey: "GITHUB_REPO_OWNER") as? String {
+                let trimmed = plistValue.trimmingCharacters(in: .whitespacesAndNewlines)
+                if !trimmed.isEmpty, trimmed != "$(GITHUB_REPO_OWNER)" {
+                    return trimmed
+                }
             }
 
-            if let env = ProcessInfo.processInfo.environment["GITHUB_REPO_OWNER"], !env.isEmpty {
-                return env
+            if let env = ProcessInfo.processInfo.environment["GITHUB_REPO_OWNER"] {
+                let trimmed = env.trimmingCharacters(in: .whitespacesAndNewlines)
+                if !trimmed.isEmpty { return trimmed }
             }
 
             return "mrdemonwolf"
@@ -322,14 +324,16 @@ enum AppConstants {
         ///
         /// - Returns: The repository name string.
         static func resolveGitHubRepoName() -> String {
-            if let plistValue = Bundle.main.object(forInfoDictionaryKey: "GITHUB_REPO_NAME") as? String,
-               !plistValue.isEmpty,
-               plistValue != "$(GITHUB_REPO_NAME)" {
-                return plistValue
+            if let plistValue = Bundle.main.object(forInfoDictionaryKey: "GITHUB_REPO_NAME") as? String {
+                let trimmed = plistValue.trimmingCharacters(in: .whitespacesAndNewlines)
+                if !trimmed.isEmpty, trimmed != "$(GITHUB_REPO_NAME)" {
+                    return trimmed
+                }
             }
 
-            if let env = ProcessInfo.processInfo.environment["GITHUB_REPO_NAME"], !env.isEmpty {
-                return env
+            if let env = ProcessInfo.processInfo.environment["GITHUB_REPO_NAME"] {
+                let trimmed = env.trimmingCharacters(in: .whitespacesAndNewlines)
+                if !trimmed.isEmpty { return trimmed }
             }
 
             return "wolfwave"

@@ -30,7 +30,7 @@ struct DeviceCodeView: View {
             // Header: subtle label
             Text("Device Code")
                 .font(.system(size: 11, weight: .medium))
-                .foregroundColor(.secondary)
+                .foregroundStyle(.secondary)
                 .transition(.move(edge: .top).combined(with: .opacity))
 
 
@@ -38,7 +38,7 @@ struct DeviceCodeView: View {
             HStack(spacing: 8) {
                 Text(userCode)
                     .font(.system(size: 28, weight: .medium, design: .monospaced))
-                    .foregroundColor(.primary)
+                    .foregroundStyle(.primary)
                     .lineLimit(1)
                     .minimumScaleFactor(0.6)
                     .frame(maxWidth: .infinity, alignment: .center)
@@ -50,7 +50,7 @@ struct DeviceCodeView: View {
                 Button(action: copyDeviceCode) {
                     Image(systemName: isCodeCopied ? "checkmark.circle.fill" : "doc.on.doc")
                         .font(.system(size: 14, weight: .regular))
-                        .foregroundColor(isCodeCopied ? .green : .secondary)
+                        .foregroundStyle(isCodeCopied ? .green : .secondary)
                         .frame(width: 28, height: 28)
                 }
                 .buttonStyle(.plain)
@@ -145,7 +145,7 @@ struct DeviceCodeView: View {
         if showCopyFeedback {
             HStack(spacing: 8) {
                 Image(systemName: "checkmark.circle.fill")
-                    .foregroundColor(.green)
+                    .foregroundStyle(.green)
                 Text("Copied to clipboard")
                     .font(.system(size: 12, weight: .semibold))
             }

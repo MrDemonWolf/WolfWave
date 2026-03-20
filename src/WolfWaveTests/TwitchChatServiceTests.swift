@@ -10,7 +10,7 @@ import Foundation
 @testable import WolfWave
 
 /// Comprehensive test suite for TwitchChatService
-@Suite("Twitch Chat Service Tests")
+@Suite("Twitch Chat Service Tests", .serialized)
 struct TwitchChatServiceTests {
     
     // MARK: - Initialization Tests

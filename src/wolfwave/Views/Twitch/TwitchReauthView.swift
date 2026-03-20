@@ -29,7 +29,7 @@ struct TwitchReauthView: View {
             HStack(spacing: 12) {
                 Image(systemName: "exclamationmark.circle.fill")
                     .font(.title2)
-                    .foregroundColor(.orange)
+                    .foregroundStyle(.orange)
                 
                 VStack(alignment: .leading, spacing: 2) {
                     Text("Reconnect to Twitch")
@@ -38,7 +38,7 @@ struct TwitchReauthView: View {
                     
                     Text("Your Twitch session has expired")
                         .font(.caption)
-                        .foregroundColor(.secondary)
+                        .foregroundStyle(.secondary)
                 }
                 
                 Spacer()
@@ -64,7 +64,7 @@ struct TwitchReauthView: View {
         VStack(alignment: .leading, spacing: 14) {
             Text("Please sign in again to continue using Twitch Integration.")
                 .font(.body)
-                .foregroundColor(.secondary)
+                .foregroundStyle(.secondary)
             
             // Sign in button (smaller, subtler color)
             Button(action: { viewModel.startOAuth() }) {
@@ -97,7 +97,7 @@ struct TwitchReauthView: View {
                     Text("Device Code")
                         .font(.caption)
                         .fontWeight(.semibold)
-                        .foregroundColor(.secondary)
+                        .foregroundStyle(.secondary)
                     
                     // Token field style device code display
                     HStack(spacing: 12) {
@@ -130,7 +130,7 @@ struct TwitchReauthView: View {
                         Button(action: { openTwitchActivation() }) {
                             Text("Click below to authorize your Twitch account")
                                 .font(.caption)
-                                .foregroundColor(.blue)
+                                .foregroundStyle(.blue)
                         }
                         .buttonStyle(.plain)
                         .help("Open Twitch authorization")
@@ -174,7 +174,7 @@ struct TwitchReauthView: View {
                         
                         Text("This usually takes less than a minute")
                             .font(.caption)
-                            .foregroundColor(.secondary)
+                            .foregroundStyle(.secondary)
                     }
                     
                     Spacer()

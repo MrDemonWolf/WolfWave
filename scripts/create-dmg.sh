@@ -49,36 +49,50 @@ osascript \
     -e 'tell application "Finder"' \
     -e '  tell disk "WolfWave"' \
     -e '    open' \
+    -e '    delay 2' \
     -e '    set current view of container window to icon view' \
     -e '    set toolbar visible of container window to false' \
     -e '    set statusbar visible of container window to false' \
-    -e '    set the bounds of container window to {200, 200, 740, 520}' \
+    -e '    set the bounds of container window to {200, 200, 860, 600}' \
     -e '    set viewOptions to the icon view options of container window' \
     -e '    set arrangement of viewOptions to not arranged' \
     -e '    set icon size of viewOptions to 100' \
     -e '    set text size of viewOptions to 12' \
     ${BG_APPLESCRIPT:+-e "    $BG_APPLESCRIPT"} \
-    -e '    set position of item "WolfWave.app" of container window to {140, 160}' \
-    -e '    set position of item "Applications" of container window to {400, 160}' \
+    -e '    set position of item "WolfWave.app" of container window to {175, 190}' \
+    -e '    set position of item "Applications" of container window to {485, 190}' \
     -e '    close' \
     -e '    open' \
     -e '    delay 1' \
     -e '  end tell' \
-    -e 'end tell' 2>/dev/null || true
+    -e 'end tell' || true
 
-sync; sleep 1
+sync; sleep 2
 hdiutil detach "$MOUNTPOINT" -quiet 2>/dev/null || true
+sleep 1
 
 # Force-detach any remaining mounts
 LEFTOVER=$(hdiutil info 2>/dev/null | awk '/\/Volumes\/WolfWave/ {print $1; exit}')
 if [ -n "$LEFTOVER" ]; then
     hdiutil detach "$LEFTOVER" -force 2>/dev/null || true
+    sleep 2
 fi
-sleep 1
 
-# Convert to compressed read-only DMG
-hdiutil convert "$BUILDS_DIR/_tmp.dmg" -format UDZO \
-    -imagekey zlib-level=9 -o "$BUILDS_DIR/$DMG_NAME" >/dev/null
+# Wait for the image to be fully released before converting
+for i in 1 2 3 4 5; do
+    if hdiutil convert "$BUILDS_DIR/_tmp.dmg" -format UDZO \
+        -imagekey zlib-level=9 -o "$BUILDS_DIR/$DMG_NAME" >/dev/null 2>&1; then
+        break
+    fi
+    echo "⏳ Waiting for DMG to be released (attempt $i/5)..."
+    sleep 2
+done
+
+# Verify the final DMG was created
+if [ ! -f "$BUILDS_DIR/$DMG_NAME" ]; then
+    echo "❌ Failed to create DMG after retries"
+    exit 1
+fi
 rm -f "$BUILDS_DIR/_tmp.dmg"
 rm -rf "$BUILDS_DIR/staging"
 

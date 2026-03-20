@@ -41,7 +41,7 @@
 
 /* Hero gradient text */
 .gradient-text {
-  background: linear-gradient(135deg, hsl(217 91% 60%), hsl(262 83% 58%), hsl(217 91% 60%));
+  background: linear-gradient(135deg, hsl(217 91% 60%), hsl(195 90% 55%), hsl(217 91% 60%));
   background-size: 200% 200%;
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
@@ -65,7 +65,7 @@
   background: radial-gradient(
     ellipse at center,
     hsla(217 91% 60% / 0.08) 0%,
-    hsla(262 83% 58% / 0.04) 40%,
+    hsla(200 90% 55% / 0.04) 40%,
     transparent 70%
   );
   pointer-events: none;
@@ -76,7 +76,7 @@
   background: radial-gradient(
     ellipse at center,
     hsla(217 91% 60% / 0.06) 0%,
-    hsla(262 83% 58% / 0.03) 40%,
+    hsla(200 90% 55% / 0.03) 40%,
     transparent 70%
   );
 }

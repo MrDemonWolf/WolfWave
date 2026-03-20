@@ -277,13 +277,17 @@ function buildWidget() {
 
   // Artwork HTML
   function artImg(w, h, radius) {
-    if (!nowPlaying.artworkURL) {
+    var artURL = nowPlaying.artworkURL;
+    if (artURL && !artURL.startsWith('http://') && !artURL.startsWith('https://')) {
+      artURL = null;
+    }
+    if (!artURL) {
       return '<div class="flex items-center justify-center" style="width:' + w + 'px;height:' + h + 'px;border-radius:' + radius + ';background:rgba(255,255,255,0.10);">'
         + '<svg width="' + Math.round(w * 0.5) + '" height="' + Math.round(h * 0.5) + '" viewBox="0 0 24 24" fill="' + theme.textMuted + '">'
         + '<path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"/></svg>'
         + '</div>';
     }
-    return '<img src="' + nowPlaying.artworkURL + '" crossorigin="anonymous" '
+    return '<img src="' + artURL + '" crossorigin="anonymous" '
       + 'style="width:' + w + 'px;height:' + h + 'px;border-radius:' + radius + ';object-fit:cover;box-shadow:0 2px 8px rgba(0,0,0,0.3);">';
   }
 
@@ -301,7 +305,8 @@ function buildWidget() {
     + '</div>';
 
   // Blur / overlay / noise layers
-  const blurLayer = (theme.showArtworkBlur && nowPlaying.artworkURL)
+  const validArtworkURL = nowPlaying.artworkURL && (nowPlaying.artworkURL.startsWith('http://') || nowPlaying.artworkURL.startsWith('https://'));
+  const blurLayer = (theme.showArtworkBlur && validArtworkURL)
     ? '<div class="blur-layer" style="background-image:url(' + nowPlaying.artworkURL + ');"></div>'
     : '';
   const overlayLayer = (theme.overlayBg && theme.overlayBg !== 'transparent')
@@ -379,6 +384,7 @@ function connect() {
     hideWidget();
     reconnectAttempts++;
     console.log('[WolfWave Widget] Disconnected — reconnect attempt ' + reconnectAttempts);
+    clearTimeout(reconnectTimer);
     reconnectTimer = setTimeout(connect, 5000);
   };
 
@@ -394,7 +400,6 @@ function handleMessage(msg) {
       nowPlaying = data;
       elapsedRef = { value: data.elapsed, timestamp: Date.now(), isPlaying: data.isPlaying };
       elapsed = data.elapsed;
-      const isFirstTrack = !hasReceivedTrack;
       hasReceivedTrack = true;
       buildWidget();
       if (data.isPlaying) {

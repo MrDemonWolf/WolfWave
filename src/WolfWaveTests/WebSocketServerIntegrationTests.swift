@@ -8,6 +8,7 @@
 import XCTest
 @testable import WolfWave
 
+// Integration tests using ephemeral ports for WebSocket server lifecycle
 final class WebSocketServerIntegrationTests: XCTestCase {
 
     // MARK: - Server Lifecycle Tests
@@ -98,10 +99,10 @@ final class WebSocketServerIntegrationTests: XCTestCase {
         service1.setEnabled(true)
         wait(for: [listening1], timeout: 5)
 
-        // Second server on same port should fail gracefully (error or not reach listening)
+        // Second server on same port should fail with an error
         let service2State = expectation(description: "service2 state change")
         service2.onStateChange = { state, _ in
-            if state == .error || state == .stopped {
+            if state == .error {
                 service2State.fulfill()
             }
         }

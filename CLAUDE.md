@@ -28,6 +28,8 @@ Xcode project is at `src/wolfwave.xcodeproj` with scheme `WolfWave`. Build and r
 
 `Config.xcconfig` holds `TWITCH_CLIENT_ID` and `DISCORD_CLIENT_ID` and is **not committed** (gitignored). Copy from `Config.xcconfig.example` and fill in your keys. Values are expanded into `Info.plist` at build time.
 
+`Info.plist` also contains `SUPublicEDKey` (Sparkle EdDSA public key) and `SUFeedURL` (appcast URL). These are committed and should not be modified unless rotating the Sparkle signing key.
+
 ## Architecture
 
 **Pattern**: MVVM + Service-Oriented, with an NSApplicationDelegateAdaptor-based lifecycle.
@@ -43,7 +45,7 @@ Xcode project is at `src/wolfwave.xcodeproj` with scheme `WolfWave`. Build and r
 - **Services/Twitch/** — `TwitchChatService.swift` (EventSub WebSocket + Helix chat API, thread-safe with NSLock, network path monitoring for reconnection), `TwitchDeviceAuth.swift` (OAuth Device Code flow)
 - **Services/Twitch/Commands/** — `BotCommand` protocol (`triggers`, `description`, `execute(message:) -> String?`), concrete commands (`SongCommand`, `LastSongCommand`), `BotCommandDispatcher` for routing
 - **Services/Discord/** — `DiscordRPCService.swift` (Discord Rich Presence via local IPC Unix domain socket, iTunes Search API artwork fetching with cache, auto-reconnect with backoff)
-- **Services/UpdateChecker/** — `UpdateCheckerService.swift` (GitHub Releases API version checker, semantic version comparison, Homebrew/DMG install detection, 24h periodic checking)
+- **Services/UpdateChecker/** — `UpdateCheckerService.swift` (GitHub Releases API version checker, semantic version comparison, Homebrew/DMG install detection, 24h periodic checking), `SparkleUpdaterService.swift` (Sparkle framework wrapper for auto-updates, EdDSA-signed appcast verification, DEBUG mode allows manual check via dev-appcast.xml)
 - **Views/** — SwiftUI settings with `NavigationSplitView` sidebar; sections: Music Monitor, App Visibility, Stream Overlay, Twitch, Discord, Advanced. `TwitchViewModel` is the main observable for auth/connection state.
 - **Views/Onboarding/** — First-launch onboarding wizard (4-step: Welcome, Twitch, Discord, OBS Widget). Window size: 600x480.
 - **Views/Shared/** — Shared UI components (e.g., `TwitchGlitchShape`)
@@ -82,7 +84,16 @@ Unit tests live in `src/WolfWaveTests/` and use XCTest with `@testable import Wo
 ## CI/CD
 
 - `.github/workflows/ci.yml` — Runs `xcodebuild test` on every push/PR to `main`. Creates placeholder `Config.xcconfig` for CI builds.
-- `.github/workflows/release.yml` — Builds, signs, notarizes, and creates a GitHub Release on tag push (`v*`). Required secrets: `DEVELOPER_ID_CERT_P12`, `DEVELOPER_ID_CERT_PASSWORD`, `APPLE_ID`, `APPLE_TEAM_ID`, `APPLE_APP_PASSWORD`, `TWITCH_CLIENT_ID`, `DISCORD_CLIENT_ID`.
+- `.github/workflows/release.yml` — Builds, signs, notarizes, and creates a GitHub Release on tag push (`v*`). Required secrets: `DEVELOPER_ID_CERT_P12`, `DEVELOPER_ID_CERT_PASSWORD`, `APPLE_ID`, `APPLE_TEAM_ID`, `APPLE_APP_PASSWORD`, `TWITCH_CLIENT_ID`, `DISCORD_CLIENT_ID`, `SPARKLE_PRIVATE_KEY`.
+
+### Sparkle Auto-Updates
+
+Sparkle uses EdDSA (Ed25519) signing for update verification. The public key is in `Info.plist` as `SUPublicEDKey`. The private key is stored in the developer's macOS Keychain and as the `SPARKLE_PRIVATE_KEY` GitHub secret for CI.
+
+- **DEBUG builds**: Sparkle initializes but automatic checks are disabled. Manual "Check Now" works and reads the bundled `dev-appcast.xml` (dummy v99.0.0 entry).
+- **Release builds**: Sparkle checks the remote appcast at the `SUFeedURL` in Info.plist.
+- **Homebrew installs**: Sparkle is fully disabled (updates managed by Homebrew).
+- **Key management**: Run `generate_keys` from Sparkle's tools to view/export/import keys. The tool is at `SourcePackages/artifacts/sparkle/Sparkle/bin/generate_keys` in DerivedData.
 
 ## Documentation
 

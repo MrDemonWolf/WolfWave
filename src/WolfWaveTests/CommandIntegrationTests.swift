@@ -11,10 +11,8 @@ import XCTest
 final class CommandIntegrationTests: XCTestCase {
     var dispatcher: BotCommandDispatcher!
 
-    override func setUp() {
-        super.setUp()
-        dispatcher = BotCommandDispatcher()
-        // Clear cooldown-related UserDefaults
+    /// Removes all cooldown and enable/disable keys from UserDefaults to ensure test isolation.
+    private func clearCommandDefaults() {
         let defaults = UserDefaults.standard
         defaults.removeObject(forKey: AppConstants.UserDefaults.songCommandGlobalCooldown)
         defaults.removeObject(forKey: AppConstants.UserDefaults.songCommandUserCooldown)
@@ -24,14 +22,14 @@ final class CommandIntegrationTests: XCTestCase {
         defaults.removeObject(forKey: AppConstants.UserDefaults.lastSongCommandEnabled)
     }
 
+    override func setUp() {
+        super.setUp()
+        dispatcher = BotCommandDispatcher()
+        clearCommandDefaults()
+    }
+
     override func tearDown() {
-        let defaults = UserDefaults.standard
-        defaults.removeObject(forKey: AppConstants.UserDefaults.songCommandGlobalCooldown)
-        defaults.removeObject(forKey: AppConstants.UserDefaults.songCommandUserCooldown)
-        defaults.removeObject(forKey: AppConstants.UserDefaults.lastSongCommandGlobalCooldown)
-        defaults.removeObject(forKey: AppConstants.UserDefaults.lastSongCommandUserCooldown)
-        defaults.removeObject(forKey: AppConstants.UserDefaults.currentSongCommandEnabled)
-        defaults.removeObject(forKey: AppConstants.UserDefaults.lastSongCommandEnabled)
+        clearCommandDefaults()
         dispatcher = nil
         super.tearDown()
     }
@@ -114,9 +112,12 @@ final class CommandIntegrationTests: XCTestCase {
         dispatcher.setCurrentSongInfo { longString }
 
         let result = dispatcher.processMessage("!song", userID: "user1")
-        XCTAssertNotNil(result)
-        XCTAssertEqual(result!.count, 500)
-        XCTAssertTrue(result!.hasSuffix("..."))
+        guard let result = result else {
+            XCTFail("Expected non-nil result")
+            return
+        }
+        XCTAssertEqual(result.count, 500)
+        XCTAssertTrue(result.hasSuffix("..."))
     }
 
     // MARK: - Multi-User Cooldown Tests

@@ -1,99 +1,83 @@
 ---
 title: Usage Guide
-description: How to use WolfWave
+description: Master all the features of WolfWave.
 ---
 
-WolfWave is user-friendly and runs from your macOS menu bar. Here's a guide to the features:
+WolfWave is simple to use and mostly runs by itself in the background. Here's how to master its main features.
 
-## Menu Bar
+---
 
-The WolfWave icon appears in your macOS menu bar. Click it to access Settings, About, or Quit.
+## 🐺 The Menu Bar
+The main hub of WolfWave is in your **macOS Menu Bar** (the icons in the top right of your screen). 
 
-## Features
+- Click the Wolf icon to see what is playing.
+- From the menu, you can quickly **Sync Music**, **Check Twitch Chat**, and access **Settings**.
 
-### Apple Music Tracking
+---
 
-Toggle Apple Music tracking on/off from **Settings → Music Playback Monitor**. When enabled, WolfWave monitors your currently playing track in real-time using ScriptingBridge.
+## 🎵 Sync Music
+**TL;DR: Keep the music flowing.**
 
-A live **Now Playing** preview card in the Music Monitor settings shows the current track, artist, and album — styled after Apple Music.
-
-### OBS Stream Widget
-
-Show your now-playing track on stream with a browser source overlay:
-
-1. Open **Settings → OBS Widget**
-2. Enable the WebSocket server
-3. Copy the **Widget URL** (`http://localhost:8766`)
-4. In OBS, add a **Browser Source** and paste the URL
-5. Set the source size to **500 × 120** for best results
-
-The widget is served directly by the app — no external URL or internet connection required. It displays album art, track name, artist, and a progress bar, connecting to the local WebSocket server and updating in real time as your music changes.
+Toggle **Sync Music** on in Settings to start tracking Apple Music. WolfWave will instantly detect when you change a song.
 
 <Callout type="info">
-  Enable "Shutdown source when not visible" in OBS for clean reconnects when switching scenes.
+  **Pro-tip**: Click the Wolf icon in the Menu Bar to see a quick "Now Playing" card with artwork and artist info.
 </Callout>
 
-### Twitch Bot Integration
+---
 
-Connect your Twitch bot via secure device code authentication:
+## 📺 Now-Playing Widget
+**TL;DR: The easiest widget you've ever set up.**
 
-1. Open the Twitch settings
-2. Click "Connect" to start the device auth flow
-3. Follow the on-screen instructions to authorize
-4. Your bot will automatically connect to your channel
+WolfWave hosts a now-playing widget directly on your Mac. No external links or internet connection needed.
 
-### Discord Rich Presence
-
-Show what you're listening to on your Discord profile — just like Spotify, but for Apple Music.
-
-#### Setup
-
-Enable Discord Rich Presence in **Settings → Discord Integration**. WolfWave connects automatically via Discord's local IPC socket — no bot token or server required.
-
-#### What It Shows
-
-When a song is playing, your Discord profile will display:
-
-- **"Listening to Apple Music"** activity status
-- **Song title** and **artist name**
-- **Album name**
-- **Album artwork** (fetched automatically from the iTunes Search API)
-- **Playback progress** with elapsed time and duration
+1. Open **Settings → Now-Playing Widget**.
+2. Click **Enable Widget Server**.
+3. Copy the **Widget Link** (`http://localhost:8766`).
+4. In OBS, add a **Browser Source** and paste the Link.
+5. Set the size to **500 × 120**.
 
 <Callout type="info">
-  Album artwork is fetched dynamically — no need to manually upload art assets to Discord.
-  If you upload an `apple_music` asset to your Discord app, it will appear as a small icon
-  alongside the album art.
+  **Important**: Turn on "Shutdown source when not visible" in OBS to make sure the widget reconnects smoothly when you switch scenes.
 </Callout>
 
-#### Requirements
+---
 
-- Discord must be running on your Mac
-- WolfWave connects automatically via Discord's local IPC socket
-- No bot token or server setup required
+## 💬 Twitch Chat Bot
+**TL;DR: Chat commands for everyone.**
 
-## Chat Commands
+Once you're logged into Twitch (via **Settings → Twitch**), your bot will automatically connect to your channel when you start the app.
 
-Once connected, your viewers can use these commands in chat:
+- **Enable Commands**: Pick which commands people can use in chat (like `!song` or `!last`).
+- **Cooldowns**: Prevent chat spam by setting "Wait Times" (Cooldowns) for commands.
+- **Mod Bypass**: Don't worry, moderators and you can use commands as much as you like.
 
-| Command        | Description              |
-| -------------- | ------------------------ |
-| `!song`        | Current playing song     |
-| `!currentsong` | Current playing song     |
-| `!nowplaying`  | Current playing song     |
-| `!lastsong`    | Previously played song   |
-| `!last`        | Previously played song   |
-| `!prevsong`    | Previously played song   |
+---
 
-<Callout type="info">
-  Commands can be toggled on/off in **Settings → Twitch Integration → Bot Commands**. You can also configure global and per-user cooldowns to prevent command spam — moderators and the broadcaster bypass all cooldowns.
-</Callout>
+## 🎧 Discord Status
+**TL;DR: Show your status.**
 
-## Settings
+When **Discord Status** is enabled, WolfWave will automatically update your Discord profile to show "Listening to Apple Music".
 
-Access settings from the menu bar icon to configure:
+- **Album Art**: High-quality artwork is fetched automatically.
+- **Progress Bar**: Shows exactly where you are in the song.
+- **No Setup Required**: As long as Discord is open, WolfWave will find it and connect.
 
-- **OBS Widget**: Enable the stream overlay WebSocket server and copy the widget URL
-- **Twitch Integration**: Connect your Twitch account, configure bot commands, and set cooldowns
-- **Discord Integration**: Enable/disable Rich Presence and view connection status
-- **Advanced**: Software updates, reset onboarding, reset all settings
+---
+
+## ⚙️ Settings
+Access **Settings** from the menu bar to:
+
+- **Now-Playing Widget**: Change your widget's port, colors, or fonts.
+- **Twitch**: Log in, set commands, or tweak cooldowns.
+- **Discord**: Enable or disable the profile status.
+- **Advanced**: Check for updates or reset the setup wizard.
+
+---
+
+## Ready to go?
+
+<Cards>
+  <Card title="Features" href="/docs/features" description="A deep dive into every feature." />
+  <Card title="Bot Commands" href="/docs/bot-commands" description="Chat commands reference." />
+</Cards>

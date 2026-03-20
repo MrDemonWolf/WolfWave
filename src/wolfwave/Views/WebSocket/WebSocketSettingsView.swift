@@ -7,7 +7,7 @@
 
 import SwiftUI
 
-/// Stream overlay settings: server port, enable/disable toggle, status, and widget URL.
+/// Now-playing widget settings: server port, enable/disable toggle, status, and widget URL.
 struct WebSocketSettingsView: View {
     // MARK: - User Settings
 
@@ -81,7 +81,7 @@ struct WebSocketSettingsView: View {
         VStack(alignment: .leading, spacing: AppConstants.SettingsUI.sectionSpacing) {
             VStack(alignment: .leading, spacing: 6) {
                 HStack(alignment: .center, spacing: 10) {
-                    Text("Stream Widgets")
+                    Text("Now-Playing Widget")
                         .font(.system(size: 17, weight: .semibold))
 
                     Spacer()
@@ -91,7 +91,7 @@ struct WebSocketSettingsView: View {
                         .animation(.easeInOut(duration: 0.2), value: clientCount)
                 }
 
-                Text("Show your current song on your stream using a widget.")
+                Text("Show your current song using a customizable widget.")
                     .font(.system(size: 13))
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
@@ -240,11 +240,11 @@ struct WebSocketSettingsView: View {
                     Image(systemName: "rectangle.inset.filled.and.person.filled")
                         .font(.system(size: 14))
                         .foregroundStyle(Color(nsColor: .controlAccentColor))
-                    Text("OBS Setup")
+                    Text("Widget Setup")
                         .font(.system(size: 15, weight: .semibold))
                 }
 
-                Text("Copy this link and add it as a 'Browser' source in OBS.")
+                Text("Use this link in OBS (Browser Source) or open it in any browser.")
                     .font(.system(size: 12))
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
@@ -261,7 +261,7 @@ struct WebSocketSettingsView: View {
                 VStack(alignment: .leading, spacing: 2) {
                     Text("Enable Visual Widget")
                         .font(.system(size: 13, weight: .medium))
-                    Text("This creates the webpage for your stream")
+                    Text("This creates the webpage your widget runs on")
                         .font(.system(size: 11))
                         .foregroundStyle(.tertiary)
                 }
@@ -357,6 +357,7 @@ struct WebSocketSettingsView: View {
                     .controlSize(.small)
                     .accessibilityLabel("Copy widget URL")
                     .accessibilityIdentifier("copyWidgetURLButton")
+                    .disabled(!websocketEnabled || !widgetHTTPEnabled)
 
                     Button {
                         if let url = URL(string: widgetURL) {
@@ -415,7 +416,7 @@ struct WebSocketSettingsView: View {
                         .font(.system(size: 15, weight: .semibold))
                 }
 
-                Text("Tweak colors, fonts, and layout for your overlay.")
+                Text("Tweak colors, fonts, and layout for your widget.")
                     .font(.system(size: 12))
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
@@ -530,23 +531,36 @@ struct WebSocketSettingsView: View {
                 .padding(.leading, cardPadding)
 
             // Font row
-            HStack(spacing: 12) {
-                Text("Font")
-                    .font(.system(size: 13, weight: .medium))
-                Spacer()
-                Picker("", selection: $widgetFontFamily) {
-                    Text("System Default").tag("System Default")
-                    Divider()
-                    ForEach(availableFonts, id: \.self) { font in
-                        Text(font).tag(font)
+            VStack(alignment: .leading, spacing: 8) {
+                HStack(spacing: 12) {
+                    Text("Font")
+                        .font(.system(size: 13, weight: .medium))
+                    Spacer()
+                    Picker("", selection: $widgetFontFamily) {
+                        Text("System Default").tag("System Default")
+                        Divider()
+                        ForEach(availableFonts, id: \.self) { font in
+                            Text(font).tag(font)
+                        }
+                    }
+                    .labelsHidden()
+                    .frame(width: 180)
+                    .accessibilityLabel("Widget font")
+                    .accessibilityIdentifier("widgetFontPicker")
+                    .onChange(of: widgetFontFamily) { _, _ in
+                        broadcastWidgetConfig()
                     }
                 }
-                .labelsHidden()
-                .frame(width: 180)
-                .accessibilityLabel("Widget font")
-                .accessibilityIdentifier("widgetFontPicker")
-                .onChange(of: widgetFontFamily) { _, _ in
-                    broadcastWidgetConfig()
+
+                HStack(spacing: 6) {
+                    Image(systemName: "magnifyingglass")
+                        .foregroundStyle(.secondary)
+                        .font(.system(size: 12))
+                    TextField("Filter fonts…", text: $fontSearch)
+                        .textFieldStyle(.roundedBorder)
+                        .font(.system(size: 12))
+                        .accessibilityLabel("Filter fonts")
+                        .accessibilityIdentifier("widgetFontSearch")
                 }
             }
             .padding(.horizontal, cardPadding)

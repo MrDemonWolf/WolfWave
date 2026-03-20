@@ -126,6 +126,7 @@ final class TwitchChatService: @unchecked Sendable {
     var onMessageReceived: (@Sendable (ChatMessage) -> Void)?
     var onConnectionStateChanged: (@Sendable (Bool) -> Void)?
 
+
     static let connectionStateChanged = NSNotification.Name(AppConstants.Notifications.twitchConnectionStateChanged)
 
     nonisolated(unsafe) private var _connected = false
@@ -1411,7 +1412,18 @@ final class TwitchChatService: @unchecked Sendable {
         }
 
         // Reject messages older than 10 minutes to prevent replay attacks
-        if let timestamp = ISO8601DateFormatter().date(from: messageTimestamp) {
+        let isoFormatter = ISO8601DateFormatter()
+        isoFormatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        var timestamp = isoFormatter.date(from: messageTimestamp)
+        if timestamp == nil {
+            // Fallback: try without fractional seconds
+            let fallbackFormatter = ISO8601DateFormatter()
+            timestamp = fallbackFormatter.date(from: messageTimestamp)
+            if timestamp == nil {
+                Log.warn("TwitchChatService: Failed to parse EventSub timestamp: \(messageTimestamp)", category: "Twitch")
+            }
+        }
+        if let timestamp {
             let age = Date().timeIntervalSince(timestamp)
             if age > 600 {
                 Log.warn("TwitchChatService: Rejecting stale EventSub message (age: \(Int(age))s)", category: "Twitch")

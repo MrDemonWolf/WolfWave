@@ -363,6 +363,72 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMenuDele
         statusItem?.menu = menu
     }
 
+    /// Returns a 16×16 image from the asset catalog for use in menu items.
+    private func menuItemIcon(named name: String) -> NSImage? {
+        guard let image = NSImage(named: name) else { return nil }
+        image.size = NSSize(width: 16, height: 16)
+        return image
+    }
+
+    /// Creates a now-playing menu item with a fixed-width, word-wrapping layout.
+    private func makeNowPlayingMenuItem(song: String, artist: String?) -> NSMenuItem {
+        let maxTextWidth: CGFloat = 256
+        let horizontalPadding: CGFloat = 12
+        let verticalPadding: CGFloat = 8
+
+        let songLabel = NSTextField(wrappingLabelWithString: song)
+        songLabel.font = NSFont.boldSystemFont(ofSize: 13)
+        songLabel.textColor = .labelColor
+        songLabel.preferredMaxLayoutWidth = maxTextWidth
+        songLabel.translatesAutoresizingMaskIntoConstraints = false
+
+        let stack = NSStackView(views: [songLabel])
+        stack.orientation = .vertical
+        stack.alignment = .leading
+        stack.spacing = 2
+
+        songLabel.setAccessibilityElement(false)
+
+        if let artist = artist {
+            let artistLabel = NSTextField(wrappingLabelWithString: "by \(artist)")
+            artistLabel.font = NSFont.systemFont(ofSize: 12)
+            artistLabel.textColor = .secondaryLabelColor
+            artistLabel.preferredMaxLayoutWidth = maxTextWidth
+            artistLabel.translatesAutoresizingMaskIntoConstraints = false
+            artistLabel.setAccessibilityElement(false)
+            stack.addArrangedSubview(artistLabel)
+        }
+
+        let container = NSView()
+        container.translatesAutoresizingMaskIntoConstraints = false
+        container.setAccessibilityElement(true)
+        container.setAccessibilityRole(.staticText)
+        if let artist = artist {
+            container.setAccessibilityLabel("Now playing: \(song) by \(artist)")
+        } else {
+            container.setAccessibilityLabel("Now playing: \(song)")
+        }
+        stack.translatesAutoresizingMaskIntoConstraints = false
+        container.addSubview(stack)
+
+        NSLayoutConstraint.activate([
+            stack.leadingAnchor.constraint(equalTo: container.leadingAnchor, constant: horizontalPadding),
+            stack.trailingAnchor.constraint(equalTo: container.trailingAnchor, constant: -horizontalPadding),
+            stack.topAnchor.constraint(equalTo: container.topAnchor, constant: verticalPadding),
+            stack.bottomAnchor.constraint(equalTo: container.bottomAnchor, constant: -verticalPadding),
+            container.widthAnchor.constraint(equalToConstant: maxTextWidth + horizontalPadding * 2)
+        ])
+
+        container.layoutSubtreeIfNeeded()
+        let fittingSize = container.fittingSize
+        container.frame = NSRect(origin: .zero, size: fittingSize)
+
+        let item = NSMenuItem()
+        item.view = container
+        item.isEnabled = false
+        return item
+    }
+
     // MARK: - NSMenuDelegate
 
     /// Rebuilds the menu each time it opens so items reflect live state.
@@ -371,20 +437,8 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMenuDele
 
         // Now Playing section
         if let song = currentSong {
-            let songItem = NSMenuItem(title: song, action: nil, keyEquivalent: "")
-            songItem.attributedTitle = NSAttributedString(
-                string: song,
-                attributes: [.font: NSFont.boldSystemFont(ofSize: 13)]
-            )
-            songItem.isEnabled = false
-            menu.addItem(songItem)
-
-            if let artist = currentArtist {
-                let artistItem = NSMenuItem(title: "by \(artist)", action: nil, keyEquivalent: "")
-                artistItem.isEnabled = false
-                menu.addItem(artistItem)
-            }
-
+            let nowPlayingItem = makeNowPlayingMenuItem(song: song, artist: currentArtist)
+            menu.addItem(nowPlayingItem)
             menu.addItem(.separator())
         }
 
@@ -395,6 +449,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMenuDele
             keyEquivalent: ""
         )
         trackingItem.state = UserDefaults.standard.bool(forKey: AppConstants.UserDefaults.trackingEnabled) ? .on : .off
+        trackingItem.image = menuItemIcon(named: "AppleMusicLogo")
         menu.addItem(trackingItem)
 
         // Twitch toggle — only show if credentials are saved
@@ -405,6 +460,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMenuDele
                 keyEquivalent: ""
             )
             twitchItem.state = (twitchService?.isConnected ?? false) ? .on : .off
+            twitchItem.image = menuItemIcon(named: "TwitchLogo")
             menu.addItem(twitchItem)
         }
 
@@ -414,14 +470,16 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMenuDele
             keyEquivalent: ""
         )
         discordItem.state = UserDefaults.standard.bool(forKey: AppConstants.UserDefaults.discordPresenceEnabled) ? .on : .off
+        discordItem.image = menuItemIcon(named: "DiscordLogo")
         menu.addItem(discordItem)
 
         let overlayItem = NSMenuItem(
-            title: "Stream Widgets",
+            title: "Now-Playing Widget",
             action: #selector(toggleWebSocket),
             keyEquivalent: ""
         )
         overlayItem.state = UserDefaults.standard.bool(forKey: AppConstants.UserDefaults.websocketEnabled) ? .on : .off
+        overlayItem.image = menuItemIcon(named: "OBSLogo")
         menu.addItem(overlayItem)
 
         menu.addItem(.separator())
@@ -429,13 +487,13 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMenuDele
         // Copy Widget URL — only if websocket enabled
         if UserDefaults.standard.bool(forKey: AppConstants.UserDefaults.websocketEnabled) {
             let copyItem = NSMenuItem(
-                title: "Copy Overlay Link",
+                title: "Copy Widget Link",
                 action: #selector(copyWidgetURL),
                 keyEquivalent: ""
             )
             copyItem.image = NSImage(
                 systemSymbolName: "link",
-                accessibilityDescription: "Copy Overlay Link"
+                accessibilityDescription: "Copy Widget Link"
             )
             menu.addItem(copyItem)
             menu.addItem(.separator())
@@ -466,12 +524,16 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMenuDele
 
         menu.addItem(.separator())
 
-        menu.addItem(
-            NSMenuItem(
-                title: AppConstants.MenuLabels.quit,
-                action: #selector(NSApplication.terminate(_:)),
-                keyEquivalent: "q"
-            ))
+        let quitItem = NSMenuItem(
+            title: AppConstants.MenuLabels.quit,
+            action: #selector(NSApplication.terminate(_:)),
+            keyEquivalent: "q"
+        )
+        quitItem.image = NSImage(
+            systemSymbolName: "power",
+            accessibilityDescription: "Quit"
+        )
+        menu.addItem(quitItem)
     }
 
     // MARK: - Menu Toggle Actions
@@ -580,14 +642,32 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMenuDele
         }
 
         twitchService?.getCurrentSongInfo = { [weak self] in
-            MainActor.assumeIsolated {
-                self?.getCurrentSongInfo() ?? "No song is currently playing"
+            if Thread.isMainThread {
+                return MainActor.assumeIsolated {
+                    self?.getCurrentSongInfo() ?? "No song is currently playing"
+                }
             }
+            var result = "No song is currently playing"
+            DispatchQueue.main.sync {
+                result = MainActor.assumeIsolated {
+                    self?.getCurrentSongInfo() ?? "No song is currently playing"
+                }
+            }
+            return result
         }
         twitchService?.getLastSongInfo = { [weak self] in
-            MainActor.assumeIsolated {
-                self?.getLastSongInfo() ?? "No song is currently playing"
+            if Thread.isMainThread {
+                return MainActor.assumeIsolated {
+                    self?.getLastSongInfo() ?? "No song is currently playing"
+                }
             }
+            var result = "No song is currently playing"
+            DispatchQueue.main.sync {
+                result = MainActor.assumeIsolated {
+                    self?.getLastSongInfo() ?? "No song is currently playing"
+                }
+            }
+            return result
         }
     }
 
@@ -649,7 +729,8 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMenuDele
 
     /// Toggles the WebSocket server and applies any port change from the notification.
     @objc func websocketServerSettingChanged(_ notification: Notification) {
-        let enabled = UserDefaults.standard.bool(forKey: AppConstants.UserDefaults.websocketEnabled)
+        let enabled = notification.userInfo?["enabled"] as? Bool
+            ?? UserDefaults.standard.bool(forKey: AppConstants.UserDefaults.websocketEnabled)
         websocketServer?.setEnabled(enabled)
 
         if let port = notification.userInfo?["port"] as? UInt16 {
@@ -659,7 +740,8 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMenuDele
 
     /// Toggles the widget HTTP server independently from the WebSocket server.
     @objc func widgetHTTPServerSettingChanged(_ notification: Notification) {
-        let enabled = UserDefaults.standard.object(forKey: AppConstants.UserDefaults.widgetHTTPEnabled) as? Bool ?? false
+        let enabled = notification.userInfo?["enabled"] as? Bool
+            ?? UserDefaults.standard.object(forKey: AppConstants.UserDefaults.widgetHTTPEnabled) as? Bool ?? false
         websocketServer?.setWidgetHTTPEnabled(enabled)
     }
 
@@ -798,6 +880,15 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMenuDele
             defer: false
         )
         window.contentViewController = hosting
+        hosting.view.translatesAutoresizingMaskIntoConstraints = false
+        if let contentView = window.contentView {
+            NSLayoutConstraint.activate([
+                hosting.view.topAnchor.constraint(equalTo: contentView.topAnchor),
+                hosting.view.bottomAnchor.constraint(equalTo: contentView.bottomAnchor),
+                hosting.view.leadingAnchor.constraint(equalTo: contentView.leadingAnchor),
+                hosting.view.trailingAnchor.constraint(equalTo: contentView.trailingAnchor),
+            ])
+        }
         window.title = "Welcome to WolfWave"
         window.titleVisibility = .hidden
         window.titlebarAppearsTransparent = true
@@ -870,7 +961,16 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMenuDele
         let style: NSWindow.StyleMask = [.titled, .closable, .miniaturizable, .resizable, .fullSizeContentView]
         let window = NSWindow(contentRect: frame, styleMask: style, backing: .buffered, defer: false)
         window.contentViewController = hosting
-        
+        hosting.view.translatesAutoresizingMaskIntoConstraints = false
+        if let contentView = window.contentView {
+            NSLayoutConstraint.activate([
+                hosting.view.topAnchor.constraint(equalTo: contentView.topAnchor),
+                hosting.view.bottomAnchor.constraint(equalTo: contentView.bottomAnchor),
+                hosting.view.leadingAnchor.constraint(equalTo: contentView.leadingAnchor),
+                hosting.view.trailingAnchor.constraint(equalTo: contentView.trailingAnchor),
+            ])
+        }
+
         window.title = ""
         window.titleVisibility = .hidden
         window.titlebarAppearsTransparent = true

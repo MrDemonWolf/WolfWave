@@ -36,7 +36,7 @@ struct MusicMonitorSettingsView: View {
                     .font(.system(size: 17, weight: .semibold))
                     .accessibilityLabel("Music Playback Monitor")
 
-                Text("Connects to Apple Music to share your songs with Twitch and Discord.")
+                Text("Connects to Apple Music and shares what's playing everywhere.")
                     .font(.system(size: 13))
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
@@ -82,7 +82,7 @@ struct MusicMonitorSettingsView: View {
                 VStack(alignment: .leading, spacing: 2) {
                     Text("Sync Music")
                         .font(.system(size: 13, weight: .medium))
-                    Text("Updates your stream and status when the song changes")
+                    Text("Updates your status and widget when the song changes")
                         .font(.system(size: 11))
                         .foregroundStyle(.tertiary)
                 }
@@ -279,7 +279,7 @@ struct MusicMonitorSettingsView: View {
                     Text("Music Playback Monitor")
                         .font(.system(size: 17, weight: .semibold))
                     
-                    Text("Automatically detect what's playing in Apple Music and share it with Twitch chat, Discord, and stream overlays.")
+                    Text("Automatically detect what's playing in Apple Music and share it with Twitch chat, Discord, and now-playing widgets.")
                         .font(.system(size: 13))
                         .foregroundStyle(.secondary)
                         .fixedSize(horizontal: false, vertical: true)

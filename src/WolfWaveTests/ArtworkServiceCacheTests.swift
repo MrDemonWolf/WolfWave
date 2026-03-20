@@ -9,16 +9,11 @@ import XCTest
 @testable import WolfWave
 
 final class ArtworkServiceCacheTests: XCTestCase {
-    var service: ArtworkService!
+    var service = ArtworkService()
 
     override func setUp() {
         super.setUp()
         service = ArtworkService()
-    }
-
-    override func tearDown() {
-        service = nil
-        super.tearDown()
     }
 
     // MARK: - Cache Miss Tests
@@ -57,6 +52,7 @@ final class ArtworkServiceCacheTests: XCTestCase {
     }
 
     // MARK: - Edge Case Input Tests
+    // fetchArtworkURL tests are integration-style (hit network)
 
     func testFetchWithEmptyStringsCallsCompletion() {
         let expectation = expectation(description: "completion called")

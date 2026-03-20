@@ -57,6 +57,9 @@ struct AdvancedSettingsView: View {
     /// Whether a manual update check is in progress.
     @State private var isCheckingForUpdates = false
 
+    /// Whether the "up to date" alert is shown after a manual check.
+    @State private var showingUpToDateAlert = false
+
     /// Whether the app was installed via Homebrew (Sparkle is disabled in this case)
     @State private var isHomebrewInstall = false
 
@@ -226,6 +229,10 @@ struct AdvancedSettingsView: View {
                let available = notification.userInfo?["isUpdateAvailable"] as? Bool {
                 latestVersion = version
                 updateAvailable = available && skippedVersion != version
+
+                if !available {
+                    showingUpToDateAlert = true
+                }
             }
         }
     }
@@ -327,8 +334,24 @@ struct AdvancedSettingsView: View {
                 }
             }
 
-            // Info banner explaining Sparkle's auto-update capability
-            if !updateAvailable {
+            #if DEBUG
+            // Development build indicator
+            HStack(spacing: 10) {
+                Image(systemName: "hammer.fill")
+                    .font(.system(size: 14))
+                    .foregroundStyle(.orange)
+
+                Text("Development Build — update checks use dev-appcast.xml")
+                    .font(.system(size: 11))
+                    .foregroundStyle(.secondary)
+            }
+            .padding(10)
+            .background(Color.orange.opacity(0.08))
+            .clipShape(RoundedRectangle(cornerRadius: 6))
+            #endif
+
+            // Info banner reflecting actual toggle state
+            if updateCheckEnabled && !updateAvailable {
                 HStack(spacing: 10) {
                     Image(systemName: "checkmark.circle.fill")
                         .font(.system(size: 14))
@@ -340,6 +363,19 @@ struct AdvancedSettingsView: View {
                 }
                 .padding(10)
                 .background(Color.green.opacity(0.08))
+                .clipShape(RoundedRectangle(cornerRadius: 6))
+            } else if !updateCheckEnabled && !updateAvailable {
+                HStack(spacing: 10) {
+                    Image(systemName: "info.circle.fill")
+                        .font(.system(size: 14))
+                        .foregroundStyle(.secondary)
+
+                    Text("Automatic updates are off. Use Check Now to look for updates.")
+                        .font(.system(size: 11))
+                        .foregroundStyle(.secondary)
+                }
+                .padding(10)
+                .background(Color.gray.opacity(0.08))
                 .clipShape(RoundedRectangle(cornerRadius: 6))
             }
 
@@ -372,6 +408,11 @@ struct AdvancedSettingsView: View {
             }
         }
         .cardStyle()
+        .alert("You're up to date!", isPresented: $showingUpToDateAlert) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text("WolfWave v\(currentVersion) is the latest version.")
+        }
     }
 }
 

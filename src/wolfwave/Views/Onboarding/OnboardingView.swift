@@ -27,30 +27,41 @@ struct OnboardingView: View {
     /// Called when onboarding completes to dismiss the window.
     var onComplete: () -> Void
 
+    /// Tracks navigation direction for slide transitions.
+    @State private var navigationDirection: Edge = .trailing
+
     // MARK: - Body
 
     var body: some View {
-        VStack(spacing: 0) {
-            progressDots
-                .padding(.top, 20)
-                .padding(.bottom, 16)
+        Group {
+            if viewModel.showCompletion {
+                OnboardingCompletionView(onDismiss: onComplete)
+                    .transition(.opacity)
+            } else {
+                VStack(spacing: 0) {
+                    progressDots
+                        .padding(.top, 20)
+                        .padding(.bottom, 16)
 
-            stepContent
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-                .clipped()
-                .animation(.easeInOut(duration: 0.25), value: viewModel.currentStep)
+                    stepContent
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                        .clipped()
+                        .animation(.spring(response: 0.35, dampingFraction: 0.85), value: viewModel.currentStep)
 
-            Divider()
+                    Divider()
 
-            navigationBar
-                .padding(.horizontal, 24)
-                .padding(.vertical, 16)
+                    navigationBar
+                        .padding(.horizontal, 24)
+                        .padding(.vertical, 16)
+                }
+            }
         }
         .frame(
             width: AppConstants.OnboardingUI.windowWidth,
             height: AppConstants.OnboardingUI.windowHeight
         )
         .background(Color(nsColor: .windowBackgroundColor))
+        .animation(.easeInOut(duration: 0.3), value: viewModel.showCompletion)
     }
 
     // MARK: - Progress Dots
@@ -63,7 +74,8 @@ struct OnboardingView: View {
                         ? Color.accentColor
                         : Color.secondary.opacity(0.3))
                     .frame(width: 8, height: 8)
-                    .animation(.easeInOut(duration: 0.2), value: viewModel.currentStep)
+                    .scaleEffect(step == viewModel.currentStep ? 1.3 : 1.0)
+                    .animation(.spring(response: 0.3, dampingFraction: 0.6), value: viewModel.currentStep)
             }
         }
     }
@@ -86,8 +98,8 @@ struct OnboardingView: View {
         }
         .id(viewModel.currentStep)
         .transition(.asymmetric(
-            insertion: .move(edge: .trailing).combined(with: .opacity),
-            removal: .move(edge: .leading).combined(with: .opacity)
+            insertion: .move(edge: navigationDirection).combined(with: .opacity),
+            removal: .move(edge: navigationDirection == .trailing ? .leading : .trailing).combined(with: .opacity)
         ))
     }
 
@@ -97,6 +109,8 @@ struct OnboardingView: View {
         HStack {
             if !viewModel.isFirstStep {
                 Button("Back") {
+                    navigationDirection = .leading
+                    cancelTwitchOAuthIfNeeded()
                     viewModel.goToPreviousStep()
                 }
                 .buttonStyle(.bordered)
@@ -117,6 +131,7 @@ struct OnboardingView: View {
 
             if shouldShowSkip {
                 Button("Skip") {
+                    navigationDirection = .trailing
                     cancelTwitchOAuthIfNeeded()
                     viewModel.goToNextStep()
                 }
@@ -134,6 +149,7 @@ struct OnboardingView: View {
                 .pointerCursor()
             } else {
                 Button("Next") {
+                    navigationDirection = .trailing
                     cancelTwitchOAuthIfNeeded()
                     viewModel.goToNextStep()
                 }
@@ -168,9 +184,8 @@ struct OnboardingView: View {
         }
     }
 
-    /// Persists the completion flag and notifies AppDelegate.
+    /// Persists the completion flag and shows the celebration screen.
     private func finishOnboarding() {
         viewModel.completeOnboarding()
-        onComplete()
     }
 }

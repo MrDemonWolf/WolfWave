@@ -1,193 +1,64 @@
 ---
 title: Features
-description: Complete feature list for WolfWave
+description: Everything you can do with WolfWave.
 ---
 
-WolfWave is packed with features to connect your Apple Music with your streaming audience.
+WolfWave is designed to be the only tool you need to bridge your Apple Music with Twitch, Discord, and now-playing widgets.
 
-## Music Integration
+---
 
-### Real-time Now Playing
+## 🎵 Music Sync
+**TL;DR: WolfWave sees what you hear, instantly.**
 
-- **ScriptingBridge Integration**: Direct communication with Apple Music without spawning subprocesses
-- **Instant Updates**: Track changes are detected and broadcast immediately
-- **Complete Track Info**: Artist, song title, album, and artwork
-- **Last Played Tracking**: Keep history of your recently played songs
+- **Native Sync**: Uses macOS ScriptingBridge for direct access to Apple Music. No hacks, no lag.
+- **Set and Forget**: Once enabled, it runs silently in your menu bar.
+- **Smart History**: Remembers your `!last` song so you don't have to.
+- **Power Saver**: Automatically slows down during Low Power Mode to save your MacBook's battery.
 
-### Music Monitor Controls
+---
 
-- Toggle tracking on/off from Settings
-- Live now-playing preview card in the Music Monitor settings (styled after Apple Music)
-- Lightweight background monitoring
-- No impact on Apple Music performance
+## 💬 Twitch Chat Bot
+**TL;DR: Chat commands on autopilot.**
 
-## Twitch Integration
+- **Modern API**: Built on Twitch EventSub for lightning-fast responses.
+- **Custom Commands**: Enable `!song`, `!last`, and more with one click.
+- **Anti-Spam**: Built-in cooldowns so your chat doesn't get cluttered.
+- **Mod Friendly**: Mods and the channel owner bypass all cooldowns automatically.
 
-### Modern API Implementation
+---
 
-- **EventSub WebSocket**: Real-time chat message notifications using Twitch's modern API
-- **Helix API**: Full integration with Twitch's current API (no deprecated IRC)
-- **OAuth Device Code Flow**: Secure authentication without entering credentials in the app
+## 🎧 Discord Status
+**TL;DR: Show off your taste.**
 
-### Chat Commands
+- **Live Profile**: Shows "Listening to Apple Music" on your Discord profile.
+- **Auto Art**: Fetches high-quality album covers automatically via iTunes.
+- **Progress Bars**: Shows your friends exactly how far into the track you are.
+- **Zero Setup**: Connects via Discord's local socket. No bot tokens required.
 
-Built-in commands for your viewers:
+---
 
-| Command        | Description              |
-| -------------- | ------------------------ |
-| `!song`        | Current playing song     |
-| `!currentsong` | Current playing song     |
-| `!nowplaying`  | Current playing song     |
-| `!lastsong`    | Previously played song   |
-| `!last`        | Previously played song   |
-| `!prevsong`    | Previously played song   |
+## 📺 Now-Playing Widget
+**TL;DR: A beautiful widget in seconds.**
 
-### Bot Features
+- **No Internet Needed**: The widget is hosted locally on your Mac. It works even if the cloud is down.
+- **OBS Ready**: Add as a Browser Source in OBS, or open in any browser.
+- **Real-time**: Updates the millisecond the song changes.
+- **Customizable**: Tweak colors, fonts, and layout to match your style.
 
-- **Command Toggles**: Enable/disable individual commands from settings
-- **Cooldown System**: Configurable global and per-user cooldowns with moderator bypass
-- **Extensible System**: Easy to add custom commands
-- **Reply Support**: Commands can reply to specific messages
-- **Automatic Reconnection**: Handles connection drops gracefully
+---
 
-## Discord Rich Presence
+## 🛡️ Security & Privacy
+**TL;DR: Your data is your business.**
 
-### Listening Status
+- **Keychain Secure**: Your Twitch tokens are stored in the macOS Keychain, the same place your passwords live.
+- **No Tracking**: WolfWave doesn't track what you listen to or send your data to any servers.
+- **Signed & Notarized**: Fully verified by Apple so you can install with confidence.
 
-Show what you're listening to directly on your Discord profile — just like Spotify, but for Apple Music.
+---
 
-- **"Listening to Apple Music"**: Activity type 2 displays a listening status on your profile
-- **Dynamic Album Artwork**: Album art is fetched automatically from the iTunes Search API — no manual setup needed
-- **Track Details**: Displays artist, song title, and album name
-- **Playback Progress**: Shows elapsed time and track duration
-- **Auto-connect**: Connects to Discord automatically when the app launches
-- **Auto-reconnect**: Reconnects when Discord restarts or becomes available
+## Ready to dive in?
 
-### How It Works
-
-WolfWave communicates with Discord via the local IPC socket — no bot token or server required. You only need a Discord Application ID from the [Discord Developer Portal](https://discord.com/developers/applications).
-
-## OBS Stream Widget
-
-### Browser Source Overlay
-
-Show what you're listening to directly on your stream with a built-in browser source widget for OBS.
-
-- **Fully Bundled**: The widget is served directly by the app — no external URL or internet required
-- **Local HTTP Server**: Runs at `http://localhost:8766` alongside the WebSocket server
-- **Multi-client Support**: Multiple OBS scenes or browser tabs can connect simultaneously
-- **Real-time Updates**: Track changes, progress, and playback state broadcast instantly
-- **Album Art & Blur**: Displays album artwork with a blurred background overlay
-- **Progress Bar**: Smooth progress bar with client-side interpolation for 60fps rendering
-- **Auto-reconnect**: Widget reconnects automatically if the server restarts
-
-### How It Works
-
-1. Enable the WebSocket server in **Settings → OBS Widget**
-2. Copy the Widget URL (`http://localhost:8766`)
-3. Add it as a **Browser Source** in OBS (recommended size: 500 × 120)
-4. The widget loads from the app, connects to the local WebSocket, and displays your now-playing info
-
-### JSON Message Format
-
-The server broadcasts structured JSON messages:
-- `welcome` — Sent on initial connection
-- `now_playing` — Track name, artist, album, duration, elapsed, artwork URL
-- `progress` — Elapsed time updates every second during playback
-- `playback_state` — Play/pause/stop state changes
-
-## First-Launch Onboarding
-
-A guided 4-step onboarding wizard walks new users through initial configuration on first launch:
-
-1. **Welcome** — App overview with feature highlights
-2. **Twitch Connection** — Optional OAuth Device Code flow to link your Twitch account
-3. **Discord Rich Presence** — Optional toggle to enable listening status on Discord
-4. **OBS Stream Widget** — Optional toggle to enable the WebSocket server with widget URL
-
-## Security
-
-### Keychain Integration
-
-- All credentials stored in macOS Keychain
-- No plain-text token storage
-- Secure OAuth token management
-
-### Code Signing & Notarization
-
-- App is signed with a Developer ID certificate
-- Notarized by Apple for Gatekeeper trust
-- Hardened Runtime enabled with no exceptions
-
-### Token Management
-
-- Automatic token validation on app launch
-- Secure token refresh when possible
-- Clear re-authentication prompts when needed
-
-## User Interface
-
-### Menu Bar App
-
-- Lightweight menu bar presence
-- Quick access to Settings, About, and Quit
-- Minimal and unobtrusive
-
-### Settings Interface
-
-- **OBS Widget**: Enable the stream overlay WebSocket server and copy the widget URL
-- **Twitch Integration**: Manage bot connection, commands, and cooldown settings
-- **Discord Integration**: Enable/disable Rich Presence and view connection status
-- **Advanced**: Software updates, setup wizard, reset settings
-
-### About Panel
-
-The About panel includes clickable links to:
-
-- **Documentation** — Full docs site
-- **Privacy Policy** — Data handling practices
-- **Terms of Service** — Usage terms
-
-## Automatic Updates
-
-WolfWave checks for new versions automatically via the GitHub Releases API.
-
-### How It Works
-
-- Checks on launch (after a short delay) and every 24 hours
-- Compares the latest release tag against your running version
-- Detects whether you installed via Homebrew or DMG download
-- Shows a macOS notification when a new version is available
-
-### Settings Controls
-
-In **Settings → Advanced → Software Update**:
-
-- View your current version and available updates
-- **Homebrew users**: Copyable `brew upgrade wolfwave` command
-- **DMG users**: One-click "Download Update" button
-- **Skip This Version**: Dismiss a specific release
-- **Check automatically**: Toggle periodic checking on/off
-- **Check Now**: Manual check on demand
-
-## Technical Features
-
-### Performance
-
-- Minimal CPU and memory usage
-- Non-blocking async operations
-- Efficient polling and event handling
-
-### Power Management
-
-WolfWave adapts automatically to Low Power Mode and thermal pressure to conserve battery:
-
-- **Music check interval**: 15s in low-power mode (vs 5s normal)
-- **Discord poll interval**: 60s in low-power mode (vs 15s normal)
-- **WebSocket broadcast interval**: 3s in low-power mode (vs 1s normal)
-
-### Architecture
-
-- Clean separation of concerns (MVVM pattern)
-- Comprehensive error handling
-- Minimal external dependencies — native Apple frameworks plus Sparkle for auto-updates
+<Cards>
+  <Card title="Installation" href="/docs/installation" description="Get it running on your Mac." />
+  <Card title="Usage Guide" href="/docs/usage" description="Master the features." />
+</Cards>

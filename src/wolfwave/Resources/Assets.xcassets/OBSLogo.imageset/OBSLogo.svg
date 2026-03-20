@@ -12,8 +12,8 @@
     <!-- Inner lens circle -->
     <circle cx="256" cy="256" r="80"/>
     <!-- Three aperture blades -->
-    <path d="M256 76 C310 140, 350 200, 336 256" stroke-linecap="round"/>
-    <path d="M100.2 346 C130 270, 180 210, 256 220" stroke-linecap="round"/>
-    <path d="M411.8 346 C370 290, 300 260, 256 296" stroke-linecap="round"/>
+    <path d="M 256 76 Q 330 170 336 256" stroke-linecap="round"/>
+    <path d="M 100.2 346 Q 155 240 256 220" stroke-linecap="round"/>
+    <path d="M 411.8 346 Q 335 275 256 296" stroke-linecap="round"/>
   </g>
 </svg>

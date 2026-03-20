@@ -83,7 +83,7 @@ struct OnboardingTwitchStepView: View {
 
     private var notConnectedContent: some View {
         VStack(spacing: 16) {
-            Text("Connect your Twitch so viewers can type !song in chat to see what's playing.")
+            Text("Connect your Twitch so people can type !song in chat to see what's playing.")
                 .font(.system(size: 13))
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)

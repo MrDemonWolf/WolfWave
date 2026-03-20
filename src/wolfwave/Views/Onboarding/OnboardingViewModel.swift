@@ -25,6 +25,7 @@ final class OnboardingViewModel: ObservableObject {
     // MARK: - Published State
 
     @Published var currentStep: OnboardingStep = .welcome
+    @Published var showCompletion = false
 
     // MARK: - Navigation
 
@@ -58,6 +59,7 @@ final class OnboardingViewModel: ObservableObject {
     func completeOnboarding() {
         UserDefaults.standard.set(true, forKey: AppConstants.UserDefaults.hasCompletedOnboarding)
         UserDefaults.standard.synchronize()
+        showCompletion = true
         Log.info("OnboardingViewModel: Onboarding completed", category: "App")
     }
 

@@ -17,7 +17,32 @@ env:
   CONFIGURATION: Release
 
 jobs:
-  build-and-release:
+  test:
+    name: Run Tests
+    runs-on: macos-15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Create Config.xcconfig
+        run: |
+          printf 'TWITCH_CLIENT_ID = %s\nDISCORD_CLIENT_ID = %s\n' \
+            "${{ secrets.TWITCH_CLIENT_ID }}" \
+            "${{ secrets.DISCORD_CLIENT_ID }}" \
+            > src/wolfwave/Config.xcconfig
+
+      - name: Run Tests
+        run: make test
+
+      - name: Upload Test Results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ReleaseTestResults
+          path: TestResults.xcresult
+
+  create-draft-release:
+    needs: test
     runs-on: macos-15
     permissions:
       contents: write
@@ -207,8 +232,8 @@ jobs:
           name: ${{ steps.version.outputs.dmg_name }}
           path: builds/${{ steps.version.outputs.dmg_name }}
 
-      # ── Create GitHub Release ─────────────────────────────────────────
-      - name: Create GitHub Release
+      # ── Create draft GitHub Release ─────────────────────────────────
+      - name: Create draft GitHub Release
         if: startsWith(github.ref, 'refs/tags/v') && github.event.inputs.dry_run != 'true'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -217,7 +242,8 @@ jobs:
         run: |
           gh release create "v$VERSION" "builds/$DMG_NAME" \
             --title "WolfWave v$VERSION" \
-            --generate-notes
+            --generate-notes \
+            --draft
 
       # ── Cleanup ─────────────────────────────────────────────────────
       - name: Cleanup keychain

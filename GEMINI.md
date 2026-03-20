@@ -4,7 +4,7 @@ This file provides essential context, architecture overview, and development gui
 
 ## Project Overview
 
-WolfWave is a native macOS menu bar application that bridges Apple Music with Twitch, Discord, and stream overlays. It uses native Apple frameworks (ScriptingBridge, AppKit, SwiftUI) to provide real-time music integration without external dependencies.
+WolfWave is a native macOS menu bar utility that bridges Apple Music with Twitch, Discord, and stream overlays. It uses native Apple frameworks (ScriptingBridge, AppKit, SwiftUI) to provide real-time music integration without external dependencies.
 
 - **Primary Stack**: Swift 5.9+, SwiftUI, AppKit
 - **Target OS**: macOS 15.0+
@@ -20,39 +20,65 @@ The `AppDelegate` (via `@NSApplicationDelegateAdaptor`) acts as the central orch
 - Handles window management (Settings, Onboarding).
 - Forwards track updates from `MusicPlaybackMonitor` to Twitch, Discord, and WebSocket services.
 
-### Key Services (`src/wolfwave/Services/`)
-- **MusicPlaybackMonitor**: Tracks Apple Music via ScriptingBridge and distributed notifications.
-- **TwitchChatService**: Manages Twitch EventSub WebSocket and Helix API for bot commands.
-- **DiscordRPCService**: Handles Discord Rich Presence via local IPC Unix domain sockets.
-- **WebSocketServerService**: Runs a local server (default port 8765) to power OBS browser source widgets.
-- **UpdateCheckerService**: Periodically checks GitHub Releases for updates.
+### Key Services (`src/wolfwave/Services/` & `src/wolfwave/Core/`)
+- **MusicPlaybackMonitor**: Tracks Apple Music via ScriptingBridge and distributed notifications (**Sync Music**).
+- **TwitchChatService**: Manages Twitch EventSub WebSocket and Helix API for chat bot commands (**Twitch Chat**).
+- **DiscordRPCService**: Handles Discord Rich Presence via local IPC Unix domain sockets (**Discord Status**).
+- **WebSocketServerService**: Runs a local server (port 8765) to power OBS browser source widgets (**Stream Widgets**).
+- **WidgetHTTPService**: Serves the local HTML/JS widget for OBS (port 8766).
+- **SparkleUpdaterService**: Periodically checks for updates via Sparkle framework.
 - **KeychainService**: Securely stores API tokens in the macOS Keychain.
+- **PowerStateMonitor**: Adapts polling intervals based on system power mode and thermal pressure.
+- **ArtworkService**: Fetches high-quality album art via iTunes Search API.
 
 ### Data Flow
 1. `MusicPlaybackMonitor` detects a track change in Apple Music.
 2. `AppDelegate` receives the update via delegate pattern.
 3. `AppDelegate` pushes the data to:
-    - `TwitchChatService` (for `!song` responses).
-    - `DiscordRPCService` (for Rich Presence status).
-    - `WebSocketServerService` (for OBS widget updates).
-    - `ArtworkService` (to fetch album art via iTunes Search API).
+    - `TwitchChatService` (for `!song` chat responses).
+    - `DiscordRPCService` (for Discord Status updates).
+    - `WebSocketServerService` (for Stream Widget overlays).
+    - `ArtworkService` (to fetch album art for the widget and Discord).
+
+## User Experience Guidelines
+
+- **Tone**: Use friendly, non-technical language. Avoid jargon like "IPC", "WebSocket", "Rich Presence", or "Listener".
+- **Terminology**: 
+    - Use **Sync Music** instead of "Music Tracking".
+    - Use **Discord Status** instead of "Discord Presence".
+    - Use **Stream Widgets** instead of "Stream Overlay" or "WebSocket Server".
+- **Clarity**: Use distinct, benefit-driven headers.
+- **Accessibility**: Ensure all UI elements have `accessibilityLabel` and `accessibilityIdentifier` for UI testing and screen readers.
+- **Onboarding**: The app is designed to be "dummy-friendly". Onboarding and empty states should guide the user clearly.
 
 ## Development Commands
 
 | Command | Description |
 | :--- | :--- |
 | `make build` | Debug build via `xcodebuild` |
-| `make test` | Run unit tests (XCTest) |
-| `make prod-build` | Release build + DMG packaging |
+| `make clean` | Remove build artifacts |
+| `make test` | Run tests |
+| `make test-verbose` | Run tests with full output |
+| `make test-ci` | Run tests in CI mode (no signing) |
+| `make prod-build` | Release build + DMG packaging (`builds/`) |
+| `make prod-install` | Release build + install to `/Applications` |
+| `make notarize` | Notarize the production DMG (requires env vars) |
 | `make open-xcode` | Open the project in Xcode |
 | `make update-deps` | Resolve Swift Package Manager dependencies |
-| `make clean` | Remove build artifacts |
 
 ## Build Configuration
 
 - **API Keys**: All API keys (Twitch Client ID, Discord Client ID) are managed in `src/wolfwave/Config.xcconfig`.
 - **Setup**: Copy `Config.xcconfig.example` to `Config.xcconfig` and fill in the required IDs. This file is gitignored.
 - **Entitlements**: The app uses App Sandbox with specific entitlements for Apple Music ScriptingBridge and Network/IPC access.
+
+## Documentation Website (`docs/`)
+
+The project includes a documentation site built with **Fumadocs** (Next.js).
+- **Location**: `/docs`
+- **Asset Utility**: `docs/lib/utils.ts` contains `getAssetPath` for base-path compatibility on GitHub Pages.
+- **Service Worker**: A dummy `sw.js` in `docs/public` prevents 404 errors.
+- **Styling**: Tailwind CSS + Fumadocs UI.
 
 ## Coding Conventions
 
@@ -62,13 +88,6 @@ The `AppDelegate` (via `@NSApplicationDelegateAdaptor`) acts as the central orch
 - **UI**: Use SwiftUI for all views. ViewModels should be `ObservableObject` with `@Published` properties.
 - **Constants**: All strings, keys, and timing values must be centralized in `AppConstants.swift`.
 - **Documentation**: Use DocC-style `///` comments for all public methods and properties.
-
-## User Experience Guidelines
-
-- **Tone**: Use friendly, non-technical language. Avoid jargon like "IPC", "WebSocket", "Rich Presence", or "Listener".
-- **Clarity**: distinct actions (e.g., "Sync Music" instead of "Music Tracking").
-- **Accessibility**: Ensure all UI elements have `accessibilityLabel` and `accessibilityIdentifier` for UI testing and screen readers.
-- **Onboarding**: The app is designed to be "dummy-friendly". Onboarding and empty states should guide the user clearly.
 
 ## Security & Privacy
 

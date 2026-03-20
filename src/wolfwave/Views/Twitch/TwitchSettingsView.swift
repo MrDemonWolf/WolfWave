@@ -86,7 +86,7 @@ struct TwitchSettingsView: View {
                     .animation(.easeInOut(duration: 0.2), value: viewModel.statusChipText)
             }
 
-            Text("Let your viewers use chat commands to see what is playing.")
+            Text("Let people use chat commands to see what's playing.")
                 .font(.system(size: 13))
                 .foregroundStyle(.secondary)
         }
@@ -101,7 +101,7 @@ struct TwitchSettingsView: View {
         } else if viewModel.credentialsSaved && viewModel.botUsername != "" {
             return "All Set!"
         } else {
-            return "Connect to Twitch"
+            return "Not signed in"
         }
     }
 
@@ -113,7 +113,7 @@ struct TwitchSettingsView: View {
         } else if viewModel.authState.isInProgress {
             return "Enter the code below on Twitch to connect."
         } else {
-            return "Connect your Twitch account to start."
+            return "Sign in to get started."
         }
     }
 
@@ -130,11 +130,11 @@ struct TwitchSettingsView: View {
                 VStack(alignment: .leading, spacing: 2) {
                     Text(authCardHeaderTitle)
                         .font(.system(size: 11, weight: .medium))
-                        .foregroundColor(.secondary)
+                        .foregroundStyle(.secondary)
 
                     Text(authCardHeaderSubtitle)
                         .font(.system(size: 12, weight: .regular))
-                        .foregroundColor(.secondary)
+                        .foregroundStyle(.secondary)
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
             }
@@ -144,13 +144,6 @@ struct TwitchSettingsView: View {
                 switch viewModel.integrationState {
                 case .notConnected:
                     VStack(spacing: 12) {
-                        if viewModel.authState.isInProgress || hasStartedActivation {
-                            Text(
-                                "WolfWave needs to connect to your account to read chat."
-                            )
-                            .font(.system(size: 13))
-                            .foregroundColor(.secondary)
-                        }
                         Button(action: {
                             hasStartedActivation = false
                             viewModel.startOAuth()
@@ -183,7 +176,7 @@ struct TwitchSettingsView: View {
                             Text(" and enter this code:")
                         }
                         .font(.system(size: 13))
-                        .foregroundColor(.secondary)
+                        .foregroundStyle(.secondary)
                         .frame(maxWidth: .infinity, alignment: .leading)
 
                         if case .waitingForAuth(let code, let uri) = viewModel.authState {
@@ -216,7 +209,7 @@ struct TwitchSettingsView: View {
 
                             Text("Waiting for you...")
                                 .font(.system(size: 13))
-                                .foregroundColor(.secondary)
+                                .foregroundStyle(.secondary)
 
                             Spacer()
 
@@ -252,7 +245,7 @@ struct TwitchSettingsView: View {
                     VStack(spacing: 8) {
                         Text(message)
                             .font(.system(size: 13))
-                            .foregroundColor(.red)
+                            .foregroundStyle(.red)
                         HStack {
                             Button("Retry") { viewModel.startOAuth() }
                                 .buttonStyle(.bordered)
@@ -406,6 +399,11 @@ private struct SignedInView: View {
                 .accessibilityLabel("Twitch channel name")
                 .accessibilityHint("Enter the channel name for your Twitch channel")
                 .accessibilityIdentifier("twitchChannelTextField")
+                .onSubmit {
+                    if !shouldDisableConnectButton {
+                        onJoinChannel()
+                    }
+                }
                 .onChange(of: channelID) { oldValue, newValue in
                     let sanitized = newValue.lowercased().trimmingCharacters(
                         in: CharacterSet.whitespacesAndNewlines)

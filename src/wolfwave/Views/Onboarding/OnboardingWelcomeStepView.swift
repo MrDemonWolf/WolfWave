@@ -10,6 +10,46 @@ import SwiftUI
 /// Welcome step displaying the app icon, tagline, and feature highlights.
 struct OnboardingWelcomeStepView: View {
 
+    // MARK: - Feature Data
+
+    private struct Feature {
+        enum IconType {
+            case brand(name: String, renderOriginal: Bool)
+            case symbol(name: String)
+        }
+
+        let icon: IconType
+        let title: String
+        let description: String
+    }
+
+    private let features: [Feature] = [
+        Feature(
+            icon: .brand(name: "AppleMusicLogo", renderOriginal: false),
+            title: "Music Monitoring",
+            description: "Automatically detects what's playing in Apple Music."
+        ),
+        Feature(
+            icon: .brand(name: "TwitchLogo", renderOriginal: true),
+            title: "Twitch Chat Bot",
+            description: "Anyone in chat can type !song to see what's playing."
+        ),
+        Feature(
+            icon: .brand(name: "DiscordLogo", renderOriginal: false),
+            title: "Discord Rich Presence",
+            description: "Shows your current song on Discord, like Spotify does."
+        ),
+        Feature(
+            icon: .symbol(name: "tv.badge.wifi"),
+            title: "Now-Playing Widget",
+            description: "Adds a customizable now-playing widget for OBS or any browser."
+        ),
+    ]
+
+    // MARK: - Animation State
+
+    @State private var rowsVisible = false
+
     // MARK: - Body
 
     var body: some View {
@@ -33,35 +73,46 @@ struct OnboardingWelcomeStepView: View {
             }
 
             VStack(alignment: .leading, spacing: 18) {
-                brandFeatureRow(
-                    image: "AppleMusicLogo",
-                    title: "Music Monitoring",
-                    description: "Automatically detects what's playing in Apple Music."
-                )
-                brandFeatureRow(
-                    image: "TwitchLogo",
-                    renderOriginal: true,
-                    title: "Twitch Chat Bot",
-                    description: "Lets your viewers type !song in chat to see your track."
-                )
-                brandFeatureRow(
-                    image: "DiscordLogo",
-                    title: "Discord Rich Presence",
-                    description: "Shows your current song on Discord, like Spotify does."
-                )
-                symbolFeatureRow(
-                    systemName: "tv.badge.wifi",
-                    title: "Stream Overlay",
-                    description: "Puts a now-playing widget on your stream in OBS."
-                )
+                ForEach(Array(features.enumerated()), id: \.offset) { index, feature in
+                    featureRow(for: feature)
+                        .opacity(rowsVisible ? 1 : 0)
+                        .offset(x: rowsVisible ? 0 : 20)
+                        .animation(
+                            .spring(response: 0.4, dampingFraction: 0.8)
+                                .delay(Double(index) * 0.08),
+                            value: rowsVisible
+                        )
+                }
             }
 
             Spacer()
         }
         .padding(.horizontal, 24)
+        .onAppear {
+            rowsVisible = true
+        }
     }
 
     // MARK: - Helpers
+
+    @ViewBuilder
+    private func featureRow(for feature: Feature) -> some View {
+        switch feature.icon {
+        case let .brand(name, renderOriginal):
+            brandFeatureRow(
+                image: name,
+                renderOriginal: renderOriginal,
+                title: feature.title,
+                description: feature.description
+            )
+        case let .symbol(name):
+            symbolFeatureRow(
+                systemName: name,
+                title: feature.title,
+                description: feature.description
+            )
+        }
+    }
 
     @ViewBuilder
     private func symbolFeatureRow(systemName: String, color: Color = .accentColor, title: String, description: String) -> some View {

@@ -82,7 +82,9 @@ final class SparkleUpdaterService: NSObject {
         }
 
         #if DEBUG
-        Log.info("SparkleUpdaterService: Debug build detected — Sparkle disabled", category: "Update")
+        Log.info("SparkleUpdaterService: Debug build — Sparkle initialized for manual testing only", category: "Update")
+        setupSparkle()
+        updater?.automaticallyChecksForUpdates = false
         #else
         setupSparkle()
         #endif
@@ -132,10 +134,6 @@ final class SparkleUpdaterService: NSObject {
             return
         }
 
-        #if DEBUG
-        Log.info("SparkleUpdaterService: Manual check ignored — debug build", category: "Update")
-        return
-        #else
         guard let updater = updater else {
             Log.error("SparkleUpdaterService: Cannot check for updates — updater not initialized", category: "Update")
             return
@@ -143,7 +141,6 @@ final class SparkleUpdaterService: NSObject {
 
         Log.info("SparkleUpdaterService: Manual update check triggered", category: "Update")
         updater.checkForUpdates()
-        #endif
     }
     
     /// Checks for updates silently in the background.

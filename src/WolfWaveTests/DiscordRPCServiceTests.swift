@@ -12,11 +12,6 @@ final class DiscordRPCServiceTests: XCTestCase {
 
     // MARK: - Initialization Tests
 
-    func testServiceInitializesWithoutCrash() {
-        let service = DiscordRPCService(clientID: "")
-        XCTAssertNotNil(service)
-    }
-
     func testServiceInitializesWithEmptyClientID() {
         let service = DiscordRPCService(clientID: "")
         XCTAssertNotNil(service, "Service should initialize without crash even with empty client ID")
@@ -49,29 +44,15 @@ final class DiscordRPCServiceTests: XCTestCase {
         }
     }
 
-    func testResolveClientIDRejectsUnresolvedBuildVariable() {
-        // Verify the logic that rejects "$(DISCORD_CLIENT_ID)" as a valid value
-        let placeholder = "$(DISCORD_CLIENT_ID)"
-        let isValid = !placeholder.isEmpty &&
-            placeholder != "$(DISCORD_CLIENT_ID)" &&
-            placeholder != "your_discord_application_id_here"
-        XCTAssertFalse(isValid, "Unresolved build variable should not be treated as valid client ID")
-    }
-
-    func testResolveClientIDRejectsExamplePlaceholder() {
-        let placeholder = "your_discord_application_id_here"
-        let isValid = !placeholder.isEmpty &&
-            placeholder != "$(DISCORD_CLIENT_ID)" &&
-            placeholder != "your_discord_application_id_here"
-        XCTAssertFalse(isValid, "Example placeholder should not be treated as valid client ID")
-    }
-
-    func testResolveClientIDAcceptsRealValue() {
-        let realID = "1234567890"
-        let isValid = !realID.isEmpty &&
-            realID != "$(DISCORD_CLIENT_ID)" &&
-            realID != "your_discord_application_id_here"
-        XCTAssertTrue(isValid, "A real numeric client ID should be accepted")
+    func testResolveClientIDRejectsPlaceholders() {
+        // In test environment, resolveClientID() should return nil (no real client ID configured)
+        // or a valid non-placeholder string if one is set in the environment
+        let resolved = DiscordRPCService.resolveClientID()
+        if let resolved = resolved {
+            XCTAssertNotEqual(resolved, "$(DISCORD_CLIENT_ID)", "Should not return unresolved build variable")
+            XCTAssertNotEqual(resolved, "your_discord_application_id_here", "Should not return example placeholder")
+            XCTAssertFalse(resolved.isEmpty, "Should not return empty string")
+        }
     }
 
     // MARK: - Safe Operation Tests (No Socket)

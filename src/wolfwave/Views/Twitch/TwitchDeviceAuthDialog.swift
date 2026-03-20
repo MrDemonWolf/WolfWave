@@ -42,7 +42,7 @@ struct TwitchDeviceAuthDialog: View {
                         
                         Text("Your session has expired. Authorize WolfWave to continue")
                             .font(.system(size: 13, weight: .regular))
-                            .foregroundColor(.secondary)
+                            .foregroundStyle(.secondary)
                             .lineLimit(2)
                     }
                     .frame(maxWidth: .infinity, alignment: .center)
@@ -64,7 +64,7 @@ struct TwitchDeviceAuthDialog: View {
 
                             Text("Waiting for authorization…")
                                 .font(.system(size: 13, weight: .medium))
-                                .foregroundColor(.secondary)
+                                .foregroundStyle(.secondary)
                         }
                         .frame(maxWidth: .infinity)
                     } else {
@@ -122,7 +122,7 @@ struct TwitchDeviceAuthDialog: View {
                 VStack {
                     HStack(spacing: 8) {
                         Image(systemName: "checkmark.circle.fill")
-                            .foregroundColor(.green)
+                            .foregroundStyle(.green)
                         Text("Copied to clipboard")
                             .font(.system(size: 12, weight: .medium))
                     }
@@ -189,13 +189,13 @@ private struct DeviceCodeEntryView: View {
             VStack(alignment: .leading, spacing: 0) {
                 Text("Device Code")
                     .font(.system(size: 11, weight: .semibold))
-                    .foregroundColor(.secondary)
+                    .foregroundStyle(.secondary)
                     .tracking(0.5)
                     .padding(.bottom, 6)
                 
                 Text("Share this code with Twitch during authorization")
                     .font(.system(size: 12, weight: .regular))
-                    .foregroundColor(.secondary)
+                    .foregroundStyle(.secondary)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             
@@ -204,7 +204,7 @@ private struct DeviceCodeEntryView: View {
                 // Code display - monospaced for clarity
                 Text(deviceCode)
                     .font(.system(size: 20, weight: .semibold, design: .monospaced))
-                    .foregroundColor(.primary)
+                    .foregroundStyle(.primary)
                     .tracking(1.5)
                     .frame(maxWidth: .infinity, alignment: .center)
                     .padding(.vertical, 12)
@@ -216,7 +216,7 @@ private struct DeviceCodeEntryView: View {
                 Button(action: onCopyTapped) {
                     Image(systemName: isCodeCopied ? "checkmark.circle.fill" : "doc.on.doc")
                         .font(.system(size: 15, weight: .regular))
-                        .foregroundColor(isCodeCopied ? .green : .secondary)
+                        .foregroundStyle(isCodeCopied ? .green : .secondary)
                         .frame(width: 30, height: 30)
                         .contentShape(Rectangle())
                 }
@@ -233,7 +233,7 @@ private struct DeviceCodeEntryView: View {
             if isCodeCopied {
                 HStack(spacing: 8) {
                     Image(systemName: "checkmark.circle.fill")
-                        .foregroundColor(.green)
+                        .foregroundStyle(.green)
                     Text("Copied to clipboard")
                         .font(.system(size: 11, weight: .medium))
                 }
@@ -249,11 +249,11 @@ private struct DeviceCodeEntryView: View {
             HStack(spacing: 4) {
                 Image(systemName: "info.circle")
                     .font(.system(size: 11, weight: .regular))
-                    .foregroundColor(.secondary)
+                    .foregroundStyle(.secondary)
                 
                 Text("This dialog will automatically close once authorized")
                     .font(.system(size: 11, weight: .regular))
-                    .foregroundColor(.secondary)
+                    .foregroundStyle(.secondary)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(.horizontal, 4)

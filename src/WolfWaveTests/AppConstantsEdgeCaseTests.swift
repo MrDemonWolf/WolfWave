@@ -33,17 +33,21 @@ final class AppConstantsEdgeCaseTests: XCTestCase {
     }
 
     func testGitHubReleasesAPIIsValidAndParseable() {
-        let url = URL(string: AppConstants.URLs.githubReleasesAPI)
-        XCTAssertNotNil(url)
-        XCTAssertEqual(url?.scheme, "https")
-        XCTAssertEqual(url?.host, "api.github.com")
-        XCTAssertTrue(url!.path.contains("releases/latest"))
+        guard let url = URL(string: AppConstants.URLs.githubReleasesAPI) else {
+            XCTFail("Invalid URL")
+            return
+        }
+        XCTAssertEqual(url.scheme, "https")
+        XCTAssertEqual(url.host, "api.github.com")
+        XCTAssertTrue(url.path.contains("releases/latest"))
     }
 
     func testGitHubReleasesURLIsValidAndParseable() {
-        let url = URL(string: AppConstants.URLs.githubReleases)
-        XCTAssertNotNil(url)
-        XCTAssertTrue(url!.path.contains("releases"))
+        guard let url = URL(string: AppConstants.URLs.githubReleases) else {
+            XCTFail("Invalid URL")
+            return
+        }
+        XCTAssertTrue(url.path.contains("releases"))
     }
 
     // MARK: - Widget Themes & Layouts Tests

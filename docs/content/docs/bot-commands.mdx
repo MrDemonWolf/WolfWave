@@ -1,109 +1,55 @@
 ---
 title: Bot Commands
-description: How the bot command system works and how to add new commands
+description: All the chat commands available in WolfWave.
 ---
 
-WolfWave includes an extensible bot command system for Twitch chat integration.
+Once you've connected your Twitch account, these commands are ready to go.
 
-## Built-in Commands
+---
 
-| Command        | Description                      |
-| -------------- | -------------------------------- |
-| `!song`        | Shows the currently playing song |
-| `!currentsong` | Shows the currently playing song |
-| `!nowplaying`  | Shows the currently playing song |
-| `!last`        | Shows the last played song       |
-| `!lastsong`    | Shows the last played song       |
-| `!prevsong`    | Shows the last played song       |
+## !song Commands
+**TL;DR: Show your current track.**
+
+These commands will reply to the user with the song you're playing right now.
+
+| Command        | Description             |
+| -------------- | ----------------------- |
+| `!song`        | Now Playing info        |
+| `!currentsong` | Now Playing info        |
+| `!nowplaying`  | Now Playing info        |
+
+---
+
+## !last Commands
+**TL;DR: Show your previous track.**
+
+These commands will reply with the last track you finished playing.
+
+| Command        | Description             |
+| -------------- | ----------------------- |
+| `!lastsong`    | Previously Played info  |
+| `!last`        | Previously Played info  |
+| `!prevsong`    | Previously Played info  |
+
+---
+
+## 🛑 Cooldowns & Spam
+**TL;DR: No spamming allowed.**
+
+You can set **Global** and **Per-User** cooldowns in Settings. This prevents people from spamming commands in chat.
+
+- **Global Cooldown** (default 15s): How long everyone has to wait between commands.
+- **User Cooldown** (default 15s): How long one specific person has to wait after they use a command.
 
 <Callout type="info">
-  Each command group can be toggled on/off independently in **Settings → Twitch Integration → Bot Commands**.
-  When disabled, the bot silently ignores the trigger — no response is sent to chat.
+  **Mod Bypass**: Mods and the channel owner always bypass cooldowns. You can use commands as much as you like!
 </Callout>
 
-## Cooldown System
+---
 
-WolfWave includes a built-in cooldown system to prevent command spam in chat:
+## Ready to go?
 
-- **Global cooldown** (default 3s) — minimum time between any user's command
-- **Per-user cooldown** (default 10s) — minimum time between the same user's commands
-- **Moderator bypass** — moderators and the broadcaster bypass all cooldowns
-- **Configurable** — cooldowns can be adjusted per-command in **Settings → Twitch Integration → Bot Commands**
-
-When a command is on cooldown, the bot silently ignores the trigger — no error message is sent to chat.
-
-## Architecture
-
-Commands live under `Services/Twitch/Commands` with a clean, extensible design:
-
-- **`BotCommand` protocol** defines `triggers`, `description`, and `execute(message:)`
-- **`SongCommand`** handles `!song`, `!currentsong`, and `!nowplaying` and calls the injected `getCurrentSongInfo` closure
-- **`LastSongCommand`** handles `!lastsong` and shows the previously played track
-- **`BotCommandDispatcher`** wires commands together and is used inside `TwitchChatService`
-
-### Code Organization
-
-- Each command file is fully documented with usage examples
-- Clear separation between command logic and service integration
-- Type-safe message processing with optional return values
-
-## Adding a New Command
-
-Here's an example of creating a custom command:
-
-```swift
-/// Command that greets users in chat.
-///
-/// Triggers: !hello, !hi
-final class HelloCommand: BotCommand {
-    let triggers = ["!hello", "!hi"]
-    let description = "Greets the chatter"
-
-    func execute(message: String) -> String? {
-        let trimmed = message.trimmingCharacters(in: .whitespaces).lowercased()
-
-        for trigger in triggers {
-            if trimmed.hasPrefix(trigger) {
-                return "Hello, chat! 👋"
-            }
-        }
-
-        return nil
-    }
-}
-```
-
-### Register the Command
-
-Add your command in `BotCommandDispatcher.registerDefaultCommands()`:
-
-```swift
-private func registerDefaultCommands() {
-    register(SongCommand())
-    register(LastSongCommand())
-    register(HelloCommand())  // Add your new command
-}
-```
-
-### Add a Settings Toggle (Optional)
-
-If you want users to be able to enable/disable your command, add a toggle in the appropriate settings view.
-
-## Command Protocol
-
-The `BotCommand` protocol defines the interface for all commands:
-
-```swift
-protocol BotCommand {
-    /// The trigger phrases that activate this command (e.g., ["!song", "!currentsong"])
-    var triggers: [String] { get }
-
-    /// Human-readable description of what the command does
-    var description: String { get }
-
-    /// Execute the command and return an optional response
-    /// - Parameter message: The full chat message
-    /// - Returns: Response to send to chat, or nil if no response
-    func execute(message: String) -> String?
-}
-```
+<Cards>
+  <Card title="Usage Guide" href="/docs/usage" description="Master the rest of the features." />
+  <Card title="Features" href="/docs/features" description="A deep dive into everything." />
+</Cards>

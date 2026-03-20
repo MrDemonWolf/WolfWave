@@ -251,6 +251,7 @@ private struct StatusChip: View {
                 .font(.system(size: 11, weight: .semibold))
                 .foregroundStyle(.primary)
         }
+        .frame(minWidth: 100)
         .padding(.horizontal, 10)
         .padding(.vertical, 5)
         .background(color.opacity(0.1))

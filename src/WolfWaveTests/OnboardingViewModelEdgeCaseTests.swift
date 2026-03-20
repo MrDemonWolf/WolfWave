@@ -10,12 +10,12 @@ import XCTest
 
 @MainActor
 final class OnboardingViewModelEdgeCaseTests: XCTestCase {
-    var viewModel: OnboardingViewModel!
+    var viewModel: OnboardingViewModel?
 
     override func setUp() {
         super.setUp()
-        viewModel = OnboardingViewModel()
         UserDefaults.standard.removeObject(forKey: AppConstants.UserDefaults.hasCompletedOnboarding)
+        viewModel = OnboardingViewModel()
     }
 
     override func tearDown() {
@@ -27,10 +27,12 @@ final class OnboardingViewModelEdgeCaseTests: XCTestCase {
     // MARK: - Completion State Tests
 
     func testShowCompletionIsFalseInitially() {
+        guard let viewModel = viewModel else { XCTFail("Expected non-nil viewModel"); return }
         XCTAssertFalse(viewModel.showCompletion)
     }
 
     func testShowCompletionIsTrueAfterCompleteOnboarding() {
+        guard let viewModel = viewModel else { XCTFail("Expected non-nil viewModel"); return }
         viewModel.completeOnboarding()
         XCTAssertTrue(viewModel.showCompletion)
     }
@@ -38,6 +40,7 @@ final class OnboardingViewModelEdgeCaseTests: XCTestCase {
     // MARK: - Rapid Navigation Tests
 
     func testRapidForwardNavigationStaysAtBoundary() {
+        guard let viewModel = viewModel else { XCTFail("Expected non-nil viewModel"); return }
         for _ in 0..<10 {
             viewModel.goToNextStep()
         }
@@ -46,6 +49,7 @@ final class OnboardingViewModelEdgeCaseTests: XCTestCase {
     }
 
     func testRapidBackwardNavigationStaysAtBoundary() {
+        guard let viewModel = viewModel else { XCTFail("Expected non-nil viewModel"); return }
         for _ in 0..<10 {
             viewModel.goToPreviousStep()
         }
@@ -54,6 +58,7 @@ final class OnboardingViewModelEdgeCaseTests: XCTestCase {
     }
 
     func testRapidForwardThenBackwardReturnsToStart() {
+        guard let viewModel = viewModel else { XCTFail("Expected non-nil viewModel"); return }
         for _ in 0..<10 {
             viewModel.goToNextStep()
         }
@@ -73,6 +78,7 @@ final class OnboardingViewModelEdgeCaseTests: XCTestCase {
     }
 
     func testAllCasesCountEqualsTotalSteps() {
+        guard let viewModel = viewModel else { XCTFail("Expected non-nil viewModel"); return }
         XCTAssertEqual(
             OnboardingViewModel.OnboardingStep.allCases.count,
             viewModel.totalSteps
@@ -82,6 +88,7 @@ final class OnboardingViewModelEdgeCaseTests: XCTestCase {
     // MARK: - Re-instantiation Tests
 
     func testReInstantiatingAfterCompletionStartsAtWelcome() {
+        guard let viewModel = viewModel else { XCTFail("Expected non-nil viewModel"); return }
         viewModel.completeOnboarding()
         XCTAssertTrue(viewModel.showCompletion)
 

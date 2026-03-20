@@ -1,96 +1,35 @@
 ---
 title: Installation
-description: Download and set up WolfWave on your Mac
+description: Get WolfWave on your Mac in minutes.
 ---
 
-Get WolfWave running on your Mac in minutes.
+## Download WolfWave
 
-## Download
+**Homebrew** (recommended):
 
-Download the latest DMG from the [GitHub Releases](https://github.com/MrDemonWolf/WolfWave/releases) page.
+```bash
+brew tap mrdemonwolf/den
+brew install --cask wolfwave
+```
 
-<Callout type="info">WolfWave requires **macOS 15.0 or later**.</Callout>
+**Or** grab the latest `.dmg` from [GitHub Releases](https://github.com/MrDemonWolf/WolfWave/releases), open it, and drag WolfWave into Applications.
 
-## Install
-
-1. Open the downloaded `.dmg` file
-2. Drag **WolfWave** to your **Applications** folder
-3. Eject the DMG
+<Callout type="info">
+  WolfWave is signed and notarized by Apple — no Gatekeeper warnings.
+</Callout>
 
 ## First Launch
 
-1. Open WolfWave from your Applications folder
-2. The onboarding wizard will guide you through initial setup
-3. WolfWave will appear in your menu bar once setup is complete
+WolfWave opens a quick setup wizard on first run:
 
-<Callout type="info">
-  WolfWave is signed and notarized by Apple — no Gatekeeper warnings on first launch.
-</Callout>
+1. **Music Access** — Click OK when macOS asks to see Apple Music.
+2. **Twitch** (optional) — Connect your account to enable `!song` and other chat commands.
+3. **Discord** (optional) — Show "Listening to Apple Music" on your profile.
+4. **Stream Widget** (optional) — Enable the local server for your OBS browser source.
 
-## Onboarding Wizard
-
-On first launch, WolfWave walks you through a 4-step guided setup:
-
-### Step 1: Welcome
-
-An overview of WolfWave's features:
-- Music Monitoring
-- Twitch Chat Bot
-- Discord Rich Presence
-- Stream Overlays
-- Menu Bar integration
-
-When prompted by macOS, click **OK** to allow Apple Music access (required for tracking).
-
-### Step 2: Connect Twitch (Optional)
-
-To enable chat commands like `!song`:
-
-1. Click **Connect with Twitch** in the onboarding wizard
-2. Follow the device authorization flow in your browser
-3. Return to WolfWave — you're connected!
-
-You can skip this step and connect later in Settings.
-
-### Step 3: Discord Rich Presence (Optional)
-
-A visual preview shows what your Discord profile will look like with Rich Presence active.
-
-1. Toggle **Enable Rich Presence** on to activate
-2. Make sure Discord is running on your Mac
-3. WolfWave will connect automatically
-
-<Callout type="info">
-  You'll need a Discord Application ID from the
-  [Discord Developer Portal](https://discord.com/developers/applications). See the
-  [Usage Guide](/docs/usage#discord-rich-presence) for setup details.
-</Callout>
-
-### Enable OBS Stream Widget (Optional)
-
-To show your now-playing track on stream:
-
-1. Toggle on the OBS Widget server in the onboarding wizard
-2. Copy the widget URL that appears
-3. Add it as a **Browser Source** in OBS (recommended size: 500 × 120)
-
-<Callout type="info">
-  You can also enable and configure this later in **Settings → OBS Widget**.
-</Callout>
-
-## You're Ready!
-
-WolfWave is now tracking your Apple Music playback. Your viewers can use:
-
-- `!song` — Shows the current track
-- `!currentsong` — Shows the current track
-- `!nowplaying` — Shows the current track
-- `!lastsong` — Shows the previous track
-- `!last` — Shows the previous track
-- `!prevsong` — Shows the previous track
+That's it! WolfWave lives in your **menu bar** — click the icon to see what's playing or open Settings.
 
 <Cards>
-  <Card title="Usage Guide" href="/docs/usage" />
-  <Card title="Bot Commands" href="/docs/bot-commands" />
-  <Card title="Features" href="/docs/features" />
+  <Card title="Usage Guide" href="/docs/usage" description="Learn all the features." />
+  <Card title="Bot Commands" href="/docs/bot-commands" description="Every chat command explained." />
 </Cards>
