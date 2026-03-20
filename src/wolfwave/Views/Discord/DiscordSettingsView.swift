@@ -212,7 +212,7 @@ struct DiscordSettingsView: View {
             scheduleResultReset()
         }
     }
-    
+
     /// Resets the test connection result to idle after 3 seconds.
     private func scheduleResultReset() {
         clearTask?.cancel()
