@@ -1,0 +1,13 @@
+{
+  "name": "wolfwave",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "docs:dev": "npm --prefix apps/docs run dev",
+    "docs:build": "npm --prefix apps/docs run build",
+    "docs:install": "npm --prefix apps/docs install",
+    "marketing:studio": "npm --prefix apps/marketing/wolfwave-announcement run studio",
+    "marketing:render": "npm --prefix apps/marketing/wolfwave-announcement run render",
+    "marketing:install": "npm --prefix apps/marketing/wolfwave-announcement install"
+  }
+}

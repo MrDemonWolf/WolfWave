@@ -78,6 +78,9 @@ apps/native/wolfwave/Config.xcconfig
 # Local DMG/output folder created by Makefile prod build
 builds/
 
+# Root node_modules (monorepo root)
+node_modules/
+
 ############################################################
 # Docs (Next.js / Fumadocs)
 ############################################################
