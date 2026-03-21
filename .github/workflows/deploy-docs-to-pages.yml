@@ -21,7 +21,7 @@ jobs:
         with:
           node-version: '20'
           cache: 'pnpm'
-          cache-dependency-path: docs/pnpm-lock.yaml
+          cache-dependency-path: apps/docs/pnpm-lock.yaml
 
       - uses: actions/configure-pages@v4
         id: pages
@@ -30,16 +30,16 @@ jobs:
         run: echo "NEXT_PUBLIC_BASE_PATH=${{ steps.pages.outputs.base_url }}" >> "$GITHUB_ENV"
 
       - name: Install docs deps
-        working-directory: docs
+        working-directory: apps/docs
         run: pnpm install --frozen-lockfile
 
       - name: Build static docs
-        working-directory: docs
+        working-directory: apps/docs
         run: pnpm run build
 
       - uses: actions/upload-pages-artifact@v4
         with:
-          path: docs/out
+          path: apps/docs/out
 
   deploy:
     needs: build

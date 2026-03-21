@@ -20,7 +20,7 @@ The `AppDelegate` (via `@NSApplicationDelegateAdaptor`) acts as the central orch
 - Handles window management (Settings, Onboarding).
 - Forwards track updates from `MusicPlaybackMonitor` to Twitch, Discord, and WebSocket services.
 
-### Key Services (`src/wolfwave/Services/` & `src/wolfwave/Core/`)
+### Key Services (`apps/native/wolfwave/Services/` & `apps/native/wolfwave/Core/`)
 - **MusicPlaybackMonitor**: Tracks Apple Music via ScriptingBridge and distributed notifications (**Sync Music**).
 - **TwitchChatService**: Manages Twitch EventSub WebSocket and Helix API for chat bot commands (**Twitch Chat**).
 - **DiscordRPCService**: Handles Discord Rich Presence via local IPC Unix domain sockets (**Discord Status**).
@@ -68,16 +68,16 @@ The `AppDelegate` (via `@NSApplicationDelegateAdaptor`) acts as the central orch
 
 ## Build Configuration
 
-- **API Keys**: All API keys (Twitch Client ID, Discord Client ID) are managed in `src/wolfwave/Config.xcconfig`.
+- **API Keys**: All API keys (Twitch Client ID, Discord Client ID) are managed in `apps/native/wolfwave/Config.xcconfig`.
 - **Setup**: Copy `Config.xcconfig.example` to `Config.xcconfig` and fill in the required IDs. This file is gitignored.
 - **Entitlements**: The app uses App Sandbox with specific entitlements for Apple Music ScriptingBridge and Network/IPC access.
 
-## Documentation Website (`docs/`)
+## Documentation Website (`apps/docs/`)
 
 The project includes a documentation site built with **Fumadocs** (Next.js).
-- **Location**: `/docs`
-- **Asset Utility**: `docs/lib/utils.ts` contains `getAssetPath` for base-path compatibility on GitHub Pages.
-- **Service Worker**: A dummy `sw.js` in `docs/public` prevents 404 errors.
+- **Location**: `/apps/docs`
+- **Asset Utility**: `apps/docs/lib/utils.ts` contains `getAssetPath` for base-path compatibility on GitHub Pages.
+- **Service Worker**: A dummy `sw.js` in `apps/docs/public` prevents 404 errors.
 - **Styling**: Tailwind CSS + Fumadocs UI.
 
 ## Coding Conventions
@@ -97,7 +97,7 @@ The project includes a documentation site built with **Fumadocs** (Next.js).
 
 ## Testing
 
-- **Location**: Tests live in `src/WolfWaveTests/`.
+- **Location**: Tests live in `apps/native/WolfWaveTests/`.
 - **Style**: Use `@testable import WolfWave`.
 - **Focus**: Prioritize testing pure logic (Bot command parsing, version comparison, state machines).
 - **Mocking**: Mock network and system services to keep tests fast and reliable.

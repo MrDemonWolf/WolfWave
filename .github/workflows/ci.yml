@@ -8,7 +8,7 @@ on:
 
 env:
   SCHEME: WolfWave
-  PROJECT: src/wolfwave.xcodeproj
+  PROJECT: apps/native/wolfwave.xcodeproj
 
 jobs:
   test:
@@ -20,7 +20,7 @@ jobs:
       - name: Create Config.xcconfig
         run: |
           printf 'TWITCH_CLIENT_ID = placeholder\nDISCORD_CLIENT_ID = placeholder\n' \
-            > src/wolfwave/Config.xcconfig
+            > apps/native/wolfwave/Config.xcconfig
 
       - name: Build & Test
         run: |

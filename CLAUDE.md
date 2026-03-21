@@ -22,7 +22,7 @@ make prod-install   # Release build → install to /Applications
 make notarize       # Notarize the DMG (requires Developer ID + env vars)
 ```
 
-Xcode project is at `src/wolfwave.xcodeproj` with scheme `WolfWave`. Build and run with Cmd+R in Xcode.
+Xcode project is at `apps/native/wolfwave.xcodeproj` with scheme `WolfWave`. Build and run with Cmd+R in Xcode.
 
 ## Build Configuration
 
@@ -38,7 +38,7 @@ Xcode project is at `src/wolfwave.xcodeproj` with scheme `WolfWave`. Build and r
 
 `WolfWaveApp.swift` → AppDelegate manages the menu bar status item, initializes services (MusicPlaybackMonitor, TwitchChatService, DiscordRPCService, UpdateCheckerService), handles settings window lifecycle, and wires song info callbacks into the Twitch and Discord services. The system tray menu is dynamic (rebuilt via `NSMenuDelegate` on each open) with now-playing info, quick toggles, and conditional items.
 
-### Source layout (`src/wolfwave/`)
+### Source layout (`apps/native/wolfwave/`)
 
 - **Core/** — `AppConstants.swift` (centralized config enums for keys, identifiers, timing), `KeychainService.swift` (macOS Security framework wrapper), `Logger.swift` (structured logging)
 - **Monitors/** — `MusicPlaybackMonitor.swift` (ScriptingBridge + distributed notifications + 2s fallback polling, delegate pattern via `MusicPlaybackMonitorDelegate`)
@@ -62,7 +62,7 @@ Xcode project is at `src/wolfwave.xcodeproj` with scheme `WolfWave`. Build and r
 
 ## Testing
 
-Unit tests live in `src/WolfWaveTests/` and use XCTest with `@testable import WolfWave`. The test target is a hosted unit test bundle (`TEST_HOST` = WolfWave.app).
+Unit tests live in `apps/native/WolfWaveTests/` and use XCTest with `@testable import WolfWave`. The test target is a hosted unit test bundle (`TEST_HOST` = WolfWave.app).
 
 ### Test files
 
@@ -78,7 +78,7 @@ Unit tests live in `src/WolfWaveTests/` and use XCTest with `@testable import Wo
 
 - Use `@testable import WolfWave` (module name matches `PRODUCT_NAME`)
 - `SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor` applies to test classes too — XCTest runs on main thread
-- Test files are auto-discovered via `PBXFileSystemSynchronizedRootGroup` — just add `.swift` files to `src/WolfWaveTests/`
+- Test files are auto-discovered via `PBXFileSystemSynchronizedRootGroup` — just add `.swift` files to `apps/native/WolfWaveTests/`
 - Focus on pure logic (version comparison, command matching, state machines) — avoid tests that need AppDelegate, Keychain, or network
 
 ## CI/CD
@@ -97,7 +97,13 @@ Sparkle uses EdDSA (Ed25519) signing for update verification. The public key is 
 
 ## Documentation
 
-Docs site built with Fumadocs (Next.js) at `docs/`. Content in `docs/content/docs/` as `.mdx` files. Sidebar defined in `docs/content/docs/meta.json` with Guide/Developers sections. Deployed to GitHub Pages.
+Docs site built with Fumadocs (Next.js) at `apps/docs/`. Content in `apps/docs/content/docs/` as `.mdx` files. Sidebar defined in `apps/docs/content/docs/meta.json` with Guide/Developers sections. Deployed to GitHub Pages.
+
+## Marketing
+
+Remotion-based video projects live in `apps/marketing/`. Each subfolder is a standalone Remotion project (React + TypeScript) for producing announcement/promo videos.
+
+- **wolfwave-announcement** — v1.0 launch announcement video. Run `npm run studio` in `apps/marketing/wolfwave-announcement/` to open the Remotion editor.
 
 ## Code Conventions
 

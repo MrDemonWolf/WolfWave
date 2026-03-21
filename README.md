@@ -76,7 +76,7 @@ git clone https://github.com/MrDemonWolf/WolfWave.git
 cd WolfWave
 
 # Configure API keys
-cp src/wolfwave/Config.xcconfig.example src/wolfwave/Config.xcconfig
+cp apps/native/wolfwave/Config.xcconfig.example apps/native/wolfwave/Config.xcconfig
 # Edit Config.xcconfig with your Twitch Client ID and Discord Application ID
 
 # Open in Xcode and run (Cmd+R)
@@ -90,7 +90,7 @@ make open-xcode
 ### Docs Site (Local)
 
 ```bash
-cd docs && pnpm install && pnpm dev
+cd apps/docs && pnpm install && pnpm dev
 ```
 
 Open **http://localhost:3000/widget/?port=8765** to preview the OBS stream widget locally.

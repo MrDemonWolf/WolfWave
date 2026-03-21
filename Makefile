@@ -1,6 +1,6 @@
 # WolfWave build & distribution commands
 
-PROJECT     = src/wolfwave.xcodeproj
+PROJECT     = apps/native/wolfwave.xcodeproj
 SCHEME      = WolfWave
 DESTINATION = platform=macOS,arch=arm64
 BUILD_DIR   = build

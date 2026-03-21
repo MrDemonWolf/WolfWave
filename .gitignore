@@ -73,7 +73,7 @@ Package.pins
 ############################################################
 .env
 .env.*
-src/wolfwave/Config.xcconfig
+apps/native/wolfwave/Config.xcconfig
 
 # Local DMG/output folder created by Makefile prod build
 builds/
@@ -81,8 +81,14 @@ builds/
 ############################################################
 # Docs (Next.js / Fumadocs)
 ############################################################
-docs/.next/
-docs/node_modules/
+apps/docs/.next/
+apps/docs/node_modules/
+
+############################################################
+# Marketing (Remotion)
+############################################################
+apps/marketing/*/node_modules/
+apps/marketing/*/out/
 
 # Claude Code
 .claude

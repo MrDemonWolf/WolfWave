@@ -13,7 +13,7 @@ on:
 
 env:
   SCHEME: WolfWave
-  PROJECT: src/wolfwave.xcodeproj
+  PROJECT: apps/native/wolfwave.xcodeproj
   CONFIGURATION: Release
 
 jobs:
@@ -29,7 +29,7 @@ jobs:
           printf 'TWITCH_CLIENT_ID = %s\nDISCORD_CLIENT_ID = %s\n' \
             "${{ secrets.TWITCH_CLIENT_ID }}" \
             "${{ secrets.DISCORD_CLIENT_ID }}" \
-            > src/wolfwave/Config.xcconfig
+            > apps/native/wolfwave/Config.xcconfig
 
       - name: Run Tests
         run: make test
@@ -56,7 +56,7 @@ jobs:
           printf 'TWITCH_CLIENT_ID = %s\nDISCORD_CLIENT_ID = %s\n' \
             "${{ secrets.TWITCH_CLIENT_ID }}" \
             "${{ secrets.DISCORD_CLIENT_ID }}" \
-            > src/wolfwave/Config.xcconfig
+            > apps/native/wolfwave/Config.xcconfig
 
       # ── Resolve version from tag or project ───────────────────────────
       - name: Resolve version
