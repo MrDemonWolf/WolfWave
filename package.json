@@ -7,6 +7,7 @@
     "build": "turbo build",
     "clean": "turbo clean"
   },
+  "packageManager": "bun@1.3.11",
   "devDependencies": {
     "turbo": "^2"
   }

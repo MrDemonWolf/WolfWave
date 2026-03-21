@@ -218,8 +218,8 @@ export const IntroTitleScene: React.FC = () => {
           <Img
             src={staticFile('logo.svg')}
             style={{
-              width: 1000,
-              height: 1000,
+              width: 750,
+              height: 750,
               objectFit: 'contain',
             }}
           />

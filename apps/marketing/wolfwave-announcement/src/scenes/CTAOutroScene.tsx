@@ -94,8 +94,8 @@ export const CTAOutroScene: React.FC = () => {
         <Img
           src={staticFile('logo.svg')}
           style={{
-            width: 1800,
-            height: 1800,
+            width: 750,
+            height: 750,
             objectFit: 'contain',
           }}
         />

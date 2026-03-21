@@ -67,6 +67,7 @@ Enable in **Settings > Stream Widgets** to start a local WebSocket server that p
 - macOS 15.0+
 - Xcode 16.0+
 - Swift 5.9+
+- [bun](https://bun.sh) (for docs, marketing, and monorepo scripts)
 - Command Line Tools: `xcode-select --install`
 
 ### Setup
@@ -90,12 +91,23 @@ make open-xcode
 ### Docs Site (Local)
 
 ```bash
-cd apps/docs && pnpm install && pnpm dev
+bun install && bun run dev --filter docs
 ```
 
 Open **http://localhost:3000/widget/?port=8765** to preview the OBS stream widget locally.
 
 ### Development Scripts
+
+#### Monorepo (bun + Turborepo)
+
+| Command                                    | Description              |
+| ------------------------------------------ | ------------------------ |
+| `bun install`                              | Install all workspace dependencies |
+| `bun run dev --filter docs`                | Start docs dev server    |
+| `bun run build --filter docs`              | Build docs site          |
+| `bun run dev --filter wolfwave-announcement` | Open Remotion studio   |
+
+#### Native App (Make)
 
 | Command            | Description                              |
 | ------------------ | ---------------------------------------- |

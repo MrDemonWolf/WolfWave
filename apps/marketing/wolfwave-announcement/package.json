@@ -4,6 +4,7 @@
   "description": "",
   "main": "index.js",
   "scripts": {
+    "dev": "remotion studio src/index.ts",
     "studio": "remotion studio src/index.ts",
     "render": "remotion render src/index.ts WolfWaveV1 out/wolfwave-v1-announcement.mp4 --codec=h264 --jpeg-quality=90",
     "preview": "remotion preview src/index.ts"
