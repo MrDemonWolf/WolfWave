@@ -13,15 +13,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: pnpm/action-setup@v4
-        with:
-          version: 9
-
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-          cache: 'pnpm'
-          cache-dependency-path: apps/docs/pnpm-lock.yaml
+      - uses: oven-sh/setup-bun@v2
 
       - uses: actions/configure-pages@v4
         id: pages
@@ -29,13 +21,11 @@ jobs:
       - name: Propagate base path (optional)
         run: echo "NEXT_PUBLIC_BASE_PATH=${{ steps.pages.outputs.base_url }}" >> "$GITHUB_ENV"
 
-      - name: Install docs deps
-        working-directory: apps/docs
-        run: pnpm install --frozen-lockfile
+      - name: Install deps
+        run: bun install --frozen-lockfile
 
-      - name: Build static docs
-        working-directory: apps/docs
-        run: pnpm run build
+      - name: Build docs
+        run: bun run build --filter docs
 
       - uses: actions/upload-pages-artifact@v4
         with:
