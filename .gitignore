@@ -98,3 +98,5 @@ apps/marketing/*/out/
 
 # Claude Code
 .claude
+docs/.next/
+excalidraw.log
