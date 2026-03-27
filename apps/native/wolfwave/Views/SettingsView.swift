@@ -157,6 +157,12 @@ struct SettingsView: View {
                 .padding(.vertical, AppConstants.SettingsUI.contentPaddingV)
             }
             .animation(.none, value: selectedSection)
+            .onChange(of: selectedSection) { _, newSection in
+                // Cancel in-progress Twitch OAuth if user navigates away
+                if newSection != .twitchIntegration, twitchViewModel.authState.isInProgress {
+                    twitchViewModel.cancelOAuth()
+                }
+            }
             .padding(.top, 8)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .background(Color(nsColor: .underPageBackgroundColor))

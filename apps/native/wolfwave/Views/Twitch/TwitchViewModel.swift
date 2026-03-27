@@ -433,9 +433,23 @@ final class TwitchViewModel: ObservableObject {
                 )
                 statusMessage = "✅ Code ready! Go to Twitch and enter the code above."
 
+                // Start a 5-minute timeout that cancels the flow if not completed
+                let timeoutTask = Task {
+                    try await Task.sleep(nanoseconds: 5 * 60 * 1_000_000_000)
+                    await MainActor.run { [weak self] in
+                        guard let self, self.authState != .idle else { return }
+                        if case .waitingForAuth = self.authState {
+                            Log.info("OAuth device code flow timed out after 5 minutes", category: "Twitch")
+                            self.cancelOAuth()
+                            self.statusMessage = "Authorization timed out. Please try again."
+                        }
+                    }
+                }
+
                 // Start polling in a child task so it can be cancelled independently
                 devicePollingTask = Task {
                     defer {
+                        timeoutTask.cancel()
                         Task { @MainActor in
                             self.devicePollingTask = nil
                             self.oAuthTask = nil
