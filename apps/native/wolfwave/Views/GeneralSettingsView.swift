@@ -21,7 +21,7 @@ struct GeneralSettingsView: View {
             // Section Header
             VStack(alignment: .leading, spacing: 6) {
                 Text("General")
-                    .font(.system(size: 17, weight: .semibold))
+                    .sectionHeader()
 
                 Text("Manage how WolfWave tracks your music and where it shows up.")
                     .font(.system(size: 13))

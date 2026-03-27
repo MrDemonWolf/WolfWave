@@ -9,11 +9,15 @@ import XCTest
 @testable import WolfWave
 
 final class SongCommandTests: XCTestCase {
-    var command: SongCommand!
+    var command: TrackInfoCommand!
 
     override func setUp() {
         super.setUp()
-        command = SongCommand()
+        command = TrackInfoCommand(
+            triggers: ["!song", "!currentsong", "!nowplaying"],
+            description: "Displays the currently playing track",
+            defaultMessage: "No track currently playing"
+        )
     }
 
     override func tearDown() {
@@ -24,37 +28,37 @@ final class SongCommandTests: XCTestCase {
     // MARK: - Trigger Tests
 
     func testSongTrigger() {
-        command.getCurrentSongInfo = { "Artist - Song" }
+        command.getTrackInfo = { "Artist - Song" }
         XCTAssertNotNil(command.execute(message: "!song"))
     }
 
     func testCurrentSongTrigger() {
-        command.getCurrentSongInfo = { "Artist - Song" }
+        command.getTrackInfo = { "Artist - Song" }
         XCTAssertNotNil(command.execute(message: "!currentsong"))
     }
 
     func testNowPlayingTrigger() {
-        command.getCurrentSongInfo = { "Artist - Song" }
+        command.getTrackInfo = { "Artist - Song" }
         XCTAssertNotNil(command.execute(message: "!nowplaying"))
     }
 
     func testTriggerCaseInsensitiveUppercase() {
-        command.getCurrentSongInfo = { "Artist - Song" }
+        command.getTrackInfo = { "Artist - Song" }
         XCTAssertNotNil(command.execute(message: "!SONG"))
     }
 
     func testTriggerCaseInsensitiveMixed() {
-        command.getCurrentSongInfo = { "Artist - Song" }
+        command.getTrackInfo = { "Artist - Song" }
         XCTAssertNotNil(command.execute(message: "!Song"))
     }
 
     func testTriggerCaseInsensitiveNowPlaying() {
-        command.getCurrentSongInfo = { "Artist - Song" }
+        command.getTrackInfo = { "Artist - Song" }
         XCTAssertNotNil(command.execute(message: "!NowPlaying"))
     }
 
     func testNonMatchingMessageReturnsNil() {
-        command.getCurrentSongInfo = { "Artist - Song" }
+        command.getTrackInfo = { "Artist - Song" }
         XCTAssertNil(command.execute(message: "hello world"))
     }
 
@@ -66,7 +70,7 @@ final class SongCommandTests: XCTestCase {
     }
 
     func testWithCallbackReturnsCallbackValue() {
-        command.getCurrentSongInfo = { "Daft Punk - Around The World" }
+        command.getTrackInfo = { "Daft Punk - Around The World" }
         let result = command.execute(message: "!song")
         XCTAssertEqual(result, "Daft Punk - Around The World")
     }
@@ -74,19 +78,19 @@ final class SongCommandTests: XCTestCase {
     // MARK: - Enable/Disable Tests
 
     func testDisabledReturnsNil() {
-        command.getCurrentSongInfo = { "Artist - Song" }
+        command.getTrackInfo = { "Artist - Song" }
         command.isEnabled = { false }
         XCTAssertNil(command.execute(message: "!song"))
     }
 
     func testEnabledReturnsResponse() {
-        command.getCurrentSongInfo = { "Artist - Song" }
+        command.getTrackInfo = { "Artist - Song" }
         command.isEnabled = { true }
         XCTAssertNotNil(command.execute(message: "!song"))
     }
 
     func testIsEnabledNotSetDefaultsToEnabled() {
-        command.getCurrentSongInfo = { "Artist - Song" }
+        command.getTrackInfo = { "Artist - Song" }
         XCTAssertNotNil(command.execute(message: "!song"))
     }
 
@@ -94,7 +98,7 @@ final class SongCommandTests: XCTestCase {
 
     func testLongResponseTruncatedTo500() {
         let longString = String(repeating: "a", count: 600)
-        command.getCurrentSongInfo = { longString }
+        command.getTrackInfo = { longString }
         guard let result = command.execute(message: "!song") else {
             XCTFail("Expected non-nil result")
             return
@@ -105,7 +109,7 @@ final class SongCommandTests: XCTestCase {
 
     func testExactly500CharsNotTruncated() {
         let exact = String(repeating: "a", count: 500)
-        command.getCurrentSongInfo = { exact }
+        command.getTrackInfo = { exact }
         guard let result = command.execute(message: "!song") else {
             XCTFail("Expected non-nil result")
             return
@@ -117,7 +121,7 @@ final class SongCommandTests: XCTestCase {
     // MARK: - Edge Cases
 
     func testTriggerWithTrailingText() {
-        command.getCurrentSongInfo = { "Artist - Song" }
+        command.getTrackInfo = { "Artist - Song" }
         let result = command.execute(message: "!song extra stuff")
         XCTAssertNotNil(result)
     }
@@ -134,7 +138,7 @@ final class SongCommandTests: XCTestCase {
 
     func testCallbackReturning501CharsTruncates() {
         let text = String(repeating: "b", count: 501)
-        command.getCurrentSongInfo = { text }
+        command.getTrackInfo = { text }
         guard let result = command.execute(message: "!song") else {
             XCTFail("Expected non-nil result")
             return

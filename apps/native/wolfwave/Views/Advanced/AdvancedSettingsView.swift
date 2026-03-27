@@ -99,7 +99,7 @@ struct AdvancedSettingsView: View {
             // Section Header
             VStack(alignment: .leading, spacing: 6) {
                 Text("Advanced")
-                    .font(.system(size: 17, weight: .semibold))
+                    .sectionHeader()
 
                 Text("Check for updates, manage your setup wizard, export diagnostic logs, and reset WolfWave to its default state.")
                     .font(.system(size: 13))
@@ -225,6 +225,7 @@ struct AdvancedSettingsView: View {
             isHomebrewInstall = homebrewPaths.contains { path.contains($0) }
         }
         .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name(AppConstants.Notifications.updateStateChanged))) { notification in
+            isCheckingForUpdates = false
             if let version = notification.userInfo?["latestVersion"] as? String,
                let available = notification.userInfo?["isUpdateAvailable"] as? Bool {
                 latestVersion = version
@@ -287,16 +288,11 @@ struct AdvancedSettingsView: View {
 
                 Spacer()
 
-                Button {
-                    NSPasteboard.general.clearContents()
-                    NSPasteboard.general.setString("brew upgrade wolfwave", forType: .string)
-                } label: {
-                    Image(systemName: "doc.on.doc")
-                        .font(.system(size: 11))
-                }
-                .buttonStyle(.borderless)
-                .pointerCursor()
-                .accessibilityLabel("Copy brew command")
+                CopyButton(
+                    text: "brew upgrade wolfwave",
+                    buttonStyle: .borderless,
+                    accessibilityLabel: "Copy brew command"
+                )
             }
             .padding(.horizontal, 10)
             .padding(.vertical, 8)
@@ -395,14 +391,26 @@ struct AdvancedSettingsView: View {
                 Spacer()
 
                 Button {
-                    // Trigger Sparkle's update check
+                    isCheckingForUpdates = true
                     appDelegate?.sparkleUpdater?.checkForUpdates()
+                    // Reset after a delay — Sparkle's delegate callbacks
+                    // will update the UI with actual results.
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 5) {
+                        isCheckingForUpdates = false
+                    }
                 } label: {
-                    Text("Check Now")
-                        .font(.system(size: 12, weight: .medium))
+                    if isCheckingForUpdates {
+                        ProgressView()
+                            .controlSize(.small)
+                            .frame(width: 14, height: 14)
+                    } else {
+                        Text("Check Now")
+                            .font(.system(size: 12, weight: .medium))
+                    }
                 }
                 .buttonStyle(.bordered)
                 .controlSize(.small)
+                .disabled(isCheckingForUpdates)
                 .pointerCursor()
                 .accessibilityLabel("Check for updates now")
             }
@@ -451,8 +459,8 @@ struct AdvancedSettingsView: View {
         var body: some View {
             VStack(alignment: .leading, spacing: 16) {
                 Text("Advanced")
-                    .font(.system(size: 17, weight: .semibold))
-                
+                    .sectionHeader()
+
                 VStack(alignment: .leading, spacing: 12) {
                     HStack {
                         VStack(alignment: .leading, spacing: 4) {

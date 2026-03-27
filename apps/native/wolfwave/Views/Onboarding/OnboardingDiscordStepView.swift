@@ -29,7 +29,7 @@ struct OnboardingDiscordStepView: View {
                     .foregroundStyle(.indigo)
                     .accessibilityHidden(true)
 
-                Text("Discord Rich Presence")
+                Text("Discord Status")
                     .font(.system(size: 20, weight: .bold))
 
                 Text("Totally optional. You can always do this later.")
@@ -43,44 +43,26 @@ struct OnboardingDiscordStepView: View {
                     .foregroundStyle(.secondary)
                     .multilineTextAlignment(.center)
 
-                HStack(spacing: 12) {
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text("Show music on Discord")
-                            .font(.system(size: 13, weight: .medium))
-                        Text("Updates your Discord status with the current song")
-                            .font(.system(size: 11))
-                            .foregroundStyle(.tertiary)
+                ToggleSettingRow(
+                    title: "Show music on Discord",
+                    subtitle: "Updates your Discord status with the current song",
+                    isOn: $presenceEnabled,
+                    controlSize: .regular,
+                    accessibilityLabel: "Enable Discord Status",
+                    accessibilityIdentifier: "onboardingDiscordToggle",
+                    onChange: { newValue in
+                        NotificationCenter.default.post(
+                            name: NSNotification.Name(AppConstants.Notifications.discordPresenceChanged),
+                            object: nil,
+                            userInfo: ["enabled": newValue]
+                        )
                     }
-                    Spacer()
-                    Toggle("", isOn: $presenceEnabled)
-                        .labelsHidden()
-                        .toggleStyle(.switch)
-                        .controlSize(.regular)
-                        .pointerCursor()
-                        .accessibilityLabel("Enable Discord Rich Presence")
-                        .accessibilityIdentifier("onboardingDiscordToggle")
-                        .onChange(of: presenceEnabled) { _, newValue in
-                            NotificationCenter.default.post(
-                                name: NSNotification.Name(AppConstants.Notifications.discordPresenceChanged),
-                                object: nil,
-                                userInfo: ["enabled": newValue]
-                            )
-                        }
-                }
-                .padding(14)
-                .background(Color(nsColor: .controlBackgroundColor))
-                .clipShape(RoundedRectangle(cornerRadius: 10))
+                )
+                .cardStyle()
 
                 if presenceEnabled {
-                    HStack(spacing: 8) {
-                        Image(systemName: "checkmark.circle.fill")
-                            .font(.system(size: 14))
-                            .foregroundStyle(.green)
-                        Text("Discord Rich Presence enabled!")
-                            .font(.system(size: 13))
-                            .foregroundStyle(.secondary)
-                    }
-                    .transition(.opacity.combined(with: .move(edge: .top)))
+                    SuccessFeedbackRow(text: "Discord Status enabled!")
+                        .transition(.opacity.combined(with: .move(edge: .top)))
                 }
             }
             .frame(maxWidth: 400)

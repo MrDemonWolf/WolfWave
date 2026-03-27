@@ -77,7 +77,7 @@ struct TwitchSettingsView: View {
         VStack(alignment: .leading, spacing: 6) {
             HStack(alignment: .center, spacing: 10) {
                 Text("Twitch")
-                    .font(.system(size: 17, weight: .semibold))
+                    .sectionHeader()
 
                 Spacer()
 
@@ -568,29 +568,6 @@ private struct SignedInView: View {
     }
 }
 
-// MARK: - Status Chip
-
-/// Colored status indicator chip.
-private struct StatusChip: View {
-    let text: String
-    let color: Color
-
-    var body: some View {
-        HStack(spacing: 6) {
-            Circle()
-                .fill(color)
-                .frame(width: 6, height: 6)
-
-            Text(text)
-                .font(.system(size: 11, weight: .semibold))
-                .foregroundStyle(.primary)
-        }
-        .padding(.horizontal, 10)
-        .padding(.vertical, 5)
-        .background(color.opacity(0.1))
-        .clipShape(Capsule())
-    }
-}
 // MARK: - Preview
 
 #Preview("Not Connected") {

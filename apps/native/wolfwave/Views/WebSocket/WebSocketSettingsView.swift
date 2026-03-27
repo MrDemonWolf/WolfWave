@@ -40,13 +40,10 @@ struct WebSocketSettingsView: View {
 
     // MARK: - State
 
-    @State private var fontSearch = ""
     @State private var portText: String = ""
     @State private var widgetPortText: String = ""
     @State private var serverState: WebSocketServerService.ServerState = .stopped
     @State private var clientCount: Int = 0
-    @State private var copiedWidgetURL = false
-    @State private var copiedConnectionURL = false
 
     private let cardPadding = AppConstants.SettingsUI.cardPadding
 
@@ -71,24 +68,16 @@ struct WebSocketSettingsView: View {
             && port <= AppConstants.WebSocketServer.maxPort
     }
 
-    private var availableFonts: [String] {
-        let allFonts = NSFontManager.shared.availableFontFamilies.sorted()
-        if fontSearch.isEmpty { return allFonts }
-        return allFonts.filter { $0.localizedCaseInsensitiveContains(fontSearch) }
-    }
-
     var body: some View {
         VStack(alignment: .leading, spacing: AppConstants.SettingsUI.sectionSpacing) {
             VStack(alignment: .leading, spacing: 6) {
                 HStack(alignment: .center, spacing: 10) {
                     Text("Now-Playing Widget")
-                        .font(.system(size: 17, weight: .semibold))
+                        .sectionHeader()
 
                     Spacer()
 
                     statusChip
-                        .animation(.easeInOut(duration: 0.2), value: serverState)
-                        .animation(.easeInOut(duration: 0.2), value: clientCount)
                 }
 
                 Text("Show your current song using a customizable widget.")
@@ -113,12 +102,14 @@ struct WebSocketSettingsView: View {
                 for: NSNotification.Name(AppConstants.Notifications.websocketServerStateChanged)
             )
         ) { notification in
-            if let rawValue = notification.userInfo?["state"] as? String,
-               let state = WebSocketServerService.ServerState(rawValue: rawValue) {
-                serverState = state
-            }
-            if let clients = notification.userInfo?["clients"] as? Int {
-                clientCount = clients
+            withAnimation(.easeInOut(duration: 0.2)) {
+                if let rawValue = notification.userInfo?["state"] as? String,
+                   let state = WebSocketServerService.ServerState(rawValue: rawValue) {
+                    serverState = state
+                }
+                if let clients = notification.userInfo?["clients"] as? Int {
+                    clientCount = clients
+                }
             }
         }
     }
@@ -128,26 +119,16 @@ struct WebSocketSettingsView: View {
     private var serverSettingsCard: some View {
         VStack(alignment: .leading, spacing: 0) {
             // Enable toggle row
-            HStack(spacing: 12) {
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("Enable Widget Server")
-                        .font(.system(size: 13, weight: .medium))
-                    Text("Required for the widget to work")
-                        .font(.system(size: 11))
-                        .foregroundStyle(.tertiary)
+            ToggleSettingRow(
+                title: "Enable Widget Server",
+                subtitle: "Required for the widget to work",
+                isOn: $websocketEnabled,
+                accessibilityLabel: "Enable WebSocket server",
+                accessibilityIdentifier: "websocketEnabledToggle",
+                onChange: { _ in
+                    notifyServerSettingChanged()
                 }
-                Spacer()
-                Toggle("", isOn: $websocketEnabled)
-                    .labelsHidden()
-                    .toggleStyle(.switch)
-                    .controlSize(.small)
-                    .pointerCursor()
-                    .accessibilityLabel("Enable WebSocket server")
-                    .accessibilityIdentifier("websocketEnabledToggle")
-                    .onChange(of: websocketEnabled) { _, newValue in
-                        notifyServerSettingChanged()
-                    }
-            }
+            )
             .padding(.horizontal, cardPadding)
             .padding(.vertical, 12)
 
@@ -207,20 +188,11 @@ struct WebSocketSettingsView: View {
 
                 Spacer()
 
-                Button {
-                    copyToClipboard(connectionURL)
-                    copiedConnectionURL = true
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
-                        copiedConnectionURL = false
-                    }
-                } label: {
-                    Image(systemName: copiedConnectionURL ? "checkmark" : "doc.on.doc")
-                        .font(.system(size: 11))
-                }
-                .buttonStyle(.bordered)
-                .controlSize(.small)
-                .accessibilityLabel("Copy connection URL")
-                .accessibilityIdentifier("copyConnectionURLButton")
+                CopyButton(
+                    text: connectionURL,
+                    accessibilityLabel: "Copy connection URL",
+                    accessibilityIdentifier: "copyConnectionURLButton"
+                )
             }
             .padding(.horizontal, cardPadding)
             .padding(.vertical, 12)
@@ -257,30 +229,20 @@ struct WebSocketSettingsView: View {
                 .padding(.leading, cardPadding)
 
             // Widget HTTP server toggle row
-            HStack(spacing: 12) {
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("Enable Visual Widget")
-                        .font(.system(size: 13, weight: .medium))
-                    Text("This creates the webpage your widget runs on")
-                        .font(.system(size: 11))
-                        .foregroundStyle(.tertiary)
+            ToggleSettingRow(
+                title: "Enable Visual Widget",
+                subtitle: "This creates the webpage your widget runs on",
+                isOn: $widgetHTTPEnabled,
+                isDisabled: !websocketEnabled,
+                accessibilityLabel: "Enable Widget Web Server",
+                accessibilityIdentifier: "widgetHTTPEnabledToggle",
+                onChange: { _ in
+                    NotificationCenter.default.post(
+                        name: NSNotification.Name(AppConstants.Notifications.widgetHTTPServerChanged),
+                        object: nil
+                    )
                 }
-                Spacer()
-                Toggle("", isOn: $widgetHTTPEnabled)
-                    .labelsHidden()
-                    .toggleStyle(.switch)
-                    .controlSize(.small)
-                    .pointerCursor()
-                    .disabled(!websocketEnabled)
-                    .accessibilityLabel("Enable Widget Web Server")
-                    .accessibilityIdentifier("widgetHTTPEnabledToggle")
-                    .onChange(of: widgetHTTPEnabled) { _, _ in
-                        NotificationCenter.default.post(
-                            name: NSNotification.Name(AppConstants.Notifications.widgetHTTPServerChanged),
-                            object: nil
-                        )
-                    }
-            }
+            )
             .padding(.horizontal, cardPadding)
             .padding(.vertical, 12)
             .opacity(websocketEnabled ? 1.0 : 0.5)
@@ -339,25 +301,14 @@ struct WebSocketSettingsView: View {
                     .fixedSize(horizontal: false, vertical: true)
 
                 HStack(spacing: 8) {
-                    Button {
-                        copyToClipboard(widgetURL)
-                        copiedWidgetURL = true
-                        DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
-                            copiedWidgetURL = false
-                        }
-                    } label: {
-                        HStack(spacing: 4) {
-                            Image(systemName: copiedWidgetURL ? "checkmark" : "doc.on.doc")
-                                .font(.system(size: 11))
-                            Text(copiedWidgetURL ? "Copied" : "Copy Link")
-                                .font(.system(size: 11))
-                        }
-                    }
-                    .buttonStyle(.bordered)
-                    .controlSize(.small)
-                    .accessibilityLabel("Copy widget URL")
-                    .accessibilityIdentifier("copyWidgetURLButton")
-                    .disabled(!websocketEnabled || !widgetHTTPEnabled)
+                    CopyButton(
+                        text: widgetURL,
+                        label: "Copy Link",
+                        copiedLabel: "Copied",
+                        isDisabled: !websocketEnabled || !widgetHTTPEnabled,
+                        accessibilityLabel: "Copy widget URL",
+                        accessibilityIdentifier: "copyWidgetURLButton"
+                    )
 
                     Button {
                         if let url = URL(string: widgetURL) {
@@ -539,7 +490,7 @@ struct WebSocketSettingsView: View {
                     Picker("", selection: $widgetFontFamily) {
                         Text("System Default").tag("System Default")
                         Divider()
-                        ForEach(availableFonts, id: \.self) { font in
+                        ForEach(NSFontManager.shared.availableFontFamilies.sorted(), id: \.self) { font in
                             Text(font).tag(font)
                         }
                     }
@@ -552,16 +503,6 @@ struct WebSocketSettingsView: View {
                     }
                 }
 
-                HStack(spacing: 6) {
-                    Image(systemName: "magnifyingglass")
-                        .foregroundStyle(.secondary)
-                        .font(.system(size: 12))
-                    TextField("Filter fonts…", text: $fontSearch)
-                        .textFieldStyle(.roundedBorder)
-                        .font(.system(size: 12))
-                        .accessibilityLabel("Filter fonts")
-                        .accessibilityIdentifier("widgetFontSearch")
-                }
             }
             .padding(.horizontal, cardPadding)
             .padding(.vertical, 12)
@@ -629,36 +570,9 @@ struct WebSocketSettingsView: View {
         )
     }
 
-    private func copyToClipboard(_ text: String) {
-        NSPasteboard.general.clearContents()
-        NSPasteboard.general.setString(text, forType: .string)
-    }
 
     private func broadcastWidgetConfig() {
         AppDelegate.shared?.websocketServer?.broadcastWidgetConfig()
-    }
-}
-
-// MARK: - Status Chip
-
-private struct StatusChip: View {
-    let text: String
-    let color: Color
-
-    var body: some View {
-        HStack(spacing: 6) {
-            Circle()
-                .fill(color)
-                .frame(width: 6, height: 6)
-
-            Text(text)
-                .font(.system(size: 11, weight: .semibold))
-                .foregroundStyle(.primary)
-        }
-        .padding(.horizontal, 10)
-        .padding(.vertical, 5)
-        .background(color.opacity(0.1))
-        .clipShape(Capsule())
     }
 }
 

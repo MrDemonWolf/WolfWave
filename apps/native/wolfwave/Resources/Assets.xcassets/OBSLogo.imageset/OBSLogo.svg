@@ -1,12 +1,5 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
-  <defs>
-    <linearGradient id="obsGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#302E2B"/>
-      <stop offset="100%" stop-color="#161614"/>
-    </linearGradient>
-  </defs>
-  <circle cx="256" cy="256" r="256" fill="url(#obsGrad)"/>
-  <g fill="none" stroke="#FFFFFF" stroke-width="16">
+  <g fill="none" stroke="#000000" stroke-width="16">
     <!-- Outer lens ring -->
     <circle cx="256" cy="256" r="180"/>
     <!-- Inner lens circle -->

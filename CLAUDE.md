@@ -8,7 +8,21 @@ WolfWave is a native macOS menu bar app that bridges Apple Music with Twitch, Di
 
 **Stack**: Swift 5.9+, SwiftUI, AppKit, macOS 15.0+, Xcode 16+. Minimal dependencies (Sparkle for auto-updates) — all other functionality uses native Apple frameworks.
 
+**Monorepo**: bun workspaces + Turborepo. The root `package.json` defines workspaces (`apps/*`, `apps/marketing/*`) and Turbo orchestrates `dev`, `build`, and `clean` tasks across packages.
+
 ## Build & Development Commands
+
+### Monorepo (bun + Turborepo)
+
+```bash
+bun install                              # Install all workspace dependencies
+bun dev                                  # Start all dev servers via Turbo
+bun run dev --filter docs                # Start docs dev server only
+bun run dev --filter wolfwave-announcement  # Open Remotion studio only
+bun run build --filter docs              # Build docs site
+```
+
+### Native App (Make)
 
 ```bash
 make build          # Debug build via xcodebuild
@@ -97,13 +111,13 @@ Sparkle uses EdDSA (Ed25519) signing for update verification. The public key is 
 
 ## Documentation
 
-Docs site built with Fumadocs (Next.js) at `apps/docs/`. Content in `apps/docs/content/docs/` as `.mdx` files. Sidebar defined in `apps/docs/content/docs/meta.json` with Guide/Developers sections. Deployed to GitHub Pages.
+Docs site built with Fumadocs (Next.js) at `apps/docs/`. Content in `apps/docs/content/docs/` as `.mdx` files. Sidebar defined in `apps/docs/content/docs/meta.json` with Guide/Developers sections. Deployed to GitHub Pages. Run with `bun run dev --filter docs` from root.
 
 ## Marketing
 
 Remotion-based video projects live in `apps/marketing/`. Each subfolder is a standalone Remotion project (React + TypeScript) for producing announcement/promo videos.
 
-- **wolfwave-announcement** — v1.0 launch announcement video. Run `npm run studio` in `apps/marketing/wolfwave-announcement/` to open the Remotion editor.
+- **wolfwave-announcement** — v1.0 launch announcement video. Run `bun run dev --filter wolfwave-announcement` from root to open the Remotion editor.
 
 ## Code Conventions
 

@@ -50,10 +50,10 @@ final class SparkleUpdaterServiceTests: XCTestCase {
 
     // MARK: - Default Property Tests
 
-    func testAutomaticCheckEnabledDefaultsToTrue() {
-        // When updater is nil (debug build or Homebrew), automaticCheckEnabled defaults to true
+    func testAutomaticCheckDisabledInDebug() {
+        // In DEBUG builds, Sparkle initializes but auto-checking is explicitly disabled
         let service = SparkleUpdaterService()
-        XCTAssertTrue(service.automaticCheckEnabled, "automaticCheckEnabled should default to true when updater is nil")
+        XCTAssertFalse(service.automaticCheckEnabled, "automaticCheckEnabled should be false in DEBUG builds")
     }
 
     func testUpdateCheckIntervalReturnsConstant() {
@@ -66,10 +66,13 @@ final class SparkleUpdaterServiceTests: XCTestCase {
         )
     }
 
-    func testFeedURLReturnsNilWhenNotInitialized() {
-        // When updater is nil (debug build), feedURL returns nil
+    func testFeedURLReturnsDevAppcastInDebug() {
+        // In DEBUG builds, Sparkle initializes and feedURL points to the bundled dev-appcast.xml
         let service = SparkleUpdaterService()
-        XCTAssertNil(service.feedURL, "feedURL should return nil when updater is not initialized")
+        XCTAssertNotNil(service.feedURL, "feedURL should not be nil in DEBUG builds")
+        if let url = service.feedURL {
+            XCTAssertTrue(url.absoluteString.contains("dev-appcast.xml"), "feedURL should point to dev-appcast.xml in DEBUG builds")
+        }
     }
 
     // MARK: - Safe Operation Tests

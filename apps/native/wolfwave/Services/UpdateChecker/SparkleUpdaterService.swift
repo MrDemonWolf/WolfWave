@@ -190,6 +190,7 @@ extension SparkleUpdaterService: SPUUpdaterDelegate {
             Log.debug("SparkleUpdaterService: Using bundled dev appcast", category: "Update")
             return devAppcast.absoluteString
         }
+        Log.warn("SparkleUpdaterService: dev-appcast.xml not found in bundle — update check will fail", category: "Update")
         return nil  // Fall back to Info.plist SUFeedURL
     }
     #endif

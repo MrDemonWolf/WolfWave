@@ -892,9 +892,7 @@ final class TwitchChatService: @unchecked Sendable {
             return
         }
 
-        let maxLen = AppConstants.Twitch.maxMessageLength
-        let suffix = AppConstants.Twitch.messageTruncationSuffix
-        let finalMessage = trimmed.count > maxLen ? String(trimmed.prefix(maxLen - suffix.count)) + suffix : trimmed
+        let finalMessage = trimmed.truncatedForChat()
 
         var body: [String: Any] = [
             "broadcaster_id": broadcasterID,

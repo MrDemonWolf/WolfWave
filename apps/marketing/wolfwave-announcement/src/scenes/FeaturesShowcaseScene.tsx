@@ -72,7 +72,7 @@ const DiscordRPC: React.FC<{ frame: number; fps: number }> = ({
           letterSpacing: 1,
         }}
       >
-        DISCORD RICH PRESENCE
+        DISCORD STATUS
       </div>
       <div
         style={{
@@ -290,7 +290,7 @@ const TwitchChat: React.FC<{ frame: number; fps: number }> = ({
     {
       user: 'wolfbot',
       color: brand.cyan,
-      text: '🎵 Now Playing: Kbps Plz — DevBowser',
+      text: 'WolfWave is connected! 🎵',
       isBot: true,
     },
     { user: 'awoo_irl', color: '#34D399', text: 'this song is a banger 🔥' },
@@ -323,7 +323,7 @@ const TwitchChat: React.FC<{ frame: number; fps: number }> = ({
           letterSpacing: 1,
         }}
       >
-        TWITCH CHAT BOT
+        TWITCH CHAT
       </div>
       <div
         style={{
@@ -499,7 +499,7 @@ const OBSOverlay: React.FC<{ frame: number; fps: number }> = ({
           textAlign: 'center',
         }}
       >
-        OBS BROWSER SOURCE
+        STREAM WIDGETS
       </div>
 
       {/* Fake stream backdrop */}

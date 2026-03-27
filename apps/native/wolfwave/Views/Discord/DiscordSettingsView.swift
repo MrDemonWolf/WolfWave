@@ -49,12 +49,11 @@ struct DiscordSettingsView: View {
             VStack(alignment: .leading, spacing: 6) {
                 HStack(alignment: .center, spacing: 10) {
                     Text("Discord Status")
-                        .font(.system(size: 17, weight: .semibold))
+                        .sectionHeader()
 
                     Spacer()
 
                     statusChip
-                        .animation(.easeInOut(duration: 0.2), value: connectionState)
                 }
 
                 Text("Show your music on your Discord profile.")
@@ -64,28 +63,18 @@ struct DiscordSettingsView: View {
             }
 
             // Toggle Card
-            HStack(spacing: 12) {
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("Show Status")
-                        .font(.system(size: 13, weight: .medium))
-                    Text("Displays the song and cover art on your profile")
-                        .font(.system(size: 11))
-                        .foregroundStyle(.tertiary)
+            ToggleSettingRow(
+                title: "Show Status",
+                subtitle: "Displays the song and cover art on your profile",
+                isOn: $presenceEnabled,
+                isDisabled: !hasClientID,
+                accessibilityLabel: "Enable Discord Status",
+                accessibilityIdentifier: "discordPresenceToggle",
+                accessibilityHint: "Toggle to enable or disable Discord Status",
+                onChange: { newValue in
+                    notifyPresenceSettingChanged(enabled: newValue)
                 }
-                Spacer()
-                Toggle("", isOn: $presenceEnabled)
-                    .labelsHidden()
-                    .toggleStyle(.switch)
-                    .controlSize(.small)
-                    .pointerCursor()
-                    .disabled(!hasClientID)
-                    .accessibilityLabel("Enable Discord Rich Presence")
-                    .accessibilityHint("Toggle to enable or disable Discord Rich Presence")
-                    .accessibilityIdentifier("discordPresenceToggle")
-                    .onChange(of: presenceEnabled) { _, newValue in
-                        notifyPresenceSettingChanged(enabled: newValue)
-                    }
-            }
+            )
             .cardStyle()
 
             // Test Connection
@@ -119,7 +108,6 @@ struct DiscordSettingsView: View {
                     .controlSize(.small)
                     .disabled(testConnectionResult == .testing)
                     .pointerCursor()
-                    .animation(.easeInOut(duration: 0.2), value: testConnectionResult)
                     .help("Checks if Discord is open and ready.")
                     .accessibilityLabel("Test Discord connection")
                     .accessibilityIdentifier("discordTestConnectionButton")
@@ -144,13 +132,15 @@ struct DiscordSettingsView: View {
             )
         ) { notification in
             if let rawValue = notification.userInfo?["state"] as? String {
-                switch rawValue {
-                case "connected":
-                    connectionState = .connected
-                case "connecting":
-                    connectionState = .connecting
-                default:
-                    connectionState = .disconnected
+                withAnimation(.easeInOut(duration: 0.2)) {
+                    switch rawValue {
+                    case "connected":
+                        connectionState = .connected
+                    case "connecting":
+                        connectionState = .connecting
+                    default:
+                        connectionState = .disconnected
+                    }
                 }
             }
         }
@@ -232,30 +222,6 @@ struct DiscordSettingsView: View {
             object: nil,
             userInfo: ["enabled": enabled]
         )
-    }
-}
-
-// MARK: - Status Chip
-
-private struct StatusChip: View {
-    let text: String
-    let color: Color
-
-    var body: some View {
-        HStack(spacing: 6) {
-            Circle()
-                .fill(color)
-                .frame(width: 6, height: 6)
-
-            Text(text)
-                .font(.system(size: 11, weight: .semibold))
-                .foregroundStyle(.primary)
-        }
-        .frame(minWidth: 100)
-        .padding(.horizontal, 10)
-        .padding(.vertical, 5)
-        .background(color.opacity(0.1))
-        .clipShape(Capsule())
     }
 }
 

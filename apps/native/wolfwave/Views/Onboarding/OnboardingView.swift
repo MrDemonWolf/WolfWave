@@ -107,7 +107,9 @@ struct OnboardingView: View {
 
     private var navigationBar: some View {
         HStack {
-            if !viewModel.isFirstStep {
+            // Left side: "Back" and "Skip All" always rendered, toggled via opacity
+            // to prevent layout jumping when switching steps.
+            ZStack(alignment: .leading) {
                 Button("Back") {
                     navigationDirection = .leading
                     cancelTwitchOAuthIfNeeded()
@@ -116,29 +118,32 @@ struct OnboardingView: View {
                 .buttonStyle(.bordered)
                 .controlSize(.regular)
                 .pointerCursor()
-            }
+                .opacity(viewModel.isFirstStep ? 0 : 1)
+                .disabled(viewModel.isFirstStep)
 
-            if viewModel.isFirstStep {
                 Button("Skip All") {
                     finishOnboarding()
                 }
                 .buttonStyle(.plain)
                 .foregroundStyle(.secondary)
                 .pointerCursor()
+                .opacity(viewModel.isFirstStep ? 1 : 0)
+                .disabled(!viewModel.isFirstStep)
             }
 
             Spacer()
 
-            if shouldShowSkip {
-                Button("Skip") {
-                    navigationDirection = .trailing
-                    cancelTwitchOAuthIfNeeded()
-                    viewModel.goToNextStep()
-                }
-                .buttonStyle(.bordered)
-                .controlSize(.regular)
-                .pointerCursor()
+            // Right side: "Skip" always rendered, toggled via opacity
+            Button("Skip") {
+                navigationDirection = .trailing
+                cancelTwitchOAuthIfNeeded()
+                viewModel.goToNextStep()
             }
+            .buttonStyle(.bordered)
+            .controlSize(.regular)
+            .pointerCursor()
+            .opacity(shouldShowSkip ? 1 : 0)
+            .disabled(!shouldShowSkip)
 
             if viewModel.isLastStep {
                 Button("Finish") {
@@ -158,6 +163,7 @@ struct OnboardingView: View {
                 .pointerCursor()
             }
         }
+        .transaction { $0.animation = nil }
     }
 
     // MARK: - Helpers

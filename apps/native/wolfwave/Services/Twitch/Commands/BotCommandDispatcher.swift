@@ -15,8 +15,16 @@ import Foundation
 final class BotCommandDispatcher {
     private let lock = NSLock()
     private var commands: [BotCommand] = []
-    private let songCommand = SongCommand()
-    private let lastSongCommand = LastSongCommand()
+    private let songCommand = TrackInfoCommand(
+        triggers: ["!song", "!currentsong", "!nowplaying"],
+        description: "Displays the currently playing track",
+        defaultMessage: "No track currently playing"
+    )
+    private let lastSongCommand = TrackInfoCommand(
+        triggers: ["!last", "!lastsong", "!prevsong"],
+        description: "Displays the last played track",
+        defaultMessage: "No previous track available"
+    )
     private let cooldownManager = CooldownManager()
 
     init() {
@@ -36,13 +44,13 @@ final class BotCommandDispatcher {
 
     func setCurrentSongInfo(callback: @escaping () -> String) {
         lock.withLock {
-            songCommand.getCurrentSongInfo = callback
+            songCommand.getTrackInfo = callback
         }
     }
 
     func setLastSongInfo(callback: @escaping () -> String) {
         lock.withLock {
-            lastSongCommand.getLastSongInfo = callback
+            lastSongCommand.getTrackInfo = callback
         }
     }
 

@@ -5,7 +5,7 @@
 //  Created by MrDemonWolf, Inc. on 1/17/26.
 //
 
-/// WolfWave — macOS menu bar app bridging Apple Music to Twitch, Discord, and stream overlays.
+/// WolfWave — macOS menu bar app bridging Apple Music to Twitch, Discord, and stream widgets.
 
 import AppKit
 import SwiftUI
@@ -18,9 +18,14 @@ import UserNotifications
 struct WolfWaveApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
 
+    /// True when the app is launched as a test host by xcodebuild.
+    static let isRunningTests = ProcessInfo.processInfo.environment["XCTestBundlePath"] != nil
+
     var body: some Scene {
         Settings {
-            SettingsView()
+            if !Self.isRunningTests {
+                SettingsView()
+            }
         }
     }
 }
@@ -66,6 +71,14 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMenuDele
     /// Initializes all services, registers observers, and shows onboarding or validates tokens.
     func applicationDidFinishLaunching(_ notification: Notification) {
         AppDelegate.shared = self
+
+        // Skip full app setup when running unit tests to prevent windows from
+        // appearing and services (WebSocket, Discord) from starting.
+        if WolfWaveApp.isRunningTests {
+            Log.debug("AppDelegate: Running under XCTest — skipping service setup", category: "App")
+            return
+        }
+
         setupStatusItem()
         setupMenu()
         setupMusicMonitor()
@@ -539,13 +552,9 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMenuDele
     // MARK: - Menu Toggle Actions
 
     @objc private func toggleTracking() {
-        let current = UserDefaults.standard.bool(forKey: AppConstants.UserDefaults.trackingEnabled)
-        let newValue = !current
-        UserDefaults.standard.set(newValue, forKey: AppConstants.UserDefaults.trackingEnabled)
-        NotificationCenter.default.post(
-            name: NSNotification.Name(AppConstants.Notifications.trackingSettingChanged),
-            object: nil,
-            userInfo: ["enabled": newValue]
+        toggleBoolSetting(
+            key: AppConstants.UserDefaults.trackingEnabled,
+            notification: AppConstants.Notifications.trackingSettingChanged
         )
     }
 
@@ -560,24 +569,29 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMenuDele
     }
 
     @objc private func toggleDiscordPresence() {
-        let current = UserDefaults.standard.bool(forKey: AppConstants.UserDefaults.discordPresenceEnabled)
-        let newValue = !current
-        UserDefaults.standard.set(newValue, forKey: AppConstants.UserDefaults.discordPresenceEnabled)
-        NotificationCenter.default.post(
-            name: NSNotification.Name(AppConstants.Notifications.discordPresenceChanged),
-            object: nil,
-            userInfo: ["enabled": newValue]
+        toggleBoolSetting(
+            key: AppConstants.UserDefaults.discordPresenceEnabled,
+            notification: AppConstants.Notifications.discordPresenceChanged
         )
     }
 
     @objc private func toggleWebSocket() {
-        let current = UserDefaults.standard.bool(forKey: AppConstants.UserDefaults.websocketEnabled)
+        toggleBoolSetting(
+            key: AppConstants.UserDefaults.websocketEnabled,
+            notification: AppConstants.Notifications.websocketServerChanged,
+            includeEnabledInUserInfo: false
+        )
+    }
+
+    /// Toggles a boolean UserDefaults setting and posts a notification.
+    private func toggleBoolSetting(key: String, notification: String, includeEnabledInUserInfo: Bool = true) {
+        let current = UserDefaults.standard.bool(forKey: key)
         let newValue = !current
-        UserDefaults.standard.set(newValue, forKey: AppConstants.UserDefaults.websocketEnabled)
+        UserDefaults.standard.set(newValue, forKey: key)
         NotificationCenter.default.post(
-            name: NSNotification.Name(AppConstants.Notifications.websocketServerChanged),
+            name: NSNotification.Name(notification),
             object: nil,
-            userInfo: nil
+            userInfo: includeEnabledInUserInfo ? ["enabled": newValue] : nil
         )
     }
 
@@ -680,7 +694,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMenuDele
         if DiscordRPCService.resolveClientID() != nil {
             Log.debug("AppDelegate: Resolved Discord Client ID from Info.plist", category: "Discord")
         } else {
-            Log.info("AppDelegate: No Discord Client ID found. Set DISCORD_CLIENT_ID in Config.xcconfig to enable Rich Presence.", category: "Discord")
+            Log.info("AppDelegate: No Discord Client ID found. Set DISCORD_CLIENT_ID in Config.xcconfig to enable Discord Status.", category: "Discord")
         }
 
         discordService?.onStateChange = { [weak self] newState in
@@ -910,20 +924,34 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMenuDele
             window.center()
         }
 
+        window.alphaValue = 0
         showWindow(onboardingWindow)
+
+        NSAnimationContext.runAnimationGroup { context in
+            context.duration = 0.3
+            context.timingFunction = CAMediaTimingFunction(name: .easeInEaseOut)
+            window.animator().alphaValue = 1
+        }
     }
 
-    /// Dismisses the onboarding window on the next run loop to avoid deallocation during close.
+    /// Dismisses the onboarding window with a fade-out animation.
     private func dismissOnboarding() {
         DispatchQueue.main.async { [weak self] in
-            guard let self else { return }
-            self.onboardingWindow?.close()
+            guard let self, let window = self.onboardingWindow else { return }
 
-            Task { [weak self] in
-                await self?.validateTwitchTokenOnBoot()
-            }
+            NSAnimationContext.runAnimationGroup({ context in
+                context.duration = 0.3
+                context.timingFunction = CAMediaTimingFunction(name: .easeInEaseOut)
+                window.animator().alphaValue = 0
+            }, completionHandler: { [weak self] in
+                window.close()
 
-            Log.info("AppDelegate: Onboarding dismissed, transitioning to normal app state", category: "App")
+                Task { [weak self] in
+                    await self?.validateTwitchTokenOnBoot()
+                }
+
+                Log.info("AppDelegate: Onboarding dismissed, transitioning to normal app state", category: "App")
+            })
         }
     }
 

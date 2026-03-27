@@ -32,14 +32,21 @@ jobs:
             > apps/native/wolfwave/Config.xcconfig
 
       - name: Run Tests
-        run: make test
+        run: |
+          xcodebuild -project "$PROJECT" -scheme "$SCHEME" \
+            -destination 'platform=macOS,arch=arm64' \
+            -configuration Debug test \
+            CODE_SIGN_IDENTITY="-" \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGNING_ALLOWED=NO \
+            -resultBundlePath ReleaseTestResults.xcresult
 
       - name: Upload Test Results
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: ReleaseTestResults
-          path: TestResults.xcresult
+          path: ReleaseTestResults.xcresult
 
   create-draft-release:
     needs: test

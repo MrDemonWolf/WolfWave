@@ -1,77 +1,91 @@
-<svg viewBox="8 2 84 94" width="512" height="512" xmlns="http://www.w3.org/2000/svg">
+<svg viewBox="0 0 100 100" width="100" height="100" xmlns="http://www.w3.org/2000/svg">
   <!--
-    WolfWave — logo.svg
-    Color version · transparent background
-    MrDemonWolf, Inc. · github.com/MrDemonWolf/wolfwave
+    WolfWave Tray Icon — Color Version (Transparent Background)
+    MrDemonWolf, Inc. — github.com/MrDemonWolf/wolfwave
   -->
   <defs>
-    <linearGradient id="bar" x1="0" y1="0" x2="0" y2="1">
+    <linearGradient id="bar-grad" x1="0" y1="0" x2="0" y2="1">
       <stop offset="0%"   stop-color="#0FACED"/>
-      <stop offset="100%" stop-color="#0FACED" stop-opacity=".28"/>
+      <stop offset="100%" stop-color="#0FACED" stop-opacity="0.42"/>
     </linearGradient>
-    <filter id="eye-glow" x="-100%" y="-100%" width="300%" height="300%">
-      <feGaussianBlur stdDeviation="2" result="b"/>
+    <linearGradient id="wolf-head" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%"   stop-color="#F0F6FF"/>
+      <stop offset="100%" stop-color="#D0DEEF"/>
+    </linearGradient>
+    <filter id="glow-eye" x="-80%" y="-80%" width="360%" height="360%">
+      <feGaussianBlur stdDeviation="2.2" result="b"/>
       <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
     </filter>
-    <filter id="ear-glow" x="-80%" y="-40%" width="260%" height="180%">
-      <feGaussianBlur stdDeviation="2" result="b"/>
+    <filter id="glow-bar" x="-120%" y="-15%" width="340%" height="130%">
+      <feGaussianBlur stdDeviation="1.8" result="b"/>
       <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
     </filter>
   </defs>
 
-  <!-- EQ BARS LEFT -->
-  <rect x="25"   y="38" width="4.5" height="35" rx="2.25" fill="url(#bar)"/>
-  <rect x="18.5" y="47" width="4.5" height="26" rx="2.25" fill="url(#bar)" opacity=".75"/>
-  <rect x="12"   y="55" width="4.5" height="18" rx="2.25" fill="url(#bar)" opacity=".50"/>
-  <rect x="5.5"  y="62" width="4.5" height="11" rx="2.25" fill="url(#bar)" opacity=".28"/>
+  <!-- ── EQ BARS · LEFT ── -->
+  <rect x="24" y="43" width="3.5" height="30" rx="1.75" fill="#0FACED" filter="url(#glow-bar)" opacity="0.55"/>
+  <rect x="24"  y="43" width="3.5" height="30" rx="1.75" fill="url(#bar-grad)"/>
+  <rect x="19"  y="49" width="3.5" height="24" rx="1.75" fill="url(#bar-grad)" opacity="0.90"/>
+  <rect x="14"  y="55" width="3.5" height="18" rx="1.75" fill="url(#bar-grad)" opacity="0.73"/>
+  <rect x="9"   y="61" width="3.5" height="12" rx="1.75" fill="url(#bar-grad)" opacity="0.54"/>
+  <rect x="4"   y="66" width="3.5" height="7"  rx="1.75" fill="url(#bar-grad)" opacity="0.34"/>
+  <rect x="-1"  y="69" width="3.5" height="4"  rx="1.75" fill="url(#bar-grad)" opacity="0.18"/>
 
-  <!-- EQ BARS RIGHT -->
-  <rect x="70.5" y="38" width="4.5" height="35" rx="2.25" fill="url(#bar)"/>
-  <rect x="77"   y="47" width="4.5" height="26" rx="2.25" fill="url(#bar)" opacity=".75"/>
-  <rect x="83.5" y="55" width="4.5" height="18" rx="2.25" fill="url(#bar)" opacity=".50"/>
-  <rect x="90"   y="62" width="4.5" height="11" rx="2.25" fill="url(#bar)" opacity=".28"/>
+  <!-- ── EQ BARS · RIGHT ── -->
+  <rect x="72.5" y="43" width="3.5" height="30" rx="1.75" fill="#0FACED" filter="url(#glow-bar)" opacity="0.55"/>
+  <rect x="72.5" y="43" width="3.5" height="30" rx="1.75" fill="url(#bar-grad)"/>
+  <rect x="77.5" y="49" width="3.5" height="24" rx="1.75" fill="url(#bar-grad)" opacity="0.90"/>
+  <rect x="82.5" y="55" width="3.5" height="18" rx="1.75" fill="url(#bar-grad)" opacity="0.73"/>
+  <rect x="87.5" y="61" width="3.5" height="12" rx="1.75" fill="url(#bar-grad)" opacity="0.54"/>
+  <rect x="92.5" y="66" width="3.5" height="7"  rx="1.75" fill="url(#bar-grad)" opacity="0.34"/>
+  <rect x="97.5" y="69" width="3.5" height="4"  rx="1.75" fill="url(#bar-grad)" opacity="0.18"/>
 
-  <!-- EARS OUTER -->
-  <polygon points="29,40 33,4 48,35"  fill="#6A8FB0"/>
-  <polygon points="71,40 67,4 52,35"  fill="#6A8FB0"/>
+  <!-- ── WOLF HEAD ── -->
 
-  <!-- EARS INNER — cyan -->
-  <polygon points="32,38 35.5,9 46,33" fill="#0FACED"/>
-  <polygon points="68,38 64.5,9 54,33" fill="#0FACED"/>
-  <polygon points="32,38 35.5,9 46,33" fill="#0FACED" filter="url(#ear-glow)" opacity=".28"/>
-  <polygon points="68,38 64.5,9 54,33" fill="#0FACED" filter="url(#ear-glow)" opacity=".28"/>
+  <!-- Ears · outer -->
+  <polygon points="33,41 33,11 45,38" fill="url(#wolf-head)"/>
+  <polygon points="67,41 67,11 55,38" fill="url(#wolf-head)"/>
 
-  <!-- SKULL -->
-  <path d="M50,18 C61,16 72,26 72,42 L70,57 L62,67 L50,71 L38,67 L30,57 L28,42 C28,26 39,16 50,18Z"
-        fill="#A8C4DC"/>
+  <!-- Ears · inner cyan -->
+  <polygon points="35.5,40 36,19 43.5,37" fill="#0FACED"/>
+  <polygon points="64.5,40 64,19 56.5,37" fill="#0FACED"/>
+  <polygon points="35.5,40 36,19 43.5,37" fill="#0FACED" filter="url(#glow-bar)" opacity="0.35"/>
+  <polygon points="64.5,40 64,19 56.5,37" fill="#0FACED" filter="url(#glow-bar)" opacity="0.35"/>
 
-  <!-- MUZZLE -->
-  <path d="M38,53 Q50,51 62,53 L60,67 Q50,77 40,67Z"
-        fill="#C8DDF0"/>
+  <!-- Head · main -->
+  <ellipse cx="50" cy="52" rx="18" ry="17.5" fill="url(#wolf-head)"/>
 
-  <!-- NOSE -->
-  <path d="M42,53 C42,46 58,46 58,53 C58,61 51,65 50,65 C49,65 42,61 42,53Z"
-        fill="#060E20"/>
-  <ellipse cx="46" cy="51.5" rx="3" ry="1.8" fill="#142030" opacity=".5"/>
+  <!-- Cheek fluff -->
+  <ellipse cx="35" cy="58" rx="5.5" ry="4" fill="#E8F0FF"/>
+  <ellipse cx="65" cy="58" rx="5.5" ry="4" fill="#E8F0FF"/>
 
-  <!-- LEFT EYE -->
-  <path d="M32,43 C34,37.5 44.5,37.5 46.5,43 C44.5,48.5 34,48.5 32,43Z"
-        fill="#060E20"/>
-  <ellipse cx="39.5" cy="43" rx="4.5" ry="3.8" fill="#0FACED" filter="url(#eye-glow)"/>
-  <ellipse cx="39.5" cy="43" rx="3.0" ry="2.6" fill="#0FACED"/>
-  <circle  cx="39.5" cy="43" r="1.4" fill="#071220"/>
-  <circle  cx="40.8" cy="41.5" r="1.2" fill="#D4F6FF"/>
+  <!-- Muzzle -->
+  <ellipse cx="50" cy="63" rx="11" ry="8" fill="#C8D6ED"/>
 
-  <!-- RIGHT EYE -->
-  <path d="M53.5,43 C55.5,37.5 66,37.5 68,43 C66,48.5 55.5,48.5 53.5,43Z"
-        fill="#060E20"/>
-  <ellipse cx="60.5" cy="43" rx="4.5" ry="3.8" fill="#0FACED" filter="url(#eye-glow)"/>
-  <ellipse cx="60.5" cy="43" rx="3.0" ry="2.6" fill="#0FACED"/>
-  <circle  cx="60.5" cy="43" r="1.4" fill="#071220"/>
-  <circle  cx="61.8" cy="41.5" r="1.2" fill="#D4F6FF"/>
+  <!-- Nose -->
+  <path d="M 45.5,60.5 Q 50,55.8 54.5,60.5 Q 50,67 45.5,60.5 Z" fill="#09142A"/>
+  <path d="M 48.5,56.5 Q 50,54.5 51.5,56.5" fill="none" stroke="#0D1E3A" stroke-width="0.8" opacity="0.5"/>
+  <ellipse cx="48" cy="59.5" rx="1.4" ry="1.0" fill="#1E3060" opacity="0.45"/>
 
-  <!-- BROW — V shape, the wolf read -->
-  <path d="M29,40 Q38,34 46.5,39 Q50,36.5 53.5,39 Q62,34 71,40"
-        fill="none" stroke="#2A3E54" stroke-width="3"
-        stroke-linecap="round" stroke-linejoin="round"/>
+  <!-- Left eye -->
+  <ellipse cx="41.5" cy="49.5" rx="5" ry="5.5" fill="#09142A"/>
+  <circle cx="42.5" cy="48.5" r="3.2" fill="#0FACED" filter="url(#glow-eye)"/>
+  <circle cx="42.5" cy="48.5" r="1.4" fill="#0797B8"/>
+  <circle cx="43.2" cy="47.8" r="1.1" fill="#B8F4FF"/>
+
+  <!-- Right eye -->
+  <ellipse cx="58.5" cy="49.5" rx="5" ry="5.5" fill="#09142A"/>
+  <circle cx="59.5" cy="48.5" r="3.2" fill="#0FACED" filter="url(#glow-eye)"/>
+  <circle cx="59.5" cy="48.5" r="1.4" fill="#0797B8"/>
+  <circle cx="60.2" cy="47.8" r="1.1" fill="#B8F4FF"/>
+
+  <!-- Eyebrows -->
+  <path d="M 37.5,44.5 Q 41.5,42.2 45.5,43.5" fill="none" stroke="#A8C0DC" stroke-width="1.3" stroke-linecap="round" opacity="0.55"/>
+  <path d="M 54.5,43.5 Q 58.5,42.2 62.5,44.5" fill="none" stroke="#A8C0DC" stroke-width="1.3" stroke-linecap="round" opacity="0.55"/>
+
+  <!-- Mouth -->
+  <path d="M 47,66.5 Q 50,69 53,66.5" fill="none" stroke="#8EA8C8" stroke-width="1.1" stroke-linecap="round" opacity="0.45"/>
+
+  <!-- Forehead stripe -->
+  <path d="M 50,35 Q 50.5,40 50,43" fill="none" stroke="#C8D8EE" stroke-width="1.0" stroke-linecap="round" opacity="0.3"/>
 </svg>

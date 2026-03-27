@@ -19,7 +19,7 @@ struct AppVisibilitySettingsView: View {
             // Section Header
             VStack(alignment: .leading, spacing: 6) {
                 Text("App Visibility")
-                    .font(.system(size: 17, weight: .semibold))
+                    .sectionHeader()
 
                 Text("Control how WolfWave appears in your Dock and menu bar.")
                     .font(.system(size: 13))
@@ -71,8 +71,6 @@ struct AppVisibilitySettingsView: View {
                 .clipShape(RoundedRectangle(cornerRadius: 8))
                 .accessibilityElement(children: .combine)
                 .accessibilityLabel("The app will temporarily appear in the Dock while the settings window is open.")
-                .transition(.opacity.combined(with: .move(edge: .top)))
-                .animation(.easeInOut(duration: 0.2), value: dockVisibility)
             }
         }
     }

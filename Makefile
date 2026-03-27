@@ -42,20 +42,26 @@ clean:
 	rm -rf $(BUILD_DIR) $(BUILDS_DIR)
 
 test:
-	-xcodebuild -project $(PROJECT) -scheme $(SCHEME) \
-		-destination '$(DESTINATION)' -configuration Debug test -quiet
+	@xcodebuild -project $(PROJECT) -scheme $(SCHEME) \
+		-destination '$(DESTINATION)' -configuration Debug \
+		-only-testing WolfWaveTests \
+		test 2>/dev/null | scripts/check-test-results.sh
 
 test-verbose:
-	xcodebuild -project $(PROJECT) -scheme $(SCHEME) \
-		-destination '$(DESTINATION)' -configuration Debug test
+	@xcodebuild -project $(PROJECT) -scheme $(SCHEME) \
+		-destination '$(DESTINATION)' -configuration Debug \
+		-only-testing WolfWaveTests \
+		test 2>/dev/null | tee /dev/stderr | scripts/check-test-results.sh
 
 test-ci:
 	xcodebuild -project $(PROJECT) -scheme $(SCHEME) \
-		-destination '$(DESTINATION)' -configuration Debug test \
+		-destination '$(DESTINATION)' -configuration Debug \
+		-only-testing WolfWaveTests \
 		CODE_SIGN_IDENTITY="-" \
 		CODE_SIGNING_REQUIRED=NO \
 		CODE_SIGNING_ALLOWED=NO \
-		-resultBundlePath TestResults.xcresult
+		-resultBundlePath TestResults.xcresult \
+		test
 
 update-deps:
 	xcodebuild -project $(PROJECT) -resolvePackageDependencies -quiet

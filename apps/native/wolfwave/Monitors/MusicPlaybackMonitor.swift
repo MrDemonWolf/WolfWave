@@ -255,7 +255,8 @@ class MusicPlaybackMonitor {
         let timer = DispatchSource.makeTimerSource(queue: backgroundQueue)
         timer.schedule(deadline: .now() + currentCheckInterval, repeating: currentCheckInterval)
         timer.setEventHandler { [weak self] in
-            self?.scheduleTrackCheck(reason: "timer")
+            guard let self = self, self.isTracking else { return }
+            self.scheduleTrackCheck(reason: "timer")
         }
         timer.activate()
         self.timer = timer

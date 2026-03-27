@@ -161,7 +161,7 @@ struct UpdateBannerView: View {
             
             VStack(alignment: .leading, spacing: 8) {
                 Text("General Settings")
-                    .font(.system(size: 17, weight: .semibold))
+                    .sectionHeader()
                 
                 Text("This is where your settings would appear.")
                     .font(.system(size: 13))

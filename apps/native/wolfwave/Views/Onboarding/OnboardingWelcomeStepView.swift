@@ -25,7 +25,7 @@ struct OnboardingWelcomeStepView: View {
 
     private let features: [Feature] = [
         Feature(
-            icon: .brand(name: "AppleMusicLogo", renderOriginal: false),
+            icon: .brand(name: "AppleMusicLogo", renderOriginal: true),
             title: "Music Monitoring",
             description: "Automatically detects what's playing in Apple Music."
         ),
@@ -35,8 +35,8 @@ struct OnboardingWelcomeStepView: View {
             description: "Anyone in chat can type !song to see what's playing."
         ),
         Feature(
-            icon: .brand(name: "DiscordLogo", renderOriginal: false),
-            title: "Discord Rich Presence",
+            icon: .brand(name: "DiscordLogo", renderOriginal: true),
+            title: "Discord Status",
             description: "Shows your current song on Discord, like Spotify does."
         ),
         Feature(
@@ -53,13 +53,14 @@ struct OnboardingWelcomeStepView: View {
     // MARK: - Body
 
     var body: some View {
-        VStack(spacing: 16) {
+        VStack(spacing: 12) {
             Spacer()
 
             Image(nsImage: NSApp.applicationIconImage)
                 .resizable()
+                .interpolation(.high)
                 .scaledToFit()
-                .frame(width: 64, height: 64)
+                .frame(width: 72, height: 72)
                 .accessibilityLabel("WolfWave app icon")
 
             VStack(spacing: 8) {
@@ -72,7 +73,7 @@ struct OnboardingWelcomeStepView: View {
                     .multilineTextAlignment(.center)
             }
 
-            VStack(alignment: .leading, spacing: 18) {
+            VStack(alignment: .leading, spacing: 14) {
                 ForEach(Array(features.enumerated()), id: \.offset) { index, feature in
                     featureRow(for: feature)
                         .opacity(rowsVisible ? 1 : 0)

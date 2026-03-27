@@ -14,18 +14,6 @@ struct OnboardingOBSWidgetStepView: View {
 
     @Binding var websocketEnabled: Bool
 
-    @AppStorage(AppConstants.UserDefaults.websocketServerPort)
-    private var storedPort: Int = Int(AppConstants.WebSocketServer.defaultPort)
-
-    @State private var copiedURL = false
-
-    @AppStorage(AppConstants.UserDefaults.widgetPort)
-    private var storedWidgetPort: Int = Int(AppConstants.WebSocketServer.widgetDefaultPort)
-
-    private var widgetURL: String {
-        let widgetPort = storedWidgetPort > 0 ? storedWidgetPort : Int(AppConstants.WebSocketServer.widgetDefaultPort)
-        return "http://localhost:\(widgetPort)/?port=\(storedPort)"
-    }
 
     // MARK: - Body
 
@@ -56,84 +44,31 @@ struct OnboardingOBSWidgetStepView: View {
                     .foregroundStyle(.secondary)
                     .multilineTextAlignment(.center)
 
-                HStack(spacing: 12) {
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text("Enable now-playing widget")
-                            .font(.system(size: 13, weight: .medium))
-                        Text("Runs a small local server so your widget stays up to date")
-                            .font(.system(size: 11))
-                            .foregroundStyle(.tertiary)
+                ToggleSettingRow(
+                    title: "Enable now-playing widget",
+                    subtitle: "Runs a small local server so your widget stays up to date",
+                    isOn: $websocketEnabled,
+                    controlSize: .regular,
+                    accessibilityLabel: "Enable now-playing widget server",
+                    accessibilityIdentifier: "onboardingWebsocketToggle",
+                    onChange: { _ in
+                        NotificationCenter.default.post(
+                            name: NSNotification.Name(AppConstants.Notifications.websocketServerChanged),
+                            object: nil,
+                            userInfo: nil
+                        )
                     }
-                    Spacer()
-                    Toggle("", isOn: $websocketEnabled)
-                        .labelsHidden()
-                        .toggleStyle(.switch)
-                        .controlSize(.regular)
-                        .pointerCursor()
-                        .accessibilityLabel("Enable now-playing widget server")
-                        .accessibilityIdentifier("onboardingWebsocketToggle")
-                        .onChange(of: websocketEnabled) { _, newValue in
-                            NotificationCenter.default.post(
-                                name: NSNotification.Name(AppConstants.Notifications.websocketServerChanged),
-                                object: nil,
-                                userInfo: nil
-                            )
-                        }
-                }
-                .padding(14)
-                .background(Color(nsColor: .controlBackgroundColor))
-                .clipShape(RoundedRectangle(cornerRadius: 10))
+                )
+                .cardStyle()
 
                 if websocketEnabled {
-                    VStack(spacing: 12) {
-                        HStack(spacing: 8) {
-                            Image(systemName: "checkmark.circle.fill")
-                                .font(.system(size: 14))
-                                .foregroundStyle(.green)
-                            Text("Overlay enabled!")
-                                .font(.system(size: 13))
-                                .foregroundStyle(.secondary)
-                        }
+                    VStack(spacing: 10) {
+                        SuccessFeedbackRow(text: "You're all set!", fontWeight: .medium)
 
-                        HStack(spacing: 8) {
-                            Text(widgetURL)
-                                .font(.system(size: 11, design: .monospaced))
-                                .textSelection(.enabled)
-                                .lineLimit(1)
-                                .truncationMode(.middle)
-
-                            Spacer()
-
-                            Button {
-                                NSPasteboard.general.clearContents()
-                                NSPasteboard.general.setString(widgetURL, forType: .string)
-                                copiedURL = true
-                                DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
-                                    copiedURL = false
-                                }
-                            } label: {
-                                HStack(spacing: 4) {
-                                    Image(systemName: copiedURL ? "checkmark" : "doc.on.doc")
-                                        .font(.system(size: 11))
-                                    Text(copiedURL ? "Copied" : "Copy")
-                                        .font(.system(size: 11))
-                                }
-                            }
-                            .buttonStyle(.bordered)
-                            .controlSize(.small)
-                            .accessibilityLabel("Copy widget URL")
-                        }
-                        .padding(10)
-                        .background(Color(nsColor: .controlBackgroundColor))
-                        .clipShape(RoundedRectangle(cornerRadius: 8))
-
-                        Text("Add as a Browser Source in OBS")
-                            .font(.system(size: 11))
+                        Text("Configure the widget in Settings → Now-Playing Widget")
+                            .font(.system(size: 12))
                             .foregroundStyle(.secondary)
-
-                        Text("Customize colors and layout in Settings → Now-Playing Widget")
-                            .font(.system(size: 11))
-                            .foregroundStyle(.secondary)
+                            .multilineTextAlignment(.center)
                     }
                     .transition(.opacity.combined(with: .move(edge: .top)))
                 }

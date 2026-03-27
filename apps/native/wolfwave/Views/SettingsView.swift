@@ -70,6 +70,14 @@ struct SettingsView: View {
             default: return nil
             }
         }
+
+        /// Whether the brand icon should render as a template (tinted by macOS for light/dark mode).
+        var brandIconIsTemplate: Bool {
+            switch self {
+            case .websocket: return true
+            default: return false
+            }
+        }
     }
 
     // MARK: - Properties
@@ -136,17 +144,19 @@ struct SettingsView: View {
             }
             .listStyle(.sidebar)
             .navigationSplitViewColumnWidth(min: 200, ideal: 220, max: 280)
-            .padding(.top, 10)
+            .padding(.top, 4)
         } detail: {
             ScrollView {
                 VStack(alignment: .leading, spacing: AppConstants.SettingsUI.sectionSpacing) {
                     detailView(for: selectedSection)
                 }
+                .transaction { $0.animation = nil }
                 .frame(maxWidth: AppConstants.SettingsUI.maxContentWidth, alignment: .topLeading)
                 .frame(maxWidth: .infinity, alignment: .center)
                 .padding(.horizontal, AppConstants.SettingsUI.contentPaddingH)
                 .padding(.vertical, AppConstants.SettingsUI.contentPaddingV)
             }
+            .animation(.none, value: selectedSection)
             .padding(.top, 8)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .background(Color(nsColor: .underPageBackgroundColor))
@@ -238,6 +248,7 @@ struct SettingsView: View {
                 Text(section.rawValue)
             } icon: {
                 Image(brandIcon)
+                    .renderingMode(section.brandIconIsTemplate ? .template : .original)
                     .resizable()
                     .aspectRatio(contentMode: .fit)
                     .frame(width: 16, height: 16)
@@ -340,26 +351,14 @@ struct SettingsView: View {
         isLast: Bool = false,
         onChange: @escaping (Bool) -> Void
     ) -> some View {
-        HStack(spacing: 12) {
-            VStack(alignment: .leading, spacing: 3) {
-                Text(title)
-                    .font(.system(size: 13, weight: .medium))
-                Text(subtitle)
-                    .font(.system(size: 11))
-                    .foregroundStyle(.secondary)
-            }
-            Spacer()
-            Toggle("", isOn: isOn)
-                .labelsHidden()
-                .toggleStyle(.switch)
-                .controlSize(.small)
-                .pointerCursor()
-                .accessibilityLabel(accessibilityLabel)
-                .accessibilityIdentifier(accessibilityIdentifier)
-                .onChange(of: isOn.wrappedValue) { _, newValue in
-                    onChange(newValue)
-                }
-        }
+        ToggleSettingRow(
+            title: title,
+            subtitle: subtitle,
+            isOn: isOn,
+            accessibilityLabel: accessibilityLabel,
+            accessibilityIdentifier: accessibilityIdentifier,
+            onChange: onChange
+        )
         .padding(.horizontal, AppConstants.SettingsUI.cardPadding)
         .padding(.vertical, 12)
         .background(Color(nsColor: .controlBackgroundColor))
@@ -463,33 +462,6 @@ struct SettingsView: View {
 
         // Notify tracking re-enabled
         notifyTrackingSettingChanged(enabled: true)
-    }
-}
-
-// MARK: - Constants Extension
-
-
-
-// MARK: - StatusChip
-
-private struct StatusChip: View {
-    let text: String
-    let color: Color
-
-    var body: some View {
-        HStack(spacing: 6) {
-            Circle()
-                .fill(color)
-                .frame(width: 6, height: 6)
-
-            Text(text)
-                .font(.system(size: 11, weight: .semibold))
-                .foregroundStyle(.primary)
-        }
-        .padding(.horizontal, 10)
-        .padding(.vertical, 5)
-        .background(color.opacity(0.1))
-        .clipShape(Capsule())
     }
 }
 

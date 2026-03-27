@@ -28,12 +28,18 @@ struct MusicMonitorSettingsView: View {
     @State private var currentArtist: String?
     @State private var currentAlbum: String?
 
+    // MARK: - Integration Status
+
+    @State private var twitchConnected = false
+    @State private var discordActive = false
+    @State private var widgetRunning = false
+
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
             // Section Header
             VStack(alignment: .leading, spacing: 6) {
                 Text("Music Sync")
-                    .font(.system(size: 17, weight: .semibold))
+                    .sectionHeader()
                     .accessibilityLabel("Music Playback Monitor")
 
                 Text("Connects to Apple Music and shares what's playing everywhere.")
@@ -77,57 +83,100 @@ struct MusicMonitorSettingsView: View {
                 )
             }
 
-            // Toggle Card
-            HStack(spacing: 12) {
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("Sync Music")
-                        .font(.system(size: 13, weight: .medium))
-                    Text("Updates your status and widget when the song changes")
-                        .font(.system(size: 11))
-                        .foregroundStyle(.tertiary)
-                }
-                Spacer()
-                Toggle("", isOn: $trackingEnabled)
-                    .labelsHidden()
-                    .toggleStyle(.switch)
-                    .controlSize(.small)
-                    .pointerCursor()
-                    .accessibilityLabel("Enable Apple Music monitoring")
-                    .accessibilityHint("Toggle to enable or disable Apple Music monitoring")
-                    .accessibilityIdentifier("musicTrackingToggle")
-                    .onChange(of: trackingEnabled) { _, newValue in
-                        notifyTrackingSettingChanged(enabled: newValue)
-                    }
-            }
-            .cardStyle()
-
-            // Now Playing Preview
-            nowPlayingCard
-                .animation(.easeInOut(duration: 0.25), value: currentTrack)
+            // Unified Monitoring Panel
+            unifiedPanel
         }
         .onAppear {
             loadCurrentTrack()
+            loadIntegrationStatuses()
         }
         .onReceive(
             NotificationCenter.default.publisher(
                 for: NSNotification.Name(AppConstants.Notifications.nowPlayingChanged)
             )
         ) { notification in
-            currentTrack = notification.userInfo?["track"] as? String
-            currentArtist = notification.userInfo?["artist"] as? String
-            currentAlbum = notification.userInfo?["album"] as? String
+            withAnimation(.easeInOut(duration: 0.25)) {
+                currentTrack = notification.userInfo?["track"] as? String
+                currentArtist = notification.userInfo?["artist"] as? String
+                currentAlbum = notification.userInfo?["album"] as? String
+            }
+        }
+        .onReceive(
+            NotificationCenter.default.publisher(
+                for: NSNotification.Name(AppConstants.Notifications.twitchConnectionStateChanged)
+            )
+        ) { notification in
+            withAnimation(.easeInOut(duration: 0.2)) {
+                twitchConnected = notification.userInfo?["isConnected"] as? Bool ?? false
+            }
+        }
+        .onReceive(
+            NotificationCenter.default.publisher(
+                for: NSNotification.Name(AppConstants.Notifications.discordStateChanged)
+            )
+        ) { notification in
+            withAnimation(.easeInOut(duration: 0.2)) {
+                let state = notification.userInfo?["state"] as? String ?? ""
+                discordActive = state == "connected"
+            }
+        }
+        .onReceive(
+            NotificationCenter.default.publisher(
+                for: NSNotification.Name(AppConstants.Notifications.websocketServerStateChanged)
+            )
+        ) { notification in
+            withAnimation(.easeInOut(duration: 0.2)) {
+                let state = notification.userInfo?["state"] as? String ?? ""
+                widgetRunning = state == "listening"
+            }
         }
         .onAppear {
             checkMusicPermission()
         }
     }
 
-    // MARK: - Now Playing Card
+    // MARK: - Unified Panel
 
     @ViewBuilder
-    private var nowPlayingCard: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            // Header
+    private var unifiedPanel: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            // Toggle row
+            ToggleSettingRow(
+                title: "Sync Music",
+                subtitle: "Updates your status and widget when the song changes",
+                isOn: $trackingEnabled,
+                accessibilityLabel: "Enable Apple Music monitoring",
+                accessibilityIdentifier: "musicTrackingToggle",
+                accessibilityHint: "Toggle to enable or disable Apple Music monitoring",
+                onChange: { newValue in
+                    notifyTrackingSettingChanged(enabled: newValue)
+                }
+            )
+            .padding(AppConstants.SettingsUI.cardPadding)
+
+            Divider()
+                .padding(.horizontal, AppConstants.SettingsUI.cardPadding)
+
+            // Now Playing section
+            nowPlayingSection
+                .padding(AppConstants.SettingsUI.cardPadding)
+
+            Divider()
+                .padding(.horizontal, AppConstants.SettingsUI.cardPadding)
+
+            // Integration statuses
+            integrationStatusSection
+                .padding(AppConstants.SettingsUI.cardPadding)
+        }
+        .background(Color(nsColor: .controlBackgroundColor))
+        .clipShape(RoundedRectangle(cornerRadius: AppConstants.SettingsUI.cardCornerRadius))
+    }
+
+    // MARK: - Now Playing Section
+
+    @ViewBuilder
+    private var nowPlayingSection: some View {
+        VStack(alignment: .leading, spacing: 10) {
             HStack(spacing: 6) {
                 Image(systemName: "music.note")
                     .font(.system(size: 11, weight: .semibold))
@@ -138,9 +187,7 @@ struct MusicMonitorSettingsView: View {
             }
 
             if let track = currentTrack {
-                // Track info
                 HStack(spacing: 12) {
-                    // Album art placeholder
                     ZStack {
                         RoundedRectangle(cornerRadius: 6)
                             .fill(Color.accentColor.opacity(0.15))
@@ -173,7 +220,6 @@ struct MusicMonitorSettingsView: View {
                     Spacer()
                 }
             } else {
-                // Empty state
                 HStack(spacing: 12) {
                     ZStack {
                         RoundedRectangle(cornerRadius: 6)
@@ -192,9 +238,85 @@ struct MusicMonitorSettingsView: View {
                 }
             }
         }
-        .cardStyle()
         .accessibilityElement(children: .combine)
         .accessibilityLabel(nowPlayingAccessibilityLabel)
+    }
+
+    // MARK: - Integration Status Section
+
+    @ViewBuilder
+    private var integrationStatusSection: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(spacing: 6) {
+                Image(systemName: "link")
+                    .font(.system(size: 11, weight: .semibold))
+                    .foregroundStyle(.secondary)
+                Text("Integrations")
+                    .font(.system(size: 11, weight: .semibold))
+                    .foregroundStyle(.secondary)
+            }
+
+            VStack(spacing: 6) {
+                integrationRow(
+                    icon: "bubble.left.fill",
+                    iconColor: Color(red: 0.57, green: 0.27, blue: 1.0),
+                    name: "Twitch",
+                    connected: twitchConnected,
+                    activeLabel: "Connected",
+                    inactiveLabel: "Disconnected"
+                )
+
+                integrationRow(
+                    icon: "headphones",
+                    iconColor: Color(red: 0.35, green: 0.40, blue: 0.95),
+                    name: "Discord",
+                    connected: discordActive,
+                    activeLabel: "Active",
+                    inactiveLabel: "Idle"
+                )
+
+                integrationRow(
+                    icon: "tv",
+                    iconColor: .blue,
+                    name: "Widget",
+                    connected: widgetRunning,
+                    activeLabel: "Running",
+                    inactiveLabel: "Stopped"
+                )
+            }
+        }
+    }
+
+    /// A single integration status row with icon, name, and colored dot indicator.
+    private func integrationRow(
+        icon: String,
+        iconColor: Color,
+        name: String,
+        connected: Bool,
+        activeLabel: String,
+        inactiveLabel: String
+    ) -> some View {
+        HStack(spacing: 10) {
+            Image(systemName: icon)
+                .font(.system(size: 11))
+                .foregroundStyle(iconColor)
+                .frame(width: 16)
+
+            Text(name)
+                .font(.system(size: 12))
+
+            Spacer()
+
+            Circle()
+                .fill(connected ? Color.green : Color(nsColor: .separatorColor))
+                .frame(width: 6, height: 6)
+
+            Text(connected ? activeLabel : inactiveLabel)
+                .font(.system(size: 11))
+                .foregroundStyle(connected ? .primary : .tertiary)
+        }
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("\(name): \(connected ? activeLabel : inactiveLabel)")
     }
 
     // MARK: - Computed Properties
@@ -241,6 +363,15 @@ struct MusicMonitorSettingsView: View {
         )
         permissionDenied = (status == OSStatus(errAEEventNotPermitted))
     }
+
+    /// Loads initial integration statuses from AppDelegate.
+    private func loadIntegrationStatuses() {
+        if let appDelegate = AppDelegate.shared {
+            twitchConnected = appDelegate.twitchService?.isConnected ?? false
+            discordActive = appDelegate.discordService?.state == .connected
+            widgetRunning = appDelegate.websocketServer?.state == .listening
+        }
+    }
 }
 
 // MARK: - Preview
@@ -277,7 +408,7 @@ struct MusicMonitorSettingsView: View {
             VStack(alignment: .leading, spacing: 16) {
                 VStack(alignment: .leading, spacing: 6) {
                     Text("Music Playback Monitor")
-                        .font(.system(size: 17, weight: .semibold))
+                        .sectionHeader()
                     
                     Text("Automatically detect what's playing in Apple Music and share it with Twitch chat, Discord, and now-playing widgets.")
                         .font(.system(size: 13))

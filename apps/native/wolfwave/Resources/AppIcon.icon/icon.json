@@ -1,6 +1,6 @@
 {
   "fill" : {
-    "solid" : "display-p3:0.03529,0.08235,0.20000,1.00000"
+    "solid" : "extended-gray:0.75000,1.00000"
   },
   "groups" : [
     {
@@ -9,7 +9,7 @@
           "image-name" : "logo.svg",
           "name" : "logo",
           "position" : {
-            "scale" : 8,
+            "scale" : 6.5,
             "translation-in-points" : [
               0,
               0
