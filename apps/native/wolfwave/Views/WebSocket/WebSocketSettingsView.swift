@@ -89,8 +89,10 @@ struct WebSocketSettingsView: View {
             serverSettingsCard
 
             browserSourceCard
+                .transition(.opacity)
 
             widgetAppearanceCard
+                .transition(.opacity)
         }
         .onAppear {
             portText = String(storedPort)
@@ -125,8 +127,10 @@ struct WebSocketSettingsView: View {
                 isOn: $websocketEnabled,
                 accessibilityLabel: "Toggle Now-Playing Widget",
                 accessibilityIdentifier: "websocketEnabledToggle",
-                onChange: { _ in
-                    notifyServerSettingChanged()
+                onChange: { newValue in
+                    withAnimation(.easeInOut(duration: 0.2)) {
+                        notifyServerSettingChanged()
+                    }
                 }
             )
             .padding(.horizontal, cardPadding)

@@ -186,6 +186,7 @@ struct MusicMonitorSettingsView: View {
                     .foregroundStyle(.secondary)
             }
 
+            Group {
             if let track = currentTrack {
                 HStack(spacing: 12) {
                     ZStack {
@@ -237,6 +238,8 @@ struct MusicMonitorSettingsView: View {
                     Spacer()
                 }
             }
+            }
+            .frame(minHeight: 60, alignment: .leading)
         }
         .accessibilityElement(children: .combine)
         .accessibilityLabel(nowPlayingAccessibilityLabel)

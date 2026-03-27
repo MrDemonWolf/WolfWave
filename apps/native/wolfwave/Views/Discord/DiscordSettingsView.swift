@@ -114,6 +114,7 @@ struct DiscordSettingsView: View {
 
                     Spacer()
                 }
+                .transition(.opacity)
             }
 
             #if DEBUG
@@ -121,9 +122,11 @@ struct DiscordSettingsView: View {
                 Text("Set DISCORD_CLIENT_ID in Config.xcconfig to enable this feature.")
                     .font(.system(size: 11))
                     .foregroundStyle(.orange)
+                    .transition(.opacity)
             }
             #endif
         }
+        .animation(.easeInOut(duration: 0.2), value: presenceEnabled)
         .onAppear {
             hasClientID = DiscordRPCService.resolveClientID() != nil
             refreshConnectionState()

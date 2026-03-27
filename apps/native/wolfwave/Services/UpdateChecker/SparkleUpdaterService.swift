@@ -82,10 +82,8 @@ final class SparkleUpdaterService: NSObject {
         }
 
         #if DEBUG
-        Log.info("SparkleUpdaterService: Debug build — Sparkle initialized for manual testing only", category: "Update")
-        setupSparkle()
-        // Sync with @AppStorage default (true) — DEBUG disables automatic checks
-        updater?.automaticallyChecksForUpdates = UserDefaults.standard.object(forKey: AppConstants.UserDefaults.updateCheckEnabled) as? Bool ?? true
+        Log.info("SparkleUpdaterService: Debug build — Sparkle completely disabled", category: "Update")
+        // Do not initialize Sparkle in DEBUG builds
         #else
         setupSparkle()
         #endif
@@ -130,6 +128,10 @@ final class SparkleUpdaterService: NSObject {
     /// Shows Sparkle's update dialog with results. If an update is available,
     /// the user can choose to download and install it immediately.
     func checkForUpdates() {
+        #if DEBUG
+        Log.info("Update checks disabled in DEBUG builds", category: "Sparkle")
+        return
+        #endif
         guard !isHomebrewInstall else {
             Log.warn("SparkleUpdaterService: Manual check ignored — app is managed by Homebrew", category: "Update")
             return

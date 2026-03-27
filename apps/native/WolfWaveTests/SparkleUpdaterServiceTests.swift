@@ -19,12 +19,11 @@ final class SparkleUpdaterServiceTests: XCTestCase {
 
     // MARK: - Homebrew Install Detection Tests
 
-    func testNonHomebrewInstallAllowsSparkle() {
-        // When running from Xcode build directory (not Homebrew), Sparkle should be initialized.
-        // We verify this indirectly: feedURL is non-nil only when Sparkle is active (non-Homebrew).
+    func testSparkleDisabledInDebugBuilds() {
+        // In DEBUG builds, Sparkle is completely disabled — no initialization, no network checks.
         let service = SparkleUpdaterService()
-        XCTAssertNotNil(service.feedURL,
-            "feedURL should be non-nil when running from a non-Homebrew path (Sparkle active)")
+        XCTAssertNil(service.feedURL,
+            "feedURL should be nil in DEBUG builds (Sparkle not initialized)")
     }
 
     // MARK: - Default Property Tests
@@ -45,17 +44,10 @@ final class SparkleUpdaterServiceTests: XCTestCase {
         )
     }
 
-    func testFeedURLReturnsDevAppcastInDebug() {
-        // In DEBUG builds, Sparkle initializes and feedURL points to the bundled dev-appcast.xml
-        // The URL uses file:// scheme since it references a bundled resource
+    func testFeedURLNilInDebug() {
+        // In DEBUG builds, Sparkle is not initialized so feedURL is nil
         let service = SparkleUpdaterService()
-        XCTAssertNotNil(service.feedURL, "feedURL should not be nil in DEBUG builds")
-        if let url = service.feedURL {
-            XCTAssertTrue(url.scheme == "file",
-                "feedURL should use file:// scheme in debug/test builds, got: \(url.scheme ?? "nil")")
-            XCTAssertTrue(url.absoluteString.contains("dev-appcast.xml"),
-                "feedURL should point to dev-appcast.xml in DEBUG builds, got: \(url.absoluteString)")
-        }
+        XCTAssertNil(service.feedURL, "feedURL should be nil in DEBUG builds (Sparkle disabled)")
     }
 
     // MARK: - Safe Operation Tests

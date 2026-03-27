@@ -332,6 +332,7 @@ struct AdvancedSettingsView: View {
                         .padding(.vertical, 4)
                         .background(Color.accentColor)
                         .clipShape(Capsule())
+                        .transition(.opacity)
                 }
             }
 
@@ -367,6 +368,7 @@ struct AdvancedSettingsView: View {
                 .padding(10)
                 .background(Color.green.opacity(0.08))
                 .clipShape(RoundedRectangle(cornerRadius: 6))
+                .transition(.opacity)
             } else if !updateCheckEnabled && !updateAvailable {
                 HStack(spacing: 10) {
                     Image(systemName: "info.circle.fill")
@@ -381,6 +383,7 @@ struct AdvancedSettingsView: View {
                 .padding(10)
                 .background(Color.gray.opacity(0.08))
                 .clipShape(RoundedRectangle(cornerRadius: 6))
+                .transition(.opacity)
             }
 
             Divider()
@@ -395,6 +398,10 @@ struct AdvancedSettingsView: View {
                 ))
                 .toggleStyle(.checkbox)
                 .font(.system(size: 12))
+                #if DEBUG
+                .disabled(true)
+                .opacity(0.5)
+                #endif
 
                 Spacer()
 
@@ -422,9 +429,15 @@ struct AdvancedSettingsView: View {
                 .disabled(isCheckingForUpdates)
                 .pointerCursor()
                 .accessibilityLabel("Check for updates now")
+                #if DEBUG
+                .disabled(true)
+                .opacity(0.5)
+                #endif
             }
         }
         .cardStyle()
+        .animation(.easeInOut(duration: 0.2), value: updateAvailable)
+        .animation(.easeInOut(duration: 0.2), value: updateCheckEnabled)
         .alert("You're up to date!", isPresented: $showingUpToDateAlert) {
             Button("OK", role: .cancel) {}
         } message: {

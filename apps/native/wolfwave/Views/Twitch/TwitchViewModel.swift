@@ -91,7 +91,7 @@ final class TwitchViewModel: ObservableObject {
     }
 
     /// High level integration states consumed by the UI to simplify view logic
-    enum IntegrationState {
+    enum IntegrationState: Equatable {
         case notConnected
         case authorizing
         case connected

@@ -257,6 +257,7 @@ struct TwitchSettingsView: View {
             }
         }
         .cardStyle()
+        .animation(.easeInOut(duration: 0.2), value: viewModel.integrationState)
     }
 }
 
