@@ -116,11 +116,13 @@ struct DiscordSettingsView: View {
                 }
             }
 
+            #if DEBUG
             if !hasClientID {
                 Text("Set DISCORD_CLIENT_ID in Config.xcconfig to enable this feature.")
                     .font(.system(size: 11))
                     .foregroundStyle(.orange)
             }
+            #endif
         }
         .onAppear {
             hasClientID = DiscordRPCService.resolveClientID() != nil
@@ -148,20 +150,32 @@ struct DiscordSettingsView: View {
 
     // MARK: - Subviews
 
-    @ViewBuilder
-    private var statusChip: some View {
+    private var statusChipText: String {
         switch connectionState {
         case .connected:
-            StatusChip(text: "Connected", color: .green)
+            return "Connected"
         case .connecting:
-            StatusChip(text: "Connecting", color: .orange)
+            return "Connecting"
         case .disconnected:
-            if presenceEnabled {
-                StatusChip(text: "Discord not running", color: .gray)
-            } else {
-                StatusChip(text: "Disconnected", color: .gray)
-            }
+            return presenceEnabled ? "Discord not running" : "Disconnected"
         }
+    }
+
+    private var statusChipColor: Color {
+        switch connectionState {
+        case .connected:
+            return .green
+        case .connecting:
+            return .orange
+        case .disconnected:
+            return .gray
+        }
+    }
+
+    @ViewBuilder
+    private var statusChip: some View {
+        StatusChip(text: statusChipText, color: statusChipColor)
+            .accessibilityLabel("Discord status: \(statusChipText)")
     }
 
     // MARK: - Helpers

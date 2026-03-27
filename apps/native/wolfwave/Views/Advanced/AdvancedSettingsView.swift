@@ -57,6 +57,9 @@ struct AdvancedSettingsView: View {
     /// Whether a manual update check is in progress.
     @State private var isCheckingForUpdates = false
 
+    /// Whether the last update check was triggered manually (vs automatic/scheduled).
+    @State private var isManualCheck = false
+
     /// Whether the "up to date" alert is shown after a manual check.
     @State private var showingUpToDateAlert = false
 
@@ -101,7 +104,7 @@ struct AdvancedSettingsView: View {
                 Text("Advanced")
                     .sectionHeader()
 
-                Text("Check for updates, manage your setup wizard, export diagnostic logs, and reset WolfWave to its default state.")
+                Text("Updates, diagnostics, and reset options.")
                     .font(.system(size: 13))
                     .foregroundStyle(.secondary)
             }
@@ -191,7 +194,7 @@ struct AdvancedSettingsView: View {
                     .accessibilityElement(children: .combine)
                     .accessibilityLabel("Danger Zone")
 
-                    Text("This will erase all preferences, remove saved accounts from Keychain, and disconnect from Twitch and Discord. This cannot be undone.")
+                    Text("Permanently erases all settings and saved accounts. This can't be undone.")
                         .font(.system(size: 12))
                         .foregroundStyle(.secondary)
                         .fixedSize(horizontal: false, vertical: true)
@@ -231,9 +234,10 @@ struct AdvancedSettingsView: View {
                 latestVersion = version
                 updateAvailable = available && skippedVersion != version
 
-                if !available {
+                if !available && isManualCheck {
                     showingUpToDateAlert = true
                 }
+                isManualCheck = false
             }
         }
     }
@@ -277,6 +281,7 @@ struct AdvancedSettingsView: View {
 
                 Spacer()
             }
+            .frame(maxWidth: .infinity, alignment: .leading)
             .padding(10)
             .background(Color.blue.opacity(0.08))
             .clipShape(RoundedRectangle(cornerRadius: 6))
@@ -341,6 +346,7 @@ struct AdvancedSettingsView: View {
                     .font(.system(size: 11))
                     .foregroundStyle(.secondary)
             }
+            .frame(maxWidth: .infinity, alignment: .leading)
             .padding(10)
             .background(Color.orange.opacity(0.08))
             .clipShape(RoundedRectangle(cornerRadius: 6))
@@ -357,6 +363,7 @@ struct AdvancedSettingsView: View {
                         .font(.system(size: 11))
                         .foregroundStyle(.secondary)
                 }
+                .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(10)
                 .background(Color.green.opacity(0.08))
                 .clipShape(RoundedRectangle(cornerRadius: 6))
@@ -370,6 +377,7 @@ struct AdvancedSettingsView: View {
                         .font(.system(size: 11))
                         .foregroundStyle(.secondary)
                 }
+                .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(10)
                 .background(Color.gray.opacity(0.08))
                 .clipShape(RoundedRectangle(cornerRadius: 6))
@@ -392,6 +400,7 @@ struct AdvancedSettingsView: View {
 
                 Button {
                     isCheckingForUpdates = true
+                    isManualCheck = true
                     appDelegate?.sparkleUpdater?.checkForUpdates()
                     // Reset after a delay — Sparkle's delegate callbacks
                     // will update the UI with actual results.

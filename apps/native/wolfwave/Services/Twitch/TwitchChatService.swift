@@ -1177,6 +1177,13 @@ final class TwitchChatService: @unchecked Sendable {
                 return
             }
 
+            // Log non-2xx responses instead of silently passing them as success
+            if let httpResponse = response as? HTTPURLResponse,
+               !(200..<300).contains(httpResponse.statusCode) {
+                let responseText = String(data: data, encoding: .utf8) ?? "No response body"
+                Log.warn("TwitchChatService: API \(endpoint) returned HTTP \(httpResponse.statusCode) - \(responseText)", category: "Twitch")
+            }
+
             completion(.success(data))
         }.resume()
     }

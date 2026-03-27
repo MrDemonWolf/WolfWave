@@ -136,6 +136,23 @@ extension View {
     }
 }
 
+// MARK: - Section Sub-Header Style
+
+/// Sub-section header styling (H2 level).
+struct SectionSubHeaderModifier: ViewModifier {
+    func body(content: Content) -> some View {
+        content
+            .font(.system(size: 15, weight: .semibold))
+    }
+}
+
+extension View {
+    /// Applies sub-section header styling (15pt semibold).
+    func sectionSubHeader() -> some View {
+        modifier(SectionSubHeaderModifier())
+    }
+}
+
 // MARK: - Color Hex Initializer
 
 extension Color {

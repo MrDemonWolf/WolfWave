@@ -31,7 +31,7 @@ hdiutil create -srcfolder "$BUILDS_DIR/staging" \
 
 # Mount, configure Finder layout, unmount
 MOUNTPOINT=$(hdiutil attach -readwrite -noverify -noautoopen \
-    "$BUILDS_DIR/_tmp.dmg" | awk '/\/Volumes\// {print $NF}')
+    "$BUILDS_DIR/_tmp.dmg" | sed -n 's|.*\(/Volumes/.*\)|\1|p')
 sleep 1
 
 # Copy background images if available

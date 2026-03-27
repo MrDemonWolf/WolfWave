@@ -8,7 +8,7 @@
 import XCTest
 @testable import WolfWave
 
-// Integration tests using ephemeral ports for WebSocket server lifecycle
+// Integration tests using fixed ports (59001-59008) for WebSocket server lifecycle
 final class WebSocketServerIntegrationTests: XCTestCase {
 
     // MARK: - Server Lifecycle Tests

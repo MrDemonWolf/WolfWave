@@ -128,7 +128,7 @@ struct TwitchReauthView: View {
                     // Helper text and button
                     VStack(alignment: .leading, spacing: 8) {
                         Button(action: { openTwitchActivation() }) {
-                            Text("Click below to authorize your Twitch account")
+                            Text("Authorize your Twitch account to continue")
                                 .font(.caption)
                                 .foregroundStyle(.blue)
                         }
@@ -204,7 +204,7 @@ struct TwitchReauthView: View {
         let pasteboard = NSPasteboard.general
         pasteboard.clearContents()
         pasteboard.setString(viewModel.authState.userCode, forType: .string)
-        viewModel.statusMessage = "Code copied to clipboard!"
+        viewModel.statusMessage = "Copied to clipboard"
     }
     
     private func openTwitchActivation() {

@@ -286,10 +286,10 @@ enum AppConstants {
         static let docs = "https://mrdemonwolf.github.io/wolfwave"
 
         /// Privacy policy page URL
-        static let privacyPolicy = "https://mrdemonwolf.github.io/wolfwave/docs/legal/privacy-policy"
+        static let privacyPolicy = "https://mrdemonwolf.github.io/wolfwave/docs/privacy-policy"
 
         /// Terms of service page URL
-        static let termsOfService = "https://mrdemonwolf.github.io/wolfwave/docs/legal/terms-of-service"
+        static let termsOfService = "https://mrdemonwolf.github.io/wolfwave/docs/terms-of-service"
 
         /// Resolves the GitHub repository owner from Info.plist or environment.
         ///

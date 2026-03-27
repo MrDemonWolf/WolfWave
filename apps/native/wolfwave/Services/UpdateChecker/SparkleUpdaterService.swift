@@ -84,7 +84,8 @@ final class SparkleUpdaterService: NSObject {
         #if DEBUG
         Log.info("SparkleUpdaterService: Debug build — Sparkle initialized for manual testing only", category: "Update")
         setupSparkle()
-        updater?.automaticallyChecksForUpdates = false
+        // Sync with @AppStorage default (true) — DEBUG disables automatic checks
+        updater?.automaticallyChecksForUpdates = UserDefaults.standard.object(forKey: AppConstants.UserDefaults.updateCheckEnabled) as? Bool ?? true
         #else
         setupSparkle()
         #endif

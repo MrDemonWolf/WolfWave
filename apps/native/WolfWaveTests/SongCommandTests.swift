@@ -136,19 +136,17 @@ final class SongCommandTests: XCTestCase {
 
     // MARK: - Boundary Truncation Tests
 
-    func testCallbackReturning501CharsTruncates() {
+    func testCallbackReturning501CharsTruncates() throws {
         let text = String(repeating: "b", count: 501)
         command.getTrackInfo = { text }
-        guard let result = command.execute(message: "!song") else {
-            XCTFail("Expected non-nil result")
-            return
-        }
+        let result = try XCTUnwrap(command.execute(message: "!song"))
         XCTAssertEqual(result.count, 500)
         XCTAssertTrue(result.hasSuffix("..."))
     }
 
-    func testDefaultCooldownValues() {
-        XCTAssertEqual(command.globalCooldown, 15.0)
-        XCTAssertEqual(command.userCooldown, 15.0)
+    func testDefaultCooldownValues() throws {
+        let cmd = try XCTUnwrap(command)
+        XCTAssertEqual(cmd.globalCooldown, 15.0)
+        XCTAssertEqual(cmd.userCooldown, 15.0)
     }
 }

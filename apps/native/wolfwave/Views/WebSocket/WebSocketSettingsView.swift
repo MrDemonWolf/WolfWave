@@ -120,10 +120,10 @@ struct WebSocketSettingsView: View {
         VStack(alignment: .leading, spacing: 0) {
             // Enable toggle row
             ToggleSettingRow(
-                title: "Enable Widget Server",
-                subtitle: "Required for the widget to work",
+                title: "Enable Now-Playing Widget",
+                subtitle: "Starts the local server that powers the widget",
                 isOn: $websocketEnabled,
-                accessibilityLabel: "Enable WebSocket server",
+                accessibilityLabel: "Toggle Now-Playing Widget",
                 accessibilityIdentifier: "websocketEnabledToggle",
                 onChange: { _ in
                     notifyServerSettingChanged()
@@ -190,6 +190,7 @@ struct WebSocketSettingsView: View {
 
                 CopyButton(
                     text: connectionURL,
+                    isDisabled: !websocketEnabled,
                     accessibilityLabel: "Copy connection URL",
                     accessibilityIdentifier: "copyConnectionURLButton"
                 )
@@ -213,7 +214,7 @@ struct WebSocketSettingsView: View {
                         .font(.system(size: 14))
                         .foregroundStyle(Color(nsColor: .controlAccentColor))
                     Text("Widget Setup")
-                        .font(.system(size: 15, weight: .semibold))
+                        .sectionSubHeader()
                 }
 
                 Text("Use this link in OBS (Browser Source) or open it in any browser.")
@@ -230,11 +231,11 @@ struct WebSocketSettingsView: View {
 
             // Widget HTTP server toggle row
             ToggleSettingRow(
-                title: "Enable Visual Widget",
-                subtitle: "This creates the webpage your widget runs on",
+                title: "Enable Widget Webpage",
+                subtitle: "Creates the webpage OBS or browsers connect to",
                 isOn: $widgetHTTPEnabled,
                 isDisabled: !websocketEnabled,
-                accessibilityLabel: "Enable Widget Web Server",
+                accessibilityLabel: "Toggle Widget Webpage",
                 accessibilityIdentifier: "widgetHTTPEnabledToggle",
                 onChange: { _ in
                     NotificationCenter.default.post(
@@ -326,6 +327,7 @@ struct WebSocketSettingsView: View {
                     .controlSize(.small)
                     .disabled(!websocketEnabled || !widgetHTTPEnabled)
                     .accessibilityLabel("Open widget in browser")
+                    .accessibilityHint("Opens the widget in your default browser")
                     .accessibilityIdentifier("openWidgetURLButton")
                 }
             }
@@ -364,7 +366,7 @@ struct WebSocketSettingsView: View {
                         .font(.system(size: 14))
                         .foregroundStyle(Color(nsColor: .controlAccentColor))
                     Text("Widget Appearance")
-                        .font(.system(size: 15, weight: .semibold))
+                        .sectionSubHeader()
                 }
 
                 Text("Tweak colors, fonts, and layout for your widget.")

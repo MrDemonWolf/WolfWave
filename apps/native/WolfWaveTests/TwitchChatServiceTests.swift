@@ -12,13 +12,19 @@ import Foundation
 /// Comprehensive test suite for TwitchChatService
 @Suite("Twitch Chat Service Tests", .serialized)
 struct TwitchChatServiceTests {
-    
+
+    /// Reset UserDefaults keys that tests depend on to prevent cross-test contamination.
+    init() {
+        UserDefaults.standard.removeObject(forKey: AppConstants.UserDefaults.currentSongCommandEnabled)
+        UserDefaults.standard.removeObject(forKey: AppConstants.UserDefaults.lastSongCommandEnabled)
+    }
+
     // MARK: - Initialization Tests
-    
+
     @Test("Service initializes with default values")
     func testServiceInitialization() async throws {
         let service = TwitchChatService()
-        
+
         #expect(service.commandsEnabled == true)
         #expect(service.debugLoggingEnabled == false)
         #expect(service.isConnected == false)

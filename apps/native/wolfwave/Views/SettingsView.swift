@@ -187,22 +187,38 @@ struct SettingsView: View {
 
             // Set up callback to get current song info
             appDelegate?.twitchService?.getCurrentSongInfo = {
-                MainActor.assumeIsolated {
-                    if let appDelegate = NSApplication.shared.delegate as? AppDelegate {
-                        return appDelegate.getCurrentSongInfo()
+                if Thread.isMainThread {
+                    return MainActor.assumeIsolated {
+                        (NSApplication.shared.delegate as? AppDelegate)?.getCurrentSongInfo()
+                            ?? "Nothing playing right now"
                     }
-                    return "No track currently playing"
                 }
+                var result = "Nothing playing right now"
+                DispatchQueue.main.sync {
+                    result = MainActor.assumeIsolated {
+                        (NSApplication.shared.delegate as? AppDelegate)?.getCurrentSongInfo()
+                            ?? "Nothing playing right now"
+                    }
+                }
+                return result
             }
 
             // Set up callback to get last song info
             appDelegate?.twitchService?.getLastSongInfo = {
-                MainActor.assumeIsolated {
-                    if let appDelegate = NSApplication.shared.delegate as? AppDelegate {
-                        return appDelegate.getLastSongInfo()
+                if Thread.isMainThread {
+                    return MainActor.assumeIsolated {
+                        (NSApplication.shared.delegate as? AppDelegate)?.getLastSongInfo()
+                            ?? "No previous track yet"
                     }
-                    return "No previous track available"
                 }
+                var result = "No previous track yet"
+                DispatchQueue.main.sync {
+                    result = MainActor.assumeIsolated {
+                        (NSApplication.shared.delegate as? AppDelegate)?.getLastSongInfo()
+                            ?? "No previous track yet"
+                    }
+                }
+                return result
             }
         }
         .toolbar(removing: .sidebarToggle)
@@ -217,7 +233,7 @@ struct SettingsView: View {
             }
             .accessibilityIdentifier("resetSettingsConfirmButton")
         } message: {
-            Text("This will reset everything. You will need to log in again.")
+            Text("This resets all settings and signs you out. Can't be undone.")
         }
     }
     
@@ -277,7 +293,7 @@ struct SettingsView: View {
                             .font(.system(size: 15))
                             .foregroundStyle(Color(nsColor: .controlAccentColor))
                         Text("Bot Commands")
-                            .font(.system(size: 15, weight: .semibold))
+                            .sectionSubHeader()
                     }
 
                     Text("Choose which commands people can use in chat.")
@@ -332,7 +348,7 @@ struct SettingsView: View {
                     Image(systemName: "info.circle.fill")
                         .font(.system(size: 11))
                         .foregroundStyle(.secondary)
-                    Text("Mods and you don't have to wait for cooldowns.")
+                    Text("Cooldowns don't apply to you or your mods.")
                         .font(.system(size: 11))
                         .foregroundStyle(.secondary)
                 }
@@ -446,7 +462,7 @@ struct SettingsView: View {
         )
 
         // Clear UserDefaults
-        [AppConstants.UserDefaults.trackingEnabled, AppConstants.UserDefaults.currentSongCommandEnabled, AppConstants.UserDefaults.lastSongCommandEnabled, AppConstants.UserDefaults.dockVisibility, AppConstants.UserDefaults.websocketEnabled, AppConstants.UserDefaults.websocketURI, AppConstants.UserDefaults.websocketServerPort, AppConstants.UserDefaults.hasCompletedOnboarding, AppConstants.UserDefaults.discordPresenceEnabled, AppConstants.UserDefaults.widgetHTTPEnabled, AppConstants.UserDefaults.widgetPort, AppConstants.UserDefaults.widgetTheme, AppConstants.UserDefaults.widgetLayout, AppConstants.UserDefaults.widgetTextColor, AppConstants.UserDefaults.widgetBackgroundColor, AppConstants.UserDefaults.widgetFontFamily, AppConstants.UserDefaults.songCommandGlobalCooldown, AppConstants.UserDefaults.songCommandUserCooldown, AppConstants.UserDefaults.lastSongCommandGlobalCooldown, AppConstants.UserDefaults.lastSongCommandUserCooldown].forEach {
+        [AppConstants.UserDefaults.trackingEnabled, AppConstants.UserDefaults.currentSongCommandEnabled, AppConstants.UserDefaults.lastSongCommandEnabled, AppConstants.UserDefaults.dockVisibility, AppConstants.UserDefaults.websocketEnabled, AppConstants.UserDefaults.websocketURI, AppConstants.UserDefaults.websocketServerPort, AppConstants.UserDefaults.hasCompletedOnboarding, AppConstants.UserDefaults.discordPresenceEnabled, AppConstants.UserDefaults.widgetHTTPEnabled, AppConstants.UserDefaults.widgetPort, AppConstants.UserDefaults.widgetTheme, AppConstants.UserDefaults.widgetLayout, AppConstants.UserDefaults.widgetTextColor, AppConstants.UserDefaults.widgetBackgroundColor, AppConstants.UserDefaults.widgetFontFamily, AppConstants.UserDefaults.songCommandGlobalCooldown, AppConstants.UserDefaults.songCommandUserCooldown, AppConstants.UserDefaults.lastSongCommandGlobalCooldown, AppConstants.UserDefaults.lastSongCommandUserCooldown, AppConstants.UserDefaults.updateCheckEnabled, AppConstants.UserDefaults.updateSkippedVersion].forEach {
             UserDefaults.standard.removeObject(forKey: $0)
         }
 

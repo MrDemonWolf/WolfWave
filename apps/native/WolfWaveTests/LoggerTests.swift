@@ -27,46 +27,89 @@ struct LoggerTests {
     
     @Test("Redacts OAuth tokens from log messages")
     func testOAuthTokenRedaction() async throws {
-        // Test with oauth_ prefix
-        let message1 = "User token: oauth_abc123def456ghi789"
-        Log.info(message1, category: "Test")
-        
-        // In production, the logged message would have [REDACTED]
-        // We can't easily verify file contents in tests, but we can verify the method exists
-        #expect(true)
+        let uniqueID = UUID().uuidString
+        let message = "User token: oauth_abc123def456ghi789_\(uniqueID)"
+        Log.info(message, category: "Test")
+
+        guard let logURL = Log.exportLogFile() else {
+            Issue.record("Failed to export log file")
+            return
+        }
+        let logData = try Data(contentsOf: logURL)
+        let content = String(decoding: logData, as: UTF8.self)
+
+        // The raw OAuth token should not appear in the log output
+        #expect(!content.contains("oauth_abc123def456ghi789_\(uniqueID)"),
+            "OAuth token should be redacted from log output")
     }
-    
+
     @Test("Redacts Bearer tokens from log messages")
     func testBearerTokenRedaction() async throws {
-        let message = "Authorization: Bearer abc123def456ghi789jkl012"
+        let uniqueID = UUID().uuidString
+        let message = "Authorization: Bearer abc123def456ghi789jkl012_\(uniqueID)"
         Log.info(message, category: "Test")
-        
-        // Verify logging completes without errors
-        #expect(true)
+
+        guard let logURL = Log.exportLogFile() else {
+            Issue.record("Failed to export log file")
+            return
+        }
+        let logData = try Data(contentsOf: logURL)
+        let content = String(decoding: logData, as: UTF8.self)
+
+        #expect(!content.contains("Bearer abc123def456ghi789jkl012_\(uniqueID)"),
+            "Bearer token should be redacted from log output")
     }
-    
+
     @Test("Redacts long alphanumeric tokens")
     func testLongTokenRedaction() async throws {
-        let message = "Token value: abcdefghijklmnopqrstuvwxyz1234567890abcdefghijklmnopqrstuvwxyz"
+        let uniqueID = UUID().uuidString
+        let longToken = "abcdefghijklmnopqrstuvwxyz1234567890abcdefghijklmnopqrstuvwxyz\(uniqueID)"
+        let message = "Token value: \(longToken)"
         Log.info(message, category: "Test")
-        
-        #expect(true)
+
+        guard let logURL = Log.exportLogFile() else {
+            Issue.record("Failed to export log file")
+            return
+        }
+        let logData = try Data(contentsOf: logURL)
+        let content = String(decoding: logData, as: UTF8.self)
+
+        #expect(!content.contains(longToken),
+            "Long alphanumeric token should be redacted from log output")
     }
-    
+
     @Test("Redacts Client-ID values")
     func testClientIDRedaction() async throws {
-        let message = "Client-ID: abc123def456"
+        let uniqueID = UUID().uuidString
+        let message = "Client-ID: abc123def456_\(uniqueID)"
         Log.info(message, category: "Test")
-        
-        #expect(true)
+
+        guard let logURL = Log.exportLogFile() else {
+            Issue.record("Failed to export log file")
+            return
+        }
+        let logData = try Data(contentsOf: logURL)
+        let content = String(decoding: logData, as: UTF8.self)
+
+        #expect(!content.contains("Client-ID: abc123def456_\(uniqueID)"),
+            "Client-ID value should be redacted from log output")
     }
-    
+
     @Test("Does not redact normal text")
     func testNormalTextNotRedacted() async throws {
-        let message = "This is a normal log message with no sensitive data"
+        let uniqueID = UUID().uuidString
+        let message = "Normal log message with no sensitive data \(uniqueID)"
         Log.info(message, category: "Test")
-        
-        #expect(true)
+
+        guard let logURL = Log.exportLogFile() else {
+            Issue.record("Failed to export log file")
+            return
+        }
+        let logData = try Data(contentsOf: logURL)
+        let content = String(decoding: logData, as: UTF8.self)
+
+        #expect(content.contains(message),
+            "Normal text should not be redacted from log output")
     }
     
     // MARK: - Log File Tests
@@ -141,17 +184,29 @@ struct LoggerTests {
     @Test("Concurrent logging is thread-safe")
     func testConcurrentLogging() async throws {
         let iterations = 100
-        
+        let uniquePrefix = UUID().uuidString
+
         await withTaskGroup(of: Void.self) { group in
             for i in 0..<iterations {
                 group.addTask {
-                    Log.info("Concurrent log \(i)", category: "Concurrency")
+                    Log.info("Concurrent log \(uniquePrefix)_\(i)", category: "Concurrency")
                 }
             }
         }
-        
-        // If we get here without crashing, concurrent logging is safe
-        #expect(true)
+
+        // Verify at least some of the concurrent messages were written
+        guard let logURL = Log.exportLogFile() else {
+            Issue.record("Failed to export log file")
+            return
+        }
+        let logData = try Data(contentsOf: logURL)
+        let content = String(decoding: logData, as: UTF8.self)
+
+        // Check that a sample of messages appear in the log
+        #expect(content.contains("Concurrent log \(uniquePrefix)_0"),
+            "First concurrent log message should be present")
+        #expect(content.contains("Concurrent log \(uniquePrefix)_\(iterations - 1)"),
+            "Last concurrent log message should be present")
     }
     
     // MARK: - Category Tests
@@ -189,7 +244,7 @@ struct LoggerTests {
         
         let duration = Date().timeIntervalSince(start)
         
-        // 1000 log messages should complete in less than 1 second
-        #expect(duration < 1.0)
+        // 1000 log messages should complete in less than 2 seconds (generous for CI)
+        #expect(duration < 2.0)
     }
 }

@@ -45,6 +45,7 @@ test:
 	@xcodebuild -project $(PROJECT) -scheme $(SCHEME) \
 		-destination '$(DESTINATION)' -configuration Debug \
 		-only-testing WolfWaveTests \
+		CODE_SIGN_IDENTITY="-" CODE_SIGNING_REQUIRED=NO CODE_SIGNING_ALLOWED=NO \
 		test 2>/dev/null | scripts/check-test-results.sh
 
 test-verbose:

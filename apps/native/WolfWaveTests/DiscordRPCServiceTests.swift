@@ -122,10 +122,24 @@ final class DiscordRPCServiceTests: XCTestCase {
 
     // MARK: - Connection State Enum Completeness
 
-    func testConnectionStateHasExactlyThreeCases() {
-        let allCases: [DiscordRPCService.ConnectionState] = [.disconnected, .connecting, .connected]
-        let uniqueRawValues = Set(allCases.map { $0.rawValue })
-        XCTAssertEqual(uniqueRawValues.count, 3, "ConnectionState should have exactly 3 unique cases")
+    func testConnectionStateRawValuesAreUniqueAndNonEmpty() {
+        // Validate each case has a non-empty, distinct raw value
+        let disconnected = DiscordRPCService.ConnectionState.disconnected
+        let connecting = DiscordRPCService.ConnectionState.connecting
+        let connected = DiscordRPCService.ConnectionState.connected
+
+        XCTAssertFalse(disconnected.rawValue.isEmpty, "disconnected raw value should not be empty")
+        XCTAssertFalse(connecting.rawValue.isEmpty, "connecting raw value should not be empty")
+        XCTAssertFalse(connected.rawValue.isEmpty, "connected raw value should not be empty")
+
+        // All raw values must be distinct
+        XCTAssertNotEqual(disconnected.rawValue, connecting.rawValue)
+        XCTAssertNotEqual(disconnected.rawValue, connected.rawValue)
+        XCTAssertNotEqual(connecting.rawValue, connected.rawValue)
+
+        // Verify initial state transitions: a new service starts disconnected
+        let service = DiscordRPCService(clientID: "")
+        XCTAssertEqual(service.state, .disconnected)
     }
 
     // MARK: - Callback Tests

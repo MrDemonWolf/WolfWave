@@ -1,3 +1,4 @@
+import React from 'react';
 import { Series } from 'remotion';
 import { loadFont as loadSpaceGrotesk } from '@remotion/google-fonts/SpaceGrotesk';
 import { loadFont as loadJetBrainsMono } from '@remotion/google-fonts/JetBrainsMono';

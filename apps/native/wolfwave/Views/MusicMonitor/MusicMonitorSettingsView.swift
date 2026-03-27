@@ -39,7 +39,7 @@ struct MusicMonitorSettingsView: View {
             // Section Header
             VStack(alignment: .leading, spacing: 6) {
                 Text("Music Sync")
-                    .sectionHeader()
+                    .sectionSubHeader()
                     .accessibilityLabel("Music Playback Monitor")
 
                 Text("Connects to Apple Music and shares what's playing everywhere.")
@@ -58,7 +58,7 @@ struct MusicMonitorSettingsView: View {
                     VStack(alignment: .leading, spacing: 2) {
                         Text("Need Apple Music Permission")
                             .font(.system(size: 12, weight: .semibold))
-                        Text("WolfWave needs permission to see what song is playing. Click here to fix it.")
+                        Text("WolfWave needs permission to see what song is playing. Grant access in System Settings.")
                             .font(.system(size: 11))
                             .foregroundStyle(.secondary)
                             .fixedSize(horizontal: false, vertical: true)
@@ -142,12 +142,12 @@ struct MusicMonitorSettingsView: View {
         VStack(alignment: .leading, spacing: 0) {
             // Toggle row
             ToggleSettingRow(
-                title: "Sync Music",
+                title: "Music Sync",
                 subtitle: "Updates your status and widget when the song changes",
                 isOn: $trackingEnabled,
-                accessibilityLabel: "Enable Apple Music monitoring",
+                accessibilityLabel: "Toggle Music Sync",
                 accessibilityIdentifier: "musicTrackingToggle",
-                accessibilityHint: "Toggle to enable or disable Apple Music monitoring",
+                accessibilityHint: "Toggle to enable or disable Music Sync",
                 onChange: { newValue in
                     notifyTrackingSettingChanged(enabled: newValue)
                 }
@@ -230,7 +230,7 @@ struct MusicMonitorSettingsView: View {
                     }
                     .frame(width: 48, height: 48)
 
-                    Text(trackingEnabled ? "Nothing playing right now" : "Sync is off")
+                    Text(trackingEnabled ? "Nothing playing right now" : "Music Sync is off")
                         .font(.system(size: 13))
                         .foregroundStyle(.tertiary)
 
@@ -329,7 +329,7 @@ struct MusicMonitorSettingsView: View {
             if let album = currentAlbum { label += " on \(album)" }
             return label
         }
-        return trackingEnabled ? "No track playing" : "Tracking disabled"
+        return trackingEnabled ? "Nothing playing right now" : "Music Sync is off"
     }
 
     // MARK: - Helpers

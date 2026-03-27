@@ -98,7 +98,7 @@ struct DeviceCodeView: View {
             .buttonStyle(.borderedProminent)
             .controlSize(.small)
             .pointerCursor()
-            .accessibilityLabel("Continue to Twitch to authorize")
+            .accessibilityLabel("Continue to Twitch to Authorize")
             .accessibilityHint("Opens twitch.tv/activate in your browser")
             .accessibilityIdentifier("openTwitchButton")
         }

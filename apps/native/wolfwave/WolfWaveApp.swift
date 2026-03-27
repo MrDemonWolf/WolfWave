@@ -457,7 +457,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMenuDele
 
         // Quick Toggles
         let trackingItem = NSMenuItem(
-            title: "Sync Music",
+            title: "Music Sync",
             action: #selector(toggleTracking),
             keyEquivalent: ""
         )
@@ -581,6 +581,16 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMenuDele
             notification: AppConstants.Notifications.websocketServerChanged,
             includeEnabledInUserInfo: false
         )
+
+        // Keep widgetHTTPEnabled in sync with the tray toggle
+        let newValue = UserDefaults.standard.bool(forKey: AppConstants.UserDefaults.websocketEnabled)
+        UserDefaults.standard.set(newValue, forKey: AppConstants.UserDefaults.widgetHTTPEnabled)
+        NotificationCenter.default.post(
+            name: NSNotification.Name(AppConstants.Notifications.websocketServerChanged),
+            object: nil,
+            userInfo: ["widgetHTTPEnabled": newValue]
+        )
+        websocketServer?.setWidgetHTTPEnabled(newValue)
     }
 
     /// Toggles a boolean UserDefaults setting and posts a notification.
@@ -657,29 +667,21 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMenuDele
 
         twitchService?.getCurrentSongInfo = { [weak self] in
             if Thread.isMainThread {
-                return MainActor.assumeIsolated {
-                    self?.getCurrentSongInfo() ?? "No song is currently playing"
-                }
+                return self?.getCurrentSongInfo() ?? "Nothing playing right now"
             }
-            var result = "No song is currently playing"
+            var result = "Nothing playing right now"
             DispatchQueue.main.sync {
-                result = MainActor.assumeIsolated {
-                    self?.getCurrentSongInfo() ?? "No song is currently playing"
-                }
+                result = self?.getCurrentSongInfo() ?? "Nothing playing right now"
             }
             return result
         }
         twitchService?.getLastSongInfo = { [weak self] in
             if Thread.isMainThread {
-                return MainActor.assumeIsolated {
-                    self?.getLastSongInfo() ?? "No song is currently playing"
-                }
+                return self?.getLastSongInfo() ?? "No previous track yet"
             }
-            var result = "No song is currently playing"
+            var result = "No previous track yet"
             DispatchQueue.main.sync {
-                result = MainActor.assumeIsolated {
-                    self?.getLastSongInfo() ?? "No song is currently playing"
-                }
+                result = self?.getLastSongInfo() ?? "No previous track yet"
             }
             return result
         }
@@ -962,8 +964,11 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMenuDele
         guard let window = notification.object as? NSWindow else { return }
 
         if window === onboardingWindow {
-            UserDefaults.standard.set(true, forKey: AppConstants.UserDefaults.hasCompletedOnboarding)
-            UserDefaults.standard.synchronize()
+            // Only mark onboarding as completed if the user actually finished all steps.
+            // Closing via the title-bar X button should not permanently skip setup.
+            if OnboardingViewModel.hasCompletedOnboarding == false {
+                Log.info("AppDelegate: Onboarding window closed before completion — will show again on next launch", category: "App")
+            }
             // Defer niling and dock restoration to let AppKit finish the close animation
             // so that isVisible returns false before hasVisibleWindows is checked.
             DispatchQueue.main.async { [weak self] in

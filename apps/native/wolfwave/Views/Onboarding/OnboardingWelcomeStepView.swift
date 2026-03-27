@@ -26,7 +26,7 @@ struct OnboardingWelcomeStepView: View {
     private let features: [Feature] = [
         Feature(
             icon: .brand(name: "AppleMusicLogo", renderOriginal: true),
-            title: "Music Monitoring",
+            title: "Music Sync",
             description: "Automatically detects what's playing in Apple Music."
         ),
         Feature(

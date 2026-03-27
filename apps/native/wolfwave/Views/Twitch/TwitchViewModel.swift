@@ -192,6 +192,7 @@ final class TwitchViewModel: ObservableObject {
     /// Debounce task for saving channel ID to avoid excessive Keychain writes
     private var channelIDSaveTask: Task<Void, Never>?
     private var pendingAuthResetTask: Task<Void, Never>?
+    private var pendingTestAuthTask: Task<Void, Never>?
 
     /// Tracked notification observer tokens for proper cleanup
     private var reauthObserver: NSObjectProtocol?
@@ -352,6 +353,7 @@ final class TwitchViewModel: ObservableObject {
         oAuthTask?.cancel()
         channelIDSaveTask?.cancel()
         pendingAuthResetTask?.cancel()
+        pendingTestAuthTask?.cancel()
         if let token = reauthObserver {
             NotificationCenter.default.removeObserver(token)
         }
@@ -741,8 +743,11 @@ final class TwitchViewModel: ObservableObject {
         statusMessage = "Testing token…"
         testAuthResult = .testing
 
-        Task {
+        // Cancel any in-flight test-auth task to prevent stale resets
+        pendingTestAuthTask?.cancel()
+        pendingTestAuthTask = Task {
             let isValid = await service.validateToken(token)
+            guard !Task.isCancelled else { return }
             await MainActor.run {
                 if isValid {
                     self.statusMessage = "✅ Token is valid — scopes OK"

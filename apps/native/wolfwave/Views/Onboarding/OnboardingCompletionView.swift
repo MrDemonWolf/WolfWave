@@ -84,14 +84,18 @@ struct OnboardingCompletionView: View {
                 showText = true
                 showCheck = true
                 try? await Task.sleep(nanoseconds: 1_500_000_000)
+                guard !Task.isCancelled else { return }
                 onDismiss()
             } else {
                 showIcon = true
                 try? await Task.sleep(nanoseconds: 300_000_000)
+                guard !Task.isCancelled else { return }
                 showText = true
                 try? await Task.sleep(nanoseconds: 300_000_000)
+                guard !Task.isCancelled else { return }
                 showCheck = true
                 try? await Task.sleep(nanoseconds: 1_900_000_000)
+                guard !Task.isCancelled else { return }
                 onDismiss()
             }
         }

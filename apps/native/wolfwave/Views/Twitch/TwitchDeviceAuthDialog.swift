@@ -40,7 +40,7 @@ struct TwitchDeviceAuthDialog: View {
                             .font(.system(size: 18, weight: .semibold))
                             .tracking(-0.5)
                         
-                        Text("Your session has expired. Authorize WolfWave to continue")
+                        Text("Your session has expired. Authorize WolfWave to continue.")
                             .font(.system(size: 13, weight: .regular))
                             .foregroundStyle(.secondary)
                             .lineLimit(2)
@@ -193,7 +193,7 @@ private struct DeviceCodeEntryView: View {
                     .tracking(0.5)
                     .padding(.bottom, 6)
                 
-                Text("Share this code with Twitch during authorization")
+                Text("Enter this code on Twitch to authorize")
                     .font(.system(size: 12, weight: .regular))
                     .foregroundStyle(.secondary)
             }

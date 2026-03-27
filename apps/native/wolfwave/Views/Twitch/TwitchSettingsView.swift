@@ -207,7 +207,7 @@ struct TwitchSettingsView: View {
                                 .progressViewStyle(.circular)
                                 .controlSize(.small)
 
-                            Text("Waiting for you...")
+                            Text("Waiting for authorization\u{2026}")
                                 .font(.system(size: 13))
                                 .foregroundStyle(.secondary)
 
@@ -524,6 +524,7 @@ private struct SignedInView: View {
                 .controlSize(.small)
                 .pointerCursor()
                 .accessibilityLabel("Clear saved Twitch credentials")
+                .accessibilityHint("Signs out of your Twitch account")
                 .accessibilityIdentifier("twitchClearCredentialsButton")
         }
         .padding(.horizontal, AppConstants.SettingsUI.cardPadding)

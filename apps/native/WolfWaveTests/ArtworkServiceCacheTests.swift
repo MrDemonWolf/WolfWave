@@ -26,12 +26,28 @@ final class ArtworkServiceCacheTests: XCTestCase {
     // MARK: - Case Sensitivity Tests
 
     func testCacheIsCaseSensitive() {
-        // "Artist|Track" and "artist|track" should be different keys
-        let upper = service.cachedArtworkURL(track: "Track", artist: "Artist")
-        let lower = service.cachedArtworkURL(track: "track", artist: "artist")
-        // Both should be nil (no cached data), but this proves the keys differ
-        XCTAssertNil(upper)
-        XCTAssertNil(lower)
+        // Pre-populate the cache with a known URL for the uppercase key
+        let expectation = expectation(description: "fetch completes")
+        let testTrack = "UniqueTestTrack_\(UUID().uuidString)"
+        service.fetchArtworkURL(track: testTrack, artist: "Artist") { _ in
+            expectation.fulfill()
+        }
+        waitForExpectations(timeout: 10)
+
+        // Now check: the lowercase variant should NOT match the cached uppercase entry
+        let upperResult = service.cachedArtworkURL(track: testTrack, artist: "Artist")
+        let lowerResult = service.cachedArtworkURL(track: testTrack.lowercased(), artist: "artist")
+
+        // If cache is case-sensitive, the lowercase lookup must differ from uppercase
+        // (either nil because it was never fetched, or a different value)
+        if upperResult != nil {
+            XCTAssertNotEqual(upperResult, lowerResult,
+                "Case-sensitive cache should not return the same value for differently-cased keys")
+        } else {
+            // Even if the network returned nil, lowercase should also be nil (no cross-contamination)
+            XCTAssertNil(lowerResult,
+                "Lowercase key should not return a cached value when only uppercase was fetched")
+        }
     }
 
     // MARK: - Concurrent Access Tests

@@ -45,6 +45,7 @@ struct UpdateBannerView: View {
                     .buttonStyle(.bordered)
                     .tint(.white)
                     .controlSize(.small)
+                    .accessibilityHint("Downloads the latest version of WolfWave")
                 }
 
                 Button {

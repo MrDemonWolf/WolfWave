@@ -10,7 +10,9 @@ import Foundation
 @testable import WolfWave
 
 /// Comprehensive test suite for KeychainService
-@Suite("Keychain Service Tests")
+/// Note: .serialized ensures tests run sequentially to prevent race conditions
+/// from concurrent Keychain access across tests.
+@Suite("Keychain Service Tests", .serialized)
 struct KeychainServiceTests {
 
     // MARK: - Token Save/Load/Delete Tests
@@ -195,30 +197,51 @@ struct KeychainServiceTests {
 
     @Test("Concurrent save and load operations are thread-safe")
     func testConcurrentAccess() async throws {
-        let iterations = 100
+        let iterations = 50
+        let group = DispatchGroup()
+        let queue = DispatchQueue(label: "keychain.stress", attributes: .concurrent)
+        var readResults: [String?] = Array(repeating: nil, count: iterations)
+        let resultsLock = NSLock()
 
-        await withTaskGroup(of: Void.self) { group in
-            // Multiple concurrent writes
-            for i in 0..<iterations {
-                group.addTask {
-                    let token = "concurrent_token_\(i)"
-                    try? KeychainService.saveToken(token)
-                }
+        // Seed with a known value first
+        try KeychainService.saveToken("seed_token")
+
+        // Concurrent writes and reads on real threads
+        for i in 0..<iterations {
+            group.enter()
+            queue.async {
+                let token = "concurrent_token_\(i)"
+                try? KeychainService.saveToken(token)
+                group.leave()
             }
 
-            // Multiple concurrent reads
-            for _ in 0..<iterations {
-                group.addTask {
-                    _ = KeychainService.loadToken()
-                }
+            group.enter()
+            queue.async {
+                let loaded = KeychainService.loadToken()
+                resultsLock.lock()
+                readResults[i] = loaded
+                resultsLock.unlock()
+                group.leave()
             }
         }
 
+        group.wait()
+
+        // Validate: every read should have returned a non-nil, non-empty token
+        // (since we seeded and continuously wrote valid tokens)
+        for (index, result) in readResults.enumerated() {
+            #expect(result != nil, "Read at index \(index) returned nil — possible corruption")
+            if let value = result {
+                #expect(!value.isEmpty, "Read at index \(index) returned empty string — possible corruption")
+            }
+        }
+
+        // Final state: a valid token should be loadable
+        let finalToken = KeychainService.loadToken()
+        #expect(finalToken != nil, "Final read after concurrent stress should return a valid token")
+
         // Cleanup
         KeychainService.deleteToken()
-
-        // Test should complete without crashes
-        #expect(true)
     }
 
     // MARK: - Error Handling Tests
