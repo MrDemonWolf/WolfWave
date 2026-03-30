@@ -34,7 +34,8 @@ jobs:
       - name: Run Tests
         run: |
           xcodebuild -project "$PROJECT" -scheme "$SCHEME" \
-            -destination 'platform=macOS,arch=arm64' \
+            -destination 'generic/platform=macOS' \
+            ARCHS="arm64 x86_64" \
             -configuration Debug test \
             CODE_SIGN_IDENTITY="-" \
             CODE_SIGNING_REQUIRED=NO \
@@ -77,7 +78,7 @@ jobs:
               | awk -F'= ' '/MARKETING_VERSION/ {gsub(/^[ \t]+/,"",$2); print $2; exit}')
           fi
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
-          echo "dmg_name=WolfWave-${VERSION}-arm64.dmg" >> "$GITHUB_OUTPUT"
+          echo "dmg_name=WolfWave-${VERSION}.dmg" >> "$GITHUB_OUTPUT"
           echo "📌 Version: $VERSION"
 
       # ── Import Developer ID certificate ──────────────────────────────
@@ -119,7 +120,8 @@ jobs:
         run: |
           xcodebuild -project "$PROJECT" -scheme "$SCHEME" \
             -configuration "$CONFIGURATION" \
-            -destination 'platform=macOS,arch=arm64' \
+            -destination 'generic/platform=macOS' \
+            ARCHS="arm64 x86_64" \
             -derivedDataPath build build -quiet
 
       # ── Locate .app ───────────────────────────────────────────────────

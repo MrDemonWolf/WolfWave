@@ -3,12 +3,14 @@
 PROJECT     = apps/native/wolfwave.xcodeproj
 SCHEME      = WolfWave
 DESTINATION = platform=macOS,arch=arm64
+PROD_DESTINATION = generic/platform=macOS
+PROD_ARCHS = arm64 x86_64
 BUILD_DIR   = build
 BUILDS_DIR  = builds
 
 # Resolve version from Xcode project (Release config)
 VERSION = $(shell xcodebuild -project $(PROJECT) -scheme $(SCHEME) -configuration Release -showBuildSettings 2>/dev/null | awk -F'= ' '/MARKETING_VERSION/ {gsub(/^[ \t]+/,"",$$2); print $$2; exit}')
-DMG_NAME = WolfWave-$(VERSION)-arm64.dmg
+DMG_NAME = WolfWave-$(VERSION).dmg
 
 .SHELLFLAGS = -ec
 
@@ -78,6 +80,7 @@ ci: test-ci
 prod-build:
 	@echo "🔨 Building Release..."
 	@xcodebuild -project $(PROJECT) -scheme $(SCHEME) \
+		-destination '$(PROD_DESTINATION)' ARCHS="$(PROD_ARCHS)" \
 		-configuration Release -derivedDataPath $(BUILD_DIR) build -quiet
 	@# Locate the built .app
 	@APP_PATH=$$(xcodebuild -project $(PROJECT) -scheme $(SCHEME) \
