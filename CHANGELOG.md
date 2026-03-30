@@ -4,7 +4,7 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
-## [1.0.0-rc.1] - 2026-03-27
+## [1.0.0] - 2026-03-30
 
 ### Added
 
@@ -38,11 +38,13 @@ All notable changes to this project will be documented in this file.
 - **Discord Auto-Reconnect**: Exponential backoff reconnection (5s base, doubles to 60s cap) with availability polling when Discord is not running.
 - **Twitch Reconnection**: Network path monitoring with automatic reconnection on connectivity changes, capped at 5 retry cycles with 60s cooldown.
 - **Documentation**: Updated all docs for current features, added Legal section with Privacy Policy and Terms of Service.
+- **UX Wording**: Unified feature naming (Music Sync, Now-Playing Widget), standardized empty states, shortened descriptions for ADHD-friendliness
+- **Typography Hierarchy**: Established H1/H2/H3 heading system across all settings views
+- **Thread Safety**: Fixed MainActor.assumeIsolated crash risks, added lock coverage for Twitch service properties
+- **Sparkle Updates**: Completely disabled in DEBUG builds, fixed appcast Ed25519 signing
+- **Dev Bundle**: Separate .dev bundle ID for side-by-side development testing
 
 ### Removed
 
 - Now-playing track display from the menu bar dropdown (moved to Music Monitor settings preview).
 
-### Notes
-
-- This is a release candidate. Please report any issues at https://github.com/MrDemonWolf/wolfwave/issues.

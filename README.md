@@ -58,7 +58,7 @@ Enable in **Settings > Discord Integration** to show what you're listening to on
 
 ### OBS Stream Widget
 
-Enable in **Settings > Stream Widgets** to start a local WebSocket server that powers a browser source overlay. Copy the widget URL and add it as a Browser Source (500 x 120) in OBS to display your now-playing track on stream.
+Enable in **Settings > Now-Playing Widget** to start a local WebSocket server that powers a browser source overlay. Copy the widget URL and add it as a Browser Source (500 x 120) in OBS to display your now-playing track on stream.
 
 ## Development
 
@@ -115,7 +115,7 @@ Open **http://localhost:3000/widget/?port=8765** to preview the OBS stream widge
 | `make clean`       | Clean build artifacts                    |
 | `make prod-build`  | Release build + DMG                      |
 | `make notarize`    | Notarize the DMG (requires Developer ID) |
-| `make test`        | Run unit tests (210 tests)               |
+| `make test`        | Run unit tests (215 tests)               |
 | `make open-xcode`  | Open Xcode project                       |
 | `make update-deps` | Resolve SwiftPM dependencies             |
 

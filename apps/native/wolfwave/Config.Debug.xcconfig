@@ -1,0 +1,5 @@
+// Debug-only overrides — separate bundle ID so dev and prod coexist
+#include "Config.xcconfig"
+
+PRODUCT_BUNDLE_IDENTIFIER = com.mrdemonwolf.wolfwave.dev
+PRODUCT_NAME = WolfWave Dev

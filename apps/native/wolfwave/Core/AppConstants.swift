@@ -112,6 +112,9 @@ enum AppConstants {
         /// Version string the user has chosen to skip (String)
         static let updateSkippedVersion = "updateSkippedVersion"
 
+        /// Last app version the user has seen the What's New sheet for (String)
+        static let lastSeenWhatsNewVersion = "lastSeenWhatsNewVersion"
+
 
         /// Global cooldown for !song command in seconds (Double, default: 15.0)
         static let songCommandGlobalCooldown = "songCommandGlobalCooldown"

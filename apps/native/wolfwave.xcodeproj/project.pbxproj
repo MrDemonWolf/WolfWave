@@ -24,12 +24,14 @@
 		D40965CA2F0F906C00B292B6 /* WolfWave.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = WolfWave.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		D4A1B2012F0F906C00B292B6 /* WolfWaveTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = WolfWaveTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		D4CFGXCC00000000000000F1 /* Config.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; name = Config.xcconfig; path = wolfwave/Config.xcconfig; sourceTree = "<group>"; };
+		D4CFGXCC00000000000000F2 /* Config.Debug.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; name = Config.Debug.xcconfig; path = wolfwave/Config.Debug.xcconfig; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
 		D40965D92F0F909300B292B6 /* Exceptions for "wolfwave" folder in "WolfWave" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
+				Config.Debug.xcconfig,
 				Config.xcconfig,
 				Info.plist,
 			);
@@ -227,7 +229,7 @@
 /* Begin XCBuildConfiguration section */
 		D40965D32F0F906D00B292B6 /* Debug */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = D4CFGXCC00000000000000F1 /* Config.xcconfig */;
+			baseConfigurationReference = D4CFGXCC00000000000000F2 /* Config.Debug.xcconfig */;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
 				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
@@ -393,8 +395,9 @@
 				);
 				MACOSX_DEPLOYMENT_TARGET = 15.6;
 				MARKETING_VERSION = 1.0.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.mrdemonwolf.wolfwave;
-				PRODUCT_NAME = WolfWave;
+				PRODUCT_BUNDLE_IDENTIFIER = com.mrdemonwolf.wolfwave.dev;
+				PRODUCT_MODULE_NAME = WolfWave;
+				PRODUCT_NAME = "WolfWave Dev";
 				REGISTER_APP_GROUPS = YES;
 				RUNTIME_EXCEPTION_ALLOW_DYLD_ENVIRONMENT_VARIABLES = NO;
 				RUNTIME_EXCEPTION_ALLOW_JIT = NO;
@@ -489,7 +492,7 @@
 				SWIFT_EMIT_LOC_STRINGS = NO;
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
 				SWIFT_VERSION = 5.0;
-				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/WolfWave.app/Contents/MacOS/WolfWave";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/WolfWave Dev.app/Contents/MacOS/WolfWave Dev";
 			};
 			name = Debug;
 		};

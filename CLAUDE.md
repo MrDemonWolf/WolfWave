@@ -27,7 +27,7 @@ bun run build --filter docs              # Build docs site
 ```bash
 make build          # Debug build via xcodebuild
 make clean          # Clean build artifacts
-make test           # Run unit tests (210 tests across 16 test files)
+make test           # Run unit tests (215 tests across 20 test files)
 make update-deps    # Resolve SwiftPM dependencies
 make open-xcode     # Open Xcode project
 make ci             # CI-friendly build (alias for build)

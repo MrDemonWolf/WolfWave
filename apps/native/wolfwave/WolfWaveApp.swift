@@ -43,6 +43,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMenuDele
     var musicMonitor: MusicPlaybackMonitor?
     var settingsWindow: NSWindow?
     var onboardingWindow: NSWindow?
+    var whatsNewWindow: NSWindow?
     var twitchService: TwitchChatService?
     var discordService: DiscordRPCService?
     var sparkleUpdater: SparkleUpdaterService?
@@ -101,6 +102,40 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMenuDele
         }
 
         applyInitialDockVisibility()
+        checkWhatsNew()
+    }
+
+    // MARK: - What's New
+
+    /// Shows the What's New sheet once per version for returning users.
+    private func checkWhatsNew() {
+        let currentVersion = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "0"
+        let lastSeen = UserDefaults.standard.string(forKey: AppConstants.UserDefaults.lastSeenWhatsNewVersion) ?? ""
+
+        guard lastSeen != currentVersion else { return }
+
+        // Don't show on first install (onboarding handles that)
+        let hasCompletedOnboarding = UserDefaults.standard.bool(forKey: AppConstants.UserDefaults.hasCompletedOnboarding)
+        guard hasCompletedOnboarding else { return }
+
+        UserDefaults.standard.set(currentVersion, forKey: AppConstants.UserDefaults.lastSeenWhatsNewVersion)
+
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) { [weak self] in
+            self?.showWhatsNew()
+        }
+    }
+
+    /// Presents the What's New window.
+    private func showWhatsNew() {
+        let whatsNewView = WhatsNewView()
+        let hostingController = NSHostingController(rootView: whatsNewView)
+        let window = NSWindow(contentViewController: hostingController)
+        window.title = "What's New"
+        window.styleMask = [.titled, .closable]
+        window.setContentSize(NSSize(width: 420, height: 500))
+        window.center()
+        window.makeKeyAndOrderFront(nil)
+        whatsNewWindow = window
     }
     
     /// Reopens the Settings window when the dock icon is clicked.
