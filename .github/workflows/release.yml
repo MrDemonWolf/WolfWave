@@ -241,30 +241,41 @@ jobs:
         run: |
           # Locate generate_appcast from the Sparkle package in DerivedData
           GENERATE_APPCAST=$(find build -name generate_appcast -type f 2>/dev/null | head -1)
+          SIGN_UPDATE=$(find build -name sign_update -type f 2>/dev/null | head -1)
           if [ -z "$GENERATE_APPCAST" ]; then
-            echo "⚠️ generate_appcast not found, creating minimal appcast"
-            # Fallback: create a minimal appcast with EdDSA signature
-            DMG_SIZE=$(stat -f%z "builds/$DMG_NAME")
-            SIGNATURE=$(echo -n "$SPARKLE_PRIVATE_KEY" | base64 --decode | \
-              openssl dgst -sha512 -sign /dev/stdin "builds/$DMG_NAME" | base64)
-            cat > builds/appcast.xml <<APPCAST
-          <?xml version="1.0" encoding="utf-8"?>
-          <rss version="2.0" xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle">
-            <channel>
-              <title>WolfWave</title>
-              <item>
-                <title>WolfWave v${VERSION}</title>
-                <sparkle:version>${VERSION}</sparkle:version>
-                <sparkle:shortVersionString>${VERSION}</sparkle:shortVersionString>
-                <pubDate>$(date -R)</pubDate>
-                <enclosure url="https://github.com/MrDemonWolf/wolfwave/releases/download/v${VERSION}/${DMG_NAME}"
-                  length="${DMG_SIZE}"
-                  type="application/octet-stream"
-                  sparkle:edSignature="${SIGNATURE}" />
-              </item>
-            </channel>
-          </rss>
-          APPCAST
+            if [ -n "$SIGN_UPDATE" ]; then
+              echo "⚠️ generate_appcast not found, using sign_update for Ed25519 signature"
+              DMG_SIZE=$(stat -f%z "builds/$DMG_NAME")
+              echo "$SPARKLE_PRIVATE_KEY" > "$RUNNER_TEMP/sparkle_key"
+              SIGNATURE=$("$SIGN_UPDATE" "builds/$DMG_NAME" --ed-key-file "$RUNNER_TEMP/sparkle_key" 2>/dev/null | grep -oE 'sparkle:edSignature="[^"]*"' | cut -d'"' -f2)
+              rm -f "$RUNNER_TEMP/sparkle_key"
+              if [ -z "$SIGNATURE" ]; then
+                echo "❌ Failed to generate Ed25519 signature"
+                exit 1
+              fi
+              cat > builds/appcast.xml <<APPCAST
+<?xml version="1.0" encoding="utf-8"?>
+<rss version="2.0" xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle">
+  <channel>
+    <title>WolfWave</title>
+    <item>
+      <title>WolfWave v${VERSION}</title>
+      <sparkle:version>${VERSION}</sparkle:version>
+      <sparkle:shortVersionString>${VERSION}</sparkle:shortVersionString>
+      <pubDate>$(date -R)</pubDate>
+      <enclosure url="https://github.com/MrDemonWolf/wolfwave/releases/download/v${VERSION}/${DMG_NAME}"
+        length="${DMG_SIZE}"
+        type="application/octet-stream"
+        sparkle:edSignature="${SIGNATURE}" />
+    </item>
+  </channel>
+</rss>
+APPCAST
+            else
+              echo "❌ Neither generate_appcast nor sign_update found in build artifacts"
+              echo "Sparkle tools must be available after building. Check DerivedData."
+              exit 1
+            fi
           else
             echo "✅ Found generate_appcast at $GENERATE_APPCAST"
             # Use Sparkle's tool to generate a proper appcast

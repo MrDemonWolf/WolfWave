@@ -179,22 +179,13 @@ final class SparkleUpdaterService: NSObject {
 // MARK: - SPUUpdaterDelegate
 
 extension SparkleUpdaterService: SPUUpdaterDelegate {
-    #if DEBUG
+    #if !DEBUG
     /// Returns the appcast feed URL for the given updater.
     ///
-    /// In Debug builds, returns a `file://` URL to the bundled `dev-appcast.xml`
-    /// so Sparkle doesn't try to fetch the (nonexistent) remote appcast.
-    /// Falls back to the `SUFeedURL` value in Info.plist if the resource is missing.
-    ///
-    /// - Parameter updater: The Sparkle updater requesting the feed URL.
-    /// - Returns: The appcast URL string, or `nil` to use the Info.plist default.
+    /// In release builds, returns `nil` to use the `SUFeedURL` from Info.plist.
+    /// Sparkle is completely disabled in DEBUG builds (never initialized).
     func feedURLString(for updater: SPUUpdater) -> String? {
-        if let devAppcast = Bundle.main.url(forResource: "dev-appcast", withExtension: "xml") {
-            Log.debug("SparkleUpdaterService: Using bundled dev appcast", category: "Update")
-            return devAppcast.absoluteString
-        }
-        Log.warn("SparkleUpdaterService: dev-appcast.xml not found in bundle — update check will fail", category: "Update")
-        return nil  // Fall back to Info.plist SUFeedURL
+        nil // Use SUFeedURL from Info.plist
     }
     #endif
 

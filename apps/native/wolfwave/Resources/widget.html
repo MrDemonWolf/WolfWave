@@ -154,6 +154,9 @@ const layoutDimensions = {
   'Compact':    { maxWidth: 350, height: 56  },
 };
 
+// NOTE: Theme values (textColor, backgroundColor) are currently from hardcoded presets.
+// If user-supplied custom values are added in the future, they must be sanitized
+// before injection into style attributes to prevent CSS injection.
 const defaultConfig = {
   theme: 'Default', layout: 'Horizontal',
   textColor: '#FFFFFF', backgroundColor: '#1A1A2E', fontFamily: 'System Default',

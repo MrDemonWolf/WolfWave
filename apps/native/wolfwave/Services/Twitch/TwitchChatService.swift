@@ -145,6 +145,7 @@ final class TwitchChatService: @unchecked Sendable {
     private let disconnectLock = NSLock()
 
     nonisolated(unsafe) private var networkPathMonitor: NWPathMonitor?
+    private let networkMonitorLock = NSLock()
     private let networkMonitorQueue = DispatchQueue(
         label: "com.mrdemonwolf.wolfwave.networkmonitor")
 
@@ -319,7 +320,9 @@ final class TwitchChatService: @unchecked Sendable {
     /// Starts monitoring network connectivity and sets up automatic reconnection
     nonisolated private func startNetworkMonitoring() {
         let monitor = NWPathMonitor()
-        networkPathMonitor = monitor
+        networkMonitorLock.withLock {
+            networkPathMonitor = monitor
+        }
 
         monitor.pathUpdateHandler = { [weak self] path in
             self?.handleNetworkPathChange(path)
@@ -330,9 +333,11 @@ final class TwitchChatService: @unchecked Sendable {
 
     /// Stops network connectivity monitoring
     nonisolated private func stopNetworkMonitoring() {
-        if let monitor = networkPathMonitor {
-            monitor.cancel()
-            networkPathMonitor = nil
+        networkMonitorLock.withLock {
+            if let monitor = networkPathMonitor {
+                monitor.cancel()
+                networkPathMonitor = nil
+            }
         }
     }
 
@@ -570,7 +575,8 @@ final class TwitchChatService: @unchecked Sendable {
         }
 
         // Start network monitoring for automatic reconnection
-        if networkPathMonitor == nil {
+        let needsMonitoring = networkMonitorLock.withLock { networkPathMonitor == nil }
+        if needsMonitoring {
             startNetworkMonitoring()
         }
 

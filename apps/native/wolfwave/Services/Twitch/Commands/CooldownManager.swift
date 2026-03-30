@@ -85,7 +85,23 @@ final class CooldownManager {
         lock.withLock {
             globalCooldowns[trigger] = now
             userCooldowns[userKey] = now
+            pruneExpiredCooldownsIfNeeded()
         }
+    }
+
+    // MARK: - Private Helpers
+
+    /// Prunes expired per-user cooldown entries to prevent unbounded memory growth.
+    ///
+    /// Only runs when the dictionary exceeds 100 entries. Removes entries older
+    /// than the maximum cooldown duration (5 minutes).
+    /// Must be called while holding `lock`.
+    private func pruneExpiredCooldownsIfNeeded() {
+        guard userCooldowns.count > 100 else { return }
+        let maxAge: TimeInterval = 300  // 5 minutes
+        let cutoff = Date().addingTimeInterval(-maxAge)
+        userCooldowns = userCooldowns.filter { $0.value > cutoff }
+        globalCooldowns = globalCooldowns.filter { $0.value > cutoff }
     }
 
     /// Returns remaining cooldown times for debug logging.
