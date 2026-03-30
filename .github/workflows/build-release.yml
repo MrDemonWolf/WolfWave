@@ -1,16 +1,17 @@
-name: Build & Release
+name: Build and Release
 
 # Production release pipeline — builds universal binary, signs, notarizes, and creates draft release
 on:
-  push:
-    tags:
-      - 'v*'
   workflow_dispatch:
     inputs:
       dry_run:
         description: 'Skip GitHub Release creation (build only)'
+        type: boolean
         required: false
-        default: 'false'
+        default: false
+  push:
+    tags:
+      - 'v*'
 
 env:
   SCHEME: WolfWave
