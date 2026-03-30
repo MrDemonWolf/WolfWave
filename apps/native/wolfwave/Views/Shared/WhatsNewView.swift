@@ -35,7 +35,7 @@ struct WhatsNewView: View {
         VStack(spacing: 20) {
             // MARK: Header
             VStack(spacing: 6) {
-                Text("What's New in WolfWave v1.0.0")
+                Text("What's New in WolfWave v\(Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0")")
                     .sectionHeader()
 
                 Text("Here's what's new in this release.")
@@ -54,16 +54,10 @@ struct WhatsNewView: View {
             }
 
             // MARK: Dismiss Button
-            Button {
+            Button("Get Started") {
                 dismiss()
-            } label: {
-                Text("Get Started")
-                    .font(.system(size: 14, weight: .semibold))
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 8)
             }
             .buttonStyle(.borderedProminent)
-            .tint(.purple)
             .controlSize(.large)
         }
         .padding(24)

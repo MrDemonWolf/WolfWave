@@ -86,23 +86,28 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMenuDele
         setupTwitchService()
         setupDiscordService()
         setupWebSocketServer()
-        setupSparkleUpdater()
         setupPowerStateMonitor()
         setupNotificationObservers()
         initializeTrackingState()
-
-        Log.debug("AppDelegate: hasCompletedOnboarding = \(OnboardingViewModel.hasCompletedOnboarding)", category: "App")
-
-        if !OnboardingViewModel.hasCompletedOnboarding {
-            showOnboarding()
-        } else {
-            Task { [weak self] in
-                await self?.validateTwitchTokenOnBoot()
-            }
-        }
-
         applyInitialDockVisibility()
-        checkWhatsNew()
+
+        // Defer Sparkle, onboarding, and What's New past the initial layout pass
+        // to avoid "layoutSubtreeIfNeeded on a view already being laid out" warning
+        DispatchQueue.main.async { [weak self] in
+            self?.setupSparkleUpdater()
+
+            Log.debug("AppDelegate: hasCompletedOnboarding = \(OnboardingViewModel.hasCompletedOnboarding)", category: "App")
+
+            if !OnboardingViewModel.hasCompletedOnboarding {
+                self?.showOnboarding()
+            } else {
+                Task { [weak self] in
+                    await self?.validateTwitchTokenOnBoot()
+                }
+            }
+
+            self?.checkWhatsNew()
+        }
     }
 
     // MARK: - What's New
@@ -467,7 +472,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMenuDele
             container.widthAnchor.constraint(equalToConstant: maxTextWidth + horizontalPadding * 2)
         ])
 
-        container.layoutSubtreeIfNeeded()
+        container.layout()
         let fittingSize = container.fittingSize
         container.frame = NSRect(origin: .zero, size: fittingSize)
 

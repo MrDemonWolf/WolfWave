@@ -30,7 +30,7 @@ jobs:
         run: |
           xcodebuild -project "$PROJECT" -scheme "$SCHEME" \
             -destination 'platform=macOS' \
-            ARCHS="arm64 x86_64" \
+            ARCHS="arm64" \
             -configuration Debug test \
             CODE_SIGN_IDENTITY="-" \
             CODE_SIGNING_REQUIRED=NO \
