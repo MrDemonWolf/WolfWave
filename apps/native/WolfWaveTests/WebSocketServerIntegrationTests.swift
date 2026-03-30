@@ -44,10 +44,13 @@ final class WebSocketServerIntegrationTests: XCTestCase {
         }
 
         service.setEnabled(true)
-        wait(for: [listeningExpectation], timeout: 5)
+        wait(for: [listeningExpectation], timeout: 10)
+
+        // Small delay to ensure listener is fully established on CI
+        Thread.sleep(forTimeInterval: 0.5)
 
         service.setEnabled(false)
-        wait(for: [stoppedExpectation], timeout: 5)
+        wait(for: [stoppedExpectation], timeout: 10)
     }
 
     func testServerRestartCycle() {

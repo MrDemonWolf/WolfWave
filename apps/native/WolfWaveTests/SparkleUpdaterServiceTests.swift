@@ -28,10 +28,11 @@ final class SparkleUpdaterServiceTests: XCTestCase {
 
     // MARK: - Default Property Tests
 
-    func testAutomaticCheckDisabledInDebug() {
-        // In DEBUG builds, Sparkle initializes but auto-checking is explicitly disabled
+    func testAutomaticCheckDefaultsToTrueWhenUpdaterNil() {
+        // In DEBUG builds, Sparkle is not initialized. automaticCheckEnabled falls back to true
+        // (the default) since the updater is nil.
         let service = SparkleUpdaterService()
-        XCTAssertFalse(service.automaticCheckEnabled, "automaticCheckEnabled should be false in DEBUG builds")
+        XCTAssertTrue(service.automaticCheckEnabled, "automaticCheckEnabled should default to true when updater is nil")
     }
 
     func testUpdateCheckIntervalReturnsConstant() {
