@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<rss version="2.0" xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle">
+  <channel>
+    <title>WolfWave Dev</title>
+    <description>Development appcast — no real updates</description>
+    <item>
+      <title>WolfWave 99.0.0</title>
+      <sparkle:version>99.0.0</sparkle:version>
+      <sparkle:shortVersionString>99.0.0</sparkle:shortVersionString>
+      <description>Dummy update for testing the Sparkle update dialog in dev builds.</description>
+      <pubDate>Thu, 01 Jan 2099 00:00:00 +0000</pubDate>
+      <enclosure
+        url="https://example.com/wolfwave/WolfWave-99.0.0.dmg"
+        length="1024"
+        type="application/octet-stream"
+        sparkle:edSignature="/afkZzzJ2F/RMBI8sGXlPmJ/aU0ubOA1a59ikln8tBB+7MDKb3ML/Kcq8fIy4My70AClXks4CkjnmcY9Q/BFDA=="
+      />
+    </item>
+  </channel>
+</rss>

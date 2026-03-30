@@ -2,6 +2,7 @@
 # macOS
 ############################################################
 .DS_Store
+**/.DS_Store
 Icon\r
 
 ############################################################
@@ -50,33 +51,6 @@ Package.pins
 # Package.resolved
 
 ############################################################
-# CocoaPods
-############################################################
-/Pods/
-# Podfile.lock is recommended to be committed for apps
-
-############################################################
-# Carthage
-############################################################
-/Carthage/Build/
-/Carthage/Checkouts/
-
-############################################################
-# Fastlane
-############################################################
-/fastlane/report.xml
-/fastlane/Preview.html
-/fastlane/screenshots/**/*.png
-/fastlane/test_output
-/fastlane/readme.md
-
-############################################################
-# Playgrounds
-############################################################
-timeline.xctimeline
-playground.xcworkspace
-
-############################################################
 # IDEs
 ############################################################
 .idea/
@@ -99,9 +73,30 @@ playground.xcworkspace
 ############################################################
 .env
 .env.*
-src/wolfwave/Config.xcconfig
+apps/native/wolfwave/Config.xcconfig
 
 # Local DMG/output folder created by Makefile prod build
 builds/
+
+# Root node_modules (monorepo root)
+node_modules/
+
+############################################################
+# Turborepo
+############################################################
+.turbo/
+
+############################################################
+# Docs (Next.js / Fumadocs)
+############################################################
+apps/docs/.next/
+
+############################################################
+# Marketing (Remotion)
+############################################################
+apps/marketing/*/out/
+
 # Claude Code
 .claude
+docs/.next/
+excalidraw.log

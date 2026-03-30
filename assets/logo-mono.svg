@@ -1,0 +1,59 @@
+<svg viewBox="8 2 84 94" width="512" height="512" xmlns="http://www.w3.org/2000/svg">
+  <!--
+    WolfWave — logo-mono.svg
+    Monochrome black · transparent background
+    MrDemonWolf, Inc. · github.com/MrDemonWolf/wolfwave
+
+    Usage in AppKit (Swift):
+      let img = NSImage(named: "logo-mono")
+      img?.isTemplate = true
+      statusItem.button?.image = img
+
+    macOS automatically renders:
+      → white  on dark menu bar
+      → black  on light menu bar
+      → active state inversion on click
+
+    The mask cutouts (inner ear + eyes) let the menu bar
+    background show through, which is standard macOS template behaviour.
+  -->
+  <defs>
+    <mask id="wolf-mask">
+      <rect x="0" y="0" width="100" height="100" fill="white"/>
+      <!-- inner ear transparent cutouts -->
+      <polygon points="32,38 35.5,9 46,33"  fill="black"/>
+      <polygon points="68,38 64.5,9 54,33"  fill="black"/>
+      <!-- eye socket transparent cutouts -->
+      <path d="M32,43 C34,37.5 44.5,37.5 46.5,43 C44.5,48.5 34,48.5 32,43Z"  fill="black"/>
+      <path d="M53.5,43 C55.5,37.5 66,37.5 68,43 C66,48.5 55.5,48.5 53.5,43Z" fill="black"/>
+    </mask>
+  </defs>
+
+  <!-- All solid shapes in black, masked to cut out inner ears + eyes -->
+  <g fill="black" mask="url(#wolf-mask)">
+    <!-- EQ BARS LEFT -->
+    <rect x="25"   y="38" width="4.5" height="35" rx="2.25"/>
+    <rect x="18.5" y="47" width="4.5" height="26" rx="2.25" opacity=".78"/>
+    <rect x="12"   y="55" width="4.5" height="18" rx="2.25" opacity=".55"/>
+    <rect x="5.5"  y="62" width="4.5" height="11" rx="2.25" opacity=".33"/>
+    <!-- EQ BARS RIGHT -->
+    <rect x="70.5" y="38" width="4.5" height="35" rx="2.25"/>
+    <rect x="77"   y="47" width="4.5" height="26" rx="2.25" opacity=".78"/>
+    <rect x="83.5" y="55" width="4.5" height="18" rx="2.25" opacity=".55"/>
+    <rect x="90"   y="62" width="4.5" height="11" rx="2.25" opacity=".33"/>
+    <!-- EARS OUTER -->
+    <polygon points="29,40 33,4 48,35"/>
+    <polygon points="71,40 67,4 52,35"/>
+    <!-- SKULL -->
+    <path d="M50,18 C61,16 72,26 72,42 L70,57 L62,67 L50,71 L38,67 L30,57 L28,42 C28,26 39,16 50,18Z"/>
+    <!-- MUZZLE -->
+    <path d="M38,53 Q50,51 62,53 L60,67 Q50,77 40,67Z"/>
+    <!-- NOSE -->
+    <path d="M42,53 C42,46 58,46 58,53 C58,61 51,65 50,65 C49,65 42,61 42,53Z"/>
+  </g>
+
+  <!-- BROW — drawn on top of mask, full opacity -->
+  <path d="M29,40 Q38,34 46.5,39 Q50,36.5 53.5,39 Q62,34 71,40"
+        fill="none" stroke="black" stroke-width="3"
+        stroke-linecap="round" stroke-linejoin="round" opacity=".75"/>
+</svg>

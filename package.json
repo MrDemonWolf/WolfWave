@@ -1,0 +1,14 @@
+{
+  "name": "wolfwave",
+  "private": true,
+  "workspaces": ["apps/*", "apps/marketing/*"],
+  "scripts": {
+    "dev": "turbo dev",
+    "build": "turbo build",
+    "clean": "turbo clean"
+  },
+  "packageManager": "bun@1.3.11",
+  "devDependencies": {
+    "turbo": "^2"
+  }
+}

@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>NSAppleMusicUsageDescription</key>
+	<string>WolfWave reads your currently playing track from Apple Music to display Now Playing information in your menu bar and share it with your Twitch community. Your music library is never modified.</string>
+	<key>NSAppleEventsUsageDescription</key>
+	<string>WolfWave uses Apple Events to communicate with Apple Music and retrieve the currently playing track information. This allows real-time Now Playing updates without modifying your music playback or library.</string>
+	<key>NSLocalNetworkUsageDescription</key>
+	<string>WolfWave runs a local WebSocket and HTTP server on your Mac to stream now-playing data to OBS browser source overlays. No data is sent outside your local network.</string>
+	<key>CFBundleDisplayName</key>
+	<string>WolfWave</string>
+	<key>NSHumanReadableCopyright</key>
+	<string>Copyright © 2026 MrDemonWolf, Inc. All rights reserved.</string>
+	<key>SUFeedURL</key>
+	<string>https://github.com/MrDemonWolf/wolfwave/releases/latest/download/appcast.xml</string>
+	<key>SUPublicEDKey</key>
+	<string>Ccoxj8YsfvYlbNDi0/LnwFY/Wa3aBU+tlJX5cqjt3X8=</string>
+	<key>TWITCH_CLIENT_ID</key>
+	<string>$(TWITCH_CLIENT_ID)</string>
+	<key>DISCORD_CLIENT_ID</key>
+	<string>$(DISCORD_CLIENT_ID)</string>
+</dict>
+</plist>

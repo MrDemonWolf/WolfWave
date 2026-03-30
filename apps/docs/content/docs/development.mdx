@@ -1,0 +1,200 @@
+---
+title: Development
+description: Guide for developing and contributing to WolfWave
+---
+
+This guide covers everything you need to contribute to WolfWave.
+
+## Prerequisites
+
+- macOS 15.0+
+- Xcode 16.0+
+- Swift 5.9+
+- Command Line Tools: `xcode-select --install`
+
+## Setup
+
+1. Fork and clone the repository
+2. Copy `src/wolfwave/Config.xcconfig.example` to `src/wolfwave/Config.xcconfig`
+3. Set your Twitch Client ID and Discord Client ID in `Config.xcconfig`
+4. Open the project: `make open-xcode`
+5. Resolve dependencies: `make update-deps`
+
+## Development Commands
+
+| Command            | Description                              |
+| ------------------ | ---------------------------------------- |
+| `make build`       | Debug build                              |
+| `make clean`       | Clean build artifacts                    |
+| `make test`        | Run unit tests (215 tests)               |
+| `make update-deps` | Resolve SwiftPM dependencies             |
+| `make open-xcode`  | Open the Xcode project                   |
+| `make ci`          | CI-friendly build                        |
+| `make prod-build`  | Release build + DMG in `builds/`         |
+| `make prod-install`| Release build + install to `/Applications`|
+| `make notarize`    | Notarize the DMG (requires Developer ID) |
+| `make verify-notarize` | Verify notarization of DMG           |
+
+## Code Quality
+
+This project follows Swift best practices with professional-grade documentation:
+
+- **Swift 5.9+** with modern concurrency (async/await)
+- **SwiftUI** for user interfaces
+- **Comprehensive Documentation**: DocC-style comments throughout with usage examples
+- **MARK Sections**: All files organized with clear section markers for easy navigation
+- **Separation of Concerns**: Clean architecture across Core/Services/Views/Monitors
+- **Secure Credential Storage**: macOS Keychain for all sensitive data
+- **ScriptingBridge Integration**: Direct Apple Music communication without spawning subprocesses
+- **Robust Error Handling**: Typed errors with localized descriptions
+- **Type Safety**: Strongly typed models for all data structures
+- **Minimal Dependencies**: Native Apple frameworks plus Sparkle for auto-updates
+
+## Twitch Chat Service
+
+The bot is implemented with `TwitchChatService` using Twitch Helix + EventSub (no IRC).
+
+### Features
+
+- **EventSub WebSocket**: Real-time chat message notifications
+- **OAuth Device Code Flow**: Secure authentication via `TwitchDeviceAuth`
+- **Token Validation**: Automatic token validation on app launch
+- **Command System**: Extensible bot command architecture
+
+### Usage
+
+- Connect with saved credentials: `joinChannel(broadcasterID:botID:token:clientID:)` or `connectToChannel(channelName:token:clientID:)`
+- Send chat messages via Helix: `sendMessage(_:)` or `sendMessage(_:replyTo:)`
+- Supply current track info for commands: set `getCurrentSongInfo` on the service
+- Commands can be toggled in Settings ("Bot Commands" → "Current Song")
+- The service respects `commandsEnabled` so you can disable all commands from Settings
+
+### Documentation
+
+- Comprehensive MARK sections organize the 700+ line service file
+- DocC-style comments document all public methods
+- Typed errors with localized descriptions (`ConnectionError`)
+- Models for chat messages, badges, and replies
+
+## Discord Rich Presence Service
+
+`DiscordRPCService` communicates with Discord via the local IPC Unix domain socket.
+
+### Features
+
+- **IPC Socket Client**: Connects to Discord's local Unix domain socket (`discord-ipc-{0..9}`)
+- **Dynamic Artwork**: Fetches album art from the iTunes Search API with caching
+- **Auto-reconnect**: Automatic reconnection with backoff when Discord restarts
+- **Sandbox Compatible**: Works within the macOS App Sandbox via SBPL entitlements
+
+### Usage
+
+- Start the service: `connect()` — discovers and connects to Discord's IPC socket
+- Update presence: `updatePresence(track:artist:album:duration:elapsed:)` — sets the listening activity
+- Clear presence: `clearPresence()` — removes the activity from the user's profile
+- The service is wired into the music playback delegate in `WolfWaveApp.swift`
+
+## WebSocket Server Service
+
+`WebSocketServerService` runs a local WebSocket server using Network.framework to broadcast now-playing data to stream overlay clients.
+
+### Features
+
+- **Network.framework NWListener**: Native WebSocket server with auto-ping support
+- **Multi-client Support**: Multiple browser sources or tools can connect simultaneously
+- **Progress Broadcasting**: 1-second interval timer broadcasts elapsed time during playback
+- **Auto-retry**: Reconnects the listener after failures with configurable delay
+
+### Usage
+
+- Enable/disable: `setEnabled(_:)` — starts or stops the `NWListener`
+- Update port: `updatePort(_:)` — restarts the server on a new port if running
+- Track change: `updateNowPlaying(track:artist:album:duration:elapsed:artworkURL:)` — broadcasts `now_playing` JSON
+- Clear: `clearNowPlaying()` — broadcasts `playback_state` with `isPlaying: false`
+- The service is wired into the music playback delegate in `WolfWaveApp.swift`
+
+## Update Checker Service
+
+`UpdateCheckerService` queries the GitHub Releases API to detect new versions.
+
+### Features
+
+- **GitHub Releases API**: Fetches the latest release tag and compares semantic versions
+- **Install Method Detection**: Detects Homebrew vs DMG install via bundle path inspection
+- **Periodic Checking**: Runs on a 24-hour schedule with a configurable launch delay
+- **Skip Version**: Users can dismiss specific versions they don't want to install
+
+### Usage
+
+- Start periodic checking: `startPeriodicChecking()` — delayed first check, then every 24h
+- Manual check: `checkForUpdates() async -> UpdateInfo?` — returns latest version info
+- Detect install method: `detectInstallMethod() -> InstallMethod` — `.homebrew` or `.dmg`
+- The service is initialized in `WolfWaveApp.swift` and wired into the notification system
+
+## Testing
+
+WolfWave includes a comprehensive unit test suite using XCTest. Run all tests with:
+
+```bash
+make test
+```
+
+Or press **Cmd+U** in Xcode. The test target (`WolfWaveTests`) is a hosted unit test bundle that runs inside the app process.
+
+### Test Coverage
+
+| Test File | Tests | Coverage |
+| --- | --- | --- |
+| `AppConstantsTests` | 18 | Constant integrity, URL validity, dimension bounds, WebSocket constants |
+| `ArtworkServiceTests` | 6 | Cache miss/hit, cache key format, completion calls |
+| `BotCommandDispatcherTests` | 17 | Message routing, callbacks, length guards, whitespace |
+| `CooldownManagerTests` | 10 | Global/per-user cooldown, moderator bypass, reset |
+| `KeychainServiceTests` | 14 | Error descriptions, save-if-changed, load missing, delete |
+| `LastSongCommandTests` | 16 | Same patterns for last song triggers |
+| `LoggerTests` | 12 | Log level formatting, file rotation, category filtering |
+| `MusicPlaybackMonitorTests` | 8 | Init, start/stop lifecycle, interval update |
+| `OnboardingViewModelTests` | 19 | Step navigation, boundaries, UserDefaults persistence |
+| `PowerStateMonitorTests` | 4 | Singleton, state property access |
+| `SongCommandTests` | 17 | Trigger matching, case insensitivity, enable/disable, truncation |
+| `TwitchChatServiceTests` | 8 | Connection state, message handling, service lifecycle |
+| `TwitchDeviceAuthTests` | 12 | Error descriptions, response properties, input validation |
+| `TwitchViewModelTests` | 16 | AuthState/IntegrationState enums, computed properties |
+| `UpdateCheckerServiceTests` | 17 | Version comparison, install method detection |
+| `WebSocketServerServiceTests` | 16 | Server state, port validation, constants, notifications |
+| **Total** | **215** | |
+
+### Adding New Tests
+
+Test files are auto-discovered — just add `.swift` files to `src/WolfWaveTests/`. Use `@testable import WolfWave` to access internal types.
+
+## CI/CD
+
+The project includes two GitHub Actions workflows:
+
+- **CI** (`.github/workflows/ci.yml`): Runs `xcodebuild test` on every push and pull request to `main`. Automatically creates a placeholder `Config.xcconfig` for builds.
+- **Release** (`.github/workflows/release.yml`): On tag push (`v*`), builds a signed and notarized DMG in CI, then creates a **draft** GitHub Release with the DMG attached. The developer reviews the draft and publishes it.
+
+### Required GitHub Secrets
+
+| Secret                       | Description                          |
+| ---------------------------- | ------------------------------------ |
+| `TWITCH_CLIENT_ID`          | Twitch application Client ID        |
+| `DISCORD_CLIENT_ID`         | Discord application ID               |
+| `DEVELOPER_ID_CERT_P12`    | Base64-encoded Developer ID certificate |
+| `DEVELOPER_ID_CERT_PASSWORD`| Password for the P12 certificate     |
+| `APPLE_ID`                  | Apple ID for notarization            |
+| `APPLE_TEAM_ID`             | Apple Developer Team ID              |
+| `APPLE_APP_PASSWORD`        | App-specific password for notarization |
+
+Code signing, notarization, and DMG creation all happen in the release workflow. `GITHUB_TOKEN` is provided automatically by GitHub Actions.
+
+### Triggering a Release
+
+```bash
+git tag v1.0.0
+git push origin v1.0.0
+```
+
+This triggers the release workflow, which builds, signs, notarizes, and uploads the DMG to a draft GitHub Release. Once the workflow completes, review the draft and publish it.
+
+For a complete step-by-step release checklist, see [PUBLISH.md](https://github.com/MrDemonWolf/WolfWave/blob/main/PUBLISH.md) in the repository root.

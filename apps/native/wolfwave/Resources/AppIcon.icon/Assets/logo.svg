@@ -1,0 +1,91 @@
+<svg viewBox="0 0 100 100" width="100" height="100" xmlns="http://www.w3.org/2000/svg">
+  <!--
+    WolfWave Tray Icon — Color Version (Transparent Background)
+    MrDemonWolf, Inc. — github.com/MrDemonWolf/wolfwave
+  -->
+  <defs>
+    <linearGradient id="bar-grad" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%"   stop-color="#0FACED"/>
+      <stop offset="100%" stop-color="#0FACED" stop-opacity="0.42"/>
+    </linearGradient>
+    <linearGradient id="wolf-head" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%"   stop-color="#F0F6FF"/>
+      <stop offset="100%" stop-color="#D0DEEF"/>
+    </linearGradient>
+    <filter id="glow-eye" x="-80%" y="-80%" width="360%" height="360%">
+      <feGaussianBlur stdDeviation="2.2" result="b"/>
+      <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+    <filter id="glow-bar" x="-120%" y="-15%" width="340%" height="130%">
+      <feGaussianBlur stdDeviation="1.8" result="b"/>
+      <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  </defs>
+
+  <!-- ── EQ BARS · LEFT ── -->
+  <rect x="24" y="43" width="3.5" height="30" rx="1.75" fill="#0FACED" filter="url(#glow-bar)" opacity="0.55"/>
+  <rect x="24"  y="43" width="3.5" height="30" rx="1.75" fill="url(#bar-grad)"/>
+  <rect x="19"  y="49" width="3.5" height="24" rx="1.75" fill="url(#bar-grad)" opacity="0.90"/>
+  <rect x="14"  y="55" width="3.5" height="18" rx="1.75" fill="url(#bar-grad)" opacity="0.73"/>
+  <rect x="9"   y="61" width="3.5" height="12" rx="1.75" fill="url(#bar-grad)" opacity="0.54"/>
+  <rect x="4"   y="66" width="3.5" height="7"  rx="1.75" fill="url(#bar-grad)" opacity="0.34"/>
+  <rect x="-1"  y="69" width="3.5" height="4"  rx="1.75" fill="url(#bar-grad)" opacity="0.18"/>
+
+  <!-- ── EQ BARS · RIGHT ── -->
+  <rect x="72.5" y="43" width="3.5" height="30" rx="1.75" fill="#0FACED" filter="url(#glow-bar)" opacity="0.55"/>
+  <rect x="72.5" y="43" width="3.5" height="30" rx="1.75" fill="url(#bar-grad)"/>
+  <rect x="77.5" y="49" width="3.5" height="24" rx="1.75" fill="url(#bar-grad)" opacity="0.90"/>
+  <rect x="82.5" y="55" width="3.5" height="18" rx="1.75" fill="url(#bar-grad)" opacity="0.73"/>
+  <rect x="87.5" y="61" width="3.5" height="12" rx="1.75" fill="url(#bar-grad)" opacity="0.54"/>
+  <rect x="92.5" y="66" width="3.5" height="7"  rx="1.75" fill="url(#bar-grad)" opacity="0.34"/>
+  <rect x="97.5" y="69" width="3.5" height="4"  rx="1.75" fill="url(#bar-grad)" opacity="0.18"/>
+
+  <!-- ── WOLF HEAD ── -->
+
+  <!-- Ears · outer -->
+  <polygon points="33,41 33,11 45,38" fill="url(#wolf-head)"/>
+  <polygon points="67,41 67,11 55,38" fill="url(#wolf-head)"/>
+
+  <!-- Ears · inner cyan -->
+  <polygon points="35.5,40 36,19 43.5,37" fill="#0FACED"/>
+  <polygon points="64.5,40 64,19 56.5,37" fill="#0FACED"/>
+  <polygon points="35.5,40 36,19 43.5,37" fill="#0FACED" filter="url(#glow-bar)" opacity="0.35"/>
+  <polygon points="64.5,40 64,19 56.5,37" fill="#0FACED" filter="url(#glow-bar)" opacity="0.35"/>
+
+  <!-- Head · main -->
+  <ellipse cx="50" cy="52" rx="18" ry="17.5" fill="url(#wolf-head)"/>
+
+  <!-- Cheek fluff -->
+  <ellipse cx="35" cy="58" rx="5.5" ry="4" fill="#E8F0FF"/>
+  <ellipse cx="65" cy="58" rx="5.5" ry="4" fill="#E8F0FF"/>
+
+  <!-- Muzzle -->
+  <ellipse cx="50" cy="63" rx="11" ry="8" fill="#C8D6ED"/>
+
+  <!-- Nose -->
+  <path d="M 45.5,60.5 Q 50,55.8 54.5,60.5 Q 50,67 45.5,60.5 Z" fill="#09142A"/>
+  <path d="M 48.5,56.5 Q 50,54.5 51.5,56.5" fill="none" stroke="#0D1E3A" stroke-width="0.8" opacity="0.5"/>
+  <ellipse cx="48" cy="59.5" rx="1.4" ry="1.0" fill="#1E3060" opacity="0.45"/>
+
+  <!-- Left eye -->
+  <ellipse cx="41.5" cy="49.5" rx="5" ry="5.5" fill="#09142A"/>
+  <circle cx="42.5" cy="48.5" r="3.2" fill="#0FACED" filter="url(#glow-eye)"/>
+  <circle cx="42.5" cy="48.5" r="1.4" fill="#0797B8"/>
+  <circle cx="43.2" cy="47.8" r="1.1" fill="#B8F4FF"/>
+
+  <!-- Right eye -->
+  <ellipse cx="58.5" cy="49.5" rx="5" ry="5.5" fill="#09142A"/>
+  <circle cx="59.5" cy="48.5" r="3.2" fill="#0FACED" filter="url(#glow-eye)"/>
+  <circle cx="59.5" cy="48.5" r="1.4" fill="#0797B8"/>
+  <circle cx="60.2" cy="47.8" r="1.1" fill="#B8F4FF"/>
+
+  <!-- Eyebrows -->
+  <path d="M 37.5,44.5 Q 41.5,42.2 45.5,43.5" fill="none" stroke="#A8C0DC" stroke-width="1.3" stroke-linecap="round" opacity="0.55"/>
+  <path d="M 54.5,43.5 Q 58.5,42.2 62.5,44.5" fill="none" stroke="#A8C0DC" stroke-width="1.3" stroke-linecap="round" opacity="0.55"/>
+
+  <!-- Mouth -->
+  <path d="M 47,66.5 Q 50,69 53,66.5" fill="none" stroke="#8EA8C8" stroke-width="1.1" stroke-linecap="round" opacity="0.45"/>
+
+  <!-- Forehead stripe -->
+  <path d="M 50,35 Q 50.5,40 50,43" fill="none" stroke="#C8D8EE" stroke-width="1.0" stroke-linecap="round" opacity="0.3"/>
+</svg>

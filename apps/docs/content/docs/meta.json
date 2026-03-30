@@ -1,0 +1,20 @@
+{
+  "title": "Documentation",
+  "pages": [
+    "index",
+    "---Guide---",
+    "features",
+    "installation",
+    "usage",
+    "bot-commands",
+    "---Developers---",
+    "getting-started",
+    "development",
+    "architecture",
+    "security",
+    "changelog",
+    "---Legal---",
+    "privacy-policy",
+    "terms-of-service"
+  ]
+}

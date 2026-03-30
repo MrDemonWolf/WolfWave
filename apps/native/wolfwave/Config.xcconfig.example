@@ -1,0 +1,42 @@
+// ============================================================================
+// WolfWave Build Configuration (Example)
+// ============================================================================
+// SETUP INSTRUCTIONS:
+// 1. Copy this file to Config.xcconfig
+// 2. Replace placeholder values with your actual API keys
+// 3. DO NOT commit Config.xcconfig to source control (it's in .gitignore)
+//
+// All values are expanded into Info.plist at build time.
+// ============================================================================
+
+// ----------------------------------------------------------------------------
+// TWITCH CONFIGURATION
+// ----------------------------------------------------------------------------
+// Your Twitch Client ID for bot authentication
+// Get one at: https://dev.twitch.tv/console/apps
+TWITCH_CLIENT_ID = your_twitch_client_id_here
+
+// ----------------------------------------------------------------------------
+// DISCORD RICH PRESENCE
+// ----------------------------------------------------------------------------
+// Your Discord Application ID for Rich Presence integration
+// Get one at: https://discord.com/developers/applications
+// Shows "Listening to Apple Music" on your Discord profile
+DISCORD_CLIENT_ID = your_discord_application_id_here
+
+// ----------------------------------------------------------------------------
+// AUTO-UPDATE CONFIGURATION
+// ----------------------------------------------------------------------------
+// GitHub repository information for Sparkle automatic updates
+// The app checks: https://api.github.com/repos/{owner}/{repo}/releases/latest
+// See SPARKLE_SETUP.md for complete setup instructions
+GITHUB_REPO_OWNER = your_github_username
+GITHUB_REPO_NAME = wolfwave
+
+// ----------------------------------------------------------------------------
+// ADVANCED: PER-ENVIRONMENT OVERRIDES
+// ----------------------------------------------------------------------------
+// Create Config.Debug.xcconfig or Config.Release.xcconfig to override values
+// for specific build configurations. Assign in Project → Info → Configurations
+// ----------------------------------------------------------------------------
+

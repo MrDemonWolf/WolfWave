@@ -1,0 +1,83 @@
+---
+title: Usage Guide
+description: Master all the features of WolfWave.
+---
+
+WolfWave is simple to use and mostly runs by itself in the background. Here's how to master its main features.
+
+---
+
+## 🐺 The Menu Bar
+The main hub of WolfWave is in your **macOS Menu Bar** (the icons in the top right of your screen). 
+
+- Click the Wolf icon to see what is playing.
+- From the menu, you can quickly **Sync Music**, **Check Twitch Chat**, and access **Settings**.
+
+---
+
+## 🎵 Sync Music
+**TL;DR: Keep the music flowing.**
+
+Toggle **Sync Music** on in Settings to start tracking Apple Music. WolfWave will instantly detect when you change a song.
+
+<Callout type="info">
+  **Pro-tip**: Click the Wolf icon in the Menu Bar to see a quick "Now Playing" card with artwork and artist info.
+</Callout>
+
+---
+
+## 📺 Now-Playing Widget
+**TL;DR: The easiest widget you've ever set up.**
+
+WolfWave hosts a now-playing widget directly on your Mac. No external links or internet connection needed.
+
+1. Open **Settings → Now-Playing Widget**.
+2. Click **Enable Widget Server**.
+3. Copy the **Widget Link** (`http://localhost:8766`).
+4. In OBS, add a **Browser Source** and paste the Link.
+5. Set the size to **500 × 120**.
+
+<Callout type="info">
+  **Important**: Turn on "Shutdown source when not visible" in OBS to make sure the widget reconnects smoothly when you switch scenes.
+</Callout>
+
+---
+
+## 💬 Twitch Chat Bot
+**TL;DR: Chat commands for everyone.**
+
+Once you're logged into Twitch (via **Settings → Twitch**), your bot will automatically connect to your channel when you start the app.
+
+- **Enable Commands**: Pick which commands people can use in chat (like `!song` or `!last`).
+- **Cooldowns**: Prevent chat spam by setting "Wait Times" (Cooldowns) for commands.
+- **Mod Bypass**: Don't worry, moderators and you can use commands as much as you like.
+
+---
+
+## 🎧 Discord Status
+**TL;DR: Show your status.**
+
+When **Discord Status** is enabled, WolfWave will automatically update your Discord profile to show "Listening to Apple Music".
+
+- **Album Art**: High-quality artwork is fetched automatically.
+- **Progress Bar**: Shows exactly where you are in the song.
+- **No Setup Required**: As long as Discord is open, WolfWave will find it and connect.
+
+---
+
+## ⚙️ Settings
+Access **Settings** from the menu bar to:
+
+- **Now-Playing Widget**: Change your widget's port, colors, or fonts.
+- **Twitch**: Log in, set commands, or tweak cooldowns.
+- **Discord**: Enable or disable the profile status.
+- **Advanced**: Check for updates or reset the setup wizard.
+
+---
+
+## Ready to go?
+
+<Cards>
+  <Card title="Features" href="/docs/features" description="A deep dive into every feature." />
+  <Card title="Bot Commands" href="/docs/bot-commands" description="Chat commands reference." />
+</Cards>

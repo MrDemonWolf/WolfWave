@@ -1,0 +1,125 @@
+//
+//  LastSongCommandTests.swift
+//  WolfWaveTests
+//
+//  Created by MrDemonWolf, Inc. on 2/13/26.
+//
+
+import XCTest
+@testable import WolfWave
+
+final class LastSongCommandTests: XCTestCase {
+    var command: TrackInfoCommand!
+
+    override func setUp() {
+        super.setUp()
+        command = TrackInfoCommand(
+            triggers: ["!last", "!lastsong", "!prevsong"],
+            description: "Displays the last played track",
+            defaultMessage: "No previous track available"
+        )
+    }
+
+    override func tearDown() {
+        command = nil
+        super.tearDown()
+    }
+
+    // MARK: - Trigger Tests
+
+    func testLastTrigger() {
+        command.getTrackInfo = { "Previous Artist - Previous Song" }
+        XCTAssertNotNil(command.execute(message: "!last"))
+    }
+
+    func testLastSongTrigger() {
+        command.getTrackInfo = { "Previous Artist - Previous Song" }
+        XCTAssertNotNil(command.execute(message: "!lastsong"))
+    }
+
+    func testPrevSongTrigger() {
+        command.getTrackInfo = { "Previous Artist - Previous Song" }
+        XCTAssertNotNil(command.execute(message: "!prevsong"))
+    }
+
+    func testTriggerCaseInsensitiveUppercase() {
+        command.getTrackInfo = { "Artist - Song" }
+        XCTAssertNotNil(command.execute(message: "!LAST"))
+    }
+
+    func testTriggerCaseInsensitiveMixed() {
+        command.getTrackInfo = { "Artist - Song" }
+        XCTAssertNotNil(command.execute(message: "!LastSong"))
+    }
+
+    func testTriggerCaseInsensitivePrevSong() {
+        command.getTrackInfo = { "Artist - Song" }
+        XCTAssertNotNil(command.execute(message: "!PREVSONG"))
+    }
+
+    func testNonMatchingMessageReturnsNil() {
+        command.getTrackInfo = { "Artist - Song" }
+        XCTAssertNil(command.execute(message: "hello world"))
+    }
+
+    // MARK: - Callback Tests
+
+    func testNoCallbackReturnsDefaultMessage() {
+        let result = command.execute(message: "!last")
+        XCTAssertEqual(result, "No previous track available")
+    }
+
+    func testWithCallbackReturnsCallbackValue() {
+        command.getTrackInfo = { "Daft Punk - One More Time" }
+        let result = command.execute(message: "!last")
+        XCTAssertEqual(result, "Daft Punk - One More Time")
+    }
+
+    // MARK: - Enable/Disable Tests
+
+    func testDisabledReturnsNil() {
+        command.getTrackInfo = { "Artist - Song" }
+        command.isEnabled = { false }
+        XCTAssertNil(command.execute(message: "!last"))
+    }
+
+    func testEnabledReturnsResponse() {
+        command.getTrackInfo = { "Artist - Song" }
+        command.isEnabled = { true }
+        XCTAssertNotNil(command.execute(message: "!last"))
+    }
+
+    func testIsEnabledNotSetDefaultsToEnabled() {
+        command.getTrackInfo = { "Artist - Song" }
+        XCTAssertNotNil(command.execute(message: "!last"))
+    }
+
+    // MARK: - Truncation Tests
+
+    func testLongResponseTruncatedTo500() {
+        let longString = String(repeating: "b", count: 600)
+        command.getTrackInfo = { longString }
+        let result = command.execute(message: "!last")!
+        XCTAssertEqual(result.count, 500)
+        XCTAssertTrue(result.hasSuffix("..."))
+    }
+
+    func testExactly500CharsNotTruncated() {
+        let exact = String(repeating: "b", count: 500)
+        command.getTrackInfo = { exact }
+        let result = command.execute(message: "!last")!
+        XCTAssertEqual(result.count, 500)
+        XCTAssertFalse(result.hasSuffix("..."))
+    }
+
+    // MARK: - Edge Cases
+
+    func testTriggerWithTrailingText() {
+        command.getTrackInfo = { "Artist - Song" }
+        XCTAssertNotNil(command.execute(message: "!last extra stuff"))
+    }
+
+    func testTriggersArrayContents() {
+        XCTAssertEqual(command.triggers, ["!last", "!lastsong", "!prevsong"])
+    }
+}

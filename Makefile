@@ -1,6 +1,6 @@
 # WolfWave build & distribution commands
 
-PROJECT     = src/wolfwave.xcodeproj
+PROJECT     = apps/native/wolfwave.xcodeproj
 SCHEME      = WolfWave
 DESTINATION = platform=macOS,arch=arm64
 BUILD_DIR   = build
@@ -10,7 +10,9 @@ BUILDS_DIR  = builds
 VERSION = $(shell xcodebuild -project $(PROJECT) -scheme $(SCHEME) -configuration Release -showBuildSettings 2>/dev/null | awk -F'= ' '/MARKETING_VERSION/ {gsub(/^[ \t]+/,"",$$2); print $$2; exit}')
 DMG_NAME = WolfWave-$(VERSION)-arm64.dmg
 
-.PHONY: help build clean test update-deps open-xcode ci prod-build prod-install notarize
+.SHELLFLAGS = -ec
+
+.PHONY: help build clean test test-verbose test-ci update-deps open-xcode ci prod-build prod-install notarize verify-notarize
 
 help:
 	@echo "Available targets:"
@@ -22,7 +24,10 @@ help:
 	@echo "  notarize       Notarize builds/$(DMG_NAME)"
 	@echo "  update-deps    Resolve SwiftPM dependencies"
 	@echo "  open-xcode     Open the Xcode project"
-	@echo "  ci             CI-friendly build"
+	@echo "  verify-notarize Verify notarization of builds/$(DMG_NAME)"
+	@echo "  test-verbose   Run tests with full output"
+	@echo "  test-ci        Run tests in CI mode (no signing, result bundle)"
+	@echo "  ci             Run CI test suite"
 
 # ---------------------------------------------------------------------------
 # Development
@@ -37,8 +42,27 @@ clean:
 	rm -rf $(BUILD_DIR) $(BUILDS_DIR)
 
 test:
-	-xcodebuild -project $(PROJECT) -scheme $(SCHEME) \
-		-destination '$(DESTINATION)' -configuration Debug test -quiet
+	@xcodebuild -project $(PROJECT) -scheme $(SCHEME) \
+		-destination '$(DESTINATION)' -configuration Debug \
+		-only-testing WolfWaveTests \
+		CODE_SIGN_IDENTITY="-" CODE_SIGNING_REQUIRED=NO CODE_SIGNING_ALLOWED=NO \
+		test 2>/dev/null | scripts/check-test-results.sh
+
+test-verbose:
+	@xcodebuild -project $(PROJECT) -scheme $(SCHEME) \
+		-destination '$(DESTINATION)' -configuration Debug \
+		-only-testing WolfWaveTests \
+		test 2>/dev/null | tee /dev/stderr | scripts/check-test-results.sh
+
+test-ci:
+	xcodebuild -project $(PROJECT) -scheme $(SCHEME) \
+		-destination '$(DESTINATION)' -configuration Debug \
+		-only-testing WolfWaveTests \
+		CODE_SIGN_IDENTITY="-" \
+		CODE_SIGNING_REQUIRED=NO \
+		CODE_SIGNING_ALLOWED=NO \
+		-resultBundlePath TestResults.xcresult \
+		test
 
 update-deps:
 	xcodebuild -project $(PROJECT) -resolvePackageDependencies -quiet
@@ -46,7 +70,7 @@ update-deps:
 open-xcode:
 	open $(PROJECT)
 
-ci: build
+ci: test-ci
 
 # ---------------------------------------------------------------------------
 # Release build + DMG
@@ -72,51 +96,7 @@ prod-build:
 	$(MAKE) _create-dmg APP_PATH="$$APP_PATH"
 
 _create-dmg:
-	@echo "📦 Creating DMG..."
-	@mkdir -p $(BUILDS_DIR)
-	@rm -rf $(BUILDS_DIR)/staging $(BUILDS_DIR)/$(DMG_NAME)
-	@mkdir -p $(BUILDS_DIR)/staging
-	@cp -R "$(APP_PATH)" $(BUILDS_DIR)/staging/
-	@ln -sf /Applications $(BUILDS_DIR)/staging/Applications
-	@# Create read-write temp image
-	@hdiutil create -srcfolder $(BUILDS_DIR)/staging \
-		-volname "WolfWave" -fs HFS+ -format UDRW -ov \
-		$(BUILDS_DIR)/_tmp.dmg >/dev/null
-	@# Mount, configure Finder layout, unmount
-	@MOUNTPOINT=$$(hdiutil attach -readwrite -noverify -noautoopen \
-		$(BUILDS_DIR)/_tmp.dmg | awk '/\/Volumes\// {print $$NF}'); \
-	sleep 1; \
-	osascript \
-		-e 'tell application "Finder"' \
-		-e '  tell disk "WolfWave"' \
-		-e '    open' \
-		-e '    set current view of container window to icon view' \
-		-e '    set toolbar visible of container window to false' \
-		-e '    set statusbar visible of container window to false' \
-		-e '    set the bounds of container window to {200, 200, 740, 520}' \
-		-e '    set viewOptions to the icon view options of container window' \
-		-e '    set arrangement of viewOptions to not arranged' \
-		-e '    set icon size of viewOptions to 100' \
-		-e '    set text size of viewOptions to 12' \
-		-e '    set position of item "WolfWave.app" of container window to {140, 160}' \
-		-e '    set position of item "Applications" of container window to {400, 160}' \
-		-e '    close' \
-		-e '    open' \
-		-e '    delay 1' \
-		-e '  end tell' \
-		-e 'end tell' 2>/dev/null || true; \
-	sync; sleep 1; \
-	hdiutil detach "$$MOUNTPOINT" -quiet 2>/dev/null || true
-	@# Force-detach any remaining mounts
-	@LEFTOVER=$$(hdiutil info 2>/dev/null | awk '/\/Volumes\/WolfWave/ {print $$1; exit}'); \
-	if [ -n "$$LEFTOVER" ]; then hdiutil detach "$$LEFTOVER" -force 2>/dev/null || true; fi
-	@sleep 1
-	@# Convert to compressed read-only DMG
-	@hdiutil convert $(BUILDS_DIR)/_tmp.dmg -format UDZO \
-		-imagekey zlib-level=9 -o $(BUILDS_DIR)/$(DMG_NAME) >/dev/null
-	@rm -f $(BUILDS_DIR)/_tmp.dmg
-	@rm -rf $(BUILDS_DIR)/staging
-	@echo "✅ DMG created: $(BUILDS_DIR)/$(DMG_NAME)"
+	@./scripts/create-dmg.sh "$(APP_PATH)" "$(DMG_NAME)" "$(BUILDS_DIR)"
 
 prod-install: prod-build
 	@echo "📦 Installing to /Applications..."
@@ -137,14 +117,18 @@ prod-install: prod-build
 notarize:
 	@if [ ! -f $(BUILDS_DIR)/$(DMG_NAME) ]; then \
 		echo "❌ $(BUILDS_DIR)/$(DMG_NAME) not found. Run 'make prod-build' first."; exit 1; fi
-	@for var in APPLE_ID APPLE_TEAM_ID APPLE_APP_PASSWORD; do \
-		eval val=\$$$$var; \
-		if [ -z "$$val" ]; then \
-			echo "❌ $$var is not set."; \
-			echo "   Usage: APPLE_ID=... APPLE_TEAM_ID=... APPLE_APP_PASSWORD=... make notarize"; \
-			exit 1; \
-		fi; \
-	done
+	@if [ -z "$(APPLE_ID)" ]; then \
+		echo "❌ APPLE_ID is not set."; \
+		echo "   Usage: APPLE_ID=... APPLE_TEAM_ID=... APPLE_APP_PASSWORD=... make notarize"; \
+		exit 1; fi
+	@if [ -z "$(APPLE_TEAM_ID)" ]; then \
+		echo "❌ APPLE_TEAM_ID is not set."; \
+		echo "   Usage: APPLE_ID=... APPLE_TEAM_ID=... APPLE_APP_PASSWORD=... make notarize"; \
+		exit 1; fi
+	@if [ -z "$(APPLE_APP_PASSWORD)" ]; then \
+		echo "❌ APPLE_APP_PASSWORD is not set."; \
+		echo "   Usage: APPLE_ID=... APPLE_TEAM_ID=... APPLE_APP_PASSWORD=... make notarize"; \
+		exit 1; fi
 	@echo "🔏 Signing DMG..."
 	codesign --force --sign "Developer ID Application" $(BUILDS_DIR)/$(DMG_NAME)
 	@echo "📤 Submitting to Apple notary service (this may take a few minutes)..."
@@ -156,3 +140,10 @@ notarize:
 	@echo "📎 Stapling ticket..."
 	xcrun stapler staple $(BUILDS_DIR)/$(DMG_NAME)
 	@echo "✅ Notarized: $(BUILDS_DIR)/$(DMG_NAME)"
+
+verify-notarize:
+	@if [ ! -f $(BUILDS_DIR)/$(DMG_NAME) ]; then \
+		echo "❌ $(BUILDS_DIR)/$(DMG_NAME) not found."; exit 1; fi
+	@echo "🔍 Verifying notarization..."
+	spctl --assess --type open --context context:primary-signature $(BUILDS_DIR)/$(DMG_NAME)
+	@echo "✅ Notarization verified: $(BUILDS_DIR)/$(DMG_NAME)"

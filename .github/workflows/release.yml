@@ -13,17 +13,49 @@ on:
 
 env:
   SCHEME: WolfWave
-  PROJECT: src/wolfwave.xcodeproj
+  PROJECT: apps/native/wolfwave.xcodeproj
   CONFIGURATION: Release
 
 jobs:
-  build-and-release:
+  test:
+    name: Run Tests
+    runs-on: macos-15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+
+      - name: Create Config.xcconfig
+        run: |
+          printf 'TWITCH_CLIENT_ID = %s\nDISCORD_CLIENT_ID = %s\n' \
+            "${{ secrets.TWITCH_CLIENT_ID }}" \
+            "${{ secrets.DISCORD_CLIENT_ID }}" \
+            > apps/native/wolfwave/Config.xcconfig
+
+      - name: Run Tests
+        run: |
+          xcodebuild -project "$PROJECT" -scheme "$SCHEME" \
+            -destination 'platform=macOS,arch=arm64' \
+            -configuration Debug test \
+            CODE_SIGN_IDENTITY="-" \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGNING_ALLOWED=NO \
+            -resultBundlePath ReleaseTestResults.xcresult
+
+      - name: Upload Test Results
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: ReleaseTestResults
+          path: ReleaseTestResults.xcresult
+
+  create-draft-release:
+    needs: test
     runs-on: macos-15
     permissions:
       contents: write
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
 
       # ── Create Config.xcconfig from secrets ───────────────────────────
       - name: Create Config.xcconfig
@@ -31,7 +63,7 @@ jobs:
           printf 'TWITCH_CLIENT_ID = %s\nDISCORD_CLIENT_ID = %s\n' \
             "${{ secrets.TWITCH_CLIENT_ID }}" \
             "${{ secrets.DISCORD_CLIENT_ID }}" \
-            > src/wolfwave/Config.xcconfig
+            > apps/native/wolfwave/Config.xcconfig
 
       # ── Resolve version from tag or project ───────────────────────────
       - name: Resolve version
@@ -132,7 +164,7 @@ jobs:
             builds/_tmp.dmg >/dev/null
 
           MOUNTPOINT=$(hdiutil attach -readwrite -noverify -noautoopen \
-            builds/_tmp.dmg | awk '/\/Volumes\// {print $NF}')
+            builds/_tmp.dmg | sed -n 's|.*\(/Volumes/.*\)|\1|p')
           sleep 1
 
           osascript \
@@ -200,24 +232,84 @@ jobs:
           xcrun stapler staple "builds/$DMG_NAME"
           echo "✅ Notarization ticket stapled"
 
+      # ── Generate Sparkle appcast ──────────────────────────────────────
+      - name: Generate Sparkle appcast
+        env:
+          DMG_NAME: ${{ steps.version.outputs.dmg_name }}
+          VERSION: ${{ steps.version.outputs.version }}
+          SPARKLE_PRIVATE_KEY: ${{ secrets.SPARKLE_PRIVATE_KEY }}
+        run: |
+          # Locate generate_appcast from the Sparkle package in DerivedData
+          GENERATE_APPCAST=$(find build -name generate_appcast -type f 2>/dev/null | head -1)
+          SIGN_UPDATE=$(find build -name sign_update -type f 2>/dev/null | head -1)
+          if [ -z "$GENERATE_APPCAST" ]; then
+            if [ -n "$SIGN_UPDATE" ]; then
+              echo "⚠️ generate_appcast not found, using sign_update for Ed25519 signature"
+              DMG_SIZE=$(stat -f%z "builds/$DMG_NAME")
+              echo "$SPARKLE_PRIVATE_KEY" > "$RUNNER_TEMP/sparkle_key"
+              SIGNATURE=$("$SIGN_UPDATE" "builds/$DMG_NAME" --ed-key-file "$RUNNER_TEMP/sparkle_key" 2>/dev/null | grep -oE 'sparkle:edSignature="[^"]*"' | cut -d'"' -f2)
+              rm -f "$RUNNER_TEMP/sparkle_key"
+              if [ -z "$SIGNATURE" ]; then
+                echo "❌ Failed to generate Ed25519 signature"
+                exit 1
+              fi
+              cat > builds/appcast.xml <<APPCAST
+<?xml version="1.0" encoding="utf-8"?>
+<rss version="2.0" xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle">
+  <channel>
+    <title>WolfWave</title>
+    <item>
+      <title>WolfWave v${VERSION}</title>
+      <sparkle:version>${VERSION}</sparkle:version>
+      <sparkle:shortVersionString>${VERSION}</sparkle:shortVersionString>
+      <pubDate>$(date -R)</pubDate>
+      <enclosure url="https://github.com/MrDemonWolf/wolfwave/releases/download/v${VERSION}/${DMG_NAME}"
+        length="${DMG_SIZE}"
+        type="application/octet-stream"
+        sparkle:edSignature="${SIGNATURE}" />
+    </item>
+  </channel>
+</rss>
+APPCAST
+            else
+              echo "❌ Neither generate_appcast nor sign_update found in build artifacts"
+              echo "Sparkle tools must be available after building. Check DerivedData."
+              exit 1
+            fi
+          else
+            echo "✅ Found generate_appcast at $GENERATE_APPCAST"
+            # Use Sparkle's tool to generate a proper appcast
+            echo "$SPARKLE_PRIVATE_KEY" > "$RUNNER_TEMP/sparkle_key"
+            "$GENERATE_APPCAST" \
+              --ed-key-file "$RUNNER_TEMP/sparkle_key" \
+              --download-url-prefix "https://github.com/MrDemonWolf/wolfwave/releases/download/v${VERSION}/" \
+              -o builds/appcast.xml \
+              builds/
+            rm -f "$RUNNER_TEMP/sparkle_key"
+          fi
+          echo "✅ Appcast generated: builds/appcast.xml"
+
       # ── Upload DMG as artifact ─────────────────────────────────────────
       - name: Upload DMG artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: ${{ steps.version.outputs.dmg_name }}
           path: builds/${{ steps.version.outputs.dmg_name }}
 
-      # ── Create GitHub Release ─────────────────────────────────────────
-      - name: Create GitHub Release
+      # ── Create draft GitHub Release ─────────────────────────────────
+      - name: Create draft GitHub Release
         if: startsWith(github.ref, 'refs/tags/v') && github.event.inputs.dry_run != 'true'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           VERSION: ${{ steps.version.outputs.version }}
           DMG_NAME: ${{ steps.version.outputs.dmg_name }}
         run: |
-          gh release create "v$VERSION" "builds/$DMG_NAME" \
+          gh release create "v$VERSION" \
+            "builds/$DMG_NAME" \
+            "builds/appcast.xml" \
             --title "WolfWave v$VERSION" \
-            --generate-notes
+            --generate-notes \
+            --draft
 
       # ── Cleanup ─────────────────────────────────────────────────────
       - name: Cleanup keychain

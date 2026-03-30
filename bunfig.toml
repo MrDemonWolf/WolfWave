@@ -1,0 +1,11 @@
+[install]
+# Use global cache with hardlinks (bun's equivalent of pnpm's content-addressable store)
+# This is the default, but explicit is better
+globalCache = true
+
+# pnpm-style isolated node_modules — each package only sees its declared dependencies
+# Prevents phantom dependency issues and saves disk space via hardlinks
+linker = "isolated"
+
+# Don't auto-install missing packages on import
+autoInstall = false

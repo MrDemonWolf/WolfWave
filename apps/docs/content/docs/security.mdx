@@ -1,0 +1,145 @@
+---
+title: Security
+description: Security practices in WolfWave
+---
+
+WolfWave is designed with security as a priority. All sensitive data is handled securely using macOS system APIs.
+
+## Code Signing & Notarization
+
+WolfWave is distributed as a signed and notarized DMG:
+
+- **Developer ID Application** certificate for distribution signing
+- **Hardened Runtime** enabled with all exceptions explicitly disabled
+- **App Sandbox** enabled with scoped entitlements
+- **Apple notarization** ensures the app is free of known malware
+- **Stapled ticket** allows offline Gatekeeper verification
+
+<Callout type="info">
+  The app is signed and notarized by Apple — no Gatekeeper warnings on first launch.
+</Callout>
+
+## Credential Storage
+
+All sensitive credentials are stored in the macOS Keychain:
+
+- **WebSocket tokens** - JWT tokens for WebSocket authentication
+- **Twitch OAuth tokens** - Access tokens for Twitch API
+- **Twitch bot usernames** - Associated account information
+
+<Callout type="warn">
+  Tokens are **never** written to UserDefaults or stored on disk in plain text.
+</Callout>
+
+## Keychain Integration
+
+The `KeychainService` provides a secure interface for credential management:
+
+```swift
+// Store a credential
+KeychainService.shared.store(token: "your-token", for: .twitchOAuth)
+
+// Retrieve a credential
+let token = KeychainService.shared.retrieve(for: .twitchOAuth)
+
+// Delete a credential
+KeychainService.shared.delete(for: .twitchOAuth)
+```
+
+## Twitch Authentication
+
+WolfWave uses the **OAuth Device Code Flow** for Twitch authentication:
+
+1. The app requests a device code from Twitch
+2. User is directed to authorize on Twitch's website
+3. The app polls for completion and receives tokens
+4. Tokens are securely stored in Keychain
+
+This flow:
+
+- Never requires the user to enter credentials in the app
+- Uses Twitch's secure authorization pages
+- Provides standard OAuth2 token security
+
+## Token Validation
+
+On app launch, stored tokens are validated:
+
+- Invalid or expired tokens trigger re-authentication
+- Token refresh is handled automatically when possible
+- Users are prompted to re-authorize if needed
+
+## Build Configuration
+
+API keys are stored in `Config.xcconfig`:
+
+- This file is gitignored to prevent accidental commits
+- Each developer uses their own keys
+- Values are baked into `Info.plist` at build time
+
+| Key | Purpose | Sensitivity |
+|-----|---------|------------|
+| `TWITCH_CLIENT_ID` | Identifies the app to Twitch | Public (not a secret) |
+| `DISCORD_CLIENT_ID` | Identifies the app to Discord | Public (not a secret) |
+
+<Callout type="info">
+  Both values are public OAuth client identifiers, not secrets. They identify your
+  application to the respective services.
+</Callout>
+
+## Entitlements
+
+WolfWave runs inside the macOS App Sandbox with the minimum required entitlements:
+
+| Entitlement | Purpose |
+|-------------|---------|
+| `app-sandbox` | Required for notarization |
+| `network.client` | Twitch API, WebSocket, iTunes artwork API |
+| `automation.apple-events` | ScriptingBridge to Apple Music |
+| `scripting-targets` | Scoped to Music.app only |
+| `keychain-access-groups` | Secure credential storage |
+| `temporary-exception.sbpl` | Discord IPC socket access |
+
+## WebSocket Server Security
+
+The built-in WebSocket server binds exclusively to `127.0.0.1` (IPv4 loopback):
+
+- Only local connections are accepted — the server is **not reachable** from other machines on the network
+- This ensures that now-playing data is only available to local clients (e.g., OBS browser sources running on the same machine)
+
+## JSON Response Validation
+
+All Twitch API and EventSub JSON parsing uses explicit `do/catch` with structured logging:
+
+- Malformed or unexpected responses are logged with details rather than silently ignored
+- Parse failures are handled gracefully without crashing or leaving the service in a broken state
+
+## EventSub Metadata Validation
+
+Every incoming EventSub message is validated before processing:
+
+- `message_id` and `message_timestamp` are required on every message
+- Messages older than **10 minutes** are rejected to prevent replay attacks
+- Subscription type is verified before processing notifications — unexpected types are ignored
+
+## Network Security
+
+All external network traffic uses encrypted transport:
+
+| Endpoint | Protocol | Purpose |
+|----------|----------|---------|
+| `api.twitch.tv/helix` | HTTPS | Twitch Helix API |
+| `id.twitch.tv/oauth2` | HTTPS | Twitch OAuth |
+| `eventsub.wss.twitch.tv/ws` | WSS | Twitch EventSub WebSocket |
+| `itunes.apple.com/search` | HTTPS | Album artwork for Discord Rich Presence |
+| `localhost:8765` | WebSocket (local) | OBS widget now-playing server (loopback only) |
+| Local Unix socket | IPC | Discord Rich Presence |
+
+## Best Practices
+
+When contributing to WolfWave:
+
+1. **Never log sensitive data** - Avoid logging tokens or credentials
+2. **Use KeychainService** - Always use the Keychain for credential storage
+3. **Validate inputs** - Sanitize user inputs before processing
+4. **Handle errors gracefully** - Don't expose internal errors to users
