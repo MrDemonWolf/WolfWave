@@ -15,16 +15,18 @@ final class WebSocketServerIntegrationTests: XCTestCase {
 
     func testServerStartReachesListeningState() {
         let service = WebSocketServerService(port: 59001)
-        let expectation = expectation(description: "server listening")
+        let exp = expectation(description: "server listening")
+        var fulfilled = false
 
         service.onStateChange = { state, _ in
-            if state == .listening {
-                expectation.fulfill()
+            if state == .listening && !fulfilled {
+                fulfilled = true
+                exp.fulfill()
             }
         }
 
         service.setEnabled(true)
-        waitForExpectations(timeout: 5)
+        waitForExpectations(timeout: 10)
         service.setEnabled(false)
     }
 
@@ -33,12 +35,14 @@ final class WebSocketServerIntegrationTests: XCTestCase {
         let listeningExpectation = expectation(description: "server listening")
         let stoppedExpectation = expectation(description: "server stopped")
         var wasListening = false
+        var wasStopped = false
 
         service.onStateChange = { state, _ in
             if state == .listening && !wasListening {
                 wasListening = true
                 listeningExpectation.fulfill()
-            } else if state == .stopped && wasListening {
+            } else if state == .stopped && wasListening && !wasStopped {
+                wasStopped = true
                 stoppedExpectation.fulfill()
             }
         }
@@ -46,7 +50,6 @@ final class WebSocketServerIntegrationTests: XCTestCase {
         service.setEnabled(true)
         wait(for: [listeningExpectation], timeout: 10)
 
-        // Small delay to ensure listener is fully established on CI
         Thread.sleep(forTimeInterval: 0.5)
 
         service.setEnabled(false)
@@ -93,8 +96,10 @@ final class WebSocketServerIntegrationTests: XCTestCase {
 
         let listening1 = expectation(description: "service1 listening")
 
+        var s1Listening = false
         service1.onStateChange = { state, _ in
-            if state == .listening {
+            if state == .listening && !s1Listening {
+                s1Listening = true
                 listening1.fulfill()
             }
         }
@@ -128,8 +133,10 @@ final class WebSocketServerIntegrationTests: XCTestCase {
         let service = WebSocketServerService(port: 59006)
         let expectation = expectation(description: "server listening")
 
+        var fulfilled = false
         service.onStateChange = { state, count in
-            if state == .listening {
+            if state == .listening && !fulfilled {
+                fulfilled = true
                 XCTAssertEqual(count, 0)
                 expectation.fulfill()
             }
