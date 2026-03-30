@@ -1,5 +1,6 @@
 name: Build & Release
 
+# Production release pipeline — builds universal binary, signs, notarizes, and creates draft release
 on:
   push:
     tags:
