@@ -1,4 +1,4 @@
-name: Build and Release
+name: Release
 
 on:
   workflow_dispatch:
@@ -35,7 +35,7 @@ jobs:
       - name: Run Tests
         run: |
           xcodebuild -project "$PROJECT" -scheme "$SCHEME" \
-            -destination 'generic/platform=macOS' \
+            -destination 'platform=macOS' \
             ARCHS="arm64 x86_64" \
             -configuration Debug test \
             CODE_SIGN_IDENTITY="-" \

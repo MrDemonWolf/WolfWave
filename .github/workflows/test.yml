@@ -1,4 +1,4 @@
-name: Test
+name: CI
 
 on:
   push:
@@ -29,7 +29,7 @@ jobs:
       - name: Build & Test
         run: |
           xcodebuild -project "$PROJECT" -scheme "$SCHEME" \
-            -destination 'generic/platform=macOS' \
+            -destination 'platform=macOS' \
             ARCHS="arm64 x86_64" \
             -configuration Debug test \
             CODE_SIGN_IDENTITY="-" \
