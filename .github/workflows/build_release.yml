@@ -127,6 +127,17 @@ jobs:
           echo "path=$APP_PATH" >> "$GITHUB_OUTPUT"
           echo "App: $APP_PATH"
 
+      - name: Ensure AppIcon.icns exists
+        env:
+          APP_PATH: ${{ steps.app.outputs.path }}
+        run: |
+          RESOURCES="$APP_PATH/Contents/Resources"
+          if [ ! -f "$RESOURCES/AppIcon.icns" ]; then
+            echo "AppIcon.icns missing — injecting pre-built fallback"
+            cp apps/native/wolfwave/Resources/AppIcon.icns "$RESOURCES/AppIcon.icns"
+          fi
+          echo "AppIcon: $(ls -la "$RESOURCES/AppIcon.icns")"
+
       - name: Code sign app bundle
         env:
           APP_PATH: ${{ steps.app.outputs.path }}
