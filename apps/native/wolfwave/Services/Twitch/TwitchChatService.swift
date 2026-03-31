@@ -108,21 +108,67 @@ final class TwitchChatService: @unchecked Sendable {
     /// Guards: `webSocketTask`, `sessionID`.
     private let webSocketLock = NSLock()
 
-    private var broadcasterID: String?
-    private var botID: String?
+    nonisolated(unsafe) private var _broadcasterID: String?
+    nonisolated(unsafe) private var _botID: String?
 
     var shouldSendConnectionMessageOnSubscribe = true
 
-    private var oauthToken: String?
-    private var clientID: String?
-    private var botUsername: String?
+    nonisolated(unsafe) private var _oauthToken: String?
+    nonisolated(unsafe) private var _clientID: String?
+    nonisolated(unsafe) private var _botUsername: String?
 
     var debugLoggingEnabled = false
-    var getCurrentSongInfo: (@Sendable () -> String)?
-    var getLastSongInfo: (@Sendable () -> String)?
+    nonisolated(unsafe) private var _getCurrentSongInfo: (@Sendable () -> String)?
+    nonisolated(unsafe) private var _getLastSongInfo: (@Sendable () -> String)?
 
-    var commandsEnabled = true
-    
+    nonisolated(unsafe) private var _commandsEnabled = true
+
+    /// Lock protecting credential and callback properties accessed from multiple threads.
+    /// Guards: `_broadcasterID`, `_botID`, `_oauthToken`, `_clientID`, `_botUsername`,
+    /// `_commandsEnabled`, `_onMessageReceived`, `_onConnectionStateChanged`,
+    /// `_getCurrentSongInfo`, `_getLastSongInfo`.
+    private let credentialsLock = NSLock()
+
+    private var broadcasterID: String? {
+        get { credentialsLock.withLock { _broadcasterID } }
+        set { credentialsLock.withLock { _broadcasterID = newValue } }
+    }
+
+    private var botID: String? {
+        get { credentialsLock.withLock { _botID } }
+        set { credentialsLock.withLock { _botID = newValue } }
+    }
+
+    private var oauthToken: String? {
+        get { credentialsLock.withLock { _oauthToken } }
+        set { credentialsLock.withLock { _oauthToken = newValue } }
+    }
+
+    private var clientID: String? {
+        get { credentialsLock.withLock { _clientID } }
+        set { credentialsLock.withLock { _clientID = newValue } }
+    }
+
+    private var botUsername: String? {
+        get { credentialsLock.withLock { _botUsername } }
+        set { credentialsLock.withLock { _botUsername = newValue } }
+    }
+
+    var commandsEnabled: Bool {
+        get { credentialsLock.withLock { _commandsEnabled } }
+        set { credentialsLock.withLock { _commandsEnabled = newValue } }
+    }
+
+    var getCurrentSongInfo: (@Sendable () -> String)? {
+        get { credentialsLock.withLock { _getCurrentSongInfo } }
+        set { credentialsLock.withLock { _getCurrentSongInfo = newValue } }
+    }
+
+    var getLastSongInfo: (@Sendable () -> String)? {
+        get { credentialsLock.withLock { _getLastSongInfo } }
+        set { credentialsLock.withLock { _getLastSongInfo = newValue } }
+    }
+
     /// Whether the current song command is enabled (computed from UserDefaults on each access)
     var currentSongCommandEnabled: Bool {
         UserDefaults.standard.object(forKey: AppConstants.UserDefaults.currentSongCommandEnabled) as? Bool ?? false
@@ -133,8 +179,18 @@ final class TwitchChatService: @unchecked Sendable {
         UserDefaults.standard.object(forKey: AppConstants.UserDefaults.lastSongCommandEnabled) as? Bool ?? false
     }
 
-    var onMessageReceived: (@Sendable (ChatMessage) -> Void)?
-    var onConnectionStateChanged: (@Sendable (Bool) -> Void)?
+    nonisolated(unsafe) private var _onMessageReceived: (@Sendable (ChatMessage) -> Void)?
+    nonisolated(unsafe) private var _onConnectionStateChanged: (@Sendable (Bool) -> Void)?
+
+    var onMessageReceived: (@Sendable (ChatMessage) -> Void)? {
+        get { credentialsLock.withLock { _onMessageReceived } }
+        set { credentialsLock.withLock { _onMessageReceived = newValue } }
+    }
+
+    var onConnectionStateChanged: (@Sendable (Bool) -> Void)? {
+        get { credentialsLock.withLock { _onConnectionStateChanged } }
+        set { credentialsLock.withLock { _onConnectionStateChanged = newValue } }
+    }
 
 
     static let connectionStateChanged = NSNotification.Name(AppConstants.Notifications.twitchConnectionStateChanged)

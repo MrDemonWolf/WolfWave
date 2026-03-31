@@ -67,11 +67,26 @@ final class DiscordRPCService: @unchecked Sendable {
     }
 
     /// Callback invoked on the main thread whenever connection state changes.
-    var onStateChange: ((ConnectionState) -> Void)?
+    /// Protected by `callbackLock` for cross-thread safety.
+    private var _onStateChange: ((ConnectionState) -> Void)?
+    var onStateChange: ((ConnectionState) -> Void)? {
+        get { callbackLock.withLock { _onStateChange } }
+        set { callbackLock.withLock { _onStateChange = newValue } }
+    }
 
     /// Callback invoked when artwork URL is resolved for a track.
     /// Parameters: (artworkURL, track, artist)
-    var onArtworkResolved: ((String, String, String) -> Void)?
+    /// Protected by `callbackLock` for cross-thread safety.
+    private var _onArtworkResolved: ((String, String, String) -> Void)?
+    var onArtworkResolved: ((String, String, String) -> Void)? {
+        get { callbackLock.withLock { _onArtworkResolved } }
+        set { callbackLock.withLock { _onArtworkResolved = newValue } }
+    }
+
+    /// Lock protecting callback closures that are written from any thread
+    /// but read on `ipcQueue`.
+    /// Guards: `_onStateChange`, `_onArtworkResolved`.
+    private let callbackLock = NSLock()
 
     /// Discord Application ID resolved from Info.plist / environment.
     private let clientID: String
@@ -125,9 +140,11 @@ final class DiscordRPCService: @unchecked Sendable {
     }
 
     deinit {
-        disconnect()
-        pollTimer?.cancel()
-        pollTimer = nil
+        ipcQueue.sync {
+            disconnect()
+            pollTimer?.cancel()
+            pollTimer = nil
+        }
     }
 
     // MARK: - Public API

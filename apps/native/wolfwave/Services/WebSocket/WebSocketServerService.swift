@@ -358,7 +358,8 @@ final class WebSocketServerService: @unchecked Sendable {
     // MARK: - Message Broadcasting
 
     private func sendWelcome(to connection: NWConnection) {
-        sendJSON(["type": "welcome", "server": "WolfWave", "version": "1.0.0"], to: connection)
+        let appVersion = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "unknown"
+        sendJSON(["type": "welcome", "server": "WolfWave", "version": appVersion], to: connection)
     }
 
     /// Sends the current widget theme/layout config to a newly connected client.
