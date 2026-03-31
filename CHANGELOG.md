@@ -4,6 +4,14 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.0.2] - 2026-03-31
+
+### Fixed
+
+- App icon missing in CI-built releases (added pre-built .icns fallback for Xcode 16 runners)
+- Sparkle updater unable to detect new versions (build number now incremented per release)
+- Sparkle initialization race condition (restored synchronous init instead of deferred async)
+
 ## [1.0.1] - 2026-03-30
 
 ### Changed
