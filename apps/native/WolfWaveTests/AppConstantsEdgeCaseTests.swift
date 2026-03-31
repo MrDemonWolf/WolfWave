@@ -12,15 +12,15 @@ final class AppConstantsEdgeCaseTests: XCTestCase {
 
     // MARK: - GitHub URL Resolution Tests
 
-    func testResolveGitHubRepoOwnerReturnsFallback() {
+    func testRepoOwnerReturnsFallback() {
         // In test environment without Info.plist keys, should fall back to "mrdemonwolf"
-        let owner = AppConstants.URLs.resolveGitHubRepoOwner()
+        let owner = AppConstants.URLs.repoOwner
         XCTAssertFalse(owner.isEmpty)
         XCTAssertNotEqual(owner, "$(GITHUB_REPO_OWNER)")
     }
 
-    func testResolveGitHubRepoNameReturnsFallback() {
-        let name = AppConstants.URLs.resolveGitHubRepoName()
+    func testRepoNameReturnsFallback() {
+        let name = AppConstants.URLs.repoName
         XCTAssertFalse(name.isEmpty)
         XCTAssertNotEqual(name, "$(GITHUB_REPO_NAME)")
     }
