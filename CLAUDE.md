@@ -137,4 +137,4 @@ Follows [Semantic Versioning (SemVer)](https://semver.org/) — `MAJOR.MINOR.PAT
 - **MINOR** — New features, backward-compatible
 - **PATCH** — Bug fixes, security patches, code quality improvements
 
-Version is set in `MARKETING_VERSION` in `project.pbxproj` (4 occurrences). Git tags use `v` prefix (e.g., `v1.0.1`). The release workflow triggers on `v*` tag pushes. Homebrew cask, CHANGELOG.md, and GitHub Release notes must all be updated to match.
+Version is set in `MARKETING_VERSION` in `project.pbxproj` (4 occurrences). `CURRENT_PROJECT_VERSION` (build number) must also be incremented with each release — Sparkle uses it as the primary version comparator in appcast.xml. Git tags use `v` prefix (e.g., `v1.0.1`). The release workflow triggers on `v*` tag pushes. Homebrew cask, CHANGELOG.md, and GitHub Release notes must all be updated to match.

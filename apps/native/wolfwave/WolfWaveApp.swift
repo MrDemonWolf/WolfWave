@@ -88,15 +88,14 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMenuDele
         setupDiscordService()
         setupWebSocketServer()
         setupPowerStateMonitor()
+        setupSparkleUpdater()
         setupNotificationObservers()
         initializeTrackingState()
         applyInitialDockVisibility()
 
-        // Defer Sparkle, onboarding, and What's New past the initial layout pass
+        // Defer onboarding and What's New past the initial layout pass
         // to avoid "layoutSubtreeIfNeeded on a view already being laid out" warning
         DispatchQueue.main.async { [weak self] in
-            self?.setupSparkleUpdater()
-
             Log.debug("AppDelegate: hasCompletedOnboarding = \(OnboardingViewModel.hasCompletedOnboarding)", category: "App")
 
             if !OnboardingViewModel.hasCompletedOnboarding {
