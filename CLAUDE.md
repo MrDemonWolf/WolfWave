@@ -128,3 +128,13 @@ Remotion-based video projects live in `apps/marketing/`. Each subfolder is a sta
 - MVVM for views: ViewModels use `@Observable` macro (migrated from `ObservableObject`/`@Published`)
 - Prefer structs for data models, classes for services
 - camelCase for variables/functions, PascalCase for types
+
+## Versioning
+
+Follows [Semantic Versioning (SemVer)](https://semver.org/) — `MAJOR.MINOR.PATCH`:
+
+- **MAJOR** — Breaking changes (API incompatibility, dropped platform support)
+- **MINOR** — New features, backward-compatible
+- **PATCH** — Bug fixes, security patches, code quality improvements
+
+Version is set in `MARKETING_VERSION` in `project.pbxproj` (4 occurrences). Git tags use `v` prefix (e.g., `v1.0.1`). The release workflow triggers on `v*` tag pushes. Homebrew cask, CHANGELOG.md, and GitHub Release notes must all be updated to match.
