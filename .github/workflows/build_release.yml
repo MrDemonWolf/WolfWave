@@ -20,10 +20,10 @@ env:
 jobs:
   test:
     name: Run Tests
-    runs-on: macos-15
+    runs-on: macos-26
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
 
       - name: Create Config.xcconfig
         run: |
@@ -34,11 +34,9 @@ jobs:
 
       - name: Run Tests
         run: |
-          RUNNER_OS_VERSION=$(sw_vers -productVersion | cut -d. -f1)
           xcodebuild -project "$PROJECT" -scheme "$SCHEME" \
             -destination 'platform=macOS' \
             ARCHS="arm64" \
-            MACOSX_DEPLOYMENT_TARGET="$RUNNER_OS_VERSION.0" \
             -configuration Debug test \
             CODE_SIGN_IDENTITY="-" \
             CODE_SIGNING_REQUIRED=NO \
@@ -47,19 +45,19 @@ jobs:
 
       - name: Upload Test Results
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: ReleaseTestResults
           path: ReleaseTestResults.xcresult
 
   build-and-release:
     needs: test
-    runs-on: macos-15
+    runs-on: macos-26
     permissions:
       contents: write
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
 
       - name: Create Config.xcconfig
         run: |
@@ -126,17 +124,6 @@ jobs:
           fi
           echo "path=$APP_PATH" >> "$GITHUB_OUTPUT"
           echo "App: $APP_PATH"
-
-      - name: Ensure AppIcon.icns exists
-        env:
-          APP_PATH: ${{ steps.app.outputs.path }}
-        run: |
-          RESOURCES="$APP_PATH/Contents/Resources"
-          if [ ! -f "$RESOURCES/AppIcon.icns" ]; then
-            echo "AppIcon.icns missing — injecting pre-built fallback"
-            cp apps/native/wolfwave/Resources/AppIcon.icns "$RESOURCES/AppIcon.icns"
-          fi
-          echo "AppIcon: $(ls -la "$RESOURCES/AppIcon.icns")"
 
       - name: Code sign app bundle
         env:
@@ -244,7 +231,7 @@ jobs:
           echo "Appcast generated"
 
       - name: Upload DMG artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: ${{ steps.version.outputs.dmg_name }}
           path: builds/${{ steps.version.outputs.dmg_name }}
