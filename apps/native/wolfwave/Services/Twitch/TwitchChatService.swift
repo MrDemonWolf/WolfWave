@@ -17,8 +17,16 @@ import Network
 /// - Chat message sending and replies
 /// - Token validation and user identity resolution
 ///
-/// Thread-safe with all state mutations protected by NSLock.
-/// Callbacks occur on background queues; dispatch to main for UI updates.
+/// Thread Safety:
+/// - Conforms to `@unchecked Sendable` because all mutable state is protected
+///   by dedicated `NSLock` instances (not by Swift's actor isolation). This is
+///   intentional for low-level WebSocket/network code that requires synchronous
+///   locking semantics incompatible with actor isolation.
+/// - Mutable properties are annotated with `nonisolated(unsafe)` to satisfy
+///   `SWIFT_STRICT_CONCURRENCY = complete`. Each such property is guarded by
+///   a specific lock — see the inline doc comments on each lock for the
+///   exhaustive list of properties it protects.
+/// - Callbacks occur on background queues; dispatch to main for UI updates.
 ///
 /// Usage:
 /// ```swift
@@ -96,6 +104,8 @@ final class TwitchChatService: @unchecked Sendable {
         return URLSession(configuration: config)
     }()
     nonisolated(unsafe) private var sessionID: String?
+    /// Lock protecting WebSocket session state.
+    /// Guards: `webSocketTask`, `sessionID`.
     private let webSocketLock = NSLock()
 
     private var broadcasterID: String?
@@ -131,6 +141,8 @@ final class TwitchChatService: @unchecked Sendable {
 
     nonisolated(unsafe) private var _connected = false
     nonisolated(unsafe) private var hasSentConnectionMessage = false
+    /// Lock protecting connection state flags.
+    /// Guards: `_connected`, `hasSentConnectionMessage`.
     private let connectionLock = NSLock()
 
     var isConnected: Bool {
@@ -142,14 +154,20 @@ final class TwitchChatService: @unchecked Sendable {
     }
 
     nonisolated(unsafe) private var isProcessingDisconnect = false
+    /// Lock protecting the disconnect-in-progress flag.
+    /// Guards: `isProcessingDisconnect`.
     private let disconnectLock = NSLock()
 
     nonisolated(unsafe) private var networkPathMonitor: NWPathMonitor?
+    /// Lock protecting the network path monitor lifecycle.
+    /// Guards: `networkPathMonitor`.
     private let networkMonitorLock = NSLock()
     private let networkMonitorQueue = DispatchQueue(
         label: "com.mrdemonwolf.wolfwave.networkmonitor")
 
     nonisolated(unsafe) private var isNetworkReachable = true
+    /// Lock protecting the network reachability flag.
+    /// Guards: `isNetworkReachable`.
     private let networkReachableLock = NSLock()
 
     /// Tracks total network-triggered reconnect cycles to prevent infinite loops
@@ -159,6 +177,10 @@ final class TwitchChatService: @unchecked Sendable {
     nonisolated(unsafe) private var lastNetworkReconnectTime: TimeInterval = 0
 
     nonisolated(unsafe) private var reconnectionAttempts = 0
+    /// Lock protecting reconnection state and stored credentials.
+    /// Guards: `reconnectionAttempts`, `networkReconnectCycles`,
+    /// `lastNetworkReconnectTime`, `_reconnectChannelName`,
+    /// `_reconnectToken`, `_reconnectClientID`.
     private let reconnectionLock = NSLock()
 
     private let maxReconnectionAttempts = AppConstants.Twitch.maxReconnectionAttempts
@@ -168,6 +190,8 @@ final class TwitchChatService: @unchecked Sendable {
     nonisolated(unsafe) private var _reconnectClientID: String?
 
     nonisolated(unsafe) private var sessionWelcomeTimer: Timer?
+    /// Lock protecting the session welcome timeout timer.
+    /// Guards: `sessionWelcomeTimer`.
     private let sessionTimerLock = NSLock()
 
     // MARK: - Reconnection Credentials (Thread-Safe)
@@ -197,12 +221,18 @@ final class TwitchChatService: @unchecked Sendable {
     }
 
     nonisolated(unsafe) private var rateLimits: [String: RateLimitState] = [:]
+    /// Lock protecting API rate limit tracking state.
+    /// Guards: `rateLimits`.
     private let rateLimitLock = NSLock()
 
     nonisolated(unsafe) private var requestQueue: [() -> Void] = []
+    /// Lock protecting the rate-limited request queue.
+    /// Guards: `requestQueue`.
     private let requestQueueLock = NSLock()
 
     nonisolated(unsafe) private var isProcessingQueue = false
+    /// Lock protecting the queue-processing flag.
+    /// Guards: `isProcessingQueue`.
     private let queueProcessingLock = NSLock()
 
     private func canMakeRequest(endpoint: String) -> Bool {
@@ -855,6 +885,8 @@ final class TwitchChatService: @unchecked Sendable {
 
     /// Queue of messages pending retry.
     nonisolated(unsafe) private var pendingMessages: [PendingMessage] = []
+    /// Lock protecting the pending message retry queue.
+    /// Guards: `pendingMessages`.
     private let pendingMessagesLock = NSLock()
 
     /// Sends a message to the current channel.

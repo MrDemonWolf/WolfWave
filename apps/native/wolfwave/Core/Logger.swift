@@ -23,6 +23,10 @@ enum LogLevel: String {
 /// app's Application Support directory. Use `exportLogFile()` to get
 /// the log file URL for sharing.
 ///
+/// Thread Safety:
+/// All mutable file state (`fileHandle`, `_logFileURL`) is accessed
+/// exclusively on `fileQueue`, a serial dispatch queue.
+///
 /// Usage:
 /// ```swift
 /// Log.info("Message", category: "Category")
@@ -51,16 +55,17 @@ enum Log {
     /// Maximum log file size before rotation (5 MB).
     nonisolated private static let maxLogFileSize: UInt64 = 5 * 1024 * 1024
 
-    /// Lock protecting file write operations.
-    nonisolated private static let fileLock = NSLock()
+    /// Serial queue protecting all file I/O state.
+    nonisolated private static let fileQueue = DispatchQueue(label: "com.mrdemonwolf.wolfwave.logger", qos: .utility)
 
-    /// File handle for the current log file.
+    /// File handle for the current log file. Only access on `fileQueue`.
     nonisolated(unsafe) private static var fileHandle: FileHandle?
 
-    /// URL of the current log file.
+    /// URL of the current log file. Only access on `fileQueue`.
     nonisolated(unsafe) private static var _logFileURL: URL?
 
     /// Returns the log file URL, creating the directory and file if needed.
+    /// Must be called on `fileQueue`.
     nonisolated private static var logFileURL: URL {
         if let url = _logFileURL { return url }
 
@@ -89,27 +94,26 @@ enum Log {
 
     /// Writes a formatted log line to the log file.
     nonisolated private static func writeToFile(_ line: String) {
-        fileLock.lock()
-        defer { fileLock.unlock() }
+        fileQueue.async {
+            let url = logFileURL
 
-        let url = logFileURL
+            // Rotate if file exceeds max size
+            if let attrs = try? FileManager.default.attributesOfItem(atPath: url.path),
+               let size = attrs[.size] as? UInt64,
+               size > maxLogFileSize
+            {
+                rotateLogFile(at: url)
+            }
 
-        // Rotate if file exceeds max size
-        if let attrs = try? FileManager.default.attributesOfItem(atPath: url.path),
-           let size = attrs[.size] as? UInt64,
-           size > maxLogFileSize
-        {
-            rotateLogFile(at: url)
-        }
+            // Open file handle if needed
+            if fileHandle == nil {
+                fileHandle = FileHandle(forWritingAtPath: url.path)
+                fileHandle?.seekToEndOfFile()
+            }
 
-        // Open file handle if needed
-        if fileHandle == nil {
-            fileHandle = FileHandle(forWritingAtPath: url.path)
-            fileHandle?.seekToEndOfFile()
-        }
-
-        if let data = (line + "\n").data(using: .utf8) {
-            fileHandle?.write(data)
+            if let data = (line + "\n").data(using: .utf8) {
+                fileHandle?.write(data)
+            }
         }
     }
 
@@ -123,11 +127,11 @@ enum Log {
         try? FileManager.default.removeItem(at: backupURL)
         try? FileManager.default.moveItem(at: url, to: backupURL)
         FileManager.default.createFile(atPath: url.path, contents: nil)
-        
+
         // Clean up old log files (keep only the most recent backup)
         cleanupOldLogs(in: url.deletingLastPathComponent())
     }
-    
+
     /// Removes old log files beyond the most recent backup
     nonisolated private static func cleanupOldLogs(in directory: URL) {
         let fileManager = FileManager.default
@@ -136,13 +140,13 @@ enum Log {
             includingPropertiesForKeys: [.creationDateKey],
             options: .skipsHiddenFiles
         ) else { return }
-        
+
         // Find all .log files except the current one
         let logFiles = files.filter { url in
             let name = url.lastPathComponent
             return name.hasPrefix("wolfwave.log") && name != "wolfwave.log" && name != "wolfwave.log.1"
         }
-        
+
         // Delete old log files
         for file in logFiles {
             try? fileManager.removeItem(at: file)
@@ -177,43 +181,49 @@ enum Log {
         // Flush immediately for errors to ensure they're written if app crashes
         flush()
     }
-    
+
     /// Flushes any buffered log data to disk immediately.
     nonisolated static func flush() {
-        fileLock.lock()
-        defer { fileLock.unlock() }
-        fileHandle?.synchronizeFile()
+        fileQueue.sync {
+            fileHandle?.synchronizeFile()
+        }
     }
-    
+
     // MARK: - PII Redaction
-    
+
     /// Redacts sensitive information from log messages
     nonisolated private static func redactSensitiveInfo(_ message: String) -> String {
         var redacted = message
-        
+
         // Redact OAuth tokens (oauth_XXXX or Bearer XXXX patterns)
         if let result = try? NSRegularExpression(pattern: #"oauth_[a-zA-Z0-9_-]+"#)
             .stringByReplacingMatches(in: redacted, range: NSRange(redacted.startIndex..., in: redacted), withTemplate: "oauth_[REDACTED]") {
             redacted = result
         }
-        
+
         if let result = try? NSRegularExpression(pattern: #"Bearer\s+[a-zA-Z0-9_-]+"#)
             .stringByReplacingMatches(in: redacted, range: NSRange(redacted.startIndex..., in: redacted), withTemplate: "Bearer [REDACTED]") {
             redacted = result
         }
-        
+
         // Redact what looks like access tokens (long alphanumeric strings)
         if let result = try? NSRegularExpression(pattern: #"\b[a-zA-Z0-9]{30,}\b"#)
             .stringByReplacingMatches(in: redacted, range: NSRange(redacted.startIndex..., in: redacted), withTemplate: "[TOKEN_REDACTED]") {
             redacted = result
         }
-        
+
         // Redact Client-ID values
         if let result = try? NSRegularExpression(pattern: #"Client-ID[:\s]+[a-zA-Z0-9]+"#)
             .stringByReplacingMatches(in: redacted, range: NSRange(redacted.startIndex..., in: redacted), withTemplate: "Client-ID: [REDACTED]") {
             redacted = result
         }
-        
+
+        // Redact numeric user IDs (Twitch user IDs are 8+ digit numbers)
+        if let result = try? NSRegularExpression(pattern: #"\b\d{8,}\b"#)
+            .stringByReplacingMatches(in: redacted, range: NSRange(redacted.startIndex..., in: redacted), withTemplate: "[USER_ID_REDACTED]") {
+            redacted = result
+        }
+
         return redacted
     }
 
@@ -223,21 +233,21 @@ enum Log {
     ///
     /// - Returns: The log file URL, or nil if logs directory could not be created.
     nonisolated static func exportLogFile() -> URL? {
-        fileLock.lock()
-        let url = logFileURL
-        fileHandle?.synchronizeFile()
-        fileLock.unlock()
-        return FileManager.default.fileExists(atPath: url.path) ? url : nil
+        fileQueue.sync {
+            let url = logFileURL
+            fileHandle?.synchronizeFile()
+            return FileManager.default.fileExists(atPath: url.path) ? url : nil
+        }
     }
-    
+
     // MARK: - Cleanup
-    
+
     /// Closes the log file handle. Called automatically at app termination.
     nonisolated static func shutdown() {
-        fileLock.lock()
-        defer { fileLock.unlock() }
-        fileHandle?.synchronizeFile()
-        fileHandle?.closeFile()
-        fileHandle = nil
+        fileQueue.sync {
+            fileHandle?.synchronizeFile()
+            fileHandle?.closeFile()
+            fileHandle = nil
+        }
     }
 }

@@ -194,6 +194,9 @@ enum KeychainService {
             let data = item as? Data,
             let value = String(data: data, encoding: .utf8)
         else {
+            if status != errSecSuccess && status != errSecItemNotFound {
+                Log.error("KeychainService: Failed to load item '\(account)' - OSStatus \(status)", category: "Keychain")
+            }
             return nil
         }
 
@@ -203,7 +206,10 @@ enum KeychainService {
     /// Deletes a Keychain item for the given account. Succeeds silently if not found.
     private static func deleteItem(account: String) {
         let query = queryFor(account: account)
-        SecItemDelete(query as CFDictionary)
+        let status = SecItemDelete(query as CFDictionary)
+        if status != errSecSuccess && status != errSecItemNotFound {
+            Log.error("KeychainService: Failed to delete item '\(account)' - OSStatus \(status)", category: "Keychain")
+        }
     }
 
     /// Inserts or updates a Keychain item using SecItemUpdate with SecItemAdd fallback.

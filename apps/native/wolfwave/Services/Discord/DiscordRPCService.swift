@@ -20,7 +20,17 @@ import Foundation
 /// Developer Portal, provided via `DISCORD_CLIENT_ID` in Config.xcconfig.
 ///
 /// Thread Safety:
-/// - All socket I/O runs on a dedicated serial dispatch queue.
+/// - Conforms to `@unchecked Sendable` because all mutable state is protected
+///   manually rather than through Swift's actor isolation. This is intentional
+///   for low-level Unix domain socket I/O that requires synchronous operations
+///   incompatible with actor isolation.
+/// - All socket I/O and most mutable state mutations run on `ipcQueue`, a
+///   dedicated serial `DispatchQueue`. Properties mutated exclusively on this
+///   queue (e.g., `socketFD`, `state`, `reconnectDelay`, `pollTimer`,
+///   `currentPollInterval`, `lastArtworkKey`) are inherently serialized.
+/// - The `isEnabled` flag is the sole cross-queue mutable property and is
+///   protected by `enabledLock` (NSLock) since it is written from any thread
+///   via `setEnabled(_:)` and read on `ipcQueue` for guard checks.
 /// - Public methods are safe to call from any thread.
 ///
 /// Reconnection:
@@ -69,7 +79,12 @@ final class DiscordRPCService: @unchecked Sendable {
     /// File descriptor for the connected Unix domain socket, or -1.
     private var socketFD: Int32 = -1
 
-    /// Serial queue for all socket I/O.
+    /// Serial queue for all socket I/O and mutable state mutations.
+    ///
+    /// All properties except `isEnabled` are read and written exclusively on
+    /// this queue, providing serialized access without explicit locking.
+    /// Properties serialized by this queue: `socketFD`, `state`,
+    /// `reconnectDelay`, `pollTimer`, `currentPollInterval`, `lastArtworkKey`.
     private let ipcQueue = DispatchQueue(
         label: AppConstants.DispatchQueues.discordIPC,
         qos: .utility
@@ -88,6 +103,9 @@ final class DiscordRPCService: @unchecked Sendable {
     private var isEnabled = false
 
     /// Lock protecting `isEnabled` reads/writes across threads.
+    /// Guards: `isEnabled`.
+    /// This is the only lock needed because all other mutable state is
+    /// confined to `ipcQueue`.
     private let enabledLock = NSLock()
 
     /// Process ID sent with SET_ACTIVITY (Discord requires it).
