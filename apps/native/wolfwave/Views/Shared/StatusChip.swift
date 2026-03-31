@@ -34,5 +34,6 @@ struct StatusChip: View {
         .accessibilityElement(children: .combine)
         .accessibilityLabel(text)
         .accessibilityValue(text)
+        .accessibilityIdentifier("statusChip.\(text)")
     }
 }

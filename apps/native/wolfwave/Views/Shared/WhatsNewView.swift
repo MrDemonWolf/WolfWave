@@ -61,6 +61,7 @@ struct WhatsNewView: View {
             .controlSize(.large)
             .accessibilityLabel("Get Started")
             .accessibilityHint("Dismisses the what's new screen")
+            .accessibilityIdentifier("whatsNew.getStarted")
         }
         .padding(24)
         .frame(idealWidth: 420, idealHeight: 500)
@@ -92,6 +93,7 @@ struct WhatsNewView: View {
         .cardStyle()
         .accessibilityElement(children: .combine)
         .accessibilityLabel("\(feature.title). \(feature.description)")
+        .accessibilityIdentifier("whatsNew.feature.\(feature.title)")
     }
 }
 

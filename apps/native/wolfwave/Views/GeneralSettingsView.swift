@@ -29,6 +29,7 @@ struct GeneralSettingsView: View {
             }
             .accessibilityElement(children: .combine)
             .accessibilityLabel("General settings. Manage how WolfWave tracks your music and where it shows up.")
+            .accessibilityIdentifier("generalSettings.header")
 
             // Music Monitor
             MusicMonitorSettingsView()
