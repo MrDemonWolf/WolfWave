@@ -48,6 +48,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMenuDele
     var discordService: DiscordRPCService?
     var sparkleUpdater: SparkleUpdaterService?
     var websocketServer: WebSocketServerService?
+    private var notificationObservers: [Any] = []
 
     private(set) var currentSong: String?
     private(set) var currentArtist: String?
@@ -138,11 +139,19 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMenuDele
         window.title = "What's New"
         window.styleMask = [.titled, .closable]
         window.setContentSize(NSSize(width: 420, height: 500))
+        window.isReleasedWhenClosed = false
+        window.delegate = self
         window.center()
         window.makeKeyAndOrderFront(nil)
         whatsNewWindow = window
     }
     
+    /// Removes all stored notification observers and tears down services.
+    func applicationWillTerminate(_ notification: Notification) {
+        notificationObservers.forEach { NotificationCenter.default.removeObserver($0) }
+        notificationObservers.removeAll()
+    }
+
     /// Reopens the Settings window when the dock icon is clicked.
     func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
         if let onboarding = onboardingWindow, onboarding.isVisible {
@@ -662,11 +671,14 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMenuDele
     private func setupPowerStateMonitor() {
         _ = PowerStateMonitor.shared
 
-        NotificationCenter.default.addObserver(
-            self,
-            selector: #selector(powerStateChanged),
-            name: NSNotification.Name(AppConstants.Notifications.powerStateChanged),
-            object: nil
+        notificationObservers.append(
+            NotificationCenter.default.addObserver(
+                forName: NSNotification.Name(AppConstants.Notifications.powerStateChanged),
+                object: nil,
+                queue: .main
+            ) { [weak self] notification in
+                self?.powerStateChanged(notification)
+            }
         )
     }
 
@@ -831,61 +843,83 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMenuDele
 
     /// Registers all `NotificationCenter` observers for settings and system events.
     private func setupNotificationObservers() {
-        NotificationCenter.default.addObserver(
-            self,
-            selector: #selector(trackingSettingChanged),
-            name: NSNotification.Name(AppConstants.Notifications.trackingSettingChanged),
-            object: nil
-        )
+        let nc = NotificationCenter.default
 
-        NotificationCenter.default.addObserver(
-            self,
-            selector: #selector(dockVisibilityChanged),
-            name: NSNotification.Name(AppConstants.Notifications.dockVisibilityChanged),
-            object: nil
-        )
-
-        NotificationCenter.default.addObserver(
-            forName: NSWindow.willCloseNotification,
-            object: nil,
-            queue: .main
-        ) { [weak self] notification in
-            guard let self,
-                  let window = notification.object as? NSWindow,
-                  window !== self.settingsWindow,
-                  window !== self.onboardingWindow else { return }
-            // Defer slightly so the window is fully off-screen before we check
-            DispatchQueue.main.async { [weak self] in
-                self?.restoreMenuOnlyIfNeeded()
+        notificationObservers.append(
+            nc.addObserver(
+                forName: NSNotification.Name(AppConstants.Notifications.trackingSettingChanged),
+                object: nil,
+                queue: .main
+            ) { [weak self] notification in
+                self?.trackingSettingChanged(notification)
             }
-        }
-
-        NotificationCenter.default.addObserver(
-            self,
-            selector: #selector(discordPresenceSettingChanged),
-            name: NSNotification.Name(AppConstants.Notifications.discordPresenceChanged),
-            object: nil
         )
 
-        NotificationCenter.default.addObserver(
-            self,
-            selector: #selector(websocketServerSettingChanged),
-            name: NSNotification.Name(AppConstants.Notifications.websocketServerChanged),
-            object: nil
+        notificationObservers.append(
+            nc.addObserver(
+                forName: NSNotification.Name(AppConstants.Notifications.dockVisibilityChanged),
+                object: nil,
+                queue: .main
+            ) { [weak self] notification in
+                self?.dockVisibilityChanged(notification)
+            }
         )
 
-        NotificationCenter.default.addObserver(
-            self,
-            selector: #selector(widgetHTTPServerSettingChanged),
-            name: NSNotification.Name(AppConstants.Notifications.widgetHTTPServerChanged),
-            object: nil
+        notificationObservers.append(
+            nc.addObserver(
+                forName: NSWindow.willCloseNotification,
+                object: nil,
+                queue: .main
+            ) { [weak self] notification in
+                guard let self,
+                      let window = notification.object as? NSWindow,
+                      window !== self.settingsWindow,
+                      window !== self.onboardingWindow else { return }
+                // Defer slightly so the window is fully off-screen before we check
+                DispatchQueue.main.async { [weak self] in
+                    self?.restoreMenuOnlyIfNeeded()
+                }
+            }
         )
 
-        NotificationCenter.default.addObserver(
-            self,
-            selector: #selector(handleUpdateStateChanged),
-            name: NSNotification.Name(AppConstants.Notifications.updateStateChanged),
-            object: nil
+        notificationObservers.append(
+            nc.addObserver(
+                forName: NSNotification.Name(AppConstants.Notifications.discordPresenceChanged),
+                object: nil,
+                queue: .main
+            ) { [weak self] notification in
+                self?.discordPresenceSettingChanged(notification)
+            }
+        )
+
+        notificationObservers.append(
+            nc.addObserver(
+                forName: NSNotification.Name(AppConstants.Notifications.websocketServerChanged),
+                object: nil,
+                queue: .main
+            ) { [weak self] notification in
+                self?.websocketServerSettingChanged(notification)
+            }
+        )
+
+        notificationObservers.append(
+            nc.addObserver(
+                forName: NSNotification.Name(AppConstants.Notifications.widgetHTTPServerChanged),
+                object: nil,
+                queue: .main
+            ) { [weak self] notification in
+                self?.widgetHTTPServerSettingChanged(notification)
+            }
+        )
+
+        notificationObservers.append(
+            nc.addObserver(
+                forName: NSNotification.Name(AppConstants.Notifications.updateStateChanged),
+                object: nil,
+                queue: .main
+            ) { [weak self] notification in
+                self?.handleUpdateStateChanged(notification)
+            }
         )
     }
 
@@ -1020,6 +1054,11 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMenuDele
             // so that isVisible returns false before hasVisibleWindows is checked.
             DispatchQueue.main.async { [weak self] in
                 self?.settingsWindow = nil
+                self?.restoreMenuOnlyIfNeeded()
+            }
+        } else if window === whatsNewWindow {
+            DispatchQueue.main.async { [weak self] in
+                self?.whatsNewWindow = nil
                 self?.restoreMenuOnlyIfNeeded()
             }
         }
