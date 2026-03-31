@@ -92,6 +92,9 @@ final class OnboardingViewModelEdgeCaseTests: XCTestCase {
         viewModel.completeOnboarding()
         XCTAssertTrue(viewModel.showCompletion)
 
+        // Release old instance before creating new one to avoid @Observable double-free
+        self.viewModel = nil
+
         // Create a new instance
         let newViewModel = OnboardingViewModel()
         XCTAssertEqual(newViewModel.currentStep, .welcome)
