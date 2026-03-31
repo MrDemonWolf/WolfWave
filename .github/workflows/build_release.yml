@@ -34,9 +34,11 @@ jobs:
 
       - name: Run Tests
         run: |
+          RUNNER_OS_VERSION=$(sw_vers -productVersion | cut -d. -f1)
           xcodebuild -project "$PROJECT" -scheme "$SCHEME" \
             -destination 'platform=macOS' \
             ARCHS="arm64" \
+            MACOSX_DEPLOYMENT_TARGET="$RUNNER_OS_VERSION.0" \
             -configuration Debug test \
             CODE_SIGN_IDENTITY="-" \
             CODE_SIGNING_REQUIRED=NO \
