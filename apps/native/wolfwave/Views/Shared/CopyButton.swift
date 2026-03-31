@@ -51,6 +51,8 @@ struct CopyButton: View {
         .modifier(CopyButtonStyleModifier(style: buttonStyle))
         .disabled(isDisabled)
         .accessibilityLabel(accessibilityLabel)
+        .accessibilityHint("Copies text to clipboard")
+        .accessibilityValue(copied ? "Copied" : "Not copied")
         .accessibilityIdentifier(accessibilityIdentifier ?? "")
     }
 

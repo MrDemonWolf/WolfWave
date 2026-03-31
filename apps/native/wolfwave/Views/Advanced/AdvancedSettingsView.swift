@@ -60,9 +60,6 @@ struct AdvancedSettingsView: View {
     /// Whether the last update check was triggered manually (vs automatic/scheduled).
     @State private var isManualCheck = false
 
-    /// Whether the "up to date" alert is shown after a manual check.
-    @State private var showingUpToDateAlert = false
-
     /// Whether the app was installed via Homebrew (Sparkle is disabled in this case)
     @State private var isHomebrewInstall = false
 
@@ -234,9 +231,6 @@ struct AdvancedSettingsView: View {
                 latestVersion = version
                 updateAvailable = available && skippedVersion != version
 
-                if !available && isManualCheck {
-                    showingUpToDateAlert = true
-                }
                 isManualCheck = false
             }
         }
@@ -333,6 +327,7 @@ struct AdvancedSettingsView: View {
                         .background(Color.accentColor)
                         .clipShape(Capsule())
                         .transition(.opacity)
+                        .accessibilityLabel("Version \(version) available for update")
                 }
             }
 
@@ -398,6 +393,9 @@ struct AdvancedSettingsView: View {
                 ))
                 .toggleStyle(.checkbox)
                 .font(.system(size: 12))
+                .accessibilityLabel("Check for updates automatically")
+                .accessibilityHint("Enables periodic background checks for new versions")
+                .accessibilityValue(updateCheckEnabled ? "Enabled" : "Disabled")
                 #if DEBUG
                 .disabled(true)
                 .opacity(0.5)
@@ -429,6 +427,8 @@ struct AdvancedSettingsView: View {
                 .disabled(isCheckingForUpdates)
                 .pointerCursor()
                 .accessibilityLabel("Check for updates now")
+                .accessibilityHint("Manually checks for a newer version of WolfWave")
+                .accessibilityValue(isCheckingForUpdates ? "Checking" : "Idle")
                 #if DEBUG
                 .disabled(true)
                 .opacity(0.5)
@@ -438,11 +438,6 @@ struct AdvancedSettingsView: View {
         .cardStyle()
         .animation(.easeInOut(duration: 0.2), value: updateAvailable)
         .animation(.easeInOut(duration: 0.2), value: updateCheckEnabled)
-        .alert("You're up to date!", isPresented: $showingUpToDateAlert) {
-            Button("OK", role: .cancel) {}
-        } message: {
-            Text("WolfWave v\(currentVersion) is the latest version.")
-        }
     }
 }
 

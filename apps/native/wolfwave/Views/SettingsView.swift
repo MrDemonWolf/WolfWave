@@ -25,7 +25,7 @@ import SwiftUI
 /// - Reset alert confirmation
 ///
 /// State Management:
-/// - @StateObject for TwitchViewModel (Twitch integration state)
+/// - @State for TwitchViewModel (Twitch integration state, @Observable)
 /// - @AppStorage for user preferences (synced to UserDefaults)
 /// - @State for UI state (section selection, sidebar visibility)
 ///
@@ -120,7 +120,7 @@ struct SettingsView: View {
     // MARK: - State
 
     /// Twitch settings view model
-    @StateObject private var twitchViewModel = TwitchViewModel()
+    @State private var twitchViewModel = TwitchViewModel()
 
     // Helper to get the shared Twitch service from AppDelegate
     private var appDelegate: AppDelegate? {
@@ -232,11 +232,15 @@ struct SettingsView: View {
         .navigationSplitViewStyle(.balanced)
         .alert("Reset Settings?", isPresented: $showingResetAlert) {
             Button("Cancel", role: .cancel) {}
+            .accessibilityLabel("Cancel reset")
+            .accessibilityHint("Cancels the reset and keeps current settings")
             .accessibilityIdentifier("resetSettingsCancelButton")
 
             Button("Reset", role: .destructive) {
                 resetSettings()
             }
+            .accessibilityLabel("Confirm reset")
+            .accessibilityHint("Permanently resets all settings and signs you out")
             .accessibilityIdentifier("resetSettingsConfirmButton")
         } message: {
             Text("This resets all settings and signs you out. Can't be undone.")
@@ -412,6 +416,9 @@ struct SettingsView: View {
                         .foregroundStyle(.secondary)
                     Slider(value: globalCooldown, in: 0...30, step: 5)
                         .controlSize(.small)
+                        .accessibilityLabel("\(label) global cooldown")
+                        .accessibilityValue("\(Int(globalCooldown.wrappedValue)) seconds")
+                        .accessibilityHint("Adjusts the global cooldown between 0 and 30 seconds")
                 }
 
                 VStack(alignment: .leading, spacing: 2) {
@@ -420,6 +427,9 @@ struct SettingsView: View {
                         .foregroundStyle(.secondary)
                     Slider(value: userCooldown, in: 0...60, step: 5)
                         .controlSize(.small)
+                        .accessibilityLabel("\(label) per-user cooldown")
+                        .accessibilityValue("\(Int(userCooldown.wrappedValue)) seconds")
+                        .accessibilityHint("Adjusts the per-user cooldown between 0 and 60 seconds")
                 }
             }
         }

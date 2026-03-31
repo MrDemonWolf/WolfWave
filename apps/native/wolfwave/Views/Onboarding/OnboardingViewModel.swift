@@ -5,12 +5,13 @@
 //  Created by MrDemonWolf, Inc. on 2/6/26.
 //
 
-import Combine
 import Foundation
+import Observation
 
 /// Manages step navigation and completion persistence for the onboarding wizard.
 @MainActor
-final class OnboardingViewModel: ObservableObject {
+@Observable
+final class OnboardingViewModel {
 
     // MARK: - Step Definition
 
@@ -22,10 +23,10 @@ final class OnboardingViewModel: ObservableObject {
         case obsWidget = 3
     }
 
-    // MARK: - Published State
+    // MARK: - Observable State
 
-    @Published var currentStep: OnboardingStep = .welcome
-    @Published var showCompletion = false
+    var currentStep: OnboardingStep = .welcome
+    var showCompletion = false
 
     // MARK: - Navigation
 

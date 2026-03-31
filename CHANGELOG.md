@@ -4,6 +4,26 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.0.1] - 2026-03-30
+
+### Changed
+
+- Dropped Intel (x86_64) support — Apple Silicon only
+- Raised minimum macOS version to 26.0 (Tahoe)
+- Logger: replaced NSLock with serial DispatchQueue for thread-safe file I/O
+- TwitchChatService/DiscordRPCService: documented thread safety patterns
+- KeychainService: added error logging for all Keychain operations
+- AppConstants: cached GitHub repo resolution (no longer recomputes on every access)
+- Migrated TwitchViewModel and OnboardingViewModel to @Observable macro
+- WhatsNewView: dynamic version string, native button style, v1.0.1 feature highlights
+- Narrowed entitlements file exception path
+- Added Twitch user ID redaction to log output
+- NotificationCenter observers now properly cleaned up on app termination
+- Windows (Settings, Onboarding, What's New) properly released on close
+- Deferred Sparkle/onboarding init past initial layout to fix layoutSubtreeIfNeeded warning
+- Removed duplicate "up to date" alert (Sparkle handles it natively)
+- Added VoiceOver accessibility labels across all settings and onboarding views
+
 ## [1.0.0] - 2026-03-30
 
 ### Added

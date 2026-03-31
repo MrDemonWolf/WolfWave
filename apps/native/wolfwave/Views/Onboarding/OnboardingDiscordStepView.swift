@@ -63,6 +63,7 @@ struct OnboardingDiscordStepView: View {
                 if presenceEnabled {
                     SuccessFeedbackRow(text: "Discord Status enabled!")
                         .transition(.opacity.combined(with: .move(edge: .top)))
+                        .accessibilityLabel("Discord Status has been enabled")
                 }
             }
             .frame(maxWidth: 400)

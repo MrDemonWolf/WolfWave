@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 WolfWave is a native macOS menu bar app that bridges Apple Music with Twitch, Discord, and stream overlays. It tracks the currently playing song via ScriptingBridge and broadcasts it to Twitch chat via bot commands (EventSub + Helix API), shows "Listening to Apple Music" on Discord via Rich Presence, and streams now-playing data to overlays via WebSocket.
 
-**Stack**: Swift 5.9+, SwiftUI, AppKit, macOS 15.0+, Xcode 16+. Minimal dependencies (Sparkle for auto-updates) — all other functionality uses native Apple frameworks.
+**Stack**: Swift 5.9+, SwiftUI, AppKit, macOS 26.0+, Xcode 16+. Minimal dependencies (Sparkle for auto-updates) — all other functionality uses native Apple frameworks.
 
 **Monorepo**: bun workspaces + Turborepo. The root `package.json` defines workspaces (`apps/*`, `apps/marketing/*`) and Turbo orchestrates `dev`, `build`, and `clean` tasks across packages.
 
@@ -56,7 +56,7 @@ Xcode project is at `apps/native/wolfwave.xcodeproj` with scheme `WolfWave`. Bui
 
 - **Core/** — `AppConstants.swift` (centralized config enums for keys, identifiers, timing), `KeychainService.swift` (macOS Security framework wrapper), `Logger.swift` (structured logging)
 - **Monitors/** — `MusicPlaybackMonitor.swift` (ScriptingBridge + distributed notifications + 2s fallback polling, delegate pattern via `MusicPlaybackMonitorDelegate`)
-- **Services/Twitch/** — `TwitchChatService.swift` (EventSub WebSocket + Helix chat API, thread-safe with NSLock, network path monitoring for reconnection), `TwitchDeviceAuth.swift` (OAuth Device Code flow)
+- **Services/Twitch/** — `TwitchChatService.swift` (EventSub WebSocket + Helix chat API, thread-safe with NSLock, network path monitoring for reconnection, Twitch user ID redacted in logs), `TwitchDeviceAuth.swift` (OAuth Device Code flow)
 - **Services/Twitch/Commands/** — `BotCommand` protocol (`triggers`, `description`, `execute(message:) -> String?`), concrete commands (`SongCommand`, `LastSongCommand`), `BotCommandDispatcher` for routing
 - **Services/Discord/** — `DiscordRPCService.swift` (Discord Rich Presence via local IPC Unix domain socket, iTunes Search API artwork fetching with cache, auto-reconnect with backoff)
 - **Services/UpdateChecker/** — `UpdateCheckerService.swift` (GitHub Releases API version checker, semantic version comparison, Homebrew/DMG install detection, 24h periodic checking), `SparkleUpdaterService.swift` (Sparkle framework wrapper for auto-updates, EdDSA-signed appcast verification, DEBUG mode allows manual check via dev-appcast.xml)
@@ -69,7 +69,7 @@ Xcode project is at `apps/native/wolfwave.xcodeproj` with scheme `WolfWave`. Bui
 - **Credentials**: All tokens/secrets stored via `KeychainService` (never UserDefaults). Keys defined in `AppConstants.Keychain`.
 - **Settings**: User preferences in `UserDefaults` via `@AppStorage`. Keys centralized in `AppConstants.UserDefaults`. Note: `currentSongCommandEnabled`, `lastSongCommandEnabled`, and `widgetHTTPEnabled` all default to `false`.
 - **Notifications**: Loose coupling via `NotificationCenter` (e.g., `TrackingSettingChanged`, `DockVisibilityChanged`). Names in `AppConstants.Notifications`.
-- **Thread safety**: `NSLock` for shared state mutations in `TwitchChatService`, `DiscordRPCService`, and `UpdateCheckerService`.
+- **Thread safety**: `NSLock` for shared state mutations in `TwitchChatService` and `UpdateCheckerService`. `DiscordRPCService` uses `ipcQueue` serial queue confinement plus `enabledLock` for thread safety. Logger uses a serial `DispatchQueue` for thread-safe file I/O.
 - **Bot commands**: Register new commands in `BotCommandDispatcher.registerDefaultCommands()`. Each command implements `BotCommand` protocol. Max response 500 chars, target <100ms execution.
 - **Discord IPC**: Unix domain socket at `$TMPDIR/discord-ipc-{0..9}`. SBPL entitlements enable socket access within App Sandbox.
 - **ADHD-friendly text**: All user-facing text should be short, punchy, and jargon-free.
@@ -125,6 +125,6 @@ Remotion-based video projects live in `apps/marketing/`. Each subfolder is a sta
 - MARK sections organize every file (Properties, Public Methods, Private Helpers, etc.)
 - DocC-style `///` comments on all public APIs
 - No force unwrapping — use optionals and guard
-- MVVM for views: ViewModels as `ObservableObject` with `@Published` properties
+- MVVM for views: ViewModels use `@Observable` macro (migrated from `ObservableObject`/`@Published`)
 - Prefer structs for data models, classes for services
 - camelCase for variables/functions, PascalCase for types

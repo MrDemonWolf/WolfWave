@@ -4,7 +4,7 @@ PROJECT     = apps/native/wolfwave.xcodeproj
 SCHEME      = WolfWave
 DESTINATION = platform=macOS,arch=arm64
 PROD_DESTINATION = generic/platform=macOS
-PROD_ARCHS = arm64 x86_64
+PROD_ARCHS = arm64
 BUILD_DIR   = build
 BUILDS_DIR  = builds
 

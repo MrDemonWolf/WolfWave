@@ -5,8 +5,8 @@
 //  Created by MrDemonWolf, Inc. on 1/17/26.
 //
 
-import Combine
 import Foundation
+import Observation
 import SwiftUI
 
 /// View model managing Twitch bot authentication, connection state, and operations.
@@ -20,7 +20,8 @@ import SwiftUI
 ///
 /// All operations are @MainActor marked for UI thread safety.
 @MainActor
-final class TwitchViewModel: ObservableObject {
+@Observable
+final class TwitchViewModel {
 
     // MARK: - Channel Validation State
 
@@ -33,18 +34,18 @@ final class TwitchViewModel: ObservableObject {
         case error(String)
     }
 
-    // MARK: - Published State
+    // MARK: - Observable State
 
-    @Published var botUsername = ""
-    @Published var oauthToken = ""
-    @Published var channelID = ""
-    @Published var credentialsSaved = false
-    @Published var channelConnected = false
-    @Published var isConnecting = false
-    @Published var reauthNeeded = false
-    @Published var statusMessage = ""
-    @Published var channelValidationState: ChannelValidationState = .idle
-    @Published var testAuthResult: TestAuthResult = .idle
+    var botUsername = ""
+    var oauthToken = ""
+    var channelID = ""
+    var credentialsSaved = false
+    var channelConnected = false
+    var isConnecting = false
+    var reauthNeeded = false
+    var statusMessage = ""
+    var channelValidationState: ChannelValidationState = .idle
+    var testAuthResult: TestAuthResult = .idle
 
     // MARK: - Test Auth State
 
@@ -130,13 +131,13 @@ final class TwitchViewModel: ObservableObject {
     }
 
     /// Current OAuth authentication state
-    @Published var authState = AuthState.idle
+    var authState = AuthState.idle
 
     /// Cached reference to the Twitch chat service
-    private var cachedTwitchService: TwitchChatService?
-    
+    @ObservationIgnored private var cachedTwitchService: TwitchChatService?
+
     /// Lock for thread-safe access to cached service
-    private let serviceLock = NSLock()
+    @ObservationIgnored private let serviceLock = NSLock()
 
     /// Reference to the Twitch chat service with fallback to AppDelegate
     var twitchService: TwitchChatService? {
@@ -186,17 +187,17 @@ final class TwitchViewModel: ObservableObject {
     }
 
     /// Background task for polling token during OAuth flow
-    var devicePollingTask: Task<Void, Never>?
+    @ObservationIgnored var devicePollingTask: Task<Void, Never>?
     /// Outer task that drives the overall OAuth flow (request + polling)
-    var oAuthTask: Task<Void, Never>?
+    @ObservationIgnored var oAuthTask: Task<Void, Never>?
     /// Debounce task for saving channel ID to avoid excessive Keychain writes
-    private var channelIDSaveTask: Task<Void, Never>?
-    private var pendingAuthResetTask: Task<Void, Never>?
-    private var pendingTestAuthTask: Task<Void, Never>?
+    @ObservationIgnored private var channelIDSaveTask: Task<Void, Never>?
+    @ObservationIgnored private var pendingAuthResetTask: Task<Void, Never>?
+    @ObservationIgnored private var pendingTestAuthTask: Task<Void, Never>?
 
     /// Tracked notification observer tokens for proper cleanup
-    private var reauthObserver: NSObjectProtocol?
-    private var connectionObserver: NSObjectProtocol?
+    @ObservationIgnored private var reauthObserver: NSObjectProtocol?
+    @ObservationIgnored private var connectionObserver: NSObjectProtocol?
 
     // MARK: - Initialization
 
@@ -349,22 +350,23 @@ final class TwitchViewModel: ObservableObject {
     }
 
     deinit {
-        devicePollingTask?.cancel()
-        oAuthTask?.cancel()
-        channelIDSaveTask?.cancel()
-        pendingAuthResetTask?.cancel()
-        pendingTestAuthTask?.cancel()
-        if let token = reauthObserver {
-            NotificationCenter.default.removeObserver(token)
+        MainActor.assumeIsolated {
+            devicePollingTask?.cancel()
+            oAuthTask?.cancel()
+            channelIDSaveTask?.cancel()
+            pendingAuthResetTask?.cancel()
+            pendingTestAuthTask?.cancel()
+            if let token = reauthObserver {
+                NotificationCenter.default.removeObserver(token)
+            }
+            if let token = connectionObserver {
+                NotificationCenter.default.removeObserver(token)
+            }
+
+            serviceLock.lock()
+            cachedTwitchService = nil
+            serviceLock.unlock()
         }
-        if let token = connectionObserver {
-            NotificationCenter.default.removeObserver(token)
-        }
-        
-        // Clean up service lock
-        serviceLock.lock()
-        cachedTwitchService = nil
-        serviceLock.unlock()
     }
 
     /// Initiates the OAuth Device Code flow.

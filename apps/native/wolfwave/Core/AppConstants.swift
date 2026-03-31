@@ -294,68 +294,54 @@ enum AppConstants {
         /// Terms of service page URL
         static let termsOfService = "https://mrdemonwolf.github.io/wolfwave/docs/terms-of-service"
 
-        /// Resolves the GitHub repository owner from Info.plist or environment.
+        /// GitHub repository owner (cached at first access).
         ///
         /// Lookup order:
         /// 1. `GITHUB_REPO_OWNER` key in Info.plist (expanded from Config.xcconfig at build time)
         /// 2. `GITHUB_REPO_OWNER` environment variable (for dev/CI overrides)
         /// 3. Fallback to "mrdemonwolf"
-        ///
-        /// - Returns: The repository owner string.
-        static func resolveGitHubRepoOwner() -> String {
+        static let repoOwner: String = {
             if let plistValue = Bundle.main.object(forInfoDictionaryKey: "GITHUB_REPO_OWNER") as? String {
                 let trimmed = plistValue.trimmingCharacters(in: .whitespacesAndNewlines)
                 if !trimmed.isEmpty, trimmed != "$(GITHUB_REPO_OWNER)" {
                     return trimmed
                 }
             }
-
             if let env = ProcessInfo.processInfo.environment["GITHUB_REPO_OWNER"] {
                 let trimmed = env.trimmingCharacters(in: .whitespacesAndNewlines)
                 if !trimmed.isEmpty { return trimmed }
             }
-
             return "mrdemonwolf"
-        }
+        }()
 
-        /// Resolves the GitHub repository name from Info.plist or environment.
+        /// GitHub repository name (cached at first access).
         ///
         /// Lookup order:
         /// 1. `GITHUB_REPO_NAME` key in Info.plist (expanded from Config.xcconfig at build time)
         /// 2. `GITHUB_REPO_NAME` environment variable (for dev/CI overrides)
         /// 3. Fallback to "wolfwave"
-        ///
-        /// - Returns: The repository name string.
-        static func resolveGitHubRepoName() -> String {
+        static let repoName: String = {
             if let plistValue = Bundle.main.object(forInfoDictionaryKey: "GITHUB_REPO_NAME") as? String {
                 let trimmed = plistValue.trimmingCharacters(in: .whitespacesAndNewlines)
                 if !trimmed.isEmpty, trimmed != "$(GITHUB_REPO_NAME)" {
                     return trimmed
                 }
             }
-
             if let env = ProcessInfo.processInfo.environment["GITHUB_REPO_NAME"] {
                 let trimmed = env.trimmingCharacters(in: .whitespacesAndNewlines)
                 if !trimmed.isEmpty { return trimmed }
             }
-
             return "wolfwave"
-        }
+        }()
 
         /// GitHub repository URL (resolved from config)
-        static var github: String {
-            "https://github.com/\(resolveGitHubRepoOwner())/\(resolveGitHubRepoName())"
-        }
+        static let github = "https://github.com/\(repoOwner)/\(repoName)"
 
         /// GitHub Releases API endpoint (resolved from config)
-        static var githubReleasesAPI: String {
-            "https://api.github.com/repos/\(resolveGitHubRepoOwner())/\(resolveGitHubRepoName())/releases/latest"
-        }
+        static let githubReleasesAPI = "https://api.github.com/repos/\(repoOwner)/\(repoName)/releases/latest"
 
         /// GitHub Releases page URL (resolved from config)
-        static var githubReleases: String {
-            "https://github.com/\(resolveGitHubRepoOwner())/\(resolveGitHubRepoName())/releases"
-        }
+        static let githubReleases = "https://github.com/\(repoOwner)/\(repoName)/releases"
     }
 
     // MARK: - WebSocket Server

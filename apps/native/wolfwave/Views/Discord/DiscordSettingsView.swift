@@ -61,6 +61,7 @@ struct DiscordSettingsView: View {
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
             }
+            .accessibilityElement(children: .combine)
 
             // Toggle Card
             ToggleSettingRow(
@@ -110,6 +111,12 @@ struct DiscordSettingsView: View {
                     .pointerCursor()
                     .help("Checks if Discord is open and ready.")
                     .accessibilityLabel("Test Discord connection")
+                    .accessibilityHint("Checks if Discord is open and ready to receive status updates")
+                    .accessibilityValue(
+                        testConnectionResult == .success ? "Connected" :
+                        testConnectionResult == .failure ? "Failed" :
+                        testConnectionResult == .testing ? "Testing" : "Not tested"
+                    )
                     .accessibilityIdentifier("discordTestConnectionButton")
 
                     Spacer()

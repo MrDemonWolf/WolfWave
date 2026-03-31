@@ -7,6 +7,25 @@ description: Release history for WolfWave
 
 All notable changes to WolfWave are documented here.
 
+## v1.0.1 — March 30, 2026
+
+### Changed
+- Dropped Intel (x86_64) support — Apple Silicon only
+- Raised minimum macOS version to 26.0 (Tahoe)
+- Logger: replaced NSLock with serial DispatchQueue for thread-safe file I/O
+- TwitchChatService/DiscordRPCService: documented thread safety patterns
+- KeychainService: added error logging for all Keychain operations
+- AppConstants: cached GitHub repo resolution
+- Migrated TwitchViewModel and OnboardingViewModel to @Observable macro
+- WhatsNewView: dynamic version string, native button style, v1.0.1 feature highlights
+- Narrowed entitlements file exception path
+- Added Twitch user ID redaction to log output
+- NotificationCenter observers properly cleaned up on app termination
+- Windows (Settings, Onboarding, What's New) properly released on close
+- Deferred Sparkle/onboarding init past initial layout to fix layoutSubtreeIfNeeded warning
+- Removed duplicate "up to date" alert (Sparkle handles it natively)
+- Added VoiceOver accessibility labels across all settings and onboarding views
+
 ## v1.0.0 — March 30, 2026
 
 ### Added

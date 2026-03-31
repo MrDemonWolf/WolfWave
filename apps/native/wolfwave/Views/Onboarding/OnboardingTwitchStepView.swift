@@ -22,7 +22,7 @@ struct OnboardingTwitchStepView: View {
     // MARK: - Properties
 
     /// Shared Twitch view model managing auth state and credentials.
-    @ObservedObject var twitchViewModel: TwitchViewModel
+    @Bindable var twitchViewModel: TwitchViewModel
 
     /// Whether the user has clicked the activation link or copied the code.
     @State private var hasStartedActivation = false
@@ -102,6 +102,7 @@ struct OnboardingTwitchStepView: View {
             .controlSize(.regular)
             .pointerCursor()
             .accessibilityLabel("Sign in with Twitch authorization")
+            .accessibilityHint("Starts the Twitch device code authorization flow")
         }
     }
 
@@ -142,6 +143,8 @@ struct OnboardingTwitchStepView: View {
                 .tint(.red)
                 .controlSize(.small)
                 .pointerCursor()
+                .accessibilityLabel("Cancel authorization")
+                .accessibilityHint("Stops the Twitch sign-in process")
             }
         }
     }
@@ -153,6 +156,7 @@ struct OnboardingTwitchStepView: View {
             Image(systemName: "checkmark.circle.fill")
                 .font(.system(size: 36))
                 .foregroundStyle(.green)
+                .accessibilityHidden(true)
 
             Text("Connected as \(twitchViewModel.botUsername)")
                 .font(.system(size: 15, weight: .semibold))
@@ -162,6 +166,8 @@ struct OnboardingTwitchStepView: View {
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
         }
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("Twitch connected as \(twitchViewModel.botUsername). You're all set.")
     }
 
     // MARK: - Error
@@ -179,6 +185,8 @@ struct OnboardingTwitchStepView: View {
             }
             .buttonStyle(.bordered)
             .pointerCursor()
+            .accessibilityLabel("Try again")
+            .accessibilityHint("Retries the Twitch authorization process")
         }
     }
 }
