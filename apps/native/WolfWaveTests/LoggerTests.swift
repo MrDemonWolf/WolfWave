@@ -100,6 +100,7 @@ struct LoggerTests {
         let uniqueID = UUID().uuidString
         let message = "Normal log message with no sensitive data \(uniqueID)"
         Log.info(message, category: "Test")
+        Log.flush()
 
         guard let logURL = Log.exportLogFile() else {
             Issue.record("Failed to export log file")
@@ -136,9 +137,10 @@ struct LoggerTests {
     @Test("Log file contains expected content")
     func testLogFileContent() async throws {
         let testMessage = "Test log message \(UUID().uuidString)"
-        
+
         Log.info(testMessage, category: "TestCategory")
-        
+        Log.flush()
+
         // Export and read log file
         guard let logURL = Log.exportLogFile() else {
             Issue.record("Failed to export log file")
