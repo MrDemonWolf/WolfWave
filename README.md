@@ -64,7 +64,8 @@ Enable in **Settings > Now-Playing Widget** to start a local WebSocket server th
 
 ### Prerequisites
 
-- macOS 15.0+
+- macOS 26.0+ (Tahoe)
+- Apple Silicon (M1 or later)
 - Xcode 16.0+
 - Swift 5.9+
 - [bun](https://bun.sh) (for docs, marketing, and monorepo scripts)
