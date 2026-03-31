@@ -21,7 +21,7 @@ import SwiftUI
 ///
 /// Displays a macOS-native dialog with device code authorization flow.
 struct TwitchReauthView: View {
-    @ObservedObject var viewModel: TwitchViewModel
+    var viewModel: TwitchViewModel
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {

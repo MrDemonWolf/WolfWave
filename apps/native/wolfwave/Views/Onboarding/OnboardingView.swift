@@ -15,8 +15,8 @@ struct OnboardingView: View {
 
     // MARK: - State
 
-    @StateObject private var viewModel = OnboardingViewModel()
-    @StateObject private var twitchViewModel = TwitchViewModel()
+    @State private var viewModel = OnboardingViewModel()
+    @State private var twitchViewModel = TwitchViewModel()
 
     @AppStorage(AppConstants.UserDefaults.discordPresenceEnabled)
     private var discordPresenceEnabled = false
@@ -76,8 +76,12 @@ struct OnboardingView: View {
                     .frame(width: 8, height: 8)
                     .scaleEffect(step == viewModel.currentStep ? 1.3 : 1.0)
                     .animation(.spring(response: 0.3, dampingFraction: 0.6), value: viewModel.currentStep)
+                    .accessibilityHidden(true)
             }
         }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("Setup progress")
+        .accessibilityValue("Step \(viewModel.currentStep.rawValue + 1) of \(OnboardingViewModel.OnboardingStep.allCases.count)")
     }
 
     // MARK: - Step Content
@@ -120,6 +124,8 @@ struct OnboardingView: View {
                 .pointerCursor()
                 .opacity(viewModel.isFirstStep ? 0 : 1)
                 .disabled(viewModel.isFirstStep)
+                .accessibilityLabel("Go back")
+                .accessibilityHint("Returns to the previous setup step")
 
                 Button("Skip All") {
                     finishOnboarding()
@@ -129,6 +135,8 @@ struct OnboardingView: View {
                 .pointerCursor()
                 .opacity(viewModel.isFirstStep ? 1 : 0)
                 .disabled(!viewModel.isFirstStep)
+                .accessibilityLabel("Skip all steps")
+                .accessibilityHint("Skips the setup wizard and uses default settings")
             }
 
             Spacer()
@@ -144,6 +152,8 @@ struct OnboardingView: View {
             .pointerCursor()
             .opacity(shouldShowSkip ? 1 : 0)
             .disabled(!shouldShowSkip)
+            .accessibilityLabel("Skip this step")
+            .accessibilityHint("Skips the current setup step without making changes")
 
             if viewModel.isLastStep {
                 Button("Finish") {
@@ -152,6 +162,8 @@ struct OnboardingView: View {
                 .buttonStyle(.borderedProminent)
                 .controlSize(.regular)
                 .pointerCursor()
+                .accessibilityLabel("Finish setup")
+                .accessibilityHint("Completes the setup wizard and starts using WolfWave")
             } else {
                 Button("Next") {
                     navigationDirection = .trailing
@@ -161,6 +173,8 @@ struct OnboardingView: View {
                 .buttonStyle(.borderedProminent)
                 .controlSize(.regular)
                 .pointerCursor()
+                .accessibilityLabel("Next step")
+                .accessibilityHint("Continues to the next setup step")
             }
         }
         .transaction { $0.animation = nil }

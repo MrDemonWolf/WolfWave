@@ -29,7 +29,7 @@ import SwiftUI
 // MARK: - Twitch Settings View
 
 struct TwitchSettingsView: View {
-    @ObservedObject var viewModel: TwitchViewModel
+    @Bindable var viewModel: TwitchViewModel
     @State private var hasStartedActivation = false
 
     var body: some View {
@@ -161,6 +161,7 @@ struct TwitchSettingsView: View {
                             .easeInOut(duration: 0.12), value: viewModel.authState.isInProgress
                         )
                         .accessibilityLabel("Sign in with Twitch")
+                        .accessibilityHint("Starts the Twitch authorization flow")
                     }
 
                 case .authorizing:
@@ -220,6 +221,8 @@ struct TwitchSettingsView: View {
                             .tint(.red)
                             .controlSize(.small)
                             .pointerCursor()
+                            .accessibilityLabel("Cancel authorization")
+                            .accessibilityHint("Stops the Twitch sign-in process")
                         }
                     }
 
@@ -250,6 +253,8 @@ struct TwitchSettingsView: View {
                             Button("Retry") { viewModel.startOAuth() }
                                 .buttonStyle(.bordered)
                                 .pointerCursor()
+                                .accessibilityLabel("Retry Twitch authorization")
+                                .accessibilityHint("Tries the Twitch sign-in process again")
                             Spacer()
                         }
                     }
@@ -311,6 +316,9 @@ private struct SignedInView: View {
         }
         .padding(.horizontal, AppConstants.SettingsUI.cardPadding)
         .padding(.vertical, 12)
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("Bot account: \(botUsername.isEmpty ? "Not set" : botUsername)")
+        .accessibilityValue(reauthNeeded ? "Re-authorization needed" : "Authorized")
     }
 
     private var channelSection: some View {
@@ -348,6 +356,8 @@ private struct SignedInView: View {
                     .foregroundStyle(.secondary)
             }
             .padding(.top, 6)
+            .accessibilityElement(children: .combine)
+            .accessibilityLabel("Verifying channel")
         case .valid:
             HStack(spacing: 4) {
                 Image(systemName: "checkmark.circle.fill")
@@ -358,6 +368,8 @@ private struct SignedInView: View {
                     .foregroundStyle(.green)
             }
             .padding(.top, 6)
+            .accessibilityElement(children: .combine)
+            .accessibilityLabel("Channel verified successfully")
         case .invalid:
             HStack(spacing: 4) {
                 Image(systemName: "xmark.circle.fill")
@@ -368,6 +380,8 @@ private struct SignedInView: View {
                     .foregroundStyle(.red)
             }
             .padding(.top, 6)
+            .accessibilityElement(children: .combine)
+            .accessibilityLabel("Channel not found")
         case .error(let message):
             HStack(spacing: 4) {
                 Image(systemName: "exclamationmark.triangle.fill")
@@ -379,6 +393,8 @@ private struct SignedInView: View {
                     .help(message)
             }
             .padding(.top, 6)
+            .accessibilityElement(children: .combine)
+            .accessibilityLabel("Channel validation error: \(message)")
         }
     }
 
@@ -427,10 +443,12 @@ private struct SignedInView: View {
             Image(systemName: "wifi")
                 .foregroundStyle(.green)
                 .font(.system(size: 14))
+                .accessibilityLabel("Connected to channel")
         case (false, true):
             Image(systemName: "wifi.slash")
                 .foregroundStyle(.orange)
                 .font(.system(size: 14))
+                .accessibilityLabel("Disconnected, re-authorization needed")
         case (false, false):
             EmptyView()
         }
@@ -448,6 +466,7 @@ private struct SignedInView: View {
                 .controlSize(.small)
                 .pointerCursor()
                 .accessibilityLabel("Re-authorize Twitch account")
+                .accessibilityHint("Clears credentials and starts a new sign-in")
                 .accessibilityIdentifier("twitchReauthButton")
             } else {
                 Button(action: {
@@ -481,6 +500,10 @@ private struct SignedInView: View {
                 .accessibilityLabel(
                     isChannelConnected ? "Disconnect from channel" : "Connect to channel"
                 )
+                .accessibilityHint(
+                    isChannelConnected ? "Disconnects the bot from the Twitch channel" : "Connects the bot to the Twitch channel"
+                )
+                .accessibilityValue(isChannelConnected ? "Connected" : "Disconnected")
                 .accessibilityIdentifier("twitchConnectButton")
 
                 Button(action: onTestConnection) {
@@ -513,6 +536,12 @@ private struct SignedInView: View {
                 .animation(.easeInOut(duration: 0.2), value: testAuthResult)
                 .help("Validates your Twitch token and checks required permissions")
                 .accessibilityLabel("Test Twitch token validity")
+                .accessibilityHint("Validates your Twitch token and checks required permissions")
+                .accessibilityValue(
+                    testAuthResult == .success ? "Passed" :
+                    testAuthResult == .failure ? "Failed" :
+                    testAuthResult == .testing ? "Testing" : "Not tested"
+                )
                 .accessibilityIdentifier("twitchTestConnectionButton")
             }
 
