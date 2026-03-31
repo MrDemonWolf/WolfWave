@@ -327,6 +327,7 @@ struct AdvancedSettingsView: View {
                         .background(Color.accentColor)
                         .clipShape(Capsule())
                         .transition(.opacity)
+                        .accessibilityLabel("Version \(version) available for update")
                 }
             }
 
@@ -392,6 +393,9 @@ struct AdvancedSettingsView: View {
                 ))
                 .toggleStyle(.checkbox)
                 .font(.system(size: 12))
+                .accessibilityLabel("Check for updates automatically")
+                .accessibilityHint("Enables periodic background checks for new versions")
+                .accessibilityValue(updateCheckEnabled ? "Enabled" : "Disabled")
                 #if DEBUG
                 .disabled(true)
                 .opacity(0.5)
@@ -423,6 +427,8 @@ struct AdvancedSettingsView: View {
                 .disabled(isCheckingForUpdates)
                 .pointerCursor()
                 .accessibilityLabel("Check for updates now")
+                .accessibilityHint("Manually checks for a newer version of WolfWave")
+                .accessibilityValue(isCheckingForUpdates ? "Checking" : "Idle")
                 #if DEBUG
                 .disabled(true)
                 .opacity(0.5)

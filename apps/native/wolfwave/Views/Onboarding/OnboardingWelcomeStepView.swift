@@ -124,6 +124,7 @@ struct OnboardingWelcomeStepView: View {
                 .frame(width: 18, height: 18)
                 .foregroundStyle(color)
                 .frame(width: 28, alignment: .center)
+                .accessibilityHidden(true)
 
             VStack(alignment: .leading, spacing: 2) {
                 Text(title)
@@ -134,6 +135,8 @@ struct OnboardingWelcomeStepView: View {
                     .fixedSize(horizontal: false, vertical: true)
             }
         }
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("\(title). \(description)")
     }
 
     @ViewBuilder
@@ -146,6 +149,7 @@ struct OnboardingWelcomeStepView: View {
                 .frame(width: 18, height: 18)
                 .foregroundStyle(color)
                 .frame(width: 28, alignment: .center)
+                .accessibilityHidden(true)
 
             VStack(alignment: .leading, spacing: 2) {
                 Text(title)
@@ -156,6 +160,8 @@ struct OnboardingWelcomeStepView: View {
                     .fixedSize(horizontal: false, vertical: true)
             }
         }
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("\(title). \(description)")
     }
 }
 

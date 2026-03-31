@@ -52,6 +52,7 @@ struct ToggleSettingRow: View {
             .accessibilityLabel(accessibilityLabel)
             .accessibilityIdentifier(accessibilityIdentifier)
             .accessibilityHint(accessibilityHint ?? "")
+            .accessibilityValue(isOn ? "Enabled" : "Disabled")
             .onChange(of: isOn) { _, newValue in
                 onChange?(newValue)
             }

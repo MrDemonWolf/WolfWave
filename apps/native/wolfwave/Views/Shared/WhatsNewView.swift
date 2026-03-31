@@ -21,12 +21,12 @@ struct WhatsNewView: View {
     private static let discordIndigo = Color(red: 0.35, green: 0.40, blue: 0.95)
 
     private let features: [(icon: String, iconColor: Color, title: String, description: String)] = [
-        ("music.note", .pink, "Music Sync", "Real-time Apple Music tracking with ScriptingBridge"),
-        ("bubble.left.fill", twitchPurple, "Twitch Chat Bot", "!song and !last commands with cooldowns"),
-        ("headphones", discordIndigo, "Discord Status", "Rich Presence with album art"),
-        ("tv", .blue, "Now-Playing Widget", "Customizable OBS browser source overlay"),
-        ("arrow.triangle.2.circlepath", .green, "Auto Updates", "Sparkle-powered updates for DMG installs"),
-        ("lock.shield", .orange, "Secure by Default", "All credentials in macOS Keychain")
+        ("apple.logo", .primary, "macOS Tahoe", "Built exclusively for macOS 26"),
+        ("cpu", .blue, "Apple Silicon Only", "Optimized for M-series chips"),
+        ("shield.checkered", .green, "Security Hardened", "Tighter entitlements and token validation"),
+        ("figure.stand", twitchPurple, "Accessibility", "Full VoiceOver support across all settings"),
+        ("swift", .orange, "Modern Swift", "Async/await, @Observable, and actor isolation"),
+        ("testtube.2", .mint, "Better Testing", "End-to-end test coverage for all major flows")
     ]
 
     // MARK: - Body
@@ -59,6 +59,8 @@ struct WhatsNewView: View {
             }
             .buttonStyle(.borderedProminent)
             .controlSize(.large)
+            .accessibilityLabel("Get Started")
+            .accessibilityHint("Dismisses the what's new screen")
         }
         .padding(24)
         .frame(idealWidth: 420, idealHeight: 500)
@@ -88,6 +90,8 @@ struct WhatsNewView: View {
             Spacer()
         }
         .cardStyle()
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("\(feature.title). \(feature.description)")
     }
 }
 

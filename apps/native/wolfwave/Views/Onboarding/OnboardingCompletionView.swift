@@ -73,11 +73,14 @@ struct OnboardingCompletionView: View {
                         : .spring(response: 0.5, dampingFraction: 0.6),
                     value: showCheck
                 )
+                .accessibilityHidden(true)
 
             Spacer()
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(Color(nsColor: .windowBackgroundColor))
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("Setup complete. WolfWave is running in your menu bar.")
         .task {
             if reduceMotion {
                 showIcon = true
