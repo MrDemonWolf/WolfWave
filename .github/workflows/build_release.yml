@@ -139,41 +139,8 @@ jobs:
           DMG_NAME: ${{ steps.version.outputs.dmg_name }}
           APP_PATH: ${{ steps.app.outputs.path }}
         run: |
-          mkdir -p builds/staging
-          cp -R "$APP_PATH" builds/staging/
-          ln -sf /Applications builds/staging/Applications
-          hdiutil create -srcfolder builds/staging \
-            -volname "WolfWave" -fs HFS+ -format UDRW -ov \
-            builds/_tmp.dmg >/dev/null
-          MOUNTPOINT=$(hdiutil attach -readwrite -noverify -noautoopen \
-            builds/_tmp.dmg | sed -n 's|.*\(/Volumes/.*\)|\1|p')
-          sleep 1
-          osascript \
-            -e 'tell application "Finder"' \
-            -e '  tell disk "WolfWave"' \
-            -e '    open' \
-            -e '    set current view of container window to icon view' \
-            -e '    set toolbar visible of container window to false' \
-            -e '    set statusbar visible of container window to false' \
-            -e '    set the bounds of container window to {200, 200, 740, 520}' \
-            -e '    set viewOptions to the icon view options of container window' \
-            -e '    set arrangement of viewOptions to not arranged' \
-            -e '    set icon size of viewOptions to 100' \
-            -e '    set text size of viewOptions to 12' \
-            -e '    set position of item "WolfWave.app" of container window to {140, 160}' \
-            -e '    set position of item "Applications" of container window to {400, 160}' \
-            -e '    close' \
-            -e '    open' \
-            -e '    delay 1' \
-            -e '  end tell' \
-            -e 'end tell' 2>/dev/null || true
-          sync; sleep 1
-          hdiutil detach "$MOUNTPOINT" -quiet 2>/dev/null || true
-          sleep 1
-          hdiutil convert builds/_tmp.dmg -format UDZO \
-            -imagekey zlib-level=9 -o "builds/$DMG_NAME" >/dev/null
-          rm -f builds/_tmp.dmg && rm -rf builds/staging
-          echo "DMG: builds/$DMG_NAME"
+          chmod +x scripts/create-dmg.sh
+          scripts/create-dmg.sh "$APP_PATH" "$DMG_NAME" builds
 
       - name: Sign DMG
         env:

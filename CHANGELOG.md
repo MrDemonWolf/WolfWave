@@ -4,6 +4,14 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.1.0] - 2026-03-31
+
+### Added
+
+- Discord Rich Presence now shows two buttons: **Open in Apple Music** (direct track link) and **song.link** (universal link for all platforms — Spotify, YouTube Music, etc.)
+- Launch at Login toggle in Settings → App Visibility — starts WolfWave automatically on login (powered by `SMAppService`). "Dock Only" display mode is disabled when this is on.
+- DMG installer now includes a custom background image for a polished install experience
+
 ## [1.0.2] - 2026-03-31
 
 ### Fixed

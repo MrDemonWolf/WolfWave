@@ -217,30 +217,40 @@ final class DiscordRPCService: @unchecked Sendable {
         ipcQueue.async { [weak self] in
             guard let self, self.state == .connected else { return }
 
-            // Check shared artwork cache for immediate use
-            let cachedArtwork = ArtworkService.shared.cachedArtworkURL(track: track, artist: artist)
+            // Check shared cache for immediate use (artwork + track links)
+            let cached = ArtworkService.shared.cachedTrackLinks(track: track, artist: artist)
             self.sendPresenceActivity(
                 track: track, artist: artist, album: album,
-                artworkURL: cachedArtwork,
-                duration: duration, elapsed: elapsed
+                artworkURL: cached.artworkURL,
+                duration: duration, elapsed: elapsed,
+                appleMusicURL: cached.trackViewURL,
+                songLinkURL: cached.songLinkURL
             )
 
-            // Fetch artwork asynchronously on cache miss
-            if cachedArtwork == nil {
-                self.fetchArtworkURL(track: track, artist: artist) { [weak self] url in
-                    guard let self, let url else { return }
+            // Fetch track links asynchronously on cache miss
+            if cached.artworkURL == nil {
+                ArtworkService.shared.fetchTrackLinks(track: track, artist: artist) { [weak self] links in
+                    guard let self else { return }
+                    // Re-send if any link resolved — buttons can appear even without artwork
+                    let hasNewData = links.artworkURL != nil
+                        || links.trackViewURL != nil
+                        || links.songLinkURL != nil
+                    guard hasNewData else { return }
                     self.ipcQueue.async {
                         guard self.state == .connected else { return }
-                        // Re-send presence with the artwork
                         self.sendPresenceActivity(
                             track: track, artist: artist, album: album,
-                            artworkURL: url,
-                            duration: duration, elapsed: elapsed
+                            artworkURL: links.artworkURL,
+                            duration: duration, elapsed: elapsed,
+                            appleMusicURL: links.trackViewURL,
+                            songLinkURL: links.songLinkURL
                         )
                     }
-                    // Notify listeners (e.g., WebSocket server) of the resolved artwork
-                    DispatchQueue.main.async { [weak self] in
-                        self?.onArtworkResolved?(url, track, artist)
+                    // Notify listeners (e.g., WebSocket server) only when artwork is resolved
+                    if let artworkURL = links.artworkURL {
+                        DispatchQueue.main.async { [weak self] in
+                            self?.onArtworkResolved?(artworkURL, track, artist)
+                        }
                     }
                 }
             }
@@ -296,7 +306,9 @@ final class DiscordRPCService: @unchecked Sendable {
         album: String,
         artworkURL: String?,
         duration: TimeInterval,
-        elapsed: TimeInterval
+        elapsed: TimeInterval,
+        appleMusicURL: String? = nil,
+        songLinkURL: String? = nil
     ) {
         var activity: [String: Any] = [
             "type": AppConstants.Discord.listeningActivityType,
@@ -328,6 +340,18 @@ final class DiscordRPCService: @unchecked Sendable {
             ]
         }
 
+        // Buttons — shown on the Discord profile card (max 2)
+        var buttons: [[String: String]] = []
+        if let appleMusicURL {
+            buttons.append(["label": "Open in Apple Music", "url": appleMusicURL])
+        }
+        if let songLinkURL {
+            buttons.append(["label": "song.link", "url": songLinkURL])
+        }
+        if !buttons.isEmpty {
+            activity["buttons"] = buttons
+        }
+
         let payload: [String: Any] = [
             "cmd": "SET_ACTIVITY",
             "args": [
@@ -338,21 +362,6 @@ final class DiscordRPCService: @unchecked Sendable {
         ]
 
         sendFrame(opcode: .frame, payload: payload)
-    }
-
-    // MARK: - Artwork Lookup
-
-    /// Fetches album artwork URL via the shared ArtworkService.
-    ///
-    /// Delegates to `ArtworkService.shared` which provides a unified cache
-    /// and single API layer for all artwork lookups across the app.
-    ///
-    /// - Parameters:
-    ///   - track: Song title.
-    ///   - artist: Artist name.
-    ///   - completion: Called with the artwork URL, or nil if not found or on error.
-    private func fetchArtworkURL(track: String, artist: String, completion: @escaping (String?) -> Void) {
-        ArtworkService.shared.fetchArtworkURL(track: track, artist: artist, completion: completion)
     }
 
     // MARK: - Client ID Resolution

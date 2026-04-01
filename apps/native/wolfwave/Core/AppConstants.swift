@@ -103,6 +103,9 @@ enum AppConstants {
         /// Whether Discord Rich Presence is enabled (Bool, default: false)
         static let discordPresenceEnabled = "discordPresenceEnabled"
 
+        /// Whether the app should launch at login (Bool, default: false)
+        static let launchAtLogin = "launchAtLogin"
+
         /// WebSocket server port number (UInt16, default: 8765)
         static let websocketServerPort = "websocketServerPort"
 

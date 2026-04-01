@@ -1,0 +1,76 @@
+name: Update Homebrew Cask
+
+on:
+  release:
+    types: [published]
+
+jobs:
+  update-cask:
+    name: Update wolfwave cask in homebrew-den
+    runs-on: ubuntu-latest
+    steps:
+      - name: Extract version
+        id: version
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "dmg_name=WolfWave-${VERSION}.dmg" >> "$GITHUB_OUTPUT"
+          echo "Version: $VERSION"
+
+      - name: Download DMG and compute SHA256
+        id: sha
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+          DMG_NAME: ${{ steps.version.outputs.dmg_name }}
+        run: |
+          URL="https://github.com/MrDemonWolf/wolfwave/releases/download/v${VERSION}/${DMG_NAME}"
+          echo "Downloading $URL"
+          curl -fsSL -o "$DMG_NAME" "$URL"
+          SHA256=$(sha256sum "$DMG_NAME" | awk '{print $1}')
+          echo "sha256=$SHA256" >> "$GITHUB_OUTPUT"
+          echo "SHA256: $SHA256"
+
+      - name: Checkout homebrew-den
+        uses: actions/checkout@v6
+        with:
+          repository: MrDemonWolf/homebrew-den
+          token: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+          path: homebrew-den
+
+      - name: Update cask file
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+          SHA256: ${{ steps.sha.outputs.sha256 }}
+        run: |
+          CASK="homebrew-den/Casks/wolfwave.rb"
+          sed -i "s/version \".*\"/version \"${VERSION}\"/" "$CASK"
+          sed -i "s/sha256 \".*\"/sha256 \"${SHA256}\"/" "$CASK"
+          echo "Updated cask:"
+          cat "$CASK"
+
+      - name: Open PR against homebrew-den
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+          GH_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+        run: |
+          cd homebrew-den
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          BRANCH="wolfwave-v${VERSION}"
+          git checkout -b "$BRANCH"
+          git add Casks/wolfwave.rb
+          git commit -m "chore: bump wolfwave cask to v${VERSION}"
+          git push origin "$BRANCH"
+
+          gh pr create \
+            --repo MrDemonWolf/homebrew-den \
+            --title "chore: bump wolfwave cask to v${VERSION}" \
+            --body "Automated cask update for WolfWave v${VERSION}.
+
+- Version: \`${VERSION}\`
+- SHA256 updated from released DMG
+
+Triggered by [wolfwave release v${VERSION}](https://github.com/MrDemonWolf/wolfwave/releases/tag/v${VERSION})." \
+            --base main \
+            --head "$BRANCH"
