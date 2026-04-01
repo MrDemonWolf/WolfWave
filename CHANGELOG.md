@@ -8,9 +8,15 @@ All notable changes to this project will be documented in this file.
 
 ### Added
 
-- Discord Rich Presence now shows two buttons: **Open in Apple Music** (direct track link) and **song.link** (universal link for all platforms — Spotify, YouTube Music, etc.)
-- Launch at Login toggle in Settings → App Visibility — starts WolfWave automatically on login (powered by `SMAppService`). "Dock Only" display mode is disabled when this is on.
-- DMG installer now includes a custom background image for a polished install experience
+- **Discord buttons** — Rich Presence now shows two clickable buttons: **Open in Apple Music** (direct track link) and **song.link** (opens on Spotify, YouTube Music, Tidal, and more). Buttons appear whenever a track link resolves, even if artwork isn't available.
+- **Launch at Login** — new toggle in Settings → App Visibility. Uses `SMAppService` so it appears in System Settings → General → Login Items. Enabling it automatically switches "Dock Only" mode to "Dock and Menu Bar" so the app is always reachable.
+- **Custom DMG background** — installer window now has a polished dark background with the WolfWave brand colors and a drag-to-Applications arrow.
+- **Homebrew auto-update** — a GitHub Actions workflow now automatically opens a pull request on the Homebrew tap whenever a new release is published.
+
+### Fixed
+
+- iTunes Search API URL encoding — track and artist names containing `&`, `+`, or `=` no longer produce broken artwork/link lookups (switched to `URLComponents` + `URLQueryItem`).
+- Launch at Login toggle now reverts if `SMAppService` registration fails, preventing a mismatch between the UI and actual system state.
 
 ## [1.0.2] - 2026-03-31
 
