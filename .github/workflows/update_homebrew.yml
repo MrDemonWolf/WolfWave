@@ -63,14 +63,16 @@ jobs:
           git commit -m "chore: bump wolfwave cask to v${VERSION}"
           git push origin "$BRANCH"
 
-          gh pr create \
-            --repo MrDemonWolf/homebrew-den \
-            --title "chore: bump wolfwave cask to v${VERSION}" \
-            --body "Automated cask update for WolfWave v${VERSION}.
+          BODY="Automated cask update for WolfWave v${VERSION}.
 
 - Version: \`${VERSION}\`
 - SHA256 updated from released DMG
 
-Triggered by [wolfwave release v${VERSION}](https://github.com/MrDemonWolf/wolfwave/releases/tag/v${VERSION})." \
+Triggered by [wolfwave release v${VERSION}](https://github.com/MrDemonWolf/wolfwave/releases/tag/v${VERSION})."
+
+          gh pr create \
+            --repo MrDemonWolf/homebrew-den \
+            --title "chore: bump wolfwave cask to v${VERSION}" \
+            --body "$BODY" \
             --base main \
             --head "$BRANCH"
