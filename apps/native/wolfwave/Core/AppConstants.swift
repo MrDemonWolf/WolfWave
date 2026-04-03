@@ -65,6 +65,7 @@ enum AppConstants {
 
         /// Posted when Twitch chat connection state changes. UserInfo contains "isConnected" Bool.
         static let twitchConnectionStateChanged = "TwitchChatConnectionStateChanged"
+
     }
     
     // MARK: - UserDefaults Keys
@@ -151,6 +152,7 @@ enum AppConstants {
 
         /// Whether the widget HTTP server is enabled (Bool, default: false)
         static let widgetHTTPEnabled = "widgetHTTPEnabled"
+
     }
     
     // MARK: - Dock Visibility Modes
@@ -388,6 +390,8 @@ enum AppConstants {
 
         /// Queue for WebSocket server operations
         static let websocketServer = "com.mrdemonwolf.wolfwave.websocketserver"
+
+        static let systemNowPlaying = "com.mrdemonwolf.wolfwave.systemnowplaying"
     }
     
     // MARK: - UI Dimensions

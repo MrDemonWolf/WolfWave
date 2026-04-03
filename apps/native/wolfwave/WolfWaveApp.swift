@@ -40,7 +40,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMenuDele
     // MARK: - Properties
 
     var statusItem: NSStatusItem?
-    var musicMonitor: MusicPlaybackMonitor?
+    var playbackSourceManager: PlaybackSourceManager?
     var settingsWindow: NSWindow?
     var onboardingWindow: NSWindow?
     var whatsNewWindow: NSWindow?
@@ -57,7 +57,6 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMenuDele
     private var currentElapsed: TimeInterval = 0
     private var lastSong: String?
     private var lastArtist: String?
-
     private var currentDockVisibilityMode: String {
         UserDefaults.standard.string(forKey: AppConstants.UserDefaults.dockVisibility)
             ?? AppConstants.DockVisibility.default
@@ -186,12 +185,12 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMenuDele
     @objc func trackingSettingChanged(_ notification: Notification) {
         guard let enabled = notification.userInfo?["enabled"] as? Bool else { return }
 
-        enabled ? musicMonitor?.startTracking() : stopTrackingAndUpdate()
+        enabled ? playbackSourceManager?.startTracking() : stopTrackingAndUpdate()
     }
 
     /// Stops the music monitor and clears the now-playing display.
     private func stopTrackingAndUpdate() {
-        musicMonitor?.stopTracking()
+        playbackSourceManager?.stopTracking()
         postNowPlayingUpdate(song: nil, artist: nil, album: nil)
     }
 
@@ -374,7 +373,6 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMenuDele
         guard isMusicAppOpen() else {
             return "🐺 Please open Apple Music"
         }
-        
         guard let song = currentSong, let artist = currentArtist else {
             return "🐺 No music playing"
         }
@@ -386,10 +384,9 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMenuDele
         guard isMusicAppOpen() else {
             return "🐺 Please open Apple Music"
         }
-        
         guard let song = lastSong, let artist = lastArtist else {
             return "🐺 No previous tracks yet, keep the music flowing!"
-        }	
+        }
         return "🐺 Previous: \(song) by \(artist)"
     }
 
@@ -686,7 +683,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMenuDele
     @objc func powerStateChanged(_ notification: Notification) {
         let reduced = PowerStateMonitor.shared.isReducedMode
 
-        musicMonitor?.updateCheckInterval(
+        playbackSourceManager?.updateCheckInterval(
             reduced ? AppConstants.PowerManagement.reducedMusicCheckInterval : 5.0
         )
         discordService?.updatePollInterval(
@@ -703,10 +700,10 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMenuDele
 
     // MARK: - Service Initialization
 
-    /// Creates the music playback monitor and sets this delegate.
+    /// Creates the playback source manager and sets this delegate.
     private func setupMusicMonitor() {
-        musicMonitor = MusicPlaybackMonitor()
-        musicMonitor?.delegate = self
+        playbackSourceManager = PlaybackSourceManager()
+        playbackSourceManager?.delegate = self
     }
 
     /// Creates the Twitch chat service and wires up song info callbacks.
@@ -719,21 +716,21 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMenuDele
 
         twitchService?.getCurrentSongInfo = { [weak self] in
             if Thread.isMainThread {
-                return self?.getCurrentSongInfo() ?? "Nothing playing right now"
+                return MainActor.assumeIsolated { self?.getCurrentSongInfo() ?? "Nothing playing right now" }
             }
             var result = "Nothing playing right now"
             DispatchQueue.main.sync {
-                result = self?.getCurrentSongInfo() ?? "Nothing playing right now"
+                result = MainActor.assumeIsolated { self?.getCurrentSongInfo() ?? "Nothing playing right now" }
             }
             return result
         }
         twitchService?.getLastSongInfo = { [weak self] in
             if Thread.isMainThread {
-                return self?.getLastSongInfo() ?? "No previous track yet"
+                return MainActor.assumeIsolated { self?.getLastSongInfo() ?? "No previous track yet" }
             }
             var result = "No previous track yet"
             DispatchQueue.main.sync {
-                result = self?.getLastSongInfo() ?? "No previous track yet"
+                result = MainActor.assumeIsolated { self?.getLastSongInfo() ?? "No previous track yet" }
             }
             return result
         }
@@ -921,6 +918,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMenuDele
                 self?.handleUpdateStateChanged(notification)
             }
         )
+
     }
 
     // MARK: - Tracking State
@@ -932,7 +930,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMenuDele
         }
 
         if isTrackingEnabled() {
-            musicMonitor?.startTracking()
+            playbackSourceManager?.startTracking()
         } else {
             postNowPlayingUpdate(song: nil, artist: nil, album: nil)
         }
@@ -1183,12 +1181,12 @@ extension AppDelegate {
     }
 }
 
-// MARK: - Music Playback Monitor Delegate
+// MARK: - Playback Source Delegate
 
-extension AppDelegate: MusicPlaybackMonitorDelegate {
+extension AppDelegate: PlaybackSourceDelegate {
     /// Updates track history, broadcasts to all services, and fetches artwork.
-    func musicPlaybackMonitor(
-        _ monitor: MusicPlaybackMonitor, didUpdateTrack track: String, artist: String, album: String, duration: TimeInterval, elapsed: TimeInterval
+    func playbackSource(
+        _ source: any PlaybackSource, didUpdateTrack track: String, artist: String, album: String, duration: TimeInterval, elapsed: TimeInterval
     ) {
         if currentSong != track {
             lastSong = currentSong
@@ -1223,7 +1221,7 @@ extension AppDelegate: MusicPlaybackMonitorDelegate {
     }
 
     /// Clears track state and notifies services when playback stops.
-    func musicPlaybackMonitor(_ monitor: MusicPlaybackMonitor, didUpdateStatus status: String) {
+    func playbackSource(_ source: any PlaybackSource, didUpdateStatus status: String) {
         if status == "No track playing" {
             currentSong = nil
             currentArtist = nil

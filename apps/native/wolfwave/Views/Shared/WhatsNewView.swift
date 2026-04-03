@@ -21,12 +21,12 @@ struct WhatsNewView: View {
     private static let discordIndigo = Color(red: 0.35, green: 0.40, blue: 0.95)
 
     private let features: [(icon: String, iconColor: Color, title: String, description: String)] = [
-        ("apple.logo", .primary, "macOS Tahoe", "Built exclusively for macOS 26"),
-        ("cpu", .blue, "Apple Silicon Only", "Optimized for M-series chips"),
-        ("shield.checkered", .green, "Security Hardened", "Tighter entitlements and token validation"),
-        ("figure.stand", twitchPurple, "Accessibility", "Full VoiceOver support across all settings"),
-        ("swift", .orange, "Modern Swift", "Async/await, @Observable, and actor isolation"),
-        ("testtube.2", .mint, "Better Testing", "End-to-end test coverage for all major flows")
+        ("music.note.2", .pink, "Discord Buttons", "Open in Apple Music or jump to song.link from your Discord status"),
+        ("arrow.up.right.circle", .blue, "Launch at Login", "WolfWave starts automatically when your Mac does"),
+        ("sparkle", twitchPurple, "Homebrew Auto-Update", "Homebrew tap stays in sync whenever a new release ships"),
+        ("rectangle.and.arrow.up.right.and.arrow.down.left", .green, "Custom DMG", "Polished installer background with WolfWave branding"),
+        ("paintbrush", discordIndigo, "Artwork & Links", "Album art and song.link resolved automatically for every track"),
+        ("checkmark.shield", .orange, "Stability", "Tighter entitlements, fixed Sparkle updates, and smarter reconnects")
     ]
 
     // MARK: - Body

@@ -1,5 +1,5 @@
 //
-//  MusicPlaybackMonitorTests.swift
+//  AppleMusicSourceTests.swift
 //  WolfWaveTests
 //
 //  Created by MrDemonWolf, Inc. on 2/27/26.
@@ -8,12 +8,12 @@
 import XCTest
 @testable import WolfWave
 
-final class MusicPlaybackMonitorTests: XCTestCase {
-    var monitor: MusicPlaybackMonitor!
+final class AppleMusicSourceTests: XCTestCase {
+    var monitor: AppleMusicSource!
 
     override func setUp() {
         super.setUp()
-        monitor = MusicPlaybackMonitor()
+        monitor = AppleMusicSource()
     }
 
     override func tearDown() {

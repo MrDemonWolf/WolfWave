@@ -296,8 +296,8 @@ final class DiscordRPCService: @unchecked Sendable {
     ///   - track: Song title.
     ///   - artist: Artist name.
     ///   - album: Album name (used as large image tooltip).
-    ///   - artworkURL: Optional iTunes artwork URL. If nil, falls back to the
-    ///     static "apple_music" asset uploaded in the Discord Developer Portal.
+    ///   - artworkURL: Optional iTunes artwork URL. If nil, falls back to a source-specific
+    ///     asset uploaded in the Discord Developer Portal.
     ///   - duration: Total track duration in seconds (0 if unknown).
     ///   - elapsed: Elapsed time in seconds (0 if unknown).
     private func sendPresenceActivity(
@@ -316,17 +316,14 @@ final class DiscordRPCService: @unchecked Sendable {
             "state": "by \(artist)",
         ]
 
-        // Assets — prefer dynamic artwork URL from iTunes, fall back to static asset
+        // Assets — prefer dynamic artwork URL, fall back to Apple Music Discord asset
         let largeImage = artworkURL ?? "apple_music"
         var assets: [String: Any] = [
             "large_image": largeImage,
             "large_text": album,
         ]
-        // Show Apple Music branding as small icon when we have album art
-        if artworkURL != nil {
-            assets["small_image"] = "apple_music"
-            assets["small_text"] = "Apple Music"
-        }
+        assets["small_image"] = "apple_music"
+        assets["small_text"] = "Apple Music"
         activity["assets"] = assets
 
         // Timestamps — show a progress bar if duration is known
@@ -340,7 +337,7 @@ final class DiscordRPCService: @unchecked Sendable {
             ]
         }
 
-        // Buttons — shown on the Discord profile card (max 2)
+        // Buttons — "Open in Apple Music" and song.link when available
         var buttons: [[String: String]] = []
         if let appleMusicURL {
             buttons.append(["label": "Open in Apple Music", "url": appleMusicURL])

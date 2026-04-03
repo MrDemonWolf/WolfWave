@@ -21,7 +21,7 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
-		D40965CA2F0F906C00B292B6 /* WolfWave.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = WolfWave.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		D40965CA2F0F906C00B292B6 /* WolfWave Dev.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "WolfWave Dev.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 		D4A1B2012F0F906C00B292B6 /* WolfWaveTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = WolfWaveTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		D4CFGXCC00000000000000F1 /* Config.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; name = Config.xcconfig; path = wolfwave/Config.xcconfig; sourceTree = "<group>"; };
 		D4CFGXCC00000000000000F2 /* Config.Debug.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; name = Config.Debug.xcconfig; path = wolfwave/Config.Debug.xcconfig; sourceTree = "<group>"; };
@@ -81,16 +81,25 @@
 				D4A1B2022F0F906C00B292B6 /* WolfWaveTests */,
 				D40965CB2F0F906C00B292B6 /* Products */,
 				D4CFGXCC00000000000000F1 /* Config.xcconfig */,
+				D46E2E062F7F05E800089923 /* Recovered References */,
 			);
 			sourceTree = "<group>";
 		};
 		D40965CB2F0F906C00B292B6 /* Products */ = {
 			isa = PBXGroup;
 			children = (
-				D40965CA2F0F906C00B292B6 /* WolfWave.app */,
+				D40965CA2F0F906C00B292B6 /* WolfWave Dev.app */,
 				D4A1B2012F0F906C00B292B6 /* WolfWaveTests.xctest */,
 			);
 			name = Products;
+			sourceTree = "<group>";
+		};
+		D46E2E062F7F05E800089923 /* Recovered References */ = {
+			isa = PBXGroup;
+			children = (
+				D4CFGXCC00000000000000F2 /* Config.Debug.xcconfig */,
+			);
+			name = "Recovered References";
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -116,7 +125,7 @@
 				D4FB5E3E2F6808870085EB41 /* Sparkle */,
 			);
 			productName = WolfWave;
-			productReference = D40965CA2F0F906C00B292B6 /* WolfWave.app */;
+			productReference = D40965CA2F0F906C00B292B6 /* WolfWave Dev.app */;
 			productType = "com.apple.product-type.application";
 		};
 		D4A1B2082F0F906C00B292B6 /* WolfWaveTests */ = {
@@ -363,7 +372,7 @@
 				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 4;
+				CURRENT_PROJECT_VERSION = 5;
 				DEAD_CODE_STRIPPING = YES;
 				DEVELOPMENT_TEAM = HBB7T99U79;
 				ENABLE_APP_SANDBOX = YES;
@@ -394,7 +403,7 @@
 					"@executable_path/../Frameworks",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 26.0;
-				MARKETING_VERSION = 1.1.0;
+				MARKETING_VERSION = 1.2.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.mrdemonwolf.wolfwave.dev;
 				PRODUCT_MODULE_NAME = WolfWave;
 				PRODUCT_NAME = "WolfWave Dev";
@@ -424,7 +433,7 @@
 				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 4;
+				CURRENT_PROJECT_VERSION = 5;
 				DEAD_CODE_STRIPPING = YES;
 				DEVELOPMENT_TEAM = HBB7T99U79;
 				ENABLE_APP_SANDBOX = YES;
@@ -455,7 +464,7 @@
 					"@executable_path/../Frameworks",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 26.0;
-				MARKETING_VERSION = 1.1.0;
+				MARKETING_VERSION = 1.2.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.mrdemonwolf.wolfwave;
 				PRODUCT_NAME = WolfWave;
 				REGISTER_APP_GROUPS = YES;
@@ -479,12 +488,12 @@
 			buildSettings = {
 				BUNDLE_LOADER = "$(TEST_HOST)";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 4;
+				CURRENT_PROJECT_VERSION = 5;
 				DEAD_CODE_STRIPPING = YES;
 				DEVELOPMENT_TEAM = HBB7T99U79;
 				GENERATE_INFOPLIST_FILE = YES;
 				MACOSX_DEPLOYMENT_TARGET = 26.0;
-				MARKETING_VERSION = 1.1.0;
+				MARKETING_VERSION = 1.2.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.mrdemonwolf.wolfwave.tests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
@@ -501,12 +510,12 @@
 			buildSettings = {
 				BUNDLE_LOADER = "$(TEST_HOST)";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 4;
+				CURRENT_PROJECT_VERSION = 5;
 				DEAD_CODE_STRIPPING = YES;
 				DEVELOPMENT_TEAM = HBB7T99U79;
 				GENERATE_INFOPLIST_FILE = YES;
 				MACOSX_DEPLOYMENT_TARGET = 26.0;
-				MARKETING_VERSION = 1.1.0;
+				MARKETING_VERSION = 1.2.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.mrdemonwolf.wolfwave.tests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;

@@ -42,7 +42,7 @@ struct MusicMonitorSettingsView: View {
                     .sectionSubHeader()
                     .accessibilityLabel("Music Playback Monitor")
 
-                Text("Connects to Apple Music and shares what's playing everywhere.")
+                Text("Detects what's playing and shares it everywhere.")
                     .font(.system(size: 13))
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)

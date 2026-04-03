@@ -7,6 +7,26 @@ description: Release history for WolfWave
 
 All notable changes to WolfWave are documented here.
 
+
+## v1.1.0 — March 31, 2026
+
+### Added
+- **Discord buttons** — Rich Presence now shows two clickable buttons: Open in Apple Music (direct track link) and song.link (opens on Spotify, YouTube Music, Tidal, and more)
+- **Launch at Login** — new toggle in Settings → App Visibility. Uses SMAppService, appears in System Settings → General → Login Items
+- **Custom DMG background** — installer window has a polished dark background with WolfWave brand colors
+- **Homebrew auto-update** — GitHub Actions now automatically opens a pull request on the Homebrew tap on new releases
+
+### Fixed
+- iTunes Search API URL encoding — track/artist names with &, +, or = no longer break artwork lookups
+- Launch at Login toggle now reverts if SMAppService registration fails
+
+## v1.0.2 — March 31, 2026
+
+### Fixed
+- App icon missing in CI-built releases
+- Sparkle updater unable to detect new versions (build number now incremented per release)
+- Sparkle initialization race condition fixed
+
 ## v1.0.1 — March 30, 2026
 
 ### Changed
