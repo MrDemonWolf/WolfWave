@@ -1,10 +1,18 @@
-import { Inter } from "next/font/google";
+import { Unbounded, Instrument_Sans } from "next/font/google";
 import type { Metadata } from "next";
 import { Provider } from "@/components/provider";
 import "./global.css";
 
-const inter = Inter({
+const unbounded = Unbounded({
   subsets: ["latin"],
+  variable: "--font-unbounded",
+  display: "swap",
+});
+
+const instrumentSans = Instrument_Sans({
+  subsets: ["latin"],
+  variable: "--font-instrument",
+  display: "swap",
 });
 
 export const metadata: Metadata = {
@@ -52,7 +60,7 @@ export const metadata: Metadata = {
 
 export default function Layout({ children }: LayoutProps<"/">) {
   return (
-    <html lang="en" className={inter.className} suppressHydrationWarning>
+    <html lang="en" className={`${unbounded.variable} ${instrumentSans.variable}`} suppressHydrationWarning>
       <body className="flex flex-col min-h-screen">
         <Provider>{children}</Provider>
       </body>

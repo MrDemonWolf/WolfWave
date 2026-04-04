@@ -138,3 +138,15 @@ Follows [Semantic Versioning (SemVer)](https://semver.org/) — `MAJOR.MINOR.PAT
 - **PATCH** — Bug fixes, security patches, code quality improvements
 
 Version is set in `MARKETING_VERSION` in `project.pbxproj` (4 occurrences). `CURRENT_PROJECT_VERSION` (build number) must also be incremented with each release — Sparkle uses it as the primary version comparator in appcast.xml. Git tags use `v` prefix (e.g., `v1.0.1`). The release workflow triggers on `v*` tag pushes. Homebrew cask, CHANGELOG.md, and GitHub Release notes must all be updated to match.
+
+### Release Checklist
+
+Run through every item before pushing the release tag.
+
+1. **`apps/native/wolfwave.xcodeproj/project.pbxproj`** — bump `MARKETING_VERSION` (4 occurrences) and `CURRENT_PROJECT_VERSION` (4 occurrences). Sparkle uses the build number as its primary comparator.
+2. **`CHANGELOG.md`** — add `## [X.Y.Z] - YYYY-MM-DD` entry in Keep-a-Changelog format.
+3. **`apps/docs/content/docs/changelog.mdx`** — add `## vX.Y.Z — Month DD, YYYY` entry in MDX format.
+4. **Push git tag** — `git tag vX.Y.Z && git push origin vX.Y.Z` — triggers the release workflow (builds, signs, notarizes, creates GitHub Release).
+5. **Homebrew cask** — auto-updated by `update_homebrew.yml` after the GitHub Release is created. Verify the workflow ran successfully.
+
+> After tagging, verify the GitHub Actions release workflow completes cleanly before announcing.

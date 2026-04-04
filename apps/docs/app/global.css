@@ -39,9 +39,17 @@
   }
 }
 
+/* Midnight background utilities */
+.bg-midnight {
+  background-color: #080810;
+}
+.bg-midnight-card {
+  background-color: #0e0e1a;
+}
+
 /* Hero gradient text */
 .gradient-text {
-  background: linear-gradient(135deg, hsl(217 91% 60%), hsl(195 90% 55%), hsl(217 91% 60%));
+  background: linear-gradient(135deg, #7c3aed, #22d3ee, #a855f7);
   background-size: 200% 200%;
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
@@ -64,21 +72,44 @@
   height: 500px;
   background: radial-gradient(
     ellipse at center,
-    hsla(217 91% 60% / 0.08) 0%,
-    hsla(200 90% 55% / 0.04) 40%,
+    rgba(124, 58, 237, 0.12) 0%,
+    rgba(34, 211, 238, 0.05) 45%,
     transparent 70%
   );
   pointer-events: none;
   z-index: 0;
 }
 
-.dark .hero-glow {
-  background: radial-gradient(
-    ellipse at center,
-    hsla(217 91% 60% / 0.06) 0%,
-    hsla(200 90% 55% / 0.03) 40%,
-    transparent 70%
-  );
+/* Waveform animation */
+.waveform {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  height: 48px;
+}
+
+.waveform-bar {
+  width: 4px;
+  border-radius: 2px;
+  background: linear-gradient(to top, #7c3aed, #22d3ee);
+  animation: wave-bounce var(--duration, 1.2s) ease-in-out infinite alternate;
+  animation-delay: var(--delay, 0s);
+  height: 6px;
+}
+
+@keyframes wave-bounce {
+  0%   { height: 6px; opacity: 0.4; }
+  100% { height: var(--peak, 40px); opacity: 1; }
+}
+
+/* Now Playing card pulse */
+.now-playing-pulse {
+  animation: card-pulse 3s ease-in-out infinite;
+}
+
+@keyframes card-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(124, 58, 237, 0); }
+  50%       { box-shadow: 0 0 30px 4px rgba(124, 58, 237, 0.25); }
 }
 
 /* Feature cards */

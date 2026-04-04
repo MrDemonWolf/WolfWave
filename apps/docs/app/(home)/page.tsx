@@ -1,132 +1,282 @@
 import Link from "next/link";
-import { Music, MessageSquare, Radio, Wifi, Shield, Cpu, Zap, Download, BookOpen, ArrowRight } from "lucide-react";
+import { MessageSquare, Radio, Wifi, Shield, Download, ArrowRight, Github } from "lucide-react";
 import { getAssetPath } from "@/lib/utils";
+
+// Animated waveform bars — CSS-driven, no client JS needed
+function WaveformBars() {
+  const bars = [
+    { peak: "18px", duration: "0.9s", delay: "0s" },
+    { peak: "32px", duration: "1.1s", delay: "0.1s" },
+    { peak: "40px", duration: "1.3s", delay: "0.05s" },
+    { peak: "28px", duration: "0.8s", delay: "0.2s" },
+    { peak: "44px", duration: "1.2s", delay: "0.15s" },
+    { peak: "36px", duration: "1.0s", delay: "0.25s" },
+    { peak: "44px", duration: "1.4s", delay: "0.0s" },
+    { peak: "30px", duration: "0.95s", delay: "0.18s" },
+    { peak: "40px", duration: "1.15s", delay: "0.08s" },
+    { peak: "22px", duration: "1.05s", delay: "0.3s" },
+    { peak: "34px", duration: "0.85s", delay: "0.12s" },
+    { peak: "18px", duration: "1.25s", delay: "0.22s" },
+  ];
+  return (
+    <div className="waveform" aria-hidden="true">
+      {bars.map((bar, i) => (
+        <div
+          key={i}
+          className="waveform-bar"
+          style={
+            {
+              "--peak": bar.peak,
+              "--duration": bar.duration,
+              "--delay": bar.delay,
+            } as React.CSSProperties
+          }
+        />
+      ))}
+    </div>
+  );
+}
+
+// Pulsing "Now Playing" card mockup
+function NowPlayingCard() {
+  return (
+    <div
+      className="now-playing-pulse rounded-2xl border border-violet-500/30 p-4 w-64 shrink-0"
+      style={{ backgroundColor: "#0e0e1a" }}
+    >
+      <div className="flex items-center gap-3 mb-3">
+        {/* Album art placeholder */}
+        <div
+          className="w-12 h-12 rounded-lg shrink-0"
+          style={{
+            background: "linear-gradient(135deg, #7c3aed, #22d3ee)",
+            opacity: 0.9,
+          }}
+        />
+        <div className="min-w-0">
+          <p className="text-white text-sm font-semibold truncate font-[family-name:var(--font-unbounded)]">
+            Blinding Lights
+          </p>
+          <p className="text-slate-400 text-xs truncate">The Weeknd</p>
+        </div>
+      </div>
+      {/* Progress bar */}
+      <div className="h-1 rounded-full" style={{ backgroundColor: "#1e1e2e" }}>
+        <div
+          className="h-1 rounded-full"
+          style={{
+            width: "62%",
+            background: "linear-gradient(to right, #7c3aed, #22d3ee)",
+          }}
+        />
+      </div>
+      <div className="flex justify-between mt-1">
+        <span className="text-slate-500 text-xs">2:07</span>
+        <span className="text-slate-500 text-xs">3:20</span>
+      </div>
+    </div>
+  );
+}
 
 const features = [
   {
-    icon: Music,
-    title: "Apple Music",
-    description: "Real-time track detection via ScriptingBridge. Artist, title, album, and artwork — instantly.",
-    color: "text-sky-500 dark:text-sky-400",
-    bg: "bg-sky-500/10 dark:bg-sky-500/10",
-  },
-  {
     icon: MessageSquare,
     title: "Twitch Chat Bot",
-    description: "!song and !lastsong commands via Twitch's modern EventSub + Helix API. No deprecated IRC.",
-    color: "text-blue-500 dark:text-blue-400",
-    bg: "bg-blue-500/10 dark:bg-blue-500/10",
+    description:
+      "!song in chat shows exactly what's playing. Powered by Twitch's modern EventSub API.",
+    accent: "#7c3aed",
   },
   {
     icon: Radio,
-    title: "Discord Rich Presence",
-    description: "\"Listening to Apple Music\" on your Discord profile with dynamic album art and playback progress.",
-    color: "text-indigo-500 dark:text-indigo-400",
-    bg: "bg-indigo-500/10 dark:bg-indigo-500/10",
+    title: "Discord Status",
+    description:
+      "Show \"Listening to Apple Music\" with album art and live progress. Like Spotify — but your library.",
+    accent: "#22d3ee",
   },
   {
     icon: Wifi,
-    title: "Now-Playing Widget",
-    description: "Live now-playing data for OBS overlays, web widgets, and custom integrations via WebSocket.",
-    color: "text-cyan-500 dark:text-cyan-400",
-    bg: "bg-cyan-500/10 dark:bg-cyan-500/10",
+    title: "Stream Overlay",
+    description:
+      "Live now-playing data over WebSocket. Drop it into OBS, browser source, or your custom widget.",
+    accent: "#a855f7",
+  },
+  {
+    icon: Shield,
+    title: "Privacy First",
+    description:
+      "All tokens in macOS Keychain. App Sandboxed. Nothing phoned home. Your music stays yours.",
+    accent: "#7c3aed",
   },
 ] as const;
 
 const steps = [
-  { number: "1", title: "Download", description: "Grab the latest DMG from GitHub Releases." },
-  { number: "2", title: "Configure", description: "Follow the onboarding wizard to connect Twitch, Discord, and your overlays." },
-  { number: "3", title: "Enjoy", description: "Play music and it shows up on Twitch, Discord, and your widgets automatically." },
-] as const;
-
-const highlights = [
-  { icon: Zap, title: "Zero Dependencies", description: "Built entirely with native Apple frameworks. No Electron, no bloat." },
-  { icon: Shield, title: "Secure by Default", description: "All tokens in macOS Keychain. App Sandbox enabled. Hardened Runtime." },
-  { icon: Cpu, title: "Modern APIs", description: "Twitch EventSub + Helix, Discord IPC, and ScriptingBridge. No workarounds." },
+  {
+    number: "1",
+    title: "Download",
+    description: "Grab the DMG from GitHub Releases. Under 10MB.",
+  },
+  {
+    number: "2",
+    title: "Connect",
+    description: "One-time setup wizard links Twitch, Discord, and OBS.",
+  },
+  {
+    number: "3",
+    title: "Stream",
+    description: "Hit play. Everything updates automatically.",
+  },
 ] as const;
 
 export default function HomePage() {
   return (
-    <main className="flex-1">
-      {/* Hero Section */}
-      <section className="relative overflow-hidden px-6 pt-24 pb-20 sm:pt-32 sm:pb-32">
+    <main className="flex-1 bg-midnight text-white">
+      {/* Hero */}
+      <section className="relative overflow-hidden px-6 pt-24 pb-16 sm:pt-32 sm:pb-24">
         <div className="hero-glow" aria-hidden="true" />
-        <div className="mx-auto max-w-4xl text-center relative z-10">
-          <div className="mb-8 flex justify-center">
-             <div className="rounded-2xl bg-slate-900/5 dark:bg-white/5 p-4 backdrop-blur-sm ring-1 ring-slate-900/10 dark:ring-white/10 shadow-xl">
-               <img src={getAssetPath("/logo.svg")} alt="WolfWave Logo" className="h-16 w-auto" />
-             </div>
-          </div>
-          <h1 className="text-4xl sm:text-6xl lg:text-7xl font-extrabold tracking-tight leading-[1.05] mb-8">
-            <span className="gradient-text">Your Music,</span>
-            <br />
-            <span className="text-slate-900 dark:text-white">Everywhere.</span>
-          </h1>
-          <p className="text-lg sm:text-xl text-slate-600 dark:text-slate-400 leading-relaxed max-w-2xl mx-auto mb-12">
-            Native macOS menu bar app that shares your Apple Music with Twitch,
-            Discord, and now-playing widgets. Fast, lightweight, and private.
-          </p>
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-            <Link
-              href="/docs/installation"
-              className="w-full sm:w-auto inline-flex items-center justify-center gap-2 bg-fd-primary text-fd-primary-foreground px-8 py-3 rounded-xl text-base font-semibold shadow-lg hover:shadow-fd-primary/20 hover:scale-[1.02] active:scale-[0.98] transition-all"
-            >
-              <Download className="w-5 h-5" />
-              Get WolfWave
-            </Link>
-            <Link
-              href="/docs"
-              className="w-full sm:w-auto inline-flex items-center justify-center gap-2 border-2 border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 px-8 py-3 rounded-xl text-base font-semibold hover:bg-slate-50 dark:hover:bg-slate-800/50 hover:border-slate-300 dark:hover:border-slate-700 transition-all"
-            >
-              <BookOpen className="w-5 h-5" />
-              Documentation
-            </Link>
+        <div className="mx-auto max-w-5xl relative z-10">
+          <div className="flex flex-col lg:flex-row items-center gap-12 lg:gap-16">
+            {/* Left: text */}
+            <div className="flex-1 text-center lg:text-left">
+              {/* Version badge */}
+              <div className="inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-medium mb-6 border"
+                style={{ borderColor: "rgba(124,58,237,0.4)", backgroundColor: "rgba(124,58,237,0.08)", color: "#a855f7" }}>
+                <span className="w-1.5 h-1.5 rounded-full bg-violet-400 animate-pulse inline-block" />
+                v1.2.0 — Free &amp; Open Source
+              </div>
+
+              <h1
+                className="text-4xl sm:text-5xl lg:text-6xl font-extrabold tracking-tight leading-[1.08] mb-6"
+                style={{ fontFamily: "var(--font-unbounded)" }}
+              >
+                <span className="gradient-text">Your Music,</span>
+                <br />
+                <span className="text-white">Live Everywhere.</span>
+              </h1>
+
+              <p className="text-slate-400 text-lg leading-relaxed max-w-md mx-auto lg:mx-0 mb-8"
+                style={{ fontFamily: "var(--font-instrument)" }}>
+                macOS menu bar app. Apple Music plays — Twitch chat, Discord,
+                and your stream overlay all update. Automatically.
+              </p>
+
+              <div className="flex flex-col sm:flex-row items-center justify-center lg:justify-start gap-3">
+                <Link
+                  href="/docs/installation"
+                  className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-7 py-3 rounded-xl text-sm font-semibold text-white transition-all hover:scale-[1.02] active:scale-[0.98]"
+                  style={{ background: "linear-gradient(135deg, #7c3aed, #a855f7)" }}
+                >
+                  <Download className="w-4 h-4" />
+                  Get Started Free
+                </Link>
+                <a
+                  href="https://github.com/mrdemonwolf/wolfwave"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-7 py-3 rounded-xl text-sm font-semibold transition-all hover:scale-[1.02]"
+                  style={{
+                    border: "1px solid rgba(255,255,255,0.12)",
+                    color: "#94a3b8",
+                    backgroundColor: "rgba(255,255,255,0.04)",
+                  }}
+                >
+                  <Github className="w-4 h-4" />
+                  View on GitHub
+                </a>
+              </div>
+            </div>
+
+            {/* Right: visual */}
+            <div className="flex flex-col items-center gap-6 shrink-0">
+              <NowPlayingCard />
+              <WaveformBars />
+              <p className="text-xs text-slate-600 tracking-wider uppercase">Live preview</p>
+            </div>
           </div>
         </div>
       </section>
 
-      {/* Features Grid */}
-      <section className="px-6 pb-24">
+      {/* Proof bar */}
+      <div className="border-y px-6 py-4" style={{ borderColor: "rgba(255,255,255,0.06)", backgroundColor: "rgba(255,255,255,0.02)" }}>
+        <div className="mx-auto max-w-5xl flex flex-wrap items-center justify-center gap-3">
+          {["Free Forever", "macOS 14+", "No Account Needed", "~10MB", "Open Source"].map((pill) => (
+            <span
+              key={pill}
+              className="text-xs font-medium px-3 py-1 rounded-full"
+              style={{ backgroundColor: "rgba(124,58,237,0.08)", color: "#94a3b8", border: "1px solid rgba(124,58,237,0.2)" }}
+            >
+              {pill}
+            </span>
+          ))}
+        </div>
+      </div>
+
+      {/* Features */}
+      <section className="px-6 py-20">
         <div className="mx-auto max-w-5xl">
-          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
+          <h2
+            className="text-2xl sm:text-3xl font-bold text-center mb-3 text-white"
+            style={{ fontFamily: "var(--font-unbounded)" }}
+          >
+            Everything a streamer needs
+          </h2>
+          <p className="text-center text-slate-500 text-sm mb-12">
+            One app. Four integrations. Zero monthly fees.
+          </p>
+          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-5">
             {features.map((feature) => (
               <div
                 key={feature.title}
-                className="feature-card group bg-white/50 dark:bg-white/5 backdrop-blur-sm p-6 rounded-2xl border border-slate-200 dark:border-slate-800 hover:border-fd-primary/50 dark:hover:border-fd-primary/50 transition-all duration-300"
+                className="feature-card bg-midnight-card group p-5 rounded-2xl transition-all"
               >
-                <div className={`shrink-0 w-12 h-12 rounded-xl ${feature.bg} ${feature.color} inline-flex items-center justify-center mb-4 group-hover:scale-110 transition-transform`}>
-                  <feature.icon className="w-6 h-6" />
+                <div
+                  className="w-10 h-10 rounded-xl inline-flex items-center justify-center mb-4"
+                  style={{ backgroundColor: `${feature.accent}18`, color: feature.accent }}
+                >
+                  <feature.icon className="w-5 h-5" />
                 </div>
-                <div className="min-w-0">
-                  <h3 className="font-bold text-base text-slate-900 dark:text-white mb-2">
-                    {feature.title}
-                  </h3>
-                  <p className="text-sm text-slate-500 dark:text-slate-400 leading-relaxed">
-                    {feature.description}
-                  </p>
-                </div>
+                <h3 className="font-bold text-sm text-white mb-2">
+                  {feature.title}
+                </h3>
+                <p className="text-xs text-slate-500 leading-relaxed"
+                  style={{ fontFamily: "var(--font-instrument)" }}>
+                  {feature.description}
+                </p>
               </div>
             ))}
           </div>
         </div>
       </section>
 
-      {/* Get Started Steps */}
-      <section className="px-6 pb-24 bg-slate-50/50 dark:bg-slate-900/20 py-20">
-        <div className="mx-auto max-w-4xl">
-          <h2 className="text-2xl sm:text-3xl font-bold text-center mb-12 text-slate-900 dark:text-white">
-            Get Started in Minutes
+      {/* How it works */}
+      <section className="px-6 py-20" style={{ backgroundColor: "#0a0a14" }}>
+        <div className="mx-auto max-w-3xl">
+          <h2
+            className="text-2xl sm:text-3xl font-bold text-center mb-3 text-white"
+            style={{ fontFamily: "var(--font-unbounded)" }}
+          >
+            Up and running in 3 steps
           </h2>
+          <p className="text-center text-slate-500 text-sm mb-14">
+            No terminal. No config files. Just click through the wizard.
+          </p>
           <div className="grid sm:grid-cols-3 gap-8">
             {steps.map((step) => (
-              <div key={step.number} className="relative text-center group">
-                <div className="w-12 h-12 rounded-2xl bg-fd-primary text-fd-primary-foreground inline-flex items-center justify-center text-lg font-bold mb-4 shadow-lg shadow-fd-primary/20 group-hover:rotate-3 transition-transform">
+              <div key={step.number} className="text-center group">
+                <div
+                  className="w-14 h-14 rounded-2xl inline-flex items-center justify-center text-xl font-bold text-white mb-5 transition-transform group-hover:scale-110"
+                  style={{
+                    background: "linear-gradient(135deg, #7c3aed, #22d3ee)",
+                    fontFamily: "var(--font-unbounded)",
+                  }}
+                >
                   {step.number}
                 </div>
-                <h3 className="font-bold text-lg mb-2 text-slate-900 dark:text-white">
+                <h3 className="font-bold text-base text-white mb-2"
+                  style={{ fontFamily: "var(--font-unbounded)" }}>
                   {step.title}
                 </h3>
-                <p className="text-sm text-slate-500 dark:text-slate-400 leading-relaxed px-4">
+                <p className="text-sm text-slate-500 leading-relaxed"
+                  style={{ fontFamily: "var(--font-instrument)" }}>
                   {step.description}
                 </p>
               </div>
@@ -135,34 +285,105 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* Why WolfWave */}
-      <section className="px-6 py-24 border-t border-slate-100 dark:border-slate-800/50">
-        <div className="mx-auto max-w-4xl">
-          <h2 className="text-2xl sm:text-3xl font-bold text-center mb-12 text-slate-900 dark:text-white">
-            Built for Performance
-          </h2>
-          <div className="grid sm:grid-cols-3 gap-10">
-            {highlights.map((item) => (
-              <div key={item.title} className="text-center group">
-                <div className="w-14 h-14 rounded-2xl bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 inline-flex items-center justify-center mb-4 group-hover:bg-fd-primary group-hover:text-white transition-colors duration-300">
-                  <item.icon className="w-7 h-7" />
-                </div>
-                <h3 className="font-bold text-lg mb-2 text-slate-900 dark:text-white">
-                  {item.title}
-                </h3>
-                <p className="text-sm text-slate-500 dark:text-slate-400 leading-relaxed">
-                  {item.description}
-                </p>
+      {/* For Developers */}
+      <section className="px-6 py-20">
+        <div className="mx-auto max-w-3xl">
+          <div
+            className="rounded-2xl p-8 border"
+            style={{
+              backgroundColor: "rgba(124,58,237,0.06)",
+              borderColor: "rgba(124,58,237,0.25)",
+            }}
+          >
+            <div className="flex items-start gap-4">
+              <div
+                className="w-10 h-10 rounded-xl shrink-0 inline-flex items-center justify-center"
+                style={{ background: "linear-gradient(135deg, #7c3aed, #22d3ee)" }}
+              >
+                <span className="text-white text-sm font-bold" style={{ fontFamily: "var(--font-unbounded)" }}>{"{}"}</span>
               </div>
-            ))}
+              <div>
+                <h2 className="font-bold text-white text-lg mb-2"
+                  style={{ fontFamily: "var(--font-unbounded)" }}>
+                  For Developers
+                </h2>
+                <p className="text-slate-400 text-sm leading-relaxed mb-5"
+                  style={{ fontFamily: "var(--font-instrument)" }}>
+                  Open source, zero external dependencies, native Swift. The WebSocket API is
+                  fully documented — build your own overlay, integrate with anything, or just
+                  poke around.
+                </p>
+                <div className="flex flex-wrap gap-3">
+                  <Link
+                    href="/docs/architecture"
+                    className="inline-flex items-center gap-1.5 text-xs font-semibold text-violet-400 hover:text-violet-300 transition-colors"
+                  >
+                    Architecture
+                    <ArrowRight className="w-3 h-3" />
+                  </Link>
+                  <Link
+                    href="/docs/development"
+                    className="inline-flex items-center gap-1.5 text-xs font-semibold text-violet-400 hover:text-violet-300 transition-colors"
+                  >
+                    Development Guide
+                    <ArrowRight className="w-3 h-3" />
+                  </Link>
+                  <Link
+                    href="/docs/security"
+                    className="inline-flex items-center gap-1.5 text-xs font-semibold text-violet-400 hover:text-violet-300 transition-colors"
+                  >
+                    Security
+                    <ArrowRight className="w-3 h-3" />
+                  </Link>
+                </div>
+              </div>
+            </div>
           </div>
-          <div className="text-center mt-16">
+        </div>
+      </section>
+
+      {/* CTA Footer */}
+      <section className="px-6 py-24 text-center" style={{ backgroundColor: "#080810" }}>
+        <div className="mx-auto max-w-2xl">
+          {/* Logo */}
+          <div className="flex justify-center mb-6">
+            <div
+              className="rounded-2xl p-3"
+              style={{ backgroundColor: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)" }}
+            >
+              <img src={getAssetPath("/logo.svg")} alt="WolfWave" className="h-10 w-auto" />
+            </div>
+          </div>
+          <h2
+            className="text-3xl sm:text-4xl font-extrabold text-white mb-4"
+            style={{ fontFamily: "var(--font-unbounded)" }}
+          >
+            Start streaming smarter.
+          </h2>
+          <p className="text-slate-500 text-base mb-10"
+            style={{ fontFamily: "var(--font-instrument)" }}>
+            Free forever. No account. Just music.
+          </p>
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
+            <Link
+              href="/docs/installation"
+              className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-8 py-3.5 rounded-xl text-sm font-semibold text-white transition-all hover:scale-[1.02] active:scale-[0.98]"
+              style={{ background: "linear-gradient(135deg, #7c3aed, #a855f7)" }}
+            >
+              <Download className="w-4 h-4" />
+              Download WolfWave
+            </Link>
             <Link
               href="/docs"
-              className="inline-flex items-center gap-2 text-base text-fd-primary hover:gap-3 transition-all font-semibold"
+              className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-8 py-3.5 rounded-xl text-sm font-semibold transition-all hover:scale-[1.02]"
+              style={{
+                border: "1px solid rgba(255,255,255,0.1)",
+                color: "#94a3b8",
+                backgroundColor: "rgba(255,255,255,0.03)",
+              }}
             >
-              Explore the documentation
-              <ArrowRight className="w-5 h-5" />
+              Read the Docs
+              <ArrowRight className="w-4 h-4" />
             </Link>
           </div>
         </div>
