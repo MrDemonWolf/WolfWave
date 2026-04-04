@@ -25,6 +25,12 @@ protocol BotCommand {
     /// Per-user cooldown in seconds between uses by the same user (0 = disabled).
     var userCooldown: TimeInterval { get }
 
+    /// UserDefaults key for the global cooldown override. nil = use `globalCooldown` default.
+    var globalCooldownKey: String? { get }
+
+    /// UserDefaults key for the per-user cooldown override. nil = use `userCooldown` default.
+    var userCooldownKey: String? { get }
+
     /// Execute the command and return the response message.
     /// Keep response time under 100ms for responsive chat experience.
     func execute(message: String) -> String?
@@ -38,4 +44,10 @@ extension BotCommand {
 
     /// Default per-user cooldown: 15 seconds between uses by the same user.
     var userCooldown: TimeInterval { 15.0 }
+
+    /// Default: no UserDefaults override.
+    var globalCooldownKey: String? { nil }
+
+    /// Default: no UserDefaults override.
+    var userCooldownKey: String? { nil }
 }

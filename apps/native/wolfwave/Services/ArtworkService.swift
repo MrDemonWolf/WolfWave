@@ -45,6 +45,12 @@ final class ArtworkService: @unchecked Sendable {
     /// In-memory cache of song.link URLs. Key: "artist|track".
     private var songLinkURLCache: [String: String] = [:]
 
+    /// Insertion-ordered keys — used to evict the oldest entry when caches are full.
+    private var cacheKeyOrder: [String] = []
+
+    /// Maximum number of entries retained across all three caches.
+    private let cacheMaxEntries = 200
+
     /// Serial queue protecting cache mutations.
     private let cacheQueue = DispatchQueue(
         label: "com.mrdemonwolf.wolfwave.artworkCache",
@@ -136,9 +142,22 @@ final class ArtworkService: @unchecked Sendable {
             let songLinkURL = (first["trackId"] as? Int).map { "https://song.link/i/\($0)" }
 
             self?.cacheQueue.sync {
-                if let artworkURL { self?.cache[cacheKey] = artworkURL }
-                if let trackViewURL { self?.trackViewURLCache[cacheKey] = trackViewURL }
-                if let songLinkURL { self?.songLinkURLCache[cacheKey] = songLinkURL }
+                guard let self else { return }
+                let isNewKey = self.cache[cacheKey] == nil
+                    && self.trackViewURLCache[cacheKey] == nil
+                    && self.songLinkURLCache[cacheKey] == nil
+                if let artworkURL { self.cache[cacheKey] = artworkURL }
+                if let trackViewURL { self.trackViewURLCache[cacheKey] = trackViewURL }
+                if let songLinkURL { self.songLinkURLCache[cacheKey] = songLinkURL }
+                if isNewKey {
+                    self.cacheKeyOrder.append(cacheKey)
+                    while self.cacheKeyOrder.count > self.cacheMaxEntries {
+                        let evicted = self.cacheKeyOrder.removeFirst()
+                        self.cache.removeValue(forKey: evicted)
+                        self.trackViewURLCache.removeValue(forKey: evicted)
+                        self.songLinkURLCache.removeValue(forKey: evicted)
+                    }
+                }
             }
 
             Log.debug("Artwork: Found track links for \"\(track)\"", category: "Artwork")

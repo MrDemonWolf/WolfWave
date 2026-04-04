@@ -197,7 +197,7 @@ struct TwitchViewModelTests {
         
         // Reauth needed (highest priority)
         viewModel.reauthNeeded = true
-        #expect(viewModel.statusChipText == "Reauth needed")
+        #expect(viewModel.statusChipText == "Sign-in expired")
     }
     
     @Test("Status chip color reflects state")

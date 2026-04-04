@@ -118,7 +118,7 @@ struct AdvancedSettingsView: View {
                     Text("Setup Wizard")
                         .font(.system(size: 13, weight: .semibold))
 
-                    Text("Walk through the initial setup steps again to reconfigure your integrations.")
+                    Text("Walk through the setup steps again to review your connections.")
                         .font(.system(size: 12))
                         .foregroundStyle(.secondary)
                         .fixedSize(horizontal: false, vertical: true)
@@ -136,7 +136,7 @@ struct AdvancedSettingsView: View {
                 .accessibilityHint("Opens the setup wizard")
             }
             .cardStyle()
-            .alert("Reset Onboarding?", isPresented: $showingOnboardingResetAlert) {
+            .alert("Rerun Setup Wizard?", isPresented: $showingOnboardingResetAlert) {
                 Button("Cancel", role: .cancel) {}
                 Button("Reset") {
                     UserDefaults.standard.removeObject(forKey: AppConstants.UserDefaults.hasCompletedOnboarding)
@@ -153,7 +153,7 @@ struct AdvancedSettingsView: View {
                     Text("Diagnostics")
                         .font(.system(size: 13, weight: .semibold))
 
-                    Text("Export application logs for debugging and support.")
+                    Text("Export application logs to troubleshoot issues.")
                         .font(.system(size: 12))
                         .foregroundStyle(.secondary)
                         .fixedSize(horizontal: false, vertical: true)

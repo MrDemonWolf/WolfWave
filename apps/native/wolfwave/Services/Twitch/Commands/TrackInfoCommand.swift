@@ -36,11 +36,21 @@ final class TrackInfoCommand: BotCommand {
     }
 
     private let defaultMessage: String
+    let globalCooldownKey: String?
+    let userCooldownKey: String?
 
-    init(triggers: [String], description: String, defaultMessage: String) {
+    init(
+        triggers: [String],
+        description: String,
+        defaultMessage: String,
+        globalCooldownKey: String? = nil,
+        userCooldownKey: String? = nil
+    ) {
         self.triggers = triggers
         self.description = description
         self.defaultMessage = defaultMessage
+        self.globalCooldownKey = globalCooldownKey
+        self.userCooldownKey = userCooldownKey
     }
 
     func execute(message: String) -> String? {

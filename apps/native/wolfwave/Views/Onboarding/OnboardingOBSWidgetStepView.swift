@@ -46,10 +46,10 @@ struct OnboardingOBSWidgetStepView: View {
 
                 ToggleSettingRow(
                     title: "Enable now-playing widget",
-                    subtitle: "Runs a small local server so your widget stays up to date",
+                    subtitle: "Powers the live-updating widget",
                     isOn: $websocketEnabled,
                     controlSize: .regular,
-                    accessibilityLabel: "Enable now-playing widget server",
+                    accessibilityLabel: "Enable now-playing widget",
                     accessibilityIdentifier: "onboardingWebsocketToggle",
                     onChange: { _ in
                         NotificationCenter.default.post(

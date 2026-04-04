@@ -1,3 +1,10 @@
+//
+//  PlaybackSourceManager.swift
+//  wolfwave
+//
+//  Created by MrDemonWolf, Inc. on 3/28/26.
+//
+
 import Foundation
 
 /// Manages the active music playback source and switches between them based on user preference.
@@ -15,9 +22,8 @@ class PlaybackSourceManager: PlaybackSourceDelegate {
     /// The currently active playback mode.
     private(set) var currentMode: PlaybackSourceMode
 
-    private lazy var appleMusicSource = AppleMusicSource()
-    private var activeSource: (any PlaybackSource)?
-    private var isTracking = false
+    private let appleMusicSource = AppleMusicSource()
+    private var isStarted = false
 
     // MARK: - Init
 
@@ -29,33 +35,33 @@ class PlaybackSourceManager: PlaybackSourceDelegate {
 
     /// Starts tracking with the current mode's source.
     func startTracking() {
-        stopTracking()
+        guard !isStarted else { return }
+        isStarted = true
         appleMusicSource.delegate = self
-        activeSource = appleMusicSource
-        isTracking = true
         appleMusicSource.startTracking()
     }
 
     /// Stops the active source.
     func stopTracking() {
-        activeSource?.stopTracking()
+        guard isStarted else { return }
+        isStarted = false
+        appleMusicSource.stopTracking()
         appleMusicSource.delegate = nil
-        activeSource = nil
-        isTracking = false
     }
 
     /// Updates the fallback polling interval on the active source.
     func updateCheckInterval(_ interval: TimeInterval) {
-        activeSource?.updateCheckInterval(interval)
+        guard isStarted else { return }
+        appleMusicSource.updateCheckInterval(interval)
     }
 
     // MARK: - PlaybackSourceDelegate (forwarding)
 
-    func playbackSource(_ source: any PlaybackSource, didUpdateTrack track: String, artist: String, album: String, duration: TimeInterval, elapsed: TimeInterval) {
-        delegate?.playbackSource(source, didUpdateTrack: track, artist: artist, album: album, duration: duration, elapsed: elapsed)
+    func playbackSource(didUpdateTrack track: String, artist: String, album: String, duration: TimeInterval, elapsed: TimeInterval) {
+        delegate?.playbackSource(didUpdateTrack: track, artist: artist, album: album, duration: duration, elapsed: elapsed)
     }
 
-    func playbackSource(_ source: any PlaybackSource, didUpdateStatus status: String) {
-        delegate?.playbackSource(source, didUpdateStatus: status)
+    func playbackSource(didUpdateStatus status: String) {
+        delegate?.playbackSource(didUpdateStatus: status)
     }
 }

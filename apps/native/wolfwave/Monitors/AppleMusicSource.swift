@@ -1,3 +1,10 @@
+//
+//  AppleMusicSource.swift
+//  wolfwave
+//
+//  Created by MrDemonWolf, Inc. on 3/28/26.
+//
+
 import Foundation
 import AppKit
 import ScriptingBridge
@@ -29,29 +36,39 @@ class AppleMusicSource: PlaybackSource {
     private var lastTrackSeenAt: Date = .distantPast
     private var lastNotificationAt: Date = .distantPast
     private var isTracking = false
+    private let trackingLock = NSLock()
     private var pendingDuration: TimeInterval = 0
     private var pendingElapsed: TimeInterval = 0
 
     private let backgroundQueue = DispatchQueue(label: Constants.queueLabel, qos: .utility)
 
     func startTracking() {
-        guard !isTracking else { return }
-        isTracking = true
+        let alreadyTracking = trackingLock.withLock { () -> Bool in
+            guard !isTracking else { return true }
+            isTracking = true
+            return false
+        }
+        guard !alreadyTracking else { return }
         subscribeToMusicNotifications()
         performInitialTrackCheck()
         setupFallbackTimer()
     }
 
     func stopTracking() {
-        guard isTracking else { return }
+        let wasTracking = trackingLock.withLock { () -> Bool in
+            guard isTracking else { return false }
+            isTracking = false
+            return true
+        }
+        guard wasTracking else { return }
         DistributedNotificationCenter.default().removeObserver(self)
         timer?.cancel()
         timer = nil
-        isTracking = false
+        backgroundQueue.sync {}
     }
 
     func updateCheckInterval(_ interval: TimeInterval) {
-        guard isTracking else { return }
+        guard trackingLock.withLock({ isTracking }) else { return }
         currentCheckInterval = max(interval, 1.0)
         timer?.cancel()
         timer = nil
@@ -106,14 +123,14 @@ class AppleMusicSource: PlaybackSource {
     private func notifyDelegate(status: String) {
         DispatchQueue.main.async { [weak self] in
             guard let self = self else { return }
-            self.delegate?.playbackSource(self, didUpdateStatus: status)
+            self.delegate?.playbackSource(didUpdateStatus: status)
         }
     }
 
     private func notifyDelegate(track: String, artist: String, album: String, duration: TimeInterval, elapsed: TimeInterval) {
         DispatchQueue.main.async { [weak self] in
             guard let self = self else { return }
-            self.delegate?.playbackSource(self, didUpdateTrack: track, artist: artist, album: album, duration: duration, elapsed: elapsed)
+            self.delegate?.playbackSource(didUpdateTrack: track, artist: artist, album: album, duration: duration, elapsed: elapsed)
         }
     }
 
@@ -170,7 +187,7 @@ class AppleMusicSource: PlaybackSource {
         let timer = DispatchSource.makeTimerSource(queue: backgroundQueue)
         timer.schedule(deadline: .now() + currentCheckInterval, repeating: currentCheckInterval)
         timer.setEventHandler { [weak self] in
-            guard let self = self, self.isTracking else { return }
+            guard let self = self, self.trackingLock.withLock({ self.isTracking }) else { return }
             self.scheduleTrackCheck(reason: "timer")
         }
         timer.activate()

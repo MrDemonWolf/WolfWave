@@ -18,12 +18,16 @@ final class BotCommandDispatcher {
     private let songCommand = TrackInfoCommand(
         triggers: ["!song", "!currentsong", "!nowplaying"],
         description: "Displays the currently playing track",
-        defaultMessage: "No track currently playing"
+        defaultMessage: "No track currently playing",
+        globalCooldownKey: AppConstants.UserDefaults.songCommandGlobalCooldown,
+        userCooldownKey: AppConstants.UserDefaults.songCommandUserCooldown
     )
     private let lastSongCommand = TrackInfoCommand(
         triggers: ["!last", "!lastsong", "!prevsong"],
         description: "Displays the last played track",
-        defaultMessage: "No previous track available"
+        defaultMessage: "No previous track available",
+        globalCooldownKey: AppConstants.UserDefaults.lastSongCommandGlobalCooldown,
+        userCooldownKey: AppConstants.UserDefaults.lastSongCommandUserCooldown
     )
     private let cooldownManager = CooldownManager()
 
@@ -86,7 +90,7 @@ final class BotCommandDispatcher {
         for command in snapshot {
             for trigger in command.triggers {
                 if lowered.hasPrefix(trigger) {
-                    let canonical = canonicalTrigger(for: trigger)
+                    let canonical = command.triggers.first ?? trigger
                     // Load cooldown overrides from UserDefaults
                     let (globalCD, userCD) = cooldownValues(for: trigger, command: command)
 
@@ -132,42 +136,18 @@ final class BotCommandDispatcher {
 
     // MARK: - Private Helpers
 
-    /// Maps any command alias to its canonical (primary) trigger for cooldown grouping.
+    /// Returns the effective cooldown values for a command, checking UserDefaults overrides.
     ///
-    /// All aliases of a command share a single cooldown bucket keyed by the canonical trigger.
-    private func canonicalTrigger(for trigger: String) -> String {
-        switch trigger {
-        case "!song", "!currentsong", "!nowplaying":
-            return "!song"
-        case "!last", "!lastsong", "!prevsong":
-            return "!last"
-        default:
-            return trigger
-        }
-    }
-
-    /// Returns the effective cooldown values for a trigger, checking UserDefaults overrides.
+    /// Commands declare their own UserDefaults keys via `globalCooldownKey`/`userCooldownKey`.
+    /// If a key is nil or the stored value is absent, the command's default is used.
     private func cooldownValues(for trigger: String, command: BotCommand) -> (TimeInterval, TimeInterval) {
         let defaults = Foundation.UserDefaults.standard
-
-        // Map known triggers to UserDefaults keys
-        switch trigger {
-        case "!song", "!currentsong", "!nowplaying":
-            let globalCD = defaults.object(forKey: AppConstants.UserDefaults.songCommandGlobalCooldown) as? TimeInterval
-                ?? command.globalCooldown
-            let userCD = defaults.object(forKey: AppConstants.UserDefaults.songCommandUserCooldown) as? TimeInterval
-                ?? command.userCooldown
-            return (globalCD, userCD)
-
-        case "!last", "!lastsong", "!prevsong":
-            let globalCD = defaults.object(forKey: AppConstants.UserDefaults.lastSongCommandGlobalCooldown) as? TimeInterval
-                ?? command.globalCooldown
-            let userCD = defaults.object(forKey: AppConstants.UserDefaults.lastSongCommandUserCooldown) as? TimeInterval
-                ?? command.userCooldown
-            return (globalCD, userCD)
-
-        default:
-            return (command.globalCooldown, command.userCooldown)
-        }
+        let globalCD = command.globalCooldownKey
+            .flatMap { defaults.object(forKey: $0) as? TimeInterval }
+            ?? command.globalCooldown
+        let userCD = command.userCooldownKey
+            .flatMap { defaults.object(forKey: $0) as? TimeInterval }
+            ?? command.userCooldown
+        return (globalCD, userCD)
     }
 }

@@ -23,9 +23,9 @@ struct WhatsNewView: View {
     private let features: [(icon: String, iconColor: Color, title: String, description: String)] = [
         ("music.note.2", .pink, "Discord Buttons", "Open in Apple Music or jump to song.link from your Discord status"),
         ("arrow.up.right.circle", .blue, "Launch at Login", "WolfWave starts automatically when your Mac does"),
-        ("sparkle", twitchPurple, "Homebrew Auto-Update", "Homebrew tap stays in sync whenever a new release ships"),
+        ("sparkle", twitchPurple, "Faster Homebrew Updates", "Homebrew tap stays in sync whenever a new release ships"),
         ("rectangle.and.arrow.up.right.and.arrow.down.left", .green, "Custom DMG", "Polished installer background with WolfWave branding"),
-        ("paintbrush", discordIndigo, "Artwork & Links", "Album art and song.link resolved automatically for every track"),
+        ("paintbrush", discordIndigo, "Artwork & Links", "Album art and song.link when available"),
         ("checkmark.shield", .orange, "Stability", "Tighter entitlements, fixed Sparkle updates, and smarter reconnects")
     ]
 

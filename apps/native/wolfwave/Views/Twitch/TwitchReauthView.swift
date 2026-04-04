@@ -36,7 +36,7 @@ struct TwitchReauthView: View {
                         .font(.headline)
                         .fontWeight(.semibold)
                     
-                    Text("Your Twitch session has expired")
+                    Text("Your Twitch sign-in expired")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
@@ -62,7 +62,7 @@ struct TwitchReauthView: View {
     
     private var idleContent: some View {
         VStack(alignment: .leading, spacing: 14) {
-            Text("Please sign in again to continue using Twitch Integration.")
+            Text("Please sign in again to keep the Twitch bot running.")
                 .font(.body)
                 .foregroundStyle(.secondary)
             
@@ -75,7 +75,7 @@ struct TwitchReauthView: View {
                         .scaledToFit()
                         .frame(width: 14, height: 14)
 
-                    Text("Authorize on Twitch")
+                    Text("Sign in with Twitch")
                         .font(.system(size: 12, weight: .semibold))
                 }
                 .frame(maxWidth: .infinity)
@@ -83,7 +83,7 @@ struct TwitchReauthView: View {
             }
             .buttonStyle(.borderedProminent)
             .controlSize(.small)
-            .accessibilityLabel("Authorize on Twitch")
+            .accessibilityLabel("Sign in with Twitch")
             .accessibilityIdentifier("reauthAuthorizeButton")
         }
     }
@@ -94,7 +94,7 @@ struct TwitchReauthView: View {
         VStack(alignment: .leading, spacing: 14) {
             if !viewModel.authState.userCode.isEmpty {
                 VStack(alignment: .leading, spacing: 10) {
-                    Text("Device Code")
+                    Text("Sign-in Code")
                         .font(.caption)
                         .fontWeight(.semibold)
                         .foregroundStyle(.secondary)
@@ -128,13 +128,13 @@ struct TwitchReauthView: View {
                     // Helper text and button
                     VStack(alignment: .leading, spacing: 8) {
                         Button(action: { openTwitchActivation() }) {
-                            Text("Authorize your Twitch account to continue")
+                            Text("Sign in on Twitch to continue")
                                 .font(.caption)
                                 .foregroundStyle(.blue)
                         }
                         .buttonStyle(.plain)
-                        .help("Open Twitch authorization")
-                        .accessibilityLabel("Authorize Twitch account")
+                        .help("Open Twitch sign-in page")
+                        .accessibilityLabel("Sign in on Twitch to continue")
                         .accessibilityIdentifier("reauthOpenActivateLink")
                         
                         Button(action: { openTwitchActivation() }) {

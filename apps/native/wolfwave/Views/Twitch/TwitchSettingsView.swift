@@ -305,7 +305,7 @@ private struct SignedInView: View {
     private var botAccountSection: some View {
         HStack(alignment: .center, spacing: 12) {
             VStack(alignment: .leading, spacing: 2) {
-                Text("Bot Account")
+                Text("Twitch Account")
                     .font(.system(size: 11, weight: .medium))
                     .foregroundStyle(.secondary)
                 Text(botUsername.isEmpty ? "Not set" : botUsername)
@@ -317,8 +317,8 @@ private struct SignedInView: View {
         .padding(.horizontal, AppConstants.SettingsUI.cardPadding)
         .padding(.vertical, 12)
         .accessibilityElement(children: .combine)
-        .accessibilityLabel("Bot account: \(botUsername.isEmpty ? "Not set" : botUsername)")
-        .accessibilityValue(reauthNeeded ? "Re-authorization needed" : "Authorized")
+        .accessibilityLabel("Twitch account: \(botUsername.isEmpty ? "Not set" : botUsername)")
+        .accessibilityValue(reauthNeeded ? "Sign-in expired" : "Signed in")
     }
 
     private var channelSection: some View {
@@ -387,14 +387,14 @@ private struct SignedInView: View {
                 Image(systemName: "exclamationmark.triangle.fill")
                     .foregroundStyle(.orange)
                     .font(.system(size: 11))
-                Text("Validation error")
+                Text("Couldn't check channel")
                     .font(.system(size: 11))
                     .foregroundStyle(.orange)
                     .help(message)
             }
             .padding(.top, 6)
             .accessibilityElement(children: .combine)
-            .accessibilityLabel("Channel validation error: \(message)")
+            .accessibilityLabel("Couldn't check channel: \(message)")
         }
     }
 
@@ -414,7 +414,7 @@ private struct SignedInView: View {
                 .textFieldStyle(.plain)
                 .disabled(isConnecting)
                 .accessibilityLabel("Twitch channel name")
-                .accessibilityHint("Enter the channel name for your Twitch channel")
+                .accessibilityHint("Enter your Twitch channel name")
                 .accessibilityIdentifier("twitchChannelTextField")
                 .onSubmit {
                     if !shouldDisableConnectButton {
@@ -448,7 +448,7 @@ private struct SignedInView: View {
             Image(systemName: "wifi.slash")
                 .foregroundStyle(.orange)
                 .font(.system(size: 14))
-                .accessibilityLabel("Disconnected, re-authorization needed")
+                .accessibilityLabel("Disconnected, sign-in expired")
         case (false, false):
             EmptyView()
         }
@@ -458,14 +458,14 @@ private struct SignedInView: View {
         HStack(spacing: 10) {
             if reauthNeeded {
                 Button(action: onReauth) {
-                    Label("Re-auth", systemImage: "arrow.clockwise.circle.fill")
+                    Label("Sign in again", systemImage: "arrow.clockwise.circle.fill")
                         .font(.system(size: 12, weight: .medium))
                 }
                 .buttonStyle(.bordered)
                 .tint(.orange)
                 .controlSize(.small)
                 .pointerCursor()
-                .accessibilityLabel("Re-authorize Twitch account")
+                .accessibilityLabel("Sign in to Twitch again")
                 .accessibilityHint("Clears credentials and starts a new sign-in")
                 .accessibilityIdentifier("twitchReauthButton")
             } else {
@@ -534,9 +534,9 @@ private struct SignedInView: View {
                 .disabled(testAuthResult == .testing)
                 .pointerCursor()
                 .animation(.easeInOut(duration: 0.2), value: testAuthResult)
-                .help("Validates your Twitch token and checks required permissions")
-                .accessibilityLabel("Test Twitch token validity")
-                .accessibilityHint("Validates your Twitch token and checks required permissions")
+                .help("Checks if your Twitch sign-in is working")
+                .accessibilityLabel("Test Twitch sign-in")
+                .accessibilityHint("Checks if your Twitch sign-in is working")
                 .accessibilityValue(
                     testAuthResult == .success ? "Passed" :
                     testAuthResult == .failure ? "Failed" :
@@ -568,7 +568,7 @@ private struct SignedInView: View {
             }
             Button("Cancel", role: .cancel) {}
         } message: {
-            Text("This will disconnect the bot from the current channel but keep saved credentials.")
+            Text("This will disconnect the bot from the current channel but keep you logged in.")
         }
     }
 

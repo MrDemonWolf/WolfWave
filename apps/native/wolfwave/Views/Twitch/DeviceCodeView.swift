@@ -28,7 +28,7 @@ struct DeviceCodeView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             // Header: subtle label
-            Text("Device Code")
+            Text("Sign-in Code")
                 .font(.system(size: 11, weight: .medium))
                 .foregroundStyle(.secondary)
                 .transition(.move(edge: .top).combined(with: .opacity))
@@ -42,7 +42,7 @@ struct DeviceCodeView: View {
                     .lineLimit(1)
                     .minimumScaleFactor(0.6)
                     .frame(maxWidth: .infinity, alignment: .center)
-                    .accessibilityLabel("Device code")
+                    .accessibilityLabel("Sign-in code")
                     .accessibilityValue(userCode)
                     .accessibilityIdentifier("deviceCodeText")
 
@@ -56,7 +56,7 @@ struct DeviceCodeView: View {
                 .buttonStyle(.plain)
                 .pointerCursor()
                 .help(isCodeCopied ? "Copied" : "Copy code")
-                .accessibilityLabel(isCodeCopied ? "Copied" : "Copy device code")
+                .accessibilityLabel(isCodeCopied ? "Copied" : "Copy sign-in code")
                 .accessibilityIdentifier("copyDeviceCodeButton")
                 .transition(.opacity)
                 .opacity((isHovering || isCodeCopied) ? 1.0 : 0.9)
@@ -87,7 +87,7 @@ struct DeviceCodeView: View {
             // Primary action: open activation URL with subtler, smaller button
             Button(action: openActivationURL) {
                 HStack(spacing: 6) {
-                    Text("Continue to Twitch to Authorize")
+                    Text("Continue to Twitch to sign in")
                         .font(.system(size: 12, weight: .medium))
                     Image(systemName: "arrow.up.right")
                         .font(.system(size: 10, weight: .semibold))

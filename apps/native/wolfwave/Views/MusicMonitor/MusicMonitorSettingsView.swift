@@ -274,8 +274,8 @@ struct MusicMonitorSettingsView: View {
                     iconColor: Color(red: 0.35, green: 0.40, blue: 0.95),
                     name: "Discord",
                     connected: discordActive,
-                    activeLabel: "Active",
-                    inactiveLabel: "Idle"
+                    activeLabel: "Connected",
+                    inactiveLabel: "Disconnected"
                 )
 
                 integrationRow(

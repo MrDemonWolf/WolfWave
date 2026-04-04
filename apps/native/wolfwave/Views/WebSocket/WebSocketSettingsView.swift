@@ -123,7 +123,7 @@ struct WebSocketSettingsView: View {
             // Enable toggle row
             ToggleSettingRow(
                 title: "Enable Now-Playing Widget",
-                subtitle: "Starts the local server that powers the widget",
+                subtitle: "Lets your widget show live song updates",
                 isOn: $websocketEnabled,
                 accessibilityLabel: "Toggle Now-Playing Widget",
                 accessibilityIdentifier: "websocketEnabledToggle",
@@ -236,7 +236,7 @@ struct WebSocketSettingsView: View {
             // Widget HTTP server toggle row
             ToggleSettingRow(
                 title: "Enable Widget Webpage",
-                subtitle: "Creates the webpage OBS or browsers connect to",
+                subtitle: "Hosts the page you'll add to OBS",
                 isOn: $widgetHTTPEnabled,
                 isDisabled: !websocketEnabled,
                 accessibilityLabel: "Toggle Widget Webpage",
@@ -343,7 +343,7 @@ struct WebSocketSettingsView: View {
                 Image(systemName: "info.circle.fill")
                     .font(.system(size: 12))
                     .foregroundStyle(.blue)
-                Text("In OBS, set the Width and Height to **\(AppConstants.Widget.recommendedDimensionsText)** for best results. Enable \"Shutdown source when not visible\" for clean reconnects.")
+                Text("In OBS, set the Width and Height to **\(AppConstants.Widget.recommendedDimensionsText)** for best results. Enable \"Shutdown source when not visible\" so the widget reconnects properly.")
                     .font(.system(size: 11))
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)

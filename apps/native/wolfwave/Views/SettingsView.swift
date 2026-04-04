@@ -190,42 +190,6 @@ struct SettingsView: View {
             // Initialize the view model's connection state from the service so the UI
             // reflects whether we are already joined (prevents missed callbacks).
             twitchViewModel.channelConnected = appDelegate?.twitchService?.isConnected ?? false
-
-            // Set up callback to get current song info
-            appDelegate?.twitchService?.getCurrentSongInfo = {
-                if Thread.isMainThread {
-                    return MainActor.assumeIsolated {
-                        (NSApplication.shared.delegate as? AppDelegate)?.getCurrentSongInfo()
-                            ?? "Nothing playing right now"
-                    }
-                }
-                var result = "Nothing playing right now"
-                DispatchQueue.main.sync {
-                    result = MainActor.assumeIsolated {
-                        (NSApplication.shared.delegate as? AppDelegate)?.getCurrentSongInfo()
-                            ?? "Nothing playing right now"
-                    }
-                }
-                return result
-            }
-
-            // Set up callback to get last song info
-            appDelegate?.twitchService?.getLastSongInfo = {
-                if Thread.isMainThread {
-                    return MainActor.assumeIsolated {
-                        (NSApplication.shared.delegate as? AppDelegate)?.getLastSongInfo()
-                            ?? "No previous track yet"
-                    }
-                }
-                var result = "No previous track yet"
-                DispatchQueue.main.sync {
-                    result = MainActor.assumeIsolated {
-                        (NSApplication.shared.delegate as? AppDelegate)?.getLastSongInfo()
-                            ?? "No previous track yet"
-                    }
-                }
-                return result
-            }
         }
         .toolbar(removing: .sidebarToggle)
         .toolbarBackgroundVisibility(.hidden, for: .windowToolbar)
@@ -411,7 +375,7 @@ struct SettingsView: View {
 
             HStack(spacing: 12) {
                 VStack(alignment: .leading, spacing: 2) {
-                    Text("Global: \(Int(globalCooldown.wrappedValue))s")
+                    Text("Everyone: \(Int(globalCooldown.wrappedValue))s")
                         .font(.system(size: 11))
                         .foregroundStyle(.secondary)
                     Slider(value: globalCooldown, in: 0...30, step: 5)
@@ -422,7 +386,7 @@ struct SettingsView: View {
                 }
 
                 VStack(alignment: .leading, spacing: 2) {
-                    Text("Per-user: \(Int(userCooldown.wrappedValue))s")
+                    Text("Per person: \(Int(userCooldown.wrappedValue))s")
                         .font(.system(size: 11))
                         .foregroundStyle(.secondary)
                     Slider(value: userCooldown, in: 0...60, step: 5)

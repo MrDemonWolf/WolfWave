@@ -102,7 +102,7 @@ struct OnboardingTwitchStepView: View {
             .controlSize(.regular)
             .pointerCursor()
             .accessibilityLabel("Sign in with Twitch authorization")
-            .accessibilityHint("Starts the Twitch device code authorization flow")
+            .accessibilityHint("Opens the Twitch sign-in process")
         }
     }
 

@@ -235,7 +235,7 @@ final class TwitchViewModel {
 
     /// Status chip text based on current state
     var statusChipText: String {
-        if reauthNeeded { return "Reauth needed" }
+        if reauthNeeded { return "Sign-in expired" }
         if channelConnected { return "Connected" }
         if credentialsSaved { return "Signed in" }
         return "Not signed in"

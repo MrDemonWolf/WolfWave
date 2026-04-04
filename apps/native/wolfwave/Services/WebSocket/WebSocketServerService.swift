@@ -70,9 +70,7 @@ final class WebSocketServerService: @unchecked Sendable {
 
     /// Starts or stops the server based on the given flag.
     func setEnabled(_ enabled: Bool) {
-        enabledLock.lock()
-        isEnabled = enabled
-        enabledLock.unlock()
+        enabledLock.withLock { isEnabled = enabled }
 
         if enabled {
             serverQueue.async { [weak self] in self?.startServer() }
@@ -284,18 +282,13 @@ final class WebSocketServerService: @unchecked Sendable {
 
     /// Retries starting the server after a delay if still enabled.
     private func scheduleRetry() {
-        enabledLock.lock()
-        let shouldRetry = isEnabled
-        enabledLock.unlock()
-
+        let shouldRetry = enabledLock.withLock { isEnabled }
         guard shouldRetry else { return }
 
         Log.info("WebSocketServerService: Retrying in \(AppConstants.WebSocketServer.retryDelay)s", category: "WebSocket")
         serverQueue.asyncAfter(deadline: .now() + AppConstants.WebSocketServer.retryDelay) { [weak self] in
             guard let self else { return }
-            self.enabledLock.lock()
-            let stillEnabled = self.isEnabled
-            self.enabledLock.unlock()
+            let stillEnabled = self.enabledLock.withLock { self.isEnabled }
             guard stillEnabled, self.listener == nil else { return }
             self.startServer()
         }

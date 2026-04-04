@@ -129,6 +129,13 @@ final class DiscordRPCService: @unchecked Sendable {
     /// Tracks the last artwork lookup key to avoid redundant re-sends.
     private var lastArtworkKey: String?
 
+    /// Cached result of `readDiscordTmpDir()` to avoid sysctl on every connect.
+    private var cachedDiscordTmpDir: String?
+    /// When `cachedDiscordTmpDir` was last populated.
+    private var cachedDiscordTmpDirAt: Date = .distantPast
+    /// How long the TMPDIR cache is valid (Discord's TMPDIR doesn't change mid-session).
+    private let discordTmpDirTTL: TimeInterval = 30
+
     // MARK: - Init
 
     /// Creates the service. Does not connect until `setEnabled(true)` is called.
@@ -415,7 +422,20 @@ final class DiscordRPCService: @unchecked Sendable {
         // 1. Read the REAL TMPDIR from Discord's own process environment.
         //    sysctl(KERN_PROCARGS2) returns argv + environ for same-user processes
         //    and is NOT redirected by App Sandbox.
-        if let discordTmpDir = readDiscordTmpDir() {
+        //    Result is cached for `discordTmpDirTTL` seconds — Discord's TMPDIR
+        //    doesn't change while it's running, so calling sysctl on every
+        //    connect attempt is wasteful.
+        let now = Date()
+        let discordTmpDir: String?
+        if let cached = cachedDiscordTmpDir, now.timeIntervalSince(cachedDiscordTmpDirAt) < discordTmpDirTTL {
+            discordTmpDir = cached
+        } else {
+            discordTmpDir = readDiscordTmpDir()
+            cachedDiscordTmpDir = discordTmpDir
+            cachedDiscordTmpDirAt = now
+        }
+
+        if let discordTmpDir {
             let resolved = Self.resolveSymlinks(discordTmpDir)
             candidates.append(resolved)
         }
