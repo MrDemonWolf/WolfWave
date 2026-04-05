@@ -11,6 +11,8 @@ import ScriptingBridge
 
 class AppleMusicSource: PlaybackSource {
 
+    // MARK: - Properties
+
     private enum Constants {
         static let musicBundleIdentifier = "com.apple.Music"
         static let notificationName = "com.apple.Music.playerInfo"
@@ -41,6 +43,8 @@ class AppleMusicSource: PlaybackSource {
     private var pendingElapsed: TimeInterval = 0
 
     private let backgroundQueue = DispatchQueue(label: Constants.queueLabel, qos: .utility)
+
+    // MARK: - Protocol Conformance
 
     func startTracking() {
         let alreadyTracking = trackingLock.withLock { () -> Bool in
@@ -74,6 +78,8 @@ class AppleMusicSource: PlaybackSource {
         timer = nil
         setupFallbackTimer()
     }
+
+    // MARK: - Playback Monitoring
 
     @objc private func musicPlayerInfoChanged(_ notification: Notification) {
         let now = Date()
@@ -119,6 +125,8 @@ class AppleMusicSource: PlaybackSource {
             handleTrackInfo(Constants.Status.notPlaying)
         }
     }
+
+    // MARK: - Private Helpers
 
     private func notifyDelegate(status: String) {
         DispatchQueue.main.async { [weak self] in

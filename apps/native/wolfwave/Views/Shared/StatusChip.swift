@@ -13,8 +13,13 @@ import SwiftUI
 /// connection or server state. Has a fixed minimum width so the pill doesn't
 /// resize when the text changes between states.
 struct StatusChip: View {
+
+    // MARK: - Properties
+
     let text: String
     let color: Color
+
+    // MARK: - Body
 
     var body: some View {
         HStack(spacing: 6) {

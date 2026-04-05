@@ -20,6 +20,9 @@ import SwiftUI
 /// - Initial: Shows device code and instructions
 /// - Authorizing: Smooth transition to waiting state with tasteful spinner
 struct TwitchDeviceAuthDialog: View {
+
+    // MARK: - Properties
+
     let deviceCode: String
     let onAuthorizePressed: () -> Void
     let onCancelPressed: () -> Void
@@ -27,7 +30,9 @@ struct TwitchDeviceAuthDialog: View {
     @State private var isCodeCopied = false
     @State private var isWaiting = false
     @State private var showCopyFeedback = false
-    
+
+    // MARK: - Body
+
     var body: some View {
         ZStack {
             // Main content
@@ -138,7 +143,9 @@ struct TwitchDeviceAuthDialog: View {
             }
         }
     }
-    
+
+    // MARK: - Helpers
+
     private func handleAuthorizePressed() {
         // Transition to waiting state
         withAnimation(.easeInOut(duration: 0.3)) {
@@ -179,10 +186,15 @@ struct TwitchDeviceAuthDialog: View {
 
 /// The device code entry state view
 private struct DeviceCodeEntryView: View {
+
+    // MARK: - Properties
+
     let deviceCode: String
     @Binding var isCodeCopied: Bool
     let onCopyTapped: () -> Void
-    
+
+    // MARK: - Body
+
     var body: some View {
         VStack(spacing: 16) {
             // Instructions text

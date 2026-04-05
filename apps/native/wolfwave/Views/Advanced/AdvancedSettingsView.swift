@@ -94,6 +94,7 @@ struct AdvancedSettingsView: View {
         }
     }
 
+    /// Main view body with update card, setup wizard, diagnostics, and danger zone sections.
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
             // Section Header
@@ -238,6 +239,7 @@ struct AdvancedSettingsView: View {
 
     // MARK: - Software Update Card
 
+    /// Routes to the correct update card based on install method (Homebrew vs DMG).
     @ViewBuilder
     private var softwareUpdateCard: some View {
         if isHomebrewInstall {

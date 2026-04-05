@@ -24,10 +24,15 @@ import Foundation
 /// // Observe AppConstants.Notifications.powerStateChanged for changes
 /// ```
 final class PowerStateMonitor {
+
+    // MARK: - Properties
+
     static let shared = PowerStateMonitor()
 
     /// Whether the system is in a reduced-power state (Low Power Mode or serious/critical thermal pressure).
     private(set) var isReducedMode: Bool = false
+
+    // MARK: - Lifecycle
 
     // Process-lifetime singleton — deinit included for completeness
     deinit {
@@ -50,6 +55,8 @@ final class PowerStateMonitor {
             object: nil
         )
     }
+
+    // MARK: - Private Helpers
 
     @objc private func handleChange() {
         updateState()

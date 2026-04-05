@@ -5,6 +5,7 @@
 //  Created by MrDemonWolf, Inc. on 3/15/26.
 //
 
+import AppKit
 import Foundation
 import Network
 
@@ -108,7 +109,7 @@ final class WidgetHTTPService {
 
         if method == "GET" && (path == "/" || path.isEmpty) {
             serveWidget(to: connection)
-        } else if method == "GET" && path == "/favicon.ico" {
+        } else if method == "GET" && (path == "/favicon.ico" || path == "/favicon.png") {
             serveFavicon(to: connection)
         } else {
             send404(to: connection)
@@ -138,14 +139,16 @@ final class WidgetHTTPService {
     }
 
     private func serveFavicon(to connection: NWConnection) {
-        guard let url = Bundle.main.url(forResource: "favicon", withExtension: "ico"),
-              let body = try? Data(contentsOf: url) else {
+        guard let image = NSImage(named: "AppIcon"),
+              let tiffData = image.tiffRepresentation,
+              let bitmap = NSBitmapImageRep(data: tiffData),
+              let body = bitmap.representation(using: .png, properties: [:]) else {
             send404(to: connection)
             return
         }
 
         let header = "HTTP/1.1 200 OK\r\n" +
-            "Content-Type: image/x-icon\r\n" +
+            "Content-Type: image/png\r\n" +
             "Content-Length: \(body.count)\r\n" +
             "Cache-Control: public, max-age=86400\r\n" +
             "Connection: close\r\n\r\n"

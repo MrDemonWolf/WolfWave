@@ -36,15 +36,25 @@ final class TwitchViewModel {
 
     // MARK: - Observable State
 
+    /// The bot account's Twitch username, resolved after OAuth completes.
     var botUsername = ""
+    /// The raw OAuth token used for Twitch API calls.
     var oauthToken = ""
+    /// The target Twitch channel name the bot connects to.
     var channelID = ""
+    /// Whether valid credentials exist in the Keychain.
     var credentialsSaved = false
+    /// Whether the bot is actively connected to a Twitch channel.
     var channelConnected = false
+    /// Whether a channel join attempt is currently in progress.
     var isConnecting = false
+    /// Whether the stored token has expired and the user must sign in again.
     var reauthNeeded = false
+    /// User-facing status text shown below the auth card.
     var statusMessage = ""
+    /// Current state of the channel name lookup against the Twitch API.
     var channelValidationState: ChannelValidationState = .idle
+    /// Current state of the lightweight token validation check.
     var testAuthResult: TestAuthResult = .idle
 
     // MARK: - Test Auth State
@@ -56,6 +66,7 @@ final class TwitchViewModel {
 
     // MARK: - Auth State
 
+    /// Tracks where the user is in the OAuth Device Code flow.
     enum AuthState: Equatable {
         case idle
         case requestingCode
@@ -63,6 +74,7 @@ final class TwitchViewModel {
         case inProgress
         case error(String)
 
+        /// Whether the flow is actively running (requesting, waiting, or exchanging).
         var isInProgress: Bool {
             switch self {
             case .inProgress, .requestingCode, .waitingForAuth:
@@ -72,6 +84,7 @@ final class TwitchViewModel {
             }
         }
 
+        /// The device code the user enters on Twitch, or empty if not in that state.
         var userCode: String {
             switch self {
             case .waitingForAuth(let code, _):
@@ -81,6 +94,7 @@ final class TwitchViewModel {
             }
         }
 
+        /// The Twitch URL where the user enters the code, or empty if not in that state.
         var verificationURI: String {
             switch self {
             case .waitingForAuth(_, let uri):
@@ -192,7 +206,9 @@ final class TwitchViewModel {
     @ObservationIgnored var oAuthTask: Task<Void, Never>?
     /// Debounce task for saving channel ID to avoid excessive Keychain writes
     @ObservationIgnored private var channelIDSaveTask: Task<Void, Never>?
+    /// Task that resets the test-auth result badge back to idle after a delay.
     @ObservationIgnored private var pendingAuthResetTask: Task<Void, Never>?
+    /// In-flight task for the lightweight token validation check.
     @ObservationIgnored private var pendingTestAuthTask: Task<Void, Never>?
 
     /// Tracked notification observer tokens for proper cleanup

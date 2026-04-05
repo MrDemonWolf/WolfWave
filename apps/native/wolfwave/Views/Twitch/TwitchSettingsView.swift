@@ -28,8 +28,14 @@ import SwiftUI
 
 // MARK: - Twitch Settings View
 
+/// Settings panel for Twitch bot auth, channel connection, and account management.
+///
+/// Switches between sign-in, authorizing, connected, and error states
+/// driven by ``TwitchViewModel/integrationState``.
 struct TwitchSettingsView: View {
+    /// The shared Twitch state manager driving this view.
     @Bindable var viewModel: TwitchViewModel
+    /// Tracks whether the user has copied/opened the device code at least once.
     @State private var hasStartedActivation = false
 
     var body: some View {
@@ -73,28 +79,19 @@ struct TwitchSettingsView: View {
 
     // MARK: - Subviews
 
+    /// Section header showing "Twitch" title, subtitle, and a colored status chip.
     private var headerView: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            HStack(alignment: .center, spacing: 10) {
-                Text("Twitch")
-                    .sectionHeader()
-
-                Spacer()
-
-                StatusChip(text: viewModel.statusChipText, color: viewModel.statusChipColor)
-                    .accessibilityLabel("Twitch integration status: \(viewModel.statusChipText)")
-                    .animation(.easeInOut(duration: 0.2), value: viewModel.statusChipText)
-            }
-
-            Text("Let people use chat commands to see what's playing.")
-                .font(.system(size: 13))
-                .foregroundStyle(.secondary)
-        }
-        .accessibilityElement(children: .combine)
+        SectionHeaderWithStatus(
+            title: "Twitch",
+            subtitle: "Let people use chat commands to see what's playing.",
+            statusText: viewModel.statusChipText,
+            statusColor: viewModel.statusChipColor
+        )
     }
 
     // keychain status moved into header as a subtle affordance
 
+    /// Title text for the auth card header, adapts to reauth/signed-in/signed-out states.
     private var authCardHeaderTitle: String {
         if viewModel.reauthNeeded {
             return "Log In Again"
@@ -105,6 +102,7 @@ struct TwitchSettingsView: View {
         }
     }
 
+    /// Subtitle text for the auth card header with a short call-to-action.
     private var authCardHeaderSubtitle: String {
         if viewModel.reauthNeeded {
             return "Your login expired. Please log in again."
@@ -117,6 +115,9 @@ struct TwitchSettingsView: View {
         }
     }
 
+    /// Main card that switches content based on integration state.
+    ///
+    /// Shows one of: sign-in button, device-code flow, connected controls, or error retry.
     @ViewBuilder
     private var authCard: some View {
         VStack(spacing: 14) {
@@ -302,6 +303,7 @@ private struct SignedInView: View {
 
     // MARK: - Sections
 
+    /// Row showing the signed-in Twitch username and a status icon.
     private var botAccountSection: some View {
         HStack(alignment: .center, spacing: 12) {
             VStack(alignment: .leading, spacing: 2) {
@@ -321,6 +323,7 @@ private struct SignedInView: View {
         .accessibilityValue(reauthNeeded ? "Sign-in expired" : "Signed in")
     }
 
+    /// Row with the channel name input field (or label when connected) and validation indicator.
     private var channelSection: some View {
         VStack(alignment: .leading, spacing: 0) {
             HStack(alignment: .center, spacing: 12) {
@@ -341,6 +344,7 @@ private struct SignedInView: View {
         .padding(.vertical, 12)
     }
 
+    /// Small inline indicator below the channel field showing validation progress or result.
     @ViewBuilder
     private var channelValidationIndicator: some View {
         switch channelValidationState {
@@ -398,6 +402,7 @@ private struct SignedInView: View {
         }
     }
 
+    /// Either a read-only label (when connected or reauth needed) or an editable text field.
     @ViewBuilder
     private var channelInputView: some View {
         switch (isChannelConnected, reauthNeeded) {
@@ -436,6 +441,7 @@ private struct SignedInView: View {
         }
     }
 
+    /// Wi-Fi icon reflecting current channel connection state.
     @ViewBuilder
     private var connectionIcon: some View {
         switch (isChannelConnected, reauthNeeded) {
@@ -454,6 +460,7 @@ private struct SignedInView: View {
         }
     }
 
+    /// Bottom row with Connect/Disconnect, Test Login, and Log Out buttons.
     private var actionButtonsSection: some View {
         HStack(spacing: 10) {
             if reauthNeeded {
@@ -572,6 +579,7 @@ private struct SignedInView: View {
         }
     }
 
+    /// Tint color for the Test Login button based on its result state.
     private var testAuthButtonTint: Color? {
         switch testAuthResult {
         case .idle, .testing: return nil
@@ -580,6 +588,7 @@ private struct SignedInView: View {
         }
     }
 
+    /// Whether the Connect button should be grayed out (missing channel name or still connecting).
     private var shouldDisableConnectButton: Bool {
         let validChannel = !channelID.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
         if isConnecting { return true }

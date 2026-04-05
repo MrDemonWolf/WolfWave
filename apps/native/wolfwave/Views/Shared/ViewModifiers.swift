@@ -153,6 +153,17 @@ extension View {
     }
 }
 
+// MARK: - Notification Posting Helper
+
+extension NotificationCenter {
+    /// Posts a notification using a string name from `AppConstants.Notifications`.
+    ///
+    /// Shorthand for the verbose `post(name: NSNotification.Name(...), object: nil, userInfo:)` pattern.
+    func post(_ name: String, userInfo: [String: Any]? = nil) {
+        post(name: NSNotification.Name(name), object: nil, userInfo: userInfo)
+    }
+}
+
 // MARK: - Color Hex Initializer
 
 extension Color {
@@ -165,5 +176,16 @@ extension Color {
         let g = Double((value >> 8) & 0xFF) / 255.0
         let b = Double(value & 0xFF) / 255.0
         self.init(red: r, green: g, blue: b)
+    }
+
+    /// Converts the color to an uppercase hex string (e.g. "#FF0000").
+    ///
+    /// Returns `nil` if the color cannot be represented in the sRGB color space.
+    func toHex() -> String? {
+        guard let components = NSColor(self).usingColorSpace(.sRGB) else { return nil }
+        let r = Int((components.redComponent * 255).rounded())
+        let g = Int((components.greenComponent * 255).rounded())
+        let b = Int((components.blueComponent * 255).rounded())
+        return String(format: "#%02X%02X%02X", r, g, b)
     }
 }

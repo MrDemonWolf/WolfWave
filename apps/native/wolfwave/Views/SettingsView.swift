@@ -43,7 +43,7 @@ struct SettingsView: View {
     /// Navigation sections in the settings sidebar.
     enum SettingsSection: String, CaseIterable, Identifiable {
         case general = "General"
-        case websocket = "Now-Playing Widget"
+        case websocket = "Now-Playing Server"
         case twitchIntegration = "Twitch Integration"
         case discord = "Discord Integration"
         case advanced = "Advanced"
@@ -122,7 +122,7 @@ struct SettingsView: View {
     /// Twitch settings view model
     @State private var twitchViewModel = TwitchViewModel()
 
-    // Helper to get the shared Twitch service from AppDelegate
+    /// Shared Twitch service from the app delegate.
     private var appDelegate: AppDelegate? {
         NSApplication.shared.delegate as? AppDelegate
     }
@@ -212,7 +212,8 @@ struct SettingsView: View {
     }
     
     // MARK: - Detail Views
-    
+
+    /// Returns the detail pane content for the given sidebar section.
     @ViewBuilder
     private func detailView(for section: SettingsSection) -> some View {
         switch section {
@@ -231,6 +232,7 @@ struct SettingsView: View {
 
     // MARK: - Sidebar Helpers
 
+    /// Builds a sidebar row with a brand icon (if available) or an SF Symbol fallback.
     @ViewBuilder
     private func sidebarRow(for section: SettingsSection) -> some View {
         if let brandIcon = section.brandIcon {
@@ -252,6 +254,7 @@ struct SettingsView: View {
         }
     }
     
+    /// Twitch detail pane — auth settings plus bot command toggles and cooldown sliders.
     private func twitchIntegrationView() -> some View {
         VStack(alignment: .leading, spacing: AppConstants.SettingsUI.sectionSpacing) {
             TwitchSettingsView(viewModel: twitchViewModel)
@@ -330,6 +333,7 @@ struct SettingsView: View {
         }
     }
 
+    /// A toggle row for enabling/disabling a single bot command.
     @ViewBuilder
     private func commandToggleRow(
         title: String,
@@ -360,6 +364,7 @@ struct SettingsView: View {
         }
     }
 
+    /// A row with global and per-user cooldown sliders for a bot command.
     @ViewBuilder
     private func cooldownRow(
         label: String,
@@ -410,6 +415,7 @@ struct SettingsView: View {
 
     // MARK: - Helpers
 
+    /// Posts a notification when music tracking is toggled on or off.
     private func notifyTrackingSettingChanged(enabled: Bool) {
         NotificationCenter.default.post(
             name: NSNotification.Name(AppConstants.Notifications.trackingSettingChanged),

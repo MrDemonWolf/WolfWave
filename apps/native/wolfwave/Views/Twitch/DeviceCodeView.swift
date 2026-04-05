@@ -16,6 +16,9 @@ import SwiftUI
 /// - Smooth interaction feedback
 /// - Supports dark and light modes naturally
 struct DeviceCodeView: View {
+
+    // MARK: - Properties
+
     let userCode: String
     let verificationURI: String
     let onCopy: () -> Void
@@ -24,7 +27,9 @@ struct DeviceCodeView: View {
     @State private var isCodeCopied = false
     @State private var showCopyFeedback = false
     @State private var isHovering = false
-    
+
+    // MARK: - Body
+
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             // Header: subtle label
@@ -111,7 +116,9 @@ struct DeviceCodeView: View {
         )
         .animation(.spring(response: 0.35, dampingFraction: 0.82, blendDuration: 0), value: userCode)
     }
-    
+
+    // MARK: - Helpers
+
     private func copyDeviceCode() {
         NSPasteboard.general.clearContents()
         NSPasteboard.general.setString(userCode, forType: .string)
@@ -139,6 +146,8 @@ struct DeviceCodeView: View {
             onActivate?()
         }
     }
+
+    // MARK: - Subviews
 
     @ViewBuilder
     private var copyFeedbackView: some View {

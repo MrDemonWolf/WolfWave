@@ -5,6 +5,7 @@
 //  Created by MrDemonWolf, Inc. on 1/17/26.
 //
 
+import Darwin
 import SwiftUI
 
 /// Now-playing widget settings: server port, enable/disable toggle, status, and widget URL.
@@ -56,6 +57,70 @@ struct WebSocketSettingsView: View {
         "ws://localhost:\(storedPort)"
     }
 
+    private var networkConnectionURL: String? {
+        guard let ip = localNetworkIP else { return nil }
+        return "ws://\(ip):\(storedPort)"
+    }
+
+    private var networkWidgetURL: String? {
+        guard let ip = localNetworkIP else { return nil }
+        let port = storedWidgetPort > 0 ? storedWidgetPort : Int(AppConstants.WebSocketServer.widgetDefaultPort)
+        return "http://\(ip):\(port)"
+    }
+
+    /// Returns the device's primary non-loopback IPv4 address, or `nil` if not on a network.
+    private var localNetworkIP: String? {
+        var ifaddr: UnsafeMutablePointer<ifaddrs>?
+        guard getifaddrs(&ifaddr) == 0 else { return nil }
+        defer { freeifaddrs(ifaddr) }
+
+        var ptr = ifaddr
+        while let interface = ptr {
+            let flags = Int32(interface.pointee.ifa_flags)
+            let isUp = flags & Int32(IFF_UP) != 0
+            let isRunning = flags & Int32(IFF_RUNNING) != 0
+            let isLoopback = flags & Int32(IFF_LOOPBACK) != 0
+
+            if let addr = interface.pointee.ifa_addr,
+               addr.pointee.sa_family == UInt8(AF_INET),
+               isUp, isRunning, !isLoopback {
+                var host = [CChar](repeating: 0, count: Int(NI_MAXHOST))
+                getnameinfo(addr, socklen_t(addr.pointee.sa_len),
+                            &host, socklen_t(host.count),
+                            nil, 0, NI_NUMERICHOST)
+                return String(cString: host)
+            }
+            ptr = interface.pointee.ifa_next
+        }
+        return nil
+    }
+
+    /// A `Binding<Color>` that reads/writes `widgetTextColor` as a hex string.
+    private var textColorBinding: Binding<Color> {
+        Binding(
+            get: { Color(hex: widgetTextColor) ?? .white },
+            set: { newColor in
+                if let hex = newColor.toHex() {
+                    widgetTextColor = hex
+                }
+                broadcastWidgetConfig()
+            }
+        )
+    }
+
+    /// A `Binding<Color>` that reads/writes `widgetBackgroundColor` as a hex string.
+    private var backgroundColorBinding: Binding<Color> {
+        Binding(
+            get: { Color(hex: widgetBackgroundColor) ?? .black },
+            set: { newColor in
+                if let hex = newColor.toHex() {
+                    widgetBackgroundColor = hex
+                }
+                broadcastWidgetConfig()
+            }
+        )
+    }
+
     private var isPortValid: Bool {
         guard let port = UInt16(portText) else { return false }
         return port >= AppConstants.WebSocketServer.minPort
@@ -70,21 +135,12 @@ struct WebSocketSettingsView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: AppConstants.SettingsUI.sectionSpacing) {
-            VStack(alignment: .leading, spacing: 6) {
-                HStack(alignment: .center, spacing: 10) {
-                    Text("Now-Playing Widget")
-                        .sectionHeader()
-
-                    Spacer()
-
-                    statusChip
-                }
-
-                Text("Show your current song using a customizable widget.")
-                    .font(.system(size: 13))
-                    .foregroundStyle(.secondary)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
+            SectionHeaderWithStatus(
+                title: "Now-Playing Server",
+                subtitle: "Stream your current song to overlays and widgets over WebSocket.",
+                statusText: serverStatusText,
+                statusColor: serverStatusColor
+            )
 
             serverSettingsCard
 
@@ -118,6 +174,7 @@ struct WebSocketSettingsView: View {
 
     // MARK: - Server Settings Card
 
+    /// Card with the main server toggle, port config, and connection URLs for local and network use.
     private var serverSettingsCard: some View {
         VStack(alignment: .leading, spacing: 0) {
             // Enable toggle row
@@ -155,6 +212,7 @@ struct WebSocketSettingsView: View {
                     .textFieldStyle(.roundedBorder)
                     .frame(width: 80)
                     .multilineTextAlignment(.center)
+                    .disabled(websocketEnabled)
                     .accessibilityLabel("Server port")
                     .accessibilityIdentifier("websocketPortField")
                     .onSubmit {
@@ -176,10 +234,23 @@ struct WebSocketSettingsView: View {
                 .padding(.bottom, 8)
             }
 
+            if websocketEnabled {
+                HStack(spacing: 6) {
+                    Image(systemName: "lock.fill")
+                        .font(.system(size: 11))
+                        .foregroundStyle(.secondary)
+                    Text("Disable the server to change the port.")
+                        .font(.system(size: 11))
+                        .foregroundStyle(.secondary)
+                }
+                .padding(.horizontal, cardPadding)
+                .padding(.bottom, 8)
+            }
+
             Divider()
                 .padding(.leading, cardPadding)
 
-            // Connection URL row
+            // Local Address row
             HStack(spacing: 8) {
                 VStack(alignment: .leading, spacing: 2) {
                     Text("Local Address")
@@ -195,12 +266,43 @@ struct WebSocketSettingsView: View {
                 CopyButton(
                     text: connectionURL,
                     isDisabled: !websocketEnabled,
-                    accessibilityLabel: "Copy connection URL",
+                    accessibilityLabel: "Copy local connection URL",
                     accessibilityIdentifier: "copyConnectionURLButton"
                 )
             }
             .padding(.horizontal, cardPadding)
             .padding(.vertical, 12)
+
+            // Network Address row (shown when a LAN IP is available)
+            if let networkURL = networkConnectionURL {
+                Divider()
+                    .padding(.leading, cardPadding)
+
+                HStack(spacing: 8) {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Network Address")
+                            .font(.system(size: 11, weight: .medium))
+                            .foregroundStyle(.secondary)
+                        Text(networkURL)
+                            .font(.system(size: 12, design: .monospaced))
+                            .textSelection(.enabled)
+                        Text("Use this for two-PC setups.")
+                            .font(.system(size: 10))
+                            .foregroundStyle(.tertiary)
+                    }
+
+                    Spacer()
+
+                    CopyButton(
+                        text: networkURL,
+                        isDisabled: !websocketEnabled,
+                        accessibilityLabel: "Copy network connection URL",
+                        accessibilityIdentifier: "copyNetworkConnectionURLButton"
+                    )
+                }
+                .padding(.horizontal, cardPadding)
+                .padding(.vertical, 12)
+            }
 
         }
         .background(Color(nsColor: .controlBackgroundColor))
@@ -209,6 +311,7 @@ struct WebSocketSettingsView: View {
 
     // MARK: - Browser Source Card
 
+    /// Card for the OBS browser source setup: widget HTTP toggle, port, copyable URLs, and OBS tips.
     private var browserSourceCard: some View {
         VStack(alignment: .leading, spacing: 0) {
             // Header
@@ -271,7 +374,7 @@ struct WebSocketSettingsView: View {
                     .textFieldStyle(.roundedBorder)
                     .frame(width: 80)
                     .multilineTextAlignment(.center)
-                    .disabled(!websocketEnabled || !widgetHTTPEnabled)
+                    .disabled(widgetHTTPEnabled)
                     .accessibilityLabel("Widget server port")
                     .accessibilityIdentifier("widgetPortField")
                     .onSubmit {
@@ -290,6 +393,19 @@ struct WebSocketSettingsView: View {
                         .font(.system(size: 11))
                 }
                 .foregroundStyle(.red)
+                .padding(.horizontal, cardPadding)
+                .padding(.bottom, 8)
+            }
+
+            if widgetHTTPEnabled {
+                HStack(spacing: 6) {
+                    Image(systemName: "lock.fill")
+                        .font(.system(size: 11))
+                        .foregroundStyle(.secondary)
+                    Text("Disable the widget server to change the port.")
+                        .font(.system(size: 11))
+                        .foregroundStyle(.secondary)
+                }
                 .padding(.horizontal, cardPadding)
                 .padding(.bottom, 8)
             }
@@ -338,6 +454,26 @@ struct WebSocketSettingsView: View {
             .padding(.horizontal, cardPadding)
             .padding(.vertical, 12)
 
+            // Network widget URL (shown when a LAN IP is available)
+            if let networkWidget = networkWidgetURL {
+                Divider()
+                    .padding(.leading, cardPadding)
+
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Network Address")
+                        .font(.system(size: 11, weight: .medium))
+                        .foregroundStyle(.secondary)
+                    Text(networkWidget)
+                        .font(.system(size: 11, design: .monospaced))
+                        .textSelection(.enabled)
+                    Text("Use this for two-PC setups.")
+                        .font(.system(size: 10))
+                        .foregroundStyle(.tertiary)
+                }
+                .padding(.horizontal, cardPadding)
+                .padding(.vertical, 12)
+            }
+
             // Info tip
             HStack(alignment: .top, spacing: 8) {
                 Image(systemName: "info.circle.fill")
@@ -361,6 +497,7 @@ struct WebSocketSettingsView: View {
 
     // MARK: - Widget Appearance Card
 
+    /// Card for customizing widget look: theme, layout, text/background colors, and font picker.
     private var widgetAppearanceCard: some View {
         VStack(alignment: .leading, spacing: 0) {
             // Header
@@ -385,130 +522,111 @@ struct WebSocketSettingsView: View {
             Divider()
                 .padding(.leading, cardPadding)
 
-            // Theme row
-            HStack(spacing: 12) {
-                Text("Theme")
-                    .font(.system(size: 13, weight: .medium))
-                Spacer()
-                Picker("", selection: $widgetTheme) {
-                    ForEach(AppConstants.Widget.themes, id: \.self) { theme in
-                        Text(theme).tag(theme)
+            // Theme + Layout row
+            HStack(spacing: 0) {
+                HStack(spacing: 8) {
+                    Text("Theme")
+                        .font(.system(size: 13, weight: .medium))
+                    Spacer()
+                    Picker("", selection: $widgetTheme) {
+                        ForEach(AppConstants.Widget.themes, id: \.self) { theme in
+                            Text(theme).tag(theme)
+                        }
+                    }
+                    .labelsHidden()
+                    .fixedSize()
+                    .accessibilityLabel("Widget theme")
+                    .accessibilityIdentifier("widgetThemePicker")
+                    .onChange(of: widgetTheme) { _, _ in
+                        broadcastWidgetConfig()
                     }
                 }
-                .labelsHidden()
-                .frame(width: 140)
-                .accessibilityLabel("Widget theme")
-                .accessibilityIdentifier("widgetThemePicker")
-                .onChange(of: widgetTheme) { _, _ in
-                    broadcastWidgetConfig()
-                }
-            }
-            .padding(.horizontal, cardPadding)
-            .padding(.vertical, 12)
+                .padding(.horizontal, cardPadding)
+                .frame(maxWidth: .infinity)
 
-            Divider()
-                .padding(.leading, cardPadding)
+                Divider()
 
-            // Layout row
-            HStack(spacing: 12) {
-                Text("Layout")
-                    .font(.system(size: 13, weight: .medium))
-                Spacer()
-                Picker("", selection: $widgetLayout) {
-                    ForEach(AppConstants.Widget.layouts, id: \.self) { layout in
-                        Text(layout).tag(layout)
+                HStack(spacing: 8) {
+                    Text("Layout")
+                        .font(.system(size: 13, weight: .medium))
+                    Spacer()
+                    Picker("", selection: $widgetLayout) {
+                        ForEach(AppConstants.Widget.layouts, id: \.self) { layout in
+                            Text(layout).tag(layout)
+                        }
+                    }
+                    .labelsHidden()
+                    .fixedSize()
+                    .accessibilityLabel("Widget layout")
+                    .accessibilityIdentifier("widgetLayoutPicker")
+                    .onChange(of: widgetLayout) { _, _ in
+                        broadcastWidgetConfig()
                     }
                 }
-                .labelsHidden()
-                .frame(width: 140)
-                .accessibilityLabel("Widget layout")
-                .accessibilityIdentifier("widgetLayoutPicker")
-                .onChange(of: widgetLayout) { _, _ in
-                    broadcastWidgetConfig()
-                }
+                .padding(.horizontal, cardPadding)
+                .frame(maxWidth: .infinity)
             }
-            .padding(.horizontal, cardPadding)
             .padding(.vertical, 12)
 
             if widgetTheme == "Default" || widgetTheme == "Glass" {
                 Divider()
                     .padding(.leading, cardPadding)
 
-                // Text Color row
-                HStack(spacing: 12) {
-                    Text("Text Color")
-                        .font(.system(size: 13, weight: .medium))
-                    Spacer()
-                    HStack(spacing: 6) {
-                        Circle()
-                            .fill(Color(hex: widgetTextColor) ?? .white)
-                            .frame(width: 14, height: 14)
-                            .overlay(Circle().stroke(Color.primary.opacity(0.2), lineWidth: 1))
-                        TextField("#FFFFFF", text: $widgetTextColor)
-                            .textFieldStyle(.roundedBorder)
-                            .frame(width: 90)
-                            .font(.system(size: 12, design: .monospaced))
-                            .multilineTextAlignment(.center)
+                // Text Color + Background Color row
+                HStack(spacing: 0) {
+                    HStack(spacing: 8) {
+                        Text("Text Color")
+                            .font(.system(size: 13, weight: .medium))
+                        Spacer()
+                        ColorPicker("", selection: textColorBinding, supportsOpacity: false)
+                            .labelsHidden()
+                            .frame(width: 40)
                             .accessibilityLabel("Widget text color")
-                            .accessibilityIdentifier("widgetTextColorField")
-                            .onSubmit { broadcastWidgetConfig() }
+                            .accessibilityIdentifier("widgetTextColorPicker")
                     }
-                }
-                .padding(.horizontal, cardPadding)
-                .padding(.vertical, 12)
+                    .padding(.horizontal, cardPadding)
+                    .frame(maxWidth: .infinity)
 
-                Divider()
-                    .padding(.leading, cardPadding)
+                    Divider()
 
-                // Background Color row
-                HStack(spacing: 12) {
-                    Text("Background Color")
-                        .font(.system(size: 13, weight: .medium))
-                    Spacer()
-                    HStack(spacing: 6) {
-                        Circle()
-                            .fill(Color(hex: widgetBackgroundColor) ?? .black)
-                            .frame(width: 14, height: 14)
-                            .overlay(Circle().stroke(Color.primary.opacity(0.2), lineWidth: 1))
-                        TextField("#1A1A2E", text: $widgetBackgroundColor)
-                            .textFieldStyle(.roundedBorder)
-                            .frame(width: 90)
-                            .font(.system(size: 12, design: .monospaced))
-                            .multilineTextAlignment(.center)
+                    HStack(spacing: 8) {
+                        Text("Bg Color")
+                            .font(.system(size: 13, weight: .medium))
+                        Spacer()
+                        ColorPicker("", selection: backgroundColorBinding, supportsOpacity: false)
+                            .labelsHidden()
+                            .frame(width: 40)
                             .accessibilityLabel("Widget background color")
-                            .accessibilityIdentifier("widgetBackgroundColorField")
-                            .onSubmit { broadcastWidgetConfig() }
+                            .accessibilityIdentifier("widgetBackgroundColorPicker")
                     }
+                    .padding(.horizontal, cardPadding)
+                    .frame(maxWidth: .infinity)
                 }
-                .padding(.horizontal, cardPadding)
                 .padding(.vertical, 12)
             }
 
             Divider()
                 .padding(.leading, cardPadding)
 
-            // Font row
-            VStack(alignment: .leading, spacing: 8) {
-                HStack(spacing: 12) {
-                    Text("Font")
-                        .font(.system(size: 13, weight: .medium))
-                    Spacer()
-                    Picker("", selection: $widgetFontFamily) {
-                        Text("System Default").tag("System Default")
-                        Divider()
-                        ForEach(NSFontManager.shared.availableFontFamilies.sorted(), id: \.self) { font in
-                            Text(font).tag(font)
-                        }
-                    }
-                    .labelsHidden()
-                    .frame(width: 180)
-                    .accessibilityLabel("Widget font")
-                    .accessibilityIdentifier("widgetFontPicker")
-                    .onChange(of: widgetFontFamily) { _, _ in
-                        broadcastWidgetConfig()
+            // Font row (full width)
+            HStack(spacing: 12) {
+                Text("Font")
+                    .font(.system(size: 13, weight: .medium))
+                Spacer()
+                Picker("", selection: $widgetFontFamily) {
+                    Text("System Default").tag("System Default")
+                    Divider()
+                    ForEach(NSFontManager.shared.availableFontFamilies.sorted(), id: \.self) { font in
+                        Text(font).tag(font)
                     }
                 }
-
+                .labelsHidden()
+                .fixedSize()
+                .accessibilityLabel("Widget font")
+                .accessibilityIdentifier("widgetFontPicker")
+                .onChange(of: widgetFontFamily) { _, _ in
+                    broadcastWidgetConfig()
+                }
             }
             .padding(.horizontal, cardPadding)
             .padding(.vertical, 12)
@@ -519,24 +637,27 @@ struct WebSocketSettingsView: View {
 
     // MARK: - Subviews
 
-    @ViewBuilder
-    private var statusChip: some View {
+    /// Human-readable label for the current server state (e.g. "Listening", "2 connected").
+    private var serverStatusText: String {
         switch serverState {
         case .listening:
-            if clientCount > 0 {
-                StatusChip(
-                    text: "\(clientCount) connected",
-                    color: .green
-                )
-            } else {
-                StatusChip(text: "Listening", color: .green)
-            }
+            return clientCount > 0 ? "\(clientCount) connected" : "Listening"
         case .starting:
-            StatusChip(text: "Starting", color: .orange)
+            return "Starting"
         case .error:
-            StatusChip(text: "Error", color: .red)
+            return "Error"
         case .stopped:
-            StatusChip(text: "Stopped", color: .gray)
+            return "Stopped"
+        }
+    }
+
+    /// Color dot for the server status badge (green, orange, red, or gray).
+    private var serverStatusColor: Color {
+        switch serverState {
+        case .listening: return .green
+        case .starting:  return .orange
+        case .error:     return .red
+        case .stopped:   return .gray
         }
     }
 

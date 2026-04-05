@@ -130,8 +130,7 @@ final class SparkleUpdaterService: NSObject {
     func checkForUpdates() {
         #if DEBUG
         Log.info("Update checks disabled in DEBUG builds", category: "Sparkle")
-        return
-        #endif
+        #else
         guard !isHomebrewInstall else {
             Log.warn("SparkleUpdaterService: Manual check ignored — app is managed by Homebrew", category: "Update")
             return
@@ -144,6 +143,7 @@ final class SparkleUpdaterService: NSObject {
 
         Log.info("SparkleUpdaterService: Manual update check triggered", category: "Update")
         updater.checkForUpdates()
+        #endif
     }
     
     /// Checks for updates silently in the background.

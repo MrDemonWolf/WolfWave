@@ -13,28 +13,36 @@ import SwiftUI
 extension AppDelegate {
 
     /// Opens or brings the Settings window to the front.
+    ///
+    /// When switching from menu-only mode, the activation policy change is
+    /// asynchronous — the window show is deferred to the next run-loop tick
+    /// so macOS has time to register the app as a regular (Dock-visible) process.
     @objc func openSettings() {
         statusItem?.menu?.cancelTracking()
 
-        if currentDockVisibilityMode == AppConstants.DockVisibility.menuOnly {
+        let needsActivationSwitch = currentDockVisibilityMode == AppConstants.DockVisibility.menuOnly
+        if needsActivationSwitch {
             NSApp.setActivationPolicy(.regular)
         }
 
-        if let window = settingsWindow {
-            if window.isVisible {
-                window.level = .normal
-                window.makeKeyAndOrderFront(nil)
-                NSApp.activate(ignoringOtherApps: true)
-            } else if window.isMiniaturized {
-                window.deminiaturize(nil)
-                window.makeKeyAndOrderFront(nil)
-                NSApp.activate(ignoringOtherApps: true)
+        let show: () -> Void = { [weak self] in
+            guard let self else { return }
+            if let window = self.settingsWindow {
+                if window.isMiniaturized {
+                    window.deminiaturize(nil)
+                }
+                self.showWindow(window)
             } else {
-                Log.debug("AppDelegate: Settings window exists but is not visible - waiting for close to complete", category: "App")
+                self.settingsWindow = self.createSettingsWindow()
+                self.showWindow(self.settingsWindow)
             }
+        }
+
+        // Defer to next run-loop tick so the activation policy change takes effect first
+        if needsActivationSwitch {
+            DispatchQueue.main.async(execute: show)
         } else {
-            settingsWindow = createSettingsWindow()
-            showWindow(settingsWindow)
+            show()
         }
     }
 
@@ -334,13 +342,14 @@ extension AppDelegate {
         window.canHide = true
         window.isReleasedWhenClosed = false
         window.delegate = self
+        window.toolbar = nil
         window.center()
         return window
     }
 
     func showWindow(_ window: NSWindow?) {
         window?.level = .normal
-        window?.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)
+        window?.makeKeyAndOrderFront(nil)
     }
 }

@@ -26,42 +26,17 @@ struct DiscordSettingsView: View {
     /// Current Discord connection state, updated via notification from AppDelegate.
     @State private var connectionState: DiscordRPCService.ConnectionState = .disconnected
 
-    /// Result of the "Test Connection" button.
-    enum TestConnectionResult: Equatable {
-        case idle
-        case testing
-        case success
-        case failure
-    }
-    
-    /// Current test connection result state.
-    @State private var testConnectionResult: TestConnectionResult = .idle
-
-    /// Task for clearing test result after delay.
-    @State private var clearTask: Task<Void, Never>?
-
     /// Whether a valid Discord Client ID is configured.
     @State private var hasClientID = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
-            // Section Header
-            VStack(alignment: .leading, spacing: 6) {
-                HStack(alignment: .center, spacing: 10) {
-                    Text("Discord Status")
-                        .sectionHeader()
-
-                    Spacer()
-
-                    statusChip
-                }
-
-                Text("Show your music on your Discord profile.")
-                    .font(.system(size: 13))
-                    .foregroundStyle(.secondary)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-            .accessibilityElement(children: .combine)
+            SectionHeaderWithStatus(
+                title: "Discord Status",
+                subtitle: "Show your music on your Discord profile.",
+                statusText: statusChipText,
+                statusColor: statusChipColor
+            )
 
             // Toggle Card
             ToggleSettingRow(
@@ -81,42 +56,19 @@ struct DiscordSettingsView: View {
             // Test Connection
             if presenceEnabled && hasClientID {
                 HStack(spacing: 10) {
-                    Button {
-                        testDiscordConnection()
-                    } label: {
-                        switch testConnectionResult {
-                        case .idle:
-                            Label("Check Discord", systemImage: "antenna.radiowaves.left.and.right")
-                                .font(.system(size: 12, weight: .medium))
-                        case .testing:
-                            HStack(spacing: 6) {
-                                ProgressView()
-                                    .progressViewStyle(.circular)
-                                    .controlSize(.mini)
-                                Text("Testing...")
-                                    .font(.system(size: 12))
-                            }
-                        case .success:
-                            Label("Connected", systemImage: "checkmark.circle.fill")
-                                .font(.system(size: 12, weight: .medium))
-                        case .failure:
-                            Label("Failed", systemImage: "xmark.circle.fill")
-                                .font(.system(size: 12, weight: .medium))
+                    ConnectionTestButton(
+                        label: "Check Discord",
+                        icon: "antenna.radiowaves.left.and.right"
+                    ) { completion in
+                        guard let service = AppDelegate.shared?.discordService else {
+                            completion(false)
+                            return
                         }
+                        service.testConnection(completion: completion)
                     }
-                    .buttonStyle(.bordered)
-                    .tint(testConnectionButtonTint)
-                    .controlSize(.small)
-                    .disabled(testConnectionResult == .testing)
-                    .pointerCursor()
                     .help("Checks if Discord is open and ready.")
                     .accessibilityLabel("Test Discord connection")
                     .accessibilityHint("Checks if Discord is open and ready to receive status updates")
-                    .accessibilityValue(
-                        testConnectionResult == .success ? "Connected" :
-                        testConnectionResult == .failure ? "Failed" :
-                        testConnectionResult == .testing ? "Testing" : "Not tested"
-                    )
                     .accessibilityIdentifier("discordTestConnectionButton")
 
                     Spacer()
@@ -124,14 +76,9 @@ struct DiscordSettingsView: View {
                 .transition(.opacity)
             }
 
-            #if DEBUG
             if !hasClientID {
-                Text("Set DISCORD_CLIENT_ID in Config.xcconfig to enable this feature.")
-                    .font(.system(size: 11))
-                    .foregroundStyle(.orange)
-                    .transition(.opacity)
+                ConfigRequiredBanner(message: "Set DISCORD_CLIENT_ID in Config.xcconfig to enable this feature.")
             }
-            #endif
         }
         .animation(.easeInOut(duration: 0.2), value: presenceEnabled)
         .onAppear {
@@ -182,60 +129,12 @@ struct DiscordSettingsView: View {
         }
     }
 
-    @ViewBuilder
-    private var statusChip: some View {
-        StatusChip(text: statusChipText, color: statusChipColor)
-            .accessibilityLabel("Discord status: \(statusChipText)")
-    }
-
     // MARK: - Helpers
-
-    /// Computed tint color for the test connection button based on result state.
-    private var testConnectionButtonTint: Color? {
-        switch testConnectionResult {
-        case .success:
-            return .green
-        case .failure:
-            return .red
-        case .idle, .testing:
-            return nil
-        }
-    }
 
     /// Reads the current connection state from the AppDelegate's Discord service.
     private func refreshConnectionState() {
         if let appDelegate = AppDelegate.shared {
             connectionState = appDelegate.discordService?.state ?? .disconnected
-        }
-    }
-
-    /// Tests the Discord IPC connection and displays a result in the button.
-    private func testDiscordConnection() {
-        testConnectionResult = .testing
-
-        guard let service = AppDelegate.shared?.discordService else {
-            testConnectionResult = .failure
-            scheduleResultReset()
-            return
-        }
-
-        service.testConnection { success in
-            withAnimation {
-                testConnectionResult = success ? .success : .failure
-            }
-            scheduleResultReset()
-        }
-    }
-
-    /// Resets the test connection result to idle after 3 seconds.
-    private func scheduleResultReset() {
-        clearTask?.cancel()
-        clearTask = Task { @MainActor in
-            try? await Task.sleep(nanoseconds: 3_000_000_000)
-            guard !Task.isCancelled else { return }
-            withAnimation {
-                testConnectionResult = .idle
-            }
         }
     }
 

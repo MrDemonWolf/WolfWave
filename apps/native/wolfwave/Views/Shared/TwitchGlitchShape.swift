@@ -20,6 +20,9 @@ import SwiftUI
 ///     .frame(width: 16, height: 16)
 /// ```
 struct TwitchGlitchShape: Shape {
+
+    // MARK: - Shape Conformance
+
     func path(in rect: CGRect) -> Path {
         let w = rect.width
         let h = rect.height

@@ -38,7 +38,10 @@ export const metadata: Metadata = {
   authors: [{ name: "MrDemonWolf, Inc." }],
   creator: "MrDemonWolf, Inc.",
   icons: {
-    icon: "/icon.png",
+    icon: [
+      { url: "/icon.svg", type: "image/svg+xml" },
+      { url: "/icon.png", type: "image/png" },
+    ],
     apple: "/apple-icon.png",
   },
   openGraph: {

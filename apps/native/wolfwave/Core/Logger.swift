@@ -6,6 +6,7 @@
 //
 
 import Foundation
+import os
 
 enum LogLevel: String {
     case debug = "🐛 DEBUG"
@@ -35,9 +36,9 @@ enum LogLevel: String {
 /// ```
 enum Log {
 
-    nonisolated(unsafe) private static let formatter: ISO8601DateFormatter = {
-        let formatter = ISO8601DateFormatter()
-        formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+    nonisolated private static let formatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "HH:mm:ss.SSS"
         return formatter
     }()
 
@@ -48,6 +49,28 @@ enum Log {
         #else
         return false
         #endif
+    }
+
+    // MARK: - OSLog
+
+    /// Subsystem identifier used for all OSLog entries.
+    private static let subsystem = "com.mrdemonwolf.wolfwave"
+
+    /// Returns a cached `os.Logger` for the given category.
+    ///
+    /// Logs appear in Console.app and Instruments — filter by subsystem
+    /// `com.mrdemonwolf.wolfwave` and use the Category column to isolate
+    /// specific areas (e.g. "Twitch", "Discord", "Music").
+    nonisolated(unsafe) private static var osLoggers: [String: os.Logger] = [:]
+    nonisolated private static let osLoggerLock = NSLock()
+
+    nonisolated private static func osLogger(for category: String) -> os.Logger {
+        osLoggerLock.lock()
+        defer { osLoggerLock.unlock() }
+        if let existing = osLoggers[category] { return existing }
+        let logger = os.Logger(subsystem: subsystem, category: category)
+        osLoggers[category] = logger
+        return logger
     }
 
     // MARK: - File Logging
@@ -158,9 +181,19 @@ enum Log {
     nonisolated static func log(_ message: String, level: LogLevel = .info, category: String = "App") {
         let redactedMessage = redactSensitiveInfo(message)
         let timestamp = formatter.string(from: Date())
-        let line = "[\(level.rawValue)] [\(category)] [\(timestamp)] \(redactedMessage)"
+        let line = "\(level.rawValue)  [\(category)] \(timestamp)  \(redactedMessage)"
         print(line)
         writeToFile(line)
+
+        // Route to OSLog so logs appear in Console.app and Instruments.
+        // Messages are marked .public since PII has already been redacted above.
+        let logger = osLogger(for: category)
+        switch level {
+        case .debug: logger.debug("\(redactedMessage, privacy: .public)")
+        case .info:  logger.info("\(redactedMessage, privacy: .public)")
+        case .warn:  logger.warning("\(redactedMessage, privacy: .public)")
+        case .error: logger.error("\(redactedMessage, privacy: .public)")
+        }
     }
 
     nonisolated static func debug(_ message: @autoclosure () -> String, category: String = "App") {

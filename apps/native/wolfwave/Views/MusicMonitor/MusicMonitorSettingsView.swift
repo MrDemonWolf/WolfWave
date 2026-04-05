@@ -20,18 +20,31 @@ import SwiftUI
 struct MusicMonitorSettingsView: View {
     // MARK: - User Settings
 
+    /// Whether music tracking is currently enabled.
     @AppStorage(AppConstants.UserDefaults.trackingEnabled)
     private var trackingEnabled = true
 
+    /// True when Apple Events permission for Apple Music has been denied.
     @State private var permissionDenied = false
+
+    /// Currently playing track name from Apple Music.
     @State private var currentTrack: String?
+
+    /// Artist of the currently playing track.
     @State private var currentArtist: String?
+
+    /// Album of the currently playing track.
     @State private var currentAlbum: String?
 
     // MARK: - Integration Status
 
+    /// Whether the Twitch bot is connected to chat.
     @State private var twitchConnected = false
+
+    /// Whether Discord Rich Presence is active.
     @State private var discordActive = false
+
+    /// Whether the now-playing widget server is running.
     @State private var widgetRunning = false
 
     var body: some View {
@@ -137,6 +150,7 @@ struct MusicMonitorSettingsView: View {
 
     // MARK: - Unified Panel
 
+    /// Combined card with the tracking toggle, now-playing info, and integration statuses.
     @ViewBuilder
     private var unifiedPanel: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -174,6 +188,7 @@ struct MusicMonitorSettingsView: View {
 
     // MARK: - Now Playing Section
 
+    /// Shows the current track, artist, and album — or a placeholder when nothing is playing.
     @ViewBuilder
     private var nowPlayingSection: some View {
         VStack(alignment: .leading, spacing: 10) {
@@ -247,6 +262,7 @@ struct MusicMonitorSettingsView: View {
 
     // MARK: - Integration Status Section
 
+    /// Live status indicators for Twitch, Discord, and Widget connections.
     @ViewBuilder
     private var integrationStatusSection: some View {
         VStack(alignment: .leading, spacing: 8) {
