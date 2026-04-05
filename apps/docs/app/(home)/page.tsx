@@ -179,7 +179,6 @@ export default function HomePage() {
             <div className="flex flex-col items-center gap-6 shrink-0">
               <NowPlayingCard />
               <WaveformBars />
-              <p className="text-xs text-hero-subtle tracking-wider uppercase">Live preview</p>
             </div>
           </div>
         </div>

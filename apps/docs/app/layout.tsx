@@ -16,6 +16,15 @@ const instrumentSans = Instrument_Sans({
 });
 
 const siteUrl = "https://mrdemonwolf.github.io/wolfwave";
+const basePath = (() => {
+  const envValue = process.env.NEXT_PUBLIC_BASE_PATH ?? "";
+  if (!envValue) return "";
+  let path = "";
+  try { path = new URL(envValue).pathname; } catch { path = envValue; }
+  if (!path || path === "/") return "";
+  const normalized = path.startsWith("/") ? path : `/${path}`;
+  return normalized.endsWith("/") ? normalized.slice(0, -1) : normalized;
+})();
 
 export const metadata: Metadata = {
   title: {
@@ -45,10 +54,10 @@ export const metadata: Metadata = {
   creator: "MrDemonWolf, Inc.",
   icons: {
     icon: [
-      { url: "/icon.svg", type: "image/svg+xml" },
-      { url: "/icon.png", type: "image/png" },
+      { url: `${basePath}/icon.svg`, type: "image/svg+xml" },
+      { url: `${basePath}/icon.png`, type: "image/png" },
     ],
-    apple: "/apple-icon.png",
+    apple: `${basePath}/apple-icon.png`,
   },
   alternates: {
     canonical: siteUrl,
