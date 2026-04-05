@@ -52,9 +52,9 @@ function NowPlayingCard() {
         />
         <div className="min-w-0">
           <p className="text-hero text-sm font-semibold truncate font-[family-name:var(--font-unbounded)]">
-            Blinding Lights
+            Kbps Plz
           </p>
-          <p className="text-hero-muted text-xs truncate">The Weeknd</p>
+          <p className="text-hero-muted text-xs truncate">DevBowzer</p>
         </div>
       </div>
       {/* Progress bar */}
