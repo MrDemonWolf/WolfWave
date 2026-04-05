@@ -256,29 +256,6 @@
   }
 }
 
-/* ── Waveform animation ── */
-
-.waveform {
-  display: flex;
-  align-items: center;
-  gap: 3px;
-  height: 48px;
-}
-
-.waveform-bar {
-  width: 4px;
-  border-radius: 2px;
-  background: linear-gradient(to top, #7c3aed, #22d3ee);
-  animation: wave-bounce var(--duration, 1.2s) ease-in-out infinite alternate;
-  animation-delay: var(--delay, 0s);
-  height: 6px;
-}
-
-@keyframes wave-bounce {
-  0%   { height: 6px; opacity: 0.4; }
-  100% { height: var(--peak, 40px); opacity: 1; }
-}
-
 /* ── Now Playing card pulse ── */
 
 .now-playing-pulse {

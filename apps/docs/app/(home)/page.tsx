@@ -2,41 +2,6 @@ import Link from "next/link";
 import { MessageSquare, Radio, Wifi, Shield, Download, ArrowRight, Github } from "lucide-react";
 import { getAssetPath } from "@/lib/utils";
 
-// Animated waveform bars — CSS-driven, no client JS needed
-function WaveformBars() {
-  const bars = [
-    { peak: "18px", duration: "0.9s", delay: "0s" },
-    { peak: "32px", duration: "1.1s", delay: "0.1s" },
-    { peak: "40px", duration: "1.3s", delay: "0.05s" },
-    { peak: "28px", duration: "0.8s", delay: "0.2s" },
-    { peak: "44px", duration: "1.2s", delay: "0.15s" },
-    { peak: "36px", duration: "1.0s", delay: "0.25s" },
-    { peak: "44px", duration: "1.4s", delay: "0.0s" },
-    { peak: "30px", duration: "0.95s", delay: "0.18s" },
-    { peak: "40px", duration: "1.15s", delay: "0.08s" },
-    { peak: "22px", duration: "1.05s", delay: "0.3s" },
-    { peak: "34px", duration: "0.85s", delay: "0.12s" },
-    { peak: "18px", duration: "1.25s", delay: "0.22s" },
-  ];
-  return (
-    <div className="waveform" aria-hidden="true">
-      {bars.map((bar, i) => (
-        <div
-          key={i}
-          className="waveform-bar"
-          style={
-            {
-              "--peak": bar.peak,
-              "--duration": bar.duration,
-              "--delay": bar.delay,
-            } as React.CSSProperties
-          }
-        />
-      ))}
-    </div>
-  );
-}
-
 // Pulsing "Now Playing" card mockup
 function NowPlayingCard() {
   return (
@@ -178,7 +143,6 @@ export default function HomePage() {
             {/* Right: visual */}
             <div className="flex flex-col items-center gap-6 shrink-0">
               <NowPlayingCard />
-              <WaveformBars />
             </div>
           </div>
         </div>
