@@ -2,21 +2,33 @@
 @import "fumadocs-ui/css/ocean.css";
 @import "fumadocs-ui/css/preset.css";
 
-/* Blue theme color variables */
+/* ── Brand: Violet (#7c3aed) / Cyan (#22d3ee) ── */
+
+/* Light mode — clean white + violet accents */
 :root {
-  --color-fd-primary: hsl(217 91% 60%);
+  --color-fd-primary: hsl(263 70% 50%);
   --color-fd-primary-foreground: hsl(0 0% 100%);
-  --color-fd-muted-foreground: hsl(215 20% 35%);
+  --color-fd-background: hsl(0 0% 100%);
+  --color-fd-muted: hsl(220 14% 96%);
+  --color-fd-secondary: hsl(220 13% 91%);
+  --color-fd-muted-foreground: hsl(230 10% 35%);
+  --color-fd-ring: hsl(263 70% 45%);
+  --color-fd-border: hsl(220 13% 87%);
+  --color-fd-overlay: hsla(230 20% 10% / 0.3);
+
+  --shiki-light: #1a1a2e;
+  --shiki-light-bg: #F8F9FA;
 }
 
+/* Dark mode — deep midnight + lighter violet for contrast */
 .dark {
+  --color-fd-primary: hsl(263 70% 58%);
+  --color-fd-primary-foreground: hsl(0 0% 100%);
   --color-fd-background: hsl(222 47% 6%);
   --color-fd-muted: hsl(222 47% 8%);
   --color-fd-secondary: hsl(222 47% 12%);
   --color-fd-muted-foreground: hsl(215 20% 75%);
-  --color-fd-primary: hsl(217 91% 60%);
-  --color-fd-primary-foreground: hsl(0 0% 100%);
-  --color-fd-ring: hsl(217 91% 50%);
+  --color-fd-ring: hsl(263 70% 50%);
   --color-fd-overlay: hsla(222 47% 0% / 0.5);
   --color-fd-border: hsl(222 47% 18%);
 
@@ -39,15 +51,145 @@
   }
 }
 
-/* Midnight background utilities */
-.bg-midnight {
-  background-color: #080810;
-}
-.bg-midnight-card {
-  background-color: #0e0e1a;
+/* ── Landing page backgrounds ── */
+
+/* Dark mode (default) */
+.bg-midnight { background-color: #080810; }
+.bg-midnight-card { background-color: #0e0e1a; }
+.bg-midnight-alt { background-color: #0a0a14; }
+.bg-midnight-cta { background-color: #080810; }
+
+/* Light mode overrides */
+.light .bg-midnight { background-color: #FFFFFF; }
+.light .bg-midnight-card { background-color: #F8F9FA; }
+.light .bg-midnight-alt { background-color: #F3F4F6; }
+.light .bg-midnight-cta { background-color: #F8F9FA; }
+
+@media (prefers-color-scheme: light) {
+  :root:not(.dark) .bg-midnight { background-color: #FFFFFF; }
+  :root:not(.dark) .bg-midnight-card { background-color: #F8F9FA; }
+  :root:not(.dark) .bg-midnight-alt { background-color: #F3F4F6; }
+  :root:not(.dark) .bg-midnight-cta { background-color: #F8F9FA; }
 }
 
-/* Hero gradient text */
+/* ── Landing page text — theme-safe ── */
+.text-hero { color: #FFFFFF; }
+.text-hero-muted { color: #94a3b8; }
+.text-hero-subtle { color: #64748b; }
+
+.light .text-hero { color: #1a1a2e; }
+.light .text-hero-muted { color: #475569; }
+.light .text-hero-subtle { color: #64748b; }
+
+@media (prefers-color-scheme: light) {
+  :root:not(.dark) .text-hero { color: #1a1a2e; }
+  :root:not(.dark) .text-hero-muted { color: #475569; }
+  :root:not(.dark) .text-hero-subtle { color: #64748b; }
+}
+
+/* ── Now Playing card ── */
+.now-playing-card-bg { background-color: #0e0e1a; }
+.light .now-playing-card-bg { background-color: #FFFFFF; border: 1px solid hsl(263 30% 90%); }
+@media (prefers-color-scheme: light) {
+  :root:not(.dark) .now-playing-card-bg { background-color: #FFFFFF; border: 1px solid hsl(263 30% 90%); }
+}
+
+/* ── Proof bar ── */
+.proof-bar {
+  border-top: 1px solid rgba(255,255,255,0.06);
+  border-bottom: 1px solid rgba(255,255,255,0.06);
+  background-color: rgba(255,255,255,0.02);
+}
+.light .proof-bar {
+  border-color: hsl(220 13% 90%);
+  background-color: #F8F9FA;
+}
+@media (prefers-color-scheme: light) {
+  :root:not(.dark) .proof-bar {
+    border-color: hsl(220 13% 90%);
+    background-color: #F8F9FA;
+  }
+}
+
+/* Proof pill */
+.proof-pill {
+  background-color: rgba(124,58,237,0.08);
+  color: #94a3b8;
+  border: 1px solid rgba(124,58,237,0.2);
+}
+.light .proof-pill {
+  background-color: rgba(124,58,237,0.06);
+  color: #475569;
+  border-color: rgba(124,58,237,0.2);
+}
+@media (prefers-color-scheme: light) {
+  :root:not(.dark) .proof-pill {
+    background-color: rgba(124,58,237,0.06);
+    color: #475569;
+    border-color: rgba(124,58,237,0.2);
+  }
+}
+
+/* ── Version badge ── */
+.version-badge {
+  border: 1px solid rgba(124,58,237,0.4);
+  background-color: rgba(124,58,237,0.08);
+  color: #a855f7;
+}
+.light .version-badge {
+  border-color: rgba(124,58,237,0.3);
+  background-color: rgba(124,58,237,0.06);
+  color: #7c3aed;
+}
+@media (prefers-color-scheme: light) {
+  :root:not(.dark) .version-badge {
+    border-color: rgba(124,58,237,0.3);
+    background-color: rgba(124,58,237,0.06);
+    color: #7c3aed;
+  }
+}
+
+/* ── Buttons ── */
+.btn-primary {
+  background: linear-gradient(135deg, #7c3aed, #a855f7);
+  color: #FFFFFF;
+}
+
+.btn-secondary {
+  border: 1px solid rgba(255,255,255,0.12);
+  color: #94a3b8;
+  background-color: rgba(255,255,255,0.04);
+}
+.light .btn-secondary {
+  border-color: hsl(220 13% 85%);
+  color: #475569;
+  background-color: rgba(0,0,0,0.03);
+}
+@media (prefers-color-scheme: light) {
+  :root:not(.dark) .btn-secondary {
+    border-color: hsl(220 13% 85%);
+    color: #475569;
+    background-color: rgba(0,0,0,0.03);
+  }
+}
+
+/* ── Developer card ── */
+.dev-card {
+  background-color: rgba(124,58,237,0.06);
+  border: 1px solid rgba(124,58,237,0.25);
+}
+.light .dev-card {
+  background-color: rgba(124,58,237,0.04);
+  border-color: rgba(124,58,237,0.2);
+}
+@media (prefers-color-scheme: light) {
+  :root:not(.dark) .dev-card {
+    background-color: rgba(124,58,237,0.04);
+    border-color: rgba(124,58,237,0.2);
+  }
+}
+
+/* ── Hero gradient text ── */
 .gradient-text {
   background: linear-gradient(135deg, #7c3aed, #22d3ee, #a855f7);
   background-size: 200% 200%;
@@ -62,7 +204,7 @@
   50% { background-position: 100% 50%; }
 }
 
-/* Hero background glow */
+/* ── Hero background glow ── */
 .hero-glow {
   position: absolute;
   top: -30%;
@@ -80,7 +222,27 @@
   z-index: 0;
 }
 
-/* Waveform animation */
+.light .hero-glow {
+  background: radial-gradient(
+    ellipse at center,
+    rgba(124, 58, 237, 0.08) 0%,
+    rgba(34, 211, 238, 0.04) 45%,
+    transparent 70%
+  );
+}
+
+@media (prefers-color-scheme: light) {
+  :root:not(.dark) .hero-glow {
+    background: radial-gradient(
+      ellipse at center,
+      rgba(124, 58, 237, 0.08) 0%,
+      rgba(34, 211, 238, 0.04) 45%,
+      transparent 70%
+    );
+  }
+}
+
+/* ── Waveform animation ── */
 .waveform {
   display: flex;
   align-items: center;
@@ -102,7 +264,7 @@
   100% { height: var(--peak, 40px); opacity: 1; }
 }
 
-/* Now Playing card pulse */
+/* ── Now Playing card pulse ── */
 .now-playing-pulse {
   animation: card-pulse 3s ease-in-out infinite;
 }
@@ -112,7 +274,22 @@
   50%       { box-shadow: 0 0 30px 4px rgba(124, 58, 237, 0.25); }
 }
 
-/* Feature cards */
+.light .now-playing-pulse {
+  animation: card-pulse-light 3s ease-in-out infinite;
+}
+
+@media (prefers-color-scheme: light) {
+  :root:not(.dark) .now-playing-pulse {
+    animation: card-pulse-light 3s ease-in-out infinite;
+  }
+}
+
+@keyframes card-pulse-light {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(124, 58, 237, 0); }
+  50%       { box-shadow: 0 0 24px 2px rgba(124, 58, 237, 0.12); }
+}
+
+/* ── Feature cards ── */
 .feature-card {
   padding: 1rem;
   border-radius: 0.75rem;
@@ -125,9 +302,14 @@
 }
 
 .feature-card:hover {
-  border-color: hsl(217 91% 80%);
+  border-color: hsl(263 70% 75%);
 }
 
 .dark .feature-card:hover {
-  border-color: hsl(217 91% 35%);
+  border-color: hsl(263 70% 40%);
+}
+
+/* ── Steps number badge ── */
+.step-badge {
+  background: linear-gradient(135deg, #7c3aed, #22d3ee);
 }
