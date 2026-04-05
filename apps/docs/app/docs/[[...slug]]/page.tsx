@@ -37,9 +37,14 @@ export async function generateMetadata(props: PageProps<'/docs/[[...slug]]'>): P
   const page = source.getPage(params.slug);
   if (!page) notFound();
 
+  const slug = params.slug?.join('/') ?? '';
+
   return {
     title: page.data.title,
     description: page.data.description,
+    alternates: {
+      canonical: `https://mrdemonwolf.github.io/wolfwave/docs/${slug}`,
+    },
     openGraph: {
       images: getPageImage(page).url,
     },
