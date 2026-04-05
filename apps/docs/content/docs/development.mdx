@@ -16,7 +16,7 @@ This guide covers everything you need to contribute to WolfWave.
 ## Setup
 
 1. Fork and clone the repository
-2. Copy `src/wolfwave/Config.xcconfig.example` to `src/wolfwave/Config.xcconfig`
+2. Copy `apps/native/wolfwave/Config.xcconfig.example` to `apps/native/wolfwave/Config.xcconfig`
 3. Set your Twitch Client ID and Discord Client ID in `Config.xcconfig`
 4. Open the project: `make open-xcode`
 5. Resolve dependencies: `make update-deps`
@@ -166,7 +166,7 @@ Or press **Cmd+U** in Xcode. The test target (`WolfWaveTests`) is a hosted unit 
 
 ### Adding New Tests
 
-Test files are auto-discovered — just add `.swift` files to `src/WolfWaveTests/`. Use `@testable import WolfWave` to access internal types.
+Test files are auto-discovered — just add `.swift` files to `apps/native/WolfWaveTests/`. Use `@testable import WolfWave` to access internal types.
 
 ## CI/CD
 
@@ -192,8 +192,8 @@ Code signing, notarization, and DMG creation all happen in the release workflow.
 ### Triggering a Release
 
 ```bash
-git tag v1.0.0
-git push origin v1.0.0
+git tag v1.2.0
+git push origin v1.2.0
 ```
 
 This triggers the release workflow, which builds, signs, notarizes, and uploads the DMG to a draft GitHub Release. Once the workflow completes, review the draft and publish it.

@@ -198,7 +198,7 @@ export default function HomePage() {
       {/* Proof bar */}
       <div className="border-y px-6 py-4" style={{ borderColor: "rgba(255,255,255,0.06)", backgroundColor: "rgba(255,255,255,0.02)" }}>
         <div className="mx-auto max-w-5xl flex flex-wrap items-center justify-center gap-3">
-          {["Free Forever", "macOS 14+", "No Account Needed", "~10MB", "Open Source"].map((pill) => (
+          {["Free Forever", "macOS 26+", "No Account Needed", "~10MB", "Open Source"].map((pill) => (
             <span
               key={pill}
               className="text-xs font-medium px-3 py-1 rounded-full"

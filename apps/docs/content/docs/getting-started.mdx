@@ -25,10 +25,10 @@ cd WolfWave
 Copy the example configuration file:
 
 ```bash
-cp src/wolfwave/Config.xcconfig.example src/wolfwave/Config.xcconfig
+cp apps/native/wolfwave/Config.xcconfig.example apps/native/wolfwave/Config.xcconfig
 ```
 
-Open `src/wolfwave/Config.xcconfig` and set your keys:
+Open `apps/native/wolfwave/Config.xcconfig` and set your keys:
 
 ```
 TWITCH_CLIENT_ID = your_twitch_client_id_here
@@ -51,7 +51,7 @@ DISCORD_CLIENT_ID = your_discord_client_id_here
 ```bash
 make open-xcode
 # or
-open src/wolfwave.xcodeproj
+open apps/native/wolfwave.xcodeproj
 ```
 
 ## Build and Run
@@ -96,8 +96,8 @@ make notarize
 Pushing a version tag triggers the GitHub Actions release workflow, which creates a draft GitHub Release:
 
 ```bash
-git tag v1.0.0
-git push origin v1.0.0
+git tag v1.2.0
+git push origin v1.2.0
 ```
 
 After the workflow completes, build and notarize locally with `make prod-build && make notarize`, upload the DMG to the draft release, and publish it. Required secrets (`TWITCH_CLIENT_ID`, `DISCORD_CLIENT_ID`) must be configured in your repository's Actions secrets. See the [Development Guide](/docs/development) and [PUBLISH.md](https://github.com/MrDemonWolf/WolfWave/blob/main/PUBLISH.md) for the full release checklist.
