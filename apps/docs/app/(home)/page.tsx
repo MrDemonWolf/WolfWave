@@ -188,7 +188,7 @@ export default function HomePage() {
       {/* Proof bar */}
       <div className="proof-bar px-6 py-4">
         <div className="mx-auto max-w-5xl flex flex-wrap items-center justify-center gap-3">
-          {["Free Forever", "macOS 26+", "No Account Needed", "~10MB", "Open Source"].map((pill) => (
+          {["Free Forever", "macOS 26+", "No Account Needed", "~3.7MB", "Open Source"].map((pill) => (
             <span
               key={pill}
               className="proof-pill text-xs font-medium px-3 py-1 rounded-full"
