@@ -4,9 +4,29 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.2.0] - 2026-04-04
+
+### Added
+
+- **Docs landing page** — redesigned as a dark, streamer-focused marketing page with brand identity.
+- **Theme-aware favicon** — docs site SVG favicon automatically switches between light and dark variants based on system appearance.
+- **Shared UI components** — extracted reusable `ConnectionTestButton`, `SectionHeaderWithStatus`, `InfoRow`, and `ConfigRequiredBanner` for consistent settings UI across sections.
+
+### Changed
+
+- **Music playback architecture** — refactored to a pluggable source system (`PlaybackSourceManager` + `PlaybackSource` protocol), laying the groundwork for future music source support beyond Apple Music.
+- **AppDelegate decomposed** — split monolithic delegate into focused extensions (`+MenuBar`, `+Services`, `+Windows`) for maintainability.
+- **Logger format** — streamlined to local time (`HH:mm:ss.SSS`) with emoji prefixes for faster scanning in Xcode console.
+- **Widget appearance settings** — reorganized into a compact 2-per-row layout; dropdown pickers now auto-size to content.
+- **Discord & Twitch settings** — unified section headers and connection test buttons using shared components.
+- **Code quality** — added MARK sections and DocC comments across 12+ files for better Xcode navigation; added `Color` hex initializer and `NotificationCenter` posting helper.
+
 ### Fixed
 
+- Settings window not appearing on screen when opened from the menu bar while in menu-bar-only mode — deferred window show to next run-loop tick after activation policy switch.
 - `@MainActor` isolation for `getCurrentSongInfo()` / `getLastSongInfo()` Twitch bot callbacks — replaced `DispatchQueue.main.sync` with `MainActor.assumeIsolated` to satisfy Swift strict concurrency.
+- 4 Xcode build warnings — actor isolation annotations in `Logger.swift` and unreachable code in `SparkleUpdaterService.swift`.
+- Widget favicon broken reference path.
 
 ## [1.1.0] - 2026-03-31
 

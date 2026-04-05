@@ -8,6 +8,27 @@ description: Release history for WolfWave
 All notable changes to WolfWave are documented here.
 
 
+## v1.2.0 — April 4, 2026
+
+### Added
+- **Docs landing page** — redesigned as a dark, streamer-focused marketing page
+- **Theme-aware favicon** — automatically switches between light and dark mode
+- **Shared UI components** — reusable settings components for a more consistent look
+
+### Changed
+- **Music architecture** — refactored to a pluggable source system, laying groundwork for future music sources beyond Apple Music
+- **AppDelegate decomposed** — split into focused extensions for maintainability
+- **Logger** — streamlined format with local time and emoji prefixes
+- **Widget settings** — compact 2-per-row layout, auto-sizing dropdowns
+- **Settings UI** — unified headers and test buttons across Discord & Twitch sections
+
+### Fixed
+- Settings window not appearing when opened from menu bar in menu-bar-only mode
+- 4 Xcode build warnings (actor isolation and unreachable code)
+- Widget favicon broken reference
+
+[Full changelog on GitHub](https://github.com/mrdemonwolf/wolfwave/blob/main/CHANGELOG.md)
+
 ## v1.1.0 — March 31, 2026
 
 ### Added
