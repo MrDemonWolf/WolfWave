@@ -66,6 +66,12 @@ enum AppConstants {
         /// Posted when Twitch chat connection state changes. UserInfo contains "isConnected" Bool.
         static let twitchConnectionStateChanged = "TwitchChatConnectionStateChanged"
 
+        /// Posted when song request enabled state changes. UserInfo contains "enabled" Bool.
+        static let songRequestSettingChanged = "SongRequestSettingChanged"
+
+        /// Posted when the song request queue changes (add, remove, skip, clear).
+        static let songRequestQueueChanged = "SongRequestQueueChanged"
+
     }
     
     // MARK: - UserDefaults Keys
@@ -152,6 +158,68 @@ enum AppConstants {
 
         /// Whether the widget HTTP server is enabled (Bool, default: false)
         static let widgetHTTPEnabled = "widgetHTTPEnabled"
+
+        // MARK: Song Request Keys
+
+        /// Whether song requests are globally enabled (Bool, default: false)
+        static let songRequestEnabled = "songRequestEnabled"
+
+        /// Maximum queue size (Int, default: 10)
+        static let songRequestMaxQueueSize = "songRequestMaxQueueSize"
+
+        /// Per-user request limit (Int, default: 2)
+        static let songRequestPerUserLimit = "songRequestPerUserLimit"
+
+        /// Whether song requests require a subscriber badge (Bool, default: false)
+        static let songRequestSubscriberOnly = "songRequestSubscriberOnly"
+
+        /// Whether auto-advance is enabled (Bool, default: true)
+        static let songRequestAutoAdvance = "songRequestAutoAdvance"
+
+        /// Whether Apple Music autoplay resumes when queue empties (Bool, default: true)
+        static let songRequestAutoplayWhenEmpty = "songRequestAutoplayWhenEmpty"
+
+        /// Whether !sr command is enabled (Bool, default: true)
+        static let srCommandEnabled = "srCommandEnabled"
+
+        /// Whether !queue command is enabled (Bool, default: true)
+        static let queueCommandEnabled = "queueCommandEnabled"
+
+        /// Whether !myqueue command is enabled (Bool, default: true)
+        static let myQueueCommandEnabled = "myQueueCommandEnabled"
+
+        /// Whether !skip command is enabled (Bool, default: true)
+        static let skipCommandEnabled = "skipCommandEnabled"
+
+        /// Whether !clearqueue command is enabled (Bool, default: true)
+        static let clearQueueCommandEnabled = "clearQueueCommandEnabled"
+
+        /// Custom aliases for !sr command (String, comma-separated)
+        static let srCommandAliases = "srCommandAliases"
+
+        /// Custom aliases for !queue command (String, comma-separated)
+        static let queueCommandAliases = "queueCommandAliases"
+
+        /// Custom aliases for !myqueue command (String, comma-separated)
+        static let myQueueCommandAliases = "myQueueCommandAliases"
+
+        /// Custom aliases for !skip command (String, comma-separated)
+        static let skipCommandAliases = "skipCommandAliases"
+
+        /// Custom aliases for !clearqueue command (String, comma-separated)
+        static let clearQueueCommandAliases = "clearQueueCommandAliases"
+
+        /// Global cooldown for song request commands in seconds (Double, default: 5.0)
+        static let songRequestGlobalCooldown = "songRequestGlobalCooldown"
+
+        /// Per-user cooldown for song request commands in seconds (Double, default: 30.0)
+        static let songRequestUserCooldown = "songRequestUserCooldown"
+
+        /// Name of the Apple Music playlist to play when the request queue is empty (String, default: "")
+        static let songRequestFallbackPlaylist = "songRequestFallbackPlaylist"
+
+        /// Whether song request auto-play is paused — requests still queue but nothing plays (Bool, default: false)
+        static let songRequestHoldEnabled = "songRequestHoldEnabled"
 
     }
     
@@ -392,6 +460,9 @@ enum AppConstants {
         static let websocketServer = "com.mrdemonwolf.wolfwave.websocketserver"
 
         static let systemNowPlaying = "com.mrdemonwolf.wolfwave.systemnowplaying"
+
+        /// Queue for song request operations
+        static let songRequest = "com.mrdemonwolf.wolfwave.songrequest"
     }
     
     // MARK: - UI Dimensions

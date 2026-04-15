@@ -119,6 +119,66 @@ extension AppDelegate: NSMenuDelegate {
             menu.addItem(.separator())
         }
 
+        // Song Request Queue — show if enabled and has items
+        if UserDefaults.standard.bool(forKey: AppConstants.UserDefaults.songRequestEnabled),
+           let srQueue = songRequestService?.queue {
+            let queueCount = srQueue.count
+            if let nowPlaying = srQueue.nowPlaying {
+                let requestItem = NSMenuItem(
+                    title: "🎵 \(nowPlaying.title) — \(nowPlaying.artist)",
+                    action: nil,
+                    keyEquivalent: ""
+                )
+                requestItem.isEnabled = false
+                menu.addItem(requestItem)
+            }
+            if queueCount > 0 {
+                let queueLabel = NSMenuItem(
+                    title: "\(queueCount) song\(queueCount == 1 ? "" : "s") in queue",
+                    action: nil,
+                    keyEquivalent: ""
+                )
+                queueLabel.isEnabled = false
+                menu.addItem(queueLabel)
+            }
+            let holdEnabled = songRequestService?.isHoldEnabled ?? false
+            let holdItem = NSMenuItem(
+                title: holdEnabled ? "Resume Song Requests" : "Hold Song Requests",
+                action: #selector(toggleSongRequestHold),
+                keyEquivalent: ""
+            )
+            holdItem.image = NSImage(
+                systemSymbolName: holdEnabled ? "play.fill" : "pause.fill",
+                accessibilityDescription: holdEnabled ? "Resume" : "Hold"
+            )
+            menu.addItem(holdItem)
+
+            if srQueue.nowPlaying != nil || queueCount > 0 {
+                let skipItem = NSMenuItem(
+                    title: "Skip Song Request",
+                    action: #selector(skipSongRequest),
+                    keyEquivalent: ""
+                )
+                skipItem.image = NSImage(
+                    systemSymbolName: "forward.fill",
+                    accessibilityDescription: "Skip"
+                )
+                menu.addItem(skipItem)
+
+                let clearItem = NSMenuItem(
+                    title: "Clear Request Queue",
+                    action: #selector(clearSongRequestQueue),
+                    keyEquivalent: ""
+                )
+                clearItem.image = NSImage(
+                    systemSymbolName: "trash",
+                    accessibilityDescription: "Clear Queue"
+                )
+                menu.addItem(clearItem)
+                menu.addItem(.separator())
+            }
+        }
+
         // Quick Toggles
         let trackingItem = NSMenuItem(
             title: "Music Sync",
@@ -266,6 +326,24 @@ extension AppDelegate {
             object: nil,
             userInfo: includeEnabledInUserInfo ? ["enabled": newValue] : nil
         )
+    }
+
+    @objc func toggleSongRequestHold() {
+        guard let service = songRequestService else { return }
+        let newValue = !service.isHoldEnabled
+        Task { await service.setHold(newValue) }
+    }
+
+    @objc func skipSongRequest() {
+        Task {
+            _ = await songRequestService?.skip()
+        }
+    }
+
+    @objc func clearSongRequestQueue() {
+        Task {
+            _ = await songRequestService?.clearQueue()
+        }
     }
 
     @objc func copyWidgetURL() {

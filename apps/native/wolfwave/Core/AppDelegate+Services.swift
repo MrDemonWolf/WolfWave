@@ -105,6 +105,38 @@ extension AppDelegate {
         sparkleUpdater = SparkleUpdaterService()
         Log.info("AppDelegate: Sparkle updater initialized", category: "Update")
     }
+
+    /// Creates the song request service and wires up playback monitoring + chat replies.
+    func setupSongRequestService() {
+        let queue = SongRequestQueue()
+        let blocklist = SongBlocklist()
+        let musicController = AppleMusicController()
+        let searchResolver = SongSearchResolver(musicController: musicController)
+
+        songRequestService = SongRequestService(
+            queue: queue,
+            blocklist: blocklist,
+            musicController: musicController,
+            searchResolver: searchResolver
+        )
+
+        // Wire chat message sending for auto-advance announcements
+        songRequestService?.sendChatMessage = { [weak self] message in
+            self?.twitchService?.sendMessage(message)
+        }
+
+        // Wire commands to the service via TwitchChatService passthroughs
+        twitchService?.setSongRequestService { [weak self] in self?.songRequestService }
+        twitchService?.setSongRequestQueue { [weak self] in self?.songRequestService?.queue }
+
+        // Start playback monitoring if song requests are enabled
+        let enabled = UserDefaults.standard.bool(forKey: AppConstants.UserDefaults.songRequestEnabled)
+        if enabled {
+            songRequestService?.startPlaybackMonitoring()
+        }
+
+        Log.info("AppDelegate: Song request service initialized", category: "SongRequest")
+    }
 }
 
 // MARK: - Power State
@@ -229,6 +261,16 @@ extension AppDelegate {
                 self?.handleUpdateStateChanged(notification)
             }
         )
+
+        notificationObservers.append(
+            nc.addObserver(
+                forName: NSNotification.Name(AppConstants.Notifications.songRequestSettingChanged),
+                object: nil,
+                queue: .main
+            ) { [weak self] notification in
+                self?.songRequestSettingChanged(notification)
+            }
+        )
     }
 }
 
@@ -286,6 +328,16 @@ extension AppDelegate {
         let enabled = notification.userInfo?["enabled"] as? Bool
             ?? UserDefaults.standard.object(forKey: AppConstants.UserDefaults.widgetHTTPEnabled) as? Bool ?? false
         websocketServer?.setWidgetHTTPEnabled(enabled)
+    }
+
+    /// Starts or stops the song request playback monitor when the setting changes.
+    @objc func songRequestSettingChanged(_ notification: Notification) {
+        guard let enabled = notification.userInfo?["enabled"] as? Bool else { return }
+        if enabled {
+            songRequestService?.startPlaybackMonitoring()
+        } else {
+            songRequestService?.stopPlaybackMonitoring()
+        }
     }
 
     /// Shows a notification if a new version is available (Sparkle handles this automatically).

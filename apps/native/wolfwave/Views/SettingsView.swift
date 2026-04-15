@@ -43,6 +43,7 @@ struct SettingsView: View {
     /// Navigation sections in the settings sidebar.
     enum SettingsSection: String, CaseIterable, Identifiable {
         case general = "General"
+        case songRequests = "Song Requests"
         case websocket = "Now-Playing Server"
         case twitchIntegration = "Twitch Integration"
         case discord = "Discord Integration"
@@ -54,6 +55,7 @@ struct SettingsView: View {
         var systemIcon: String {
             switch self {
             case .general: return "gear"
+            case .songRequests: return "music.note.list"
             case .websocket: return "tv.badge.wifi"
             case .twitchIntegration: return "message.badge.waveform"
             case .discord: return "headphones"
@@ -219,6 +221,8 @@ struct SettingsView: View {
         switch section {
         case .general:
             GeneralSettingsView()
+        case .songRequests:
+            SongRequestSettingsView()
         case .websocket:
             WebSocketSettingsView()
         case .twitchIntegration:

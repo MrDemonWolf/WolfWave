@@ -17,16 +17,13 @@ struct WhatsNewView: View {
 
     // MARK: - Feature Data
 
-    private static let twitchPurple = Color(red: 0.57, green: 0.27, blue: 1.0)
-    private static let discordIndigo = Color(red: 0.35, green: 0.40, blue: 0.95)
-
     private let features: [(icon: String, iconColor: Color, title: String, description: String)] = [
-        ("music.note.2", .pink, "Discord Buttons", "Open in Apple Music or jump to song.link from your Discord status"),
-        ("arrow.up.right.circle", .blue, "Launch at Login", "WolfWave starts automatically when your Mac does"),
-        ("sparkle", twitchPurple, "Faster Homebrew Updates", "Homebrew tap stays in sync whenever a new release ships"),
-        ("rectangle.and.arrow.up.right.and.arrow.down.left", .green, "Custom DMG", "Polished installer background with WolfWave branding"),
-        ("paintbrush", discordIndigo, "Artwork & Links", "Album art and song.link when available"),
-        ("checkmark.shield", .orange, "Stability", "Tighter entitlements, fixed Sparkle updates, and smarter reconnects")
+        ("music.mic", .pink, "Song Requests", "Viewers request songs with !sr in Twitch chat — plays through your Music.app"),
+        ("pause.fill", .orange, "Hold Mode", "Pause the queue to curate requests, then release when you're ready"),
+        ("forward.fill", .blue, "Queue Controls", "Skip, clear, or hold from the app, menu bar, or Twitch chat (mods only)"),
+        ("list.number", .green, "Live Queue View", "See what's playing, what's next, and who requested each song"),
+        ("music.note.list", .purple, "Fallback Playlist", "Pick an Apple Music playlist to play when the request queue runs dry"),
+        ("eye.slash", .cyan, "No Focus-Steal", "Music.app stays in the background — your stream tools keep focus"),
     ]
 
     // MARK: - Body

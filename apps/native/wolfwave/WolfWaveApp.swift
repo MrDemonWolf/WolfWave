@@ -53,6 +53,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     var discordService: DiscordRPCService?
     var sparkleUpdater: SparkleUpdaterService?
     var websocketServer: WebSocketServerService?
+    var songRequestService: SongRequestService?
     var notificationObservers: [Any] = []
 
     var currentSong: String?
@@ -95,6 +96,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         setupWebSocketServer()
         setupPowerStateMonitor()
         setupSparkleUpdater()
+        setupSongRequestService()
         setupNotificationObservers()
         initializeTrackingState()
         applyInitialDockVisibility()

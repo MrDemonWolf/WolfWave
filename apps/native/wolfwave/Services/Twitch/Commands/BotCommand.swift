@@ -31,6 +31,12 @@ protocol BotCommand {
     /// UserDefaults key for the per-user cooldown override. nil = use `userCooldown` default.
     var userCooldownKey: String? { get }
 
+    /// UserDefaults key controlling whether this command is enabled. nil = always enabled.
+    var enabledKey: String? { get }
+
+    /// UserDefaults key storing custom alias triggers (comma-separated). nil = no custom aliases.
+    var aliasesKey: String? { get }
+
     /// Execute the command and return the response message.
     /// Keep response time under 100ms for responsive chat experience.
     func execute(message: String) -> String?
@@ -50,4 +56,56 @@ extension BotCommand {
 
     /// Default: no UserDefaults override.
     var userCooldownKey: String? { nil }
+}
+
+// MARK: - Enable/Disable & Aliases
+
+extension BotCommand {
+    /// Default: no enable/disable key (always enabled).
+    var enabledKey: String? { nil }
+
+    /// Default: no custom aliases.
+    var aliasesKey: String? { nil }
+
+    /// Combined triggers: original triggers + any user-configured aliases from UserDefaults.
+    var allTriggers: [String] {
+        var result = triggers
+        if let key = aliasesKey,
+           let custom = Foundation.UserDefaults.standard.string(forKey: key) {
+            let aliases = custom.split(separator: ",")
+                .map { $0.trimmingCharacters(in: .whitespaces).lowercased() }
+                .filter { !$0.isEmpty }
+                .map { $0.hasPrefix("!") ? $0 : "!\($0)" }
+            result += aliases
+        }
+        return result
+    }
+
+    /// Whether this command is currently enabled.
+    var isCommandEnabled: Bool {
+        guard let key = enabledKey else { return true }
+        // Use object(forKey:) to distinguish "not set" (default true) from explicit false
+        let defaults = Foundation.UserDefaults.standard
+        if defaults.object(forKey: key) == nil { return true }
+        return defaults.bool(forKey: key)
+    }
+}
+
+// MARK: - ServiceBoundCommand
+
+/// Mixin for async commands that require a `SongRequestService` and mod/broadcaster privilege.
+///
+/// Conforming types get `requirePrivilegedService(context:)` for free, eliminating
+/// the repeated guard/service-binding boilerplate in SkipCommand, ClearQueueCommand, etc.
+protocol ServiceBoundCommand: AsyncBotCommand {
+    var songRequestService: (() -> SongRequestService?)? { get set }
+}
+
+extension ServiceBoundCommand {
+    /// Returns the service only if the context is privileged (mod or broadcaster).
+    /// Silently returns `nil` for non-privileged users, matching the established pattern.
+    func requirePrivilegedService(context: BotCommandContext) -> SongRequestService? {
+        guard context.isPrivileged else { return nil }
+        return songRequestService?()
+    }
 }

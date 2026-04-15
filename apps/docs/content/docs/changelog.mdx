@@ -8,6 +8,27 @@ description: Release history for WolfWave
 All notable changes to WolfWave are documented here.
 
 
+## v2.0.0 — Unreleased
+
+### Added
+- **Song Requests** — viewers request songs via `!sr <song>` in Twitch chat; plays through Music.app with no focus-steal on the streamer's screen
+- **`!queue` / `!myqueue`** — show the full queue or a viewer's own requests in chat
+- **`!skip` / `!next`** — mod-only skip current request
+- **`!clearqueue`** — mod-only wipe the queue (with confirmation)
+- **`!hold` / `!resume`** — mod-only hold mode; requests buffer without auto-playing so the streamer can curate before releasing
+- **Hold controls** — Hold/Resume button in Queue settings view and menu bar toggle
+- **Music.app closed buffering** — requests save when Music.app is closed, flush on relaunch
+- **Fallback playlist** — plays a configured Apple Music playlist when the queue empties
+- **Song Request Queue UI** — now-playing card, position badges, per-requester labels, and action controls
+- **Apple Music onboarding step** — MusicKit authorization during first-launch wizard
+- **Per-user limits, subscriber-only mode, command aliases**, and enable/disable toggles per command
+
+### Changed
+- Music playback via AppleScript + focus preservation — Music.app never steals focus from OBS or streaming tools
+- MusicKit used exclusively for search/resolve, not playback
+
+---
+
 ## v1.2.0 — April 4, 2026
 
 ### Added

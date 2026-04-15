@@ -4,6 +4,27 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [2.0.0] - Unreleased
+
+### Added
+
+- **Song Requests** — viewers can request songs in Twitch chat via `!sr <song>`; plays through Music.app via AppleScript with no focus-steal on the streamer's screen.
+- **`!queue` / `!myqueue`** — show the full request queue or a viewer's own requests in chat.
+- **`!skip` / `!next`** — mod/broadcaster-only command to skip the current request.
+- **`!clearqueue`** — mod/broadcaster-only command to wipe the queue (with in-app confirmation dialog).
+- **`!hold` / `!resume` / `!unhold`** — mod/broadcaster-only hold mode; new requests buffer without auto-playing so the streamer can curate before releasing the queue.
+- **Hold controls** — Hold/Resume button in the Song Request Queue settings view and a toggle item in the menu bar dropdown.
+- **Music.app closed buffering** — requests are saved when Music.app is closed and flushed automatically when it reopens (hold mode is respected).
+- **Fallback playlist** — configure an Apple Music playlist to play when the request queue empties.
+- **Song Request Queue UI** — full queue view with now-playing card, position badges, per-requester labels, and Skip / Hold / Clear controls.
+- **Apple Music onboarding step** — new step in the first-launch wizard to authorize MusicKit for song search.
+- **Per-user and global request limits**, subscriber-only mode, per-command enable/disable toggles, and custom alias configuration.
+
+### Changed
+
+- **Music playback via AppleScript + focus preservation** — Music.app never steals focus from OBS or other streaming tools; the previously active app is restored 150 ms after each command.
+- **MusicKit used exclusively for search/resolve**, not playback — no in-app audio session.
+
 ## [1.2.0] - 2026-04-04
 
 ### Added

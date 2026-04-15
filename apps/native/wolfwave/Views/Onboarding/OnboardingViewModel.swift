@@ -21,6 +21,7 @@ final class OnboardingViewModel {
         case twitchConnect = 1
         case discordConnect = 2
         case obsWidget = 3
+        case appleMusicAccess = 4
     }
 
     // MARK: - Observable State

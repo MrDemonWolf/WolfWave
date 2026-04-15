@@ -179,6 +179,16 @@ final class TwitchChatService: @unchecked Sendable {
         UserDefaults.standard.object(forKey: AppConstants.UserDefaults.lastSongCommandEnabled) as? Bool ?? false
     }
 
+    /// Wire the song request service into the command dispatcher.
+    func setSongRequestService(callback: @escaping () -> SongRequestService?) {
+        commandDispatcher.setSongRequestService(callback: callback)
+    }
+
+    /// Wire the song request queue into the command dispatcher.
+    func setSongRequestQueue(callback: @escaping () -> SongRequestQueue?) {
+        commandDispatcher.setSongRequestQueue(callback: callback)
+    }
+
     nonisolated(unsafe) private var _onMessageReceived: (@Sendable (ChatMessage) -> Void)?
     nonisolated(unsafe) private var _onConnectionStateChanged: (@Sendable (Bool) -> Void)?
 
@@ -1180,9 +1190,25 @@ final class TwitchChatService: @unchecked Sendable {
         if commandsEnabled {
             let isModerator = badges.contains { $0.setID == "moderator" }
             let isBroadcaster = badges.contains { $0.setID == "broadcaster" }
+            let isSubscriber = badges.contains { $0.setID == "subscriber" }
             let bypassCooldown = isModerator || isBroadcaster
+
+            let context = BotCommandContext(
+                userID: userID,
+                username: username,
+                isModerator: isModerator,
+                isBroadcaster: isBroadcaster,
+                isSubscriber: isSubscriber,
+                messageID: messageID
+            )
+
+            let asyncReply: (String) -> Void = { [weak self] response in
+                self?.sendMessage(response, replyTo: messageID)
+            }
+
             if let response = commandDispatcher.processMessage(
-                text, userID: userID, isModerator: bypassCooldown
+                text, userID: userID, isModerator: bypassCooldown,
+                context: context, asyncReply: asyncReply
             ) {
                 sendMessage(response, replyTo: messageID)
             }

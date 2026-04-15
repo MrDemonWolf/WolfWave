@@ -44,7 +44,7 @@ final class OnboardingViewModelEdgeCaseTests: XCTestCase {
         for _ in 0..<10 {
             viewModel.goToNextStep()
         }
-        XCTAssertEqual(viewModel.currentStep, .obsWidget)
+        XCTAssertEqual(viewModel.currentStep, .appleMusicAccess)
         XCTAssertTrue(viewModel.isLastStep)
     }
 

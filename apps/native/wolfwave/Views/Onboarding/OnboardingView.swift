@@ -5,6 +5,7 @@
 //  Created by MrDemonWolf, Inc. on 2/6/26.
 //
 
+import MusicKit
 import SwiftUI
 
 /// First-launch onboarding wizard with progress dots, step content, and navigation.
@@ -98,6 +99,8 @@ struct OnboardingView: View {
                 OnboardingDiscordStepView(presenceEnabled: $discordPresenceEnabled)
             case .obsWidget:
                 OnboardingOBSWidgetStepView(websocketEnabled: $websocketEnabled)
+            case .appleMusicAccess:
+                OnboardingAppleMusicStepView()
             }
         }
         .id(viewModel.currentStep)
@@ -111,32 +114,31 @@ struct OnboardingView: View {
 
     private var navigationBar: some View {
         HStack {
-            // Left side: "Back" and "Skip All" always rendered, toggled via opacity
-            // to prevent layout jumping when switching steps.
-            ZStack(alignment: .leading) {
-                Button("Back") {
-                    navigationDirection = .leading
-                    cancelTwitchOAuthIfNeeded()
-                    viewModel.goToPreviousStep()
+            // Left side: "Back" button (hidden on first step) + "Skip All" on all steps
+            HStack(spacing: 8) {
+                if !viewModel.isFirstStep {
+                    Button("Back") {
+                        navigationDirection = .leading
+                        cancelTwitchOAuthIfNeeded()
+                        viewModel.goToPreviousStep()
+                    }
+                    .buttonStyle(.bordered)
+                    .controlSize(.regular)
+                    .pointerCursor()
+                    .accessibilityLabel("Go back")
+                    .accessibilityHint("Returns to the previous setup step")
                 }
-                .buttonStyle(.bordered)
-                .controlSize(.regular)
-                .pointerCursor()
-                .opacity(viewModel.isFirstStep ? 0 : 1)
-                .disabled(viewModel.isFirstStep)
-                .accessibilityLabel("Go back")
-                .accessibilityHint("Returns to the previous setup step")
 
-                Button("Skip All") {
-                    finishOnboarding()
+                if !viewModel.isLastStep {
+                    Button("Skip All") {
+                        finishOnboarding()
+                    }
+                    .buttonStyle(.plain)
+                    .foregroundStyle(.secondary)
+                    .pointerCursor()
+                    .accessibilityLabel("Skip all steps")
+                    .accessibilityHint("Skips the setup wizard and uses default settings")
                 }
-                .buttonStyle(.plain)
-                .foregroundStyle(.secondary)
-                .pointerCursor()
-                .opacity(viewModel.isFirstStep ? 1 : 0)
-                .disabled(!viewModel.isFirstStep)
-                .accessibilityLabel("Skip all steps")
-                .accessibilityHint("Skips the setup wizard and uses default settings")
             }
 
             Spacer()
@@ -191,6 +193,8 @@ struct OnboardingView: View {
             return !discordPresenceEnabled
         case .obsWidget:
             return !websocketEnabled
+        case .appleMusicAccess:
+            return MusicAuthorization.currentStatus != .authorized
         default:
             return false
         }

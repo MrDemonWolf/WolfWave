@@ -30,8 +30,8 @@ final class OnboardingViewModelTests: XCTestCase {
         XCTAssertEqual(viewModel.currentStep, .welcome)
     }
 
-    func testTotalStepsEquals4() {
-        XCTAssertEqual(viewModel.totalSteps, 4)
+    func testTotalStepsEquals5() {
+        XCTAssertEqual(viewModel.totalSteps, 5)
     }
 
     func testIsFirstStepAtWelcome() {
@@ -67,7 +67,8 @@ final class OnboardingViewModelTests: XCTestCase {
         viewModel.goToNextStep()
         viewModel.goToNextStep()
         viewModel.goToNextStep()
-        XCTAssertEqual(viewModel.currentStep, .obsWidget)
+        viewModel.goToNextStep()
+        XCTAssertEqual(viewModel.currentStep, .appleMusicAccess)
     }
 
     // MARK: - Backward Navigation
@@ -103,7 +104,8 @@ final class OnboardingViewModelTests: XCTestCase {
         XCTAssertFalse(viewModel.isLastStep)
     }
 
-    func testIsLastStepAtOBSWidget() {
+    func testIsLastStepAtAppleMusicAccess() {
+        viewModel.goToNextStep()
         viewModel.goToNextStep()
         viewModel.goToNextStep()
         viewModel.goToNextStep()
