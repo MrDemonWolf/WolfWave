@@ -20,13 +20,30 @@ jobs:
     runs-on: macos-26
     steps:
       - uses: actions/checkout@v6
+        with:
+          fetch-depth: 2
+
+      - name: Detect native changes
+        id: filter
+        uses: dorny/paths-filter@v3
+        with:
+          filters: |
+            native:
+              - 'apps/native/**'
+              - 'Makefile'
+
+      - name: Skip notice (docs/marketing only)
+        if: steps.filter.outputs.native != 'true'
+        run: echo "No native changes detected — skipping Swift build & test."
 
       - name: Create Config.xcconfig
+        if: steps.filter.outputs.native == 'true'
         run: |
           printf 'TWITCH_CLIENT_ID = placeholder\nDISCORD_CLIENT_ID = placeholder\n' \
             > apps/native/wolfwave/Config.xcconfig
 
       - name: Build & Test
+        if: steps.filter.outputs.native == 'true'
         run: |
           xcodebuild -project "$PROJECT" -scheme "$SCHEME" \
             -destination 'platform=macOS' \
@@ -38,7 +55,7 @@ jobs:
             -resultBundlePath TestResults.xcresult
 
       - name: Upload Test Results
-        if: always()
+        if: always() && steps.filter.outputs.native == 'true'
         uses: actions/upload-artifact@v7
         with:
           name: TestResults

@@ -1,4 +1,4 @@
-import { Unbounded, Instrument_Sans } from "next/font/google";
+import { Unbounded, Instrument_Sans, Instrument_Serif, JetBrains_Mono } from "next/font/google";
 import type { Metadata } from "next";
 import { Provider } from "@/components/provider";
 import "./global.css";
@@ -12,6 +12,20 @@ const unbounded = Unbounded({
 const instrumentSans = Instrument_Sans({
   subsets: ["latin"],
   variable: "--font-instrument",
+  display: "swap",
+});
+
+const instrumentSerif = Instrument_Serif({
+  subsets: ["latin"],
+  weight: "400",
+  style: ["normal", "italic"],
+  variable: "--font-serif",
+  display: "swap",
+});
+
+const jetbrainsMono = JetBrains_Mono({
+  subsets: ["latin"],
+  variable: "--font-mono",
   display: "swap",
 });
 
@@ -116,7 +130,7 @@ const jsonLd = {
 
 export default function Layout({ children }: LayoutProps<"/">) {
   return (
-    <html lang="en" className={`${unbounded.variable} ${instrumentSans.variable}`} suppressHydrationWarning>
+    <html lang="en" className={`${unbounded.variable} ${instrumentSans.variable} ${instrumentSerif.variable} ${jetbrainsMono.variable}`} suppressHydrationWarning>
       <body className="flex flex-col min-h-screen">
         <script
           type="application/ld+json"
