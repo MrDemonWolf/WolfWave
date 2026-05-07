@@ -6,354 +6,229 @@
 //
 
 import SwiftUI
+import AppKit
 
-/// Settings for Apple Music playback monitoring.
+/// Music Sync (General tab) — hero now-playing card + integration dashboard.
 ///
-/// Allows users to enable or disable real-time Apple Music tracking.
-/// When enabled, WolfWave monitors the current playing track and updates:
-/// - Twitch chat bot command responses (!song, !last)
-/// - Discord Rich Presence
-/// - External WebSocket endpoints (if configured)
-///
-/// Also detects whether Apple Events permission has been granted for Apple Music
-/// and shows guidance if the permission has been denied.
+/// This is the home tab of the redesigned Settings (Screen B in the
+/// `WolfWave Redesign.html` design bundle). When Apple Events automation has
+/// been denied for `com.apple.Music` we surface `PermissionDeniedBanner`
+/// instead of the unified panel and route Configure rows to the right
+/// settings pane.
 struct MusicMonitorSettingsView: View {
+
     // MARK: - User Settings
 
-    /// Whether music tracking is currently enabled.
     @AppStorage(AppConstants.UserDefaults.trackingEnabled)
     private var trackingEnabled = true
 
-    /// True when Apple Events permission for Apple Music has been denied.
-    @State private var permissionDenied = false
+    // MARK: - Music permission
 
-    /// Currently playing track name from Apple Music.
+    @State private var permissionState: MusicPermissionState = .unknown
+    @State private var showInstructionSheet = false
+
+    // MARK: - Now playing
+
     @State private var currentTrack: String?
-
-    /// Artist of the currently playing track.
     @State private var currentArtist: String?
-
-    /// Album of the currently playing track.
     @State private var currentAlbum: String?
 
-    // MARK: - Integration Status
+    // MARK: - Integration status
 
-    /// Whether the Twitch bot is connected to chat.
     @State private var twitchConnected = false
-
-    /// Whether Discord Rich Presence is active.
+    @State private var twitchChannel: String?
     @State private var discordActive = false
-
-    /// Whether the now-playing widget server is running.
     @State private var widgetRunning = false
 
+    // MARK: - Inputs
+
+    var configure: (IntegrationDashboardView.Section) -> Void = { _ in }
+
+    // MARK: - Body
+
     var body: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            // Section Header
-            VStack(alignment: .leading, spacing: 6) {
-                Text("Music Sync")
-                    .sectionSubHeader()
-                    .accessibilityLabel("Music Playback Monitor")
+        VStack(alignment: .leading, spacing: AppConstants.SettingsUI.sectionSpacing) {
 
-                Text("Detects what's playing and shares it everywhere.")
-                    .font(.system(size: 13))
-                    .foregroundStyle(.secondary)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-
-            // Permission warning
-            if permissionDenied {
-                HStack(spacing: 10) {
-                    Image(systemName: "exclamationmark.triangle.fill")
-                        .font(.system(size: 14))
-                        .foregroundStyle(.orange)
-
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text("Need Apple Music Permission")
-                            .font(.system(size: 12, weight: .semibold))
-                        Text("WolfWave needs permission to see what song is playing. Grant access in System Settings.")
-                            .font(.system(size: 11))
-                            .foregroundStyle(.secondary)
-                            .fixedSize(horizontal: false, vertical: true)
-                    }
-
-                    Spacer()
-
-                    Button("Open Settings") {
-                        if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Automation") {
-                            NSWorkspace.shared.open(url)
-                        }
-                    }
-                    .buttonStyle(.bordered)
-                    .controlSize(.small)
-                }
-                .padding(12)
-                .background(Color.orange.opacity(0.08))
-                .clipShape(RoundedRectangle(cornerRadius: AppConstants.SettingsUI.cardCornerRadius))
-                .overlay(
-                    RoundedRectangle(cornerRadius: AppConstants.SettingsUI.cardCornerRadius)
-                        .stroke(Color.orange.opacity(0.2), lineWidth: 1)
+            if permissionState == .denied {
+                PermissionDeniedBanner(
+                    onOpenSystemSettings: { MusicPermissionChecker.openAutomationSettings() },
+                    onTryAgain: refreshPermission,
+                    onShowInstructions: { showInstructionSheet = true }
                 )
             }
 
-            // Unified Monitoring Panel
-            unifiedPanel
+            // Master toggle + permission row
+            VStack(alignment: .leading, spacing: 0) {
+                ToggleSettingRow(
+                    title: "Track what I'm playing",
+                    subtitle: "When this is on, your Apple Music shows up in chat, on Discord, and in your stream.",
+                    isOn: $trackingEnabled,
+                    accessibilityLabel: "Toggle music tracking",
+                    accessibilityIdentifier: "musicTrackingToggle",
+                    onChange: { newValue in
+                        notifyTrackingSettingChanged(enabled: newValue)
+                    }
+                )
+                .padding(AppConstants.SettingsUI.cardPadding)
+
+                Divider().padding(.horizontal, AppConstants.SettingsUI.cardPadding)
+
+                permissionStatusRow
+                    .padding(AppConstants.SettingsUI.cardPadding)
+            }
+            .cardStyleUnpadded()
+
+            // Hero now-playing
+            if permissionState == .denied {
+                PermissionPausedNowPlayingCard()
+            } else {
+                NowPlayingHeroCard(
+                    track: currentTrack,
+                    artist: currentArtist,
+                    album: currentAlbum,
+                    trackingEnabled: trackingEnabled
+                )
+            }
+
+            // Integration dashboard
+            IntegrationDashboardView(
+                twitchConnected: twitchConnected,
+                twitchChannel: twitchChannel,
+                twitchViewerCount: nil,
+                discordConnected: discordActive,
+                widgetRunning: widgetRunning,
+                widgetURL: widgetRunning ? "http://localhost:\(widgetPort)" : nil,
+                remoteSendingEnabled: false,
+                permissionPaused: permissionState == .denied,
+                configure: configure
+            )
+        }
+        .sheet(isPresented: $showInstructionSheet) {
+            PermissionInstructionSheet(
+                onOpenSystemSettings: {
+                    MusicPermissionChecker.openAutomationSettings()
+                },
+                onTryAgain: refreshPermission
+            )
         }
         .onAppear {
+            refreshPermission()
             loadCurrentTrack()
             loadIntegrationStatuses()
         }
-        .onReceive(
-            NotificationCenter.default.publisher(
-                for: NSNotification.Name(AppConstants.Notifications.nowPlayingChanged)
-            )
-        ) { notification in
+        .onReceive(notif(AppConstants.Notifications.nowPlayingChanged)) { notification in
             withAnimation(.easeInOut(duration: 0.25)) {
                 currentTrack = notification.userInfo?["track"] as? String
                 currentArtist = notification.userInfo?["artist"] as? String
                 currentAlbum = notification.userInfo?["album"] as? String
             }
+            // A successful track read implies the user has granted access.
+            if currentTrack != nil, permissionState == .denied {
+                permissionState = .granted
+            }
         }
-        .onReceive(
-            NotificationCenter.default.publisher(
-                for: NSNotification.Name(AppConstants.Notifications.twitchConnectionStateChanged)
-            )
-        ) { notification in
+        .onReceive(notif(AppConstants.Notifications.twitchConnectionStateChanged)) { notification in
             withAnimation(.easeInOut(duration: 0.2)) {
                 twitchConnected = notification.userInfo?["isConnected"] as? Bool ?? false
             }
         }
-        .onReceive(
-            NotificationCenter.default.publisher(
-                for: NSNotification.Name(AppConstants.Notifications.discordStateChanged)
-            )
-        ) { notification in
+        .onReceive(notif(AppConstants.Notifications.discordStateChanged)) { notification in
             withAnimation(.easeInOut(duration: 0.2)) {
                 let state = notification.userInfo?["state"] as? String ?? ""
                 discordActive = state == "connected"
             }
         }
-        .onReceive(
-            NotificationCenter.default.publisher(
-                for: NSNotification.Name(AppConstants.Notifications.websocketServerStateChanged)
-            )
-        ) { notification in
+        .onReceive(notif(AppConstants.Notifications.websocketServerStateChanged)) { notification in
             withAnimation(.easeInOut(duration: 0.2)) {
                 let state = notification.userInfo?["state"] as? String ?? ""
                 widgetRunning = state == "listening"
             }
         }
-        .onAppear {
-            checkMusicPermission()
-        }
     }
 
-    // MARK: - Unified Panel
+    // MARK: - Permission status row
 
-    /// Combined card with the tracking toggle, now-playing info, and integration statuses.
     @ViewBuilder
-    private var unifiedPanel: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            // Toggle row
-            ToggleSettingRow(
-                title: "Music Sync",
-                subtitle: "Updates your status and widget when the song changes",
-                isOn: $trackingEnabled,
-                accessibilityLabel: "Toggle Music Sync",
-                accessibilityIdentifier: "musicTrackingToggle",
-                accessibilityHint: "Toggle to enable or disable Music Sync",
-                onChange: { newValue in
-                    notifyTrackingSettingChanged(enabled: newValue)
-                }
-            )
-            .padding(AppConstants.SettingsUI.cardPadding)
+    private var permissionStatusRow: some View {
+        HStack(spacing: 12) {
+            Image(systemName: permissionIconName)
+                .font(.system(size: 14, weight: .semibold))
+                .foregroundStyle(permissionIconColor)
+                .frame(width: 20)
 
-            Divider()
-                .padding(.horizontal, AppConstants.SettingsUI.cardPadding)
-
-            // Now Playing section
-            nowPlayingSection
-                .padding(AppConstants.SettingsUI.cardPadding)
-
-            Divider()
-                .padding(.horizontal, AppConstants.SettingsUI.cardPadding)
-
-            // Integration statuses
-            integrationStatusSection
-                .padding(AppConstants.SettingsUI.cardPadding)
-        }
-        .background(Color(nsColor: .controlBackgroundColor))
-        .clipShape(RoundedRectangle(cornerRadius: AppConstants.SettingsUI.cardCornerRadius))
-    }
-
-    // MARK: - Now Playing Section
-
-    /// Shows the current track, artist, and album — or a placeholder when nothing is playing.
-    @ViewBuilder
-    private var nowPlayingSection: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            HStack(spacing: 6) {
-                Image(systemName: "music.note")
-                    .font(.system(size: 11, weight: .semibold))
-                    .foregroundStyle(Color.accentColor)
-                Text("Now Playing")
-                    .font(.system(size: 11, weight: .semibold))
+            VStack(alignment: .leading, spacing: 2) {
+                Text(permissionTitle)
+                    .font(.system(size: 13, weight: .medium))
+                Text(permissionSubtitle)
+                    .font(.system(size: 11))
                     .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
             }
 
-            Group {
-            if let track = currentTrack {
-                HStack(spacing: 12) {
-                    ZStack {
-                        RoundedRectangle(cornerRadius: 6)
-                            .fill(Color.accentColor.opacity(0.15))
-                        Image(systemName: "music.note")
-                            .font(.system(size: 18, weight: .medium))
-                            .foregroundStyle(Color.accentColor)
-                    }
-                    .frame(width: 48, height: 48)
+            Spacer(minLength: 8)
 
-                    VStack(alignment: .leading, spacing: 3) {
-                        Text(track)
-                            .font(.system(size: 13, weight: .semibold))
-                            .lineLimit(1)
-
-                        if let artist = currentArtist {
-                            Text(artist)
-                                .font(.system(size: 12))
-                                .foregroundStyle(.secondary)
-                                .lineLimit(1)
-                        }
-
-                        if let album = currentAlbum {
-                            Text(album)
-                                .font(.system(size: 11))
-                                .foregroundStyle(.tertiary)
-                                .lineLimit(1)
-                        }
-                    }
-
-                    Spacer()
-                }
-            } else {
-                HStack(spacing: 12) {
-                    ZStack {
-                        RoundedRectangle(cornerRadius: 6)
-                            .fill(Color(nsColor: .separatorColor).opacity(0.3))
-                        Image(systemName: "music.note")
-                            .font(.system(size: 18, weight: .medium))
-                            .foregroundStyle(.tertiary)
-                    }
-                    .frame(width: 48, height: 48)
-
-                    Text(trackingEnabled ? "Nothing playing right now" : "Music Sync is off")
-                        .font(.system(size: 13))
-                        .foregroundStyle(.tertiary)
-
-                    Spacer()
-                }
+            Button("Change in System Settings") {
+                MusicPermissionChecker.openAutomationSettings()
             }
-            }
-            .frame(minHeight: 60, alignment: .leading)
-        }
-        .accessibilityElement(children: .combine)
-        .accessibilityLabel(nowPlayingAccessibilityLabel)
-    }
-
-    // MARK: - Integration Status Section
-
-    /// Live status indicators for Twitch, Discord, and Widget connections.
-    @ViewBuilder
-    private var integrationStatusSection: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack(spacing: 6) {
-                Image(systemName: "link")
-                    .font(.system(size: 11, weight: .semibold))
-                    .foregroundStyle(.secondary)
-                Text("Integrations")
-                    .font(.system(size: 11, weight: .semibold))
-                    .foregroundStyle(.secondary)
-            }
-
-            VStack(spacing: 6) {
-                integrationRow(
-                    icon: "bubble.left.fill",
-                    iconColor: Color(red: 0.57, green: 0.27, blue: 1.0),
-                    name: "Twitch",
-                    connected: twitchConnected,
-                    activeLabel: "Connected",
-                    inactiveLabel: "Disconnected"
-                )
-
-                integrationRow(
-                    icon: "headphones",
-                    iconColor: Color(red: 0.35, green: 0.40, blue: 0.95),
-                    name: "Discord",
-                    connected: discordActive,
-                    activeLabel: "Connected",
-                    inactiveLabel: "Disconnected"
-                )
-
-                integrationRow(
-                    icon: "tv",
-                    iconColor: .blue,
-                    name: "Widget",
-                    connected: widgetRunning,
-                    activeLabel: "Running",
-                    inactiveLabel: "Stopped"
-                )
-            }
+            .buttonStyle(.bordered)
+            .controlSize(.small)
         }
     }
 
-    /// A single integration status row with icon, name, and colored dot indicator.
-    private func integrationRow(
-        icon: String,
-        iconColor: Color,
-        name: String,
-        connected: Bool,
-        activeLabel: String,
-        inactiveLabel: String
-    ) -> some View {
-        HStack(spacing: 10) {
-            Image(systemName: icon)
-                .font(.system(size: 11))
-                .foregroundStyle(iconColor)
-                .frame(width: 16)
-
-            Text(name)
-                .font(.system(size: 12))
-
-            Spacer()
-
-            Circle()
-                .fill(connected ? Color.green : Color(nsColor: .separatorColor))
-                .frame(width: 6, height: 6)
-
-            Text(connected ? activeLabel : inactiveLabel)
-                .font(.system(size: 11))
-                .foregroundStyle(connected ? .primary : .tertiary)
+    private var permissionIconName: String {
+        switch permissionState {
+        case .granted: return "checkmark.shield.fill"
+        case .denied: return "lock.fill"
+        case .unknown: return "questionmark.circle"
         }
-        .accessibilityElement(children: .combine)
-        .accessibilityLabel("\(name): \(connected ? activeLabel : inactiveLabel)")
     }
 
-    // MARK: - Computed Properties
-
-    /// Accessibility label for the now-playing card.
-    private var nowPlayingAccessibilityLabel: String {
-        if let track = currentTrack {
-            var label = "Now playing: \(track)"
-            if let artist = currentArtist { label += " by \(artist)" }
-            if let album = currentAlbum { label += " on \(album)" }
-            return label
+    private var permissionIconColor: Color {
+        switch permissionState {
+        case .granted: return .green
+        case .denied: return .red
+        case .unknown: return .secondary
         }
-        return trackingEnabled ? "Nothing playing right now" : "Music Sync is off"
+    }
+
+    private var permissionTitle: String {
+        switch permissionState {
+        case .granted: return "Music app — allowed"
+        case .denied: return "Music app — denied"
+        case .unknown: return "Checking Music app permission…"
+        }
+    }
+
+    private var permissionSubtitle: String {
+        switch permissionState {
+        case .granted: return "WolfWave can see what's playing. You're good."
+        case .denied: return "Turn on Automation → Music in System Settings."
+        case .unknown: return "We're asking the system."
+        }
     }
 
     // MARK: - Helpers
 
-    /// Loads the current track info from AppDelegate.
+    private var widgetPort: UInt16 {
+        UInt16(UserDefaults.standard.integer(forKey: AppConstants.UserDefaults.widgetPort))
+            .nonZeroOrDefault(AppConstants.WebSocketServer.widgetDefaultPort)
+    }
+
+    private func notif(_ name: String) -> NotificationCenter.Publisher {
+        NotificationCenter.default.publisher(for: NSNotification.Name(name))
+    }
+
+    private func refreshPermission() {
+        let next = MusicPermissionChecker.currentState()
+        withAnimation(.easeInOut(duration: 0.2)) {
+            permissionState = next
+        }
+        // If we're now granted, try to get the current track again.
+        if next == .granted {
+            loadCurrentTrack()
+        }
+    }
+
     private func loadCurrentTrack() {
         if let appDelegate = AppDelegate.shared {
             currentTrack = appDelegate.currentSong
@@ -362,7 +237,16 @@ struct MusicMonitorSettingsView: View {
         }
     }
 
-    /// Posts a notification when music tracking is toggled.
+    private func loadIntegrationStatuses() {
+        if let appDelegate = AppDelegate.shared {
+            twitchConnected = appDelegate.twitchService?.isConnected ?? false
+            // Reads the persisted channel name (set during sign-in).
+            twitchChannel = UserDefaults.standard.string(forKey: "twitchChannelName")
+            discordActive = appDelegate.discordService?.state == .connected
+            widgetRunning = appDelegate.websocketServer?.state == .listening
+        }
+    }
+
     private func notifyTrackingSettingChanged(enabled: Bool) {
         NotificationCenter.default.post(
             name: NSNotification.Name(AppConstants.Notifications.trackingSettingChanged),
@@ -370,105 +254,37 @@ struct MusicMonitorSettingsView: View {
             userInfo: ["enabled": enabled]
         )
     }
+}
 
-    /// Checks whether the app has Apple Events permission for Apple Music.
-    ///
-    /// Uses a lightweight ScriptingBridge query to detect whether the system
-    /// has denied Apple Events automation for `com.apple.Music`.
-    private func checkMusicPermission() {
-        let target = NSAppleEventDescriptor(bundleIdentifier: AppConstants.Music.bundleIdentifier)
-        let status = AEDeterminePermissionToAutomateTarget(
-            target.aeDesc, typeWildCard, typeWildCard, false
-        )
-        permissionDenied = (status == OSStatus(errAEEventNotPermitted))
-    }
+// MARK: - UInt16 helper
 
-    /// Loads initial integration statuses from AppDelegate.
-    private func loadIntegrationStatuses() {
-        if let appDelegate = AppDelegate.shared {
-            twitchConnected = appDelegate.twitchService?.isConnected ?? false
-            discordActive = appDelegate.discordService?.state == .connected
-            widgetRunning = appDelegate.websocketServer?.state == .listening
-        }
+private extension UInt16 {
+    func nonZeroOrDefault(_ fallback: UInt16) -> UInt16 {
+        self == 0 ? fallback : self
     }
 }
 
 // MARK: - Preview
 
-#Preview("Default State") {
+#Preview("Granted — playing") {
     MusicMonitorSettingsView()
         .padding()
-        .frame(width: 600)
-}
-#Preview("With Current Track") {
-    let view = MusicMonitorSettingsView()
-    return view
-        .padding()
-        .frame(width: 600)
+        .frame(width: 720)
         .onAppear {
-            // Simulate a track playing
             NotificationCenter.default.post(
                 name: NSNotification.Name(AppConstants.Notifications.nowPlayingChanged),
                 object: nil,
                 userInfo: [
-                    "track": "Blinding Lights",
-                    "artist": "The Weeknd",
-                    "album": "After Hours"
+                    "track": "Anti-Hero",
+                    "artist": "Taylor Swift",
+                    "album": "Midnights"
                 ]
             )
         }
 }
 
-#Preview("Permission Denied") {
-    @Previewable @State var trackingEnabled = true
-    
-    struct PermissionDeniedView: View {
-        var body: some View {
-            VStack(alignment: .leading, spacing: 16) {
-                VStack(alignment: .leading, spacing: 6) {
-                    Text("Music Playback Monitor")
-                        .sectionHeader()
-                    
-                    Text("Automatically detect what's playing in Apple Music and share it with Twitch chat, Discord, and now-playing widgets.")
-                        .font(.system(size: 13))
-                        .foregroundStyle(.secondary)
-                        .fixedSize(horizontal: false, vertical: true)
-                }
-                
-                // Permission warning
-                HStack(spacing: 10) {
-                    Image(systemName: "exclamationmark.triangle.fill")
-                        .font(.system(size: 14))
-                        .foregroundStyle(.orange)
-                    
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text("Apple Music access denied")
-                            .font(.system(size: 12, weight: .semibold))
-                        Text("WolfWave needs permission to read playback info from Apple Music. Open System Settings to grant access.")
-                            .font(.system(size: 11))
-                            .foregroundStyle(.secondary)
-                            .fixedSize(horizontal: false, vertical: true)
-                    }
-                    
-                    Spacer()
-                    
-                    Button("Open Settings") { }
-                        .buttonStyle(.bordered)
-                        .controlSize(.small)
-                }
-                .padding(12)
-                .background(Color.orange.opacity(0.08))
-                .clipShape(RoundedRectangle(cornerRadius: 8))
-                .overlay(
-                    RoundedRectangle(cornerRadius: 8)
-                        .stroke(Color.orange.opacity(0.2), lineWidth: 1)
-                )
-            }
-        }
-    }
-    
-    return PermissionDeniedView()
+#Preview("Empty") {
+    MusicMonitorSettingsView()
         .padding()
-        .frame(width: 600)
+        .frame(width: 720)
 }
-

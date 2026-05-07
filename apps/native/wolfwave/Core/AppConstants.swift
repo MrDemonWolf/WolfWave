@@ -500,40 +500,40 @@ enum AppConstants {
         static let defaultAppName = "WolfWave"
 
         /// Minimum width for settings window
-        static let minWidth: CGFloat = 680
+        static let minWidth: CGFloat = 720
 
         /// Minimum height for settings window
-        static let minHeight: CGFloat = 480
+        static let minHeight: CGFloat = 560
 
         /// Maximum width for settings window
-        static let maxWidth: CGFloat = 900
+        static let maxWidth: CGFloat = 1180
 
         /// Maximum height for settings window
-        static let maxHeight: CGFloat = 700
+        static let maxHeight: CGFloat = 920
 
         /// Ideal width for settings window
-        static let idealWidth: CGFloat = 720
+        static let idealWidth: CGFloat = 900
 
         /// Ideal height for settings window
-        static let idealHeight: CGFloat = 540
+        static let idealHeight: CGFloat = 640
 
         /// Maximum content width for detail pane
-        static let maxContentWidth: CGFloat = 560
+        static let maxContentWidth: CGFloat = 720
 
         /// Standard horizontal padding for content sections
-        static let contentPaddingH: CGFloat = 24
+        static let contentPaddingH: CGFloat = 28
 
         /// Standard vertical padding for content sections
-        static let contentPaddingV: CGFloat = 20
+        static let contentPaddingV: CGFloat = 22
 
         /// Standard spacing between sections
         static let sectionSpacing: CGFloat = 24
 
         /// Standard card padding
-        static let cardPadding: CGFloat = 14
+        static let cardPadding: CGFloat = 16
 
-        /// Standard card corner radius
-        static let cardCornerRadius: CGFloat = 10
+        /// Standard card corner radius (matches macOS 26 Liquid Glass card radius).
+        static let cardCornerRadius: CGFloat = 14
     }
 
     // MARK: - Power Management

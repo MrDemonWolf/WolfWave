@@ -7,71 +7,51 @@
 
 import SwiftUI
 
-/// General application settings interface.
-///
-/// Provides controls for:
-/// - Music Playback Monitor (tracking Apple Music)
-/// - App Visibility (dock and menu bar presence)
-///
-/// These are the most common settings users will need to adjust for basic
-/// functionality of WolfWave.
+/// General application settings interface — Music Sync (hero now-playing +
+/// integrations dashboard) and App Visibility.
 struct GeneralSettingsView: View {
+
+    var configure: (IntegrationDashboardView.Section) -> Void = { _ in }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 24) {
-            // Section Header
-            VStack(alignment: .leading, spacing: 6) {
-                Text("General")
-                    .sectionHeader()
+            // Section header
+            HStack(alignment: .center, spacing: 10) {
+                VStack(alignment: .leading, spacing: 6) {
+                    Text("General")
+                        .sectionHeader()
 
-                Text("Manage how WolfWave tracks your music and where it shows up.")
-                    .font(.system(size: 13))
-                    .foregroundStyle(.secondary)
+                    Text("Manage how WolfWave tracks your music and where it shows up.")
+                        .font(.system(size: 13))
+                        .foregroundStyle(.secondary)
+                }
+                Spacer()
+                StatusChip(text: "All systems live", color: .green)
             }
             .accessibilityElement(children: .combine)
-            .accessibilityLabel("General settings. Manage how WolfWave tracks your music and where it shows up.")
+            .accessibilityLabel("General settings. All systems live.")
             .accessibilityIdentifier("generalSettings.header")
 
-            // Music Monitor
-            MusicMonitorSettingsView()
+            MusicMonitorSettingsView(configure: configure)
 
-            Divider()
-                .padding(.vertical, 4)
+            Divider().padding(.vertical, 4)
 
-            // App Visibility
             AppVisibilitySettingsView()
         }
     }
 }
 
-// MARK: - Preview
-
 #Preview("General Settings") {
     GeneralSettingsView()
         .padding()
-        .frame(width: 700)
-}
-#Preview("With Current Track Playing") {
-    let view = GeneralSettingsView()
-    view
-        .padding()
-        .frame(width: 700)
-        .onAppear {
-            NotificationCenter.default.post(
-                name: NSNotification.Name(AppConstants.Notifications.nowPlayingChanged),
-                object: nil,
-                userInfo: [
-                    "track": "Starboy",
-                    "artist": "The Weeknd feat. Daft Punk",
-                    "album": "Starboy"
-                ]
-            )
-        }
+        .frame(width: 760)
+        .background(WallpaperBloomBackground())
 }
 
 #Preview("Dark Mode") {
     GeneralSettingsView()
         .padding()
-        .frame(width: 700)
+        .frame(width: 760)
         .preferredColorScheme(.dark)
+        .background(WallpaperBloomBackground())
 }
-

@@ -100,22 +100,41 @@ extension View {
     }
 }
 
-// MARK: - Card Style
+// MARK: - Card Style (Liquid Glass)
 
-/// Standard card background styling.
+/// Glass card styling using macOS 26 `.glassEffect()`.
+///
+/// Replaces the legacy `controlBackgroundColor` fill with a translucent
+/// glass surface that picks up wallpaper bloom and adapts to light/dark
+/// automatically. Apply glass last in the modifier chain — padding goes
+/// inside, frame/layout goes outside.
 struct CardModifier: ViewModifier {
+    var padded: Bool = true
+
     func body(content: Content) -> some View {
-        content
-            .padding(AppConstants.SettingsUI.cardPadding)
-            .background(Color(nsColor: .controlBackgroundColor))
-            .clipShape(RoundedRectangle(cornerRadius: AppConstants.SettingsUI.cardCornerRadius))
+        let shape = RoundedRectangle(cornerRadius: AppConstants.SettingsUI.cardCornerRadius)
+        return Group {
+            if padded {
+                content
+                    .padding(AppConstants.SettingsUI.cardPadding)
+            } else {
+                content
+            }
+        }
+        .glassEffect(.regular, in: shape)
     }
 }
 
 extension View {
-    /// Applies standard card styling with padding, background, and corner radius.
+    /// Applies standard glass card styling with padding and rounded corners.
     func cardStyle() -> some View {
-        modifier(CardModifier())
+        modifier(CardModifier(padded: true))
+    }
+
+    /// Applies glass card styling without internal padding — for rows that
+    /// own their own padding.
+    func cardStyleUnpadded() -> some View {
+        modifier(CardModifier(padded: false))
     }
 }
 
