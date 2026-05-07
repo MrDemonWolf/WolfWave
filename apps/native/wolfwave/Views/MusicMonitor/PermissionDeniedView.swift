@@ -136,12 +136,10 @@ struct PermissionInstructionSheet: View {
 
             VStack(alignment: .leading, spacing: 12) {
                 step(n: 1) {
-                    Text("Click ") + Text("Open System Settings").bold() + Text(" below.")
+                    Text("Click \(Text("Open System Settings").bold()) below.")
                 }
                 step(n: 2) {
-                    Text("In ") + Text("Privacy & Security → Automation").bold() +
-                    Text(", find ") + Text("WolfWave").bold() +
-                    Text(" and turn on ") + Text("Music").bold() + Text(".")
+                    Text("In \(Text("Privacy & Security → Automation").bold()), find \(Text("WolfWave").bold()) and turn on \(Text("Music").bold()).")
                 }
                 step(n: 3) {
                     Text("Come back here. WolfWave will pick up the next track automatically.")

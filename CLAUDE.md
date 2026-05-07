@@ -119,6 +119,15 @@ Remotion-based video projects live in `apps/marketing/`. Each subfolder is a sta
 
 - **wolfwave-announcement** — v1.0 launch announcement video. Run `bun run dev --filter wolfwave-announcement` from root to open the Remotion editor.
 
+## Known Harmless Runtime Noise
+
+These lines appear in Xcode console / stdout but are emitted by macOS itself, not WolfWave. Safe to ignore — do not chase them as bugs:
+
+- `Rule path is not accessible: /var/protected/xprotect/...` and `Error reading rules: (null)` — XProtect / sandbox introspection denial.
+- `FSFindFolder failed with error=-43` — legacy Carbon API noise from a system framework.
+- `CoreSVG has logged an error. Set environment variable "CORESVG_VERBOSE" to learn more.` — system SVG renderer; unrelated to our assets. Set `CORESVG_VERBOSE=1` only if you want to investigate.
+- `Unable to obtain a task name port right for pid …: (os/kern) failure (0x5)` — sandbox blocks task-port introspection of other processes.
+
 ## Code Conventions
 
 - Swift 5.9+ with async/await concurrency (no DispatchQueue for new async work)

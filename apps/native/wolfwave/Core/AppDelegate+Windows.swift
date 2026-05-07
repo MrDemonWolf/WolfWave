@@ -149,7 +149,14 @@ extension AppDelegate {
         }
 
         if !hasVisibleWindows {
-            NSApp.setActivationPolicy(.accessory)
+            // Defer past the current AppKit layout pass — calling
+            // setActivationPolicy(.accessory) inline during a window-close
+            // animation triggers "layoutSubtreeIfNeeded on a view already
+            // being laid out" warnings. RunLoop.main.perform schedules this
+            // on the next .common runloop tick, after layout settles.
+            RunLoop.main.perform {
+                NSApp.setActivationPolicy(.accessory)
+            }
         }
     }
 }

@@ -54,7 +54,7 @@ enum Log {
     // MARK: - OSLog
 
     /// Subsystem identifier used for all OSLog entries.
-    private static let subsystem = "com.mrdemonwolf.wolfwave"
+    nonisolated private static let subsystem = "com.mrdemonwolf.wolfwave"
 
     /// Returns a cached `os.Logger` for the given category.
     ///
@@ -178,41 +178,78 @@ enum Log {
 
     // MARK: - Public API
 
-    nonisolated static func log(_ message: String, level: LogLevel = .info, category: String = "App") {
+    nonisolated static func log(
+        _ message: String,
+        level: LogLevel = .info,
+        category: String = "App",
+        file: StaticString = #fileID,
+        line: UInt = #line
+    ) {
         let redactedMessage = redactSensitiveInfo(message)
         let timestamp = formatter.string(from: Date())
-        let line = "\(level.rawValue)  [\(category)] \(timestamp)  \(redactedMessage)"
-        print(line)
-        writeToFile(line)
+        let location = sourceLocation(file: file, line: line)
 
-        // Route to OSLog so logs appear in Console.app and Instruments.
+        // File log keeps emoji + timestamp + location for human grep-ing.
+        let fileLine = "\(level.rawValue)  [\(category)] \(timestamp)  \(location)  \(redactedMessage)"
+        writeToFile(fileLine)
+
+        // OSLog → Xcode console + Console.app + Instruments.
+        // Source location appended so it's clickable in Xcode 16+.
         // Messages are marked .public since PII has already been redacted above.
         let logger = osLogger(for: category)
+        let osMessage = "\(redactedMessage)  (\(location))"
         switch level {
-        case .debug: logger.debug("\(redactedMessage, privacy: .public)")
-        case .info:  logger.info("\(redactedMessage, privacy: .public)")
-        case .warn:  logger.warning("\(redactedMessage, privacy: .public)")
-        case .error: logger.error("\(redactedMessage, privacy: .public)")
+        case .debug: logger.debug("\(osMessage, privacy: .public)")
+        case .info:  logger.info("\(osMessage, privacy: .public)")
+        case .warn:  logger.warning("\(osMessage, privacy: .public)")
+        case .error: logger.error("\(osMessage, privacy: .public)")
         }
     }
 
-    nonisolated static func debug(_ message: @autoclosure () -> String, category: String = "App") {
+    nonisolated static func debug(
+        _ message: @autoclosure () -> String,
+        category: String = "App",
+        file: StaticString = #fileID,
+        line: UInt = #line
+    ) {
         guard isDebugLoggingEnabled else { return }
-        log(message(), level: .debug, category: category)
+        log(message(), level: .debug, category: category, file: file, line: line)
     }
 
-    nonisolated static func info(_ message: String, category: String = "App") {
-        log(message, level: .info, category: category)
+    nonisolated static func info(
+        _ message: String,
+        category: String = "App",
+        file: StaticString = #fileID,
+        line: UInt = #line
+    ) {
+        log(message, level: .info, category: category, file: file, line: line)
     }
 
-    nonisolated static func warn(_ message: String, category: String = "App") {
-        log(message, level: .warn, category: category)
+    nonisolated static func warn(
+        _ message: String,
+        category: String = "App",
+        file: StaticString = #fileID,
+        line: UInt = #line
+    ) {
+        log(message, level: .warn, category: category, file: file, line: line)
     }
 
-    nonisolated static func error(_ message: String, category: String = "App") {
-        log(message, level: .error, category: category)
+    nonisolated static func error(
+        _ message: String,
+        category: String = "App",
+        file: StaticString = #fileID,
+        line: UInt = #line
+    ) {
+        log(message, level: .error, category: category, file: file, line: line)
         // Flush immediately for errors to ensure they're written if app crashes
         flush()
+    }
+
+    /// Formats `#fileID` + `#line` as `Module/File.swift:42` (just `File.swift:42` if no module prefix).
+    nonisolated private static func sourceLocation(file: StaticString, line: UInt) -> String {
+        let full = "\(file)"
+        let name = full.split(separator: "/").last.map(String.init) ?? full
+        return "\(name):\(line)"
     }
 
     /// Flushes any buffered log data to disk immediately.

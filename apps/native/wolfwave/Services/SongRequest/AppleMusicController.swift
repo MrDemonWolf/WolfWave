@@ -307,7 +307,7 @@ final class AppleMusicController: AppleMusicControlling {
         let previousFrontApp = NSWorkspace.shared.frontmostApplication
         runAppleScript(source)
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
-            previousFrontApp?.activate(options: [.activateIgnoringOtherApps])
+            previousFrontApp?.activate()
         }
     }
 
