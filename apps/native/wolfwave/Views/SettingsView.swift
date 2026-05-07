@@ -158,6 +158,9 @@ struct SettingsView: View {
                 .padding(.horizontal, AppConstants.SettingsUI.contentPaddingH)
                 .padding(.vertical, AppConstants.SettingsUI.contentPaddingV)
             }
+            .background {
+                WallpaperBloomBackground()
+            }
             .animation(.none, value: selectedSection)
             .onChange(of: selectedSection) { _, newSection in
                 // Cancel in-progress Twitch OAuth if user navigates away
@@ -220,7 +223,14 @@ struct SettingsView: View {
     private func detailView(for section: SettingsSection) -> some View {
         switch section {
         case .general:
-            GeneralSettingsView()
+            GeneralSettingsView(configure: { target in
+                switch target {
+                case .twitch: selectedSection = .twitchIntegration
+                case .discord: selectedSection = .discord
+                case .obs: selectedSection = .websocket
+                case .advanced: selectedSection = .advanced
+                }
+            })
         case .songRequests:
             SongRequestSettingsView()
         case .websocket:
