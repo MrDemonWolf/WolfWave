@@ -67,12 +67,17 @@ struct OnboardingAppleMusicStepView: View {
                         }
                     } label: {
                         HStack(spacing: 6) {
-                            if isRequesting {
-                                ProgressView()
-                                    .controlSize(.small)
-                            }
+                            // Reserve the ProgressView slot via opacity so the button width
+                            // doesn't expand when the request starts.
+                            ProgressView()
+                                .controlSize(.small)
+                                .opacity(isRequesting ? 1 : 0)
                             Text("Grant Apple Music Access")
                         }
+                        .frame(
+                            minWidth: AppConstants.OnboardingUI.primaryButtonMinWidth,
+                            minHeight: AppConstants.OnboardingUI.primaryButtonHeight
+                        )
                     }
                     .buttonStyle(.borderedProminent)
                     .controlSize(.regular)
@@ -82,7 +87,11 @@ struct OnboardingAppleMusicStepView: View {
                     .accessibilityIdentifier("onboardingAppleMusicGrant")
                 }
             }
-            .frame(maxWidth: 400)
+            .frame(
+                maxWidth: 400,
+                minHeight: AppConstants.OnboardingUI.stepContentMinHeight,
+                alignment: .top
+            )
             .padding(.horizontal, 24)
             .animation(.easeInOut(duration: 0.2), value: authStatus)
 

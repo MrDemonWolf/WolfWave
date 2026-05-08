@@ -63,7 +63,11 @@ struct OnboardingTwitchStepView: View {
                     errorContent(message: message)
                 }
             }
-            .frame(maxWidth: 400)
+            .frame(
+                maxWidth: 400,
+                minHeight: AppConstants.OnboardingUI.stepContentMinHeight,
+                alignment: .top
+            )
             .padding(.horizontal, 24)
 
             Spacer()
@@ -95,8 +99,9 @@ struct OnboardingTwitchStepView: View {
                 Text("Sign in with Twitch")
                     .font(.system(size: 13, weight: .semibold))
                     .frame(maxWidth: .infinity)
-                    .frame(height: 32)
+                    .frame(height: AppConstants.OnboardingUI.primaryButtonHeight)
             }
+            .frame(minWidth: AppConstants.OnboardingUI.primaryButtonMinWidth)
             .buttonStyle(.borderedProminent)
             .tint(Color(red: 0.57, green: 0.28, blue: 1.0))
             .controlSize(.regular)

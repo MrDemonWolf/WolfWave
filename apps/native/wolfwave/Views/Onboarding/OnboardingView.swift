@@ -114,31 +114,34 @@ struct OnboardingView: View {
 
     private var navigationBar: some View {
         HStack {
-            // Left side: "Back" button (hidden on first step) + "Skip All" on all steps
+            // Left side: "Back" button (hidden on first step) + "Skip All" on all steps.
+            // Both rendered unconditionally and toggled via opacity so the slot width stays fixed.
             HStack(spacing: 8) {
-                if !viewModel.isFirstStep {
-                    Button("Back") {
-                        navigationDirection = .leading
-                        cancelTwitchOAuthIfNeeded()
-                        viewModel.goToPreviousStep()
-                    }
-                    .buttonStyle(.bordered)
-                    .controlSize(.regular)
-                    .pointerCursor()
-                    .accessibilityLabel("Go back")
-                    .accessibilityHint("Returns to the previous setup step")
+                Button("Back") {
+                    navigationDirection = .leading
+                    cancelTwitchOAuthIfNeeded()
+                    viewModel.goToPreviousStep()
                 }
+                .buttonStyle(.bordered)
+                .controlSize(.regular)
+                .frame(minWidth: AppConstants.OnboardingUI.navButtonMinWidth)
+                .pointerCursor()
+                .opacity(viewModel.isFirstStep ? 0 : 1)
+                .disabled(viewModel.isFirstStep)
+                .accessibilityLabel("Go back")
+                .accessibilityHint("Returns to the previous setup step")
 
-                if !viewModel.isLastStep {
-                    Button("Skip All") {
-                        finishOnboarding()
-                    }
-                    .buttonStyle(.plain)
-                    .foregroundStyle(.secondary)
-                    .pointerCursor()
-                    .accessibilityLabel("Skip all steps")
-                    .accessibilityHint("Skips the setup wizard and uses default settings")
+                Button("Skip All") {
+                    finishOnboarding()
                 }
+                .buttonStyle(.plain)
+                .foregroundStyle(.secondary)
+                .frame(minWidth: AppConstants.OnboardingUI.navButtonMinWidth)
+                .pointerCursor()
+                .opacity(viewModel.isLastStep ? 0 : 1)
+                .disabled(viewModel.isLastStep)
+                .accessibilityLabel("Skip all steps")
+                .accessibilityHint("Skips the setup wizard and uses default settings")
             }
 
             Spacer()
@@ -151,33 +154,32 @@ struct OnboardingView: View {
             }
             .buttonStyle(.bordered)
             .controlSize(.regular)
+            .frame(minWidth: AppConstants.OnboardingUI.navButtonMinWidth)
             .pointerCursor()
             .opacity(shouldShowSkip ? 1 : 0)
             .disabled(!shouldShowSkip)
             .accessibilityLabel("Skip this step")
             .accessibilityHint("Skips the current setup step without making changes")
 
-            if viewModel.isLastStep {
-                Button("Finish") {
+            // Single primary action whose label/behavior swaps between Next and Finish.
+            // Single button + minWidth keeps the slot stable across the swap.
+            Button(viewModel.isLastStep ? "Finish" : "Next") {
+                if viewModel.isLastStep {
                     finishOnboarding()
-                }
-                .buttonStyle(.borderedProminent)
-                .controlSize(.regular)
-                .pointerCursor()
-                .accessibilityLabel("Finish setup")
-                .accessibilityHint("Completes the setup wizard and starts using WolfWave")
-            } else {
-                Button("Next") {
+                } else {
                     navigationDirection = .trailing
                     cancelTwitchOAuthIfNeeded()
                     viewModel.goToNextStep()
                 }
-                .buttonStyle(.borderedProminent)
-                .controlSize(.regular)
-                .pointerCursor()
-                .accessibilityLabel("Next step")
-                .accessibilityHint("Continues to the next setup step")
             }
+            .buttonStyle(.borderedProminent)
+            .controlSize(.regular)
+            .frame(minWidth: AppConstants.OnboardingUI.navButtonMinWidth)
+            .pointerCursor()
+            .accessibilityLabel(viewModel.isLastStep ? "Finish setup" : "Next step")
+            .accessibilityHint(viewModel.isLastStep
+                ? "Completes the setup wizard and starts using WolfWave"
+                : "Continues to the next setup step")
         }
         .transaction { $0.animation = nil }
     }

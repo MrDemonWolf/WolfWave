@@ -560,5 +560,18 @@ enum AppConstants {
 
         /// Height of the onboarding window
         static let windowHeight: CGFloat = 480
+
+        /// Standard height for primary action buttons (e.g. Sign in with Twitch).
+        static let primaryButtonHeight: CGFloat = 32
+
+        /// Minimum width for primary action buttons so labels can swap without resizing.
+        static let primaryButtonMinWidth: CGFloat = 200
+
+        /// Minimum width for navigation bar buttons (Back, Skip, Next/Finish, Skip All).
+        static let navButtonMinWidth: CGFloat = 80
+
+        /// Reserved vertical space for state-swapping content within a step
+        /// (e.g. Twitch `notConnected` → `authorizing` → `connected`).
+        static let stepContentMinHeight: CGFloat = 220
     }
 }
