@@ -13,6 +13,7 @@
 /// All values are static and immutable, organized into logical enum namespaces for clarity.
 import Foundation
 import AppKit
+import SwiftUI
 
 enum AppConstants {
     // MARK: - App Identifiers
@@ -573,5 +574,30 @@ enum AppConstants {
         /// Reserved vertical space for state-swapping content within a step
         /// (e.g. Twitch `notConnected` → `authorizing` → `connected`).
         static let stepContentMinHeight: CGFloat = 220
+
+        /// Side length of the brand tile used as the visual anchor for each integration step.
+        static let brandTileSize: CGFloat = 56
+
+        /// Corner radius of the brand tile (continuous-rounded square).
+        static let brandTileRadius: CGFloat = 14
+    }
+
+    // MARK: - Brand Colors
+
+    /// Brand colors used across onboarding tiles and accents.
+    enum Brand {
+        /// Twitch purple — `#9146FF`.
+        static let twitch = Color(red: 0.569, green: 0.275, blue: 1.0)
+
+        /// Discord blurple — `#5865F2`.
+        static let discord = Color(red: 0.345, green: 0.396, blue: 0.949)
+
+        /// Apple Music gradient stops — pink-to-red.
+        static let appleMusicGradientStart = Color(red: 1.0, green: 0.365, blue: 0.545)   // #FF5D8B
+        static let appleMusicGradientEnd = Color(red: 0.980, green: 0.137, blue: 0.231)   // #FA233B
+
+        /// OBS Studio gradient stops — neutral dark.
+        static let obsGradientStart = Color(red: 0.173, green: 0.173, blue: 0.180)        // #2C2C2E
+        static let obsGradientEnd = Color(red: 0.102, green: 0.102, blue: 0.110)          // #1A1A1C
     }
 }

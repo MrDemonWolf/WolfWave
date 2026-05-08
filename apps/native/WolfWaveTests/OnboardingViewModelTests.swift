@@ -30,8 +30,8 @@ final class OnboardingViewModelTests: XCTestCase {
         XCTAssertEqual(viewModel.currentStep, .welcome)
     }
 
-    func testTotalStepsEquals5() {
-        XCTAssertEqual(viewModel.totalSteps, 5)
+    func testTotalStepsEquals7() {
+        XCTAssertEqual(viewModel.totalSteps, 7)
     }
 
     func testIsFirstStepAtWelcome() {
@@ -44,31 +44,42 @@ final class OnboardingViewModelTests: XCTestCase {
 
     // MARK: - Forward Navigation
 
-    func testGoToNextStepFromWelcome() {
-        viewModel.goToNextStep()
-        XCTAssertEqual(viewModel.currentStep, .twitchConnect)
-    }
-
-    func testGoToNextStepTwiceReachesDiscord() {
-        viewModel.goToNextStep()
+    func testGoToNextStepFromWelcomeReachesDiscord() {
         viewModel.goToNextStep()
         XCTAssertEqual(viewModel.currentStep, .discordConnect)
     }
 
-    func testGoToNextStepThreeTimesReachesOBSWidget() {
+    func testTwoNextStepsReachesTwitch() {
+        viewModel.goToNextStep()
+        viewModel.goToNextStep()
+        XCTAssertEqual(viewModel.currentStep, .twitchConnect)
+    }
+
+    func testThreeNextStepsReachesOBS() {
         viewModel.goToNextStep()
         viewModel.goToNextStep()
         viewModel.goToNextStep()
         XCTAssertEqual(viewModel.currentStep, .obsWidget)
     }
 
-    func testGoToNextStepAtLastStepStays() {
-        viewModel.goToNextStep()
-        viewModel.goToNextStep()
-        viewModel.goToNextStep()
-        viewModel.goToNextStep()
-        viewModel.goToNextStep()
+    func testFourNextStepsReachesPreferences() {
+        for _ in 0..<4 { viewModel.goToNextStep() }
+        XCTAssertEqual(viewModel.currentStep, .preferences)
+    }
+
+    func testFiveNextStepsReachesAppleMusic() {
+        for _ in 0..<5 { viewModel.goToNextStep() }
         XCTAssertEqual(viewModel.currentStep, .appleMusicAccess)
+    }
+
+    func testSixNextStepsReachesMenuBarPointer() {
+        for _ in 0..<6 { viewModel.goToNextStep() }
+        XCTAssertEqual(viewModel.currentStep, .menuBarPointer)
+    }
+
+    func testGoToNextStepAtLastStepStays() {
+        for _ in 0..<10 { viewModel.goToNextStep() }
+        XCTAssertEqual(viewModel.currentStep, .menuBarPointer)
     }
 
     // MARK: - Backward Navigation
@@ -78,37 +89,33 @@ final class OnboardingViewModelTests: XCTestCase {
         XCTAssertEqual(viewModel.currentStep, .welcome)
     }
 
-    func testGoToPreviousStepFromTwitchConnect() {
+    func testGoToPreviousStepFromDiscord() {
         viewModel.goToNextStep()
         viewModel.goToPreviousStep()
         XCTAssertEqual(viewModel.currentStep, .welcome)
     }
 
-    func testGoToPreviousStepFromDiscordConnect() {
+    func testGoToPreviousStepFromTwitch() {
         viewModel.goToNextStep()
         viewModel.goToNextStep()
         viewModel.goToPreviousStep()
-        XCTAssertEqual(viewModel.currentStep, .twitchConnect)
+        XCTAssertEqual(viewModel.currentStep, .discordConnect)
     }
 
     // MARK: - Step Properties
 
-    func testIsNotFirstStepAtTwitchConnect() {
+    func testIsNotFirstStepAtDiscord() {
         viewModel.goToNextStep()
         XCTAssertFalse(viewModel.isFirstStep)
     }
 
-    func testIsNotLastStepAtDiscordConnect() {
-        viewModel.goToNextStep()
-        viewModel.goToNextStep()
+    func testIsNotLastStepInMiddle() {
+        for _ in 0..<3 { viewModel.goToNextStep() }
         XCTAssertFalse(viewModel.isLastStep)
     }
 
-    func testIsLastStepAtAppleMusicAccess() {
-        viewModel.goToNextStep()
-        viewModel.goToNextStep()
-        viewModel.goToNextStep()
-        viewModel.goToNextStep()
+    func testIsLastStepAtMenuBarPointer() {
+        for _ in 0..<6 { viewModel.goToNextStep() }
         XCTAssertTrue(viewModel.isLastStep)
     }
 
@@ -139,22 +146,18 @@ final class OnboardingViewModelTests: XCTestCase {
     func testFullNavigationCycleForwardAndBack() {
         XCTAssertEqual(viewModel.currentStep, .welcome)
 
-        viewModel.goToNextStep()
-        XCTAssertEqual(viewModel.currentStep, .twitchConnect)
+        let order: [OnboardingViewModel.OnboardingStep] = [
+            .discordConnect, .twitchConnect, .obsWidget, .preferences, .appleMusicAccess, .menuBarPointer
+        ]
 
-        viewModel.goToNextStep()
-        XCTAssertEqual(viewModel.currentStep, .discordConnect)
+        for expected in order {
+            viewModel.goToNextStep()
+            XCTAssertEqual(viewModel.currentStep, expected)
+        }
 
-        viewModel.goToNextStep()
-        XCTAssertEqual(viewModel.currentStep, .obsWidget)
-
-        viewModel.goToPreviousStep()
-        XCTAssertEqual(viewModel.currentStep, .discordConnect)
-
-        viewModel.goToPreviousStep()
-        XCTAssertEqual(viewModel.currentStep, .twitchConnect)
-
-        viewModel.goToPreviousStep()
-        XCTAssertEqual(viewModel.currentStep, .welcome)
+        for expected in order.dropLast().reversed() + [.welcome] {
+            viewModel.goToPreviousStep()
+            XCTAssertEqual(viewModel.currentStep, expected)
+        }
     }
 }

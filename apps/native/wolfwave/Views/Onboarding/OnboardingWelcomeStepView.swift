@@ -7,161 +7,121 @@
 
 import SwiftUI
 
-/// Welcome step displaying the app icon, tagline, and feature highlights.
+/// Pure-hero welcome step: large app icon, headline, plain-language tagline, and a single
+/// inline brand line so the user knows what's about to happen without scanning a list.
 struct OnboardingWelcomeStepView: View {
-
-    // MARK: - Feature Data
-
-    private struct Feature {
-        enum IconType {
-            case brand(name: String, renderOriginal: Bool)
-            case symbol(name: String)
-        }
-
-        let icon: IconType
-        let title: String
-        let description: String
-    }
-
-    private let features: [Feature] = [
-        Feature(
-            icon: .brand(name: "AppleMusicLogo", renderOriginal: true),
-            title: "Music Sync",
-            description: "Detects what's playing in Apple Music."
-        ),
-        Feature(
-            icon: .brand(name: "TwitchLogo", renderOriginal: true),
-            title: "Twitch Chat Bot",
-            description: "Anyone in chat can type !song to see what's playing."
-        ),
-        Feature(
-            icon: .brand(name: "DiscordLogo", renderOriginal: true),
-            title: "Discord Status",
-            description: "Shows your current song on Discord, like Spotify does."
-        ),
-        Feature(
-            icon: .symbol(name: "tv.badge.wifi"),
-            title: "Now-Playing Widget",
-            description: "Adds a customizable now-playing widget for OBS or any browser."
-        ),
-    ]
 
     // MARK: - Animation State
 
-    @State private var rowsVisible = false
+    @State private var heroVisible = false
+    @State private var taglineVisible = false
+    @State private var brandLineVisible = false
+
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     // MARK: - Body
 
     var body: some View {
-        VStack(spacing: 12) {
+        VStack(spacing: 18) {
             Spacer()
 
             Image(nsImage: NSApp.applicationIconImage)
                 .resizable()
                 .interpolation(.high)
                 .scaledToFit()
-                .frame(width: 72, height: 72)
+                .frame(width: 96, height: 96)
+                .opacity(heroVisible ? 1 : 0)
+                .scaleEffect(heroVisible ? 1 : 0.92)
                 .accessibilityLabel("WolfWave app icon")
 
             VStack(spacing: 8) {
                 Text("Welcome to WolfWave")
-                    .font(.system(size: 24, weight: .bold))
+                    .font(.system(size: 26, weight: .bold))
+                    .opacity(heroVisible ? 1 : 0)
 
                 Text("Share what you're listening to — everywhere.")
-                    .font(.system(size: 15))
+                    .font(.system(size: 14))
                     .foregroundStyle(.secondary)
                     .multilineTextAlignment(.center)
+                    .opacity(taglineVisible ? 1 : 0)
             }
 
-            VStack(alignment: .leading, spacing: 14) {
-                ForEach(Array(features.enumerated()), id: \.offset) { index, feature in
-                    featureRow(for: feature)
-                        .opacity(rowsVisible ? 1 : 0)
-                        .offset(x: rowsVisible ? 0 : 20)
-                        .animation(
-                            .spring(response: 0.4, dampingFraction: 0.8)
-                                .delay(Double(index) * 0.08),
-                            value: rowsVisible
-                        )
-                }
-            }
+            brandLine
+                .opacity(brandLineVisible ? 1 : 0)
+                .offset(y: brandLineVisible ? 0 : 6)
 
             Spacer()
         }
-        .padding(.horizontal, 24)
-        .onAppear {
-            rowsVisible = true
-        }
-    }
-
-    // MARK: - Helpers
-
-    @ViewBuilder
-    private func featureRow(for feature: Feature) -> some View {
-        switch feature.icon {
-        case let .brand(name, renderOriginal):
-            brandFeatureRow(
-                image: name,
-                renderOriginal: renderOriginal,
-                title: feature.title,
-                description: feature.description
-            )
-        case let .symbol(name):
-            symbolFeatureRow(
-                systemName: name,
-                title: feature.title,
-                description: feature.description
-            )
-        }
-    }
-
-    @ViewBuilder
-    private func symbolFeatureRow(systemName: String, color: Color = .accentColor, title: String, description: String) -> some View {
-        HStack(alignment: .top, spacing: 12) {
-            Image(systemName: systemName)
-                .resizable()
-                .aspectRatio(contentMode: .fit)
-                .frame(width: 18, height: 18)
-                .foregroundStyle(color)
-                .frame(width: 28, alignment: .center)
-                .accessibilityHidden(true)
-
-            VStack(alignment: .leading, spacing: 2) {
-                Text(title)
-                    .font(.system(size: 13, weight: .semibold))
-                Text(description)
-                    .font(.system(size: 12))
-                    .foregroundStyle(.secondary)
-                    .fixedSize(horizontal: false, vertical: true)
+        .padding(.horizontal, 32)
+        .task {
+            if reduceMotion {
+                heroVisible = true
+                taglineVisible = true
+                brandLineVisible = true
+                return
+            }
+            withAnimation(.spring(response: 0.45, dampingFraction: 0.78)) {
+                heroVisible = true
+            }
+            try? await Task.sleep(nanoseconds: 180_000_000)
+            withAnimation(.easeOut(duration: 0.30)) {
+                taglineVisible = true
+            }
+            try? await Task.sleep(nanoseconds: 140_000_000)
+            withAnimation(.easeOut(duration: 0.30)) {
+                brandLineVisible = true
             }
         }
-        .accessibilityElement(children: .combine)
-        .accessibilityLabel("\(title). \(description)")
+    }
+
+    // MARK: - Brand Line
+
+    private var brandLine: some View {
+        HStack(spacing: 14) {
+            brandChip(image: "AppleMusicLogo", color: AppConstants.Brand.appleMusicGradientEnd)
+            dot
+            brandChip(image: "TwitchLogo", color: AppConstants.Brand.twitch)
+            dot
+            brandChip(image: "DiscordLogo", color: AppConstants.Brand.discord)
+            dot
+            brandChip(systemSymbol: "tv.badge.wifi", color: .accentColor)
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 10)
+        .background(
+            Capsule(style: .continuous)
+                .fill(.regularMaterial)
+        )
+        .overlay(
+            Capsule(style: .continuous)
+                .stroke(Color.primary.opacity(0.06), lineWidth: 0.5)
+        )
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("Connects with Apple Music, Twitch, Discord, and OBS overlays.")
+    }
+
+    private var dot: some View {
+        Circle()
+            .fill(Color.secondary.opacity(0.30))
+            .frame(width: 3, height: 3)
     }
 
     @ViewBuilder
-    private func brandFeatureRow(image: String, renderOriginal: Bool = false, color: Color = .accentColor, title: String, description: String) -> some View {
-        HStack(alignment: .top, spacing: 12) {
-            Image(image)
-                .renderingMode(renderOriginal ? .original : .template)
-                .resizable()
-                .aspectRatio(contentMode: .fit)
-                .frame(width: 18, height: 18)
-                .foregroundStyle(color)
-                .frame(width: 28, alignment: .center)
-                .accessibilityHidden(true)
+    private func brandChip(image: String, color: Color) -> some View {
+        Image(image)
+            .renderingMode(.template)
+            .resizable()
+            .aspectRatio(contentMode: .fit)
+            .frame(width: 16, height: 16)
+            .foregroundStyle(color)
+    }
 
-            VStack(alignment: .leading, spacing: 2) {
-                Text(title)
-                    .font(.system(size: 13, weight: .semibold))
-                Text(description)
-                    .font(.system(size: 12))
-                    .foregroundStyle(.secondary)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-        }
-        .accessibilityElement(children: .combine)
-        .accessibilityLabel("\(title). \(description)")
+    @ViewBuilder
+    private func brandChip(systemSymbol: String, color: Color) -> some View {
+        Image(systemName: systemSymbol)
+            .font(.system(size: 14, weight: .semibold))
+            .foregroundStyle(color)
+            .frame(width: 18, height: 16)
     }
 }
 
@@ -169,5 +129,5 @@ struct OnboardingWelcomeStepView: View {
 
 #Preview {
     OnboardingWelcomeStepView()
-        .frame(width: 520, height: 400)
+        .frame(width: 600, height: 380)
 }

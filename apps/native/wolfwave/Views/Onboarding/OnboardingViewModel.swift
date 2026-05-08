@@ -16,12 +16,17 @@ final class OnboardingViewModel {
     // MARK: - Step Definition
 
     /// Ordered onboarding steps.
+    ///
+    /// Streaming-related steps (Twitch, OBS) are kept adjacent so the user mentally
+    /// finishes "stream stuff" before moving to system-level prefs and Apple Music.
     enum OnboardingStep: Int, CaseIterable {
         case welcome = 0
-        case twitchConnect = 1
-        case discordConnect = 2
+        case discordConnect = 1
+        case twitchConnect = 2
         case obsWidget = 3
-        case appleMusicAccess = 4
+        case preferences = 4
+        case appleMusicAccess = 5
+        case menuBarPointer = 6
     }
 
     // MARK: - Observable State

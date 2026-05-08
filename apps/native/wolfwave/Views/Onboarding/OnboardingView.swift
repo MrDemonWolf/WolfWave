@@ -10,8 +10,8 @@ import SwiftUI
 
 /// First-launch onboarding wizard with progress dots, step content, and navigation.
 ///
-/// Steps: Welcome, Twitch, Discord, WebSocket & OBS Widget. Hosted in a dedicated `NSWindow`
-/// created by `AppDelegate.showOnboarding()`.
+/// Steps: Welcome → Discord → Twitch → OBS → Preferences → Apple Music → Menu bar pointer.
+/// Hosted in a dedicated `NSWindow` created by `AppDelegate.showOnboarding()`.
 struct OnboardingView: View {
 
     // MARK: - State
@@ -24,6 +24,9 @@ struct OnboardingView: View {
 
     @AppStorage(AppConstants.UserDefaults.websocketEnabled)
     private var websocketEnabled = false
+
+    @AppStorage(AppConstants.UserDefaults.launchAtLogin)
+    private var launchAtLogin = false
 
     /// Called when onboarding completes to dismiss the window.
     var onComplete: () -> Void
@@ -54,6 +57,7 @@ struct OnboardingView: View {
                     navigationBar
                         .padding(.horizontal, 24)
                         .padding(.vertical, 16)
+                        .background(.regularMaterial)
                 }
             }
         }
@@ -76,6 +80,10 @@ struct OnboardingView: View {
                         : Color.secondary.opacity(0.3))
                     .frame(width: 8, height: 8)
                     .scaleEffect(step == viewModel.currentStep ? 1.3 : 1.0)
+                    .shadow(
+                        color: step == viewModel.currentStep ? Color.accentColor.opacity(0.40) : .clear,
+                        radius: 3, x: 0, y: 1
+                    )
                     .animation(.spring(response: 0.3, dampingFraction: 0.6), value: viewModel.currentStep)
                     .accessibilityHidden(true)
             }
@@ -93,14 +101,18 @@ struct OnboardingView: View {
             switch viewModel.currentStep {
             case .welcome:
                 OnboardingWelcomeStepView()
-            case .twitchConnect:
-                OnboardingTwitchStepView(twitchViewModel: twitchViewModel)
             case .discordConnect:
                 OnboardingDiscordStepView(presenceEnabled: $discordPresenceEnabled)
+            case .twitchConnect:
+                OnboardingTwitchStepView(twitchViewModel: twitchViewModel)
             case .obsWidget:
                 OnboardingOBSWidgetStepView(websocketEnabled: $websocketEnabled)
+            case .preferences:
+                OnboardingPreferencesStepView(launchAtLogin: $launchAtLogin)
             case .appleMusicAccess:
                 OnboardingAppleMusicStepView()
+            case .menuBarPointer:
+                OnboardingMenuBarPointerStepView()
             }
         }
         .id(viewModel.currentStep)
@@ -114,39 +126,36 @@ struct OnboardingView: View {
 
     private var navigationBar: some View {
         HStack {
-            // Left side: "Back" button (hidden on first step) + "Skip All" on all steps.
-            // Both rendered unconditionally and toggled via opacity so the slot width stays fixed.
+            // Left: Back (≥step 2) + Skip All (when not on the last step).
             HStack(spacing: 8) {
-                Button("Back") {
-                    navigationDirection = .leading
-                    cancelTwitchOAuthIfNeeded()
-                    viewModel.goToPreviousStep()
+                if !viewModel.isFirstStep {
+                    Button("Back") {
+                        navigationDirection = .leading
+                        cancelTwitchOAuthIfNeeded()
+                        viewModel.goToPreviousStep()
+                    }
+                    .buttonStyle(.bordered)
+                    .controlSize(.regular)
+                    .pointerCursor()
+                    .accessibilityLabel("Go back")
+                    .accessibilityHint("Returns to the previous setup step")
                 }
-                .buttonStyle(.bordered)
-                .controlSize(.regular)
-                .frame(minWidth: AppConstants.OnboardingUI.navButtonMinWidth)
-                .pointerCursor()
-                .opacity(viewModel.isFirstStep ? 0 : 1)
-                .disabled(viewModel.isFirstStep)
-                .accessibilityLabel("Go back")
-                .accessibilityHint("Returns to the previous setup step")
 
-                Button("Skip All") {
-                    finishOnboarding()
+                if !viewModel.isLastStep {
+                    Button("Skip All") {
+                        finishOnboarding()
+                    }
+                    .buttonStyle(.plain)
+                    .foregroundStyle(.secondary)
+                    .pointerCursor()
+                    .accessibilityLabel("Skip all steps")
+                    .accessibilityHint("Skips the setup wizard and uses default settings")
                 }
-                .buttonStyle(.plain)
-                .foregroundStyle(.secondary)
-                .frame(minWidth: AppConstants.OnboardingUI.navButtonMinWidth)
-                .pointerCursor()
-                .opacity(viewModel.isLastStep ? 0 : 1)
-                .disabled(viewModel.isLastStep)
-                .accessibilityLabel("Skip all steps")
-                .accessibilityHint("Skips the setup wizard and uses default settings")
             }
 
             Spacer()
 
-            // Right side: "Skip" always rendered, toggled via opacity
+            // Right: Skip (toggled via opacity to keep layout stable) + Next/Finish.
             Button("Skip") {
                 navigationDirection = .trailing
                 cancelTwitchOAuthIfNeeded()
@@ -154,32 +163,33 @@ struct OnboardingView: View {
             }
             .buttonStyle(.bordered)
             .controlSize(.regular)
-            .frame(minWidth: AppConstants.OnboardingUI.navButtonMinWidth)
             .pointerCursor()
             .opacity(shouldShowSkip ? 1 : 0)
             .disabled(!shouldShowSkip)
             .accessibilityLabel("Skip this step")
             .accessibilityHint("Skips the current setup step without making changes")
 
-            // Single primary action whose label/behavior swaps between Next and Finish.
-            // Single button + minWidth keeps the slot stable across the swap.
-            Button(viewModel.isLastStep ? "Finish" : "Next") {
-                if viewModel.isLastStep {
+            if viewModel.isLastStep {
+                Button("Finish") {
                     finishOnboarding()
-                } else {
+                }
+                .buttonStyle(.borderedProminent)
+                .controlSize(.regular)
+                .pointerCursor()
+                .accessibilityLabel("Finish setup")
+                .accessibilityHint("Completes the setup wizard and starts using WolfWave")
+            } else {
+                Button("Next") {
                     navigationDirection = .trailing
                     cancelTwitchOAuthIfNeeded()
                     viewModel.goToNextStep()
                 }
+                .buttonStyle(.borderedProminent)
+                .controlSize(.regular)
+                .pointerCursor()
+                .accessibilityLabel("Next step")
+                .accessibilityHint("Continues to the next setup step")
             }
-            .buttonStyle(.borderedProminent)
-            .controlSize(.regular)
-            .frame(minWidth: AppConstants.OnboardingUI.navButtonMinWidth)
-            .pointerCursor()
-            .accessibilityLabel(viewModel.isLastStep ? "Finish setup" : "Next step")
-            .accessibilityHint(viewModel.isLastStep
-                ? "Completes the setup wizard and starts using WolfWave"
-                : "Continues to the next setup step")
         }
         .transaction { $0.animation = nil }
     }
@@ -195,6 +205,8 @@ struct OnboardingView: View {
             return !discordPresenceEnabled
         case .obsWidget:
             return !websocketEnabled
+        case .preferences:
+            return true
         case .appleMusicAccess:
             return MusicAuthorization.currentStatus != .authorized
         default:

@@ -7,50 +7,24 @@
 
 import SwiftUI
 
-/// Twitch connection step of the onboarding wizard.
-///
-/// Reuses the existing `TwitchViewModel` and `DeviceCodeView` for the
-/// OAuth Device Code flow. Provides a simplified interface with:
-/// - Explanation of what connecting Twitch enables
-/// - "Connect with Twitch" button to start OAuth
-/// - Device code display (reuses `DeviceCodeView`)
-/// - Success confirmation when auth completes
-///
-/// This step is optional — users can skip it from the navigation bar.
+/// Twitch connection step with branded tile, pill CTA, and reused `DeviceCodeView`
+/// for the OAuth Device Code flow. Optional — can be skipped from the nav bar.
 struct OnboardingTwitchStepView: View {
 
     // MARK: - Properties
 
-    /// Shared Twitch view model managing auth state and credentials.
     @Bindable var twitchViewModel: TwitchViewModel
 
-    /// Whether the user has clicked the activation link or copied the code.
     @State private var hasStartedActivation = false
 
     // MARK: - Body
 
     var body: some View {
-        VStack(spacing: 20) {
-            Spacer()
+        VStack(spacing: 18) {
+            Spacer(minLength: 0)
 
-            // Header
-            VStack(spacing: 8) {
-                Image("TwitchLogo")
-                    .renderingMode(.original)
-                    .resizable()
-                    .scaledToFit()
-                    .frame(width: 40, height: 40)
-                    .accessibilityHidden(true)
+            header
 
-                Text("Connect to Twitch")
-                    .font(.system(size: 20, weight: .bold))
-
-                Text("Totally optional. You can always do this later.")
-                    .font(.system(size: 13))
-                    .foregroundStyle(.secondary)
-            }
-
-            // Content switches based on auth state
             Group {
                 switch twitchViewModel.integrationState {
                 case .notConnected:
@@ -63,18 +37,14 @@ struct OnboardingTwitchStepView: View {
                     errorContent(message: message)
                 }
             }
-            .frame(
-                maxWidth: 400,
-                minHeight: AppConstants.OnboardingUI.stepContentMinHeight,
-                alignment: .top
-            )
+            .frame(maxWidth: 420)
             .padding(.horizontal, 24)
+            .animation(.easeInOut(duration: 0.22), value: stateKey)
 
-            Spacer()
+            Spacer(minLength: 0)
         }
         .onAppear {
             twitchViewModel.loadSavedCredentials()
-
             if twitchViewModel.twitchService == nil {
                 if let appDelegate = AppDelegate.shared {
                     twitchViewModel.twitchService = appDelegate.twitchService
@@ -83,35 +53,67 @@ struct OnboardingTwitchStepView: View {
         }
     }
 
-    // MARK: - Not Connected
+    // MARK: - Header
 
-    private var notConnectedContent: some View {
-        VStack(spacing: 16) {
-            Text("Connect your Twitch so people can type !song in chat to see what's playing.")
-                .font(.system(size: 13))
-                .foregroundStyle(.secondary)
-                .multilineTextAlignment(.center)
+    private var header: some View {
+        VStack(spacing: 12) {
+            BrandTile(
+                background: AnyShapeStyle(AppConstants.Brand.twitch),
+                glowColor: AppConstants.Brand.twitch,
+                glyph:
+                    Image("TwitchLogo")
+                        .renderingMode(.template)
+                        .resizable()
+                        .aspectRatio(contentMode: .fit)
+                        .frame(width: 28, height: 28)
+                        .foregroundStyle(.white)
+            )
 
-            Button(action: {
-                hasStartedActivation = false
-                twitchViewModel.startOAuth()
-            }) {
-                Text("Sign in with Twitch")
-                    .font(.system(size: 13, weight: .semibold))
-                    .frame(maxWidth: .infinity)
-                    .frame(height: AppConstants.OnboardingUI.primaryButtonHeight)
+            VStack(spacing: 6) {
+                Text("Connect Twitch")
+                    .font(.system(size: 20, weight: .bold))
+
+                Text("So !song answers itself in your chat. We'll only listen — never post unless you ask.")
+                    .font(.system(size: 13))
+                    .foregroundStyle(.secondary)
+                    .multilineTextAlignment(.center)
+                    .frame(maxWidth: 420)
+                    .fixedSize(horizontal: false, vertical: true)
             }
-            .frame(minWidth: AppConstants.OnboardingUI.primaryButtonMinWidth)
-            .buttonStyle(.borderedProminent)
-            .tint(Color(red: 0.57, green: 0.28, blue: 1.0))
-            .controlSize(.regular)
-            .pointerCursor()
-            .accessibilityLabel("Sign in with Twitch authorization")
-            .accessibilityHint("Opens the Twitch sign-in process")
         }
     }
 
-    // MARK: - Authorizing
+    // MARK: - States
+
+    private var notConnectedContent: some View {
+        VStack(spacing: 10) {
+            PillButton(
+                background: AnyShapeStyle(AppConstants.Brand.twitch),
+                glowColor: AppConstants.Brand.twitch,
+                action: {
+                    hasStartedActivation = false
+                    twitchViewModel.startOAuth()
+                },
+                label: {
+                    HStack(spacing: 8) {
+                        Image("TwitchLogo")
+                            .renderingMode(.template)
+                            .resizable()
+                            .aspectRatio(contentMode: .fit)
+                            .frame(width: 14, height: 14)
+                            .foregroundStyle(.white)
+                        Text("Sign in with Twitch")
+                    }
+                }
+            )
+            .accessibilityLabel("Sign in with Twitch")
+            .accessibilityHint("Opens Twitch sign-in in your browser")
+
+            Text("Opens twitch.tv in your browser. Takes about 10 seconds.")
+                .font(.system(size: 11))
+                .foregroundStyle(.tertiary)
+        }
+    }
 
     private var authorizingContent: some View {
         VStack(spacing: 12) {
@@ -145,53 +147,81 @@ struct OnboardingTwitchStepView: View {
                     twitchViewModel.cancelOAuth()
                 }
                 .buttonStyle(.bordered)
-                .tint(.red)
                 .controlSize(.small)
                 .pointerCursor()
                 .accessibilityLabel("Cancel authorization")
-                .accessibilityHint("Stops the Twitch sign-in process")
             }
         }
     }
 
-    // MARK: - Connected
-
     private var connectedContent: some View {
-        VStack(spacing: 12) {
-            Image(systemName: "checkmark.circle.fill")
-                .font(.system(size: 36))
-                .foregroundStyle(.green)
-                .accessibilityHidden(true)
+        HStack(spacing: 14) {
+            ZStack {
+                Circle()
+                    .fill(Color.green)
+                    .frame(width: 36, height: 36)
+                    .shadow(color: Color.green.opacity(0.40), radius: 8, x: 0, y: 4)
 
-            Text("Connected as \(twitchViewModel.botUsername)")
-                .font(.system(size: 15, weight: .semibold))
+                Image(systemName: "checkmark")
+                    .font(.system(size: 16, weight: .bold))
+                    .foregroundStyle(.white)
+            }
 
-            Text("You're all set! Click Finish to start using WolfWave.")
-                .font(.system(size: 13))
-                .foregroundStyle(.secondary)
-                .multilineTextAlignment(.center)
+            VStack(alignment: .leading, spacing: 2) {
+                Text("CONNECTED")
+                    .font(.system(size: 10, weight: .semibold))
+                    .foregroundStyle(.tertiary)
+                    .tracking(0.6)
+
+                Text("@\(twitchViewModel.botUsername)")
+                    .font(.system(size: 15, weight: .semibold))
+            }
+
+            Spacer()
+
+            Button("Sign out") {
+                twitchViewModel.cancelOAuth()
+            }
+            .buttonStyle(.bordered)
+            .controlSize(.small)
+            .pointerCursor()
         }
+        .padding(14)
+        .cardStyle()
         .accessibilityElement(children: .combine)
-        .accessibilityLabel("Twitch connected as \(twitchViewModel.botUsername). You're all set.")
+        .accessibilityLabel("Twitch connected as \(twitchViewModel.botUsername).")
     }
-
-    // MARK: - Error
 
     @ViewBuilder
     private func errorContent(message: String) -> some View {
-        VStack(spacing: 12) {
-            Text(message)
-                .font(.system(size: 13))
-                .foregroundStyle(.red)
-                .multilineTextAlignment(.center)
+        VStack(spacing: 10) {
+            HStack(alignment: .top, spacing: 8) {
+                Image(systemName: "exclamationmark.triangle.fill")
+                    .foregroundStyle(.orange)
+                Text(message)
+                    .font(.system(size: 13))
+                    .foregroundStyle(.primary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            .padding(12)
+            .cardStyle()
 
             Button("Try Again") {
                 twitchViewModel.startOAuth()
             }
             .buttonStyle(.bordered)
             .pointerCursor()
-            .accessibilityLabel("Try again")
-            .accessibilityHint("Retries the Twitch authorization process")
+        }
+    }
+
+    // MARK: - Helpers
+
+    private var stateKey: Int {
+        switch twitchViewModel.integrationState {
+        case .notConnected: return 0
+        case .authorizing: return 1
+        case .connected: return 2
+        case .error: return 3
         }
     }
 }

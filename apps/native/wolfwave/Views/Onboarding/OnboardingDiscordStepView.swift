@@ -7,7 +7,8 @@
 
 import SwiftUI
 
-/// Optional onboarding step to enable Discord Rich Presence.
+/// Discord Rich Presence step. Brand tile + smart toggle card that brightens
+/// with brand-tinted glow when enabled.
 struct OnboardingDiscordStepView: View {
 
     // MARK: - Properties
@@ -17,53 +18,79 @@ struct OnboardingDiscordStepView: View {
     // MARK: - Body
 
     var body: some View {
-        VStack(spacing: 20) {
-            Spacer()
+        VStack(spacing: 18) {
+            Spacer(minLength: 0)
 
-            VStack(spacing: 8) {
-                Image("DiscordLogo")
-                    .renderingMode(.template)
-                    .resizable()
-                    .aspectRatio(contentMode: .fit)
-                    .frame(width: 36, height: 36)
-                    .foregroundStyle(.indigo)
-                    .accessibilityHidden(true)
+            BrandTile(
+                background: AnyShapeStyle(AppConstants.Brand.discord),
+                glowColor: AppConstants.Brand.discord,
+                glyph:
+                    Image("DiscordLogo")
+                        .renderingMode(.template)
+                        .resizable()
+                        .aspectRatio(contentMode: .fit)
+                        .frame(width: 30, height: 30)
+                        .foregroundStyle(.white)
+            )
 
-                Text("Discord Status")
+            VStack(spacing: 6) {
+                Text("Light up your Discord status")
                     .font(.system(size: 20, weight: .bold))
 
-                Text("Totally optional. You can always do this later.")
-                    .font(.system(size: 13))
-                    .foregroundStyle(.secondary)
-            }
-
-            VStack(spacing: 16) {
-                Text("Your Discord status will show what song you're listening to — just like Spotify.")
+                Text("Friends will see what you're listening to — track, artist, and album art — right under your name.")
                     .font(.system(size: 13))
                     .foregroundStyle(.secondary)
                     .multilineTextAlignment(.center)
-
-                ToggleSettingRow(
-                    title: "Show music on Discord",
-                    subtitle: "Updates your Discord status with the current song",
-                    isOn: $presenceEnabled,
-                    controlSize: .regular,
-                    accessibilityLabel: "Enable Discord Status",
-                    accessibilityIdentifier: "onboardingDiscordToggle",
-                    onChange: { newValue in
-                        NotificationCenter.default.post(
-                            name: NSNotification.Name(AppConstants.Notifications.discordPresenceChanged),
-                            object: nil,
-                            userInfo: ["enabled": newValue]
-                        )
-                    }
-                )
-                .cardStyle()
+                    .frame(maxWidth: 440)
+                    .fixedSize(horizontal: false, vertical: true)
             }
-            .frame(maxWidth: 400)
-            .padding(.horizontal, 24)
 
-            Spacer()
+            ToggleSettingRow(
+                title: "Show music on Discord",
+                subtitle: "Updates every time the track changes.",
+                isOn: $presenceEnabled,
+                controlSize: .regular,
+                accessibilityLabel: "Enable Discord Status",
+                accessibilityIdentifier: "onboardingDiscordToggle",
+                onChange: { newValue in
+                    NotificationCenter.default.post(
+                        name: NSNotification.Name(AppConstants.Notifications.discordPresenceChanged),
+                        object: nil,
+                        userInfo: ["enabled": newValue]
+                    )
+                }
+            )
+            .padding(14)
+            .background(
+                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                    .fill(presenceEnabled
+                          ? AppConstants.Brand.discord.opacity(0.10)
+                          : Color(nsColor: .controlBackgroundColor))
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                    .stroke(
+                        presenceEnabled
+                            ? AppConstants.Brand.discord.opacity(0.40)
+                            : Color.primary.opacity(0.06),
+                        lineWidth: 0.5
+                    )
+            )
+            .shadow(
+                color: presenceEnabled ? AppConstants.Brand.discord.opacity(0.18) : .clear,
+                radius: 18, x: 0, y: 6
+            )
+            .frame(maxWidth: 420)
+            .padding(.horizontal, 24)
+            .animation(.easeInOut(duration: 0.20), value: presenceEnabled)
+
+            Text("Make sure Discord is open. We talk to it locally — nothing leaves your Mac.")
+                .font(.system(size: 11))
+                .foregroundStyle(.tertiary)
+                .multilineTextAlignment(.center)
+                .frame(maxWidth: 380)
+
+            Spacer(minLength: 0)
         }
     }
 }
@@ -72,5 +99,5 @@ struct OnboardingDiscordStepView: View {
 
 #Preview {
     OnboardingDiscordStepView(presenceEnabled: .constant(false))
-        .frame(width: 520, height: 400)
+        .frame(width: 600, height: 380)
 }

@@ -8,7 +8,8 @@
 import MusicKit
 import SwiftUI
 
-/// Optional onboarding step to grant Apple Music access for song requests.
+/// Apple Music access step. Pink-gradient brand tile with the Apple Music wordmark,
+/// gradient pill CTA, and a denied state with dual action.
 struct OnboardingAppleMusicStepView: View {
 
     // MARK: - Properties
@@ -19,83 +20,161 @@ struct OnboardingAppleMusicStepView: View {
     // MARK: - Body
 
     var body: some View {
-        VStack(spacing: 20) {
-            Spacer()
+        VStack(spacing: 16) {
+            Spacer(minLength: 0)
 
-            VStack(spacing: 8) {
-                Image(systemName: "music.note")
-                    .font(.system(size: 36))
-                    .foregroundStyle(.pink)
-                    .accessibilityHidden(true)
+            BrandTile(
+                background: AnyShapeStyle(
+                    LinearGradient(
+                        colors: [
+                            AppConstants.Brand.appleMusicGradientStart,
+                            AppConstants.Brand.appleMusicGradientEnd
+                        ],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    )
+                ),
+                glowColor: AppConstants.Brand.appleMusicGradientEnd,
+                glyph:
+                    Image("AppleMusicLogo")
+                        .renderingMode(.template)
+                        .resizable()
+                        .aspectRatio(contentMode: .fit)
+                        .frame(width: 28, height: 28)
+                        .foregroundStyle(.white)
+            )
 
-                Text("Apple Music Access")
+            VStack(spacing: 6) {
+                Text("Let WolfWave read what's playing.")
                     .font(.system(size: 20, weight: .bold))
-
-                Text("Optional — only needed if you want chat song requests.")
-                    .font(.system(size: 13))
-                    .foregroundStyle(.secondary)
-            }
-
-            VStack(spacing: 16) {
-                Text("WolfWave reads your Apple Music library so viewers can request songs from your library through Twitch chat. Your library data stays on this Mac and is never sent anywhere except to Apple Music itself.")
-                    .font(.system(size: 13))
-                    .foregroundStyle(.secondary)
                     .multilineTextAlignment(.center)
                     .fixedSize(horizontal: false, vertical: true)
 
-                if authStatus == .authorized {
-                    EmptyView()
-                } else if authStatus == .denied {
-                    HStack(spacing: 8) {
-                        Image(systemName: "exclamationmark.triangle.fill")
-                            .foregroundStyle(.orange)
-                            .accessibilityHidden(true)
-                        Text("Access was denied. You can enable it in System Settings → Privacy & Security → Media & Apple Music.")
-                            .font(.system(size: 12))
-                            .foregroundStyle(.secondary)
-                            .fixedSize(horizontal: false, vertical: true)
-                    }
-                    .padding(12)
-                    .cardStyle()
-                } else {
-                    Button {
-                        isRequesting = true
+                Text("We use Apple Events to ask the Music app for the current track. We never play, pause, or change your library.")
+                    .font(.system(size: 13))
+                    .foregroundStyle(.secondary)
+                    .multilineTextAlignment(.center)
+                    .frame(maxWidth: 460)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+
+            content
+                .frame(maxWidth: 440)
+                .padding(.horizontal, 24)
+                .animation(.easeInOut(duration: 0.20), value: authStatus)
+
+            Spacer(minLength: 0)
+        }
+    }
+
+    // MARK: - State Content
+
+    @ViewBuilder
+    private var content: some View {
+        switch authStatus {
+        case .authorized:
+            HStack(spacing: 10) {
+                Image(systemName: "checkmark.circle.fill")
+                    .font(.system(size: 18))
+                    .foregroundStyle(.green)
+                Text("Access granted. We'll start tracking right away.")
+                    .font(.system(size: 13))
+                    .foregroundStyle(.primary)
+            }
+            .padding(12)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .cardStyle()
+
+        case .denied:
+            VStack(spacing: 10) {
+                HStack(alignment: .top, spacing: 8) {
+                    Image(systemName: "exclamationmark.triangle.fill")
+                        .foregroundStyle(.orange)
+                    Text("Access was denied. Enable in **System Settings → Privacy & Security → Media & Apple Music**.")
+                        .font(.system(size: 12))
+                        .foregroundStyle(.primary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                .padding(12)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(
+                    RoundedRectangle(cornerRadius: 10, style: .continuous)
+                        .fill(Color.orange.opacity(0.10))
+                )
+                .overlay(
+                    RoundedRectangle(cornerRadius: 10, style: .continuous)
+                        .stroke(Color.orange.opacity(0.40), lineWidth: 0.5)
+                )
+
+                HStack(spacing: 8) {
+                    Button("Try Again") {
                         Task {
                             _ = await MusicAuthorization.request()
                             authStatus = MusicAuthorization.currentStatus
-                            isRequesting = false
                         }
-                    } label: {
-                        HStack(spacing: 6) {
-                            // Reserve the ProgressView slot via opacity so the button width
-                            // doesn't expand when the request starts.
-                            ProgressView()
-                                .controlSize(.small)
-                                .opacity(isRequesting ? 1 : 0)
-                            Text("Grant Apple Music Access")
+                    }
+                    .buttonStyle(.bordered)
+                    .pointerCursor()
+
+                    Button("Open System Settings") {
+                        if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Media") {
+                            NSWorkspace.shared.open(url)
                         }
-                        .frame(
-                            minWidth: AppConstants.OnboardingUI.primaryButtonMinWidth,
-                            minHeight: AppConstants.OnboardingUI.primaryButtonHeight
-                        )
                     }
                     .buttonStyle(.borderedProminent)
-                    .controlSize(.regular)
-                    .tint(.pink)
-                    .disabled(isRequesting)
-                    .accessibilityLabel("Grant Apple Music access")
-                    .accessibilityIdentifier("onboardingAppleMusicGrant")
+                    .pointerCursor()
                 }
             }
-            .frame(
-                maxWidth: 400,
-                minHeight: AppConstants.OnboardingUI.stepContentMinHeight,
-                alignment: .top
-            )
-            .padding(.horizontal, 24)
-            .animation(.easeInOut(duration: 0.2), value: authStatus)
 
-            Spacer()
+        default:
+            VStack(spacing: 10) {
+                PillButton(
+                    background: AnyShapeStyle(
+                        LinearGradient(
+                            colors: [
+                                AppConstants.Brand.appleMusicGradientStart,
+                                AppConstants.Brand.appleMusicGradientEnd
+                            ],
+                            startPoint: .top,
+                            endPoint: .bottom
+                        )
+                    ),
+                    glowColor: AppConstants.Brand.appleMusicGradientEnd,
+                    disabled: isRequesting,
+                    action: requestAccess,
+                    label: {
+                        HStack(spacing: 8) {
+                            if isRequesting {
+                                ProgressView()
+                                    .progressViewStyle(.circular)
+                                    .controlSize(.small)
+                                    .tint(.white)
+                            }
+                            Text("Grant Apple Music Access")
+                        }
+                    }
+                )
+                .accessibilityLabel("Grant Apple Music access")
+                .accessibilityIdentifier("onboardingAppleMusicGrant")
+
+                Text("macOS will ask once. You can change this later in System Settings.")
+                    .font(.system(size: 11))
+                    .foregroundStyle(.tertiary)
+                    .multilineTextAlignment(.center)
+            }
+        }
+    }
+
+    // MARK: - Actions
+
+    private func requestAccess() {
+        isRequesting = true
+        Task {
+            _ = await MusicAuthorization.request()
+            await MainActor.run {
+                authStatus = MusicAuthorization.currentStatus
+                isRequesting = false
+            }
         }
     }
 }
@@ -104,5 +183,5 @@ struct OnboardingAppleMusicStepView: View {
 
 #Preview {
     OnboardingAppleMusicStepView()
-        .frame(width: 520, height: 400)
+        .frame(width: 600, height: 480)
 }
