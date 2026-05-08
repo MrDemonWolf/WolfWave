@@ -6,17 +6,29 @@ export default function Layout({ children }: LayoutProps<"/">) {
   return (
     <HomeLayout {...baseOptions()}>
       {children}
-      <footer className="border-t border-slate-200 dark:border-slate-800">
-        <div className="mx-auto max-w-4xl px-6 py-8 flex flex-col sm:flex-row items-center justify-between gap-4">
-          <p className="text-xs text-slate-500 dark:text-slate-500">
-            &copy; {currentYear} WolfWave by MrDemonWolf, Inc.
+      <footer
+        className="ww-font ww-bg-base"
+        style={{ borderTop: "1px solid var(--hairline)" }}
+      >
+        <div className="mx-auto max-w-6xl px-6 py-10 flex flex-col sm:flex-row items-center justify-between gap-4">
+          <p className="text-sm ww-text-2">
+            &copy; {currentYear} WolfWave by{" "}
+            <a
+              href="https://www.mrdemonwolf.com"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="ww-text-1 hover:underline"
+              style={{ textUnderlineOffset: 3 }}
+            >
+              MrDemonWolf, Inc.
+            </a>
           </p>
-          <nav className="flex items-center gap-5">
+          <nav className="flex items-center gap-6 text-sm ww-text-2">
             <a
               href="https://github.com/MrDemonWolf/WolfWave"
               target="_blank"
               rel="noopener noreferrer"
-              className="text-xs text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 transition-colors"
+              className="hover:ww-text-1 transition-colors"
             >
               GitHub
             </a>
@@ -24,15 +36,18 @@ export default function Layout({ children }: LayoutProps<"/">) {
               href="https://mrdwolf.net/discord"
               target="_blank"
               rel="noopener noreferrer"
-              className="text-xs text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 transition-colors"
+              className="hover:ww-text-1 transition-colors"
             >
               Discord
             </a>
-            <a
-              href="/docs"
-              className="text-xs text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 transition-colors"
-            >
+            <a href="/docs" className="hover:ww-text-1 transition-colors">
               Docs
+            </a>
+            <a
+              href="/docs/privacy-policy"
+              className="hover:ww-text-1 transition-colors"
+            >
+              Privacy
             </a>
           </nav>
         </div>

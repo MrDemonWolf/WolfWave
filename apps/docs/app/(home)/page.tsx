@@ -1,586 +1,490 @@
 import Link from "next/link";
 import {
+  ArrowRight,
+  Download,
+  Github,
   MessageSquare,
   Radio,
   Wifi,
   Shield,
-  Download,
-  ArrowRight,
-  Github,
-  Sparkles,
   Music,
+  Code2,
+  Headphones,
+  Twitch,
 } from "lucide-react";
-import { getAssetPath } from "@/lib/utils";
 
-// ── Pulsing "Now Playing" card mockup ──
-function NowPlayingCard() {
+// ── Now Playing mock (used in hero) ──────────────────────────
+function NowPlayingMock() {
   return (
-    <div className="now-playing-pulse now-playing-card-bg rounded-2xl border border-violet-500/30 p-4 w-64 shrink-0">
-      <div className="flex items-center gap-3 mb-3">
+    <div className="ww-pulse-ring ww-card w-full max-w-md mx-auto">
+      <div className="flex items-center gap-4">
         <div
-          className="w-12 h-12 rounded-lg shrink-0"
-          style={{
-            background: "linear-gradient(135deg, #7c3aed, #22d3ee)",
-            opacity: 0.9,
-          }}
+          className="w-16 h-16 rounded-xl shrink-0"
+          style={{ background: "linear-gradient(135deg, #0A84FF, #5AC8FA)" }}
+          aria-hidden="true"
         />
-        <div className="min-w-0">
-          <p className="text-hero text-sm font-semibold truncate font-[family-name:var(--font-unbounded)]">
-            Kbps Plz
-          </p>
-          <p className="text-hero-muted text-xs truncate">DevBowzer</p>
+        <div className="min-w-0 flex-1">
+          <p className="ww-text-1 text-base font-semibold truncate">Kbps Plz</p>
+          <p className="ww-text-2 text-sm truncate">DevBowzer · Album Vol. 2</p>
+          <div
+            className="h-1 rounded-full mt-3"
+            style={{ backgroundColor: "var(--hairline)" }}
+          >
+            <div
+              className="h-1 rounded-full"
+              style={{ width: "62%", backgroundColor: "var(--brand-500)" }}
+            />
+          </div>
+          <div className="flex justify-between mt-1.5 text-xs ww-text-2">
+            <span>2:07</span>
+            <span>3:20</span>
+          </div>
         </div>
       </div>
-      <div className="h-1 rounded-full bg-black/10 dark:bg-white/10">
-        <div
-          className="h-1 rounded-full"
-          style={{
-            width: "62%",
-            background: "linear-gradient(to right, #7c3aed, #22d3ee)",
-          }}
-        />
-      </div>
-      <div className="flex justify-between mt-1">
-        <span className="text-hero-subtle text-xs">2:07</span>
-        <span className="text-hero-subtle text-xs">3:20</span>
+      <div
+        className="mt-5 pt-4 flex items-center justify-between border-t"
+        style={{ borderColor: "var(--hairline)" }}
+      >
+        <div className="flex items-center gap-2">
+          <span className="ww-pill">
+            <Twitch className="w-3 h-3" /> Twitch
+          </span>
+          <span className="ww-pill">
+            <Radio className="w-3 h-3" /> Discord
+          </span>
+          <span className="ww-pill">
+            <Wifi className="w-3 h-3" /> Overlay
+          </span>
+        </div>
       </div>
     </div>
   );
 }
 
-// ── Live wire waveform (hero backdrop) ──
-function LiveWire() {
+// ── Section heading helper ───────────────────────────────────
+function SectionHead({
+  eyebrow,
+  title,
+  sub,
+  align = "center",
+}: {
+  eyebrow?: string;
+  title: React.ReactNode;
+  sub?: React.ReactNode;
+  align?: "center" | "left";
+}) {
   return (
-    <svg
-      className="live-wire absolute inset-0 w-full h-full pointer-events-none"
-      viewBox="0 0 800 400"
-      preserveAspectRatio="none"
-      aria-hidden="true"
-    >
-      <defs>
-        <linearGradient id="wire-grad" x1="0" y1="0" x2="1" y2="0">
-          <stop offset="0%" stopColor="#7c3aed" stopOpacity="0" />
-          <stop offset="30%" stopColor="#a855f7" stopOpacity="0.7" />
-          <stop offset="70%" stopColor="#22d3ee" stopOpacity="0.7" />
-          <stop offset="100%" stopColor="#22d3ee" stopOpacity="0" />
-        </linearGradient>
-      </defs>
-      <path
-        d="M 0 200 Q 100 80, 200 200 T 400 200 T 600 200 T 800 200"
-        stroke="url(#wire-grad)"
-        strokeWidth="2"
-        fill="none"
-      />
-      <path
-        d="M 0 220 Q 120 340, 240 220 T 480 220 T 720 220 T 800 220"
-        stroke="url(#wire-grad)"
-        strokeWidth="1.5"
-        fill="none"
-        opacity="0.5"
-      />
-    </svg>
+    <div className={`max-w-3xl ${align === "center" ? "mx-auto text-center" : ""}`}>
+      {eyebrow ? (
+        <p
+          className="ww-text-brand text-sm font-semibold mb-3"
+          style={{ letterSpacing: "-0.005em" }}
+        >
+          {eyebrow}
+        </p>
+      ) : null}
+      <h2 className="ww-display ww-text-1 text-4xl sm:text-5xl lg:text-6xl">
+        {title}
+      </h2>
+      {sub ? (
+        <p className="ww-text-2 text-lg sm:text-xl mt-5 leading-relaxed">
+          {sub}
+        </p>
+      ) : null}
+    </div>
   );
 }
 
-// ── Bento feature data ──
-const tickerItems = [
-  "APPLE MUSIC",
-  "TWITCH",
-  "DISCORD",
-  "OBS",
-  "SONG REQUESTS",
-  "WEBSOCKET API",
-  "MENU BAR",
-  "OPEN SOURCE",
-];
-
-const steps = [
-  {
-    number: "01",
-    title: "Download",
-    description: "Grab the DMG from GitHub Releases. 3.7MB — under a second on any connection.",
-  },
-  {
-    number: "02",
-    title: "Connect",
-    description: "One-time wizard links Twitch, Discord, and your overlay. No terminal.",
-  },
-  {
-    number: "03",
-    title: "Stream",
-    description: "Hit play in Apple Music. Chat, Discord, overlay — everything updates live.",
-  },
-] as const;
-
 export default function HomePage() {
   return (
-    <main className="flex-1 text-hero">
+    <main className="ww-font ww-bg-base">
       {/* ═══════════════ HERO ═══════════════ */}
-      <section className="mesh-bg grid-lines noise relative overflow-hidden">
-        <LiveWire />
-        <div className="relative z-10 px-6 pt-20 pb-24 sm:pt-28 sm:pb-32">
-          <div className="mx-auto max-w-6xl">
-            <div className="hero-stagger flex flex-col lg:grid lg:grid-cols-12 gap-10 lg:gap-16 items-start">
-              {/* LEFT — type column */}
-              <div className="lg:col-span-8">
-                {/* Mono kicker */}
-                <div className="mono-kicker flex flex-wrap items-center gap-3 text-violet-300 dark:text-violet-300 mb-8">
-                  <span className="inline-flex items-center gap-2">
-                    <span className="w-1.5 h-1.5 rounded-full bg-violet-400 animate-pulse" />
-                    V2.0.0
-                  </span>
-                  <span className="opacity-40">/</span>
-                  <span>MACOS 26+</span>
-                  <span className="opacity-40">/</span>
-                  <span>FREE FOREVER</span>
-                  <span className="opacity-40">/</span>
-                  <span>OPEN SOURCE</span>
-                </div>
-
-                {/* Kinetic headline */}
-                <h1 className="kinetic-headline mb-8">
-                  <span className="block text-hero">YOUR MUSIC,</span>
-                  <span className="block">
-                    <span className="kinetic-gradient">live</span>{" "}
-                    <span className="serif-em text-hero">everywhere</span>
-                    <span className="kinetic-gradient">.</span>
-                  </span>
-                </h1>
-
-                {/* Sub */}
-                <p
-                  className="text-hero-muted text-lg sm:text-xl leading-relaxed max-w-xl mb-10"
-                  style={{ fontFamily: "var(--font-instrument)" }}
-                >
-                  A tiny macOS menu bar app. Apple Music plays — Twitch chat, Discord
-                  Rich Presence, and your stream overlay update automatically. No
-                  account. No subscription. No phoning home.
-                </p>
-
-                {/* CTAs */}
-                <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
-                  <Link
-                    href="/docs/installation"
-                    className="shimmer-btn btn-primary inline-flex items-center justify-center gap-2 px-7 py-3.5 rounded-xl text-sm font-semibold transition-transform hover:scale-[1.02] active:scale-[0.98]"
-                  >
-                    <Download className="w-4 h-4 relative z-10" />
-                    <span className="relative z-10">Download — 3.7MB</span>
-                  </Link>
-                  <a
-                    href="https://github.com/mrdemonwolf/wolfwave"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="btn-secondary inline-flex items-center justify-center gap-2 px-7 py-3.5 rounded-xl text-sm font-semibold transition-all hover:scale-[1.02]"
-                  >
-                    <Github className="w-4 h-4" />
-                    View on GitHub
-                  </a>
-                  <Link
-                    href="/docs"
-                    className="inline-flex items-center justify-center gap-1.5 px-4 py-3.5 text-sm font-semibold text-hero-muted hover:text-hero transition-colors"
-                  >
-                    Read the Docs
-                    <ArrowRight className="w-3.5 h-3.5" />
-                  </Link>
-                </div>
-              </div>
-
-              {/* RIGHT — liquid glass showcase */}
-              <div className="lg:col-span-4 w-full flex justify-center lg:justify-end">
-                <div className="corners liquid-glass relative rounded-3xl p-6 w-full max-w-sm">
-                  {/* Mono labels */}
-                  <div className="flex items-center justify-between mb-5">
-                    <span className="mono-label text-hero-muted inline-flex items-center gap-1.5">
-                      <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-pulse" />
-                      LIVE
-                    </span>
-                    <span className="mono-label text-hero-subtle">MENU.BAR</span>
-                  </div>
-                  <div className="flex justify-center mb-4">
-                    <NowPlayingCard />
-                  </div>
-                  {/* Faux broadcast targets */}
-                  <div className="flex items-center justify-between pt-4 mt-2 border-t border-white/5">
-                    <div className="flex items-center gap-2">
-                      <div className="w-7 h-7 rounded-lg bg-[#9146FF]/20 inline-flex items-center justify-center">
-                        <MessageSquare className="w-3.5 h-3.5 text-[#9146FF]" />
-                      </div>
-                      <div className="w-7 h-7 rounded-lg bg-[#5865F2]/20 inline-flex items-center justify-center">
-                        <Radio className="w-3.5 h-3.5 text-[#5865F2]" />
-                      </div>
-                      <div className="w-7 h-7 rounded-lg bg-cyan-400/20 inline-flex items-center justify-center">
-                        <Wifi className="w-3.5 h-3.5 text-cyan-400" />
-                      </div>
-                    </div>
-                    <span className="mono-label text-hero-subtle">→ 3 OUTPUTS</span>
-                  </div>
-                </div>
-              </div>
+      <section className="relative overflow-hidden">
+        <div className="ww-hero-glow" aria-hidden="true" />
+        <div className="relative z-10 px-6 pt-24 pb-20 sm:pt-32 sm:pb-28">
+          <div className="mx-auto max-w-4xl text-center">
+            <p className="ww-reveal ww-reveal-1 ww-text-brand text-sm font-semibold mb-5">
+              Now available · macOS 26+
+            </p>
+            <h1 className="ww-reveal ww-reveal-1 ww-display ww-text-1 text-5xl sm:text-7xl lg:text-[5.5rem]">
+              Your music.
+              <br />
+              <span className="ww-text-brand">Everywhere you stream.</span>
+            </h1>
+            <p className="ww-reveal ww-reveal-2 ww-text-2 text-lg sm:text-xl mt-7 max-w-2xl mx-auto leading-relaxed">
+              WolfWave is a tiny menu bar app for Mac. Play something in Apple
+              Music — Twitch chat, your Discord profile, and your stream
+              overlay all update on their own.
+            </p>
+            <div className="ww-reveal ww-reveal-3 mt-10 flex flex-col sm:flex-row items-center justify-center gap-3">
+              <Link href="/docs/installation" className="ww-btn ww-btn-primary">
+                <Download className="w-4 h-4" />
+                Download for Mac
+              </Link>
+              <Link href="/docs" className="ww-btn ww-btn-secondary">
+                Learn more
+                <ArrowRight className="w-4 h-4" />
+              </Link>
             </div>
-          </div>
-        </div>
-      </section>
-
-      {/* ═══════════════ TICKER ═══════════════ */}
-      <div className="ticker bg-ink">
-        <div className="ticker-track">
-          {[...tickerItems, ...tickerItems, ...tickerItems].map((item, i) => (
-            <span key={i} className="ticker-item">
-              {item}
-              <span className="ticker-dot" />
-            </span>
-          ))}
-        </div>
-      </div>
-
-      {/* ═══════════════ BENTO FEATURES ═══════════════ */}
-      <section className="bg-ink px-6 py-24 sm:py-32 relative">
-        <div className="mx-auto max-w-6xl">
-          {/* Section header */}
-          <div className="mb-14 flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
-            <div>
-              <div className="mono-kicker text-violet-400 mb-3">◉ 04 / FEATURES</div>
-              <h2
-                className="text-4xl sm:text-5xl lg:text-6xl font-extrabold tracking-tight leading-[0.95] text-hero max-w-2xl"
-                style={{ fontFamily: "var(--font-unbounded)", letterSpacing: "-0.03em" }}
-              >
-                One app.<br />
-                <span className="kinetic-gradient">Four integrations.</span><br />
-                Zero fees.
-              </h2>
-            </div>
-            <p
-              className="text-hero-muted text-sm max-w-xs sm:text-right"
-              style={{ fontFamily: "var(--font-instrument)" }}
-            >
-              Built native with Swift + AppKit. No Electron. No analytics. No
-              cloud. Your music never leaves your Mac.
+            <p className="mt-5 text-sm ww-text-2">
+              Free and open source · 3.7 MB · No account needed
             </p>
           </div>
 
-          {/* Bento grid */}
-          <div className="grid grid-cols-1 md:grid-cols-12 gap-5">
-            {/* WIDE — Twitch */}
-            <div className="bento-card md:col-span-7 md:row-span-2 min-h-[280px] flex flex-col justify-between">
-              <div>
-                <div className="mono-label text-[#9146FF] mb-4 flex items-center gap-2">
-                  <span className="w-1.5 h-1.5 rounded-full bg-[#9146FF] animate-pulse" />
-                  TWITCH EVENTSUB
-                </div>
-                <h3
-                  className="text-2xl sm:text-3xl font-bold text-hero mb-3"
-                  style={{ fontFamily: "var(--font-unbounded)" }}
-                >
-                  Chat knows what you&apos;re playing.
-                </h3>
-                <p
-                  className="text-hero-muted text-sm leading-relaxed max-w-md mb-6"
-                  style={{ fontFamily: "var(--font-instrument)" }}
-                >
-                  Viewers type <code className="text-violet-300 bg-violet-500/10 px-1.5 py-0.5 rounded text-xs">!song</code>.
-                  The bot answers with exactly what&apos;s playing in Apple Music — title,
-                  artist, album. Under 100ms.
-                </p>
-              </div>
-              {/* Chat mock */}
-              <div
-                className="rounded-xl bg-black/30 border border-white/5 p-4 font-mono text-xs space-y-2"
-                style={{ fontFamily: "var(--font-mono)" }}
-              >
-                <div className="chat-line flex gap-2">
-                  <span className="text-[#9146FF] font-bold">DevBowzer</span>
-                  <span className="text-hero-muted">!song</span>
-                </div>
-                <div className="chat-line flex gap-2">
-                  <span className="text-cyan-400 font-bold">WolfWave</span>
-                  <span className="text-hero">
-                    Now playing:{" "}
-                    <span className="text-violet-300">Kbps Plz</span> — DevBowzer
-                  </span>
-                </div>
-                <div className="chat-line flex gap-2">
-                  <span className="text-[#9146FF] font-bold">viewer_42</span>
-                  <span className="text-hero-muted">this slaps 🔥</span>
-                </div>
-              </div>
-            </div>
-
-            {/* TALL — Discord */}
-            <div className="bento-card md:col-span-5 md:row-span-2 min-h-[280px] flex flex-col justify-between">
-              <div>
-                <div className="mono-label text-[#5865F2] mb-4 flex items-center gap-2">
-                  <span className="w-1.5 h-1.5 rounded-full bg-[#5865F2] animate-pulse" />
-                  DISCORD RPC
-                </div>
-                <h3
-                  className="text-2xl sm:text-3xl font-bold text-hero mb-3"
-                  style={{ fontFamily: "var(--font-unbounded)" }}
-                >
-                  Rich Presence, your library.
-                </h3>
-                <p
-                  className="text-hero-muted text-sm leading-relaxed mb-6"
-                  style={{ fontFamily: "var(--font-instrument)" }}
-                >
-                  Friends see &ldquo;Listening to Apple Music&rdquo; with album
-                  art and live progress. Like Spotify — but your full library.
-                </p>
-              </div>
-              {/* RPC mock */}
-              <div className="rounded-xl bg-black/30 border border-white/5 p-4">
-                <div className="mono-label text-hero-subtle mb-3">LISTENING TO APPLE MUSIC</div>
-                <div className="flex gap-3 items-center">
-                  <div
-                    className="w-14 h-14 rounded-lg shrink-0"
-                    style={{ background: "linear-gradient(135deg, #22d3ee, #7c3aed)" }}
-                  />
-                  <div className="min-w-0 flex-1">
-                    <p className="text-hero text-sm font-semibold truncate">Kbps Plz</p>
-                    <p className="text-hero-muted text-xs truncate">DevBowzer</p>
-                    <div className="h-1 rounded-full bg-white/10 mt-2">
-                      <div
-                        className="h-1 rounded-full"
-                        style={{
-                          width: "62%",
-                          background: "linear-gradient(to right, #5865F2, #22d3ee)",
-                        }}
-                      />
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* SMALL — Overlay */}
-            <div className="bento-card md:col-span-4">
-              <div className="mono-label text-cyan-400 mb-4 flex items-center gap-2">
-                <Wifi className="w-3 h-3" />
-                WEBSOCKET
-              </div>
-              <h3
-                className="text-lg font-bold text-hero mb-2"
-                style={{ fontFamily: "var(--font-unbounded)" }}
-              >
-                Stream overlay
-              </h3>
-              <p
-                className="text-hero-muted text-xs leading-relaxed"
-                style={{ fontFamily: "var(--font-instrument)" }}
-              >
-                Drop into OBS. Browser source. Or roll your own widget in 20
-                lines of HTML.
-              </p>
-            </div>
-
-            {/* SMALL — Privacy */}
-            <div className="bento-card md:col-span-4">
-              <div className="mono-label text-violet-400 mb-4 flex items-center gap-2">
-                <Shield className="w-3 h-3" />
-                KEYCHAIN
-              </div>
-              <h3
-                className="text-lg font-bold text-hero mb-2"
-                style={{ fontFamily: "var(--font-unbounded)" }}
-              >
-                Privacy first
-              </h3>
-              <p
-                className="text-hero-muted text-xs leading-relaxed"
-                style={{ fontFamily: "var(--font-instrument)" }}
-              >
-                Tokens in macOS Keychain. App Sandboxed. No telemetry. Ever.
-              </p>
-            </div>
-
-            {/* SMALL — Song Requests */}
-            <div className="bento-card md:col-span-4 relative">
-              <div className="mono-label text-cyan-400 mb-4 flex items-center gap-2">
-                <Sparkles className="w-3 h-3" />
-                SONG REQUESTS
-              </div>
-              <h3
-                className="text-lg font-bold text-hero mb-2"
-                style={{ fontFamily: "var(--font-unbounded)" }}
-              >
-                Song requests
-              </h3>
-              <p
-                className="text-hero-muted text-xs leading-relaxed"
-                style={{ fontFamily: "var(--font-instrument)" }}
-              >
-                Viewers queue tracks via <code>!sr</code> in chat. Hold, skip,
-                or clear from the app or chat. Fallback playlist when the queue
-                empties.
-              </p>
-            </div>
+          <div className="mt-16 sm:mt-20 ww-reveal ww-reveal-3">
+            <NowPlayingMock />
           </div>
         </div>
       </section>
 
-      {/* ═══════════════ FLOW (3 steps) ═══════════════ */}
-      <section className="bg-ink px-6 py-24 sm:py-32 relative border-t border-white/5">
+      {/* ═══════════════ AUDIENCES ═══════════════ */}
+      <section className="ww-bg-surface px-6 py-24 sm:py-32">
         <div className="mx-auto max-w-6xl">
-          <div className="mb-16 text-center">
-            <div className="mono-kicker text-violet-400 mb-3">◉ 03 / GETTING STARTED</div>
-            <h2
-              className="text-4xl sm:text-5xl lg:text-6xl font-extrabold tracking-tight text-hero"
-              style={{ fontFamily: "var(--font-unbounded)", letterSpacing: "-0.03em" }}
-            >
-              Running in{" "}
-              <span className="serif-em kinetic-gradient" style={{ fontFamily: "var(--font-serif)", fontStyle: "italic", fontWeight: 400 }}>
-                sixty
-              </span>{" "}
-              seconds.
-            </h2>
-          </div>
+          <SectionHead
+            eyebrow="Made for everyone"
+            title={<>Three people. One app.</>}
+            sub="Whether you stream, listen, or build, WolfWave fits the way you already work."
+          />
 
-          <div className="grid md:grid-cols-3 gap-6 relative">
-            {steps.map((step, i) => (
+          <div className="mt-14 grid md:grid-cols-3 gap-5">
+            {[
+              {
+                icon: Twitch,
+                title: "For streamers",
+                body: "Viewers always know the track. !song, song requests, and a live overlay are ready the moment you finish setup.",
+                href: "/docs/usage",
+                cta: "Streaming guide",
+              },
+              {
+                icon: Headphones,
+                title: "For listeners",
+                body: "Show friends what you're playing in Discord — album art, real progress, your full Apple Music library.",
+                href: "/docs/features",
+                cta: "What's included",
+              },
+              {
+                icon: Code2,
+                title: "For developers",
+                body: "A local WebSocket exposes every play, pause, and skip. Build a custom overlay in roughly 20 lines.",
+                href: "/docs/architecture",
+                cta: "Read the architecture",
+              },
+            ].map(({ icon: Icon, title, body, href, cta }) => (
               <div
-                key={step.number}
-                className="bento-card"
-                style={{ transform: i === 1 ? "translateY(1.5rem)" : i === 2 ? "translateY(3rem)" : undefined }}
+                key={title}
+                className="ww-card ww-card-hover ww-bg-base flex flex-col"
+                style={{
+                  border: "1px solid var(--hairline)",
+                }}
               >
                 <div
-                  className="mono-kicker text-violet-400 mb-4"
-                  style={{ fontSize: "3rem", letterSpacing: "-0.04em", opacity: 0.3, lineHeight: 1 }}
+                  className="w-11 h-11 rounded-xl inline-flex items-center justify-center mb-5"
+                  style={{
+                    backgroundColor: "var(--brand-50)",
+                    color: "var(--brand-500)",
+                  }}
                 >
-                  {step.number}
+                  <Icon className="w-5 h-5" />
                 </div>
-                <h3
-                  className="text-xl font-bold text-hero mb-2"
-                  style={{ fontFamily: "var(--font-unbounded)" }}
-                >
-                  {step.title}
-                </h3>
-                <p
-                  className="text-sm text-hero-muted leading-relaxed"
-                  style={{ fontFamily: "var(--font-instrument)" }}
-                >
-                  {step.description}
+                <h3 className="ww-display ww-text-1 text-xl mb-2">{title}</h3>
+                <p className="ww-text-2 text-base leading-relaxed flex-1">
+                  {body}
                 </p>
+                <Link
+                  href={href}
+                  className="ww-text-brand mt-5 inline-flex items-center gap-1.5 text-sm font-semibold"
+                >
+                  {cta}
+                  <ArrowRight className="w-3.5 h-3.5" />
+                </Link>
               </div>
             ))}
           </div>
         </div>
       </section>
 
-      {/* ═══════════════ DEV TERMINAL ═══════════════ */}
-      <section className="bg-ink px-6 py-24 sm:py-32 relative border-t border-white/5">
-        <div className="mx-auto max-w-5xl">
-          <div className="grid md:grid-cols-5 gap-10 items-center">
-            <div className="md:col-span-2">
-              <div className="mono-kicker text-violet-400 mb-3">◉ 05 / FOR DEVELOPERS</div>
-              <h2
-                className="text-3xl sm:text-4xl font-extrabold tracking-tight text-hero mb-4"
-                style={{ fontFamily: "var(--font-unbounded)", letterSpacing: "-0.03em" }}
-              >
-                Hack the{" "}
-                <span className="kinetic-gradient">signal</span>.
-              </h2>
-              <p
-                className="text-hero-muted text-sm leading-relaxed mb-6"
-                style={{ fontFamily: "var(--font-instrument)" }}
-              >
-                Native Swift. Zero external deps. The WebSocket feed is fully
-                documented — build custom overlays, wire it into Home Assistant,
-                or poke around the source.
-              </p>
-              <div className="flex flex-wrap gap-4">
-                <Link
-                  href="/docs/architecture"
-                  className="inline-flex items-center gap-1.5 text-xs font-semibold text-violet-400 hover:text-violet-300 transition-colors"
+      {/* ═══════════════ TWITCH ═══════════════ */}
+      <section className="ww-bg-base px-6 py-24 sm:py-32">
+        <div className="mx-auto max-w-6xl grid md:grid-cols-2 gap-12 lg:gap-16 items-center">
+          <div>
+            <p className="ww-text-brand text-sm font-semibold mb-3">
+              Twitch integration
+            </p>
+            <h2 className="ww-display ww-text-1 text-4xl sm:text-5xl">
+              Chat that knows the song.
+            </h2>
+            <p className="ww-text-2 text-lg mt-5 leading-relaxed">
+              When viewers type <code className="ww-mono ww-text-1">!song</code>,
+              WolfWave answers in under a second. Title, artist, album —
+              straight from Apple Music. No bots to set up. No browser tabs to
+              babysit.
+            </p>
+            <Link
+              href="/docs/bot-commands"
+              className="ww-text-brand mt-6 inline-flex items-center gap-1.5 text-sm font-semibold"
+            >
+              Bot commands reference
+              <ArrowRight className="w-3.5 h-3.5" />
+            </Link>
+          </div>
+
+          <div
+            className="ww-card ww-bg-surface space-y-3 text-sm"
+            aria-label="Twitch chat preview"
+          >
+            <div className="flex gap-2">
+              <span className="font-semibold" style={{ color: "#9146FF" }}>
+                viewer_42
+              </span>
+              <span className="ww-text-2">!song</span>
+            </div>
+            <div className="flex gap-2">
+              <span className="font-semibold ww-text-brand">WolfWave</span>
+              <span className="ww-text-1">
+                Now playing: <strong>Kbps Plz</strong> by DevBowzer · Album Vol. 2
+              </span>
+            </div>
+            <div className="flex gap-2">
+              <span className="font-semibold" style={{ color: "#9146FF" }}>
+                streamer_dev
+              </span>
+              <span className="ww-text-2">this slaps 🔥</span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* ═══════════════ DISCORD ═══════════════ */}
+      <section className="ww-bg-surface px-6 py-24 sm:py-32">
+        <div className="mx-auto max-w-6xl grid md:grid-cols-2 gap-12 lg:gap-16 items-center">
+          <div
+            className="ww-card ww-bg-base order-2 md:order-1"
+            style={{ border: "1px solid var(--hairline)" }}
+          >
+            <p className="ww-mono text-xs ww-text-2 mb-3">
+              LISTENING TO APPLE MUSIC
+            </p>
+            <div className="flex gap-3 items-center">
+              <div
+                className="w-16 h-16 rounded-lg shrink-0"
+                style={{ background: "linear-gradient(135deg, #5865F2, #0A84FF)" }}
+                aria-hidden="true"
+              />
+              <div className="min-w-0 flex-1">
+                <p className="ww-text-1 text-base font-semibold truncate">
+                  Kbps Plz
+                </p>
+                <p className="ww-text-2 text-sm truncate">DevBowzer</p>
+                <div
+                  className="h-1 rounded-full mt-3"
+                  style={{ backgroundColor: "var(--hairline)" }}
                 >
-                  ARCHITECTURE
-                  <ArrowRight className="w-3 h-3" />
-                </Link>
-                <Link
-                  href="/docs/development"
-                  className="inline-flex items-center gap-1.5 text-xs font-semibold text-violet-400 hover:text-violet-300 transition-colors"
-                >
-                  DEV GUIDE
-                  <ArrowRight className="w-3 h-3" />
-                </Link>
-                <Link
-                  href="/docs/security"
-                  className="inline-flex items-center gap-1.5 text-xs font-semibold text-violet-400 hover:text-violet-300 transition-colors"
-                >
-                  SECURITY
-                  <ArrowRight className="w-3 h-3" />
-                </Link>
+                  <div
+                    className="h-1 rounded-full"
+                    style={{
+                      width: "62%",
+                      background: "linear-gradient(to right, #5865F2, #0A84FF)",
+                    }}
+                  />
+                </div>
               </div>
             </div>
+          </div>
 
-            <div className="md:col-span-3">
-              <div className="terminal">
-                <div className="terminal-bar">
-                  <span className="terminal-dot r" />
-                  <span className="terminal-dot y" />
-                  <span className="terminal-dot g" />
-                  <span className="mono-label text-hero-subtle ml-2">ws://localhost:8080/now-playing</span>
-                </div>
-                <pre
-                  className="terminal-body m-0 overflow-x-auto"
-                  dangerouslySetInnerHTML={{
-                    __html: `<span class="c-c">// 20 lines of HTML — that's the whole overlay</span>
-<span class="c-k">const</span> <span class="c-v">ws</span> = <span class="c-k">new</span> <span class="c-n">WebSocket</span>(<span class="c-s">"ws://localhost:8080/now-playing"</span>);
+          <div className="order-1 md:order-2">
+            <p className="ww-text-brand text-sm font-semibold mb-3">
+              Discord Rich Presence
+            </p>
+            <h2 className="ww-display ww-text-1 text-4xl sm:text-5xl">
+              Show what you're listening to.
+            </h2>
+            <p className="ww-text-2 text-lg mt-5 leading-relaxed">
+              Real Rich Presence — album art, live progress, and a click-through
+              to your library. Like Spotify, but for everything you actually own
+              in Apple Music.
+            </p>
+            <Link
+              href="/docs/features"
+              className="ww-text-brand mt-6 inline-flex items-center gap-1.5 text-sm font-semibold"
+            >
+              See every feature
+              <ArrowRight className="w-3.5 h-3.5" />
+            </Link>
+          </div>
+        </div>
+      </section>
 
-<span class="c-v">ws</span>.<span class="c-n">onmessage</span> = (<span class="c-v">event</span>) =&gt; {
-  <span class="c-k">const</span> { <span class="c-v">title</span>, <span class="c-v">artist</span>, <span class="c-v">artwork</span> } = <span class="c-n">JSON</span>.<span class="c-n">parse</span>(<span class="c-v">event</span>.<span class="c-v">data</span>);
-  <span class="c-n">document</span>.<span class="c-n">querySelector</span>(<span class="c-s">"#title"</span>).<span class="c-v">textContent</span> = <span class="c-v">title</span>;
-};`,
-                  }}
-                />
+      {/* ═══════════════ OVERLAY ═══════════════ */}
+      <section className="ww-bg-base px-6 py-24 sm:py-32">
+        <div className="mx-auto max-w-6xl grid md:grid-cols-2 gap-12 lg:gap-16 items-center">
+          <div>
+            <p className="ww-text-brand text-sm font-semibold mb-3">
+              Stream overlay
+            </p>
+            <h2 className="ww-display ww-text-1 text-4xl sm:text-5xl">
+              Drop it in OBS.
+            </h2>
+            <p className="ww-text-2 text-lg mt-5 leading-relaxed">
+              Add a browser source pointing at your Mac's local server. Pick a
+              theme or write your own — every track update streams in real time
+              over WebSocket.
+            </p>
+            <Link
+              href="/docs/usage"
+              className="ww-text-brand mt-6 inline-flex items-center gap-1.5 text-sm font-semibold"
+            >
+              Set up the overlay
+              <ArrowRight className="w-3.5 h-3.5" />
+            </Link>
+          </div>
+
+          <div
+            className="rounded-2xl overflow-hidden"
+            style={{ border: "1px solid var(--hairline)" }}
+          >
+            <div
+              className="px-4 py-2.5 flex items-center gap-2 text-xs ww-mono ww-text-2"
+              style={{
+                backgroundColor: "var(--bg-surface)",
+                borderBottom: "1px solid var(--hairline)",
+              }}
+            >
+              <span className="w-2.5 h-2.5 rounded-full" style={{ background: "#ff5f57" }} />
+              <span className="w-2.5 h-2.5 rounded-full" style={{ background: "#febc2e" }} />
+              <span className="w-2.5 h-2.5 rounded-full" style={{ background: "#28c840" }} />
+              <span className="ml-2">localhost:8080/now-playing</span>
+            </div>
+            <div className="ww-bg-surface p-6 flex items-center gap-4">
+              <div
+                className="w-14 h-14 rounded-lg shrink-0"
+                style={{ background: "linear-gradient(135deg, #0A84FF, #5AC8FA)" }}
+              />
+              <div className="min-w-0">
+                <p className="ww-text-1 text-sm font-semibold truncate">
+                  Kbps Plz
+                </p>
+                <p className="ww-text-2 text-xs truncate">DevBowzer</p>
               </div>
             </div>
           </div>
         </div>
       </section>
 
-      {/* ═══════════════ GIANT CTA ═══════════════ */}
-      <section className="mesh-bg grid-lines noise relative overflow-hidden border-t border-white/5">
-        <div className="relative z-10 px-6 py-28 sm:py-40 text-center">
-          <div className="mx-auto max-w-5xl">
-            <div className="mono-kicker text-violet-400 mb-6 inline-flex items-center gap-2">
-              <Music className="w-3 h-3" />
-              READY WHEN YOU ARE
-            </div>
-            <h2 className="giant-cta mb-8 text-hero">
-              Press{" "}
-              <span className="serif-em kinetic-gradient" style={{ fontFamily: "var(--font-serif)", fontStyle: "italic", fontWeight: 400 }}>
-                play
-              </span>.
-              <br />
-              We handle the rest.
-            </h2>
-            <div className="flex flex-col sm:flex-row items-center justify-center gap-3 mb-10">
-              <Link
-                href="/docs/installation"
-                className="shimmer-btn btn-primary inline-flex items-center justify-center gap-2 px-8 py-4 rounded-xl text-sm font-semibold transition-transform hover:scale-[1.02] active:scale-[0.98]"
-              >
-                <Download className="w-4 h-4 relative z-10" />
-                <span className="relative z-10">Download WolfWave — Free</span>
-              </Link>
-              <Link
-                href="/docs"
-                className="btn-secondary inline-flex items-center justify-center gap-2 px-8 py-4 rounded-xl text-sm font-semibold transition-all hover:scale-[1.02]"
-              >
-                Read the Docs
-                <ArrowRight className="w-4 h-4" />
-              </Link>
-            </div>
-            {/* Proof pills */}
-            <div className="flex flex-wrap items-center justify-center gap-2">
-              {["FREE FOREVER", "MACOS 26+", "NO ACCOUNT", "~3.7MB", "OPEN SOURCE"].map((pill) => (
-                <span
-                  key={pill}
-                  className="proof-pill mono-label px-3 py-1.5 rounded-full"
-                >
-                  {pill}
-                </span>
-              ))}
-            </div>
+      {/* ═══════════════ DEVELOPERS ═══════════════ */}
+      <section className="ww-bg-surface px-6 py-24 sm:py-32">
+        <div className="mx-auto max-w-5xl">
+          <SectionHead
+            eyebrow="For developers"
+            title={<>Native Swift. Open source.</>}
+            sub={
+              <>
+                Zero external dependencies. The WebSocket feed is fully
+                documented — wire it into your overlay, your Home Assistant
+                dashboard, or a Stream Deck plugin.
+              </>
+            }
+          />
+
+          <div className="mt-12">
+            <pre
+              className="ww-code"
+              dangerouslySetInnerHTML={{
+                __html: `<span style="color: var(--txt-2)">// Subscribe to every track change in real time.</span>
+<span style="color: var(--brand-500)">const</span> ws = <span style="color: var(--brand-500)">new</span> WebSocket(<span style="color: var(--brand-500)">"ws://localhost:8080/now-playing"</span>);
+
+ws.onmessage = (event) =&gt; {
+  <span style="color: var(--brand-500)">const</span> { title, artist, artwork } = JSON.parse(event.data);
+  document.querySelector(<span style="color: var(--brand-500)">"#title"</span>).textContent = title;
+};`,
+              }}
+            />
           </div>
+
+          <div className="mt-10 flex flex-wrap items-center justify-center gap-3">
+            <Link href="/docs/architecture" className="ww-btn ww-btn-ghost">
+              Architecture
+            </Link>
+            <Link href="/docs/development" className="ww-btn ww-btn-ghost">
+              Development guide
+            </Link>
+            <Link href="/docs/security" className="ww-btn ww-btn-ghost">
+              Security model
+            </Link>
+            <a
+              href="https://github.com/MrDemonWolf/WolfWave"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="ww-btn ww-btn-ghost"
+            >
+              <Github className="w-4 h-4" />
+              GitHub
+            </a>
+          </div>
+        </div>
+      </section>
+
+      {/* ═══════════════ PRIVACY ═══════════════ */}
+      <section className="ww-bg-base px-6 py-24 sm:py-32">
+        <div className="mx-auto max-w-3xl text-center">
+          <div
+            className="w-12 h-12 rounded-2xl inline-flex items-center justify-center mb-6"
+            style={{
+              backgroundColor: "var(--brand-50)",
+              color: "var(--brand-500)",
+            }}
+          >
+            <Shield className="w-5 h-5" />
+          </div>
+          <h2 className="ww-display ww-text-1 text-4xl sm:text-5xl">
+            Private by default.
+          </h2>
+          <p className="ww-text-2 text-lg mt-5 leading-relaxed">
+            Your music never leaves your Mac. Tokens live in macOS Keychain.
+            The app runs sandboxed. There's no telemetry — there's nothing to
+            send.
+          </p>
+          <div className="mt-8 flex flex-wrap items-center justify-center gap-2">
+            {["Sandboxed", "Keychain", "No telemetry", "MIT licensed"].map(
+              (label) => (
+                <span key={label} className="ww-pill">
+                  {label}
+                </span>
+              ),
+            )}
+          </div>
+        </div>
+      </section>
+
+      {/* ═══════════════ CTA ═══════════════ */}
+      <section className="ww-bg-surface px-6 py-28 sm:py-36">
+        <div className="mx-auto max-w-4xl text-center">
+          <div
+            className="w-12 h-12 rounded-2xl inline-flex items-center justify-center mb-6 mx-auto"
+            style={{
+              backgroundColor: "var(--brand-50)",
+              color: "var(--brand-500)",
+            }}
+          >
+            <Music className="w-5 h-5" />
+          </div>
+          <h2 className="ww-display ww-text-1 text-5xl sm:text-6xl lg:text-7xl">
+            Press play.
+            <br />
+            <span className="ww-text-brand">We'll handle the rest.</span>
+          </h2>
+          <div className="mt-10 flex flex-col sm:flex-row items-center justify-center gap-3">
+            <Link href="/docs/installation" className="ww-btn ww-btn-primary">
+              <Download className="w-4 h-4" />
+              Download WolfWave
+            </Link>
+            <Link href="/docs" className="ww-btn ww-btn-secondary">
+              Read the docs
+              <ArrowRight className="w-4 h-4" />
+            </Link>
+          </div>
+          <p className="mt-5 text-sm ww-text-2">
+            Free forever · macOS 26+ · Built native
+          </p>
         </div>
       </section>
     </main>
