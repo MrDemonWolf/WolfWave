@@ -22,10 +22,20 @@ All notable changes to WolfWave are documented here.
 - **Song Request Queue UI** — now-playing card, position badges, per-requester labels, and action controls
 - **Apple Music onboarding step** — MusicKit authorization during first-launch wizard
 - **Per-user limits, subscriber-only mode, command aliases**, and enable/disable toggles per command
+- **macOS 26 Liquid Glass redesign** — refreshed settings, menu bar, and onboarding to match Tahoe's design language
+- **Music permission flow** — onboarding now requests Apple Music library access via MusicKit with a graceful denied-state recovery path
+- **2026 marketing landing page** — redesigned dark, streamer-focused landing page with refreshed brand identity
+- **Docs SEO infrastructure** — OG image, sitemap, robots.txt, and JSON-LD structured data
 
 ### Changed
 - Music playback via AppleScript + focus preservation — Music.app never steals focus from OBS or streaming tools
 - MusicKit used exclusively for search/resolve, not playback
+- Onboarding flow polish — redundant success rows removed, Apple Music permission copy tightened
+- Docs theming — unified violet/cyan brand palette with full light-mode support
+
+### Fixed
+- Native build warnings, SwiftUI layout reentrancy, and duplicate log emission
+- Docs favicon 404s resolved; DMG size pill now reflects the actual 3.7 MB
 
 ---
 

@@ -18,12 +18,14 @@ struct WhatsNewView: View {
     // MARK: - Feature Data
 
     private let features: [(icon: String, iconColor: Color, title: String, description: String)] = [
-        ("music.mic", .pink, "Song Requests", "Viewers request songs with !sr in Twitch chat — plays through your Music.app"),
+        ("music.mic", .pink, "Song Requests", "Viewers request songs with !sr — Apple Music plays without interrupting your screen"),
         ("pause.fill", .orange, "Hold Mode", "Pause the queue to curate requests, then release when you're ready"),
         ("forward.fill", .blue, "Queue Controls", "Skip, clear, or hold from the app, menu bar, or Twitch chat (mods only)"),
         ("list.number", .green, "Live Queue View", "See what's playing, what's next, and who requested each song"),
         ("music.note.list", .purple, "Fallback Playlist", "Pick an Apple Music playlist to play when the request queue runs dry"),
-        ("eye.slash", .cyan, "No Focus-Steal", "Music.app stays in the background — your stream tools keep focus"),
+        ("sparkles", .indigo, "Liquid Glass Redesign", "Refreshed settings, menu bar, and onboarding built for macOS 26 Tahoe"),
+        ("music.note.house", .red, "Apple Music Permission", "Grants Apple Music access during setup, with a recovery option if you skip it"),
+        ("wand.and.stars", .mint, "Polish & Stability", "Smoother layouts, better performance, and under-the-hood polish"),
     ]
 
     // MARK: - Body

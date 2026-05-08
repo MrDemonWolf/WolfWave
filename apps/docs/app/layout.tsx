@@ -124,7 +124,7 @@ const jsonLd = {
   },
   url: siteUrl,
   downloadUrl: "https://github.com/mrdemonwolf/wolfwave/releases/latest",
-  softwareVersion: "1.2.0",
+  softwareVersion: "2.0.0",
   license: "https://github.com/mrdemonwolf/wolfwave/blob/main/LICENSE",
 };
 

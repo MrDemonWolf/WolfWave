@@ -127,7 +127,7 @@ export default function HomePage() {
                 <div className="mono-kicker flex flex-wrap items-center gap-3 text-violet-300 dark:text-violet-300 mb-8">
                   <span className="inline-flex items-center gap-2">
                     <span className="w-1.5 h-1.5 rounded-full bg-violet-400 animate-pulse" />
-                    V1.2.0
+                    V2.0.0
                   </span>
                   <span className="opacity-40">/</span>
                   <span>MACOS 26+</span>
@@ -392,14 +392,11 @@ export default function HomePage() {
               </p>
             </div>
 
-            {/* SMALL — Song Requests (v2 teaser) */}
+            {/* SMALL — Song Requests */}
             <div className="bento-card md:col-span-4 relative">
-              <div className="absolute top-4 right-4 mono-label text-cyan-300 bg-cyan-400/10 border border-cyan-400/30 px-2 py-0.5 rounded-full">
-                V2.0
-              </div>
               <div className="mono-label text-cyan-400 mb-4 flex items-center gap-2">
                 <Sparkles className="w-3 h-3" />
-                INCOMING
+                SONG REQUESTS
               </div>
               <h3
                 className="text-lg font-bold text-hero mb-2"
@@ -411,8 +408,9 @@ export default function HomePage() {
                 className="text-hero-muted text-xs leading-relaxed"
                 style={{ fontFamily: "var(--font-instrument)" }}
               >
-                Viewers queue tracks via chat. Approve, skip, block. Coming in
-                v2.0.
+                Viewers queue tracks via <code>!sr</code> in chat. Hold, skip,
+                or clear from the app or chat. Fallback playlist when the queue
+                empties.
               </p>
             </div>
           </div>

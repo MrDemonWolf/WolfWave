@@ -2,8 +2,6 @@
 
 All notable changes to this project will be documented in this file.
 
-## [Unreleased]
-
 ## [2.0.0] - Unreleased
 
 ### Added
@@ -19,11 +17,22 @@ All notable changes to this project will be documented in this file.
 - **Song Request Queue UI** — full queue view with now-playing card, position badges, per-requester labels, and Skip / Hold / Clear controls.
 - **Apple Music onboarding step** — new step in the first-launch wizard to authorize MusicKit for song search.
 - **Per-user and global request limits**, subscriber-only mode, per-command enable/disable toggles, and custom alias configuration.
+- **macOS 26 Liquid Glass redesign** — refreshed settings, menu bar, and onboarding to match Tahoe's design language.
+- **Music permission flow** — first-launch onboarding now requests Apple Music library access via MusicKit with a graceful denied-state recovery path.
+- **2026 marketing landing page** — redesigned dark, streamer-focused docs landing page with refreshed brand identity.
+- **Docs SEO infrastructure** — OG image, sitemap, robots.txt, and JSON-LD structured data for better discoverability.
 
 ### Changed
 
 - **Music playback via AppleScript + focus preservation** — Music.app never steals focus from OBS or other streaming tools; the previously active app is restored 150 ms after each command.
 - **MusicKit used exclusively for search/resolve**, not playback — no in-app audio session.
+- **Onboarding flow polish** — removed redundant success rows and tightened Apple Music permission step copy.
+- **Docs theming** — unified violet/cyan brand palette with full light-mode support.
+
+### Fixed
+
+- Native build warnings, SwiftUI layout reentrancy, and duplicate log emission cleaned up.
+- Docs favicon 404s resolved and DMG size pill now reflects the actual 3.7 MB.
 
 ## [1.2.0] - 2026-04-04
 
