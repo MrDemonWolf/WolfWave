@@ -18,6 +18,12 @@ struct OnboardingOBSWidgetStepView: View {
     @AppStorage(AppConstants.UserDefaults.websocketServerPort)
     private var storedPort: Int = Int(AppConstants.WebSocketServer.defaultPort)
 
+    /// Verbatim string — `Text("\(Int)")` would localize and add a thousands
+    /// separator (`8,765`), which is invalid in a URL.
+    private var websocketURL: String {
+        "ws://localhost:\(String(storedPort))"
+    }
+
     // MARK: - Body
 
     var body: some View {
@@ -113,14 +119,14 @@ struct OnboardingOBSWidgetStepView: View {
                     .tracking(0.6)
 
                 HStack(spacing: 8) {
-                    Text("ws://localhost:\(storedPort)")
+                    Text(verbatim: websocketURL)
                         .font(.system(size: 12, design: .monospaced))
                         .foregroundStyle(.primary)
                         .lineLimit(1)
                         .frame(maxWidth: .infinity, alignment: .leading)
 
                     CopyButton(
-                        text: "ws://localhost:\(storedPort)",
+                        text: websocketURL,
                         accessibilityLabel: "Copy WebSocket URL"
                     )
                 }
@@ -134,6 +140,9 @@ struct OnboardingOBSWidgetStepView: View {
                     RoundedRectangle(cornerRadius: 7, style: .continuous)
                         .stroke(Color.primary.opacity(0.08), lineWidth: 0.5)
                 )
+
+                widgetPreview
+                    .padding(.top, 2)
 
                 Text("Add as a Browser Source. We'll show the rest in Settings.")
                     .font(.system(size: 11))
@@ -150,6 +159,49 @@ struct OnboardingOBSWidgetStepView: View {
             )
             .transition(.move(edge: .top).combined(with: .opacity))
         }
+    }
+
+    // MARK: - Widget Preview
+
+    /// Decorative SwiftUI mock of the now-playing chip OBS will receive. Shape
+    /// only — sample data, no live binding. `accessibilityHidden` because the
+    /// surrounding copy already explains what this is.
+    private var widgetPreview: some View {
+        HStack(spacing: 10) {
+            RoundedRectangle(cornerRadius: 6, style: .continuous)
+                .fill(
+                    LinearGradient(
+                        colors: [Color.accentColor, Color.accentColor.opacity(0.6)],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    )
+                )
+                .overlay(
+                    Image(systemName: "music.note")
+                        .font(.system(size: 14, weight: .semibold))
+                        .foregroundStyle(.white.opacity(0.85))
+                )
+                .frame(width: 36, height: 36)
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text("Midnight City")
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundStyle(.primary)
+                    .lineLimit(1)
+                Text("M83")
+                    .font(.system(size: 11))
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+            }
+
+            Spacer(minLength: 0)
+        }
+        .padding(8)
+        .background(
+            RoundedRectangle(cornerRadius: 8, style: .continuous)
+                .fill(Color.black.opacity(0.55))
+        )
+        .accessibilityHidden(true)
     }
 }
 

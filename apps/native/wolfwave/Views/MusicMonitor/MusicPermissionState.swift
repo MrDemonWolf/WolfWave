@@ -39,6 +39,25 @@ enum MusicPermissionChecker {
         }
     }
 
+    /// Triggers the system Apple Events automation prompt for Music.app.
+    ///
+    /// Returns the resolved state after the prompt. If the user has previously
+    /// allowed/denied, no prompt is shown and the cached decision is returned.
+    static func requestAccess() -> MusicPermissionState {
+        let target = NSAppleEventDescriptor(bundleIdentifier: AppConstants.Music.bundleIdentifier)
+        let status = AEDeterminePermissionToAutomateTarget(
+            target.aeDesc, typeWildCard, typeWildCard, true
+        )
+        switch status {
+        case noErr:
+            return .granted
+        case OSStatus(errAEEventNotPermitted):
+            return .denied
+        default:
+            return .unknown
+        }
+    }
+
     /// Opens System Settings → Privacy & Security → Automation so the user
     /// can flip the WolfWave → Music toggle.
     static func openAutomationSettings() {

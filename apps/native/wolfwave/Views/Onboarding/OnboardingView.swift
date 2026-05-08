@@ -5,7 +5,6 @@
 //  Created by MrDemonWolf, Inc. on 2/6/26.
 //
 
-import MusicKit
 import SwiftUI
 
 /// First-launch onboarding wizard with progress dots, step content, and navigation.
@@ -33,6 +32,12 @@ struct OnboardingView: View {
 
     /// Tracks navigation direction for slide transitions.
     @State private var navigationDirection: Edge = .trailing
+
+    /// Re-read on every step change so the Skip button stays in sync with
+    /// permission grants without needing each step view to publish state up.
+    @State private var musicPermissionState: MusicPermissionState = MusicPermissionChecker.currentState()
+
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     // MARK: - Body
 
@@ -67,6 +72,9 @@ struct OnboardingView: View {
         )
         .background(Color(nsColor: .windowBackgroundColor))
         .animation(.easeInOut(duration: 0.3), value: viewModel.showCompletion)
+        .onChange(of: viewModel.currentStep) { _, _ in
+            musicPermissionState = MusicPermissionChecker.currentState()
+        }
     }
 
     // MARK: - Progress Dots
@@ -74,18 +82,21 @@ struct OnboardingView: View {
     private var progressDots: some View {
         HStack(spacing: 8) {
             ForEach(OnboardingViewModel.OnboardingStep.allCases, id: \.rawValue) { step in
-                Circle()
-                    .fill(step == viewModel.currentStep
-                        ? Color.accentColor
-                        : Color.secondary.opacity(0.3))
-                    .frame(width: 8, height: 8)
-                    .scaleEffect(step == viewModel.currentStep ? 1.3 : 1.0)
-                    .shadow(
-                        color: step == viewModel.currentStep ? Color.accentColor.opacity(0.40) : .clear,
-                        radius: 3, x: 0, y: 1
-                    )
-                    .animation(.spring(response: 0.3, dampingFraction: 0.6), value: viewModel.currentStep)
-                    .accessibilityHidden(true)
+                ZStack {
+                    Circle()
+                        .fill(step == viewModel.currentStep
+                            ? Color.accentColor
+                            : Color.secondary.opacity(0.3))
+                        .frame(width: 8, height: 8)
+                        .scaleEffect(step == viewModel.currentStep ? 1.3 : 1.0)
+                        .shadow(
+                            color: step == viewModel.currentStep ? Color.accentColor.opacity(0.40) : .clear,
+                            radius: 3, x: 0, y: 1
+                        )
+                        .animation(.spring(response: 0.3, dampingFraction: 0.6), value: viewModel.currentStep)
+                }
+                .frame(width: 12, height: 12)
+                .accessibilityHidden(true)
             }
         }
         .accessibilityElement(children: .ignore)
@@ -116,10 +127,13 @@ struct OnboardingView: View {
             }
         }
         .id(viewModel.currentStep)
-        .transition(.asymmetric(
-            insertion: .move(edge: navigationDirection).combined(with: .opacity),
-            removal: .move(edge: navigationDirection == .trailing ? .leading : .trailing).combined(with: .opacity)
-        ))
+        .transition(reduceMotion
+            ? AnyTransition.opacity
+            : .asymmetric(
+                insertion: .move(edge: navigationDirection).combined(with: .opacity),
+                removal: .move(edge: navigationDirection == .trailing ? .leading : .trailing).combined(with: .opacity)
+            )
+        )
     }
 
     // MARK: - Navigation Bar
@@ -127,30 +141,34 @@ struct OnboardingView: View {
     private var navigationBar: some View {
         HStack {
             // Left: Back (≥step 2) + Skip All (when not on the last step).
+            // Back is rendered as a hidden placeholder on step 1 so the rest of
+            // the bar doesn't shift horizontally between steps.
             HStack(spacing: 8) {
-                if !viewModel.isFirstStep {
-                    Button("Back") {
-                        navigationDirection = .leading
-                        cancelTwitchOAuthIfNeeded()
-                        viewModel.goToPreviousStep()
-                    }
-                    .buttonStyle(.bordered)
-                    .controlSize(.regular)
-                    .pointerCursor()
-                    .accessibilityLabel("Go back")
-                    .accessibilityHint("Returns to the previous setup step")
+                Button("Back") {
+                    navigationDirection = .leading
+                    cancelTwitchOAuthIfNeeded()
+                    viewModel.goToPreviousStep()
                 }
+                .buttonStyle(.bordered)
+                .controlSize(.regular)
+                .pointerCursor()
+                .opacity(viewModel.isFirstStep ? 0 : 1)
+                .disabled(viewModel.isFirstStep)
+                .accessibilityHidden(viewModel.isFirstStep)
+                .accessibilityLabel("Go back")
+                .accessibilityHint("Returns to the previous setup step")
 
-                if !viewModel.isLastStep {
-                    Button("Skip All") {
-                        finishOnboarding()
-                    }
-                    .buttonStyle(.plain)
-                    .foregroundStyle(.secondary)
-                    .pointerCursor()
-                    .accessibilityLabel("Skip all steps")
-                    .accessibilityHint("Skips the setup wizard and uses default settings")
+                Button("Skip All") {
+                    finishOnboarding()
                 }
+                .buttonStyle(.plain)
+                .foregroundStyle(.secondary)
+                .pointerCursor()
+                .opacity(viewModel.isLastStep ? 0 : 1)
+                .disabled(viewModel.isLastStep)
+                .accessibilityHidden(viewModel.isLastStep)
+                .accessibilityLabel("Skip all steps")
+                .accessibilityHint("Skips the setup wizard and uses default settings")
             }
 
             Spacer()
@@ -196,19 +214,14 @@ struct OnboardingView: View {
 
     // MARK: - Helpers
 
-    /// Returns `true` for optional steps the user hasn't yet enabled.
+    /// Returns `true` only for steps where Skip means something different from
+    /// "Next with the toggle off" — i.e. OAuth and system permissions.
     private var shouldShowSkip: Bool {
         switch viewModel.currentStep {
         case .twitchConnect:
             return !twitchViewModel.credentialsSaved
-        case .discordConnect:
-            return !discordPresenceEnabled
-        case .obsWidget:
-            return !websocketEnabled
-        case .preferences:
-            return true
         case .appleMusicAccess:
-            return MusicAuthorization.currentStatus != .authorized
+            return musicPermissionState != .granted
         default:
             return false
         }

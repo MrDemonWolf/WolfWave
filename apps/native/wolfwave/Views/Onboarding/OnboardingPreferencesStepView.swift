@@ -5,6 +5,7 @@
 //  Created by MrDemonWolf, Inc. on 5/7/26.
 //
 
+import AppKit
 import SwiftUI
 import UserNotifications
 
@@ -16,7 +17,7 @@ struct OnboardingPreferencesStepView: View {
 
     @Binding var launchAtLogin: Bool
 
-    @State private var notificationsAuthorized = false
+    @State private var notificationsStatus: UNAuthorizationStatus = .notDetermined
     @State private var notificationsRequesting = false
 
     // MARK: - Body
@@ -69,22 +70,7 @@ struct OnboardingPreferencesStepView: View {
                     accessibilityIdentifier: "onboardingLaunchAtLoginToggle"
                 )
 
-                preferenceRow(
-                    icon: "bell.badge.fill",
-                    iconColor: .red,
-                    title: "Allow notifications",
-                    subtitle: "We'll only ping for important things — updates, reconnect prompts.",
-                    isOn: Binding(
-                        get: { notificationsAuthorized },
-                        set: { newValue in
-                            if newValue {
-                                requestNotificationAuthorization()
-                            }
-                        }
-                    ),
-                    accessibilityLabel: "Allow notifications",
-                    accessibilityIdentifier: "onboardingNotificationsToggle"
-                )
+                notificationsRow
             }
             .frame(maxWidth: 440)
             .padding(.horizontal, 24)
@@ -93,6 +79,76 @@ struct OnboardingPreferencesStepView: View {
         }
         .task {
             await refreshNotificationStatus()
+        }
+    }
+
+    // MARK: - Notifications Row
+
+    /// Notifications row with three states:
+    ///   - notDetermined → toggle requests authorization
+    ///   - authorized / provisional → toggle is on, locked
+    ///   - denied → button deep-links to System Settings → Notifications
+    @ViewBuilder
+    private var notificationsRow: some View {
+        switch notificationsStatus {
+        case .denied:
+            HStack(spacing: 12) {
+                ZStack {
+                    RoundedRectangle(cornerRadius: 8, style: .continuous)
+                        .fill(Color.red.opacity(0.15))
+                        .frame(width: 32, height: 32)
+
+                    Image(systemName: "bell.slash.fill")
+                        .font(.system(size: 14, weight: .semibold))
+                        .foregroundStyle(.red)
+                }
+
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Notifications are off")
+                        .font(.system(size: 13, weight: .semibold))
+                    Text("Enable in System Settings so we can ping you about updates.")
+                        .font(.system(size: 11))
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+
+                Spacer()
+
+                Button("Open Settings") {
+                    openNotificationsSettings()
+                }
+                .buttonStyle(.bordered)
+                .controlSize(.small)
+                .pointerCursor()
+                .accessibilityLabel("Open Notification Settings")
+            }
+            .padding(14)
+            .background(
+                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                    .fill(Color(nsColor: .controlBackgroundColor))
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                    .stroke(Color.primary.opacity(0.06), lineWidth: 0.5)
+            )
+
+        default:
+            preferenceRow(
+                icon: "bell.badge.fill",
+                iconColor: .red,
+                title: "Allow notifications",
+                subtitle: "We'll only ping for important things — updates, reconnect prompts.",
+                isOn: Binding(
+                    get: {
+                        notificationsStatus == .authorized || notificationsStatus == .provisional
+                    },
+                    set: { newValue in
+                        if newValue { requestNotificationAuthorization() }
+                    }
+                ),
+                accessibilityLabel: "Allow notifications",
+                accessibilityIdentifier: "onboardingNotificationsToggle"
+            )
         }
     }
 
@@ -154,20 +210,27 @@ struct OnboardingPreferencesStepView: View {
     private func refreshNotificationStatus() async {
         let settings = await UNUserNotificationCenter.current().notificationSettings()
         await MainActor.run {
-            notificationsAuthorized = settings.authorizationStatus == .authorized ||
-                                       settings.authorizationStatus == .provisional
+            notificationsStatus = settings.authorizationStatus
         }
     }
 
     private func requestNotificationAuthorization() {
         notificationsRequesting = true
         Task {
-            let granted = (try? await UNUserNotificationCenter.current()
-                .requestAuthorization(options: [.alert, .sound, .badge])) ?? false
+            _ = try? await UNUserNotificationCenter.current()
+                .requestAuthorization(options: [.alert, .sound, .badge])
+            let settings = await UNUserNotificationCenter.current().notificationSettings()
             await MainActor.run {
-                notificationsAuthorized = granted
+                notificationsStatus = settings.authorizationStatus
                 notificationsRequesting = false
             }
+        }
+    }
+
+    /// Opens System Settings → Notifications. macOS 13+ deep-link.
+    private func openNotificationsSettings() {
+        if let url = URL(string: "x-apple.systempreferences:com.apple.Notifications-Settings.extension") {
+            NSWorkspace.shared.open(url)
         }
     }
 }

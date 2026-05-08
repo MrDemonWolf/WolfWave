@@ -5,16 +5,18 @@
 //  Created by MrDemonWolf, Inc. on 4/8/26.
 //
 
-import MusicKit
+import AppKit
 import SwiftUI
 
-/// Apple Music access step. Pink-gradient brand tile with the Apple Music wordmark,
-/// gradient pill CTA, and a denied state with dual action.
+/// Apple Music access step. Requests Apple Events automation permission for
+/// Music.app — the actual TCC bucket `MusicPlaybackMonitor` needs. We do not
+/// request MusicKit catalog auth because we never read the catalog or library;
+/// `AppleMusicSource` only asks the running Music app for the current track.
 struct OnboardingAppleMusicStepView: View {
 
     // MARK: - Properties
 
-    @State private var authStatus: MusicAuthorization.Status = MusicAuthorization.currentStatus
+    @State private var permissionState: MusicPermissionState = MusicPermissionChecker.currentState()
     @State private var isRequesting = false
 
     // MARK: - Body
@@ -45,12 +47,12 @@ struct OnboardingAppleMusicStepView: View {
             )
 
             VStack(spacing: 6) {
-                Text("Let WolfWave read what's playing.")
+                Text("Let WolfWave see what's playing")
                     .font(.system(size: 20, weight: .bold))
                     .multilineTextAlignment(.center)
                     .fixedSize(horizontal: false, vertical: true)
 
-                Text("We use Apple Events to ask the Music app for the current track. We never play, pause, or change your library.")
+                Text("WolfWave asks the Music app for the current track using Apple Events. We never play, pause, skip, or change your library.")
                     .font(.system(size: 13))
                     .foregroundStyle(.secondary)
                     .multilineTextAlignment(.center)
@@ -61,7 +63,7 @@ struct OnboardingAppleMusicStepView: View {
             content
                 .frame(maxWidth: 440)
                 .padding(.horizontal, 24)
-                .animation(.easeInOut(duration: 0.20), value: authStatus)
+                .animation(.easeInOut(duration: 0.20), value: permissionState)
 
             Spacer(minLength: 0)
         }
@@ -71,8 +73,8 @@ struct OnboardingAppleMusicStepView: View {
 
     @ViewBuilder
     private var content: some View {
-        switch authStatus {
-        case .authorized:
+        switch permissionState {
+        case .granted:
             HStack(spacing: 10) {
                 Image(systemName: "checkmark.circle.fill")
                     .font(.system(size: 18))
@@ -90,7 +92,7 @@ struct OnboardingAppleMusicStepView: View {
                 HStack(alignment: .top, spacing: 8) {
                     Image(systemName: "exclamationmark.triangle.fill")
                         .foregroundStyle(.orange)
-                    Text("Access was denied. Enable in **System Settings → Privacy & Security → Media & Apple Music**.")
+                    Text("Access was denied. Enable in **System Settings → Privacy & Security → Automation → WolfWave → Music**.")
                         .font(.system(size: 12))
                         .foregroundStyle(.primary)
                         .fixedSize(horizontal: false, vertical: true)
@@ -107,26 +109,21 @@ struct OnboardingAppleMusicStepView: View {
                 )
 
                 HStack(spacing: 8) {
-                    Button("Try Again") {
-                        Task {
-                            _ = await MusicAuthorization.request()
-                            authStatus = MusicAuthorization.currentStatus
-                        }
+                    Button("Recheck") {
+                        permissionState = MusicPermissionChecker.currentState()
                     }
                     .buttonStyle(.bordered)
                     .pointerCursor()
 
                     Button("Open System Settings") {
-                        if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Media") {
-                            NSWorkspace.shared.open(url)
-                        }
+                        MusicPermissionChecker.openAutomationSettings()
                     }
                     .buttonStyle(.borderedProminent)
                     .pointerCursor()
                 }
             }
 
-        default:
+        case .unknown:
             VStack(spacing: 10) {
                 PillButton(
                     background: AnyShapeStyle(
@@ -150,14 +147,14 @@ struct OnboardingAppleMusicStepView: View {
                                     .controlSize(.small)
                                     .tint(.white)
                             }
-                            Text("Grant Apple Music Access")
+                            Text("Allow Music access")
                         }
                     }
                 )
-                .accessibilityLabel("Grant Apple Music access")
+                .accessibilityLabel("Allow Music access")
                 .accessibilityIdentifier("onboardingAppleMusicGrant")
 
-                Text("macOS will ask once. You can change this later in System Settings.")
+                Text("macOS will ask once. You can change this later in System Settings → Privacy → Automation.")
                     .font(.system(size: 11))
                     .foregroundStyle(.tertiary)
                     .multilineTextAlignment(.center)
@@ -170,11 +167,9 @@ struct OnboardingAppleMusicStepView: View {
     private func requestAccess() {
         isRequesting = true
         Task {
-            _ = await MusicAuthorization.request()
-            await MainActor.run {
-                authStatus = MusicAuthorization.currentStatus
-                isRequesting = false
-            }
+            let resolved = MusicPermissionChecker.requestAccess()
+            permissionState = resolved
+            isRequesting = false
         }
     }
 }
