@@ -60,22 +60,9 @@ struct OnboardingOBSWidgetStepView: View {
                     }
                 )
                 .cardStyle()
-
-                if websocketEnabled {
-                    VStack(spacing: 10) {
-                        SuccessFeedbackRow(text: "You're all set!", fontWeight: .medium)
-
-                        Text("Configure the widget in Settings → Now-Playing Widget")
-                            .font(.system(size: 12))
-                            .foregroundStyle(.secondary)
-                            .multilineTextAlignment(.center)
-                    }
-                    .transition(.opacity.combined(with: .move(edge: .top)))
-                }
             }
             .frame(maxWidth: 400)
             .padding(.horizontal, 24)
-            .animation(.easeInOut(duration: 0.2), value: websocketEnabled)
 
             Spacer()
         }

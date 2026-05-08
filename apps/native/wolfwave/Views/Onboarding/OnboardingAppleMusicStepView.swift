@@ -31,34 +31,32 @@ struct OnboardingAppleMusicStepView: View {
                 Text("Apple Music Access")
                     .font(.system(size: 20, weight: .bold))
 
-                Text("Needed for song requests. You can always do this later.")
+                Text("Optional — only needed if you want chat song requests.")
                     .font(.system(size: 13))
                     .foregroundStyle(.secondary)
             }
 
             VStack(spacing: 16) {
-                Text("WolfWave needs Apple Music access so your Twitch viewers can request songs via chat.")
+                Text("WolfWave reads your Apple Music library so viewers can request songs from your library through Twitch chat. Your library data stays on this Mac and is never sent anywhere except to Apple Music itself.")
                     .font(.system(size: 13))
                     .foregroundStyle(.secondary)
                     .multilineTextAlignment(.center)
+                    .fixedSize(horizontal: false, vertical: true)
 
                 if authStatus == .authorized {
-                    SuccessFeedbackRow(text: "Apple Music access granted!")
-                        .transition(.opacity.combined(with: .move(edge: .top)))
-                        .accessibilityLabel("Apple Music access has been granted")
+                    EmptyView()
                 } else if authStatus == .denied {
-                    VStack(spacing: 8) {
-                        HStack(spacing: 6) {
-                            Image(systemName: "exclamationmark.triangle.fill")
-                                .foregroundStyle(.orange)
-                            Text("Access was denied. You can enable it in System Settings → Privacy & Security → Media & Apple Music.")
-                                .font(.system(size: 12))
-                                .foregroundStyle(.secondary)
-                        }
-                        .padding(12)
-                        .background(.orange.opacity(0.1))
-                        .clipShape(RoundedRectangle(cornerRadius: 8))
+                    HStack(spacing: 8) {
+                        Image(systemName: "exclamationmark.triangle.fill")
+                            .foregroundStyle(.orange)
+                            .accessibilityHidden(true)
+                        Text("Access was denied. You can enable it in System Settings → Privacy & Security → Media & Apple Music.")
+                            .font(.system(size: 12))
+                            .foregroundStyle(.secondary)
+                            .fixedSize(horizontal: false, vertical: true)
                     }
+                    .padding(12)
+                    .cardStyle()
                 } else {
                     Button {
                         isRequesting = true

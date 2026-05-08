@@ -8,13 +8,13 @@
 import AppKit
 import Foundation
 import MusicKit
-import Observation
 
 /// Orchestrates the song request system.
 ///
 /// Coordinates search resolution, blocklist checking, queue management,
-/// and Apple Music playback via MusicKit.
-@Observable
+/// and Apple Music playback via MusicKit. State is polled by the queue
+/// settings view via a refresh timer, so this type does not adopt the
+/// `@Observable` macro.
 final class SongRequestService {
     // MARK: - Types
 
@@ -69,16 +69,13 @@ final class SongRequestService {
         }
     }
 
-    @ObservationIgnored
     private var playbackObserver: Task<Void, Never>?
 
-    @ObservationIgnored
     private var musicAppLaunchObserver: NSObjectProtocol?
 
     /// Whether the fallback playlist is currently playing (no active requests).
     private(set) var isPlayingFallback = false
 
-    @ObservationIgnored
     var sendChatMessage: ((String) -> Void)?
 
     // MARK: - Init

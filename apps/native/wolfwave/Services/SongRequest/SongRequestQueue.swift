@@ -7,14 +7,14 @@
 
 import Foundation
 import MusicKit
-import Observation
 import SwiftUI
 
-/// In-memory song request queue with per-user limits and observable state.
+/// In-memory song request queue with per-user limits.
 ///
 /// The queue is intentionally not persisted — each stream session starts fresh.
-/// All mutations are thread-safe via `NSLock`.
-@Observable
+/// All mutations are thread-safe via `NSLock`. Consumers (the queue settings
+/// view) poll the public state via a refresh timer rather than observing it
+/// reactively, so this type does not adopt the `@Observable` macro.
 final class SongRequestQueue {
     // MARK: - Properties
 

@@ -59,16 +59,9 @@ struct OnboardingDiscordStepView: View {
                     }
                 )
                 .cardStyle()
-
-                if presenceEnabled {
-                    SuccessFeedbackRow(text: "Discord Status enabled!")
-                        .transition(.opacity.combined(with: .move(edge: .top)))
-                        .accessibilityLabel("Discord Status has been enabled")
-                }
             }
             .frame(maxWidth: 400)
             .padding(.horizontal, 24)
-            .animation(.easeInOut(duration: 0.2), value: presenceEnabled)
 
             Spacer()
         }

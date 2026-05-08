@@ -79,15 +79,25 @@ struct MusicMonitorSettingsView: View {
             .cardStyleUnpadded()
 
             // Hero now-playing
-            if permissionState == .denied {
-                PermissionPausedNowPlayingCard()
-            } else {
-                NowPlayingHeroCard(
-                    track: currentTrack,
-                    artist: currentArtist,
-                    album: currentAlbum,
-                    trackingEnabled: trackingEnabled
-                )
+            VStack(alignment: .leading, spacing: 8) {
+                Text("Live from Apple Music")
+                    .font(.caption)
+                    .fontWeight(.semibold)
+                    .foregroundStyle(.secondary)
+                    .textCase(.uppercase)
+                    .tracking(0.6)
+                    .accessibilityAddTraits(.isHeader)
+
+                if permissionState == .denied {
+                    PermissionPausedNowPlayingCard()
+                } else {
+                    NowPlayingHeroCard(
+                        track: currentTrack,
+                        artist: currentArtist,
+                        album: currentAlbum,
+                        trackingEnabled: trackingEnabled
+                    )
+                }
             }
 
             // Integration dashboard

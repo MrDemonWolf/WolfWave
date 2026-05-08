@@ -195,17 +195,8 @@ final class SongRequestCommandTests: XCTestCase {
 
     // MARK: - Blocklist
 
-    func testBlocklistAddAndCheck() throws {
-        // Skipped on GitHub Actions macos-26 runner: the xctest host crashes in
-        // malloc ("pointer being freed was not allocated") on the first
-        // SongBlocklist instantiation. Appears to be a runner-image/Observation
-        // framework beta issue — passes reliably in local `make test`.
-        try XCTSkipIf(
-            ProcessInfo.processInfo.environment["CI"] != nil,
-            "Skipped on CI macos-26 runner (malloc crash); runs locally."
-        )
-
-        let blocklist = SongBlocklist()
+    func testBlocklistAddAndCheck() {
+        let blocklist = SongBlocklist(storage: InMemoryBlocklistStorage())
         blocklist.clearAll()
 
         let songItem = BlocklistItem(value: "Bad Song", type: .song)
@@ -223,13 +214,8 @@ final class SongRequestCommandTests: XCTestCase {
         blocklist.clearAll()
     }
 
-    func testBlocklistRemove() throws {
-        try XCTSkipIf(
-            ProcessInfo.processInfo.environment["CI"] != nil,
-            "Skipped on CI macos-26 runner (malloc crash); runs locally."
-        )
-
-        let blocklist = SongBlocklist()
+    func testBlocklistRemove() {
+        let blocklist = SongBlocklist(storage: InMemoryBlocklistStorage())
         blocklist.clearAll()
 
         let item = BlocklistItem(value: "Remove Me", type: .song)
@@ -242,13 +228,8 @@ final class SongRequestCommandTests: XCTestCase {
         blocklist.clearAll()
     }
 
-    func testBlocklistNoDuplicates() throws {
-        try XCTSkipIf(
-            ProcessInfo.processInfo.environment["CI"] != nil,
-            "Skipped on CI macos-26 runner (malloc crash); runs locally."
-        )
-
-        let blocklist = SongBlocklist()
+    func testBlocklistNoDuplicates() {
+        let blocklist = SongBlocklist(storage: InMemoryBlocklistStorage())
         blocklist.clearAll()
 
         let item1 = BlocklistItem(value: "Duplicate", type: .song)
