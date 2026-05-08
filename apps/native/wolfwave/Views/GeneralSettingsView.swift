@@ -45,7 +45,7 @@ struct GeneralSettingsView: View {
     GeneralSettingsView()
         .padding()
         .frame(width: 760)
-        .background(WallpaperBloomBackground())
+        .background(Color(nsColor: .underPageBackgroundColor))
 }
 
 #Preview("Dark Mode") {
@@ -53,5 +53,5 @@ struct GeneralSettingsView: View {
         .padding()
         .frame(width: 760)
         .preferredColorScheme(.dark)
-        .background(WallpaperBloomBackground())
+        .background(Color(nsColor: .underPageBackgroundColor))
 }

@@ -158,9 +158,6 @@ struct SettingsView: View {
                 .padding(.horizontal, AppConstants.SettingsUI.contentPaddingH)
                 .padding(.vertical, AppConstants.SettingsUI.contentPaddingV)
             }
-            .background {
-                WallpaperBloomBackground()
-            }
             .animation(.none, value: selectedSection)
             .onChange(of: selectedSection) { _, newSection in
                 // Cancel in-progress Twitch OAuth if user navigates away

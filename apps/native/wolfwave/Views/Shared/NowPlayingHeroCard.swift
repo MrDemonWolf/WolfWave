@@ -137,7 +137,7 @@ struct NowPlayingHeroCard: View {
     )
     .padding()
     .frame(width: 720)
-    .background(WallpaperBloomBackground())
+    .background(Color(nsColor: .underPageBackgroundColor))
 }
 
 #Preview("Empty") {
