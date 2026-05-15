@@ -68,18 +68,12 @@ struct SettingsView: View {
             switch self {
             case .twitchIntegration: return "TwitchLogo"
             case .discord: return "DiscordLogo"
-            case .websocket: return "OBSLogo"
             default: return nil
             }
         }
 
         /// Whether the brand icon should render as a template (tinted by macOS for light/dark mode).
-        var brandIconIsTemplate: Bool {
-            switch self {
-            case .websocket: return true
-            default: return false
-            }
-        }
+        var brandIconIsTemplate: Bool { false }
     }
 
     // MARK: - Properties

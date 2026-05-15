@@ -59,7 +59,12 @@ struct IntegrationDashboardView: View {
                 )
                 Divider().padding(.leading, 44)
                 row(
-                    icon: brandIcon("OBSLogo", fallback: "tv", color: .primary, isTemplate: true),
+                    icon: AnyView(
+                        Image(systemName: "tv.badge.wifi")
+                            .font(.system(size: 14, weight: .medium))
+                            .foregroundStyle(.secondary)
+                            .frame(width: 22)
+                    ),
                     name: "Stream overlay",
                     chip: widgetChip,
                     subtitle: widgetSubtitle,
@@ -130,12 +135,20 @@ struct IntegrationDashboardView: View {
         AnyView(
             Group {
                 if NSImage(named: asset) != nil {
-                    Image(asset)
-                        .renderingMode(isTemplate ? .template : .original)
-                        .resizable()
-                        .aspectRatio(contentMode: .fit)
-                        .frame(width: 16, height: 16)
-                        .foregroundStyle(isTemplate ? AnyShapeStyle(.primary) : AnyShapeStyle(color))
+                    if isTemplate {
+                        Image(asset)
+                            .renderingMode(.template)
+                            .resizable()
+                            .aspectRatio(contentMode: .fit)
+                            .frame(width: 16, height: 16)
+                            .foregroundStyle(AnyShapeStyle(.primary))
+                    } else {
+                        Image(asset)
+                            .renderingMode(.original)
+                            .resizable()
+                            .aspectRatio(contentMode: .fit)
+                            .frame(width: 16, height: 16)
+                    }
                 } else {
                     Image(systemName: fallback)
                         .font(.system(size: 14, weight: .medium))
