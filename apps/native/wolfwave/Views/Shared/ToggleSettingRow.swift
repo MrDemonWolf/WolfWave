@@ -23,6 +23,8 @@ struct ToggleSettingRow: View {
     var accessibilityHint: String? = nil
     var onChange: ((Bool) -> Void)? = nil
 
+    @Environment(\.isEnabled) private var isEnabled
+
     // MARK: - Body
 
     var body: some View {
@@ -37,6 +39,7 @@ struct ToggleSettingRow: View {
             Spacer()
             toggle
         }
+        .opacity(!isEnabled || isDisabled ? 0.5 : 1.0)
     }
 
     // MARK: - Private Views

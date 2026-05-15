@@ -184,6 +184,7 @@ fileprivate struct WebSocketServerCard: View {
             }
             .padding(.horizontal, cardPadding)
             .padding(.vertical, 12)
+            .opacity(websocketEnabled ? 0.5 : 1.0)
 
             if !portText.isEmpty && !isPortValid {
                 HStack(spacing: 6) {
