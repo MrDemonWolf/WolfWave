@@ -180,10 +180,10 @@ struct SettingsView: View {
         .frame(
             minWidth: AppConstants.SettingsUI.minWidth,
             idealWidth: AppConstants.SettingsUI.idealWidth,
-            maxWidth: AppConstants.SettingsUI.maxWidth,
+            maxWidth: .infinity,
             minHeight: AppConstants.SettingsUI.minHeight,
             idealHeight: AppConstants.SettingsUI.idealHeight,
-            maxHeight: AppConstants.SettingsUI.maxHeight
+            maxHeight: .infinity
         )
         .onAppear {
             // Link the view model to the app delegate's service (without reconnecting)

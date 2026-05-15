@@ -171,25 +171,20 @@ struct AppConstantsTests {
         #expect(!AppConstants.DispatchQueues.websocketServer.isEmpty)
     }
     
-    // MARK: - UI Dimensions Tests
-    
-    @Test("UI dimensions are reasonable")
-    func testUIDimensions() async throws {
-        #expect(AppConstants.UI.settingsWidth > 0)
-        #expect(AppConstants.UI.settingsHeight > 0)
-        #expect(AppConstants.UI.settingsWidth == 520)
-        #expect(AppConstants.UI.settingsHeight == 560)
-    }
-    
     // MARK: - Settings UI Tests
-    
+
     @Test("Settings UI constants are defined")
     func testSettingsUIConstants() async throws {
         #expect(!AppConstants.SettingsUI.defaultAppName.isEmpty)
         #expect(AppConstants.SettingsUI.minWidth > 0)
         #expect(AppConstants.SettingsUI.minHeight > 0)
-        #expect(AppConstants.SettingsUI.maxWidth > AppConstants.SettingsUI.minWidth)
-        #expect(AppConstants.SettingsUI.maxHeight > AppConstants.SettingsUI.minHeight)
+        #expect(AppConstants.SettingsUI.idealWidth >= AppConstants.SettingsUI.minWidth)
+        #expect(AppConstants.SettingsUI.idealHeight >= AppConstants.SettingsUI.minHeight)
+        // Min size must fit on a 720p display with the Dock visible (~626pt usable height).
+        #expect(AppConstants.SettingsUI.minWidth <= 1280)
+        #expect(AppConstants.SettingsUI.minHeight <= 626)
+        // Ideal size must also fit a 720p display with the Dock visible.
+        #expect(AppConstants.SettingsUI.idealHeight <= 626)
     }
     
     // MARK: - Power Management Tests

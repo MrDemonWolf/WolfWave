@@ -64,11 +64,18 @@ final class AppConstantsEdgeCaseTests: XCTestCase {
 
     // MARK: - SettingsUI Dimensions Tests
 
-    func testSettingsUIDimensionsMinLessThanIdealLessThanMax() {
-        XCTAssertLessThan(AppConstants.SettingsUI.minWidth, AppConstants.SettingsUI.idealWidth)
-        XCTAssertLessThan(AppConstants.SettingsUI.idealWidth, AppConstants.SettingsUI.maxWidth)
-        XCTAssertLessThan(AppConstants.SettingsUI.minHeight, AppConstants.SettingsUI.idealHeight)
-        XCTAssertLessThan(AppConstants.SettingsUI.idealHeight, AppConstants.SettingsUI.maxHeight)
+    func testSettingsUIDimensionsMinLessOrEqualToIdeal() {
+        XCTAssertLessThanOrEqual(AppConstants.SettingsUI.minWidth, AppConstants.SettingsUI.idealWidth)
+        XCTAssertLessThanOrEqual(AppConstants.SettingsUI.minHeight, AppConstants.SettingsUI.idealHeight)
+    }
+
+    func testSettingsUIDimensionsFit720pWithDock() {
+        // Usable height on a 1280x720 display with the Dock visible is ~626pt
+        // (720 − 24pt menu bar − ~70pt Dock). Min and ideal must both fit.
+        XCTAssertLessThanOrEqual(AppConstants.SettingsUI.minWidth, 1280)
+        XCTAssertLessThanOrEqual(AppConstants.SettingsUI.minHeight, 626)
+        XCTAssertLessThanOrEqual(AppConstants.SettingsUI.idealWidth, 1280)
+        XCTAssertLessThanOrEqual(AppConstants.SettingsUI.idealHeight, 626)
     }
 
     // MARK: - Power Management Tests

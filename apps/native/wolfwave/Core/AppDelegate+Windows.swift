@@ -327,9 +327,26 @@ extension AppDelegate {
     /// Creates the Settings window with a transparent title bar and sidebar toolbar.
     private func createSettingsWindow() -> NSWindow {
         let hosting = NSHostingController(rootView: SettingsView())
-        let frame = CGRect(x: 0, y: 0, width: AppConstants.UI.settingsWidth, height: AppConstants.UI.settingsHeight)
+
+        // Initial size: ideal for comfortable use, clamped to the visible screen so
+        // the window never opens larger than e.g. a 720p display with Dock visible.
+        let ideal = CGSize(
+            width: AppConstants.SettingsUI.idealWidth,
+            height: AppConstants.SettingsUI.idealHeight
+        )
+        let visible = NSScreen.main?.visibleFrame.size ?? ideal
+        let initial = CGSize(
+            width: min(ideal.width, visible.width),
+            height: min(ideal.height, visible.height)
+        )
+        let frame = CGRect(origin: .zero, size: initial)
+
         let style: NSWindow.StyleMask = [.titled, .closable, .miniaturizable, .resizable, .fullSizeContentView]
         let window = NSWindow(contentRect: frame, styleMask: style, backing: .buffered, defer: false)
+        window.contentMinSize = NSSize(
+            width: AppConstants.SettingsUI.minWidth,
+            height: AppConstants.SettingsUI.minHeight
+        )
         window.contentViewController = hosting
         hosting.view.translatesAutoresizingMaskIntoConstraints = false
         if let contentView = window.contentView {

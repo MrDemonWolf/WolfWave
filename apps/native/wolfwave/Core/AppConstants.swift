@@ -466,14 +466,6 @@ enum AppConstants {
         static let songRequest = "com.mrdemonwolf.wolfwave.songrequest"
     }
     
-    // MARK: - UI Dimensions
-    
-    /// Settings window dimensions in points.
-    enum UI {
-        static let settingsWidth: CGFloat = 520
-        static let settingsHeight: CGFloat = 560
-    }
-    
     // MARK: - Animation & Timing
     
     /// Animation durations and timing constants.
@@ -500,23 +492,19 @@ enum AppConstants {
         /// Default application name shown in UI
         static let defaultAppName = "WolfWave"
 
-        /// Minimum width for settings window
+        /// Minimum width for settings window. Sized so the sidebar + detail pane
+        /// remain usable on a 1280×720 display.
         static let minWidth: CGFloat = 720
 
-        /// Minimum height for settings window
-        static let minHeight: CGFloat = 560
+        /// Minimum height for settings window. Sized to fit a 720p display with
+        /// the Dock visible (~626pt usable vertical space).
+        static let minHeight: CGFloat = 520
 
-        /// Maximum width for settings window
-        static let maxWidth: CGFloat = 1180
-
-        /// Maximum height for settings window
-        static let maxHeight: CGFloat = 920
-
-        /// Ideal width for settings window
+        /// Ideal width for settings window when first opened.
         static let idealWidth: CGFloat = 900
 
-        /// Ideal height for settings window
-        static let idealHeight: CGFloat = 640
+        /// Ideal height for settings window when first opened. Fits 720p w/ Dock.
+        static let idealHeight: CGFloat = 600
 
         /// Maximum content width for detail pane
         static let maxContentWidth: CGFloat = 720
