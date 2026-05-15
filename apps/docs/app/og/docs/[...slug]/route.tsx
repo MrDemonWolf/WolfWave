@@ -1,7 +1,7 @@
 import { getPageImage, source } from '@/lib/source';
 import { notFound } from 'next/navigation';
 import { ImageResponse } from 'next/og';
-import { generate as DefaultImage } from 'fumadocs-ui/og';
+import { OgCard, OG_SIZE, loadOgFonts } from '../../_components/og-card';
 
 export const revalidate = false;
 
@@ -10,11 +10,19 @@ export async function GET(_req: Request, { params }: RouteContext<'/og/docs/[...
   const page = source.getPage(slug.slice(0, -1));
   if (!page) notFound();
 
+  const fonts = await loadOgFonts();
+
   return new ImageResponse(
-    <DefaultImage title={page.data.title} description={page.data.description} site="WolfWave" />,
+    (
+      <OgCard
+        eyebrow="WolfWave Docs"
+        title={page.data.title}
+        description={page.data.description}
+      />
+    ),
     {
-      width: 1200,
-      height: 630,
+      ...OG_SIZE,
+      fonts: fonts.map((f) => ({ name: f.name, data: f.data, weight: f.weight as 400 | 500 | 600, style: f.style })),
     },
   );
 }

@@ -84,14 +84,6 @@ export const metadata: Metadata = {
     title: "WolfWave — Your Music, Live Everywhere",
     description:
       "WolfWave is a free, open-source macOS menu bar app that broadcasts your Apple Music to Twitch chat, Discord Rich Presence, and stream overlays via WebSocket. No account required.",
-    images: [
-      {
-        url: "/og-image.png",
-        width: 1200,
-        height: 630,
-        alt: "WolfWave — free macOS app connecting Apple Music to Twitch, Discord, and stream overlays",
-      },
-    ],
   },
   twitter: {
     card: "summary_large_image",
