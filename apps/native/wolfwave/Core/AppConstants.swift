@@ -568,6 +568,9 @@ enum AppConstants {
 
         /// Corner radius of the brand tile (continuous-rounded square).
         static let brandTileRadius: CGFloat = 14
+
+        /// Corner radius for primary CTA buttons (continuous rounded rect, macOS-standard for 36pt height).
+        static let primaryButtonRadius: CGFloat = 8
     }
 
     // MARK: - Brand Colors

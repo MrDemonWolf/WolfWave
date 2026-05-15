@@ -46,10 +46,10 @@ struct PillButton<Label: View>: View {
                 .padding(.horizontal, 22)
                 .frame(height: 36)
                 .background(
-                    Capsule(style: .continuous).fill(background)
+                    RoundedRectangle(cornerRadius: AppConstants.OnboardingUI.primaryButtonRadius, style: .continuous).fill(background)
                 )
                 .overlay(
-                    Capsule(style: .continuous)
+                    RoundedRectangle(cornerRadius: AppConstants.OnboardingUI.primaryButtonRadius, style: .continuous)
                         .stroke(
                             LinearGradient(
                                 colors: [Color.white.opacity(0.30), Color.white.opacity(0.0)],
@@ -61,7 +61,7 @@ struct PillButton<Label: View>: View {
                 )
                 .shadow(color: glowColor.opacity(0.40), radius: 9, x: 0, y: 6)
                 .opacity(disabled ? 0.65 : 1)
-                .contentShape(Capsule())
+                .contentShape(RoundedRectangle(cornerRadius: AppConstants.OnboardingUI.primaryButtonRadius, style: .continuous))
         }
         .buttonStyle(.plain)
         .disabled(disabled)
