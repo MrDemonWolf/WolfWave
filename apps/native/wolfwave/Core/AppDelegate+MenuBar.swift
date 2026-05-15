@@ -38,10 +38,13 @@ extension AppDelegate {
         statusItem?.menu = menu
     }
 
-    /// Returns a 16×16 image from the asset catalog for use in menu items.
+    /// Returns a 16×16 template image from the asset catalog for use in menu items.
+    /// Template rendering tints the icon with the menu text color so brand
+    /// silhouettes match the surrounding SF Symbol items.
     private func menuItemIcon(named name: String) -> NSImage? {
         guard let image = NSImage(named: name) else { return nil }
         image.size = NSSize(width: 16, height: 16)
+        image.isTemplate = true
         return image
     }
 

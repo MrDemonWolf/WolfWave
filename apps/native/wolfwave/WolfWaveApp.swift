@@ -19,7 +19,14 @@ struct WolfWaveApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
 
     /// True when the app is launched as a test host by xcodebuild.
-    static let isRunningTests = ProcessInfo.processInfo.environment["XCTestBundlePath"] != nil
+    ///
+    /// `NSClassFromString("XCTestCase")` is the canonical, toolchain-independent
+    /// detection — `XCTest.framework` is only loaded into the host process when
+    /// xctest runs. The env-var fallbacks preserve behavior on older runners
+    /// that did expose those variables.
+    static let isRunningTests = NSClassFromString("XCTestCase") != nil
+        || ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil
+        || ProcessInfo.processInfo.environment["XCTestBundlePath"] != nil
 
     var body: some Scene {
         Settings {
