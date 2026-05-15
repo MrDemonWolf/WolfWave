@@ -20,22 +20,36 @@ All notable changes to WolfWave are documented here.
 - **Music.app closed buffering** — requests save when Music.app is closed, flush on relaunch
 - **Fallback playlist** — plays a configured Apple Music playlist when the queue empties
 - **Song Request Queue UI** — now-playing card, position badges, per-requester labels, and action controls
-- **Apple Music onboarding step** — MusicKit authorization during first-launch wizard
 - **Per-user limits, subscriber-only mode, command aliases**, and enable/disable toggles per command
-- **macOS 26 Liquid Glass redesign** — refreshed settings, menu bar, and onboarding to match Tahoe's design language
-- **Music permission flow** — onboarding now requests Apple Music library access via MusicKit with a graceful denied-state recovery path
+- **macOS 26 Liquid Glass onboarding** — full wizard rebuild with two new steps (Menu Bar Pointer + OBS Widget) and Liquid Glass materials to match Tahoe's design language
+- **Apple Music onboarding step** — MusicKit authorization during the first-launch wizard with a graceful denied-state recovery path
+- **OBS Widget onboarding step** — overlay URL preview and HTTP widget toggle wired into onboarding so streamers can copy the overlay link before completing setup
+- **Apple-style docs redesign** — system blue theme, refreshed typography, and a cleaner component palette across the documentation site
 - **2026 marketing landing page** — redesigned dark, streamer-focused landing page with refreshed brand identity
 - **Docs SEO infrastructure** — OG image, sitemap, robots.txt, and JSON-LD structured data
+- **LAN IP cache** — overlay URL lookups in settings no longer block on every redraw
 
 ### Changed
 - Music playback via AppleScript + focus preservation — Music.app never steals focus from OBS or streaming tools
 - MusicKit used exclusively for search/resolve, not playback
-- Onboarding flow polish — redundant success rows removed, Apple Music permission copy tightened
+- Settings views decomposed into per-section files for sharper redraws and easier editing
+- Onboarding polish — redundant success rows removed, Apple Music permission copy tightened, stable button + step sizing eliminates UI shift
+- Notifications toggle disables itself once permission is authorized; denied state unified across the wizard
+- `PillButton` now uses the macOS-standard rounded rectangle (replaces `Capsule`)
+- Menu bar preview tray icon renders crisply via `NSImage`
+- Settings window sized to fit cleanly on 720p and 1080p displays
+- Music permission row is actionable and self-healing — tap to re-request or deep-link into System Settings
 - Docs theming — unified violet/cyan brand palette with full light-mode support
+- Test suite consolidated (849 tests across 26 files, all passing)
 
 ### Fixed
 - Native build warnings, SwiftUI layout reentrancy, and duplicate log emission
+- Onboarding URL bug, permissions correctness, and layout stability
 - Docs favicon 404s resolved; DMG size pill now reflects the actual 3.7 MB
+
+### Removed
+- `WallpaperBloomBackground` — replaced with native macOS chrome
+- Redundant onboarding success rows
 
 ---
 

@@ -15,24 +15,40 @@ All notable changes to this project will be documented in this file.
 - **Music.app closed buffering** — requests are saved when Music.app is closed and flushed automatically when it reopens (hold mode is respected).
 - **Fallback playlist** — configure an Apple Music playlist to play when the request queue empties.
 - **Song Request Queue UI** — full queue view with now-playing card, position badges, per-requester labels, and Skip / Hold / Clear controls.
-- **Apple Music onboarding step** — new step in the first-launch wizard to authorize MusicKit for song search.
 - **Per-user and global request limits**, subscriber-only mode, per-command enable/disable toggles, and custom alias configuration.
-- **macOS 26 Liquid Glass redesign** — refreshed settings, menu bar, and onboarding to match Tahoe's design language.
-- **Music permission flow** — first-launch onboarding now requests Apple Music library access via MusicKit with a graceful denied-state recovery path.
+- **macOS 26 Liquid Glass onboarding redesign** — full wizard rebuild with two new steps (Menu Bar Pointer + OBS Widget) to match Tahoe's design language (#26).
+- **Apple Music onboarding step** — first-launch wizard authorizes MusicKit library access for song search with a graceful denied-state recovery path.
+- **OBS Widget onboarding step** — overlay URL preview and HTTP widget toggle wired directly into onboarding so streamers can copy the overlay link before completing setup (d62b8ac).
+- **macOS 26 Liquid Glass redesign foundation** — refreshed settings + menu bar chrome with native Liquid Glass materials and Music permission flow (#22, #26).
+- **Apple-style docs redesign** — system blue theme, refreshed typography and component palette across the documentation site (#27).
 - **2026 marketing landing page** — redesigned dark, streamer-focused docs landing page with refreshed brand identity.
 - **Docs SEO infrastructure** — OG image, sitemap, robots.txt, and JSON-LD structured data for better discoverability.
+- **LAN IP cache** — `NetworkInfoService` caches the local IP for the overlay/widget URL surface so settings views no longer block on lookup (#34).
 
 ### Changed
 
 - **Music playback via AppleScript + focus preservation** — Music.app never steals focus from OBS or other streaming tools; the previously active app is restored 150 ms after each command.
 - **MusicKit used exclusively for search/resolve**, not playback — no in-app audio session.
-- **Onboarding flow polish** — removed redundant success rows and tightened Apple Music permission step copy.
+- **Settings views decomposed** — split the monolithic `SettingsView` into per-section files (`GeneralSettingsView`, `MusicMonitorSettingsView`, `AppVisibilitySettingsView`, `TwitchSettingsView`, `DiscordSettingsView`, `WebSocketSettingsView`, `SongRequestSettingsView`, `AdvancedSettingsView`) for sharper redraws and easier editing (#34).
+- **Onboarding flow polish** — dropped redundant success rows, tightened Apple Music permission step copy, stable button + step sizing to eliminate UI shift (#21, #25, #28).
+- **Notifications toggle** — disables itself once permission is authorized and unifies the denied state across the wizard (#29).
+- **`PillButton`** — replaced `Capsule` with the macOS-standard rounded rectangle to match system button geometry (#30).
+- **Menu bar preview tray icon** — loads via `NSImage` for crisp rendering at every density (#32).
+- **Settings window sizing** — minimum and ideal dimensions tuned to fit cleanly on 720p and 1080p displays without clipping (#33).
+- **Music permission row** — actionable + self-healing; tapping it re-requests or deep-links to System Settings depending on authorization state (#31).
 - **Docs theming** — unified violet/cyan brand palette with full light-mode support.
+- **Test suite consolidation** — merged `SongCommandTests` + `LastSongCommandTests` into a single parameterised `TrackInfoCommandTests`; renamed `MusicPlaybackMonitorTests` → `AppleMusicSourceTests` to match the post-refactor class names. 849 tests across 26 files, all passing.
 
 ### Fixed
 
-- Native build warnings, SwiftUI layout reentrancy, and duplicate log emission cleaned up.
+- Native build warnings, SwiftUI layout reentrancy, and duplicate log emission cleaned up (#22).
+- Onboarding URL bug, permissions correctness, and layout stability polished (#28).
 - Docs favicon 404s resolved and DMG size pill now reflects the actual 3.7 MB.
+
+### Removed
+
+- **`WallpaperBloomBackground`** — dropped in favour of native macOS chrome (#24).
+- **Redundant onboarding success rows** — removed for a tighter, less repetitive wizard (#21).
 
 ## [1.2.0] - 2026-04-04
 
