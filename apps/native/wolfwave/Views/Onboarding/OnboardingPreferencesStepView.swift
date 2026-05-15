@@ -18,7 +18,6 @@ struct OnboardingPreferencesStepView: View {
     @Binding var launchAtLogin: Bool
 
     @State private var notificationsStatus: UNAuthorizationStatus = .notDetermined
-    @State private var notificationsRequesting = false
 
     // MARK: - Body
 
@@ -90,66 +89,29 @@ struct OnboardingPreferencesStepView: View {
     ///   - denied → button deep-links to System Settings → Notifications
     @ViewBuilder
     private var notificationsRow: some View {
-        switch notificationsStatus {
-        case .denied:
-            HStack(spacing: 12) {
-                ZStack {
-                    RoundedRectangle(cornerRadius: 8, style: .continuous)
-                        .fill(Color.red.opacity(0.15))
-                        .frame(width: 32, height: 32)
+        let isAuthorized = notificationsStatus == .authorized || notificationsStatus == .provisional
 
-                    Image(systemName: "bell.slash.fill")
-                        .font(.system(size: 14, weight: .semibold))
-                        .foregroundStyle(.red)
-                }
-
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("Notifications are off")
-                        .font(.system(size: 13, weight: .semibold))
-                    Text("Enable in System Settings so we can ping you about updates.")
-                        .font(.system(size: 11))
-                        .foregroundStyle(.secondary)
-                        .fixedSize(horizontal: false, vertical: true)
-                }
-
-                Spacer()
-
-                Button("Open Settings") {
-                    openNotificationsSettings()
-                }
-                .buttonStyle(.bordered)
-                .controlSize(.small)
-                .pointerCursor()
-                .accessibilityLabel("Open Notification Settings")
-            }
-            .padding(14)
-            .background(
-                RoundedRectangle(cornerRadius: 12, style: .continuous)
-                    .fill(Color(nsColor: .controlBackgroundColor))
-            )
-            .overlay(
-                RoundedRectangle(cornerRadius: 12, style: .continuous)
-                    .stroke(Color.primary.opacity(0.06), lineWidth: 0.5)
-            )
-
-        default:
-            preferenceRow(
-                icon: "bell.badge.fill",
-                iconColor: .red,
-                title: "Allow notifications",
-                subtitle: "We'll only ping for important things — updates, reconnect prompts.",
-                isOn: Binding(
-                    get: {
-                        notificationsStatus == .authorized || notificationsStatus == .provisional
-                    },
-                    set: { newValue in
+        preferenceRow(
+            icon: "bell.badge.fill",
+            iconColor: .red,
+            title: "Allow notifications",
+            subtitle: notificationsStatus == .denied
+                ? "Enable in System Settings so we can ping you about updates."
+                : "We'll only ping for important things — updates, reconnect prompts.",
+            isOn: Binding(
+                get: { isAuthorized },
+                set: { newValue in
+                    if notificationsStatus == .denied {
+                        if newValue { openNotificationsSettings() }
+                    } else {
                         if newValue { requestNotificationAuthorization() }
                     }
-                ),
-                accessibilityLabel: "Allow notifications",
-                accessibilityIdentifier: "onboardingNotificationsToggle"
-            )
-        }
+                }
+            ),
+            accessibilityLabel: "Allow notifications",
+            accessibilityIdentifier: "onboardingNotificationsToggle"
+        )
+        .disabled(isAuthorized)
     }
 
     // MARK: - Row
@@ -215,14 +177,12 @@ struct OnboardingPreferencesStepView: View {
     }
 
     private func requestNotificationAuthorization() {
-        notificationsRequesting = true
         Task {
             _ = try? await UNUserNotificationCenter.current()
                 .requestAuthorization(options: [.alert, .sound, .badge])
             let settings = await UNUserNotificationCenter.current().notificationSettings()
             await MainActor.run {
                 notificationsStatus = settings.authorizationStatus
-                notificationsRequesting = false
             }
         }
     }
