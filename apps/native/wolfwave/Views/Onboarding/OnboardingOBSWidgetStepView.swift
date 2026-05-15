@@ -7,8 +7,9 @@
 
 import SwiftUI
 
-/// OBS overlay step. Brand tile + smart toggle card + URL reveal panel that slides
-/// into view when the WebSocket server is enabled.
+/// OBS overlay step. One toggle drives both the WebSocket feed and the widget
+/// HTTP server so streamers see a single, useful Browser Source URL instead of
+/// chaining two switches. Advanced users can split them later in Settings.
 struct OnboardingOBSWidgetStepView: View {
 
     // MARK: - Properties
@@ -18,9 +19,6 @@ struct OnboardingOBSWidgetStepView: View {
     @AppStorage(AppConstants.UserDefaults.widgetHTTPEnabled)
     private var widgetHTTPEnabled = false
 
-    @AppStorage(AppConstants.UserDefaults.websocketServerPort)
-    private var storedPort: Int = Int(AppConstants.WebSocketServer.defaultPort)
-
     @AppStorage(AppConstants.UserDefaults.widgetPort)
     private var storedWidgetPort: Int = Int(AppConstants.WebSocketServer.widgetDefaultPort)
 
@@ -28,8 +26,9 @@ struct OnboardingOBSWidgetStepView: View {
         "http://localhost:\(String(storedWidgetPort))/"
     }
 
-    private var websocketURL: String {
-        "ws://localhost:\(String(storedPort))"
+    /// Combined state — the step treats the two servers as one user-facing feature.
+    private var overlayEnabled: Bool {
+        websocketEnabled && widgetHTTPEnabled
     }
 
     // MARK: - Body
@@ -60,7 +59,7 @@ struct OnboardingOBSWidgetStepView: View {
                 Text("Your overlay, ready to drop in")
                     .font(.system(size: 20, weight: .bold))
 
-                Text("Enable the servers below, then drop the overlay URL into OBS as a Browser Source.")
+                Text("One toggle. We'll give you the URL to paste into OBS.")
                     .font(.system(size: 13))
                     .foregroundStyle(.secondary)
                     .multilineTextAlignment(.center)
@@ -68,86 +67,9 @@ struct OnboardingOBSWidgetStepView: View {
                     .fixedSize(horizontal: false, vertical: true)
             }
 
-            VStack(spacing: 10) {
-                ToggleSettingRow(
-                    title: "Enable WebSocket server",
-                    subtitle: "Streams now-playing data to widgets and custom overlays.",
-                    isOn: $websocketEnabled,
-                    controlSize: .regular,
-                    accessibilityLabel: "Enable WebSocket server",
-                    accessibilityIdentifier: "onboardingWebsocketToggle",
-                    onChange: { _ in
-                        NotificationCenter.default.post(
-                            name: NSNotification.Name(AppConstants.Notifications.websocketServerChanged),
-                            object: nil,
-                            userInfo: nil
-                        )
-                    }
-                )
-                .padding(14)
-                .background(
-                    RoundedRectangle(cornerRadius: 12, style: .continuous)
-                        .fill(websocketEnabled
-                              ? Color.accentColor.opacity(0.08)
-                              : Color(nsColor: .controlBackgroundColor))
-                )
-                .overlay(
-                    RoundedRectangle(cornerRadius: 12, style: .continuous)
-                        .stroke(
-                            websocketEnabled
-                                ? Color.accentColor.opacity(0.40)
-                                : Color.primary.opacity(0.06),
-                            lineWidth: 0.5
-                        )
-                )
-                .shadow(
-                    color: websocketEnabled ? Color.accentColor.opacity(0.16) : .clear,
-                    radius: 16, x: 0, y: 4
-                )
-                .animation(.easeInOut(duration: 0.20), value: websocketEnabled)
-
-                ToggleSettingRow(
-                    title: "Enable overlay widget",
-                    subtitle: "Serve the browser-source page over HTTP.",
-                    isOn: $widgetHTTPEnabled,
-                    controlSize: .regular,
-                    accessibilityLabel: "Enable overlay widget",
-                    accessibilityIdentifier: "onboardingWidgetHTTPToggle",
-                    onChange: { _ in
-                        NotificationCenter.default.post(
-                            name: NSNotification.Name(AppConstants.Notifications.widgetHTTPServerChanged),
-                            object: nil,
-                            userInfo: nil
-                        )
-                    }
-                )
-                .padding(14)
-                .background(
-                    RoundedRectangle(cornerRadius: 12, style: .continuous)
-                        .fill(widgetHTTPEnabled
-                              ? Color.accentColor.opacity(0.08)
-                              : Color(nsColor: .controlBackgroundColor))
-                )
-                .overlay(
-                    RoundedRectangle(cornerRadius: 12, style: .continuous)
-                        .stroke(
-                            widgetHTTPEnabled
-                                ? Color.accentColor.opacity(0.40)
-                                : Color.primary.opacity(0.06),
-                            lineWidth: 0.5
-                        )
-                )
-                .shadow(
-                    color: widgetHTTPEnabled ? Color.accentColor.opacity(0.16) : .clear,
-                    radius: 16, x: 0, y: 4
-                )
-                .opacity(websocketEnabled ? 1.0 : 0.45)
-                .disabled(!websocketEnabled)
-                .animation(.easeInOut(duration: 0.20), value: widgetHTTPEnabled)
-                .animation(.easeInOut(duration: 0.20), value: websocketEnabled)
-            }
-            .frame(maxWidth: 440)
-            .padding(.horizontal, 24)
+            overlayToggleCard
+                .frame(maxWidth: 440)
+                .padding(.horizontal, 24)
 
             urlReveal
                 .frame(maxWidth: 440)
@@ -155,23 +77,60 @@ struct OnboardingOBSWidgetStepView: View {
 
             Spacer(minLength: 0)
         }
-        .animation(.easeInOut(duration: 0.20), value: websocketEnabled)
+        .animation(.easeInOut(duration: 0.20), value: overlayEnabled)
+    }
+
+    // MARK: - Toggle Card
+
+    private var overlayToggleCard: some View {
+        ToggleSettingRow(
+            title: "Enable OBS overlay",
+            subtitle: "Streams your now-playing card to OBS.",
+            isOn: Binding(
+                get: { overlayEnabled },
+                set: { setOverlayEnabled($0) }
+            ),
+            controlSize: .regular,
+            accessibilityLabel: "Enable OBS overlay",
+            accessibilityIdentifier: "onboardingOverlayToggle"
+        )
+        .padding(14)
+        .background(
+            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                .fill(overlayEnabled
+                      ? Color.accentColor.opacity(0.08)
+                      : Color(nsColor: .controlBackgroundColor))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                .stroke(
+                    overlayEnabled
+                        ? Color.accentColor.opacity(0.40)
+                        : Color.primary.opacity(0.06),
+                    lineWidth: 0.5
+                )
+        )
+        .shadow(
+            color: overlayEnabled ? Color.accentColor.opacity(0.16) : .clear,
+            radius: 16, x: 0, y: 4
+        )
+        .animation(.easeInOut(duration: 0.20), value: overlayEnabled)
     }
 
     // MARK: - URL Reveal
 
     @ViewBuilder
     private var urlReveal: some View {
-        if websocketEnabled {
-            VStack(alignment: .leading, spacing: 8) {
-                Text("OVERLAY URL")
+        if overlayEnabled {
+            VStack(alignment: .leading, spacing: 10) {
+                Text("BROWSER SOURCE URL")
                     .font(.system(size: 10, weight: .semibold))
                     .foregroundStyle(.tertiary)
                     .tracking(0.6)
 
                 HStack(spacing: 8) {
                     Text(verbatim: overlayURL)
-                        .font(.system(size: 12, design: .monospaced))
+                        .font(.system(size: 14, weight: .medium, design: .monospaced))
                         .foregroundStyle(.primary)
                         .lineLimit(1)
                         .frame(maxWidth: .infinity, alignment: .leading)
@@ -181,34 +140,26 @@ struct OnboardingOBSWidgetStepView: View {
                         accessibilityLabel: "Copy overlay URL"
                     )
                 }
-                .padding(.horizontal, 10)
-                .padding(.vertical, 8)
+                .padding(.horizontal, 12)
+                .padding(.vertical, 10)
                 .background(
-                    RoundedRectangle(cornerRadius: 7, style: .continuous)
+                    RoundedRectangle(cornerRadius: 8, style: .continuous)
                         .fill(Color(nsColor: .textBackgroundColor))
                 )
                 .overlay(
-                    RoundedRectangle(cornerRadius: 7, style: .continuous)
+                    RoundedRectangle(cornerRadius: 8, style: .continuous)
                         .stroke(Color.primary.opacity(0.08), lineWidth: 0.5)
                 )
 
-                HStack(spacing: 6) {
-                    Text("WEBSOCKET")
-                        .font(.system(size: 9, weight: .semibold))
-                        .foregroundStyle(.quaternary)
-                        .tracking(0.5)
-                    Text(verbatim: websocketURL)
-                        .font(.system(size: 11, design: .monospaced))
-                        .foregroundStyle(.tertiary)
-                        .lineLimit(1)
-                }
-
-                widgetPreview
-                    .padding(.top, 2)
-
-                Text("Add the Overlay URL as an OBS Browser Source. We'll show the rest in Settings.")
+                Text("Paste this into OBS as a Browser Source.")
                     .font(.system(size: 11))
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+
+                Text("Need the raw WebSocket feed? Settings → Overlay.")
+                    .font(.system(size: 10))
                     .foregroundStyle(.tertiary)
+                    .fixedSize(horizontal: false, vertical: true)
             }
             .padding(12)
             .background(
@@ -223,47 +174,24 @@ struct OnboardingOBSWidgetStepView: View {
         }
     }
 
-    // MARK: - Widget Preview
+    // MARK: - Private Helpers
 
-    /// Decorative SwiftUI mock of the now-playing chip OBS will receive. Shape
-    /// only — sample data, no live binding. `accessibilityHidden` because the
-    /// surrounding copy already explains what this is.
-    private var widgetPreview: some View {
-        HStack(spacing: 10) {
-            RoundedRectangle(cornerRadius: 6, style: .continuous)
-                .fill(
-                    LinearGradient(
-                        colors: [Color.accentColor, Color.accentColor.opacity(0.6)],
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing
-                    )
-                )
-                .overlay(
-                    Image(systemName: "music.note")
-                        .font(.system(size: 14, weight: .semibold))
-                        .foregroundStyle(.white.opacity(0.85))
-                )
-                .frame(width: 36, height: 36)
+    /// Flip both servers as one. Notifications fire in the same order
+    /// `AppDelegate` listens for them.
+    private func setOverlayEnabled(_ enabled: Bool) {
+        websocketEnabled = enabled
+        widgetHTTPEnabled = enabled
 
-            VStack(alignment: .leading, spacing: 2) {
-                Text("Midnight City")
-                    .font(.system(size: 12, weight: .semibold))
-                    .foregroundStyle(.primary)
-                    .lineLimit(1)
-                Text("M83")
-                    .font(.system(size: 11))
-                    .foregroundStyle(.secondary)
-                    .lineLimit(1)
-            }
-
-            Spacer(minLength: 0)
-        }
-        .padding(8)
-        .background(
-            RoundedRectangle(cornerRadius: 8, style: .continuous)
-                .fill(Color.black.opacity(0.55))
+        NotificationCenter.default.post(
+            name: NSNotification.Name(AppConstants.Notifications.websocketServerChanged),
+            object: nil,
+            userInfo: nil
         )
-        .accessibilityHidden(true)
+        NotificationCenter.default.post(
+            name: NSNotification.Name(AppConstants.Notifications.widgetHTTPServerChanged),
+            object: nil,
+            userInfo: nil
+        )
     }
 }
 
