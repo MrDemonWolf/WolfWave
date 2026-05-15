@@ -82,16 +82,10 @@ struct NowPlayingHeroCard: View {
     private var progressBar: some View {
         let fraction = duration > 0 ? min(max(elapsed / duration, 0), 1) : 0
         HStack(spacing: 10) {
-            GeometryReader { geo in
-                ZStack(alignment: .leading) {
-                    Capsule()
-                        .fill(.quaternary)
-                    Capsule()
-                        .fill(.primary)
-                        .frame(width: geo.size.width * CGFloat(fraction))
-                }
-            }
-            .frame(height: 3)
+            ProgressView(value: fraction)
+                .progressViewStyle(.linear)
+                .tint(.primary)
+                .frame(height: 3)
 
             Text("\(timeString(elapsed)) / \(timeString(duration))")
                 .font(.system(size: 11, design: .monospaced))

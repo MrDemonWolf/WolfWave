@@ -152,7 +152,6 @@ struct SettingsView: View {
                 VStack(alignment: .leading, spacing: AppConstants.SettingsUI.sectionSpacing) {
                     detailView(for: selectedSection)
                 }
-                .transaction { $0.animation = nil }
                 .frame(maxWidth: AppConstants.SettingsUI.maxContentWidth, alignment: .topLeading)
                 .frame(maxWidth: .infinity, alignment: .center)
                 .padding(.horizontal, AppConstants.SettingsUI.contentPaddingH)

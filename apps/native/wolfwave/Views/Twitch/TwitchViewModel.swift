@@ -288,39 +288,34 @@ final class TwitchViewModel {
         reauthNeeded = UserDefaults.standard.bool(
             forKey: AppConstants.UserDefaults.twitchReauthNeeded)
 
-        // Remove existing observers via tracked tokens to prevent leaks
-        if let token = reauthObserver {
-            NotificationCenter.default.removeObserver(token)
-            reauthObserver = nil
-        }
-        if let token = connectionObserver {
-            NotificationCenter.default.removeObserver(token)
-            connectionObserver = nil
-        }
-
-        // Listen for reauth status changes (tracked via token)
-        reauthObserver = NotificationCenter.default.addObserver(
-            forName: NSNotification.Name(AppConstants.Notifications.twitchReauthNeededChanged),
-            object: nil,
-            queue: .main
-        ) { [weak self] _ in
-            Task { @MainActor [weak self] in
-                self?.reauthNeeded = UserDefaults.standard.bool(
-                    forKey: AppConstants.UserDefaults.twitchReauthNeeded)
+        // Idempotent: only register observers once across repeated calls.
+        // Notifications already arrive on `.main` (queue: .main), so we can mutate
+        // @MainActor state directly via `MainActor.assumeIsolated` — no Task hop.
+        if reauthObserver == nil {
+            reauthObserver = NotificationCenter.default.addObserver(
+                forName: NSNotification.Name(AppConstants.Notifications.twitchReauthNeededChanged),
+                object: nil,
+                queue: .main
+            ) { [weak self] _ in
+                MainActor.assumeIsolated {
+                    self?.reauthNeeded = UserDefaults.standard.bool(
+                        forKey: AppConstants.UserDefaults.twitchReauthNeeded)
+                }
             }
         }
 
-        // Listen for Twitch chat connection state changes (tracked via token)
-        connectionObserver = NotificationCenter.default.addObserver(
-            forName: TwitchChatService.connectionStateChanged,
-            object: nil,
-            queue: .main
-        ) { [weak self] note in
-            let isConnected = note.userInfo?["isConnected"] as? Bool
-            let errorMessage = note.userInfo?["error"] as? String
-            Task { @MainActor [weak self] in
-                self?.handleTwitchConnectionState(
-                    isConnected: isConnected, errorMessage: errorMessage)
+        if connectionObserver == nil {
+            connectionObserver = NotificationCenter.default.addObserver(
+                forName: TwitchChatService.connectionStateChanged,
+                object: nil,
+                queue: .main
+            ) { [weak self] note in
+                let isConnected = note.userInfo?["isConnected"] as? Bool
+                let errorMessage = note.userInfo?["error"] as? String
+                MainActor.assumeIsolated {
+                    self?.handleTwitchConnectionState(
+                        isConnected: isConnected, errorMessage: errorMessage)
+                }
             }
         }
     }

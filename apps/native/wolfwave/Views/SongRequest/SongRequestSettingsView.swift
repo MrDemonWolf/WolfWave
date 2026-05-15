@@ -10,106 +10,102 @@ import SwiftUI
 
 /// Settings view for the song request system.
 ///
-/// Provides controls for:
-/// - Master enable/disable toggle
-/// - MusicKit authorization status
-/// - Queue configuration (max size, per-user limit)
-/// - Subscriber-only mode
-/// - Auto-advance and autoplay settings
-/// - Per-command enable/disable toggles with custom aliases
-/// - Song/artist blocklist management
+/// Decomposed into per-card subviews so each `@AppStorage` change only re-renders one card
+/// instead of the whole screen.
 struct SongRequestSettingsView: View {
-    // MARK: - User Settings
-
     @AppStorage(AppConstants.UserDefaults.songRequestEnabled)
     private var songRequestEnabled = false
 
-    @AppStorage(AppConstants.UserDefaults.songRequestMaxQueueSize)
-    private var maxQueueSize = 10
-
-    @AppStorage(AppConstants.UserDefaults.songRequestPerUserLimit)
-    private var perUserLimit = 2
-
-    @AppStorage(AppConstants.UserDefaults.songRequestSubscriberOnly)
-    private var subscriberOnly = false
-
-    @AppStorage(AppConstants.UserDefaults.songRequestAutoAdvance)
-    private var autoAdvance = true
-
-    @AppStorage(AppConstants.UserDefaults.songRequestAutoplayWhenEmpty)
-    private var autoplayWhenEmpty = true
-
-    @AppStorage(AppConstants.UserDefaults.songRequestFallbackPlaylist)
-    private var fallbackPlaylist = ""
-
-    // Per-command toggles
-    @AppStorage(AppConstants.UserDefaults.srCommandEnabled)
-    private var srCommandEnabled = true
-
-    @AppStorage(AppConstants.UserDefaults.queueCommandEnabled)
-    private var queueCommandEnabled = true
-
-    @AppStorage(AppConstants.UserDefaults.myQueueCommandEnabled)
-    private var myQueueCommandEnabled = true
-
-    @AppStorage(AppConstants.UserDefaults.skipCommandEnabled)
-    private var skipCommandEnabled = true
-
-    @AppStorage(AppConstants.UserDefaults.clearQueueCommandEnabled)
-    private var clearQueueCommandEnabled = true
-
-    // Per-command aliases
-    @AppStorage(AppConstants.UserDefaults.srCommandAliases)
-    private var srAliases = ""
-
-    @AppStorage(AppConstants.UserDefaults.queueCommandAliases)
-    private var queueAliases = ""
-
-    @AppStorage(AppConstants.UserDefaults.myQueueCommandAliases)
-    private var myQueueAliases = ""
-
-    @AppStorage(AppConstants.UserDefaults.skipCommandAliases)
-    private var skipAliases = ""
-
-    @AppStorage(AppConstants.UserDefaults.clearQueueCommandAliases)
-    private var clearQueueAliases = ""
-
-    // Cooldowns
-    @AppStorage(AppConstants.UserDefaults.songRequestGlobalCooldown)
-    private var globalCooldown: Double = 5.0
-
-    @AppStorage(AppConstants.UserDefaults.songRequestUserCooldown)
-    private var userCooldown: Double = 30.0
-
-    // MARK: - State
-
-    @State private var blocklistText = ""
-    @State private var blocklistType: BlocklistItem.BlockType = .song
-    @State private var blocklist: [BlocklistItem] = []
     @State private var isTwitchConnected = false
     @State private var musicAuthStatus: MusicAuthorization.Status = MusicAuthorization.currentStatus
     @State private var isRequestingMusicAuth = false
 
-    private var appDelegate: AppDelegate? {
-        AppDelegate.shared
-    }
-
-    private var songBlocklist: SongBlocklist? {
-        appDelegate?.songRequestService?.blocklist
-    }
+    private var appDelegate: AppDelegate? { AppDelegate.shared }
 
     // MARK: - Body
 
     var body: some View {
         VStack(alignment: .leading, spacing: 24) {
-            // Header
-            VStack(alignment: .leading, spacing: 6) {
-                Text("Song Requests")
-                    .sectionHeader()
+            SongRequestHeader()
 
-                Text("Let your Twitch viewers request songs via chat commands.")
-                    .font(.system(size: 13))
-                    .foregroundStyle(.secondary)
+            if !isTwitchConnected {
+                HStack(spacing: 6) {
+                    Image(systemName: "lock.fill")
+                        .font(.system(size: 11))
+                        .foregroundStyle(.secondary)
+                    Text("Connect to Twitch to enable song requests.")
+                        .font(.system(size: 11))
+                        .foregroundStyle(.secondary)
+                }
+            }
+
+            SongRequestMasterToggleCard(isTwitchConnected: isTwitchConnected)
+
+            if songRequestEnabled {
+                if musicAuthStatus != .authorized {
+                    SongRequestMusicAuthCard(
+                        musicAuthStatus: $musicAuthStatus,
+                        isRequestingMusicAuth: $isRequestingMusicAuth
+                    )
+                }
+
+                SongRequestQueueView()
+
+                Divider().padding(.vertical, 4)
+
+                SongRequestQueueConfigCard()
+
+                Divider().padding(.vertical, 4)
+
+                SongRequestPlaybackCard()
+
+                Divider().padding(.vertical, 4)
+
+                SongRequestCommandsCard()
+
+                Divider().padding(.vertical, 4)
+
+                SongRequestBlocklistCard(blocklistProvider: { appDelegate?.songRequestService?.blocklist })
+            }
+        }
+        .onAppear {
+            musicAuthStatus = MusicAuthorization.currentStatus
+            refreshTwitchState()
+        }
+        .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name(AppConstants.Notifications.twitchConnectionStateChanged))) { notification in
+            if let connected = notification.userInfo?["isConnected"] as? Bool {
+                updateTwitchState(connected)
+            }
+        }
+    }
+
+    private func refreshTwitchState() {
+        updateTwitchState(appDelegate?.twitchService?.isConnected ?? false)
+    }
+
+    private func updateTwitchState(_ connected: Bool) {
+        isTwitchConnected = connected
+        if !connected && songRequestEnabled {
+            songRequestEnabled = false
+            NotificationCenter.default.post(
+                name: NSNotification.Name(AppConstants.Notifications.songRequestSettingChanged),
+                object: nil,
+                userInfo: ["enabled": false]
+            )
+        }
+    }
+}
+
+// MARK: - Header
+
+fileprivate struct SongRequestHeader: View {
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text("Song Requests").sectionHeader()
+
+            Text("Let your Twitch viewers request songs via chat commands.")
+                .font(.system(size: 13))
+                .foregroundStyle(.secondary)
 
             HStack(alignment: .top, spacing: 8) {
                 Image(systemName: "info.circle.fill")
@@ -128,75 +124,22 @@ struct SongRequestSettingsView: View {
             .padding(10)
             .background(.blue.opacity(0.07))
             .clipShape(RoundedRectangle(cornerRadius: 8))
-            }
-            .accessibilityElement(children: .combine)
-            .accessibilityLabel("Song Requests settings. Let your Twitch viewers request songs via chat commands.")
-            .accessibilityIdentifier("songRequests.header")
-
-            // Twitch connection requirement
-            if !isTwitchConnected {
-                HStack(spacing: 6) {
-                    Image(systemName: "lock.fill")
-                        .font(.system(size: 11))
-                        .foregroundStyle(.secondary)
-                    Text("Connect to Twitch to enable song requests.")
-                        .font(.system(size: 11))
-                        .foregroundStyle(.secondary)
-                }
-            }
-
-            // Master Toggle
-            masterToggleCard
-
-            if songRequestEnabled {
-                // MusicKit auth prompt (if not authorized)
-                if musicAuthStatus != .authorized {
-                    musicAuthCard
-                }
-
-                // Queue View
-                SongRequestQueueView()
-
-                Divider().padding(.vertical, 4)
-
-                // Queue Configuration
-                queueConfigCard
-
-                Divider().padding(.vertical, 4)
-
-                // Playback Settings
-                playbackCard
-
-                Divider().padding(.vertical, 4)
-
-                // Commands & Cooldowns
-                commandsCard
-
-                Divider().padding(.vertical, 4)
-
-                // Blocklist
-                blocklistCard
-            }
         }
-        .onAppear {
-            blocklist = songBlocklist?.allEntries ?? []
-            musicAuthStatus = MusicAuthorization.currentStatus
-            refreshTwitchState()
-            // Delayed re-check to catch late connections
-            DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
-                refreshTwitchState()
-            }
-        }
-        .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name(AppConstants.Notifications.twitchConnectionStateChanged))) { notification in
-            if let connected = notification.userInfo?["isConnected"] as? Bool {
-                updateTwitchState(connected)
-            }
-        }
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("Song Requests settings. Let your Twitch viewers request songs via chat commands.")
+        .accessibilityIdentifier("songRequests.header")
     }
+}
 
-    // MARK: - Master Toggle Card
+// MARK: - Master Toggle
 
-    private var masterToggleCard: some View {
+fileprivate struct SongRequestMasterToggleCard: View {
+    @AppStorage(AppConstants.UserDefaults.songRequestEnabled)
+    private var songRequestEnabled = false
+
+    let isTwitchConnected: Bool
+
+    var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             ToggleSettingRow(
                 title: "Enable Song Requests",
@@ -218,10 +161,15 @@ struct SongRequestSettingsView: View {
         .background(.quaternary.opacity(0.5))
         .clipShape(RoundedRectangle(cornerRadius: AppConstants.SettingsUI.cardCornerRadius))
     }
+}
 
-    // MARK: - MusicKit Auth Card
+// MARK: - Music Auth
 
-    private var musicAuthCard: some View {
+fileprivate struct SongRequestMusicAuthCard: View {
+    @Binding var musicAuthStatus: MusicAuthorization.Status
+    @Binding var isRequestingMusicAuth: Bool
+
+    var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack(spacing: 8) {
                 Image(systemName: "exclamationmark.triangle.fill")
@@ -244,8 +192,7 @@ struct SongRequestSettingsView: View {
                 } label: {
                     HStack(spacing: 6) {
                         if isRequestingMusicAuth {
-                            ProgressView()
-                                .controlSize(.small)
+                            ProgressView().controlSize(.small)
                         }
                         Text("Grant Apple Music Access")
                     }
@@ -260,17 +207,27 @@ struct SongRequestSettingsView: View {
         .background(.orange.opacity(0.1))
         .clipShape(RoundedRectangle(cornerRadius: AppConstants.SettingsUI.cardCornerRadius))
     }
+}
 
-    // MARK: - Queue Configuration Card
+// MARK: - Queue Config
 
-    private var queueConfigCard: some View {
+fileprivate struct SongRequestQueueConfigCard: View {
+    @AppStorage(AppConstants.UserDefaults.songRequestMaxQueueSize)
+    private var maxQueueSize = 10
+
+    @AppStorage(AppConstants.UserDefaults.songRequestPerUserLimit)
+    private var perUserLimit = 2
+
+    @AppStorage(AppConstants.UserDefaults.songRequestSubscriberOnly)
+    private var subscriberOnly = false
+
+    var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             Text("Queue Settings")
                 .font(.system(size: 13, weight: .semibold))
 
             HStack {
-                Text("Max queue size")
-                    .font(.system(size: 12))
+                Text("Max queue size").font(.system(size: 12))
                 Spacer()
                 Picker("", selection: $maxQueueSize) {
                     ForEach([5, 10, 15, 20, 25, 50], id: \.self) { size in
@@ -282,8 +239,7 @@ struct SongRequestSettingsView: View {
             }
 
             HStack {
-                Text("Per-user limit")
-                    .font(.system(size: 12))
+                Text("Per-user limit").font(.system(size: 12))
                 Spacer()
                 Picker("", selection: $perUserLimit) {
                     ForEach([1, 2, 3, 5, 10], id: \.self) { limit in
@@ -306,10 +262,21 @@ struct SongRequestSettingsView: View {
         .background(.quaternary.opacity(0.5))
         .clipShape(RoundedRectangle(cornerRadius: AppConstants.SettingsUI.cardCornerRadius))
     }
+}
 
-    // MARK: - Playback Card
+// MARK: - Playback
 
-    private var playbackCard: some View {
+fileprivate struct SongRequestPlaybackCard: View {
+    @AppStorage(AppConstants.UserDefaults.songRequestAutoAdvance)
+    private var autoAdvance = true
+
+    @AppStorage(AppConstants.UserDefaults.songRequestAutoplayWhenEmpty)
+    private var autoplayWhenEmpty = true
+
+    @AppStorage(AppConstants.UserDefaults.songRequestFallbackPlaylist)
+    private var fallbackPlaylist = ""
+
+    var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             Text("Playback")
                 .font(.system(size: 13, weight: .semibold))
@@ -348,18 +315,34 @@ struct SongRequestSettingsView: View {
         .background(.quaternary.opacity(0.5))
         .clipShape(RoundedRectangle(cornerRadius: AppConstants.SettingsUI.cardCornerRadius))
     }
+}
 
-    // MARK: - Commands Card
+// MARK: - Commands
 
-    private var commandsCard: some View {
+fileprivate struct SongRequestCommandsCard: View {
+    @AppStorage(AppConstants.UserDefaults.srCommandEnabled) private var srCommandEnabled = true
+    @AppStorage(AppConstants.UserDefaults.queueCommandEnabled) private var queueCommandEnabled = true
+    @AppStorage(AppConstants.UserDefaults.myQueueCommandEnabled) private var myQueueCommandEnabled = true
+    @AppStorage(AppConstants.UserDefaults.skipCommandEnabled) private var skipCommandEnabled = true
+    @AppStorage(AppConstants.UserDefaults.clearQueueCommandEnabled) private var clearQueueCommandEnabled = true
+
+    @AppStorage(AppConstants.UserDefaults.srCommandAliases) private var srAliases = ""
+    @AppStorage(AppConstants.UserDefaults.queueCommandAliases) private var queueAliases = ""
+    @AppStorage(AppConstants.UserDefaults.myQueueCommandAliases) private var myQueueAliases = ""
+    @AppStorage(AppConstants.UserDefaults.skipCommandAliases) private var skipAliases = ""
+    @AppStorage(AppConstants.UserDefaults.clearQueueCommandAliases) private var clearQueueAliases = ""
+
+    @AppStorage(AppConstants.UserDefaults.songRequestGlobalCooldown) private var globalCooldown: Double = 5.0
+    @AppStorage(AppConstants.UserDefaults.songRequestUserCooldown) private var userCooldown: Double = 30.0
+
+    var body: some View {
         VStack(alignment: .leading, spacing: 16) {
             VStack(alignment: .leading, spacing: 6) {
                 HStack(spacing: 8) {
                     Image(systemName: "music.note.list")
                         .font(.system(size: 15))
                         .foregroundStyle(Color(nsColor: .controlAccentColor))
-                    Text("Song Request Commands")
-                        .sectionSubHeader()
+                    Text("Song Request Commands").sectionSubHeader()
                 }
 
                 Text("Toggle commands on/off and add custom aliases (comma-separated, without !).")
@@ -368,7 +351,7 @@ struct SongRequestSettingsView: View {
             }
 
             VStack(spacing: 1) {
-                commandToggleRow(
+                CommandToggleRow(
                     title: "!sr Command",
                     subtitle: "!sr  ·  !request  ·  !songrequest",
                     isOn: $srCommandEnabled,
@@ -378,16 +361,15 @@ struct SongRequestSettingsView: View {
                 )
 
                 if srCommandEnabled {
-                    cooldownRow(
+                    CooldownRow(
                         label: "!sr cooldowns",
                         globalCooldown: $globalCooldown,
                         userCooldown: $userCooldown
                     )
-
-                    aliasRow(aliases: $srAliases)
+                    AliasRow(aliases: $srAliases)
                 }
 
-                commandToggleRow(
+                CommandToggleRow(
                     title: "!queue Command",
                     subtitle: "!queue  ·  !songlist  ·  !requests",
                     isOn: $queueCommandEnabled,
@@ -396,10 +378,10 @@ struct SongRequestSettingsView: View {
                 )
 
                 if queueCommandEnabled {
-                    aliasRow(aliases: $queueAliases)
+                    AliasRow(aliases: $queueAliases)
                 }
 
-                commandToggleRow(
+                CommandToggleRow(
                     title: "!myqueue Command",
                     subtitle: "!myqueue  ·  !mysongs",
                     isOn: $myQueueCommandEnabled,
@@ -408,10 +390,10 @@ struct SongRequestSettingsView: View {
                 )
 
                 if myQueueCommandEnabled {
-                    aliasRow(aliases: $myQueueAliases)
+                    AliasRow(aliases: $myQueueAliases)
                 }
 
-                commandToggleRow(
+                CommandToggleRow(
                     title: "!skip Command",
                     subtitle: "!skip  ·  !next  (mod only)",
                     isOn: $skipCommandEnabled,
@@ -420,10 +402,10 @@ struct SongRequestSettingsView: View {
                 )
 
                 if skipCommandEnabled {
-                    aliasRow(aliases: $skipAliases)
+                    AliasRow(aliases: $skipAliases)
                 }
 
-                commandToggleRow(
+                CommandToggleRow(
                     title: "!clearqueue Command",
                     subtitle: "!clearqueue  ·  !cq  (mod only)",
                     isOn: $clearQueueCommandEnabled,
@@ -433,7 +415,7 @@ struct SongRequestSettingsView: View {
                 )
 
                 if clearQueueCommandEnabled {
-                    aliasRow(aliases: $clearQueueAliases, isLast: true)
+                    AliasRow(aliases: $clearQueueAliases, isLast: true)
                 }
             }
             .background(Color(nsColor: .controlBackgroundColor))
@@ -449,10 +431,18 @@ struct SongRequestSettingsView: View {
             }
         }
     }
+}
 
-    // MARK: - Blocklist Card
+// MARK: - Blocklist
 
-    private var blocklistCard: some View {
+fileprivate struct SongRequestBlocklistCard: View {
+    let blocklistProvider: () -> SongBlocklist?
+
+    @State private var blocklistText = ""
+    @State private var blocklistType: BlocklistItem.BlockType = .song
+    @State private var blocklist: [BlocklistItem] = []
+
+    var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             Text("Blocklist")
                 .font(.system(size: 13, weight: .semibold))
@@ -477,8 +467,8 @@ struct SongRequestSettingsView: View {
                     let trimmed = blocklistText.trimmingCharacters(in: .whitespacesAndNewlines)
                     guard !trimmed.isEmpty else { return }
                     let item = BlocklistItem(value: trimmed, type: blocklistType)
-                    songBlocklist?.add(item)
-                    blocklist = songBlocklist?.allEntries ?? []
+                    blocklistProvider()?.add(item)
+                    blocklist = blocklistProvider()?.allEntries ?? []
                     blocklistText = ""
                 }
                 .buttonStyle(.borderedProminent)
@@ -495,8 +485,7 @@ struct SongRequestSettingsView: View {
                                 .foregroundStyle(.secondary)
                                 .frame(width: 16)
 
-                            Text(item.value)
-                                .font(.system(size: 12))
+                            Text(item.value).font(.system(size: 12))
 
                             Text(item.type == .song ? "Song" : "Artist")
                                 .font(.system(size: 10))
@@ -509,8 +498,8 @@ struct SongRequestSettingsView: View {
                             Spacer()
 
                             Button {
-                                songBlocklist?.remove(id: item.id)
-                                blocklist = songBlocklist?.allEntries ?? []
+                                blocklistProvider()?.remove(id: item.id)
+                                blocklist = blocklistProvider()?.allEntries ?? []
                             } label: {
                                 Image(systemName: "xmark.circle.fill")
                                     .font(.system(size: 12))
@@ -527,25 +516,28 @@ struct SongRequestSettingsView: View {
         .padding(AppConstants.SettingsUI.cardPadding)
         .background(.quaternary.opacity(0.5))
         .clipShape(RoundedRectangle(cornerRadius: AppConstants.SettingsUI.cardCornerRadius))
+        .onAppear {
+            blocklist = blocklistProvider()?.allEntries ?? []
+        }
     }
+}
 
-    // MARK: - Reusable Row Helpers
+// MARK: - Reusable rows
 
-    /// A toggle row for enabling/disabling a single bot command (matches SettingsView pattern).
-    @ViewBuilder
-    private func commandToggleRow(
-        title: String,
-        subtitle: String,
-        isOn: Binding<Bool>,
-        accessibilityLabel: String,
-        accessibilityIdentifier: String,
-        isFirst: Bool = false,
-        isLast: Bool = false
-    ) -> some View {
+fileprivate struct CommandToggleRow: View {
+    let title: String
+    let subtitle: String
+    @Binding var isOn: Bool
+    let accessibilityLabel: String
+    let accessibilityIdentifier: String
+    var isFirst: Bool = false
+    var isLast: Bool = false
+
+    var body: some View {
         ToggleSettingRow(
             title: title,
             subtitle: subtitle,
-            isOn: isOn,
+            isOn: $isOn,
             accessibilityLabel: accessibilityLabel,
             accessibilityIdentifier: accessibilityIdentifier
         )
@@ -554,20 +546,19 @@ struct SongRequestSettingsView: View {
         .background(Color(nsColor: .controlBackgroundColor))
         .overlay(alignment: .bottom) {
             if !isLast {
-                Divider()
-                    .padding(.leading, AppConstants.SettingsUI.cardPadding)
+                Divider().padding(.leading, AppConstants.SettingsUI.cardPadding)
             }
         }
     }
+}
 
-    /// A row with global and per-user cooldown sliders (matches SettingsView pattern).
-    @ViewBuilder
-    private func cooldownRow(
-        label: String,
-        globalCooldown: Binding<Double>,
-        userCooldown: Binding<Double>,
-        isLast: Bool = false
-    ) -> some View {
+fileprivate struct CooldownRow: View {
+    let label: String
+    @Binding var globalCooldown: Double
+    @Binding var userCooldown: Double
+    var isLast: Bool = false
+
+    var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             Text(label)
                 .font(.system(size: 11, weight: .medium))
@@ -576,24 +567,24 @@ struct SongRequestSettingsView: View {
 
             HStack(spacing: 12) {
                 VStack(alignment: .leading, spacing: 2) {
-                    Text("Everyone: \(Int(globalCooldown.wrappedValue))s")
+                    Text("Everyone: \(Int(globalCooldown))s")
                         .font(.system(size: 11))
                         .foregroundStyle(.secondary)
-                    Slider(value: globalCooldown, in: 0...30, step: 5)
+                    Slider(value: $globalCooldown, in: 0...30, step: 5)
                         .controlSize(.small)
                         .accessibilityLabel("\(label) global cooldown")
-                        .accessibilityValue("\(Int(globalCooldown.wrappedValue)) seconds")
+                        .accessibilityValue("\(Int(globalCooldown)) seconds")
                         .accessibilityHint("Adjusts the global cooldown between 0 and 30 seconds")
                 }
 
                 VStack(alignment: .leading, spacing: 2) {
-                    Text("Per person: \(Int(userCooldown.wrappedValue))s")
+                    Text("Per person: \(Int(userCooldown))s")
                         .font(.system(size: 11))
                         .foregroundStyle(.secondary)
-                    Slider(value: userCooldown, in: 0...60, step: 5)
+                    Slider(value: $userCooldown, in: 0...60, step: 5)
                         .controlSize(.small)
                         .accessibilityLabel("\(label) per-user cooldown")
-                        .accessibilityValue("\(Int(userCooldown.wrappedValue)) seconds")
+                        .accessibilityValue("\(Int(userCooldown)) seconds")
                         .accessibilityHint("Adjusts the per-user cooldown between 0 and 60 seconds")
                 }
             }
@@ -603,20 +594,22 @@ struct SongRequestSettingsView: View {
         .background(Color(nsColor: .controlBackgroundColor))
         .overlay(alignment: .bottom) {
             if !isLast {
-                Divider()
-                    .padding(.leading, AppConstants.SettingsUI.cardPadding)
+                Divider().padding(.leading, AppConstants.SettingsUI.cardPadding)
             }
         }
     }
+}
 
-    /// A row for custom command aliases.
-    @ViewBuilder
-    private func aliasRow(aliases: Binding<String>, isLast: Bool = false) -> some View {
+fileprivate struct AliasRow: View {
+    @Binding var aliases: String
+    var isLast: Bool = false
+
+    var body: some View {
         HStack(spacing: 8) {
             Text("Custom aliases:")
                 .font(.system(size: 11))
                 .foregroundStyle(.tertiary)
-            TextField("e.g. play, add", text: aliases)
+            TextField("e.g. play, add", text: $aliases)
                 .textFieldStyle(.roundedBorder)
                 .font(.system(size: 11))
                 .frame(maxWidth: 200)
@@ -626,28 +619,8 @@ struct SongRequestSettingsView: View {
         .background(Color(nsColor: .controlBackgroundColor))
         .overlay(alignment: .bottom) {
             if !isLast {
-                Divider()
-                    .padding(.leading, AppConstants.SettingsUI.cardPadding)
+                Divider().padding(.leading, AppConstants.SettingsUI.cardPadding)
             }
-        }
-    }
-
-    // MARK: - Twitch State Helpers
-
-    private func refreshTwitchState() {
-        let connected = appDelegate?.twitchService?.isConnected ?? false
-        updateTwitchState(connected)
-    }
-
-    private func updateTwitchState(_ connected: Bool) {
-        isTwitchConnected = connected
-        if !connected && songRequestEnabled {
-            songRequestEnabled = false
-            NotificationCenter.default.post(
-                name: NSNotification.Name(AppConstants.Notifications.songRequestSettingChanged),
-                object: nil,
-                userInfo: ["enabled": false]
-            )
         }
     }
 }

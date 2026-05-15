@@ -289,10 +289,25 @@ struct SongRequestQueueView: View {
     }
 
     private func refreshState() {
-        items = queue?.items ?? []
-        nowPlaying = queue?.nowPlaying
-        isMusicAppClosed = !(service?.musicController.isMusicAppRunning ?? true)
-        isHeld = service?.isHoldEnabled ?? false
+        // Only mutate @State when the value actually changes — assigning the same
+        // value still invalidates the view, so a 2-second tick would force a full
+        // ForEach diff every cycle even when nothing changed.
+        let newItems = queue?.items ?? []
+        if newItems.map(\.id) != items.map(\.id) {
+            items = newItems
+        }
+        let newNowPlaying = queue?.nowPlaying
+        if newNowPlaying?.id != nowPlaying?.id {
+            nowPlaying = newNowPlaying
+        }
+        let newMusicAppClosed = !(service?.musicController.isMusicAppRunning ?? true)
+        if newMusicAppClosed != isMusicAppClosed {
+            isMusicAppClosed = newMusicAppClosed
+        }
+        let newHeld = service?.isHoldEnabled ?? false
+        if newHeld != isHeld {
+            isHeld = newHeld
+        }
     }
 }
 

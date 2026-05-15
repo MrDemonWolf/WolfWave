@@ -5,133 +5,23 @@
 //  Created by MrDemonWolf, Inc. on 1/17/26.
 //
 
-import Darwin
+import Network
 import SwiftUI
 
 /// Now-playing widget settings: server port, enable/disable toggle, status, and widget URL.
+///
+/// The view is decomposed into three sibling cards so a state change in one card doesn't
+/// invalidate the others. Network IP discovery is cached in `@State` and refreshed off-main
+/// via `NWPathMonitor` to avoid running `getifaddrs` on every render.
 struct WebSocketSettingsView: View {
-    // MARK: - User Settings
-
     @AppStorage(AppConstants.UserDefaults.websocketEnabled)
     private var websocketEnabled = false
 
-    @AppStorage(AppConstants.UserDefaults.websocketServerPort)
-    private var storedPort: Int = Int(AppConstants.WebSocketServer.defaultPort)
-
-    @AppStorage(AppConstants.UserDefaults.widgetHTTPEnabled)
-    private var widgetHTTPEnabled = false
-
-    @AppStorage(AppConstants.UserDefaults.widgetPort)
-    private var storedWidgetPort: Int = Int(AppConstants.WebSocketServer.widgetDefaultPort)
-
-    @AppStorage(AppConstants.UserDefaults.widgetTheme)
-    private var widgetTheme = "Default"
-
-    @AppStorage(AppConstants.UserDefaults.widgetLayout)
-    private var widgetLayout = "Horizontal"
-
-    @AppStorage(AppConstants.UserDefaults.widgetTextColor)
-    private var widgetTextColor = "#FFFFFF"
-
-    @AppStorage(AppConstants.UserDefaults.widgetBackgroundColor)
-    private var widgetBackgroundColor = "#1A1A2E"
-
-    @AppStorage(AppConstants.UserDefaults.widgetFontFamily)
-    private var widgetFontFamily = "System Default"
-
     // MARK: - State
 
-    @State private var portText: String = ""
-    @State private var widgetPortText: String = ""
     @State private var serverState: WebSocketServerService.ServerState = .stopped
     @State private var clientCount: Int = 0
-
-    private let cardPadding = AppConstants.SettingsUI.cardPadding
-
-    private var widgetURL: String {
-        let port = storedWidgetPort > 0 ? storedWidgetPort : Int(AppConstants.WebSocketServer.widgetDefaultPort)
-        return "http://localhost:\(port)"
-    }
-
-    private var connectionURL: String {
-        "ws://localhost:\(storedPort)"
-    }
-
-    private var networkConnectionURL: String? {
-        guard let ip = localNetworkIP else { return nil }
-        return "ws://\(ip):\(storedPort)"
-    }
-
-    private var networkWidgetURL: String? {
-        guard let ip = localNetworkIP else { return nil }
-        let port = storedWidgetPort > 0 ? storedWidgetPort : Int(AppConstants.WebSocketServer.widgetDefaultPort)
-        return "http://\(ip):\(port)"
-    }
-
-    /// Returns the device's primary non-loopback IPv4 address, or `nil` if not on a network.
-    private var localNetworkIP: String? {
-        var ifaddr: UnsafeMutablePointer<ifaddrs>?
-        guard getifaddrs(&ifaddr) == 0 else { return nil }
-        defer { freeifaddrs(ifaddr) }
-
-        var ptr = ifaddr
-        while let interface = ptr {
-            let flags = Int32(interface.pointee.ifa_flags)
-            let isUp = flags & Int32(IFF_UP) != 0
-            let isRunning = flags & Int32(IFF_RUNNING) != 0
-            let isLoopback = flags & Int32(IFF_LOOPBACK) != 0
-
-            if let addr = interface.pointee.ifa_addr,
-               addr.pointee.sa_family == UInt8(AF_INET),
-               isUp, isRunning, !isLoopback {
-                var host = [CChar](repeating: 0, count: Int(NI_MAXHOST))
-                getnameinfo(addr, socklen_t(addr.pointee.sa_len),
-                            &host, socklen_t(host.count),
-                            nil, 0, NI_NUMERICHOST)
-                return String(cString: host)
-            }
-            ptr = interface.pointee.ifa_next
-        }
-        return nil
-    }
-
-    /// A `Binding<Color>` that reads/writes `widgetTextColor` as a hex string.
-    private var textColorBinding: Binding<Color> {
-        Binding(
-            get: { Color(hex: widgetTextColor) ?? .white },
-            set: { newColor in
-                if let hex = newColor.toHex() {
-                    widgetTextColor = hex
-                }
-                broadcastWidgetConfig()
-            }
-        )
-    }
-
-    /// A `Binding<Color>` that reads/writes `widgetBackgroundColor` as a hex string.
-    private var backgroundColorBinding: Binding<Color> {
-        Binding(
-            get: { Color(hex: widgetBackgroundColor) ?? .black },
-            set: { newColor in
-                if let hex = newColor.toHex() {
-                    widgetBackgroundColor = hex
-                }
-                broadcastWidgetConfig()
-            }
-        )
-    }
-
-    private var isPortValid: Bool {
-        guard let port = UInt16(portText) else { return false }
-        return port >= AppConstants.WebSocketServer.minPort
-            && port <= AppConstants.WebSocketServer.maxPort
-    }
-
-    private var isWidgetPortValid: Bool {
-        guard let port = UInt16(widgetPortText) else { return false }
-        return port >= AppConstants.WebSocketServer.minPort
-            && port <= AppConstants.WebSocketServer.maxPort
-    }
+    @State private var localNetworkIP: String? = nil
 
     var body: some View {
         VStack(alignment: .leading, spacing: AppConstants.SettingsUI.sectionSpacing) {
@@ -142,18 +32,20 @@ struct WebSocketSettingsView: View {
                 statusColor: serverStatusColor
             )
 
-            serverSettingsCard
+            WebSocketServerCard(serverState: serverState, localNetworkIP: localNetworkIP)
 
-            browserSourceCard
+            WebSocketBrowserSourceCard(localNetworkIP: localNetworkIP)
                 .transition(.opacity)
 
-            widgetAppearanceCard
+            WebSocketWidgetAppearanceCard()
                 .transition(.opacity)
         }
-        .onAppear {
-            portText = String(storedPort)
-            widgetPortText = String(storedWidgetPort)
+        .task(id: websocketEnabled) {
             refreshServerState()
+            await refreshLocalIP()
+        }
+        .task {
+            await monitorNetworkPath()
         }
         .onReceive(
             NotificationCenter.default.publisher(
@@ -172,19 +64,97 @@ struct WebSocketSettingsView: View {
         }
     }
 
-    // MARK: - Server Settings Card
+    // MARK: - Status helpers
 
-    /// Card with the main server toggle, port config, and connection URLs for local and network use.
-    private var serverSettingsCard: some View {
+    private var serverStatusText: String {
+        switch serverState {
+        case .listening:
+            return clientCount > 0 ? "\(clientCount) connected" : "Listening"
+        case .starting:
+            return "Starting"
+        case .error:
+            return "Error"
+        case .stopped:
+            return "Stopped"
+        }
+    }
+
+    private var serverStatusColor: Color {
+        switch serverState {
+        case .listening: return .green
+        case .starting:  return .orange
+        case .error:     return .red
+        case .stopped:   return .gray
+        }
+    }
+
+    private func refreshServerState() {
+        guard let appDelegate = AppDelegate.shared else { return }
+        serverState = appDelegate.websocketServer?.state ?? .stopped
+        clientCount = appDelegate.websocketServer?.connectionCount ?? 0
+    }
+
+    private func refreshLocalIP() async {
+        let ip = await NetworkInfoService.shared.primaryIPv4()
+        if ip != localNetworkIP {
+            await MainActor.run { localNetworkIP = ip }
+        }
+    }
+
+    /// Watches the system network path and refreshes the cached LAN IP when it changes.
+    private func monitorNetworkPath() async {
+        let monitor = NWPathMonitor()
+        let stream = AsyncStream<NWPath> { continuation in
+            monitor.pathUpdateHandler = { path in
+                continuation.yield(path)
+            }
+            continuation.onTermination = { _ in monitor.cancel() }
+            monitor.start(queue: .global(qos: .utility))
+        }
+        for await _ in stream {
+            await refreshLocalIP()
+        }
+    }
+}
+
+// MARK: - Server Card
+
+fileprivate struct WebSocketServerCard: View {
+    @AppStorage(AppConstants.UserDefaults.websocketEnabled)
+    private var websocketEnabled = false
+
+    @AppStorage(AppConstants.UserDefaults.websocketServerPort)
+    private var storedPort: Int = Int(AppConstants.WebSocketServer.defaultPort)
+
+    @State private var portText: String = ""
+
+    let serverState: WebSocketServerService.ServerState
+    let localNetworkIP: String?
+
+    private let cardPadding = AppConstants.SettingsUI.cardPadding
+
+    private var connectionURL: String { "ws://localhost:\(storedPort)" }
+
+    private var networkConnectionURL: String? {
+        guard let ip = localNetworkIP else { return nil }
+        return "ws://\(ip):\(storedPort)"
+    }
+
+    private var isPortValid: Bool {
+        guard let port = UInt16(portText) else { return false }
+        return port >= AppConstants.WebSocketServer.minPort
+            && port <= AppConstants.WebSocketServer.maxPort
+    }
+
+    var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            // Enable toggle row
             ToggleSettingRow(
                 title: "Enable Now-Playing Widget",
                 subtitle: "Lets your widget show live song updates",
                 isOn: $websocketEnabled,
                 accessibilityLabel: "Toggle Now-Playing Widget",
                 accessibilityIdentifier: "websocketEnabledToggle",
-                onChange: { newValue in
+                onChange: { _ in
                     withAnimation(.easeInOut(duration: 0.2)) {
                         notifyServerSettingChanged()
                     }
@@ -193,21 +163,16 @@ struct WebSocketSettingsView: View {
             .padding(.horizontal, cardPadding)
             .padding(.vertical, 12)
 
-            Divider()
-                .padding(.leading, cardPadding)
+            Divider().padding(.leading, cardPadding)
 
-            // Port row
             HStack(spacing: 12) {
                 VStack(alignment: .leading, spacing: 2) {
-                    Text("Port")
-                        .font(.system(size: 13, weight: .medium))
+                    Text("Port").font(.system(size: 13, weight: .medium))
                     Text(verbatim: "Default: \(AppConstants.WebSocketServer.defaultPort)")
                         .font(.system(size: 11))
                         .foregroundStyle(.tertiary)
                 }
-
                 Spacer()
-
                 TextField("Port", text: $portText)
                     .textFieldStyle(.roundedBorder)
                     .frame(width: 80)
@@ -215,9 +180,7 @@ struct WebSocketSettingsView: View {
                     .disabled(websocketEnabled)
                     .accessibilityLabel("Server port")
                     .accessibilityIdentifier("websocketPortField")
-                    .onSubmit {
-                        applyPort()
-                    }
+                    .onSubmit { applyPort() }
             }
             .padding(.horizontal, cardPadding)
             .padding(.vertical, 12)
@@ -247,10 +210,8 @@ struct WebSocketSettingsView: View {
                 .padding(.bottom, 8)
             }
 
-            Divider()
-                .padding(.leading, cardPadding)
+            Divider().padding(.leading, cardPadding)
 
-            // Local Address row
             HStack(spacing: 8) {
                 VStack(alignment: .leading, spacing: 2) {
                     Text("Local Address")
@@ -260,9 +221,7 @@ struct WebSocketSettingsView: View {
                         .font(.system(size: 12, design: .monospaced))
                         .textSelection(.enabled)
                 }
-
                 Spacer()
-
                 CopyButton(
                     text: connectionURL,
                     isDisabled: !websocketEnabled,
@@ -273,11 +232,8 @@ struct WebSocketSettingsView: View {
             .padding(.horizontal, cardPadding)
             .padding(.vertical, 12)
 
-            // Network Address row (shown when a LAN IP is available)
             if let networkURL = networkConnectionURL {
-                Divider()
-                    .padding(.leading, cardPadding)
-
+                Divider().padding(.leading, cardPadding)
                 HStack(spacing: 8) {
                     VStack(alignment: .leading, spacing: 2) {
                         Text("Network Address")
@@ -290,9 +246,7 @@ struct WebSocketSettingsView: View {
                             .font(.system(size: 10))
                             .foregroundStyle(.tertiary)
                     }
-
                     Spacer()
-
                     CopyButton(
                         text: networkURL,
                         isDisabled: !websocketEnabled,
@@ -303,27 +257,75 @@ struct WebSocketSettingsView: View {
                 .padding(.horizontal, cardPadding)
                 .padding(.vertical, 12)
             }
-
         }
         .background(Color(nsColor: .controlBackgroundColor))
         .clipShape(RoundedRectangle(cornerRadius: AppConstants.SettingsUI.cardCornerRadius))
+        .onAppear { portText = String(storedPort) }
     }
 
-    // MARK: - Browser Source Card
+    private func applyPort() {
+        guard isPortValid, let port = UInt16(portText) else { return }
+        storedPort = Int(port)
+        let userInfo: [String: Any] = ["port": port]
+        NotificationCenter.default.post(
+            name: NSNotification.Name(AppConstants.Notifications.websocketServerChanged),
+            object: nil,
+            userInfo: userInfo
+        )
+    }
 
-    /// Card for the OBS browser source setup: widget HTTP toggle, port, copyable URLs, and OBS tips.
-    private var browserSourceCard: some View {
+    private func notifyServerSettingChanged() {
+        NotificationCenter.default.post(
+            name: NSNotification.Name(AppConstants.Notifications.websocketServerChanged),
+            object: nil
+        )
+    }
+}
+
+// MARK: - Browser Source Card
+
+fileprivate struct WebSocketBrowserSourceCard: View {
+    @AppStorage(AppConstants.UserDefaults.websocketEnabled)
+    private var websocketEnabled = false
+
+    @AppStorage(AppConstants.UserDefaults.widgetHTTPEnabled)
+    private var widgetHTTPEnabled = false
+
+    @AppStorage(AppConstants.UserDefaults.widgetPort)
+    private var storedWidgetPort: Int = Int(AppConstants.WebSocketServer.widgetDefaultPort)
+
+    @State private var widgetPortText: String = ""
+
+    let localNetworkIP: String?
+
+    private let cardPadding = AppConstants.SettingsUI.cardPadding
+
+    private var widgetURL: String {
+        let port = storedWidgetPort > 0 ? storedWidgetPort : Int(AppConstants.WebSocketServer.widgetDefaultPort)
+        return "http://localhost:\(port)"
+    }
+
+    private var networkWidgetURL: String? {
+        guard let ip = localNetworkIP else { return nil }
+        let port = storedWidgetPort > 0 ? storedWidgetPort : Int(AppConstants.WebSocketServer.widgetDefaultPort)
+        return "http://\(ip):\(port)"
+    }
+
+    private var isWidgetPortValid: Bool {
+        guard let port = UInt16(widgetPortText) else { return false }
+        return port >= AppConstants.WebSocketServer.minPort
+            && port <= AppConstants.WebSocketServer.maxPort
+    }
+
+    var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            // Header
             VStack(alignment: .leading, spacing: 6) {
                 HStack(spacing: 8) {
                     Image(systemName: "rectangle.inset.filled.and.person.filled")
                         .font(.system(size: 14))
                         .foregroundStyle(Color(nsColor: .controlAccentColor))
-                    Text("Widget Setup")
-                        .sectionSubHeader()
+                    Text("Widget Setup").sectionSubHeader()
                 }
-
                 Text("Use this link in OBS (Browser Source) or open it in any browser.")
                     .font(.system(size: 12))
                     .foregroundStyle(.secondary)
@@ -333,10 +335,8 @@ struct WebSocketSettingsView: View {
             .padding(.top, cardPadding)
             .padding(.bottom, 12)
 
-            Divider()
-                .padding(.leading, cardPadding)
+            Divider().padding(.leading, cardPadding)
 
-            // Widget HTTP server toggle row
             ToggleSettingRow(
                 title: "Enable Widget Webpage",
                 subtitle: "Hosts the page you'll add to OBS",
@@ -355,21 +355,16 @@ struct WebSocketSettingsView: View {
             .padding(.vertical, 12)
             .opacity(websocketEnabled ? 1.0 : 0.5)
 
-            Divider()
-                .padding(.leading, cardPadding)
+            Divider().padding(.leading, cardPadding)
 
-            // Widget port row
             HStack(spacing: 12) {
                 VStack(alignment: .leading, spacing: 2) {
-                    Text("Widget Port (Advanced)")
-                        .font(.system(size: 13, weight: .medium))
+                    Text("Widget Port (Advanced)").font(.system(size: 13, weight: .medium))
                     Text(verbatim: "Default: \(AppConstants.WebSocketServer.widgetDefaultPort)")
                         .font(.system(size: 11))
                         .foregroundStyle(.tertiary)
                 }
-
                 Spacer()
-
                 TextField("Port", text: $widgetPortText)
                     .textFieldStyle(.roundedBorder)
                     .frame(width: 80)
@@ -377,9 +372,7 @@ struct WebSocketSettingsView: View {
                     .disabled(widgetHTTPEnabled)
                     .accessibilityLabel("Widget server port")
                     .accessibilityIdentifier("widgetPortField")
-                    .onSubmit {
-                        applyWidgetPort()
-                    }
+                    .onSubmit { applyWidgetPort() }
             }
             .padding(.horizontal, cardPadding)
             .padding(.vertical, 12)
@@ -410,17 +403,14 @@ struct WebSocketSettingsView: View {
                 .padding(.bottom, 8)
             }
 
-            Divider()
-                .padding(.leading, cardPadding)
+            Divider().padding(.leading, cardPadding)
 
-            // Browser Source URL
             VStack(alignment: .leading, spacing: 8) {
                 Text(widgetURL)
                     .font(.system(size: 11, design: .monospaced))
                     .textSelection(.enabled)
                     .lineLimit(2)
                     .fixedSize(horizontal: false, vertical: true)
-
                 HStack(spacing: 8) {
                     CopyButton(
                         text: widgetURL,
@@ -430,17 +420,14 @@ struct WebSocketSettingsView: View {
                         accessibilityLabel: "Copy widget URL",
                         accessibilityIdentifier: "copyWidgetURLButton"
                     )
-
                     Button {
                         if let url = URL(string: widgetURL) {
                             NSWorkspace.shared.open(url)
                         }
                     } label: {
                         HStack(spacing: 4) {
-                            Image(systemName: "safari")
-                                .font(.system(size: 11))
-                            Text("Open")
-                                .font(.system(size: 11))
+                            Image(systemName: "safari").font(.system(size: 11))
+                            Text("Open").font(.system(size: 11))
                         }
                     }
                     .buttonStyle(.bordered)
@@ -454,11 +441,8 @@ struct WebSocketSettingsView: View {
             .padding(.horizontal, cardPadding)
             .padding(.vertical, 12)
 
-            // Network widget URL (shown when a LAN IP is available)
             if let networkWidget = networkWidgetURL {
-                Divider()
-                    .padding(.leading, cardPadding)
-
+                Divider().padding(.leading, cardPadding)
                 VStack(alignment: .leading, spacing: 4) {
                     Text("Network Address")
                         .font(.system(size: 11, weight: .medium))
@@ -474,7 +458,6 @@ struct WebSocketSettingsView: View {
                 .padding(.vertical, 12)
             }
 
-            // Info tip
             HStack(alignment: .top, spacing: 8) {
                 Image(systemName: "info.circle.fill")
                     .font(.system(size: 12))
@@ -493,23 +476,72 @@ struct WebSocketSettingsView: View {
         }
         .background(Color(nsColor: .controlBackgroundColor))
         .clipShape(RoundedRectangle(cornerRadius: AppConstants.SettingsUI.cardCornerRadius))
+        .onAppear { widgetPortText = String(storedWidgetPort) }
     }
 
-    // MARK: - Widget Appearance Card
+    private func applyWidgetPort() {
+        guard isWidgetPortValid, let port = UInt16(widgetPortText) else { return }
+        storedWidgetPort = Int(port)
+        NotificationCenter.default.post(
+            name: NSNotification.Name(AppConstants.Notifications.widgetHTTPServerChanged),
+            object: nil
+        )
+    }
+}
 
-    /// Card for customizing widget look: theme, layout, text/background colors, and font picker.
-    private var widgetAppearanceCard: some View {
+// MARK: - Widget Appearance Card
+
+fileprivate struct WebSocketWidgetAppearanceCard: View {
+    @AppStorage(AppConstants.UserDefaults.widgetTheme)
+    private var widgetTheme = "Default"
+
+    @AppStorage(AppConstants.UserDefaults.widgetLayout)
+    private var widgetLayout = "Horizontal"
+
+    @AppStorage(AppConstants.UserDefaults.widgetTextColor)
+    private var widgetTextColor = "#FFFFFF"
+
+    @AppStorage(AppConstants.UserDefaults.widgetBackgroundColor)
+    private var widgetBackgroundColor = "#1A1A2E"
+
+    @AppStorage(AppConstants.UserDefaults.widgetFontFamily)
+    private var widgetFontFamily = "System Default"
+
+    /// Cached, sorted font family list. `availableFontFamilies` is fast but the sort isn't free
+    /// — keep it out of `body`.
+    private static let sortedFontFamilies: [String] = NSFontManager.shared.availableFontFamilies.sorted()
+
+    private let cardPadding = AppConstants.SettingsUI.cardPadding
+
+    private var textColorBinding: Binding<Color> {
+        Binding(
+            get: { Color(hex: widgetTextColor) ?? .white },
+            set: { newColor in
+                if let hex = newColor.toHex() { widgetTextColor = hex }
+                broadcastWidgetConfig()
+            }
+        )
+    }
+
+    private var backgroundColorBinding: Binding<Color> {
+        Binding(
+            get: { Color(hex: widgetBackgroundColor) ?? .black },
+            set: { newColor in
+                if let hex = newColor.toHex() { widgetBackgroundColor = hex }
+                broadcastWidgetConfig()
+            }
+        )
+    }
+
+    var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            // Header
             VStack(alignment: .leading, spacing: 6) {
                 HStack(spacing: 8) {
                     Image(systemName: "paintbrush.fill")
                         .font(.system(size: 14))
                         .foregroundStyle(Color(nsColor: .controlAccentColor))
-                    Text("Widget Appearance")
-                        .sectionSubHeader()
+                    Text("Widget Appearance").sectionSubHeader()
                 }
-
                 Text("Tweak colors, fonts, and layout for your widget.")
                     .font(.system(size: 12))
                     .foregroundStyle(.secondary)
@@ -519,14 +551,11 @@ struct WebSocketSettingsView: View {
             .padding(.top, cardPadding)
             .padding(.bottom, 12)
 
-            Divider()
-                .padding(.leading, cardPadding)
+            Divider().padding(.leading, cardPadding)
 
-            // Theme + Layout row
             HStack(spacing: 0) {
                 HStack(spacing: 8) {
-                    Text("Theme")
-                        .font(.system(size: 13, weight: .medium))
+                    Text("Theme").font(.system(size: 13, weight: .medium))
                     Spacer()
                     Picker("", selection: $widgetTheme) {
                         ForEach(AppConstants.Widget.themes, id: \.self) { theme in
@@ -537,9 +566,7 @@ struct WebSocketSettingsView: View {
                     .fixedSize()
                     .accessibilityLabel("Widget theme")
                     .accessibilityIdentifier("widgetThemePicker")
-                    .onChange(of: widgetTheme) { _, _ in
-                        broadcastWidgetConfig()
-                    }
+                    .onChange(of: widgetTheme) { _, _ in broadcastWidgetConfig() }
                 }
                 .padding(.horizontal, cardPadding)
                 .frame(maxWidth: .infinity)
@@ -547,8 +574,7 @@ struct WebSocketSettingsView: View {
                 Divider()
 
                 HStack(spacing: 8) {
-                    Text("Layout")
-                        .font(.system(size: 13, weight: .medium))
+                    Text("Layout").font(.system(size: 13, weight: .medium))
                     Spacer()
                     Picker("", selection: $widgetLayout) {
                         ForEach(AppConstants.Widget.layouts, id: \.self) { layout in
@@ -559,9 +585,7 @@ struct WebSocketSettingsView: View {
                     .fixedSize()
                     .accessibilityLabel("Widget layout")
                     .accessibilityIdentifier("widgetLayoutPicker")
-                    .onChange(of: widgetLayout) { _, _ in
-                        broadcastWidgetConfig()
-                    }
+                    .onChange(of: widgetLayout) { _, _ in broadcastWidgetConfig() }
                 }
                 .padding(.horizontal, cardPadding)
                 .frame(maxWidth: .infinity)
@@ -569,14 +593,11 @@ struct WebSocketSettingsView: View {
             .padding(.vertical, 12)
 
             if widgetTheme == "Default" || widgetTheme == "Glass" {
-                Divider()
-                    .padding(.leading, cardPadding)
+                Divider().padding(.leading, cardPadding)
 
-                // Text Color + Background Color row
                 HStack(spacing: 0) {
                     HStack(spacing: 8) {
-                        Text("Text Color")
-                            .font(.system(size: 13, weight: .medium))
+                        Text("Text Color").font(.system(size: 13, weight: .medium))
                         Spacer()
                         ColorPicker("", selection: textColorBinding, supportsOpacity: false)
                             .labelsHidden()
@@ -590,8 +611,7 @@ struct WebSocketSettingsView: View {
                     Divider()
 
                     HStack(spacing: 8) {
-                        Text("Bg Color")
-                            .font(.system(size: 13, weight: .medium))
+                        Text("Bg Color").font(.system(size: 13, weight: .medium))
                         Spacer()
                         ColorPicker("", selection: backgroundColorBinding, supportsOpacity: false)
                             .labelsHidden()
@@ -605,18 +625,15 @@ struct WebSocketSettingsView: View {
                 .padding(.vertical, 12)
             }
 
-            Divider()
-                .padding(.leading, cardPadding)
+            Divider().padding(.leading, cardPadding)
 
-            // Font row (full width)
             HStack(spacing: 12) {
-                Text("Font")
-                    .font(.system(size: 13, weight: .medium))
+                Text("Font").font(.system(size: 13, weight: .medium))
                 Spacer()
                 Picker("", selection: $widgetFontFamily) {
                     Text("System Default").tag("System Default")
                     Divider()
-                    ForEach(NSFontManager.shared.availableFontFamilies.sorted(), id: \.self) { font in
+                    ForEach(Self.sortedFontFamilies, id: \.self) { font in
                         Text(font).tag(font)
                     }
                 }
@@ -624,9 +641,7 @@ struct WebSocketSettingsView: View {
                 .fixedSize()
                 .accessibilityLabel("Widget font")
                 .accessibilityIdentifier("widgetFontPicker")
-                .onChange(of: widgetFontFamily) { _, _ in
-                    broadcastWidgetConfig()
-                }
+                .onChange(of: widgetFontFamily) { _, _ in broadcastWidgetConfig() }
             }
             .padding(.horizontal, cardPadding)
             .padding(.vertical, 12)
@@ -634,69 +649,6 @@ struct WebSocketSettingsView: View {
         .background(Color(nsColor: .controlBackgroundColor))
         .clipShape(RoundedRectangle(cornerRadius: AppConstants.SettingsUI.cardCornerRadius))
     }
-
-    // MARK: - Subviews
-
-    /// Human-readable label for the current server state (e.g. "Listening", "2 connected").
-    private var serverStatusText: String {
-        switch serverState {
-        case .listening:
-            return clientCount > 0 ? "\(clientCount) connected" : "Listening"
-        case .starting:
-            return "Starting"
-        case .error:
-            return "Error"
-        case .stopped:
-            return "Stopped"
-        }
-    }
-
-    /// Color dot for the server status badge (green, orange, red, or gray).
-    private var serverStatusColor: Color {
-        switch serverState {
-        case .listening: return .green
-        case .starting:  return .orange
-        case .error:     return .red
-        case .stopped:   return .gray
-        }
-    }
-
-    // MARK: - Helpers
-
-    private func refreshServerState() {
-        if let appDelegate = AppDelegate.shared {
-            serverState = appDelegate.websocketServer?.state ?? .stopped
-            clientCount = appDelegate.websocketServer?.connectionCount ?? 0
-        }
-    }
-
-    private func applyPort() {
-        guard isPortValid, let port = UInt16(portText) else { return }
-        storedPort = Int(port)
-        notifyServerSettingChanged(port: port)
-    }
-
-    private func applyWidgetPort() {
-        guard isWidgetPortValid, let port = UInt16(widgetPortText) else { return }
-        storedWidgetPort = Int(port)
-        NotificationCenter.default.post(
-            name: NSNotification.Name(AppConstants.Notifications.widgetHTTPServerChanged),
-            object: nil
-        )
-    }
-
-    private func notifyServerSettingChanged(port: UInt16? = nil) {
-        var userInfo: [String: Any] = [:]
-        if let port {
-            userInfo["port"] = port
-        }
-        NotificationCenter.default.post(
-            name: NSNotification.Name(AppConstants.Notifications.websocketServerChanged),
-            object: nil,
-            userInfo: userInfo.isEmpty ? nil : userInfo
-        )
-    }
-
 
     private func broadcastWidgetConfig() {
         AppDelegate.shared?.websocketServer?.broadcastWidgetConfig()
@@ -708,69 +660,22 @@ struct WebSocketSettingsView: View {
 #Preview("WebSocket Listening with Clients") {
     @Previewable @AppStorage(AppConstants.UserDefaults.websocketEnabled) var websocketEnabled = true
     @Previewable @AppStorage(AppConstants.UserDefaults.widgetHTTPEnabled) var widgetHTTPEnabled = true
-    
-    let view = WebSocketSettingsView()
-    return view
+
+    WebSocketSettingsView()
         .padding()
         .frame(width: 700)
         .onAppear {
-            // Simulate server listening with clients
             NotificationCenter.default.post(
                 name: NSNotification.Name(AppConstants.Notifications.websocketServerStateChanged),
                 object: nil,
-                userInfo: [
-                    "state": "listening",
-                    "clients": 2
-                ]
+                userInfo: ["state": "listening", "clients": 2]
             )
         }
 }
 
 #Preview("WebSocket Stopped") {
     @Previewable @AppStorage(AppConstants.UserDefaults.websocketEnabled) var websocketEnabled = false
-    
     WebSocketSettingsView()
         .padding()
         .frame(width: 700)
 }
-#Preview("WebSocket Starting") {
-    @Previewable @AppStorage(AppConstants.UserDefaults.websocketEnabled) var websocketEnabled = true
-    
-    let view = WebSocketSettingsView()
-    return view
-        .padding()
-        .frame(width: 700)
-        .onAppear {
-            NotificationCenter.default.post(
-                name: NSNotification.Name(AppConstants.Notifications.websocketServerStateChanged),
-                object: nil,
-                userInfo: ["state": "starting"]
-            )
-        }
-}
-
-#Preview("WebSocket Error State") {
-    @Previewable @AppStorage(AppConstants.UserDefaults.websocketEnabled) var websocketEnabled = true
-    
-    let view = WebSocketSettingsView()
-    return view
-        .padding()
-        .frame(width: 700)
-        .onAppear {
-            NotificationCenter.default.post(
-                name: NSNotification.Name(AppConstants.Notifications.websocketServerStateChanged),
-                object: nil,
-                userInfo: ["state": "error"]
-            )
-        }
-}
-
-#Preview("Custom Theme Settings") {
-    @Previewable @AppStorage(AppConstants.UserDefaults.websocketEnabled) var websocketEnabled = true
-    @Previewable @AppStorage(AppConstants.UserDefaults.widgetTheme) var widgetTheme = "Default"
-    
-    WebSocketSettingsView()
-        .padding()
-        .frame(width: 700)
-}
-

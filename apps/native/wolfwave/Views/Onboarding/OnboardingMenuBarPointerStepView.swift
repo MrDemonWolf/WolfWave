@@ -55,6 +55,13 @@ struct OnboardingMenuBarPointerStepView: View {
                 iconPulsing = true
             }
         }
+        .onDisappear {
+            // Stop the CADisplayLink-driven loops once the user moves past this step.
+            withAnimation(.linear(duration: 0)) {
+                arrowBobbing = false
+                iconPulsing = false
+            }
+        }
         .accessibilityElement(children: .combine)
         .accessibilityLabel("Find WolfWave in your menu bar.")
     }
