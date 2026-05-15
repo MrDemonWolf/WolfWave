@@ -19,9 +19,13 @@ struct WebSocketSettingsView: View {
 
     // MARK: - State
 
-    @State private var serverState: WebSocketServerService.ServerState = .stopped
-    @State private var clientCount: Int = 0
-    @State private var localNetworkIP: String? = nil
+    // Seed from live services + cached IP so the first frame already reflects reality
+    // instead of flashing "Stopped" or an empty Network Address row.
+    @State private var serverState: WebSocketServerService.ServerState =
+        AppDelegate.shared?.websocketServer?.state ?? .stopped
+    @State private var clientCount: Int =
+        AppDelegate.shared?.websocketServer?.connectionCount ?? 0
+    @State private var localNetworkIP: String? = NetworkInfoService.cachedIPv4
 
     var body: some View {
         VStack(alignment: .leading, spacing: AppConstants.SettingsUI.sectionSpacing) {
@@ -95,9 +99,12 @@ struct WebSocketSettingsView: View {
     }
 
     private func refreshLocalIP() async {
-        let ip = await NetworkInfoService.shared.primaryIPv4()
-        if ip != localNetworkIP {
-            await MainActor.run { localNetworkIP = ip }
+        let ip = await NetworkInfoService.shared.refreshIPv4()
+        await MainActor.run {
+            guard ip != localNetworkIP else { return }
+            withAnimation(.easeInOut(duration: 0.22)) {
+                localNetworkIP = ip
+            }
         }
     }
 
@@ -233,31 +240,39 @@ fileprivate struct WebSocketServerCard: View {
             .padding(.horizontal, cardPadding)
             .padding(.vertical, 12)
 
-            if let networkURL = networkConnectionURL {
-                Divider().padding(.leading, cardPadding)
-                HStack(spacing: 8) {
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text("Network Address")
-                            .font(.system(size: 11, weight: .medium))
-                            .foregroundStyle(.secondary)
-                        Text(networkURL)
-                            .font(.system(size: 12, design: .monospaced))
-                            .textSelection(.enabled)
-                        Text("Use this for two-PC setups.")
-                            .font(.system(size: 10))
-                            .foregroundStyle(.tertiary)
+            Group {
+                if let networkURL = networkConnectionURL {
+                    VStack(spacing: 0) {
+                        Divider().padding(.leading, cardPadding)
+                        HStack(spacing: 8) {
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text("Network Address")
+                                    .font(.system(size: 11, weight: .medium))
+                                    .foregroundStyle(.secondary)
+                                Text(networkURL)
+                                    .font(.system(size: 12, design: .monospaced))
+                                    .textSelection(.enabled)
+                                    .contentTransition(.opacity)
+                                Text("Use this for two-PC setups.")
+                                    .font(.system(size: 10))
+                                    .foregroundStyle(.tertiary)
+                            }
+                            Spacer()
+                            CopyButton(
+                                text: networkURL,
+                                isDisabled: !websocketEnabled,
+                                accessibilityLabel: "Copy network connection URL",
+                                accessibilityIdentifier: "copyNetworkConnectionURLButton"
+                            )
+                        }
+                        .padding(.horizontal, cardPadding)
+                        .padding(.vertical, 12)
                     }
-                    Spacer()
-                    CopyButton(
-                        text: networkURL,
-                        isDisabled: !websocketEnabled,
-                        accessibilityLabel: "Copy network connection URL",
-                        accessibilityIdentifier: "copyNetworkConnectionURLButton"
-                    )
+                    .id(networkURL)
+                    .transition(.opacity.combined(with: .move(edge: .top)))
                 }
-                .padding(.horizontal, cardPadding)
-                .padding(.vertical, 12)
             }
+            .animation(.easeInOut(duration: 0.22), value: localNetworkIP)
         }
         .background(Color(nsColor: .controlBackgroundColor))
         .clipShape(RoundedRectangle(cornerRadius: AppConstants.SettingsUI.cardCornerRadius))
@@ -442,22 +457,30 @@ fileprivate struct WebSocketBrowserSourceCard: View {
             .padding(.horizontal, cardPadding)
             .padding(.vertical, 12)
 
-            if let networkWidget = networkWidgetURL {
-                Divider().padding(.leading, cardPadding)
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("Network Address")
-                        .font(.system(size: 11, weight: .medium))
-                        .foregroundStyle(.secondary)
-                    Text(networkWidget)
-                        .font(.system(size: 11, design: .monospaced))
-                        .textSelection(.enabled)
-                    Text("Use this for two-PC setups.")
-                        .font(.system(size: 10))
-                        .foregroundStyle(.tertiary)
+            Group {
+                if let networkWidget = networkWidgetURL {
+                    VStack(spacing: 0) {
+                        Divider().padding(.leading, cardPadding)
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("Network Address")
+                                .font(.system(size: 11, weight: .medium))
+                                .foregroundStyle(.secondary)
+                            Text(networkWidget)
+                                .font(.system(size: 11, design: .monospaced))
+                                .textSelection(.enabled)
+                                .contentTransition(.opacity)
+                            Text("Use this for two-PC setups.")
+                                .font(.system(size: 10))
+                                .foregroundStyle(.tertiary)
+                        }
+                        .padding(.horizontal, cardPadding)
+                        .padding(.vertical, 12)
+                    }
+                    .id(networkWidget)
+                    .transition(.opacity.combined(with: .move(edge: .top)))
                 }
-                .padding(.horizontal, cardPadding)
-                .padding(.vertical, 12)
             }
+            .animation(.easeInOut(duration: 0.22), value: localNetworkIP)
 
             HStack(alignment: .top, spacing: 8) {
                 Image(systemName: "info.circle.fill")

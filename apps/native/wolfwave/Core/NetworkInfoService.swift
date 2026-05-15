@@ -5,17 +5,56 @@
 
 import Darwin
 import Foundation
+import os
 
 /// Off-main helper for resolving the device's primary non-loopback IPv4 address.
 ///
-/// `getifaddrs` walks every network interface and was previously invoked from a SwiftUI view's
-/// computed property — meaning it ran on every body render. This actor isolates the syscall and
-/// callers cache the result in `@State`, refreshing only on network path changes.
+/// `getifaddrs` walks every network interface. The result is cached behind a lock so SwiftUI
+/// views can read the last-known IP synchronously (no `await`) on first render, eliminating the
+/// "pop-in" lag previously seen when opening the Now-Playing Server settings.
+///
+/// Refreshes still serialize through the actor; reads hit the lock-protected static cache.
 actor NetworkInfoService {
     static let shared = NetworkInfoService()
 
-    /// Returns the first non-loopback, up, running IPv4 address, or `nil` if not connected.
+    // MARK: - Cache
+
+    private static let cacheLock = OSAllocatedUnfairLock<String?>(initialState: nil)
+
+    /// Last-known IPv4 address, readable from any thread. `nil` until first refresh completes.
+    static var cachedIPv4: String? {
+        cacheLock.withLock { $0 }
+    }
+
+    /// Synchronously walks `getifaddrs` and primes the cache. Call once at app launch on a
+    /// background thread so the first Settings open always finds a hot cache.
+    @discardableResult
+    static func warmCache() -> String? {
+        let value = computePrimaryIPv4()
+        cacheLock.withLock { $0 = value }
+        return value
+    }
+
+    // MARK: - Public API
+
+    /// Returns the cached IPv4 address if available, otherwise walks `getifaddrs` and caches the result.
     func primaryIPv4() -> String? {
+        if let cached = Self.cachedIPv4 { return cached }
+        return refreshIPv4()
+    }
+
+    /// Forces a fresh `getifaddrs` walk and updates the cache. Returns the new value.
+    @discardableResult
+    func refreshIPv4() -> String? {
+        let value = Self.computePrimaryIPv4()
+        Self.cacheLock.withLock { $0 = value }
+        return value
+    }
+
+    // MARK: - Private
+
+    /// Returns the first non-loopback, up, running IPv4 address, or `nil` if not connected.
+    private static func computePrimaryIPv4() -> String? {
         var ifaddr: UnsafeMutablePointer<ifaddrs>?
         guard getifaddrs(&ifaddr) == 0 else { return nil }
         defer { freeifaddrs(ifaddr) }
