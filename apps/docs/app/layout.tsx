@@ -31,10 +31,11 @@ const jetbrainsMono = JetBrains_Mono({
 
 const siteUrl = "https://mrdemonwolf.github.io/wolfwave";
 const basePath = (() => {
-  const envValue = process.env.NEXT_PUBLIC_BASE_PATH ?? "";
-  if (!envValue) return "";
-  let path = "";
-  try { path = new URL(envValue).pathname; } catch { path = envValue; }
+  const envValue = process.env.NEXT_PUBLIC_BASE_PATH;
+  if (envValue === undefined) return "/wolfwave";
+  if (envValue === "" || envValue === "/") return "";
+  let path = envValue;
+  try { path = new URL(envValue).pathname; } catch {}
   if (!path || path === "/") return "";
   const normalized = path.startsWith("/") ? path : `/${path}`;
   return normalized.endsWith("/") ? normalized.slice(0, -1) : normalized;

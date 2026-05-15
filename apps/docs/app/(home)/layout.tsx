@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { HomeLayout } from "fumadocs-ui/layouts/home";
 import { baseOptions } from "@/lib/layout.shared";
 
@@ -40,15 +41,15 @@ export default function Layout({ children }: LayoutProps<"/">) {
             >
               Discord
             </a>
-            <a href="/docs" className="hover:ww-text-1 transition-colors">
+            <Link href="/docs" className="hover:ww-text-1 transition-colors">
               Docs
-            </a>
-            <a
+            </Link>
+            <Link
               href="/docs/privacy-policy"
               className="hover:ww-text-1 transition-colors"
             >
               Privacy
-            </a>
+            </Link>
           </nav>
         </div>
       </footer>
