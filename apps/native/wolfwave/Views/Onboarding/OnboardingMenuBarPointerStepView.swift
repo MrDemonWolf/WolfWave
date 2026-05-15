@@ -28,7 +28,7 @@ struct OnboardingMenuBarPointerStepView: View {
             menuBarPreview
                 .padding(.bottom, 4)
 
-            arrow
+            arrowSlot
 
             VStack(spacing: 8) {
                 Text("Find WolfWave up here")
@@ -46,6 +46,16 @@ struct OnboardingMenuBarPointerStepView: View {
             Spacer(minLength: 0)
         }
         .padding(.horizontal, 24)
+        .overlayPreferenceValue(IconCenterAnchorKey.self) { anchor in
+            GeometryReader { proxy in
+                if let anchor {
+                    let point = proxy[anchor]
+                    arrow
+                        .position(x: point.x, y: point.y + arrowVerticalGap)
+                }
+            }
+            .allowsHitTesting(false)
+        }
         .onAppear {
             guard !reduceMotion else { return }
             withAnimation(.easeInOut(duration: 0.9).repeatForever(autoreverses: true)) {
@@ -96,6 +106,7 @@ struct OnboardingMenuBarPointerStepView: View {
                 color: Color.accentColor.opacity(iconPulsing ? 0.40 : 0),
                 radius: 10, x: 0, y: 0
             )
+            .anchorPreference(key: IconCenterAnchorKey.self, value: .center) { $0 }
 
             ForEach(0..<2, id: \.self) { _ in
                 RoundedRectangle(cornerRadius: 3, style: .continuous)
@@ -124,6 +135,13 @@ struct OnboardingMenuBarPointerStepView: View {
 
     // MARK: - Arrow
 
+    /// Reserves vertical space in the layout flow for the arrow, which is rendered
+    /// via overlayPreferenceValue and positioned at the icon's x-coordinate.
+    private var arrowSlot: some View {
+        Color.clear
+            .frame(height: 30)
+    }
+
     private var arrow: some View {
         Image(systemName: "arrow.up")
             .font(.system(size: 22, weight: .bold))
@@ -132,12 +150,24 @@ struct OnboardingMenuBarPointerStepView: View {
             .accessibilityHidden(true)
     }
 
+    /// Vertical distance from the icon center down to the arrow center.
+    private var arrowVerticalGap: CGFloat { 36 }
+
     // MARK: - Helpers
 
     private var currentTime: String {
         let formatter = DateFormatter()
         formatter.dateFormat = "EEE h:mm a"
         return formatter.string(from: Date())
+    }
+}
+
+// MARK: - Preference Key
+
+private struct IconCenterAnchorKey: PreferenceKey {
+    static let defaultValue: Anchor<CGPoint>? = nil
+    static func reduce(value: inout Anchor<CGPoint>?, nextValue: () -> Anchor<CGPoint>?) {
+        value = value ?? nextValue()
     }
 }
 
