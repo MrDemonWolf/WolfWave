@@ -26,6 +26,7 @@ struct MusicMonitorSettingsView: View {
 
     @State private var permissionState: MusicPermissionState = .unknown
     @State private var showInstructionSheet = false
+    @State private var isRequesting = false
 
     // MARK: - Now playing
 
@@ -154,6 +155,9 @@ struct MusicMonitorSettingsView: View {
                 widgetRunning = state == "listening"
             }
         }
+        .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
+            refreshPermission()
+        }
     }
 
     // MARK: - Permission status row
@@ -169,19 +173,59 @@ struct MusicMonitorSettingsView: View {
             VStack(alignment: .leading, spacing: 2) {
                 Text(permissionTitle)
                     .font(.system(size: 13, weight: .medium))
-                Text(permissionSubtitle)
-                    .font(.system(size: 11))
-                    .foregroundStyle(.secondary)
-                    .fixedSize(horizontal: false, vertical: true)
+                if let subtitle = permissionSubtitle {
+                    Text(subtitle)
+                        .font(.system(size: 11))
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
             }
 
             Spacer(minLength: 8)
 
-            Button("Change in System Settings") {
+            permissionTrailingControl
+        }
+    }
+
+    @ViewBuilder
+    private var permissionTrailingControl: some View {
+        switch permissionState {
+        case .granted:
+            Button("Recheck", action: refreshPermission)
+                .buttonStyle(.borderless)
+                .controlSize(.small)
+                .foregroundStyle(.secondary)
+
+        case .denied:
+            Button("Open System Settings") {
                 MusicPermissionChecker.openAutomationSettings()
             }
-            .buttonStyle(.bordered)
+            .buttonStyle(.borderedProminent)
             .controlSize(.small)
+
+        case .unknown:
+            HStack(spacing: 6) {
+                Button(action: requestPermission) {
+                    HStack(spacing: 6) {
+                        if isRequesting {
+                            ProgressView()
+                                .progressViewStyle(.circular)
+                                .controlSize(.small)
+                        }
+                        Text("Allow")
+                    }
+                }
+                .buttonStyle(.borderedProminent)
+                .controlSize(.small)
+                .disabled(isRequesting)
+
+                Button("Open Settings") {
+                    MusicPermissionChecker.openAutomationSettings()
+                }
+                .buttonStyle(.borderless)
+                .controlSize(.small)
+                .foregroundStyle(.secondary)
+            }
         }
     }
 
@@ -189,7 +233,7 @@ struct MusicMonitorSettingsView: View {
         switch permissionState {
         case .granted: return "checkmark.shield.fill"
         case .denied: return "lock.fill"
-        case .unknown: return "questionmark.circle"
+        case .unknown: return "music.note"
         }
     }
 
@@ -197,23 +241,23 @@ struct MusicMonitorSettingsView: View {
         switch permissionState {
         case .granted: return .green
         case .denied: return .red
-        case .unknown: return .secondary
+        case .unknown: return .accentColor
         }
     }
 
     private var permissionTitle: String {
         switch permissionState {
-        case .granted: return "Music app — allowed"
-        case .denied: return "Music app — denied"
-        case .unknown: return "Checking Music app permission…"
+        case .granted: return "Music access on"
+        case .denied: return "Music access off"
+        case .unknown: return "Allow Music access"
         }
     }
 
-    private var permissionSubtitle: String {
+    private var permissionSubtitle: String? {
         switch permissionState {
-        case .granted: return "WolfWave can see what's playing. You're good."
+        case .granted: return nil
         case .denied: return "Turn on Automation → Music in System Settings."
-        case .unknown: return "We're asking the system."
+        case .unknown: return "macOS will ask once. We only read the track — never play, pause, or change your library."
         }
     }
 
@@ -236,6 +280,22 @@ struct MusicMonitorSettingsView: View {
         // If we're now granted, try to get the current track again.
         if next == .granted {
             loadCurrentTrack()
+        }
+    }
+
+    private func requestPermission() {
+        isRequesting = true
+        Task {
+            let resolved = MusicPermissionChecker.requestAccess()
+            await MainActor.run {
+                withAnimation(.easeInOut(duration: 0.2)) {
+                    permissionState = resolved
+                }
+                isRequesting = false
+                if resolved == .granted {
+                    loadCurrentTrack()
+                }
+            }
         }
     }
 
