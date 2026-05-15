@@ -165,10 +165,17 @@ struct MusicMonitorSettingsView: View {
     @ViewBuilder
     private var permissionStatusRow: some View {
         HStack(spacing: 12) {
-            Image(systemName: permissionIconName)
-                .font(.system(size: 14, weight: .semibold))
-                .foregroundStyle(permissionIconColor)
-                .frame(width: 20)
+            if permissionState == .granted {
+                Image("AppleMusicLogo")
+                    .resizable()
+                    .scaledToFit()
+                    .frame(width: 20, height: 20)
+            } else {
+                Image(systemName: permissionIconName)
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundStyle(permissionIconColor)
+                    .frame(width: 20)
+            }
 
             VStack(alignment: .leading, spacing: 2) {
                 Text(permissionTitle)
