@@ -48,8 +48,22 @@ struct SettingsView: View {
         case twitchIntegration = "Twitch"
         case discord = "Discord"
         case advanced = "Advanced"
+        #if DEBUG
+        case debug = "Debug"
+        #endif
 
         var id: String { rawValue }
+
+        /// Cases — `.debug` only present in DEBUG builds.
+        static var allCases: [SettingsSection] {
+            var cases: [SettingsSection] = [
+                .general, .songRequests, .websocket, .twitchIntegration, .discord, .advanced,
+            ]
+            #if DEBUG
+            cases.append(.debug)
+            #endif
+            return cases
+        }
 
         /// SF Symbol name for the sidebar icon (used as fallback when no brand icon exists).
         var systemIcon: String {
@@ -60,6 +74,9 @@ struct SettingsView: View {
             case .twitchIntegration: return "message.badge.waveform"
             case .discord: return "headphones"
             case .advanced: return "gearshape.2"
+            #if DEBUG
+            case .debug: return "ladybug.fill"
+            #endif
             }
         }
 
@@ -245,6 +262,10 @@ struct SettingsView: View {
             DiscordSettingsView()
         case .advanced:
             AdvancedSettingsView(showingResetAlert: $showingResetAlert)
+        #if DEBUG
+        case .debug:
+            DebugSettingsView()
+        #endif
         }
     }
 
@@ -465,8 +486,8 @@ struct SettingsView: View {
             userInfo: ["enabled": false]
         )
 
-        // Clear UserDefaults
-        [AppConstants.UserDefaults.trackingEnabled, AppConstants.UserDefaults.currentSongCommandEnabled, AppConstants.UserDefaults.lastSongCommandEnabled, AppConstants.UserDefaults.dockVisibility, AppConstants.UserDefaults.websocketEnabled, AppConstants.UserDefaults.websocketURI, AppConstants.UserDefaults.websocketServerPort, AppConstants.UserDefaults.hasCompletedOnboarding, AppConstants.UserDefaults.discordPresenceEnabled, AppConstants.UserDefaults.widgetHTTPEnabled, AppConstants.UserDefaults.widgetPort, AppConstants.UserDefaults.widgetTheme, AppConstants.UserDefaults.widgetLayout, AppConstants.UserDefaults.widgetTextColor, AppConstants.UserDefaults.widgetBackgroundColor, AppConstants.UserDefaults.widgetFontFamily, AppConstants.UserDefaults.songCommandGlobalCooldown, AppConstants.UserDefaults.songCommandUserCooldown, AppConstants.UserDefaults.lastSongCommandGlobalCooldown, AppConstants.UserDefaults.lastSongCommandUserCooldown, AppConstants.UserDefaults.updateCheckEnabled, AppConstants.UserDefaults.updateSkippedVersion, AppConstants.UserDefaults.lastSeenWhatsNewVersion].forEach {
+        // Clear UserDefaults (every key the app writes)
+        AppConstants.UserDefaults.allKeys.forEach {
             UserDefaults.standard.removeObject(forKey: $0)
         }
 

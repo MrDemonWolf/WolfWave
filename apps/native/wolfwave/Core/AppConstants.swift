@@ -76,6 +76,24 @@ enum AppConstants {
         /// Posted when the song request hold state toggles.
         static let songRequestHoldChanged = "SongRequestHoldChanged"
 
+        /// All notification names — used by the DEBUG-only notification firehose.
+        static let allNames: [String] = [
+            trackingSettingChanged,
+            dockVisibilityChanged,
+            twitchReauthNeededChanged,
+            discordPresenceChanged,
+            discordStateChanged,
+            nowPlayingChanged,
+            updateStateChanged,
+            websocketServerChanged,
+            websocketServerStateChanged,
+            widgetHTTPServerChanged,
+            powerStateChanged,
+            twitchConnectionStateChanged,
+            songRequestSettingChanged,
+            songRequestQueueChanged,
+            songRequestHoldChanged,
+        ]
     }
     
     // MARK: - UserDefaults Keys
@@ -225,6 +243,56 @@ enum AppConstants {
         /// Whether song request auto-play is paused — requests still queue but nothing plays (Bool, default: false)
         static let songRequestHoldEnabled = "songRequestHoldEnabled"
 
+        /// Every UserDefaults key the app writes. Source of truth for reset operations
+        /// and the DEBUG-only UserDefaults inspector.
+        static let allKeys: [String] = [
+            trackingEnabled,
+            dockVisibility,
+            twitchReauthNeeded,
+            selectedSettingsSection,
+            websocketEnabled,
+            websocketURI,
+            currentSongCommandEnabled,
+            lastSongCommandEnabled,
+            hasCompletedOnboarding,
+            discordPresenceEnabled,
+            launchAtLogin,
+            websocketServerPort,
+            updateCheckEnabled,
+            updateSkippedVersion,
+            lastSeenWhatsNewVersion,
+            songCommandGlobalCooldown,
+            songCommandUserCooldown,
+            lastSongCommandGlobalCooldown,
+            lastSongCommandUserCooldown,
+            widgetTheme,
+            widgetLayout,
+            widgetTextColor,
+            widgetBackgroundColor,
+            widgetFontFamily,
+            widgetPort,
+            widgetHTTPEnabled,
+            songRequestEnabled,
+            songRequestMaxQueueSize,
+            songRequestPerUserLimit,
+            songRequestSubscriberOnly,
+            songRequestAutoAdvance,
+            songRequestAutoplayWhenEmpty,
+            srCommandEnabled,
+            queueCommandEnabled,
+            myQueueCommandEnabled,
+            skipCommandEnabled,
+            clearQueueCommandEnabled,
+            srCommandAliases,
+            queueCommandAliases,
+            myQueueCommandAliases,
+            skipCommandAliases,
+            clearQueueCommandAliases,
+            songRequestGlobalCooldown,
+            songRequestUserCooldown,
+            songRequestFallbackPlaylist,
+            songRequestHoldEnabled,
+        ]
     }
     
     // MARK: - Dock Visibility Modes

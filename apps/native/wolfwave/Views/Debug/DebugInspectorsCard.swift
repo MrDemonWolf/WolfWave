@@ -1,0 +1,246 @@
+//
+//  DebugInspectorsCard.swift
+//  wolfwave
+//
+//  Created by MrDemonWolf, Inc. on 5/16/26.
+//
+
+#if DEBUG
+import AppKit
+import SwiftUI
+
+/// DEBUG-only card for inspecting persistent state — UserDefaults values, Keychain
+/// presence flags, and bundle/build metadata. Never displays Keychain values.
+struct DebugInspectorsCard: View {
+    @State private var refreshTick = 0
+    @State private var filter: String = ""
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            HStack(spacing: 6) {
+                Image(systemName: "magnifyingglass")
+                    .foregroundStyle(.blue)
+                Text("State Inspectors")
+                    .sectionSubHeader()
+                Spacer()
+                Button {
+                    refreshTick &+= 1
+                } label: {
+                    Image(systemName: "arrow.clockwise")
+                }
+                .buttonStyle(.borderless)
+                .pointerCursor()
+                .help("Refresh values")
+            }
+
+            bundleSection
+            Divider()
+            keychainSection
+            Divider()
+            userDefaultsSection
+        }
+        .id(refreshTick)
+        .cardStyle()
+    }
+
+    // MARK: - Bundle / Build
+
+    private var bundleSection: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text("Bundle & Build")
+                .font(.system(size: 12, weight: .semibold))
+                .foregroundStyle(.secondary)
+                .textCase(.uppercase)
+
+            inspectorRow("Version", bundleString("CFBundleShortVersionString"))
+            inspectorRow("Build", bundleString("CFBundleVersion"))
+            inspectorRow("Bundle ID", Bundle.main.bundleIdentifier ?? "—")
+            inspectorRow("macOS", ProcessInfo.processInfo.operatingSystemVersionString)
+            inspectorRow("Locale", Locale.current.identifier)
+            inspectorRow("Config", configurationString)
+
+            HStack {
+                Spacer()
+                Button {
+                    NSPasteboard.general.clearContents()
+                    NSPasteboard.general.setString(buildInfoJSON, forType: .string)
+                } label: {
+                    Label("Copy as JSON", systemImage: "doc.on.doc")
+                }
+                .buttonStyle(.bordered)
+                .controlSize(.small)
+                .pointerCursor()
+            }
+        }
+    }
+
+    // MARK: - Keychain
+
+    private var keychainSection: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text("Keychain")
+                .font(.system(size: 12, weight: .semibold))
+                .foregroundStyle(.secondary)
+                .textCase(.uppercase)
+
+            Text("Shows which credentials are stored. Values never displayed.")
+                .font(.system(size: 11))
+                .foregroundStyle(.secondary)
+
+            keychainRow("WebSocket Auth Token", present: KeychainService.loadToken() != nil) {
+                KeychainService.deleteToken()
+            }
+            keychainRow("Twitch OAuth Token", present: KeychainService.loadTwitchToken() != nil) {
+                KeychainService.deleteTwitchToken()
+            }
+            keychainRow("Twitch Username", present: KeychainService.loadTwitchUsername() != nil) {
+                KeychainService.deleteTwitchUsername()
+            }
+            keychainRow("Twitch Bot User ID", present: KeychainService.loadTwitchBotUserID() != nil) {
+                KeychainService.deleteTwitchBotUserID()
+            }
+            keychainRow("Twitch Channel ID", present: KeychainService.loadTwitchChannelID() != nil) {
+                KeychainService.deleteTwitchChannelID()
+            }
+        }
+    }
+
+    // MARK: - UserDefaults
+
+    private var userDefaultsSection: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack {
+                Text("UserDefaults")
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundStyle(.secondary)
+                    .textCase(.uppercase)
+                Spacer()
+                TextField("Filter", text: $filter)
+                    .textFieldStyle(.roundedBorder)
+                    .frame(maxWidth: 160)
+            }
+
+            let keys = AppConstants.UserDefaults.allKeys
+                .filter { filter.isEmpty || $0.localizedCaseInsensitiveContains(filter) }
+                .sorted()
+
+            ForEach(keys, id: \.self) { key in
+                userDefaultsRow(key: key)
+            }
+        }
+    }
+
+    // MARK: - Row Builders
+
+    private func inspectorRow(_ label: String, _ value: String) -> some View {
+        HStack(alignment: .top) {
+            Text(label)
+                .font(.system(size: 12))
+                .foregroundStyle(.secondary)
+                .frame(width: 90, alignment: .leading)
+            Text(value)
+                .font(.system(size: 12, design: .monospaced))
+                .textSelection(.enabled)
+            Spacer()
+        }
+    }
+
+    private func keychainRow(_ label: String, present: Bool, onDelete: @escaping () -> Void) -> some View {
+        HStack {
+            Image(systemName: present ? "checkmark.circle.fill" : "circle")
+                .foregroundStyle(present ? .green : .secondary)
+            Text(label)
+                .font(.system(size: 12))
+            Spacer()
+            if present {
+                Button {
+                    onDelete()
+                    refreshTick &+= 1
+                } label: {
+                    Image(systemName: "trash")
+                        .foregroundStyle(.red)
+                }
+                .buttonStyle(.borderless)
+                .pointerCursor()
+                .help("Delete from Keychain")
+            }
+        }
+    }
+
+    private func userDefaultsRow(key: String) -> some View {
+        _ = refreshTick
+        let value = UserDefaults.standard.object(forKey: key)
+        return HStack(alignment: .top, spacing: 8) {
+            Text(key)
+                .font(.system(size: 11, design: .monospaced))
+                .lineLimit(1)
+                .truncationMode(.middle)
+                .frame(maxWidth: 200, alignment: .leading)
+            Text(formatValue(value))
+                .font(.system(size: 11, design: .monospaced))
+                .foregroundStyle(value == nil ? .secondary : .primary)
+                .lineLimit(1)
+                .truncationMode(.tail)
+                .textSelection(.enabled)
+                .frame(maxWidth: .infinity, alignment: .leading)
+            Button {
+                UserDefaults.standard.removeObject(forKey: key)
+                refreshTick &+= 1
+            } label: {
+                Image(systemName: "xmark.circle")
+                    .foregroundStyle(.secondary)
+            }
+            .buttonStyle(.borderless)
+            .pointerCursor()
+            .help("Remove key")
+            .disabled(value == nil)
+        }
+    }
+
+    // MARK: - Helpers
+
+    private func bundleString(_ key: String) -> String {
+        Bundle.main.infoDictionary?[key] as? String ?? "—"
+    }
+
+    private var configurationString: String {
+        #if DEBUG
+        return "DEBUG"
+        #else
+        return "RELEASE"
+        #endif
+    }
+
+    private var buildInfoJSON: String {
+        let dict: [String: String] = [
+            "version": bundleString("CFBundleShortVersionString"),
+            "build": bundleString("CFBundleVersion"),
+            "bundleID": Bundle.main.bundleIdentifier ?? "",
+            "macOS": ProcessInfo.processInfo.operatingSystemVersionString,
+            "locale": Locale.current.identifier,
+            "configuration": configurationString,
+        ]
+        guard let data = try? JSONSerialization.data(withJSONObject: dict, options: [.prettyPrinted, .sortedKeys]),
+              let string = String(data: data, encoding: .utf8) else {
+            return ""
+        }
+        return string
+    }
+
+    private func formatValue(_ value: Any?) -> String {
+        guard let value else { return "<unset>" }
+        switch value {
+        case let bool as Bool: return bool ? "true" : "false"
+        case let string as String: return "\"\(string)\""
+        case let number as NSNumber: return number.stringValue
+        default: return String(describing: value)
+        }
+    }
+}
+
+#Preview {
+    DebugInspectorsCard()
+        .padding()
+        .frame(width: 600)
+}
+#endif
