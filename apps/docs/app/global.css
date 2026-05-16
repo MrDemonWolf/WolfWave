@@ -253,6 +253,77 @@
 }
 .dark .ww-code { background-color: #0d0d0f; }
 
+/* ── Navbar ──────────────────────────────────────────────── */
+#nd-nav {
+  backdrop-filter: saturate(180%) blur(20px);
+  -webkit-backdrop-filter: saturate(180%) blur(20px);
+  background-color: color-mix(in srgb, var(--bg-base) 72%, transparent);
+  border-bottom: 1px solid transparent;
+  transition: border-color 0.2s ease, background-color 0.2s ease;
+}
+#nd-nav:not([data-transparent="true"]) {
+  border-bottom-color: var(--hairline);
+}
+
+/* Brand link wrapper — strip default link chrome (Tailwind handles brand inner) */
+#nd-nav a:has([data-ww-brand]) {
+  padding: 0 !important;
+  background: transparent !important;
+  border-radius: 0 !important;
+}
+
+/* Nav links — pill hover, refined typography */
+#nd-nav a[href]:not(:has([data-ww-brand])):not([aria-label]) {
+  font-family: var(--font-instrument), -apple-system, system-ui, sans-serif;
+  font-size: 0.9rem;
+  font-weight: 500;
+  letter-spacing: -0.005em;
+  color: var(--txt-2);
+  padding: 0.4rem 0.85rem;
+  border-radius: 980px;
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+#nd-nav a[href]:not(:has([data-ww-brand])):not([aria-label]):hover {
+  background-color: var(--bg-surface);
+  color: var(--txt-1);
+}
+
+/* GitHub icon — pill ghost */
+#nd-nav a[aria-label] {
+  border-radius: 980px;
+  transition: background-color 0.15s ease;
+}
+#nd-nav a[aria-label]:hover {
+  background-color: var(--bg-surface);
+}
+
+/* Theme toggle — soften segmented control, match aesthetic */
+#nd-nav [data-theme-toggle] {
+  border-color: var(--hairline);
+  background-color: color-mix(in srgb, var(--bg-surface) 60%, transparent);
+}
+#nd-nav [data-theme-toggle] .bg-fd-accent {
+  background-color: var(--brand-50);
+  color: var(--brand-500);
+}
+.dark #nd-nav [data-theme-toggle] .bg-fd-accent {
+  background-color: rgba(10, 132, 255, 0.16);
+  color: var(--brand-600);
+}
+
+/* Search toggle (large pill input) — Apple search-field tone */
+#nd-nav button[data-search-full],
+#nd-nav [data-search-full] {
+  background-color: var(--bg-surface);
+  border-color: var(--hairline);
+  border-radius: 980px;
+}
+
+/* Mobile sheet — match hairline language */
+[data-nav-sheet] {
+  border-color: var(--hairline) !important;
+}
+
 /* ── Reduced motion ──────────────────────────────────────── */
 @media (prefers-reduced-motion: reduce) {
   .ww-pulse-ring,
