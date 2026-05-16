@@ -333,3 +333,17 @@
     transform: none !important;
   }
 }
+
+/* ── Docs sidebar spacing ────────────────────────────────── */
+#nav-sidebar nav > div > a,
+#nav-sidebar nav > div > div > a {
+  margin-block: 2px;
+}
+
+#nav-sidebar nav > div > p {
+  margin-top: 1rem;
+}
+
+#nav-sidebar nav > div > p:first-child {
+  margin-top: 0;
+}
