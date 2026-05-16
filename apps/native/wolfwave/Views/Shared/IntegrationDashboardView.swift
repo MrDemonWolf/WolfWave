@@ -43,7 +43,7 @@ struct IntegrationDashboardView: View {
 
             VStack(spacing: 0) {
                 row(
-                    icon: brandIcon("TwitchLogo", fallback: "bubble.left.fill", color: Color(red: 0.57, green: 0.27, blue: 1.0)),
+                    icon: brandIcon("TwitchLogo", fallback: "bubble.left.fill", color: AppConstants.Brand.twitch),
                     name: "Twitch chat",
                     chip: twitchChip,
                     subtitle: twitchSubtitle,
@@ -51,7 +51,7 @@ struct IntegrationDashboardView: View {
                 )
                 Divider().padding(.leading, 44)
                 row(
-                    icon: brandIcon("DiscordLogo", fallback: "headphones", color: Color(red: 0.35, green: 0.40, blue: 0.95)),
+                    icon: brandIcon("DiscordLogo", fallback: "headphones", color: AppConstants.Brand.discord),
                     name: "Discord profile",
                     chip: discordChip,
                     subtitle: discordSubtitle,
@@ -145,24 +145,16 @@ struct IntegrationDashboardView: View {
         return exists
     }
 
-    private func brandIcon(_ asset: String, fallback: String, color: Color, isTemplate: Bool = false) -> AnyView {
+    private func brandIcon(_ asset: String, fallback: String, color: Color) -> AnyView {
         AnyView(
             Group {
                 if Self.brandIconExists(asset) {
-                    if isTemplate {
-                        Image(asset)
-                            .renderingMode(.template)
-                            .resizable()
-                            .aspectRatio(contentMode: .fit)
-                            .frame(width: 16, height: 16)
-                            .foregroundStyle(AnyShapeStyle(.primary))
-                    } else {
-                        Image(asset)
-                            .renderingMode(.original)
-                            .resizable()
-                            .aspectRatio(contentMode: .fit)
-                            .frame(width: 16, height: 16)
-                    }
+                    Image(asset)
+                        .renderingMode(.template)
+                        .resizable()
+                        .aspectRatio(contentMode: .fit)
+                        .frame(width: 16, height: 16)
+                        .foregroundStyle(color)
                 } else {
                     Image(systemName: fallback)
                         .font(.system(size: 14, weight: .medium))

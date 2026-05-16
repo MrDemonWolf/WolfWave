@@ -70,10 +70,11 @@ struct TwitchReauthView: View {
             Button(action: { viewModel.startOAuth() }) {
                 HStack(spacing: 8) {
                     Image("TwitchLogo")
-                        .renderingMode(.original)
+                        .renderingMode(.template)
                         .resizable()
                         .scaledToFit()
                         .frame(width: 14, height: 14)
+                        .foregroundStyle(.white)
 
                     Text("Sign in with Twitch")
                         .font(.system(size: 12, weight: .semibold))
@@ -140,10 +141,11 @@ struct TwitchReauthView: View {
                         Button(action: { openTwitchActivation() }) {
                             HStack(spacing: 8) {
                                 Image("TwitchLogo")
-                                    .renderingMode(.original)
+                                    .renderingMode(.template)
                                     .resizable()
                                     .scaledToFit()
                                     .frame(width: 14, height: 14)
+                                    .foregroundStyle(.white)
                                 Text("Sign in with Twitch")
                                     .font(.system(size: 12, weight: .medium))
                             }

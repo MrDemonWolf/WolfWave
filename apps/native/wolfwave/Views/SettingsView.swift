@@ -72,8 +72,14 @@ struct SettingsView: View {
             }
         }
 
-        /// Whether the brand icon should render as a template (tinted by macOS for light/dark mode).
-        var brandIconIsTemplate: Bool { false }
+        /// Brand tint applied to the template-rendered brand icon.
+        var brandColor: Color? {
+            switch self {
+            case .twitchIntegration: return AppConstants.Brand.twitch
+            case .discord: return AppConstants.Brand.discord
+            default: return nil
+            }
+        }
     }
 
     // MARK: - Properties
@@ -252,10 +258,11 @@ struct SettingsView: View {
         } icon: {
             if let brandIcon = section.brandIcon {
                 Image(brandIcon)
-                    .renderingMode(section.brandIconIsTemplate ? .template : .original)
+                    .renderingMode(.template)
                     .resizable()
                     .aspectRatio(contentMode: .fit)
                     .frame(width: 16, height: 16)
+                    .foregroundStyle(section.brandColor ?? .primary)
             } else {
                 Image(systemName: section.systemIcon)
                     .frame(width: 16, height: 16)
