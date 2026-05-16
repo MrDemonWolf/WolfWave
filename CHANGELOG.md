@@ -24,6 +24,10 @@ All notable changes to this project will be documented in this file.
 - **2026 marketing landing page** — redesigned dark, streamer-focused docs landing page with refreshed brand identity.
 - **Docs SEO infrastructure** — OG image, sitemap, robots.txt, and JSON-LD structured data for better discoverability.
 - **LAN IP cache** — `NetworkInfoService` caches the local IP for the overlay/widget URL surface so settings views no longer block on lookup (#34).
+- **Diagnostics + bug report flow** — Advanced settings gains Export Logs and Clear Logs actions plus a one-click "Report a Bug" flow that pre-fills a GitHub issue with redacted log context (#50).
+- **Branded About panel** — replaced the default `NSAboutPanelOptionKey` sheet with a native SwiftUI About window built around WolfWave's identity (#55).
+- **Dynamic docs SEO + section-aware OG cards** — every docs page now ships its own OG image; the changelog page generates a live OG card per release (#43, #56).
+- **Apple Music logo on Music access row** — granted-state row now shows the Apple Music brand mark instead of a generic icon (#38).
 
 ### Changed
 
@@ -37,13 +41,33 @@ All notable changes to this project will be documented in this file.
 - **Settings window sizing** — minimum and ideal dimensions tuned to fit cleanly on 720p and 1080p displays without clipping (#33).
 - **Music permission row** — actionable + self-healing; tapping it re-requests or deep-links to System Settings depending on authorization state (#31).
 - **Docs theming** — unified violet/cyan brand palette with full light-mode support.
-- **Test suite consolidation** — merged `SongCommandTests` + `LastSongCommandTests` into a single parameterised `TrackInfoCommandTests`; renamed `MusicPlaybackMonitorTests` → `AppleMusicSourceTests` to match the post-refactor class names. 849 tests across 26 files, all passing.
+- **OBS step copy** — onboarding OBS Widget step collapsed to a single toggle with the overlay URL promoted to first-class status (#36).
+- **OBS branding in settings** — swapped the bespoke OBS logo for the `tv.badge.wifi` SF Symbol so the chip respects template tinting (#46).
+- **AdvancedSettingsView** — refactored to use the shared `cardStyle()` helper for consistent material + corner radii (#52).
+- **User-facing wording** — tightened copy across onboarding, settings, and the menu bar for fewer words and clearer verbs (#47).
+- **Test suite consolidation** — merged `SongCommandTests` + `LastSongCommandTests` into a single parameterised `TrackInfoCommandTests`; renamed `MusicPlaybackMonitorTests` → `AppleMusicSourceTests` to match the post-refactor class names. 879 tests across 26 files, all passing.
+
+### Performance
+
+- **Settings page switch latency** — eliminated jank when navigating between settings sections (#51).
+- **Font enumeration deferred off main** — Widget Setup network row no longer blocks the main thread on first paint (#54).
+- **Now-Playing Server row** — renders instantly thanks to the cached LAN IP lookup (#39).
 
 ### Fixed
 
 - Native build warnings, SwiftUI layout reentrancy, and duplicate log emission cleaned up (#22).
 - Onboarding URL bug, permissions correctness, and layout stability polished (#28).
 - Docs favicon 404s resolved and DMG size pill now reflects the actual 3.7 MB.
+- **Export Logs crash** — Advanced settings no longer crashes when exporting empty or large logs (#50).
+- **Settings / About window show** — deferred past the AppKit layout pass to silence `layoutSubtreeIfNeeded` recursion warnings (#53).
+- **Music access icon** — adapts to light/dark mode and kills the top scroll fade that clipped the section header (#48).
+- **PillButton width shift** — pinned button geometry across state changes so it no longer jumps mid-animation (#49).
+- **Apple Music logo** — trimmed to the glyph so template rendering picks up the system tint (#37).
+- **OBS logo** — trimmed to the glyph for matching template rendering (#45).
+- **Docs basePath** — hardcoded `/wolfwave` so GitHub Pages URLs resolve in every build context (#44).
+- **Menu bar pointer arrow** — anchored to the `TrayIcon` center in the onboarding preview (#41).
+- **Brand icons in menu bar** — render as templates with refreshed logo SVGs (#40).
+- **CI** — skip `TrackInfoCommandTests` on the `macos-26` runner where MusicKit isn't available (#42).
 
 ### Removed
 

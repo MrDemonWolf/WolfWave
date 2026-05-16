@@ -164,7 +164,7 @@ extension AppDelegate {
         let window = NSWindow(contentViewController: hostingController)
         window.title = "What's New"
         window.styleMask = [.titled, .closable]
-        window.setContentSize(NSSize(width: 420, height: 500))
+        window.setContentSize(NSSize(width: 420, height: 540))
         window.isReleasedWhenClosed = false
         window.delegate = self
         window.center()

@@ -25,7 +25,8 @@ struct WhatsNewView: View {
         ("music.note.list", .purple, "Fallback Playlist", "Plays when the queue is empty."),
         ("sparkles", .indigo, "Liquid Glass Redesign", "Refreshed settings, menu bar, and onboarding built for macOS 26 Tahoe"),
         ("music.note.house", .red, "Apple Music Permission", "Apple Music access during setup, with recovery if you skip."),
-        ("wand.and.stars", .mint, "Polish & Stability", "Smoother layouts, better performance, and under-the-hood polish"),
+        ("ladybug.fill", .yellow, "Bug Report Flow", "Export or clear logs from Advanced settings, then file a report in one click."),
+        ("wand.and.stars", .mint, "Polish & Stability", "Faster settings, smoother animations, sharper logs, and tighter copy across the app."),
     ]
 
     // MARK: - Body
@@ -63,7 +64,7 @@ struct WhatsNewView: View {
             .accessibilityIdentifier("whatsNew.getStarted")
         }
         .padding(24)
-        .frame(idealWidth: 420, idealHeight: 500)
+        .frame(idealWidth: 420, idealHeight: 540)
     }
 
     // MARK: - Private Helpers
@@ -100,5 +101,5 @@ struct WhatsNewView: View {
 
 #Preview {
     WhatsNewView()
-        .frame(width: 420, height: 500)
+        .frame(width: 420, height: 540)
 }
