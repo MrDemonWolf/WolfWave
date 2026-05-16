@@ -1,0 +1,43 @@
+---
+title: Brand
+description: Logo usage, partner identities, and voice.
+---
+
+## Logo
+
+WolfWave's mark is a stylized wave-and-howl glyph. The logo SVG lives at `apps/native/wolfwave/Resources/AppIcon.icon/Assets/logo.svg`.
+
+- Minimum clear space: equal to the height of the wave glyph on all sides.
+- Minimum size: 24×24 pt for digital. Avoid printed use under 12 mm.
+- Light mode fill: `#111`. Dark mode fill: `#FFF`. Do not recolor to brand blue.
+
+## Partner colors
+
+When showing third-party integrations (Twitch, Discord, Apple Music, OBS), use each partner's official color from `color.partner.*`. Never substitute or tint them.
+
+| Partner | Token | Hex |
+|---|---|---|
+| Twitch | `partner-twitch` | `#9146FF` |
+| Discord | `partner-discord` | `#5865F2` |
+| Apple Music (gradient) | `partner-apple-music-start` → `end` | `#FF5D8B` → `#FA233B` |
+| OBS Studio (gradient) | `partner-obs-start` → `end` | `#2C2C2E` → `#1A1A1C` |
+
+## Voice
+
+WolfWave is built for streamers — text should be **short, punchy, jargon-free** (ADHD-friendly). Avoid:
+
+- Long preambles. Lead with the verb.
+- Apple-style marketing copy. We're not Apple.
+- Technical jargon when a plain word works.
+
+Prefer:
+
+- "Connect Twitch" over "Set up Twitch integration".
+- "Couldn't reach Discord" over "An error occurred while attempting to connect".
+- Sentence case in UI; title case in section headers and docs page titles.
+
+## Don't
+
+- Don't put WolfWave next to a partner logo so they look co-branded — WolfWave is the host, partners are services it talks to.
+- Don't use partner colors as WolfWave brand accents. WolfWave brand = Apple blue.
+- Don't add new top-level brand colors without a tokens.json PR + design review.

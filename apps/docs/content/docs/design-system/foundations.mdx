@@ -1,0 +1,112 @@
+---
+title: Foundations
+description: Core design tokens — colors, type, spacing, radius, motion, shadows.
+---
+
+All values come from [`design-system/tokens.json`](https://github.com/). Edit there and run `bun run tokens` to regenerate every platform output.
+
+## Color
+
+### Brand scale
+
+WolfWave's primary brand color is Apple System Blue (**`#0A84FF`**). The full scale is available for backgrounds, hover states, and accents.
+
+<div style={{ display: "grid", gridTemplateColumns: "repeat(10, 1fr)", gap: "0.5rem", margin: "1rem 0" }}>
+  {[50,100,200,300,400,500,600,700,800,900].map((step) => (
+    <div key={step} style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
+      <div style={{ width: "100%", aspectRatio: "1", borderRadius: "var(--ds-radius-md)", background: `var(--ds-color-brand-${step})`, border: "1px solid var(--ds-color-surface-hairline)" }} />
+      <code style={{ fontSize: "0.7rem", marginTop: "0.25rem" }}>{step}</code>
+    </div>
+  ))}
+</div>
+
+### Semantic
+
+| Token | Light | Dark |
+|---|---|---|
+| `--ds-color-success` | `#34C759` | `#34C759` |
+| `--ds-color-warning` | `#FF9F0A` | `#FF9F0A` |
+| `--ds-color-error`   | `#FF453A` | `#FF453A` |
+| `--ds-color-info`    | `#0A84FF` | `#0A84FF` |
+
+### Surface & text
+
+Surfaces and text colors swap automatically based on `prefers-color-scheme` / `.dark` class. Reference the abstract token, not the underlying hex.
+
+| Surface | Light | Dark |
+|---|---|---|
+| `surface-base`     | `#FFFFFF` | `#000000` |
+| `surface-surface`  | `#F5F5F7` | `#1C1C1E` |
+| `surface-elev`     | `#FBFBFD` | `#0A0A0C` |
+| `surface-hairline` | `#D2D2D7` | `#2C2C2E` |
+
+### Partner
+
+Reserved for third-party brand identity (do not use as WolfWave brand):
+
+`partner-twitch` `#9146FF` · `partner-discord` `#5865F2` · `partner-apple-music-start` `#FF5D8B` → `partner-apple-music-end` `#FA233B` · `partner-obs-start` `#2C2C2E` → `partner-obs-end` `#1A1A1C`
+
+## Type scale
+
+| Token | px | Use |
+|---|---|---|
+| `xs`   | 10 | Captions, smallest meta |
+| `sm`   | 11 | Tag, status chip |
+| `body` | 12 | Body, dense rows |
+| `base` | 13 | Default UI text |
+| `md`   | 14 | Row titles |
+| `lg`   | 17 | Section headers |
+| `xl`   | 20 | Subtle hero |
+| `2xl`  | 22 | Hero |
+
+Families: `--ds-font-family-display` (Unbounded), `--ds-font-family-sans` (Instrument Sans), `--ds-font-family-serif` (Instrument Serif), `--ds-font-family-mono` (JetBrains Mono).
+
+## Spacing
+
+4-step scale, indices align to common SwiftUI paddings:
+
+| Token | px |
+|---|---|
+| `space-1` | 4 |
+| `space-2` | 8 |
+| `space-3` | 10 |
+| `space-4` | 12 |
+| `space-5` | 14 |
+| `space-6` | 16 |
+| `space-7` | 20 |
+| `space-8` | 24 |
+| `space-9` | 28 |
+
+## Radius
+
+| Token | px | Use |
+|---|---|---|
+| `xs`   | 4    | Small chips |
+| `sm`   | 6    | Hover backgrounds |
+| `md`   | 8    | Primary buttons |
+| `lg`   | 10   | Update banner |
+| `xl`   | 14   | Cards, brand tiles |
+| `2xl`  | 16   | Onboarding hero |
+| `pill` | 9999 | Capsules |
+
+## Motion
+
+| Token | Value |
+|---|---|
+| `duration-fast` | 150 ms |
+| `duration-base` | 220 ms |
+| `duration-slow` | 320 ms |
+| `easing-standard`   | `cubic-bezier(0.4, 0.0, 0.2, 1)` |
+| `easing-emphasized` | `cubic-bezier(0.2, 0.0, 0, 1)` |
+
+Respect `prefers-reduced-motion` — drop to instant transitions.
+
+## Shadows
+
+| Token | Value |
+|---|---|
+| `shadow-xs` | `0 1px 2px rgba(0,0,0,0.08)` |
+| `shadow-sm` | `0 2px 4px rgba(0,0,0,0.08)` |
+| `shadow-md` | `0 4px 12px rgba(0,0,0,0.10)` |
+| `shadow-lg` | `0 8px 32px rgba(0,0,0,0.20)` |
+| `shadow-glow` | `0 0 20px rgba(10,132,255,0.30)` |

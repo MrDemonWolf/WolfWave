@@ -1,6 +1,7 @@
 @import "tailwindcss";
 @import "fumadocs-ui/css/ocean.css";
 @import "fumadocs-ui/css/preset.css";
+@import "./tokens.generated.css";
 
 /* ──────────────────────────────────────────────────────────
    WolfWave docs — Apple-inspired, system blue (#0A84FF)

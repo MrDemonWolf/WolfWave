@@ -5,7 +5,8 @@
   "scripts": {
     "dev": "turbo dev",
     "build": "turbo build",
-    "clean": "turbo clean"
+    "clean": "turbo clean",
+    "tokens": "bun design-system/scripts/generate.ts"
   },
   "packageManager": "bun@1.3.11",
   "devDependencies": {

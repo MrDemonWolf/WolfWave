@@ -678,20 +678,21 @@ enum AppConstants {
 
     // MARK: - Brand Colors
 
-    /// Brand colors used across onboarding tiles and accents.
+    /// Brand / partner colors. Backed by `DSColor` generated tokens.
+    /// Source of truth: `design-system/tokens.json`.
     enum Brand {
         /// Twitch purple — `#9146FF`.
-        static let twitch = Color(red: 0.569, green: 0.275, blue: 1.0)
+        static let twitch = DSColor.partnerTwitch
 
         /// Discord blurple — `#5865F2`.
-        static let discord = Color(red: 0.345, green: 0.396, blue: 0.949)
+        static let discord = DSColor.partnerDiscord
 
         /// Apple Music gradient stops — pink-to-red.
-        static let appleMusicGradientStart = Color(red: 1.0, green: 0.365, blue: 0.545)   // #FF5D8B
-        static let appleMusicGradientEnd = Color(red: 0.980, green: 0.137, blue: 0.231)   // #FA233B
+        static let appleMusicGradientStart = DSColor.partnerAppleMusicStart
+        static let appleMusicGradientEnd = DSColor.partnerAppleMusicEnd
 
         /// OBS Studio gradient stops — neutral dark.
-        static let obsGradientStart = Color(red: 0.173, green: 0.173, blue: 0.180)        // #2C2C2E
-        static let obsGradientEnd = Color(red: 0.102, green: 0.102, blue: 0.110)          // #1A1A1C
+        static let obsGradientStart = DSColor.partnerObsStart
+        static let obsGradientEnd = DSColor.partnerObsEnd
     }
 }

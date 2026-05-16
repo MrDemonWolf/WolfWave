@@ -1,0 +1,90 @@
+/*
+ * WolfWave Design System — GENERATED FILE. Do not edit by hand.
+ * Source: design-system/tokens.json
+ * Run `bun run tokens` to regenerate.
+ */
+
+:root {
+  --ds-color-brand-50: #F0F7FF;
+  --ds-color-brand-100: #D9ECFF;
+  --ds-color-brand-200: #B0D6FF;
+  --ds-color-brand-300: #7FB8FF;
+  --ds-color-brand-400: #4A9CFF;
+  --ds-color-brand-500: #0A84FF;
+  --ds-color-brand-600: #0066CC;
+  --ds-color-brand-700: #004E9F;
+  --ds-color-brand-800: #003A78;
+  --ds-color-brand-900: #002551;
+  --ds-color-success: #34C759;
+  --ds-color-warning: #FF9F0A;
+  --ds-color-error: #FF453A;
+  --ds-color-info: #0A84FF;
+  --ds-color-surface-base: #FFFFFF;
+  --ds-color-surface-surface: #F5F5F7;
+  --ds-color-surface-elev: #FBFBFD;
+  --ds-color-surface-hairline: #D2D2D7;
+  --ds-color-text-primary: #1D1D1F;
+  --ds-color-text-secondary: #6E6E73;
+  --ds-color-text-muted: #A1A1A6;
+  --ds-color-partner-twitch: #9146FF;
+  --ds-color-partner-discord: #5865F2;
+  --ds-color-partner-apple-music-start: #FF5D8B;
+  --ds-color-partner-apple-music-end: #FA233B;
+  --ds-color-partner-obs-start: #2C2C2E;
+  --ds-color-partner-obs-end: #1A1A1C;
+  --ds-font-family-display: Unbounded, -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+  --ds-font-family-sans: "Instrument Sans", -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+  --ds-font-family-serif: "Instrument Serif", ui-serif, Georgia, serif;
+  --ds-font-family-mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  --ds-font-family-system-apple-display: -apple-system, BlinkMacSystemFont, "SF Pro Display", system-ui, sans-serif;
+  --ds-font-size-xs: 10px;
+  --ds-font-size-sm: 11px;
+  --ds-font-size-body: 12px;
+  --ds-font-size-base: 13px;
+  --ds-font-size-md: 14px;
+  --ds-font-size-lg: 17px;
+  --ds-font-size-xl: 20px;
+  --ds-font-size-2xl: 22px;
+  --ds-font-weight-regular: 400;
+  --ds-font-weight-medium: 500;
+  --ds-font-weight-semibold: 600;
+  --ds-font-weight-bold: 700;
+  --ds-space-1: 4px;
+  --ds-space-2: 8px;
+  --ds-space-3: 10px;
+  --ds-space-4: 12px;
+  --ds-space-5: 14px;
+  --ds-space-6: 16px;
+  --ds-space-7: 20px;
+  --ds-space-8: 24px;
+  --ds-space-9: 28px;
+  --ds-radius-xs: 4px;
+  --ds-radius-sm: 6px;
+  --ds-radius-md: 8px;
+  --ds-radius-lg: 10px;
+  --ds-radius-xl: 14px;
+  --ds-radius-2xl: 16px;
+  --ds-radius-pill: 9999px;
+  --ds-motion-duration-fast: 150ms;
+  --ds-motion-duration-base: 220ms;
+  --ds-motion-duration-slow: 320ms;
+  --ds-motion-easing-standard: cubic-bezier(0.4, 0.0, 0.2, 1);
+  --ds-motion-easing-emphasized: cubic-bezier(0.2, 0.0, 0, 1);
+  --ds-shadow-xs: 0 1px 2px rgba(0,0,0,0.08);
+  --ds-shadow-sm: 0 2px 4px rgba(0,0,0,0.08);
+  --ds-shadow-md: 0 4px 12px rgba(0,0,0,0.10);
+  --ds-shadow-lg: 0 8px 32px rgba(0,0,0,0.20);
+  --ds-shadow-glow: 0 0 20px rgba(10,132,255,0.30);
+}
+
+.dark, [data-theme="dark"] {
+  --ds-color-brand-500: #0A84FF;
+  --ds-color-brand-600: #409CFF;
+  --ds-color-surface-base: #000000;
+  --ds-color-surface-surface: #1C1C1E;
+  --ds-color-surface-elev: #0A0A0C;
+  --ds-color-surface-hairline: #2C2C2E;
+  --ds-color-text-primary: #F5F5F7;
+  --ds-color-text-secondary: #A1A1A6;
+  --ds-color-text-muted: #6E6E73;
+}

@@ -1,0 +1,40 @@
+---
+title: Components
+description: Catalog of WolfWave's reusable UI components.
+---
+
+WolfWave's native macOS app ships a small library of SwiftUI components under `apps/native/wolfwave/Views/Shared/` and `Views/Onboarding/Components/`. Each entry below links to its source plus a markdown catalog entry with API, tokens, accessibility notes, and a do/don't list.
+
+## Shared
+
+| Component | What it does | Catalog |
+|---|---|---|
+| `StatusChip`              | Capsule indicator (dot + label) for connection state. | [docs](https://github.com/mrdemonwolf/wolfwave/blob/main/design-system/components/status-chip.md) |
+| `InfoRow`                 | Label + selectable read-only value. | [docs](https://github.com/mrdemonwolf/wolfwave/blob/main/design-system/components/info-row.md) |
+| `ToggleSettingRow`        | Toggle + title + caption row. | stub |
+| `SuccessFeedbackRow`      | Inline success/error feedback line. | stub |
+| `SectionHeaderWithStatus` | Section heading with trailing status chip. | stub |
+| `NowPlayingHeroCard`      | Large now-playing card (art + track + artist). | stub |
+| `AlbumArtView`            | Square album art with placeholder fallback. | stub |
+| `IntegrationDashboardView`| Compact panel showing integration statuses. | stub |
+| `ConnectionTestButton`    | Test connection button with result feedback. | stub |
+| `ConfigRequiredBanner`    | Inline banner shown when API keys are missing. | stub |
+| `CopyButton`              | Icon button that copies a value to pasteboard. | stub |
+| `UpdateBannerView`        | Sparkle update available banner. | stub |
+| `WhatsNewView`            | What's new sheet content. | stub |
+| `TwitchGlitchShape`       | Twitch glitch logo `Shape`. | stub |
+| `ViewModifiers`           | `cardStyle`, `interactiveRow`, `pointerCursor`, … | [docs](https://github.com/mrdemonwolf/wolfwave/blob/main/design-system/components/view-modifiers.md) |
+
+## Onboarding
+
+| Component | What it does | Catalog |
+|---|---|---|
+| `PillButton` | Capsule CTA with glow + gradient. | stub |
+| `BrandTile`  | 56×56 brand icon tile with glow. | stub |
+
+## How to add a component
+
+1. Build the SwiftUI view under `Views/Shared/` or `Views/Onboarding/Components/`.
+2. Reference `DSColor` / `DSFont` / `DSSpace` / `DSRadius` tokens — no hardcoded numbers.
+3. Add a markdown entry in `design-system/components/<name>.md` following the [template](https://github.com/mrdemonwolf/wolfwave/blob/main/design-system/components/README.md).
+4. Add a row to the table above.
