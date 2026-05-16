@@ -64,13 +64,17 @@ final class SongRequestQueue {
         case alreadyInQueue
     }
 
+    private func postQueueChanged() {
+        NotificationCenter.default.post(name: .songRequestQueueChanged, object: nil)
+    }
+
     /// Add a song request to the end of the queue.
     ///
     /// - Parameters:
     ///   - item: The song request to add.
     /// - Returns: The result indicating success or the reason for rejection.
     func add(_ item: SongRequestItem) -> AddResult {
-        lock.withLock {
+        let result: AddResult = lock.withLock {
             // Check queue capacity
             guard items.count < maxQueueSize else {
                 return .queueFull(max: maxQueueSize)
@@ -95,6 +99,8 @@ final class SongRequestQueue {
             items.append(item)
             return .added(position: items.count)
         }
+        postQueueChanged()
+        return result
     }
 
     /// Remove and return the next item from the front of the queue.
@@ -103,12 +109,14 @@ final class SongRequestQueue {
     /// - Returns: The next song request, or nil if the queue is empty.
     @discardableResult
     func dequeue() -> SongRequestItem? {
-        lock.withLock {
+        let item: SongRequestItem? = lock.withLock {
             guard !items.isEmpty else { return nil }
             let item = items.removeFirst()
             nowPlaying = item
             return item
         }
+        if item != nil { postQueueChanged() }
+        return item
     }
 
     /// Skip the currently playing request and advance to the next in queue.
@@ -116,7 +124,7 @@ final class SongRequestQueue {
     /// - Returns: The next song request that is now playing, or nil if queue is empty.
     @discardableResult
     func skip() -> SongRequestItem? {
-        lock.withLock {
+        let result: SongRequestItem? = lock.withLock {
             if !items.isEmpty {
                 nowPlaying = items.removeFirst()
             } else {
@@ -124,6 +132,8 @@ final class SongRequestQueue {
             }
             return nowPlaying
         }
+        postQueueChanged()
+        return result
     }
 
     /// Remove all items from the queue and clear now-playing.
@@ -131,12 +141,14 @@ final class SongRequestQueue {
     /// - Returns: The number of items that were removed.
     @discardableResult
     func clear() -> Int {
-        lock.withLock {
+        let count: Int = lock.withLock {
             let count = items.count
             items.removeAll()
             nowPlaying = nil
             return count
         }
+        postQueueChanged()
+        return count
     }
 
     /// Remove a specific item from the queue by its ID.
@@ -144,6 +156,7 @@ final class SongRequestQueue {
         lock.withLock {
             items.removeAll { $0.id == id }
         }
+        postQueueChanged()
     }
 
     /// Move an item from one position to another (for drag-to-reorder).
@@ -151,6 +164,7 @@ final class SongRequestQueue {
         lock.withLock {
             items.move(fromOffsets: source, toOffset: destination)
         }
+        postQueueChanged()
     }
 
     /// Get the queue positions for a specific user.
@@ -170,6 +184,7 @@ final class SongRequestQueue {
         lock.withLock {
             nowPlaying = nil
         }
+        postQueueChanged()
     }
 
     /// Re-insert an item at the front of the queue without re-running limit checks.
@@ -180,5 +195,6 @@ final class SongRequestQueue {
         lock.withLock {
             items.insert(item, at: 0)
         }
+        postQueueChanged()
     }
 }

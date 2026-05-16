@@ -20,6 +20,35 @@ struct AlbumArtView: View {
     var size: CGFloat = 64
     var cornerRadius: CGFloat? = nil
 
+    // MARK: - Memoized fallback gradient
+
+    /// Hash → gradient cache. Identical track/artist seeds skip the HSL conversion on every
+    /// render — the same fallback art shows up on the General hero, queue rows, widget preview,
+    /// and Discord mock, so amortizing this matters across switches.
+    nonisolated(unsafe) private static var gradientCache: [String: [Color]] = [:]
+    private static let gradientCacheLock = NSLock()
+
+    private var gradientColors: [Color] {
+        let key = seed
+        Self.gradientCacheLock.lock()
+        defer { Self.gradientCacheLock.unlock() }
+        if let cached = Self.gradientCache[key] { return cached }
+        let hueValue: Double = {
+            guard !key.isEmpty else { return 0.55 }
+            var hasher = Hasher()
+            hasher.combine(key)
+            let raw = abs(hasher.finalize())
+            return Double(raw % 360) / 360.0
+        }()
+        let colors: [Color] = [
+            Color(hue: hueValue, saturation: 0.55, brightness: 0.80),
+            Color(hue: (hueValue + 0.16).truncatingRemainder(dividingBy: 1.0), saturation: 0.65, brightness: 0.40)
+        ]
+        if Self.gradientCache.count > 64 { Self.gradientCache.removeAll(keepingCapacity: true) }
+        Self.gradientCache[key] = colors
+        return colors
+    }
+
     // MARK: - Body
 
     var body: some View {
@@ -51,24 +80,6 @@ struct AlbumArtView: View {
         .shadow(color: .black.opacity(0.18), radius: 2, x: 0, y: 1)
     }
 
-    // MARK: - Helpers
-
-    /// Hue derived from the seed string so the same track always gets the
-    /// same fallback color.
-    private var hue: Double {
-        guard !seed.isEmpty else { return 0.55 }
-        var hasher = Hasher()
-        hasher.combine(seed)
-        let raw = abs(hasher.finalize())
-        return Double(raw % 360) / 360.0
-    }
-
-    private var gradientColors: [Color] {
-        [
-            Color(hue: hue, saturation: 0.55, brightness: 0.80),
-            Color(hue: (hue + 0.16).truncatingRemainder(dividingBy: 1.0), saturation: 0.65, brightness: 0.40)
-        ]
-    }
 }
 
 #Preview {

@@ -34,4 +34,5 @@ extension NSNotification.Name {
     static let twitchConnectionStateChanged = NSNotification.Name(AppConstants.Notifications.twitchConnectionStateChanged)
     static let songRequestSettingChanged = NSNotification.Name(AppConstants.Notifications.songRequestSettingChanged)
     static let songRequestQueueChanged = NSNotification.Name(AppConstants.Notifications.songRequestQueueChanged)
+    static let songRequestHoldChanged = NSNotification.Name(AppConstants.Notifications.songRequestHoldChanged)
 }

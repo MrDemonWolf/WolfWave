@@ -73,6 +73,9 @@ enum AppConstants {
         /// Posted when the song request queue changes (add, remove, skip, clear).
         static let songRequestQueueChanged = "SongRequestQueueChanged"
 
+        /// Posted when the song request hold state toggles.
+        static let songRequestHoldChanged = "SongRequestHoldChanged"
+
     }
     
     // MARK: - UserDefaults Keys

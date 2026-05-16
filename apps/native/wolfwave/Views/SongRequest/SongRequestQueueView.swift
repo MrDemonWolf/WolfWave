@@ -29,7 +29,6 @@ struct SongRequestQueueView: View {
 
     @State private var items: [SongRequestItem] = []
     @State private var nowPlaying: SongRequestItem?
-    @State private var refreshTimer: Timer?
     @State private var showingClearConfirm = false
     @State private var isMusicAppClosed = false
     @State private var isHeld = false
@@ -98,8 +97,23 @@ struct SongRequestQueueView: View {
         .padding(AppConstants.SettingsUI.cardPadding)
         .background(.quaternary.opacity(0.5))
         .clipShape(RoundedRectangle(cornerRadius: AppConstants.SettingsUI.cardCornerRadius))
-        .onAppear { startRefresh() }
-        .onDisappear { stopRefresh() }
+        .onAppear { refreshState() }
+        .onReceive(NotificationCenter.default.publisher(for: .songRequestQueueChanged)) { _ in
+            refreshState()
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .songRequestHoldChanged)) { _ in
+            refreshState()
+        }
+        .onReceive(NSWorkspace.shared.notificationCenter.publisher(for: NSWorkspace.didLaunchApplicationNotification)) { note in
+            if (note.userInfo?[NSWorkspace.applicationUserInfoKey] as? NSRunningApplication)?.bundleIdentifier == AppConstants.Music.bundleIdentifier {
+                isMusicAppClosed = false
+            }
+        }
+        .onReceive(NSWorkspace.shared.notificationCenter.publisher(for: NSWorkspace.didTerminateApplicationNotification)) { note in
+            if (note.userInfo?[NSWorkspace.applicationUserInfoKey] as? NSRunningApplication)?.bundleIdentifier == AppConstants.Music.bundleIdentifier {
+                isMusicAppClosed = true
+            }
+        }
     }
 
     // MARK: - Now Playing Row
@@ -275,18 +289,6 @@ struct SongRequestQueueView: View {
     }
 
     // MARK: - Refresh
-
-    private func startRefresh() {
-        refreshState()
-        refreshTimer = Timer.scheduledTimer(withTimeInterval: 2.0, repeats: true) { _ in
-            DispatchQueue.main.async { refreshState() }
-        }
-    }
-
-    private func stopRefresh() {
-        refreshTimer?.invalidate()
-        refreshTimer = nil
-    }
 
     private func refreshState() {
         // Only mutate @State when the value actually changes — assigning the same

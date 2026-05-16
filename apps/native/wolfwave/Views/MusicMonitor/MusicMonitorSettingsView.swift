@@ -122,8 +122,15 @@ struct MusicMonitorSettingsView: View {
                 onTryAgain: refreshPermission
             )
         }
-        .onAppear {
-            refreshPermission()
+        .task {
+            // Yield so the first frame paints before we read services / system state.
+            await Task.yield()
+            // Permission check is the costliest read — reuse the session cache when fresh.
+            if let cached = MusicPermissionCache.read() {
+                permissionState = cached
+            } else {
+                refreshPermission()
+            }
             loadCurrentTrack()
             loadIntegrationStatuses()
         }
@@ -274,6 +281,7 @@ struct MusicMonitorSettingsView: View {
 
     private func refreshPermission() {
         let next = MusicPermissionChecker.currentState()
+        MusicPermissionCache.write(next)
         withAnimation(.easeInOut(duration: 0.2)) {
             permissionState = next
         }
@@ -323,6 +331,30 @@ struct MusicMonitorSettingsView: View {
             object: nil,
             userInfo: ["enabled": enabled]
         )
+    }
+}
+
+// MARK: - Permission cache
+
+/// Process-lifetime cache for the Music automation permission result.
+///
+/// `MusicPermissionChecker.currentState()` issues an Apple Events probe that can take tens of
+/// milliseconds — measurable when switching back to the General settings pane. Cache the result
+/// for a short window so re-entering the pane within the same session is instant. The cache is
+/// invalidated by `NSApplication.didBecomeActiveNotification` and by explicit refresh calls.
+private enum MusicPermissionCache {
+    private static let ttl: TimeInterval = 30
+    nonisolated(unsafe) private static var value: MusicPermissionState?
+    nonisolated(unsafe) private static var storedAt: Date?
+
+    static func read() -> MusicPermissionState? {
+        guard let value, let storedAt, Date().timeIntervalSince(storedAt) < ttl else { return nil }
+        return value
+    }
+
+    static func write(_ state: MusicPermissionState) {
+        value = state
+        storedAt = Date()
     }
 }
 

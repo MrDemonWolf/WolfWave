@@ -109,16 +109,10 @@ struct WebSocketSettingsView: View {
     }
 
     /// Watches the system network path and refreshes the cached LAN IP when it changes.
+    /// Subscribes to the process-wide `NetworkInfoService.pathUpdates()` stream so re-entering
+    /// this settings pane doesn't pay `NWPathMonitor.start` again.
     private func monitorNetworkPath() async {
-        let monitor = NWPathMonitor()
-        let stream = AsyncStream<NWPath> { continuation in
-            monitor.pathUpdateHandler = { path in
-                continuation.yield(path)
-            }
-            continuation.onTermination = { _ in monitor.cancel() }
-            monitor.start(queue: .global(qos: .utility))
-        }
-        for await _ in stream {
+        for await _ in NetworkInfoService.pathUpdates() {
             await refreshLocalIP()
         }
     }

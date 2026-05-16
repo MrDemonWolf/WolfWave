@@ -153,6 +153,7 @@ struct SettingsView: View {
             }
             .scrollEdgeEffectStyle(.hard, for: .top)
             .animation(.none, value: selectedSection)
+            .transaction(value: selectedSection) { $0.disablesAnimations = true }
             .onChange(of: selectedSection) { _, newSection in
                 // Cancel in-progress Twitch OAuth if user navigates away
                 if newSection != .twitchIntegration, twitchViewModel.authState.isInProgress {

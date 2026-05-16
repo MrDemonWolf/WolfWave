@@ -37,6 +37,8 @@ struct TwitchSettingsView: View {
     @Bindable var viewModel: TwitchViewModel
     /// Tracks whether the user has copied/opened the device code at least once.
     @State private var hasStartedActivation = false
+    /// Whether the one-time keychain + service wiring has run for this view model instance.
+    @State private var didLoadCredentials = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
@@ -50,6 +52,12 @@ struct TwitchSettingsView: View {
                         || viewModel.authState.isInProgress))
         }
         .onAppear {
+            // Keychain reads + AppDelegate wiring run once per view model instance.
+            // Re-entering the Twitch settings pane shouldn't repeat them — TwitchViewModel
+            // is owned by the parent SettingsView and survives section switches.
+            guard !didLoadCredentials else { return }
+            didLoadCredentials = true
+
             viewModel.loadSavedCredentials()
 
             // Ensure the service is set on the view model

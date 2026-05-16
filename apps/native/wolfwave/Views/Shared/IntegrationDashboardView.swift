@@ -131,10 +131,24 @@ struct IntegrationDashboardView: View {
 
     // MARK: - Brand icon helper
 
+    /// Cached per-asset existence check. `NSImage(named:)` allocates and decodes — caching the
+    /// boolean lookup keeps row rendering free of asset-catalog work on every redraw.
+    nonisolated(unsafe) private static var brandIconExistsCache: [String: Bool] = [:]
+    private static let brandIconCacheLock = NSLock()
+
+    private static func brandIconExists(_ asset: String) -> Bool {
+        brandIconCacheLock.lock()
+        defer { brandIconCacheLock.unlock() }
+        if let cached = brandIconExistsCache[asset] { return cached }
+        let exists = NSImage(named: asset) != nil
+        brandIconExistsCache[asset] = exists
+        return exists
+    }
+
     private func brandIcon(_ asset: String, fallback: String, color: Color, isTemplate: Bool = false) -> AnyView {
         AnyView(
             Group {
-                if NSImage(named: asset) != nil {
+                if Self.brandIconExists(asset) {
                     if isTemplate {
                         Image(asset)
                             .renderingMode(.template)

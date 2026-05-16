@@ -5,6 +5,7 @@
 
 import Darwin
 import Foundation
+import Network
 import os
 
 /// Off-main helper for resolving the device's primary non-loopback IPv4 address.
@@ -20,6 +21,40 @@ actor NetworkInfoService {
     // MARK: - Cache
 
     private static let cacheLock = OSAllocatedUnfairLock<String?>(initialState: nil)
+
+    // MARK: - Shared path monitor
+
+    /// One process-lifetime `NWPathMonitor`. Views consume `pathUpdates` instead of allocating
+    /// their own monitor each appear — switching settings panes no longer pays the
+    /// `NWPathMonitor.start` cost.
+    private static let pathMonitor: NWPathMonitor = {
+        let monitor = NWPathMonitor()
+        monitor.start(queue: .global(qos: .utility))
+        return monitor
+    }()
+
+    private static let pathContinuationsLock = OSAllocatedUnfairLock<[UUID: AsyncStream<NWPath>.Continuation]>(initialState: [:])
+
+    private static let pathHandlerInstalled: Bool = {
+        pathMonitor.pathUpdateHandler = { path in
+            let continuations = pathContinuationsLock.withLock { $0 }
+            for cont in continuations.values { cont.yield(path) }
+        }
+        return true
+    }()
+
+    /// Shared `AsyncStream` of network path updates. Each subscriber gets its own stream backed by
+    /// the single process-wide monitor. Cancelling the consuming task removes the subscription.
+    nonisolated static func pathUpdates() -> AsyncStream<NWPath> {
+        _ = pathHandlerInstalled
+        return AsyncStream { continuation in
+            let id = UUID()
+            pathContinuationsLock.withLock { $0[id] = continuation }
+            continuation.onTermination = { _ in
+                pathContinuationsLock.withLock { _ = $0.removeValue(forKey: id) }
+            }
+        }
+    }
 
     /// Last-known IPv4 address, readable from any thread. `nil` until first refresh completes.
     static var cachedIPv4: String? {

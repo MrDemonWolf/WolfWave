@@ -56,6 +56,7 @@ final class SongRequestService {
     /// auto-advance is suspended. When disabled, the first buffered song plays immediately.
     func setHold(_ enabled: Bool) async {
         Foundation.UserDefaults.standard.set(enabled, forKey: AppConstants.UserDefaults.songRequestHoldEnabled)
+        NotificationCenter.default.post(name: .songRequestHoldChanged, object: nil, userInfo: ["enabled": enabled])
         Log.debug("SongRequestService: Hold \(enabled ? "enabled" : "released")", category: "SongRequest")
 
         if !enabled {
