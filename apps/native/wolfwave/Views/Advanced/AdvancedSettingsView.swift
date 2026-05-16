@@ -413,9 +413,7 @@ struct AdvancedSettingsView: View {
             .accessibilityLabel("Clear application logs")
             .accessibilityHint("Erases the current log file")
         }
-        .padding(AppConstants.SettingsUI.cardPadding)
-        .background(Color(nsColor: .controlBackgroundColor))
-        .clipShape(RoundedRectangle(cornerRadius: AppConstants.SettingsUI.cardCornerRadius))
+        .cardStyle()
         .alert("Clear logs?", isPresented: $showingClearLogsAlert) {
             Button("Cancel", role: .cancel) {}
             Button("Clear", role: .destructive) { clearLogs() }
