@@ -50,7 +50,6 @@ struct AboutView: View {
             versionPill
             actionGrid
             legalLinksRow
-            Spacer(minLength: 0)
             footer
         }
         .padding(24)
