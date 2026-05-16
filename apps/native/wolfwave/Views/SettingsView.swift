@@ -152,11 +152,8 @@ struct SettingsView: View {
     /// Currently selected settings section
     @State private var selectedSection: SettingsSection = .general
 
-    /// Sidebar visibility — bound so the toolbar toggle can animate the split view.
-    @State private var sidebarVisibility: NavigationSplitViewVisibility = .all
-
     var body: some View {
-        NavigationSplitView(columnVisibility: $sidebarVisibility) {
+        NavigationSplitView {
             List(SettingsSection.allCases, selection: $selectedSection) { section in
                 sidebarRow(for: section)
             }
@@ -199,20 +196,11 @@ struct SettingsView: View {
             // reflects whether we are already joined (prevents missed callbacks).
             twitchViewModel.channelConnected = appDelegate?.twitchService?.isConnected ?? false
         }
-        .toolbar {
-            ToolbarItem(placement: .navigation) {
-                Button {
-                    withAnimation(.easeInOut(duration: 0.2)) {
-                        sidebarVisibility = (sidebarVisibility == .all) ? .detailOnly : .all
-                    }
-                } label: {
-                    Image(systemName: "sidebar.left")
-                }
-                .help("Toggle Sidebar")
-                .accessibilityLabel("Toggle Sidebar")
-                .accessibilityIdentifier("settingsSidebarToggle")
-            }
-        }
+        // Keep an empty .toolbar { } so NSHostingController materializes an
+        // NSToolbar — that is what lets NavigationSplitView's automatic
+        // sidebar toggle land in the titlebar instead of falling back to a
+        // floating reveal chevron.
+        .toolbar { }
         .frame(
             minWidth: AppConstants.SettingsUI.minWidth,
             idealWidth: AppConstants.SettingsUI.idealWidth,
