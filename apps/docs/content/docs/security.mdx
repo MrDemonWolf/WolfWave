@@ -23,9 +23,11 @@ WolfWave is distributed as a signed and notarized DMG:
 
 All sensitive credentials are stored in the macOS Keychain:
 
-- **WebSocket tokens** - JWT tokens for WebSocket authentication
-- **Twitch OAuth tokens** - Access tokens for Twitch API
-- **Twitch bot usernames** - Associated account information
+- **Twitch OAuth access token** — used for Helix API + EventSub
+- **Twitch refresh token** — for silent token refresh
+- **Twitch broadcaster + bot account info** — IDs and usernames associated with the connected account
+
+The local WebSocket server is **loopback-only** — no token or JWT is required to connect from OBS, and no auth secrets for it are stored in Keychain.
 
 <Callout type="warn">
   Tokens are **never** written to UserDefaults or stored on disk in plain text.
@@ -132,8 +134,9 @@ All external network traffic uses encrypted transport:
 | `id.twitch.tv/oauth2` | HTTPS | Twitch OAuth |
 | `eventsub.wss.twitch.tv/ws` | WSS | Twitch EventSub WebSocket |
 | `itunes.apple.com/search` | HTTPS | Album artwork for Discord Rich Presence |
-| `localhost:8765` | WebSocket (local) | OBS widget now-playing server (loopback only) |
-| Local Unix socket | IPC | Discord Rich Presence |
+| `127.0.0.1:8765` | WebSocket (local) | Now-playing broadcast for OBS browser sources (loopback only) |
+| `127.0.0.1:8766` | HTTP (local) | Widget HTML server (loopback only) |
+| Local Unix socket | IPC | Discord Rich Presence (`$TMPDIR/discord-ipc-{0..9}`) |
 
 ## Best Practices
 

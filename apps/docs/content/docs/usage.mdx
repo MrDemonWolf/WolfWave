@@ -3,25 +3,25 @@ title: Usage Guide
 description: Master all the features of WolfWave.
 ---
 
-WolfWave is simple to use and mostly runs by itself in the background. Here's how to master its main features.
+WolfWave runs itself once set up. Here's how each piece works.
 
 ---
 
 ## 🐺 The Menu Bar
-The main hub of WolfWave is in your **macOS Menu Bar** (the icons in the top right of your screen). 
+WolfWave lives in your **macOS Menu Bar** (top-right of your screen).
 
-- Click the Wolf icon to see what is playing.
-- From the menu, you can quickly **Sync Music**, **Check Twitch Chat**, and access **Settings**.
+- Click the wolf icon to see what's playing.
+- From the menu: quick toggles, hold/resume the request queue, open **Settings**.
 
 ---
 
 ## 🎵 Sync Music
 **TL;DR: Keep the music flowing.**
 
-Toggle **Sync Music** on in Settings to start tracking Apple Music. WolfWave will instantly detect when you change a song.
+Flip the **Sync Music** switch in Settings. WolfWave instantly spots when you change a song.
 
 <Callout type="info">
-  **Pro-tip**: Click the Wolf icon in the Menu Bar to see a quick "Now Playing" card with artwork and artist info.
+  **Pro-tip**: Click the wolf icon for a quick "Now Playing" card with artwork and artist info.
 </Callout>
 
 ---
@@ -29,16 +29,16 @@ Toggle **Sync Music** on in Settings to start tracking Apple Music. WolfWave wil
 ## 📺 Now-Playing Widget
 **TL;DR: The easiest widget you've ever set up.**
 
-WolfWave hosts a now-playing widget directly on your Mac. No external links or internet connection needed.
+WolfWave hosts the widget right on your Mac. No external links. No internet needed.
 
 1. Open **Settings → Now-Playing Widget**.
 2. Click **Enable Widget Server**.
 3. Copy the **Widget Link** (`http://localhost:8766`).
-4. In OBS, add a **Browser Source** and paste the Link.
+4. In OBS, add a **Browser Source** and paste the link.
 5. Set the size to **500 × 120**.
 
 <Callout type="info">
-  **Important**: Turn on "Shutdown source when not visible" in OBS to make sure the widget reconnects smoothly when you switch scenes.
+  **Important**: Turn on "Shutdown source when not visible" in OBS so the widget reconnects cleanly when you switch scenes.
 </Callout>
 
 ---
@@ -46,31 +46,45 @@ WolfWave hosts a now-playing widget directly on your Mac. No external links or i
 ## 💬 Twitch Chat Bot
 **TL;DR: Chat commands for everyone.**
 
-Once you're logged into Twitch (via **Settings → Twitch**), your bot will automatically connect to your channel when you start the app.
+Once you're logged into Twitch (**Settings → Twitch**), the bot auto-connects when you open the app.
 
-- **Enable Commands**: Pick which commands people can use in chat (like `!song` or `!last`).
-- **Cooldowns**: Prevent chat spam by setting "Wait Times" (Cooldowns) for commands.
-- **Mod Bypass**: Don't worry, moderators and you can use commands as much as you like.
+- **Pick commands**: Choose which ones chat can use (like `!song`, `!last`, `!sr`).
+- **Cooldowns**: Set wait times so nobody spams.
+- **Mod Bypass**: Mods and you can use commands as much as you want.
+
+---
+
+## 🎶 Song Requests
+**TL;DR: Let chat queue up tracks.**
+
+Open **Settings → Song Requests** to turn it on.
+
+- **How chat uses it**: `!sr <song name or Apple Music link>`. WolfWave finds the track and adds it to the queue.
+- **Queue Panel**: See every pending request right in Settings. Reorder or remove with a click.
+- **Hold Mode**: Pause new requests when you need a break. Flip it from Settings or `!hold` in chat.
+- **Blocklist**: Block specific tracks, artists, or albums you never want played.
+- **Quick Access**: Hold/resume the queue directly from the menu bar.
 
 ---
 
 ## 🎧 Discord Status
 **TL;DR: Show your status.**
 
-When **Discord Status** is enabled, WolfWave will automatically update your Discord profile to show "Listening to Apple Music".
+When **Discord Status** is on, WolfWave updates your Discord profile to "Listening to Apple Music".
 
-- **Album Art**: High-quality artwork is fetched automatically.
-- **Progress Bar**: Shows exactly where you are in the song.
-- **No Setup Required**: As long as Discord is open, WolfWave will find it and connect.
+- **Album Art**: High-res artwork auto-fetched.
+- **Progress Bar**: Shows where you are in the song.
+- **No Setup**: As long as Discord is open, WolfWave finds it.
 
 ---
 
 ## ⚙️ Settings
-Access **Settings** from the menu bar to:
+From the menu bar, open **Settings** to:
 
-- **Now-Playing Widget**: Change your widget's port, colors, or fonts.
-- **Twitch**: Log in, set commands, or tweak cooldowns.
-- **Discord**: Enable or disable the profile status.
+- **Now-Playing Widget**: Port, colors, fonts.
+- **Twitch**: Log in, pick commands, tweak cooldowns.
+- **Discord**: Turn the profile status on/off.
+- **Song Requests**: Queue, hold, blocklist.
 - **Advanced**: Check for updates or reset the setup wizard.
 
 ---
@@ -80,4 +94,5 @@ Access **Settings** from the menu bar to:
 <Cards>
   <Card title="Features" href="/docs/features" description="A deep dive into every feature." />
   <Card title="Bot Commands" href="/docs/bot-commands" description="Chat commands reference." />
+  <Card title="Support the project" href="/docs/support" description="Sponsor on GitHub." />
 </Cards>

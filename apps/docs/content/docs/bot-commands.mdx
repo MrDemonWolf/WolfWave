@@ -5,44 +5,69 @@ description: All the chat commands available in WolfWave.
 
 Once you've connected your Twitch account, these commands are ready to go.
 
+<Callout type="info">
+  Most commands are **off by default** — flip the ones you want on in **Settings → Twitch → Bot Commands**.
+</Callout>
+
 ---
 
-## !song Commands
+## 🎵 Current Song
 **TL;DR: Show your current track.**
 
-These commands will reply to the user with the song you're playing right now.
+Replies with what you're playing right now.
 
-| Command        | Description             |
-| -------------- | ----------------------- |
-| `!song`        | Now Playing info        |
-| `!currentsong` | Now Playing info        |
-| `!nowplaying`  | Now Playing info        |
+| Command        | Description      |
+| -------------- | ---------------- |
+| `!song`        | Now Playing info |
+| `!currentsong` | Now Playing info |
+| `!nowplaying`  | Now Playing info |
 
 ---
 
-## !last Commands
+## ⏮ Last Song
 **TL;DR: Show your previous track.**
 
-These commands will reply with the last track you finished playing.
+Replies with the last track you finished.
 
-| Command        | Description             |
-| -------------- | ----------------------- |
-| `!lastsong`    | Previously Played info  |
-| `!last`        | Previously Played info  |
-| `!prevsong`    | Previously Played info  |
+| Command     | Description            |
+| ----------- | ---------------------- |
+| `!last`     | Previously Played info |
+| `!lastsong` | Previously Played info |
+| `!prevsong` | Previously Played info |
+
+---
+
+## 🎶 Song Requests
+**TL;DR: Chat picks the music.**
+
+Everyone can add tracks to your queue. Mods get extra controls.
+
+| Command                  | Who          | What it does                                      |
+| ------------------------ | ------------ | ------------------------------------------------- |
+| `!songrequest <query>`   | Everyone     | Request a track by name or Apple Music link       |
+| `!sr <query>`            | Everyone     | Short alias for `!songrequest`                    |
+| `!queue`                 | Everyone     | Show how many tracks are queued                   |
+| `!myqueue`               | Everyone     | Show your own pending requests                    |
+| `!skip`                  | Mods + owner | Skip the current song                             |
+| `!hold`                  | Mods + owner | Pause / resume new requests                       |
+| `!clearqueue`            | Mods + owner | Wipe the entire queue                             |
+
+<Callout type="info">
+  Configure the queue, blocklist, and which commands are enabled in **Settings → Song Requests**.
+</Callout>
 
 ---
 
 ## 🛑 Cooldowns & Spam
 **TL;DR: No spamming allowed.**
 
-You can set **Global** and **Per-User** cooldowns in Settings. This prevents people from spamming commands in chat.
+Set **Global** and **Per-User** cooldowns in Settings. Keeps chat clean.
 
-- **Global Cooldown** (default 15s): How long everyone has to wait between commands.
-- **User Cooldown** (default 15s): How long one specific person has to wait after they use a command.
+- **Global Cooldown** (default 15s): How long everyone waits between commands.
+- **User Cooldown** (default 15s): How long one person waits after using a command.
 
 <Callout type="info">
-  **Mod Bypass**: Mods and the channel owner always bypass cooldowns. You can use commands as much as you like!
+  **Mod Bypass**: Mods and the channel owner always bypass cooldowns.
 </Callout>
 
 ---
@@ -52,4 +77,5 @@ You can set **Global** and **Per-User** cooldowns in Settings. This prevents peo
 <Cards>
   <Card title="Usage Guide" href="/docs/usage" description="Master the rest of the features." />
   <Card title="Features" href="/docs/features" description="A deep dive into everything." />
+  <Card title="Support the project" href="/docs/support" description="Sponsor on GitHub." />
 </Cards>

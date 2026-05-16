@@ -3,84 +3,123 @@ title: Architecture
 description: WolfWave project structure and architecture overview
 ---
 
-WolfWave follows a clean architecture with clear separation of concerns.
+WolfWave follows a clean architecture with clear separation of concerns. Pattern: **MVVM + Service-Oriented**, with an `NSApplicationDelegateAdaptor`-based lifecycle.
 
 ## Project Structure
 
 ```
-src/
-├── WolfWaveTests/           # Unit tests (XCTest)
+apps/native/
+├── WolfWaveTests/                          # Unit tests (XCTest + Swift Testing)
 │   ├── AppConstantsTests.swift
+│   ├── AppConstantsEdgeCaseTests.swift
+│   ├── AppleMusicSourceTests.swift
 │   ├── ArtworkServiceTests.swift
+│   ├── ArtworkServiceCacheTests.swift
 │   ├── BotCommandDispatcherTests.swift
+│   ├── CommandIntegrationTests.swift
 │   ├── CooldownManagerTests.swift
+│   ├── DiscordRPCServiceTests.swift
 │   ├── KeychainServiceTests.swift
-│   ├── LastSongCommandTests.swift
 │   ├── LoggerTests.swift
-│   ├── MusicPlaybackMonitorTests.swift
 │   ├── OnboardingViewModelTests.swift
+│   ├── OnboardingViewModelEdgeCaseTests.swift
 │   ├── PowerStateMonitorTests.swift
-│   ├── SongCommandTests.swift
+│   ├── SongRequestServiceTests.swift
+│   ├── SongRequestQueueTests.swift
+│   ├── SongRequestCommandTests.swift
+│   ├── SparkleUpdaterServiceTests.swift
+│   ├── TrackInfoCommandTests.swift
 │   ├── TwitchChatServiceTests.swift
 │   ├── TwitchDeviceAuthTests.swift
+│   ├── TwitchDeviceAuthErrorTests.swift
 │   ├── TwitchViewModelTests.swift
-│   ├── UpdateCheckerServiceTests.swift
-│   └── WebSocketServerServiceTests.swift
+│   ├── WebSocketServerServiceTests.swift
+│   ├── WebSocketServerIntegrationTests.swift
+│   └── WidgetHTTPServiceTests.swift
 └── wolfwave/
-├── Core/                    # Core utilities and services
-│   ├── AppConstants.swift       # Application constants
-│   ├── KeychainService.swift    # Secure credential storage (Keychain API)
-│   ├── Logger.swift             # Centralized logging with categories
-│   └── PowerStateMonitor.swift  # Low Power Mode and thermal pressure detection
-├── Monitors/                # Music playback monitoring
-│   └── MusicPlaybackMonitor.swift  # ScriptingBridge-based Apple Music integration
-├── Services/                # External service integrations
-│   ├── ArtworkService.swift     # iTunes Search API artwork fetching with cache
-│   ├── Discord/
-│   │   └── DiscordRPCService.swift  # Discord Rich Presence via IPC socket
-│   ├── UpdateChecker/
-│   │   ├── SparkleUpdaterService.swift   # Sparkle framework auto-update integration
-│   │   └── UpdateCheckerService.swift    # GitHub Releases version checker
-│   ├── WebSocket/
-│   │   ├── WebSocketServerService.swift  # Local WebSocket server (Network.framework)
-│   │   └── WidgetHTTPService.swift       # Local HTTP server serving widget.html (port 8766)
-│   └── Twitch/
-│       ├── TwitchChatService.swift     # EventSub WebSocket + Helix API
-│       ├── TwitchDeviceAuth.swift      # OAuth Device Code flow
-│       └── Commands/                   # Bot command system
-│           ├── BotCommand.swift        # Command protocol
-│           ├── BotCommandDispatcher.swift  # Command routing
-│           ├── CooldownManager.swift   # Global and per-user cooldown system
-│           ├── SongCommand.swift       # !song command implementation
-│           └── LastSongCommand.swift   # !lastsong command implementation
-├── Views/                   # SwiftUI views
-│   ├── SettingsView.swift       # Main settings interface
-│   ├── Advanced/                # Advanced settings
-│   ├── AppVisibility/           # App visibility settings
-│   ├── Discord/                 # Discord Rich Presence settings
-│   │   └── DiscordSettingsView.swift
-│   ├── MusicMonitor/            # Music monitor settings
-│   ├── Onboarding/              # First-launch onboarding wizard
-│   │   ├── OnboardingView.swift
-│   │   ├── OnboardingViewModel.swift
-│   │   ├── OnboardingWelcomeStepView.swift
-│   │   ├── OnboardingTwitchStepView.swift
-│   │   ├── OnboardingDiscordStepView.swift
-│   │   └── OnboardingOBSWidgetStepView.swift
-│   ├── Shared/                  # Shared UI components
-│   │   ├── TwitchGlitchShape.swift
-│   │   ├── UpdateBannerView.swift
-│   │   └── ViewModifiers.swift
-│   ├── Twitch/                  # Twitch-related views
-│   │   ├── TwitchSettingsView.swift   # Twitch bot configuration UI
-│   │   ├── TwitchViewModel.swift      # Twitch state management
-│   │   ├── DeviceCodeView.swift       # Device auth UI
-│   │   └── ...
-│   └── WebSocket/               # OBS Widget settings
-│       └── WebSocketSettingsView.swift
-└── Resources/              # Assets and resources
-    ├── Assets.xcassets/
-    └── widget.html             # Self-contained OBS widget (served by WidgetHTTPService)
+    ├── WolfWaveApp.swift                   # @main app + NSApplicationDelegateAdaptor
+    ├── AppDelegate.swift
+    ├── AppDelegate+MenuBar.swift           # Menu bar status item + dynamic NSMenu
+    ├── AppDelegate+Services.swift          # Service wiring (playback → Twitch/Discord/WS)
+    ├── AppDelegate+Windows.swift           # Settings/About/Onboarding window lifecycle
+    ├── Core/
+    │   ├── AppConstants.swift              # Centralized config enums
+    │   ├── AppConstants+Notifications.swift # NotificationCenter names
+    │   ├── KeychainService.swift           # Secure credential storage
+    │   ├── Logger.swift                    # Structured logging
+    │   ├── PowerStateMonitor.swift         # Low Power Mode + thermal pressure
+    │   ├── NetworkInfoService.swift        # LAN IP cache
+    │   ├── SongRequestItem.swift           # Queue item model
+    │   └── BlocklistItem.swift             # Blocklist model
+    ├── Monitors/
+    │   ├── PlaybackSource.swift            # Source protocol + delegate
+    │   ├── AppleMusicSource.swift          # ScriptingBridge + distributed notifications
+    │   └── PlaybackSourceManager.swift     # Source selection + multiplexing
+    ├── Services/
+    │   ├── ArtworkService.swift            # iTunes Search artwork fetch + cache
+    │   ├── LaunchAtLoginService.swift
+    │   ├── Discord/
+    │   │   └── DiscordRPCService.swift     # Discord Rich Presence via IPC socket
+    │   ├── SongRequest/
+    │   │   ├── SongRequestService.swift    # Request flow orchestrator
+    │   │   ├── SongRequestQueue.swift      # Queue + hold mode + buffering
+    │   │   ├── SongSearchResolver.swift    # MusicKit search
+    │   │   ├── LinkResolverService.swift   # Apple Music URL resolve
+    │   │   ├── AppleMusicController.swift  # AppleScript playback control
+    │   │   └── SongBlocklist.swift         # Track/artist/album blocklist
+    │   ├── Twitch/
+    │   │   ├── TwitchChatService.swift     # EventSub WebSocket + Helix API
+    │   │   ├── TwitchDeviceAuth.swift      # OAuth Device Code flow
+    │   │   └── Commands/                   # Bot command system
+    │   │       ├── BotCommand.swift        # Command protocol + AsyncBotCommand
+    │   │       ├── BotCommandContext.swift
+    │   │       ├── BotCommandDispatcher.swift
+    │   │       ├── CooldownManager.swift
+    │   │       ├── TrackInfoCommand.swift  # !song + !last (shared impl)
+    │   │       ├── SongRequestCommand.swift
+    │   │       ├── QueueCommand.swift
+    │   │       ├── MyQueueCommand.swift
+    │   │       ├── SkipCommand.swift
+    │   │       ├── HoldCommand.swift
+    │   │       └── ClearQueueCommand.swift
+    │   ├── UpdateChecker/
+    │   │   └── SparkleUpdaterService.swift # Sparkle framework wrapper
+    │   └── WebSocket/
+    │       ├── WebSocketServerService.swift # Local WS overlay broadcast
+    │       └── WidgetHTTPService.swift     # Local HTTP widget server (127.0.0.1:8766)
+    ├── Views/
+    │   ├── SettingsView.swift              # NavigationSplitView shell
+    │   ├── Advanced/AdvancedSettingsView.swift
+    │   ├── AppVisibility/AppVisibilitySettingsView.swift
+    │   ├── Discord/DiscordSettingsView.swift
+    │   ├── MusicMonitor/MusicMonitorSettingsView.swift
+    │   ├── SongRequest/
+    │   │   ├── SongRequestSettingsView.swift
+    │   │   └── SongRequestQueueView.swift
+    │   ├── Twitch/
+    │   │   ├── TwitchSettingsView.swift
+    │   │   ├── TwitchViewModel.swift
+    │   │   └── DeviceCodeView.swift
+    │   ├── WebSocket/WebSocketSettingsView.swift
+    │   ├── Onboarding/                     # Liquid Glass wizard
+    │   │   ├── OnboardingView.swift
+    │   │   ├── OnboardingViewModel.swift
+    │   │   ├── OnboardingWelcomeStepView.swift
+    │   │   ├── OnboardingMusicStepView.swift
+    │   │   ├── OnboardingMenuBarPointerStepView.swift
+    │   │   ├── OnboardingTwitchStepView.swift
+    │   │   ├── OnboardingDiscordStepView.swift
+    │   │   ├── OnboardingPreferencesStepView.swift
+    │   │   ├── OnboardingOBSWidgetStepView.swift
+    │   │   ├── OnboardingCompletionStepView.swift
+    │   │   └── Components/                 # PillButton, BrandTile
+    │   └── Shared/                         # StatusChip, InfoRow, ToggleSettingRow,
+    │                                       # NowPlayingHeroCard, AlbumArtView,
+    │                                       # UpdateBannerView, WhatsNewView, etc.
+    └── Resources/
+        ├── Assets.xcassets/
+        ├── widget.html                     # Served by WidgetHTTPService
+        └── dev-appcast.xml                 # DEBUG-only Sparkle appcast
 ```
 
 ## Architecture Highlights
@@ -102,14 +141,15 @@ Comprehensive DocC-style comments with parameter/return documentation throughout
 
 ### Delegation Pattern
 
-`MusicPlaybackMonitorDelegate` is used for track update notifications, following Apple's delegation pattern. The delegate receives track name, artist, album, duration, and elapsed time on every update.
+`PlaybackSourceDelegate` is used for track update notifications, following Apple's delegation pattern. The delegate receives track name, artist, album, duration, and elapsed time on every update.
 
-### MVVM Architecture
+### MVVM with `@Observable`
 
-ViewModels separate UI logic from business logic:
+ViewModels separate UI logic from business logic. WolfWave uses the modern `@Observable` macro (migrated from `ObservableObject` / `@Published`):
 
-- `TwitchViewModel` manages Twitch connection state
-- Views observe ViewModel changes via `@StateObject` / `@ObservedObject`
+- `TwitchViewModel` manages Twitch connection state.
+- `OnboardingViewModel` drives the first-run wizard.
+- Views observe `@Observable` properties directly — no `@StateObject` wrapper required.
 
 ### Modern Concurrency
 
@@ -121,43 +161,64 @@ func fetchData() async throws -> Data {
 }
 ```
 
+### Loose Coupling via NotificationCenter
+
+Settings changes (e.g. `TrackingSettingChanged`, `DockVisibilityChanged`) flow through `NotificationCenter`. Names centralized in `AppConstants.Notifications`.
+
+### Thread Safety
+
+- `TwitchChatService`: `NSLock` for shared state mutations.
+- `DiscordRPCService`: serial `ipcQueue` confinement + `enabledLock`.
+- `Logger`: serial `DispatchQueue` for thread-safe file I/O.
+- `WebSocketServerService`: separate `NSLock`s for connections, playback state, and enabled flag.
+
 ## Key Components
 
 ### KeychainService
 
-Secure storage for sensitive credentials using the macOS Keychain API. All tokens and secrets are stored securely, never in UserDefaults or plain text.
+Secure storage for sensitive credentials using the macOS Keychain API. All tokens and secrets are stored securely, never in UserDefaults or plain text. Keys defined in `AppConstants.Keychain`.
 
-### MusicPlaybackMonitor
+### PlaybackSource
 
-Uses ScriptingBridge for direct Apple Music communication without spawning subprocesses. Provides real-time track updates (including duration and elapsed time) via delegation.
+Source abstraction backed by `AppleMusicSource`, which uses ScriptingBridge for direct Apple Music communication without spawning subprocesses. Provides real-time track updates (including duration and elapsed time) via delegation, with a 2-second fallback poll. `PlaybackSourceManager` selects and multiplexes sources.
 
 ### TwitchChatService
 
 Full Twitch integration using:
 
-- **Helix API** for sending messages and API requests
-- **EventSub WebSocket** for real-time chat message notifications
-- **OAuth Device Code Flow** for secure authentication
+- **Helix API** for sending messages and API requests.
+- **EventSub WebSocket** for real-time chat message notifications.
+- **OAuth Device Code Flow** for secure authentication.
+- **Network path monitoring** for automatic reconnection.
+
+### SongRequestService
+
+Coordinates chat song requests end-to-end:
+
+- **Queue** with hold mode and buffering when Music.app is closed.
+- **Resolvers**: `SongSearchResolver` (MusicKit) and `LinkResolverService` (Apple Music URLs).
+- **Playback**: `AppleMusicController` plays tracks via AppleScript while preserving window focus.
+- **Blocklist**: `SongBlocklist` blocks by track ID, artist, or album.
 
 ### DiscordRPCService
 
 Discord Rich Presence integration using:
 
-- **Local IPC Socket**: Communicates with Discord via Unix domain socket — no bot token or server required
-- **iTunes Search API**: Fetches album artwork dynamically with in-memory caching
-- **Playback Progress**: Displays elapsed time and duration as a progress bar on Discord
-- **Auto-reconnect**: Detects Discord availability and reconnects automatically
-- **Sandbox Compatible**: Uses SBPL entitlements for socket access within the App Sandbox
+- **Local IPC Socket**: Unix domain socket — no bot token or server required.
+- **iTunes Search API**: Album artwork fetched dynamically with in-memory caching.
+- **Playback Progress**: Elapsed time and duration shown as a progress bar.
+- **Auto-reconnect**: Detects Discord availability and reconnects automatically.
+- **Sandbox Compatible**: Uses SBPL entitlements for socket access within the App Sandbox.
 
 ### WebSocketServerService
 
 Local WebSocket server for OBS stream overlays using:
 
-- **Network.framework NWListener**: Native WebSocket server with auto-ping and multi-client support
-- **JSON Broadcasting**: Sends `welcome`, `now_playing`, `progress`, and `playback_state` messages
-- **Progress Timer**: 1-second interval broadcasts with elapsed-time estimation to avoid polling ScriptingBridge
-- **Thread Safety**: `NSLock` instances for connections, playback state, and enabled flag
-- **Auto-retry**: Reconnects the listener after failures with configurable delay
+- **Network.framework `NWListener`**: Native WebSocket server with auto-ping and multi-client support.
+- **JSON Broadcasting**: Sends `welcome`, `now_playing`, `progress`, and `playback_state` messages.
+- **Progress Timer**: 1-second interval broadcasts elapsed-time estimation to avoid polling ScriptingBridge.
+- **Auto-retry**: Reconnects the listener after failures with configurable delay.
+- **Loopback-only**: Binds to `127.0.0.1:8765` — never reachable from the network.
 
 Owns a `WidgetHTTPService` instance that starts and stops alongside it.
 
@@ -165,25 +226,25 @@ Owns a `WidgetHTTPService` instance that starts and stops alongside it.
 
 Tiny companion HTTP server that serves the bundled `widget.html` to OBS:
 
-- **Loopback-only**: Binds to `127.0.0.1:8766` — never exposed to the network
-- **`GET /`** → `200 OK` with `widget.html` bytes from the app bundle
-- **All other requests** → `404 Not Found`
-- **Lifecycle**: Owned by `WebSocketServerService`; starts/stops with the WS server
+- **Loopback-only**: Binds to `127.0.0.1:8766` — never exposed to the network.
+- **`GET /`** → `200 OK` with `widget.html` bytes from the app bundle.
+- **All other requests** → `404 Not Found`.
+- **Lifecycle**: Owned by `WebSocketServerService`; starts/stops with the WS server.
 
-### UpdateCheckerService
+### SparkleUpdaterService
 
-Automatic update checker that:
+Wraps the Sparkle framework for auto-updates:
 
-- Queries the GitHub Releases API for the latest version
-- Compares semantic versions (major.minor.patch) against the running app
-- Detects install method (Homebrew vs DMG) via bundle path inspection
-- Posts notifications for the settings UI and macOS notification center
-- Runs on a 24-hour schedule with a 10-second launch delay
+- **EdDSA-signed appcast** verified against the public key in `Info.plist` (`SUPublicEDKey`).
+- **Release builds** poll the remote `SUFeedURL`.
+- **DEBUG builds** disable automatic checks; manual "Check Now" reads the bundled `dev-appcast.xml`.
+- **Homebrew installs** disable Sparkle entirely (updates handled by Homebrew).
 
 ### BotCommandDispatcher
 
 Extensible command routing system that:
 
-- Registers available commands
-- Matches incoming messages to triggers
-- Executes commands and returns responses
+- Registers available commands at startup (`registerDefaultCommands()`).
+- Matches incoming messages to trigger sets (commands implement `BotCommand` or `AsyncBotCommand`).
+- Enforces global + per-user cooldowns via `CooldownManager` (mods bypass).
+- Returns responses capped at 500 chars, with execution target under 100 ms.

@@ -3,56 +3,68 @@ title: Features
 description: Everything you can do with WolfWave.
 ---
 
-WolfWave is designed to be the only tool you need to bridge your Apple Music with Twitch, Discord, and now-playing widgets.
+One app. Apple Music → Twitch, Discord, OBS. Done.
 
 ---
 
 ## 🎵 Music Sync
 **TL;DR: WolfWave sees what you hear, instantly.**
 
-- **Native Sync**: Uses macOS ScriptingBridge for direct access to Apple Music. No hacks, no lag.
-- **Set and Forget**: Once enabled, it runs silently in your menu bar.
-- **Smart History**: Remembers your `!last` song so you don't have to.
-- **Power Saver**: Automatically slows down during Low Power Mode to save your MacBook's battery.
+- **Native Sync**: Talks to Apple Music directly. No hacks, no lag.
+- **Set and Forget**: Sits in your menu bar. Quiet.
+- **Smart History**: Remembers your last song so `!last` just works.
+- **Power Saver**: Slows down on Low Power Mode to save battery.
 
 ---
 
 ## 💬 Twitch Chat Bot
 **TL;DR: Chat commands on autopilot.**
 
-- **Modern API**: Built on Twitch EventSub for lightning-fast responses.
-- **Custom Commands**: Enable `!song`, `!last`, and more with one click.
-- **Anti-Spam**: Built-in cooldowns so your chat doesn't get cluttered.
-- **Mod Friendly**: Mods and the channel owner bypass all cooldowns automatically.
+- **Modern API**: Twitch EventSub for lightning-fast responses.
+- **Custom Commands**: Flip `!song`, `!last`, and more on with one click.
+- **Anti-Spam**: Built-in cooldowns keep chat tidy.
+- **Mod Friendly**: Mods and the channel owner skip cooldowns.
+
+---
+
+## 🎶 Song Requests
+**TL;DR: Let chat pick the music.**
+
+- **`!sr <song>`**: Anyone can request a track. WolfWave finds it on Apple Music and queues it.
+- **Built-in Queue**: See every pending request in Settings. Reorder, remove, or clear.
+- **Hold Mode**: Pause new requests with one toggle (or `!hold` in chat).
+- **Blocklist**: Block tracks, artists, or albums you never want played.
+- **Mod Controls**: `!skip`, `!hold`, `!clearqueue` for trusted users.
+- **Apple Music Links Welcome**: Paste a track URL — WolfWave resolves it.
 
 ---
 
 ## 🎧 Discord Status
 **TL;DR: Show off your taste.**
 
-- **Live Profile**: Shows "Listening to Apple Music" on your Discord profile.
-- **Auto Art**: Fetches high-quality album covers automatically via iTunes.
-- **Progress Bars**: Shows your friends exactly how far into the track you are.
-- **Zero Setup**: Connects via Discord's local socket. No bot tokens required.
+- **Live Profile**: "Listening to Apple Music" on your Discord profile.
+- **Auto Art**: High-res album covers from iTunes, automatically.
+- **Progress Bars**: Friends see exactly where you are in the track.
+- **Zero Setup**: Connects to Discord on your Mac. No bot tokens.
 
 ---
 
 ## 📺 Now-Playing Widget
 **TL;DR: A beautiful widget in seconds.**
 
-- **No Internet Needed**: The widget is hosted locally on your Mac. It works even if the cloud is down.
-- **OBS Ready**: Add as a Browser Source in OBS, or open in any browser.
+- **No Internet Needed**: The widget runs on your Mac. Works offline.
+- **OBS Ready**: Add as a Browser Source. Done.
 - **Real-time**: Updates the millisecond the song changes.
-- **Customizable**: Tweak colors, fonts, and layout to match your style.
+- **Customizable**: Tweak colors, fonts, and layout to fit your stream.
 
 ---
 
 ## 🛡️ Security & Privacy
 **TL;DR: Your data is your business.**
 
-- **Keychain Secure**: Your Twitch tokens are stored in the macOS Keychain, the same place your passwords live.
-- **No Tracking**: WolfWave doesn't collect or store analytics. Data is only sent to services you explicitly enable (Twitch, Discord, iTunes artwork lookups).
-- **Signed & Notarized**: Fully verified by Apple so you can install with confidence.
+- **Keychain Secure**: Tokens live in the macOS Keychain — same place as your passwords.
+- **No Tracking**: Zero analytics. Data only goes to services you turn on (Twitch, Discord, iTunes artwork).
+- **Signed & Notarized**: Verified by Apple. Install with confidence.
 
 ---
 
@@ -61,4 +73,5 @@ WolfWave is designed to be the only tool you need to bridge your Apple Music wit
 <Cards>
   <Card title="Installation" href="/docs/installation" description="Get it running on your Mac." />
   <Card title="Usage Guide" href="/docs/usage" description="Master the features." />
+  <Card title="Support the project" href="/docs/support" description="Sponsor on GitHub." />
 </Cards>
