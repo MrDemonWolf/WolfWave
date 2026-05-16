@@ -3,10 +3,38 @@ import type { ReactElement } from "react";
 const BG = "#000000";
 const SURFACE = "#1C1C1E";
 const HAIRLINE = "#2C2C2E";
+const HAIRLINE_HI = "#3A3A3C";
 const BRAND = "#0A84FF";
 const BRAND_HI = "#409CFF";
 const TXT_1 = "#F5F5F7";
 const TXT_2 = "#A1A1A6";
+
+/** Inline SVG dot grid — adds subtle Apple-keynote texture. Renders via data URI background. */
+const DOT_GRID = `url("data:image/svg+xml;utf8,${encodeURIComponent(
+  `<svg xmlns='http://www.w3.org/2000/svg' width='40' height='40'><circle cx='1' cy='1' r='1' fill='%23ffffff' fill-opacity='0.045'/></svg>`,
+)}")`;
+
+/** Audio-waveform glyph — sits beside the wolfwave wordmark to cue "music app". */
+function WaveGlyph({ size = 30, color = BRAND_HI }: { size?: number; color?: string }): ReactElement {
+  const bars = [0.35, 0.7, 1.0, 0.55, 0.85, 0.4];
+  const barW = size / (bars.length * 2 - 1);
+  return (
+    <div style={{ display: "flex", alignItems: "center", gap: barW, height: size }}>
+      {bars.map((h, i) => (
+        <div
+          key={i}
+          style={{
+            display: "flex",
+            width: barW,
+            height: size * h,
+            borderRadius: barW,
+            background: color,
+          }}
+        />
+      ))}
+    </div>
+  );
+}
 
 export interface OgCardProps {
   title: string;
@@ -35,30 +63,52 @@ export function OgCard({ title, description, eyebrow, chips, accentWord }: OgCar
         flexDirection: "column",
         background: BG,
         position: "relative",
-        fontFamily: "Instrument Sans",
+        fontFamily: "Inter",
       }}
     >
-      {/* Blue glow top-left */}
+      {/* Dot-grid texture — Apple keynote feel */}
       <div
         style={{
           position: "absolute",
-          top: -260,
-          left: -260,
-          width: 900,
-          height: 900,
-          background: `radial-gradient(circle, ${BRAND}55 0%, ${BRAND}00 60%)`,
+          inset: 0,
+          backgroundImage: DOT_GRID,
+          backgroundRepeat: "repeat",
           display: "flex",
         }}
       />
-      {/* Subtle glow bottom-right */}
+      {/* Layered gradient mesh — primary blue glow top-left */}
       <div
         style={{
           position: "absolute",
-          bottom: -300,
-          right: -200,
-          width: 700,
-          height: 700,
-          background: `radial-gradient(circle, ${BRAND_HI}33 0%, ${BRAND_HI}00 60%)`,
+          top: -300,
+          left: -260,
+          width: 960,
+          height: 960,
+          background: `radial-gradient(circle, ${BRAND}66 0%, ${BRAND}00 55%)`,
+          display: "flex",
+        }}
+      />
+      {/* Secondary highlight glow center-right */}
+      <div
+        style={{
+          position: "absolute",
+          top: 80,
+          right: -240,
+          width: 720,
+          height: 720,
+          background: `radial-gradient(circle, ${BRAND_HI}3D 0%, ${BRAND_HI}00 60%)`,
+          display: "flex",
+        }}
+      />
+      {/* Tertiary deep glow bottom-right for asymmetric balance */}
+      <div
+        style={{
+          position: "absolute",
+          bottom: -340,
+          right: -160,
+          width: 760,
+          height: 760,
+          background: `radial-gradient(circle, ${BRAND}29 0%, ${BRAND}00 55%)`,
           display: "flex",
         }}
       />
@@ -73,6 +123,34 @@ export function OgCard({ title, description, eyebrow, chips, accentWord }: OgCar
           display: "flex",
         }}
       />
+
+      {/* Top-right mono tag */}
+      <div
+        style={{
+          position: "absolute",
+          top: 52,
+          right: 64,
+          display: "flex",
+          alignItems: "center",
+          gap: 10,
+          fontFamily: "JetBrains Mono",
+          fontSize: 16,
+          color: TXT_2,
+          letterSpacing: 0.4,
+        }}
+      >
+        <div
+          style={{
+            display: "flex",
+            width: 6,
+            height: 6,
+            borderRadius: 999,
+            background: BRAND_HI,
+            boxShadow: `0 0 12px ${BRAND_HI}`,
+          }}
+        />
+        <span style={{ display: "flex" }}>macOS · native · open source</span>
+      </div>
 
       {/* Content */}
       <div
@@ -90,19 +168,31 @@ export function OgCard({ title, description, eyebrow, chips, accentWord }: OgCar
             <div
               style={{
                 display: "flex",
+                alignItems: "center",
                 alignSelf: "flex-start",
-                padding: "10px 20px",
+                gap: 12,
+                padding: "10px 20px 10px 16px",
                 borderRadius: 999,
                 background: `${BRAND}24`,
                 border: `1px solid ${BRAND}55`,
                 color: BRAND_HI,
                 fontSize: 22,
                 fontWeight: 500,
-                letterSpacing: 0.3,
+                letterSpacing: -0.2,
                 marginBottom: 36,
               }}
             >
-              {eyebrow}
+              <div
+                style={{
+                  display: "flex",
+                  width: 10,
+                  height: 10,
+                  borderRadius: 999,
+                  background: BRAND_HI,
+                  boxShadow: `0 0 14px ${BRAND_HI}`,
+                }}
+              />
+              <span style={{ display: "flex" }}>{eyebrow}</span>
             </div>
           ) : null}
 
@@ -110,12 +200,12 @@ export function OgCard({ title, description, eyebrow, chips, accentWord }: OgCar
             style={{
               display: "flex",
               flexWrap: "wrap",
-              fontFamily: "Unbounded",
-              fontSize: 88,
+              fontFamily: "Inter",
+              fontSize: 96,
               lineHeight: 1.05,
               color: TXT_1,
-              fontWeight: 600,
-              letterSpacing: -1.5,
+              fontWeight: 700,
+              letterSpacing: -2.4,
               maxWidth: 1000,
             }}
           >
@@ -124,14 +214,9 @@ export function OgCard({ title, description, eyebrow, chips, accentWord }: OgCar
               <span
                 style={{
                   display: "flex",
-                  fontFamily: "Instrument Serif",
-                  fontStyle: "italic",
-                  fontWeight: 400,
-                  backgroundImage: `linear-gradient(90deg, ${BRAND} 0%, ${BRAND_HI} 100%)`,
-                  backgroundClip: "text",
-                  color: "transparent",
-                  marginLeft: before.endsWith(" ") || before.length === 0 ? 0 : 16,
-                  marginRight: after.startsWith(" ") || after.length === 0 ? 0 : 16,
+                  fontFamily: "Inter",
+                  fontWeight: 700,
+                  color: BRAND_HI,
                 }}
               >
                 {accent}
@@ -148,6 +233,7 @@ export function OgCard({ title, description, eyebrow, chips, accentWord }: OgCar
                 fontSize: 32,
                 lineHeight: 1.35,
                 color: TXT_2,
+                letterSpacing: -0.4,
                 maxWidth: 920,
               }}
             >
@@ -156,20 +242,21 @@ export function OgCard({ title, description, eyebrow, chips, accentWord }: OgCar
           ) : null}
         </div>
 
-        <div style={{ display: "flex", alignItems: "flex-end", justifyContent: "space-between" }}>
-          <div style={{ display: "flex", gap: 14, flexWrap: "wrap", maxWidth: 660 }}>
+        <div style={{ display: "flex", alignItems: "flex-end", justifyContent: "space-between", gap: 32 }}>
+          <div style={{ display: "flex", gap: 10, flexWrap: "wrap", flex: 1 }}>
             {(chips ?? []).map((c) => (
               <div
                 key={c}
                 style={{
                   display: "flex",
-                  padding: "10px 20px",
+                  padding: "8px 18px",
                   borderRadius: 999,
                   background: SURFACE,
                   border: `1px solid ${HAIRLINE}`,
                   color: TXT_1,
-                  fontSize: 22,
+                  fontSize: 20,
                   fontWeight: 500,
+                  letterSpacing: -0.2,
                 }}
               >
                 {c}
@@ -178,25 +265,29 @@ export function OgCard({ title, description, eyebrow, chips, accentWord }: OgCar
           </div>
 
           <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end" }}>
-            <div
-              style={{
-                display: "flex",
-                fontFamily: "Unbounded",
-                fontSize: 36,
-                fontWeight: 600,
-                color: TXT_1,
-                letterSpacing: -0.5,
-              }}
-            >
-              wolfwave
+            <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+              <WaveGlyph size={32} color={BRAND_HI} />
+              <div
+                style={{
+                  display: "flex",
+                  fontFamily: "Inter",
+                  fontSize: 42,
+                  fontWeight: 700,
+                  color: TXT_1,
+                  letterSpacing: -1.1,
+                }}
+              >
+                wolfwave
+              </div>
             </div>
             <div
               style={{
                 display: "flex",
-                marginTop: 6,
+                marginTop: 8,
                 fontFamily: "JetBrains Mono",
                 fontSize: 18,
                 color: TXT_2,
+                letterSpacing: 0.2,
               }}
             >
               mrdemonwolf.github.io/wolfwave
@@ -224,28 +315,48 @@ export function ChangelogOgCard({ version, date, highlights }: ChangelogOgCardPr
         flexDirection: "column",
         background: BG,
         position: "relative",
-        fontFamily: "Instrument Sans",
+        fontFamily: "Inter",
       }}
     >
       <div
         style={{
           position: "absolute",
-          top: -260,
-          left: -260,
-          width: 900,
-          height: 900,
-          background: `radial-gradient(circle, ${BRAND}55 0%, ${BRAND}00 60%)`,
+          inset: 0,
+          backgroundImage: DOT_GRID,
+          backgroundRepeat: "repeat",
           display: "flex",
         }}
       />
       <div
         style={{
           position: "absolute",
-          bottom: -300,
-          right: -200,
-          width: 700,
-          height: 700,
-          background: `radial-gradient(circle, ${BRAND_HI}33 0%, ${BRAND_HI}00 60%)`,
+          top: -300,
+          left: -260,
+          width: 960,
+          height: 960,
+          background: `radial-gradient(circle, ${BRAND}66 0%, ${BRAND}00 55%)`,
+          display: "flex",
+        }}
+      />
+      <div
+        style={{
+          position: "absolute",
+          top: 80,
+          right: -240,
+          width: 720,
+          height: 720,
+          background: `radial-gradient(circle, ${BRAND_HI}3D 0%, ${BRAND_HI}00 60%)`,
+          display: "flex",
+        }}
+      />
+      <div
+        style={{
+          position: "absolute",
+          bottom: -340,
+          right: -160,
+          width: 760,
+          height: 760,
+          background: `radial-gradient(circle, ${BRAND}29 0%, ${BRAND}00 55%)`,
           display: "flex",
         }}
       />
@@ -260,6 +371,32 @@ export function ChangelogOgCard({ version, date, highlights }: ChangelogOgCardPr
       />
       <div
         style={{
+          position: "absolute",
+          top: 52,
+          right: 64,
+          display: "flex",
+          alignItems: "center",
+          gap: 10,
+          fontFamily: "JetBrains Mono",
+          fontSize: 16,
+          color: TXT_2,
+          letterSpacing: 0.4,
+        }}
+      >
+        <div
+          style={{
+            display: "flex",
+            width: 6,
+            height: 6,
+            borderRadius: 999,
+            background: BRAND_HI,
+            boxShadow: `0 0 12px ${BRAND_HI}`,
+          }}
+        />
+        <span style={{ display: "flex" }}>release notes</span>
+      </div>
+      <div
+        style={{
           position: "relative",
           display: "flex",
           flexDirection: "column",
@@ -272,41 +409,50 @@ export function ChangelogOgCard({ version, date, highlights }: ChangelogOgCardPr
           <div
             style={{
               display: "flex",
+              alignItems: "center",
               alignSelf: "flex-start",
-              padding: "10px 20px",
+              gap: 12,
+              padding: "10px 20px 10px 16px",
               borderRadius: 999,
               background: `${BRAND}24`,
               border: `1px solid ${BRAND}55`,
               color: BRAND_HI,
               fontSize: 22,
               fontWeight: 500,
-              letterSpacing: 0.3,
+              letterSpacing: -0.2,
               marginBottom: 28,
             }}
           >
-            Changelog · {date}
+            <div
+              style={{
+                display: "flex",
+                width: 10,
+                height: 10,
+                borderRadius: 999,
+                background: BRAND_HI,
+                boxShadow: `0 0 14px ${BRAND_HI}`,
+              }}
+            />
+            <span style={{ display: "flex" }}>Changelog · {date}</span>
           </div>
           <div
             style={{
               display: "flex",
-              fontFamily: "Unbounded",
-              fontSize: 130,
+              fontFamily: "Inter",
+              fontSize: 140,
               lineHeight: 1,
               color: TXT_1,
-              fontWeight: 600,
-              letterSpacing: -3,
+              fontWeight: 700,
+              letterSpacing: -3.5,
             }}
           >
             <span style={{ display: "flex" }}>v</span>
             <span
               style={{
                 display: "flex",
-                fontFamily: "Instrument Serif",
-                fontStyle: "italic",
-                fontWeight: 400,
-                backgroundImage: `linear-gradient(90deg, ${BRAND} 0%, ${BRAND_HI} 100%)`,
-                backgroundClip: "text",
-                color: "transparent",
+                fontFamily: "Inter",
+                fontWeight: 700,
+                color: BRAND_HI,
               }}
             >
               {version}
@@ -318,7 +464,7 @@ export function ChangelogOgCard({ version, date, highlights }: ChangelogOgCardPr
               marginTop: 16,
               fontSize: 30,
               color: TXT_2,
-              letterSpacing: 0.2,
+              letterSpacing: -0.4,
             }}
           >
             What&apos;s new in WolfWave
@@ -337,18 +483,19 @@ export function ChangelogOgCard({ version, date, highlights }: ChangelogOgCardPr
                 style={{
                   display: "flex",
                   alignItems: "center",
-                  gap: 14,
+                  gap: 16,
                   fontSize: 26,
                   color: TXT_1,
                   fontWeight: 500,
+                  letterSpacing: -0.3,
                 }}
               >
                 <span
                   style={{
                     display: "flex",
-                    width: 8,
-                    height: 8,
-                    borderRadius: 999,
+                    width: 4,
+                    height: 22,
+                    borderRadius: 2,
                     background: BRAND_HI,
                   }}
                 />
@@ -360,25 +507,29 @@ export function ChangelogOgCard({ version, date, highlights }: ChangelogOgCardPr
 
         <div style={{ display: "flex", alignItems: "flex-end", justifyContent: "flex-end" }}>
           <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end" }}>
-            <div
-              style={{
-                display: "flex",
-                fontFamily: "Unbounded",
-                fontSize: 36,
-                fontWeight: 600,
-                color: TXT_1,
-                letterSpacing: -0.5,
-              }}
-            >
-              wolfwave
+            <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+              <WaveGlyph size={32} color={BRAND_HI} />
+              <div
+                style={{
+                  display: "flex",
+                  fontFamily: "Inter",
+                  fontSize: 42,
+                  fontWeight: 700,
+                  color: TXT_1,
+                  letterSpacing: -1.1,
+                }}
+              >
+                wolfwave
+              </div>
             </div>
             <div
               style={{
                 display: "flex",
-                marginTop: 6,
+                marginTop: 8,
                 fontFamily: "JetBrains Mono",
                 fontSize: 18,
                 color: TXT_2,
+                letterSpacing: 0.2,
               }}
             >
               mrdemonwolf.github.io/wolfwave
@@ -409,11 +560,9 @@ async function loadFont(family: string, weights: number[], italic = false): Prom
 }
 
 export async function loadOgFonts() {
-  const [unbounded, instrument, instrumentItalic, mono] = await Promise.all([
-    loadFont("Unbounded", [600]),
-    loadFont("Instrument Sans", [400, 500]),
-    loadFont("Instrument Serif", [400], true),
+  const [inter, mono] = await Promise.all([
+    loadFont("Inter", [400, 500, 700]),
     loadFont("JetBrains Mono", [400]),
   ]);
-  return [...unbounded, ...instrument, ...instrumentItalic, ...mono];
+  return [...inter, ...mono];
 }

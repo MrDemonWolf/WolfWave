@@ -65,7 +65,7 @@ export async function GET(_req: Request, { params }: RouteContext<'/og/docs/[...
         <ChangelogOgCard version={cl.version} date={cl.date} highlights={cl.highlights} />,
         {
           ...OG_SIZE,
-          fonts: fonts.map((f) => ({ name: f.name, data: f.data, weight: f.weight as 400 | 500 | 600, style: f.style })),
+          fonts: fonts.map((f) => ({ name: f.name, data: f.data, weight: f.weight as 400 | 500 | 700, style: f.style })),
         },
       );
     }
@@ -82,7 +82,7 @@ export async function GET(_req: Request, { params }: RouteContext<'/og/docs/[...
     ),
     {
       ...OG_SIZE,
-      fonts: fonts.map((f) => ({ name: f.name, data: f.data, weight: f.weight as 400 | 500 | 600, style: f.style })),
+      fonts: fonts.map((f) => ({ name: f.name, data: f.data, weight: f.weight as 400 | 500 | 700, style: f.style })),
     },
   );
 }
