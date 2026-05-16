@@ -5,6 +5,7 @@
 //  Created by MrDemonWolf, Inc. on 1/17/26.
 //
 
+import AppKit
 import SwiftUI
 import UniformTypeIdentifiers
 
@@ -36,6 +37,18 @@ struct AdvancedSettingsView: View {
 
     /// Whether the onboarding reset confirmation alert is shown.
     @State private var showingOnboardingResetAlert = false
+
+    /// Whether the clear-logs confirmation alert is shown.
+    @State private var showingClearLogsAlert = false
+
+    /// Formatted log file size (e.g. "248 KB"). Refreshed on appear and after diagnostics actions.
+    @State private var logSizeText: String = "—"
+
+    /// Formatted log line count (e.g. "4,512 lines").
+    @State private var logLineCountText: String = "—"
+
+    /// Whether the "Copied!" feedback row is shown after copying logs.
+    @State private var showingCopyFeedback = false
 
     /// Whether a software update is available.
     @State private var updateAvailable = false
@@ -69,6 +82,12 @@ struct AdvancedSettingsView: View {
     }
 
     /// Opens a save panel to export the application log file.
+    ///
+    /// Presents the panel as a sheet on the settings window when available,
+    /// falling back to a modal run loop. Previously used `panel.begin` with
+    /// no host window, which crashed when the menu bar was the only frontmost
+    /// UI (no key window).
+    @MainActor
     private func exportLogs() {
         guard let logURL = Log.exportLogFile() else {
             Log.warn("No log file available for export", category: "App")
@@ -77,10 +96,11 @@ struct AdvancedSettingsView: View {
 
         let panel = NSSavePanel()
         panel.nameFieldStringValue = "wolfwave-logs.log"
-        panel.allowedContentTypes = [.plainText]
+        let logType = UTType(filenameExtension: "log") ?? .plainText
+        panel.allowedContentTypes = [logType, .plainText]
         panel.canCreateDirectories = true
 
-        panel.begin { response in
+        let completion: (NSApplication.ModalResponse) -> Void = { response in
             guard response == .OK, let destination = panel.url else { return }
             do {
                 if FileManager.default.fileExists(atPath: destination.path) {
@@ -88,10 +108,115 @@ struct AdvancedSettingsView: View {
                 }
                 try FileManager.default.copyItem(at: logURL, to: destination)
                 Log.info("Logs exported to \(destination.lastPathComponent)", category: "App")
+                refreshLogStats()
             } catch {
                 Log.error("Failed to export logs: \(error.localizedDescription)", category: "App")
             }
         }
+
+        if let window = hostWindow() {
+            panel.beginSheetModal(for: window, completionHandler: completion)
+        } else {
+            let response = panel.runModal()
+            completion(response)
+        }
+    }
+
+    /// Reveals the current log file in Finder.
+    private func revealLogsInFinder() {
+        guard let logURL = Log.exportLogFile() else {
+            Log.warn("No log file available to reveal", category: "App")
+            return
+        }
+        NSWorkspace.shared.activateFileViewerSelecting([logURL])
+    }
+
+    /// Copies the tail of the log file to the system clipboard.
+    ///
+    /// Limited to the last 64 KB to avoid pasteboard overload.
+    private func copyLogsToClipboard() {
+        guard let logURL = Log.exportLogFile() else {
+            Log.warn("No log file available to copy", category: "App")
+            return
+        }
+
+        do {
+            let contents = try String(contentsOf: logURL, encoding: .utf8)
+            let maxChars = 64 * 1024
+            let trimmed: String
+            if contents.count > maxChars {
+                let startIndex = contents.index(contents.endIndex, offsetBy: -maxChars)
+                trimmed = "… (truncated to last 64KB)\n" + String(contents[startIndex...])
+            } else {
+                trimmed = contents
+            }
+
+            let pasteboard = NSPasteboard.general
+            pasteboard.clearContents()
+            pasteboard.setString(trimmed, forType: .string)
+
+            withAnimation { showingCopyFeedback = true }
+            DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
+                withAnimation { showingCopyFeedback = false }
+            }
+            Log.info("Logs copied to clipboard", category: "App")
+        } catch {
+            Log.error("Failed to copy logs: \(error.localizedDescription)", category: "App")
+        }
+    }
+
+    /// Clears the current log file (truncates in place).
+    private func clearLogs() {
+        Log.clearLogFile()
+        Log.info("Logs cleared by user", category: "App")
+        refreshLogStats()
+    }
+
+    /// Opens the default browser at a prefilled GitHub bug report form.
+    private func reportBug() {
+        let appVersion = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "Unknown"
+        let build = Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "Unknown"
+        let osVersion = ProcessInfo.processInfo.operatingSystemVersionString
+        let arch = BugReportURL.currentArch()
+        let install: BugReportURL.InstallMethod = isHomebrewInstall ? .homebrew : .dmg
+
+        guard let url = BugReportURL.make(
+            base: AppConstants.URLs.githubIssuesNew,
+            appVersion: appVersion,
+            build: build,
+            osVersion: osVersion,
+            arch: arch,
+            install: install
+        ) else {
+            Log.error("Failed to build bug report URL", category: "App")
+            return
+        }
+
+        NSWorkspace.shared.open(url)
+        Log.info("Opened bug report flow", category: "App")
+    }
+
+    /// Refreshes the displayed log size + line count from the Log singleton.
+    private func refreshLogStats() {
+        let bytes = Log.logFileSize()
+        let lines = Log.logLineCount()
+
+        let byteFormatter = ByteCountFormatter()
+        byteFormatter.allowedUnits = [.useKB, .useMB]
+        byteFormatter.countStyle = .file
+        logSizeText = byteFormatter.string(fromByteCount: bytes)
+
+        let numberFormatter = NumberFormatter()
+        numberFormatter.numberStyle = .decimal
+        let formattedLines = numberFormatter.string(from: NSNumber(value: lines)) ?? String(lines)
+        logLineCountText = "\(formattedLines) lines"
+    }
+
+    /// Returns the host window for sheet presentation, or nil if none is visible.
+    @MainActor
+    private func hostWindow() -> NSWindow? {
+        if let key = NSApp.keyWindow { return key }
+        return NSApp.windows.first { $0.isVisible && !$0.className.contains("NSStatusBar") }
     }
 
     /// Main view body with update card, setup wizard, diagnostics, and danger zone sections.
@@ -148,32 +273,11 @@ struct AdvancedSettingsView: View {
                 Text("This will open the setup wizard. Your current settings will not be changed.")
             }
 
-            // Log Export Card
-            VStack(alignment: .leading, spacing: 12) {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("Diagnostics")
-                        .font(.system(size: 13, weight: .semibold))
+            // Diagnostics Card
+            diagnosticsCard
 
-                    Text("Export application logs to troubleshoot issues.")
-                        .font(.system(size: 12))
-                        .foregroundStyle(.secondary)
-                        .fixedSize(horizontal: false, vertical: true)
-                }
-
-                Button(action: exportLogs) {
-                    Label("Export Logs", systemImage: "square.and.arrow.up")
-                        .font(.system(size: 13, weight: .medium))
-                        .frame(maxWidth: .infinity)
-                }
-                .buttonStyle(.bordered)
-                .controlSize(.regular)
-                .pointerCursor()
-                .accessibilityLabel("Export application logs")
-                .accessibilityHint("Save logs to a file for debugging")
-            }
-            .padding(AppConstants.SettingsUI.cardPadding)
-            .background(Color(nsColor: .controlBackgroundColor))
-            .clipShape(RoundedRectangle(cornerRadius: AppConstants.SettingsUI.cardCornerRadius))
+            // Bug Report Card
+            bugReportCard
 
             Divider()
                 .padding(.vertical, 4)
@@ -235,6 +339,119 @@ struct AdvancedSettingsView: View {
                 isManualCheck = false
             }
         }
+    }
+
+    // MARK: - Diagnostics Card
+
+    @ViewBuilder
+    private var diagnosticsCard: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            VStack(alignment: .leading, spacing: 4) {
+                HStack(alignment: .firstTextBaseline) {
+                    Text("Diagnostics")
+                        .font(.system(size: 13, weight: .semibold))
+                    Spacer()
+                    Text("\(logSizeText) · \(logLineCountText)")
+                        .font(.system(size: 11, design: .monospaced))
+                        .foregroundStyle(.secondary)
+                        .accessibilityLabel("Log file size \(logSizeText), \(logLineCountText)")
+                }
+
+                Text("Export logs, copy them to your clipboard, or clear them.")
+                    .font(.system(size: 12))
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+
+            Button(action: exportLogs) {
+                Label("Export Logs", systemImage: "square.and.arrow.up")
+                    .font(.system(size: 13, weight: .medium))
+                    .frame(maxWidth: .infinity)
+            }
+            .buttonStyle(.bordered)
+            .controlSize(.regular)
+            .pointerCursor()
+            .accessibilityLabel("Export application logs")
+            .accessibilityHint("Save logs to a file for debugging")
+
+            HStack(spacing: 8) {
+                Button(action: revealLogsInFinder) {
+                    Label("Reveal in Finder", systemImage: "folder")
+                        .font(.system(size: 12))
+                        .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.bordered)
+                .controlSize(.small)
+                .pointerCursor()
+                .accessibilityLabel("Reveal log file in Finder")
+
+                Button(action: copyLogsToClipboard) {
+                    Label("Copy to Clipboard", systemImage: "doc.on.clipboard")
+                        .font(.system(size: 12))
+                        .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.bordered)
+                .controlSize(.small)
+                .pointerCursor()
+                .accessibilityLabel("Copy log contents to clipboard")
+            }
+
+            if showingCopyFeedback {
+                SuccessFeedbackRow(text: "Copied to clipboard!")
+                    .transition(.opacity)
+            }
+
+            Button(role: .destructive, action: { showingClearLogsAlert = true }) {
+                Label("Clear Logs", systemImage: "trash")
+                    .font(.system(size: 12, weight: .medium))
+                    .frame(maxWidth: .infinity)
+            }
+            .buttonStyle(.bordered)
+            .controlSize(.small)
+            .tint(.red)
+            .pointerCursor()
+            .accessibilityLabel("Clear application logs")
+            .accessibilityHint("Erases the current log file")
+        }
+        .padding(AppConstants.SettingsUI.cardPadding)
+        .background(Color(nsColor: .controlBackgroundColor))
+        .clipShape(RoundedRectangle(cornerRadius: AppConstants.SettingsUI.cardCornerRadius))
+        .alert("Clear logs?", isPresented: $showingClearLogsAlert) {
+            Button("Cancel", role: .cancel) {}
+            Button("Clear", role: .destructive) { clearLogs() }
+        } message: {
+            Text("The current log file will be erased. This can't be undone.")
+        }
+        .onAppear { refreshLogStats() }
+    }
+
+    // MARK: - Bug Report Card
+
+    @ViewBuilder
+    private var bugReportCard: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            VStack(alignment: .leading, spacing: 4) {
+                Text("Report a Bug")
+                    .font(.system(size: 13, weight: .semibold))
+
+                Text("Opens a GitHub issue prefilled with your app version and system info.")
+                    .font(.system(size: 12))
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+
+            Button(action: reportBug) {
+                Label("Report a Bug on GitHub", systemImage: "ant.fill")
+                    .font(.system(size: 13, weight: .medium))
+                    .frame(maxWidth: .infinity)
+            }
+            .buttonStyle(.borderedProminent)
+            .controlSize(.regular)
+            .pointerCursor()
+            .accessibilityLabel("Report a bug on GitHub")
+            .accessibilityHint("Opens a new GitHub issue with system info prefilled")
+        }
+        .cardStyle()
     }
 
     // MARK: - Software Update Card

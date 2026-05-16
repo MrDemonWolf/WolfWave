@@ -310,6 +310,60 @@ enum Log {
         }
     }
 
+    // MARK: - Diagnostics
+
+    /// Returns the byte size of the current log file, or 0 if unavailable.
+    nonisolated static func logFileSize() -> Int64 {
+        fileQueue.sync {
+            let url = logFileURL
+            fileHandle?.synchronizeFile()
+            guard let attrs = try? FileManager.default.attributesOfItem(atPath: url.path),
+                  let size = attrs[.size] as? NSNumber else { return 0 }
+            return size.int64Value
+        }
+    }
+
+    /// Returns the number of newline-terminated lines in the current log file.
+    /// Streams the file in chunks to avoid loading the whole file into memory.
+    nonisolated static func logLineCount() -> Int {
+        fileQueue.sync {
+            let url = logFileURL
+            fileHandle?.synchronizeFile()
+            guard let handle = try? FileHandle(forReadingFrom: url) else { return 0 }
+            defer { try? handle.close() }
+
+            var count = 0
+            let newline: UInt8 = 0x0A
+            while let chunk = try? handle.read(upToCount: 65_536), !chunk.isEmpty {
+                count += chunk.reduce(into: 0) { acc, byte in
+                    if byte == newline { acc += 1 }
+                }
+            }
+            return count
+        }
+    }
+
+    /// Truncates the current log file in place and writes a single header line.
+    nonisolated static func clearLogFile() {
+        fileQueue.sync {
+            let url = logFileURL
+
+            if fileHandle == nil {
+                fileHandle = FileHandle(forWritingAtPath: url.path)
+            }
+
+            try? fileHandle?.seek(toOffset: 0)
+            try? fileHandle?.truncate(atOffset: 0)
+
+            let stamp = formatter.string(from: Date())
+            let header = "[\(stamp)] ℹ️ INFO [App] Log cleared by user\n"
+            if let data = header.data(using: .utf8) {
+                fileHandle?.write(data)
+            }
+            fileHandle?.synchronizeFile()
+        }
+    }
+
     // MARK: - Cleanup
 
     /// Closes the log file handle. Called automatically at app termination.

@@ -416,6 +416,9 @@ enum AppConstants {
 
         /// GitHub Releases page URL (resolved from config)
         static let githubReleases = "https://github.com/\(repoOwner)/\(repoName)/releases"
+
+        /// GitHub new-issue page URL (resolved from config)
+        static let githubIssuesNew = "https://github.com/\(repoOwner)/\(repoName)/issues/new"
     }
 
     // MARK: - WebSocket Server
