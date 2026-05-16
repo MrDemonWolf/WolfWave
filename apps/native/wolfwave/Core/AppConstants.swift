@@ -46,6 +46,10 @@ enum AppConstants {
         /// Posted when the Discord RPC connection state changes. UserInfo contains "state" String.
         static let discordStateChanged = "DiscordStateChanged"
 
+        /// Posted when Discord Rich Presence display settings change (button labels, toggles, state format).
+        /// Triggers an immediate re-send of the cached presence so changes appear without waiting for the next track.
+        static let discordPresenceSettingsChanged = "DiscordPresenceSettingsChanged"
+
         /// Posted when now-playing track information changes. UserInfo contains track, artist, album.
         static let nowPlayingChanged = "NowPlayingChanged"
 
@@ -131,6 +135,18 @@ enum AppConstants {
 
         /// Whether Discord Rich Presence is enabled (Bool, default: false)
         static let discordPresenceEnabled = "discordPresenceEnabled"
+
+        /// Whether Discord presence button 1 (Apple Music link) is sent (Bool, default: true)
+        static let discordButton1Enabled = "discordButton1Enabled"
+
+        /// User-overridden label for Discord button 1. Empty string = use `AppConstants.Discord.defaultButton1Label`.
+        static let discordButton1Label = "discordButton1Label"
+
+        /// Whether Discord presence button 2 (song.link / cross-service) is sent (Bool, default: true)
+        static let discordButton2Enabled = "discordButton2Enabled"
+
+        /// User-overridden label for Discord button 2. Empty string = use `AppConstants.Discord.defaultButton2Label`.
+        static let discordButton2Label = "discordButton2Label"
 
         /// Whether the app should launch at login (Bool, default: false)
         static let launchAtLogin = "launchAtLogin"
@@ -415,6 +431,18 @@ enum AppConstants {
 
         /// Interval in seconds for polling Discord availability when not connected
         static let availabilityPollInterval: TimeInterval = 15.0
+
+        /// Default label for the first presence button (links to Apple Music track page).
+        static let defaultButton1Label = "Listen on Apple Music"
+
+        /// Default label for the second presence button (links to song.link cross-service page).
+        static let defaultButton2Label = "Find on Other Services"
+
+        /// Discord hard cap on button label length (characters).
+        static let buttonLabelMaxLength = 32
+
+        /// Discord hard cap on number of buttons per activity.
+        static let maxButtons = 2
     }
 
     // MARK: - Sparkle Updater

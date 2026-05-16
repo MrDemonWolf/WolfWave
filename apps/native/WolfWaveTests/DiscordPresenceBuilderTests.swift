@@ -1,0 +1,228 @@
+//
+//  DiscordPresenceBuilderTests.swift
+//  WolfWaveTests
+//
+//  Created by MrDemonWolf, Inc. on 5/16/26.
+//
+
+import XCTest
+@testable import WolfWave
+
+/// Tests the pure payload-building helpers in `DiscordRPCService`.
+///
+/// Uses an isolated `UserDefaults(suiteName:)` per test so settings can't leak
+/// between tests or pollute the user's real defaults.
+final class DiscordPresenceBuilderTests: XCTestCase {
+
+    private var defaults: UserDefaults!
+    private var suiteName: String!
+
+    override func setUp() {
+        super.setUp()
+        suiteName = "DiscordPresenceBuilderTests.\(UUID().uuidString)"
+        defaults = UserDefaults(suiteName: suiteName)
+    }
+
+    override func tearDown() {
+        defaults.removePersistentDomain(forName: suiteName)
+        defaults = nil
+        suiteName = nil
+        super.tearDown()
+    }
+
+    // MARK: - resolveButton
+
+    func test_resolveButton_omitted_whenURLNil() {
+        let result = DiscordRPCService.resolveButton(index: 1, url: nil, defaults: defaults)
+        XCTAssertNil(result)
+    }
+
+    func test_resolveButton_omitted_whenURLEmpty() {
+        let result = DiscordRPCService.resolveButton(index: 1, url: "", defaults: defaults)
+        XCTAssertNil(result)
+    }
+
+    func test_resolveButton_omitted_whenDisabled() {
+        defaults.set(false, forKey: AppConstants.UserDefaults.discordButton1Enabled)
+        let result = DiscordRPCService.resolveButton(
+            index: 1, url: "https://example.com/song", defaults: defaults
+        )
+        XCTAssertNil(result)
+    }
+
+    func test_resolveButton_defaultLabel_whenStoredEmpty() {
+        let result = DiscordRPCService.resolveButton(
+            index: 1, url: "https://music.apple.com/x", defaults: defaults
+        )
+        XCTAssertEqual(result?["label"], AppConstants.Discord.defaultButton1Label)
+        XCTAssertEqual(result?["url"], "https://music.apple.com/x")
+    }
+
+    func test_resolveButton_defaultLabel_forButton2() {
+        let result = DiscordRPCService.resolveButton(
+            index: 2, url: "https://song.link/i/1", defaults: defaults
+        )
+        XCTAssertEqual(result?["label"], AppConstants.Discord.defaultButton2Label)
+    }
+
+    func test_resolveButton_customLabelOverridesDefault() {
+        defaults.set("Vibes 🎧", forKey: AppConstants.UserDefaults.discordButton1Label)
+        let result = DiscordRPCService.resolveButton(
+            index: 1, url: "https://music.apple.com/x", defaults: defaults
+        )
+        XCTAssertEqual(result?["label"], "Vibes 🎧")
+    }
+
+    func test_resolveButton_truncatesLabelTo32Chars() {
+        let long = String(repeating: "A", count: 50)
+        defaults.set(long, forKey: AppConstants.UserDefaults.discordButton1Label)
+        let result = DiscordRPCService.resolveButton(
+            index: 1, url: "https://x", defaults: defaults
+        )
+        XCTAssertEqual(result?["label"]?.count, AppConstants.Discord.buttonLabelMaxLength)
+    }
+
+    func test_resolveButton_trimsWhitespace() {
+        defaults.set("   Hello   ", forKey: AppConstants.UserDefaults.discordButton1Label)
+        let result = DiscordRPCService.resolveButton(
+            index: 1, url: "https://x", defaults: defaults
+        )
+        XCTAssertEqual(result?["label"], "Hello")
+    }
+
+    func test_resolveButton_whitespaceOnlyFallsBackToDefault() {
+        defaults.set("     ", forKey: AppConstants.UserDefaults.discordButton1Label)
+        let result = DiscordRPCService.resolveButton(
+            index: 1, url: "https://x", defaults: defaults
+        )
+        XCTAssertEqual(result?["label"], AppConstants.Discord.defaultButton1Label)
+    }
+
+    func test_resolveButton_invalidIndexReturnsNil() {
+        let result = DiscordRPCService.resolveButton(
+            index: 5, url: "https://x", defaults: defaults
+        )
+        XCTAssertNil(result)
+    }
+
+    // MARK: - buildActivity
+
+    func test_buildActivity_stateIsArtistWithoutByPrefix() {
+        let activity = DiscordRPCService.buildActivity(
+            track: "Smooth Operator",
+            artist: "Sade",
+            album: "Diamond Life",
+            artworkURL: nil,
+            duration: 0,
+            elapsed: 0,
+            appleMusicURL: nil,
+            songLinkURL: nil,
+            defaults: defaults,
+            now: Date()
+        )
+        XCTAssertEqual(activity["state"] as? String, "Sade")
+        XCTAssertEqual(activity["details"] as? String, "Smooth Operator")
+    }
+
+    func test_buildActivity_typeIsListening() {
+        let activity = DiscordRPCService.buildActivity(
+            track: "T", artist: "A", album: "Al",
+            artworkURL: nil, duration: 0, elapsed: 0,
+            appleMusicURL: nil, songLinkURL: nil,
+            defaults: defaults, now: Date()
+        )
+        XCTAssertEqual(activity["type"] as? Int, AppConstants.Discord.listeningActivityType)
+        XCTAssertEqual(AppConstants.Discord.listeningActivityType, 2)
+    }
+
+    func test_buildActivity_omitsButtonsKey_whenBothDisabled() {
+        defaults.set(false, forKey: AppConstants.UserDefaults.discordButton1Enabled)
+        defaults.set(false, forKey: AppConstants.UserDefaults.discordButton2Enabled)
+        let activity = DiscordRPCService.buildActivity(
+            track: "T", artist: "A", album: "Al",
+            artworkURL: nil, duration: 0, elapsed: 0,
+            appleMusicURL: "https://music.apple.com/x",
+            songLinkURL: "https://song.link/i/1",
+            defaults: defaults, now: Date()
+        )
+        XCTAssertNil(activity["buttons"])
+    }
+
+    func test_buildActivity_includesBothButtons_whenURLsAndEnabled() {
+        let activity = DiscordRPCService.buildActivity(
+            track: "T", artist: "A", album: "Al",
+            artworkURL: nil, duration: 0, elapsed: 0,
+            appleMusicURL: "https://music.apple.com/x",
+            songLinkURL: "https://song.link/i/1",
+            defaults: defaults, now: Date()
+        )
+        let buttons = activity["buttons"] as? [[String: String]]
+        XCTAssertEqual(buttons?.count, 2)
+        XCTAssertEqual(buttons?[0]["label"], AppConstants.Discord.defaultButton1Label)
+        XCTAssertEqual(buttons?[1]["label"], AppConstants.Discord.defaultButton2Label)
+    }
+
+    func test_buildActivity_skipsButton_whenURLMissing() {
+        let activity = DiscordRPCService.buildActivity(
+            track: "T", artist: "A", album: "Al",
+            artworkURL: nil, duration: 0, elapsed: 0,
+            appleMusicURL: "https://music.apple.com/x",
+            songLinkURL: nil,
+            defaults: defaults, now: Date()
+        )
+        let buttons = activity["buttons"] as? [[String: String]]
+        XCTAssertEqual(buttons?.count, 1)
+        XCTAssertEqual(buttons?[0]["url"], "https://music.apple.com/x")
+    }
+
+    func test_buildActivity_timestampsOmittedWhenDurationZero() {
+        let activity = DiscordRPCService.buildActivity(
+            track: "T", artist: "A", album: "Al",
+            artworkURL: nil, duration: 0, elapsed: 0,
+            appleMusicURL: nil, songLinkURL: nil,
+            defaults: defaults, now: Date()
+        )
+        XCTAssertNil(activity["timestamps"])
+    }
+
+    func test_buildActivity_timestampsIncludedWhenDurationKnown() {
+        let now = Date(timeIntervalSince1970: 1_700_000_000)
+        let activity = DiscordRPCService.buildActivity(
+            track: "T", artist: "A", album: "Al",
+            artworkURL: nil, duration: 180, elapsed: 30,
+            appleMusicURL: nil, songLinkURL: nil,
+            defaults: defaults, now: now
+        )
+        let stamps = activity["timestamps"] as? [String: Int]
+        // start = now - elapsed = 1_700_000_000 - 30 = 1_699_999_970, in ms.
+        XCTAssertEqual(stamps?["start"], 1_699_999_970_000)
+        // end = start + duration = 1_700_000_150 in ms.
+        XCTAssertEqual(stamps?["end"], 1_700_000_150_000)
+    }
+
+    func test_buildActivity_assetsAlwaysIncludeFallbackImage() {
+        let activity = DiscordRPCService.buildActivity(
+            track: "T", artist: "A", album: "Album Name",
+            artworkURL: nil, duration: 0, elapsed: 0,
+            appleMusicURL: nil, songLinkURL: nil,
+            defaults: defaults, now: Date()
+        )
+        let assets = activity["assets"] as? [String: String]
+        XCTAssertEqual(assets?["large_image"], "apple_music")
+        XCTAssertEqual(assets?["large_text"], "Album Name")
+        XCTAssertEqual(assets?["small_image"], "apple_music")
+        XCTAssertEqual(assets?["small_text"], "Apple Music")
+    }
+
+    func test_buildActivity_assetsPreferArtworkURL() {
+        let activity = DiscordRPCService.buildActivity(
+            track: "T", artist: "A", album: "Al",
+            artworkURL: "https://example.com/art.jpg",
+            duration: 0, elapsed: 0,
+            appleMusicURL: nil, songLinkURL: nil,
+            defaults: defaults, now: Date()
+        )
+        let assets = activity["assets"] as? [String: String]
+        XCTAssertEqual(assets?["large_image"], "https://example.com/art.jpg")
+    }
+}

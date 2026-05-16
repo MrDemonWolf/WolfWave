@@ -129,6 +129,24 @@ final class DiscordRPCService: @unchecked Sendable {
     /// Tracks the last artwork lookup key to avoid redundant re-sends.
     private var lastArtworkKey: String?
 
+    /// Snapshot of the most recent `updatePresence` call. Used to re-send the
+    /// current activity when display settings (button labels, toggles, state format)
+    /// change via `discordPresenceSettingsChanged`, so users see the effect of a
+    /// label edit without waiting for the next track change.
+    /// Confined to `ipcQueue`.
+    private struct LastPresence {
+        let track: String
+        let artist: String
+        let album: String
+        let duration: TimeInterval
+        let elapsed: TimeInterval
+        let capturedAt: Date
+    }
+    private var lastPresence: LastPresence?
+
+    /// Observer token for `discordPresenceSettingsChanged`.
+    private var settingsObserver: NSObjectProtocol?
+
     /// Cached result of `readDiscordTmpDir()` to avoid sysctl on every connect.
     private var cachedDiscordTmpDir: String?
     /// When `cachedDiscordTmpDir` was last populated.
@@ -144,9 +162,21 @@ final class DiscordRPCService: @unchecked Sendable {
     ///   from Info.plist (`DISCORD_CLIENT_ID`) or environment.
     init(clientID: String? = nil) {
         self.clientID = clientID ?? Self.resolveClientID() ?? ""
+
+        // Re-send presence when display settings change so users see button-label
+        // edits and similar tweaks immediately.
+        let name = NSNotification.Name(AppConstants.Notifications.discordPresenceSettingsChanged)
+        settingsObserver = NotificationCenter.default.addObserver(
+            forName: name, object: nil, queue: nil
+        ) { [weak self] _ in
+            self?.resendLastPresence()
+        }
     }
 
     deinit {
+        if let settingsObserver {
+            NotificationCenter.default.removeObserver(settingsObserver)
+        }
         ipcQueue.sync {
             disconnect()
             pollTimer?.cancel()
@@ -281,7 +311,9 @@ final class DiscordRPCService: @unchecked Sendable {
     /// Clears the Rich Presence (e.g., when playback stops).
     func clearPresence() {
         ipcQueue.async { [weak self] in
-            guard let self, self.state == .connected else { return }
+            guard let self else { return }
+            self.lastPresence = nil
+            guard self.state == .connected else { return }
 
             let payload: [String: Any] = [
                 "cmd": "SET_ACTIVITY",
@@ -317,44 +349,25 @@ final class DiscordRPCService: @unchecked Sendable {
         appleMusicURL: String? = nil,
         songLinkURL: String? = nil
     ) {
-        var activity: [String: Any] = [
-            "type": AppConstants.Discord.listeningActivityType,
-            "details": track,
-            "state": "by \(artist)",
-        ]
+        // Cache so settings changes can trigger a re-send without waiting for the next track.
+        lastPresence = LastPresence(
+            track: track, artist: artist, album: album,
+            duration: duration, elapsed: elapsed,
+            capturedAt: Date()
+        )
 
-        // Assets — prefer dynamic artwork URL, fall back to Apple Music Discord asset
-        let largeImage = artworkURL ?? "apple_music"
-        var assets: [String: Any] = [
-            "large_image": largeImage,
-            "large_text": album,
-        ]
-        assets["small_image"] = "apple_music"
-        assets["small_text"] = "Apple Music"
-        activity["assets"] = assets
-
-        // Timestamps — show a progress bar if duration is known
-        if duration > 0 {
-            let now = Date().timeIntervalSince1970
-            let start = now - elapsed
-            let end = start + duration
-            activity["timestamps"] = [
-                "start": Int(start * 1000),
-                "end": Int(end * 1000),
-            ]
-        }
-
-        // Buttons — "Open in Apple Music" and song.link when available
-        var buttons: [[String: String]] = []
-        if let appleMusicURL {
-            buttons.append(["label": "Open in Apple Music", "url": appleMusicURL])
-        }
-        if let songLinkURL {
-            buttons.append(["label": "song.link", "url": songLinkURL])
-        }
-        if !buttons.isEmpty {
-            activity["buttons"] = buttons
-        }
+        let activity = Self.buildActivity(
+            track: track,
+            artist: artist,
+            album: album,
+            artworkURL: artworkURL,
+            duration: duration,
+            elapsed: elapsed,
+            appleMusicURL: appleMusicURL,
+            songLinkURL: songLinkURL,
+            defaults: .standard,
+            now: Date()
+        )
 
         let payload: [String: Any] = [
             "cmd": "SET_ACTIVITY",
@@ -366,6 +379,138 @@ final class DiscordRPCService: @unchecked Sendable {
         ]
 
         sendFrame(opcode: .frame, payload: payload)
+    }
+
+    /// Re-sends the most recent presence with current settings applied.
+    ///
+    /// Called when `discordPresenceSettingsChanged` fires (e.g. user toggled a button
+    /// in settings). Re-uses cached `TrackLinks` via `ArtworkService.shared` so no
+    /// network round-trip is required.
+    private func resendLastPresence() {
+        ipcQueue.async { [weak self] in
+            guard let self, self.state == .connected, let snap = self.lastPresence else { return }
+
+            // Recompute elapsed from the captured timestamp so the progress bar stays accurate.
+            let drift = Date().timeIntervalSince(snap.capturedAt)
+            let elapsed = snap.duration > 0
+                ? min(snap.elapsed + drift, snap.duration)
+                : snap.elapsed
+
+            let cached = ArtworkService.shared.cachedTrackLinks(track: snap.track, artist: snap.artist)
+            self.sendPresenceActivity(
+                track: snap.track,
+                artist: snap.artist,
+                album: snap.album,
+                artworkURL: cached.artworkURL,
+                duration: snap.duration,
+                elapsed: elapsed,
+                appleMusicURL: cached.trackViewURL,
+                songLinkURL: cached.songLinkURL
+            )
+        }
+    }
+
+    // MARK: - Payload Builder (internal for testing)
+
+    /// Builds the Discord `activity` payload dictionary from track metadata + user settings.
+    ///
+    /// Pure function — no socket I/O, no instance state. Exposed `internal` so unit
+    /// tests can drive it directly with isolated `UserDefaults` suites.
+    ///
+    /// - Parameters:
+    ///   - now: Injected clock for deterministic timestamps in tests.
+    static func buildActivity(
+        track: String,
+        artist: String,
+        album: String,
+        artworkURL: String?,
+        duration: TimeInterval,
+        elapsed: TimeInterval,
+        appleMusicURL: String?,
+        songLinkURL: String?,
+        defaults: UserDefaults,
+        now: Date
+    ) -> [String: Any] {
+        var activity: [String: Any] = [
+            "type": AppConstants.Discord.listeningActivityType,
+            "details": track,
+            "state": artist,
+        ]
+
+        let largeImage = artworkURL ?? "apple_music"
+        activity["assets"] = [
+            "large_image": largeImage,
+            "large_text": album,
+            "small_image": "apple_music",
+            "small_text": "Apple Music",
+        ]
+
+        if duration > 0 {
+            let nowEpoch = now.timeIntervalSince1970
+            let start = nowEpoch - elapsed
+            let end = start + duration
+            activity["timestamps"] = [
+                "start": Int(start * 1000),
+                "end": Int(end * 1000),
+            ]
+        }
+
+        var buttons: [[String: String]] = []
+        if let btn = resolveButton(index: 1, url: appleMusicURL, defaults: defaults) {
+            buttons.append(btn)
+        }
+        if let btn = resolveButton(index: 2, url: songLinkURL, defaults: defaults) {
+            buttons.append(btn)
+        }
+        if !buttons.isEmpty {
+            activity["buttons"] = buttons
+        }
+
+        return activity
+    }
+
+    /// Resolves a button payload from settings + a candidate URL.
+    ///
+    /// Returns nil when the user disabled the button, the URL is missing, or the
+    /// label resolves to empty after trimming. Custom labels override defaults;
+    /// empty stored label means "use the default". Labels are trimmed and
+    /// truncated to `buttonLabelMaxLength` defensively.
+    ///
+    /// - Parameter index: 1 or 2.
+    static func resolveButton(
+        index: Int,
+        url: String?,
+        defaults: UserDefaults
+    ) -> [String: String]? {
+        guard let url, !url.isEmpty else { return nil }
+
+        let enabledKey: String
+        let labelKey: String
+        let defaultLabel: String
+        switch index {
+        case 1:
+            enabledKey = AppConstants.UserDefaults.discordButton1Enabled
+            labelKey = AppConstants.UserDefaults.discordButton1Label
+            defaultLabel = AppConstants.Discord.defaultButton1Label
+        case 2:
+            enabledKey = AppConstants.UserDefaults.discordButton2Enabled
+            labelKey = AppConstants.UserDefaults.discordButton2Label
+            defaultLabel = AppConstants.Discord.defaultButton2Label
+        default:
+            return nil
+        }
+
+        // Missing key defaults to enabled (true).
+        let enabled = (defaults.object(forKey: enabledKey) as? Bool) ?? true
+        guard enabled else { return nil }
+
+        let stored = (defaults.string(forKey: labelKey) ?? "")
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        let resolved = stored.isEmpty ? defaultLabel : stored
+        let truncated = String(resolved.prefix(AppConstants.Discord.buttonLabelMaxLength))
+        guard !truncated.isEmpty else { return nil }
+
+        return ["label": truncated, "url": url]
     }
 
     // MARK: - Client ID Resolution
