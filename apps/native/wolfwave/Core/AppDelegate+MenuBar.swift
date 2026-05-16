@@ -281,6 +281,8 @@ extension AppDelegate: NSMenuDelegate {
 
 extension AppDelegate {
 
+    /// Toggles the "Sync Music" preference, mirroring the General settings
+    /// pane. Triggered by the menu bar's tracking item.
     @objc func toggleTracking() {
         toggleBoolSetting(
             key: AppConstants.UserDefaults.trackingEnabled,
@@ -288,6 +290,9 @@ extension AppDelegate {
         )
     }
 
+    /// Toggles the Twitch chat connection. Connects if credentials are saved
+    /// and the bot is idle; opens the Twitch settings pane when credentials
+    /// are missing or the channel is unconfigured.
     @objc func toggleTwitchConnection() {
         if twitchService?.isConnected ?? false {
             twitchService?.leaveChannel()
@@ -298,6 +303,7 @@ extension AppDelegate {
         }
     }
 
+    /// Toggles Discord Rich Presence on/off.
     @objc func toggleDiscordPresence() {
         toggleBoolSetting(
             key: AppConstants.UserDefaults.discordPresenceEnabled,
@@ -305,6 +311,8 @@ extension AppDelegate {
         )
     }
 
+    /// Toggles the WebSocket overlay broadcast plus the bundled widget HTTP
+    /// server. Both flags are kept in sync from this single tray control.
     @objc func toggleWebSocket() {
         let current = UserDefaults.standard.bool(forKey: AppConstants.UserDefaults.websocketEnabled)
         let newValue = !current
@@ -319,7 +327,16 @@ extension AppDelegate {
         websocketServer?.setWidgetHTTPEnabled(newValue)
     }
 
-    /// Toggles a boolean UserDefaults setting and posts a notification.
+    /// Flips a boolean UserDefaults value and broadcasts a notification.
+    ///
+    /// Helper used by the menu toggle actions to keep persistence and
+    /// observers in lockstep.
+    ///
+    /// - Parameters:
+    ///   - key: UserDefaults key holding the current `Bool`.
+    ///   - notification: Notification name to post after the flip.
+    ///   - includeEnabledInUserInfo: When `true`, attaches
+    ///     `["enabled": newValue]` to the posted notification.
     func toggleBoolSetting(key: String, notification: String, includeEnabledInUserInfo: Bool = true) {
         let current = UserDefaults.standard.bool(forKey: key)
         let newValue = !current
@@ -331,24 +348,30 @@ extension AppDelegate {
         )
     }
 
+    /// Toggles song-request auto-play. While held, new requests still queue
+    /// but nothing plays automatically.
     @objc func toggleSongRequestHold() {
         guard let service = songRequestService else { return }
         let newValue = !service.isHoldEnabled
         Task { await service.setHold(newValue) }
     }
 
+    /// Skips the currently playing song request, advancing the queue.
     @objc func skipSongRequest() {
         Task {
             _ = await songRequestService?.skip()
         }
     }
 
+    /// Removes every entry from the song-request queue.
     @objc func clearSongRequestQueue() {
         Task {
             _ = await songRequestService?.clearQueue()
         }
     }
 
+    /// Copies the local widget URL (e.g. `http://localhost:8766`) to the
+    /// pasteboard for OBS browser-source configuration.
     @objc func copyWidgetURL() {
         let storedWidgetPort = UserDefaults.standard.integer(forKey: AppConstants.UserDefaults.widgetPort)
         let port = storedWidgetPort > 0

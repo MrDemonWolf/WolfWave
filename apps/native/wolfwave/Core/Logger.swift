@@ -8,10 +8,24 @@
 import Foundation
 import os
 
+/// Severity classification used by every log line. The raw value is the
+/// emoji-prefixed string that appears in both the on-disk log file and the
+/// macOS unified logging system.
+///
+/// Severity ordering (lowest → highest): `.debug`, `.info`, `.warn`, `.error`.
 enum LogLevel: String {
+    /// Verbose developer-only information. Suppressed in release builds.
     case debug = "🐛 DEBUG"
+
+    /// Informational events that are useful at all times (lifecycle, state
+    /// transitions, connection success).
     case info  = "ℹ️ INFO"
+
+    /// Recoverable problems or unexpected conditions that did not interrupt
+    /// the user-visible flow.
     case warn  = "⚠️ WARN"
+
+    /// Failures that produced an error result or aborted an operation.
     case error = "🛑 ERROR"
 }
 
@@ -36,6 +50,8 @@ enum LogLevel: String {
 /// ```
 enum Log {
 
+    /// Shared timestamp formatter used by every log line. Locale-stable
+    /// HH:mm:ss.SSS so file output collates correctly in any timezone.
     nonisolated private static let formatter: DateFormatter = {
         let formatter = DateFormatter()
         formatter.dateFormat = "HH:mm:ss.SSS"
@@ -61,9 +77,17 @@ enum Log {
     /// Logs appear in Console.app and Instruments — filter by subsystem
     /// `com.mrdemonwolf.wolfwave` and use the Category column to isolate
     /// specific areas (e.g. "Twitch", "Discord", "Music").
+    /// Cache of per-category `os.Logger` instances keyed by category name.
+    /// Read/written under `osLoggerLock`.
     nonisolated(unsafe) private static var osLoggers: [String: os.Logger] = [:]
+
+    /// Guards `osLoggers` against concurrent access from the logging callers.
     nonisolated private static let osLoggerLock = NSLock()
 
+    /// Returns a cached `os.Logger` for `category`, creating one on first use.
+    ///
+    /// - Parameter category: Free-form category tag (e.g. `"Twitch"`).
+    /// - Returns: The shared logger for that category.
     nonisolated private static func osLogger(for category: String) -> os.Logger {
         osLoggerLock.lock()
         defer { osLoggerLock.unlock() }
@@ -178,6 +202,19 @@ enum Log {
 
     // MARK: - Public API
 
+    /// Writes a log line at the given level. Prefer the convenience entry
+    /// points (`debug`, `info`, `warn`, `error`) over calling `log` directly.
+    ///
+    /// The message is run through `redactSensitiveInfo` before either sink
+    /// receives it; OSLog entries are marked `.public` because PII redaction
+    /// has already happened.
+    ///
+    /// - Parameters:
+    ///   - message: Free-form message body.
+    ///   - level: Severity classification. Defaults to `.info`.
+    ///   - category: Logical area tag for filtering in Console.app.
+    ///   - file: Auto-captured `#fileID`.
+    ///   - line: Auto-captured `#line`.
     nonisolated static func log(
         _ message: String,
         level: LogLevel = .info,
@@ -206,6 +243,11 @@ enum Log {
         }
     }
 
+    /// Convenience entry point for `.debug` logs.
+    ///
+    /// The `@autoclosure` lets callers pass a string-interpolated expression
+    /// that is only evaluated when DEBUG logging is enabled — release builds
+    /// skip the work entirely.
     nonisolated static func debug(
         _ message: @autoclosure () -> String,
         category: String = "App",
@@ -216,6 +258,7 @@ enum Log {
         log(message(), level: .debug, category: category, file: file, line: line)
     }
 
+    /// Convenience entry point for `.info` logs.
     nonisolated static func info(
         _ message: String,
         category: String = "App",
@@ -225,6 +268,7 @@ enum Log {
         log(message, level: .info, category: category, file: file, line: line)
     }
 
+    /// Convenience entry point for `.warn` logs.
     nonisolated static func warn(
         _ message: String,
         category: String = "App",
@@ -234,6 +278,8 @@ enum Log {
         log(message, level: .warn, category: category, file: file, line: line)
     }
 
+    /// Convenience entry point for `.error` logs. Flushes the file handle
+    /// immediately so the entry survives a crash that follows the call site.
     nonisolated static func error(
         _ message: String,
         category: String = "App",

@@ -152,7 +152,8 @@ extension AppDelegate {
         let hasCompletedOnboarding = UserDefaults.standard.bool(forKey: AppConstants.UserDefaults.hasCompletedOnboarding)
         guard hasCompletedOnboarding else { return }
 
-        DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) { [weak self] in
+        Task { @MainActor [weak self] in
+            try? await Task.sleep(for: .seconds(1))
             self?.showWhatsNew(version: currentVersion)
         }
     }
@@ -246,7 +247,7 @@ extension AppDelegate {
 
     /// Dismisses the onboarding window with a fade-out animation.
     func dismissOnboarding() {
-        DispatchQueue.main.async { [weak self] in
+        Task { @MainActor [weak self] in
             guard let self, let window = self.onboardingWindow else { return }
 
             NSAnimationContext.runAnimationGroup({ context in
@@ -278,22 +279,22 @@ extension AppDelegate: NSWindowDelegate {
             if OnboardingViewModel.hasCompletedOnboarding == false {
                 Log.info("AppDelegate: Onboarding window closed before completion — will show again on next launch", category: "App")
             }
-            DispatchQueue.main.async { [weak self] in
+            Task { @MainActor [weak self] in
                 self?.onboardingWindow = nil
                 self?.restoreMenuOnlyIfNeeded()
             }
         } else if window === settingsWindow {
-            DispatchQueue.main.async { [weak self] in
+            Task { @MainActor [weak self] in
                 self?.settingsWindow = nil
                 self?.restoreMenuOnlyIfNeeded()
             }
         } else if window === whatsNewWindow {
-            DispatchQueue.main.async { [weak self] in
+            Task { @MainActor [weak self] in
                 self?.whatsNewWindow = nil
                 self?.restoreMenuOnlyIfNeeded()
             }
         } else if window === aboutWindow {
-            DispatchQueue.main.async { [weak self] in
+            Task { @MainActor [weak self] in
                 self?.aboutWindow = nil
                 self?.restoreMenuOnlyIfNeeded()
             }

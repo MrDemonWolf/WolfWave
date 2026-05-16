@@ -116,6 +116,18 @@ struct OnboardingPreferencesStepView: View {
 
     // MARK: - Row
 
+    /// Builds a single labeled toggle row used in the preferences step:
+    /// colored icon tile, title, subtitle, and a binding switch.
+    ///
+    /// - Parameters:
+    ///   - icon: SF Symbol name shown in the colored tile.
+    ///   - iconColor: Accent color for the tile background and glyph.
+    ///   - title: Primary row title.
+    ///   - subtitle: Supporting copy under the title.
+    ///   - isOn: Two-way binding to the underlying boolean preference.
+    ///   - accessibilityLabel: VoiceOver label for the toggle.
+    ///   - accessibilityIdentifier: UI-testing identifier for the toggle.
+    /// - Returns: A styled preference row.
     @ViewBuilder
     private func preferenceRow(
         icon: String,
@@ -169,6 +181,9 @@ struct OnboardingPreferencesStepView: View {
 
     // MARK: - Notifications
 
+    /// Queries the current notification authorization status and updates the
+    /// view state on the main actor. Used to re-sync the UI after a user
+    /// flips the toggle in System Settings.
     private func refreshNotificationStatus() async {
         let settings = await UNUserNotificationCenter.current().notificationSettings()
         await MainActor.run {
@@ -176,6 +191,8 @@ struct OnboardingPreferencesStepView: View {
         }
     }
 
+    /// Requests notification authorization (`.alert`, `.sound`, `.badge`) and
+    /// refreshes the view state with whatever decision the user makes.
     private func requestNotificationAuthorization() {
         Task {
             _ = try? await UNUserNotificationCenter.current()

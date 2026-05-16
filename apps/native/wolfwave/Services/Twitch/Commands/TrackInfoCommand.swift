@@ -16,29 +16,58 @@ import Foundation
 /// set by BotCommandDispatcher but read by `execute()` from background threads.
 /// All access is protected by NSLock.
 final class TrackInfoCommand: BotCommand {
+
+    // MARK: - BotCommand
+
+    /// Chat triggers that invoke this command (e.g. `["!song"]` or `["!last"]`).
     let triggers: [String]
+
+    /// Human-readable description shown in the `!commands` listing.
     let description: String
+
+    /// UserDefaults key for the user-configurable global cooldown override.
+    let globalCooldownKey: String?
+
+    /// UserDefaults key for the user-configurable per-user cooldown override.
+    let userCooldownKey: String?
+
+    // MARK: - Thread-safe Closures
 
     private let lock = NSLock()
 
     private var _getTrackInfo: (() -> String)?
-    /// Closure that returns the current track info string. Thread-safe.
+
+    /// Closure that returns the current track info string. Thread-safe (NSLock).
+    ///
+    /// - Important: Read on the EventSub message-handling thread; written by
+    ///   the dispatcher on the main thread.
     var getTrackInfo: (() -> String)? {
         get { lock.withLock { _getTrackInfo } }
         set { lock.withLock { _getTrackInfo = newValue } }
     }
 
     private var _isEnabled: (() -> Bool)?
-    /// Closure that returns whether this command is enabled. Thread-safe.
+
+    /// Closure that returns whether this command is enabled. Thread-safe (NSLock).
     var isEnabled: (() -> Bool)? {
         get { lock.withLock { _isEnabled } }
         set { lock.withLock { _isEnabled = newValue } }
     }
 
-    private let defaultMessage: String
-    let globalCooldownKey: String?
-    let userCooldownKey: String?
+    // MARK: - Private State
 
+    private let defaultMessage: String
+
+    // MARK: - Init
+
+    /// Creates a parameterized track-info command.
+    ///
+    /// - Parameters:
+    ///   - triggers: Chat trigger strings (e.g. `["!song", "!currentsong"]`).
+    ///   - description: Human-readable description.
+    ///   - defaultMessage: Reply used when `getTrackInfo` is unset or returns empty.
+    ///   - globalCooldownKey: UserDefaults key for the global cooldown override.
+    ///   - userCooldownKey: UserDefaults key for the per-user cooldown override.
     init(
         triggers: [String],
         description: String,
@@ -53,6 +82,14 @@ final class TrackInfoCommand: BotCommand {
         self.userCooldownKey = userCooldownKey
     }
 
+    // MARK: - Execute
+
+    /// Matches `message` against `triggers`, checks `isEnabled`, then returns
+    /// the resolved track info string truncated to Twitch's 500-char limit.
+    ///
+    /// - Parameter message: Raw chat message.
+    /// - Returns: Chat response, or `nil` if no trigger matched or the command
+    ///   is disabled.
     func execute(message: String) -> String? {
         let lowered = message.lowercased()
 
@@ -78,7 +115,12 @@ final class TrackInfoCommand: BotCommand {
 // MARK: - String Truncation
 
 extension String {
-    /// Truncates the string to fit within Twitch chat message limits.
+    /// Truncates the string so it fits within Twitch chat's 500-character
+    /// per-message limit, appending the configured truncation suffix
+    /// (`AppConstants.Twitch.messageTruncationSuffix`) when shortened.
+    ///
+    /// - Returns: A version of `self` whose byte count does not exceed
+    ///   `AppConstants.Twitch.maxMessageLength`.
     func truncatedForChat() -> String {
         let maxLen = AppConstants.Twitch.maxMessageLength
         let suffix = AppConstants.Twitch.messageTruncationSuffix

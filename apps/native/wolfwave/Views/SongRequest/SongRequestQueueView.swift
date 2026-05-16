@@ -118,6 +118,12 @@ struct SongRequestQueueView: View {
 
     // MARK: - Now Playing Row
 
+    /// Builds the highlighted "Now Playing" row at the top of the queue list,
+    /// showing the artwork placeholder, waveform icon, title, artist, and
+    /// requester username.
+    ///
+    /// - Parameter item: The currently-playing song request.
+    /// - Returns: A styled row view.
     private func nowPlayingRow(_ item: SongRequestItem) -> some View {
         HStack(spacing: 10) {
             artworkPlaceholder
@@ -290,6 +296,9 @@ struct SongRequestQueueView: View {
 
     // MARK: - Refresh
 
+    /// Snapshots the live queue + now-playing into the view's `@State`. Skips
+    /// the assignment when the values are unchanged so a periodic refresh
+    /// tick does not force a full SwiftUI diff.
     private func refreshState() {
         // Only mutate @State when the value actually changes — assigning the same
         // value still invalidates the view, so a 2-second tick would force a full

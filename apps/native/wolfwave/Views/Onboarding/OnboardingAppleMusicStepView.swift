@@ -164,6 +164,9 @@ struct OnboardingAppleMusicStepView: View {
 
     // MARK: - Actions
 
+    /// Prompts the user for Apple Music automation permission via
+    /// `MusicPermissionChecker.requestAccess()` and refreshes the UI state
+    /// after the prompt completes.
     private func requestAccess() {
         isRequesting = true
         Task {

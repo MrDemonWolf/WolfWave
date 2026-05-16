@@ -39,10 +39,13 @@ final class BotCommandDispatcher {
     let clearQueueCommand = ClearQueueCommand()
     let holdCommand = HoldCommand()
 
+    /// Creates a dispatcher pre-loaded with every built-in command.
     init() {
         registerDefaultCommands()
     }
 
+    /// Registers the built-in command suite (`!song`, `!last`, `!sr`, `!queue`,
+    /// `!myqueue`, `!skip`, `!clearqueue`, `!hold`). Called once from `init`.
     private func registerDefaultCommands() {
         register(songCommand)
         register(lastSongCommand)
@@ -54,30 +57,46 @@ final class BotCommandDispatcher {
         register(holdCommand)
     }
 
+    /// Adds a `BotCommand` to the dispatch table. Thread-safe.
+    ///
+    /// - Parameter command: Command instance. Duplicate triggers are not
+    ///   detected — last-registered wins.
     func register(_ command: BotCommand) {
         lock.withLock {
             commands.append(command)
         }
     }
 
+    /// Wires the now-playing string provider into the `!song` command.
+    ///
+    /// - Parameter callback: Closure returning the current track info.
     func setCurrentSongInfo(callback: @escaping () -> String) {
         lock.withLock {
             songCommand.getTrackInfo = callback
         }
     }
 
+    /// Wires the previously-played-track provider into the `!last` command.
+    ///
+    /// - Parameter callback: Closure returning the previous track info.
     func setLastSongInfo(callback: @escaping () -> String) {
         lock.withLock {
             lastSongCommand.getTrackInfo = callback
         }
     }
 
+    /// Wires the enabled-state provider for the `!song` command.
+    ///
+    /// - Parameter callback: Closure returning `true` if `!song` should respond.
     func setCurrentSongCommandEnabled(callback: @escaping () -> Bool) {
         lock.withLock {
             songCommand.isEnabled = callback
         }
     }
 
+    /// Wires the enabled-state provider for the `!last` command.
+    ///
+    /// - Parameter callback: Closure returning `true` if `!last` should respond.
     func setLastSongCommandEnabled(callback: @escaping () -> Bool) {
         lock.withLock {
             lastSongCommand.isEnabled = callback
@@ -86,6 +105,8 @@ final class BotCommandDispatcher {
 
     // MARK: - Song Request Command Wiring
 
+    /// Injects the live `SongRequestService` reference into every command
+    /// that mutates the queue (`!sr`, `!skip`, `!clearqueue`, `!hold`).
     func setSongRequestService(callback: @escaping () -> SongRequestService?) {
         lock.withLock {
             srCommand.songRequestService = callback
@@ -95,6 +116,8 @@ final class BotCommandDispatcher {
         }
     }
 
+    /// Injects the live `SongRequestQueue` reference into every read-only
+    /// queue command (`!queue`, `!myqueue`).
     func setSongRequestQueue(callback: @escaping () -> SongRequestQueue?) {
         lock.withLock {
             queueCommand.getQueue = callback

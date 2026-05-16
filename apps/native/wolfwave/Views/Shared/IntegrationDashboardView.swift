@@ -94,6 +94,16 @@ struct IntegrationDashboardView: View {
 
     // MARK: - Row
 
+    /// Builds a single integration row: brand icon, name + subtitle, status
+    /// chip, and a "Configure" affordance that opens the corresponding
+    /// settings pane.
+    ///
+    /// - Parameters:
+    ///   - icon: Type-erased view rendering the brand or fallback icon.
+    ///   - name: Human-readable integration name (Twitch, Discord, etc.).
+    ///   - chip: Status chip showing connection state.
+    ///   - subtitle: One-line description shown below the name.
+    ///   - action: Closure invoked when the configure button is pressed.
     @ViewBuilder
     private func row(
         icon: AnyView,
@@ -119,11 +129,13 @@ struct IntegrationDashboardView: View {
                     Text("Configure")
                     Image(systemName: "chevron.right")
                         .font(.system(size: 10, weight: .semibold))
+                        .accessibilityHidden(true)
                 }
                 .font(.system(size: 12))
             }
             .buttonStyle(.borderless)
             .pointerCursor()
+            .accessibilityLabel("Configure \(name)")
         }
         .padding(.horizontal, 14)
         .padding(.vertical, 12)
@@ -136,6 +148,8 @@ struct IntegrationDashboardView: View {
     nonisolated(unsafe) private static var brandIconExistsCache: [String: Bool] = [:]
     private static let brandIconCacheLock = NSLock()
 
+    /// Returns whether an asset of the given name exists in the bundle's asset
+    /// catalog, caching the result so the lookup happens at most once per asset.
     private static func brandIconExists(_ asset: String) -> Bool {
         brandIconCacheLock.lock()
         defer { brandIconCacheLock.unlock() }
@@ -145,6 +159,14 @@ struct IntegrationDashboardView: View {
         return exists
     }
 
+    /// Returns a brand-asset icon if the named asset exists, falling back to
+    /// a colored SF Symbol otherwise. Assets render as template images so they
+    /// adopt the foreground style automatically.
+    ///
+    /// - Parameters:
+    ///   - asset: Asset-catalog name to try first.
+    ///   - fallback: SF Symbol used when the asset is missing.
+    ///   - color: Tint applied to both the asset and the fallback.
     private func brandIcon(_ asset: String, fallback: String, color: Color) -> AnyView {
         AnyView(
             Group {

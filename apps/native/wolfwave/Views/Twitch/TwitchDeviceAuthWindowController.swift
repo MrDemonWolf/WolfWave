@@ -71,6 +71,9 @@ class TwitchDeviceAuthWindowController: NSWindowController, NSWindowDelegate {
     
     // MARK: - NSWindowDelegate
 
+    /// Called by AppKit just before the window closes. Breaks the
+    /// `NSWindow ↔ delegate` retain cycle so the controller and its hosting
+    /// `NSHostingView` can be deallocated.
     func windowWillClose(_ notification: Notification) {
         // Break the retain cycle: NSWindow strongly retains its delegate (self),
         // and self is retained by the SwiftUI @State var retainedController.

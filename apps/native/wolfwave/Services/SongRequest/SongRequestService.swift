@@ -77,10 +77,23 @@ final class SongRequestService {
     /// Whether the fallback playlist is currently playing (no active requests).
     private(set) var isPlayingFallback = false
 
+    /// Callback used to relay status messages back to Twitch chat. Set by
+    /// `AppDelegate` once `TwitchChatService` is wired up.
     var sendChatMessage: ((String) -> Void)?
 
     // MARK: - Init
 
+    /// Creates a song request service with overridable collaborators.
+    ///
+    /// All collaborators default to production implementations. Tests inject
+    /// fakes via the parameters.
+    ///
+    /// - Parameters:
+    ///   - queue: Backing queue store.
+    ///   - blocklist: Title/artist blocklist.
+    ///   - musicController: Apple Music controller (AppleScript-backed in prod).
+    ///   - searchResolver: MusicKit/URL resolver. Defaults to one bound to
+    ///     `musicController`.
     init(
         queue: SongRequestQueue = SongRequestQueue(),
         blocklist: SongBlocklist = SongBlocklist(),
@@ -95,6 +108,13 @@ final class SongRequestService {
 
     // MARK: - Lifecycle
 
+    /// Begins watching Apple Music playback and the Music.app launch state.
+    ///
+    /// Spawns a 2-second polling task that auto-advances the queue when the
+    /// current track stops (not paused), plus an `NSWorkspace` observer that
+    /// flushes buffered requests when Music.app launches.
+    ///
+    /// - Important: Idempotent. Calling twice cancels and re-creates observers.
     func startPlaybackMonitoring() {
         stopPlaybackMonitoring()
 
@@ -113,7 +133,7 @@ final class SongRequestService {
             guard let self else { return }
 
             while !Task.isCancelled {
-                try? await Task.sleep(nanoseconds: 2_000_000_000)
+                try? await Task.sleep(for: .seconds(2))
 
                 guard self.isAutoAdvanceEnabled else { continue }
                 guard !self.isHoldEnabled else { continue }
@@ -130,6 +150,8 @@ final class SongRequestService {
         }
     }
 
+    /// Stops the polling task and removes the Music.app launch observer.
+    /// Safe to call when no monitoring is active.
     func stopPlaybackMonitoring() {
         playbackObserver?.cancel()
         playbackObserver = nil
@@ -141,6 +163,17 @@ final class SongRequestService {
 
     // MARK: - Song Request Processing
 
+    /// Resolves a chat query into a track, runs blocklist + queue validation,
+    /// and either enqueues or starts playback as appropriate.
+    ///
+    /// Used by `SongRequestCommand` (`!sr`) and tests.
+    ///
+    /// - Parameters:
+    ///   - query: Search string, Apple Music link, Spotify link, or YouTube link.
+    ///   - username: Twitch display name of the requester.
+    ///   - context: Sender context (used for sub/mod gating).
+    /// - Returns: A `RequestResult` describing the outcome — added, blocked,
+    ///   queue-full, not-found, etc.
     func processRequest(query: String, username: String, context: BotCommandContext) async -> RequestResult {
         if isSubscriberOnly && !context.isSubscriber && !context.isPrivileged {
             return .error("Song requests are subscriber-only right now")
@@ -189,6 +222,10 @@ final class SongRequestService {
         }
     }
 
+    /// Skips the now-playing track and immediately starts the next queued
+    /// request. Stops Music.app playback if the queue is empty.
+    ///
+    /// - Returns: The newly-playing item, or `nil` when the queue empties.
     func skip() async -> SongRequestItem? {
         let next = queue.skip()
         if let next, let song = next.song {
@@ -205,6 +242,9 @@ final class SongRequestService {
         return next
     }
 
+    /// Removes every request from the queue and clears Music.app's player.
+    ///
+    /// - Returns: Number of items that were in the queue before clearing.
     func clearQueue() async -> Int {
         let count = queue.clear()
         await musicController.clearPlayerQueue()
@@ -213,6 +253,8 @@ final class SongRequestService {
 
     // MARK: - Private Helpers
 
+    /// Dequeues the next item and asks Music.app to play it. Re-queues at the
+    /// head if Music.app is closed; advances past unplayable items otherwise.
     private func playNextInQueue() async {
         guard let item = queue.dequeue(), let song = item.song else { return }
 
@@ -231,6 +273,8 @@ final class SongRequestService {
         }
     }
 
+    /// Advances to the next queued track when the current request finishes,
+    /// or kicks off the fallback playlist if the queue has run dry.
     private func advanceQueue() async {
         guard !queue.isEmpty else {
             queue.clearNowPlaying()
@@ -244,10 +288,13 @@ final class SongRequestService {
         }
     }
 
+    /// Called when Music.app starts. Flushes the first buffered request (or
+    /// starts the fallback playlist) after a 500 ms grace period so Music.app
+    /// has time to initialize its AppleScript surface.
     private func handleMusicAppLaunched() async {
         Log.debug("SongRequestService: Music.app launched — flushing buffered requests", category: "SongRequest")
         // Give Music.app a moment to finish launching before sending commands
-        try? await Task.sleep(nanoseconds: 500_000_000)
+        try? await Task.sleep(for: .milliseconds(500))
         guard !isHoldEnabled else {
             Log.debug("SongRequestService: Hold enabled — skipping flush on Music.app launch", category: "SongRequest")
             return
@@ -259,6 +306,9 @@ final class SongRequestService {
         }
     }
 
+    /// Plays the user-configured fallback playlist when the queue is empty,
+    /// so the stream is never silent. No-op when no playlist is configured
+    /// or hold mode is active.
     private func startFallbackIfConfigured() async {
         guard !isHoldEnabled else { return }
         let name = Foundation.UserDefaults.standard.string(forKey: AppConstants.UserDefaults.songRequestFallbackPlaylist) ?? ""

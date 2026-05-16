@@ -129,15 +129,15 @@ class AppleMusicSource: PlaybackSource {
     // MARK: - Private Helpers
 
     private func notifyDelegate(status: String) {
-        DispatchQueue.main.async { [weak self] in
-            guard let self = self else { return }
+        Task { @MainActor [weak self] in
+            guard let self else { return }
             self.delegate?.playbackSource(didUpdateStatus: status)
         }
     }
 
     private func notifyDelegate(track: String, artist: String, album: String, duration: TimeInterval, elapsed: TimeInterval) {
-        DispatchQueue.main.async { [weak self] in
-            guard let self = self else { return }
+        Task { @MainActor [weak self] in
+            guard let self else { return }
             self.delegate?.playbackSource(didUpdateTrack: track, artist: artist, album: album, duration: duration, elapsed: elapsed)
         }
     }

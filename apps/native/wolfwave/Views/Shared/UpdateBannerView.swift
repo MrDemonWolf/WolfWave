@@ -58,6 +58,7 @@ struct UpdateBannerView: View {
                         .foregroundStyle(.white.opacity(0.7))
                 }
                 .buttonStyle(.plain)
+                .accessibilityLabel("Dismiss update banner")
             }
             .padding(.horizontal, 14)
             .padding(.vertical, 10)

@@ -33,8 +33,18 @@ protocol AsyncBotCommand: BotCommand {
     func execute(message: String, context: BotCommandContext, reply: @escaping (String) -> Void)
 }
 
+// MARK: - Default Sync Execute
+
 extension AsyncBotCommand {
-    /// Sync execute returns nil — async commands use the reply callback instead.
+    /// Default implementation of the sync `execute(message:)` from `BotCommand`.
+    ///
+    /// Async commands deliver their reply through the `reply` callback instead
+    /// of a return value, so this overload always returns `nil`. The dispatcher
+    /// recognizes `AsyncBotCommand` conformance and routes through the async
+    /// overload.
+    ///
+    /// - Parameter message: Raw chat message (unused).
+    /// - Returns: Always `nil`.
     func execute(message: String) -> String? {
         nil
     }

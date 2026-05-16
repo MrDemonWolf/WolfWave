@@ -31,6 +31,10 @@ final class WidgetHTTPService {
 
     // MARK: - Init
 
+    /// Creates a widget HTTP service bound to the loopback interface.
+    ///
+    /// - Parameter port: TCP port to listen on. Caller is responsible for
+    ///   choosing a free port (typically `AppConstants.WebSocketServer.widgetDefaultPort`).
     init(port: UInt16) {
         self.port = port
     }
@@ -41,6 +45,8 @@ final class WidgetHTTPService {
 
     // MARK: - Lifecycle
 
+    /// Brings up the loopback listener and begins accepting connections.
+    /// Idempotent — a second call while already running is a no-op.
     func start() {
         guard listener == nil else { return }
 
@@ -82,6 +88,8 @@ final class WidgetHTTPService {
         listener?.start(queue: queue)
     }
 
+    /// Cancels the listener and tears down the bound port. Safe to call when
+    /// the service was never started or has already stopped.
     func stop() {
         listener?.cancel()
         listener = nil
@@ -90,6 +98,8 @@ final class WidgetHTTPService {
 
     // MARK: - Connection Handling
 
+    /// Accepts an inbound TCP connection and reads up to 8 KiB of the request
+    /// before dispatching to `serveResponse`.
     private func handleConnection(_ connection: NWConnection) {
         connection.start(queue: queue)
         connection.receive(minimumIncompleteLength: 1, maximumLength: 8192) { [weak self] data, _, _, error in
@@ -99,6 +109,12 @@ final class WidgetHTTPService {
         }
     }
 
+    /// Parses the HTTP request line and routes to the matching handler.
+    ///
+    /// Routes:
+    /// - `GET /` (or empty path, with or without query) → `serveWidget`
+    /// - `GET /favicon.ico` / `GET /favicon.png` → `serveFavicon`
+    /// - Anything else → `send404`
     private func serveResponse(to connection: NWConnection, requestData: Data) {
         let requestString = String(data: requestData, encoding: .utf8) ?? ""
         let firstLine = requestString.components(separatedBy: "\r\n").first ?? ""
@@ -118,6 +134,8 @@ final class WidgetHTTPService {
 
     // MARK: - Responses
 
+    /// Writes the bundled `widget.html` as an HTTP/1.1 200 response and
+    /// closes the connection. Falls back to a 404 when the asset is missing.
     private func serveWidget(to connection: NWConnection) {
         guard let url = Bundle.main.url(forResource: "widget", withExtension: "html"),
               let body = try? Data(contentsOf: url) else {
@@ -138,6 +156,8 @@ final class WidgetHTTPService {
         })
     }
 
+    /// Encodes the app icon as PNG and serves it with a one-day cache header.
+    /// Used so browser tabs displaying the widget show a recognizable icon.
     private func serveFavicon(to connection: NWConnection) {
         guard let image = NSImage(named: "AppIcon"),
               let tiffData = image.tiffRepresentation,
@@ -160,6 +180,8 @@ final class WidgetHTTPService {
         })
     }
 
+    /// Writes a minimal `404 Not Found` plain-text response and closes the
+    /// connection.
     private func send404(to connection: NWConnection) {
         let body = "Not Found"
         let response = "HTTP/1.1 404 Not Found\r\n" +

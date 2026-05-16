@@ -59,6 +59,11 @@ final class SongSearchResolver {
 
     // MARK: - Private Helpers
 
+    /// Resolves a chat message that contains a URL — Apple Music, Spotify, or
+    /// YouTube — into a catalog track via `LinkResolverService` + MusicKit.
+    ///
+    /// - Parameter text: Raw chat text. The first URL-shaped substring is used.
+    /// - Returns: `.found`, `.linkNotFound`, or `.error`.
     private func resolveLink(_ text: String) async -> Result {
         guard let urlString = LinkResolverService.extractURL(from: text) else {
             return await resolveText(text)
@@ -95,6 +100,11 @@ final class SongSearchResolver {
         }
     }
 
+    /// Searches the Apple Music catalog for the best match for a plain-text
+    /// query and maps the controller response into a `Result`.
+    ///
+    /// - Parameter query: Search string (song name, artist, etc.).
+    /// - Returns: `.found`, `.notFound`, or `.error`.
     private func resolveText(_ query: String) async -> Result {
         Log.debug("SongSearchResolver: Searching Apple Music for: \(query)", category: "SongRequest")
 

@@ -411,7 +411,7 @@ final class TwitchDeviceAuth {
                     }
                 }
 
-                try await Task.sleep(nanoseconds: UInt64(currentInterval) * 1_000_000_000)
+                try await Task.sleep(for: .seconds(currentInterval))
             } catch let error as TwitchDeviceAuthError {
                 throw error
             } catch {

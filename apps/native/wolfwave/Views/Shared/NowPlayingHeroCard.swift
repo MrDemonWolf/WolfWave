@@ -105,6 +105,10 @@ struct NowPlayingHeroCard: View {
         }
     }
 
+    /// Formats a playback position as a colon-separated `M:SS` timestamp.
+    ///
+    /// - Parameter seconds: Position in seconds. Rounded to the nearest second.
+    /// - Returns: A `M:SS` string (e.g. `"3:07"`).
     private func timeString(_ seconds: TimeInterval) -> String {
         let total = Int(seconds.rounded())
         return String(format: "%d:%02d", total / 60, total % 60)

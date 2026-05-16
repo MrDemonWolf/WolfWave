@@ -79,10 +79,18 @@ struct SongRequestSettingsView: View {
         }
     }
 
+    /// Refreshes the Twitch-connected flag from the live service so the
+    /// song-request UI accurately reflects whether requests can flow in.
     private func refreshTwitchState() {
         updateTwitchState(appDelegate?.twitchService?.isConnected ?? false)
     }
 
+    /// Updates `isTwitchConnected` and, if Twitch just disconnected while
+    /// requests are still enabled, switches the feature off and notifies
+    /// listeners. Keeps the UI from showing "Requests enabled" without a
+    /// chat connection that can deliver them.
+    ///
+    /// - Parameter connected: New Twitch connection state.
     private func updateTwitchState(_ connected: Bool) {
         isTwitchConnected = connected
         if !connected && songRequestEnabled {

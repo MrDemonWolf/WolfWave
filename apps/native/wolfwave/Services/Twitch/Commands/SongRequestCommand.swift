@@ -14,29 +14,45 @@ import Foundation
 final class SongRequestCommand: AsyncBotCommand {
     // MARK: - BotCommand
 
+    /// Chat triggers that invoke this command.
     var triggers: [String] { ["!sr", "!request", "!songrequest"] }
 
+    /// Human-readable description shown in the `!commands` listing.
     var description: String { "Request a song by name or Spotify/YouTube link" }
 
+    /// Channel-wide cooldown between invocations, in seconds.
     var globalCooldown: TimeInterval { 5.0 }
 
+    /// Per-user cooldown between invocations, in seconds.
     var userCooldown: TimeInterval { 30.0 }
 
+    /// UserDefaults key for the user-configurable global cooldown override.
     var globalCooldownKey: String? { AppConstants.UserDefaults.songRequestGlobalCooldown }
 
+    /// UserDefaults key for the user-configurable per-user cooldown override.
     var userCooldownKey: String? { AppConstants.UserDefaults.songRequestUserCooldown }
 
+    /// UserDefaults key controlling whether the command is enabled.
     var enabledKey: String? { AppConstants.UserDefaults.srCommandEnabled }
 
+    /// UserDefaults key holding custom trigger aliases.
     var aliasesKey: String? { AppConstants.UserDefaults.srCommandAliases }
 
     // MARK: - Properties
 
-    /// Reference to the song request service for processing.
+    /// Provides the active `SongRequestService`. Late-bound to break the
+    /// AppDelegate ↔ command dependency cycle at startup.
     var songRequestService: (() -> SongRequestService?)?
 
     // MARK: - AsyncBotCommand
 
+    /// Parses the search query, dispatches to the resolver, and formats the
+    /// chat reply for every `RequestResult` case.
+    ///
+    /// - Parameters:
+    ///   - message: Raw chat message; trigger prefix is stripped to recover the query.
+    ///   - context: Sender context; `username` is recorded with the queued item.
+    ///   - reply: Closure invoked with the chat response.
     func execute(message: String, context: BotCommandContext, reply: @escaping (String) -> Void) {
         // Extract the query (everything after the trigger)
         let query = extractQuery(from: message)
@@ -95,7 +111,11 @@ final class SongRequestCommand: AsyncBotCommand {
 
     // MARK: - Private Helpers
 
-    /// Extract the search query from the full message (strip the trigger prefix).
+    /// Strips the matched trigger prefix from `message` and returns the remaining
+    /// search query, trimmed of surrounding whitespace.
+    ///
+    /// - Parameter message: Full chat message including the `!sr` prefix.
+    /// - Returns: The query portion, or the entire message if no trigger matched.
     private func extractQuery(from message: String) -> String {
         let lowered = message.lowercased()
         for trigger in allTriggers {

@@ -234,7 +234,7 @@ extension AppDelegate {
                       let window = notification.object as? NSWindow,
                       window !== self.settingsWindow,
                       window !== self.onboardingWindow else { return }
-                DispatchQueue.main.async { [weak self] in
+                Task { @MainActor [weak self] in
                     self?.restoreMenuOnlyIfNeeded()
                 }
             }
@@ -420,18 +420,17 @@ extension AppDelegate {
 
         let request = UNNotificationRequest(identifier: UUID().uuidString, content: content, trigger: nil)
 
-        UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound]) { granted, _ in
-            if granted {
-                DispatchQueue.main.async {
-                    UNUserNotificationCenter.current().add(request) { error in
-                        if let error {
-                            Log.error(
-                                "AppDelegate: Failed to send notification: \(error.localizedDescription)",
-                                category: "App"
-                            )
-                        }
-                    }
-                }
+        Task {
+            do {
+                let granted = try await UNUserNotificationCenter.current()
+                    .requestAuthorization(options: [.alert, .sound])
+                guard granted else { return }
+                try await UNUserNotificationCenter.current().add(request)
+            } catch {
+                Log.error(
+                    "AppDelegate: Failed to send notification: \(error.localizedDescription)",
+                    category: "App"
+                )
             }
         }
     }

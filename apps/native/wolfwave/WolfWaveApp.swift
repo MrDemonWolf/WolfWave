@@ -112,15 +112,13 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
         // Defer onboarding and What's New past the initial layout pass
         // to avoid "layoutSubtreeIfNeeded on a view already being laid out" warning
-        DispatchQueue.main.async { [weak self] in
+        Task { @MainActor [weak self] in
             Log.debug("AppDelegate: hasCompletedOnboarding = \(OnboardingViewModel.hasCompletedOnboarding)", category: "App")
 
             if !OnboardingViewModel.hasCompletedOnboarding {
                 self?.showOnboarding()
             } else {
-                Task { [weak self] in
-                    await self?.validateTwitchTokenOnBoot()
-                }
+                await self?.validateTwitchTokenOnBoot()
             }
 
             self?.checkWhatsNew()
@@ -148,13 +146,13 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
     /// Posts a `nowPlayingChanged` notification for settings view observers.
     func postNowPlayingUpdate(song: String?, artist: String?, album: String?) {
-        DispatchQueue.main.async {
+        Task { @MainActor in
             var userInfo: [String: Any] = [:]
             if let song { userInfo["track"] = song }
             if let artist { userInfo["artist"] = artist }
             if let album { userInfo["album"] = album }
             NotificationCenter.default.post(
-                name: NSNotification.Name(AppConstants.Notifications.nowPlayingChanged),
+                name: .nowPlayingChanged,
                 object: nil,
                 userInfo: userInfo.isEmpty ? nil : userInfo
             )

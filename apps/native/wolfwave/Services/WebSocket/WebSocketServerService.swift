@@ -193,6 +193,8 @@ final class WebSocketServerService: @unchecked Sendable {
 
     // MARK: - Server Lifecycle
 
+    /// Brings up the `NWListener` on the configured port, wires state and
+    /// connection callbacks, and starts the server on `serverQueue`.
     private func startServer() {
         guard listener == nil else { return }
 
@@ -259,6 +261,8 @@ final class WebSocketServerService: @unchecked Sendable {
         }
     }
 
+    /// Tears down the listener, cancels all open connections, and transitions
+    /// the service to `.stopped`. Safe to call when no server is running.
     private func stopServer() {
         widgetHTTP?.stop()
         widgetHTTP = nil
@@ -296,6 +300,9 @@ final class WebSocketServerService: @unchecked Sendable {
 
     // MARK: - Connection Handling
 
+    /// Wires the per-connection state callback. On `.ready`, records the
+    /// connection and sends a welcome + current state + widget config snapshot.
+    /// On failure or cancellation, removes the connection from the active set.
     private func handleNewConnection(_ connection: NWConnection) {
         connection.stateUpdateHandler = { [weak self] state in
             guard let self else { return }
@@ -323,6 +330,7 @@ final class WebSocketServerService: @unchecked Sendable {
         connection.start(queue: serverQueue)
     }
 
+    /// Drops `connection` from the active set and broadcasts the new count.
     private func removeConnection(_ connection: NWConnection) {
         connectionsLock.lock()
         connections.removeAll { $0 === connection }
@@ -350,6 +358,8 @@ final class WebSocketServerService: @unchecked Sendable {
 
     // MARK: - Message Broadcasting
 
+    /// Sends the initial `welcome` envelope (server identity + version) to a
+    /// freshly-accepted connection.
     private func sendWelcome(to connection: NWConnection) {
         let appVersion = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "unknown"
         sendJSON(["type": "welcome", "server": "WolfWave", "version": appVersion], to: connection)
@@ -396,6 +406,8 @@ final class WebSocketServerService: @unchecked Sendable {
         sendJSON(message, to: connection)
     }
 
+    /// Sends a `now_playing` snapshot (track/artist/album/timing/artwork) to
+    /// every connected client. No-op when no track has been stored yet.
     private func broadcastNowPlaying() {
         playbackLock.lock()
         let track = currentTrack
@@ -419,6 +431,8 @@ final class WebSocketServerService: @unchecked Sendable {
         ])
     }
 
+    /// Sends a lightweight `playback_state` (play/pause) update to every
+    /// connected client. Used when only the playing flag changes.
     private func broadcastPlaybackState() {
         playbackLock.lock()
         let track = currentTrack ?? ""
@@ -433,6 +447,8 @@ final class WebSocketServerService: @unchecked Sendable {
         ])
     }
 
+    /// Sends a `progress` tick (elapsed/duration) to every connected client
+    /// while playback is active. Driven by the periodic progress timer.
     private func broadcastProgress() {
         playbackLock.lock()
         let elapsed = estimatedElapsed()
@@ -456,6 +472,8 @@ final class WebSocketServerService: @unchecked Sendable {
 
     // MARK: - Progress Timer
 
+    /// Starts (or restarts) the periodic progress broadcast timer using the
+    /// current interval. Cancels any timer already running before scheduling.
     private func startProgressTimer() {
         stopProgressTimer()
 
@@ -469,6 +487,7 @@ final class WebSocketServerService: @unchecked Sendable {
         progressTimer = timer
     }
 
+    /// Cancels and clears the progress broadcast timer if one is active.
     private func stopProgressTimer() {
         progressTimer?.cancel()
         progressTimer = nil
@@ -476,6 +495,11 @@ final class WebSocketServerService: @unchecked Sendable {
 
     // MARK: - JSON Helpers
 
+    /// Serializes `dict` to JSON and sends it as a single WebSocket text frame.
+    ///
+    /// - Parameters:
+    ///   - dict: Top-level JSON object to serialize.
+    ///   - connection: Target connection.
     private func sendJSON(_ dict: [String: Any], to connection: NWConnection) {
         guard let jsonData = try? JSONSerialization.data(withJSONObject: dict),
               let jsonString = String(data: jsonData, encoding: .utf8) else { return }
@@ -493,6 +517,9 @@ final class WebSocketServerService: @unchecked Sendable {
         )
     }
 
+    /// Fan-outs a JSON payload to every active connection in a single pass.
+    ///
+    /// - Parameter dict: Top-level JSON object to serialize and broadcast.
     private func broadcastJSON(_ dict: [String: Any]) {
         connectionsLock.lock()
         let conns = connections

@@ -172,6 +172,12 @@ struct PermissionInstructionSheet: View {
         .frame(width: 480, height: 520)
     }
 
+    /// Builds a single numbered "step" row: a circled index plus instruction text.
+    ///
+    /// - Parameters:
+    ///   - n: 1-based step number shown inside the circle.
+    ///   - content: ViewBuilder closure returning the instruction `Text`.
+    /// - Returns: A horizontally-aligned step row.
     private func step(n: Int, @ViewBuilder content: () -> Text) -> some View {
         HStack(alignment: .top, spacing: 12) {
             ZStack {

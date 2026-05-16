@@ -275,10 +275,17 @@ struct MusicMonitorSettingsView: View {
             .nonZeroOrDefault(AppConstants.WebSocketServer.widgetDefaultPort)
     }
 
+    /// Convenience wrapper around `NotificationCenter.default.publisher(for:)`
+    /// that builds the `NSNotification.Name` from a string constant.
+    ///
+    /// - Parameter name: Notification name string (from `AppConstants.Notifications`).
+    /// - Returns: A publisher emitting that notification.
     private func notif(_ name: String) -> NotificationCenter.Publisher {
         NotificationCenter.default.publisher(for: NSNotification.Name(name))
     }
 
+    /// Re-queries Apple Music automation permission, caches the result, and
+    /// reloads the current track if permission is now granted.
     private func refreshPermission() {
         let next = MusicPermissionChecker.currentState()
         MusicPermissionCache.write(next)
@@ -291,6 +298,8 @@ struct MusicMonitorSettingsView: View {
         }
     }
 
+    /// Prompts the user for Apple Music automation permission, animates the
+    /// resolution, and pulls the current track on success.
     private func requestPermission() {
         isRequesting = true
         Task {
@@ -307,6 +316,8 @@ struct MusicMonitorSettingsView: View {
         }
     }
 
+    /// Snapshots the currently-playing track from `AppDelegate` into the
+    /// view's state so the "Now Playing" preview reflects live playback.
     private func loadCurrentTrack() {
         if let appDelegate = AppDelegate.shared {
             currentTrack = appDelegate.currentSong
@@ -315,6 +326,8 @@ struct MusicMonitorSettingsView: View {
         }
     }
 
+    /// Loads connection status for Twitch / Discord / overlay from the
+    /// running services so the integration row chips reflect reality.
     private func loadIntegrationStatuses() {
         if let appDelegate = AppDelegate.shared {
             twitchConnected = appDelegate.twitchService?.isConnected ?? false
@@ -325,6 +338,10 @@ struct MusicMonitorSettingsView: View {
         }
     }
 
+    /// Posts a `trackingSettingChanged` notification so the music monitor
+    /// starts or stops based on the user's toggle.
+    ///
+    /// - Parameter enabled: New tracking value.
     private func notifyTrackingSettingChanged(enabled: Bool) {
         NotificationCenter.default.post(
             name: NSNotification.Name(AppConstants.Notifications.trackingSettingChanged),
@@ -361,6 +378,9 @@ private enum MusicPermissionCache {
 // MARK: - UInt16 helper
 
 private extension UInt16 {
+    /// Returns `self` if non-zero, otherwise `fallback`. Used to coerce
+    /// `UserDefaults.integer(forKey:)`'s zero-default into the app's real
+    /// default port when the user has never customized it.
     func nonZeroOrDefault(_ fallback: UInt16) -> UInt16 {
         self == 0 ? fallback : self
     }

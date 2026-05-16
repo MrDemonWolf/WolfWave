@@ -11,25 +11,38 @@ import Foundation
 final class MyQueueCommand: AsyncBotCommand {
     // MARK: - BotCommand
 
+    /// Chat triggers that invoke this command.
     var triggers: [String] { ["!myqueue", "!mysongs"] }
 
+    /// Human-readable description shown in the `!commands` listing.
     var description: String { "Show your requested songs and positions in queue" }
 
+    /// Channel-wide cooldown between invocations, in seconds.
     var globalCooldown: TimeInterval { 10.0 }
 
+    /// Per-user cooldown between invocations, in seconds.
     var userCooldown: TimeInterval { 15.0 }
 
+    /// UserDefaults key controlling whether the command is enabled.
     var enabledKey: String? { AppConstants.UserDefaults.myQueueCommandEnabled }
 
+    /// UserDefaults key holding custom trigger aliases.
     var aliasesKey: String? { AppConstants.UserDefaults.myQueueCommandAliases }
 
     // MARK: - Properties
 
-    /// Reference to the song request queue.
+    /// Provides the live `SongRequestQueue`. Late-bound to break the
+    /// AppDelegate ↔ command dependency cycle at startup.
     var getQueue: (() -> SongRequestQueue?)?
 
     // MARK: - AsyncBotCommand
 
+    /// Looks up the sender's queued songs and replies with their positions.
+    ///
+    /// - Parameters:
+    ///   - message: Raw chat message (unused).
+    ///   - context: Sender context; `username` is matched against queue entries.
+    ///   - reply: Closure invoked with the chat response.
     func execute(message: String, context: BotCommandContext, reply: @escaping (String) -> Void) {
         guard let queue = getQueue?() else { return }
 

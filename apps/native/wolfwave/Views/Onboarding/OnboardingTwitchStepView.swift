@@ -192,6 +192,10 @@ struct OnboardingTwitchStepView: View {
         .accessibilityLabel("Twitch connected as \(twitchViewModel.botUsername).")
     }
 
+    /// Error-state subview shown when the Twitch device-code flow fails.
+    /// Displays a warning icon plus a wrap-friendly explanation message.
+    ///
+    /// - Parameter message: Localized error string from the auth flow.
     @ViewBuilder
     private func errorContent(message: String) -> some View {
         VStack(spacing: 10) {

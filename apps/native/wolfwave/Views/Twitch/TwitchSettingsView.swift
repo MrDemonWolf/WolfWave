@@ -635,6 +635,11 @@ private struct SignedInView: View {
         return botUsername.isEmpty || !validChannel
     }
 
+    /// Builds the connection-status SF Symbol (orange exclamation for
+    /// re-auth needed, green checkmark otherwise).
+    ///
+    /// - Parameter reauthNeeded: When `true`, returns the warning icon.
+    /// - Returns: A pre-sized status icon view.
     @ViewBuilder
     private func statusIcon(reauthNeeded: Bool) -> some View {
         Image(systemName: reauthNeeded ? "exclamationmark.circle.fill" : "checkmark.circle.fill")

@@ -32,7 +32,8 @@ struct CopyButton: View {
             NSPasteboard.general.clearContents()
             NSPasteboard.general.setString(text, forType: .string)
             copied = true
-            DispatchQueue.main.asyncAfter(deadline: .now() + feedbackDuration) {
+            Task { @MainActor in
+                try? await Task.sleep(for: .seconds(feedbackDuration))
                 copied = false
             }
         } label: {

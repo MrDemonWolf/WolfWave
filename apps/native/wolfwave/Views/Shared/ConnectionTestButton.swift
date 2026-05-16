@@ -81,6 +81,7 @@ struct ConnectionTestButton: View {
         }
         .disabled(result == .testing)
         .pointerCursor()
+        .accessibilityLabel(label)
         .accessibilityValue(accessibilityValue)
     }
 
@@ -116,7 +117,7 @@ struct ConnectionTestButton: View {
     private func scheduleReset() {
         clearTask?.cancel()
         clearTask = Task { @MainActor in
-            try? await Task.sleep(nanoseconds: 3_000_000_000)
+            try? await Task.sleep(for: .seconds(3))
             guard !Task.isCancelled else { return }
             withAnimation {
                 result = .idle

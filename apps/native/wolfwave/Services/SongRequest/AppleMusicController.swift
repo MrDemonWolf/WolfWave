@@ -17,21 +17,47 @@ enum PlaybackError: Error {
     case noURL
 }
 
-/// Abstracts Apple Music search and playback control for testability.
+/// Abstracts Apple Music search and playback control so the live
+/// `AppleMusicController` can be swapped for a stub in tests.
 protocol AppleMusicControlling {
+    /// `true` while Music.app reports an active playing state.
     var isPlaying: Bool { get }
+
+    /// `true` while Music.app is paused (a track is loaded but not advancing).
     var isPaused: Bool { get }
+
+    /// `true` once the user has granted MusicKit catalog access.
     var isAuthorized: Bool { get }
-    /// Whether Music.app is currently running (does NOT launch it).
+
+    /// `true` if Music.app is currently running. Reading this value never
+    /// launches Music.app — it only inspects the workspace.
     var isMusicAppRunning: Bool { get }
+
+    /// Current MusicKit authorization status.
     var authStatus: AppleMusicController.AuthStatus { get }
+
+    /// Searches the catalog for the best match for `query`.
     func search(query: String) async -> AppleMusicController.SearchResult
+
+    /// Resolves an Apple Music / Spotify / YouTube URL into a catalog track.
     func resolve(url: URL) async -> AppleMusicController.SearchResult
+
+    /// Replaces the current track and starts playback immediately.
     func playNow(song: Song) async throws
+
+    /// Appends a track to the playback queue without interrupting playback.
     func enqueue(song: Song) async throws
+
+    /// Advances to the next track in Music.app's player queue.
     func skipToNext() async throws
+
+    /// Clears Music.app's player queue and stops playback.
     func clearPlayerQueue() async
+
+    /// Replaces the player queue with `songs` and starts the first item.
     func rebuildPlayerQueue(from songs: [Song]) async throws
+
+    /// Starts a named Apple Music library playlist as the fallback source.
     func playFallbackPlaylist(name: String) async throws
 }
 

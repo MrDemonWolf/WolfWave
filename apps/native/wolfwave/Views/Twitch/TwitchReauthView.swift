@@ -201,14 +201,17 @@ struct TwitchReauthView: View {
     }
     
     // MARK: - Helper Methods
-    
+
+    /// Copies the active re-auth device code to the pasteboard and updates
+    /// the status message to confirm the action to the user.
     private func copyDeviceCode() {
         let pasteboard = NSPasteboard.general
         pasteboard.clearContents()
         pasteboard.setString(viewModel.authState.userCode, forType: .string)
         viewModel.statusMessage = "Copied to clipboard"
     }
-    
+
+    /// Opens Twitch's device activation page in the user's default browser.
     private func openTwitchActivation() {
         let urlString = viewModel.authState.verificationURI
         if let url = URL(string: urlString) {

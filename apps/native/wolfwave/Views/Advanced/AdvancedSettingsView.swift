@@ -156,7 +156,8 @@ struct AdvancedSettingsView: View {
             pasteboard.setString(trimmed, forType: .string)
 
             withAnimation { showingCopyFeedback = true }
-            DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
+            Task { @MainActor in
+                try? await Task.sleep(for: .seconds(2))
                 withAnimation { showingCopyFeedback = false }
             }
             Log.info("Logs copied to clipboard", category: "App")
@@ -680,7 +681,8 @@ struct AdvancedSettingsView: View {
                     appDelegate?.sparkleUpdater?.checkForUpdates()
                     // Reset after a delay — Sparkle's delegate callbacks
                     // will update the UI with actual results.
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 5) {
+                    Task { @MainActor in
+                        try? await Task.sleep(for: .seconds(5))
                         isCheckingForUpdates = false
                     }
                 } label: {

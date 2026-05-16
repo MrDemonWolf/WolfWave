@@ -23,6 +23,13 @@ struct TwitchGlitchShape: Shape {
 
     // MARK: - Shape Conformance
 
+    /// Builds the Twitch Glitch path normalized into `rect`. Coordinates are
+    /// expressed in a 24×28 reference grid (the official Twitch Glitch
+    /// proportions) and scaled to fit the supplied rectangle.
+    ///
+    /// - Parameter rect: Bounding rectangle to draw into.
+    /// - Returns: A path with the outer silhouette plus two eye cutouts. Use
+    ///   `FillStyle(eoFill: true)` to render the cutouts correctly.
     func path(in rect: CGRect) -> Path {
         let w = rect.width
         let h = rect.height

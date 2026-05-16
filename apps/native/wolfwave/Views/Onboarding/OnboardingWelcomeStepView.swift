@@ -63,11 +63,11 @@ struct OnboardingWelcomeStepView: View {
             withAnimation(.spring(response: 0.45, dampingFraction: 0.78)) {
                 heroVisible = true
             }
-            try? await Task.sleep(nanoseconds: 180_000_000)
+            try? await Task.sleep(for: .milliseconds(180))
             withAnimation(.easeOut(duration: 0.30)) {
                 taglineVisible = true
             }
-            try? await Task.sleep(nanoseconds: 140_000_000)
+            try? await Task.sleep(for: .milliseconds(140))
             withAnimation(.easeOut(duration: 0.30)) {
                 brandLineVisible = true
             }
@@ -106,6 +106,12 @@ struct OnboardingWelcomeStepView: View {
             .frame(width: 3, height: 3)
     }
 
+    /// Tinted brand-asset chip (asset-catalog template image) used in the
+    /// "integrates with" pills row.
+    ///
+    /// - Parameters:
+    ///   - image: Asset name of the brand image.
+    ///   - color: Tint applied via `.foregroundStyle`.
     @ViewBuilder
     private func brandChip(image: String, color: Color) -> some View {
         Image(image)
@@ -116,6 +122,12 @@ struct OnboardingWelcomeStepView: View {
             .foregroundStyle(color)
     }
 
+    /// Tinted SF Symbol variant of `brandChip` for integrations without a
+    /// dedicated brand asset (e.g. OBS).
+    ///
+    /// - Parameters:
+    ///   - systemSymbol: SF Symbol name.
+    ///   - color: Tint applied via `.foregroundStyle`.
     @ViewBuilder
     private func brandChip(systemSymbol: String, color: Color) -> some View {
         Image(systemName: systemSymbol)

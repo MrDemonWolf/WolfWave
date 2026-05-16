@@ -146,6 +146,9 @@ struct TwitchDeviceAuthDialog: View {
 
     // MARK: - Helpers
 
+    /// Transitions the dialog into the "waiting for authorization" state and
+    /// opens `twitch.tv/activate?device_code=…` in the browser after a brief
+    /// animation hold so the state change reads naturally.
     private func handleAuthorizePressed() {
         // Transition to waiting state
         withAnimation(.easeInOut(duration: 0.3)) {
@@ -153,8 +156,8 @@ struct TwitchDeviceAuthDialog: View {
         }
         
         // Open browser after brief delay for visual feedback
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-            // Safely encode the device code for URL
+        Task { @MainActor in
+            try? await Task.sleep(for: .milliseconds(100))
             if let encodedCode = deviceCode.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed),
                let url = URL(string: "https://www.twitch.tv/activate?device_code=\(encodedCode)") {
                 NSWorkspace.shared.open(url)
@@ -163,6 +166,8 @@ struct TwitchDeviceAuthDialog: View {
         }
     }
     
+    /// Copies the device code to the pasteboard, shows the toast feedback,
+    /// and resets both the toast and the copy button after 2 seconds.
     private func copyDeviceCode() {
         NSPasteboard.general.clearContents()
         NSPasteboard.general.setString(deviceCode, forType: .string)
@@ -175,7 +180,8 @@ struct TwitchDeviceAuthDialog: View {
         }
         
         // Auto-dismiss feedback and reset button state in sync
-        DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
+        Task { @MainActor in
+            try? await Task.sleep(for: .seconds(2))
             withAnimation(.easeInOut(duration: 0.2)) {
                 showCopyFeedback = false
                 isCodeCopied = false

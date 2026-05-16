@@ -92,12 +92,17 @@ struct WebSocketSettingsView: View {
         }
     }
 
+    /// Pulls the latest server state + client count from the shared
+    /// `WebSocketServerService` so the view's chips stay in sync with the
+    /// service's actual state.
     private func refreshServerState() {
         guard let appDelegate = AppDelegate.shared else { return }
         serverState = appDelegate.websocketServer?.state ?? .stopped
         clientCount = appDelegate.websocketServer?.connectionCount ?? 0
     }
 
+    /// Re-queries the cached LAN IPv4 address on the main actor and animates
+    /// the change when the value differs from the current view state.
     private func refreshLocalIP() async {
         let ip = await NetworkInfoService.shared.refreshIPv4()
         await MainActor.run {
@@ -273,6 +278,9 @@ fileprivate struct WebSocketServerCard: View {
         .onAppear { portText = String(storedPort) }
     }
 
+    /// Validates the port text field and, when valid, persists the new port
+    /// to UserDefaults and posts a `websocketServerChanged` notification so
+    /// the server restarts on the new port.
     private func applyPort() {
         guard isPortValid, let port = UInt16(portText) else { return }
         storedPort = Int(port)
@@ -284,6 +292,8 @@ fileprivate struct WebSocketServerCard: View {
         )
     }
 
+    /// Posts a `websocketServerChanged` notification without altering settings.
+    /// Used after a setting change persists, to nudge the service to re-read.
     private func notifyServerSettingChanged() {
         NotificationCenter.default.post(
             name: NSNotification.Name(AppConstants.Notifications.websocketServerChanged),
@@ -528,6 +538,9 @@ fileprivate struct WebSocketBrowserSourceCard: View {
         .onAppear { widgetPortText = String(storedWidgetPort) }
     }
 
+    /// Validates the widget HTTP port text field, persists the new port, and
+    /// posts a `widgetHTTPServerChanged` notification so the widget server
+    /// restarts on the new port.
     private func applyWidgetPort() {
         guard isWidgetPortValid, let port = UInt16(widgetPortText) else { return }
         storedWidgetPort = Int(port)
@@ -709,6 +722,9 @@ fileprivate struct WebSocketWidgetAppearanceCard: View {
         }
     }
 
+    /// Pushes the current widget theme/layout/font/color values to every
+    /// connected overlay via `WebSocketServerService.broadcastWidgetConfig()`.
+    /// Called from `onChange` of each customization control.
     private func broadcastWidgetConfig() {
         AppDelegate.shared?.websocketServer?.broadcastWidgetConfig()
     }

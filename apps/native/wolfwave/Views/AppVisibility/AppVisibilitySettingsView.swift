@@ -160,6 +160,11 @@ struct AppVisibilitySettingsView: View {
 
     // MARK: - Helpers
 
+    /// Posts a `dockVisibilityChanged` notification so `AppDelegate` updates
+    /// the `NSApp.activationPolicy` and menu-bar visibility.
+    ///
+    /// - Parameter mode: One of `AppConstants.DockVisibility.menuOnly`,
+    ///   `.dockOnly`, or `.both`.
     private func applyDockVisibility(_ mode: String) {
         NotificationCenter.default.post(
             name: NSNotification.Name(AppConstants.Notifications.dockVisibilityChanged),

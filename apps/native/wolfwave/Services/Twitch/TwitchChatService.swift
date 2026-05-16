@@ -301,6 +301,13 @@ final class TwitchChatService: @unchecked Sendable {
     /// Guards: `isProcessingQueue`.
     private let queueProcessingLock = NSLock()
 
+    /// Checks whether the local rate-limit accountant believes a request to
+    /// `endpoint` is safe to send right now.
+    ///
+    /// Counters reset automatically once their bucket window elapses.
+    ///
+    /// - Parameter endpoint: Helix endpoint key (e.g. `"chat/messages"`).
+    /// - Returns: `true` if at least one request remains in the bucket.
     private func canMakeRequest(endpoint: String) -> Bool {
         rateLimitLock.withLock {
             guard let state = rateLimits[endpoint] else {
@@ -317,6 +324,11 @@ final class TwitchChatService: @unchecked Sendable {
         }
     }
 
+    /// Returns the seconds to wait before retrying when the local accountant
+    /// believes `endpoint` is currently saturated.
+    ///
+    /// - Parameter endpoint: Helix endpoint key.
+    /// - Returns: Seconds until the bucket resets, or `nil` if no wait is needed.
     private func getWaitTimeIfRateLimited(endpoint: String) -> TimeInterval? {
         rateLimitLock.withLock {
             guard let state = rateLimits[endpoint] else {
@@ -333,6 +345,12 @@ final class TwitchChatService: @unchecked Sendable {
         }
     }
 
+    /// Records Twitch's `Ratelimit-Remaining` and `Ratelimit-Reset` headers
+    /// after a Helix response so subsequent calls can throttle locally.
+    ///
+    /// - Parameters:
+    ///   - endpoint: Helix endpoint key.
+    ///   - headers: Response headers from the most recent call.
     private func updateRateLimitState(endpoint: String, from headers: [AnyHashable: Any]) {
         rateLimitLock.withLock {
             var state = rateLimits[endpoint] ?? RateLimitState()
@@ -1436,6 +1454,9 @@ final class TwitchChatService: @unchecked Sendable {
         Log.debug("TwitchChatService: EventSub WebSocket disconnected", category: "Twitch")
     }
 
+    /// Reads the next frame from the EventSub WebSocket and recursively
+    /// schedules itself to keep the receive loop alive for the lifetime of
+    /// the connection.
     private func receiveWebSocketMessage() {
         let task: URLSessionWebSocketTask? = webSocketLock.withLock { webSocketTask }
         guard let task else {

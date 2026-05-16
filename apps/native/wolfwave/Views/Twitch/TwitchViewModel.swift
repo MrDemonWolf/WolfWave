@@ -448,7 +448,7 @@ final class TwitchViewModel {
 
                 // Start a 5-minute timeout that cancels the flow if not completed
                 let timeoutTask = Task {
-                    try await Task.sleep(nanoseconds: 5 * 60 * 1_000_000_000)
+                    try await Task.sleep(for: .seconds(5 * 60))
                     await MainActor.run { [weak self] in
                         guard let self, self.authState != .idle else { return }
                         if case .waitingForAuth = self.authState {
@@ -549,7 +549,7 @@ final class TwitchViewModel {
 
         // Create a new task that waits 1 second before saving
         channelIDSaveTask = Task { @MainActor in
-            try? await Task.sleep(nanoseconds: 1_000_000_000)  // 1 second
+            try? await Task.sleep(for: .seconds(1))
 
             // Check if task was cancelled
             guard !Task.isCancelled else { return }
@@ -792,7 +792,7 @@ final class TwitchViewModel {
     private func scheduleTestAuthReset() {
         pendingAuthResetTask?.cancel()
         pendingAuthResetTask = Task { @MainActor in
-            try? await Task.sleep(nanoseconds: 3_000_000_000)
+            try? await Task.sleep(for: .seconds(3))
             guard !Task.isCancelled else { return }
             self.testAuthResult = .idle
         }
@@ -821,6 +821,9 @@ final class TwitchViewModel {
 
     // MARK: - Private Methods
 
+    /// Updates the published authorization state. Centralized so the
+    /// observable-mutation site is consistent in the future when telemetry or
+    /// additional side effects are added.
     private func updateAuthState(_ state: AuthState) {
         authState = state
     }
@@ -830,6 +833,13 @@ final class TwitchViewModel {
         return AppDelegate.shared?.twitchService
     }
 
+    /// Stores a freshly-issued OAuth token in the Keychain, clears the
+    /// re-auth flag, and resolves the bot identity (username + user ID) via
+    /// Helix so subsequent EventSub subscriptions have everything they need.
+    ///
+    /// - Parameters:
+    ///   - token: New OAuth access token.
+    ///   - clientID: Twitch developer client ID used to mint the token.
     private func handleOAuthSuccess(token: String, clientID: String) async {
         authState = .inProgress
         statusMessage = "✅ Authorization successful! Saving credentials..."
@@ -879,6 +889,10 @@ final class TwitchViewModel {
         oAuthTask = nil
     }
 
+    /// Maps a `TwitchDeviceAuthError` into a user-facing `statusMessage` and
+    /// transitions the auth state machine to `.error` for UI display.
+    ///
+    /// - Parameter error: Failure produced by the device-code OAuth flow.
     private func handleOAuthError(_ error: TwitchDeviceAuthError) async {
         let message: String
         switch error {

@@ -119,6 +119,8 @@ struct DeviceCodeView: View {
 
     // MARK: - Helpers
 
+    /// Copies the displayed device code to the pasteboard, animates the
+    /// "Copied" affordance, and resets the visual state after ~1.3 seconds.
     private func copyDeviceCode() {
         NSPasteboard.general.clearContents()
         NSPasteboard.general.setString(userCode, forType: .string)
@@ -132,7 +134,8 @@ struct DeviceCodeView: View {
         }
 
         // Auto-dismiss feedback and reset state
-        DispatchQueue.main.asyncAfter(deadline: .now() + 1.3) {
+        Task { @MainActor in
+            try? await Task.sleep(for: .milliseconds(1300))
             withAnimation(.easeInOut(duration: 0.18)) {
                 showCopyFeedback = false
             }
@@ -140,6 +143,8 @@ struct DeviceCodeView: View {
         }
     }
 
+    /// Opens the Twitch device activation URL in the user's default browser
+    /// and forwards the action to the parent via `onActivate`.
     private func openActivationURL() {
         if let url = URL(string: verificationURI) {
             NSWorkspace.shared.open(url)
