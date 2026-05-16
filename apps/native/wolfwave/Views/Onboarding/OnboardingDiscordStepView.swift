@@ -37,7 +37,7 @@ struct OnboardingDiscordStepView: View {
                 Text("Light up your Discord status")
                     .font(.system(size: 20, weight: .bold))
 
-                Text("Friends will see what you're listening to — track, artist, and album art — right under your name.")
+                Text("Friends see your song, artist, and album art right under your name.")
                     .font(.system(size: 13))
                     .foregroundStyle(.secondary)
                     .multilineTextAlignment(.center)
@@ -47,7 +47,7 @@ struct OnboardingDiscordStepView: View {
 
             ToggleSettingRow(
                 title: "Show music on Discord",
-                subtitle: "Updates every time the track changes.",
+                subtitle: "Updates every time the song changes.",
                 isOn: $presenceEnabled,
                 controlSize: .regular,
                 accessibilityLabel: "Enable Discord Status",

@@ -70,10 +70,10 @@ struct OnboardingTwitchStepView: View {
             )
 
             VStack(spacing: 6) {
-                Text("Connect Twitch")
+                Text("Sign in to Twitch")
                     .font(.system(size: 20, weight: .bold))
 
-                Text("So !song answers itself in your chat. We'll only listen — never post unless you ask.")
+                Text("So !song works in your chat automatically. We only listen — we never post unless you ask.")
                     .font(.system(size: 13))
                     .foregroundStyle(.secondary)
                     .multilineTextAlignment(.center)
@@ -136,7 +136,7 @@ struct OnboardingTwitchStepView: View {
                     .progressViewStyle(.circular)
                     .controlSize(.small)
 
-                Text("Waiting for authorization\u{2026}")
+                Text("Waiting for Twitch\u{2026}")
                     .font(.system(size: 13))
                     .foregroundStyle(.secondary)
 

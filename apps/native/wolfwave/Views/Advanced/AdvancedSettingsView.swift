@@ -357,7 +357,7 @@ struct AdvancedSettingsView: View {
                         .font(.system(size: 14))
                         .foregroundStyle(.green)
 
-                    Text("Automatic updates enabled — you'll be notified when new versions are available.")
+                    Text("Auto-updates on. We'll notify you of new versions.")
                         .font(.system(size: 11))
                         .foregroundStyle(.secondary)
                 }

@@ -481,8 +481,8 @@ enum AppConstants {
 
     /// Menu item text labels.
     enum MenuLabels {
-        static let settings = "Settings..."
-        static let quit = "Quit"
+        static let settings = "Settings\u{2026}"
+        static let quit = "Quit WolfWave"
     }
 
     // MARK: - Settings UI

@@ -217,7 +217,7 @@ struct AppConstantsTests {
     func testMenuLabels() async throws {
         #expect(!AppConstants.MenuLabels.settings.isEmpty)
         #expect(!AppConstants.MenuLabels.quit.isEmpty)
-        #expect(AppConstants.MenuLabels.settings == "Settings...")
-        #expect(AppConstants.MenuLabels.quit == "Quit")
+        #expect(AppConstants.MenuLabels.settings == "Settings\u{2026}")
+        #expect(AppConstants.MenuLabels.quit == "Quit WolfWave")
     }
 }

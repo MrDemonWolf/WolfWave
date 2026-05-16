@@ -128,7 +128,7 @@ extension AppDelegate: NSMenuDelegate {
             let queueCount = srQueue.count
             if let nowPlaying = srQueue.nowPlaying {
                 let requestItem = NSMenuItem(
-                    title: "🎵 \(nowPlaying.title) — \(nowPlaying.artist)",
+                    title: "\(nowPlaying.title) — \(nowPlaying.artist)",
                     action: nil,
                     keyEquivalent: ""
                 )
@@ -169,7 +169,7 @@ extension AppDelegate: NSMenuDelegate {
                 menu.addItem(skipItem)
 
                 let clearItem = NSMenuItem(
-                    title: "Clear Request Queue",
+                    title: "Clear Queue",
                     action: #selector(clearSongRequestQueue),
                     keyEquivalent: ""
                 )
@@ -184,7 +184,7 @@ extension AppDelegate: NSMenuDelegate {
 
         // Quick Toggles
         let trackingItem = NSMenuItem(
-            title: "Music Sync",
+            title: "Sync Music",
             action: #selector(toggleTracking),
             keyEquivalent: ""
         )
@@ -214,7 +214,7 @@ extension AppDelegate: NSMenuDelegate {
         menu.addItem(discordItem)
 
         let overlayItem = NSMenuItem(
-            title: "Now-Playing Widget",
+            title: "Stream Widgets",
             action: #selector(toggleWebSocket),
             keyEquivalent: ""
         )

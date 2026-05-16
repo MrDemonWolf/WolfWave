@@ -84,14 +84,14 @@ struct OnboardingOBSWidgetStepView: View {
 
     private var overlayToggleCard: some View {
         ToggleSettingRow(
-            title: "Enable OBS overlay",
+            title: "Turn on Stream Widgets",
             subtitle: "Streams your now-playing card to OBS.",
             isOn: Binding(
                 get: { overlayEnabled },
                 set: { setOverlayEnabled($0) }
             ),
             controlSize: .regular,
-            accessibilityLabel: "Enable OBS overlay",
+            accessibilityLabel: "Turn on Stream Widgets",
             accessibilityIdentifier: "onboardingOverlayToggle"
         )
         .padding(14)
@@ -156,7 +156,7 @@ struct OnboardingOBSWidgetStepView: View {
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
 
-                Text("Need the raw WebSocket feed? Settings → Overlay.")
+                Text("Need the live now-playing feed? Settings → Stream Widgets.")
                     .font(.system(size: 10))
                     .foregroundStyle(.tertiary)
                     .fixedSize(horizontal: false, vertical: true)

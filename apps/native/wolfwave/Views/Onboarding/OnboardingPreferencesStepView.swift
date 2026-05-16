@@ -41,10 +41,10 @@ struct OnboardingPreferencesStepView: View {
             )
 
             VStack(spacing: 6) {
-                Text("A couple Mac things")
+                Text("A couple Mac settings")
                     .font(.system(size: 20, weight: .bold))
 
-                Text("Have WolfWave start when you log in, and let it ping you when something needs attention.")
+                Text("Start WolfWave at login, and get notified when something needs attention.")
                     .font(.system(size: 13))
                     .foregroundStyle(.secondary)
                     .multilineTextAlignment(.center)
@@ -56,7 +56,7 @@ struct OnboardingPreferencesStepView: View {
                 preferenceRow(
                     icon: "power",
                     iconColor: .green,
-                    title: "Open WolfWave at login",
+                    title: "Start WolfWave at login",
                     subtitle: "Starts in the menu bar — no Dock icon clutter.",
                     isOn: Binding(
                         get: { launchAtLogin },
@@ -65,7 +65,7 @@ struct OnboardingPreferencesStepView: View {
                             launchAtLogin = newValue
                         }
                     ),
-                    accessibilityLabel: "Open WolfWave at login",
+                    accessibilityLabel: "Start WolfWave at login",
                     accessibilityIdentifier: "onboardingLaunchAtLoginToggle"
                 )
 

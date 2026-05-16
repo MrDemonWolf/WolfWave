@@ -94,7 +94,7 @@ struct TwitchSettingsView: View {
     /// Title text for the auth card header, adapts to reauth/signed-in/signed-out states.
     private var authCardHeaderTitle: String {
         if viewModel.reauthNeeded {
-            return "Log In Again"
+            return "Sign In Again"
         } else if viewModel.credentialsSaved && viewModel.botUsername != "" {
             return "All Set!"
         } else {
@@ -105,7 +105,7 @@ struct TwitchSettingsView: View {
     /// Subtitle text for the auth card header with a short call-to-action.
     private var authCardHeaderSubtitle: String {
         if viewModel.reauthNeeded {
-            return "Your login expired. Please log in again."
+            return "Sign-in expired. Sign in again."
         } else if viewModel.credentialsSaved && viewModel.botUsername != "" {
             return ""
         } else if viewModel.authState.isInProgress {
@@ -149,7 +149,7 @@ struct TwitchSettingsView: View {
                             hasStartedActivation = false
                             viewModel.startOAuth()
                         }) {
-                            Text("Connect Twitch")
+                            Text("Sign in to Twitch")
                                 .font(.system(size: 13, weight: .semibold))
                                 .frame(maxWidth: .infinity)
                                 .frame(height: 32)
@@ -488,12 +488,12 @@ private struct SignedInView: View {
                             ProgressView()
                                 .progressViewStyle(.circular)
                                 .controlSize(.mini)
-                            Text("Connecting...")
+                            Text("Connecting\u{2026}")
                                 .font(.system(size: 12))
                         }
                     } else {
                         Label(
-                            isChannelConnected ? "Disconnect" : "Connect",
+                            isChannelConnected ? "Leave Channel" : "Join Channel",
                             systemImage: isChannelConnected
                                 ? "xmark.circle.fill" : "checkmark.circle.fill"
                         )
@@ -518,10 +518,10 @@ private struct SignedInView: View {
                 }
                 .pointerCursor()
                 .accessibilityLabel(
-                    isChannelConnected ? "Disconnect from channel" : "Connect to channel"
+                    isChannelConnected ? "Leave channel" : "Join channel"
                 )
                 .accessibilityHint(
-                    isChannelConnected ? "Disconnects the bot from the Twitch channel" : "Connects the bot to the Twitch channel"
+                    isChannelConnected ? "Removes the bot from the Twitch channel" : "Adds the bot to the Twitch channel"
                 )
                 .accessibilityValue(isChannelConnected ? "Connected" : "Disconnected")
                 .accessibilityIdentifier("twitchConnectButton")

@@ -50,7 +50,7 @@ struct ConnectionTestButton: View {
                     ProgressView()
                         .progressViewStyle(.circular)
                         .controlSize(.mini)
-                    Text("Testing...")
+                    Text("Testing\u{2026}")
                         .font(.system(size: 12))
                 }
             case .success:

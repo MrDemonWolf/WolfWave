@@ -65,7 +65,7 @@ struct IntegrationDashboardView: View {
                             .foregroundStyle(.secondary)
                             .frame(width: 22)
                     ),
-                    name: "Stream overlay",
+                    name: "Stream Widgets",
                     chip: widgetChip,
                     subtitle: widgetSubtitle,
                     action: { configure(.obs) }
@@ -83,7 +83,7 @@ struct IntegrationDashboardView: View {
                         ? StatusChip(text: "On", color: .green)
                         : StatusChip(text: "Off", color: .secondary),
                     subtitle: remoteSendingEnabled
-                        ? "Forwarding now-playing to your remote endpoint."
+                        ? "Sending now-playing to your remote URL."
                         : "Only turn this on if your overlay lives somewhere else.",
                     action: { configure(.advanced) }
                 )
@@ -177,7 +177,7 @@ struct IntegrationDashboardView: View {
             }
             return "Connected to \(channel)"
         }
-        return "Sign in to bridge !song into chat."
+        return "Sign in so !song works in chat."
     }
 
     private var discordChip: StatusChip {

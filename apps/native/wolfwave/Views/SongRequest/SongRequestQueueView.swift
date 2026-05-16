@@ -54,7 +54,7 @@ struct SongRequestQueueView: View {
                         .background(.orange.opacity(0.12))
                         .clipShape(Capsule())
                 } else if isMusicAppClosed {
-                    Label("Music.app closed — requests are saved", systemImage: "pause.circle.fill")
+                    Label("Music is closed — requests are saved", systemImage: "pause.circle.fill")
                         .font(.system(size: 10, weight: .medium))
                         .foregroundStyle(.orange)
                         .padding(.horizontal, 8)
@@ -150,7 +150,7 @@ struct SongRequestQueueView: View {
                         Text(item.title)
                             .font(.system(size: 12))
                             .lineLimit(1)
-                        Text("\(item.artist) — \(item.requesterUsername)")
+                        Text("\(item.artist) — requested by \(item.requesterUsername)")
                             .font(.system(size: 10))
                             .foregroundStyle(.secondary)
                             .lineLimit(1)
@@ -189,7 +189,7 @@ struct SongRequestQueueView: View {
             Text("No song requests yet")
                 .font(.system(size: 12))
                 .foregroundStyle(.secondary)
-            Text("Viewers can request songs with !sr in Twitch chat")
+            Text("Viewers can request songs with `!sr` in Twitch chat")
                 .font(.system(size: 11))
                 .foregroundStyle(.tertiary)
         }

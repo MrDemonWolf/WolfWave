@@ -18,13 +18,13 @@ struct WhatsNewView: View {
     // MARK: - Feature Data
 
     private let features: [(icon: String, iconColor: Color, title: String, description: String)] = [
-        ("music.mic", .pink, "Song Requests", "Viewers request songs with !sr — Apple Music plays without interrupting your screen"),
-        ("pause.fill", .orange, "Hold Mode", "Pause the queue to curate requests, then release when you're ready"),
+        ("music.mic", .pink, "Song Requests", "Viewers request songs with !sr. Plays in Apple Music without taking focus."),
+        ("pause.fill", .orange, "Hold Mode", "Pause the queue to curate, then resume when ready."),
         ("forward.fill", .blue, "Queue Controls", "Skip, clear, or hold from the app, menu bar, or Twitch chat (mods only)"),
         ("list.number", .green, "Live Queue View", "See what's playing, what's next, and who requested each song"),
-        ("music.note.list", .purple, "Fallback Playlist", "Pick an Apple Music playlist to play when the request queue runs dry"),
+        ("music.note.list", .purple, "Fallback Playlist", "Plays when the queue is empty."),
         ("sparkles", .indigo, "Liquid Glass Redesign", "Refreshed settings, menu bar, and onboarding built for macOS 26 Tahoe"),
-        ("music.note.house", .red, "Apple Music Permission", "Grants Apple Music access during setup, with a recovery option if you skip it"),
+        ("music.note.house", .red, "Apple Music Permission", "Apple Music access during setup, with recovery if you skip."),
         ("wand.and.stars", .mint, "Polish & Stability", "Smoother layouts, better performance, and under-the-hood polish"),
     ]
 
@@ -37,7 +37,7 @@ struct WhatsNewView: View {
                 Text("What's New in WolfWave v\(Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0")")
                     .sectionHeader()
 
-                Text("Here's what's new in this release.")
+                Text("Highlights from this release.")
                     .font(.system(size: 13))
                     .foregroundStyle(.secondary)
             }

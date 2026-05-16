@@ -40,7 +40,7 @@ struct DiscordSettingsView: View {
 
             // Toggle Card
             ToggleSettingRow(
-                title: "Show Status",
+                title: "Show on Discord",
                 subtitle: "Displays the song and cover art on your profile",
                 isOn: $presenceEnabled,
                 isDisabled: !hasClientID,

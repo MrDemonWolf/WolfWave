@@ -35,7 +35,7 @@ struct NowPlayingHeroCard: View {
                     .textCase(.uppercase)
                     .tracking(0.6)
 
-                Text(track ?? (trackingEnabled ? "Nothing playing right now" : "Music Sync is off"))
+                Text(track ?? (trackingEnabled ? "Nothing playing right now" : "Sync Music is off"))
                     .font(.system(size: 18, weight: .semibold))
                     .lineLimit(1)
                     .foregroundStyle(track == nil ? .secondary : .primary)
@@ -112,7 +112,7 @@ struct NowPlayingHeroCard: View {
 
     private var accessibilityLabel: String {
         guard let track else {
-            return trackingEnabled ? "Nothing playing right now" : "Music Sync is off"
+            return trackingEnabled ? "Nothing playing right now" : "Sync Music is off"
         }
         var label = "Now playing: \(track)"
         if let artist { label += ", by \(artist)" }

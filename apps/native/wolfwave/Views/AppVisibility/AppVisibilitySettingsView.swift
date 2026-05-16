@@ -72,7 +72,7 @@ struct AppVisibilitySettingsView: View {
                 VStack(alignment: .leading, spacing: 2) {
                     Text("Display Mode")
                         .font(.system(size: 13, weight: .medium))
-                    Text("Choose where you want WolfWave to appear")
+                    Text("Where should WolfWave live?")
                         .font(.system(size: 11))
                         .foregroundStyle(.tertiary)
                 }

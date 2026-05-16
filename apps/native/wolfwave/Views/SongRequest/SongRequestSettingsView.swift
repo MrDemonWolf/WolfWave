@@ -33,7 +33,7 @@ struct SongRequestSettingsView: View {
                     Image(systemName: "lock.fill")
                         .font(.system(size: 11))
                         .foregroundStyle(.secondary)
-                    Text("Connect to Twitch to enable song requests.")
+                    Text("Sign in to Twitch to enable song requests.")
                         .font(.system(size: 11))
                         .foregroundStyle(.secondary)
                 }
@@ -305,10 +305,14 @@ fileprivate struct SongRequestPlaybackCard: View {
                 TextField("e.g. Gaming Vibes", text: $fallbackPlaylist)
                     .textFieldStyle(.roundedBorder)
                     .font(.system(size: 12))
-                Text("When the request queue runs out, WolfWave will start playing this Apple Music playlist so your stream isn't left in silence. Just type the exact playlist name as it appears in your Music.app library. Leave this blank if you'd rather let it be quiet.")
-                    .font(.system(size: 10))
-                    .foregroundStyle(.secondary)
-                    .fixedSize(horizontal: false, vertical: true)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Plays an Apple Music playlist when the queue is empty.")
+                    Text("Type the playlist name exactly as it appears in Music.")
+                    Text("Leave blank for silence.")
+                }
+                .font(.system(size: 10))
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
             }
         }
         .padding(AppConstants.SettingsUI.cardPadding)

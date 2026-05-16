@@ -52,7 +52,7 @@ struct OnboardingAppleMusicStepView: View {
                     .multilineTextAlignment(.center)
                     .fixedSize(horizontal: false, vertical: true)
 
-                Text("WolfWave asks the Music app for the current track using Apple Events. We never play, pause, skip, or change your library.")
+                Text("WolfWave reads the current track from the Music app. We never play, pause, skip, or change your library.")
                     .font(.system(size: 13))
                     .foregroundStyle(.secondary)
                     .multilineTextAlignment(.center)
@@ -79,7 +79,7 @@ struct OnboardingAppleMusicStepView: View {
                 Image(systemName: "checkmark.circle.fill")
                     .font(.system(size: 18))
                     .foregroundStyle(.green)
-                Text("Access granted. We'll start tracking right away.")
+                Text("Access granted. Sync Music is on.")
                     .font(.system(size: 13))
                     .foregroundStyle(.primary)
             }

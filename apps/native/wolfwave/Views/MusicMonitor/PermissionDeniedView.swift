@@ -25,7 +25,7 @@ struct PermissionDeniedBanner: View {
                     .font(.system(size: 18, weight: .bold))
                     .lineLimit(2)
 
-                Text("We need permission to control the Music app so we can read the current track, artist, and album. Nothing is sent or modified — we never play, pause, or change your library.")
+                Text("We need permission to read from the Music app so we can see the current track, artist, and album. We never play, pause, skip, or change your library.")
                     .font(.system(size: 12))
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
