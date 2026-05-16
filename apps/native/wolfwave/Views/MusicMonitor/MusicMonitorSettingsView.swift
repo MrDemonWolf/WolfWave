@@ -165,17 +165,10 @@ struct MusicMonitorSettingsView: View {
     @ViewBuilder
     private var permissionStatusRow: some View {
         HStack(spacing: 12) {
-            if permissionState == .granted {
-                Image("AppleMusicLogo")
-                    .resizable()
-                    .scaledToFit()
-                    .frame(width: 20, height: 20)
-            } else {
-                Image(systemName: permissionIconName)
-                    .font(.system(size: 14, weight: .semibold))
-                    .foregroundStyle(permissionIconColor)
-                    .frame(width: 20)
-            }
+            Image(systemName: permissionIconName)
+                .font(.system(size: 14, weight: .semibold))
+                .foregroundStyle(permissionIconColor)
+                .frame(width: 20)
 
             VStack(alignment: .leading, spacing: 2) {
                 Text(permissionTitle)
@@ -238,7 +231,7 @@ struct MusicMonitorSettingsView: View {
 
     private var permissionIconName: String {
         switch permissionState {
-        case .granted: return "checkmark.shield.fill"
+        case .granted: return "music.note"
         case .denied: return "lock.fill"
         case .unknown: return "music.note"
         }
@@ -246,7 +239,7 @@ struct MusicMonitorSettingsView: View {
 
     private var permissionIconColor: Color {
         switch permissionState {
-        case .granted: return .green
+        case .granted: return AppConstants.Brand.appleMusicGradientEnd
         case .denied: return .red
         case .unknown: return .accentColor
         }
