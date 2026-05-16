@@ -70,9 +70,7 @@ final class SparkleUpdaterService: NSObject {
     
     override init() {
         // Detect install method before initializing Sparkle
-        let path = Bundle.main.bundlePath
-        let homebrewPaths = ["/opt/homebrew/", "/usr/local/Cellar/", "/Homebrew/"]
-        self.isHomebrewInstall = homebrewPaths.contains { path.contains($0) }
+        self.isHomebrewInstall = Bundle.main.isHomebrewInstall
         
         super.init()
         

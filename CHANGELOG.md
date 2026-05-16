@@ -56,6 +56,7 @@ All notable changes to this project will be documented in this file.
 ### Fixed
 
 - **GitHub URL config plumbing** — `GITHUB_REPO_OWNER` and `GITHUB_REPO_NAME` from `Config.xcconfig` now flow through `Info.plist` into the bundle, so Report a Bug / releases URLs resolve from config instead of always falling back to the hardcoded defaults.
+- **Intel Homebrew cask detection** — Intel Macs using Homebrew now correctly trigger the Homebrew code path (Sparkle disabled, Homebrew update card shown, bug reports tagged `Homebrew`). Previously the path matcher checked `/usr/local/Cellar/` only, missing the `/usr/local/Caskroom/` location used by casks.
 - Native build warnings, SwiftUI layout reentrancy, and duplicate log emission cleaned up (#22).
 - Onboarding URL bug, permissions correctness, and layout stability polished (#28).
 - Docs favicon 404s resolved and DMG size pill now reflects the actual 3.7 MB.

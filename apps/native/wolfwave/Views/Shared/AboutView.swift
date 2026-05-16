@@ -202,9 +202,7 @@ struct AboutView: View {
     /// Opens a pre-filled GitHub bug report — same flow as
     /// Settings → Advanced → Send Feedback.
     private func sendFeedback() {
-        let path = Bundle.main.bundlePath
-        let homebrewPaths = ["/opt/homebrew/", "/usr/local/Cellar/", "/Homebrew/"]
-        let isHomebrew = homebrewPaths.contains { path.contains($0) }
+        let isHomebrew = Bundle.main.isHomebrewInstall
 
         guard let url = BugReportURL.make(
             base: AppConstants.URLs.githubIssuesNew,

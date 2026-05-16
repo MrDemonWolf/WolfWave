@@ -328,10 +328,7 @@ struct AdvancedSettingsView: View {
             )
         }
         .onAppear {
-            // Detect if installed via Homebrew
-            let path = Bundle.main.bundlePath
-            let homebrewPaths = ["/opt/homebrew/", "/usr/local/Cellar/", "/Homebrew/"]
-            isHomebrewInstall = homebrewPaths.contains { path.contains($0) }
+            isHomebrewInstall = Bundle.main.isHomebrewInstall
         }
         .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name(AppConstants.Notifications.updateStateChanged))) { notification in
             isCheckingForUpdates = false
