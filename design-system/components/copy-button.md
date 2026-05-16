@@ -1,34 +1,62 @@
 # CopyButton
 
-**File:** `apps/native/wolfwave/Views/Shared/CopyButton.swift` (or `Onboarding/Components/CopyButton.swift` for onboarding pieces)
-
-> Stub — fill in next time we touch this component.
+**File:** [`apps/native/wolfwave/Views/Shared/CopyButton.swift`](../../apps/native/wolfwave/Views/Shared/CopyButton.swift)
 
 ## Purpose
-TBD — one sentence.
+Copy-to-clipboard button with a checkmark confirmation. Two variants: bordered (form rows) and borderless (compact inline use, e.g. URL row).
 
 ## API
 ```swift
-// init signature
+CopyButton(text: "ws://localhost:9090", accessibilityLabel: "Copy URL")
 ```
 
+| Param | Type | Notes |
+|---|---|---|
+| `text` | `String` | Pasteboard payload. |
+| `label` | `String?` | Optional visible label. When provided, `copiedLabel` is required. |
+| `copiedLabel` | `String?` | Replaces `label` for `feedbackDuration` seconds after the press. |
+| `buttonStyle` | `CopyButtonStyle` | `.bordered` (default) or `.borderless`. |
+| `isDisabled` | `Bool` | Locks the button. |
+| `accessibilityLabel` | `String` | Required. |
+| `accessibilityIdentifier` | `String?` | Optional UI-test hook. |
+| `feedbackDuration` | `TimeInterval` | Default 2.0s. How long the checkmark stays. |
+
 ## Tokens used
-- `DSColor.…`
-- `DSFont.Size.…`
-- `DSSpace.…`
-- `DSRadius.…`
+- `DSFont.Size.sm` (11) — icon + label
+- `.bordered` style + `.controlSize(.small)` — matches inline form controls
+- `.borderless` style + `.pointerCursor()` — for inline trailing-edge use in URL rows
+- Icons: `doc.on.doc` (idle) → `checkmark` (copied) — semantic state swap
 
 ## Anatomy
-TBD — Mermaid diagram.
+```mermaid
+graph LR
+  Button --> Either{label provided?}
+  Either -->|yes| Labelled[HStack — Image + Text — sm]
+  Either -->|no| IconOnly[Image — sm]
+  Labelled -.copied.-> SwapText[copiedLabel + checkmark]
+  IconOnly -.copied.-> SwapIcon[checkmark glyph]
+```
 
 ## Accessibility
-TBD — VoiceOver label / Dynamic Type / focus.
+- `accessibilityLabel` describes the *target* of the copy ("Copy widget URL"), not the action.
+- `accessibilityHint = "Copies text to clipboard"` always.
+- `accessibilityValue` flips to `"Copied"` for `feedbackDuration` seconds — VoiceOver users get confirmation.
+- Uses `NSPasteboard.general` — the standard macOS clipboard.
 
 ## Do / Don't
-- ✅ TBD
-- ❌ TBD
+- ✅ Use bordered variant in forms/rows where it sits next to a `TextField` or a value display.
+- ✅ Use borderless inline with a URL or command text.
+- ✅ Pair with a short `label`/`copiedLabel` ("Copy Link" / "Copied") for important affordances.
+- ❌ Don't roll your own NSPasteboard call — use this for the visual confirmation.
+- ❌ Don't reduce `feedbackDuration` below 1.5s — the checkmark needs to register.
 
 ## Example
 ```swift
-CopyButton(...)
+CopyButton(
+    text: widgetURL,
+    label: "Copy Link",
+    copiedLabel: "Copied",
+    accessibilityLabel: "Copy widget URL",
+    accessibilityIdentifier: "widget.copyURL"
+)
 ```

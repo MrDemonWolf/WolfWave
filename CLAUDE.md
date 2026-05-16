@@ -40,7 +40,7 @@ Xcode project is at `apps/native/wolfwave.xcodeproj` with scheme `WolfWave`. Bui
 
 ## Build Configuration
 
-`Config.xcconfig` holds `TWITCH_CLIENT_ID` and `DISCORD_CLIENT_ID` and is **not committed** (gitignored). Copy from `Config.xcconfig.example` and fill in your keys. Values are expanded into `Info.plist` at build time.
+`Config.xcconfig` holds `TWITCH_CLIENT_ID`, `DISCORD_CLIENT_ID`, `GITHUB_REPO_OWNER`, `GITHUB_REPO_NAME` and is **not committed** (gitignored). Copy from `Config.xcconfig.example` and fill in your keys. Values are expanded into `Info.plist` at build time.
 
 `Info.plist` also contains `SUPublicEDKey` (Sparkle EdDSA public key) and `SUFeedURL` (appcast URL). These are committed and should not be modified unless rotating the Sparkle signing key.
 
@@ -76,6 +76,37 @@ Xcode project is at `apps/native/wolfwave.xcodeproj` with scheme `WolfWave`. Bui
 - **Bot commands**: Register new commands in `BotCommandDispatcher.registerDefaultCommands()`. Each command implements `BotCommand` protocol. Max response 500 chars, target <100ms execution.
 - **Discord IPC**: Unix domain socket at `$TMPDIR/discord-ipc-{0..9}`. SBPL entitlements enable socket access within App Sandbox.
 - **ADHD-friendly text**: All user-facing text should be short, punchy, and jargon-free.
+
+## Design System
+
+Single source of truth: [`design-system/tokens.json`](design-system/tokens.json). The generator [`design-system/scripts/generate.ts`](design-system/scripts/generate.ts) emits four platform outputs — **do not edit generated files by hand**:
+
+| Output | Path | Consumer |
+|---|---|---|
+| Swift | `apps/native/wolfwave/Core/DesignSystem/Tokens.generated.swift` | Native app — `DSColor`, `DSFont`, `DSSpace`, `DSRadius`, `DSMotion`, `DSDimension` |
+| CSS | `apps/docs/app/tokens.generated.css` | Fumadocs site (`--ds-*` custom properties) |
+| Widget JS | `apps/native/wolfwave/Resources/widget-tokens.generated.js` | `widget.html` reads via `window.WW_TOKENS` |
+| Marketing TS | `apps/marketing/shared/tokens.generated.ts` | Remotion projects |
+
+### Regenerating
+
+```bash
+bun run tokens          # Direct
+bun turbo tokens        # Via Turbo (cached when inputs unchanged)
+bun turbo build         # `tokens` is a build prerequisite — runs automatically
+```
+
+`turbo.json` declares `//#tokens` as a root task; both `build` and `dev` `dependsOn` it. Inputs: `design-system/tokens.json` + `design-system/scripts/generate.ts`. Outputs: the four generated files above.
+
+### Widget themes (`window.WW_TOKENS`)
+
+`widget.html` consumes `WW_TOKENS.themes` (6 themes — `Default`, `Dark`, `Light`, `Glass`, `Neon`, `WolfWave`) and `WW_TOKENS.layouts` (`Horizontal`, `Vertical`, `Compact`). Themes live in `tokens.json` under `widget.themes` — add or edit there, then regenerate. `WidgetHTTPService` serves `widget-tokens.generated.js` at `/widget-tokens.generated.js`, loaded via `<script src>` before the inline script.
+
+### Component catalog
+
+[`design-system/components/`](design-system/components/) — one markdown entry per reusable view. Status tracked in [`design-system/components/README.md`](design-system/components/README.md). Every entry follows the same template (Purpose, API, Tokens used, Anatomy mermaid, Accessibility, Do/Don't, Example) — see [`status-chip.md`](design-system/components/status-chip.md) as the quality bar.
+
+**When you touch any of these views, update the matching catalog entry in the same change.** That keeps token usage docs and anatomy diagrams from drifting.
 
 ## Testing
 

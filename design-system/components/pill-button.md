@@ -1,34 +1,71 @@
 # PillButton
 
-**File:** `apps/native/wolfwave/Views/Shared/PillButton.swift` (or `Onboarding/Components/PillButton.swift` for onboarding pieces)
-
-> Stub — fill in next time we touch this component.
+**File:** [`apps/native/wolfwave/Views/Onboarding/Components/PillButton.swift`](../../apps/native/wolfwave/Views/Onboarding/Components/PillButton.swift)
 
 ## Purpose
-TBD — one sentence.
+Onboarding primary CTA — pill-shaped button with a brand-coloured fill, inner light highlight, and brand-tinted glow shadow. Used for "Sign in with Twitch", "Grant Apple Music Access", "Connect Discord", etc.
 
 ## API
 ```swift
-// init signature
+PillButton(
+    background: AnyShapeStyle(LinearGradient(colors: [DSColor.partnerTwitch, .purple], startPoint: .top, endPoint: .bottom)),
+    glowColor: DSColor.partnerTwitch,
+    action: { startTwitchAuth() }
+) {
+    HStack(spacing: 8) {
+        TwitchGlitchShape().fill(style: FillStyle(eoFill: true)).frame(width: 14, height: 14)
+        Text("Sign in with Twitch")
+    }
+}
 ```
 
+| Param | Type | Notes |
+|---|---|---|
+| `background` | `AnyShapeStyle` | Brand fill — solid `Color` or `LinearGradient` wrapped in `AnyShapeStyle`. |
+| `glowColor` | `Color` | Drives the drop shadow tint (`opacity 0.40`, r=9, y=6). Usually the brand 500. |
+| `disabled` | `Bool` | Dims to `opacity 0.65` and locks the button. |
+| `action` | `() -> Void` | Tap handler. |
+| `label` | `() -> Label` | `@ViewBuilder` — icon + text typically. |
+
 ## Tokens used
-- `DSColor.…`
-- `DSFont.Size.…`
-- `DSSpace.…`
-- `DSRadius.…`
+- `DSDimension.Onboarding.primaryButtonRadius` (8) — rounded rect radius
+- `DSDimension.Onboarding.primaryButtonHeight` (32 → rendered 36 for pill weight) — fixed height
+- `DSFont.Size.md` (14) `.semibold` `.white` — label
+- `DSSpace.s7` (20→22) — horizontal padding
+- Hairline overlay: `white@30%` → `white@0%` top-to-bottom, 0.5pt stroke
+- Shadow: `glowColor @ 0.40`, r=9, y=6
 
 ## Anatomy
-TBD — Mermaid diagram.
+```mermaid
+graph TB
+  Btn[Button .plain] --> Label[Caller label — 14 semibold white]
+  Label --> Pad[padding horizontal 22 height 36]
+  Pad --> BG[RoundedRectangle radius 8 fill background]
+  Pad --> Stroke[RoundedRectangle radius 8 stroke white@30→0 gradient 0.5pt]
+  Pad --> Glow[shadow glowColor@40% r=9 y=6]
+```
 
 ## Accessibility
-TBD — VoiceOver label / Dynamic Type / focus.
+- Inherits label from the supplied `@ViewBuilder` content — pass meaningful `Text` so VoiceOver gets the verb.
+- `.pointerCursor()` — flips to the system pointing cursor on hover.
+- Disabled state dims visually *and* sets `.disabled(true)` so VoiceOver announces it.
 
 ## Do / Don't
-- ✅ TBD
-- ❌ TBD
+- ✅ Reserve for primary integration CTAs in onboarding. One per step.
+- ✅ Pair the gradient `background` with a matching `glowColor` (same hue, full opacity).
+- ❌ Don't use outside onboarding — Settings panes use `.borderedProminent` for primary actions.
+- ❌ Don't omit the brand glyph for integration buttons; the icon makes the destination unmistakable.
 
 ## Example
 ```swift
-PillButton(...)
+PillButton(
+    background: AnyShapeStyle(DSColor.partnerDiscord),
+    glowColor: DSColor.partnerDiscord,
+    action: connectDiscord
+) {
+    HStack(spacing: 8) {
+        Image("DiscordLogo").renderingMode(.template).resizable().frame(width: 14, height: 14)
+        Text("Connect Discord")
+    }
+}
 ```

@@ -1,13 +1,26 @@
 {
   "$schema": "https://turbo.build/schema.json",
   "tasks": {
+    "//#tokens": {
+      "inputs": [
+        "design-system/tokens.json",
+        "design-system/scripts/generate.ts"
+      ],
+      "outputs": [
+        "apps/native/wolfwave/Core/DesignSystem/Tokens.generated.swift",
+        "apps/docs/app/tokens.generated.css",
+        "apps/native/wolfwave/Resources/widget-tokens.generated.js",
+        "apps/marketing/shared/tokens.generated.ts"
+      ]
+    },
     "build": {
-      "dependsOn": ["^build"],
+      "dependsOn": ["^build", "//#tokens"],
       "outputs": [".next/**", "!.next/cache/**", "dist/**", ".source/**", "out/**"]
     },
     "dev": {
       "cache": false,
-      "persistent": true
+      "persistent": true,
+      "dependsOn": ["//#tokens"]
     },
     "clean": {
       "cache": false

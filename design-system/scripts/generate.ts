@@ -228,6 +228,8 @@ function generateWidgetJS(): string {
     radius: tokens.radius,
     motion: tokens.motion,
     shadow: tokens.shadow,
+    themes: tokens.widget?.themes ?? {},
+    layouts: tokens.widget?.layouts ?? {},
   };
   return `${banner}\nwindow.WW_TOKENS = ${JSON.stringify(obj, null, 2)};\n`;
 }

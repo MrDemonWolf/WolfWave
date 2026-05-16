@@ -17,6 +17,8 @@ import Network
 /// stops when it stops. Binds to the loopback interface only.
 ///
 /// - `GET /` or `GET /?...` → `200 OK` with `widget.html` body
+/// - `GET /widget-tokens.generated.js` → `200 OK` with generated design tokens JS
+/// - `GET /favicon.ico` / `GET /favicon.png` → `200 OK` with app icon PNG
 /// - All other requests → `404 Not Found`
 final class WidgetHTTPService {
 
@@ -125,6 +127,8 @@ final class WidgetHTTPService {
 
         if method == "GET" && (path == "/" || path.isEmpty) {
             serveWidget(to: connection)
+        } else if method == "GET" && path == "/widget-tokens.generated.js" {
+            serveTokensJS(to: connection)
         } else if method == "GET" && (path == "/favicon.ico" || path == "/favicon.png") {
             serveFavicon(to: connection)
         } else {
@@ -147,6 +151,30 @@ final class WidgetHTTPService {
         let header = "HTTP/1.1 200 OK\r\n" +
             "Content-Type: text/html; charset=utf-8\r\n" +
             "Content-Length: \(body.count)\r\n" +
+            "Connection: close\r\n\r\n"
+        var response = Data(header.utf8)
+        response.append(body)
+
+        connection.send(content: response, completion: .contentProcessed { _ in
+            connection.cancel()
+        })
+    }
+
+    /// Writes the bundled `widget-tokens.generated.js` as an HTTP/1.1 200 response.
+    /// Sourced from `design-system/tokens.json` via the token generator and bundled
+    /// alongside `widget.html`. Falls back to 404 when the asset is missing.
+    private func serveTokensJS(to connection: NWConnection) {
+        guard let url = Bundle.main.url(forResource: "widget-tokens.generated", withExtension: "js"),
+              let body = try? Data(contentsOf: url) else {
+            Log.error("WidgetHTTPService: widget-tokens.generated.js not found in bundle", category: "WebSocket")
+            send404(to: connection)
+            return
+        }
+
+        let header = "HTTP/1.1 200 OK\r\n" +
+            "Content-Type: application/javascript; charset=utf-8\r\n" +
+            "Content-Length: \(body.count)\r\n" +
+            "Cache-Control: no-cache\r\n" +
             "Connection: close\r\n\r\n"
         var response = Data(header.utf8)
         response.append(body)

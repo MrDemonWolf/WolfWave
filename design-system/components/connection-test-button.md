@@ -1,34 +1,66 @@
 # ConnectionTestButton
 
-**File:** `apps/native/wolfwave/Views/Shared/ConnectionTestButton.swift` (or `Onboarding/Components/ConnectionTestButton.swift` for onboarding pieces)
-
-> Stub — fill in next time we touch this component.
+**File:** [`apps/native/wolfwave/Views/Shared/ConnectionTestButton.swift`](../../apps/native/wolfwave/Views/Shared/ConnectionTestButton.swift)
 
 ## Purpose
-TBD — one sentence.
+Inline pill that runs a one-shot connection probe (idle → testing → success/failure → idle). Auto-resets after 3 seconds. Use for Discord, Twitch, or any service that can report a boolean result.
 
 ## API
 ```swift
-// init signature
+ConnectionTestButton(label: "Check Discord", icon: "antenna.radiowaves.left.and.right") { completion in
+    discordService.testConnection(completion: completion)
+}
 ```
 
+| Param | Type | Notes |
+|---|---|---|
+| `label` | `String` | Idle-state label. Imperative ("Check …", "Test …"). |
+| `icon` | `String` | SF Symbol. Stays even during success/failure (those swap the symbol). |
+| `action` | `(@escaping (Bool) -> Void) -> Void` | Caller invokes the `Bool` completion when finished. |
+
 ## Tokens used
-- `DSColor.…`
-- `DSFont.Size.…`
-- `DSSpace.…`
-- `DSRadius.…`
+- `DSFont.Size.body` (12) `.medium` — label
+- `.bordered` button style with `tint` swap (`.green` success, `.red` failure)
+- `.controlSize(.small)` — matches the height of inline form controls
+- `.stableWidth { ... }` modifier — measures all four states and pins to the widest, so the button doesn't pop during transitions
+
+## State machine
+```mermaid
+stateDiagram-v2
+  [*] --> idle
+  idle --> testing: tap
+  testing --> success: completion(true)
+  testing --> failure: completion(false)
+  success --> idle: after 3s
+  failure --> idle: after 3s
+```
 
 ## Anatomy
-TBD — Mermaid diagram.
+```mermaid
+graph LR
+  Button[Button .bordered .controlSize small] --> Idle[Label — text + icon]
+  Button --> Testing[HStack — ProgressView .mini + Testing…]
+  Button --> Success[Label — Connected + checkmark.circle.fill]
+  Button --> Failure[Label — Failed + xmark.circle.fill]
+```
 
 ## Accessibility
-TBD — VoiceOver label / Dynamic Type / focus.
+- `accessibilityLabel` stays `label` (caller-supplied) across all four states.
+- `accessibilityValue` reflects state ("Not tested" / "Testing" / "Connected" / "Failed") so VoiceOver narrates progress.
+- Disabled while `testing` to prevent overlapping probes.
 
 ## Do / Don't
-- ✅ TBD
-- ❌ TBD
+- ✅ Use for idempotent operations — pressing twice should be safe.
+- ✅ Invoke the completion exactly once per `action` call.
+- ❌ Don't use for destructive actions (sign-out, disconnect) — those need explicit buttons + confirmation.
+- ❌ Don't extend the auto-reset; 3s is intentional so the row doesn't sit "stale green" for users to misread.
 
 ## Example
 ```swift
-ConnectionTestButton(...)
+ConnectionTestButton(label: "Check Twitch", icon: "bubble.left.fill") { completion in
+    Task {
+        let ok = await twitchService.ping()
+        await MainActor.run { completion(ok) }
+    }
+}
 ```
