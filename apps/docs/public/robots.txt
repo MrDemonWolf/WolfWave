@@ -1,6 +1,0 @@
-User-agent: *
-Allow: /
-Disallow: /api/
-Disallow: /og/
-
-Sitemap: https://mrdemonwolf.github.io/wolfwave/sitemap.xml
