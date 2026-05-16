@@ -44,7 +44,7 @@ jobs:
       - name: Create Config.xcconfig
         if: steps.filter.outputs.native == 'true'
         run: |
-          printf 'TWITCH_CLIENT_ID = placeholder\nDISCORD_CLIENT_ID = placeholder\n' \
+          printf 'TWITCH_CLIENT_ID = placeholder\nDISCORD_CLIENT_ID = placeholder\nGITHUB_REPO_OWNER = mrdemonwolf\nGITHUB_REPO_NAME = wolfwave\n' \
             > apps/native/wolfwave/Config.xcconfig
 
       - name: Build & Test

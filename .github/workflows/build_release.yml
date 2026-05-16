@@ -27,7 +27,7 @@ jobs:
 
       - name: Create Config.xcconfig
         run: |
-          printf 'TWITCH_CLIENT_ID = %s\nDISCORD_CLIENT_ID = %s\n' \
+          printf 'TWITCH_CLIENT_ID = %s\nDISCORD_CLIENT_ID = %s\nGITHUB_REPO_OWNER = mrdemonwolf\nGITHUB_REPO_NAME = wolfwave\n' \
             "${{ secrets.TWITCH_CLIENT_ID }}" \
             "${{ secrets.DISCORD_CLIENT_ID }}" \
             > apps/native/wolfwave/Config.xcconfig
@@ -61,7 +61,7 @@ jobs:
 
       - name: Create Config.xcconfig
         run: |
-          printf 'TWITCH_CLIENT_ID = %s\nDISCORD_CLIENT_ID = %s\n' \
+          printf 'TWITCH_CLIENT_ID = %s\nDISCORD_CLIENT_ID = %s\nGITHUB_REPO_OWNER = mrdemonwolf\nGITHUB_REPO_NAME = wolfwave\n' \
             "${{ secrets.TWITCH_CLIENT_ID }}" \
             "${{ secrets.DISCORD_CLIENT_ID }}" \
             > apps/native/wolfwave/Config.xcconfig
