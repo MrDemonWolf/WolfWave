@@ -1,3 +1,7 @@
+<div align="center">
+  <img src="assets/logo-256.png" alt="WolfWave" width="128" />
+</div>
+
 # WolfWave - Your Music, Everywhere on Stream
 
 WolfWave is a native macOS menu bar app that bridges Apple Music with
