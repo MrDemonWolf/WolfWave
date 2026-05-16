@@ -29,10 +29,11 @@ struct WolfWaveApp: App {
         || ProcessInfo.processInfo.environment["XCTestBundlePath"] != nil
 
     var body: some Scene {
+        // Settings UI is managed by AppDelegate via a hand-rolled NSWindow
+        // (see AppDelegate+Windows.swift). The SwiftUI Settings scene is kept
+        // empty to avoid instantiating a duplicate SettingsView when Cmd+, fires.
         Settings {
-            if !Self.isRunningTests {
-                SettingsView()
-            }
+            EmptyView()
         }
     }
 }

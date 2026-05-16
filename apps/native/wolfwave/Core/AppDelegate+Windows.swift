@@ -347,7 +347,12 @@ extension AppDelegate {
         window.canHide = true
         window.isReleasedWhenClosed = false
         window.delegate = self
-        window.toolbar = nil
+        // Assign a unified toolbar so SwiftUI can host the sidebar toggle item.
+        // Without this, NavigationSplitView falls back to a floating reveal chevron.
+        let toolbar = NSToolbar()
+        toolbar.displayMode = .iconOnly
+        window.toolbar = toolbar
+        window.toolbarStyle = .unified
         window.center()
         return window
     }

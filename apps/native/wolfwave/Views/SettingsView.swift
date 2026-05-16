@@ -125,22 +125,16 @@ struct SettingsView: View {
 
     /// Controls the display of the reset confirmation alert
     @State private var showingResetAlert = false
-    
+
     /// Currently selected settings section
     @State private var selectedSection: SettingsSection = .general
-    
-    /// Controls sidebar visibility
-    @State private var sidebarVisibility: NavigationSplitViewVisibility = .all
 
     var body: some View {
-        NavigationSplitView(columnVisibility: $sidebarVisibility) {
+        NavigationSplitView {
             List(SettingsSection.allCases, selection: $selectedSection) { section in
                 sidebarRow(for: section)
-                    .tag(section)
             }
-            .listStyle(.sidebar)
-            .navigationSplitViewColumnWidth(min: 200, ideal: 220, max: 280)
-            .padding(.top, 4)
+            .navigationSplitViewColumnWidth(min: 220, ideal: 240, max: 280)
         } detail: {
             ScrollView {
                 VStack(alignment: .leading, spacing: AppConstants.SettingsUI.sectionSpacing) {
@@ -152,7 +146,6 @@ struct SettingsView: View {
                 .padding(.vertical, AppConstants.SettingsUI.contentPaddingV)
             }
             .scrollEdgeEffectStyle(.hard, for: .top)
-            .animation(.none, value: selectedSection)
             .transaction(value: selectedSection) { $0.disablesAnimations = true }
             .onChange(of: selectedSection) { _, newSection in
                 // Cancel in-progress Twitch OAuth if user navigates away
@@ -172,14 +165,6 @@ struct SettingsView: View {
                 }
             }
         }
-        .frame(
-            minWidth: AppConstants.SettingsUI.minWidth,
-            idealWidth: AppConstants.SettingsUI.idealWidth,
-            maxWidth: .infinity,
-            minHeight: AppConstants.SettingsUI.minHeight,
-            idealHeight: AppConstants.SettingsUI.idealHeight,
-            maxHeight: .infinity
-        )
         .onAppear {
             // Link the view model to the app delegate's service (without reconnecting)
             twitchViewModel.twitchService = appDelegate?.twitchService
@@ -188,9 +173,8 @@ struct SettingsView: View {
             // reflects whether we are already joined (prevents missed callbacks).
             twitchViewModel.channelConnected = appDelegate?.twitchService?.isConnected ?? false
         }
-        .toolbar(removing: .sidebarToggle)
         .toolbarBackgroundVisibility(.hidden, for: .windowToolbar)
-        .navigationSplitViewStyle(.balanced)
+        .navigationSplitViewStyle(.automatic)
         .alert("Reset Settings?", isPresented: $showingResetAlert) {
             Button("Cancel", role: .cancel) {}
             .accessibilityLabel("Cancel reset")
@@ -241,23 +225,22 @@ struct SettingsView: View {
     /// Builds a sidebar row with a brand icon (if available) or an SF Symbol fallback.
     @ViewBuilder
     private func sidebarRow(for section: SettingsSection) -> some View {
-        if let brandIcon = section.brandIcon {
-            Label {
-                Text(section.rawValue)
-            } icon: {
+        Label {
+            Text(section.rawValue)
+        } icon: {
+            if let brandIcon = section.brandIcon {
                 Image(brandIcon)
                     .renderingMode(section.brandIconIsTemplate ? .template : .original)
                     .resizable()
                     .aspectRatio(contentMode: .fit)
                     .frame(width: 16, height: 16)
+            } else {
+                Image(systemName: section.systemIcon)
+                    .frame(width: 16, height: 16)
             }
-            .accessibilityLabel(Text(section.rawValue))
-            .accessibilityIdentifier(section.rawValue.replacingOccurrences(of: " ", with: "-").lowercased())
-        } else {
-            Label(section.rawValue, systemImage: section.systemIcon)
-                .accessibilityLabel(Text(section.rawValue))
-                .accessibilityIdentifier(section.rawValue.replacingOccurrences(of: " ", with: "-").lowercased())
         }
+        .accessibilityLabel(Text(section.rawValue))
+        .accessibilityIdentifier(section.rawValue.replacingOccurrences(of: " ", with: "-").lowercased())
     }
     
     /// Twitch detail pane — auth settings plus bot command toggles and cooldown sliders.
