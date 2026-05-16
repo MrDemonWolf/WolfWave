@@ -20,12 +20,13 @@ extension AppDelegate {
     @objc func openSettings() {
         statusItem?.menu?.cancelTracking()
 
-        let needsActivationSwitch = currentDockVisibilityMode == AppConstants.DockVisibility.menuOnly
-        if needsActivationSwitch {
+        if currentDockVisibilityMode == AppConstants.DockVisibility.menuOnly {
             NSApp.setActivationPolicy(.regular)
         }
 
-        let show: () -> Void = { [weak self] in
+        // Defer past the current AppKit layout / menu-tracking pass to avoid
+        // "layoutSubtreeIfNeeded on a view already being laid out" warnings.
+        RunLoop.main.perform { [weak self] in
             guard let self else { return }
             if let window = self.settingsWindow {
                 if window.isMiniaturized {
@@ -36,13 +37,6 @@ extension AppDelegate {
                 self.settingsWindow = self.createSettingsWindow()
                 self.showWindow(self.settingsWindow)
             }
-        }
-
-        // Defer to next run-loop tick so the activation policy change takes effect first
-        if needsActivationSwitch {
-            DispatchQueue.main.async(execute: show)
-        } else {
-            show()
         }
     }
 
@@ -55,11 +49,17 @@ extension AppDelegate {
         }
 
         let credits = buildAboutCredits()
-        NSApp.orderFrontStandardAboutPanel(options: [
-            .applicationName: appName,
-            .credits: credits,
-        ])
-        NSApp.activate(ignoringOtherApps: true)
+        let appName = self.appName
+
+        // Defer past the current AppKit layout / menu-tracking pass to avoid
+        // "layoutSubtreeIfNeeded on a view already being laid out" warnings.
+        RunLoop.main.perform {
+            NSApp.orderFrontStandardAboutPanel(options: [
+                .applicationName: appName,
+                .credits: credits,
+            ])
+            NSApp.activate(ignoringOtherApps: true)
+        }
     }
 
     /// Builds the About panel credits with linked documentation and legal pages.
@@ -371,6 +371,12 @@ extension AppDelegate {
         return window
     }
 
+    /// Activates the app and brings the window forward.
+    ///
+    /// - Important: Callers invoked from `NSStatusItem` menu tracking or any other
+    ///   AppKit layout pass must defer to the next runloop tick (e.g. via
+    ///   `RunLoop.main.perform`) before calling this — otherwise AppKit logs
+    ///   "layoutSubtreeIfNeeded on a view already being laid out".
     func showWindow(_ window: NSWindow?) {
         window?.level = .normal
         NSApp.activate(ignoringOtherApps: true)
