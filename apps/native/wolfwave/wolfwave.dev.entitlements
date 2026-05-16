@@ -13,10 +13,6 @@
 			<string>com.apple.Music</string>
 		</array>
 	</dict>
-	<key>com.apple.security.temporary-exception.apple-events</key>
-	<array>
-		<string>com.apple.Music</string>
-	</array>
 	<key>com.apple.security.temporary-exception.files.absolute-path.read-write</key>
 	<array>
 		<string>/var/folders/</string>

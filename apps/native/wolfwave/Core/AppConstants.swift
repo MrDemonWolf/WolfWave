@@ -358,6 +358,35 @@ enum AppConstants {
 
     }
 
+    // MARK: - External APIs
+
+    /// Third-party API endpoints used by network services.
+    ///
+    /// Centralizing these URLs avoids hardcoded string duplication across
+    /// service files and makes it easy to swap base URLs for testing.
+    enum API {
+        /// Twitch OAuth Device Code Grant endpoint (RFC 8628).
+        static let twitchOAuthDevice = "https://id.twitch.tv/oauth2/device"
+
+        /// Twitch OAuth token exchange endpoint.
+        static let twitchOAuthToken = "https://id.twitch.tv/oauth2/token"
+
+        /// Twitch Helix API base URL.
+        static let twitchHelix = "https://api.twitch.tv/helix"
+
+        /// Spotify public oEmbed endpoint (no auth required).
+        static let spotifyOEmbed = "https://open.spotify.com/oembed"
+
+        /// YouTube public oEmbed endpoint (no auth required).
+        static let youtubeOEmbed = "https://www.youtube.com/oembed"
+
+        /// iTunes Search API endpoint used for artwork + track metadata lookups.
+        static let itunesSearch = "https://itunes.apple.com/search"
+
+        /// song.link universal music link prefix; append a track id to form a full URL.
+        static let songLinkTrackPrefix = "https://song.link/i/"
+    }
+
     // MARK: - URLs
 
     /// Application URLs for documentation, legal, and GitHub.

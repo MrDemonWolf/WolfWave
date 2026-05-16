@@ -29,14 +29,21 @@ final class LinkResolverService {
         case error(String)
     }
 
+    /// Minimal oEmbed response shape (`title` + optional `author_name`).
+    private struct OEmbedResponse: Decodable {
+        let title: String?
+        let authorName: String?
+    }
+
     // MARK: - Properties
 
-    private let session: URLSession
+    private let http: HTTPClient
 
     // MARK: - Init
 
     init(session: URLSession = .shared) {
-        self.session = session
+        // Use a dedicated HTTPClient configured to decode `author_name` → `authorName`.
+        self.http = HTTPClient(session: session, decoder: JSONCoders.snakeCase)
     }
 
     // MARK: - Link Detection
@@ -88,18 +95,12 @@ final class LinkResolverService {
 
         // Spotify links — use Spotify oEmbed
         if Self.isSpotifyLink(url) {
-            let encoded = url.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? url
-            return await resolveViaOEmbed(
-                oEmbedURL: "https://open.spotify.com/oembed?url=\(encoded)"
-            )
+            return await resolveViaOEmbed(base: AppConstants.API.spotifyOEmbed, sourceURL: url, includeFormat: false)
         }
 
         // YouTube links — use YouTube oEmbed
         if Self.isYouTubeLink(url) {
-            let encoded = url.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? url
-            return await resolveViaOEmbed(
-                oEmbedURL: "https://www.youtube.com/oembed?url=\(encoded)&format=json"
-            )
+            return await resolveViaOEmbed(base: AppConstants.API.youtubeOEmbed, sourceURL: url, includeFormat: true)
         }
 
         return .notFound
@@ -108,38 +109,31 @@ final class LinkResolverService {
     // MARK: - Private Helpers
 
     /// Resolve a link via an oEmbed endpoint.
-    private func resolveViaOEmbed(oEmbedURL: String) async -> ResolveResult {
-        guard let requestURL = URL(string: oEmbedURL) else {
+    private func resolveViaOEmbed(base: String, sourceURL: String, includeFormat: Bool) async -> ResolveResult {
+        guard var components = URLComponents(string: base) else {
+            return .error("Invalid oEmbed URL")
+        }
+        var items = [URLQueryItem(name: "url", value: sourceURL)]
+        if includeFormat {
+            items.append(URLQueryItem(name: "format", value: "json"))
+        }
+        components.queryItems = items
+        guard let requestURL = components.url else {
             return .error("Invalid oEmbed URL")
         }
 
         do {
-            let (data, response) = try await session.data(from: requestURL)
-
-            guard let httpResponse = response as? HTTPURLResponse else {
-                return .error("Invalid response")
+            let response: OEmbedResponse = try await http.get(url: requestURL)
+            if let title = response.title, !title.isEmpty {
+                return .found(title: title, artist: response.authorName)
             }
-
-            guard httpResponse.statusCode == 200 else {
-                if httpResponse.statusCode == 404 {
-                    return .notFound
-                }
-                return .error("oEmbed error (HTTP \(httpResponse.statusCode))")
-            }
-
-            guard let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
-                return .error("Failed to parse oEmbed response")
-            }
-
-            // oEmbed returns "title" and "author_name"
-            let title = json["title"] as? String
-            let author = json["author_name"] as? String
-
-            if let title, !title.isEmpty {
-                return .found(title: title, artist: author)
-            }
-
             return .notFound
+        } catch HTTPClient.HTTPError.unexpectedStatus(let code, _) where code == 404 {
+            return .notFound
+        } catch HTTPClient.HTTPError.unexpectedStatus(let code, _) {
+            return .error("oEmbed error (HTTP \(code))")
+        } catch HTTPClient.HTTPError.decodingFailed {
+            return .error("Failed to parse oEmbed response")
         } catch {
             return .error("Network error: \(error.localizedDescription)")
         }

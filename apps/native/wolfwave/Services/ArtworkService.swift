@@ -113,7 +113,10 @@ final class ArtworkService: @unchecked Sendable {
             return
         }
 
-        var components = URLComponents(string: "https://itunes.apple.com/search")!
+        guard var components = URLComponents(string: AppConstants.API.itunesSearch) else {
+            completion(TrackLinks(artworkURL: nil, trackViewURL: nil, songLinkURL: nil))
+            return
+        }
         components.queryItems = [
             URLQueryItem(name: "media", value: "music"),
             URLQueryItem(name: "entity", value: "song"),
@@ -139,7 +142,7 @@ final class ArtworkService: @unchecked Sendable {
             let artworkURL = (first["artworkUrl100"] as? String)
                 .map { $0.replacingOccurrences(of: "100x100", with: "512x512") }
             let trackViewURL = first["trackViewUrl"] as? String
-            let songLinkURL = (first["trackId"] as? Int).map { "https://song.link/i/\($0)" }
+            let songLinkURL = (first["trackId"] as? Int).map { "\(AppConstants.API.songLinkTrackPrefix)\($0)" }
 
             self?.cacheQueue.sync {
                 guard let self else { return }

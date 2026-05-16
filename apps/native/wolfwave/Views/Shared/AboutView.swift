@@ -133,11 +133,17 @@ struct AboutView: View {
 
     private var legalLinksRow: some View {
         HStack(spacing: 10) {
-            Link("Documentation", destination: URL(string: AppConstants.URLs.docs)!)
+            if let url = URL(string: AppConstants.URLs.docs) {
+                Link("Documentation", destination: url)
+            }
             Text("·").foregroundStyle(.tertiary)
-            Link("Privacy", destination: URL(string: AppConstants.URLs.privacyPolicy)!)
+            if let url = URL(string: AppConstants.URLs.privacyPolicy) {
+                Link("Privacy", destination: url)
+            }
             Text("·").foregroundStyle(.tertiary)
-            Link("Terms", destination: URL(string: AppConstants.URLs.termsOfService)!)
+            if let url = URL(string: AppConstants.URLs.termsOfService) {
+                Link("Terms", destination: url)
+            }
         }
         .font(.system(size: 11))
         .accessibilityElement(children: .contain)

@@ -191,7 +191,7 @@ final class TwitchDeviceAuth {
             throw TwitchDeviceAuthError.invalidClient
         }
         
-        guard let url = URL(string: "https://id.twitch.tv/oauth2/device") else {
+        guard let url = URL(string: AppConstants.API.twitchOAuthDevice) else {
             throw TwitchDeviceAuthError.invalidResponse
         }
 
@@ -296,7 +296,7 @@ final class TwitchDeviceAuth {
         }
         
         var currentInterval = interval
-        guard let tokenURL = URL(string: "https://id.twitch.tv/oauth2/token") else {
+        guard let tokenURL = URL(string: AppConstants.API.twitchOAuthToken) else {
             throw TwitchDeviceAuthError.invalidResponse
         }
         let grantType = "urn:ietf:params:oauth:grant-type:device_code"
