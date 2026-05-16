@@ -455,17 +455,45 @@ fileprivate struct WebSocketBrowserSourceCard: View {
                 if let networkWidget = networkWidgetURL {
                     VStack(spacing: 0) {
                         Divider().padding(.leading, cardPadding)
-                        VStack(alignment: .leading, spacing: 4) {
-                            Text("Network Address")
-                                .font(.system(size: 11, weight: .medium))
-                                .foregroundStyle(.secondary)
-                            Text(networkWidget)
-                                .font(.system(size: 11, design: .monospaced))
-                                .textSelection(.enabled)
-                                .contentTransition(.opacity)
-                            Text("Use this for two-PC setups.")
-                                .font(.system(size: 10))
-                                .foregroundStyle(.tertiary)
+                        HStack(spacing: 8) {
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text("Network Address")
+                                    .font(.system(size: 11, weight: .medium))
+                                    .foregroundStyle(.secondary)
+                                Text(networkWidget)
+                                    .font(.system(size: 12, design: .monospaced))
+                                    .textSelection(.enabled)
+                                    .contentTransition(.opacity)
+                                Text("Use this for two-PC setups.")
+                                    .font(.system(size: 10))
+                                    .foregroundStyle(.tertiary)
+                            }
+                            Spacer()
+                            HStack(spacing: 8) {
+                                CopyButton(
+                                    text: networkWidget,
+                                    label: "Copy Link",
+                                    copiedLabel: "Copied",
+                                    isDisabled: !websocketEnabled || !widgetHTTPEnabled,
+                                    accessibilityLabel: "Copy network widget URL",
+                                    accessibilityIdentifier: "copyNetworkWidgetURLButton"
+                                )
+                                Button {
+                                    if let url = URL(string: networkWidget) {
+                                        NSWorkspace.shared.open(url)
+                                    }
+                                } label: {
+                                    HStack(spacing: 4) {
+                                        Image(systemName: "safari").font(.system(size: 11))
+                                        Text("Open").font(.system(size: 11))
+                                    }
+                                }
+                                .buttonStyle(.bordered)
+                                .controlSize(.small)
+                                .disabled(!websocketEnabled || !widgetHTTPEnabled)
+                                .accessibilityLabel("Open network widget in browser")
+                                .accessibilityIdentifier("openNetworkWidgetURLButton")
+                            }
                         }
                         .padding(.horizontal, cardPadding)
                         .padding(.vertical, 12)
@@ -475,6 +503,8 @@ fileprivate struct WebSocketBrowserSourceCard: View {
                 }
             }
             .animation(.easeInOut(duration: 0.22), value: localNetworkIP)
+
+            Divider().padding(.leading, cardPadding)
 
             HStack(alignment: .top, spacing: 8) {
                 Image(systemName: "info.circle.fill")
@@ -490,6 +520,7 @@ fileprivate struct WebSocketBrowserSourceCard: View {
             .background(Color.blue.opacity(0.08))
             .clipShape(RoundedRectangle(cornerRadius: 6))
             .padding(.horizontal, cardPadding)
+            .padding(.top, 12)
             .padding(.bottom, cardPadding)
         }
         .background(Color(nsColor: .controlBackgroundColor))
@@ -525,9 +556,10 @@ fileprivate struct WebSocketWidgetAppearanceCard: View {
     @AppStorage(AppConstants.UserDefaults.widgetFontFamily)
     private var widgetFontFamily = "System Default"
 
-    /// Cached, sorted font family list. `availableFontFamilies` is fast but the sort isn't free
-    /// — keep it out of `body`.
-    private static let sortedFontFamilies: [String] = NSFontManager.shared.availableFontFamilies.sorted()
+    /// Font family list loaded off-main on first appear. `availableFontFamilies` enumerates every
+    /// installed font (hundreds of entries on design-heavy Macs) and blocks ~100–400ms if invoked
+    /// inside `body`. Keep it lazy + off the main thread.
+    @State private var fontFamilies: [String] = []
 
     private let cardPadding = AppConstants.SettingsUI.cardPadding
 
@@ -650,9 +682,11 @@ fileprivate struct WebSocketWidgetAppearanceCard: View {
                 Spacer()
                 Picker("", selection: $widgetFontFamily) {
                     Text("System Default").tag("System Default")
-                    Divider()
-                    ForEach(Self.sortedFontFamilies, id: \.self) { font in
-                        Text(font).tag(font)
+                    if !fontFamilies.isEmpty {
+                        Divider()
+                        ForEach(fontFamilies, id: \.self) { font in
+                            Text(font).tag(font)
+                        }
                     }
                 }
                 .labelsHidden()
@@ -666,6 +700,13 @@ fileprivate struct WebSocketWidgetAppearanceCard: View {
         }
         .background(Color(nsColor: .controlBackgroundColor))
         .clipShape(RoundedRectangle(cornerRadius: AppConstants.SettingsUI.cardCornerRadius))
+        .task {
+            guard fontFamilies.isEmpty else { return }
+            let families = await Task.detached(priority: .userInitiated) {
+                NSFontManager.shared.availableFontFamilies.sorted()
+            }.value
+            fontFamilies = families
+        }
     }
 
     private func broadcastWidgetConfig() {

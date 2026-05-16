@@ -96,6 +96,13 @@ extension AppDelegate {
             await NetworkInfoService.shared.refreshIPv4()
         }
 
+        // Prime the system font registry on a background thread. The Widget Appearance card's
+        // Font picker calls `NSFontManager.availableFontFamilies` (200–800+ entries on
+        // design-heavy Macs). Warming here makes the first call in-view near-instant.
+        Task.detached(priority: .utility) {
+            _ = NSFontManager.shared.availableFontFamilies
+        }
+
         let storedPort = UserDefaults.standard.integer(forKey: AppConstants.UserDefaults.websocketServerPort)
         let port: UInt16 = storedPort > 0 ? UInt16(clamping: storedPort) : AppConstants.WebSocketServer.defaultPort
 
