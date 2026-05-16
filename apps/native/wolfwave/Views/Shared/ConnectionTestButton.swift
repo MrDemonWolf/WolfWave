@@ -64,7 +64,21 @@ struct ConnectionTestButton: View {
         .buttonStyle(.bordered)
         .tint(buttonTint)
         .controlSize(.small)
-        .frame(minWidth: 130)
+        .stableWidth {
+            Label(label, systemImage: icon)
+                .font(.system(size: 12, weight: .medium))
+            HStack(spacing: 6) {
+                ProgressView()
+                    .progressViewStyle(.circular)
+                    .controlSize(.mini)
+                Text("Testing...")
+                    .font(.system(size: 12))
+            }
+            Label("Connected", systemImage: "checkmark.circle.fill")
+                .font(.system(size: 12, weight: .medium))
+            Label("Failed", systemImage: "xmark.circle.fill")
+                .font(.system(size: 12, weight: .medium))
+        }
         .disabled(result == .testing)
         .pointerCursor()
         .accessibilityValue(accessibilityValue)

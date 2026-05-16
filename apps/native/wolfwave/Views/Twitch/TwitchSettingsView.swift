@@ -503,6 +503,19 @@ private struct SignedInView: View {
                 .disabled(shouldDisableConnectButton)
                 .buttonStyle(.bordered)
                 .controlSize(.small)
+                .stableWidth {
+                    Label("Connect", systemImage: "checkmark.circle.fill")
+                        .font(.system(size: 12, weight: .medium))
+                    Label("Disconnect", systemImage: "xmark.circle.fill")
+                        .font(.system(size: 12, weight: .medium))
+                    HStack(spacing: 6) {
+                        ProgressView()
+                            .progressViewStyle(.circular)
+                            .controlSize(.mini)
+                        Text("Connecting...")
+                            .font(.system(size: 12))
+                    }
+                }
                 .pointerCursor()
                 .accessibilityLabel(
                     isChannelConnected ? "Disconnect from channel" : "Connect to channel"
@@ -534,10 +547,24 @@ private struct SignedInView: View {
                             .font(.system(size: 12, weight: .medium))
                     }
                 }
-                .frame(minWidth: 95)
                 .buttonStyle(.bordered)
                 .tint(testAuthButtonTint)
                 .controlSize(.small)
+                .stableWidth {
+                    Label("Test Login", systemImage: "antenna.radiowaves.left.and.right")
+                        .font(.system(size: 12, weight: .medium))
+                    HStack(spacing: 6) {
+                        ProgressView()
+                            .progressViewStyle(.circular)
+                            .controlSize(.mini)
+                        Text("Testing...")
+                            .font(.system(size: 12))
+                    }
+                    Label("Passed", systemImage: "checkmark.circle.fill")
+                        .font(.system(size: 12, weight: .medium))
+                    Label("Failed", systemImage: "xmark.circle.fill")
+                        .font(.system(size: 12, weight: .medium))
+                }
                 .disabled(testAuthResult == .testing)
                 .pointerCursor()
                 .animation(.easeInOut(duration: 0.2), value: testAuthResult)

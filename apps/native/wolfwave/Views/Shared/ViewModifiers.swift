@@ -172,6 +172,27 @@ extension View {
     }
 }
 
+// MARK: - Stable Width (No State-Change Resize)
+
+extension View {
+    /// Locks the view's width to the widest of the provided ghost labels so
+    /// state changes (idle → testing → success/failure, etc.) never resize
+    /// the button or pill. Ghost labels render hidden in the background and
+    /// are excluded from hit-testing and accessibility.
+    ///
+    /// Adapts automatically to localization, dynamic type, and new states —
+    /// no magic `minWidth` values needed.
+    func stableWidth<Ghost: View>(@ViewBuilder ghosts: () -> Ghost) -> some View {
+        background(
+            ZStack { ghosts() }
+                .hidden()
+                .accessibilityHidden(true)
+                .allowsHitTesting(false)
+        )
+        .fixedSize(horizontal: true, vertical: false)
+    }
+}
+
 // MARK: - Notification Posting Helper
 
 extension NotificationCenter {
