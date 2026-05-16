@@ -274,6 +274,55 @@ struct AdvancedSettingsView: View {
                 Text("This will open the setup wizard. Your current settings will not be changed.")
             }
 
+            #if DEBUG
+            // Developer Card (DEBUG-only)
+            VStack(alignment: .leading, spacing: 12) {
+                VStack(alignment: .leading, spacing: 4) {
+                    HStack(spacing: 6) {
+                        Image(systemName: "hammer.fill")
+                            .font(.system(size: 12))
+                            .foregroundStyle(.orange)
+                        Text("Developer")
+                            .font(.system(size: 13, weight: .semibold))
+                    }
+
+                    Text("Debug-only tools for previewing UI. Not shipped in release builds.")
+                        .font(.system(size: 12))
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+
+                Button {
+                    let version = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "0"
+                    AppDelegate.shared?.showWhatsNew(version: version)
+                } label: {
+                    Label("Preview What's New Popup", systemImage: "sparkles")
+                        .font(.system(size: 13, weight: .medium))
+                        .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.bordered)
+                .controlSize(.regular)
+                .pointerCursor()
+                .accessibilityLabel("Preview What's New popup")
+                .accessibilityHint("Opens the What's New window for preview")
+
+                Button {
+                    UserDefaults.standard.removeObject(forKey: AppConstants.UserDefaults.lastSeenWhatsNewVersion)
+                    Log.info("Reset lastSeenWhatsNewVersion (dev)", category: "WhatsNew")
+                } label: {
+                    Label("Reset 'Seen' Flag (next launch shows popup)", systemImage: "arrow.counterclockwise")
+                        .font(.system(size: 13, weight: .medium))
+                        .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.bordered)
+                .controlSize(.regular)
+                .pointerCursor()
+                .accessibilityLabel("Reset What's New seen flag")
+                .accessibilityHint("Clears the lastSeenWhatsNewVersion key so the popup fires on next launch")
+            }
+            .cardStyle()
+            #endif
+
             // Diagnostics Card
             diagnosticsCard
 

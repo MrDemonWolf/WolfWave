@@ -159,7 +159,7 @@ extension AppDelegate {
     }
 
     /// Presents the What's New window and marks this version as seen.
-    private func showWhatsNew(version: String) {
+    func showWhatsNew(version: String) {
         let whatsNewView = WhatsNewView()
         let hostingController = NSHostingController(rootView: whatsNewView)
         let window = NSWindow(contentViewController: hostingController)
