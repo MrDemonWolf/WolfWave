@@ -279,6 +279,9 @@ struct AdvancedSettingsView: View {
             // Bug Report Card
             bugReportCard
 
+            // Legal Card
+            legalCard
+
             Divider()
                 .padding(.vertical, 4)
 
@@ -448,6 +451,57 @@ struct AdvancedSettingsView: View {
             .pointerCursor()
             .accessibilityLabel("Report a bug on GitHub")
             .accessibilityHint("Opens a new GitHub issue with system info prefilled")
+        }
+        .cardStyle()
+    }
+
+    // MARK: - Legal Card
+
+    /// Surfaces the Privacy Policy and Terms of Service inside the app so users
+    /// can reach them without opening the About panel. Apple's review guidelines
+    /// expect legal documents to be reachable from within the app itself.
+    @ViewBuilder
+    private var legalCard: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            VStack(alignment: .leading, spacing: 4) {
+                Text("Legal")
+                    .font(.system(size: 13, weight: .semibold))
+
+                Text("Read how WolfWave handles your data and the terms of using the app.")
+                    .font(.system(size: 12))
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+
+            HStack(spacing: 8) {
+                Button {
+                    if let url = URL(string: AppConstants.URLs.privacyPolicy) {
+                        NSWorkspace.shared.open(url)
+                    }
+                } label: {
+                    Label("Privacy Policy", systemImage: "hand.raised")
+                        .font(.system(size: 13, weight: .medium))
+                        .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.bordered)
+                .controlSize(.regular)
+                .pointerCursor()
+                .accessibilityLabel("Open privacy policy")
+
+                Button {
+                    if let url = URL(string: AppConstants.URLs.termsOfService) {
+                        NSWorkspace.shared.open(url)
+                    }
+                } label: {
+                    Label("Terms of Service", systemImage: "doc.text")
+                        .font(.system(size: 13, weight: .medium))
+                        .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.bordered)
+                .controlSize(.regular)
+                .pointerCursor()
+                .accessibilityLabel("Open terms of service")
+            }
         }
         .cardStyle()
     }

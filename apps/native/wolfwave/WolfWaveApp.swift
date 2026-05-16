@@ -44,7 +44,7 @@ struct WolfWaveApp: App {
 ///
 /// Behavior is split across focused extension files:
 /// - `AppDelegate+MenuBar.swift` — status item, menu construction, toggle actions
-/// - `AppDelegate+Windows.swift` — settings/onboarding/whatsNew windows, dock visibility
+/// - `AppDelegate+Windows.swift` — settings/onboarding/whatsNew/about windows, dock visibility
 /// - `AppDelegate+Services.swift` — service setup, notification observers, playback delegate
 class AppDelegate: NSObject, NSApplicationDelegate {
     static weak var shared: AppDelegate?
@@ -56,6 +56,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     var settingsWindow: NSWindow?
     var onboardingWindow: NSWindow?
     var whatsNewWindow: NSWindow?
+    var aboutWindow: NSWindow?
     var twitchService: TwitchChatService?
     var discordService: DiscordRPCService?
     var sparkleUpdater: SparkleUpdaterService?
