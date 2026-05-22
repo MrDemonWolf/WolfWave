@@ -343,15 +343,18 @@ extension AppDelegate {
         window.title = ""
         window.titleVisibility = .hidden
         window.titlebarAppearsTransparent = true
-        window.isMovableByWindowBackground = true
         window.collectionBehavior = [.moveToActiveSpace]
         window.canHide = true
         window.isReleasedWhenClosed = false
         window.delegate = self
-        // Leave window.toolbar nil — NSHostingController materializes a real
-        // NSToolbar when SwiftUI declares a .toolbar { } block, which is what
-        // lets the SwiftUI-owned sidebar toggle land in the titlebar instead
-        // of falling back to the floating reveal chevron.
+        // Explicitly assign an NSToolbar so the SwiftUI-owned sidebar toggle
+        // has a guaranteed titlebar host on first layout. Relying on
+        // NSHostingController to materialize one from an empty .toolbar { }
+        // is unreliable on macOS 26 — when it misses, SwiftUI falls back to
+        // a floating reveal chevron pinned to the detail pane edge.
+        let toolbar = NSToolbar()
+        toolbar.displayMode = .iconOnly
+        window.toolbar = toolbar
         window.toolbarStyle = .unified
         window.center()
         return window
