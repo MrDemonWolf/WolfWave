@@ -30,6 +30,13 @@ final class WebSocketServerService: @unchecked Sendable {
     /// Called on the main thread when server state or client count changes.
     var onStateChange: ((ServerState, Int) -> Void)?
 
+    /// Number of currently-connected overlay clients. Safe to call from any
+    /// thread — guarded by `connectionsLock`. Used by the tray menu's
+    /// "Stream Widgets" status subtitle.
+    var connectedClientCount: Int {
+        connectionsLock.withLock { connections.count }
+    }
+
     private var port: UInt16
     private var listener: NWListener?
     private var connections: [NWConnection] = []

@@ -575,6 +575,11 @@ extension AppDelegate: PlaybackSourceDelegate {
             lastSong = currentSong
             lastArtist = currentArtist
 
+            // Push the incoming track onto the tray-menu recents buffer.
+            // De-dup happens inside the buffer so Music.app's resume
+            // re-broadcasts don't pollute the list.
+            recentTracks.push(RecentTrack(title: track, artist: artist, playedAt: Date()))
+
             // Suppress the first track after launch (it was already playing);
             // notify on every genuine change thereafter.
             if hasSeenInitialTrack {

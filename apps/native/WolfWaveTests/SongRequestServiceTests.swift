@@ -40,6 +40,8 @@ final class MockAppleMusicController: AppleMusicControlling {
         enqueuedSongs.append(song)
     }
     func skipToNext() async throws { skipCalled = true }
+    func previousTrack() async throws { /* no-op for tests */ }
+    func playPause() async throws { /* no-op for tests */ }
     func clearPlayerQueue() async { clearCalled = true }
     func rebuildPlayerQueue(from songs: [Song]) async throws { rebuildCalled = true }
     func playFallbackPlaylist(name: String) async throws {

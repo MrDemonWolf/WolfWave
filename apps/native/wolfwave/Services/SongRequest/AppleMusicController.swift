@@ -51,6 +51,12 @@ protocol AppleMusicControlling {
     /// Advances to the next track in Music.app's player queue.
     func skipToNext() async throws
 
+    /// Rewinds to the previous track in Music.app's player queue.
+    func previousTrack() async throws
+
+    /// Toggles play/pause for whatever is currently loaded in Music.app.
+    func playPause() async throws
+
     /// Clears Music.app's player queue and stops playback.
     func clearPlayerQueue() async
 
@@ -272,6 +278,29 @@ final class AppleMusicController: AppleMusicControlling {
         runAppleScript("""
         tell application "Music"
             next track
+        end tell
+        """)
+    }
+
+    /// Rewind to the previous song in Music.app via AppleScript.
+    ///
+    /// Uses `previous track` (not `back track`) so Music.app moves to the
+    /// prior queue entry rather than restarting the current track.
+    func previousTrack() async throws {
+        runAppleScript("""
+        tell application "Music"
+            previous track
+        end tell
+        """)
+    }
+
+    /// Toggle Music.app's play/pause state. Routes through the focus-
+    /// preserving runner so calling from the tray does not steal focus from
+    /// the frontmost app.
+    func playPause() async throws {
+        runAppleScriptPreservingFocus("""
+        tell application "Music"
+            playpause
         end tell
         """)
     }

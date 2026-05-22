@@ -76,6 +76,16 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     var lastSong: String?
     var lastArtist: String?
 
+    /// Ring buffer of recently-played tracks shown in the tray menu's
+    /// "Recently Played" submenu. Mutated only on the main thread from the
+    /// `PlaybackSourceDelegate` callback.
+    var recentTracks = RecentTracksBuffer()
+
+    /// Decoded album-art images keyed by `"artist|track"`. Populated lazily
+    /// by the tray menu when an artwork URL is in `ArtworkService` but the
+    /// bitmap hasn't been decoded yet. Bounded by track turnover.
+    var albumArtCache: [String: NSImage] = [:]
+
     /// Whether a track has been seen since launch. The first track represents
     /// music that was already playing, so its song-change notification is
     /// suppressed; every change thereafter notifies.
