@@ -154,7 +154,7 @@ final class NotificationService {
             let (data, _) = try await URLSession.shared.data(from: remoteURL)
             let ext = remoteURL.pathExtension.isEmpty ? "jpg" : remoteURL.pathExtension
             let fileURL = FileManager.default.temporaryDirectory
-                .appendingPathComponent("wolfwave-artwork-\(UUID().uuidString).\(ext)")
+                .appending(path: "wolfwave-artwork-\(UUID().uuidString).\(ext)")
             try data.write(to: fileURL)
             return try UNNotificationAttachment(identifier: "artwork", url: fileURL, options: nil)
         } catch {

@@ -120,15 +120,15 @@ enum Log {
             for: .applicationSupportDirectory, in: .userDomainMask
         ).first else {
             let fallback = FileManager.default.temporaryDirectory
-                .appendingPathComponent("wolfwave.log")
+                .appending(path: "wolfwave.log")
             _logFileURL = fallback
             return fallback
         }
-        let logsDir = appSupport.appendingPathComponent("WolfWave/Logs", isDirectory: true)
+        let logsDir = appSupport.appending(path: "WolfWave/Logs", directoryHint: .isDirectory)
 
         try? FileManager.default.createDirectory(at: logsDir, withIntermediateDirectories: true)
 
-        let url = logsDir.appendingPathComponent("wolfwave.log")
+        let url = logsDir.appending(path: "wolfwave.log")
         _logFileURL = url
 
         // Create the file if it doesn't exist
@@ -170,7 +170,7 @@ enum Log {
         fileHandle = nil
 
         let backupURL = url.deletingLastPathComponent()
-            .appendingPathComponent("wolfwave.log.1")
+            .appending(path: "wolfwave.log.1")
         try? FileManager.default.removeItem(at: backupURL)
         try? FileManager.default.moveItem(at: url, to: backupURL)
         FileManager.default.createFile(atPath: url.path, contents: nil)
@@ -307,40 +307,20 @@ enum Log {
 
     // MARK: - PII Redaction
 
+    // Compiled once; patterns are static so the `try` cannot fail at runtime.
+    nonisolated(unsafe) private static let redactionRules: [(Regex<AnyRegexOutput>, String)] = [
+        (try! Regex(#"oauth_[a-zA-Z0-9_-]+"#), "oauth_[REDACTED]"),
+        (try! Regex(#"Bearer\s+[a-zA-Z0-9_-]+"#), "Bearer [REDACTED]"),
+        (try! Regex(#"\b[a-zA-Z0-9]{30,}\b"#), "[TOKEN_REDACTED]"),
+        (try! Regex(#"Client-ID[:\s]+[a-zA-Z0-9]+"#), "Client-ID: [REDACTED]"),
+        (try! Regex(#"\b\d{8,}\b"#), "[USER_ID_REDACTED]"),
+    ]
+
     /// Redacts sensitive information from log messages
     nonisolated private static func redactSensitiveInfo(_ message: String) -> String {
-        var redacted = message
-
-        // Redact OAuth tokens (oauth_XXXX or Bearer XXXX patterns)
-        if let result = try? NSRegularExpression(pattern: #"oauth_[a-zA-Z0-9_-]+"#)
-            .stringByReplacingMatches(in: redacted, range: NSRange(redacted.startIndex..., in: redacted), withTemplate: "oauth_[REDACTED]") {
-            redacted = result
+        redactionRules.reduce(message) { current, rule in
+            current.replacing(rule.0, with: rule.1)
         }
-
-        if let result = try? NSRegularExpression(pattern: #"Bearer\s+[a-zA-Z0-9_-]+"#)
-            .stringByReplacingMatches(in: redacted, range: NSRange(redacted.startIndex..., in: redacted), withTemplate: "Bearer [REDACTED]") {
-            redacted = result
-        }
-
-        // Redact what looks like access tokens (long alphanumeric strings)
-        if let result = try? NSRegularExpression(pattern: #"\b[a-zA-Z0-9]{30,}\b"#)
-            .stringByReplacingMatches(in: redacted, range: NSRange(redacted.startIndex..., in: redacted), withTemplate: "[TOKEN_REDACTED]") {
-            redacted = result
-        }
-
-        // Redact Client-ID values
-        if let result = try? NSRegularExpression(pattern: #"Client-ID[:\s]+[a-zA-Z0-9]+"#)
-            .stringByReplacingMatches(in: redacted, range: NSRange(redacted.startIndex..., in: redacted), withTemplate: "Client-ID: [REDACTED]") {
-            redacted = result
-        }
-
-        // Redact numeric user IDs (Twitch user IDs are 8+ digit numbers)
-        if let result = try? NSRegularExpression(pattern: #"\b\d{8,}\b"#)
-            .stringByReplacingMatches(in: redacted, range: NSRange(redacted.startIndex..., in: redacted), withTemplate: "[USER_ID_REDACTED]") {
-            redacted = result
-        }
-
-        return redacted
     }
 
     // MARK: - Export

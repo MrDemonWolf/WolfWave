@@ -825,9 +825,9 @@ final class DiscordRPCService: @unchecked Sendable {
             Log.debug("DiscordRPCService: Searching for IPC socket in \(basePath)", category: "Discord")
 
             for slot in 0..<AppConstants.Discord.ipcSocketSlots {
-                let socketPath = (basePath as NSString).appendingPathComponent(
-                    "\(AppConstants.Discord.ipcSocketPrefix)\(slot)"
-                )
+                let socketPath = URL(filePath: basePath)
+                    .appending(path: "\(AppConstants.Discord.ipcSocketPrefix)\(slot)")
+                    .path(percentEncoded: false)
 
                 let fd = socket(AF_UNIX, SOCK_STREAM, 0)
                 guard fd >= 0 else { continue }

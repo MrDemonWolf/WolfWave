@@ -1631,13 +1631,11 @@ final class TwitchChatService: @unchecked Sendable {
         }
 
         // Reject messages older than 10 minutes to prevent replay attacks
-        let isoFormatter = ISO8601DateFormatter()
-        isoFormatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
-        var timestamp = isoFormatter.date(from: messageTimestamp)
+        var timestamp = try? Date.ISO8601FormatStyle(includingFractionalSeconds: true)
+            .parse(messageTimestamp)
         if timestamp == nil {
             // Fallback: try without fractional seconds
-            let fallbackFormatter = ISO8601DateFormatter()
-            timestamp = fallbackFormatter.date(from: messageTimestamp)
+            timestamp = try? Date.ISO8601FormatStyle().parse(messageTimestamp)
             if timestamp == nil {
                 Log.warn("TwitchChatService: Failed to parse EventSub timestamp: \(messageTimestamp)", category: "Twitch")
             }

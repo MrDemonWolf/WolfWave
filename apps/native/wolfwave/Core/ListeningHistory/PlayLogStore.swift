@@ -48,7 +48,7 @@ nonisolated final class PlayLogStore: @unchecked Sendable {
     ///   directory is created lazily on first write.
     init(directory: URL? = nil) {
         let dir = directory ?? PlayLogStore.defaultDirectory()
-        fileURL = dir.appendingPathComponent(AppConstants.History.logFileName)
+        fileURL = dir.appending(path: AppConstants.History.logFileName)
     }
 
     /// Resolves the default play-log directory under Application Support,
@@ -58,7 +58,7 @@ nonisolated final class PlayLogStore: @unchecked Sendable {
             for: .applicationSupportDirectory, in: .userDomainMask
         ).first else {
             return FileManager.default.temporaryDirectory
-                .appendingPathComponent(AppConstants.History.directoryName, isDirectory: true)
+                .appending(path: AppConstants.History.directoryName, directoryHint: .isDirectory)
         }
         return appSupport.appendingPathComponent(
             AppConstants.History.directoryName, isDirectory: true

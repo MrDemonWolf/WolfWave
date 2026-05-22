@@ -98,7 +98,7 @@ final class DiagnosticsService: NSObject, MXMetricManagerSubscriber, @unchecked 
     var payloadDirectory: URL {
         let base = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first
             ?? FileManager.default.temporaryDirectory
-        return base.appendingPathComponent("WolfWave/Diagnostics", isDirectory: true)
+        return base.appending(path: "WolfWave/Diagnostics", directoryHint: .isDirectory)
     }
 
     // MARK: - MXMetricManagerSubscriber
@@ -128,7 +128,7 @@ final class DiagnosticsService: NSObject, MXMetricManagerSubscriber, @unchecked 
             let stamp = ISO8601DateFormatter().string(from: Date())
                 .replacingOccurrences(of: ":", with: "-")
             for (index, data) in payloads.enumerated() {
-                let url = dir.appendingPathComponent("\(prefix)-\(stamp)-\(index).json")
+                let url = dir.appending(path: "\(prefix)-\(stamp)-\(index).json")
                 try data.write(to: url)
             }
         } catch {
