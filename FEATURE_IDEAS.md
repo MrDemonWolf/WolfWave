@@ -5,7 +5,7 @@ Future feature ideas for WolfWave. These are not committed to any release — ju
 ## Progress
 
 - [x] Song Request Queue
-- [ ] Listening History & Stats
+- [x] Listening History & Stats
 - [ ] Custom Bot Commands
 - [x] Overlay Themes
 - [ ] WebSocket Authentication
@@ -14,7 +14,7 @@ Future feature ideas for WolfWave. These are not committed to any release — ju
 - [ ] Playlist Detection
 - [ ] Chat Voting
 
-**2 of 9 shipped.**
+**3 of 9 shipped.**
 
 ---
 
@@ -34,13 +34,9 @@ Let Twitch viewers request songs via `!request <song name>` or `!sr <song name>`
 
 ## Listening History & Stats
 
-Track play counts, listening time, and most-played artists/tracks locally in a SQLite database. Add a "Stats" section to the settings sidebar with SwiftUI Charts visualizations.
+Opt-in, on-device listening history with a Stats section in the settings sidebar — top artists, listening time, SwiftUI Charts, and a shareable Monthly Wrap. Plays are stored in an append-only NDJSON log; a `!stats` Twitch command reports the day's top track while the stream is live.
 
-**Monthly Wrap**: Auto-generate a monthly summary (top tracks, top artists, total listening time, genre breakdown) — like a personal Spotify Unwrapped, but for your Apple Music library. Shareable as an image export.
-
-**Twitch Integration**: New `!stats` bot command — e.g. "Most played today: Blinding Lights by The Weeknd (12 plays)".
-
-**Status**: ⬜ Not started
+**Status**: ✅ Done
 **Complexity**: Medium–High
 **Builds on**: `PlaybackSourceDelegate` callbacks, existing settings sidebar pattern, SwiftUI Charts framework
 

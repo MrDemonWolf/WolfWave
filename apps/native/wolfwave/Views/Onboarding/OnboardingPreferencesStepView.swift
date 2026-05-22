@@ -17,6 +17,9 @@ struct OnboardingPreferencesStepView: View {
 
     @Binding var launchAtLogin: Bool
 
+    @AppStorage(AppConstants.UserDefaults.listeningHistoryEnabled)
+    private var listeningHistoryEnabled = false
+
     @State private var notificationsStatus: UNAuthorizationStatus = .notDetermined
 
     // MARK: - Body
@@ -70,6 +73,25 @@ struct OnboardingPreferencesStepView: View {
                 )
 
                 notificationsRow
+
+                preferenceRow(
+                    icon: "chart.bar.xaxis",
+                    iconColor: .purple,
+                    title: "Remember my listening history",
+                    subtitle: "Private & on-device. Powers top artists and stats — off unless you want it.",
+                    isOn: Binding(
+                        get: { listeningHistoryEnabled },
+                        set: { newValue in
+                            listeningHistoryEnabled = newValue
+                            NotificationCenter.default.post(
+                                AppConstants.Notifications.listeningHistorySettingChanged,
+                                userInfo: ["enabled": newValue]
+                            )
+                        }
+                    ),
+                    accessibilityLabel: "Remember my listening history",
+                    accessibilityIdentifier: "onboardingListeningHistoryToggle"
+                )
             }
             .frame(maxWidth: 440)
             .padding(.horizontal, 24)

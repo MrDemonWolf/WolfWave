@@ -80,6 +80,9 @@ enum AppConstants {
         /// Posted when the song request hold state toggles.
         static let songRequestHoldChanged = "SongRequestHoldChanged"
 
+        /// Posted when the user toggles Listening History. UserInfo contains "enabled" Bool.
+        static let listeningHistorySettingChanged = "ListeningHistorySettingChanged"
+
         /// All notification names — used by the DEBUG-only notification firehose.
         static let allNames: [String] = [
             trackingSettingChanged,
@@ -97,6 +100,7 @@ enum AppConstants {
             songRequestSettingChanged,
             songRequestQueueChanged,
             songRequestHoldChanged,
+            listeningHistorySettingChanged,
         ]
     }
 
@@ -272,6 +276,26 @@ enum AppConstants {
         /// Whether a macOS notification is posted when the song changes (Bool, default: false)
         static let songChangeNotificationsEnabled = "songChangeNotificationsEnabled"
 
+        // MARK: Listening History & Stats Keys
+
+        /// Whether the on-disk listening history log is being recorded (Bool, default: false — opt-in)
+        static let listeningHistoryEnabled = "listeningHistoryEnabled"
+
+        /// Whether the Stats & Charts UI is enabled. Requires `listeningHistoryEnabled` (Bool, default: false)
+        static let statsEnabled = "statsEnabled"
+
+        /// Whether the `!stats` Twitch command is enabled. Requires `statsEnabled` (Bool, default: false)
+        static let statsCommandEnabled = "statsCommandEnabled"
+
+        /// Global cooldown for the !stats command in seconds (Double, default: 15.0)
+        static let statsCommandGlobalCooldown = "statsCommandGlobalCooldown"
+
+        /// Per-user cooldown for the !stats command in seconds (Double, default: 15.0)
+        static let statsCommandUserCooldown = "statsCommandUserCooldown"
+
+        /// Days of listening history to retain. 0 = keep everything (Int, default: 0)
+        static let historyRetentionDays = "historyRetentionDays"
+
         /// Every UserDefaults key the app writes. Source of truth for reset operations
         /// and the DEBUG-only UserDefaults inspector.
         static let allKeys: [String] = [
@@ -322,6 +346,12 @@ enum AppConstants {
             songRequestFallbackPlaylist,
             songRequestHoldEnabled,
             songChangeNotificationsEnabled,
+            listeningHistoryEnabled,
+            statsEnabled,
+            statsCommandEnabled,
+            statsCommandGlobalCooldown,
+            statsCommandUserCooldown,
+            historyRetentionDays,
         ]
     }
     
@@ -466,6 +496,34 @@ enum AppConstants {
         /// Interval between periodic update checks (24 hours in seconds)
         static let checkInterval: TimeInterval = 86400
 
+    }
+
+    // MARK: - Listening History
+
+    /// Listening History & Stats configuration.
+    ///
+    /// The play log is an append-only NDJSON file in Application Support — one
+    /// small line per recorded play. Stats are derived in memory, so they cost
+    /// no extra disk writes.
+    enum History {
+        /// Subdirectory of Application Support holding the play log.
+        static let directoryName = "WolfWave/History"
+
+        /// Append-only NDJSON play log filename.
+        static let logFileName = "plays.ndjson"
+
+        /// Minimum fraction of a track that must play before it counts as a play.
+        static let scrobbleFraction: Double = 0.5
+
+        /// Absolute play time (seconds) that always counts as a play, regardless
+        /// of track length — mirrors Last.fm's 4-minute rule.
+        static let scrobbleAbsoluteSeconds: TimeInterval = 240
+
+        /// Number of recent plays surfaced in the History & Stats settings pane.
+        static let recentDisplayCount = 8
+
+        /// Logging category for history-related log lines.
+        static let logCategory = "History"
     }
 
     // MARK: - External APIs

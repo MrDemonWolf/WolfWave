@@ -45,6 +45,7 @@ struct SettingsView: View {
         case general = "General"
         case songRequests = "Song Requests"
         case websocket = "Stream Widgets"
+        case historyStats = "History & Stats"
         case twitchIntegration = "Twitch"
         case discord = "Discord"
         case advanced = "Advanced"
@@ -57,7 +58,7 @@ struct SettingsView: View {
         /// Cases — `.debug` only present in DEBUG builds.
         static var allCases: [SettingsSection] {
             var cases: [SettingsSection] = [
-                .general, .songRequests, .websocket, .twitchIntegration, .discord, .advanced,
+                .general, .songRequests, .websocket, .historyStats, .twitchIntegration, .discord, .advanced,
             ]
             #if DEBUG
             cases.append(.debug)
@@ -71,6 +72,7 @@ struct SettingsView: View {
             case .general: return "gear"
             case .songRequests: return "music.note.list"
             case .websocket: return "tv.badge.wifi"
+            case .historyStats: return "chart.bar.xaxis"
             case .twitchIntegration: return "message.badge.waveform"
             case .discord: return "headphones"
             case .advanced: return "gearshape.2"
@@ -244,6 +246,8 @@ struct SettingsView: View {
             SongRequestSettingsView()
         case .websocket:
             WebSocketSettingsView()
+        case .historyStats:
+            HistoryStatsSettingsView()
         case .twitchIntegration:
             twitchIntegrationView()
         case .discord:

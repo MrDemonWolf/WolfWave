@@ -29,6 +29,13 @@ final class BotCommandDispatcher {
         globalCooldownKey: AppConstants.UserDefaults.lastSongCommandGlobalCooldown,
         userCooldownKey: AppConstants.UserDefaults.lastSongCommandUserCooldown
     )
+    private let statsCommand = TrackInfoCommand(
+        triggers: ["!stats", "!musicstats"],
+        description: "Displays today's listening stats (live streams only)",
+        defaultMessage: "No listening stats yet",
+        globalCooldownKey: AppConstants.UserDefaults.statsCommandGlobalCooldown,
+        userCooldownKey: AppConstants.UserDefaults.statsCommandUserCooldown
+    )
     private let cooldownManager = CooldownManager()
 
     // Song request commands
@@ -49,6 +56,7 @@ final class BotCommandDispatcher {
     private func registerDefaultCommands() {
         register(songCommand)
         register(lastSongCommand)
+        register(statsCommand)
         register(srCommand)
         register(queueCommand)
         register(myQueueCommand)
@@ -100,6 +108,25 @@ final class BotCommandDispatcher {
     func setLastSongCommandEnabled(callback: @escaping () -> Bool) {
         lock.withLock {
             lastSongCommand.isEnabled = callback
+        }
+    }
+
+    /// Wires the listening-stats provider into the `!stats` command.
+    ///
+    /// - Parameter callback: Closure returning the current stats string.
+    func setStatsInfo(callback: @escaping () -> String) {
+        lock.withLock {
+            statsCommand.getTrackInfo = callback
+        }
+    }
+
+    /// Wires the enabled-state provider for the `!stats` command.
+    ///
+    /// - Parameter callback: Closure returning `true` if `!stats` should respond
+    ///   (Stats feature on, command on, and the stream is live).
+    func setStatsCommandEnabled(callback: @escaping () -> Bool) {
+        lock.withLock {
+            statsCommand.isEnabled = callback
         }
     }
 

@@ -6,6 +6,10 @@ All notable changes to this project will be documented in this file.
 
 ### Added
 
+- **Listening History** — opt-in, on-device log of the tracks you play (append-only NDJSON, never uploaded). Off by default; turn it on in Settings → History & Stats or during onboarding. A track is recorded once it has played past half its length (or 4 minutes), so skips don't count.
+- **Stats & Charts** — top artists, listening time, a 7-day play trend, and a listening-by-hour breakdown in the new History & Stats settings section, built on SwiftUI Charts. Requires Listening History.
+- **Monthly Wrap** — a personal "wrapped"-style summary for any month, exportable as a shareable PNG.
+- **`!stats` command** — viewers can ask for today's top track in Twitch chat; replies only while the stream is live (via `stream.online` / `stream.offline` EventSub).
 - **Song Requests** — viewers can request songs in Twitch chat via `!sr <song>`; plays through Music.app via AppleScript with no focus-steal on the streamer's screen.
 - **`!queue` / `!myqueue`** — show the full request queue or a viewer's own requests in chat.
 - **`!skip` / `!next`** — mod/broadcaster-only command to skip the current request.

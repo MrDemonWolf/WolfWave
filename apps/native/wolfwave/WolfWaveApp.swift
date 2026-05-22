@@ -63,6 +63,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     var sparkleUpdater: SparkleUpdaterService?
     var websocketServer: WebSocketServerService?
     var songRequestService: SongRequestService?
+    var historyService: ListeningHistoryService?
     var notificationObservers: [Any] = []
 
     var currentSong: String?
@@ -111,6 +112,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         setupPowerStateMonitor()
         setupSparkleUpdater()
         setupSongRequestService()
+        setupHistoryService()
         setupNotificationObservers()
         initializeTrackingState()
         applyInitialDockVisibility()
@@ -132,6 +134,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
     /// Removes all stored notification observers and tears down services.
     func applicationWillTerminate(_ notification: Notification) {
+        flushCurrentPlayToHistory()
+        historyService?.shutdown()
         notificationObservers.forEach { NotificationCenter.default.removeObserver($0) }
         notificationObservers.removeAll()
     }
@@ -187,5 +191,26 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             return "🐺 No previous tracks yet, keep the music flowing!"
         }
         return "🐺 Previous: \(song) by \(artist)"
+    }
+
+    /// Returns a formatted listening-stats string for the `!stats` Twitch command.
+    func getStatsInfo() -> String {
+        historyService?.statsChatLine() ?? "🐺 Listening stats aren't turned on right now"
+    }
+
+    /// Records the currently-playing track to history if it crossed the
+    /// scrobble threshold. Called when playback stops or the app terminates.
+    ///
+    /// `currentElapsed` holds the track's last polled playhead position, which
+    /// `ListeningHistoryService` uses as the played duration.
+    func flushCurrentPlayToHistory() {
+        guard let song = currentSong, let artist = currentArtist else { return }
+        historyService?.recordTrackChange(
+            track: song,
+            artist: artist,
+            album: currentAlbum ?? "",
+            duration: currentDuration,
+            playedSeconds: currentElapsed
+        )
     }
 }

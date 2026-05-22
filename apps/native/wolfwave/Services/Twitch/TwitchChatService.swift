@@ -120,6 +120,7 @@ final class TwitchChatService: @unchecked Sendable {
     var debugLoggingEnabled = false
     nonisolated(unsafe) private var _getCurrentSongInfo: (@Sendable () -> String)?
     nonisolated(unsafe) private var _getLastSongInfo: (@Sendable () -> String)?
+    nonisolated(unsafe) private var _getStatsInfo: (@Sendable () -> String)?
 
     nonisolated(unsafe) private var _commandsEnabled = true
 
@@ -169,6 +170,12 @@ final class TwitchChatService: @unchecked Sendable {
         set { credentialsLock.withLock { _getLastSongInfo = newValue } }
     }
 
+    /// Closure returning the listening-stats string for the `!stats` command.
+    var getStatsInfo: (@Sendable () -> String)? {
+        get { credentialsLock.withLock { _getStatsInfo } }
+        set { credentialsLock.withLock { _getStatsInfo = newValue } }
+    }
+
     /// Whether the current song command is enabled (computed from UserDefaults on each access)
     var currentSongCommandEnabled: Bool {
         UserDefaults.standard.object(forKey: AppConstants.UserDefaults.currentSongCommandEnabled) as? Bool ?? false
@@ -177,6 +184,14 @@ final class TwitchChatService: @unchecked Sendable {
     /// Whether the last song command is enabled (computed from UserDefaults on each access)
     var lastSongCommandEnabled: Bool {
         UserDefaults.standard.object(forKey: AppConstants.UserDefaults.lastSongCommandEnabled) as? Bool ?? false
+    }
+
+    /// Whether the `!stats` command should respond — both the Stats feature and
+    /// the command itself must be enabled (computed from UserDefaults).
+    var statsCommandActive: Bool {
+        let stats = UserDefaults.standard.bool(forKey: AppConstants.UserDefaults.statsEnabled)
+        let command = UserDefaults.standard.bool(forKey: AppConstants.UserDefaults.statsCommandEnabled)
+        return stats && command
     }
 
     /// Wire the song request service into the command dispatcher.
@@ -207,12 +222,23 @@ final class TwitchChatService: @unchecked Sendable {
 
     nonisolated(unsafe) private var _connected = false
     nonisolated(unsafe) private var hasSentConnectionMessage = false
+    nonisolated(unsafe) private var _streamLive = false
     /// Lock protecting connection state flags.
-    /// Guards: `_connected`, `hasSentConnectionMessage`.
+    /// Guards: `_connected`, `hasSentConnectionMessage`, `_streamLive`.
     private let connectionLock = NSLock()
 
     var isConnected: Bool {
         connectionLock.withLock { _connected }
+    }
+
+    /// Whether the broadcaster's stream is currently live.
+    ///
+    /// Maintained by the `stream.online` / `stream.offline` EventSub events and
+    /// seeded by a one-shot Helix check on connect. The `!stats` command stays
+    /// silent unless this is `true`.
+    var isStreamLive: Bool {
+        get { connectionLock.withLock { _streamLive } }
+        set { connectionLock.withLock { _streamLive = newValue } }
     }
 
     nonisolated private func setConnected(_ value: Bool) {
@@ -619,6 +645,16 @@ final class TwitchChatService: @unchecked Sendable {
 
         commandDispatcher.setLastSongCommandEnabled { [weak self] in
             self?.lastSongCommandEnabled ?? false
+        }
+
+        commandDispatcher.setStatsInfo { [weak self] in
+            self?.getStatsInfo?() ?? "No listening stats yet"
+        }
+
+        // `!stats` answers only when the feature is on AND the stream is live.
+        commandDispatcher.setStatsCommandEnabled { [weak self] in
+            guard let self else { return false }
+            return self.statsCommandActive && self.isStreamLive
         }
 
         // Don't set connected state here - wait for EventSub session_welcome
@@ -1619,6 +1655,8 @@ final class TwitchChatService: @unchecked Sendable {
         )
 
         subscribeToChannelChatMessage()
+        subscribeToStreamEvents()
+        seedStreamLiveState()
     }
 
     /// Handles notification messages containing EventSub events.
@@ -1632,7 +1670,7 @@ final class TwitchChatService: @unchecked Sendable {
             let subType = subscription["type"] as? String
         {
             guard subType == "channel.chat.message" else {
-                Log.info("TwitchChatService: Ignoring unexpected EventSub type: \(subType)", category: "Twitch")
+                handleStreamStateNotification(type: subType)
                 return
             }
         } else {
@@ -1641,6 +1679,21 @@ final class TwitchChatService: @unchecked Sendable {
         }
 
         handleEventSubMessage(payload)
+    }
+
+    /// Updates `isStreamLive` from a `stream.online` / `stream.offline` event.
+    /// Other EventSub types are ignored.
+    private func handleStreamStateNotification(type: String) {
+        switch type {
+        case "stream.online":
+            isStreamLive = true
+            Log.info("TwitchChatService: Stream went live", category: "Twitch")
+        case "stream.offline":
+            isStreamLive = false
+            Log.info("TwitchChatService: Stream went offline", category: "Twitch")
+        default:
+            Log.debug("TwitchChatService: Ignoring unexpected EventSub type: \(type)", category: "Twitch")
+        }
     }
 
     // MARK: - EventSub Subscriptions
@@ -1732,6 +1785,75 @@ final class TwitchChatService: @unchecked Sendable {
                     )
                 }
             }
+        }.resume()
+    }
+
+    /// Subscribes to `stream.online` / `stream.offline` so `isStreamLive` stays
+    /// current. Best-effort — a failure here does not affect the chat
+    /// connection. These EventSub types require no extra OAuth scope.
+    private func subscribeToStreamEvents() {
+        let currentSessionID: String? = webSocketLock.withLock { sessionID }
+        guard let sessionID = currentSessionID,
+            let broadcasterID = broadcasterID,
+            let token = oauthToken,
+            let clientID = clientID,
+            let url = URL(string: apiBaseURL + "/eventsub/subscriptions")
+        else { return }
+
+        for eventType in ["stream.online", "stream.offline"] {
+            let body: [String: Any] = [
+                "type": eventType,
+                "version": "1",
+                "condition": ["broadcaster_user_id": broadcasterID],
+                "transport": ["method": "websocket", "session_id": sessionID],
+            ]
+            guard let payload = try? JSONSerialization.data(withJSONObject: body) else { continue }
+
+            var request = URLRequest(url: url)
+            request.httpMethod = "POST"
+            request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+            request.setValue(clientID, forHTTPHeaderField: "Client-ID")
+            request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+            request.httpBody = payload
+
+            URLSession.shared.dataTask(with: request) { _, response, error in
+                if let error = error {
+                    Log.warn(
+                        "TwitchChatService: \(eventType) subscription error - \(error.localizedDescription)",
+                        category: "Twitch")
+                } else if let http = response as? HTTPURLResponse, !(200..<300).contains(http.statusCode) {
+                    Log.warn(
+                        "TwitchChatService: \(eventType) subscription failed - HTTP \(http.statusCode)",
+                        category: "Twitch")
+                } else {
+                    Log.info("TwitchChatService: Subscribed to \(eventType)", category: "Twitch")
+                }
+            }.resume()
+        }
+    }
+
+    /// Seeds `isStreamLive` with a single Helix "Get Streams" call, covering the
+    /// case where the stream was already live before WolfWave connected.
+    private func seedStreamLiveState() {
+        guard let broadcasterID = broadcasterID,
+            let token = oauthToken,
+            let clientID = clientID,
+            let url = URL(string: apiBaseURL + "/streams?user_id=\(broadcasterID)")
+        else { return }
+
+        var request = URLRequest(url: url)
+        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        request.setValue(clientID, forHTTPHeaderField: "Client-ID")
+
+        URLSession.shared.dataTask(with: request) { [weak self] data, _, _ in
+            guard let self = self,
+                let data = data,
+                let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+                let streams = json["data"] as? [[String: Any]]
+            else { return }
+            let live = !streams.isEmpty
+            self.isStreamLive = live
+            Log.info("TwitchChatService: Seeded stream-live state — live=\(live)", category: "Twitch")
         }.resume()
     }
 
