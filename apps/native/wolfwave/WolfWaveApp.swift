@@ -73,6 +73,11 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     var lastSong: String?
     var lastArtist: String?
 
+    /// Whether a track has been seen since launch. The first track represents
+    /// music that was already playing, so its song-change notification is
+    /// suppressed; every change thereafter notifies.
+    var hasSeenInitialTrack = false
+
     var currentDockVisibilityMode: String {
         UserDefaults.standard.string(forKey: AppConstants.UserDefaults.dockVisibility)
             ?? AppConstants.DockVisibility.default

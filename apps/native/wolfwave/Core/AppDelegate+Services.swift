@@ -477,6 +477,13 @@ extension AppDelegate: PlaybackSourceDelegate {
         if currentSong != track {
             lastSong = currentSong
             lastArtist = currentArtist
+
+            // Suppress the first track after launch (it was already playing);
+            // notify on every genuine change thereafter.
+            if hasSeenInitialTrack {
+                maybePostSongChangeNotification(track: track, artist: artist, album: album)
+            }
+            hasSeenInitialTrack = true
         }
 
         currentSong = track
@@ -504,6 +511,19 @@ extension AppDelegate: PlaybackSourceDelegate {
             duration: duration,
             elapsed: elapsed
         )
+    }
+
+    /// Posts a macOS song-change notification when the user has enabled the
+    /// setting. Called only on a genuine track change, never on the first
+    /// track seen after launch.
+    private func maybePostSongChangeNotification(track: String, artist: String, album: String) {
+        guard UserDefaults.standard.bool(
+            forKey: AppConstants.UserDefaults.songChangeNotificationsEnabled
+        ) else { return }
+
+        Task {
+            await NotificationService.shared.postSongChange(track: track, artist: artist, album: album)
+        }
     }
 
     /// Clears track state and notifies services when playback stops.

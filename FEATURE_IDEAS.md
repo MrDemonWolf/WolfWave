@@ -78,11 +78,14 @@ Token-based authentication for widget connections — prevents unauthorized loca
 
 ## Notification Center Integration
 
-Optional macOS notification when the song changes — shows track name, artist, and album art in the system notification. Toggled in Settings → App Visibility.
+Optional macOS notifications for music activity.
+
+- **Song changes** — *Implemented.* macOS notification when the song changes, showing track name, artist, and album art. Toggled in Settings → General → Notifications. Handled by `NotificationService`.
+- **Skip vote started** — *Pending.* Notify when a chat skip vote begins. Blocked on the **Chat Voting** feature below — no vote-to-skip mechanism exists yet (`!skip` is a direct mod-only skip). Adding it is a single `NotificationService.postSkipVote(...)` method once Chat Voting lands.
 
 **Status**: ⬜ Not started
 **Complexity**: Low
-**Builds on**: `UserNotifications` framework (already imported in `WolfWaveApp.swift`)
+**Builds on**: `UserNotifications` framework, `NotificationService`, `ArtworkService`
 
 ---
 

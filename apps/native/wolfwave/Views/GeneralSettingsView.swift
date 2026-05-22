@@ -37,6 +37,10 @@ struct GeneralSettingsView: View {
             Divider().padding(.vertical, 4)
 
             AppVisibilitySettingsView()
+
+            Divider().padding(.vertical, 4)
+
+            NotificationsSettingsView()
         }
     }
 }
