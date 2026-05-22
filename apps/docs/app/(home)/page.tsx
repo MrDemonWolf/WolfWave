@@ -117,7 +117,7 @@ export default function HomePage() {
               overlay all update on their own.
             </p>
             <div className="ww-reveal ww-reveal-3 mt-10 flex flex-col sm:flex-row items-center justify-center gap-3">
-              <Link href="/docs/installation" className="ww-btn ww-btn-primary">
+              <Link href="/download" className="ww-btn ww-btn-primary">
                 <Download className="w-4 h-4" />
                 Download for Mac
               </Link>
@@ -473,7 +473,7 @@ ws.onmessage = (event) =&gt; {
             <span className="ww-text-brand">We'll handle the rest.</span>
           </h2>
           <div className="mt-10 flex flex-col sm:flex-row items-center justify-center gap-3">
-            <Link href="/docs/installation" className="ww-btn ww-btn-primary">
+            <Link href="/download" className="ww-btn ww-btn-primary">
               <Download className="w-4 h-4" />
               Download WolfWave
             </Link>

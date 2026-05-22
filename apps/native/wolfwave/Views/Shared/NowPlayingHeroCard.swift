@@ -65,7 +65,7 @@ struct NowPlayingHeroCard: View {
     @ViewBuilder
     private var artworkView: some View {
         if track != nil {
-            AlbumArtView(image: artwork, seed: "\(track ?? "")—\(artist ?? "")", size: 92)
+            AlbumArtView(image: artwork, size: 92)
         } else {
             ZStack {
                 RoundedRectangle(cornerRadius: 10, style: .continuous)

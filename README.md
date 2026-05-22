@@ -29,18 +29,18 @@ Keep your music in sync. Keep your stream alive.
 
 Full docs at [mrdemonwolf.github.io/wolfwave](https://mrdemonwolf.github.io/wolfwave).
 
-### Homebrew (recommended)
+### DMG Installer (recommended)
+
+1. Grab the latest `.dmg` from [GitHub Releases](https://github.com/MrDemonWolf/WolfWave/releases).
+2. Open the DMG and drag **WolfWave** to **Applications**.
+3. Launch WolfWave and follow the onboarding wizard.
+
+### Homebrew (for developers)
 
 ```bash
 brew tap mrdemonwolf/den
 brew install --cask wolfwave
 ```
-
-### Manual Download
-
-1. Grab the latest `.dmg` from [GitHub Releases](https://github.com/MrDemonWolf/WolfWave/releases).
-2. Open the DMG and drag **WolfWave** to **Applications**.
-3. Launch WolfWave and follow the onboarding wizard.
 
 The app is signed and notarized by Apple — no Gatekeeper warnings.
 

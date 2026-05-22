@@ -252,9 +252,29 @@ function buildWidget() {
       artURL = null;
     }
     if (!artURL) {
-      return '<div class="flex items-center justify-center" style="width:' + w + 'px;height:' + h + 'px;border-radius:' + radius + ';background:rgba(255,255,255,0.10);">'
-        + '<svg width="' + Math.round(w * 0.5) + '" height="' + Math.round(h * 0.5) + '" viewBox="0 0 24 24" fill="' + theme.textMuted + '">'
-        + '<path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"/></svg>'
+      // WolfWave-branded fallback — wolf mark on a brand-blue gradient. Stays
+      // consistent across every theme. Keep the SVG geometry in sync with
+      // Assets.xcassets/WolfMark.imageset/WolfMark.svg.
+      var mark = Math.round(w * 0.52);
+      return '<div class="flex items-center justify-center" style="width:' + w + 'px;height:' + h + 'px;border-radius:' + radius + ';background:linear-gradient(135deg,#0A84FF,#003A78);box-shadow:0 2px 8px rgba(0,0,0,0.3);">'
+        + '<svg width="' + mark + '" height="' + mark + '" viewBox="0 0 100 100" fill="#FFFFFF">'
+        + '<rect x="24" y="43" width="3.5" height="30" rx="1.75"/>'
+        + '<rect x="19" y="49" width="3.5" height="24" rx="1.75" opacity="0.9"/>'
+        + '<rect x="14" y="55" width="3.5" height="18" rx="1.75" opacity="0.73"/>'
+        + '<rect x="9" y="61" width="3.5" height="12" rx="1.75" opacity="0.54"/>'
+        + '<rect x="4" y="66" width="3.5" height="7" rx="1.75" opacity="0.34"/>'
+        + '<rect x="-1" y="69" width="3.5" height="4" rx="1.75" opacity="0.18"/>'
+        + '<rect x="72.5" y="43" width="3.5" height="30" rx="1.75"/>'
+        + '<rect x="77.5" y="49" width="3.5" height="24" rx="1.75" opacity="0.9"/>'
+        + '<rect x="82.5" y="55" width="3.5" height="18" rx="1.75" opacity="0.73"/>'
+        + '<rect x="87.5" y="61" width="3.5" height="12" rx="1.75" opacity="0.54"/>'
+        + '<rect x="92.5" y="66" width="3.5" height="7" rx="1.75" opacity="0.34"/>'
+        + '<rect x="97.5" y="69" width="3.5" height="4" rx="1.75" opacity="0.18"/>'
+        + '<polygon points="33,41 33,11 45,38"/>'
+        + '<polygon points="67,41 67,11 55,38"/>'
+        + '<ellipse cx="50" cy="52" rx="18" ry="17.5"/>'
+        + '<ellipse cx="50" cy="63" rx="11" ry="8"/>'
+        + '</svg>'
         + '</div>';
     }
     var safeURL = encodeURI(artURL).replace(/'/g, '%27').replace(/"/g, '%22');
