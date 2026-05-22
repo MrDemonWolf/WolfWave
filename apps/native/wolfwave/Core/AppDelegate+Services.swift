@@ -142,6 +142,8 @@ extension AppDelegate {
 
     /// Creates the song request service and wires up playback monitoring + chat replies.
     func setupSongRequestService() {
+        SongRequestService.migrateAccessSettings()
+
         let queue = SongRequestQueue()
         let blocklist = SongBlocklist()
         let musicController = AppleMusicController()
@@ -162,6 +164,9 @@ extension AppDelegate {
         // Wire commands to the service via TwitchChatService passthroughs
         twitchService?.setSongRequestService { [weak self] in self?.songRequestService }
         twitchService?.setSongRequestQueue { [weak self] in self?.songRequestService?.queue }
+
+        // Direct reference for the channel-point / bit redemption handlers
+        twitchService?.songRequestService = songRequestService
 
         // Start playback monitoring if song requests are enabled
         let enabled = UserDefaults.standard.bool(forKey: AppConstants.UserDefaults.songRequestEnabled)

@@ -436,7 +436,12 @@ final class TwitchViewModel {
         // later enable Polls mode don't need a second authorization round-trip.
         let helper = TwitchDeviceAuth(
             clientID: clientID,
-            scopes: ["user:read:chat", "user:write:chat", "channel:manage:polls"]
+            scopes: AppConstants.Twitch.chatScopes
+                + [
+                    AppConstants.Twitch.channelPointsScope,
+                    AppConstants.Twitch.bitsScope,
+                    AppConstants.Twitch.pollsScope,
+                ]
         )
 
         // Track the overall OAuth flow so it can be cancelled cleanly

@@ -27,7 +27,7 @@ bun run build --filter docs              # Build docs site
 ```bash
 make build          # Debug build via xcodebuild
 make clean          # Clean build artifacts
-make test           # Run unit tests (1074 tests across 39 test files)
+make test           # Run unit tests (1218 tests across 42 test files)
 make test-verbose   # Run unit tests with full xcodebuild output
 make test-ci        # Run unit tests in CI mode (writes TestResults.xcresult)
 make update-deps    # Resolve SwiftPM dependencies
@@ -59,9 +59,9 @@ Xcode project is at `apps/native/wolfwave.xcodeproj` with scheme `WolfWave`. Bui
 
 - **Core/** — `AppConstants.swift` + `AppConstants+Notifications.swift` (centralized config enums for keys, identifiers, timing, notification names), the `AppDelegate+*` extensions, `KeychainService.swift` (macOS Security framework wrapper), `Logger.swift` (structured logging), `PowerStateMonitor.swift`, `NetworkInfoService.swift` (LAN IP cache), `SongRequestItem.swift`, `BlocklistItem.swift`. Foundation utilities: `HTTPClient.swift` (shared async HTTP wrapper), `JSONCoders.swift` (shared `JSONEncoder`/`JSONDecoder`), `BugReportURL.swift` (pre-filled GitHub issue URL builder), `Bundle+InstallMethod.swift` (DMG vs Homebrew install detection).
 - **Monitors/** — Playback source abstraction. `PlaybackSource.swift` (protocol), `AppleMusicSource.swift` (ScriptingBridge + distributed notifications + 2s fallback polling), `PlaybackSourceManager.swift` (selects + multiplexes sources). Delegate pattern via `PlaybackSourceDelegate`.
-- **Services/Twitch/** — `TwitchChatService.swift` (EventSub WebSocket + Helix chat API, thread-safe with NSLock, network path monitoring for reconnection, Twitch user ID redacted in logs), `TwitchDeviceAuth.swift` (OAuth Device Code flow).
+- **Services/Twitch/** — `TwitchChatService.swift` (EventSub WebSocket + Helix chat API, thread-safe with NSLock, network path monitoring for reconnection, Twitch user ID redacted in logs; also dispatches `channel.channel_points_custom_reward_redemption.add` and `channel.bits.use` events into the song-request pipeline), `TwitchChannelPointsService.swift` (Helix create / reconcile / fulfill / cancel for the WolfWave-managed "Request a Song" reward), `TwitchDeviceAuth.swift` (OAuth Device Code flow).
 - **Services/Twitch/Commands/** — `BotCommand` protocol (`triggers`, `description`, `execute(message:) -> String?`), `AsyncBotCommand` for I/O-bound commands, `BotCommandContext`, `BotCommandDispatcher`. Concrete commands: `TrackInfoCommand` (used for both `!song` and `!last`), `SongRequestCommand`, `QueueCommand`, `MyQueueCommand`, `SkipCommand`, `HoldCommand`, `ClearQueueCommand`, `VoteSkipCommand` (chat vote-to-skip). `CooldownManager` enforces global + per-user cooldowns.
-- **Services/SongRequest/** — `SongRequestService.swift` (request flow orchestrator), `SongRequestQueue.swift` (queue with hold mode + Music.app-closed buffering), `SkipVoteManager.swift` (chat vote-to-skip sessions — chat tally or Twitch Polls), `SongSearchResolver.swift` + `LinkResolverService.swift` (MusicKit search / Apple Music link resolve), `AppleMusicController.swift` (AppleScript playback with focus preservation), `SongBlocklist.swift`.
+- **Services/SongRequest/** — `SongRequestService.swift` (request flow orchestrator; `processRequest(query:username:source:)` takes a `RequestSource` so chat commands, channel-point redemptions, and bit cheers share the same pipeline), `SongRequestAccess.swift` (`RequestAudience` chat-command gate, `RequestSource`, `SongRequestPreset` one-tap configurations, `RedemptionStatus` for the settings re-auth banner), `SongRequestQueue.swift` (queue with hold mode, Music.app-closed buffering, and a `boost(username:)` method for bit-cheer boosts), `SkipVoteManager.swift` (chat vote-to-skip sessions — chat tally or Twitch Polls), `SongSearchResolver.swift` + `LinkResolverService.swift` (MusicKit search / Apple Music link resolve), `AppleMusicController.swift` (AppleScript playback with focus preservation), `SongBlocklist.swift`.
 - **Services/Discord/** — `DiscordRPCService.swift` (Discord Rich Presence via local IPC Unix domain socket, auto-reconnect with backoff).
 - **Services/UpdateChecker/** — `SparkleUpdaterService.swift` (Sparkle framework wrapper for auto-updates, EdDSA-signed appcast verification, Homebrew install detection disables Sparkle, DEBUG mode allows manual check via bundled `dev-appcast.xml`).
 - **Services/WebSocket/** — `WebSocketServerService.swift` (overlay broadcast), `WidgetHTTPService.swift` (static widget HTTP server).
@@ -114,7 +114,7 @@ bun turbo build         # `tokens` is a build prerequisite — runs automaticall
 
 ## Testing
 
-Unit tests live in `apps/native/WolfWaveTests/` and use XCTest + Swift Testing with `@testable import WolfWave`. The test target is a hosted unit test bundle (`TEST_HOST` = WolfWave.app). Current pass count: **1074 tests across 39 test files**.
+Unit tests live in `apps/native/WolfWaveTests/` and use XCTest + Swift Testing with `@testable import WolfWave`. The test target is a hosted unit test bundle (`TEST_HOST` = WolfWave.app). Current pass count: **1218 tests across 42 test files**.
 
 ### Test files
 
@@ -125,6 +125,9 @@ Unit tests live in `apps/native/WolfWaveTests/` and use XCTest + Swift Testing w
 - `CooldownManagerTests.swift` — Global + per-user cooldown enforcement
 - `SongRequestServiceTests.swift`, `SongRequestQueueTests.swift`, `SongRequestCommandTests.swift` — Song Request system (queue, hold mode, request command parse)
 - `SkipVoteManagerTests.swift`, `VoteSkipCommandTests.swift` — Chat vote-to-skip (threshold, dedup, window expiry, cooldown, subscriber gate, Polls mode, reply formatting)
+- `SongRequestAccessTests.swift` — `RequestAudience` permission rules, `SongRequestPreset` apply/detect, `RedemptionStatus` banner messages
+- `SongRequestQueueBoostTests.swift` — bit-cheer boost: moves a user's most-recent queued item to the front
+- `TwitchBitsParsingTests.swift` — `channel.bits.use` message parsing (cheermote fragment stripping)
 - `AppleMusicSourceTests.swift` — Playback source start/stop and delegate wiring
 - `OnboardingViewModelTests.swift` + `OnboardingViewModelEdgeCaseTests.swift` — Step navigation, boundary conditions, UserDefaults persistence
 - `TwitchViewModelTests.swift`, `TwitchChatServiceTests.swift`, `TwitchDeviceAuthTests.swift`, `TwitchDeviceAuthErrorTests.swift` — Twitch auth + EventSub + view model state

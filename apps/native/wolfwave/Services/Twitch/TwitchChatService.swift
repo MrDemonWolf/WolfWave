@@ -209,6 +209,21 @@ final class TwitchChatService: @unchecked Sendable {
         commandDispatcher.setSkipVoteManager(callback: callback)
     }
 
+    // MARK: - Redemption Wiring
+
+    /// Helix client for the WolfWave-managed channel-point reward.
+    private let channelPointsService = TwitchChannelPointsService()
+
+    nonisolated(unsafe) private var _songRequestService: SongRequestService?
+
+    /// Live `SongRequestService`, used by the channel-point and bit redemption
+    /// handlers (the `!sr` command path goes through the dispatcher instead).
+    /// Set once by `AppDelegate` at startup.
+    var songRequestService: SongRequestService? {
+        get { credentialsLock.withLock { _songRequestService } }
+        set { credentialsLock.withLock { _songRequestService = newValue } }
+    }
+
     nonisolated(unsafe) private var _onMessageReceived: (@Sendable (ChatMessage) -> Void)?
     nonisolated(unsafe) private var _onConnectionStateChanged: (@Sendable (Bool) -> Void)?
     nonisolated(unsafe) private var _onSkipPollEnded: (@Sendable (Int, Int) -> Void)?
@@ -1265,6 +1280,7 @@ final class TwitchChatService: @unchecked Sendable {
             let isModerator = badges.contains { $0.setID == "moderator" }
             let isBroadcaster = badges.contains { $0.setID == "broadcaster" }
             let isSubscriber = badges.contains { $0.setID == "subscriber" }
+            let isVIP = badges.contains { $0.setID == "vip" }
             let bypassCooldown = isModerator || isBroadcaster
 
             let context = BotCommandContext(
@@ -1273,6 +1289,7 @@ final class TwitchChatService: @unchecked Sendable {
                 isModerator: isModerator,
                 isBroadcaster: isBroadcaster,
                 isSubscriber: isSubscriber,
+                isVIP: isVIP,
                 messageID: messageID
             )
 
@@ -1678,28 +1695,35 @@ final class TwitchChatService: @unchecked Sendable {
         subscribeToPollEvents()
         subscribeToStreamEvents()
         seedStreamLiveState()
+        subscribeToRedemptionsIfEnabled()
     }
 
     /// Handles notification messages containing EventSub events.
+    ///
+    /// Routes each notification to the handler for its subscription type.
     ///
     /// - Parameter json: The notification message JSON
     private func handleNotification(_ json: [String: Any]) {
         guard let payload = json["payload"] as? [String: Any] else { return }
 
-        // Validate subscription type before processing
-        if let subscription = payload["subscription"] as? [String: Any],
+        guard let subscription = payload["subscription"] as? [String: Any],
             let subType = subscription["type"] as? String
-        {
-            switch subType {
-            case "channel.chat.message":
-                handleEventSubMessage(payload)
-            case "channel.poll.end":
-                handlePollEndEvent(payload)
-            default:
-                handleStreamStateNotification(type: subType)
-            }
-        } else {
+        else {
             Log.warn("TwitchChatService: EventSub notification missing subscription type", category: "Twitch")
+            return
+        }
+
+        switch subType {
+        case AppConstants.Twitch.eventSubChatMessage:
+            handleEventSubMessage(payload)
+        case "channel.poll.end":
+            handlePollEndEvent(payload)
+        case AppConstants.Twitch.eventSubChannelPointsRedemption:
+            handleChannelPointsRedemption(payload)
+        case AppConstants.Twitch.eventSubBitsUse:
+            handleBitsUse(payload)
+        default:
+            handleStreamStateNotification(type: subType)
         }
     }
 
@@ -2027,6 +2051,403 @@ final class TwitchChatService: @unchecked Sendable {
             self.isStreamLive = live
             Log.info("TwitchChatService: Seeded stream-live state — live=\(live)", category: "Twitch")
         }.resume()
+    }
+
+    // MARK: - Redemption EventSub Subscriptions
+
+    /// Subscribes to channel-point and/or bit EventSub events when the matching
+    /// song-request features are enabled. Channel-point and bit subscriptions
+    /// require the signed-in account to be the broadcaster — when a separate bot
+    /// account is in use they are skipped and the UI is notified.
+    ///
+    /// Safe to call any time after `session_welcome`; re-subscribing an existing
+    /// type is treated as a no-op (Twitch returns HTTP 409).
+    private func subscribeToRedemptionsIfEnabled() {
+        let defaults = UserDefaults.standard
+        let channelPointsEnabled = defaults.bool(
+            forKey: AppConstants.UserDefaults.songRequestChannelPointsEnabled)
+        let bitsEnabled = defaults.bool(forKey: AppConstants.UserDefaults.songRequestBitsEnabled)
+
+        guard channelPointsEnabled || bitsEnabled else {
+            setRedemptionStatus(.ok)
+            return
+        }
+
+        // Channel-point and bit EventSub require the broadcaster's own token.
+        guard let broadcasterID, let botID, broadcasterID == botID else {
+            Log.warn(
+                "TwitchChatService: Redemption events need the broadcaster account — skipping",
+                category: "Twitch")
+            setRedemptionStatus(.botAccount)
+            return
+        }
+
+        setRedemptionStatus(.ok)
+
+        if channelPointsEnabled {
+            Task { await ensureSongRequestRewardAndSubscribe() }
+        }
+        if bitsEnabled {
+            subscribeToBitsUse()
+        }
+    }
+
+    /// Re-evaluates redemption subscriptions against the current settings.
+    /// Called by the settings UI after the streamer changes a redemption
+    /// toggle. A no-op when not connected.
+    func refreshRedemptionSubscriptions() {
+        guard isConnected else { return }
+        subscribeToRedemptionsIfEnabled()
+    }
+
+    /// Ensures the WolfWave channel-point reward exists, syncs its cost, and
+    /// subscribes to its redemption events.
+    private func ensureSongRequestRewardAndSubscribe() async {
+        guard let credentials = currentChannelPointCredentials() else { return }
+        let cost = channelPointsCostSetting()
+        do {
+            let rewardID = try await channelPointsService.ensureReward(
+                credentials: credentials, cost: cost)
+            try? await channelPointsService.updateRewardCost(
+                credentials: credentials, rewardID: rewardID, cost: cost)
+            subscribeToChannelPointsRedemption()
+            setRedemptionStatus(.ok)
+        } catch {
+            Log.error(
+                "TwitchChatService: Failed to set up channel-point reward - \(error.localizedDescription)",
+                category: "Twitch")
+            setRedemptionStatus(.subscribeFailed)
+        }
+    }
+
+    /// Subscribes to `channel.channel_points_custom_reward_redemption.add`.
+    private func subscribeToChannelPointsRedemption() {
+        guard let broadcasterID else { return }
+        postEventSubSubscription(
+            type: AppConstants.Twitch.eventSubChannelPointsRedemption,
+            condition: ["broadcaster_user_id": broadcasterID],
+            label: "channel-point redemptions")
+    }
+
+    /// Subscribes to `channel.bits.use`.
+    private func subscribeToBitsUse() {
+        guard let broadcasterID else { return }
+        postEventSubSubscription(
+            type: AppConstants.Twitch.eventSubBitsUse,
+            condition: ["broadcaster_user_id": broadcasterID],
+            label: "bit usage")
+    }
+
+    /// Posts an EventSub subscription request over the active WebSocket session.
+    ///
+    /// - Parameters:
+    ///   - type: EventSub subscription type.
+    ///   - version: Subscription version (default `"1"`).
+    ///   - condition: The subscription `condition` object.
+    ///   - label: Human-readable label used in logs.
+    private func postEventSubSubscription(
+        type: String,
+        version: String = "1",
+        condition: [String: Any],
+        label: String
+    ) {
+        let currentSessionID: String? = webSocketLock.withLock { sessionID }
+        guard let sessionID = currentSessionID,
+            let token = oauthToken,
+            let clientID = clientID
+        else {
+            Log.error(
+                "TwitchChatService: Missing credentials for \(label) subscription", category: "Twitch")
+            return
+        }
+
+        let body: [String: Any] = [
+            "type": type,
+            "version": version,
+            "condition": condition,
+            "transport": ["method": "websocket", "session_id": sessionID],
+        ]
+
+        guard let url = URL(string: apiBaseURL + "/eventsub/subscriptions") else { return }
+
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        request.setValue(clientID, forHTTPHeaderField: "Client-ID")
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        do {
+            request.httpBody = try JSONSerialization.data(withJSONObject: body)
+        } catch {
+            Log.error(
+                "TwitchChatService: Failed to serialize \(label) subscription - \(error.localizedDescription)",
+                category: "Twitch")
+            return
+        }
+
+        URLSession.shared.dataTask(with: request) { [weak self] data, response, error in
+            if let error {
+                Log.error(
+                    "TwitchChatService: \(label) subscription error - \(error.localizedDescription)",
+                    category: "Twitch")
+                return
+            }
+            guard let http = response as? HTTPURLResponse else { return }
+            if (200..<300).contains(http.statusCode) {
+                Log.info("TwitchChatService: Subscribed to \(label)", category: "Twitch")
+            } else if http.statusCode == 409 {
+                Log.info(
+                    "TwitchChatService: \(label) subscription already active", category: "Twitch")
+            } else {
+                let responseText = data.flatMap { String(data: $0, encoding: .utf8) } ?? "No response"
+                Log.error(
+                    "TwitchChatService: \(label) subscription failed - HTTP \(http.statusCode) - \(responseText)",
+                    category: "Twitch")
+                self?.setRedemptionStatus(http.statusCode == 403 ? .scopeMissing : .subscribeFailed)
+            }
+        }.resume()
+    }
+
+    // MARK: - Redemption Event Handlers
+
+    /// Handles a channel-point reward redemption. Ignores redemptions for any
+    /// reward other than the WolfWave-managed one, routes the viewer's input
+    /// into the song-request pipeline, then fulfils the redemption on success
+    /// or cancels it (refunding the points) on failure.
+    private func handleChannelPointsRedemption(_ payload: [String: Any]) {
+        guard
+            UserDefaults.standard.bool(
+                forKey: AppConstants.UserDefaults.songRequestChannelPointsEnabled),
+            let event = payload["event"] as? [String: Any]
+        else { return }
+
+        let rewardID = ((event["reward"] as? [String: Any])?["id"] as? String) ?? ""
+        let storedRewardID = UserDefaults.standard.string(
+            forKey: AppConstants.UserDefaults.songRequestChannelPointsRewardID) ?? ""
+        guard !rewardID.isEmpty, rewardID == storedRewardID else { return }
+
+        let redemptionID = (event["id"] as? String) ?? ""
+        let userName = ((event["user_name"] as? String) ?? "")
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        let userInput = ((event["user_input"] as? String) ?? "")
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !redemptionID.isEmpty, !userName.isEmpty else { return }
+
+        let credentials = currentChannelPointCredentials()
+
+        Task { @MainActor in
+            guard let service = self.songRequestService else { return }
+
+            if userInput.isEmpty {
+                self.sendMessage(
+                    "@\(userName) add a song name when you redeem — refunding your points.")
+                await self.resolveRedemption(
+                    credentials, rewardID: rewardID, redemptionID: redemptionID, as: .canceled)
+                return
+            }
+
+            let result = await service.processRequest(
+                query: userInput,
+                username: userName,
+                source: .channelPoints(redemptionID: redemptionID, rewardID: rewardID))
+            let (message, resolution) = self.redemptionOutcome(for: result, username: userName)
+            self.sendMessage(message)
+            await self.resolveRedemption(
+                credentials, rewardID: rewardID, redemptionID: redemptionID, as: resolution)
+        }
+    }
+
+    /// Handles a `channel.bits.use` event. Below the configured minimum the
+    /// cheer is ignored. When boosting is enabled and the cheerer already has a
+    /// queued song, that song jumps to the front; otherwise the cheer message
+    /// (cheermote tokens stripped) is treated as a new request.
+    private func handleBitsUse(_ payload: [String: Any]) {
+        let defaults = UserDefaults.standard
+        guard
+            defaults.bool(forKey: AppConstants.UserDefaults.songRequestBitsEnabled),
+            let event = payload["event"] as? [String: Any]
+        else { return }
+
+        let bits = (event["bits"] as? Int) ?? 0
+        guard bits > 0, bits >= bitsMinimumSetting() else { return }
+
+        let userName = ((event["user_name"] as? String) ?? "")
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !userName.isEmpty else { return }
+
+        let boostEnabled = defaults.bool(
+            forKey: AppConstants.UserDefaults.songRequestBitsBoostEnabled)
+        let query = Self.cleanBitsMessage(event["message"] as? [String: Any])
+
+        Task { @MainActor in
+            guard let service = self.songRequestService else { return }
+
+            if boostEnabled, let boosted = service.queue.boost(username: userName) {
+                self.sendMessage(
+                    "@\(userName) boosted \"\(boosted.title)\" to the front of the queue! (\(bits) bits)")
+                return
+            }
+
+            guard !query.isEmpty else {
+                if boostEnabled {
+                    self.sendMessage(
+                        "@\(userName) no song of yours to boost — include a song name in your cheer to request one.")
+                }
+                return
+            }
+
+            let result = await service.processRequest(
+                query: query, username: userName, source: .bits(amount: bits))
+            self.sendMessage(self.bitsOutcomeMessage(for: result, username: userName))
+        }
+    }
+
+    // MARK: - Redemption Helpers
+
+    /// Resolves a channel-point redemption via Helix, logging any failure.
+    private func resolveRedemption(
+        _ credentials: TwitchChannelPointsService.Credentials?,
+        rewardID: String,
+        redemptionID: String,
+        as resolution: TwitchChannelPointsService.Resolution
+    ) async {
+        guard let credentials else { return }
+        do {
+            try await channelPointsService.resolveRedemption(
+                credentials: credentials,
+                rewardID: rewardID,
+                redemptionID: redemptionID,
+                as: resolution)
+        } catch {
+            Log.error(
+                "TwitchChatService: Failed to \(resolution.rawValue) redemption - \(error.localizedDescription)",
+                category: "Twitch")
+        }
+    }
+
+    /// Maps a request result to a chat message and a redemption resolution.
+    private func redemptionOutcome(
+        for result: SongRequestService.RequestResult,
+        username: String
+    ) -> (message: String, resolution: TwitchChannelPointsService.Resolution) {
+        switch result {
+        case let .added(item, position):
+            return (
+                "@\(username) added \"\(item.title)\" by \(item.artist) — #\(position) in queue",
+                .fulfilled)
+        case let .queueFull(max):
+            return ("@\(username) the queue is full (\(max)). Points refunded.", .canceled)
+        case let .userLimitReached(max):
+            return (
+                "@\(username) you already have \(max) songs queued. Points refunded.", .canceled)
+        case .alreadyInQueue:
+            return ("@\(username) that song is already queued. Points refunded.", .canceled)
+        case .blocked:
+            return ("@\(username) that song is on the blocklist. Points refunded.", .canceled)
+        case let .notFound(query):
+            let truncated = query.count > 30 ? String(query.prefix(30)) + "..." : query
+            return ("@\(username) no results for \"\(truncated)\". Points refunded.", .canceled)
+        case .linkNotFound:
+            return (
+                "@\(username) couldn't find that on Apple Music. Points refunded.", .canceled)
+        case .notAuthorized:
+            return (
+                "@\(username) song requests aren't available right now. Points refunded.",
+                .canceled)
+        case let .error(message):
+            return ("@\(username) \(message) Points refunded.", .canceled)
+        }
+    }
+
+    /// Builds a chat reply for a bit-cheer song request.
+    private func bitsOutcomeMessage(
+        for result: SongRequestService.RequestResult,
+        username: String
+    ) -> String {
+        switch result {
+        case let .added(item, position):
+            return "@\(username) added \"\(item.title)\" by \(item.artist) — #\(position) in queue. Thanks for the bits!"
+        case let .queueFull(max):
+            return "@\(username) the queue is full (\(max)/\(max)). Try again soon!"
+        case let .userLimitReached(max):
+            return "@\(username) you already have \(max) songs queued."
+        case .alreadyInQueue:
+            return "@\(username) that song is already in the queue."
+        case .blocked:
+            return "@\(username) sorry, that song/artist is on the blocklist."
+        case let .notFound(query):
+            let truncated = query.count > 30 ? String(query.prefix(30)) + "..." : query
+            return "@\(username) no results for \"\(truncated)\"."
+        case .linkNotFound:
+            return "@\(username) couldn't find that on Apple Music."
+        case .notAuthorized:
+            return "@\(username) song requests aren't available right now."
+        case let .error(message):
+            return "@\(username) \(message)"
+        }
+    }
+
+    /// Current broadcaster credentials for Helix channel-point calls, or `nil`
+    /// when any credential is missing.
+    private func currentChannelPointCredentials() -> TwitchChannelPointsService.Credentials? {
+        guard let broadcasterID, let token = oauthToken, let clientID,
+            !broadcasterID.isEmpty, !token.isEmpty, !clientID.isEmpty
+        else { return nil }
+        return TwitchChannelPointsService.Credentials(
+            broadcasterID: broadcasterID, token: token, clientID: clientID)
+    }
+
+    /// Configured channel-point cost for the managed reward (default 500).
+    private func channelPointsCostSetting() -> Int {
+        let stored = UserDefaults.standard.integer(
+            forKey: AppConstants.UserDefaults.songRequestChannelPointsCost)
+        return stored > 0 ? stored : 500
+    }
+
+    /// Configured minimum bits required to trigger a request (default 100).
+    private func bitsMinimumSetting() -> Int {
+        let stored = UserDefaults.standard.integer(
+            forKey: AppConstants.UserDefaults.songRequestBitsMinimum)
+        return stored > 0 ? stored : 100
+    }
+
+    /// Persists the redemption integration health for the settings UI.
+    private func setRedemptionStatus(_ status: RedemptionStatus) {
+        UserDefaults.standard.set(
+            status.rawValue, forKey: AppConstants.UserDefaults.songRequestRedemptionStatus)
+    }
+
+    /// Extracts the viewer's song query from a `channel.bits.use` message,
+    /// dropping cheermote tokens.
+    static func cleanBitsMessage(_ message: [String: Any]?) -> String {
+        guard let message else { return "" }
+
+        if let fragments = message["fragments"] as? [[String: Any]] {
+            let textParts = fragments.compactMap { fragment -> String? in
+                guard (fragment["type"] as? String) == "text" else { return nil }
+                return fragment["text"] as? String
+            }
+            let joined = textParts.joined().trimmingCharacters(in: .whitespacesAndNewlines)
+            if !joined.isEmpty { return joined }
+        }
+
+        let raw = (message["text"] as? String) ?? ""
+        return stripLeadingCheermotes(raw)
+    }
+
+    /// Removes leading `Cheer<amount>` tokens from a raw cheer message.
+    static func stripLeadingCheermotes(_ text: String) -> String {
+        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard
+            let regex = try? NSRegularExpression(pattern: "^(?:[Cc]heer[0-9]+\\s*)+"),
+            let match = regex.firstMatch(
+                in: trimmed, range: NSRange(trimmed.startIndex..., in: trimmed)),
+            let range = Range(match.range, in: trimmed)
+        else {
+            return trimmed
+        }
+        var stripped = trimmed
+        stripped.removeSubrange(range)
+        return stripped.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
     // MARK: - Username Resolution

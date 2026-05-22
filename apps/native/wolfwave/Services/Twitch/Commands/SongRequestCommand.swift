@@ -71,7 +71,7 @@ final class SongRequestCommand: AsyncBotCommand {
             let result = await service.processRequest(
                 query: query,
                 username: context.username,
-                context: context
+                source: .chatCommand(context)
             )
 
             let response: String

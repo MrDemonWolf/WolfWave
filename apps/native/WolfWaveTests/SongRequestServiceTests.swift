@@ -56,6 +56,32 @@ final class SongRequestServiceTests: XCTestCase {
     var mockController: MockAppleMusicController!
     var service: SongRequestService!
 
+    /// Builds a chat-command request source with sensible defaults.
+    private func chatSource(
+        username: String = "viewer",
+        isModerator: Bool = false,
+        isBroadcaster: Bool = false,
+        isSubscriber: Bool = false,
+        isVIP: Bool = false
+    ) -> RequestSource {
+        .chatCommand(
+            BotCommandContext(
+                userID: "1", username: username,
+                isModerator: isModerator, isBroadcaster: isBroadcaster,
+                isSubscriber: isSubscriber, isVIP: isVIP, messageID: "m"
+            )
+        )
+    }
+
+    private func clearAccessDefaults() {
+        let defaults = UserDefaults.standard
+        defaults.removeObject(forKey: AppConstants.UserDefaults.songRequestSubscriberOnly)
+        defaults.removeObject(forKey: AppConstants.UserDefaults.songRequestChatAudience)
+        defaults.removeObject(forKey: AppConstants.UserDefaults.songRequestMaxQueueSize)
+        defaults.removeObject(forKey: AppConstants.UserDefaults.songRequestPerUserLimit)
+        defaults.removeObject(forKey: AppConstants.UserDefaults.songRequestHoldEnabled)
+    }
+
     override func setUp() {
         super.setUp()
         queue = SongRequestQueue()
@@ -64,10 +90,7 @@ final class SongRequestServiceTests: XCTestCase {
             queue: queue,
             musicController: mockController
         )
-        UserDefaults.standard.removeObject(forKey: AppConstants.UserDefaults.songRequestSubscriberOnly)
-        UserDefaults.standard.removeObject(forKey: AppConstants.UserDefaults.songRequestMaxQueueSize)
-        UserDefaults.standard.removeObject(forKey: AppConstants.UserDefaults.songRequestPerUserLimit)
-        UserDefaults.standard.removeObject(forKey: AppConstants.UserDefaults.songRequestHoldEnabled)
+        clearAccessDefaults()
     }
 
     override func tearDown() {
@@ -75,61 +98,124 @@ final class SongRequestServiceTests: XCTestCase {
         service = nil
         mockController = nil
         queue = nil
-        UserDefaults.standard.removeObject(forKey: AppConstants.UserDefaults.songRequestSubscriberOnly)
-        UserDefaults.standard.removeObject(forKey: AppConstants.UserDefaults.songRequestMaxQueueSize)
-        UserDefaults.standard.removeObject(forKey: AppConstants.UserDefaults.songRequestPerUserLimit)
-        UserDefaults.standard.removeObject(forKey: AppConstants.UserDefaults.songRequestHoldEnabled)
+        clearAccessDefaults()
         super.tearDown()
     }
 
-    // MARK: - Subscriber-Only Gate
+    // MARK: - Audience Gate
 
-    func testProcessRequestSubscriberOnlyBlocksViewer() async {
-        UserDefaults.standard.set(true, forKey: AppConstants.UserDefaults.songRequestSubscriberOnly)
+    func testProcessRequestSubscriberAudienceBlocksViewer() async {
+        UserDefaults.standard.set(
+            RequestAudience.subscribers.rawValue,
+            forKey: AppConstants.UserDefaults.songRequestChatAudience)
 
-        let viewerContext = BotCommandContext(
-            userID: "1", username: "viewer",
-            isModerator: false, isBroadcaster: false,
-            isSubscriber: false, messageID: "m"
-        )
-
-        let result = await service.processRequest(query: "any song", username: "viewer", context: viewerContext)
+        let result = await service.processRequest(
+            query: "any song", username: "viewer",
+            source: chatSource(username: "viewer", isSubscriber: false))
         guard case .error = result else {
             XCTFail("Expected .error for subscriber-only block, got \(result)")
             return
         }
     }
 
-    func testProcessRequestSubscriberOnlyAllowsSubscriber() async {
-        UserDefaults.standard.set(true, forKey: AppConstants.UserDefaults.songRequestSubscriberOnly)
-        // Subscriber should pass the gate (auth check will fail since mock has no search)
-        // We just verify it doesn't get blocked early with an .error(subscriber-only)
-        let subContext = BotCommandContext(
-            userID: "2", username: "subscriber",
-            isModerator: false, isBroadcaster: false,
-            isSubscriber: true, messageID: "m"
-        )
+    func testProcessRequestSubscriberAudienceAllowsSubscriber() async {
+        UserDefaults.standard.set(
+            RequestAudience.subscribers.rawValue,
+            forKey: AppConstants.UserDefaults.songRequestChatAudience)
 
-        let result = await service.processRequest(query: "any song", username: "subscriber", context: subContext)
-        // Should proceed past subscriber gate (will likely fail at search, not subscriber check)
+        let result = await service.processRequest(
+            query: "any song", username: "subscriber",
+            source: chatSource(username: "subscriber", isSubscriber: true))
         if case .error(let msg) = result {
-            XCTAssertFalse(msg.contains("subscriber-only"), "Should not be blocked by subscriber-only gate")
+            XCTAssertFalse(
+                msg.contains("subscriber-only"), "Should not be blocked by subscriber-only gate")
         }
     }
 
-    func testProcessRequestSubscriberOnlyAllowsModerator() async {
-        UserDefaults.standard.set(true, forKey: AppConstants.UserDefaults.songRequestSubscriberOnly)
+    func testProcessRequestSubscriberAudienceAllowsModerator() async {
+        UserDefaults.standard.set(
+            RequestAudience.subscribers.rawValue,
+            forKey: AppConstants.UserDefaults.songRequestChatAudience)
 
-        let modContext = BotCommandContext(
-            userID: "3", username: "mod",
-            isModerator: true, isBroadcaster: false,
-            isSubscriber: false, messageID: "m"
-        )
-
-        let result = await service.processRequest(query: "any song", username: "mod", context: modContext)
+        let result = await service.processRequest(
+            query: "any song", username: "mod",
+            source: chatSource(username: "mod", isModerator: true))
         if case .error(let msg) = result {
-            XCTAssertFalse(msg.contains("subscriber-only"), "Moderator should bypass subscriber-only gate")
+            XCTAssertFalse(
+                msg.contains("subscriber-only"), "Moderator should bypass subscriber-only gate")
         }
+    }
+
+    func testProcessRequestVipAudienceBlocksRegularViewer() async {
+        UserDefaults.standard.set(
+            RequestAudience.vipsAndSubs.rawValue,
+            forKey: AppConstants.UserDefaults.songRequestChatAudience)
+
+        let result = await service.processRequest(
+            query: "any song", username: "viewer", source: chatSource(username: "viewer"))
+        guard case .error = result else {
+            XCTFail("Expected .error blocking a non-VIP/non-sub, got \(result)")
+            return
+        }
+    }
+
+    func testProcessRequestVipAudienceAllowsVIP() async {
+        UserDefaults.standard.set(
+            RequestAudience.vipsAndSubs.rawValue,
+            forKey: AppConstants.UserDefaults.songRequestChatAudience)
+
+        let result = await service.processRequest(
+            query: "any song", username: "vip",
+            source: chatSource(username: "vip", isVIP: true))
+        if case .error(let msg) = result {
+            XCTAssertFalse(msg.contains("VIPs"), "VIP should pass the VIPs & Subscribers gate")
+        }
+    }
+
+    func testProcessRequestRedemptionSourcesBypassAudienceGate() async {
+        // Even with the strictest audience, points/bits sources are not gated here.
+        UserDefaults.standard.set(
+            RequestAudience.modsOnly.rawValue,
+            forKey: AppConstants.UserDefaults.songRequestChatAudience)
+
+        let pointsResult = await service.processRequest(
+            query: "any song", username: "viewer",
+            source: .channelPoints(redemptionID: "r", rewardID: "rw"))
+        if case .error(let msg) = pointsResult {
+            XCTAssertFalse(msg.contains("Mods"), "Channel-point requests must not hit the audience gate")
+        }
+
+        let bitsResult = await service.processRequest(
+            query: "any song", username: "viewer", source: .bits(amount: 100))
+        if case .error(let msg) = bitsResult {
+            XCTAssertFalse(msg.contains("Mods"), "Bit requests must not hit the audience gate")
+        }
+    }
+
+    // MARK: - Access Migration
+
+    func testMigrateAccessSettingsConvertsLegacySubscriberOnly() {
+        let defaults = UserDefaults.standard
+        defaults.removeObject(forKey: AppConstants.UserDefaults.songRequestChatAudience)
+        defaults.set(true, forKey: AppConstants.UserDefaults.songRequestSubscriberOnly)
+
+        SongRequestService.migrateAccessSettings()
+
+        XCTAssertEqual(
+            defaults.string(forKey: AppConstants.UserDefaults.songRequestChatAudience),
+            RequestAudience.subscribers.rawValue)
+    }
+
+    func testMigrateAccessSettingsDefaultsToEveryone() {
+        let defaults = UserDefaults.standard
+        defaults.removeObject(forKey: AppConstants.UserDefaults.songRequestChatAudience)
+        defaults.set(false, forKey: AppConstants.UserDefaults.songRequestSubscriberOnly)
+
+        SongRequestService.migrateAccessSettings()
+
+        XCTAssertEqual(
+            defaults.string(forKey: AppConstants.UserDefaults.songRequestChatAudience),
+            RequestAudience.everyone.rawValue)
     }
 
     // MARK: - Auth Check
@@ -138,13 +224,8 @@ final class SongRequestServiceTests: XCTestCase {
         mockController.isAuthorized = false
         mockController.authStatus = .denied
 
-        let context = BotCommandContext(
-            userID: "1", username: "user",
-            isModerator: false, isBroadcaster: false,
-            isSubscriber: false, messageID: "m"
-        )
-
-        let result = await service.processRequest(query: "any song", username: "user", context: context)
+        let result = await service.processRequest(
+            query: "any song", username: "user", source: chatSource(username: "user"))
         guard case .notAuthorized = result else {
             XCTFail("Expected .notAuthorized, got \(result)")
             return
@@ -159,13 +240,11 @@ final class SongRequestServiceTests: XCTestCase {
     }
 
     func testSkipWithQueueItemsAdvancesInternalQueue() async {
-        // Manually set up internal queue state with test items
         queue.add(SongRequestItem(title: "Song A", artist: "Artist", requesterUsername: "user1"))
         queue.add(SongRequestItem(title: "Song B", artist: "Artist", requesterUsername: "user2"))
-        queue.dequeue() // sets nowPlaying = Song A
+        queue.dequeue()
 
         let next = await service.skip()
-        // skip() should return the new nowPlaying (Song B)
         XCTAssertEqual(next?.title, "Song B")
         XCTAssertEqual(queue.nowPlaying?.title, "Song B")
     }
@@ -175,8 +254,6 @@ final class SongRequestServiceTests: XCTestCase {
         queue.dequeue()
 
         _ = await service.skip()
-        // Test SongRequestItems are built with `song: nil`, so SongRequestService.skip()
-        // falls through to musicController.clearPlayerQueue() rather than playNow().
         XCTAssertTrue(mockController.clearCalled)
     }
 
@@ -208,14 +285,8 @@ final class SongRequestServiceTests: XCTestCase {
     func testRequestWhileMusicAppClosedBuffers() async {
         mockController.isMusicAppRunning = false
 
-        let context = BotCommandContext(
-            userID: "1", username: "viewer",
-            isModerator: false, isBroadcaster: false,
-            isSubscriber: false, messageID: "m"
-        )
-
-        _ = await service.processRequest(query: "any song", username: "viewer", context: context)
-        // playNow should NOT be called because Music.app is closed
+        _ = await service.processRequest(
+            query: "any song", username: "viewer", source: chatSource())
         XCTAssertFalse(mockController.playNowCalled, "playNow should not fire when Music.app is closed")
     }
 
@@ -223,51 +294,46 @@ final class SongRequestServiceTests: XCTestCase {
         mockController.shouldThrowMusicAppNotRunning = true
 
         queue.add(SongRequestItem(title: "Buffered Song", artist: "Artist", requesterUsername: "user1"))
-        queue.dequeue() // sets nowPlaying, removes from items
+        queue.dequeue()
 
-        // The service's playNextInQueue is private, so we test via skip():
-        // First restore the item and let skip trigger playNextInQueue indirectly.
-        // We simulate by re-adding and calling the internal path via clearQueue/restart.
-        // Instead, directly verify the error path via the processRequest flow with mock throwing.
         mockController.isMusicAppRunning = true
-        let context = BotCommandContext(
-            userID: "1", username: "viewer",
-            isModerator: false, isBroadcaster: false,
-            isSubscriber: false, messageID: "m"
-        )
-        // The mock will throw musicAppNotRunning, which should re-queue at head
-        _ = await service.processRequest(query: "any song", username: "viewer", context: context)
-        XCTAssertFalse(mockController.playNowCalled, "playNow threw — item should be re-queued, not marked as played")
+        _ = await service.processRequest(
+            query: "any song", username: "viewer", source: chatSource())
+        XCTAssertFalse(
+            mockController.playNowCalled,
+            "playNow threw — item should be re-queued, not marked as played")
     }
 
     // MARK: - Fallback Playlist
 
     func testFallbackPlaylistPlaysWhenQueueEmpties() async {
-        UserDefaults.standard.set("Gaming Vibes", forKey: AppConstants.UserDefaults.songRequestFallbackPlaylist)
+        UserDefaults.standard.set(
+            "Gaming Vibes", forKey: AppConstants.UserDefaults.songRequestFallbackPlaylist)
         mockController.isMusicAppRunning = true
 
-        // Simulate advanceQueue with empty queue via clearQueue (triggers clearNowPlaying path)
         _ = await service.clearQueue()
 
-        // clearQueue stops the player but does NOT start fallback (destructive action = silence)
-        XCTAssertFalse(mockController.playFallbackCalled, "clearQueue should not trigger fallback playlist")
+        XCTAssertFalse(
+            mockController.playFallbackCalled, "clearQueue should not trigger fallback playlist")
 
-        UserDefaults.standard.removeObject(forKey: AppConstants.UserDefaults.songRequestFallbackPlaylist)
+        UserDefaults.standard.removeObject(
+            forKey: AppConstants.UserDefaults.songRequestFallbackPlaylist)
     }
 
     func testClearQueueDoesNotStartFallback() async {
-        UserDefaults.standard.set("Gaming Vibes", forKey: AppConstants.UserDefaults.songRequestFallbackPlaylist)
+        UserDefaults.standard.set(
+            "Gaming Vibes", forKey: AppConstants.UserDefaults.songRequestFallbackPlaylist)
         queue.add(SongRequestItem(title: "Song 1", artist: "A", requesterUsername: "user1"))
 
         _ = await service.clearQueue()
 
-        XCTAssertFalse(mockController.playFallbackCalled, "clearQueue should never auto-start fallback playlist")
+        XCTAssertFalse(
+            mockController.playFallbackCalled, "clearQueue should never auto-start fallback playlist")
         XCTAssertTrue(mockController.clearCalled, "clearQueue should stop Music.app")
 
-        UserDefaults.standard.removeObject(forKey: AppConstants.UserDefaults.songRequestFallbackPlaylist)
+        UserDefaults.standard.removeObject(
+            forKey: AppConstants.UserDefaults.songRequestFallbackPlaylist)
     }
-
-    // MARK: - Playback Monitoring: Paused State
 
     // MARK: - Hold Mode
 
@@ -276,12 +342,8 @@ final class SongRequestServiceTests: XCTestCase {
         mockController.isMusicAppRunning = true
         mockController.isPlaying = false
 
-        let context = BotCommandContext(
-            userID: "1", username: "viewer",
-            isModerator: false, isBroadcaster: false,
-            isSubscriber: false, messageID: "m"
-        )
-        _ = await service.processRequest(query: "song", username: "viewer", context: context)
+        _ = await service.processRequest(
+            query: "song", username: "viewer", source: chatSource())
 
         XCTAssertFalse(mockController.playNowCalled, "Hold should block auto-play on new requests")
     }
@@ -295,31 +357,29 @@ final class SongRequestServiceTests: XCTestCase {
 
     func testHoldBlocksFallbackStart() async {
         UserDefaults.standard.set(true, forKey: AppConstants.UserDefaults.songRequestHoldEnabled)
-        UserDefaults.standard.set("Gaming Vibes", forKey: AppConstants.UserDefaults.songRequestFallbackPlaylist)
+        UserDefaults.standard.set(
+            "Gaming Vibes", forKey: AppConstants.UserDefaults.songRequestFallbackPlaylist)
 
         _ = await service.clearQueue()
-        XCTAssertFalse(mockController.playFallbackCalled, "No fallback should start while hold is enabled")
+        XCTAssertFalse(
+            mockController.playFallbackCalled, "No fallback should start while hold is enabled")
 
-        UserDefaults.standard.removeObject(forKey: AppConstants.UserDefaults.songRequestFallbackPlaylist)
+        UserDefaults.standard.removeObject(
+            forKey: AppConstants.UserDefaults.songRequestFallbackPlaylist)
     }
 
     func testAutoAdvanceDoesNotFireWhenPaused() async {
-        // Set up a queue with items and a nowPlaying
         queue.add(SongRequestItem(title: "Next Song", artist: "A", requesterUsername: "user1"))
         queue.add(SongRequestItem(title: "Current", artist: "B", requesterUsername: "user2"))
-        queue.dequeue() // sets nowPlaying
+        queue.dequeue()
 
-        // Mock: music is paused (not playing, not stopped — paused)
         mockController.isPlaying = false
         mockController.isPaused = true
 
         service.startPlaybackMonitoring()
-        // Wait slightly longer than one polling interval (2s) to confirm no advance
         try? await Task.sleep(nanoseconds: 2_500_000_000)
         service.stopPlaybackMonitoring()
 
-        // Queue should still have "Current" — not consumed by auto-advance
-        // nowPlaying remains "Next Song" (was dequeued above), queue still holds "Current"
         XCTAssertEqual(queue.count, 1)
         XCTAssertEqual(queue.items.first?.title, "Current")
         XCTAssertEqual(queue.nowPlaying?.title, "Next Song")

@@ -38,8 +38,19 @@ final class SongRequestService {
     let musicController: any AppleMusicControlling
     let searchResolver: SongSearchResolver
 
-    var isSubscriberOnly: Bool {
-        Foundation.UserDefaults.standard.bool(forKey: AppConstants.UserDefaults.songRequestSubscriberOnly)
+    /// Who may request a song via the `!sr` chat command.
+    var chatAudience: RequestAudience {
+        let raw = Foundation.UserDefaults.standard.string(forKey: AppConstants.UserDefaults.songRequestChatAudience)
+        return RequestAudience(rawValue: raw ?? "") ?? .everyone
+    }
+
+    /// One-time migration of the legacy `songRequestSubscriberOnly` boolean to
+    /// the `songRequestChatAudience` setting. No-op once the new key exists.
+    static func migrateAccessSettings(defaults: Foundation.UserDefaults = .standard) {
+        guard defaults.string(forKey: AppConstants.UserDefaults.songRequestChatAudience) == nil else { return }
+        let legacySubOnly = defaults.bool(forKey: AppConstants.UserDefaults.songRequestSubscriberOnly)
+        let audience: RequestAudience = legacySubOnly ? .subscribers : .everyone
+        defaults.set(audience.rawValue, forKey: AppConstants.UserDefaults.songRequestChatAudience)
     }
 
     var isAutoAdvanceEnabled: Bool {
@@ -163,20 +174,31 @@ final class SongRequestService {
 
     // MARK: - Song Request Processing
 
-    /// Resolves a chat query into a track, runs blocklist + queue validation,
-    /// and either enqueues or starts playback as appropriate.
+    /// Resolves a query into a track, runs blocklist + queue validation, and
+    /// either enqueues or starts playback as appropriate.
     ///
-    /// Used by `SongRequestCommand` (`!sr`) and tests.
+    /// Used by `SongRequestCommand` (`!sr`), channel-point redemptions, and
+    /// bit cheers. The `RequestAudience` gate applies only to chat commands —
+    /// redemptions are gated by their own enable toggle.
     ///
     /// - Parameters:
     ///   - query: Search string, Apple Music link, Spotify link, or YouTube link.
     ///   - username: Twitch display name of the requester.
-    ///   - context: Sender context (used for sub/mod gating).
+    ///   - source: How the request arrived (chat command, channel points, bits).
     /// - Returns: A `RequestResult` describing the outcome — added, blocked,
     ///   queue-full, not-found, etc.
-    func processRequest(query: String, username: String, context: BotCommandContext) async -> RequestResult {
-        if isSubscriberOnly && !context.isSubscriber && !context.isPrivileged {
-            return .error("Song requests are subscriber-only right now")
+    func processRequest(query: String, username: String, source: RequestSource) async -> RequestResult {
+        if case .chatCommand(let context) = source {
+            let audience = chatAudience
+            let permitted = audience.permits(
+                isSubscriber: context.isSubscriber,
+                isVIP: context.isVIP,
+                isModerator: context.isModerator,
+                isBroadcaster: context.isBroadcaster
+            )
+            if !permitted {
+                return .error(audience.denialMessage)
+            }
         }
 
         guard musicController.isAuthorized || musicController.authStatus == .notDetermined else {

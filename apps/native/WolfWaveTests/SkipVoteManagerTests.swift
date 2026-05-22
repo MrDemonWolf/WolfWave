@@ -45,6 +45,7 @@ final class SkipVoteManagerTests: XCTestCase {
             isModerator: isModerator,
             isBroadcaster: isBroadcaster,
             isSubscriber: isSubscriber,
+            isVIP: false,
             messageID: "m\(userID)"
         )
     }

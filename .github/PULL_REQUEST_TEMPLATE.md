@@ -16,7 +16,7 @@ Closes #
 
 <!-- How did you verify this works? List manual steps and confirm CI. -->
 
-- [ ] `make test` passes locally (408 tests)
+- [ ] `make test` passes locally (1218 tests)
 - [ ] Tested manually on macOS 26+
 
 **Steps to test:**

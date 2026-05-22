@@ -62,6 +62,14 @@ struct SongRequestSettingsView: View {
 
                 Divider().padding(.vertical, 4)
 
+                SongRequestAccessCard()
+
+                Divider().padding(.vertical, 4)
+
+                SongRequestRedemptionsCard()
+
+                Divider().padding(.vertical, 4)
+
                 SongRequestPlaybackCard()
 
                 Divider().padding(.vertical, 4)
@@ -397,9 +405,6 @@ fileprivate struct SongRequestQueueConfigCard: View {
     @AppStorage(AppConstants.UserDefaults.songRequestPerUserLimit)
     private var perUserLimit = 2
 
-    @AppStorage(AppConstants.UserDefaults.songRequestSubscriberOnly)
-    private var subscriberOnly = false
-
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             Text("Queue Settings")
@@ -428,14 +433,202 @@ fileprivate struct SongRequestQueueConfigCard: View {
                 .pickerStyle(.menu)
                 .frame(width: 80)
             }
+        }
+        .padding(AppConstants.SettingsUI.cardPadding)
+        .background(.quaternary.opacity(0.5))
+        .clipShape(RoundedRectangle(cornerRadius: AppConstants.SettingsUI.cardCornerRadius))
+    }
+}
 
+// MARK: - Access (Who Can Request)
+
+fileprivate struct SongRequestAccessCard: View {
+    @AppStorage(AppConstants.UserDefaults.songRequestChatAudience)
+    private var audience: RequestAudience = .everyone
+
+    // Observed so the active-preset highlight refreshes when any of these change.
+    @AppStorage(AppConstants.UserDefaults.srCommandEnabled) private var srEnabled = true
+    @AppStorage(AppConstants.UserDefaults.songRequestChannelPointsEnabled)
+    private var channelPointsEnabled = false
+    @AppStorage(AppConstants.UserDefaults.songRequestBitsEnabled) private var bitsEnabled = false
+
+    private var activePreset: SongRequestPreset? { SongRequestPreset.current() }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("Who Can Request")
+                .font(.system(size: 13, weight: .semibold))
+
+            Text("Pick a preset, or fine-tune who can use the !sr command below.")
+                .font(.system(size: 11))
+                .foregroundStyle(.secondary)
+
+            // Preset buttons
+            HStack(spacing: 6) {
+                ForEach(SongRequestPreset.allCases) { preset in
+                    Button {
+                        preset.apply()
+                        AppDelegate.shared?.twitchService?.refreshRedemptionSubscriptions()
+                    } label: {
+                        Text(preset.displayName)
+                            .font(.system(size: 11, weight: .medium))
+                            .frame(maxWidth: .infinity)
+                    }
+                    .buttonStyle(.bordered)
+                    .controlSize(.small)
+                    .tint(activePreset == preset ? Color(nsColor: .controlAccentColor) : nil)
+                    .accessibilityIdentifier("songRequests.preset.\(preset.rawValue)")
+                }
+            }
+
+            HStack(alignment: .top, spacing: 6) {
+                Image(systemName: activePreset == nil ? "slider.horizontal.3" : "checkmark.circle.fill")
+                    .font(.system(size: 11))
+                    .foregroundStyle(activePreset == nil ? Color.secondary : Color.green)
+                Text(activePreset?.summary ?? "Custom configuration.")
+                    .font(.system(size: 11))
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+
+            Divider()
+
+            HStack {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("!sr command audience").font(.system(size: 12))
+                    Text("Mods and you can always request.")
+                        .font(.system(size: 10))
+                        .foregroundStyle(.tertiary)
+                }
+                Spacer()
+                Picker("", selection: $audience) {
+                    ForEach(RequestAudience.allCases) { option in
+                        Text(option.displayName).tag(option)
+                    }
+                }
+                .pickerStyle(.menu)
+                .frame(width: 170)
+                .accessibilityIdentifier("songRequests.audience")
+            }
+        }
+        .padding(AppConstants.SettingsUI.cardPadding)
+        .background(.quaternary.opacity(0.5))
+        .clipShape(RoundedRectangle(cornerRadius: AppConstants.SettingsUI.cardCornerRadius))
+    }
+}
+
+// MARK: - Redemptions (Channel Points & Bits)
+
+fileprivate struct SongRequestRedemptionsCard: View {
+    @AppStorage(AppConstants.UserDefaults.songRequestRedemptionStatus)
+    private var redemptionStatus: RedemptionStatus = .ok
+
+    @AppStorage(AppConstants.UserDefaults.songRequestChannelPointsEnabled)
+    private var channelPointsEnabled = false
+    @AppStorage(AppConstants.UserDefaults.songRequestChannelPointsCost)
+    private var channelPointsCost = 500
+
+    @AppStorage(AppConstants.UserDefaults.songRequestBitsEnabled)
+    private var bitsEnabled = false
+    @AppStorage(AppConstants.UserDefaults.songRequestBitsMinimum)
+    private var bitsMinimum = 100
+    @AppStorage(AppConstants.UserDefaults.songRequestBitsBoostEnabled)
+    private var bitsBoostEnabled = false
+
+    private func refresh() {
+        AppDelegate.shared?.twitchService?.refreshRedemptionSubscriptions()
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("Channel Points & Bits")
+                .font(.system(size: 13, weight: .semibold))
+
+            Text("Let viewers redeem a song with channel points or a bit cheer.")
+                .font(.system(size: 11))
+                .foregroundStyle(.secondary)
+
+            if let banner = redemptionStatus.bannerMessage {
+                HStack(alignment: .top, spacing: 8) {
+                    Image(systemName: "exclamationmark.triangle.fill")
+                        .font(.system(size: 12))
+                        .foregroundStyle(.orange)
+                    Text(banner)
+                        .font(.system(size: 11))
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                .padding(10)
+                .background(.orange.opacity(0.1))
+                .clipShape(RoundedRectangle(cornerRadius: 8))
+                .accessibilityIdentifier("songRequests.redemptionBanner")
+            }
+
+            // Channel Points
             ToggleSettingRow(
-                title: "Subscriber-Only Mode",
-                subtitle: "Only subscribers can request songs",
-                isOn: $subscriberOnly,
-                accessibilityLabel: "Subscriber-only mode",
-                accessibilityIdentifier: "songRequests.subscriberOnly"
+                title: "Channel Point Requests",
+                subtitle: "WolfWave adds a \u{201C}Request a Song\u{201D} reward to your channel",
+                isOn: $channelPointsEnabled,
+                accessibilityLabel: "Enable channel point song requests",
+                accessibilityIdentifier: "songRequests.channelPointsEnabled",
+                onChange: { _ in refresh() }
             )
+
+            if channelPointsEnabled {
+                HStack {
+                    Text("Reward cost").font(.system(size: 12))
+                    Spacer()
+                    Picker("", selection: $channelPointsCost) {
+                        ForEach([100, 250, 500, 1000, 2500, 5000], id: \.self) { cost in
+                            Text("\(cost)").tag(cost)
+                        }
+                    }
+                    .pickerStyle(.menu)
+                    .frame(width: 90)
+                    .accessibilityIdentifier("songRequests.channelPointsCost")
+                }
+                .onChange(of: channelPointsCost) { _, _ in refresh() }
+
+                Text("Failed requests (song not found, blocked, queue full) refund the points automatically.")
+                    .font(.system(size: 10))
+                    .foregroundStyle(.tertiary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+
+            Divider()
+
+            // Bits
+            ToggleSettingRow(
+                title: "Bit Requests",
+                subtitle: "Viewers cheer with a song name to request it",
+                isOn: $bitsEnabled,
+                accessibilityLabel: "Enable bit song requests",
+                accessibilityIdentifier: "songRequests.bitsEnabled",
+                onChange: { _ in refresh() }
+            )
+
+            if bitsEnabled {
+                HStack {
+                    Text("Minimum bits").font(.system(size: 12))
+                    Spacer()
+                    Picker("", selection: $bitsMinimum) {
+                        ForEach([1, 50, 100, 200, 500, 1000], id: \.self) { amount in
+                            Text("\(amount)").tag(amount)
+                        }
+                    }
+                    .pickerStyle(.menu)
+                    .frame(width: 90)
+                    .accessibilityIdentifier("songRequests.bitsMinimum")
+                }
+
+                ToggleSettingRow(
+                    title: "Boost With Bits",
+                    subtitle: "A cheer bumps the cheerer's queued song to the front instead of adding a new one",
+                    isOn: $bitsBoostEnabled,
+                    accessibilityLabel: "Boost queued song with bits",
+                    accessibilityIdentifier: "songRequests.bitsBoost"
+                )
+            }
         }
         .padding(AppConstants.SettingsUI.cardPadding)
         .background(.quaternary.opacity(0.5))

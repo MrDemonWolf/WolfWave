@@ -33,7 +33,7 @@ final class VoteSkipCommandTests: XCTestCase {
         BotCommandContext(
             userID: userID, username: "user\(userID)",
             isModerator: false, isBroadcaster: false,
-            isSubscriber: false, messageID: "m\(userID)"
+            isSubscriber: false, isVIP: false, messageID: "m\(userID)"
         )
     }
 

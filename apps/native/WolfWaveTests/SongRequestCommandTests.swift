@@ -138,21 +138,21 @@ final class SongRequestCommandTests: XCTestCase {
         let modContext = BotCommandContext(
             userID: "123", username: "moduser",
             isModerator: true, isBroadcaster: false,
-            isSubscriber: false, messageID: "msg1"
+            isSubscriber: false, isVIP: false, messageID: "msg1"
         )
         XCTAssertTrue(modContext.isPrivileged)
 
         let broadcasterContext = BotCommandContext(
             userID: "456", username: "streamer",
             isModerator: false, isBroadcaster: true,
-            isSubscriber: false, messageID: "msg2"
+            isSubscriber: false, isVIP: false, messageID: "msg2"
         )
         XCTAssertTrue(broadcasterContext.isPrivileged)
 
         let viewerContext = BotCommandContext(
             userID: "789", username: "viewer",
             isModerator: false, isBroadcaster: false,
-            isSubscriber: true, messageID: "msg3"
+            isSubscriber: true, isVIP: false, messageID: "msg3"
         )
         XCTAssertFalse(viewerContext.isPrivileged)
     }
@@ -314,7 +314,7 @@ final class SongRequestCommandTests: XCTestCase {
         let context = BotCommandContext(
             userID: "999", username: "testuser",
             isModerator: false, isBroadcaster: false,
-            isSubscriber: false, messageID: "m1"
+            isSubscriber: false, isVIP: false, messageID: "m1"
         )
 
         var reply: String?
@@ -338,7 +338,7 @@ final class SongRequestCommandTests: XCTestCase {
         let context = BotCommandContext(
             userID: "999", username: "emptyuser",
             isModerator: false, isBroadcaster: false,
-            isSubscriber: false, messageID: "m2"
+            isSubscriber: false, isVIP: false, messageID: "m2"
         )
 
         var reply: String?
@@ -358,7 +358,7 @@ final class SongRequestCommandTests: XCTestCase {
             context: BotCommandContext(
                 userID: "1", username: "viewer",
                 isModerator: false, isBroadcaster: false,
-                isSubscriber: false, messageID: "m"
+                isSubscriber: false, isVIP: false, messageID: "m"
             )
         ) { _ in replyCalled = true }
         XCTAssertFalse(replyCalled)
@@ -372,7 +372,7 @@ final class SongRequestCommandTests: XCTestCase {
             context: BotCommandContext(
                 userID: "1", username: "viewer",
                 isModerator: false, isBroadcaster: false,
-                isSubscriber: false, messageID: "m"
+                isSubscriber: false, isVIP: false, messageID: "m"
             )
         ) { _ in replyCalled = true }
         XCTAssertFalse(replyCalled)

@@ -32,6 +32,9 @@ struct BotCommandContext {
     /// Whether the sender has a subscriber badge in this channel.
     let isSubscriber: Bool
 
+    /// Whether the sender has a VIP badge in this channel.
+    let isVIP: Bool
+
     /// The Twitch chat message ID. Used to send threaded replies via the
     /// Helix Send Chat Message endpoint.
     let messageID: String

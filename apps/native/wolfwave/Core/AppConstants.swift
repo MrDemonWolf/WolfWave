@@ -288,6 +288,34 @@ enum AppConstants {
         /// Whether song request auto-play is paused — requests still queue but nothing plays (Bool, default: false)
         static let songRequestHoldEnabled = "songRequestHoldEnabled"
 
+        /// Who may request via the !sr chat command — a `RequestAudience` raw value
+        /// (String, default: "everyone"). Supersedes `songRequestSubscriberOnly`.
+        static let songRequestChatAudience = "songRequestChatAudience"
+
+        /// Whether channel-point song requests are enabled (Bool, default: false)
+        static let songRequestChannelPointsEnabled = "songRequestChannelPointsEnabled"
+
+        /// Channel-point cost of the WolfWave-managed "Request a Song" reward (Int, default: 500)
+        static let songRequestChannelPointsCost = "songRequestChannelPointsCost"
+
+        /// ID of the WolfWave-managed custom channel-point reward (String, default: "")
+        static let songRequestChannelPointsRewardID = "songRequestChannelPointsRewardID"
+
+        /// Whether bit-cheer song requests are enabled (Bool, default: false)
+        static let songRequestBitsEnabled = "songRequestBitsEnabled"
+
+        /// Minimum bits a cheer must include to trigger a song request (Int, default: 100)
+        static let songRequestBitsMinimum = "songRequestBitsMinimum"
+
+        /// Whether a bit cheer boosts the cheerer's already-queued song instead of
+        /// adding a new one (Bool, default: false)
+        static let songRequestBitsBoostEnabled = "songRequestBitsBoostEnabled"
+
+        /// Health of the redemption integration — a `RedemptionStatus` raw value.
+        /// Empty/"ok" when working; other values drive the settings re-auth banner
+        /// (String, default: "ok").
+        static let songRequestRedemptionStatus = "songRequestRedemptionStatus"
+
         // MARK: Chat Vote-Skip Keys
 
         /// Whether the chat vote-to-skip feature is enabled (Bool, default: false)
@@ -400,6 +428,14 @@ enum AppConstants {
             songRequestUserCooldown,
             songRequestFallbackPlaylist,
             songRequestHoldEnabled,
+            songRequestChatAudience,
+            songRequestChannelPointsEnabled,
+            songRequestChannelPointsCost,
+            songRequestChannelPointsRewardID,
+            songRequestBitsEnabled,
+            songRequestBitsMinimum,
+            songRequestBitsBoostEnabled,
+            songRequestRedemptionStatus,
             voteSkipEnabled,
             voteSkipMinVotes,
             voteSkipWindowSeconds,
@@ -494,6 +530,34 @@ enum AppConstants {
 
         /// Delay before sending connection message after subscribing (seconds)
         static let connectionMessageDelay: TimeInterval = 1.5
+
+        // MARK: EventSub Subscription Types
+
+        /// EventSub type for incoming chat messages.
+        static let eventSubChatMessage = "channel.chat.message"
+
+        /// EventSub type fired when a viewer redeems a custom channel-point reward.
+        static let eventSubChannelPointsRedemption = "channel.channel_points_custom_reward_redemption.add"
+
+        /// EventSub type fired when a viewer uses bits (cheers or Power-ups).
+        static let eventSubBitsUse = "channel.bits.use"
+
+        // MARK: OAuth Scopes
+
+        /// OAuth scopes required for core chat functionality.
+        static let chatScopes = ["user:read:chat", "user:write:chat"]
+
+        /// OAuth scope for creating and managing custom channel-point rewards.
+        static let channelPointsScope = "channel:manage:redemptions"
+
+        /// OAuth scope for reading bit-usage events.
+        static let bitsScope = "bits:read"
+
+        /// OAuth scope for managing Twitch Polls (used by chat vote-skip in Polls mode).
+        static let pollsScope = "channel:manage:polls"
+
+        /// Title of the WolfWave-managed custom channel-point reward.
+        static let songRequestRewardTitle = "Request a Song"
     }
 
     // MARK: - Widget
