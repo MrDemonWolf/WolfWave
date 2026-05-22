@@ -356,6 +356,7 @@ extension AppDelegate {
                 track: song,
                 artist: artist,
                 album: currentAlbum ?? "",
+                playlist: currentPlaylist ?? "",
                 duration: currentDuration,
                 elapsed: currentElapsed
             )
@@ -521,6 +522,7 @@ extension AppDelegate: PlaybackSourceDelegate {
         didUpdateTrack track: String,
         artist: String,
         album: String,
+        playlist: String,
         duration: TimeInterval,
         elapsed: TimeInterval
     ) {
@@ -551,10 +553,11 @@ extension AppDelegate: PlaybackSourceDelegate {
         currentSong = track
         currentArtist = artist
         currentAlbum = album
+        currentPlaylist = playlist
         currentDuration = duration
         currentElapsed = elapsed
 
-        postNowPlayingUpdate(song: track, artist: artist, album: album)
+        postNowPlayingUpdate(song: track, artist: artist, album: album, playlist: playlist)
 
         websocketServer?.updateNowPlaying(
             track: track,
@@ -570,6 +573,7 @@ extension AppDelegate: PlaybackSourceDelegate {
             track: track,
             artist: artist,
             album: album,
+            playlist: playlist,
             duration: duration,
             elapsed: elapsed
         )
@@ -596,6 +600,7 @@ extension AppDelegate: PlaybackSourceDelegate {
             currentSong = nil
             currentArtist = nil
             currentAlbum = nil
+            currentPlaylist = nil
         }
 
         postNowPlayingUpdate(song: nil, artist: nil, album: nil)

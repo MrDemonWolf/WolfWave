@@ -36,6 +36,10 @@ struct DiscordPreviewCard: View {
     let button1: PreviewButton?
     let button2: PreviewButton?
 
+    /// Hover tooltip for the small Apple Music badge. When non-nil, mirrors the
+    /// playlist text Discord shows on the small icon (`assets.small_text`).
+    var playlistTooltip: String? = nil
+
     // MARK: - Constants
 
     /// Discord card background `#2B2D31`.
@@ -136,6 +140,7 @@ struct DiscordPreviewCard: View {
                 .clipShape(Circle())
                 .overlay(Circle().stroke(cardBackground, lineWidth: 2))
                 .offset(x: 4, y: 4)
+                .help(playlistTooltip ?? "Apple Music")
         }
     }
 
@@ -192,6 +197,7 @@ struct DiscordPreviewCard: View {
 
     private var accessibilitySummary: String {
         var parts = ["Discord preview", "Listening to Apple Music", trackTitle, artist, album]
+        if let playlistTooltip { parts.append("App icon tooltip: \(playlistTooltip)") }
         if let b1 = button1 { parts.append("Button: \(b1.label)") }
         if let b2 = button2 { parts.append("Button: \(b2.label)") }
         return parts.joined(separator: ", ")

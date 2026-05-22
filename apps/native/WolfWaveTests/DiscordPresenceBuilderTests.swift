@@ -225,4 +225,139 @@ final class DiscordPresenceBuilderTests: XCTestCase {
         let assets = activity["assets"] as? [String: String]
         XCTAssertEqual(assets?["large_image"], "https://example.com/art.jpg")
     }
+
+    // MARK: - resolvePlaylistDisplay
+
+    /// Enables the playlist feature on the isolated suite with the given options.
+    private func enablePlaylist(showName: Bool = true, style: DiscordPlaylistStyle = .artistLine) {
+        defaults.set(true, forKey: AppConstants.UserDefaults.discordPlaylistEnabled)
+        defaults.set(showName, forKey: AppConstants.UserDefaults.discordPlaylistShowName)
+        defaults.set(style.rawValue, forKey: AppConstants.UserDefaults.discordPlaylistStyle)
+    }
+
+    func test_resolvePlaylistDisplay_nil_whenFeatureDisabled() {
+        let result = DiscordRPCService.resolvePlaylistDisplay(
+            playlist: "Chill Saturday", album: "Diamond Life", defaults: defaults
+        )
+        XCTAssertNil(result)
+    }
+
+    func test_resolvePlaylistDisplay_nil_whenEmpty() {
+        defaults.set(true, forKey: AppConstants.UserDefaults.discordPlaylistEnabled)
+        let result = DiscordRPCService.resolvePlaylistDisplay(
+            playlist: "   ", album: "Al", defaults: defaults
+        )
+        XCTAssertNil(result)
+    }
+
+    func test_resolvePlaylistDisplay_nil_whenGenericName() {
+        defaults.set(true, forKey: AppConstants.UserDefaults.discordPlaylistEnabled)
+        for generic in ["Library", "music", "Apple Music"] {
+            let result = DiscordRPCService.resolvePlaylistDisplay(
+                playlist: generic, album: "Al", defaults: defaults
+            )
+            XCTAssertNil(result, "\(generic) should be treated as a generic container")
+        }
+    }
+
+    func test_resolvePlaylistDisplay_nil_whenEqualsAlbum() {
+        defaults.set(true, forKey: AppConstants.UserDefaults.discordPlaylistEnabled)
+        let result = DiscordRPCService.resolvePlaylistDisplay(
+            playlist: "diamond life", album: "Diamond Life", defaults: defaults
+        )
+        XCTAssertNil(result, "Playlist matching the album name should be hidden")
+    }
+
+    func test_resolvePlaylistDisplay_named_whenEnabledAndShowNameOn() {
+        defaults.set(true, forKey: AppConstants.UserDefaults.discordPlaylistEnabled)
+        let result = DiscordRPCService.resolvePlaylistDisplay(
+            playlist: "  Chill Saturday  ", album: "Al", defaults: defaults
+        )
+        XCTAssertEqual(result, .named("Chill Saturday"))
+    }
+
+    func test_resolvePlaylistDisplay_anonymous_whenShowNameOff() {
+        defaults.set(true, forKey: AppConstants.UserDefaults.discordPlaylistEnabled)
+        defaults.set(false, forKey: AppConstants.UserDefaults.discordPlaylistShowName)
+        let result = DiscordRPCService.resolvePlaylistDisplay(
+            playlist: "Chill Saturday", album: "Al", defaults: defaults
+        )
+        XCTAssertEqual(result, .anonymous)
+    }
+
+    // MARK: - buildActivity + playlist
+
+    func test_buildActivity_styleArtistLine_appendsPlaylistToState() {
+        enablePlaylist()
+        let activity = DiscordRPCService.buildActivity(
+            track: "Smooth Operator", artist: "Sade", album: "Diamond Life",
+            playlist: "Chill Saturday",
+            artworkURL: nil, duration: 0, elapsed: 0,
+            appleMusicURL: nil, songLinkURL: nil,
+            defaults: defaults, now: Date()
+        )
+        XCTAssertEqual(activity["state"] as? String, "Sade · Chill Saturday")
+        let assets = activity["assets"] as? [String: String]
+        XCTAssertEqual(assets?["small_text"], "Apple Music")
+    }
+
+    func test_buildActivity_styleArtistLine_genericLabelWhenNameHidden() {
+        enablePlaylist(showName: false)
+        let activity = DiscordRPCService.buildActivity(
+            track: "T", artist: "Sade", album: "Al",
+            playlist: "Chill Saturday",
+            artworkURL: nil, duration: 0, elapsed: 0,
+            appleMusicURL: nil, songLinkURL: nil,
+            defaults: defaults, now: Date()
+        )
+        XCTAssertEqual(activity["state"] as? String, "Sade · From a playlist")
+    }
+
+    func test_buildActivity_styleIconTooltip_setsSmallText() {
+        enablePlaylist(style: .iconTooltip)
+        let activity = DiscordRPCService.buildActivity(
+            track: "T", artist: "Sade", album: "Al",
+            playlist: "Chill Saturday",
+            artworkURL: nil, duration: 0, elapsed: 0,
+            appleMusicURL: nil, songLinkURL: nil,
+            defaults: defaults, now: Date()
+        )
+        XCTAssertEqual(activity["state"] as? String, "Sade", "icon-tooltip style leaves the state line untouched")
+        let assets = activity["assets"] as? [String: String]
+        XCTAssertEqual(assets?["small_text"], "Playlist · Chill Saturday")
+    }
+
+    func test_buildActivity_styleIconTooltip_genericTooltipWhenNameHidden() {
+        enablePlaylist(showName: false, style: .iconTooltip)
+        let activity = DiscordRPCService.buildActivity(
+            track: "T", artist: "Sade", album: "Al",
+            playlist: "Chill Saturday",
+            artworkURL: nil, duration: 0, elapsed: 0,
+            appleMusicURL: nil, songLinkURL: nil,
+            defaults: defaults, now: Date()
+        )
+        let assets = activity["assets"] as? [String: String]
+        XCTAssertEqual(assets?["small_text"], "Playing from a playlist")
+    }
+
+    func test_buildActivity_noPlaylist_whenFeatureDisabled() {
+        let activity = DiscordRPCService.buildActivity(
+            track: "T", artist: "Sade", album: "Al",
+            playlist: "Chill Saturday",
+            artworkURL: nil, duration: 0, elapsed: 0,
+            appleMusicURL: nil, songLinkURL: nil,
+            defaults: defaults, now: Date()
+        )
+        XCTAssertEqual(activity["state"] as? String, "Sade")
+        let assets = activity["assets"] as? [String: String]
+        XCTAssertEqual(assets?["small_text"], "Apple Music")
+    }
+
+    func test_stateLine_truncatesToActivityTextMax() {
+        let longPlaylist = String(repeating: "P", count: 200)
+        let line = DiscordRPCService.stateLine(
+            artist: "Sade", playlist: .named(longPlaylist), style: .artistLine
+        )
+        XCTAssertEqual(line.count, AppConstants.Discord.activityTextMaxLength)
+    }
 }

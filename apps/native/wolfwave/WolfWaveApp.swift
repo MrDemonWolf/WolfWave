@@ -69,6 +69,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     var currentSong: String?
     var currentArtist: String?
     var currentAlbum: String?
+    var currentPlaylist: String?
     var currentDuration: TimeInterval = 0
     var currentElapsed: TimeInterval = 0
     var lastSong: String?
@@ -155,12 +156,13 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     // MARK: - Track Display Updates
 
     /// Posts a `nowPlayingChanged` notification for settings view observers.
-    func postNowPlayingUpdate(song: String?, artist: String?, album: String?) {
+    func postNowPlayingUpdate(song: String?, artist: String?, album: String?, playlist: String? = nil) {
         Task { @MainActor in
             var userInfo: [String: Any] = [:]
             if let song { userInfo["track"] = song }
             if let artist { userInfo["artist"] = artist }
             if let album { userInfo["album"] = album }
+            if let playlist { userInfo["playlist"] = playlist }
             NotificationCenter.default.post(
                 name: .nowPlayingChanged,
                 object: nil,

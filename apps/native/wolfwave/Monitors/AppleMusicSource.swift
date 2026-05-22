@@ -116,7 +116,9 @@ class AppleMusicSource: PlaybackSource {
                 let album = track.value(forKey: "album") as? String ?? ""
                 let duration = (track.value(forKey: "duration") as? Double) ?? 0
                 let elapsed = (musicApp.value(forKey: "playerPosition") as? Double) ?? 0
-                let combined = name + Constants.trackSeparator + artist + Constants.trackSeparator + album + Constants.trackSeparator + String(duration) + Constants.trackSeparator + String(elapsed)
+                let playlist = (musicApp.value(forKey: "currentPlaylist") as? SBObject)?
+                    .value(forKey: "name") as? String ?? ""
+                let combined = name + Constants.trackSeparator + artist + Constants.trackSeparator + album + Constants.trackSeparator + String(duration) + Constants.trackSeparator + String(elapsed) + Constants.trackSeparator + playlist
                 handleTrackInfo(combined)
             } else {
                 handleTrackInfo(Constants.Status.notPlaying)
@@ -135,10 +137,10 @@ class AppleMusicSource: PlaybackSource {
         }
     }
 
-    private func notifyDelegate(track: String, artist: String, album: String, duration: TimeInterval, elapsed: TimeInterval) {
+    private func notifyDelegate(track: String, artist: String, album: String, playlist: String, duration: TimeInterval, elapsed: TimeInterval) {
         Task { @MainActor [weak self] in
             guard let self else { return }
-            self.delegate?.playbackSource(didUpdateTrack: track, artist: artist, album: album, duration: duration, elapsed: elapsed)
+            self.delegate?.playbackSource(didUpdateTrack: track, artist: artist, album: album, playlist: playlist, duration: duration, elapsed: elapsed)
         }
     }
 
@@ -150,8 +152,9 @@ class AppleMusicSource: PlaybackSource {
         let album = components[2]
         let duration = components.count > 3 ? (Double(components[3]) ?? 0) : 0
         let elapsed = components.count > 4 ? (Double(components[4]) ?? 0) : 0
+        let playlist = components.count > 5 ? components[5] : ""
         lastTrackSeenAt = Date()
-        notifyDelegate(track: trackName, artist: artist, album: album, duration: duration, elapsed: elapsed)
+        notifyDelegate(track: trackName, artist: artist, album: album, playlist: playlist, duration: duration, elapsed: elapsed)
         logTrackIfNew(trackInfo, trackName: trackName, artist: artist, album: album)
     }
 

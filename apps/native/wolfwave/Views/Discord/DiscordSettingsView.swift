@@ -31,6 +31,15 @@ struct DiscordSettingsView: View {
     @AppStorage(AppConstants.UserDefaults.discordButton2Label)
     private var button2Label = ""
 
+    @AppStorage(AppConstants.UserDefaults.discordPlaylistEnabled)
+    private var playlistEnabled = false
+
+    @AppStorage(AppConstants.UserDefaults.discordPlaylistShowName)
+    private var playlistShowName = true
+
+    @AppStorage(AppConstants.UserDefaults.discordPlaylistStyle)
+    private var playlistStyle: DiscordPlaylistStyle = .default
+
     // MARK: - State
 
     @State private var connectionState: DiscordRPCService.ConnectionState = .disconnected
@@ -45,10 +54,12 @@ struct DiscordSettingsView: View {
             connectionSection
             if presenceEnabled && hasClientID {
                 buttonsSection
+                playlistSection
                 previewSection
             }
         }
         .animation(.easeInOut(duration: 0.2), value: presenceEnabled)
+        .animation(.easeInOut(duration: 0.2), value: playlistEnabled)
         .onAppear {
             hasClientID = DiscordRPCService.resolveClientID() != nil
             refreshConnectionState()
@@ -94,6 +105,9 @@ struct DiscordSettingsView: View {
             }
             scheduleSettingsResend()
         }
+        .onChange(of: playlistEnabled) { _, _ in scheduleSettingsResend() }
+        .onChange(of: playlistShowName) { _, _ in scheduleSettingsResend() }
+        .onChange(of: playlistStyle) { _, _ in scheduleSettingsResend() }
     }
 
     // MARK: - Sections
@@ -184,6 +198,64 @@ struct DiscordSettingsView: View {
         .transition(.opacity)
     }
 
+    private var playlistSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            SectionHeaderWithStatus(
+                title: "Playlist",
+                subtitle: "Show the Apple Music playlist you're listening from.",
+                statusText: playlistEnabled ? "On" : "Off",
+                statusColor: playlistEnabled ? .green : .secondary
+            )
+
+            VStack(alignment: .leading, spacing: 16) {
+                ToggleSettingRow(
+                    title: "Show playlist",
+                    subtitle: "Adds the current playlist to your Discord status",
+                    isOn: $playlistEnabled,
+                    accessibilityLabel: "Show playlist on Discord",
+                    accessibilityIdentifier: "discordPlaylistToggle",
+                    accessibilityHint: "Toggle to show or hide the current playlist"
+                )
+
+                if playlistEnabled {
+                    Divider()
+
+                    HStack {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("Display style")
+                                .font(.system(size: 13, weight: .medium))
+                            Text(playlistStyleSubtitle)
+                                .font(.system(size: 11))
+                                .foregroundStyle(.tertiary)
+                        }
+                        Spacer()
+                        Picker("Display style", selection: $playlistStyle) {
+                            Text("Artist + playlist line").tag(DiscordPlaylistStyle.artistLine)
+                            Text("Playlist tooltip").tag(DiscordPlaylistStyle.iconTooltip)
+                        }
+                        .labelsHidden()
+                        .pickerStyle(.menu)
+                        .fixedSize()
+                        .accessibilityIdentifier("discordPlaylistStylePicker")
+                    }
+
+                    Divider()
+
+                    ToggleSettingRow(
+                        title: "Show playlist name",
+                        subtitle: "Off shows a generic label so the name stays private",
+                        isOn: $playlistShowName,
+                        accessibilityLabel: "Show playlist name",
+                        accessibilityIdentifier: "discordPlaylistShowNameToggle",
+                        accessibilityHint: "Toggle to reveal or hide the playlist's name"
+                    )
+                }
+            }
+            .cardStyle()
+        }
+        .transition(.opacity)
+    }
+
     private var previewSection: some View {
         VStack(alignment: .leading, spacing: 12) {
             SectionHeaderWithStatus(
@@ -195,7 +267,7 @@ struct DiscordSettingsView: View {
 
             DiscordPreviewCard(
                 trackTitle: nowPlaying.track,
-                artist: nowPlaying.artist,
+                artist: previewStateLine,
                 album: nowPlaying.album,
                 artworkURL: nowPlaying.artworkURL.flatMap(URL.init(string:)),
                 button1: previewButton(
@@ -209,11 +281,56 @@ struct DiscordSettingsView: View {
                     label: button2Label,
                     defaultLabel: AppConstants.Discord.defaultButton2Label,
                     url: nowPlaying.songLinkURL ?? "https://song.link/"
-                )
+                ),
+                playlistTooltip: previewPlaylistTooltip
             )
             .padding(.horizontal, 4)
+
+            if let tooltip = previewPlaylistTooltip {
+                HStack(spacing: 6) {
+                    Image(systemName: "info.circle")
+                    Text("Hover the app icon on Discord to see: \(tooltip)")
+                }
+                .font(.system(size: 11))
+                .foregroundStyle(.secondary)
+                .padding(.horizontal, 4)
+            }
         }
         .transition(.opacity)
+    }
+
+    // MARK: - Playlist Preview Helpers
+
+    /// Resolves the playlist for the preview using the same logic as the live presence.
+    private var playlistDisplay: DiscordRPCService.PlaylistDisplay? {
+        DiscordRPCService.resolvePlaylistDisplay(
+            playlist: nowPlaying.playlist,
+            album: nowPlaying.album,
+            defaults: .standard
+        )
+    }
+
+    /// The activity state line (line 2) as the live presence would render it.
+    private var previewStateLine: String {
+        DiscordRPCService.stateLine(
+            artist: nowPlaying.artist,
+            playlist: playlistDisplay,
+            style: playlistStyle
+        )
+    }
+
+    /// The small-icon tooltip text, or nil when the playlist isn't shown there.
+    private var previewPlaylistTooltip: String? {
+        guard playlistStyle == .iconTooltip, playlistDisplay != nil else { return nil }
+        return DiscordRPCService.smallText(playlist: playlistDisplay, style: playlistStyle)
+    }
+
+    /// Caption describing where the chosen style surfaces the playlist.
+    private var playlistStyleSubtitle: String {
+        switch playlistStyle {
+        case .artistLine:  return "Shown next to the artist"
+        case .iconTooltip: return "Shown when hovering the app icon"
+        }
     }
 
     // MARK: - Helpers
@@ -269,11 +386,13 @@ struct DiscordSettingsView: View {
               let track = info["track"] as? String,
               let artist = info["artist"] as? String else { return }
         let album = (info["album"] as? String) ?? ""
+        let playlist = (info["playlist"] as? String) ?? ""
         let links = ArtworkService.shared.cachedTrackLinks(track: track, artist: artist)
         nowPlaying = NowPlayingSnapshot(
             track: track,
             artist: artist,
             album: album,
+            playlist: playlist,
             artworkURL: links.artworkURL,
             appleMusicURL: links.trackViewURL,
             songLinkURL: links.songLinkURL,
@@ -310,6 +429,7 @@ private struct NowPlayingSnapshot {
     let track: String
     let artist: String
     let album: String
+    let playlist: String
     let artworkURL: String?
     let appleMusicURL: String?
     let songLinkURL: String?
@@ -319,6 +439,7 @@ private struct NowPlayingSnapshot {
         track: "Smooth Operator",
         artist: "Sade",
         album: "Diamond Life",
+        playlist: "Chill Saturday",
         artworkURL: nil,
         appleMusicURL: nil,
         songLinkURL: nil,

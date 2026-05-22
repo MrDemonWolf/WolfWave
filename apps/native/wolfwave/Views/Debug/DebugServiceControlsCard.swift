@@ -14,6 +14,7 @@ struct DebugServiceControlsCard: View {
     @State private var fakeTitle: String = "Test Track"
     @State private var fakeArtist: String = "Test Artist"
     @State private var fakeAlbum: String = "Test Album"
+    @State private var fakePlaylist: String = "Test Playlist"
     @State private var fakeDuration: Double = 180
     @State private var queueRequester: String = "tester"
     @State private var queueCount: Int = 3
@@ -58,6 +59,7 @@ struct DebugServiceControlsCard: View {
             TextField("Title", text: $fakeTitle).textFieldStyle(.roundedBorder)
             TextField("Artist", text: $fakeArtist).textFieldStyle(.roundedBorder)
             TextField("Album", text: $fakeAlbum).textFieldStyle(.roundedBorder)
+            TextField("Playlist", text: $fakePlaylist).textFieldStyle(.roundedBorder)
             HStack {
                 Text("Duration: \(Int(fakeDuration))s")
                     .font(.system(size: 11))
@@ -70,6 +72,7 @@ struct DebugServiceControlsCard: View {
                         didUpdateTrack: fakeTitle,
                         artist: fakeArtist,
                         album: fakeAlbum,
+                        playlist: fakePlaylist,
                         duration: fakeDuration,
                         elapsed: 0
                     )

@@ -8,6 +8,29 @@
 import AppKit
 import Foundation
 
+// MARK: - Discord Playlist Style
+
+/// How the current Apple Music playlist is surfaced in Discord Rich Presence.
+///
+/// Raw values are persisted in `UserDefaults` — keep them stable across releases.
+enum DiscordPlaylistStyle: String, CaseIterable {
+    /// Playlist joins the artist on the activity's second line (`state`).
+    case artistLine
+    /// Playlist appears only in the small-icon hover tooltip (`assets.small_text`).
+    case iconTooltip
+
+    /// The style applied when no preference (or an unknown value) is stored.
+    static let `default`: DiscordPlaylistStyle = .artistLine
+
+    /// Resolves a stored raw value to a style, falling back to ``default``.
+    static func resolved(from raw: String?) -> DiscordPlaylistStyle {
+        guard let raw, let style = DiscordPlaylistStyle(rawValue: raw) else {
+            return .default
+        }
+        return style
+    }
+}
+
 // MARK: - Discord RPC Service
 
 /// Manages Discord Rich Presence via the local IPC socket.
@@ -138,6 +161,7 @@ final class DiscordRPCService: @unchecked Sendable {
         let track: String
         let artist: String
         let album: String
+        let playlist: String
         let duration: TimeInterval
         let elapsed: TimeInterval
         let capturedAt: Date
@@ -242,12 +266,14 @@ final class DiscordRPCService: @unchecked Sendable {
     ///   - track: Song title (shown as "details").
     ///   - artist: Artist name (shown as "state").
     ///   - album: Album name (shown in large image tooltip).
+    ///   - playlist: Current Apple Music playlist name (empty if none / unknown).
     ///   - duration: Total track duration in seconds (0 if unknown).
     ///   - elapsed: Elapsed time in seconds (0 if unknown).
     func updatePresence(
         track: String,
         artist: String,
         album: String,
+        playlist: String,
         duration: TimeInterval = 0,
         elapsed: TimeInterval = 0
     ) {
@@ -257,7 +283,7 @@ final class DiscordRPCService: @unchecked Sendable {
             // Check shared cache for immediate use (artwork + track links)
             let cached = ArtworkService.shared.cachedTrackLinks(track: track, artist: artist)
             self.sendPresenceActivity(
-                track: track, artist: artist, album: album,
+                track: track, artist: artist, album: album, playlist: playlist,
                 artworkURL: cached.artworkURL,
                 duration: duration, elapsed: elapsed,
                 appleMusicURL: cached.trackViewURL,
@@ -276,7 +302,7 @@ final class DiscordRPCService: @unchecked Sendable {
                     self.ipcQueue.async {
                         guard self.state == .connected else { return }
                         self.sendPresenceActivity(
-                            track: track, artist: artist, album: album,
+                            track: track, artist: artist, album: album, playlist: playlist,
                             artworkURL: links.artworkURL,
                             duration: duration, elapsed: elapsed,
                             appleMusicURL: links.trackViewURL,
@@ -335,6 +361,7 @@ final class DiscordRPCService: @unchecked Sendable {
     ///   - track: Song title.
     ///   - artist: Artist name.
     ///   - album: Album name (used as large image tooltip).
+    ///   - playlist: Current Apple Music playlist name (empty if none / unknown).
     ///   - artworkURL: Optional iTunes artwork URL. If nil, falls back to a source-specific
     ///     asset uploaded in the Discord Developer Portal.
     ///   - duration: Total track duration in seconds (0 if unknown).
@@ -343,6 +370,7 @@ final class DiscordRPCService: @unchecked Sendable {
         track: String,
         artist: String,
         album: String,
+        playlist: String,
         artworkURL: String?,
         duration: TimeInterval,
         elapsed: TimeInterval,
@@ -351,7 +379,7 @@ final class DiscordRPCService: @unchecked Sendable {
     ) {
         // Cache so settings changes can trigger a re-send without waiting for the next track.
         lastPresence = LastPresence(
-            track: track, artist: artist, album: album,
+            track: track, artist: artist, album: album, playlist: playlist,
             duration: duration, elapsed: elapsed,
             capturedAt: Date()
         )
@@ -360,6 +388,7 @@ final class DiscordRPCService: @unchecked Sendable {
             track: track,
             artist: artist,
             album: album,
+            playlist: playlist,
             artworkURL: artworkURL,
             duration: duration,
             elapsed: elapsed,
@@ -401,6 +430,7 @@ final class DiscordRPCService: @unchecked Sendable {
                 track: snap.track,
                 artist: snap.artist,
                 album: snap.album,
+                playlist: snap.playlist,
                 artworkURL: cached.artworkURL,
                 duration: snap.duration,
                 elapsed: elapsed,
@@ -418,11 +448,13 @@ final class DiscordRPCService: @unchecked Sendable {
     /// tests can drive it directly with isolated `UserDefaults` suites.
     ///
     /// - Parameters:
+    ///   - playlist: Current Apple Music playlist name (empty if none / unknown).
     ///   - now: Injected clock for deterministic timestamps in tests.
     static func buildActivity(
         track: String,
         artist: String,
         album: String,
+        playlist: String = "",
         artworkURL: String?,
         duration: TimeInterval,
         elapsed: TimeInterval,
@@ -431,10 +463,17 @@ final class DiscordRPCService: @unchecked Sendable {
         defaults: UserDefaults,
         now: Date
     ) -> [String: Any] {
+        let playlistDisplay = resolvePlaylistDisplay(
+            playlist: playlist, album: album, defaults: defaults
+        )
+        let style = DiscordPlaylistStyle.resolved(
+            from: defaults.string(forKey: AppConstants.UserDefaults.discordPlaylistStyle)
+        )
+
         var activity: [String: Any] = [
             "type": AppConstants.Discord.listeningActivityType,
             "details": track,
-            "state": artist,
+            "state": stateLine(artist: artist, playlist: playlistDisplay, style: style),
         ]
 
         let largeImage = artworkURL ?? "apple_music"
@@ -442,7 +481,7 @@ final class DiscordRPCService: @unchecked Sendable {
             "large_image": largeImage,
             "large_text": album,
             "small_image": "apple_music",
-            "small_text": "Apple Music",
+            "small_text": smallText(playlist: playlistDisplay, style: style),
         ]
 
         if duration > 0 {
@@ -511,6 +550,83 @@ final class DiscordRPCService: @unchecked Sendable {
         guard !truncated.isEmpty else { return nil }
 
         return ["label": truncated, "url": url]
+    }
+
+    // MARK: - Playlist Resolution
+
+    /// The outcome of resolving the current playlist for presence display.
+    enum PlaylistDisplay: Equatable {
+        /// Show the playlist's real name.
+        case named(String)
+        /// A playlist is active but the user opted not to reveal its name.
+        case anonymous
+    }
+
+    /// Resolves how the current playlist should be displayed, or `nil` to hide it.
+    ///
+    /// Returns `nil` when the playlist feature is disabled, the name is empty, a
+    /// generic container (`Library` / `Music` / `Apple Music`), or identical to
+    /// the album — so the card never surfaces a non-playlist as a playlist.
+    /// When `discordPlaylistShowName` is off, returns `.anonymous` so the
+    /// listening context survives without leaking the playlist's name.
+    static func resolvePlaylistDisplay(
+        playlist: String,
+        album: String,
+        defaults: UserDefaults
+    ) -> PlaylistDisplay? {
+        guard defaults.bool(forKey: AppConstants.UserDefaults.discordPlaylistEnabled) else {
+            return nil
+        }
+
+        let name = playlist.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !name.isEmpty else { return nil }
+
+        let folded = name.lowercased()
+        guard !AppConstants.Discord.genericPlaylistNames.contains(folded) else { return nil }
+        guard folded != album.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() else {
+            return nil
+        }
+
+        // Missing key defaults to revealing the name (true).
+        let showName = (defaults.object(forKey: AppConstants.UserDefaults.discordPlaylistShowName) as? Bool) ?? true
+        return showName ? .named(name) : .anonymous
+    }
+
+    /// Builds the activity `state` line, appending the playlist for `.artistLine` style.
+    static func stateLine(
+        artist: String,
+        playlist: PlaylistDisplay?,
+        style: DiscordPlaylistStyle
+    ) -> String {
+        let cap = AppConstants.Discord.activityTextMaxLength
+        guard style == .artistLine, let playlist else {
+            return String(artist.prefix(cap))
+        }
+        let label: String
+        switch playlist {
+        case .named(let name): label = name
+        case .anonymous:       label = AppConstants.Discord.playlistAnonymousLabel
+        }
+        let joined = artist.isEmpty
+            ? label
+            : artist + AppConstants.Discord.playlistSeparator + label
+        return String(joined.prefix(cap))
+    }
+
+    /// Builds the small-icon tooltip text, describing the playlist for `.iconTooltip` style.
+    static func smallText(
+        playlist: PlaylistDisplay?,
+        style: DiscordPlaylistStyle
+    ) -> String {
+        guard style == .iconTooltip, let playlist else { return "Apple Music" }
+        switch playlist {
+        case .named(let name):
+            let text = AppConstants.Discord.playlistTooltipPrefix
+                + AppConstants.Discord.playlistSeparator + name
+            return String(text.prefix(AppConstants.Discord.activityTextMaxLength))
+        case .anonymous:
+            return AppConstants.Discord.playlistAnonymousTooltip
+        }
     }
 
     // MARK: - Client ID Resolution

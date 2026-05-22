@@ -162,6 +162,16 @@ enum AppConstants {
         /// User-overridden label for Discord button 2. Empty string = use `AppConstants.Discord.defaultButton2Label`.
         static let discordButton2Label = "discordButton2Label"
 
+        /// Whether the current Apple Music playlist is shown in Discord presence (Bool, default: false)
+        static let discordPlaylistEnabled = "discordPlaylistEnabled"
+
+        /// Whether the playlist's actual name is revealed (Bool, default: true).
+        /// When false, a generic label is shown instead so the name stays private.
+        static let discordPlaylistShowName = "discordPlaylistShowName"
+
+        /// How the playlist is displayed in Discord presence — `DiscordPlaylistStyle` raw value (String, default: "artistLine")
+        static let discordPlaylistStyle = "discordPlaylistStyle"
+
         /// Whether the app should launch at login (Bool, default: false)
         static let launchAtLogin = "launchAtLogin"
 
@@ -317,6 +327,9 @@ enum AppConstants {
             shareDiagnosticsEnabled,
             diagnosticsLaunchCount,
             discordPresenceEnabled,
+            discordPlaylistEnabled,
+            discordPlaylistShowName,
+            discordPlaylistStyle,
             launchAtLogin,
             websocketServerPort,
             updateCheckEnabled,
@@ -495,6 +508,24 @@ enum AppConstants {
 
         /// Discord hard cap on number of buttons per activity.
         static let maxButtons = 2
+
+        /// Discord hard cap on activity `details` / `state` text length (characters).
+        static let activityTextMaxLength = 128
+
+        /// Separator between the artist and the playlist on the activity state line.
+        static let playlistSeparator = " · "
+
+        /// Generic state-line label shown when the playlist name is hidden.
+        static let playlistAnonymousLabel = "From a playlist"
+
+        /// Generic small-icon tooltip shown when the playlist name is hidden.
+        static let playlistAnonymousTooltip = "Playing from a playlist"
+
+        /// Prefix for the small-icon tooltip when the playlist name is shown.
+        static let playlistTooltipPrefix = "Playlist"
+
+        /// Playlist container names that are too generic to surface as a playlist.
+        static let genericPlaylistNames: Set<String> = ["library", "music", "apple music"]
     }
 
     // MARK: - Sparkle Updater

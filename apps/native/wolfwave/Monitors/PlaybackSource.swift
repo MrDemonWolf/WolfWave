@@ -32,12 +32,14 @@ protocol PlaybackSourceDelegate: AnyObject {
     ///   - track: Track title.
     ///   - artist: Artist name.
     ///   - album: Album title (may be empty when unavailable).
+    ///   - playlist: Current playlist name (may be empty when unavailable).
     ///   - duration: Total track duration in seconds.
     ///   - elapsed: Current playhead position in seconds.
     func playbackSource(
         didUpdateTrack track: String,
         artist: String,
         album: String,
+        playlist: String,
         duration: TimeInterval,
         elapsed: TimeInterval
     )
