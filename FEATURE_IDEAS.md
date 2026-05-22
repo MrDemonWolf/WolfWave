@@ -2,6 +2,20 @@
 
 Future feature ideas for WolfWave. These are not committed to any release — just a running list of things worth building.
 
+## Progress
+
+- [x] Song Request Queue
+- [ ] Listening History & Stats
+- [ ] Custom Bot Commands
+- [x] Overlay Themes
+- [ ] WebSocket Authentication
+- [ ] Notification Center Integration
+- [ ] Stream Deck Plugin
+- [ ] Playlist Detection
+- [ ] Chat Voting
+
+**2 of 9 shipped.**
+
 ---
 
 ## Song Request Queue
@@ -12,6 +26,7 @@ Let Twitch viewers request songs via `!request <song name>` or `!sr <song name>`
 
 **Apple Music Search**: Plain-text requests use the iTunes Search API to find the best match, with a confidence threshold to avoid bad guesses.
 
+**Status**: ✅ Done
 **Complexity**: Medium–High
 **Builds on**: Existing `BotCommand` protocol, `TwitchChatService`, `ArtworkService` (already calls iTunes Search API)
 
@@ -25,6 +40,7 @@ Track play counts, listening time, and most-played artists/tracks locally in a S
 
 **Twitch Integration**: New `!stats` bot command — e.g. "Most played today: Blinding Lights by The Weeknd (12 plays)".
 
+**Status**: ⬜ Not started
 **Complexity**: Medium–High
 **Builds on**: `PlaybackSourceDelegate` callbacks, existing settings sidebar pattern, SwiftUI Charts framework
 
@@ -34,6 +50,7 @@ Track play counts, listening time, and most-played artists/tracks locally in a S
 
 Let users define their own Twitch bot command responses via the settings UI. For example: `!dj` → "DJ WolfWave in the house 🎧". Stored in UserDefaults as a key-value map.
 
+**Status**: ⬜ Not started
 **Complexity**: Low
 **Builds on**: `BotCommand` protocol, `BotCommandDispatcher.registerDefaultCommands()`
 
@@ -43,35 +60,9 @@ Let users define their own Twitch bot command responses via the settings UI. For
 
 Ship multiple pre-built WebSocket overlay themes (minimal, retro, neon, glassmorphism). Users pick a theme in settings. Overlay clients receive the theme name and render accordingly.
 
+**Status**: ✅ Done
 **Complexity**: Medium
 **Builds on**: Existing WebSocket server, browser source overlay
-
----
-
-## Global Hotkeys
-
-Global keyboard shortcuts to toggle tracking, skip song, or show/hide the overlay — even when WolfWave is in the background. Configurable in Settings → Advanced.
-
-**Complexity**: Low–Medium
-**Approach**: `CGEvent` tap or a lightweight hotkey library (e.g. HotKey by GitHub/soffes)
-
----
-
-## Last.fm Scrobbling
-
-Optional Last.fm integration to automatically scrobble tracks as they play. Uses Last.fm API with OAuth device flow (same pattern as Twitch auth).
-
-**Complexity**: Medium
-**Builds on**: `TwitchDeviceAuth` OAuth pattern, `KeychainService`
-
----
-
-## Menu Bar Now-Playing Ticker
-
-Optionally scroll the current track name in the macOS menu bar status item, like a marquee. Configurable max width. Falls back to static icon when nothing is playing.
-
-**Complexity**: Low
-**Builds on**: Existing `NSStatusItem` setup in `AppDelegate`
 
 ---
 
@@ -79,6 +70,7 @@ Optionally scroll the current track name in the macOS menu bar status item, like
 
 Token-based authentication for widget connections — prevents unauthorized local processes from connecting to the WebSocket server. Configured in Settings → Now-Playing Widget (Advanced).
 
+**Status**: ⬜ Not started
 **Complexity**: Low–Medium
 **Builds on**: Existing `WebSocketServerService`
 
@@ -88,6 +80,7 @@ Token-based authentication for widget connections — prevents unauthorized loca
 
 Optional macOS notification when the song changes — shows track name, artist, and album art in the system notification. Toggled in Settings → App Visibility.
 
+**Status**: ⬜ Not started
 **Complexity**: Low
 **Builds on**: `UserNotifications` framework (already imported in `WolfWaveApp.swift`)
 
@@ -97,6 +90,7 @@ Optional macOS notification when the song changes — shows track name, artist, 
 
 An Elgato Stream Deck plugin to control WolfWave — toggle Music Sync, trigger song request approval, copy widget URL, etc. Communicates with WolfWave via a local HTTP API.
 
+**Status**: ⬜ Not started
 **Complexity**: High
 **Approach**: Stream Deck SDK + a lightweight local HTTP server endpoint in WolfWave
 
@@ -106,6 +100,7 @@ An Elgato Stream Deck plugin to control WolfWave — toggle Music Sync, trigger 
 
 Show the current playlist name in Discord Rich Presence when playing from a named playlist. Displayed as a secondary line below the artist name.
 
+**Status**: ⬜ Not started
 **Complexity**: Low
 **Builds on**: ScriptingBridge (Apple Music exposes current playlist via `currentPlaylist`)
 
@@ -115,14 +110,6 @@ Show the current playlist name in Discord Rich Presence when playing from a name
 
 Let Twitch chat vote on the next song from the request queue. Streamer posts the top 2–3 pending requests; chat types `!vote 1`, `!vote 2`, etc. Highest vote wins.
 
+**Status**: ⬜ Not started
 **Complexity**: Medium
 **Builds on**: Song Request Queue feature, existing `TwitchChatService`
-
----
-
-## Multi-Platform Chat Support
-
-Extend the bot beyond Twitch to YouTube Live chat and Kick. Same `BotCommand` protocol, different transport layer per platform.
-
-**Complexity**: High
-**Builds on**: `BotCommand` protocol, `BotCommandDispatcher`
