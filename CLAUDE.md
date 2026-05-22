@@ -27,13 +27,16 @@ bun run build --filter docs              # Build docs site
 ```bash
 make build          # Debug build via xcodebuild
 make clean          # Clean build artifacts
-make test           # Run unit tests (215 tests across 20 test files)
+make test           # Run unit tests (408 tests across 30 test files)
+make test-verbose   # Run unit tests with full xcodebuild output
+make test-ci        # Run unit tests in CI mode (writes TestResults.xcresult)
 make update-deps    # Resolve SwiftPM dependencies
 make open-xcode     # Open Xcode project
-make ci             # CI-friendly build (alias for build)
+make ci             # CI-friendly build (alias for test-ci)
 make prod-build     # Release build → DMG in builds/
 make prod-install   # Release build → install to /Applications
 make notarize       # Notarize the DMG (requires Developer ID + env vars)
+make verify-notarize # Verify the notarization ticket is stapled
 ```
 
 Xcode project is at `apps/native/wolfwave.xcodeproj` with scheme `WolfWave`. Build and run with Cmd+R in Xcode.
@@ -54,7 +57,7 @@ Xcode project is at `apps/native/wolfwave.xcodeproj` with scheme `WolfWave`. Bui
 
 ### Source layout (`apps/native/wolfwave/`)
 
-- **Core/** — `AppConstants.swift` + `AppConstants+Notifications.swift` (centralized config enums for keys, identifiers, timing, notification names), `KeychainService.swift` (macOS Security framework wrapper), `Logger.swift` (structured logging), `PowerStateMonitor.swift`, `NetworkInfoService.swift` (LAN IP cache), `SongRequestItem.swift`, `BlocklistItem.swift`.
+- **Core/** — `AppConstants.swift` + `AppConstants+Notifications.swift` (centralized config enums for keys, identifiers, timing, notification names), the `AppDelegate+*` extensions, `KeychainService.swift` (macOS Security framework wrapper), `Logger.swift` (structured logging), `PowerStateMonitor.swift`, `NetworkInfoService.swift` (LAN IP cache), `SongRequestItem.swift`, `BlocklistItem.swift`. Foundation utilities: `HTTPClient.swift` (shared async HTTP wrapper), `JSONCoders.swift` (shared `JSONEncoder`/`JSONDecoder`), `BugReportURL.swift` (pre-filled GitHub issue URL builder), `Bundle+InstallMethod.swift` (DMG vs Homebrew install detection).
 - **Monitors/** — Playback source abstraction. `PlaybackSource.swift` (protocol), `AppleMusicSource.swift` (ScriptingBridge + distributed notifications + 2s fallback polling), `PlaybackSourceManager.swift` (selects + multiplexes sources). Delegate pattern via `PlaybackSourceDelegate`.
 - **Services/Twitch/** — `TwitchChatService.swift` (EventSub WebSocket + Helix chat API, thread-safe with NSLock, network path monitoring for reconnection, Twitch user ID redacted in logs), `TwitchDeviceAuth.swift` (OAuth Device Code flow).
 - **Services/Twitch/Commands/** — `BotCommand` protocol (`triggers`, `description`, `execute(message:) -> String?`), `AsyncBotCommand` for I/O-bound commands, `BotCommandContext`, `BotCommandDispatcher`. Concrete commands: `TrackInfoCommand` (used for both `!song` and `!last`), `SongRequestCommand`, `QueueCommand`, `MyQueueCommand`, `SkipCommand`, `HoldCommand`, `ClearQueueCommand`. `CooldownManager` enforces global + per-user cooldowns.
@@ -64,15 +67,16 @@ Xcode project is at `apps/native/wolfwave.xcodeproj` with scheme `WolfWave`. Bui
 - **Services/WebSocket/** — `WebSocketServerService.swift` (overlay broadcast), `WidgetHTTPService.swift` (static widget HTTP server).
 - **Services/** — `ArtworkService.swift` (iTunes Search artwork fetch + cache), `LaunchAtLoginService.swift`.
 - **Views/** — SwiftUI settings shell `SettingsView.swift` with `NavigationSplitView` sidebar. Per-section views decomposed into `GeneralSettingsView.swift`, `MusicMonitor/MusicMonitorSettingsView.swift`, `AppVisibility/AppVisibilitySettingsView.swift`, `WebSocket/WebSocketSettingsView.swift`, `Twitch/TwitchSettingsView.swift`, `Discord/DiscordSettingsView.swift`, `SongRequest/SongRequestSettingsView.swift` + `SongRequestQueueView.swift`, `Advanced/AdvancedSettingsView.swift`. `TwitchViewModel` is the main observable for auth/connection state.
-- **Views/Onboarding/** — macOS 26 Liquid Glass onboarding wizard. Steps: Welcome, Apple Music permission, Menu Bar Pointer, Twitch, Discord, Preferences, OBS Widget (overlay URL + HTTP widget toggle), Completion. Components in `Onboarding/Components/` (`PillButton`, `BrandTile`).
-- **Views/Shared/** — Shared UI components: `StatusChip`, `InfoRow`, `ToggleSettingRow`, `SuccessFeedbackRow`, `SectionHeaderWithStatus`, `NowPlayingHeroCard`, `AlbumArtView`, `IntegrationDashboardView`, `ConnectionTestButton`, `ConfigRequiredBanner`, `CopyButton`, `UpdateBannerView`, `WhatsNewView`, `TwitchGlitchShape`, `ViewModifiers`.
+- **Views/Onboarding/** — macOS 26 Liquid Glass onboarding wizard. The `OnboardingStep` enum (in `OnboardingViewModel.swift`) defines the step order: Welcome → Discord → Twitch → OBS Widget (overlay URL + HTTP widget toggle) → Preferences → Apple Music Access → Menu Bar Pointer, followed by `OnboardingCompletionView`. Components in `Onboarding/Components/` (`PillButton`, `BrandTile`).
+- **Views/Debug/** — **DEBUG-only** developer tooling tab. `DebugSettingsView.swift` shell plus cards: `DebugInspectorsCard`, `DebugLogsAndEventsCard`, `DebugServiceControlsCard`, `DebugUIPreviewsCard`. Not compiled into release builds.
+- **Views/Shared/** — Shared UI components: `StatusChip`, `InfoRow`, `ToggleSettingRow`, `SuccessFeedbackRow`, `SectionHeaderWithStatus`, `NowPlayingHeroCard`, `AlbumArtView`, `IntegrationDashboardView`, `ConnectionTestButton`, `ConfigRequiredBanner`, `CopyButton`, `UpdateBannerView`, `WhatsNewView`, `AboutView`, `TwitchGlitchShape`, `ViewModifiers`.
 
 ### Key patterns
 
 - **Credentials**: All tokens/secrets stored via `KeychainService` (never UserDefaults). Keys defined in `AppConstants.Keychain`.
 - **Settings**: User preferences in `UserDefaults` via `@AppStorage`. Keys centralized in `AppConstants.UserDefaults`. Note: `currentSongCommandEnabled`, `lastSongCommandEnabled`, and `widgetHTTPEnabled` all default to `false`.
 - **Notifications**: Loose coupling via `NotificationCenter` (e.g., `TrackingSettingChanged`, `DockVisibilityChanged`). Names in `AppConstants.Notifications`.
-- **Thread safety**: `NSLock` for shared state mutations in `TwitchChatService` and `UpdateCheckerService`. `DiscordRPCService` uses `ipcQueue` serial queue confinement plus `enabledLock` for thread safety. Logger uses a serial `DispatchQueue` for thread-safe file I/O.
+- **Thread safety**: `NSLock` for shared state mutations in `TwitchChatService`. `DiscordRPCService` uses `ipcQueue` serial queue confinement plus `enabledLock` for thread safety. Logger uses a serial `DispatchQueue` for thread-safe file I/O.
 - **Bot commands**: Register new commands in `BotCommandDispatcher.registerDefaultCommands()`. Each command implements `BotCommand` protocol. Max response 500 chars, target <100ms execution.
 - **Discord IPC**: Unix domain socket at `$TMPDIR/discord-ipc-{0..9}`. SBPL entitlements enable socket access within App Sandbox.
 - **ADHD-friendly text**: All user-facing text should be short, punchy, and jargon-free.
@@ -110,7 +114,7 @@ bun turbo build         # `tokens` is a build prerequisite — runs automaticall
 
 ## Testing
 
-Unit tests live in `apps/native/WolfWaveTests/` and use XCTest + Swift Testing with `@testable import WolfWave`. The test target is a hosted unit test bundle (`TEST_HOST` = WolfWave.app). Current pass count: **849 tests across 26 test files**.
+Unit tests live in `apps/native/WolfWaveTests/` and use XCTest + Swift Testing with `@testable import WolfWave`. The test target is a hosted unit test bundle (`TEST_HOST` = WolfWave.app). Current pass count: **408 tests across 30 test files** (322 XCTest + 86 Swift Testing).
 
 ### Test files
 
@@ -124,10 +128,13 @@ Unit tests live in `apps/native/WolfWaveTests/` and use XCTest + Swift Testing w
 - `OnboardingViewModelTests.swift` + `OnboardingViewModelEdgeCaseTests.swift` — Step navigation, boundary conditions, UserDefaults persistence
 - `TwitchViewModelTests.swift`, `TwitchChatServiceTests.swift`, `TwitchDeviceAuthTests.swift`, `TwitchDeviceAuthErrorTests.swift` — Twitch auth + EventSub + view model state
 - `DiscordRPCServiceTests.swift` — IPC framing, reconnect backoff
+- `DiscordPresenceBuilderTests.swift` — Rich Presence payload construction (state/details, buttons, timestamps)
 - `ArtworkServiceTests.swift`, `ArtworkServiceCacheTests.swift` — iTunes Search artwork fetch + cache eviction
 - `WebSocketServerServiceTests.swift`, `WebSocketServerIntegrationTests.swift`, `WidgetHTTPServiceTests.swift` — Overlay broadcast + widget HTTP
 - `KeychainServiceTests.swift` — Save/load/delete, Unicode, concurrent access
-- `LoggerTests.swift`, `PowerStateMonitorTests.swift` — Core utilities
+- `LoggerTests.swift`, `LoggerClearTests.swift`, `PowerStateMonitorTests.swift` — Core utilities (logging, log clearing, power state)
+- `BugReportURLTests.swift` — Pre-filled GitHub issue URL construction and encoding
+- `BundleInstallMethodTests.swift` — DMG vs Homebrew (cask) install detection
 - `AppConstantsTests.swift` + `AppConstantsEdgeCaseTests.swift` — Constant values, URL validity, dimension bounds, cross-references
 
 ### Writing tests
@@ -139,8 +146,11 @@ Unit tests live in `apps/native/WolfWaveTests/` and use XCTest + Swift Testing w
 
 ## CI/CD
 
-- `.github/workflows/ci.yml` — Runs `xcodebuild test` on every push/PR to `main`. Creates placeholder `Config.xcconfig` for CI builds.
-- `.github/workflows/release.yml` — Builds, signs, notarizes, and creates a GitHub Release on tag push (`v*`). Required secrets: `DEVELOPER_ID_CERT_P12`, `DEVELOPER_ID_CERT_PASSWORD`, `APPLE_ID`, `APPLE_TEAM_ID`, `APPLE_APP_PASSWORD`, `TWITCH_CLIENT_ID`, `DISCORD_CLIENT_ID`, `SPARKLE_PRIVATE_KEY`.
+- `.github/workflows/test.yml` — Runs `xcodebuild test` on every push/PR to `main` (path-filtered to native changes). Creates a placeholder `Config.xcconfig` for CI builds and sets `MallocNanoZone=0` to work around a runner-image allocator crash.
+- `.github/workflows/build_release.yml` — Builds, signs, notarizes, and creates a GitHub Release on tag push (`v*`). Required secrets: `DEVELOPER_ID_CERT_P12`, `DEVELOPER_ID_CERT_PASSWORD`, `APPLE_ID`, `APPLE_TEAM_ID`, `APPLE_APP_PASSWORD`, `TWITCH_CLIENT_ID`, `DISCORD_CLIENT_ID`, `SPARKLE_PRIVATE_KEY`.
+- `.github/workflows/docs.yml` — Builds and deploys the Fumadocs site to GitHub Pages.
+- `.github/workflows/update_homebrew.yml` — Opens a PR on the Homebrew tap after a GitHub Release is published.
+- `.github/workflows/update_sponsors.yml` — Refreshes the GitHub Sponsors list. `.github/workflows/license-year.yml` — Keeps the `LICENSE` year current.
 
 ### Sparkle Auto-Updates
 

@@ -23,6 +23,7 @@ struct WhatsNewView: View {
         ("forward.fill", .blue, "Queue Controls", "Skip, clear, or hold from the app, menu bar, or Twitch chat (mods only)"),
         ("list.number", .green, "Live Queue View", "See what's playing, what's next, and who requested each song"),
         ("music.note.list", .purple, "Fallback Playlist", "Plays when the queue is empty."),
+        ("paintpalette.fill", .teal, "Widget Themes", "Six overlay themes and three layouts for your stream widget — pick what fits your scene."),
         ("sparkles", .indigo, "Liquid Glass Redesign", "Refreshed settings, menu bar, and onboarding built for macOS 26 Tahoe"),
         ("music.note.house", .red, "Apple Music Permission", "Apple Music access during setup, with recovery if you skip."),
         ("ladybug.fill", .yellow, "Bug Report Flow", "Export or clear logs from Advanced settings, then file a report in one click."),
