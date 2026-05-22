@@ -8,9 +8,8 @@ import SwiftUI
 /// Sized album-art tile. Falls back to the WolfWave-branded placeholder — the
 /// wolf mark on a brand-blue gradient — when no artwork is supplied.
 ///
-/// Use this everywhere the design shows an album thumbnail — the now-playing
-/// hero on General, the Discord preview mock, the menu-bar header, the song
-/// request queue rows, and the OBS widget preview.
+/// Used by the now-playing hero on the General tab (`NowPlayingHeroCard`), and
+/// intended for any other album thumbnail the design adds.
 struct AlbumArtView: View {
 
     // MARK: - Properties
