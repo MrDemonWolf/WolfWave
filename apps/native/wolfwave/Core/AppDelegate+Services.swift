@@ -134,6 +134,12 @@ extension AppDelegate {
         Log.info("AppDelegate: Sparkle updater initialized", category: "Update")
     }
 
+    /// Records the app launch and applies the on-device diagnostics opt-in.
+    func setupDiagnostics() {
+        DiagnosticsService.shared.recordAppLaunch()
+        DiagnosticsService.shared.applyEnabledState()
+    }
+
     /// Creates the song request service and wires up playback monitoring + chat replies.
     func setupSongRequestService() {
         let queue = SongRequestQueue()

@@ -273,6 +273,12 @@ enum AppConstants {
         /// Whether song request auto-play is paused — requests still queue but nothing plays (Bool, default: false)
         static let songRequestHoldEnabled = "songRequestHoldEnabled"
 
+        /// Whether on-device MetricKit diagnostics collection is opted in (Bool, default: false)
+        static let shareDiagnosticsEnabled = "shareDiagnosticsEnabled"
+
+        /// Local count of app launches — anonymous, never transmitted (Int, default: 0)
+        static let diagnosticsLaunchCount = "diagnosticsLaunchCount"
+
         /// Whether a macOS notification is posted when the song changes (Bool, default: false)
         static let songChangeNotificationsEnabled = "songChangeNotificationsEnabled"
 
@@ -308,6 +314,8 @@ enum AppConstants {
             currentSongCommandEnabled,
             lastSongCommandEnabled,
             hasCompletedOnboarding,
+            shareDiagnosticsEnabled,
+            diagnosticsLaunchCount,
             discordPresenceEnabled,
             launchAtLogin,
             websocketServerPort,

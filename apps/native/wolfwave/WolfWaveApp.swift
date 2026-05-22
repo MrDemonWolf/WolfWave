@@ -113,6 +113,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         setupSparkleUpdater()
         setupSongRequestService()
         setupHistoryService()
+        setupDiagnostics()
         setupNotificationObservers()
         initializeTrackingState()
         applyInitialDockVisibility()

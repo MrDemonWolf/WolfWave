@@ -28,7 +28,7 @@ MrDemonWolf, Inc. ("we", "us", or "our") operates the WolfWave application. This
 
 ## How We Use Information
 
-WolfWave processes data **entirely on your device**. We do not operate servers, collect analytics, or transmit any data to MrDemonWolf, Inc. All data flows directly between your Mac and the third-party services you connect:
+WolfWave processes data **entirely on your device**. We do not operate servers or transmit your data to MrDemonWolf, Inc. (See *Diagnostics* below for the optional, on-device-only diagnostics feature.) All data flows directly between your Mac and the third-party services you connect:
 
 | Data | Destination | Purpose |
 |------|-------------|---------|
@@ -36,6 +36,12 @@ WolfWave processes data **entirely on your device**. We do not operate servers, 
 | Now playing info | Discord (via local IPC socket) | Display Rich Presence status |
 | Now playing info | Your WebSocket endpoint | Stream data to overlays |
 | Album artwork query | iTunes Search API | Fetch album art for Discord Rich Presence |
+
+## Diagnostics
+
+WolfWave includes an **optional, opt-in** diagnostics feature that is turned **off by default**. When you enable "Collect on-device diagnostics" in Advanced settings, WolfWave uses Apple's MetricKit framework to gather crash, hang, and performance reports.
+
+These reports are aggregated by macOS on your device and stored locally on your Mac under Application Support. They are **never uploaded** — WolfWave has no analytics servers and no code that transmits diagnostics anywhere. WolfWave also keeps a local, anonymous app-launch count that never leaves your device. Turning the feature off stops collection immediately.
 
 ## Data Storage
 
