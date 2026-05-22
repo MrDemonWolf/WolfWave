@@ -12,9 +12,9 @@ Future feature ideas for WolfWave. These are not committed to any release — ju
 - [ ] Notification Center Integration
 - [ ] Stream Deck Plugin
 - [ ] Playlist Detection
-- [ ] Chat Voting
+- [x] Chat Voting
 
-**3 of 9 shipped.**
+**4 of 9 shipped.**
 
 ---
 
@@ -140,13 +140,3 @@ Show the current playlist name in Discord Rich Presence when playing from a name
 **Status**: ⬜ Not started
 **Complexity**: Low
 **Builds on**: ScriptingBridge (Apple Music exposes current playlist via `currentPlaylist`)
-
----
-
-## Chat Voting
-
-Let Twitch chat vote on the next song from the request queue. Streamer posts the top 2–3 pending requests; chat types `!vote 1`, `!vote 2`, etc. Highest vote wins.
-
-**Status**: ⬜ Not started
-**Complexity**: Medium
-**Builds on**: Song Request Queue feature, existing `TwitchChatService`

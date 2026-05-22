@@ -242,6 +242,27 @@ final class SongRequestService {
         return next
     }
 
+    /// Skips whatever is currently playing, used by the chat vote-skip feature.
+    ///
+    /// When a queued request is playing, this delegates to `skip()` so the next
+    /// request takes over. When the queue is idle, it advances Apple Music's own
+    /// player so vote-skip still works during normal playback.
+    ///
+    /// - Returns: The newly-playing request when one exists, otherwise `nil`.
+    @discardableResult
+    func voteSkip() async -> SongRequestItem? {
+        if queue.nowPlaying != nil {
+            return await skip()
+        }
+        do {
+            try await musicController.skipToNext()
+            Log.debug("SongRequestService: Vote-skip advanced the Apple Music track", category: "SongRequest")
+        } catch {
+            Log.debug("SongRequestService: Vote-skip failed to advance track: \(error)", category: "SongRequest")
+        }
+        return nil
+    }
+
     /// Removes every request from the queue and clears Music.app's player.
     ///
     /// - Returns: Number of items that were in the queue before clearing.

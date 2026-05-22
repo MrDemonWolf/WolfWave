@@ -63,6 +63,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     var sparkleUpdater: SparkleUpdaterService?
     var websocketServer: WebSocketServerService?
     var songRequestService: SongRequestService?
+    var skipVoteManager: SkipVoteManager?
     var historyService: ListeningHistoryService?
     var notificationObservers: [Any] = []
 

@@ -431,9 +431,12 @@ final class TwitchViewModel {
             return
         }
 
+        // `channel:manage:polls` powers vote-skip Polls mode (and authorizes the
+        // channel.poll.* EventSub topics). Requesting it up front means users who
+        // later enable Polls mode don't need a second authorization round-trip.
         let helper = TwitchDeviceAuth(
             clientID: clientID,
-            scopes: ["user:read:chat", "user:write:chat"]
+            scopes: ["user:read:chat", "user:write:chat", "channel:manage:polls"]
         )
 
         // Track the overall OAuth flow so it can be cancelled cleanly

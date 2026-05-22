@@ -35,4 +35,5 @@ extension NSNotification.Name {
     static let songRequestSettingChanged = NSNotification.Name(AppConstants.Notifications.songRequestSettingChanged)
     static let songRequestQueueChanged = NSNotification.Name(AppConstants.Notifications.songRequestQueueChanged)
     static let songRequestHoldChanged = NSNotification.Name(AppConstants.Notifications.songRequestHoldChanged)
+    static let voteSkipStateChanged = NSNotification.Name(AppConstants.Notifications.voteSkipStateChanged)
 }

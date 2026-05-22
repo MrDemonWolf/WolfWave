@@ -80,6 +80,10 @@ enum AppConstants {
         /// Posted when the song request hold state toggles.
         static let songRequestHoldChanged = "SongRequestHoldChanged"
 
+        /// Posted when the chat vote-skip session state changes (vote cast, session opened/closed).
+        /// UserInfo contains "count" Int and "needed" Int when a session is active.
+        static let voteSkipStateChanged = "VoteSkipStateChanged"
+
         /// Posted when the user toggles Listening History. UserInfo contains "enabled" Bool.
         static let listeningHistorySettingChanged = "ListeningHistorySettingChanged"
 
@@ -100,6 +104,7 @@ enum AppConstants {
             songRequestSettingChanged,
             songRequestQueueChanged,
             songRequestHoldChanged,
+            voteSkipStateChanged,
             listeningHistorySettingChanged,
         ]
     }
@@ -283,6 +288,35 @@ enum AppConstants {
         /// Whether song request auto-play is paused — requests still queue but nothing plays (Bool, default: false)
         static let songRequestHoldEnabled = "songRequestHoldEnabled"
 
+        // MARK: Chat Vote-Skip Keys
+
+        /// Whether the chat vote-to-skip feature is enabled (Bool, default: false)
+        static let voteSkipEnabled = "voteSkipEnabled"
+
+        /// Minimum number of unique voters required to skip a song (Int, default: 3)
+        static let voteSkipMinVotes = "voteSkipMinVotes"
+
+        /// How long a vote session stays open before it fails, in seconds (Int, default: 60)
+        static let voteSkipWindowSeconds = "voteSkipWindowSeconds"
+
+        /// Cooldown between vote sessions, in seconds (Double, default: 30.0)
+        static let voteSkipSessionCooldown = "voteSkipSessionCooldown"
+
+        /// Whether only subscribers may cast vote-skip votes (Bool, default: false)
+        static let voteSkipSubscriberOnly = "voteSkipSubscriberOnly"
+
+        /// Whether the !voteskip command is enabled (Bool, default: true)
+        static let voteSkipCommandEnabled = "voteSkipCommandEnabled"
+
+        /// Custom aliases for the !voteskip command (String, comma-separated)
+        static let voteSkipCommandAliases = "voteSkipCommandAliases"
+
+        /// Whether vote-skip uses native Twitch Polls instead of a chat tally (Bool, default: false)
+        static let voteSkipUsePolls = "voteSkipUsePolls"
+
+        /// Duration of a Twitch poll created for vote-skip, in seconds (Int, default: 60; Twitch allows 15–1800)
+        static let voteSkipPollDuration = "voteSkipPollDuration"
+
         /// Whether on-device MetricKit diagnostics collection is opted in (Bool, default: false)
         static let shareDiagnosticsEnabled = "shareDiagnosticsEnabled"
 
@@ -366,6 +400,15 @@ enum AppConstants {
             songRequestUserCooldown,
             songRequestFallbackPlaylist,
             songRequestHoldEnabled,
+            voteSkipEnabled,
+            voteSkipMinVotes,
+            voteSkipWindowSeconds,
+            voteSkipSessionCooldown,
+            voteSkipSubscriberOnly,
+            voteSkipCommandEnabled,
+            voteSkipCommandAliases,
+            voteSkipUsePolls,
+            voteSkipPollDuration,
             songChangeNotificationsEnabled,
             listeningHistoryEnabled,
             statsEnabled,

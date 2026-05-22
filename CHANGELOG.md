@@ -6,6 +6,7 @@ All notable changes to this project will be documented in this file.
 
 ### Added
 
+- **Chat Vote-Skip** — viewers can vote to skip the current song with `!voteskip` / `!vs`. A passed vote skips the now-playing request, or advances the Apple Music track when the queue is idle. Chat-tally mode counts unique voters within a configurable window against a minimum-vote threshold; opt-in Twitch Polls mode (Affiliate/Partner) opens a native poll instead. Configurable minimum votes, vote window, cooldown, and subscriber-only voting in Settings → Song Requests → Chat Vote-Skip.
 - **Listening History** — opt-in, on-device log of the tracks you play (append-only NDJSON, never uploaded). Off by default; turn it on in Settings → History & Stats or during onboarding. A track is recorded once it has played past half its length (or 4 minutes), so skips don't count.
 - **Stats & Charts** — top artists, listening time, a 7-day play trend, and a listening-by-hour breakdown in the new History & Stats settings section, built on SwiftUI Charts. Requires Listening History.
 - **Monthly Wrap** — a personal "wrapped"-style summary for any month, exportable as a shareable PNG.

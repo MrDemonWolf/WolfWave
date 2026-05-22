@@ -41,6 +41,11 @@ struct SongRequestSettingsView: View {
 
             SongRequestMasterToggleCard(isTwitchConnected: isTwitchConnected)
 
+            if isTwitchConnected {
+                Divider().padding(.vertical, 4)
+                VoteSkipCard()
+            }
+
             if songRequestEnabled {
                 if musicAuthStatus != .authorized {
                     SongRequestMusicAuthCard(
@@ -164,6 +169,172 @@ fileprivate struct SongRequestMasterToggleCard: View {
                     )
                 }
             )
+        }
+        .padding(AppConstants.SettingsUI.cardPadding)
+        .background(.quaternary.opacity(0.5))
+        .clipShape(RoundedRectangle(cornerRadius: AppConstants.SettingsUI.cardCornerRadius))
+    }
+}
+
+// MARK: - Chat Vote-Skip
+
+fileprivate struct VoteSkipCard: View {
+    @AppStorage(AppConstants.UserDefaults.voteSkipEnabled)
+    private var voteSkipEnabled = false
+
+    @AppStorage(AppConstants.UserDefaults.voteSkipMinVotes)
+    private var minVotes = 3
+
+    @AppStorage(AppConstants.UserDefaults.voteSkipWindowSeconds)
+    private var windowSeconds = 60
+
+    @AppStorage(AppConstants.UserDefaults.voteSkipSessionCooldown)
+    private var sessionCooldown: Double = 30
+
+    @AppStorage(AppConstants.UserDefaults.voteSkipSubscriberOnly)
+    private var subscriberOnly = false
+
+    @AppStorage(AppConstants.UserDefaults.voteSkipUsePolls)
+    private var usePolls = false
+
+    @AppStorage(AppConstants.UserDefaults.voteSkipPollDuration)
+    private var pollDuration = 60
+
+    @AppStorage(AppConstants.UserDefaults.voteSkipCommandEnabled)
+    private var commandEnabled = true
+
+    @AppStorage(AppConstants.UserDefaults.voteSkipCommandAliases)
+    private var commandAliases = ""
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            VStack(alignment: .leading, spacing: 6) {
+                HStack(spacing: 8) {
+                    Image(systemName: "hand.thumbsup.fill")
+                        .font(.system(size: 15))
+                        .foregroundStyle(Color(nsColor: .controlAccentColor))
+                    Text("Chat Vote-Skip").sectionSubHeader()
+                }
+
+                Text("Let your Twitch chat vote to skip the current song. Skips the request queue when one is playing, otherwise it skips the current Apple Music track.")
+                    .font(.system(size: 13))
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+
+            ToggleSettingRow(
+                title: "Enable Vote-Skip",
+                subtitle: "Viewers vote with !voteskip in Twitch chat",
+                isOn: $voteSkipEnabled,
+                accessibilityLabel: "Enable vote-skip",
+                accessibilityIdentifier: "voteSkip.enableToggle"
+            )
+
+            if voteSkipEnabled {
+                Divider()
+
+                HStack {
+                    Text("Minimum votes to skip").font(.system(size: 12))
+                    Spacer()
+                    Picker("", selection: $minVotes) {
+                        ForEach([2, 3, 5, 7, 10], id: \.self) { count in
+                            Text("\(count)").tag(count)
+                        }
+                    }
+                    .pickerStyle(.menu)
+                    .frame(width: 80)
+                    .accessibilityLabel("Minimum votes to skip")
+                }
+
+                ToggleSettingRow(
+                    title: "Subscriber-Only Voting",
+                    subtitle: "Only subscribers can cast skip votes",
+                    isOn: $subscriberOnly,
+                    accessibilityLabel: "Subscriber-only voting",
+                    accessibilityIdentifier: "voteSkip.subscriberOnly"
+                )
+
+                ToggleSettingRow(
+                    title: "Use Twitch Polls",
+                    subtitle: "Affiliate/Partner only — shows a native poll on stream instead of a chat tally",
+                    isOn: $usePolls,
+                    accessibilityLabel: "Use Twitch polls for vote-skip",
+                    accessibilityIdentifier: "voteSkip.usePolls"
+                )
+
+                if usePolls {
+                    HStack {
+                        Text("Poll duration").font(.system(size: 12))
+                        Spacer()
+                        Picker("", selection: $pollDuration) {
+                            ForEach([30, 60, 90, 120, 180, 300], id: \.self) { seconds in
+                                Text("\(seconds)s").tag(seconds)
+                            }
+                        }
+                        .pickerStyle(.menu)
+                        .frame(width: 80)
+                        .accessibilityLabel("Poll duration")
+                    }
+
+                    HStack(alignment: .top, spacing: 6) {
+                        Image(systemName: "info.circle.fill")
+                            .font(.system(size: 11))
+                            .foregroundStyle(.secondary)
+                        Text("Turning this on may ask you to sign in to Twitch again to grant poll permission.")
+                            .font(.system(size: 11))
+                            .foregroundStyle(.secondary)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                } else {
+                    Divider()
+
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Vote window: \(windowSeconds)s")
+                            .font(.system(size: 11))
+                            .foregroundStyle(.secondary)
+                        Picker("", selection: $windowSeconds) {
+                            ForEach([30, 60, 90, 120], id: \.self) { seconds in
+                                Text("\(seconds)s").tag(seconds)
+                            }
+                        }
+                        .pickerStyle(.segmented)
+                        .accessibilityLabel("Vote window in seconds")
+                    }
+
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Cooldown between votes: \(Int(sessionCooldown))s")
+                            .font(.system(size: 11))
+                            .foregroundStyle(.secondary)
+                        Slider(value: $sessionCooldown, in: 0...120, step: 15)
+                            .controlSize(.small)
+                            .accessibilityLabel("Cooldown between votes")
+                            .accessibilityValue("\(Int(sessionCooldown)) seconds")
+                    }
+                }
+
+                Divider()
+
+                ToggleSettingRow(
+                    title: "!voteskip Command",
+                    subtitle: "!voteskip  ·  !vs",
+                    isOn: $commandEnabled,
+                    accessibilityLabel: "Enable vote-skip command",
+                    accessibilityIdentifier: "voteSkip.commandToggle"
+                )
+
+                if commandEnabled {
+                    HStack(spacing: 8) {
+                        Text("Custom aliases:")
+                            .font(.system(size: 11))
+                            .foregroundStyle(.tertiary)
+                        TextField("e.g. skipvote, sv", text: $commandAliases)
+                            .textFieldStyle(.roundedBorder)
+                            .font(.system(size: 11))
+                            .frame(maxWidth: 200)
+                            .accessibilityLabel("Vote-skip command aliases")
+                    }
+                }
+            }
         }
         .padding(AppConstants.SettingsUI.cardPadding)
         .background(.quaternary.opacity(0.5))

@@ -169,7 +169,35 @@ extension AppDelegate {
             songRequestService?.startPlaybackMonitoring()
         }
 
+        setupSkipVoteManager()
+
         Log.info("AppDelegate: Song request service initialized", category: "SongRequest")
+    }
+
+    /// Creates the chat vote-to-skip manager and wires its skip + chat callbacks.
+    ///
+    /// Must run after `setupTwitchService()` and `songRequestService` exist so the
+    /// skip action and chat-message relay can reach the live services.
+    func setupSkipVoteManager() {
+        let voteManager = SkipVoteManager()
+
+        voteManager.performSkip = { [weak self] in
+            await self?.songRequestService?.voteSkip()
+        }
+        voteManager.sendChatMessage = { [weak self] message in
+            self?.twitchService?.sendMessage(message)
+        }
+        voteManager.createPoll = { [weak self] title, duration in
+            await self?.twitchService?.createSkipPoll(title: title, durationSeconds: duration) ?? false
+        }
+
+        skipVoteManager = voteManager
+        twitchService?.setSkipVoteManager { [weak self] in self?.skipVoteManager }
+
+        // Route finished Twitch polls back into the vote manager.
+        twitchService?.onSkipPollEnded = { [weak self] skipVotes, keepVotes in
+            Task { await self?.skipVoteManager?.handlePollEnded(skipVotes: skipVotes, keepVotes: keepVotes) }
+        }
     }
 
     /// Creates the listening history service and loads existing history if the

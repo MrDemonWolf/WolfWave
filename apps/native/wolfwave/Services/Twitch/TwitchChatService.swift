@@ -204,8 +204,14 @@ final class TwitchChatService: @unchecked Sendable {
         commandDispatcher.setSongRequestQueue(callback: callback)
     }
 
+    /// Wire the skip-vote manager into the command dispatcher.
+    func setSkipVoteManager(callback: @escaping () -> SkipVoteManager?) {
+        commandDispatcher.setSkipVoteManager(callback: callback)
+    }
+
     nonisolated(unsafe) private var _onMessageReceived: (@Sendable (ChatMessage) -> Void)?
     nonisolated(unsafe) private var _onConnectionStateChanged: (@Sendable (Bool) -> Void)?
+    nonisolated(unsafe) private var _onSkipPollEnded: (@Sendable (Int, Int) -> Void)?
 
     var onMessageReceived: (@Sendable (ChatMessage) -> Void)? {
         get { credentialsLock.withLock { _onMessageReceived } }
@@ -215,6 +221,12 @@ final class TwitchChatService: @unchecked Sendable {
     var onConnectionStateChanged: (@Sendable (Bool) -> Void)? {
         get { credentialsLock.withLock { _onConnectionStateChanged } }
         set { credentialsLock.withLock { _onConnectionStateChanged = newValue } }
+    }
+
+    /// Invoked when a vote-skip Twitch poll finishes. Parameters: (skipVotes, keepVotes).
+    var onSkipPollEnded: (@Sendable (Int, Int) -> Void)? {
+        get { credentialsLock.withLock { _onSkipPollEnded } }
+        set { credentialsLock.withLock { _onSkipPollEnded = newValue } }
     }
 
 
@@ -957,7 +969,15 @@ final class TwitchChatService: @unchecked Sendable {
 
             // optional: check scopes
             if let scopes = json["scopes"] as? [String] {
-                let missing = requiredScopes.filter { !scopes.contains($0) }
+                // Vote-skip Polls mode needs the polls scope. Only require it when
+                // the user has actually enabled Polls mode, so existing users are
+                // not forced to re-authorize unless they opt in.
+                var effectiveScopes = requiredScopes
+                if UserDefaults.standard.bool(forKey: AppConstants.UserDefaults.voteSkipUsePolls),
+                   !effectiveScopes.contains("channel:manage:polls") {
+                    effectiveScopes.append("channel:manage:polls")
+                }
+                let missing = effectiveScopes.filter { !scopes.contains($0) }
                 if !missing.isEmpty {
                     Log.warn(
                         "TwitchChatService: Token missing required scopes: \(missing.joined(separator: ", "))",
@@ -1655,6 +1675,7 @@ final class TwitchChatService: @unchecked Sendable {
         )
 
         subscribeToChannelChatMessage()
+        subscribeToPollEvents()
         subscribeToStreamEvents()
         seedStreamLiveState()
     }
@@ -1669,16 +1690,167 @@ final class TwitchChatService: @unchecked Sendable {
         if let subscription = payload["subscription"] as? [String: Any],
             let subType = subscription["type"] as? String
         {
-            guard subType == "channel.chat.message" else {
+            switch subType {
+            case "channel.chat.message":
+                handleEventSubMessage(payload)
+            case "channel.poll.end":
+                handlePollEndEvent(payload)
+            default:
                 handleStreamStateNotification(type: subType)
-                return
             }
         } else {
             Log.warn("TwitchChatService: EventSub notification missing subscription type", category: "Twitch")
+        }
+    }
+
+    /// Parses a `channel.poll.end` event and, when it is our vote-skip poll,
+    /// forwards the Skip/Keep tallies to `onSkipPollEnded`.
+    ///
+    /// - Parameter payload: The EventSub notification payload.
+    private func handlePollEndEvent(_ payload: [String: Any]) {
+        guard let event = payload["event"] as? [String: Any],
+              let title = event["title"] as? String,
+              title == TwitchChatService.skipPollTitle,
+              let choices = event["choices"] as? [[String: Any]]
+        else { return }
+
+        var skipVotes = 0
+        var keepVotes = 0
+        for choice in choices {
+            let votes = choice["votes"] as? Int ?? 0
+            switch choice["title"] as? String {
+            case TwitchChatService.skipPollSkipChoice: skipVotes = votes
+            case TwitchChatService.skipPollKeepChoice: keepVotes = votes
+            default: break
+            }
+        }
+
+        Log.info("TwitchChatService: Vote-skip poll ended — \(skipVotes) skip / \(keepVotes) keep", category: "Twitch")
+        onSkipPollEnded?(skipVotes, keepVotes)
+    }
+
+    // MARK: - Vote-Skip Polls
+
+    /// Title used for vote-skip Twitch polls. Also the match key for `channel.poll.end`.
+    static let skipPollTitle = "Skip the current song?"
+
+    /// "Skip" choice label on a vote-skip poll.
+    static let skipPollSkipChoice = "Skip"
+
+    /// "Keep playing" choice label on a vote-skip poll.
+    static let skipPollKeepChoice = "Keep playing"
+
+    /// Creates a native Twitch poll asking chat to vote on skipping the current song.
+    ///
+    /// Requires the `channel:manage:polls` scope and Affiliate/Partner status —
+    /// missing either causes Twitch to reject the request, in which case this
+    /// returns `false` and `SkipVoteManager` falls back to a chat tally.
+    ///
+    /// - Parameters:
+    ///   - title: Poll question (truncated to Twitch's 60-character limit).
+    ///   - durationSeconds: Poll duration, clamped to Twitch's 15–1800 second range.
+    /// - Returns: `true` when Twitch accepted the poll.
+    func createSkipPoll(title: String, durationSeconds: Int) async -> Bool {
+        guard let broadcasterID = broadcasterID,
+              let token = oauthToken,
+              let clientID = clientID
+        else {
+            Log.warn("TwitchChatService: Cannot create poll — missing credentials", category: "Twitch")
+            return false
+        }
+
+        guard let url = URL(string: apiBaseURL + "/polls") else { return false }
+
+        let duration = min(max(durationSeconds, 15), 1800)
+        let body: [String: Any] = [
+            "broadcaster_id": broadcasterID,
+            "title": String(title.prefix(60)),
+            "choices": [
+                ["title": TwitchChatService.skipPollSkipChoice],
+                ["title": TwitchChatService.skipPollKeepChoice],
+            ],
+            "duration": duration,
+        ]
+
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        request.setValue(clientID, forHTTPHeaderField: "Client-ID")
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        do {
+            request.httpBody = try JSONSerialization.data(withJSONObject: body)
+        } catch {
+            Log.error("TwitchChatService: Failed to serialize poll body - \(error.localizedDescription)", category: "Twitch")
+            return false
+        }
+
+        do {
+            let (data, response) = try await URLSession.shared.data(for: request)
+            guard let http = response as? HTTPURLResponse else { return false }
+            if (200..<300).contains(http.statusCode) {
+                Log.info("TwitchChatService: Vote-skip poll created", category: "Twitch")
+                return true
+            }
+            let text = String(data: data, encoding: .utf8) ?? "No response"
+            Log.warn("TwitchChatService: Poll creation failed — HTTP \(http.statusCode) — \(text)", category: "Twitch")
+            return false
+        } catch {
+            Log.error("TwitchChatService: Poll creation request failed - \(error.localizedDescription)", category: "Twitch")
+            return false
+        }
+    }
+
+    /// Subscribes to `channel.poll.end` so finished vote-skip polls can be tallied.
+    ///
+    /// No-op unless vote-skip Polls mode is enabled. A failed subscription (e.g.
+    /// missing scope) is logged but does not affect the chat connection.
+    private func subscribeToPollEvents() {
+        guard UserDefaults.standard.bool(forKey: AppConstants.UserDefaults.voteSkipEnabled),
+              UserDefaults.standard.bool(forKey: AppConstants.UserDefaults.voteSkipUsePolls)
+        else { return }
+
+        let currentSessionID: String? = webSocketLock.withLock { sessionID }
+        guard let sessionID = currentSessionID,
+              let broadcasterID = broadcasterID,
+              let token = oauthToken,
+              let clientID = clientID
+        else {
+            Log.warn("TwitchChatService: Missing credentials for poll EventSub subscription", category: "Twitch")
             return
         }
 
-        handleEventSubMessage(payload)
+        let subscriptionBody: [String: Any] = [
+            "type": "channel.poll.end",
+            "version": "1",
+            "condition": ["broadcaster_user_id": broadcasterID],
+            "transport": [
+                "method": "websocket",
+                "session_id": sessionID,
+            ],
+        ]
+
+        guard let url = URL(string: apiBaseURL + "/eventsub/subscriptions") else { return }
+
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        request.setValue(clientID, forHTTPHeaderField: "Client-ID")
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        do {
+            request.httpBody = try JSONSerialization.data(withJSONObject: subscriptionBody)
+        } catch {
+            Log.error("TwitchChatService: Failed to serialize poll EventSub body - \(error.localizedDescription)", category: "Twitch")
+            return
+        }
+
+        URLSession.shared.dataTask(with: request) { data, response, _ in
+            if let http = response as? HTTPURLResponse, !(200..<300).contains(http.statusCode) {
+                let text = data.flatMap { String(data: $0, encoding: .utf8) } ?? "No response"
+                Log.warn("TwitchChatService: channel.poll.end subscription failed — HTTP \(http.statusCode) — \(text)", category: "Twitch")
+            } else {
+                Log.info("TwitchChatService: Subscribed to vote-skip poll events", category: "Twitch")
+            }
+        }.resume()
     }
 
     /// Updates `isStreamLive` from a `stream.online` / `stream.offline` event.

@@ -58,6 +58,32 @@ Everyone can add tracks to your queue. Mods get extra controls.
 
 ---
 
+## 🗳 Vote-Skip
+**TL;DR: Chat votes a song off.**
+
+Let your community skip a track together — no mod needed.
+
+| Command       | Who      | What it does                          |
+| ------------- | -------- | ------------------------------------- |
+| `!voteskip`   | Everyone | Cast a vote to skip the current song  |
+| `!vs`         | Everyone | Short alias for `!voteskip`           |
+
+When enough viewers vote within the time window, the song is skipped — the
+queued request if one is playing, otherwise the current Apple Music track. If
+the window runs out first, the song stays.
+
+Two ways to run a vote, set in **Settings → Song Requests → Chat Vote-Skip**:
+
+- **Chat tally** — `!voteskip` votes are counted until the minimum is reached.
+- **Twitch Polls** — a mod's `!voteskip` opens a native Twitch poll (Affiliate/Partner only).
+
+<Callout type="info">
+  Set the minimum votes, vote window, cooldown, and subscriber-only voting in
+  **Settings → Song Requests → Chat Vote-Skip**.
+</Callout>
+
+---
+
 ## 🛑 Cooldowns & Spam
 **TL;DR: No spamming allowed.**
 

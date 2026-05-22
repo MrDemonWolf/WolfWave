@@ -113,7 +113,7 @@ enum TwitchDeviceAuthError: LocalizedError {
 /// ```swift
 /// let auth = TwitchDeviceAuth(
 ///     clientID: "your-client-id",
-///     scopes: ["user:read:chat", "user:write:chat"]
+///     scopes: ["user:read:chat", "user:write:chat", "channel:manage:polls"]
 /// )
 ///
 /// let response = try await auth.requestDeviceCode()
