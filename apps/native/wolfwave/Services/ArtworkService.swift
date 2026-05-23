@@ -57,6 +57,18 @@ nonisolated final class ArtworkService: @unchecked Sendable {
         qos: .utility
     )
 
+    /// URL session used for iTunes Search API requests. Injectable for testing.
+    private let session: URLSession
+
+    // MARK: - Init
+
+    /// Creates an artwork service.
+    ///
+    /// - Parameter session: URL session for API requests. Defaults to `.shared`.
+    init(session: URLSession = .shared) {
+        self.session = session
+    }
+
     // MARK: - Public API
 
     /// Fetches album artwork URL from the iTunes Search API.
@@ -128,7 +140,7 @@ nonisolated final class ArtworkService: @unchecked Sendable {
             return
         }
 
-        URLSession.shared.dataTask(with: url) { [weak self] data, _, error in
+        session.dataTask(with: url) { [weak self] data, _, error in
             guard let data, error == nil,
                   let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
                   let results = json["results"] as? [[String: Any]],

@@ -138,17 +138,22 @@ final class TwitchDeviceAuth {
     
     /// The OAuth scopes to request (e.g., "user:read:chat", "user:write:chat")
     private let scopes: [String]
-    
+
+    /// URL session used for OAuth HTTP requests. Injectable for testing.
+    private let session: URLSession
+
     // MARK: - Initialization
-    
+
     /// Creates a new Twitch Device Auth instance.
     ///
     /// - Parameters:
     ///   - clientID: Your Twitch application's client ID.
     ///   - scopes: Array of OAuth scope strings to request.
-    init(clientID: String, scopes: [String]) {
+    ///   - session: URL session for HTTP requests. Defaults to `.shared`.
+    init(clientID: String, scopes: [String], session: URLSession = .shared) {
         self.clientID = clientID
         self.scopes = scopes
+        self.session = session
     }
     
     // MARK: - Public Methods
@@ -208,7 +213,7 @@ final class TwitchDeviceAuth {
         request.timeoutInterval = 15
 
         do {
-            let (data, response) = try await URLSession.shared.data(for: request)
+            let (data, response) = try await session.data(for: request)
             guard let http = response as? HTTPURLResponse else {
                 throw TwitchDeviceAuthError.invalidResponse
             }
@@ -337,7 +342,7 @@ final class TwitchDeviceAuth {
             request.timeoutInterval = 15
 
             do {
-                let (data, response) = try await URLSession.shared.data(for: request)
+                let (data, response) = try await session.data(for: request)
                 guard let http = response as? HTTPURLResponse else {
                     throw TwitchDeviceAuthError.invalidResponse
                 }

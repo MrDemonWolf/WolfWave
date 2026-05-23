@@ -160,6 +160,7 @@ struct OnboardingView: View {
                 .accessibilityHidden(viewModel.isFirstStep)
                 .accessibilityLabel("Go back")
                 .accessibilityHint("Returns to the previous setup step")
+                .accessibilityIdentifier("onboarding.back")
 
                 Button("Skip All") {
                     finishOnboarding()
@@ -172,6 +173,7 @@ struct OnboardingView: View {
                 .accessibilityHidden(viewModel.isLastStep)
                 .accessibilityLabel("Skip all steps")
                 .accessibilityHint("Skips the setup wizard and uses default settings")
+                .accessibilityIdentifier("onboarding.skipAll")
             }
 
             Spacer()
@@ -189,6 +191,7 @@ struct OnboardingView: View {
             .disabled(!shouldShowSkip)
             .accessibilityLabel("Skip this step")
             .accessibilityHint("Skips the current setup step without making changes")
+            .accessibilityIdentifier("onboarding.skip")
 
             if viewModel.isLastStep {
                 Button("Finish") {
@@ -199,6 +202,7 @@ struct OnboardingView: View {
                 .pointerCursor()
                 .accessibilityLabel("Finish setup")
                 .accessibilityHint("Completes the setup wizard and starts using WolfWave")
+                .accessibilityIdentifier("onboarding.finish")
             } else {
                 Button("Next") {
                     navigationDirection = .trailing
@@ -210,6 +214,7 @@ struct OnboardingView: View {
                 .pointerCursor()
                 .accessibilityLabel("Next step")
                 .accessibilityHint("Continues to the next setup step")
+                .accessibilityIdentifier("onboarding.next")
             }
         }
         .transaction { $0.animation = nil }
