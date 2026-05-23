@@ -16,6 +16,10 @@
 	<string>https://github.com/MrDemonWolf/wolfwave/releases/latest/download/appcast.xml</string>
 	<key>SUPublicEDKey</key>
 	<string>Ccoxj8YsfvYlbNDi0/LnwFY/Wa3aBU+tlJX5cqjt3X8=</string>
+	<key>SUEnableAutomaticChecks</key>
+	<true/>
+	<key>SUScheduledCheckInterval</key>
+	<integer>86400</integer>
 	<key>TWITCH_CLIENT_ID</key>
 	<string>$(TWITCH_CLIENT_ID)</string>
 	<key>DISCORD_CLIENT_ID</key>

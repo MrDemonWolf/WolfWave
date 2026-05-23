@@ -160,7 +160,7 @@ Unit tests live in `apps/native/WolfWaveTests/` and use XCTest + Swift Testing w
 
 Sparkle uses EdDSA (Ed25519) signing for update verification. The public key is in `Info.plist` as `SUPublicEDKey`. The private key is stored in the developer's macOS Keychain and as the `SPARKLE_PRIVATE_KEY` GitHub secret for CI.
 
-- **DEBUG builds**: Sparkle initializes but automatic checks are disabled. Manual "Check Now" works and reads the bundled `dev-appcast.xml` (dummy v99.0.0 entry).
+- **DEBUG builds**: Sparkle is instantiated with `startingUpdater: false` — no background checks. Manual "Check Now" works and the `SPUUpdaterDelegate.feedURLString(for:)` callback points Sparkle at the bundled `dev-appcast.xml` (dummy v99.0.0 entry), so the full Sparkle UI is exercisable without a real release.
 - **Release builds**: Sparkle checks the remote appcast at the `SUFeedURL` in Info.plist.
 - **Homebrew installs**: Sparkle is fully disabled (updates managed by Homebrew).
 - **Key management**: Run `generate_keys` from Sparkle's tools to view/export/import keys. The tool is at `SourcePackages/artifacts/sparkle/Sparkle/bin/generate_keys` in DerivedData.

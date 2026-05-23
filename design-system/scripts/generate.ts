@@ -62,7 +62,7 @@ function generateSwift(): string {
     "// MARK: - Design System Tokens",
     "",
     "/// Generated color tokens. Use these instead of hardcoded `Color(red:…)` literals.",
-    "enum DSColor {",
+    "nonisolated enum DSColor {",
     "    // MARK: Brand",
   ];
   for (const [k, v] of Object.entries(tokens.color.brand)) {
@@ -96,7 +96,7 @@ function generateSwift(): string {
 
   lines.push(
     "/// Generated typography sizes. CGFloat literals match prior hand-coded sizes.",
-    "enum DSFont {",
+    "nonisolated enum DSFont {",
     "    enum Size {"
   );
   for (const [k, v] of Object.entries(tokens.font.size)) {
@@ -115,13 +115,13 @@ function generateSwift(): string {
   }
   lines.push("    }", "}", "");
 
-  lines.push("/// Generated spacing scale.", "enum DSSpace {");
+  lines.push("/// Generated spacing scale.", "nonisolated enum DSSpace {");
   for (const [k, v] of Object.entries(tokens.space)) {
     lines.push(`    static let s${k}: CGFloat = ${v}`);
   }
   lines.push("}", "");
 
-  lines.push("/// Generated radius scale.", "enum DSRadius {");
+  lines.push("/// Generated radius scale.", "nonisolated enum DSRadius {");
   for (const [k, v] of Object.entries(tokens.radius)) {
     lines.push(`    static let ${safeIdent(k)}: CGFloat = ${v}`);
   }
@@ -129,7 +129,7 @@ function generateSwift(): string {
 
   lines.push(
     "/// Generated motion tokens (durations in seconds for SwiftUI animations).",
-    "enum DSMotion {",
+    "nonisolated enum DSMotion {",
     "    enum Duration {"
   );
   for (const [k, v] of Object.entries(tokens.motion.duration)) {
@@ -139,7 +139,7 @@ function generateSwift(): string {
 
   lines.push(
     "/// Window and onboarding dimension tokens (preserves legacy AppConstants values).",
-    "enum DSDimension {",
+    "nonisolated enum DSDimension {",
     "    enum Settings {"
   );
   for (const [k, v] of Object.entries(tokens.dimension.settings)) {

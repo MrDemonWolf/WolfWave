@@ -9,11 +9,11 @@ import Foundation
 import AppKit
 import ScriptingBridge
 
-class AppleMusicSource: PlaybackSource {
+final class AppleMusicSource: PlaybackSource, @unchecked Sendable {
 
     // MARK: - Properties
 
-    private enum Constants {
+    private nonisolated enum Constants {
         static let musicBundleIdentifier = "com.apple.Music"
         static let notificationName = "com.apple.Music.playerInfo"
         static let queueLabel = "com.mrdemonwolf.wolfwave.musicplaybackmonitor"
@@ -32,15 +32,15 @@ class AppleMusicSource: PlaybackSource {
 
     weak var delegate: PlaybackSourceDelegate?
 
-    private var currentCheckInterval: TimeInterval = Constants.checkInterval
-    private var timer: DispatchSourceTimer?
-    private var lastLoggedTrack: String?
-    private var lastTrackSeenAt: Date = .distantPast
-    private var lastNotificationAt: Date = .distantPast
-    private var isTracking = false
+    nonisolated(unsafe) private var currentCheckInterval: TimeInterval = Constants.checkInterval
+    nonisolated(unsafe) private var timer: DispatchSourceTimer?
+    nonisolated(unsafe) private var lastLoggedTrack: String?
+    nonisolated(unsafe) private var lastTrackSeenAt: Date = .distantPast
+    nonisolated(unsafe) private var lastNotificationAt: Date = .distantPast
+    nonisolated(unsafe) private var isTracking = false
     private let trackingLock = NSLock()
-    private var pendingDuration: TimeInterval = 0
-    private var pendingElapsed: TimeInterval = 0
+    nonisolated(unsafe) private var pendingDuration: TimeInterval = 0
+    nonisolated(unsafe) private var pendingElapsed: TimeInterval = 0
 
     private let backgroundQueue = DispatchQueue(label: Constants.queueLabel, qos: .utility)
 
@@ -58,7 +58,7 @@ class AppleMusicSource: PlaybackSource {
         setupFallbackTimer()
     }
 
-    func stopTracking() {
+    nonisolated func stopTracking() {
         let wasTracking = trackingLock.withLock { () -> Bool in
             guard isTracking else { return false }
             isTracking = false

@@ -72,6 +72,10 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     /// Long-lived task consuming `discordService.artworkResolutions`.
     var discordArtworkConsumer: Task<Void, Never>?
 
+    /// Most-recent Discord connection state seen from the actor's stream.
+    /// Used by the synchronous menu builder; updated by `discordStateConsumer`.
+    var discordCachedState: DiscordRPCService.ConnectionState = .disconnected
+
     var currentSong: String?
     var currentArtist: String?
     var currentAlbum: String?
@@ -154,6 +158,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationWillTerminate(_ notification: Notification) {
         flushCurrentPlayToHistory()
         historyService?.shutdown()
+        NotificationCenter.default.removeObserver(self)
         notificationObservers.forEach { NotificationCenter.default.removeObserver($0) }
         notificationObservers.removeAll()
     }

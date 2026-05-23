@@ -39,7 +39,7 @@ cat > "$OUTPUT_FILE" <<EOF
 // To update: edit .github/FUNDING.yml, then run \`make sponsor-config\` (or
 // \`bash scripts/generate-sponsor-config.sh\`) and commit both files.
 
-enum SponsorConfig {
+nonisolated enum SponsorConfig {
     /// GitHub Sponsors username, parsed from .github/FUNDING.yml at build time.
     static let sponsorUser = "$HANDLE"
 }

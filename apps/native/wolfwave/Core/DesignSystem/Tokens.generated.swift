@@ -8,7 +8,7 @@ import CoreGraphics
 // MARK: - Design System Tokens
 
 /// Generated color tokens. Use these instead of hardcoded `Color(red:…)` literals.
-enum DSColor {
+nonisolated enum DSColor {
     // MARK: Brand
     static let brand50 = Color(red: 0.941, green: 0.969, blue: 1.000)
     static let brand100 = Color(red: 0.851, green: 0.925, blue: 1.000)
@@ -59,7 +59,7 @@ enum DSColor {
 }
 
 /// Generated typography sizes. CGFloat literals match prior hand-coded sizes.
-enum DSFont {
+nonisolated enum DSFont {
     enum Size {
         static let xs: CGFloat = 10
         static let sm: CGFloat = 11
@@ -80,7 +80,7 @@ enum DSFont {
 }
 
 /// Generated spacing scale.
-enum DSSpace {
+nonisolated enum DSSpace {
     static let s1: CGFloat = 4
     static let s2: CGFloat = 8
     static let s3: CGFloat = 10
@@ -93,7 +93,7 @@ enum DSSpace {
 }
 
 /// Generated radius scale.
-enum DSRadius {
+nonisolated enum DSRadius {
     static let xs: CGFloat = 4
     static let sm: CGFloat = 6
     static let md: CGFloat = 8
@@ -104,7 +104,7 @@ enum DSRadius {
 }
 
 /// Generated motion tokens (durations in seconds for SwiftUI animations).
-enum DSMotion {
+nonisolated enum DSMotion {
     enum Duration {
         static let fast: Double = 0.15
         static let base: Double = 0.22
@@ -113,7 +113,7 @@ enum DSMotion {
 }
 
 /// Window and onboarding dimension tokens (preserves legacy AppConstants values).
-enum DSDimension {
+nonisolated enum DSDimension {
     enum Settings {
         static let minWidth: CGFloat = 720
         static let minHeight: CGFloat = 520

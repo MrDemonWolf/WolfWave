@@ -174,34 +174,32 @@ jobs:
           xcrun stapler staple "builds/$DMG_NAME"
           echo "Notarization ticket stapled"
 
+      - name: Install Sparkle CLI tools
+        run: |
+          brew install --cask sparkle
+          SPARKLE_BIN=$(find /opt/homebrew/Caskroom/sparkle /usr/local/Caskroom/sparkle -name generate_appcast -type f 2>/dev/null | head -1 | xargs -I {} dirname {})
+          if [ -z "$SPARKLE_BIN" ]; then
+            echo "::error::Could not locate Sparkle CLI tools after Homebrew install"
+            exit 1
+          fi
+          echo "SPARKLE_BIN=$SPARKLE_BIN" >> "$GITHUB_ENV"
+          echo "Sparkle CLI tools at $SPARKLE_BIN"
+
       - name: Generate Sparkle appcast
         env:
           DMG_NAME: ${{ steps.version.outputs.dmg_name }}
           VERSION: ${{ steps.version.outputs.version }}
           SPARKLE_PRIVATE_KEY: ${{ secrets.SPARKLE_PRIVATE_KEY }}
         run: |
-          GENERATE_APPCAST=$(find build -name generate_appcast -type f 2>/dev/null | head -1)
-          SIGN_UPDATE=$(find build -name sign_update -type f 2>/dev/null | head -1)
-          if [ -n "$GENERATE_APPCAST" ]; then
-            echo "Found generate_appcast at $GENERATE_APPCAST"
-            echo "$SPARKLE_PRIVATE_KEY" > "$RUNNER_TEMP/sparkle_key"
-            "$GENERATE_APPCAST" \
-              --ed-key-file "$RUNNER_TEMP/sparkle_key" \
-              --download-url-prefix "https://github.com/MrDemonWolf/wolfwave/releases/download/v${VERSION}/" \
-              -o builds/appcast.xml builds/
-            rm -f "$RUNNER_TEMP/sparkle_key"
-          elif [ -n "$SIGN_UPDATE" ]; then
-            echo "Using sign_update for Ed25519 signature"
-            echo "$SPARKLE_PRIVATE_KEY" > "$RUNNER_TEMP/sparkle_key"
-            SIGNATURE=$("$SIGN_UPDATE" "builds/$DMG_NAME" --ed-key-file "$RUNNER_TEMP/sparkle_key" 2>&1 | grep -oE 'sparkle:edSignature="[^"]*"' | cut -d'"' -f2)
-            rm -f "$RUNNER_TEMP/sparkle_key"
-            if [ -z "$SIGNATURE" ]; then echo "Failed to sign"; exit 1; fi
-            DMG_SIZE=$(stat -f%z "builds/$DMG_NAME")
-            printf '<?xml version="1.0" encoding="utf-8"?>\n<rss version="2.0" xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle">\n  <channel>\n    <title>WolfWave</title>\n    <item>\n      <title>WolfWave v%s</title>\n      <sparkle:version>%s</sparkle:version>\n      <sparkle:shortVersionString>%s</sparkle:shortVersionString>\n      <pubDate>%s</pubDate>\n      <enclosure url="https://github.com/MrDemonWolf/wolfwave/releases/download/v%s/%s" length="%s" type="application/octet-stream" sparkle:edSignature="%s" />\n    </item>\n  </channel>\n</rss>\n' "$VERSION" "$VERSION" "$VERSION" "$(date -R)" "$VERSION" "$DMG_NAME" "$DMG_SIZE" "$SIGNATURE" > builds/appcast.xml
-          else
-            echo "Neither generate_appcast nor sign_update found"; exit 1
-          fi
-          echo "Appcast generated"
+          echo "$SPARKLE_PRIVATE_KEY" > "$RUNNER_TEMP/sparkle_key"
+          trap 'rm -f "$RUNNER_TEMP/sparkle_key"' EXIT
+          "$SPARKLE_BIN/generate_appcast" \
+            --ed-key-file "$RUNNER_TEMP/sparkle_key" \
+            --download-url-prefix "https://github.com/MrDemonWolf/wolfwave/releases/download/v${VERSION}/" \
+            -o builds/appcast.xml builds/
+          xmllint --noout builds/appcast.xml
+          grep -q 'sparkle:edSignature=' builds/appcast.xml || { echo "::error::appcast.xml missing edSignature"; exit 1; }
+          echo "Appcast generated and validated"
 
       - name: Upload DMG artifact
         uses: actions/upload-artifact@v7
