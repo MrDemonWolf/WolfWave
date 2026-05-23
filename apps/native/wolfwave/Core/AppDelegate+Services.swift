@@ -27,35 +27,17 @@ extension AppDelegate {
             Log.error("AppDelegate: No Twitch Client ID found. Copy Config.xcconfig.example to Config.xcconfig and set your Client ID.", category: "Twitch")
         }
 
-        twitchService?.getCurrentSongInfo = { [weak self] in
-            if Thread.isMainThread {
-                return MainActor.assumeIsolated { self?.getCurrentSongInfo() ?? "Nothing playing right now" }
-            }
-            var result = "Nothing playing right now"
-            DispatchQueue.main.sync {
-                result = MainActor.assumeIsolated { self?.getCurrentSongInfo() ?? "Nothing playing right now" }
-            }
-            return result
+        // Async providers — the actor hops to MainActor inside each closure
+        // to read AppDelegate state. Replaces the prior Thread.isMainThread +
+        // DispatchQueue.main.sync dance (G5).
+        twitchService?.setCurrentSongInfoProvider { [weak self] in
+            await MainActor.run { self?.getCurrentSongInfo() ?? "Nothing playing right now" }
         }
-        twitchService?.getLastSongInfo = { [weak self] in
-            if Thread.isMainThread {
-                return MainActor.assumeIsolated { self?.getLastSongInfo() ?? "No previous track yet" }
-            }
-            var result = "No previous track yet"
-            DispatchQueue.main.sync {
-                result = MainActor.assumeIsolated { self?.getLastSongInfo() ?? "No previous track yet" }
-            }
-            return result
+        twitchService?.setLastSongInfoProvider { [weak self] in
+            await MainActor.run { self?.getLastSongInfo() ?? "No previous track yet" }
         }
-        twitchService?.getStatsInfo = { [weak self] in
-            if Thread.isMainThread {
-                return MainActor.assumeIsolated { self?.getStatsInfo() ?? "No listening stats yet" }
-            }
-            var result = "No listening stats yet"
-            DispatchQueue.main.sync {
-                result = MainActor.assumeIsolated { self?.getStatsInfo() ?? "No listening stats yet" }
-            }
-            return result
+        twitchService?.setStatsInfoProvider { [weak self] in
+            await MainActor.run { self?.getStatsInfo() ?? "No listening stats yet" }
         }
     }
 
@@ -72,6 +54,7 @@ extension AppDelegate {
 
         discordStateConsumer = Task { @MainActor [weak self] in
             for await newState in service.stateChanges {
+                _ = self
                 let stateString: String
                 switch newState {
                 case .connected: stateString = "connected"
@@ -169,15 +152,24 @@ extension AppDelegate {
 
         // Wire chat message sending for auto-advance announcements
         songRequestService?.sendChatMessage = { [weak self] message in
-            self?.twitchService?.sendMessage(message)
+            guard let service = self?.twitchService else { return }
+            Task { await service.sendMessage(message) }
         }
 
         // Wire commands to the service via TwitchChatService passthroughs
-        twitchService?.setSongRequestService { [weak self] in self?.songRequestService }
-        twitchService?.setSongRequestQueue { [weak self] in self?.songRequestService?.queue }
-
-        // Direct reference for the channel-point / bit redemption handlers
-        twitchService?.songRequestService = songRequestService
+        if let twitchService {
+            Task { [weak self] in
+                await twitchService.setSongRequestService { [weak self] in
+                    MainActor.assumeIsolated { self?.songRequestService }
+                }
+                await twitchService.setSongRequestQueue { [weak self] in
+                    MainActor.assumeIsolated { self?.songRequestService?.queue }
+                }
+                // Direct reference for the channel-point / bit redemption handlers
+                let reference = await MainActor.run { self?.songRequestService }
+                await twitchService.setSongRequestServiceReference(reference)
+            }
+        }
 
         // Start playback monitoring if song requests are enabled
         let enabled = UserDefaults.standard.bool(forKey: AppConstants.UserDefaults.songRequestEnabled)
@@ -201,18 +193,30 @@ extension AppDelegate {
             await self?.songRequestService?.voteSkip()
         }
         voteManager.sendChatMessage = { [weak self] message in
-            self?.twitchService?.sendMessage(message)
+            guard let service = self?.twitchService else { return }
+            Task { await service.sendMessage(message) }
         }
         voteManager.createPoll = { [weak self] title, duration in
             await self?.twitchService?.createSkipPoll(title: title, durationSeconds: duration) ?? false
         }
 
         skipVoteManager = voteManager
-        twitchService?.setSkipVoteManager { [weak self] in self?.skipVoteManager }
+        if let twitchService {
+            Task { [weak self] in
+                await twitchService.setSkipVoteManager { [weak self] in
+                    MainActor.assumeIsolated { self?.skipVoteManager }
+                }
+            }
 
-        // Route finished Twitch polls back into the vote manager.
-        twitchService?.onSkipPollEnded = { [weak self] skipVotes, keepVotes in
-            Task { await self?.skipVoteManager?.handlePollEnded(skipVotes: skipVotes, keepVotes: keepVotes) }
+            // Route finished Twitch polls back into the vote manager via the
+            // AsyncStream surface.
+            skipPollObserverTask?.cancel()
+            skipPollObserverTask = Task { [weak self] in
+                for await result in twitchService.skipPollResults {
+                    await self?.skipVoteManager?.handlePollEnded(
+                        skipVotes: result.skipVotes, keepVotes: result.keepVotes)
+                }
+            }
         }
     }
 
@@ -307,12 +311,13 @@ extension AppDelegate {
                 object: nil,
                 queue: .main
             ) { [weak self] notification in
-                guard let self,
-                      let window = notification.object as? NSWindow,
-                      window !== self.settingsWindow,
-                      window !== self.onboardingWindow else { return }
-                Task { @MainActor [weak self] in
-                    self?.restoreMenuOnlyIfNeeded()
+                nonisolated(unsafe) let n = notification
+                MainActor.assumeIsolated {
+                    guard let self,
+                          let window = n.object as? NSWindow,
+                          window !== self.settingsWindow,
+                          window !== self.onboardingWindow else { return }
+                    self.restoreMenuOnlyIfNeeded()
                 }
             }
         )

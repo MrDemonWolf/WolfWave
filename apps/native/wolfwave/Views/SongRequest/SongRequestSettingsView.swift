@@ -95,7 +95,7 @@ struct SongRequestSettingsView: View {
     /// Refreshes the Twitch-connected flag from the live service so the
     /// song-request UI accurately reflects whether requests can flow in.
     private func refreshTwitchState() {
-        updateTwitchState(appDelegate?.twitchService?.isConnected ?? false)
+        updateTwitchState(appDelegate?.twitchService?.isConnectedSnapshot.value ?? false)
     }
 
     /// Updates `isTwitchConnected` and, if Twitch just disconnected while
@@ -467,7 +467,9 @@ fileprivate struct SongRequestAccessCard: View {
                 ForEach(SongRequestPreset.allCases) { preset in
                     Button {
                         preset.apply()
-                        AppDelegate.shared?.twitchService?.refreshRedemptionSubscriptions()
+                        if let service = AppDelegate.shared?.twitchService {
+                            Task { await service.refreshRedemptionSubscriptions() }
+                        }
                     } label: {
                         Text(preset.displayName)
                             .font(.system(size: 11, weight: .medium))
@@ -535,7 +537,9 @@ fileprivate struct SongRequestRedemptionsCard: View {
     private var bitsBoostEnabled = false
 
     private func refresh() {
-        AppDelegate.shared?.twitchService?.refreshRedemptionSubscriptions()
+        if let service = AppDelegate.shared?.twitchService {
+            Task { await service.refreshRedemptionSubscriptions() }
+        }
     }
 
     var body: some View {

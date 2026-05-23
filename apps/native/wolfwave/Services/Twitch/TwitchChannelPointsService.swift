@@ -16,7 +16,7 @@ import Foundation
 /// is why WolfWave owns the reward rather than listening to one the streamer
 /// created manually. All methods take credentials explicitly so the type holds
 /// no mutable state and is trivially `Sendable`.
-struct TwitchChannelPointsService: Sendable {
+nonisolated struct TwitchChannelPointsService: Sendable {
 
     // MARK: - Types
 

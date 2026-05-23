@@ -114,7 +114,7 @@ final class TrackInfoCommand: BotCommand {
 
 // MARK: - String Truncation
 
-extension String {
+nonisolated extension String {
     /// Truncates the string so it fits within Twitch chat's 500-character
     /// per-message limit, appending the configured truncation suffix
     /// (`AppConstants.Twitch.messageTruncationSuffix`) when shortened.

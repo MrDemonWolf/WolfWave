@@ -71,6 +71,9 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     var discordStateConsumer: Task<Void, Never>?
     /// Long-lived task consuming `discordService.artworkResolutions`.
     var discordArtworkConsumer: Task<Void, Never>?
+    /// Long-lived consumer of `twitchService.skipPollResults`. Cancelled on
+    /// teardown / re-setup of the skip-vote manager.
+    var skipPollObserverTask: Task<Void, Never>?
 
     /// Most-recent Discord connection state seen from the actor's stream.
     /// Used by the synchronous menu builder; updated by `discordStateConsumer`.

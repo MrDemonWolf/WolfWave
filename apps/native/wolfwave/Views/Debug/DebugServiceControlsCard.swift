@@ -100,12 +100,14 @@ struct DebugServiceControlsCard: View {
     private var twitchSection: some View {
         VStack(alignment: .leading, spacing: 8) {
             sectionLabel("Twitch")
-            Text("Connected: \(appDelegate?.twitchService?.isConnected == true ? "yes" : "no")")
+            Text("Connected: \(appDelegate?.twitchService?.isConnectedSnapshot.value == true ? "yes" : "no")")
                 .font(.system(size: 11))
                 .foregroundStyle(.secondary)
             HStack {
                 Button {
-                    appDelegate?.twitchService?.leaveChannel()
+                    if let service = appDelegate?.twitchService {
+                        Task { await service.leaveChannel() }
+                    }
                 } label: {
                     Label("Force Disconnect", systemImage: "wifi.slash")
                         .frame(maxWidth: .infinity)
@@ -114,14 +116,16 @@ struct DebugServiceControlsCard: View {
                 .pointerCursor()
 
                 Button {
-                    appDelegate?.twitchService?.sendMessage("WolfWave debug ping — \(Date())")
+                    if let service = appDelegate?.twitchService {
+                        Task { await service.sendMessage("WolfWave debug ping — \(Date())") }
+                    }
                 } label: {
                     Label("Send Test Chat", systemImage: "paperplane")
                         .frame(maxWidth: .infinity)
                 }
                 .buttonStyle(.bordered)
                 .pointerCursor()
-                .disabled(appDelegate?.twitchService?.isConnected != true)
+                .disabled(appDelegate?.twitchService?.isConnectedSnapshot.value != true)
             }
         }
     }

@@ -153,12 +153,28 @@ final class TwitchViewModel {
     /// Lock for thread-safe access to cached service
     @ObservationIgnored private let serviceLock = NSLock()
 
+    /// Long-lived consumer of `service.connectionStateChanges`. Cancelled and
+    /// replaced whenever the service reference changes.
+    @ObservationIgnored private var connectionObserverTask: Task<Void, Never>?
+
+    /// Wires the connection-state AsyncStream into `channelConnected` and seeds
+    /// the initial value from the actor's nonisolated snapshot.
+    private func observeConnection(_ service: TwitchChatService) {
+        connectionObserverTask?.cancel()
+        self.channelConnected = service.isConnectedSnapshot.value
+        connectionObserverTask = Task { [weak self] in
+            for await isConnected in service.connectionStateChanges {
+                await MainActor.run { self?.channelConnected = isConnected }
+            }
+        }
+    }
+
     /// Reference to the Twitch chat service with fallback to AppDelegate
     var twitchService: TwitchChatService? {
         get {
             serviceLock.lock()
             defer { serviceLock.unlock() }
-            
+
             // If we have a cached service, return it
             if let cached = cachedTwitchService {
                 return cached
@@ -169,13 +185,7 @@ final class TwitchViewModel {
                 let service = appDelegate.twitchService
             {
                 cachedTwitchService = service
-                // Set up the connection state callback
-                service.onConnectionStateChanged = { [weak self] isConnected in
-                    Task { @MainActor [weak self] in
-                        self?.channelConnected = isConnected
-                    }
-                }
-                self.channelConnected = service.isConnected
+                observeConnection(service)
                 return service
             }
 
@@ -187,15 +197,13 @@ final class TwitchViewModel {
         set {
             serviceLock.lock()
             defer { serviceLock.unlock() }
-            
+
             cachedTwitchService = newValue
             if let svc = newValue {
-                svc.onConnectionStateChanged = { [weak self] isConnected in
-                    Task { @MainActor [weak self] in
-                        self?.channelConnected = isConnected
-                    }
-                }
-                self.channelConnected = svc.isConnected
+                observeConnection(svc)
+            } else {
+                connectionObserverTask?.cancel()
+                connectionObserverTask = nil
             }
         }
     }
@@ -222,12 +230,7 @@ final class TwitchViewModel {
         if let appDelegate = AppDelegate.shared {
             self.cachedTwitchService = appDelegate.twitchService
             if let svc = appDelegate.twitchService {
-                svc.onConnectionStateChanged = { [weak self] isConnected in
-                    Task { @MainActor [weak self] in
-                        self?.channelConnected = isConnected
-                    }
-                }
-                self.channelConnected = svc.isConnected
+                observeConnection(svc)
             }
         }
     }
@@ -727,7 +730,7 @@ final class TwitchViewModel {
                     self.statusMessage = "Connecting to Twitch..."
                 }
 
-                service.shouldSendConnectionMessageOnSubscribe = true
+                await service.setShouldSendConnectionMessageOnSubscribe(true)
 
                 try await service.connectToChannel(
                     channelName: channel,
@@ -822,7 +825,7 @@ final class TwitchViewModel {
     ///
     func leaveChannel() {
         if let service = twitchService {
-            service.leaveChannel()
+            Task { await service.leaveChannel() }
         }
         channelConnected = false
     }

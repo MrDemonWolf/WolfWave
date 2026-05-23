@@ -251,7 +251,7 @@ extension AppDelegate: NSMenuDelegate {
         )
         menu.addItem(copyItem)
 
-        if twitchService?.isConnected ?? false {
+        if twitchService?.isConnectedSnapshot.value ?? false {
             let shareItem = NSMenuItem(
                 title: "Share to Twitch Chat",
                 action: #selector(shareCurrentTrackToTwitch),
@@ -478,7 +478,7 @@ extension AppDelegate: NSMenuDelegate {
         menu.addItem(trackingItem)
 
         if KeychainService.loadTwitchToken() != nil {
-            let connected = twitchService?.isConnected ?? false
+            let connected = twitchService?.isConnectedSnapshot.value ?? false
             let channel = UserDefaults.standard.string(forKey: "twitchChannelName")
             let twitchItem = makeStatusItem(
                 title: "Twitch Chat",
@@ -495,7 +495,7 @@ extension AppDelegate: NSMenuDelegate {
             switch discordService?.stateSnapshot {
             case .connected: return .connected
             case .connecting: return .connecting
-            default: return .disconnected
+            case .disconnected, .none: return .disconnected
             }
         }()
         let discordItem = makeStatusItem(
@@ -715,8 +715,10 @@ extension AppDelegate {
     /// and the bot is idle; opens the Twitch settings pane when credentials
     /// are missing or the channel is unconfigured.
     @objc func toggleTwitchConnection() {
-        if twitchService?.isConnected ?? false {
-            twitchService?.leaveChannel()
+        if twitchService?.isConnectedSnapshot.value ?? false {
+            if let service = twitchService {
+                Task { await service.leaveChannel() }
+            }
         } else {
             // Connecting requires channel + credentials — open Twitch settings
             UserDefaults.standard.set(AppConstants.Twitch.settingsSection, forKey: AppConstants.UserDefaults.selectedSettingsSection)
@@ -839,9 +841,11 @@ extension AppDelegate {
 
     /// Sends the same `!song` reply a viewer would see, directly to chat.
     @objc func shareCurrentTrackToTwitch() {
-        guard twitchService?.isConnected ?? false else { return }
+        guard twitchService?.isConnectedSnapshot.value ?? false else { return }
         let message = getCurrentSongInfo()
-        twitchService?.sendMessage(message)
+        if let service = twitchService {
+            Task { await service.sendMessage(message) }
+        }
         Log.debug("AppDelegate: Shared current track to Twitch chat", category: "App")
     }
 
@@ -879,8 +883,8 @@ extension AppDelegate {
     @objc func reconnectAllServices() {
         // Twitch: only attempt when creds exist; settings can drive the join
         // otherwise.
-        if let twitch = twitchService, twitch.isConnected {
-            twitch.leaveChannel()
+        if let twitch = twitchService, twitch.isConnectedSnapshot.value {
+            Task { await twitch.leaveChannel() }
         }
 
         // Discord: setEnabled(false) → setEnabled(true) tears down and

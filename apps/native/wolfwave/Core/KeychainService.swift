@@ -36,7 +36,7 @@ import Security
 ///     // Use token for Twitch API calls
 /// }
 /// ```
-enum KeychainService {
+nonisolated enum KeychainService {
     // MARK: - Constants
 
     /// Service identifier for Keychain items (bundle-like identifier).

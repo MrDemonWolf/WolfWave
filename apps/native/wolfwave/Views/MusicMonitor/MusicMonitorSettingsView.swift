@@ -330,7 +330,7 @@ struct MusicMonitorSettingsView: View {
     /// running services so the integration row chips reflect reality.
     private func loadIntegrationStatuses() {
         if let appDelegate = AppDelegate.shared {
-            twitchConnected = appDelegate.twitchService?.isConnected ?? false
+            twitchConnected = appDelegate.twitchService?.isConnectedSnapshot.value ?? false
             // Reads the persisted channel name (set during sign-in).
             twitchChannel = UserDefaults.standard.string(forKey: "twitchChannelName")
             widgetRunning = appDelegate.websocketServer?.state == .listening

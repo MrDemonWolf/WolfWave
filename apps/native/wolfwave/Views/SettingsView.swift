@@ -196,7 +196,7 @@ struct SettingsView: View {
 
             // Initialize the view model's connection state from the service so the UI
             // reflects whether we are already joined (prevents missed callbacks).
-            twitchViewModel.channelConnected = appDelegate?.twitchService?.isConnected ?? false
+            twitchViewModel.channelConnected = appDelegate?.twitchService?.isConnectedSnapshot.value ?? false
         }
         // Empty .toolbar { } binds NavigationSplitView's automatic sidebar
         // toggle to the window's NSToolbar (assigned in AppDelegate+Windows).

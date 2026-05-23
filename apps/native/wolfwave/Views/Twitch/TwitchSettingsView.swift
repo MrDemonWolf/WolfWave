@@ -75,7 +75,7 @@ struct TwitchSettingsView: View {
             }
 
             if let svc = viewModel.twitchService {
-                viewModel.channelConnected = svc.isConnected
+                viewModel.channelConnected = svc.isConnectedSnapshot.value
             }
 
             // If reauthentication is needed, disconnect from the channel

@@ -25,9 +25,9 @@ struct TwitchChatServiceTests {
     func testServiceInitialization() async throws {
         let service = TwitchChatService()
 
-        #expect(service.commandsEnabled == true)
-        #expect(service.debugLoggingEnabled == false)
-        #expect(service.isConnected == false)
+        #expect(await service.commandsEnabled == true)
+        #expect(await service.debugLoggingEnabled == false)
+        #expect(await service.isConnected == false)
         #expect(service.currentSongCommandEnabled == false)
         #expect(service.lastSongCommandEnabled == false)
     }
@@ -208,21 +208,21 @@ struct TwitchChatServiceTests {
     @Test("Commands enabled toggle works")
     func testCommandsEnabledToggle() async throws {
         let service = TwitchChatService()
-        #expect(service.commandsEnabled == true)
-        service.commandsEnabled = false
-        #expect(service.commandsEnabled == false)
-        service.commandsEnabled = true
-        #expect(service.commandsEnabled == true)
+        #expect(await service.commandsEnabled == true)
+        await service.setCommandsEnabled(false)
+        #expect(await service.commandsEnabled == false)
+        await service.setCommandsEnabled(true)
+        #expect(await service.commandsEnabled == true)
     }
 
     @Test("Debug logging enabled toggle works")
     func testDebugLoggingEnabledToggle() async throws {
         let service = TwitchChatService()
-        #expect(service.debugLoggingEnabled == false)
-        service.debugLoggingEnabled = true
-        #expect(service.debugLoggingEnabled == true)
-        service.debugLoggingEnabled = false
-        #expect(service.debugLoggingEnabled == false)
+        #expect(await service.debugLoggingEnabled == false)
+        await service.setDebugLoggingEnabled(true)
+        #expect(await service.debugLoggingEnabled == true)
+        await service.setDebugLoggingEnabled(false)
+        #expect(await service.debugLoggingEnabled == false)
     }
 
     // MARK: - Re-initialization Tests
@@ -233,7 +233,7 @@ struct TwitchChatServiceTests {
         #expect(service != nil)
         service = nil
         service = TwitchChatService()
-        #expect(service?.isConnected == false)
+        #expect(await service?.isConnected == false)
     }
 
     // MARK: - Connection Error Distinctness Tests
