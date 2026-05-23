@@ -108,7 +108,8 @@ actor NetworkInfoService {
                 getnameinfo(addr, socklen_t(addr.pointee.sa_len),
                             &host, socklen_t(host.count),
                             nil, 0, NI_NUMERICHOST)
-                return String(cString: host)
+                let bytes = host.prefix { $0 != 0 }.map { UInt8(bitPattern: $0) }
+                return String(decoding: bytes, as: UTF8.self)
             }
             ptr = interface.pointee.ifa_next
         }

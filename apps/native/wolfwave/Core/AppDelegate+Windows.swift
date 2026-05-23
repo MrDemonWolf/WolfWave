@@ -27,15 +27,17 @@ extension AppDelegate {
         // Defer past the current AppKit layout / menu-tracking pass to avoid
         // "layoutSubtreeIfNeeded on a view already being laid out" warnings.
         RunLoop.main.perform { [weak self] in
-            guard let self else { return }
-            if let window = self.settingsWindow {
-                if window.isMiniaturized {
-                    window.deminiaturize(nil)
+            MainActor.assumeIsolated {
+                guard let self else { return }
+                if let window = self.settingsWindow {
+                    if window.isMiniaturized {
+                        window.deminiaturize(nil)
+                    }
+                    self.showWindow(window)
+                } else {
+                    self.settingsWindow = self.createSettingsWindow()
+                    self.showWindow(self.settingsWindow)
                 }
-                self.showWindow(window)
-            } else {
-                self.settingsWindow = self.createSettingsWindow()
-                self.showWindow(self.settingsWindow)
             }
         }
     }
@@ -52,16 +54,18 @@ extension AppDelegate {
         // Defer past the current AppKit layout / menu-tracking pass to avoid
         // "layoutSubtreeIfNeeded on a view already being laid out" warnings.
         RunLoop.main.perform { [weak self] in
-            guard let self else { return }
+            MainActor.assumeIsolated {
+                guard let self else { return }
 
-            if let existing = self.aboutWindow {
-                if existing.isMiniaturized { existing.deminiaturize(nil) }
-                self.showWindow(existing)
-                return
+                if let existing = self.aboutWindow {
+                    if existing.isMiniaturized { existing.deminiaturize(nil) }
+                    self.showWindow(existing)
+                    return
+                }
+
+                self.aboutWindow = self.createAboutWindow()
+                self.showWindow(self.aboutWindow)
             }
-
-            self.aboutWindow = self.createAboutWindow()
-            self.showWindow(self.aboutWindow)
         }
     }
 
@@ -131,7 +135,9 @@ extension AppDelegate {
             // being laid out" warnings. RunLoop.main.perform schedules this
             // on the next .common runloop tick, after layout settles.
             RunLoop.main.perform {
-                NSApp.setActivationPolicy(.accessory)
+                MainActor.assumeIsolated {
+                    _ = NSApp.setActivationPolicy(.accessory)
+                }
             }
         }
     }
@@ -251,13 +257,15 @@ extension AppDelegate {
                 context.timingFunction = CAMediaTimingFunction(name: .easeInEaseOut)
                 window.animator().alphaValue = 0
             }, completionHandler: { [weak self] in
-                window.close()
+                MainActor.assumeIsolated {
+                    window.close()
 
-                Task { [weak self] in
-                    await self?.validateTwitchTokenOnBoot()
+                    Task { [weak self] in
+                        await self?.validateTwitchTokenOnBoot()
+                    }
+
+                    Log.info("AppDelegate: Onboarding dismissed, transitioning to normal app state", category: "App")
                 }
-
-                Log.info("AppDelegate: Onboarding dismissed, transitioning to normal app state", category: "App")
             })
         }
     }

@@ -107,10 +107,12 @@ struct ConnectionTestButton: View {
     private func runTest() {
         result = .testing
         action { success in
-            withAnimation {
-                result = success ? .success : .failure
+            Task { @MainActor in
+                withAnimation {
+                    result = success ? .success : .failure
+                }
+                scheduleReset()
             }
-            scheduleReset()
         }
     }
 

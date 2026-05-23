@@ -703,7 +703,8 @@ actor DiscordRPCService {
         if len > 0 {
             var buf = [CChar](repeating: 0, count: len)
             confstr(_CS_DARWIN_USER_TEMP_DIR, &buf, len)
-            let resolved = Self.resolveSymlinks(String(cString: buf))
+            let bytes = buf.prefix { $0 != 0 }.map { UInt8(bitPattern: $0) }
+            let resolved = Self.resolveSymlinks(String(decoding: bytes, as: UTF8.self))
             if !candidates.contains(resolved) {
                 candidates.append(resolved)
             }

@@ -81,7 +81,7 @@ nonisolated final class ArtworkService: @unchecked Sendable {
     ///   - artist: Artist name.
     ///   - completion: Called with the artwork URL (512×512), or nil if not found or on error.
     ///     Called on an arbitrary URLSession queue.
-    func fetchArtworkURL(track: String, artist: String, completion: @escaping (String?) -> Void) {
+    func fetchArtworkURL(track: String, artist: String, completion: @escaping @Sendable (String?) -> Void) {
         fetchTrackLinks(track: track, artist: artist) { links in
             completion(links.artworkURL)
         }
@@ -109,7 +109,7 @@ nonisolated final class ArtworkService: @unchecked Sendable {
     ///   - track: Song title.
     ///   - artist: Artist name.
     ///   - completion: Called with a `TrackLinks` value. Called on an arbitrary URLSession queue.
-    func fetchTrackLinks(track: String, artist: String, completion: @escaping (TrackLinks) -> Void) {
+    func fetchTrackLinks(track: String, artist: String, completion: @escaping @Sendable (TrackLinks) -> Void) {
         let cacheKey = "\(artist)|\(track)"
 
         let cached: TrackLinks = cacheQueue.sync {
