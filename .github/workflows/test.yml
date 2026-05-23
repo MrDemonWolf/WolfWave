@@ -96,3 +96,32 @@ jobs:
         with:
           name: TestResults
           path: TestResults.xcresult
+
+  lint:
+    name: SwiftLint
+    runs-on: macos-26
+    # Non-blocking while the team ramps up on SwiftLint — annotations are
+    # surfaced but won't fail the workflow. Drop this once the codebase is
+    # clean and the lint step is run with --strict.
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 2
+
+      - name: Detect native changes
+        id: filter
+        uses: dorny/paths-filter@v3
+        with:
+          filters: |
+            native:
+              - 'apps/native/**'
+              - '.swiftlint.yml'
+
+      - name: Install SwiftLint
+        if: steps.filter.outputs.native == 'true'
+        run: brew list swiftlint >/dev/null 2>&1 || brew install swiftlint
+
+      - name: Run SwiftLint
+        if: steps.filter.outputs.native == 'true'
+        run: swiftlint lint --config .swiftlint.yml --reporter github-actions-logging

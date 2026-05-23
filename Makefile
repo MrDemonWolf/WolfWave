@@ -14,13 +14,14 @@ DMG_NAME = WolfWave-$(VERSION).dmg
 
 .SHELLFLAGS = -ec
 
-.PHONY: help build clean test test-verbose test-ci update-deps open-xcode ci prod-build prod-install notarize verify-notarize sponsor-config
+.PHONY: help build clean test test-verbose test-ci lint update-deps open-xcode ci prod-build prod-install notarize verify-notarize sponsor-config
 
 help:
 	@echo "Available targets:"
 	@echo "  build          Debug build"
 	@echo "  clean          Clean build artifacts"
 	@echo "  test           Run tests"
+	@echo "  lint           Run SwiftLint (requires: brew install swiftlint)"
 	@echo "  prod-build     Release build + DMG  (-> builds/$(DMG_NAME))"
 	@echo "  prod-install   Release build + install to /Applications"
 	@echo "  notarize       Notarize builds/$(DMG_NAME)"
@@ -70,6 +71,11 @@ test-ci: sponsor-config
 		CODE_SIGNING_ALLOWED=NO \
 		-resultBundlePath TestResults.xcresult \
 		test
+
+lint:
+	@if ! command -v swiftlint >/dev/null 2>&1; then \
+		echo "❌ SwiftLint not found. Install with: brew install swiftlint"; exit 1; fi
+	swiftlint lint --config .swiftlint.yml
 
 update-deps:
 	xcodebuild -project $(PROJECT) -resolvePackageDependencies -quiet
