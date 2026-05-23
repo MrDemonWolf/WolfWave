@@ -53,7 +53,7 @@ struct SettingsView: View {
         case debug = "Debug"
         #endif
 
-        var id: String { rawValue }
+        var id: Self { self }
 
         /// Cases — `.debug` only present in DEBUG builds.
         static var allCases: [SettingsSection] {

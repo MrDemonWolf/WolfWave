@@ -347,7 +347,14 @@ extension AppDelegate {
         toolbar.displayMode = .iconOnly
         window.toolbar = toolbar
         window.toolbarStyle = .unified
-        window.center()
+        if let screen = NSScreen.main {
+            let screenFrame = screen.visibleFrame
+            let x = screenFrame.midX - initial.width / 2
+            let y = screenFrame.midY - initial.height / 2
+            window.setFrameOrigin(NSPoint(x: x, y: y))
+        } else {
+            window.center()
+        }
         return window
     }
 

@@ -876,10 +876,10 @@ nonisolated enum AppConstants {
         static let minHeight: CGFloat = 520
 
         /// Ideal width for settings window when first opened.
-        static let idealWidth: CGFloat = 900
+        static let idealWidth: CGFloat = 1080
 
         /// Ideal height for settings window when first opened. Fits 720p w/ Dock.
-        static let idealHeight: CGFloat = 600
+        static let idealHeight: CGFloat = 680
 
         /// Maximum content width for detail pane
         static let maxContentWidth: CGFloat = 720
