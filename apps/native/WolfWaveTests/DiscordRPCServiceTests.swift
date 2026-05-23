@@ -19,10 +19,11 @@ final class DiscordRPCServiceTests: XCTestCase {
 
     // MARK: - Initial State Tests
 
-    func testInitialStateIsDisconnected() {
+    func testInitialStateIsDisconnected() async {
         let service = DiscordRPCService(clientID: "")
+        let state = await service.state
         XCTAssertEqual(
-            service.state,
+            state,
             .disconnected,
             "Initial connection state should be .disconnected"
         )
@@ -57,28 +58,22 @@ final class DiscordRPCServiceTests: XCTestCase {
 
     // MARK: - Safe Operation Tests (No Socket)
 
-    func testSetEnabledFalseDoesNotCrash() {
+    func testSetEnabledFalseDoesNotCrash() async {
         let service = DiscordRPCService(clientID: "")
-        service.setEnabled(false)
+        await service.setEnabled(false)
         // No crash = pass
     }
 
-    func testClearPresenceOnDisconnectedServiceDoesNotCrash() {
+    func testClearPresenceOnDisconnectedServiceDoesNotCrash() async {
         let service = DiscordRPCService(clientID: "")
-        service.clearPresence()
+        await service.clearPresence()
         // clearPresence() guards on state == .connected, so this should be a no-op
     }
 
-    func testTestConnectionOnDisconnectedServiceReturnsFalse() {
+    func testTestConnectionOnDisconnectedServiceReturnsFalse() async {
         let service = DiscordRPCService(clientID: "")
-        let expectation = expectation(description: "testConnection completion")
-
-        service.testConnection { success in
-            XCTAssertFalse(success, "testConnection should return false when disconnected with no client ID")
-            expectation.fulfill()
-        }
-
-        waitForExpectations(timeout: 5.0)
+        let success = await service.testConnection()
+        XCTAssertFalse(success, "testConnection should return false when disconnected with no client ID")
     }
 
     // MARK: - Connection State Enum Tests
@@ -89,40 +84,37 @@ final class DiscordRPCServiceTests: XCTestCase {
         XCTAssertEqual(DiscordRPCService.ConnectionState.connected.rawValue, "connected")
     }
 
-    // MARK: - State Change Callback Tests
+    // MARK: - Stream Existence Tests
 
-    func testOnStateChangeCallbackIsNilByDefault() {
+    func testStateChangesStreamIsAvailable() {
         let service = DiscordRPCService(clientID: "")
-        XCTAssertNil(service.onStateChange, "onStateChange callback should be nil by default")
-    }
-
-    func testOnArtworkResolvedCallbackIsNilByDefault() {
-        let service = DiscordRPCService(clientID: "")
-        XCTAssertNil(service.onArtworkResolved, "onArtworkResolved callback should be nil by default")
+        // Streams are nonisolated `let` — accessible without await and never nil.
+        _ = service.stateChanges
+        _ = service.artworkResolutions
     }
 
     // MARK: - Enable/Disable Toggle Tests
 
-    func testSetEnabledTrueThenFalseDoesNotCrash() {
+    func testSetEnabledTrueThenFalseDoesNotCrash() async {
         let service = DiscordRPCService(clientID: "")
-        service.setEnabled(true)
-        service.setEnabled(false)
+        await service.setEnabled(true)
+        await service.setEnabled(false)
         // No crash = pass
     }
 
     // MARK: - Clear Presence Tests
 
-    func testClearPresenceMultipleTimesDoesNotCrash() {
+    func testClearPresenceMultipleTimesDoesNotCrash() async {
         let service = DiscordRPCService(clientID: "")
-        service.clearPresence()
-        service.clearPresence()
-        service.clearPresence()
+        await service.clearPresence()
+        await service.clearPresence()
+        await service.clearPresence()
         // No crash = pass
     }
 
     // MARK: - Connection State Enum Completeness
 
-    func testConnectionStateRawValuesAreUniqueAndNonEmpty() {
+    func testConnectionStateRawValuesAreUniqueAndNonEmpty() async {
         // Validate each case has a non-empty, distinct raw value
         let disconnected = DiscordRPCService.ConnectionState.disconnected
         let connecting = DiscordRPCService.ConnectionState.connecting
@@ -139,18 +131,8 @@ final class DiscordRPCServiceTests: XCTestCase {
 
         // Verify initial state transitions: a new service starts disconnected
         let service = DiscordRPCService(clientID: "")
-        XCTAssertEqual(service.state, .disconnected)
-    }
-
-    // MARK: - Callback Tests
-
-    func testOnStateChangeCallbackCanBeSet() {
-        let service = DiscordRPCService(clientID: "")
-        var callbackCalled = false
-        service.onStateChange = { _ in callbackCalled = true }
-        XCTAssertNotNil(service.onStateChange)
-        // Verify the callback was stored (not called yet)
-        XCTAssertFalse(callbackCalled)
+        let state = await service.state
+        XCTAssertEqual(state, .disconnected)
     }
 
     // MARK: - Performance Tests

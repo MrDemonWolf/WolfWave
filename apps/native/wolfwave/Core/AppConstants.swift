@@ -15,7 +15,7 @@ import Foundation
 import AppKit
 import SwiftUI
 
-enum AppConstants {
+nonisolated enum AppConstants {
     // MARK: - App Identifiers
     
     /// Application bundle and display information.

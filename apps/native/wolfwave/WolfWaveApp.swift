@@ -67,6 +67,11 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     var historyService: ListeningHistoryService?
     var notificationObservers: [Any] = []
 
+    /// Long-lived task consuming `discordService.stateChanges`.
+    var discordStateConsumer: Task<Void, Never>?
+    /// Long-lived task consuming `discordService.artworkResolutions`.
+    var discordArtworkConsumer: Task<Void, Never>?
+
     var currentSong: String?
     var currentArtist: String?
     var currentAlbum: String?

@@ -13,7 +13,7 @@ import Foundation
 /// How the current Apple Music playlist is surfaced in Discord Rich Presence.
 ///
 /// Raw values are persisted in `UserDefaults` — keep them stable across releases.
-enum DiscordPlaylistStyle: String, CaseIterable {
+nonisolated enum DiscordPlaylistStyle: String, CaseIterable, Sendable {
     /// Playlist joins the artist on the activity's second line (`state`).
     case artistLine
     /// Playlist appears only in the small-icon hover tooltip (`assets.small_text`).
@@ -43,23 +43,19 @@ enum DiscordPlaylistStyle: String, CaseIterable {
 /// Developer Portal, provided via `DISCORD_CLIENT_ID` in Config.xcconfig.
 ///
 /// Thread Safety:
-/// - Conforms to `@unchecked Sendable` because all mutable state is protected
-///   manually rather than through Swift's actor isolation. This is intentional
-///   for low-level Unix domain socket I/O that requires synchronous operations
-///   incompatible with actor isolation.
-/// - All socket I/O and most mutable state mutations run on `ipcQueue`, a
-///   dedicated serial `DispatchQueue`. Properties mutated exclusively on this
-///   queue (e.g., `socketFD`, `state`, `reconnectDelay`, `pollTimer`,
-///   `currentPollInterval`, `lastArtworkKey`) are inherently serialized.
-/// - The `isEnabled` flag is the sole cross-queue mutable property and is
-///   protected by `enabledLock` (NSLock) since it is written from any thread
-///   via `setEnabled(_:)` and read on `ipcQueue` for guard checks.
-/// - Public methods are safe to call from any thread.
+/// - Implemented as an `actor` — all mutable state and socket I/O run on the
+///   actor's serial executor, replacing the previous `ipcQueue` + `NSLock`
+///   combination.
+/// - State changes and resolved artwork URLs are published as `AsyncStream`s
+///   on `stateChanges` and `artworkResolutions`. The streams are `nonisolated`
+///   so consumers can iterate without an extra actor hop.
+/// - Socket reads/writes are short, local Unix-domain calls (typically
+///   sub-millisecond), so running them on the actor executor is safe.
 ///
 /// Reconnection:
 /// - Automatically reconnects with exponential backoff when Discord restarts.
 /// - Polls for Discord availability when not connected.
-final class DiscordRPCService: @unchecked Sendable {
+actor DiscordRPCService {
 
     // MARK: - Types
 
@@ -77,39 +73,36 @@ final class DiscordRPCService: @unchecked Sendable {
         case connected
     }
 
+    /// Payload yielded by ``artworkResolutions`` when artwork resolves for a track.
+    struct ArtworkResolution: Sendable, Equatable {
+        let url: String
+        let track: String
+        let artist: String
+    }
+
+    // MARK: - Streams (nonisolated)
+
+    /// Connection-state transitions, yielded whenever ``state`` changes.
+    ///
+    /// Consumers iterate via `for await newState in service.stateChanges`.
+    nonisolated let stateChanges: AsyncStream<ConnectionState>
+    private nonisolated let stateContinuation: AsyncStream<ConnectionState>.Continuation
+
+    /// Track artwork URLs, yielded once `ArtworkService` resolves the lookup.
+    ///
+    /// Consumers iterate via `for await resolution in service.artworkResolutions`.
+    nonisolated let artworkResolutions: AsyncStream<ArtworkResolution>
+    private nonisolated let artworkContinuation: AsyncStream<ArtworkResolution>.Continuation
+
     // MARK: - Properties
 
-    /// Current connection state. Updated on the IPC queue, read from any thread.
+    /// Current connection state. Publishes to ``stateChanges`` on each transition.
     private(set) var state: ConnectionState = .disconnected {
         didSet {
-            let newState = state
-            DispatchQueue.main.async { [weak self] in
-                self?.onStateChange?(newState)
-            }
+            guard oldValue != state else { return }
+            stateContinuation.yield(state)
         }
     }
-
-    /// Callback invoked on the main thread whenever connection state changes.
-    /// Protected by `callbackLock` for cross-thread safety.
-    private var _onStateChange: ((ConnectionState) -> Void)?
-    var onStateChange: ((ConnectionState) -> Void)? {
-        get { callbackLock.withLock { _onStateChange } }
-        set { callbackLock.withLock { _onStateChange = newValue } }
-    }
-
-    /// Callback invoked when artwork URL is resolved for a track.
-    /// Parameters: (artworkURL, track, artist)
-    /// Protected by `callbackLock` for cross-thread safety.
-    private var _onArtworkResolved: ((String, String, String) -> Void)?
-    var onArtworkResolved: ((String, String, String) -> Void)? {
-        get { callbackLock.withLock { _onArtworkResolved } }
-        set { callbackLock.withLock { _onArtworkResolved = newValue } }
-    }
-
-    /// Lock protecting callback closures that are written from any thread
-    /// but read on `ipcQueue`.
-    /// Guards: `_onStateChange`, `_onArtworkResolved`.
-    private let callbackLock = NSLock()
 
     /// Discord Application ID resolved from Info.plist / environment.
     private let clientID: String
@@ -117,34 +110,20 @@ final class DiscordRPCService: @unchecked Sendable {
     /// File descriptor for the connected Unix domain socket, or -1.
     private var socketFD: Int32 = -1
 
-    /// Serial queue for all socket I/O and mutable state mutations.
-    ///
-    /// All properties except `isEnabled` are read and written exclusively on
-    /// this queue, providing serialized access without explicit locking.
-    /// Properties serialized by this queue: `socketFD`, `state`,
-    /// `reconnectDelay`, `pollTimer`, `currentPollInterval`, `lastArtworkKey`.
-    private let ipcQueue = DispatchQueue(
-        label: AppConstants.DispatchQueues.discordIPC,
-        qos: .utility
-    )
-
     /// Current reconnect delay (doubles on each failure, capped).
     private var reconnectDelay: TimeInterval = AppConstants.Discord.reconnectBaseDelay
 
-    /// Timer source for availability polling / reconnect.
-    private var pollTimer: DispatchSourceTimer?
+    /// Active polling task (availability checks while disconnected).
+    private var pollTask: Task<Void, Never>?
+
+    /// Active reconnect task (scheduled after a connection loss).
+    private var reconnectTask: Task<Void, Never>?
 
     /// Current availability poll interval (may be widened in reduced-power mode).
     private var currentPollInterval: TimeInterval = AppConstants.Discord.availabilityPollInterval
 
     /// Whether the service is enabled by the user.
     private var isEnabled = false
-
-    /// Lock protecting `isEnabled` reads/writes across threads.
-    /// Guards: `isEnabled`.
-    /// This is the only lock needed because all other mutable state is
-    /// confined to `ipcQueue`.
-    private let enabledLock = NSLock()
 
     /// Process ID sent with SET_ACTIVITY (Discord requires it).
     private let pid = ProcessInfo.processInfo.processIdentifier
@@ -156,7 +135,6 @@ final class DiscordRPCService: @unchecked Sendable {
     /// current activity when display settings (button labels, toggles, state format)
     /// change via `discordPresenceSettingsChanged`, so users see the effect of a
     /// label edit without waiting for the next track change.
-    /// Confined to `ipcQueue`.
     private struct LastPresence {
         let track: String
         let artist: String
@@ -169,7 +147,7 @@ final class DiscordRPCService: @unchecked Sendable {
     private var lastPresence: LastPresence?
 
     /// Observer token for `discordPresenceSettingsChanged`.
-    private var settingsObserver: NSObjectProtocol?
+    private nonisolated(unsafe) var settingsObserver: NSObjectProtocol?
 
     /// Cached result of `readDiscordTmpDir()` to avoid sysctl on every connect.
     private var cachedDiscordTmpDir: String?
@@ -187,13 +165,22 @@ final class DiscordRPCService: @unchecked Sendable {
     init(clientID: String? = nil) {
         self.clientID = clientID ?? Self.resolveClientID() ?? ""
 
+        var stateCont: AsyncStream<ConnectionState>.Continuation!
+        self.stateChanges = AsyncStream { stateCont = $0 }
+        self.stateContinuation = stateCont
+
+        var artCont: AsyncStream<ArtworkResolution>.Continuation!
+        self.artworkResolutions = AsyncStream { artCont = $0 }
+        self.artworkContinuation = artCont
+
         // Re-send presence when display settings change so users see button-label
         // edits and similar tweaks immediately.
         let name = NSNotification.Name(AppConstants.Notifications.discordPresenceSettingsChanged)
-        settingsObserver = NotificationCenter.default.addObserver(
+        self.settingsObserver = NotificationCenter.default.addObserver(
             forName: name, object: nil, queue: nil
         ) { [weak self] _ in
-            self?.resendLastPresence()
+            guard let self else { return }
+            Task { await self.resendLastPresence() }
         }
     }
 
@@ -201,11 +188,13 @@ final class DiscordRPCService: @unchecked Sendable {
         if let settingsObserver {
             NotificationCenter.default.removeObserver(settingsObserver)
         }
-        ipcQueue.sync {
-            disconnect()
-            pollTimer?.cancel()
-            pollTimer = nil
+        pollTask?.cancel()
+        reconnectTask?.cancel()
+        if socketFD >= 0 {
+            Darwin.close(socketFD)
         }
+        stateContinuation.finish()
+        artworkContinuation.finish()
     }
 
     // MARK: - Public API
@@ -215,45 +204,28 @@ final class DiscordRPCService: @unchecked Sendable {
     /// When enabled, immediately attempts to connect to Discord.
     /// When disabled, disconnects and stops polling.
     func setEnabled(_ enabled: Bool) {
-        enabledLock.withLock { isEnabled = enabled }
+        isEnabled = enabled
 
         if enabled {
-            ipcQueue.async { [weak self] in
-                self?.connectIfNeeded()
-                self?.startPolling()
-            }
+            connectIfNeeded()
+            startPolling()
         } else {
-            ipcQueue.async { [weak self] in
-                self?.stopPolling()
-                self?.clearPresence()
-                self?.disconnect()
-            }
+            stopPolling()
+            reconnectTask?.cancel()
+            reconnectTask = nil
+            performClearPresence()
+            disconnect()
         }
     }
 
     /// Tests the Discord IPC connection by attempting to connect if not already connected.
     ///
-    /// Reports back via the completion handler (on the main thread) whether the
-    /// connection is active. If already connected, returns immediately with `true`.
-    /// Otherwise triggers a connection attempt and waits briefly for the result.
-    func testConnection(completion: @escaping (Bool) -> Void) {
-        ipcQueue.async { [weak self] in
-            guard let self else {
-                DispatchQueue.main.async { completion(false) }
-                return
-            }
-
-            if self.state == .connected {
-                DispatchQueue.main.async { completion(true) }
-                return
-            }
-
-            // Attempt connection
-            self.connectIfNeeded()
-            let result = self.state == .connected
-
-            DispatchQueue.main.async { completion(result) }
-        }
+    /// If already connected, returns immediately with `true`. Otherwise triggers
+    /// a connection attempt and returns whether it succeeded.
+    func testConnection() -> Bool {
+        if state == .connected { return true }
+        connectIfNeeded()
+        return state == .connected
     }
 
     /// Updates the Rich Presence to show the currently playing track.
@@ -277,44 +249,34 @@ final class DiscordRPCService: @unchecked Sendable {
         duration: TimeInterval = 0,
         elapsed: TimeInterval = 0
     ) {
-        ipcQueue.async { [weak self] in
-            guard let self, self.state == .connected else { return }
+        guard state == .connected else { return }
 
-            // Check shared cache for immediate use (artwork + track links)
-            let cached = ArtworkService.shared.cachedTrackLinks(track: track, artist: artist)
-            self.sendPresenceActivity(
-                track: track, artist: artist, album: album, playlist: playlist,
-                artworkURL: cached.artworkURL,
-                duration: duration, elapsed: elapsed,
-                appleMusicURL: cached.trackViewURL,
-                songLinkURL: cached.songLinkURL
-            )
+        // Check shared cache for immediate use (artwork + track links)
+        let cached = ArtworkService.shared.cachedTrackLinks(track: track, artist: artist)
+        sendPresenceActivity(
+            track: track, artist: artist, album: album, playlist: playlist,
+            artworkURL: cached.artworkURL,
+            duration: duration, elapsed: elapsed,
+            appleMusicURL: cached.trackViewURL,
+            songLinkURL: cached.songLinkURL
+        )
 
-            // Fetch track links asynchronously on cache miss
-            if cached.artworkURL == nil {
-                ArtworkService.shared.fetchTrackLinks(track: track, artist: artist) { [weak self] links in
+        // Fetch track links asynchronously on cache miss
+        if cached.artworkURL == nil {
+            ArtworkService.shared.fetchTrackLinks(track: track, artist: artist) { [weak self] links in
+                guard let self else { return }
+                // Re-send if any link resolved — buttons can appear even without artwork
+                let hasNewData = links.artworkURL != nil
+                    || links.trackViewURL != nil
+                    || links.songLinkURL != nil
+                guard hasNewData else { return }
+
+                Task { [weak self] in
                     guard let self else { return }
-                    // Re-send if any link resolved — buttons can appear even without artwork
-                    let hasNewData = links.artworkURL != nil
-                        || links.trackViewURL != nil
-                        || links.songLinkURL != nil
-                    guard hasNewData else { return }
-                    self.ipcQueue.async {
-                        guard self.state == .connected else { return }
-                        self.sendPresenceActivity(
-                            track: track, artist: artist, album: album, playlist: playlist,
-                            artworkURL: links.artworkURL,
-                            duration: duration, elapsed: elapsed,
-                            appleMusicURL: links.trackViewURL,
-                            songLinkURL: links.songLinkURL
-                        )
-                    }
-                    // Notify listeners (e.g., WebSocket server) only when artwork is resolved
-                    if let artworkURL = links.artworkURL {
-                        DispatchQueue.main.async { [weak self] in
-                            self?.onArtworkResolved?(artworkURL, track, artist)
-                        }
-                    }
+                    await self.handleResolvedLinks(
+                        track: track, artist: artist, album: album, playlist: playlist,
+                        links: links, duration: duration, elapsed: elapsed
+                    )
                 }
             }
         }
@@ -324,36 +286,61 @@ final class DiscordRPCService: @unchecked Sendable {
     ///
     /// - Parameter interval: New poll interval in seconds.
     func updatePollInterval(_ interval: TimeInterval) {
-        ipcQueue.async { [weak self] in
-            guard let self else { return }
-            self.currentPollInterval = interval
-            // Restart polling with the new interval if a timer is active
-            if self.pollTimer != nil {
-                self.startPolling()
-            }
+        currentPollInterval = interval
+        if pollTask != nil {
+            startPolling()
         }
     }
 
     /// Clears the Rich Presence (e.g., when playback stops).
     func clearPresence() {
-        ipcQueue.async { [weak self] in
-            guard let self else { return }
-            self.lastPresence = nil
-            guard self.state == .connected else { return }
+        performClearPresence()
+    }
 
-            let payload: [String: Any] = [
-                "cmd": "SET_ACTIVITY",
-                "args": [
-                    "pid": self.pid,
-                ],
-                "nonce": UUID().uuidString,
-            ]
+    // MARK: - Resolution Handling
 
-            self.sendFrame(opcode: .frame, payload: payload)
+    private func handleResolvedLinks(
+        track: String,
+        artist: String,
+        album: String,
+        playlist: String,
+        links: TrackLinks,
+        duration: TimeInterval,
+        elapsed: TimeInterval
+    ) {
+        if state == .connected {
+            sendPresenceActivity(
+                track: track, artist: artist, album: album, playlist: playlist,
+                artworkURL: links.artworkURL,
+                duration: duration, elapsed: elapsed,
+                appleMusicURL: links.trackViewURL,
+                songLinkURL: links.songLinkURL
+            )
+        }
+        // Notify listeners (e.g., WebSocket server) only when artwork is resolved
+        if let artworkURL = links.artworkURL {
+            artworkContinuation.yield(
+                ArtworkResolution(url: artworkURL, track: track, artist: artist)
+            )
         }
     }
 
     // MARK: - Presence Helpers
+
+    private func performClearPresence() {
+        lastPresence = nil
+        guard state == .connected else { return }
+
+        let payload: [String: Any] = [
+            "cmd": "SET_ACTIVITY",
+            "args": [
+                "pid": pid,
+            ],
+            "nonce": UUID().uuidString,
+        ]
+
+        sendFrame(opcode: .frame, payload: payload)
+    }
 
     /// Builds and sends a SET_ACTIVITY frame with the given track metadata.
     ///
@@ -401,7 +388,7 @@ final class DiscordRPCService: @unchecked Sendable {
         let payload: [String: Any] = [
             "cmd": "SET_ACTIVITY",
             "args": [
-                "pid": self.pid,
+                "pid": pid,
                 "activity": activity,
             ],
             "nonce": UUID().uuidString,
@@ -416,28 +403,26 @@ final class DiscordRPCService: @unchecked Sendable {
     /// in settings). Re-uses cached `TrackLinks` via `ArtworkService.shared` so no
     /// network round-trip is required.
     private func resendLastPresence() {
-        ipcQueue.async { [weak self] in
-            guard let self, self.state == .connected, let snap = self.lastPresence else { return }
+        guard state == .connected, let snap = lastPresence else { return }
 
-            // Recompute elapsed from the captured timestamp so the progress bar stays accurate.
-            let drift = Date().timeIntervalSince(snap.capturedAt)
-            let elapsed = snap.duration > 0
-                ? min(snap.elapsed + drift, snap.duration)
-                : snap.elapsed
+        // Recompute elapsed from the captured timestamp so the progress bar stays accurate.
+        let drift = Date().timeIntervalSince(snap.capturedAt)
+        let elapsed = snap.duration > 0
+            ? min(snap.elapsed + drift, snap.duration)
+            : snap.elapsed
 
-            let cached = ArtworkService.shared.cachedTrackLinks(track: snap.track, artist: snap.artist)
-            self.sendPresenceActivity(
-                track: snap.track,
-                artist: snap.artist,
-                album: snap.album,
-                playlist: snap.playlist,
-                artworkURL: cached.artworkURL,
-                duration: snap.duration,
-                elapsed: elapsed,
-                appleMusicURL: cached.trackViewURL,
-                songLinkURL: cached.songLinkURL
-            )
-        }
+        let cached = ArtworkService.shared.cachedTrackLinks(track: snap.track, artist: snap.artist)
+        sendPresenceActivity(
+            track: snap.track,
+            artist: snap.artist,
+            album: snap.album,
+            playlist: snap.playlist,
+            artworkURL: cached.artworkURL,
+            duration: snap.duration,
+            elapsed: elapsed,
+            appleMusicURL: cached.trackViewURL,
+            songLinkURL: cached.songLinkURL
+        )
     }
 
     // MARK: - Payload Builder (internal for testing)
@@ -450,7 +435,7 @@ final class DiscordRPCService: @unchecked Sendable {
     /// - Parameters:
     ///   - playlist: Current Apple Music playlist name (empty if none / unknown).
     ///   - now: Injected clock for deterministic timestamps in tests.
-    static func buildActivity(
+    nonisolated static func buildActivity(
         track: String,
         artist: String,
         album: String,
@@ -516,7 +501,7 @@ final class DiscordRPCService: @unchecked Sendable {
     /// truncated to `buttonLabelMaxLength` defensively.
     ///
     /// - Parameter index: 1 or 2.
-    static func resolveButton(
+    nonisolated static func resolveButton(
         index: Int,
         url: String?,
         defaults: UserDefaults
@@ -555,7 +540,7 @@ final class DiscordRPCService: @unchecked Sendable {
     // MARK: - Playlist Resolution
 
     /// The outcome of resolving the current playlist for presence display.
-    enum PlaylistDisplay: Equatable {
+    enum PlaylistDisplay: Equatable, Sendable {
         /// Show the playlist's real name.
         case named(String)
         /// A playlist is active but the user opted not to reveal its name.
@@ -569,7 +554,7 @@ final class DiscordRPCService: @unchecked Sendable {
     /// the album — so the card never surfaces a non-playlist as a playlist.
     /// When `discordPlaylistShowName` is off, returns `.anonymous` so the
     /// listening context survives without leaking the playlist's name.
-    static func resolvePlaylistDisplay(
+    nonisolated static func resolvePlaylistDisplay(
         playlist: String,
         album: String,
         defaults: UserDefaults
@@ -593,7 +578,7 @@ final class DiscordRPCService: @unchecked Sendable {
     }
 
     /// Builds the activity `state` line, appending the playlist for `.artistLine` style.
-    static func stateLine(
+    nonisolated static func stateLine(
         artist: String,
         playlist: PlaylistDisplay?,
         style: DiscordPlaylistStyle
@@ -614,7 +599,7 @@ final class DiscordRPCService: @unchecked Sendable {
     }
 
     /// Builds the small-icon tooltip text, describing the playlist for `.iconTooltip` style.
-    static func smallText(
+    nonisolated static func smallText(
         playlist: PlaylistDisplay?,
         style: DiscordPlaylistStyle
     ) -> String {
@@ -638,7 +623,7 @@ final class DiscordRPCService: @unchecked Sendable {
     /// 2. `DISCORD_CLIENT_ID` environment variable (for dev/CI overrides)
     ///
     /// - Returns: The client ID string, or nil if not configured.
-    static func resolveClientID() -> String? {
+    nonisolated static func resolveClientID() -> String? {
         if let plistValue = Bundle.main.object(forInfoDictionaryKey: "DISCORD_CLIENT_ID") as? String,
            !plistValue.isEmpty,
            plistValue != "$(DISCORD_CLIENT_ID)",
@@ -721,7 +706,7 @@ final class DiscordRPCService: @unchecked Sendable {
     /// against canonical paths, so `connect()` to `/var/folders/.../discord-ipc-0`
     /// won't match an SBPL rule for `/private/var/folders/...`. This method
     /// ensures paths use the real, resolved form.
-    private static func resolveSymlinks(_ path: String) -> String {
+    nonisolated private static func resolveSymlinks(_ path: String) -> String {
         // URL.resolvingSymlinksInPath() resolves all symlinks and also
         // standardizes the path (removes trailing slashes, `.`, `..`).
         URL(fileURLWithPath: path).resolvingSymlinksInPath().path
@@ -910,7 +895,10 @@ final class DiscordRPCService: @unchecked Sendable {
 
     /// Disconnects from the IPC socket.
     private func disconnect() {
-        guard socketFD >= 0 else { return }
+        guard socketFD >= 0 else {
+            if state != .disconnected { state = .disconnected }
+            return
+        }
         Darwin.close(socketFD)
         socketFD = -1
         state = .disconnected
@@ -1019,19 +1007,23 @@ final class DiscordRPCService: @unchecked Sendable {
     private func handleConnectionLost() {
         disconnect()
 
-        let shouldReconnect = enabledLock.withLock { isEnabled }
+        guard isEnabled else { return }
 
-        guard shouldReconnect else { return }
-
-        Log.info("DiscordRPCService: Scheduling reconnect in \(reconnectDelay)s", category: "Discord")
-        ipcQueue.asyncAfter(deadline: .now() + reconnectDelay) { [weak self] in
-            guard let self else { return }
-            let stillEnabled = self.enabledLock.withLock { self.isEnabled }
-            guard stillEnabled else { return }
-            self.connectIfNeeded()
+        let delay = reconnectDelay
+        Log.info("DiscordRPCService: Scheduling reconnect in \(delay)s", category: "Discord")
+        reconnectTask?.cancel()
+        reconnectTask = Task { [weak self] in
+            try? await Task.sleep(for: .seconds(delay))
+            guard !Task.isCancelled, let self else { return }
+            await self.attemptReconnect()
         }
 
         reconnectDelay = min(reconnectDelay * 2, AppConstants.Discord.reconnectMaxDelay)
+    }
+
+    private func attemptReconnect() {
+        guard isEnabled else { return }
+        connectIfNeeded()
     }
 
     // MARK: - Polling
@@ -1040,24 +1032,24 @@ final class DiscordRPCService: @unchecked Sendable {
     private func startPolling() {
         stopPolling()
 
-        let timer = DispatchSource.makeTimerSource(queue: ipcQueue)
-        timer.schedule(
-            deadline: .now() + currentPollInterval,
-            repeating: currentPollInterval
-        )
-        timer.setEventHandler { [weak self] in
-            guard let self else { return }
-            let enabled = self.enabledLock.withLock { self.isEnabled }
-            guard enabled, self.state == .disconnected else { return }
-            self.connectIfNeeded()
+        let interval = currentPollInterval
+        pollTask = Task { [weak self] in
+            while !Task.isCancelled {
+                try? await Task.sleep(for: .seconds(interval))
+                guard !Task.isCancelled, let self else { return }
+                await self.pollTick()
+            }
         }
-        timer.activate()
-        pollTimer = timer
+    }
+
+    private func pollTick() {
+        guard isEnabled, state == .disconnected else { return }
+        connectIfNeeded()
     }
 
     /// Stops the availability poll timer.
     private func stopPolling() {
-        pollTimer?.cancel()
-        pollTimer = nil
+        pollTask?.cancel()
+        pollTask = nil
     }
 }

@@ -133,7 +133,9 @@ struct DebugServiceControlsCard: View {
             sectionLabel("Discord RPC")
             HStack {
                 Button {
-                    appDelegate?.discordService?.clearPresence()
+                    if let service = appDelegate?.discordService {
+                        Task { await service.clearPresence() }
+                    }
                 } label: {
                     Label("Clear Presence", systemImage: "xmark.circle")
                         .frame(maxWidth: .infinity)
@@ -143,9 +145,12 @@ struct DebugServiceControlsCard: View {
 
                 Button {
                     // Disable + re-enable cycle = full reconnect
-                    appDelegate?.discordService?.setEnabled(false)
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-                        appDelegate?.discordService?.setEnabled(true)
+                    if let service = appDelegate?.discordService {
+                        Task {
+                            await service.setEnabled(false)
+                            try? await Task.sleep(for: .milliseconds(500))
+                            await service.setEnabled(true)
+                        }
                     }
                 } label: {
                     Label("Force Reconnect", systemImage: "arrow.clockwise")

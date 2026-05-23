@@ -59,9 +59,10 @@ extension AppDelegate {
         }
     }
 
-    /// Creates the Discord RPC service, registers state callbacks, and enables if configured.
+    /// Creates the Discord RPC service, consumes its state / artwork streams, and enables if configured.
     func setupDiscordService() {
-        discordService = DiscordRPCService()
+        let service = DiscordRPCService()
+        discordService = service
 
         if DiscordRPCService.resolveClientID() != nil {
             Log.debug("AppDelegate: Resolved Discord Client ID from Info.plist", category: "Discord")
@@ -69,27 +70,31 @@ extension AppDelegate {
             Log.info("AppDelegate: No Discord Client ID found. Set DISCORD_CLIENT_ID in Config.xcconfig to enable Discord Status.", category: "Discord")
         }
 
-        discordService?.onStateChange = { [weak self] newState in
-            let stateString: String
-            switch newState {
-            case .connected: stateString = "connected"
-            case .connecting: stateString = "connecting"
-            case .disconnected: stateString = "disconnected"
+        discordStateConsumer = Task { @MainActor [weak self] in
+            for await newState in service.stateChanges {
+                let stateString: String
+                switch newState {
+                case .connected: stateString = "connected"
+                case .connecting: stateString = "connecting"
+                case .disconnected: stateString = "disconnected"
+                }
+                NotificationCenter.default.post(
+                    name: NSNotification.Name(AppConstants.Notifications.discordStateChanged),
+                    object: self,
+                    userInfo: ["state": stateString]
+                )
             }
-            NotificationCenter.default.post(
-                name: NSNotification.Name(AppConstants.Notifications.discordStateChanged),
-                object: self,
-                userInfo: ["state": stateString]
-            )
         }
 
-        discordService?.onArtworkResolved = { [weak self] url, _, _ in
-            self?.websocketServer?.updateArtworkURL(url)
+        discordArtworkConsumer = Task { @MainActor [weak self] in
+            for await resolution in service.artworkResolutions {
+                self?.websocketServer?.updateArtworkURL(resolution.url)
+            }
         }
 
         let enabled = UserDefaults.standard.bool(forKey: AppConstants.UserDefaults.discordPresenceEnabled)
         if enabled {
-            discordService?.setEnabled(true)
+            Task { await service.setEnabled(true) }
         }
     }
 
@@ -244,10 +249,12 @@ extension AppDelegate {
         playbackSourceManager?.updateCheckInterval(
             reduced ? AppConstants.PowerManagement.reducedMusicCheckInterval : 5.0
         )
-        discordService?.updatePollInterval(
-            reduced ? AppConstants.PowerManagement.reducedDiscordPollInterval
-                    : AppConstants.Discord.availabilityPollInterval
-        )
+        if let discordService {
+            let interval = reduced
+                ? AppConstants.PowerManagement.reducedDiscordPollInterval
+                : AppConstants.Discord.availabilityPollInterval
+            Task { await discordService.updatePollInterval(interval) }
+        }
         websocketServer?.updateProgressInterval(
             reduced ? AppConstants.PowerManagement.reducedProgressBroadcastInterval
                     : AppConstants.WebSocketServer.progressBroadcastInterval
@@ -382,17 +389,27 @@ extension AppDelegate {
     /// Enables or disables the Discord IPC service and pushes current track if enabling.
     @objc func discordPresenceSettingChanged(_ notification: Notification) {
         guard let enabled = notification.userInfo?["enabled"] as? Bool else { return }
-        discordService?.setEnabled(enabled)
+        guard let discordService else { return }
 
-        if enabled, let song = currentSong, let artist = currentArtist {
-            discordService?.updatePresence(
-                track: song,
-                artist: artist,
-                album: currentAlbum ?? "",
-                playlist: currentPlaylist ?? "",
-                duration: currentDuration,
-                elapsed: currentElapsed
-            )
+        let song = currentSong
+        let artist = currentArtist
+        let album = currentAlbum ?? ""
+        let playlist = currentPlaylist ?? ""
+        let duration = currentDuration
+        let elapsed = currentElapsed
+
+        Task {
+            await discordService.setEnabled(enabled)
+            if enabled, let song, let artist {
+                await discordService.updatePresence(
+                    track: song,
+                    artist: artist,
+                    album: album,
+                    playlist: playlist,
+                    duration: duration,
+                    elapsed: elapsed
+                )
+            }
         }
     }
 
@@ -607,14 +624,18 @@ extension AppDelegate: PlaybackSourceDelegate {
 
         fetchArtworkForWidget(track: track, artist: artist)
 
-        discordService?.updatePresence(
-            track: track,
-            artist: artist,
-            album: album,
-            playlist: playlist,
-            duration: duration,
-            elapsed: elapsed
-        )
+        if let discordService {
+            Task {
+                await discordService.updatePresence(
+                    track: track,
+                    artist: artist,
+                    album: album,
+                    playlist: playlist,
+                    duration: duration,
+                    elapsed: elapsed
+                )
+            }
+        }
     }
 
     /// Posts a macOS song-change notification when the user has enabled the
@@ -644,7 +665,9 @@ extension AppDelegate: PlaybackSourceDelegate {
         postNowPlayingUpdate(song: nil, artist: nil, album: nil)
 
         if currentSong == nil {
-            discordService?.clearPresence()
+            if let discordService {
+                Task { await discordService.clearPresence() }
+            }
             websocketServer?.clearNowPlaying()
         }
     }

@@ -333,8 +333,14 @@ struct MusicMonitorSettingsView: View {
             twitchConnected = appDelegate.twitchService?.isConnected ?? false
             // Reads the persisted channel name (set during sign-in).
             twitchChannel = UserDefaults.standard.string(forKey: "twitchChannelName")
-            discordActive = appDelegate.discordService?.state == .connected
             widgetRunning = appDelegate.websocketServer?.state == .listening
+            if let discordService = appDelegate.discordService {
+                Task { @MainActor in
+                    discordActive = await discordService.state == .connected
+                }
+            } else {
+                discordActive = false
+            }
         }
     }
 

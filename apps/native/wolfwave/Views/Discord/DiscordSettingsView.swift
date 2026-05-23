@@ -145,7 +145,10 @@ struct DiscordSettingsView: View {
                             completion(false)
                             return
                         }
-                        service.testConnection(completion: completion)
+                        Task { @MainActor in
+                            let success = await service.testConnection()
+                            completion(success)
+                        }
                     }
                     .help("Checks if Discord is open and ready.")
                     .accessibilityLabel("Test Discord connection")
@@ -371,8 +374,12 @@ struct DiscordSettingsView: View {
     }
 
     private func refreshConnectionState() {
-        if let appDelegate = AppDelegate.shared {
-            connectionState = appDelegate.discordService?.state ?? .disconnected
+        guard let service = AppDelegate.shared?.discordService else {
+            connectionState = .disconnected
+            return
+        }
+        Task { @MainActor in
+            connectionState = await service.state
         }
     }
 
