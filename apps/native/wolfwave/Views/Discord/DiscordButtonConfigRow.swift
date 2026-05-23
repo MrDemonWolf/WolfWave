@@ -36,24 +36,15 @@ struct DiscordButtonConfigRow: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
-            HStack(spacing: 12) {
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(title)
-                        .font(.system(size: 13, weight: .medium))
-                    Text(isEnabled
-                         ? "Shown on your Discord profile."
-                         : "Hidden from your Discord profile.")
-                        .font(.system(size: 11))
-                        .foregroundStyle(.tertiary)
-                }
-                Spacer()
-                Toggle("", isOn: $isEnabled)
-                    .labelsHidden()
-                    .toggleStyle(.switch)
-                    .controlSize(.small)
-                    .accessibilityLabel("\(title) enabled")
-                    .accessibilityIdentifier("\(accessibilityPrefix)Toggle")
-            }
+            ToggleSettingRow(
+                title: title,
+                subtitle: isEnabled
+                    ? "Shown on your Discord profile."
+                    : "Hidden from your Discord profile.",
+                isOn: $isEnabled,
+                accessibilityLabel: "\(title) enabled",
+                accessibilityIdentifier: "\(accessibilityPrefix)Toggle"
+            )
 
             VStack(alignment: .leading, spacing: 6) {
                 HStack {

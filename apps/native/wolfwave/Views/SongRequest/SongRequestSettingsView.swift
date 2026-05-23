@@ -122,11 +122,10 @@ struct SongRequestSettingsView: View {
 fileprivate struct SongRequestHeader: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
-            Text("Song Requests").sectionHeader()
-
-            Text("Let your Twitch viewers request songs via chat commands.")
-                .font(.system(size: 13))
-                .foregroundStyle(.secondary)
+            SectionHeaderWithStatus(
+                title: "Song Requests",
+                subtitle: "Let your Twitch viewers request songs via chat commands."
+            )
 
             HStack(alignment: .top, spacing: 8) {
                 Image(systemName: "info.circle.fill")

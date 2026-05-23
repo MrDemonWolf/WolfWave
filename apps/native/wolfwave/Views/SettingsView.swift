@@ -198,10 +198,10 @@ struct SettingsView: View {
             // reflects whether we are already joined (prevents missed callbacks).
             twitchViewModel.channelConnected = appDelegate?.twitchService?.isConnected ?? false
         }
-        // Keep an empty .toolbar { } so NSHostingController materializes an
-        // NSToolbar — that is what lets NavigationSplitView's automatic
-        // sidebar toggle land in the titlebar instead of falling back to a
-        // floating reveal chevron.
+        // Empty .toolbar { } binds NavigationSplitView's automatic sidebar
+        // toggle to the window's NSToolbar (assigned in AppDelegate+Windows).
+        // Without this, the toggle falls back to a floating reveal chevron in
+        // the detail pane on macOS 26.
         .toolbar { }
         .frame(
             minWidth: AppConstants.SettingsUI.minWidth,

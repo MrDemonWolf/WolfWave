@@ -223,15 +223,10 @@ struct AdvancedSettingsView: View {
     /// Main view body with update card, setup wizard, diagnostics, and danger zone sections.
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
-            // Section Header
-            VStack(alignment: .leading, spacing: 6) {
-                Text("Advanced")
-                    .sectionHeader()
-
-                Text("Updates, diagnostics, and reset options.")
-                    .font(.system(size: 13))
-                    .foregroundStyle(.secondary)
-            }
+            SectionHeaderWithStatus(
+                title: "Advanced",
+                subtitle: "Updates, diagnostics, and reset options."
+            )
 
             // Software Update
             softwareUpdateCard

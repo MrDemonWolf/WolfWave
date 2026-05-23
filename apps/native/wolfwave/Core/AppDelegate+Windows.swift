@@ -205,16 +205,12 @@ extension AppDelegate {
             backing: .buffered,
             defer: false
         )
+        // Assigning the hosting controller makes hosting.view the window's
+        // contentView. Do NOT disable autoresizing or add identity constraints
+        // — AppKit uses the autoresizing mask to keep the hosting view filling
+        // the window. Disabling it left the view inset inside the window and
+        // broke both the unified titlebar look and List hit-testing.
         window.contentViewController = hosting
-        hosting.view.translatesAutoresizingMaskIntoConstraints = false
-        if let contentView = window.contentView {
-            NSLayoutConstraint.activate([
-                hosting.view.topAnchor.constraint(equalTo: contentView.topAnchor),
-                hosting.view.bottomAnchor.constraint(equalTo: contentView.bottomAnchor),
-                hosting.view.leadingAnchor.constraint(equalTo: contentView.leadingAnchor),
-                hosting.view.trailingAnchor.constraint(equalTo: contentView.trailingAnchor),
-            ])
-        }
         window.title = "Welcome to WolfWave"
         window.titleVisibility = .hidden
         window.titlebarAppearsTransparent = true
@@ -329,16 +325,12 @@ extension AppDelegate {
             width: AppConstants.SettingsUI.minWidth,
             height: AppConstants.SettingsUI.minHeight
         )
+        // Assigning the hosting controller makes hosting.view the window's
+        // contentView. Do NOT disable autoresizing or add identity constraints
+        // — AppKit uses the autoresizing mask to keep the hosting view filling
+        // the window. Disabling it left the view inset inside the window and
+        // broke both the unified titlebar look and List hit-testing.
         window.contentViewController = hosting
-        hosting.view.translatesAutoresizingMaskIntoConstraints = false
-        if let contentView = window.contentView {
-            NSLayoutConstraint.activate([
-                hosting.view.topAnchor.constraint(equalTo: contentView.topAnchor),
-                hosting.view.bottomAnchor.constraint(equalTo: contentView.bottomAnchor),
-                hosting.view.leadingAnchor.constraint(equalTo: contentView.leadingAnchor),
-                hosting.view.trailingAnchor.constraint(equalTo: contentView.trailingAnchor),
-            ])
-        }
 
         window.title = ""
         window.titleVisibility = .hidden
@@ -347,11 +339,10 @@ extension AppDelegate {
         window.canHide = true
         window.isReleasedWhenClosed = false
         window.delegate = self
-        // Explicitly assign an NSToolbar so the SwiftUI-owned sidebar toggle
-        // has a guaranteed titlebar host on first layout. Relying on
-        // NSHostingController to materialize one from an empty .toolbar { }
-        // is unreliable on macOS 26 — when it misses, SwiftUI falls back to
-        // a floating reveal chevron pinned to the detail pane edge.
+        // Explicit NSToolbar gives SwiftUI's NavigationSplitView a guaranteed
+        // titlebar host for its automatic sidebar toggle. Paired with
+        // `.toolbar { }` in SettingsView so SwiftUI's toolbar host binds to
+        // this NSToolbar instead of falling back to a floating reveal chevron.
         let toolbar = NSToolbar()
         toolbar.displayMode = .iconOnly
         window.toolbar = toolbar

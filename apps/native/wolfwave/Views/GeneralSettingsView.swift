@@ -15,21 +15,12 @@ struct GeneralSettingsView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 24) {
-            // Section header
-            HStack(alignment: .center, spacing: 10) {
-                VStack(alignment: .leading, spacing: 6) {
-                    Text("General")
-                        .sectionHeader()
-
-                    Text("Manage how WolfWave tracks your music and where it shows up.")
-                        .font(.system(size: 13))
-                        .foregroundStyle(.secondary)
-                }
-                Spacer()
-                StatusChip(text: "All systems live", color: .green)
-            }
-            .accessibilityElement(children: .combine)
-            .accessibilityLabel("General settings. All systems live.")
+            SectionHeaderWithStatus(
+                title: "General",
+                subtitle: "Manage how WolfWave tracks your music and where it shows up.",
+                statusText: "All systems live",
+                statusColor: .green
+            )
             .accessibilityIdentifier("generalSettings.header")
 
             MusicMonitorSettingsView(configure: configure)
