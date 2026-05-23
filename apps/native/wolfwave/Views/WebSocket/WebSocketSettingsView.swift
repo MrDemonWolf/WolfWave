@@ -134,16 +134,38 @@ fileprivate struct WebSocketServerCard: View {
 
     @State private var portText: String = ""
 
+    /// Currently-persisted token. Re-read from Keychain after edits / regens so
+    /// the displayed URL row stays in sync.
+    @State private var currentToken: String = WebSocketAuthToken.currentOrCreate()
+
+    /// Live edit buffer for the token field. Seeded from `currentToken` and only
+    /// committed when the user hits Save or presses return.
+    @State private var tokenDraft: String = ""
+
+    /// `true` reveals the token; default hidden behind a `SecureField`.
+    @State private var isTokenRevealed: Bool = false
+
+    /// Inline validation message shown beneath the token field, mirroring the
+    /// port-field error pattern. `nil` when the draft is valid or unchanged.
+    @State private var tokenError: String? = nil
+
     let serverState: WebSocketServerService.ServerState
     let localNetworkIP: String?
 
     private let cardPadding = AppConstants.SettingsUI.cardPadding
 
-    private var connectionURL: String { "ws://localhost:\(storedPort)" }
+    private var connectionURL: String {
+        "ws://localhost:\(storedPort)/?token=\(currentToken)"
+    }
 
     private var networkConnectionURL: String? {
         guard let ip = localNetworkIP else { return nil }
-        return "ws://\(ip):\(storedPort)"
+        return "ws://\(ip):\(storedPort)/?token=\(currentToken)"
+    }
+
+    private var hasTokenEdits: Bool {
+        let trimmed = tokenDraft.trimmingCharacters(in: .whitespacesAndNewlines)
+        return !trimmed.isEmpty && trimmed != currentToken
     }
 
     private var isPortValid: Bool {
@@ -219,6 +241,10 @@ fileprivate struct WebSocketServerCard: View {
 
             Divider().padding(.leading, cardPadding)
 
+            authTokenRow
+
+            Divider().padding(.leading, cardPadding)
+
             HStack(spacing: 8) {
                 VStack(alignment: .leading, spacing: 2) {
                     Text("Local Address")
@@ -275,7 +301,167 @@ fileprivate struct WebSocketServerCard: View {
         }
         .background(Color(nsColor: .controlBackgroundColor))
         .clipShape(RoundedRectangle(cornerRadius: AppConstants.SettingsUI.cardCornerRadius))
-        .onAppear { portText = String(storedPort) }
+        .onAppear {
+            portText = String(storedPort)
+            tokenDraft = currentToken
+        }
+    }
+
+    // MARK: - Auth Token Row
+
+    @ViewBuilder
+    private var authTokenRow: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(alignment: .firstTextBaseline, spacing: 8) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Auth Token").font(.system(size: 13, weight: .medium))
+                    Text("Overlays must present this token to connect.")
+                        .font(.system(size: 11))
+                        .foregroundStyle(.tertiary)
+                }
+                Spacer()
+            }
+
+            HStack(spacing: 6) {
+                Group {
+                    if isTokenRevealed {
+                        TextField("Token", text: $tokenDraft)
+                            .textFieldStyle(.roundedBorder)
+                            .font(.system(size: 12, design: .monospaced))
+                            .autocorrectionDisabled(true)
+                            .onSubmit { saveTokenEdit() }
+                            .accessibilityIdentifier("websocketTokenFieldVisible")
+                    } else {
+                        SecureField("Token", text: $tokenDraft)
+                            .textFieldStyle(.roundedBorder)
+                            .font(.system(size: 12, design: .monospaced))
+                            .onSubmit { saveTokenEdit() }
+                            .accessibilityIdentifier("websocketTokenFieldHidden")
+                    }
+                }
+
+                Button {
+                    isTokenRevealed.toggle()
+                } label: {
+                    Image(systemName: isTokenRevealed ? "eye.slash" : "eye")
+                        .font(.system(size: 12))
+                }
+                .buttonStyle(.bordered)
+                .controlSize(.small)
+                .help(isTokenRevealed ? "Hide token" : "Reveal token")
+                .accessibilityLabel(isTokenRevealed ? "Hide token" : "Reveal token")
+                .accessibilityIdentifier("websocketTokenRevealButton")
+
+                CopyButton(
+                    text: currentToken,
+                    label: "Copy",
+                    copiedLabel: "Copied",
+                    isDisabled: currentToken.isEmpty,
+                    accessibilityLabel: "Copy auth token",
+                    accessibilityIdentifier: "copyWebsocketTokenButton"
+                )
+            }
+
+            if let tokenError {
+                HStack(spacing: 6) {
+                    Image(systemName: "exclamationmark.circle.fill")
+                        .font(.system(size: 11))
+                    Text(tokenError)
+                        .font(.system(size: 11))
+                }
+                .foregroundStyle(.red)
+                .accessibilityIdentifier("websocketTokenError")
+            }
+
+            HStack(spacing: 8) {
+                Button {
+                    regenerateToken()
+                } label: {
+                    HStack(spacing: 4) {
+                        Image(systemName: "arrow.clockwise").font(.system(size: 11))
+                        Text("Regenerate").font(.system(size: 11))
+                    }
+                }
+                .buttonStyle(.bordered)
+                .controlSize(.small)
+                .help("Generate a new random token. Active overlays will disconnect until updated.")
+                .accessibilityIdentifier("regenerateWebsocketTokenButton")
+
+                if hasTokenEdits {
+                    Button {
+                        saveTokenEdit()
+                    } label: {
+                        Text("Save").font(.system(size: 11))
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .controlSize(.small)
+                    .accessibilityIdentifier("saveWebsocketTokenButton")
+
+                    Button {
+                        tokenDraft = currentToken
+                        tokenError = nil
+                    } label: {
+                        Text("Cancel").font(.system(size: 11))
+                    }
+                    .buttonStyle(.bordered)
+                    .controlSize(.small)
+                }
+
+                Spacer()
+            }
+        }
+        .padding(.horizontal, cardPadding)
+        .padding(.vertical, 12)
+    }
+
+    /// Persists `tokenDraft` to Keychain, swaps the token on the live service,
+    /// and refreshes the displayed URL row. No-op when nothing changed.
+    ///
+    /// Tokens are gated through `WebSocketAuthToken.isValid` (hex-only, 16–128
+    /// chars) so a user-supplied string can never contain `</script>` or other
+    /// characters that would break out of the JS string context when
+    /// `WidgetHTTPService` substitutes the token into the served `widget.html`.
+    private func saveTokenEdit() {
+        let trimmed = tokenDraft.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty, trimmed != currentToken else {
+            tokenDraft = currentToken
+            return
+        }
+        guard WebSocketAuthToken.isValid(trimmed) else {
+            Log.warn(
+                "WebSocketSettings: Rejected custom token — must be hex characters (16–128).",
+                category: "WebSocket"
+            )
+            tokenError = "Use 16–128 hex chars (0–9, a–f)."
+            return
+        }
+        tokenError = nil
+        do {
+            try KeychainService.saveToken(trimmed)
+            currentToken = trimmed
+            tokenDraft = trimmed
+            applyTokenToServer(trimmed)
+        } catch {
+            Log.error("WebSocketSettings: Failed to save custom token: \(error)", category: "WebSocket")
+            tokenError = "Couldn't save token. Try again."
+        }
+    }
+
+    /// Mints a fresh random token, persists it, and pushes it onto the service.
+    private func regenerateToken() {
+        let fresh = WebSocketAuthToken.rotate()
+        currentToken = fresh
+        tokenDraft = fresh
+        tokenError = nil
+        applyTokenToServer(fresh)
+    }
+
+    /// Pushes a token swap onto the live `WebSocketServerService` so existing
+    /// clients are dropped and forced to re-handshake. Also bounces the widget
+    /// HTTP server so served HTML re-bakes the new value.
+    private func applyTokenToServer(_ token: String) {
+        let server = AppDelegate.shared?.websocketServer
+        Task { await server?.updateAuthToken(token) }
     }
 
     /// Validates the port text field and, when valid, persists the new port

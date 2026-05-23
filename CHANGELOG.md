@@ -4,6 +4,10 @@ All notable changes to this project will be documented in this file.
 
 ## [2.0.0] - Unreleased
 
+### Security
+
+- **Stream Widgets auth token** — the overlay WebSocket and widget HTTP server now require a per-install authentication token. Connections without a matching `wolfwave.token.<hex>` subprotocol are rejected on the handshake before any playback data is sent. The token is minted on first launch, stored in the macOS Keychain, and auto-injected into the widget URL and served `widget.html` so existing OBS browser sources keep working without manual changes. Settings → Stream Widgets exposes the token behind an eye toggle (hidden by default), a Regenerate button, and a free-form edit field for streamers who want to supply their own value; regenerating or editing the token drops every active client until they reconnect with the new credential.
+
 ### Added
 
 - **Chat Vote-Skip** — viewers can vote to skip the current song with `!voteskip` / `!vs`. A passed vote skips the now-playing request, or advances the Apple Music track when the queue is idle. Chat-tally mode counts unique voters within a configurable window against a minimum-vote threshold; opt-in Twitch Polls mode (Affiliate/Partner) opens a native poll instead. Configurable minimum votes, vote window, cooldown, and subscriber-only voting in Settings → Song Requests → Chat Vote-Skip.

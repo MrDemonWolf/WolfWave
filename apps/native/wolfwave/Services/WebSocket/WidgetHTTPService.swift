@@ -25,20 +25,31 @@ nonisolated final class WidgetHTTPService: @unchecked Sendable {
     // MARK: - Properties
 
     private let port: UInt16
+    /// Token baked into the served `widget.html` so OBS browser sources hit the
+    /// WebSocket with a valid `wolfwave.token.<hex>` subprotocol without the user
+    /// pasting a query string. `nil` ships the file un-substituted (test-only).
+    private let authToken: String?
     private var listener: NWListener?
     private let queue = DispatchQueue(
         label: "com.mrdemonwolf.wolfwave.widget-http",
         qos: .utility
     )
 
+    /// Sentinel string in the bundled `widget.html` that we replace with the
+    /// live auth token before sending the response.
+    private static let tokenPlaceholder = "__WOLFWAVE_TOKEN__"
+
     // MARK: - Init
 
     /// Creates a widget HTTP service bound to the loopback interface.
     ///
-    /// - Parameter port: TCP port to listen on. Caller is responsible for
-    ///   choosing a free port (typically `AppConstants.WebSocketServer.widgetDefaultPort`).
-    init(port: UInt16) {
+    /// - Parameters:
+    ///   - port: TCP port to listen on.
+    ///   - authToken: WebSocket auth token to inject into the served HTML.
+    ///     Pass `nil` to ship the file untouched — only useful for tests.
+    init(port: UInt16, authToken: String? = nil) {
         self.port = port
+        self.authToken = authToken
     }
 
     deinit {
@@ -142,11 +153,28 @@ nonisolated final class WidgetHTTPService: @unchecked Sendable {
     /// closes the connection. Falls back to a 404 when the asset is missing.
     private func serveWidget(to connection: NWConnection) {
         guard let url = Bundle.main.url(forResource: "widget", withExtension: "html"),
-              let body = try? Data(contentsOf: url) else {
+              let raw = try? String(contentsOf: url, encoding: .utf8) else {
             Log.error("WidgetHTTPService: widget.html not found in bundle", category: "WebSocket")
             send404(to: connection)
             return
         }
+
+        let rendered: String
+        if let token = authToken, WebSocketAuthToken.isValid(token) {
+            // `isValid` gates the substitution on hex-only / bounded length so a
+            // corrupted or hand-edited token can't inject `</script>` or other
+            // characters that would break out of the JS string context.
+            rendered = raw.replacingOccurrences(of: Self.tokenPlaceholder, with: token)
+        } else {
+            if authToken != nil {
+                Log.warn(
+                    "WidgetHTTPService: Refusing to inject non-hex auth token into widget.html",
+                    category: "WebSocket"
+                )
+            }
+            rendered = raw
+        }
+        let body = Data(rendered.utf8)
 
         let header = "HTTP/1.1 200 OK\r\n" +
             "Content-Type: text/html; charset=utf-8\r\n" +

@@ -91,6 +91,12 @@ const wsPort = params.get('port') || params.get('wsPort') || '8765';
 const autohide = Number(params.get('duration') || '0');
 const hideAlbumArt = params.has('hideAlbumArt');
 
+// Auth token. `WidgetHTTPService` substitutes the live token for the
+// `__WOLFWAVE_TOKEN__` sentinel when it serves this file; when the page is
+// opened directly (file://, dev), we fall back to the `?token=` query string.
+const injectedToken = '__WOLFWAVE_TOKEN__';
+const wsToken = params.get('token') || (injectedToken.indexOf('__') === 0 ? '' : injectedToken);
+
 // MARK: - Font Resolution
 function resolveFontFamily(name) {
   if (!name || name === 'System Default' || name === 'System') {
@@ -353,7 +359,8 @@ function buildWidget() {
 function connect() {
   if (ws) return;
   console.log('[WolfWave Widget] Connecting to ws://localhost:' + wsPort);
-  ws = new WebSocket('ws://localhost:' + wsPort);
+  const protocols = wsToken ? ['wolfwave.token.' + wsToken] : [];
+  ws = new WebSocket('ws://localhost:' + wsPort, protocols);
 
   ws.onopen = function() {
     console.log('[WolfWave Widget] Connected to ws://localhost:' + wsPort);

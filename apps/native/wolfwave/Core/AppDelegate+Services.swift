@@ -106,7 +106,12 @@ extension AppDelegate {
         let storedPort = UserDefaults.standard.integer(forKey: AppConstants.UserDefaults.websocketServerPort)
         let port: UInt16 = storedPort > 0 ? UInt16(clamping: storedPort) : AppConstants.WebSocketServer.defaultPort
 
-        let server = WebSocketServerService(port: port)
+        let token = WebSocketAuthToken.currentOrCreate()
+        Log.info(
+            "AppDelegate: WebSocket server initialized on port \(port) (token=\(WebSocketAuthToken.redact(token)))",
+            category: "WebSocket"
+        )
+        let server = WebSocketServerService(port: port, authToken: token)
         websocketServer = server
 
         let stateChanges = server.stateChanges
