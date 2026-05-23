@@ -81,7 +81,7 @@ final class AppleMusicSource: PlaybackSource, @unchecked Sendable {
 
     // MARK: - Playback Monitoring
 
-    @objc private func musicPlayerInfoChanged(_ notification: Notification) {
+    @objc nonisolated private func musicPlayerInfoChanged(_ notification: Notification) {
         let now = Date()
         guard now.timeIntervalSince(lastNotificationAt) >= Constants.notificationDedupWindow else { return }
         lastNotificationAt = now
@@ -89,7 +89,7 @@ final class AppleMusicSource: PlaybackSource, @unchecked Sendable {
         scheduleTrackCheck(reason: "notification")
     }
 
-    private func checkCurrentTrack() {
+    nonisolated private func checkCurrentTrack() {
         let isRunning = NSRunningApplication.runningApplications(withBundleIdentifier: Constants.musicBundleIdentifier).first != nil
         guard isRunning else {
             handleTrackInfo(Constants.Status.notRunning)
@@ -130,21 +130,21 @@ final class AppleMusicSource: PlaybackSource, @unchecked Sendable {
 
     // MARK: - Private Helpers
 
-    private func notifyDelegate(status: String) {
+    nonisolated private func notifyDelegate(status: String) {
         Task { @MainActor [weak self] in
             guard let self else { return }
             self.delegate?.playbackSource(didUpdateStatus: status)
         }
     }
 
-    private func notifyDelegate(track: String, artist: String, album: String, playlist: String, duration: TimeInterval, elapsed: TimeInterval) {
+    nonisolated private func notifyDelegate(track: String, artist: String, album: String, playlist: String, duration: TimeInterval, elapsed: TimeInterval) {
         Task { @MainActor [weak self] in
             guard let self else { return }
             self.delegate?.playbackSource(didUpdateTrack: track, artist: artist, album: album, playlist: playlist, duration: duration, elapsed: elapsed)
         }
     }
 
-    private func processTrackInfoString(_ trackInfo: String) {
+    nonisolated private func processTrackInfoString(_ trackInfo: String) {
         let components = trackInfo.components(separatedBy: Constants.trackSeparator)
         guard components.count >= 3 else { return }
         let trackName = components[0]
@@ -158,7 +158,7 @@ final class AppleMusicSource: PlaybackSource, @unchecked Sendable {
         logTrackIfNew(trackInfo, trackName: trackName, artist: artist, album: album)
     }
 
-    private func handleTrackInfo(_ trackInfo: String) {
+    nonisolated private func handleTrackInfo(_ trackInfo: String) {
         if trackInfo.hasPrefix(Constants.Status.errorPrefix) {
             notifyDelegate(status: "Script error")
         } else if trackInfo == Constants.Status.notRunning {
@@ -170,7 +170,7 @@ final class AppleMusicSource: PlaybackSource, @unchecked Sendable {
         }
     }
 
-    private func handleNotPlayingState() {
+    nonisolated private func handleNotPlayingState() {
         let idleDuration = Date().timeIntervalSince(lastTrackSeenAt)
         if idleDuration < Constants.idleGraceWindow {
             scheduleTrackCheck(after: 0.5, reason: "idle-grace-recheck")
@@ -179,22 +179,22 @@ final class AppleMusicSource: PlaybackSource, @unchecked Sendable {
         notifyDelegate(status: "No track playing")
     }
 
-    private func logTrackIfNew(_ trackInfo: String, trackName: String, artist: String, album: String) {
+    nonisolated private func logTrackIfNew(_ trackInfo: String, trackName: String, artist: String, album: String) {
         let dedupKey = trackName + Constants.trackSeparator + artist + Constants.trackSeparator + album
         guard lastLoggedTrack != dedupKey else { return }
         Log.debug("AppleMusicSource: Now Playing → \(trackName) — \(artist) [\(album)]", category: "Music")
         lastLoggedTrack = dedupKey
     }
 
-    private func subscribeToMusicNotifications() {
+    nonisolated private func subscribeToMusicNotifications() {
         DistributedNotificationCenter.default().addObserver(self, selector: #selector(musicPlayerInfoChanged), name: NSNotification.Name(Constants.notificationName), object: nil)
     }
 
-    private func performInitialTrackCheck() {
+    nonisolated private func performInitialTrackCheck() {
         scheduleTrackCheck(reason: "initial")
     }
 
-    private func setupFallbackTimer() {
+    nonisolated private func setupFallbackTimer() {
         let timer = DispatchSource.makeTimerSource(queue: backgroundQueue)
         timer.schedule(deadline: .now() + currentCheckInterval, repeating: currentCheckInterval)
         timer.setEventHandler { [weak self] in
@@ -205,11 +205,11 @@ final class AppleMusicSource: PlaybackSource, @unchecked Sendable {
         self.timer = timer
     }
 
-    private func scheduleTrackCheck(reason: String) {
+    nonisolated private func scheduleTrackCheck(reason: String) {
         backgroundQueue.async { [weak self] in self?.checkCurrentTrack() }
     }
 
-    private func scheduleTrackCheck(after delay: TimeInterval, reason: String) {
+    nonisolated private func scheduleTrackCheck(after delay: TimeInterval, reason: String) {
         backgroundQueue.asyncAfter(deadline: .now() + delay) { [weak self] in self?.checkCurrentTrack() }
     }
 }

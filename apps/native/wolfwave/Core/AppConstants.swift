@@ -952,7 +952,6 @@ nonisolated enum AppConstants {
 
     /// Brand / partner colors. Backed by `DSColor` generated tokens.
     /// Source of truth: `design-system/tokens.json`.
-    @MainActor
     enum Brand {
         /// Twitch purple — `#9146FF`.
         static let twitch = DSColor.partnerTwitch

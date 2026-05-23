@@ -424,6 +424,7 @@ actor TwitchChatService {
                 resetTime: state.resetTime
             )
         }
+    }
 
     // MARK: - Network Monitoring
 
@@ -2183,3 +2184,4 @@ actor TwitchChatService {
         func set(_ newValue: Bool) { lock.withLock { _value = newValue } }
     }
 }
+

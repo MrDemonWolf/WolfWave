@@ -51,12 +51,12 @@ struct TwitchRateLimitMetric: Sendable, Identifiable {
 ///
 /// Use `MetricsService.shared`. The initializer is internal only so tests can
 /// construct isolated instances.
-final class MetricsService: @unchecked Sendable {
+nonisolated final class MetricsService: @unchecked Sendable {
 
     // MARK: - Singleton
 
     /// Shared instance used across the app.
-    static let shared = MetricsService()
+    nonisolated static let shared = MetricsService()
 
     // MARK: - Properties
 
