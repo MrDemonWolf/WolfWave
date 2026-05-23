@@ -32,6 +32,9 @@ jobs:
             "${{ secrets.DISCORD_CLIENT_ID }}" \
             > apps/native/wolfwave/Config.xcconfig
 
+      - name: Regenerate SponsorConfig from FUNDING.yml
+        run: bash scripts/generate-sponsor-config.sh
+
       - name: Run Tests
         run: |
           xcodebuild -project "$PROJECT" -scheme "$SCHEME" \
@@ -65,6 +68,9 @@ jobs:
             "${{ secrets.TWITCH_CLIENT_ID }}" \
             "${{ secrets.DISCORD_CLIENT_ID }}" \
             > apps/native/wolfwave/Config.xcconfig
+
+      - name: Regenerate SponsorConfig from FUNDING.yml
+        run: bash scripts/generate-sponsor-config.sh
 
       - name: Resolve version
         id: version

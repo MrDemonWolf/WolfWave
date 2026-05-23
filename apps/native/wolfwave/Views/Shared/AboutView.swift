@@ -53,7 +53,7 @@ struct AboutView: View {
             footer
         }
         .padding(24)
-        .frame(width: 360, height: 480)
+        .frame(width: 360, height: 520)
         .accessibilityIdentifier("about.root")
     }
 
@@ -104,6 +104,10 @@ struct AboutView: View {
             GridRow {
                 actionButton("Website", systemImage: "globe", action: openWebsite)
                 actionButton("Send Feedback", systemImage: "envelope", action: sendFeedback)
+            }
+            GridRow {
+                actionButton("Sponsor on GitHub", systemImage: "heart.fill", action: openSponsor)
+                    .gridCellColumns(2)
             }
         }
     }
@@ -190,6 +194,12 @@ struct AboutView: View {
     /// Opens the GitHub Releases page in the user's default browser.
     private func openReleaseNotes() {
         guard let url = URL(string: AppConstants.URLs.githubReleases) else { return }
+        NSWorkspace.shared.open(url)
+    }
+
+    /// Opens the GitHub Sponsors page in the user's default browser.
+    private func openSponsor() {
+        guard let url = URL(string: AppConstants.URLs.githubSponsors) else { return }
         NSWorkspace.shared.open(url)
     }
 

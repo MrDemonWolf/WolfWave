@@ -139,7 +139,9 @@ struct AppConstantsTests {
         #expect(!AppConstants.URLs.github.isEmpty)
         #expect(!AppConstants.URLs.githubReleasesAPI.isEmpty)
         #expect(!AppConstants.URLs.githubReleases.isEmpty)
-        
+        #expect(!AppConstants.URLs.sponsorUser.isEmpty)
+        #expect(!AppConstants.URLs.githubSponsors.isEmpty)
+
         // Verify URLs are valid
         #expect(URL(string: AppConstants.URLs.docs) != nil)
         #expect(URL(string: AppConstants.URLs.privacyPolicy) != nil)
@@ -147,6 +149,8 @@ struct AppConstantsTests {
         #expect(URL(string: AppConstants.URLs.github) != nil)
         #expect(URL(string: AppConstants.URLs.githubReleasesAPI) != nil)
         #expect(URL(string: AppConstants.URLs.githubReleases) != nil)
+        #expect(URL(string: AppConstants.URLs.githubSponsors) != nil)
+        #expect(AppConstants.URLs.githubSponsors.hasPrefix("https://github.com/sponsors/"))
     }
     
     // MARK: - WebSocket Server Tests

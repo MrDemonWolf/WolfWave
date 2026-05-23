@@ -14,7 +14,7 @@ DMG_NAME = WolfWave-$(VERSION).dmg
 
 .SHELLFLAGS = -ec
 
-.PHONY: help build clean test test-verbose test-ci update-deps open-xcode ci prod-build prod-install notarize verify-notarize
+.PHONY: help build clean test test-verbose test-ci update-deps open-xcode ci prod-build prod-install notarize verify-notarize sponsor-config
 
 help:
 	@echo "Available targets:"
@@ -34,29 +34,34 @@ help:
 # ---------------------------------------------------------------------------
 # Development
 # ---------------------------------------------------------------------------
-build:
+build: sponsor-config
 	xcodebuild -project $(PROJECT) -scheme $(SCHEME) \
 		-destination '$(DESTINATION)' -configuration Debug build -quiet
+
+# Regenerate apps/native/wolfwave/Core/SponsorConfig.generated.swift from
+# .github/FUNDING.yml. Idempotent — safe to run as a build prerequisite.
+sponsor-config:
+	@bash scripts/generate-sponsor-config.sh
 
 clean:
 	xcodebuild -project $(PROJECT) -scheme $(SCHEME) \
 		-destination '$(DESTINATION)' clean -quiet
 	rm -rf $(BUILD_DIR) $(BUILDS_DIR)
 
-test:
+test: sponsor-config
 	@xcodebuild -project $(PROJECT) -scheme $(SCHEME) \
 		-destination '$(DESTINATION)' -configuration Debug \
 		-only-testing WolfWaveTests \
 		CODE_SIGN_IDENTITY="-" CODE_SIGNING_REQUIRED=NO CODE_SIGNING_ALLOWED=NO \
 		test 2>/dev/null | scripts/check-test-results.sh
 
-test-verbose:
+test-verbose: sponsor-config
 	@xcodebuild -project $(PROJECT) -scheme $(SCHEME) \
 		-destination '$(DESTINATION)' -configuration Debug \
 		-only-testing WolfWaveTests \
 		test 2>/dev/null | tee /dev/stderr | scripts/check-test-results.sh
 
-test-ci:
+test-ci: sponsor-config
 	xcodebuild -project $(PROJECT) -scheme $(SCHEME) \
 		-destination '$(DESTINATION)' -configuration Debug \
 		-only-testing WolfWaveTests \
@@ -77,7 +82,7 @@ ci: test-ci
 # ---------------------------------------------------------------------------
 # Release build + DMG
 # ---------------------------------------------------------------------------
-prod-build:
+prod-build: sponsor-config
 	@echo "🔨 Building Release..."
 	@xcodebuild -project $(PROJECT) -scheme $(SCHEME) \
 		-destination '$(PROD_DESTINATION)' ARCHS="$(PROD_ARCHS)" \
