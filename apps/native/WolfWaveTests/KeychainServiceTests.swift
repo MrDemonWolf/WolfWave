@@ -225,7 +225,9 @@ struct KeychainServiceTests {
             }
         }
 
-        group.wait()
+        await withCheckedContinuation { continuation in
+            group.notify(queue: .global()) { continuation.resume() }
+        }
 
         // Validate: every read should have returned a non-nil, non-empty token
         // (since we seeded and continuously wrote valid tokens)

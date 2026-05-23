@@ -10,6 +10,7 @@ import Foundation
 @testable import WolfWave
 
 /// Tests for the pure stats aggregation functions.
+@MainActor
 @Suite("Stats Aggregator Tests")
 struct StatsAggregatorTests {
 

@@ -10,6 +10,7 @@ import Foundation
 @testable import WolfWave
 
 /// Comprehensive test suite for Twitch OAuth Device Code flow
+@MainActor
 @Suite("Twitch Device Auth Tests")
 struct TwitchDeviceAuthTests {
 

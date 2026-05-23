@@ -8,7 +8,8 @@
 import XCTest
 @testable import WolfWave
 
-final class CommandIntegrationTests: XCTestCase {
+@MainActor
+final class CommandIntegrationTests: XCTestCase, @unchecked Sendable {
     var dispatcher: BotCommandDispatcher!
 
     /// Removes all cooldown and enable/disable keys from UserDefaults to ensure test isolation.

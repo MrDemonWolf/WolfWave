@@ -10,6 +10,7 @@ import Foundation
 @testable import WolfWave
 
 /// Tests for the append-only NDJSON play-log store.
+@MainActor
 @Suite("Play Log Store Tests")
 struct PlayLogStoreTests {
 

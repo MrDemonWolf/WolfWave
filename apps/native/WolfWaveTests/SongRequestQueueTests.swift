@@ -10,6 +10,7 @@ import XCTest
 
 @testable import WolfWave
 
+@MainActor
 final class SongRequestQueueTests: XCTestCase {
     var queue: SongRequestQueue!
 

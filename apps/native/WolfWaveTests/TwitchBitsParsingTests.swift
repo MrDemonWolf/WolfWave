@@ -9,6 +9,7 @@ import XCTest
 
 @testable import WolfWave
 
+@MainActor
 final class TwitchBitsParsingTests: XCTestCase {
 
     // MARK: - cleanBitsMessage with fragments

@@ -10,6 +10,7 @@ import XCTest
 
 /// Integration tests that start a real HTTP server (NWListener) on ephemeral ports.
 /// Some tests bind to high-numbered ports; conflicts are unlikely but possible.
+@MainActor
 final class WidgetHTTPServiceTests: XCTestCase {
 
     // MARK: - Initialization Tests

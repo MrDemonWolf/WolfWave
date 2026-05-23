@@ -10,6 +10,7 @@ import Foundation
 @testable import WolfWave
 
 /// Test suite verifying AppConstants are defined correctly
+@MainActor
 @Suite("App Constants Tests")
 struct AppConstantsTests {
     

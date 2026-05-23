@@ -11,6 +11,7 @@ import Foundation
 
 /// Tests for the `!stats` Twitch command: trigger matching, the enabled gate
 /// (which folds in stream-live state), and dispatcher routing.
+@MainActor
 @Suite("Stats Command Tests")
 struct StatsCommandTests {
 

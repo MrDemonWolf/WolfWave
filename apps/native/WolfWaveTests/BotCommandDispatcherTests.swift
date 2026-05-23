@@ -8,6 +8,7 @@
 import XCTest
 @testable import WolfWave
 
+@MainActor
 final class BotCommandDispatcherTests: XCTestCase {
     var dispatcher: BotCommandDispatcher!
 

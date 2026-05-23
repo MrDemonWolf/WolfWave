@@ -10,6 +10,7 @@ import Foundation
 @testable import WolfWave
 
 /// Comprehensive test suite for logging functionality
+@MainActor
 @Suite("Logger Tests")
 struct LoggerTests {
     

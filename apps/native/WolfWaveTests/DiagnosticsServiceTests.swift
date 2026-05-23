@@ -14,6 +14,7 @@ import XCTest
 /// Covers `DiagnosticsService` opt-in state and the anonymous launch counter.
 /// Each test uses an isolated `UserDefaults` suite; the MetricKit subscription
 /// itself is not exercised (it has process-wide side effects).
+@MainActor
 final class DiagnosticsServiceTests: XCTestCase {
 
     private var suiteName: String!

@@ -11,6 +11,7 @@ import UserNotifications
 @testable import WolfWave
 
 /// Test suite verifying `NotificationService` content building and identifiers.
+@MainActor
 @Suite("Notification Service Tests")
 struct NotificationServiceTests {
 

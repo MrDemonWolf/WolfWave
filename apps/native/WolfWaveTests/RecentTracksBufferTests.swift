@@ -8,6 +8,7 @@
 import XCTest
 @testable import WolfWave
 
+@MainActor
 final class RecentTracksBufferTests: XCTestCase {
 
     private func makeTrack(_ title: String, _ artist: String = "Artist") -> RecentTrack {

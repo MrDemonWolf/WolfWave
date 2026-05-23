@@ -10,6 +10,7 @@ import Foundation
 @testable import WolfWave
 
 /// Tests for the monthly "wrapped"-style summary builder.
+@MainActor
 @Suite("Monthly Wrap Tests")
 struct MonthlyWrapTests {
 

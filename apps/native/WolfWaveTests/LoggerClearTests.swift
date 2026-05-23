@@ -8,6 +8,7 @@
 import XCTest
 @testable import WolfWave
 
+@MainActor
 final class LoggerClearTests: XCTestCase {
 
     func testLogFileSizeIsNonNegative() {

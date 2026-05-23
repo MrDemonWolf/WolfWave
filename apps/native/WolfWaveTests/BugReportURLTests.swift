@@ -8,6 +8,7 @@
 import XCTest
 @testable import WolfWave
 
+@MainActor
 final class BugReportURLTests: XCTestCase {
 
     private let base = "https://github.com/mrdemonwolf/wolfwave/issues/new"

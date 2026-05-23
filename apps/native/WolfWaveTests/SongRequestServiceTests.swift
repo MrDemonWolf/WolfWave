@@ -52,6 +52,7 @@ final class MockAppleMusicController: AppleMusicControlling {
 
 // MARK: - SongRequestServiceTests
 
+@MainActor
 final class SongRequestServiceTests: XCTestCase {
 
     var queue: SongRequestQueue!

@@ -1,6 +1,7 @@
 import XCTest
 @testable import WolfWave
 
+@MainActor
 final class BundleInstallMethodTests: XCTestCase {
 
     // MARK: - DMG / Non-Homebrew Paths

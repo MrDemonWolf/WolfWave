@@ -11,6 +11,7 @@ import XCTest
 
 // MARK: - RequestAudience
 
+@MainActor
 final class RequestAudienceTests: XCTestCase {
 
     func testEveryonePermitsAnyViewer() {
@@ -86,6 +87,7 @@ final class RequestAudienceTests: XCTestCase {
 
 // MARK: - SongRequestPreset
 
+@MainActor
 final class SongRequestPresetTests: XCTestCase {
 
     private var defaults: UserDefaults!
@@ -151,6 +153,7 @@ final class SongRequestPresetTests: XCTestCase {
 
 // MARK: - RedemptionStatus
 
+@MainActor
 final class RedemptionStatusTests: XCTestCase {
 
     func testOkHasNoBanner() {

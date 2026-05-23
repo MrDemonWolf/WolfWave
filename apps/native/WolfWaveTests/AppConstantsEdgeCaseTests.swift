@@ -8,6 +8,7 @@
 import XCTest
 @testable import WolfWave
 
+@MainActor
 final class AppConstantsEdgeCaseTests: XCTestCase {
 
     // MARK: - GitHub URL Resolution Tests

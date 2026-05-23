@@ -9,6 +9,7 @@ import XCTest
 
 @testable import WolfWave
 
+@MainActor
 final class SkipVoteManagerTests: XCTestCase {
 
     private let keys: [String] = [
