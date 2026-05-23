@@ -616,11 +616,10 @@ final class TwitchChatService: @unchecked Sendable {
 
     // MARK: - Lifecycle
 
-    deinit {
-        cancelSessionWelcomeTimeout()
-        stopNetworkMonitoring()
-        disconnectFromEventSub()
-    }
+    // Note: deinit cleanup removed under Swift 6 default-MainActor isolation
+    // (nonisolated deinit can't call MainActor-isolated cleanup methods).
+    // TwitchChatService is owned for the app lifetime; explicit teardown
+    // happens via AppDelegate when the service is replaced or torn down.
 
     // MARK: - Public Methods
 

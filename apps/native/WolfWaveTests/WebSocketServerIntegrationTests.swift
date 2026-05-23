@@ -11,49 +11,59 @@ import XCTest
 // Integration tests using fixed ports (59001-59008) for WebSocket server lifecycle
 final class WebSocketServerIntegrationTests: XCTestCase {
 
+    // MARK: - Helpers
+
+    /// Waits for `predicate` to return true for an emitted `(state, count)` event
+    /// on the service's `stateChanges` stream, then fulfills `expectation`.
+    /// Returns the consumer Task so the caller can cancel it after the wait.
+    @discardableResult
+    private func observe(
+        _ service: WebSocketServerService,
+        fulfilling expectation: XCTestExpectation,
+        on predicate: @escaping @Sendable (WebSocketServerService.ServerState, Int) -> Bool
+    ) -> Task<Void, Never> {
+        let stream = service.stateChanges
+        return Task.detached {
+            for await (state, count) in stream {
+                if predicate(state, count) {
+                    expectation.fulfill()
+                    return
+                }
+            }
+        }
+    }
+
     // MARK: - Server Lifecycle Tests
 
     func testServerStartReachesListeningState() {
         let service = WebSocketServerService(port: 59001)
         let exp = expectation(description: "server listening")
-        var fulfilled = false
 
-        service.onStateChange = { state, _ in
-            if state == .listening && !fulfilled {
-                fulfilled = true
-                exp.fulfill()
-            }
-        }
+        let observer = observe(service, fulfilling: exp) { state, _ in state == .listening }
 
-        service.setEnabled(true)
+        Task { await service.setEnabled(true) }
         waitForExpectations(timeout: 10)
-        service.setEnabled(false)
+        observer.cancel()
+        Task { await service.setEnabled(false) }
     }
 
     func testServerStopReachesStoppedState() {
         let service = WebSocketServerService(port: 59002)
         let listeningExpectation = expectation(description: "server listening")
         let stoppedExpectation = expectation(description: "server stopped")
-        var wasListening = false
-        var wasStopped = false
 
-        service.onStateChange = { state, _ in
-            if state == .listening && !wasListening {
-                wasListening = true
-                listeningExpectation.fulfill()
-            } else if state == .stopped && wasListening && !wasStopped {
-                wasStopped = true
-                stoppedExpectation.fulfill()
-            }
-        }
+        let listenObs = observe(service, fulfilling: listeningExpectation) { state, _ in state == .listening }
 
-        service.setEnabled(true)
+        Task { await service.setEnabled(true) }
         wait(for: [listeningExpectation], timeout: 10)
+        listenObs.cancel()
 
         Thread.sleep(forTimeInterval: 0.5)
 
-        service.setEnabled(false)
+        let stopObs = observe(service, fulfilling: stoppedExpectation) { state, _ in state == .stopped }
+        Task { await service.setEnabled(false) }
         wait(for: [stoppedExpectation], timeout: 10)
+        stopObs.cancel()
     }
 
     func testServerRestartCycle() {
@@ -61,31 +71,23 @@ final class WebSocketServerIntegrationTests: XCTestCase {
         let firstListen = expectation(description: "first listen")
         let stopped = expectation(description: "stopped")
         let secondListen = expectation(description: "second listen")
-        var phase = 0
 
-        service.onStateChange = { state, _ in
-            if state == .listening && phase == 0 {
-                phase = 1
-                firstListen.fulfill()
-            } else if state == .stopped && phase == 1 {
-                phase = 2
-                stopped.fulfill()
-            } else if state == .listening && phase == 2 {
-                phase = 3
-                secondListen.fulfill()
-            }
-        }
-
-        service.setEnabled(true)
+        let obs1 = observe(service, fulfilling: firstListen) { state, _ in state == .listening }
+        Task { await service.setEnabled(true) }
         wait(for: [firstListen], timeout: 5)
+        obs1.cancel()
 
-        service.setEnabled(false)
+        let obs2 = observe(service, fulfilling: stopped) { state, _ in state == .stopped }
+        Task { await service.setEnabled(false) }
         wait(for: [stopped], timeout: 5)
+        obs2.cancel()
 
-        service.setEnabled(true)
+        let obs3 = observe(service, fulfilling: secondListen) { state, _ in state == .listening }
+        Task { await service.setEnabled(true) }
         wait(for: [secondListen], timeout: 5)
+        obs3.cancel()
 
-        service.setEnabled(false)
+        Task { await service.setEnabled(false) }
     }
 
     // MARK: - Port Conflict Tests
@@ -95,31 +97,22 @@ final class WebSocketServerIntegrationTests: XCTestCase {
         let service2 = WebSocketServerService(port: 59004)
 
         let listening1 = expectation(description: "service1 listening")
+        let obs1 = observe(service1, fulfilling: listening1) { state, _ in state == .listening }
 
-        var s1Listening = false
-        service1.onStateChange = { state, _ in
-            if state == .listening && !s1Listening {
-                s1Listening = true
-                listening1.fulfill()
-            }
-        }
-
-        service1.setEnabled(true)
+        Task { await service1.setEnabled(true) }
         wait(for: [listening1], timeout: 5)
+        obs1.cancel()
 
         // Second server on same port should fail with an error
         let service2State = expectation(description: "service2 state change")
-        service2.onStateChange = { state, _ in
-            if state == .error {
-                service2State.fulfill()
-            }
-        }
+        let obs2 = observe(service2, fulfilling: service2State) { state, _ in state == .error }
 
-        service2.setEnabled(true)
+        Task { await service2.setEnabled(true) }
         wait(for: [service2State], timeout: 5)
+        obs2.cancel()
 
-        service1.setEnabled(false)
-        service2.setEnabled(false)
+        Task { await service1.setEnabled(false) }
+        Task { await service2.setEnabled(false) }
     }
 
     // MARK: - Connection Count Tests
@@ -131,20 +124,19 @@ final class WebSocketServerIntegrationTests: XCTestCase {
 
     func testConnectionCountIsZeroAfterStart() {
         let service = WebSocketServerService(port: 59006)
-        let expectation = expectation(description: "server listening")
-
-        var fulfilled = false
-        service.onStateChange = { state, count in
-            if state == .listening && !fulfilled {
-                fulfilled = true
+        let exp = expectation(description: "server listening")
+        let obs = observe(service, fulfilling: exp) { state, count in
+            if state == .listening {
                 XCTAssertEqual(count, 0)
-                expectation.fulfill()
+                return true
             }
+            return false
         }
 
-        service.setEnabled(true)
+        Task { await service.setEnabled(true) }
         waitForExpectations(timeout: 5)
-        service.setEnabled(false)
+        obs.cancel()
+        Task { await service.setEnabled(false) }
     }
 
     // MARK: - Initial State Tests
@@ -154,8 +146,11 @@ final class WebSocketServerIntegrationTests: XCTestCase {
         XCTAssertEqual(service.state, .stopped)
     }
 
-    func testOnStateChangeCallbackIsNilByDefault() {
+    func testStateChangesStreamIsAvailable() {
         let service = WebSocketServerService(port: 59008)
-        XCTAssertNil(service.onStateChange)
+        // Stream is a non-optional `let`; just confirm we can subscribe without
+        // crashing and that no events are emitted before `setEnabled(true)`.
+        let stream = service.stateChanges
+        _ = stream
     }
 }

@@ -492,7 +492,7 @@ extension AppDelegate: NSMenuDelegate {
 
         let discordEnabled = UserDefaults.standard.bool(forKey: AppConstants.UserDefaults.discordPresenceEnabled)
         let discordState: MenuStatusFormatter.DiscordState = {
-            switch discordService?.state {
+            switch discordService?.stateSnapshot {
             case .connected: return .connected
             case .connecting: return .connecting
             default: return .disconnected
@@ -745,7 +745,7 @@ extension AppDelegate {
             object: nil,
             userInfo: ["enabled": newValue, "widgetHTTPEnabled": newValue]
         )
-        websocketServer?.setWidgetHTTPEnabled(newValue)
+        Task { [weak self] in await self?.websocketServer?.setWidgetHTTPEnabled(newValue) }
     }
 
     /// Flips a boolean UserDefaults value and broadcasts a notification.
@@ -886,17 +886,21 @@ extension AppDelegate {
         // Discord: setEnabled(false) → setEnabled(true) tears down and
         // re-opens the IPC socket with fresh state.
         if UserDefaults.standard.bool(forKey: AppConstants.UserDefaults.discordPresenceEnabled) {
-            discordService?.setEnabled(false)
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) { [weak self] in
-                self?.discordService?.setEnabled(true)
+            let discord = discordService
+            Task {
+                await discord?.setEnabled(false)
+                try? await Task.sleep(for: .milliseconds(250))
+                await discord?.setEnabled(true)
             }
         }
 
         // Widgets: same toggle dance restarts the NWListener.
         if UserDefaults.standard.bool(forKey: AppConstants.UserDefaults.websocketEnabled) {
-            websocketServer?.setEnabled(false)
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) { [weak self] in
-                self?.websocketServer?.setEnabled(true)
+            let server = websocketServer
+            Task {
+                await server?.setEnabled(false)
+                try? await Task.sleep(for: .milliseconds(250))
+                await server?.setEnabled(true)
             }
         }
 

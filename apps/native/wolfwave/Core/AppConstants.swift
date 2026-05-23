@@ -771,12 +771,14 @@ nonisolated enum AppConstants {
         /// Auto-derived from `.github/FUNDING.yml` by `scripts/generate-sponsor-config.sh`
         /// and committed as `SponsorConfig.generated.swift`. Falls back to `repoOwner`
         /// if the generated value is empty.
+        @MainActor
         static var sponsorUser: String {
             let generated = SponsorConfig.sponsorUser.trimmingCharacters(in: .whitespacesAndNewlines)
             return generated.isEmpty ? repoOwner : generated
         }
 
         /// GitHub Sponsors page URL (resolved from FUNDING.yml)
+        @MainActor
         static var githubSponsors: String { "https://github.com/sponsors/\(sponsorUser)" }
 
         /// Community Discord invite — opened from the tray menu "Help ▸ Join Discord Community".
@@ -950,6 +952,7 @@ nonisolated enum AppConstants {
 
     /// Brand / partner colors. Backed by `DSColor` generated tokens.
     /// Source of truth: `design-system/tokens.json`.
+    @MainActor
     enum Brand {
         /// Twitch purple — `#9146FF`.
         static let twitch = DSColor.partnerTwitch

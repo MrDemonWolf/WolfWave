@@ -171,13 +171,18 @@ struct DebugServiceControlsCard: View {
             TextField("Artist", text: $wsTestArtist).textFieldStyle(.roundedBorder)
             HStack {
                 Button {
-                    appDelegate?.websocketServer?.updateNowPlaying(
-                        track: wsTestTitle,
-                        artist: wsTestArtist,
-                        album: "Debug",
-                        duration: 180,
-                        elapsed: 0
-                    )
+                    let server = appDelegate?.websocketServer
+                    let title = wsTestTitle
+                    let artist = wsTestArtist
+                    Task {
+                        await server?.updateNowPlaying(
+                            track: title,
+                            artist: artist,
+                            album: "Debug",
+                            duration: 180,
+                            elapsed: 0
+                        )
+                    }
                 } label: {
                     Label("Broadcast Test", systemImage: "antenna.radiowaves.left.and.right")
                         .frame(maxWidth: .infinity)
@@ -186,7 +191,8 @@ struct DebugServiceControlsCard: View {
                 .pointerCursor()
 
                 Button {
-                    appDelegate?.websocketServer?.clearNowPlaying()
+                    let server = appDelegate?.websocketServer
+                    Task { await server?.clearNowPlaying() }
                 } label: {
                     Label("Clear", systemImage: "xmark")
                         .frame(maxWidth: .infinity)

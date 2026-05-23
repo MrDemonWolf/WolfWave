@@ -96,10 +96,22 @@ actor DiscordRPCService {
 
     // MARK: - Properties
 
-    /// Current connection state. Publishes to ``stateChanges`` on each transition.
+    /// Lock guarding the nonisolated state snapshot.
+    private nonisolated let stateSnapshotLock = NSLock()
+    nonisolated(unsafe) private var _stateSnapshot: ConnectionState = .disconnected
+
+    /// Latest connection state, safe to read synchronously from any thread.
+    /// Mirrors ``state``; updated whenever the actor mutates `state`.
+    nonisolated var stateSnapshot: ConnectionState {
+        stateSnapshotLock.withLock { _stateSnapshot }
+    }
+
+    /// Current connection state. Publishes to ``stateChanges`` on each transition
+    /// and mirrors into ``stateSnapshot`` for nonisolated reads.
     private(set) var state: ConnectionState = .disconnected {
         didSet {
             guard oldValue != state else { return }
+            stateSnapshotLock.withLock { _stateSnapshot = state }
             stateContinuation.yield(state)
         }
     }

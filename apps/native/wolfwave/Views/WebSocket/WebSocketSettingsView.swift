@@ -726,7 +726,8 @@ fileprivate struct WebSocketWidgetAppearanceCard: View {
     /// connected overlay via `WebSocketServerService.broadcastWidgetConfig()`.
     /// Called from `onChange` of each customization control.
     private func broadcastWidgetConfig() {
-        AppDelegate.shared?.websocketServer?.broadcastWidgetConfig()
+        let server = AppDelegate.shared?.websocketServer
+        Task { await server?.broadcastWidgetConfig() }
     }
 }
 

@@ -12,7 +12,7 @@ import Foundation
 /// One `PlayRecord` is persisted per *completed* play (a track that crossed the
 /// scrobble threshold). It is serialized as one compact JSON object per line in
 /// the append-only NDJSON play log — short keys keep each line near 120 bytes.
-struct PlayRecord: Codable, Equatable, Hashable, Sendable {
+nonisolated struct PlayRecord: Codable, Equatable, Hashable, Sendable {
 
     // MARK: - Properties
 

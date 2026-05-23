@@ -24,7 +24,7 @@ struct ConnectionTestButton: View {
 
     let label: String
     let icon: String
-    let action: (@escaping (Bool) -> Void) -> Void
+    let action: (@escaping @Sendable (Bool) -> Void) -> Void
 
     // MARK: - State
 

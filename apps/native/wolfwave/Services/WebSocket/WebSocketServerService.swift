@@ -14,8 +14,9 @@ import Network
 ///
 /// Built on `NWListener` (Network.framework). Overlay clients such as OBS browser sources
 /// connect and receive JSON messages for track changes, progress ticks, and playback state.
-/// Thread-safe — all I/O runs on a dedicated serial queue; locks protect shared state.
-final class WebSocketServerService: @unchecked Sendable {
+/// State is actor-confined; a small snapshot is exposed for synchronous `nonisolated` reads
+/// from SwiftUI views, and a `stateChanges` `AsyncStream` replaces the legacy callback.
+actor WebSocketServerService {
 
     // MARK: - Types
 
@@ -23,31 +24,55 @@ final class WebSocketServerService: @unchecked Sendable {
         case stopped, starting, listening, error
     }
 
-    // MARK: - Properties
+    // MARK: - Nonisolated Snapshot
 
-    private(set) var state: ServerState = .stopped
+    /// Protects the snapshot variables read from outside the actor.
+    private nonisolated let snapshotLock = NSLock()
+    nonisolated(unsafe) private var _stateSnapshot: ServerState = .stopped
+    nonisolated(unsafe) private var _connectionCountSnapshot: Int = 0
 
-    /// Called on the main thread when server state or client count changes.
-    var onStateChange: ((ServerState, Int) -> Void)?
+    /// Latest server state, safe to read synchronously from any thread.
+    nonisolated var state: ServerState {
+        snapshotLock.withLock { _stateSnapshot }
+    }
+
+    /// Latest connected-client count, safe to read synchronously from any thread.
+    nonisolated var connectionCount: Int {
+        snapshotLock.withLock { _connectionCountSnapshot }
+    }
+
+    private func writeStateSnapshot(_ newState: ServerState) {
+        snapshotLock.withLock { _stateSnapshot = newState }
+    }
+
+    private func writeConnectionCountSnapshot(_ count: Int) {
+        snapshotLock.withLock { _connectionCountSnapshot = count }
+    }
+
+    // MARK: - State Change Stream
+
+    /// Replaces the legacy `onStateChange` callback. Consumers iterate
+    /// `for await (state, clientCount) in service.stateChanges`.
+    nonisolated let stateChanges: AsyncStream<(ServerState, Int)>
+    private nonisolated let stateContinuation: AsyncStream<(ServerState, Int)>.Continuation
 
     /// Number of currently-connected overlay clients. Safe to call from any
-    /// thread — guarded by `connectionsLock`. Used by the tray menu's
-    /// "Stream Widgets" status subtitle.
-    var connectedClientCount: Int {
-        connectionsLock.withLock { connections.count }
-    }
+    /// thread. Used by the tray menu's "Stream Widgets" status subtitle.
+    nonisolated var connectedClientCount: Int { connectionCount }
+
+    // MARK: - Properties
 
     private var port: UInt16
     private var listener: NWListener?
     private var connections: [NWConnection] = []
-    private let connectionsLock = NSLock()
-    private let serverQueue = DispatchQueue(
+    /// Dispatch queue used only for Network.framework callbacks. All state is actor-confined.
+    private nonisolated let networkQueue = DispatchQueue(
         label: AppConstants.DispatchQueues.websocketServer,
         qos: .utility
     )
     private var isEnabled = false
-    private let enabledLock = NSLock()
     private var widgetHTTP: WidgetHTTPService?
+    private var retryTask: Task<Void, Never>?
 
     // MARK: - Playback State
 
@@ -59,52 +84,52 @@ final class WebSocketServerService: @unchecked Sendable {
     private var isPlaying = false
     private var currentArtworkURL: String?
     private var lastElapsedUpdate: Date?
-    private let playbackLock = NSLock()
-    private var progressTimer: DispatchSourceTimer?
+    private var progressTask: Task<Void, Never>?
     private var currentProgressInterval: TimeInterval = AppConstants.WebSocketServer.progressBroadcastInterval
 
     // MARK: - Init
 
     init(port: UInt16 = AppConstants.WebSocketServer.defaultPort) {
         self.port = port
+        let (stream, continuation) = AsyncStream<(ServerState, Int)>.makeStream(
+            bufferingPolicy: .bufferingNewest(64)
+        )
+        self.stateChanges = stream
+        self.stateContinuation = continuation
     }
 
     deinit {
-        stopServer()
+        stateContinuation.finish()
     }
 
     // MARK: - Public API
 
     /// Starts or stops the server based on the given flag.
     func setEnabled(_ enabled: Bool) {
-        enabledLock.withLock { isEnabled = enabled }
-
+        isEnabled = enabled
         if enabled {
-            serverQueue.async { [weak self] in self?.startServer() }
+            startServer()
         } else {
-            serverQueue.async { [weak self] in self?.stopServer() }
+            stopServer()
         }
     }
 
     /// Starts or stops the widget HTTP server independently.
     func setWidgetHTTPEnabled(_ enabled: Bool) {
-        serverQueue.async { [weak self] in
-            guard let self else { return }
-            if enabled {
-                // Only start if WebSocket server is listening and HTTP isn't already running
-                guard self.state == .listening, self.widgetHTTP == nil else { return }
-                let storedWidgetPort = UserDefaults.standard.integer(forKey: AppConstants.UserDefaults.widgetPort)
-                let widgetPort: UInt16 = storedWidgetPort > 0
-                    ? (UInt16(exactly: storedWidgetPort) ?? AppConstants.WebSocketServer.widgetDefaultPort)
-                    : AppConstants.WebSocketServer.widgetDefaultPort
-                self.widgetHTTP = WidgetHTTPService(port: widgetPort)
-                self.widgetHTTP?.start()
-                Log.info("WebSocketServerService: Widget HTTP server started", category: "WebSocket")
-            } else {
-                self.widgetHTTP?.stop()
-                self.widgetHTTP = nil
-                Log.info("WebSocketServerService: Widget HTTP server stopped", category: "WebSocket")
-            }
+        if enabled {
+            // Only start if WebSocket server is listening and HTTP isn't already running
+            guard state == .listening, widgetHTTP == nil else { return }
+            let storedWidgetPort = UserDefaults.standard.integer(forKey: AppConstants.UserDefaults.widgetPort)
+            let widgetPort: UInt16 = storedWidgetPort > 0
+                ? (UInt16(exactly: storedWidgetPort) ?? AppConstants.WebSocketServer.widgetDefaultPort)
+                : AppConstants.WebSocketServer.widgetDefaultPort
+            widgetHTTP = WidgetHTTPService(port: widgetPort)
+            widgetHTTP?.start()
+            Log.info("WebSocketServerService: Widget HTTP server started", category: "WebSocket")
+        } else {
+            widgetHTTP?.stop()
+            widgetHTTP = nil
+            Log.info("WebSocketServerService: Widget HTTP server stopped", category: "WebSocket")
         }
     }
 
@@ -117,10 +142,8 @@ final class WebSocketServerService: @unchecked Sendable {
         port = newPort
 
         if wasListening {
-            serverQueue.async { [weak self] in
-                self?.stopServer()
-                self?.startServer()
-            }
+            stopServer()
+            startServer()
         }
     }
 
@@ -133,7 +156,6 @@ final class WebSocketServerService: @unchecked Sendable {
         elapsed: TimeInterval,
         artworkURL: String? = nil
     ) {
-        playbackLock.lock()
         currentTrack = track
         currentArtist = artist
         currentAlbum = album
@@ -142,7 +164,6 @@ final class WebSocketServerService: @unchecked Sendable {
         isPlaying = true
         lastElapsedUpdate = Date()
         if let artworkURL { currentArtworkURL = artworkURL }
-        playbackLock.unlock()
 
         broadcastNowPlaying()
         startProgressTimer()
@@ -150,10 +171,7 @@ final class WebSocketServerService: @unchecked Sendable {
 
     /// Updates the artwork URL and re-broadcasts the current track to all clients.
     func updateArtworkURL(_ url: String) {
-        playbackLock.lock()
         currentArtworkURL = url
-        playbackLock.unlock()
-
         broadcastNowPlaying()
     }
 
@@ -177,22 +195,16 @@ final class WebSocketServerService: @unchecked Sendable {
     ///
     /// - Parameter interval: New broadcast interval in seconds.
     func updateProgressInterval(_ interval: TimeInterval) {
-        serverQueue.async { [weak self] in
-            guard let self else { return }
-            self.currentProgressInterval = interval
-            // Restart progress timer with new interval if one is active
-            if self.progressTimer != nil {
-                self.startProgressTimer()
-            }
+        currentProgressInterval = interval
+        if progressTask != nil {
+            startProgressTimer()
         }
     }
 
     /// Marks playback as stopped and broadcasts the state change.
     func clearNowPlaying() {
-        playbackLock.lock()
         isPlaying = false
         lastElapsedUpdate = nil
-        playbackLock.unlock()
 
         stopProgressTimer()
         broadcastPlaybackState()
@@ -200,13 +212,13 @@ final class WebSocketServerService: @unchecked Sendable {
 
     // MARK: - Server Lifecycle
 
-    /// Brings up the `NWListener` on the configured port, wires state and
-    /// connection callbacks, and starts the server on `serverQueue`.
+    /// Brings up the `NWListener` on the configured port and wires state and
+    /// connection callbacks. Network.framework callbacks fire on `networkQueue`
+    /// and hop back into the actor.
     private func startServer() {
         guard listener == nil else { return }
 
-        state = .starting
-        notifyStateChange()
+        transition(to: .starting)
 
         let parameters = NWParameters.tcp
         let wsOptions = NWProtocolWebSocket.Options()
@@ -216,46 +228,29 @@ final class WebSocketServerService: @unchecked Sendable {
         do {
             guard let nwPort = NWEndpoint.Port(rawValue: port) else {
                 Log.error("WebSocketServerService: Invalid port \(port)", category: "WebSocket")
-                state = .error
-                notifyStateChange()
+                transition(to: .error)
                 return
             }
             parameters.requiredLocalEndpoint = NWEndpoint.hostPort(host: .ipv4(.loopback), port: nwPort)
             listener = try NWListener(using: parameters)
         } catch {
             Log.error("WebSocketServerService: Failed to create listener: \(error)", category: "WebSocket")
-            state = .error
-            notifyStateChange()
+            transition(to: .error)
             scheduleRetry()
             return
         }
 
         listener?.stateUpdateHandler = { [weak self] newState in
             guard let self else { return }
-            switch newState {
-            case .ready:
-                self.state = .listening
-                Log.info("WebSocketServerService: Listening on port \(self.port)", category: "WebSocket")
-                self.notifyStateChange()
-            case .failed(let error):
-                Log.error("WebSocketServerService: Listener failed: \(error)", category: "WebSocket")
-                self.state = .error
-                self.notifyStateChange()
-                self.listener = nil
-                self.scheduleRetry()
-            case .cancelled:
-                self.state = .stopped
-                self.notifyStateChange()
-            default:
-                break
-            }
+            Task { await self.handleListenerState(newState) }
         }
 
         listener?.newConnectionHandler = { [weak self] connection in
-            self?.handleNewConnection(connection)
+            guard let self else { return }
+            Task { await self.handleNewConnection(connection) }
         }
 
-        listener?.start(queue: serverQueue)
+        listener?.start(queue: networkQueue)
 
         let widgetHTTPEnabled = UserDefaults.standard.object(forKey: AppConstants.UserDefaults.widgetHTTPEnabled) as? Bool ?? false
         if widgetHTTPEnabled {
@@ -268,9 +263,30 @@ final class WebSocketServerService: @unchecked Sendable {
         }
     }
 
+    /// Handles `NWListener.stateUpdateHandler` transitions inside the actor.
+    private func handleListenerState(_ newState: NWListener.State) {
+        switch newState {
+        case .ready:
+            Log.info("WebSocketServerService: Listening on port \(port)", category: "WebSocket")
+            transition(to: .listening)
+        case .failed(let error):
+            Log.error("WebSocketServerService: Listener failed: \(error)", category: "WebSocket")
+            listener = nil
+            transition(to: .error)
+            scheduleRetry()
+        case .cancelled:
+            transition(to: .stopped)
+        default:
+            break
+        }
+    }
+
     /// Tears down the listener, cancels all open connections, and transitions
     /// the service to `.stopped`. Safe to call when no server is running.
     private func stopServer() {
+        retryTask?.cancel()
+        retryTask = nil
+
         widgetHTTP?.stop()
         widgetHTTP = nil
 
@@ -279,30 +295,32 @@ final class WebSocketServerService: @unchecked Sendable {
         listener?.cancel()
         listener = nil
 
-        connectionsLock.lock()
         let conns = connections
         connections.removeAll()
-        connectionsLock.unlock()
+        writeConnectionCountSnapshot(0)
 
         for conn in conns { conn.cancel() }
 
-        state = .stopped
-        notifyStateChange()
+        transition(to: .stopped)
         Log.info("WebSocketServerService: Server stopped", category: "WebSocket")
     }
 
     /// Retries starting the server after a delay if still enabled.
     private func scheduleRetry() {
-        let shouldRetry = enabledLock.withLock { isEnabled }
-        guard shouldRetry else { return }
+        guard isEnabled else { return }
 
         Log.info("WebSocketServerService: Retrying in \(AppConstants.WebSocketServer.retryDelay)s", category: "WebSocket")
-        serverQueue.asyncAfter(deadline: .now() + AppConstants.WebSocketServer.retryDelay) { [weak self] in
-            guard let self else { return }
-            let stillEnabled = self.enabledLock.withLock { self.isEnabled }
-            guard stillEnabled, self.listener == nil else { return }
-            self.startServer()
+        retryTask?.cancel()
+        retryTask = Task { [weak self] in
+            try? await Task.sleep(for: .seconds(AppConstants.WebSocketServer.retryDelay))
+            guard !Task.isCancelled else { return }
+            await self?.attemptRetry()
         }
+    }
+
+    private func attemptRetry() {
+        guard isEnabled, listener == nil else { return }
+        startServer()
     }
 
     // MARK: - Connection Handling
@@ -313,54 +331,50 @@ final class WebSocketServerService: @unchecked Sendable {
     private func handleNewConnection(_ connection: NWConnection) {
         connection.stateUpdateHandler = { [weak self] state in
             guard let self else { return }
-            switch state {
-            case .ready:
-                self.connectionsLock.lock()
-                self.connections.append(connection)
-                let count = self.connections.count
-                self.connectionsLock.unlock()
-                Log.info("WebSocketServerService: Client connected (\(count) total)", category: "WebSocket")
-                self.notifyStateChange()
-                self.sendWelcome(to: connection)
-                self.sendCurrentState(to: connection)
-                self.sendWidgetConfig(to: connection)
-                self.receiveMessage(from: connection)
-            case .failed(let error):
-                Log.debug("WebSocketServerService: Client failed: \(error)", category: "WebSocket")
-                self.removeConnection(connection)
-            case .cancelled:
-                self.removeConnection(connection)
-            default:
-                break
-            }
+            Task { await self.handleConnectionState(connection, state: state) }
         }
-        connection.start(queue: serverQueue)
+        connection.start(queue: networkQueue)
+    }
+
+    private func handleConnectionState(_ connection: NWConnection, state: NWConnection.State) {
+        switch state {
+        case .ready:
+            connections.append(connection)
+            let count = connections.count
+            writeConnectionCountSnapshot(count)
+            Log.info("WebSocketServerService: Client connected (\(count) total)", category: "WebSocket")
+            notifyStateChange()
+            sendWelcome(to: connection)
+            sendCurrentState(to: connection)
+            sendWidgetConfig(to: connection)
+            Self.receiveMessage(from: connection)
+        case .failed(let error):
+            Log.debug("WebSocketServerService: Client failed: \(error)", category: "WebSocket")
+            removeConnection(connection)
+        case .cancelled:
+            removeConnection(connection)
+        default:
+            break
+        }
     }
 
     /// Drops `connection` from the active set and broadcasts the new count.
     private func removeConnection(_ connection: NWConnection) {
-        connectionsLock.lock()
         connections.removeAll { $0 === connection }
         let count = connections.count
-        connectionsLock.unlock()
+        writeConnectionCountSnapshot(count)
 
         Log.debug("WebSocketServerService: Client disconnected (\(count) remaining)", category: "WebSocket")
         notifyStateChange()
     }
 
     /// Keeps the connection alive by continuously consuming inbound messages.
-    private func receiveMessage(from connection: NWConnection) {
-        connection.receiveMessage { [weak self] _, _, _, error in
+    /// Nonisolated — does not touch actor state.
+    private static func receiveMessage(from connection: NWConnection) {
+        connection.receiveMessage { _, _, _, error in
             if error != nil { return }
-            self?.receiveMessage(from: connection)
+            receiveMessage(from: connection)
         }
-    }
-
-    var connectionCount: Int {
-        connectionsLock.lock()
-        let count = connections.count
-        connectionsLock.unlock()
-        return count
     }
 
     // MARK: - Message Broadcasting
@@ -369,7 +383,7 @@ final class WebSocketServerService: @unchecked Sendable {
     /// freshly-accepted connection.
     private func sendWelcome(to connection: NWConnection) {
         let appVersion = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "unknown"
-        sendJSON(["type": "welcome", "server": "WolfWave", "version": appVersion], to: connection)
+        Self.sendJSON(["type": "welcome", "server": "WolfWave", "version": appVersion], to: connection)
     }
 
     /// Sends the current widget theme/layout config to a newly connected client.
@@ -385,12 +399,11 @@ final class WebSocketServerService: @unchecked Sendable {
                 "fontFamily": defaults.string(forKey: AppConstants.UserDefaults.widgetFontFamily) ?? "System",
             ],
         ]
-        sendJSON(config, to: connection)
+        Self.sendJSON(config, to: connection)
     }
 
     /// Sends the full current playback snapshot to a newly connected client.
     private func sendCurrentState(to connection: NWConnection) {
-        playbackLock.lock()
         let track = currentTrack
         let artist = currentArtist
         let album = currentAlbum
@@ -398,7 +411,6 @@ final class WebSocketServerService: @unchecked Sendable {
         let elapsed = estimatedElapsed()
         let playing = isPlaying
         let artwork = currentArtworkURL
-        playbackLock.unlock()
 
         guard let track, let artist, let album else { return }
 
@@ -410,30 +422,22 @@ final class WebSocketServerService: @unchecked Sendable {
                 "isPlaying": playing, "artworkURL": artwork ?? "",
             ],
         ]
-        sendJSON(message, to: connection)
+        Self.sendJSON(message, to: connection)
     }
 
     /// Sends a `now_playing` snapshot (track/artist/album/timing/artwork) to
     /// every connected client. No-op when no track has been stored yet.
     private func broadcastNowPlaying() {
-        playbackLock.lock()
-        let track = currentTrack
-        let artist = currentArtist
-        let album = currentAlbum
-        let duration = currentDuration
-        let elapsed = currentElapsed
-        let playing = isPlaying
-        let artwork = currentArtworkURL
-        playbackLock.unlock()
-
-        guard let track, let artist, let album else { return }
+        guard let track = currentTrack,
+              let artist = currentArtist,
+              let album = currentAlbum else { return }
 
         broadcastJSON([
             "type": "now_playing",
             "data": [
                 "track": track, "artist": artist, "album": album,
-                "duration": duration, "elapsed": elapsed,
-                "isPlaying": playing, "artworkURL": artwork ?? "",
+                "duration": currentDuration, "elapsed": currentElapsed,
+                "isPlaying": isPlaying, "artworkURL": currentArtworkURL ?? "",
             ],
         ])
     }
@@ -441,37 +445,32 @@ final class WebSocketServerService: @unchecked Sendable {
     /// Sends a lightweight `playback_state` (play/pause) update to every
     /// connected client. Used when only the playing flag changes.
     private func broadcastPlaybackState() {
-        playbackLock.lock()
-        let track = currentTrack ?? ""
-        let artist = currentArtist ?? ""
-        let album = currentAlbum ?? ""
-        let playing = isPlaying
-        playbackLock.unlock()
-
         broadcastJSON([
             "type": "playback_state",
-            "data": ["isPlaying": playing, "track": track, "artist": artist, "album": album],
+            "data": [
+                "isPlaying": isPlaying,
+                "track": currentTrack ?? "",
+                "artist": currentArtist ?? "",
+                "album": currentAlbum ?? "",
+            ],
         ])
     }
 
     /// Sends a `progress` tick (elapsed/duration) to every connected client
-    /// while playback is active. Driven by the periodic progress timer.
+    /// while playback is active. Driven by the periodic progress task.
     private func broadcastProgress() {
-        playbackLock.lock()
-        let elapsed = estimatedElapsed()
-        let duration = currentDuration
-        let playing = isPlaying
-        playbackLock.unlock()
-
-        guard playing else { return }
-
+        guard isPlaying else { return }
         broadcastJSON([
             "type": "progress",
-            "data": ["elapsed": elapsed, "duration": duration, "isPlaying": playing],
+            "data": [
+                "elapsed": estimatedElapsed(),
+                "duration": currentDuration,
+                "isPlaying": isPlaying,
+            ],
         ])
     }
 
-    /// Interpolates elapsed time using the wall clock. Must be called with `playbackLock` held.
+    /// Interpolates elapsed time using the wall clock.
     private func estimatedElapsed() -> TimeInterval {
         guard let lastUpdate = lastElapsedUpdate, isPlaying else { return currentElapsed }
         return min(currentElapsed + Date().timeIntervalSince(lastUpdate), currentDuration)
@@ -479,35 +478,32 @@ final class WebSocketServerService: @unchecked Sendable {
 
     // MARK: - Progress Timer
 
-    /// Starts (or restarts) the periodic progress broadcast timer using the
-    /// current interval. Cancels any timer already running before scheduling.
+    /// Starts (or restarts) the periodic progress broadcast loop using the
+    /// current interval. Cancels any running loop before scheduling.
     private func startProgressTimer() {
         stopProgressTimer()
 
-        let timer = DispatchSource.makeTimerSource(queue: serverQueue)
-        timer.schedule(
-            deadline: .now() + currentProgressInterval,
-            repeating: currentProgressInterval
-        )
-        timer.setEventHandler { [weak self] in self?.broadcastProgress() }
-        timer.activate()
-        progressTimer = timer
+        let interval = currentProgressInterval
+        progressTask = Task { [weak self] in
+            while !Task.isCancelled {
+                try? await Task.sleep(for: .seconds(interval))
+                if Task.isCancelled { return }
+                await self?.broadcastProgress()
+            }
+        }
     }
 
-    /// Cancels and clears the progress broadcast timer if one is active.
+    /// Cancels and clears the progress broadcast task if one is active.
     private func stopProgressTimer() {
-        progressTimer?.cancel()
-        progressTimer = nil
+        progressTask?.cancel()
+        progressTask = nil
     }
 
     // MARK: - JSON Helpers
 
     /// Serializes `dict` to JSON and sends it as a single WebSocket text frame.
-    ///
-    /// - Parameters:
-    ///   - dict: Top-level JSON object to serialize.
-    ///   - connection: Target connection.
-    private func sendJSON(_ dict: [String: Any], to connection: NWConnection) {
+    /// Nonisolated — does not touch actor state.
+    private static func sendJSON(_ dict: [String: Any], to connection: NWConnection) {
         guard let jsonData = try? JSONSerialization.data(withJSONObject: dict),
               let jsonString = String(data: jsonData, encoding: .utf8) else { return }
 
@@ -528,21 +524,25 @@ final class WebSocketServerService: @unchecked Sendable {
     ///
     /// - Parameter dict: Top-level JSON object to serialize and broadcast.
     private func broadcastJSON(_ dict: [String: Any]) {
-        connectionsLock.lock()
         let conns = connections
-        connectionsLock.unlock()
-
-        for connection in conns { sendJSON(dict, to: connection) }
+        for connection in conns { Self.sendJSON(dict, to: connection) }
     }
 
     // MARK: - State Notification
 
-    /// Posts a notification and invokes the callback on the main thread.
+    /// Updates the snapshot, yields onto `stateChanges`, and posts a
+    /// `NotificationCenter` event on the main actor.
+    private func transition(to newState: ServerState) {
+        writeStateSnapshot(newState)
+        notifyStateChange()
+    }
+
     private func notifyStateChange() {
         let currentState = state
         let count = connectionCount
-        DispatchQueue.main.async { [weak self] in
-            self?.onStateChange?(currentState, count)
+        stateContinuation.yield((currentState, count))
+
+        Task { @MainActor in
             NotificationCenter.default.post(
                 name: NSNotification.Name(AppConstants.Notifications.websocketServerStateChanged),
                 object: nil,

@@ -20,7 +20,7 @@ import Network
 /// - `GET /widget-tokens.generated.js` → `200 OK` with generated design tokens JS
 /// - `GET /favicon.ico` / `GET /favicon.png` → `200 OK` with app icon PNG
 /// - All other requests → `404 Not Found`
-final class WidgetHTTPService {
+nonisolated final class WidgetHTTPService: @unchecked Sendable {
 
     // MARK: - Properties
 
