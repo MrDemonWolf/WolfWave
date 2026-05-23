@@ -35,6 +35,10 @@ All notable changes to this project will be documented in this file.
 - **Apple Music logo on Music access row** — granted-state row now shows the Apple Music brand mark instead of a generic icon (#38).
 - **Widget themes** — six selectable overlay-widget themes (`Default`, `Dark`, `Light`, `Glass`, `Neon`, `WolfWave`) and three layouts (`Horizontal`, `Vertical`, `Compact`), served to `widget.html` via `window.WW_TOKENS` (#76).
 - **Discord presence polish** — friendlier presence buttons, a live presence preview in Discord settings, and cleaner connection-state handling (#73).
+- **Song-change notifications** — opt-in macOS notification on every track change, with track name, artist, and album art; reuses a stable identifier so a new song replaces the previous banner instead of stacking. Off by default; enable in Settings → General → Notifications (#83).
+- **On-device diagnostics** — opt-in MetricKit diagnostics report card in Advanced settings. Reports stay on-device; a share card lets you attach the payload to a bug report manually. Off by default (#85).
+- **Discord playlist presence** — Discord Rich Presence now surfaces the current Apple Music playlist name alongside the track when one is active.
+- **WolfMark branding** — new WolfMark album-art placeholder replaces the generic music icon in the now-playing card and overlay widget; branded download page, repo `README.md`, and `SECURITY.md` shipped alongside.
 
 ### Changed
 

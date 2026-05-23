@@ -18,16 +18,16 @@ struct WhatsNewView: View {
     // MARK: - Feature Data
 
     private let features: [(icon: String, iconColor: Color, title: String, description: String)] = [
-        ("music.mic", .pink, "Song Requests", "Viewers request songs with !sr. Plays in Apple Music without taking focus."),
-        ("pause.fill", .orange, "Hold Mode", "Pause the queue to curate, then resume when ready."),
-        ("forward.fill", .blue, "Queue Controls", "Skip, clear, or hold from the app, menu bar, or Twitch chat (mods only)"),
-        ("list.number", .green, "Live Queue View", "See what's playing, what's next, and who requested each song"),
-        ("music.note.list", .purple, "Fallback Playlist", "Plays when the queue is empty."),
-        ("paintpalette.fill", .teal, "Widget Themes", "Six overlay themes and three layouts for your stream widget — pick what fits your scene."),
-        ("sparkles", .indigo, "Liquid Glass Redesign", "Refreshed settings, menu bar, and onboarding built for macOS 26 Tahoe"),
-        ("music.note.house", .red, "Apple Music Permission", "Apple Music access during setup, with recovery if you skip."),
-        ("ladybug.fill", .yellow, "Bug Report Flow", "Export or clear logs from Advanced settings, then file a report in one click."),
-        ("wand.and.stars", .mint, "Polish & Stability", "Faster settings, smoother animations, sharper logs, and tighter copy across the app."),
+        ("music.mic", .pink, "Song Requests", "Viewers add tracks with !sr. No focus-steal."),
+        ("hand.raised.fill", .cyan, "Chat Vote-Skip", "!vs lets chat vote out a song. Chat tally or Twitch Polls."),
+        ("chart.bar.fill", .green, "Listening History & Stats", "Top artists, weekly trend, hourly pattern. On-device only."),
+        ("calendar", .purple, "Monthly Wrap", "Personal Wrapped for any month. Export as PNG."),
+        ("bell.badge.fill", .orange, "Song Notifications", "Optional macOS notification on every track change."),
+        ("gamecontroller.fill", .indigo, "Discord Playlist Presence", "Discord now shows the playlist you're spinning."),
+        ("paintpalette.fill", .teal, "Widget Themes", "Six overlay themes and three layouts for OBS."),
+        ("sparkles", .mint, "Liquid Glass Redesign", "Settings, menu bar, and onboarding rebuilt for macOS 26."),
+        ("pawprint.fill", .red, "WolfMark Branding", "New album-art placeholder and brand polish everywhere."),
+        ("ladybug.fill", .yellow, "Diagnostics & Bug Reports", "Opt-in MetricKit reports plus one-click bug filing with redacted logs."),
     ]
 
     // MARK: - Body
