@@ -52,10 +52,13 @@ struct OnboardingView: View {
                         .padding(.top, 20)
                         .padding(.bottom, 16)
 
-                    stepContent
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
-                        .clipped()
-                        .animation(.spring(response: 0.35, dampingFraction: 0.85), value: viewModel.currentStep)
+                    ScrollView(.vertical, showsIndicators: false) {
+                        stepContent
+                            .frame(maxWidth: .infinity)
+                    }
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .clipped()
+                    .animation(.spring(response: 0.35, dampingFraction: 0.85), value: viewModel.currentStep)
 
                     Divider()
 

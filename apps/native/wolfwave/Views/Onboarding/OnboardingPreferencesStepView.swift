@@ -25,7 +25,7 @@ struct OnboardingPreferencesStepView: View {
     // MARK: - Body
 
     var body: some View {
-        VStack(spacing: 16) {
+        VStack(spacing: 12) {
             Spacer(minLength: 0)
 
             BrandTile(
@@ -55,7 +55,7 @@ struct OnboardingPreferencesStepView: View {
                     .fixedSize(horizontal: false, vertical: true)
             }
 
-            VStack(spacing: 10) {
+            VStack(spacing: 8) {
                 preferenceRow(
                     icon: "power",
                     iconColor: .green,
@@ -78,7 +78,7 @@ struct OnboardingPreferencesStepView: View {
                     icon: "chart.bar.xaxis",
                     iconColor: .purple,
                     title: "Remember my listening history",
-                    subtitle: "Private & on-device. Powers top artists and stats — off unless you want it.",
+                    subtitle: "Private & on-device. Powers top artists and stats.",
                     isOn: Binding(
                         get: { listeningHistoryEnabled },
                         set: { newValue in
@@ -162,12 +162,12 @@ struct OnboardingPreferencesStepView: View {
     ) -> some View {
         HStack(spacing: 12) {
             ZStack {
-                RoundedRectangle(cornerRadius: 8, style: .continuous)
+                RoundedRectangle(cornerRadius: 7, style: .continuous)
                     .fill(iconColor.opacity(0.15))
-                    .frame(width: 32, height: 32)
+                    .frame(width: 28, height: 28)
 
                 Image(systemName: icon)
-                    .font(.system(size: 14, weight: .semibold))
+                    .font(.system(size: 13, weight: .semibold))
                     .foregroundStyle(iconColor)
             }
 
@@ -190,7 +190,7 @@ struct OnboardingPreferencesStepView: View {
                 .accessibilityLabel(accessibilityLabel)
                 .accessibilityIdentifier(accessibilityIdentifier)
         }
-        .padding(14)
+        .padding(12)
         .background(
             RoundedRectangle(cornerRadius: 12, style: .continuous)
                 .fill(Color(nsColor: .controlBackgroundColor))
