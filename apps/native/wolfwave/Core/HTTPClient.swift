@@ -24,7 +24,7 @@ import Foundation
 ///     headers: ["Authorization": "Bearer \(token)", "Client-Id": clientID]
 /// )
 /// ```
-struct HTTPClient: Sendable {
+nonisolated struct HTTPClient: Sendable {
 
     // MARK: - Errors
 

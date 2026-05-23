@@ -10,7 +10,7 @@ import Foundation
 // MARK: - Metrics Snapshot
 
 /// A consistent point-in-time capture of runtime performance metrics.
-struct MetricsSnapshot: Sendable {
+nonisolated struct MetricsSnapshot: Sendable {
     /// Connected overlay (WebSocket) clients.
     let webSocketClients: Int
     /// Total WebSocket frames sent since launch.
@@ -26,7 +26,7 @@ struct MetricsSnapshot: Sendable {
 }
 
 /// Rate-limit headroom for a single Twitch Helix endpoint.
-struct TwitchRateLimitMetric: Sendable, Identifiable {
+nonisolated struct TwitchRateLimitMetric: Sendable, Identifiable {
     /// Helix endpoint key (e.g. `"chat/messages"`).
     let endpoint: String
     /// Requests remaining in the current bucket window.

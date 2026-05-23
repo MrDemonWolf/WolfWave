@@ -30,7 +30,7 @@ import Foundation
 // MARK: - Device Code Response
 
 /// Response structure from Twitch's device authorization endpoint.
-struct TwitchDeviceCodeResponse {
+nonisolated struct TwitchDeviceCodeResponse {
     /// The device verification code used for polling
     let deviceCode: String
     
@@ -129,7 +129,7 @@ enum TwitchDeviceAuthError: LocalizedError {
 ///
 /// **References:**
 /// - [Twitch OAuth Device Code Flow](https://dev.twitch.tv/docs/authentication/getting-tokens-oauth/#device-code-grant-flow)
-final class TwitchDeviceAuth {
+nonisolated final class TwitchDeviceAuth {
     
     // MARK: - Properties
     

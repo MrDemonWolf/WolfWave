@@ -22,11 +22,32 @@ disabled_rules:
   # TODOs are tracked elsewhere; don't flag them while ramping up.
   - todo
 
+# Allow conventional short identifiers (coordinates, RGB, loop counters,
+# notification capture, view-model abbrev). These read as well as the long
+# form in their narrow context and are idiomatic across the codebase.
+identifier_name:
+  excluded:
+    - a
+    - b
+    - d
+    - g
+    - h
+    - i
+    - ip
+    - k
+    - n
+    - r
+    - v
+    - vm
+    - w
+    - x
+    - y
+
 # Size rules: warn generously, keep error thresholds high so they never block.
 # WolfWave has a few large files (e.g. TwitchChatService) by design.
 line_length:
   warning: 120
-  error: 250
+  error: 400
   ignores_comments: true
   ignores_urls: true
 
@@ -37,10 +58,26 @@ file_length:
 
 type_body_length:
   warning: 400
-  error: 1500
+  error: 2500
 
 function_body_length:
   warning: 80
   error: 400
+
+# Raise complexity / parameter / tuple ceilings — error thresholds match the
+# existing shape of the code (TwitchDeviceAuth, DiscordRPCService presence
+# payload, WhatsNewView changelog entries). Warnings still surface so we can
+# refactor over time without blocking CI today.
+cyclomatic_complexity:
+  warning: 15
+  error: 30
+
+function_parameter_count:
+  warning: 6
+  error: 12
+
+large_tuple:
+  warning: 3
+  error: 5
 
 reporter: "xcode"

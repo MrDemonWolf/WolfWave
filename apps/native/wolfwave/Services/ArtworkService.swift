@@ -10,7 +10,7 @@ import Foundation
 // MARK: - Artwork Service
 
 /// Bundled track metadata returned by a single iTunes Search API lookup.
-struct TrackLinks: Sendable {
+nonisolated struct TrackLinks: Sendable {
     /// Album artwork URL at 512×512 resolution, or nil if not found.
     let artworkURL: String?
     /// Direct Apple Music track URL (e.g. `https://music.apple.com/us/album/…`), or nil.

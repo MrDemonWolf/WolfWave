@@ -32,22 +32,23 @@ final class AppleMusicSource: PlaybackSource, @unchecked Sendable {
 
     weak var delegate: PlaybackSourceDelegate?
 
+    // All mutable scalar state lives behind `stateLock`. Methods are
+    // `nonisolated`, so the lock is the only safety guarantee — every
+    // read and write goes through `stateLock.withLock`.
+    private let stateLock = NSLock()
     nonisolated(unsafe) private var currentCheckInterval: TimeInterval = Constants.checkInterval
     nonisolated(unsafe) private var timer: DispatchSourceTimer?
     nonisolated(unsafe) private var lastLoggedTrack: String?
     nonisolated(unsafe) private var lastTrackSeenAt: Date = .distantPast
     nonisolated(unsafe) private var lastNotificationAt: Date = .distantPast
     nonisolated(unsafe) private var isTracking = false
-    private let trackingLock = NSLock()
-    nonisolated(unsafe) private var pendingDuration: TimeInterval = 0
-    nonisolated(unsafe) private var pendingElapsed: TimeInterval = 0
 
     private let backgroundQueue = DispatchQueue(label: Constants.queueLabel, qos: .utility)
 
     // MARK: - Protocol Conformance
 
     func startTracking() {
-        let alreadyTracking = trackingLock.withLock { () -> Bool in
+        let alreadyTracking = stateLock.withLock { () -> Bool in
             guard !isTracking else { return true }
             isTracking = true
             return false
@@ -59,23 +60,31 @@ final class AppleMusicSource: PlaybackSource, @unchecked Sendable {
     }
 
     nonisolated func stopTracking() {
-        let wasTracking = trackingLock.withLock { () -> Bool in
+        let wasTracking = stateLock.withLock { () -> Bool in
             guard isTracking else { return false }
             isTracking = false
             return true
         }
         guard wasTracking else { return }
         DistributedNotificationCenter.default().removeObserver(self)
-        timer?.cancel()
-        timer = nil
+        let pendingTimer = stateLock.withLock { () -> DispatchSourceTimer? in
+            let existing = timer
+            timer = nil
+            return existing
+        }
+        pendingTimer?.cancel()
         backgroundQueue.sync {}
     }
 
     func updateCheckInterval(_ interval: TimeInterval) {
-        guard trackingLock.withLock({ isTracking }) else { return }
-        currentCheckInterval = max(interval, 1.0)
-        timer?.cancel()
-        timer = nil
+        guard stateLock.withLock({ isTracking }) else { return }
+        let cancelled = stateLock.withLock { () -> DispatchSourceTimer? in
+            currentCheckInterval = max(interval, 1.0)
+            let existing = timer
+            timer = nil
+            return existing
+        }
+        cancelled?.cancel()
         setupFallbackTimer()
     }
 
@@ -83,48 +92,68 @@ final class AppleMusicSource: PlaybackSource, @unchecked Sendable {
 
     @objc nonisolated private func musicPlayerInfoChanged(_ notification: Notification) {
         let now = Date()
-        guard now.timeIntervalSince(lastNotificationAt) >= Constants.notificationDedupWindow else { return }
-        lastNotificationAt = now
+        let shouldSchedule = stateLock.withLock { () -> Bool in
+            guard now.timeIntervalSince(lastNotificationAt) >= Constants.notificationDedupWindow else {
+                return false
+            }
+            lastNotificationAt = now
+            return true
+        }
+        guard shouldSchedule else { return }
         Log.debug("AppleMusicSource: Music notification received", category: "Music")
         scheduleTrackCheck(reason: "notification")
     }
 
-    nonisolated private func checkCurrentTrack() {
-        let isRunning = NSRunningApplication.runningApplications(withBundleIdentifier: Constants.musicBundleIdentifier).first != nil
+    /// Fetches the currently-playing track via ScriptingBridge.
+    ///
+    /// ScriptingBridge dispatches AppleEvents through the AE bridge, which
+    /// requires main-thread access. We hop to `@MainActor` for the SB calls
+    /// and back out for the cheap string/delegate work.
+    nonisolated private func checkCurrentTrack() async {
+        let isRunning = NSRunningApplication.runningApplications(
+            withBundleIdentifier: Constants.musicBundleIdentifier
+        ).first != nil
         guard isRunning else {
             handleTrackInfo(Constants.Status.notRunning)
             return
         }
-        guard let musicApp = SBApplication(bundleIdentifier: Constants.musicBundleIdentifier) else {
-            notifyDelegate(status: "No track info")
-            return
-        }
-        guard let stateObj = musicApp.value(forKey: "playerState") else {
-            notifyDelegate(status: "No track info")
-            return
-        }
-        let isPlaying: Bool
-        if let stateNum = stateObj as? NSNumber {
-            isPlaying = (stateNum.uint32Value == Constants.playerStatePlaying)
-        } else {
-            isPlaying = false
-        }
-        if isPlaying {
-            if let track = musicApp.value(forKey: "currentTrack") as? SBObject {
-                let name = track.value(forKey: "name") as? String ?? ""
-                let artist = track.value(forKey: "artist") as? String ?? ""
-                let album = track.value(forKey: "album") as? String ?? ""
-                let duration = (track.value(forKey: "duration") as? Double) ?? 0
-                let elapsed = (musicApp.value(forKey: "playerPosition") as? Double) ?? 0
-                let playlist = (musicApp.value(forKey: "currentPlaylist") as? SBObject)?
-                    .value(forKey: "name") as? String ?? ""
-                let combined = name + Constants.trackSeparator + artist + Constants.trackSeparator + album + Constants.trackSeparator + String(duration) + Constants.trackSeparator + String(elapsed) + Constants.trackSeparator + playlist
-                handleTrackInfo(combined)
-            } else {
-                handleTrackInfo(Constants.Status.notPlaying)
+
+        let trackInfo: String? = await MainActor.run {
+            guard let musicApp = SBApplication(bundleIdentifier: Constants.musicBundleIdentifier) else {
+                return nil
             }
+            guard let stateObj = musicApp.value(forKey: "playerState") else {
+                return nil
+            }
+            let isPlaying: Bool
+            if let stateNum = stateObj as? NSNumber {
+                isPlaying = (stateNum.uint32Value == Constants.playerStatePlaying)
+            } else {
+                isPlaying = false
+            }
+            guard isPlaying else { return Constants.Status.notPlaying }
+            guard let track = musicApp.value(forKey: "currentTrack") as? SBObject else {
+                return Constants.Status.notPlaying
+            }
+            let name = track.value(forKey: "name") as? String ?? ""
+            let artist = track.value(forKey: "artist") as? String ?? ""
+            let album = track.value(forKey: "album") as? String ?? ""
+            let duration = (track.value(forKey: "duration") as? Double) ?? 0
+            let elapsed = (musicApp.value(forKey: "playerPosition") as? Double) ?? 0
+            let playlist = (musicApp.value(forKey: "currentPlaylist") as? SBObject)?
+                .value(forKey: "name") as? String ?? ""
+            return name + Constants.trackSeparator
+                + artist + Constants.trackSeparator
+                + album + Constants.trackSeparator
+                + String(duration) + Constants.trackSeparator
+                + String(elapsed) + Constants.trackSeparator
+                + playlist
+        }
+
+        if let trackInfo {
+            handleTrackInfo(trackInfo)
         } else {
-            handleTrackInfo(Constants.Status.notPlaying)
+            notifyDelegate(status: "No track info")
         }
     }
 
@@ -153,7 +182,7 @@ final class AppleMusicSource: PlaybackSource, @unchecked Sendable {
         let duration = components.count > 3 ? (Double(components[3]) ?? 0) : 0
         let elapsed = components.count > 4 ? (Double(components[4]) ?? 0) : 0
         let playlist = components.count > 5 ? components[5] : ""
-        lastTrackSeenAt = Date()
+        stateLock.withLock { lastTrackSeenAt = Date() }
         notifyDelegate(track: trackName, artist: artist, album: album, playlist: playlist, duration: duration, elapsed: elapsed)
         logTrackIfNew(trackInfo, trackName: trackName, artist: artist, album: album)
     }
@@ -171,7 +200,8 @@ final class AppleMusicSource: PlaybackSource, @unchecked Sendable {
     }
 
     nonisolated private func handleNotPlayingState() {
-        let idleDuration = Date().timeIntervalSince(lastTrackSeenAt)
+        let lastSeen = stateLock.withLock { lastTrackSeenAt }
+        let idleDuration = Date().timeIntervalSince(lastSeen)
         if idleDuration < Constants.idleGraceWindow {
             scheduleTrackCheck(after: 0.5, reason: "idle-grace-recheck")
             return
@@ -181,9 +211,13 @@ final class AppleMusicSource: PlaybackSource, @unchecked Sendable {
 
     nonisolated private func logTrackIfNew(_ trackInfo: String, trackName: String, artist: String, album: String) {
         let dedupKey = trackName + Constants.trackSeparator + artist + Constants.trackSeparator + album
-        guard lastLoggedTrack != dedupKey else { return }
+        let isNew = stateLock.withLock { () -> Bool in
+            guard lastLoggedTrack != dedupKey else { return false }
+            lastLoggedTrack = dedupKey
+            return true
+        }
+        guard isNew else { return }
         Log.debug("AppleMusicSource: Now Playing → \(trackName) — \(artist) [\(album)]", category: "Music")
-        lastLoggedTrack = dedupKey
     }
 
     nonisolated private func subscribeToMusicNotifications() {
@@ -195,21 +229,27 @@ final class AppleMusicSource: PlaybackSource, @unchecked Sendable {
     }
 
     nonisolated private func setupFallbackTimer() {
-        let timer = DispatchSource.makeTimerSource(queue: backgroundQueue)
-        timer.schedule(deadline: .now() + currentCheckInterval, repeating: currentCheckInterval)
-        timer.setEventHandler { [weak self] in
-            guard let self = self, self.trackingLock.withLock({ self.isTracking }) else { return }
+        let interval = stateLock.withLock { currentCheckInterval }
+        let newTimer = DispatchSource.makeTimerSource(queue: backgroundQueue)
+        newTimer.schedule(deadline: .now() + interval, repeating: interval)
+        newTimer.setEventHandler { [weak self] in
+            guard let self, self.stateLock.withLock({ self.isTracking }) else { return }
             self.scheduleTrackCheck(reason: "timer")
         }
-        timer.activate()
-        self.timer = timer
+        stateLock.withLock { timer = newTimer }
+        newTimer.activate()
     }
 
     nonisolated private func scheduleTrackCheck(reason: String) {
-        backgroundQueue.async { [weak self] in self?.checkCurrentTrack() }
+        Task { [weak self] in
+            await self?.checkCurrentTrack()
+        }
     }
 
     nonisolated private func scheduleTrackCheck(after delay: TimeInterval, reason: String) {
-        backgroundQueue.asyncAfter(deadline: .now() + delay) { [weak self] in self?.checkCurrentTrack() }
+        Task { [weak self] in
+            try? await Task.sleep(for: .seconds(delay))
+            await self?.checkCurrentTrack()
+        }
     }
 }

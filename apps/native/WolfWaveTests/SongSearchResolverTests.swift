@@ -18,6 +18,7 @@ import XCTest
 /// The `.found` result is not exercised here: it requires a MusicKit `Song`,
 /// which cannot be constructed in a unit test. Routing is verified via the
 /// distinct non-found results each path produces.
+@MainActor
 final class SongSearchResolverTests: XCTestCase {
 
     private var controller: MockAppleMusicController!

@@ -19,7 +19,7 @@ import Foundation
 ///
 /// - Note: `JSONDecoder` / `JSONEncoder` are thread-safe for read-only use,
 ///   so a single shared instance per configuration is safe.
-enum JSONCoders {
+nonisolated enum JSONCoders {
 
     // MARK: - Decoders
 

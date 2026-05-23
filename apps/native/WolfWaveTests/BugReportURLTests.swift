@@ -40,7 +40,7 @@ final class BugReportURLTests: XCTestCase {
         }
     }
 
-    func testQueryItemsIncludeTemplateAndLabel() {
+    func testQueryItemsIncludeTemplateAndLabel() throws {
         let url = BugReportURL.make(
             base: base,
             appVersion: "1.2.0",
@@ -49,7 +49,7 @@ final class BugReportURLTests: XCTestCase {
             arch: "arm64",
             install: .dmg
         )
-        let url2 = try! XCTUnwrap(url)
+        let url2 = try XCTUnwrap(url)
         let comps = URLComponents(url: url2, resolvingAgainstBaseURL: false)
         let items = comps?.queryItems ?? []
 
@@ -66,7 +66,7 @@ final class BugReportURLTests: XCTestCase {
         XCTAssertEqual(labels, "bug")
     }
 
-    func testBodyContainsEnvironmentFields() {
+    func testBodyContainsEnvironmentFields() throws {
         let url = BugReportURL.make(
             base: base,
             appVersion: "1.2.3",
@@ -75,7 +75,7 @@ final class BugReportURLTests: XCTestCase {
             arch: "arm64",
             install: .homebrew
         )
-        let url2 = try! XCTUnwrap(url)
+        let url2 = try XCTUnwrap(url)
         let comps = URLComponents(url: url2, resolvingAgainstBaseURL: false)
         let body = comps?.queryItems?.first { $0.name == "body" }?.value ?? ""
 
@@ -96,7 +96,7 @@ final class BugReportURLTests: XCTestCase {
         XCTAssertTrue(["arm64", "x86_64", "unknown"].contains(arch))
     }
 
-    func testURLPathPointsToIssuesNew() {
+    func testURLPathPointsToIssuesNew() throws {
         let url = BugReportURL.make(
             base: base,
             appVersion: "1.0",
@@ -105,7 +105,7 @@ final class BugReportURLTests: XCTestCase {
             arch: "arm64",
             install: .dmg
         )
-        let url2 = try! XCTUnwrap(url)
+        let url2 = try XCTUnwrap(url)
         XCTAssertEqual(url2.host, "github.com")
         XCTAssertEqual(url2.path, "/mrdemonwolf/wolfwave/issues/new")
     }

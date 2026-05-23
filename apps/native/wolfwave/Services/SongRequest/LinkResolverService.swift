@@ -11,7 +11,7 @@ import Foundation
 ///
 /// Uses free oEmbed APIs (no auth, no rate limits) for Spotify and YouTube.
 /// Apple Music links are returned directly for MusicKit resolution.
-final class LinkResolverService {
+nonisolated final class LinkResolverService {
     // MARK: - Types
 
     /// Result of resolving a music link.
