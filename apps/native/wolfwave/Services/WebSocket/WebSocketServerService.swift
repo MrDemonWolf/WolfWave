@@ -507,6 +507,8 @@ actor WebSocketServerService {
         guard let jsonData = try? JSONSerialization.data(withJSONObject: dict),
               let jsonString = String(data: jsonData, encoding: .utf8) else { return }
 
+        MetricsService.shared.recordWebSocketMessage(byteCount: jsonData.count)
+
         let metadata = NWProtocolWebSocket.Metadata(opcode: .text)
         let context = NWConnection.ContentContext(identifier: "websocket", metadata: [metadata])
 

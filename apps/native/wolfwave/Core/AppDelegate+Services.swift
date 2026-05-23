@@ -113,6 +113,7 @@ extension AppDelegate {
         Task.detached {
             for await (newState, clientCount) in stateChanges {
                 Log.debug("AppDelegate: WebSocket state changed to \(newState.rawValue) (\(clientCount) clients)", category: "WebSocket")
+                MetricsService.shared.recordWebSocketClients(clientCount)
             }
         }
 

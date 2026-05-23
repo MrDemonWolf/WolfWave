@@ -416,8 +416,14 @@ actor TwitchChatService {
                     "TwitchChatService: Approaching rate limit on \(endpoint): \(state.remaining)/\(state.limit) remaining",
                     category: "Twitch")
             }
+
+            MetricsService.shared.recordTwitchRateLimit(
+                endpoint: endpoint,
+                remaining: state.remaining,
+                limit: state.limit,
+                resetTime: state.resetTime
+            )
         }
-    }
 
     // MARK: - Network Monitoring
 
