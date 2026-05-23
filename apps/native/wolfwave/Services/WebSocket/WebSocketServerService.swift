@@ -16,6 +16,20 @@ import Network
 /// connect and receive JSON messages for track changes, progress ticks, and playback state.
 /// State is actor-confined; a small snapshot is exposed for synchronous `nonisolated` reads
 /// from SwiftUI views, and a `stateChanges` `AsyncStream` replaces the legacy callback.
+///
+/// ## Security model
+///
+/// The listener binds **loopback-only** (`NWEndpoint.hostPort(host: .ipv4(.loopback), ...)`),
+/// so connections can only originate from processes running on the same Mac. This matches
+/// the `NSLocalNetworkUsageDescription` contract in `Info.plist`: *"No data is sent outside
+/// your local network."*
+///
+/// The payload (now-playing track metadata) is the same data that's already broadcast to
+/// Twitch chat via the bot commands, so an unauthenticated local listener cannot exfiltrate
+/// anything more sensitive than what's already public on the user's stream.
+///
+/// Token-based auth + per-connection origin validation is tracked as a follow-up; the
+/// current loopback-only contract is sufficient for the 2.0 overlay-broadcast feature.
 actor WebSocketServerService {
 
     // MARK: - Types

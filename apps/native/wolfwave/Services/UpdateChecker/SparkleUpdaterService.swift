@@ -126,7 +126,11 @@ final class SparkleUpdaterService: NSObject {
             // Set check interval (24 hours)
             updater.updateCheckInterval = AppConstants.Update.checkInterval
 
-            // Automatically download updates in background (user still confirms install)
+            // Require explicit user consent before downloading. Combined with
+            // `updaterShouldPromptForPermissionToCheck` returning false, this
+            // ensures Sparkle never moves bytes onto the user's disk until they
+            // click "Install" in the update dialog. Auto-download would silently
+            // commit network + storage before consent.
             updater.automaticallyDownloadsUpdates = false
 
             Log.info("SparkleUpdaterService: Configuration complete (auto-check: \(checkEnabled), interval: \(Int(AppConstants.Update.checkInterval))s, starting: \(startingUpdater))", category: "Update")
@@ -273,6 +277,17 @@ extension SparkleUpdaterService: SPUUpdaterDelegate {
     /// answer, and onboarding handles user consent explicitly.
     func updaterShouldPromptForPermissionToCheck(forUpdates updater: SPUUpdater) -> Bool {
         return false
+    }
+
+    /// Disables Sparkle's system-profile telemetry beam.
+    ///
+    /// Sparkle can attach OS version, CPU arch, and bundle metadata to the
+    /// appcast request as query parameters. Returning an empty array opts out
+    /// entirely so no environmental data leaves the user's machine on update
+    /// checks. The release pipeline already publishes a static appcast, so the
+    /// telemetry would only inform analytics — not update targeting.
+    func allowedSystemProfileKeys(for updater: SPUUpdater) -> [String]? {
+        return []
     }
 
     /// Called when the user is prompted for update permission.

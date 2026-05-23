@@ -13,6 +13,7 @@ import XCTest
 
 /// Covers `MetricsService` recording and snapshot logic. Each test uses an
 /// isolated instance (the internal initializer) rather than `.shared`.
+@MainActor
 final class MetricsServiceTests: XCTestCase {
 
     private var service: MetricsService!

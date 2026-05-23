@@ -13,6 +13,7 @@ import XCTest
 
 /// Covers `LinkResolverService` link detection and oEmbed resolution, driving
 /// the network layer with `MockURLProtocol`.
+@MainActor
 final class LinkResolverServiceTests: XCTestCase {
 
     private var resolver: LinkResolverService!

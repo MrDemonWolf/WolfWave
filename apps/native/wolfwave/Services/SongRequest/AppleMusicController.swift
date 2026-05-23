@@ -361,7 +361,8 @@ final class AppleMusicController: AppleMusicControlling {
     private func runAppleScriptPreservingFocus(_ source: String) {
         let previousFrontApp = NSWorkspace.shared.frontmostApplication
         runAppleScript(source)
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
+        Task { @MainActor in
+            try? await Task.sleep(for: .milliseconds(150))
             previousFrontApp?.activate()
         }
     }

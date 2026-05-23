@@ -192,8 +192,8 @@ extension AppDelegate {
 
         URLSession.shared.dataTask(with: url) { [weak self] data, _, _ in
             guard let self, let data, let image = NSImage(data: data) else { return }
-            DispatchQueue.main.async {
-                self.albumArtCache[key] = image
+            Task { @MainActor [weak self] in
+                self?.albumArtCache[key] = image
             }
         }.resume()
 

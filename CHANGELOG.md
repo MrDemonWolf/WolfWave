@@ -58,6 +58,8 @@ All notable changes to this project will be documented in this file.
 - **User-facing wording** — tightened copy across onboarding, settings, and the menu bar for fewer words and clearer verbs (#47).
 - **Test suite consolidation** — merged `SongCommandTests` + `LastSongCommandTests` into a single parameterised `TrackInfoCommandTests`; renamed `MusicPlaybackMonitorTests` → `AppleMusicSourceTests` to match the post-refactor class names. 408 tests across 30 files, all passing.
 - **Design-token migration completed** — settings views now read from `DSFont` and `DSSpace` across every view file; no hardcoded `.font(.system(size:))` or `.padding(N)` literals remain in `apps/native/wolfwave/Views/`. Added missing tokens (`x9/x15/x16/x18/x24/x26/x28/x36` font sizes, `s0/s10/s11` space) to `design-system/tokens.json`.
+- **Concurrency polish** — replaced stray `DispatchQueue.main.async` sites in `AppDelegate+MenuBar`, `DiscordSettingsView`, and `AppleMusicController` with structured `Task { @MainActor }` for Swift 6 cleanliness; matches the project rule that new async work uses async/await, not `DispatchQueue`.
+- **Logger regex literals** — `Logger.swift` PII-redaction patterns now use compile-checked `#/.../#` literals instead of `try! Regex(...)`, dropping the SwiftLint `force_unwrapping` warnings.
 
 ### Performance
 
@@ -72,6 +74,10 @@ All notable changes to this project will be documented in this file.
 - **Unified design system** — a single `design-system/tokens.json` source feeds `generate.ts`, which emits four platform outputs (Swift `Tokens.generated.swift`, docs CSS, widget JS, and marketing TS). A Turbo `tokens` task runs as a build prerequisite (#72, #76).
 - **Component catalog** — `design-system/components/` gains one markdown entry per reusable view, tracked against a shared template (#76).
 - **DEBUG-only Debug settings tab** — a developer tooling tab (inspectors, service controls, log/event views, UI previews) plus What's New preview controls, available only in DEBUG builds (#66, #69).
+- **Expanded design-token roster** — `font.size` gains explicit slots for the 9/15/16/18/24/26/28/36 px sizes that appear across views; `space` gains `s0` (2 px), `s10` (32 px), and `s11` (44 px). All additions are token-only (no visual change) so the migration could swap each call site cleanly.
+- **Sparkle delegate hardening** — implemented `allowedSystemProfileKeys(for:)` returning an empty array, opting WolfWave out of Sparkle's system-profile telemetry beam (OS version, CPU arch, bundle metadata never leave the user's machine on update checks). Documented the `automaticallyDownloadsUpdates = false` rationale: explicit user consent is required before bytes touch the disk.
+- **WebSocket security-model documentation** — added a `## Security model` doc block to `WebSocketServerService.swift` explaining the current loopback-only contract and matching it against `NSLocalNetworkUsageDescription`. Token-based auth + origin validation tracked as a follow-up.
+- **New unit tests** — `SongBlocklistTests`, `HistoryFormattingTests`, `LaunchAtLoginServiceTests` cover three previously-untested services. `AppleMusicController` builder tests and `TwitchChannelPointsService` Helix payload tests tracked as follow-ups.
 
 ### Fixed
 

@@ -202,6 +202,9 @@ struct MusicMonitorSettingsView: View {
                 .buttonStyle(.borderless)
                 .controlSize(.small)
                 .foregroundStyle(.secondary)
+                .accessibilityLabel("Recheck Apple Music access")
+                .accessibilityHint("Re-queries macOS for the current automation permission state")
+                .accessibilityIdentifier("musicMonitor.recheckButton")
 
         case .denied:
             Button("Open System Settings") {
@@ -209,6 +212,9 @@ struct MusicMonitorSettingsView: View {
             }
             .buttonStyle(.borderedProminent)
             .controlSize(.small)
+            .accessibilityLabel("Open System Settings")
+            .accessibilityHint("Opens Privacy and Security to grant Apple Music access")
+            .accessibilityIdentifier("musicMonitor.openSystemSettingsButton")
 
         case .unknown:
             HStack(spacing: 6) {
@@ -225,6 +231,9 @@ struct MusicMonitorSettingsView: View {
                 .buttonStyle(.borderedProminent)
                 .controlSize(.small)
                 .disabled(isRequesting)
+                .accessibilityLabel("Allow Apple Music access")
+                .accessibilityHint("Prompts macOS for automation permission so the current track can be read")
+                .accessibilityIdentifier("musicMonitor.allowButton")
 
                 Button("Open Settings") {
                     MusicPermissionChecker.openAutomationSettings()
@@ -232,6 +241,9 @@ struct MusicMonitorSettingsView: View {
                 .buttonStyle(.borderless)
                 .controlSize(.small)
                 .foregroundStyle(.secondary)
+                .accessibilityLabel("Open System Settings")
+                .accessibilityHint("Opens Privacy and Security to grant Apple Music access manually")
+                .accessibilityIdentifier("musicMonitor.openSettingsButton")
             }
         }
     }

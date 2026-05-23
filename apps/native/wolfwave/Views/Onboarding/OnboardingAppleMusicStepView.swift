@@ -114,12 +114,18 @@ struct OnboardingAppleMusicStepView: View {
                     }
                     .buttonStyle(.bordered)
                     .pointerCursor()
+                    .accessibilityLabel("Recheck Apple Music access")
+                    .accessibilityHint("Re-queries macOS for the current automation permission state")
+                    .accessibilityIdentifier("onboardingAppleMusic.recheckButton")
 
                     Button("Open System Settings") {
                         MusicPermissionChecker.openAutomationSettings()
                     }
                     .buttonStyle(.borderedProminent)
                     .pointerCursor()
+                    .accessibilityLabel("Open System Settings")
+                    .accessibilityHint("Opens Privacy and Security to grant Apple Music access")
+                    .accessibilityIdentifier("onboardingAppleMusic.openSystemSettingsButton")
                 }
             }
 

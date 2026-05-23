@@ -307,16 +307,14 @@ enum Log {
 
     // MARK: - PII Redaction
 
-    // Compiled once; patterns are static so the `try` cannot fail at runtime.
-    // swiftlint:disable force_try
-    nonisolated(unsafe) private static let redactionRules: [(Regex<AnyRegexOutput>, String)] = [
-        (try! Regex(#"oauth_[a-zA-Z0-9_-]+"#), "oauth_[REDACTED]"),
-        (try! Regex(#"Bearer\s+[a-zA-Z0-9_-]+"#), "Bearer [REDACTED]"),
-        (try! Regex(#"\b[a-zA-Z0-9]{30,}\b"#), "[TOKEN_REDACTED]"),
-        (try! Regex(#"Client-ID[:\s]+[a-zA-Z0-9]+"#), "Client-ID: [REDACTED]"),
-        (try! Regex(#"\b\d{8,}\b"#), "[USER_ID_REDACTED]"),
+    // Compile-checked regex literals — no runtime parsing or `try!`.
+    nonisolated(unsafe) private static let redactionRules: [(Regex<Substring>, String)] = [
+        (#/oauth_[a-zA-Z0-9_-]+/#, "oauth_[REDACTED]"),
+        (#/Bearer\s+[a-zA-Z0-9_-]+/#, "Bearer [REDACTED]"),
+        (#/\b[a-zA-Z0-9]{30,}\b/#, "[TOKEN_REDACTED]"),
+        (#/Client-ID[:\s]+[a-zA-Z0-9]+/#, "Client-ID: [REDACTED]"),
+        (#/\b\d{8,}\b/#, "[USER_ID_REDACTED]"),
     ]
-    // swiftlint:enable force_try
 
     /// Redacts sensitive information from log messages
     nonisolated private static func redactSensitiveInfo(_ message: String) -> String {

@@ -13,6 +13,7 @@ import XCTest
 
 /// Exercises `HTTPClient` request/response handling against `MockURLProtocol`,
 /// covering JSON decoding, status validation, and error mapping.
+@MainActor
 final class HTTPClientTests: XCTestCase {
 
     private var client: HTTPClient!

@@ -17,6 +17,7 @@ import XCTest
 /// Multi-iteration polling (`authorization_pending` → success) is not covered
 /// here: it sleeps for the poll interval between attempts. Only paths that
 /// resolve on the first response are exercised.
+@MainActor
 final class TwitchDeviceAuthNetworkTests: XCTestCase {
 
     override func tearDown() {

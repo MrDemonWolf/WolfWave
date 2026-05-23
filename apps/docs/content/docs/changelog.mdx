@@ -58,6 +58,9 @@ All notable changes to WolfWave are documented here.
 - Music permission row is actionable and self-healing — tap to re-request or deep-link into System Settings
 - Docs theming — unified violet/cyan brand palette with full light-mode support
 - Test suite consolidated (408 tests across 30 files, all passing)
+- **Settings views read from `DSFont` and `DSSpace`** — settings, onboarding, and shared views now reference the generated design tokens instead of hardcoded font sizes and paddings; consistent typography and spacing across every settings tab
+- **Concurrency polish** — remaining `DispatchQueue.main.async` sites in menu-bar, song-request, and Discord settings switched to structured `Task { @MainActor }` for Swift 6 cleanliness
+- **Logger PII regex literals** — patterns moved to compile-checked `#/.../#` literals; no more `try! Regex(...)` warnings
 
 ### Performance
 - Settings page switch latency eliminated — navigation between sections is now instant
@@ -71,6 +74,11 @@ _Developer-facing changes — not visible to end users._
 - **Unified design system** — a single `design-system/tokens.json` source feeds a generator that emits four platform outputs (Swift, docs CSS, widget JS, marketing TS); a Turbo `tokens` task runs as a build prerequisite
 - **Component catalog** — one markdown entry per reusable view under `design-system/components/`
 - **DEBUG-only Debug settings tab** — developer tooling (inspectors, service controls, log/event views, UI previews) plus What's New preview controls, available only in DEBUG builds
+- **Expanded design-token roster** — `font.size` now exposes 9/15/16/18/24/26/28/36 px slots and `space` adds `s0` (2 px), `s10` (32 px), `s11` (44 px) so every view can reference a token without rounding visual semantics
+- **Sparkle delegate hardening** — opted out of Sparkle's system-profile telemetry (`allowedSystemProfileKeys` returns empty); explicit user consent now documented as the contract for `automaticallyDownloadsUpdates = false`
+- **WebSocket security-model doc** — added a `## Security model` block to `WebSocketServerService.swift` documenting the loopback-only contract; token-based auth tracked as a follow-up
+- **New unit tests** — `SongBlocklistTests`, `HistoryFormattingTests`, `LaunchAtLoginServiceTests` cover three previously-untested services
+- **Accessibility labels** — added explicit `accessibilityLabel`/`Hint`/`Identifier` to permission and About-panel buttons that previously relied only on inferred labels (better VoiceOver clarity)
 
 ### Fixed
 - GitHub URL config plumbing — `GITHUB_REPO_OWNER` / `GITHUB_REPO_NAME` from `Config.xcconfig` now flow through `Info.plist` so Report a Bug and releases URLs resolve from config

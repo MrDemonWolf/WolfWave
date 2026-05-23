@@ -45,7 +45,7 @@ struct DiscordSettingsView: View {
     @State private var connectionState: DiscordRPCService.ConnectionState = .disconnected
     @State private var hasClientID = false
     @State private var nowPlaying: NowPlayingSnapshot = .sample
-    @State private var settingsChangedWork: DispatchWorkItem?
+    @State private var settingsChangedTask: Task<Void, Never>?
 
     // MARK: - Body
 
@@ -417,15 +417,15 @@ struct DiscordSettingsView: View {
 
     /// Debounce notification by 300ms so rapid typing/toggling doesn't spam the socket.
     private func scheduleSettingsResend() {
-        settingsChangedWork?.cancel()
-        let work = DispatchWorkItem {
+        settingsChangedTask?.cancel()
+        settingsChangedTask = Task { @MainActor in
+            try? await Task.sleep(for: .milliseconds(300))
+            guard !Task.isCancelled else { return }
             NotificationCenter.default.post(
                 name: NSNotification.Name(AppConstants.Notifications.discordPresenceSettingsChanged),
                 object: nil
             )
         }
-        settingsChangedWork = work
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3, execute: work)
     }
 }
 

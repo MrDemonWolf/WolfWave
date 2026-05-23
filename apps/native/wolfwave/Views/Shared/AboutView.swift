@@ -130,6 +130,7 @@ struct AboutView: View {
         .buttonStyle(.bordered)
         .controlSize(.regular)
         .pointerCursor()
+        .accessibilityLabel(title)
         .accessibilityIdentifier("about.action.\(title)")
     }
 
@@ -139,14 +140,20 @@ struct AboutView: View {
         HStack(spacing: 10) {
             if let url = URL(string: AppConstants.URLs.docs) {
                 Link("Documentation", destination: url)
+                    .accessibilityLabel("Open WolfWave documentation")
+                    .accessibilityIdentifier("about.link.docs")
             }
             Text("·").foregroundStyle(.tertiary)
             if let url = URL(string: AppConstants.URLs.privacyPolicy) {
                 Link("Privacy", destination: url)
+                    .accessibilityLabel("Open privacy policy")
+                    .accessibilityIdentifier("about.link.privacy")
             }
             Text("·").foregroundStyle(.tertiary)
             if let url = URL(string: AppConstants.URLs.termsOfService) {
                 Link("Terms", destination: url)
+                    .accessibilityLabel("Open terms of service")
+                    .accessibilityIdentifier("about.link.terms")
             }
         }
         .font(.system(size: DSFont.Size.sm))

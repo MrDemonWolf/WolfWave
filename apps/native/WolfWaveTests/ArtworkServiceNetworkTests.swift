@@ -13,6 +13,7 @@ import XCTest
 
 /// Covers `ArtworkService` iTunes Search API parsing, error handling, and
 /// caching, with the network layer stubbed by `MockURLProtocol`.
+@MainActor
 final class ArtworkServiceNetworkTests: XCTestCase {
 
     private var service: ArtworkService!
