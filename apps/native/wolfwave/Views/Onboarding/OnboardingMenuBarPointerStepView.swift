@@ -26,17 +26,17 @@ struct OnboardingMenuBarPointerStepView: View {
             Spacer(minLength: 0)
 
             menuBarPreview
-                .padding(.bottom, 4)
+                .padding(.bottom, DSSpace.s1)
 
             arrowSlot
 
             VStack(spacing: 8) {
                 Text("Find WolfWave up here")
-                    .font(.system(size: 22, weight: .bold))
+                    .font(.system(size: DSFont.Size.x2xl, weight: .bold))
                     .multilineTextAlignment(.center)
 
                 Text("Click the wolf in your menu bar any time to see what's playing or change settings.")
-                    .font(.system(size: 13))
+                    .font(.system(size: DSFont.Size.base))
                     .foregroundStyle(.secondary)
                     .multilineTextAlignment(.center)
                     .frame(maxWidth: 440)
@@ -45,7 +45,7 @@ struct OnboardingMenuBarPointerStepView: View {
 
             Spacer(minLength: 0)
         }
-        .padding(.horizontal, 24)
+        .padding(.horizontal, DSSpace.s8)
         .overlayPreferenceValue(IconCenterAnchorKey.self) { anchor in
             GeometryReader { proxy in
                 if let anchor {
@@ -115,12 +115,12 @@ struct OnboardingMenuBarPointerStepView: View {
             }
 
             Text(currentTime)
-                .font(.system(size: 12, weight: .medium))
+                .font(.system(size: DSFont.Size.body, weight: .medium))
                 .foregroundStyle(.primary)
-                .padding(.leading, 4)
+                .padding(.leading, DSSpace.s1)
         }
-        .padding(.horizontal, 14)
-        .padding(.vertical, 8)
+        .padding(.horizontal, DSSpace.s5)
+        .padding(.vertical, DSSpace.s2)
         .frame(maxWidth: 440)
         .background(
             RoundedRectangle(cornerRadius: 10, style: .continuous)
@@ -144,7 +144,7 @@ struct OnboardingMenuBarPointerStepView: View {
 
     private var arrow: some View {
         Image(systemName: "arrow.up")
-            .font(.system(size: 22, weight: .bold))
+            .font(.system(size: DSFont.Size.x2xl, weight: .bold))
             .foregroundStyle(Color.accentColor)
             .offset(y: arrowBobbing ? -4 : 4)
             .accessibilityHidden(true)

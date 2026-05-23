@@ -41,9 +41,9 @@ struct PillButton<Label: View>: View {
     var body: some View {
         Button(action: action) {
             label
-                .font(.system(size: 14, weight: .semibold))
+                .font(.system(size: DSFont.Size.md, weight: .semibold))
                 .foregroundStyle(.white)
-                .padding(.horizontal, 22)
+                .padding(.horizontal, DSSpace.s8)
                 .frame(height: 36)
                 .background(
                     RoundedRectangle(cornerRadius: AppConstants.OnboardingUI.primaryButtonRadius, style: .continuous).fill(background)

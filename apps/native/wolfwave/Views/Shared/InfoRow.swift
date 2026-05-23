@@ -30,11 +30,11 @@ struct InfoRow: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 2) {
             Text(label)
-                .font(.system(size: 11, weight: .medium))
+                .font(.system(size: DSFont.Size.sm, weight: .medium))
                 .foregroundStyle(.secondary)
 
             Text(value)
-                .font(.system(size: 12, design: isMonospaced ? .monospaced : .default))
+                .font(.system(size: DSFont.Size.body, design: isMonospaced ? .monospaced : .default))
                 .textSelection(.enabled)
         }
     }

@@ -53,7 +53,7 @@ struct TwitchReauthView: View {
                 idleContent
             }
         }
-        .padding(20)
+        .padding(DSSpace.s7)
         .background(Color(nsColor: .controlBackgroundColor))
         .cornerRadius(12)
     }
@@ -77,7 +77,7 @@ struct TwitchReauthView: View {
                         .foregroundStyle(.white)
 
                     Text("Sign in with Twitch")
-                        .font(.system(size: 12, weight: .semibold))
+                        .font(.system(size: DSFont.Size.body, weight: .semibold))
                 }
                 .frame(maxWidth: .infinity)
                 .frame(height: 30)
@@ -117,8 +117,8 @@ struct TwitchReauthView: View {
                         .accessibilityIdentifier("reauthCopyCodeButton")
                         .help("Copy device code")
                     }
-                    .padding(.vertical, 10)
-                    .padding(.horizontal, 12)
+                    .padding(.vertical, DSSpace.s3)
+                    .padding(.horizontal, DSSpace.s4)
                     .background(Color(nsColor: .textBackgroundColor))
                     .cornerRadius(6)
                     .overlay(
@@ -147,7 +147,7 @@ struct TwitchReauthView: View {
                                     .frame(width: 14, height: 14)
                                     .foregroundStyle(.white)
                                 Text("Sign in with Twitch")
-                                    .font(.system(size: 12, weight: .medium))
+                                    .font(.system(size: DSFont.Size.body, weight: .medium))
                             }
                             .frame(maxWidth: .infinity)
                             .frame(height: 30)
@@ -181,7 +181,7 @@ struct TwitchReauthView: View {
                     
                     Spacer()
                 }
-                .padding(.vertical, 4)
+                .padding(.vertical, DSSpace.s1)
             }
             
             Divider()

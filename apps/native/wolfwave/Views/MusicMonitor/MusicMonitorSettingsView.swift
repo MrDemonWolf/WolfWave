@@ -173,16 +173,16 @@ struct MusicMonitorSettingsView: View {
     private var permissionStatusRow: some View {
         HStack(spacing: 12) {
             Image(systemName: permissionIconName)
-                .font(.system(size: 14, weight: .semibold))
+                .font(.system(size: DSFont.Size.md, weight: .semibold))
                 .foregroundStyle(permissionIconColor)
                 .frame(width: 20)
 
             VStack(alignment: .leading, spacing: 2) {
                 Text(permissionTitle)
-                    .font(.system(size: 13, weight: .medium))
+                    .font(.system(size: DSFont.Size.base, weight: .medium))
                 if let subtitle = permissionSubtitle {
                     Text(subtitle)
-                        .font(.system(size: 11))
+                        .font(.system(size: DSFont.Size.sm))
                         .foregroundStyle(.secondary)
                         .fixedSize(horizontal: false, vertical: true)
                 }

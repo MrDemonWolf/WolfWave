@@ -37,7 +37,7 @@ struct IntegrationDashboardView: View {
                     .sectionSubHeader()
                 Spacer()
                 Text("Where WolfWave is broadcasting right now.")
-                    .font(.system(size: 12))
+                    .font(.system(size: DSFont.Size.body))
                     .foregroundStyle(.secondary)
             }
 
@@ -49,7 +49,7 @@ struct IntegrationDashboardView: View {
                     subtitle: twitchSubtitle,
                     action: { configure(.twitch) }
                 )
-                Divider().padding(.leading, 44)
+                Divider().padding(.leading, DSSpace.s11)
                 row(
                     icon: brandIcon("DiscordLogo", fallback: "headphones", color: AppConstants.Brand.discord),
                     name: "Discord profile",
@@ -57,11 +57,11 @@ struct IntegrationDashboardView: View {
                     subtitle: discordSubtitle,
                     action: { configure(.discord) }
                 )
-                Divider().padding(.leading, 44)
+                Divider().padding(.leading, DSSpace.s11)
                 row(
                     icon: AnyView(
                         Image(systemName: "tv.badge.wifi")
-                            .font(.system(size: 14, weight: .medium))
+                            .font(.system(size: DSFont.Size.md, weight: .medium))
                             .foregroundStyle(.secondary)
                             .frame(width: 22)
                     ),
@@ -70,11 +70,11 @@ struct IntegrationDashboardView: View {
                     subtitle: widgetSubtitle,
                     action: { configure(.obs) }
                 )
-                Divider().padding(.leading, 44)
+                Divider().padding(.leading, DSSpace.s11)
                 row(
                     icon: AnyView(
                         Image(systemName: "wifi")
-                            .font(.system(size: 14, weight: .medium))
+                            .font(.system(size: DSFont.Size.md, weight: .medium))
                             .foregroundStyle(.secondary)
                             .frame(width: 22)
                     ),
@@ -116,9 +116,9 @@ struct IntegrationDashboardView: View {
             icon
             VStack(alignment: .leading, spacing: 2) {
                 Text(name)
-                    .font(.system(size: 13, weight: .medium))
+                    .font(.system(size: DSFont.Size.base, weight: .medium))
                 Text(subtitle)
-                    .font(.system(size: 11))
+                    .font(.system(size: DSFont.Size.sm))
                     .foregroundStyle(.secondary)
                     .lineLimit(2)
             }
@@ -128,17 +128,17 @@ struct IntegrationDashboardView: View {
                 HStack(spacing: 2) {
                     Text("Configure")
                     Image(systemName: "chevron.right")
-                        .font(.system(size: 10, weight: .semibold))
+                        .font(.system(size: DSFont.Size.xs, weight: .semibold))
                         .accessibilityHidden(true)
                 }
-                .font(.system(size: 12))
+                .font(.system(size: DSFont.Size.body))
             }
             .buttonStyle(.borderless)
             .pointerCursor()
             .accessibilityLabel("Configure \(name)")
         }
-        .padding(.horizontal, 14)
-        .padding(.vertical, 12)
+        .padding(.horizontal, DSSpace.s5)
+        .padding(.vertical, DSSpace.s4)
     }
 
     // MARK: - Brand icon helper
@@ -179,7 +179,7 @@ struct IntegrationDashboardView: View {
                         .foregroundStyle(color)
                 } else {
                     Image(systemName: fallback)
-                        .font(.system(size: 14, weight: .medium))
+                        .font(.system(size: DSFont.Size.md, weight: .medium))
                         .foregroundStyle(color)
                 }
             }

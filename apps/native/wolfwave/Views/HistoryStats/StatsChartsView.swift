@@ -96,7 +96,7 @@ struct StatsChartsView: View {
     private func chartHeader(_ title: String, systemImage: String) -> some View {
         HStack(spacing: 6) {
             Image(systemName: systemImage)
-                .font(.system(size: 11, weight: .semibold))
+                .font(.system(size: DSFont.Size.sm, weight: .semibold))
                 .foregroundStyle(.secondary)
             Text(title)
                 .font(.caption)

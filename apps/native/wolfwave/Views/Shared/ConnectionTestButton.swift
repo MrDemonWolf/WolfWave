@@ -44,21 +44,21 @@ struct ConnectionTestButton: View {
             switch result {
             case .idle:
                 Label(label, systemImage: icon)
-                    .font(.system(size: 12, weight: .medium))
+                    .font(.system(size: DSFont.Size.body, weight: .medium))
             case .testing:
                 HStack(spacing: 6) {
                     ProgressView()
                         .progressViewStyle(.circular)
                         .controlSize(.mini)
                     Text("Testing\u{2026}")
-                        .font(.system(size: 12))
+                        .font(.system(size: DSFont.Size.body))
                 }
             case .success:
                 Label("Connected", systemImage: "checkmark.circle.fill")
-                    .font(.system(size: 12, weight: .medium))
+                    .font(.system(size: DSFont.Size.body, weight: .medium))
             case .failure:
                 Label("Failed", systemImage: "xmark.circle.fill")
-                    .font(.system(size: 12, weight: .medium))
+                    .font(.system(size: DSFont.Size.body, weight: .medium))
             }
         }
         .buttonStyle(.bordered)
@@ -66,18 +66,18 @@ struct ConnectionTestButton: View {
         .controlSize(.small)
         .stableWidth {
             Label(label, systemImage: icon)
-                .font(.system(size: 12, weight: .medium))
+                .font(.system(size: DSFont.Size.body, weight: .medium))
             HStack(spacing: 6) {
                 ProgressView()
                     .progressViewStyle(.circular)
                     .controlSize(.mini)
                 Text("Testing...")
-                    .font(.system(size: 12))
+                    .font(.system(size: DSFont.Size.body))
             }
             Label("Connected", systemImage: "checkmark.circle.fill")
-                .font(.system(size: 12, weight: .medium))
+                .font(.system(size: DSFont.Size.body, weight: .medium))
             Label("Failed", systemImage: "xmark.circle.fill")
-                .font(.system(size: 12, weight: .medium))
+                .font(.system(size: DSFont.Size.body, weight: .medium))
         }
         .disabled(result == .testing)
         .pointerCursor()

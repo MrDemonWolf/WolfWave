@@ -40,32 +40,32 @@ struct SongRequestQueueView: View {
             // Header
             HStack {
                 Text("Song Request Queue")
-                    .font(.system(size: 13, weight: .semibold))
+                    .font(.system(size: DSFont.Size.base, weight: .semibold))
 
                 Spacer()
 
                 if isHeld {
                     Label("Hold — curate then tap Resume", systemImage: "pause.circle.fill")
-                        .font(.system(size: 10, weight: .medium))
+                        .font(.system(size: DSFont.Size.xs, weight: .medium))
                         .foregroundStyle(.orange)
-                        .padding(.horizontal, 8)
-                        .padding(.vertical, 3)
+                        .padding(.horizontal, DSSpace.s2)
+                        .padding(.vertical, DSSpace.s1)
                         .background(.orange.opacity(0.12))
                         .clipShape(Capsule())
                 } else if isMusicAppClosed {
                     Label("Music is closed — requests are saved", systemImage: "pause.circle.fill")
-                        .font(.system(size: 10, weight: .medium))
+                        .font(.system(size: DSFont.Size.xs, weight: .medium))
                         .foregroundStyle(.orange)
-                        .padding(.horizontal, 8)
-                        .padding(.vertical, 3)
+                        .padding(.horizontal, DSSpace.s2)
+                        .padding(.vertical, DSSpace.s1)
                         .background(.orange.opacity(0.12))
                         .clipShape(Capsule())
                 } else if !items.isEmpty {
                     Text("\(items.count) in queue")
-                        .font(.system(size: 11))
+                        .font(.system(size: DSFont.Size.sm))
                         .foregroundStyle(.secondary)
-                        .padding(.horizontal, 8)
-                        .padding(.vertical, 3)
+                        .padding(.horizontal, DSSpace.s2)
+                        .padding(.vertical, DSSpace.s1)
                         .background(.quaternary)
                         .clipShape(Capsule())
                 }
@@ -81,10 +81,10 @@ struct SongRequestQueueView: View {
                 emptyState
             } else if items.isEmpty {
                 Text("Queue is empty — this is the last requested song.")
-                    .font(.system(size: 11))
+                    .font(.system(size: DSFont.Size.sm))
                     .foregroundStyle(.tertiary)
                     .frame(maxWidth: .infinity, alignment: .center)
-                    .padding(.vertical, 8)
+                    .padding(.vertical, DSSpace.s2)
             } else {
                 queueList
             }
@@ -131,24 +131,24 @@ struct SongRequestQueueView: View {
             VStack(alignment: .leading, spacing: 2) {
                 HStack(spacing: 6) {
                     Image(systemName: "waveform")
-                        .font(.system(size: 10))
+                        .font(.system(size: DSFont.Size.xs))
                         .foregroundStyle(.green)
                     Text("Now Playing")
-                        .font(.system(size: 10, weight: .semibold))
+                        .font(.system(size: DSFont.Size.xs, weight: .semibold))
                         .foregroundStyle(.green)
                 }
                 Text(item.title)
-                    .font(.system(size: 12, weight: .medium))
+                    .font(.system(size: DSFont.Size.body, weight: .medium))
                     .lineLimit(1)
                 Text("\(item.artist) — requested by \(item.requesterUsername)")
-                    .font(.system(size: 10))
+                    .font(.system(size: DSFont.Size.xs))
                     .foregroundStyle(.secondary)
                     .lineLimit(1)
             }
 
             Spacer()
         }
-        .padding(8)
+        .padding(DSSpace.s2)
         .background(.green.opacity(0.1))
         .clipShape(RoundedRectangle(cornerRadius: 8))
     }
@@ -160,7 +160,7 @@ struct SongRequestQueueView: View {
             ForEach(Array(items.enumerated()), id: \.element.id) { index, item in
                 HStack(spacing: 10) {
                     Text("\(index + 1)")
-                        .font(.system(size: 11, design: .monospaced))
+                        .font(.system(size: DSFont.Size.sm, design: .monospaced))
                         .foregroundStyle(.tertiary)
                         .frame(width: 20)
 
@@ -168,10 +168,10 @@ struct SongRequestQueueView: View {
 
                     VStack(alignment: .leading, spacing: 1) {
                         Text(item.title)
-                            .font(.system(size: 12))
+                            .font(.system(size: DSFont.Size.body))
                             .lineLimit(1)
                         Text("\(item.artist) — requested by \(item.requesterUsername)")
-                            .font(.system(size: 10))
+                            .font(.system(size: DSFont.Size.xs))
                             .foregroundStyle(.secondary)
                             .lineLimit(1)
                     }
@@ -187,14 +187,14 @@ struct SongRequestQueueView: View {
                         refreshState()
                     } label: {
                         Image(systemName: "xmark.circle.fill")
-                            .font(.system(size: 12))
+                            .font(.system(size: DSFont.Size.body))
                             .foregroundStyle(.secondary)
                     }
                     .buttonStyle(.plain)
                     .accessibilityLabel("Remove \(item.title) from queue")
                 }
-                .padding(.vertical, 4)
-                .padding(.horizontal, 6)
+                .padding(.vertical, DSSpace.s1)
+                .padding(.horizontal, DSSpace.s2)
             }
         }
     }
@@ -204,17 +204,17 @@ struct SongRequestQueueView: View {
     private var emptyState: some View {
         VStack(spacing: 8) {
             Image(systemName: "music.note.list")
-                .font(.system(size: 24))
+                .font(.system(size: DSFont.Size.x24))
                 .foregroundStyle(.tertiary)
             Text("No song requests yet")
-                .font(.system(size: 12))
+                .font(.system(size: DSFont.Size.body))
                 .foregroundStyle(.secondary)
             Text("Viewers can request songs with `!sr` in Twitch chat")
-                .font(.system(size: 11))
+                .font(.system(size: DSFont.Size.sm))
                 .foregroundStyle(.tertiary)
         }
         .frame(maxWidth: .infinity)
-        .padding(.vertical, 20)
+        .padding(.vertical, DSSpace.s7)
     }
 
     // MARK: - Action Buttons
@@ -228,7 +228,7 @@ struct SongRequestQueueView: View {
                 }
             } label: {
                 Label("Skip", systemImage: "forward.fill")
-                    .font(.system(size: 11))
+                    .font(.system(size: DSFont.Size.sm))
             }
             .buttonStyle(.bordered)
             .controlSize(.small)
@@ -241,7 +241,7 @@ struct SongRequestQueueView: View {
                 }
             } label: {
                 Label(isHeld ? "Resume" : "Hold", systemImage: isHeld ? "play.fill" : "pause.fill")
-                    .font(.system(size: 11))
+                    .font(.system(size: DSFont.Size.sm))
             }
             .buttonStyle(.bordered)
             .controlSize(.small)
@@ -251,7 +251,7 @@ struct SongRequestQueueView: View {
                 showingClearConfirm = true
             } label: {
                 Label("Clear Queue", systemImage: "trash")
-                    .font(.system(size: 11))
+                    .font(.system(size: DSFont.Size.sm))
             }
             .buttonStyle(.bordered)
             .controlSize(.small)
@@ -278,7 +278,7 @@ struct SongRequestQueueView: View {
             .frame(width: 40, height: 40)
             .overlay {
                 Image(systemName: "music.note")
-                    .font(.system(size: 16))
+                    .font(.system(size: DSFont.Size.x16))
                     .foregroundStyle(.tertiary)
             }
     }
@@ -289,7 +289,7 @@ struct SongRequestQueueView: View {
             .frame(width: 30, height: 30)
             .overlay {
                 Image(systemName: "music.note")
-                    .font(.system(size: 12))
+                    .font(.system(size: DSFont.Size.body))
                     .foregroundStyle(.tertiary)
             }
     }

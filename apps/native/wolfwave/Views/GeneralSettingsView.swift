@@ -25,11 +25,11 @@ struct GeneralSettingsView: View {
 
             MusicMonitorSettingsView(configure: configure)
 
-            Divider().padding(.vertical, 4)
+            Divider().padding(.vertical, DSSpace.s1)
 
             AppVisibilitySettingsView()
 
-            Divider().padding(.vertical, 4)
+            Divider().padding(.vertical, DSSpace.s1)
 
             NotificationsSettingsView()
         }

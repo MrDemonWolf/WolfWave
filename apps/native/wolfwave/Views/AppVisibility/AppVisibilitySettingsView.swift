@@ -27,7 +27,7 @@ struct AppVisibilitySettingsView: View {
                     .sectionSubHeader()
 
                 Text("Control how WolfWave appears in your Dock and menu bar.")
-                    .font(.system(size: 13))
+                    .font(.system(size: DSFont.Size.base))
                     .foregroundStyle(.secondary)
             }
 
@@ -35,9 +35,9 @@ struct AppVisibilitySettingsView: View {
             VStack(alignment: .leading, spacing: 12) {
                 VStack(alignment: .leading, spacing: 2) {
                     Text("Startup")
-                        .font(.system(size: 13, weight: .medium))
+                        .font(.system(size: DSFont.Size.base, weight: .medium))
                     Text("Automatically start WolfWave when you log in")
-                        .font(.system(size: 11))
+                        .font(.system(size: DSFont.Size.sm))
                         .foregroundStyle(.tertiary)
                 }
 
@@ -56,7 +56,7 @@ struct AppVisibilitySettingsView: View {
                     }
                 ))
                 .toggleStyle(.checkbox)
-                .font(.system(size: 13))
+                .font(.system(size: DSFont.Size.base))
                 .pointerCursor()
                 .accessibilityLabel("Launch at Login")
                 .accessibilityHint("Starts WolfWave automatically when you log in to your Mac")
@@ -71,9 +71,9 @@ struct AppVisibilitySettingsView: View {
             VStack(alignment: .leading, spacing: 12) {
                 VStack(alignment: .leading, spacing: 2) {
                     Text("Display Mode")
-                        .font(.system(size: 13, weight: .medium))
+                        .font(.system(size: DSFont.Size.base, weight: .medium))
                     Text("Where should WolfWave live?")
-                        .font(.system(size: 11))
+                        .font(.system(size: DSFont.Size.sm))
                         .foregroundStyle(.tertiary)
                 }
 
@@ -107,14 +107,14 @@ struct AppVisibilitySettingsView: View {
                 if launchAtLogin && dockVisibility != AppConstants.DockVisibility.dockOnly {
                     HStack(alignment: .top, spacing: 10) {
                         Image(systemName: "info.circle.fill")
-                            .font(.system(size: 12))
+                            .font(.system(size: DSFont.Size.body))
                             .foregroundStyle(.indigo)
                         Text("\"Dock Only\" is unavailable while Launch at Login is on — the menu bar icon must always be reachable.")
-                            .font(.system(size: 11))
+                            .font(.system(size: DSFont.Size.sm))
                             .foregroundStyle(.secondary)
                             .fixedSize(horizontal: false, vertical: true)
                     }
-                    .padding(10)
+                    .padding(DSSpace.s3)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .background(Color.indigo.opacity(0.07))
                     .clipShape(RoundedRectangle(cornerRadius: 7))
@@ -131,14 +131,14 @@ struct AppVisibilitySettingsView: View {
             if dockVisibility == AppConstants.DockVisibility.menuOnly {
                 HStack(alignment: .top, spacing: 10) {
                     Image(systemName: "info.circle.fill")
-                        .font(.system(size: 13))
+                        .font(.system(size: DSFont.Size.base))
                         .foregroundStyle(.blue)
                     Text("The app will temporarily appear in the Dock while the settings window is open.")
-                        .font(.system(size: 12))
+                        .font(.system(size: DSFont.Size.body))
                         .foregroundStyle(.secondary)
                         .fixedSize(horizontal: false, vertical: true)
                 }
-                .padding(12)
+                .padding(DSSpace.s4)
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .background(Color.blue.opacity(0.08))
                 .clipShape(RoundedRectangle(cornerRadius: 8))
@@ -193,17 +193,17 @@ private struct RadioOption: View {
         } label: {
             HStack(spacing: 8) {
                 Image(systemName: selection == tag ? "circle.inset.filled" : "circle")
-                    .font(.system(size: 13))
+                    .font(.system(size: DSFont.Size.base))
                     .foregroundStyle(disabled ? Color.secondary.opacity(0.4) : (selection == tag ? Color.accentColor : Color.secondary))
                 Text(label)
-                    .font(.system(size: 13))
+                    .font(.system(size: DSFont.Size.base))
                     .foregroundStyle(disabled ? .tertiary : .primary)
                 if disabled {
                     Text("unavailable")
-                        .font(.system(size: 10, weight: .medium))
+                        .font(.system(size: DSFont.Size.xs, weight: .medium))
                         .foregroundStyle(.tertiary)
-                        .padding(.horizontal, 6)
-                        .padding(.vertical, 2)
+                        .padding(.horizontal, DSSpace.s2)
+                        .padding(.vertical, DSSpace.s0)
                         .background(Color.secondary.opacity(0.12))
                         .clipShape(Capsule())
                 }

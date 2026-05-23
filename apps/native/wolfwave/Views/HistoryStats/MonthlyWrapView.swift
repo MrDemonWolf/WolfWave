@@ -52,7 +52,7 @@ struct MonthlyWrapView: View {
 
             footer
         }
-        .padding(20)
+        .padding(DSSpace.s7)
         .frame(width: 440)
         .background(Color(nsColor: .windowBackgroundColor))
     }
@@ -73,7 +73,7 @@ struct MonthlyWrapView: View {
             Spacer()
 
             Text(wrap.monthLabel)
-                .font(.system(size: 15, weight: .semibold))
+                .font(.system(size: DSFont.Size.x15, weight: .semibold))
 
             Spacer()
 
@@ -128,7 +128,7 @@ struct MonthlyWrapView: View {
         let renderer = ImageRenderer(content:
             MonthlyWrapCard(data: wrap)
                 .frame(width: 380)
-                .padding(20)
+                .padding(DSSpace.s7)
                 .background(Color(nsColor: .windowBackgroundColor))
         )
         renderer.scale = 2
@@ -168,11 +168,11 @@ struct MonthlyWrapCard: View {
         VStack(alignment: .leading, spacing: 14) {
             VStack(alignment: .leading, spacing: 2) {
                 Text("WOLFWAVE · MONTHLY WRAP")
-                    .font(.system(size: 9, weight: .bold))
+                    .font(.system(size: DSFont.Size.x9, weight: .bold))
                     .tracking(1.4)
                     .foregroundStyle(.white.opacity(0.7))
                 Text(data.monthLabel)
-                    .font(.system(size: 24, weight: .bold))
+                    .font(.system(size: DSFont.Size.x24, weight: .bold))
                     .foregroundStyle(.white)
             }
 
@@ -195,16 +195,16 @@ struct MonthlyWrapCard: View {
                 }
 
                 Text("\(data.uniqueArtists) artists · \(data.uniqueTracks) tracks")
-                    .font(.system(size: 11, weight: .medium))
+                    .font(.system(size: DSFont.Size.sm, weight: .medium))
                     .foregroundStyle(.white.opacity(0.7))
             } else {
                 Text("No plays recorded in \(data.monthLabel).")
-                    .font(.system(size: 13))
+                    .font(.system(size: DSFont.Size.base))
                     .foregroundStyle(.white.opacity(0.8))
-                    .padding(.vertical, 12)
+                    .padding(.vertical, DSSpace.s4)
             }
         }
-        .padding(20)
+        .padding(DSSpace.s7)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(
             LinearGradient(
@@ -223,10 +223,10 @@ struct MonthlyWrapCard: View {
     private func statBlock(value: String, label: String) -> some View {
         VStack(alignment: .leading, spacing: 0) {
             Text(value)
-                .font(.system(size: 28, weight: .bold))
+                .font(.system(size: DSFont.Size.x28, weight: .bold))
                 .foregroundStyle(.white)
             Text(label)
-                .font(.system(size: 11, weight: .medium))
+                .font(.system(size: DSFont.Size.sm, weight: .medium))
                 .foregroundStyle(.white.opacity(0.7))
         }
     }
@@ -235,11 +235,11 @@ struct MonthlyWrapCard: View {
     private func wrapRow(caption: String, value: String) -> some View {
         VStack(alignment: .leading, spacing: 1) {
             Text(caption)
-                .font(.system(size: 9, weight: .bold))
+                .font(.system(size: DSFont.Size.x9, weight: .bold))
                 .tracking(1.0)
                 .foregroundStyle(.white.opacity(0.6))
             Text(value)
-                .font(.system(size: 15, weight: .semibold))
+                .font(.system(size: DSFont.Size.x15, weight: .semibold))
                 .foregroundStyle(.white)
                 .lineLimit(2)
         }

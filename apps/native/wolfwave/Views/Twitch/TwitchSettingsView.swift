@@ -138,11 +138,11 @@ struct TwitchSettingsView: View {
             } else {
                 VStack(alignment: .leading, spacing: 2) {
                     Text(authCardHeaderTitle)
-                        .font(.system(size: 11, weight: .medium))
+                        .font(.system(size: DSFont.Size.sm, weight: .medium))
                         .foregroundStyle(.secondary)
 
                     Text(authCardHeaderSubtitle)
-                        .font(.system(size: 12, weight: .regular))
+                        .font(.system(size: DSFont.Size.body, weight: .regular))
                         .foregroundStyle(.secondary)
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -158,7 +158,7 @@ struct TwitchSettingsView: View {
                             viewModel.startOAuth()
                         }) {
                             Text("Sign in to Twitch")
-                                .font(.system(size: 13, weight: .semibold))
+                                .font(.system(size: DSFont.Size.base, weight: .semibold))
                                 .frame(maxWidth: .infinity)
                                 .frame(height: 32)
                         }
@@ -185,7 +185,7 @@ struct TwitchSettingsView: View {
                             }
                             Text(" and enter this code:")
                         }
-                        .font(.system(size: 13))
+                        .font(.system(size: DSFont.Size.base))
                         .foregroundStyle(.secondary)
                         .frame(maxWidth: .infinity, alignment: .leading)
 
@@ -218,7 +218,7 @@ struct TwitchSettingsView: View {
                                 .controlSize(.small)
 
                             Text("Waiting for authorization\u{2026}")
-                                .font(.system(size: 13))
+                                .font(.system(size: DSFont.Size.base))
                                 .foregroundStyle(.secondary)
 
                             Spacer()
@@ -256,7 +256,7 @@ struct TwitchSettingsView: View {
                 case .error(let message):
                     VStack(spacing: 8) {
                         Text(message)
-                            .font(.system(size: 13))
+                            .font(.system(size: DSFont.Size.base))
                             .foregroundStyle(.red)
                         HStack {
                             Button("Retry") { viewModel.startOAuth() }
@@ -316,16 +316,16 @@ private struct SignedInView: View {
         HStack(alignment: .center, spacing: 12) {
             VStack(alignment: .leading, spacing: 2) {
                 Text("Twitch Account")
-                    .font(.system(size: 11, weight: .medium))
+                    .font(.system(size: DSFont.Size.sm, weight: .medium))
                     .foregroundStyle(.secondary)
                 Text(botUsername.isEmpty ? "Not set" : botUsername)
-                    .font(.system(size: 13, weight: .semibold))
+                    .font(.system(size: DSFont.Size.base, weight: .semibold))
             }
             Spacer()
             statusIcon(reauthNeeded: reauthNeeded)
         }
         .padding(.horizontal, AppConstants.SettingsUI.cardPadding)
-        .padding(.vertical, 12)
+        .padding(.vertical, DSSpace.s4)
         .accessibilityElement(children: .combine)
         .accessibilityLabel("Twitch account: \(botUsername.isEmpty ? "Not set" : botUsername)")
         .accessibilityValue(reauthNeeded ? "Sign-in expired" : "Signed in")
@@ -337,7 +337,7 @@ private struct SignedInView: View {
             HStack(alignment: .center, spacing: 12) {
                 VStack(alignment: .leading, spacing: 2) {
                     Text("Channel")
-                        .font(.system(size: 11, weight: .medium))
+                        .font(.system(size: DSFont.Size.sm, weight: .medium))
                         .foregroundStyle(.secondary)
                     channelInputView
                 }
@@ -349,7 +349,7 @@ private struct SignedInView: View {
                 .animation(.easeInOut(duration: 0.2), value: channelValidationState)
         }
         .padding(.horizontal, AppConstants.SettingsUI.cardPadding)
-        .padding(.vertical, 12)
+        .padding(.vertical, DSSpace.s4)
     }
 
     /// Small inline indicator below the channel field showing validation progress or result.
@@ -364,47 +364,47 @@ private struct SignedInView: View {
                     .progressViewStyle(.circular)
                     .controlSize(.mini)
                 Text("Verifying channel...")
-                    .font(.system(size: 11))
+                    .font(.system(size: DSFont.Size.sm))
                     .foregroundStyle(.secondary)
             }
-            .padding(.top, 6)
+            .padding(.top, DSSpace.s2)
             .accessibilityElement(children: .combine)
             .accessibilityLabel("Verifying channel")
         case .valid:
             HStack(spacing: 4) {
                 Image(systemName: "checkmark.circle.fill")
                     .foregroundStyle(.green)
-                    .font(.system(size: 11))
+                    .font(.system(size: DSFont.Size.sm))
                 Text("Channel verified")
-                    .font(.system(size: 11))
+                    .font(.system(size: DSFont.Size.sm))
                     .foregroundStyle(.green)
             }
-            .padding(.top, 6)
+            .padding(.top, DSSpace.s2)
             .accessibilityElement(children: .combine)
             .accessibilityLabel("Channel verified successfully")
         case .invalid:
             HStack(spacing: 4) {
                 Image(systemName: "xmark.circle.fill")
                     .foregroundStyle(.red)
-                    .font(.system(size: 11))
+                    .font(.system(size: DSFont.Size.sm))
                 Text("Channel not found")
-                    .font(.system(size: 11))
+                    .font(.system(size: DSFont.Size.sm))
                     .foregroundStyle(.red)
             }
-            .padding(.top, 6)
+            .padding(.top, DSSpace.s2)
             .accessibilityElement(children: .combine)
             .accessibilityLabel("Channel not found")
         case .error(let message):
             HStack(spacing: 4) {
                 Image(systemName: "exclamationmark.triangle.fill")
                     .foregroundStyle(.orange)
-                    .font(.system(size: 11))
+                    .font(.system(size: DSFont.Size.sm))
                 Text("Couldn't check channel")
-                    .font(.system(size: 11))
+                    .font(.system(size: DSFont.Size.sm))
                     .foregroundStyle(.orange)
                     .help(message)
             }
-            .padding(.top, 6)
+            .padding(.top, DSSpace.s2)
             .accessibilityElement(children: .combine)
             .accessibilityLabel("Couldn't check channel: \(message)")
         }
@@ -416,14 +416,14 @@ private struct SignedInView: View {
         switch (isChannelConnected, reauthNeeded) {
         case (true, _):
             Text(channelID.isEmpty ? "Not set" : channelID)
-                .font(.system(size: 13, weight: .semibold))
+                .font(.system(size: DSFont.Size.base, weight: .semibold))
         case (false, true):
             Text(channelID.isEmpty ? "Not set" : channelID)
-                .font(.system(size: 13, weight: .semibold))
+                .font(.system(size: DSFont.Size.base, weight: .semibold))
                 .foregroundStyle(.secondary)
         case (false, false):
             TextField("Channel Name", text: $channelID)
-                .font(.system(size: 13))
+                .font(.system(size: DSFont.Size.base))
                 .textFieldStyle(.plain)
                 .disabled(isConnecting)
                 .accessibilityLabel("Twitch channel name")
@@ -456,12 +456,12 @@ private struct SignedInView: View {
         case (true, _):
             Image(systemName: "wifi")
                 .foregroundStyle(.green)
-                .font(.system(size: 14))
+                .font(.system(size: DSFont.Size.md))
                 .accessibilityLabel("Connected to channel")
         case (false, true):
             Image(systemName: "wifi.slash")
                 .foregroundStyle(.orange)
-                .font(.system(size: 14))
+                .font(.system(size: DSFont.Size.md))
                 .accessibilityLabel("Disconnected, sign-in expired")
         case (false, false):
             EmptyView()
@@ -474,7 +474,7 @@ private struct SignedInView: View {
             if reauthNeeded {
                 Button(action: onReauth) {
                     Label("Sign in again", systemImage: "arrow.clockwise.circle.fill")
-                        .font(.system(size: 12, weight: .medium))
+                        .font(.system(size: DSFont.Size.body, weight: .medium))
                 }
                 .buttonStyle(.bordered)
                 .tint(.orange)
@@ -497,7 +497,7 @@ private struct SignedInView: View {
                                 .progressViewStyle(.circular)
                                 .controlSize(.mini)
                             Text("Connecting\u{2026}")
-                                .font(.system(size: 12))
+                                .font(.system(size: DSFont.Size.body))
                         }
                     } else {
                         Label(
@@ -505,7 +505,7 @@ private struct SignedInView: View {
                             systemImage: isChannelConnected
                                 ? "xmark.circle.fill" : "checkmark.circle.fill"
                         )
-                        .font(.system(size: 12, weight: .medium))
+                        .font(.system(size: DSFont.Size.body, weight: .medium))
                     }
                 }
                 .disabled(shouldDisableConnectButton)
@@ -513,15 +513,15 @@ private struct SignedInView: View {
                 .controlSize(.small)
                 .stableWidth {
                     Label("Connect", systemImage: "checkmark.circle.fill")
-                        .font(.system(size: 12, weight: .medium))
+                        .font(.system(size: DSFont.Size.body, weight: .medium))
                     Label("Disconnect", systemImage: "xmark.circle.fill")
-                        .font(.system(size: 12, weight: .medium))
+                        .font(.system(size: DSFont.Size.body, weight: .medium))
                     HStack(spacing: 6) {
                         ProgressView()
                             .progressViewStyle(.circular)
                             .controlSize(.mini)
                         Text("Connecting...")
-                            .font(.system(size: 12))
+                            .font(.system(size: DSFont.Size.body))
                     }
                 }
                 .pointerCursor()
@@ -538,21 +538,21 @@ private struct SignedInView: View {
                     switch testAuthResult {
                     case .idle:
                         Label("Test Login", systemImage: "antenna.radiowaves.left.and.right")
-                            .font(.system(size: 12, weight: .medium))
+                            .font(.system(size: DSFont.Size.body, weight: .medium))
                     case .testing:
                         HStack(spacing: 6) {
                             ProgressView()
                                 .progressViewStyle(.circular)
                                 .controlSize(.mini)
                             Text("Testing...")
-                                .font(.system(size: 12))
+                                .font(.system(size: DSFont.Size.body))
                         }
                     case .success:
                         Label("Passed", systemImage: "checkmark.circle.fill")
-                            .font(.system(size: 12, weight: .medium))
+                            .font(.system(size: DSFont.Size.body, weight: .medium))
                     case .failure:
                         Label("Failed", systemImage: "xmark.circle.fill")
-                            .font(.system(size: 12, weight: .medium))
+                            .font(.system(size: DSFont.Size.body, weight: .medium))
                     }
                 }
                 .buttonStyle(.bordered)
@@ -560,18 +560,18 @@ private struct SignedInView: View {
                 .controlSize(.small)
                 .stableWidth {
                     Label("Test Login", systemImage: "antenna.radiowaves.left.and.right")
-                        .font(.system(size: 12, weight: .medium))
+                        .font(.system(size: DSFont.Size.body, weight: .medium))
                     HStack(spacing: 6) {
                         ProgressView()
                             .progressViewStyle(.circular)
                             .controlSize(.mini)
                         Text("Testing...")
-                            .font(.system(size: 12))
+                            .font(.system(size: DSFont.Size.body))
                     }
                     Label("Passed", systemImage: "checkmark.circle.fill")
-                        .font(.system(size: 12, weight: .medium))
+                        .font(.system(size: DSFont.Size.body, weight: .medium))
                     Label("Failed", systemImage: "xmark.circle.fill")
-                        .font(.system(size: 12, weight: .medium))
+                        .font(.system(size: DSFont.Size.body, weight: .medium))
                 }
                 .disabled(testAuthResult == .testing)
                 .pointerCursor()
@@ -590,7 +590,7 @@ private struct SignedInView: View {
             Spacer()
 
             Button("Log Out", action: onClearCredentials)
-                .font(.system(size: 12))
+                .font(.system(size: DSFont.Size.body))
                 .buttonStyle(.bordered)
                 .tint(.red)
                 .controlSize(.small)
@@ -600,7 +600,7 @@ private struct SignedInView: View {
                 .accessibilityIdentifier("twitchClearCredentialsButton")
         }
         .padding(.horizontal, AppConstants.SettingsUI.cardPadding)
-        .padding(.vertical, 12)
+        .padding(.vertical, DSSpace.s4)
         .confirmationDialog(
             "Disconnect from channel?", isPresented: $showingDisconnectConfirmation,
             titleVisibility: .visible
@@ -644,7 +644,7 @@ private struct SignedInView: View {
     private func statusIcon(reauthNeeded: Bool) -> some View {
         Image(systemName: reauthNeeded ? "exclamationmark.circle.fill" : "checkmark.circle.fill")
             .foregroundStyle(reauthNeeded ? .orange : .green)
-            .font(.system(size: 14))
+            .font(.system(size: DSFont.Size.md))
     }
 }
 

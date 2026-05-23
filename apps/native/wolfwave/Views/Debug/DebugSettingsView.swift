@@ -29,13 +29,13 @@ struct DebugSettingsView: View {
         VStack(alignment: .leading, spacing: 6) {
             HStack(spacing: 8) {
                 Image(systemName: "ladybug.fill")
-                    .font(.system(size: 18))
+                    .font(.system(size: DSFont.Size.x18))
                     .foregroundStyle(.orange)
                 Text("Debug Tools")
                     .sectionHeader()
             }
             Text("Developer-only tools. Not shipped in release builds.")
-                .font(.system(size: 13))
+                .font(.system(size: DSFont.Size.base))
                 .foregroundStyle(.secondary)
         }
     }
@@ -45,12 +45,12 @@ struct DebugSettingsView: View {
             Image(systemName: "exclamationmark.triangle.fill")
                 .foregroundStyle(.orange)
             Text("These tools mutate live state. Use at your own risk.")
-                .font(.system(size: 12))
+                .font(.system(size: DSFont.Size.body))
                 .foregroundStyle(.secondary)
             Spacer()
         }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 8)
+        .padding(.horizontal, DSSpace.s4)
+        .padding(.vertical, DSSpace.s2)
         .background(Color.orange.opacity(0.08))
         .clipShape(RoundedRectangle(cornerRadius: AppConstants.SettingsUI.cardCornerRadius))
         .overlay(

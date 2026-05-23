@@ -24,15 +24,15 @@ struct UpdateBannerView: View {
         if isUpdateAvailable && !isDismissed {
             HStack(spacing: 10) {
                 Image(systemName: "arrow.down.circle.fill")
-                    .font(.system(size: 16))
+                    .font(.system(size: DSFont.Size.x16))
                     .foregroundStyle(.white)
 
                 VStack(alignment: .leading, spacing: 2) {
                     Text("Update Available")
-                        .font(.system(size: 12, weight: .semibold))
+                        .font(.system(size: DSFont.Size.body, weight: .semibold))
                         .foregroundStyle(.white)
                     Text("WolfWave v\(latestVersion) is ready to download.")
-                        .font(.system(size: 11))
+                        .font(.system(size: DSFont.Size.sm))
                         .foregroundStyle(.white.opacity(0.85))
                 }
 
@@ -54,14 +54,14 @@ struct UpdateBannerView: View {
                     }
                 } label: {
                     Image(systemName: "xmark")
-                        .font(.system(size: 10, weight: .semibold))
+                        .font(.system(size: DSFont.Size.xs, weight: .semibold))
                         .foregroundStyle(.white.opacity(0.7))
                 }
                 .buttonStyle(.plain)
                 .accessibilityLabel("Dismiss update banner")
             }
-            .padding(.horizontal, 14)
-            .padding(.vertical, 10)
+            .padding(.horizontal, DSSpace.s5)
+            .padding(.vertical, DSSpace.s3)
             .background(
                 LinearGradient(
                     colors: [Color.blue, Color.purple],
@@ -166,7 +166,7 @@ struct UpdateBannerView: View {
                     .sectionHeader()
                 
                 Text("This is where your settings would appear.")
-                    .font(.system(size: 13))
+                    .font(.system(size: DSFont.Size.base))
                     .foregroundStyle(.secondary)
             }
             .cardStyle()

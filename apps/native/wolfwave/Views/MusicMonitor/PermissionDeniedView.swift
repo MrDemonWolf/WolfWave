@@ -22,11 +22,11 @@ struct PermissionDeniedBanner: View {
 
             VStack(alignment: .leading, spacing: 8) {
                 Text("Let WolfWave read what's playing.")
-                    .font(.system(size: 18, weight: .bold))
+                    .font(.system(size: DSFont.Size.x18, weight: .bold))
                     .lineLimit(2)
 
                 Text("We need permission to read from the Music app so we can see the current track, artist, and album. We never play, pause, skip, or change your library.")
-                    .font(.system(size: 12))
+                    .font(.system(size: DSFont.Size.body))
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
 
@@ -35,7 +35,7 @@ struct PermissionDeniedBanner: View {
                         HStack(spacing: 4) {
                             Text("Open System Settings")
                             Image(systemName: "chevron.right")
-                                .font(.system(size: 10, weight: .semibold))
+                                .font(.system(size: DSFont.Size.xs, weight: .semibold))
                         }
                     }
                     .buttonStyle(.borderedProminent)
@@ -53,10 +53,10 @@ struct PermissionDeniedBanner: View {
 
                     StatusChip(text: "Music access denied", color: .red)
                 }
-                .padding(.top, 4)
+                .padding(.top, DSSpace.s1)
             }
         }
-        .padding(20)
+        .padding(DSSpace.s7)
         .glassEffect(.regular, in: .rect(cornerRadius: AppConstants.SettingsUI.cardCornerRadius))
         .accessibilityElement(children: .combine)
         .accessibilityLabel("Music access denied. Open System Settings to grant Automation access for the Music app.")
@@ -75,7 +75,7 @@ struct PermissionDeniedBanner: View {
                         startPoint: .topLeading, endPoint: .bottomTrailing
                     ))
                 Image(systemName: "music.note")
-                    .font(.system(size: 36, weight: .semibold))
+                    .font(.system(size: DSFont.Size.x36, weight: .semibold))
                     .foregroundStyle(.white)
             }
             .frame(width: 80, height: 80)
@@ -86,7 +86,7 @@ struct PermissionDeniedBanner: View {
                 .frame(width: 30, height: 30)
                 .overlay(
                     Image(systemName: "lock.fill")
-                        .font(.system(size: 14, weight: .bold))
+                        .font(.system(size: DSFont.Size.md, weight: .bold))
                         .foregroundStyle(.white)
                 )
                 .overlay(Circle().stroke(.background, lineWidth: 2.5))
@@ -119,16 +119,16 @@ struct PermissionInstructionSheet: View {
                             startPoint: .topLeading, endPoint: .bottomTrailing
                         ))
                     Image(systemName: "music.note")
-                        .font(.system(size: 22, weight: .semibold))
+                        .font(.system(size: DSFont.Size.x2xl, weight: .semibold))
                         .foregroundStyle(.white)
                 }
                 .frame(width: 48, height: 48)
 
                 VStack(alignment: .leading, spacing: 2) {
                     Text("Grant access to Music")
-                        .font(.system(size: 17, weight: .bold))
+                        .font(.system(size: DSFont.Size.lg, weight: .bold))
                     Text("Three steps · takes about ten seconds")
-                        .font(.system(size: 12))
+                        .font(.system(size: DSFont.Size.body))
                         .foregroundStyle(.secondary)
                 }
                 Spacer()
@@ -166,9 +166,9 @@ struct PermissionInstructionSheet: View {
                 }
                 .buttonStyle(.borderedProminent)
             }
-            .padding(.top, 8)
+            .padding(.top, DSSpace.s2)
         }
-        .padding(28)
+        .padding(DSSpace.s9)
         .frame(width: 480, height: 520)
     }
 
@@ -184,13 +184,13 @@ struct PermissionInstructionSheet: View {
                 Circle()
                     .fill(Color.accentColor)
                 Text("\(n)")
-                    .font(.system(size: 11, weight: .bold))
+                    .font(.system(size: DSFont.Size.sm, weight: .bold))
                     .foregroundStyle(.white)
             }
             .frame(width: 22, height: 22)
 
             content()
-                .font(.system(size: 13))
+                .font(.system(size: DSFont.Size.base))
                 .foregroundStyle(.primary)
                 .fixedSize(horizontal: false, vertical: true)
         }
@@ -205,19 +205,19 @@ struct AutomationRowPreview: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             Text("System Settings → Privacy & Security → Automation")
-                .font(.system(size: 10, weight: .semibold))
+                .font(.system(size: DSFont.Size.xs, weight: .semibold))
                 .foregroundStyle(.tertiary)
                 .textCase(.uppercase)
                 .tracking(0.6)
 
             HStack(spacing: 10) {
                 wolfMark
-                Text("WolfWave").font(.system(size: 13, weight: .semibold))
+                Text("WolfWave").font(.system(size: DSFont.Size.base, weight: .semibold))
                 Image(systemName: "chevron.right")
-                    .font(.system(size: 10, weight: .semibold))
+                    .font(.system(size: DSFont.Size.xs, weight: .semibold))
                     .foregroundStyle(.tertiary)
                 appleMusicMark
-                Text("Music").font(.system(size: 13))
+                Text("Music").font(.system(size: DSFont.Size.base))
                 Spacer()
                 Capsule()
                     .fill(.quaternary)
@@ -226,12 +226,12 @@ struct AutomationRowPreview: View {
                         Circle()
                             .fill(.white)
                             .frame(width: 16, height: 16)
-                            .padding(2)
+                            .padding(DSSpace.s0)
                             .shadow(color: .black.opacity(0.25), radius: 1, y: 0.5)
                     }
             }
         }
-        .padding(12)
+        .padding(DSSpace.s4)
         .glassEffect(.regular, in: .rect(cornerRadius: 10))
     }
 
@@ -259,7 +259,7 @@ struct AutomationRowPreview: View {
             .frame(width: 20, height: 20)
             .overlay(
                 Image(systemName: "music.note")
-                    .font(.system(size: 10, weight: .bold))
+                    .font(.system(size: DSFont.Size.xs, weight: .bold))
                     .foregroundStyle(.white)
             )
     }
@@ -280,23 +280,23 @@ struct PermissionPausedNowPlayingCard: View {
                             .foregroundStyle(.tertiary)
                     )
                 Image(systemName: "lock.fill")
-                    .font(.system(size: 22, weight: .semibold))
+                    .font(.system(size: DSFont.Size.x2xl, weight: .semibold))
                     .foregroundStyle(.tertiary)
             }
             .frame(width: 56, height: 56)
 
             VStack(alignment: .leading, spacing: 2) {
                 Text("Waiting for Music permission")
-                    .font(.system(size: 14, weight: .semibold))
+                    .font(.system(size: DSFont.Size.md, weight: .semibold))
                 Text("We can't see what's playing until you turn on Music in Automation.")
-                    .font(.system(size: 12))
+                    .font(.system(size: DSFont.Size.body))
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
             }
             Spacer(minLength: 8)
             StatusChip(text: "Denied", color: .red)
         }
-        .padding(16)
+        .padding(DSSpace.s6)
         .glassEffect(.regular, in: .rect(cornerRadius: AppConstants.SettingsUI.cardCornerRadius))
     }
 }

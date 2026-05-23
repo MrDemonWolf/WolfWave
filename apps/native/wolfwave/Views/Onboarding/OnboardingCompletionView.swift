@@ -47,10 +47,10 @@ struct OnboardingCompletionView: View {
             // Title and subtitle — fade in together
             VStack(spacing: 8) {
                 Text("You're all set!")
-                    .font(.system(size: 24, weight: .bold))
+                    .font(.system(size: DSFont.Size.x24, weight: .bold))
 
                 Text("WolfWave is running in your menu bar.")
-                    .font(.system(size: 15))
+                    .font(.system(size: DSFont.Size.x15))
                     .foregroundStyle(.secondary)
             }
             .opacity(showText ? 1 : 0)

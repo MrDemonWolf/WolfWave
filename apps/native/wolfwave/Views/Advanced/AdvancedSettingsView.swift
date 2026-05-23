@@ -232,23 +232,23 @@ struct AdvancedSettingsView: View {
             softwareUpdateCard
 
             Divider()
-                .padding(.vertical, 4)
+                .padding(.vertical, DSSpace.s1)
 
             // Onboarding Card
             VStack(alignment: .leading, spacing: 12) {
                 VStack(alignment: .leading, spacing: 4) {
                     Text("Setup Wizard")
-                        .font(.system(size: 13, weight: .semibold))
+                        .font(.system(size: DSFont.Size.base, weight: .semibold))
 
                     Text("Walk through the setup steps again to review your connections.")
-                        .font(.system(size: 12))
+                        .font(.system(size: DSFont.Size.body))
                         .foregroundStyle(.secondary)
                         .fixedSize(horizontal: false, vertical: true)
                 }
 
                 Button(action: { showingOnboardingResetAlert = true }) {
                     Label("Rerun Setup Wizard", systemImage: "arrow.counterclockwise")
-                        .font(.system(size: 13, weight: .medium))
+                        .font(.system(size: DSFont.Size.base, weight: .medium))
                         .frame(maxWidth: .infinity)
                 }
                 .buttonStyle(.bordered)
@@ -285,31 +285,31 @@ struct AdvancedSettingsView: View {
             legalCard
 
             Divider()
-                .padding(.vertical, 4)
+                .padding(.vertical, DSSpace.s1)
 
             // Danger Zone Card
             VStack(alignment: .leading, spacing: 16) {
                 VStack(alignment: .leading, spacing: 8) {
                     HStack(spacing: 8) {
                         Image(systemName: "exclamationmark.triangle.fill")
-                            .font(.system(size: 14))
+                            .font(.system(size: DSFont.Size.md))
                             .foregroundStyle(.red)
                         Text("Danger Zone")
-                            .font(.system(size: 14, weight: .semibold))
+                            .font(.system(size: DSFont.Size.md, weight: .semibold))
                             .foregroundStyle(.red)
                     }
                     .accessibilityElement(children: .combine)
                     .accessibilityLabel("Danger Zone")
 
                     Text("Permanently erases all settings and saved accounts. This can't be undone.")
-                        .font(.system(size: 12))
+                        .font(.system(size: DSFont.Size.body))
                         .foregroundStyle(.secondary)
                         .fixedSize(horizontal: false, vertical: true)
                 }
 
                 Button(role: .destructive, action: { showingResetAlert = true }) {
                     Label("Reset All Settings to Defaults", systemImage: "trash.fill")
-                        .font(.system(size: 13, weight: .semibold))
+                        .font(.system(size: DSFont.Size.base, weight: .semibold))
                         .frame(maxWidth: .infinity)
                 }
                 .buttonStyle(.borderedProminent)
@@ -351,23 +351,23 @@ struct AdvancedSettingsView: View {
             VStack(alignment: .leading, spacing: 4) {
                 HStack(alignment: .firstTextBaseline) {
                     Text("Diagnostics")
-                        .font(.system(size: 13, weight: .semibold))
+                        .font(.system(size: DSFont.Size.base, weight: .semibold))
                     Spacer()
                     Text("\(logSizeText) · \(logLineCountText)")
-                        .font(.system(size: 11, design: .monospaced))
+                        .font(.system(size: DSFont.Size.sm, design: .monospaced))
                         .foregroundStyle(.secondary)
                         .accessibilityLabel("Log file size \(logSizeText), \(logLineCountText)")
                 }
 
                 Text("Export logs, copy them to your clipboard, or clear them.")
-                    .font(.system(size: 12))
+                    .font(.system(size: DSFont.Size.body))
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
             }
 
             Button(action: exportLogs) {
                 Label("Export Logs", systemImage: "square.and.arrow.up")
-                    .font(.system(size: 13, weight: .medium))
+                    .font(.system(size: DSFont.Size.base, weight: .medium))
                     .frame(maxWidth: .infinity)
             }
             .buttonStyle(.bordered)
@@ -379,7 +379,7 @@ struct AdvancedSettingsView: View {
             HStack(spacing: 8) {
                 Button(action: revealLogsInFinder) {
                     Label("Reveal in Finder", systemImage: "folder")
-                        .font(.system(size: 12))
+                        .font(.system(size: DSFont.Size.body))
                         .frame(maxWidth: .infinity)
                 }
                 .buttonStyle(.bordered)
@@ -389,7 +389,7 @@ struct AdvancedSettingsView: View {
 
                 Button(action: copyLogsToClipboard) {
                     Label("Copy to Clipboard", systemImage: "doc.on.clipboard")
-                        .font(.system(size: 12))
+                        .font(.system(size: DSFont.Size.body))
                         .frame(maxWidth: .infinity)
                 }
                 .buttonStyle(.bordered)
@@ -405,7 +405,7 @@ struct AdvancedSettingsView: View {
 
             Button(role: .destructive, action: { showingClearLogsAlert = true }) {
                 Label("Clear Logs", systemImage: "trash")
-                    .font(.system(size: 12, weight: .medium))
+                    .font(.system(size: DSFont.Size.body, weight: .medium))
                     .frame(maxWidth: .infinity)
             }
             .buttonStyle(.bordered)
@@ -432,17 +432,17 @@ struct AdvancedSettingsView: View {
         VStack(alignment: .leading, spacing: 12) {
             VStack(alignment: .leading, spacing: 4) {
                 Text("Report a Bug")
-                    .font(.system(size: 13, weight: .semibold))
+                    .font(.system(size: DSFont.Size.base, weight: .semibold))
 
                 Text("Opens a GitHub issue prefilled with your app version and system info.")
-                    .font(.system(size: 12))
+                    .font(.system(size: DSFont.Size.body))
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
             }
 
             Button(action: reportBug) {
                 Label("Report a Bug on GitHub", systemImage: "ant.fill")
-                    .font(.system(size: 13, weight: .medium))
+                    .font(.system(size: DSFont.Size.base, weight: .medium))
                     .frame(maxWidth: .infinity)
             }
             .buttonStyle(.borderedProminent)
@@ -464,10 +464,10 @@ struct AdvancedSettingsView: View {
         VStack(alignment: .leading, spacing: 12) {
             VStack(alignment: .leading, spacing: 4) {
                 Text("Legal")
-                    .font(.system(size: 13, weight: .semibold))
+                    .font(.system(size: DSFont.Size.base, weight: .semibold))
 
                 Text("Read how WolfWave handles your data and the terms of using the app.")
-                    .font(.system(size: 12))
+                    .font(.system(size: DSFont.Size.body))
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
             }
@@ -479,7 +479,7 @@ struct AdvancedSettingsView: View {
                     }
                 } label: {
                     Label("Privacy Policy", systemImage: "hand.raised")
-                        .font(.system(size: 13, weight: .medium))
+                        .font(.system(size: DSFont.Size.base, weight: .medium))
                         .frame(maxWidth: .infinity)
                 }
                 .buttonStyle(.bordered)
@@ -493,7 +493,7 @@ struct AdvancedSettingsView: View {
                     }
                 } label: {
                     Label("Terms of Service", systemImage: "doc.text")
-                        .font(.system(size: 13, weight: .medium))
+                        .font(.system(size: DSFont.Size.base, weight: .medium))
                         .frame(maxWidth: .infinity)
                 }
                 .buttonStyle(.bordered)
@@ -523,36 +523,36 @@ struct AdvancedSettingsView: View {
         VStack(alignment: .leading, spacing: 12) {
             VStack(alignment: .leading, spacing: 4) {
                 Text("Software Update")
-                    .font(.system(size: 13, weight: .semibold))
+                    .font(.system(size: DSFont.Size.base, weight: .semibold))
 
                 Text("Current version: \(currentVersion)")
-                    .font(.system(size: 12))
+                    .font(.system(size: DSFont.Size.body))
                     .foregroundStyle(.secondary)
             }
 
             HStack(spacing: 10) {
                 Image(systemName: "info.circle.fill")
-                    .font(.system(size: 14))
+                    .font(.system(size: DSFont.Size.md))
                     .foregroundStyle(.blue)
 
                 VStack(alignment: .leading, spacing: 4) {
                     Text("Homebrew Installation Detected")
-                        .font(.system(size: 12, weight: .semibold))
+                        .font(.system(size: DSFont.Size.body, weight: .semibold))
                     Text("Use Homebrew to check for and install updates.")
-                        .font(.system(size: 11))
+                        .font(.system(size: DSFont.Size.sm))
                         .foregroundStyle(.secondary)
                 }
 
                 Spacer()
             }
             .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(10)
+            .padding(DSSpace.s3)
             .background(Color.blue.opacity(0.08))
             .clipShape(RoundedRectangle(cornerRadius: 6))
 
             HStack(spacing: 8) {
                 Text("$ brew upgrade wolfwave")
-                    .font(.system(size: 12, design: .monospaced))
+                    .font(.system(size: DSFont.Size.body, design: .monospaced))
                     .foregroundStyle(.primary)
 
                 Spacer()
@@ -563,8 +563,8 @@ struct AdvancedSettingsView: View {
                     accessibilityLabel: "Copy brew command"
                 )
             }
-            .padding(.horizontal, 10)
-            .padding(.vertical, 8)
+            .padding(.horizontal, DSSpace.s3)
+            .padding(.vertical, DSSpace.s2)
             .background(Color(nsColor: .textBackgroundColor))
             .clipShape(RoundedRectangle(cornerRadius: 6))
         }
@@ -579,10 +579,10 @@ struct AdvancedSettingsView: View {
             HStack {
                 VStack(alignment: .leading, spacing: 4) {
                     Text("Software Update")
-                        .font(.system(size: 13, weight: .semibold))
+                        .font(.system(size: DSFont.Size.base, weight: .semibold))
 
                     Text("Current version: \(currentVersion)")
-                        .font(.system(size: 12))
+                        .font(.system(size: DSFont.Size.body))
                         .foregroundStyle(.secondary)
                 }
 
@@ -590,10 +590,10 @@ struct AdvancedSettingsView: View {
 
                 if updateAvailable, let version = latestVersion {
                     Text("v\(version) available")
-                        .font(.system(size: 11, weight: .semibold))
+                        .font(.system(size: DSFont.Size.sm, weight: .semibold))
                         .foregroundStyle(.white)
-                        .padding(.horizontal, 8)
-                        .padding(.vertical, 4)
+                        .padding(.horizontal, DSSpace.s2)
+                        .padding(.vertical, DSSpace.s1)
                         .background(Color.accentColor)
                         .clipShape(Capsule())
                         .transition(.opacity)
@@ -605,15 +605,15 @@ struct AdvancedSettingsView: View {
             // Development build indicator
             HStack(spacing: 10) {
                 Image(systemName: "hammer.fill")
-                    .font(.system(size: 14))
+                    .font(.system(size: DSFont.Size.md))
                     .foregroundStyle(.orange)
 
                 Text("Development Build — update checks use dev-appcast.xml")
-                    .font(.system(size: 11))
+                    .font(.system(size: DSFont.Size.sm))
                     .foregroundStyle(.secondary)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(10)
+            .padding(DSSpace.s3)
             .background(Color.orange.opacity(0.08))
             .clipShape(RoundedRectangle(cornerRadius: 6))
             #endif
@@ -622,30 +622,30 @@ struct AdvancedSettingsView: View {
             if updateCheckEnabled && !updateAvailable {
                 HStack(spacing: 10) {
                     Image(systemName: "checkmark.circle.fill")
-                        .font(.system(size: 14))
+                        .font(.system(size: DSFont.Size.md))
                         .foregroundStyle(.green)
 
                     Text("Auto-updates on. We'll notify you of new versions.")
-                        .font(.system(size: 11))
+                        .font(.system(size: DSFont.Size.sm))
                         .foregroundStyle(.secondary)
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(10)
+                .padding(DSSpace.s3)
                 .background(Color.green.opacity(0.08))
                 .clipShape(RoundedRectangle(cornerRadius: 6))
                 .transition(.opacity)
             } else if !updateCheckEnabled && !updateAvailable {
                 HStack(spacing: 10) {
                     Image(systemName: "info.circle.fill")
-                        .font(.system(size: 14))
+                        .font(.system(size: DSFont.Size.md))
                         .foregroundStyle(.secondary)
 
                     Text("Automatic updates are off. Use Check Now to look for updates.")
-                        .font(.system(size: 11))
+                        .font(.system(size: DSFont.Size.sm))
                         .foregroundStyle(.secondary)
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(10)
+                .padding(DSSpace.s3)
                 .background(Color.gray.opacity(0.08))
                 .clipShape(RoundedRectangle(cornerRadius: 6))
                 .transition(.opacity)
@@ -662,7 +662,7 @@ struct AdvancedSettingsView: View {
                     }
                 ))
                 .toggleStyle(.checkbox)
-                .font(.system(size: 12))
+                .font(.system(size: DSFont.Size.body))
                 .accessibilityLabel("Check for updates automatically")
                 .accessibilityHint("Enables periodic background checks for new versions")
                 .accessibilityValue(updateCheckEnabled ? "Enabled" : "Disabled")
@@ -690,7 +690,7 @@ struct AdvancedSettingsView: View {
                             .frame(width: 14, height: 14)
                     } else {
                         Text("Check Now")
-                            .font(.system(size: 12, weight: .medium))
+                            .font(.system(size: DSFont.Size.body, weight: .medium))
                     }
                 }
                 .buttonStyle(.bordered)
@@ -753,10 +753,10 @@ struct AdvancedSettingsView: View {
                     HStack {
                         VStack(alignment: .leading, spacing: 4) {
                             Text("Software Update")
-                                .font(.system(size: 13, weight: .semibold))
+                                .font(.system(size: DSFont.Size.base, weight: .semibold))
                             
                             Text("Current version: 1.1.0")
-                                .font(.system(size: 12))
+                                .font(.system(size: DSFont.Size.body))
                                 .foregroundStyle(.secondary)
                         }
                         Spacer()
@@ -767,7 +767,7 @@ struct AdvancedSettingsView: View {
                     HStack {
                         Toggle("Check automatically", isOn: .constant(true))
                             .toggleStyle(.checkbox)
-                            .font(.system(size: 12))
+                            .font(.system(size: DSFont.Size.body))
                         
                         Spacer()
                         

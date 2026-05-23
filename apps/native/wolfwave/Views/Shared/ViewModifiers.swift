@@ -144,7 +144,7 @@ extension View {
 struct SectionHeaderModifier: ViewModifier {
     func body(content: Content) -> some View {
         content
-            .font(.system(size: 17, weight: .semibold))
+            .font(.system(size: DSFont.Size.lg, weight: .semibold))
     }
 }
 
@@ -161,7 +161,7 @@ extension View {
 struct SectionSubHeaderModifier: ViewModifier {
     func body(content: Content) -> some View {
         content
-            .font(.system(size: 15, weight: .semibold))
+            .font(.system(size: DSFont.Size.x15, weight: .semibold))
     }
 }
 

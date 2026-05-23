@@ -71,14 +71,14 @@ struct DiscordButtonConfigRow: View {
                     }
 
                     Text("\(customLabel.count)/\(AppConstants.Discord.buttonLabelMaxLength)")
-                        .font(.system(size: 10, design: .monospaced))
+                        .font(.system(size: DSFont.Size.xs, design: .monospaced))
                         .foregroundStyle(.tertiary)
                         .monospacedDigit()
                         .frame(minWidth: 38, alignment: .trailing)
                 }
 
                 Text(urlPreviewText)
-                    .font(.system(size: 10, design: .monospaced))
+                    .font(.system(size: DSFont.Size.xs, design: .monospaced))
                     .foregroundStyle(.tertiary)
                     .lineLimit(1)
                     .truncationMode(.middle)

@@ -78,6 +78,14 @@ export const tokens = {
       "systemAppleDisplay": "-apple-system, BlinkMacSystemFont, \"SF Pro Display\", system-ui, sans-serif"
     },
     "size": {
+      "9": 9,
+      "15": 15,
+      "16": 16,
+      "18": 18,
+      "24": 24,
+      "26": 26,
+      "28": 28,
+      "36": 36,
       "xs": 10,
       "sm": 11,
       "body": 12,
@@ -95,6 +103,7 @@ export const tokens = {
     }
   },
   "space": {
+    "0": 2,
     "1": 4,
     "2": 8,
     "3": 10,
@@ -103,7 +112,9 @@ export const tokens = {
     "6": 16,
     "7": 20,
     "8": 24,
-    "9": 28
+    "9": 28,
+    "10": 32,
+    "11": 44
   },
   "radius": {
     "xs": 4,

@@ -48,12 +48,12 @@ struct OnboardingAppleMusicStepView: View {
 
             VStack(spacing: 6) {
                 Text("Let WolfWave see what's playing")
-                    .font(.system(size: 20, weight: .bold))
+                    .font(.system(size: DSFont.Size.xl, weight: .bold))
                     .multilineTextAlignment(.center)
                     .fixedSize(horizontal: false, vertical: true)
 
                 Text("WolfWave reads the current track from the Music app. We never play, pause, skip, or change your library.")
-                    .font(.system(size: 13))
+                    .font(.system(size: DSFont.Size.base))
                     .foregroundStyle(.secondary)
                     .multilineTextAlignment(.center)
                     .frame(maxWidth: 460)
@@ -62,7 +62,7 @@ struct OnboardingAppleMusicStepView: View {
 
             content
                 .frame(maxWidth: 440)
-                .padding(.horizontal, 24)
+                .padding(.horizontal, DSSpace.s8)
                 .animation(.easeInOut(duration: 0.20), value: permissionState)
 
             Spacer(minLength: 0)
@@ -77,13 +77,13 @@ struct OnboardingAppleMusicStepView: View {
         case .granted:
             HStack(spacing: 10) {
                 Image(systemName: "checkmark.circle.fill")
-                    .font(.system(size: 18))
+                    .font(.system(size: DSFont.Size.x18))
                     .foregroundStyle(.green)
                 Text("Access granted. Sync Music is on.")
-                    .font(.system(size: 13))
+                    .font(.system(size: DSFont.Size.base))
                     .foregroundStyle(.primary)
             }
-            .padding(12)
+            .padding(DSSpace.s4)
             .frame(maxWidth: .infinity, alignment: .leading)
             .cardStyle()
 
@@ -93,11 +93,11 @@ struct OnboardingAppleMusicStepView: View {
                     Image(systemName: "exclamationmark.triangle.fill")
                         .foregroundStyle(.orange)
                     Text("Access was denied. Enable in **System Settings → Privacy & Security → Automation → WolfWave → Music**.")
-                        .font(.system(size: 12))
+                        .font(.system(size: DSFont.Size.body))
                         .foregroundStyle(.primary)
                         .fixedSize(horizontal: false, vertical: true)
                 }
-                .padding(12)
+                .padding(DSSpace.s4)
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .background(
                     RoundedRectangle(cornerRadius: 10, style: .continuous)
@@ -155,7 +155,7 @@ struct OnboardingAppleMusicStepView: View {
                 .accessibilityIdentifier("onboardingAppleMusicGrant")
 
                 Text("macOS will ask once. You can change this later in System Settings → Privacy → Automation.")
-                    .font(.system(size: 11))
+                    .font(.system(size: DSFont.Size.sm))
                     .foregroundStyle(.tertiary)
                     .multilineTextAlignment(.center)
             }

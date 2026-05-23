@@ -34,7 +34,7 @@ struct DeviceCodeView: View {
         VStack(alignment: .leading, spacing: 12) {
             // Header: subtle label
             Text("Sign-in Code")
-                .font(.system(size: 11, weight: .medium))
+                .font(.system(size: DSFont.Size.sm, weight: .medium))
                 .foregroundStyle(.secondary)
                 .transition(.move(edge: .top).combined(with: .opacity))
 
@@ -42,7 +42,7 @@ struct DeviceCodeView: View {
             // Code container - monospaced, larger and calm
             HStack(spacing: 8) {
                 Text(userCode)
-                    .font(.system(size: 28, weight: .medium, design: .monospaced))
+                    .font(.system(size: DSFont.Size.x28, weight: .medium, design: .monospaced))
                     .foregroundStyle(.primary)
                     .lineLimit(1)
                     .minimumScaleFactor(0.6)
@@ -54,7 +54,7 @@ struct DeviceCodeView: View {
                 // Always-visible copy button (subtle by default, highlighted on hover or when copied)
                 Button(action: copyDeviceCode) {
                     Image(systemName: isCodeCopied ? "checkmark.circle.fill" : "doc.on.doc")
-                        .font(.system(size: 14, weight: .regular))
+                        .font(.system(size: DSFont.Size.md, weight: .regular))
                         .foregroundStyle(isCodeCopied ? .green : .secondary)
                         .frame(width: 28, height: 28)
                 }
@@ -68,7 +68,7 @@ struct DeviceCodeView: View {
                 .animation(.easeInOut(duration: 0.12), value: isHovering || isCodeCopied)
             }
             .transition(.move(edge: .top).combined(with: .opacity))
-            .padding(12)
+            .padding(DSSpace.s4)
             .background(Color(nsColor: .controlBackgroundColor))
             .overlay(
                 RoundedRectangle(cornerRadius: 8)
@@ -93,9 +93,9 @@ struct DeviceCodeView: View {
             Button(action: openActivationURL) {
                 HStack(spacing: 6) {
                     Text("Continue to Twitch to sign in")
-                        .font(.system(size: 12, weight: .medium))
+                        .font(.system(size: DSFont.Size.body, weight: .medium))
                     Image(systemName: "arrow.up.right")
-                        .font(.system(size: 10, weight: .semibold))
+                        .font(.system(size: DSFont.Size.xs, weight: .semibold))
                 }
                 .frame(maxWidth: .infinity)
                 .frame(height: 30)
@@ -110,7 +110,7 @@ struct DeviceCodeView: View {
         // Position the small "copied" toast near the copy button (top-right)
         .overlay(
             copyFeedbackView
-                .padding(.trailing, 6)
+                .padding(.trailing, DSSpace.s2)
                 .offset(x: -8, y: -8),
             alignment: .topTrailing
         )
@@ -161,10 +161,10 @@ struct DeviceCodeView: View {
                 Image(systemName: "checkmark.circle.fill")
                     .foregroundStyle(.green)
                 Text("Copied to clipboard")
-                    .font(.system(size: 12, weight: .semibold))
+                    .font(.system(size: DSFont.Size.body, weight: .semibold))
             }
-            .padding(.horizontal, 12)
-            .padding(.vertical, 8)
+            .padding(.horizontal, DSSpace.s4)
+            .padding(.vertical, DSSpace.s2)
             .background(
                 Color(nsColor: .windowBackgroundColor).opacity(0.98)
             )
@@ -191,7 +191,7 @@ struct DeviceCodeView: View {
             onCopy: { }
         )
     }
-    .padding(24)
+    .padding(DSSpace.s8)
     .frame(width: 500)
 }
 #Preview("Long Code") {
@@ -200,14 +200,14 @@ struct DeviceCodeView: View {
         verificationURI: "https://www.twitch.tv/activate",
         onCopy: { }
     )
-    .padding(24)
+    .padding(DSSpace.s8)
     .frame(width: 500)
 }
 
 #Preview("Compact Card") {
     VStack(alignment: .leading, spacing: 12) {
         Text("Enter this code on Twitch")
-            .font(.system(size: 13))
+            .font(.system(size: DSFont.Size.base))
             .foregroundStyle(.secondary)
         
         DeviceCodeView(
@@ -220,7 +220,7 @@ struct DeviceCodeView: View {
     .padding()
     .background(Color(nsColor: .controlBackgroundColor))
     .clipShape(RoundedRectangle(cornerRadius: 12))
-    .padding(24)
+    .padding(DSSpace.s8)
     .frame(width: 400)
 }
 

@@ -167,15 +167,15 @@ fileprivate struct WebSocketServerCard: View {
                 }
             )
             .padding(.horizontal, cardPadding)
-            .padding(.vertical, 12)
+            .padding(.vertical, DSSpace.s4)
 
             Divider().padding(.leading, cardPadding)
 
             HStack(spacing: 12) {
                 VStack(alignment: .leading, spacing: 2) {
-                    Text("Port").font(.system(size: 13, weight: .medium))
+                    Text("Port").font(.system(size: DSFont.Size.base, weight: .medium))
                     Text(verbatim: "Default: \(AppConstants.WebSocketServer.defaultPort)")
-                        .font(.system(size: 11))
+                        .font(.system(size: DSFont.Size.sm))
                         .foregroundStyle(.tertiary)
                 }
                 Spacer()
@@ -189,32 +189,32 @@ fileprivate struct WebSocketServerCard: View {
                     .onSubmit { applyPort() }
             }
             .padding(.horizontal, cardPadding)
-            .padding(.vertical, 12)
+            .padding(.vertical, DSSpace.s4)
             .opacity(websocketEnabled ? 0.5 : 1.0)
 
             if !portText.isEmpty && !isPortValid {
                 HStack(spacing: 6) {
                     Image(systemName: "exclamationmark.circle.fill")
-                        .font(.system(size: 11))
+                        .font(.system(size: DSFont.Size.sm))
                     Text(verbatim: "Port must be between \(AppConstants.WebSocketServer.minPort) and \(AppConstants.WebSocketServer.maxPort).")
-                        .font(.system(size: 11))
+                        .font(.system(size: DSFont.Size.sm))
                 }
                 .foregroundStyle(.red)
                 .padding(.horizontal, cardPadding)
-                .padding(.bottom, 8)
+                .padding(.bottom, DSSpace.s2)
             }
 
             if websocketEnabled {
                 HStack(spacing: 6) {
                     Image(systemName: "lock.fill")
-                        .font(.system(size: 11))
+                        .font(.system(size: DSFont.Size.sm))
                         .foregroundStyle(.secondary)
                     Text("Disable the server to change the port.")
-                        .font(.system(size: 11))
+                        .font(.system(size: DSFont.Size.sm))
                         .foregroundStyle(.secondary)
                 }
                 .padding(.horizontal, cardPadding)
-                .padding(.bottom, 8)
+                .padding(.bottom, DSSpace.s2)
             }
 
             Divider().padding(.leading, cardPadding)
@@ -222,10 +222,10 @@ fileprivate struct WebSocketServerCard: View {
             HStack(spacing: 8) {
                 VStack(alignment: .leading, spacing: 2) {
                     Text("Local Address")
-                        .font(.system(size: 11, weight: .medium))
+                        .font(.system(size: DSFont.Size.sm, weight: .medium))
                         .foregroundStyle(.secondary)
                     Text(connectionURL)
-                        .font(.system(size: 12, design: .monospaced))
+                        .font(.system(size: DSFont.Size.body, design: .monospaced))
                         .textSelection(.enabled)
                 }
                 Spacer()
@@ -237,7 +237,7 @@ fileprivate struct WebSocketServerCard: View {
                 )
             }
             .padding(.horizontal, cardPadding)
-            .padding(.vertical, 12)
+            .padding(.vertical, DSSpace.s4)
 
             Group {
                 if let networkURL = networkConnectionURL {
@@ -246,14 +246,14 @@ fileprivate struct WebSocketServerCard: View {
                         HStack(spacing: 8) {
                             VStack(alignment: .leading, spacing: 2) {
                                 Text("Network Address")
-                                    .font(.system(size: 11, weight: .medium))
+                                    .font(.system(size: DSFont.Size.sm, weight: .medium))
                                     .foregroundStyle(.secondary)
                                 Text(networkURL)
-                                    .font(.system(size: 12, design: .monospaced))
+                                    .font(.system(size: DSFont.Size.body, design: .monospaced))
                                     .textSelection(.enabled)
                                     .contentTransition(.opacity)
                                 Text("Use this for two-PC setups.")
-                                    .font(.system(size: 10))
+                                    .font(.system(size: DSFont.Size.xs))
                                     .foregroundStyle(.tertiary)
                             }
                             Spacer()
@@ -265,7 +265,7 @@ fileprivate struct WebSocketServerCard: View {
                             )
                         }
                         .padding(.horizontal, cardPadding)
-                        .padding(.vertical, 12)
+                        .padding(.vertical, DSSpace.s4)
                     }
                     .id(networkURL)
                     .transition(.opacity.combined(with: .move(edge: .top)))
@@ -342,18 +342,18 @@ fileprivate struct WebSocketBrowserSourceCard: View {
             VStack(alignment: .leading, spacing: 6) {
                 HStack(spacing: 8) {
                     Image(systemName: "rectangle.inset.filled.and.person.filled")
-                        .font(.system(size: 14))
+                        .font(.system(size: DSFont.Size.md))
                         .foregroundStyle(Color(nsColor: .controlAccentColor))
                     Text("Widget Setup").sectionSubHeader()
                 }
                 Text("Use this link in OBS (Browser Source) or open it in any browser.")
-                    .font(.system(size: 12))
+                    .font(.system(size: DSFont.Size.body))
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
             }
             .padding(.horizontal, cardPadding)
             .padding(.top, cardPadding)
-            .padding(.bottom, 12)
+            .padding(.bottom, DSSpace.s4)
 
             Divider().padding(.leading, cardPadding)
 
@@ -372,16 +372,16 @@ fileprivate struct WebSocketBrowserSourceCard: View {
                 }
             )
             .padding(.horizontal, cardPadding)
-            .padding(.vertical, 12)
+            .padding(.vertical, DSSpace.s4)
             .opacity(websocketEnabled ? 1.0 : 0.5)
 
             Divider().padding(.leading, cardPadding)
 
             HStack(spacing: 12) {
                 VStack(alignment: .leading, spacing: 2) {
-                    Text("Widget Port (Advanced)").font(.system(size: 13, weight: .medium))
+                    Text("Widget Port (Advanced)").font(.system(size: DSFont.Size.base, weight: .medium))
                     Text(verbatim: "Default: \(AppConstants.WebSocketServer.widgetDefaultPort)")
-                        .font(.system(size: 11))
+                        .font(.system(size: DSFont.Size.sm))
                         .foregroundStyle(.tertiary)
                 }
                 Spacer()
@@ -395,39 +395,39 @@ fileprivate struct WebSocketBrowserSourceCard: View {
                     .onSubmit { applyWidgetPort() }
             }
             .padding(.horizontal, cardPadding)
-            .padding(.vertical, 12)
+            .padding(.vertical, DSSpace.s4)
             .opacity(websocketEnabled && widgetHTTPEnabled ? 1.0 : 0.5)
 
             if !widgetPortText.isEmpty && !isWidgetPortValid {
                 HStack(spacing: 6) {
                     Image(systemName: "exclamationmark.circle.fill")
-                        .font(.system(size: 11))
+                        .font(.system(size: DSFont.Size.sm))
                     Text(verbatim: "Port must be between \(AppConstants.WebSocketServer.minPort) and \(AppConstants.WebSocketServer.maxPort).")
-                        .font(.system(size: 11))
+                        .font(.system(size: DSFont.Size.sm))
                 }
                 .foregroundStyle(.red)
                 .padding(.horizontal, cardPadding)
-                .padding(.bottom, 8)
+                .padding(.bottom, DSSpace.s2)
             }
 
             if widgetHTTPEnabled {
                 HStack(spacing: 6) {
                     Image(systemName: "lock.fill")
-                        .font(.system(size: 11))
+                        .font(.system(size: DSFont.Size.sm))
                         .foregroundStyle(.secondary)
                     Text("Disable the widget server to change the port.")
-                        .font(.system(size: 11))
+                        .font(.system(size: DSFont.Size.sm))
                         .foregroundStyle(.secondary)
                 }
                 .padding(.horizontal, cardPadding)
-                .padding(.bottom, 8)
+                .padding(.bottom, DSSpace.s2)
             }
 
             Divider().padding(.leading, cardPadding)
 
             VStack(alignment: .leading, spacing: 8) {
                 Text(widgetURL)
-                    .font(.system(size: 11, design: .monospaced))
+                    .font(.system(size: DSFont.Size.sm, design: .monospaced))
                     .textSelection(.enabled)
                     .lineLimit(2)
                     .fixedSize(horizontal: false, vertical: true)
@@ -446,8 +446,8 @@ fileprivate struct WebSocketBrowserSourceCard: View {
                         }
                     } label: {
                         HStack(spacing: 4) {
-                            Image(systemName: "safari").font(.system(size: 11))
-                            Text("Open").font(.system(size: 11))
+                            Image(systemName: "safari").font(.system(size: DSFont.Size.sm))
+                            Text("Open").font(.system(size: DSFont.Size.sm))
                         }
                     }
                     .buttonStyle(.bordered)
@@ -459,7 +459,7 @@ fileprivate struct WebSocketBrowserSourceCard: View {
                 }
             }
             .padding(.horizontal, cardPadding)
-            .padding(.vertical, 12)
+            .padding(.vertical, DSSpace.s4)
 
             Group {
                 if let networkWidget = networkWidgetURL {
@@ -468,14 +468,14 @@ fileprivate struct WebSocketBrowserSourceCard: View {
                         HStack(spacing: 8) {
                             VStack(alignment: .leading, spacing: 2) {
                                 Text("Network Address")
-                                    .font(.system(size: 11, weight: .medium))
+                                    .font(.system(size: DSFont.Size.sm, weight: .medium))
                                     .foregroundStyle(.secondary)
                                 Text(networkWidget)
-                                    .font(.system(size: 12, design: .monospaced))
+                                    .font(.system(size: DSFont.Size.body, design: .monospaced))
                                     .textSelection(.enabled)
                                     .contentTransition(.opacity)
                                 Text("Use this for two-PC setups.")
-                                    .font(.system(size: 10))
+                                    .font(.system(size: DSFont.Size.xs))
                                     .foregroundStyle(.tertiary)
                             }
                             Spacer()
@@ -494,8 +494,8 @@ fileprivate struct WebSocketBrowserSourceCard: View {
                                     }
                                 } label: {
                                     HStack(spacing: 4) {
-                                        Image(systemName: "safari").font(.system(size: 11))
-                                        Text("Open").font(.system(size: 11))
+                                        Image(systemName: "safari").font(.system(size: DSFont.Size.sm))
+                                        Text("Open").font(.system(size: DSFont.Size.sm))
                                     }
                                 }
                                 .buttonStyle(.bordered)
@@ -506,7 +506,7 @@ fileprivate struct WebSocketBrowserSourceCard: View {
                             }
                         }
                         .padding(.horizontal, cardPadding)
-                        .padding(.vertical, 12)
+                        .padding(.vertical, DSSpace.s4)
                     }
                     .id(networkWidget)
                     .transition(.opacity.combined(with: .move(edge: .top)))
@@ -518,19 +518,19 @@ fileprivate struct WebSocketBrowserSourceCard: View {
 
             HStack(alignment: .top, spacing: 8) {
                 Image(systemName: "info.circle.fill")
-                    .font(.system(size: 12))
+                    .font(.system(size: DSFont.Size.body))
                     .foregroundStyle(.blue)
                 Text("In OBS, set the Width and Height to **\(AppConstants.Widget.recommendedDimensionsText)** for best results. Enable \"Shutdown source when not visible\" so the widget reconnects properly.")
-                    .font(.system(size: 11))
+                    .font(.system(size: DSFont.Size.sm))
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
             }
-            .padding(10)
+            .padding(DSSpace.s3)
             .frame(maxWidth: .infinity, alignment: .leading)
             .background(Color.blue.opacity(0.08))
             .clipShape(RoundedRectangle(cornerRadius: 6))
             .padding(.horizontal, cardPadding)
-            .padding(.top, 12)
+            .padding(.top, DSSpace.s4)
             .padding(.bottom, cardPadding)
         }
         .background(Color(nsColor: .controlBackgroundColor))
@@ -601,24 +601,24 @@ fileprivate struct WebSocketWidgetAppearanceCard: View {
             VStack(alignment: .leading, spacing: 6) {
                 HStack(spacing: 8) {
                     Image(systemName: "paintbrush.fill")
-                        .font(.system(size: 14))
+                        .font(.system(size: DSFont.Size.md))
                         .foregroundStyle(Color(nsColor: .controlAccentColor))
                     Text("Widget Appearance").sectionSubHeader()
                 }
                 Text("Tweak colors, fonts, and layout for your widget.")
-                    .font(.system(size: 12))
+                    .font(.system(size: DSFont.Size.body))
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
             }
             .padding(.horizontal, cardPadding)
             .padding(.top, cardPadding)
-            .padding(.bottom, 12)
+            .padding(.bottom, DSSpace.s4)
 
             Divider().padding(.leading, cardPadding)
 
             HStack(spacing: 0) {
                 HStack(spacing: 8) {
-                    Text("Theme").font(.system(size: 13, weight: .medium))
+                    Text("Theme").font(.system(size: DSFont.Size.base, weight: .medium))
                     Spacer()
                     Picker("", selection: $widgetTheme) {
                         ForEach(AppConstants.Widget.themes, id: \.self) { theme in
@@ -637,7 +637,7 @@ fileprivate struct WebSocketWidgetAppearanceCard: View {
                 Divider()
 
                 HStack(spacing: 8) {
-                    Text("Layout").font(.system(size: 13, weight: .medium))
+                    Text("Layout").font(.system(size: DSFont.Size.base, weight: .medium))
                     Spacer()
                     Picker("", selection: $widgetLayout) {
                         ForEach(AppConstants.Widget.layouts, id: \.self) { layout in
@@ -653,14 +653,14 @@ fileprivate struct WebSocketWidgetAppearanceCard: View {
                 .padding(.horizontal, cardPadding)
                 .frame(maxWidth: .infinity)
             }
-            .padding(.vertical, 12)
+            .padding(.vertical, DSSpace.s4)
 
             if widgetTheme == "Default" || widgetTheme == "Glass" {
                 Divider().padding(.leading, cardPadding)
 
                 HStack(spacing: 0) {
                     HStack(spacing: 8) {
-                        Text("Text Color").font(.system(size: 13, weight: .medium))
+                        Text("Text Color").font(.system(size: DSFont.Size.base, weight: .medium))
                         Spacer()
                         ColorPicker("", selection: textColorBinding, supportsOpacity: false)
                             .labelsHidden()
@@ -674,7 +674,7 @@ fileprivate struct WebSocketWidgetAppearanceCard: View {
                     Divider()
 
                     HStack(spacing: 8) {
-                        Text("Bg Color").font(.system(size: 13, weight: .medium))
+                        Text("Bg Color").font(.system(size: DSFont.Size.base, weight: .medium))
                         Spacer()
                         ColorPicker("", selection: backgroundColorBinding, supportsOpacity: false)
                             .labelsHidden()
@@ -685,13 +685,13 @@ fileprivate struct WebSocketWidgetAppearanceCard: View {
                     .padding(.horizontal, cardPadding)
                     .frame(maxWidth: .infinity)
                 }
-                .padding(.vertical, 12)
+                .padding(.vertical, DSSpace.s4)
             }
 
             Divider().padding(.leading, cardPadding)
 
             HStack(spacing: 12) {
-                Text("Font").font(.system(size: 13, weight: .medium))
+                Text("Font").font(.system(size: DSFont.Size.base, weight: .medium))
                 Spacer()
                 Picker("", selection: $widgetFontFamily) {
                     Text("System Default").tag("System Default")
@@ -709,7 +709,7 @@ fileprivate struct WebSocketWidgetAppearanceCard: View {
                 .onChange(of: widgetFontFamily) { _, _ in broadcastWidgetConfig() }
             }
             .padding(.horizontal, cardPadding)
-            .padding(.vertical, 12)
+            .padding(.vertical, DSSpace.s4)
         }
         .background(Color(nsColor: .controlBackgroundColor))
         .clipShape(RoundedRectangle(cornerRadius: AppConstants.SettingsUI.cardCornerRadius))

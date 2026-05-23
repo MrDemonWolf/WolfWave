@@ -40,13 +40,13 @@ struct CopyButton: View {
             if let label, let copiedLabel {
                 HStack(spacing: 4) {
                     Image(systemName: copied ? "checkmark" : "doc.on.doc")
-                        .font(.system(size: 11))
+                        .font(.system(size: DSFont.Size.sm))
                     Text(copied ? copiedLabel : label)
-                        .font(.system(size: 11))
+                        .font(.system(size: DSFont.Size.sm))
                 }
             } else {
                 Image(systemName: copied ? "checkmark" : "doc.on.doc")
-                    .font(.system(size: 11))
+                    .font(.system(size: DSFont.Size.sm))
             }
         }
         .modifier(CopyButtonStyleModifier(style: buttonStyle))

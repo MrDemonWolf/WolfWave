@@ -57,6 +57,7 @@ All notable changes to this project will be documented in this file.
 - **AdvancedSettingsView** — refactored to use the shared `cardStyle()` helper for consistent material + corner radii (#52).
 - **User-facing wording** — tightened copy across onboarding, settings, and the menu bar for fewer words and clearer verbs (#47).
 - **Test suite consolidation** — merged `SongCommandTests` + `LastSongCommandTests` into a single parameterised `TrackInfoCommandTests`; renamed `MusicPlaybackMonitorTests` → `AppleMusicSourceTests` to match the post-refactor class names. 408 tests across 30 files, all passing.
+- **Design-token migration completed** — settings views now read from `DSFont` and `DSSpace` across every view file; no hardcoded `.font(.system(size:))` or `.padding(N)` literals remain in `apps/native/wolfwave/Views/`. Added missing tokens (`x9/x15/x16/x18/x24/x26/x28/x36` font sizes, `s0/s10/s11` space) to `design-system/tokens.json`.
 
 ### Performance
 

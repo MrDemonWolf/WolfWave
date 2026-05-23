@@ -57,7 +57,7 @@ struct DiscordPreviewCard: View {
             content
             buttons
         }
-        .padding(14)
+        .padding(DSSpace.s5)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(cardBackground)
         .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
@@ -74,9 +74,9 @@ struct DiscordPreviewCard: View {
     private var header: some View {
         HStack(spacing: 6) {
             Image(systemName: "headphones")
-                .font(.system(size: 11, weight: .semibold))
+                .font(.system(size: DSFont.Size.sm, weight: .semibold))
             Text("LISTENING TO APPLE MUSIC")
-                .font(.system(size: 11, weight: .semibold))
+                .font(.system(size: DSFont.Size.sm, weight: .semibold))
                 .kerning(0.6)
         }
         .foregroundStyle(AppConstants.Brand.discord)
@@ -87,19 +87,19 @@ struct DiscordPreviewCard: View {
             artworkView
             VStack(alignment: .leading, spacing: 3) {
                 Text(trackTitle)
-                    .font(.system(size: 14, weight: .semibold))
+                    .font(.system(size: DSFont.Size.md, weight: .semibold))
                     .foregroundStyle(.white)
                     .lineLimit(1)
                 Text(artist)
-                    .font(.system(size: 13))
+                    .font(.system(size: DSFont.Size.base))
                     .foregroundStyle(Color.white.opacity(0.85))
                     .lineLimit(1)
                 Text(album)
-                    .font(.system(size: 12))
+                    .font(.system(size: DSFont.Size.body))
                     .foregroundStyle(Color.white.opacity(0.55))
                     .lineLimit(1)
                 progressBar
-                    .padding(.top, 4)
+                    .padding(.top, DSSpace.s1)
             }
         }
     }
@@ -124,7 +124,7 @@ struct DiscordPreviewCard: View {
             .clipShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
 
             Image(systemName: "music.note")
-                .font(.system(size: 10, weight: .bold))
+                .font(.system(size: DSFont.Size.xs, weight: .bold))
                 .foregroundStyle(.white)
                 .frame(width: 22, height: 22)
                 .background(
@@ -155,7 +155,7 @@ struct DiscordPreviewCard: View {
         )
         .overlay(
             Image(systemName: "music.note")
-                .font(.system(size: 28, weight: .bold))
+                .font(.system(size: DSFont.Size.x28, weight: .bold))
                 .foregroundStyle(.white.opacity(0.8))
         )
     }
@@ -187,7 +187,7 @@ struct DiscordPreviewCard: View {
 
     private func buttonPill(label: String) -> some View {
         Text(label)
-            .font(.system(size: 13, weight: .medium))
+            .font(.system(size: DSFont.Size.base, weight: .medium))
             .foregroundStyle(.white)
             .frame(maxWidth: .infinity)
             .frame(height: 32)

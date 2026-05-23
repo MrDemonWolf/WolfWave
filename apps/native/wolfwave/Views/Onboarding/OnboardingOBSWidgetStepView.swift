@@ -57,10 +57,10 @@ struct OnboardingOBSWidgetStepView: View {
 
             VStack(spacing: 6) {
                 Text("Your overlay, ready to drop in")
-                    .font(.system(size: 20, weight: .bold))
+                    .font(.system(size: DSFont.Size.xl, weight: .bold))
 
                 Text("One toggle. We'll give you the URL to paste into OBS.")
-                    .font(.system(size: 13))
+                    .font(.system(size: DSFont.Size.base))
                     .foregroundStyle(.secondary)
                     .multilineTextAlignment(.center)
                     .frame(maxWidth: 440)
@@ -69,11 +69,11 @@ struct OnboardingOBSWidgetStepView: View {
 
             overlayToggleCard
                 .frame(maxWidth: 440)
-                .padding(.horizontal, 24)
+                .padding(.horizontal, DSSpace.s8)
 
             urlReveal
                 .frame(maxWidth: 440)
-                .padding(.horizontal, 24)
+                .padding(.horizontal, DSSpace.s8)
 
             Spacer(minLength: 0)
         }
@@ -94,7 +94,7 @@ struct OnboardingOBSWidgetStepView: View {
             accessibilityLabel: "Turn on Stream Widgets",
             accessibilityIdentifier: "onboardingOverlayToggle"
         )
-        .padding(14)
+        .padding(DSSpace.s5)
         .background(
             RoundedRectangle(cornerRadius: 12, style: .continuous)
                 .fill(overlayEnabled
@@ -124,13 +124,13 @@ struct OnboardingOBSWidgetStepView: View {
         if overlayEnabled {
             VStack(alignment: .leading, spacing: 10) {
                 Text("BROWSER SOURCE URL")
-                    .font(.system(size: 10, weight: .semibold))
+                    .font(.system(size: DSFont.Size.xs, weight: .semibold))
                     .foregroundStyle(.tertiary)
                     .tracking(0.6)
 
                 HStack(spacing: 8) {
                     Text(verbatim: overlayURL)
-                        .font(.system(size: 14, weight: .medium, design: .monospaced))
+                        .font(.system(size: DSFont.Size.md, weight: .medium, design: .monospaced))
                         .foregroundStyle(.primary)
                         .lineLimit(1)
                         .frame(maxWidth: .infinity, alignment: .leading)
@@ -140,8 +140,8 @@ struct OnboardingOBSWidgetStepView: View {
                         accessibilityLabel: "Copy overlay URL"
                     )
                 }
-                .padding(.horizontal, 12)
-                .padding(.vertical, 10)
+                .padding(.horizontal, DSSpace.s4)
+                .padding(.vertical, DSSpace.s3)
                 .background(
                     RoundedRectangle(cornerRadius: 8, style: .continuous)
                         .fill(Color(nsColor: .textBackgroundColor))
@@ -152,16 +152,16 @@ struct OnboardingOBSWidgetStepView: View {
                 )
 
                 Text("Paste this into OBS as a Browser Source.")
-                    .font(.system(size: 11))
+                    .font(.system(size: DSFont.Size.sm))
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
 
                 Text("Need the live now-playing feed? Settings → Stream Widgets.")
-                    .font(.system(size: 10))
+                    .font(.system(size: DSFont.Size.xs))
                     .foregroundStyle(.tertiary)
                     .fixedSize(horizontal: false, vertical: true)
             }
-            .padding(12)
+            .padding(DSSpace.s4)
             .background(
                 RoundedRectangle(cornerRadius: 10, style: .continuous)
                     .fill(.regularMaterial)

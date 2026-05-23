@@ -38,7 +38,7 @@ struct OnboardingTwitchStepView: View {
                 }
             }
             .frame(maxWidth: 420)
-            .padding(.horizontal, 24)
+            .padding(.horizontal, DSSpace.s8)
             .animation(.easeInOut(duration: 0.22), value: stateKey)
 
             Spacer(minLength: 0)
@@ -71,10 +71,10 @@ struct OnboardingTwitchStepView: View {
 
             VStack(spacing: 6) {
                 Text("Sign in to Twitch")
-                    .font(.system(size: 20, weight: .bold))
+                    .font(.system(size: DSFont.Size.xl, weight: .bold))
 
                 Text("So !song works in your chat automatically. We only listen — we never post unless you ask.")
-                    .font(.system(size: 13))
+                    .font(.system(size: DSFont.Size.base))
                     .foregroundStyle(.secondary)
                     .multilineTextAlignment(.center)
                     .frame(maxWidth: 420)
@@ -110,7 +110,7 @@ struct OnboardingTwitchStepView: View {
             .accessibilityHint("Opens Twitch sign-in in your browser")
 
             Text("Opens twitch.tv in your browser. Takes about 10 seconds.")
-                .font(.system(size: 11))
+                .font(.system(size: DSFont.Size.sm))
                 .foregroundStyle(.tertiary)
         }
     }
@@ -137,7 +137,7 @@ struct OnboardingTwitchStepView: View {
                     .controlSize(.small)
 
                 Text("Waiting for Twitch\u{2026}")
-                    .font(.system(size: 13))
+                    .font(.system(size: DSFont.Size.base))
                     .foregroundStyle(.secondary)
 
                 Spacer()
@@ -163,18 +163,18 @@ struct OnboardingTwitchStepView: View {
                     .shadow(color: Color.green.opacity(0.40), radius: 8, x: 0, y: 4)
 
                 Image(systemName: "checkmark")
-                    .font(.system(size: 16, weight: .bold))
+                    .font(.system(size: DSFont.Size.x16, weight: .bold))
                     .foregroundStyle(.white)
             }
 
             VStack(alignment: .leading, spacing: 2) {
                 Text("CONNECTED")
-                    .font(.system(size: 10, weight: .semibold))
+                    .font(.system(size: DSFont.Size.xs, weight: .semibold))
                     .foregroundStyle(.tertiary)
                     .tracking(0.6)
 
                 Text("@\(twitchViewModel.botUsername)")
-                    .font(.system(size: 15, weight: .semibold))
+                    .font(.system(size: DSFont.Size.x15, weight: .semibold))
             }
 
             Spacer()
@@ -186,7 +186,7 @@ struct OnboardingTwitchStepView: View {
             .controlSize(.small)
             .pointerCursor()
         }
-        .padding(14)
+        .padding(DSSpace.s5)
         .cardStyle()
         .accessibilityElement(children: .combine)
         .accessibilityLabel("Twitch connected as \(twitchViewModel.botUsername).")
@@ -203,11 +203,11 @@ struct OnboardingTwitchStepView: View {
                 Image(systemName: "exclamationmark.triangle.fill")
                     .foregroundStyle(.orange)
                 Text(message)
-                    .font(.system(size: 13))
+                    .font(.system(size: DSFont.Size.base))
                     .foregroundStyle(.primary)
                     .fixedSize(horizontal: false, vertical: true)
             }
-            .padding(12)
+            .padding(DSSpace.s4)
             .cardStyle()
 
             Button("Try Again") {

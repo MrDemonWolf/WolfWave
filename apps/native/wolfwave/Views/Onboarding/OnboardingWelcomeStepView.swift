@@ -36,11 +36,11 @@ struct OnboardingWelcomeStepView: View {
 
             VStack(spacing: 8) {
                 Text("Welcome to WolfWave")
-                    .font(.system(size: 26, weight: .bold))
+                    .font(.system(size: DSFont.Size.x26, weight: .bold))
                     .opacity(heroVisible ? 1 : 0)
 
                 Text("Share what you're listening to — everywhere.")
-                    .font(.system(size: 14))
+                    .font(.system(size: DSFont.Size.md))
                     .foregroundStyle(.secondary)
                     .multilineTextAlignment(.center)
                     .opacity(taglineVisible ? 1 : 0)
@@ -52,7 +52,7 @@ struct OnboardingWelcomeStepView: View {
 
             Spacer()
         }
-        .padding(.horizontal, 32)
+        .padding(.horizontal, DSSpace.s10)
         .task {
             if reduceMotion {
                 heroVisible = true
@@ -86,8 +86,8 @@ struct OnboardingWelcomeStepView: View {
             dot
             brandChip(systemSymbol: "tv.badge.wifi", color: .accentColor)
         }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 10)
+        .padding(.horizontal, DSSpace.s6)
+        .padding(.vertical, DSSpace.s3)
         .background(
             Capsule(style: .continuous)
                 .fill(.regularMaterial)
@@ -131,7 +131,7 @@ struct OnboardingWelcomeStepView: View {
     @ViewBuilder
     private func brandChip(systemSymbol: String, color: Color) -> some View {
         Image(systemName: systemSymbol)
-            .font(.system(size: 14, weight: .semibold))
+            .font(.system(size: DSFont.Size.md, weight: .semibold))
             .foregroundStyle(color)
             .frame(width: 18, height: 16)
     }

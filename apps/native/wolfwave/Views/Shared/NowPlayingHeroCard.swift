@@ -30,31 +30,31 @@ struct NowPlayingHeroCard: View {
 
             VStack(alignment: .leading, spacing: 4) {
                 Text("Now playing")
-                    .font(.system(size: 11, weight: .semibold))
+                    .font(.system(size: DSFont.Size.sm, weight: .semibold))
                     .foregroundStyle(.tertiary)
                     .textCase(.uppercase)
                     .tracking(0.6)
 
                 Text(track ?? (trackingEnabled ? "Nothing playing right now" : "Sync Music is off"))
-                    .font(.system(size: 18, weight: .semibold))
+                    .font(.system(size: DSFont.Size.x18, weight: .semibold))
                     .lineLimit(1)
                     .foregroundStyle(track == nil ? .secondary : .primary)
 
                 if let subtitle = subtitleText {
                     Text(subtitle)
-                        .font(.system(size: 13))
+                        .font(.system(size: DSFont.Size.base))
                         .foregroundStyle(.secondary)
                         .lineLimit(1)
                 }
 
                 if track != nil, duration > 0 {
                     progressBar
-                        .padding(.top, 8)
+                        .padding(.top, DSSpace.s2)
                 }
             }
             Spacer(minLength: 0)
         }
-        .padding(18)
+        .padding(DSSpace.s7)
         .glassEffect(.regular, in: .rect(cornerRadius: AppConstants.SettingsUI.cardCornerRadius))
         .accessibilityElement(children: .combine)
         .accessibilityLabel(accessibilityLabel)
@@ -71,7 +71,7 @@ struct NowPlayingHeroCard: View {
                 RoundedRectangle(cornerRadius: 10, style: .continuous)
                     .fill(.quaternary.opacity(0.6))
                 Image(systemName: "music.note")
-                    .font(.system(size: 26, weight: .medium))
+                    .font(.system(size: DSFont.Size.x26, weight: .medium))
                     .foregroundStyle(.tertiary)
             }
             .frame(width: 92, height: 92)
@@ -88,7 +88,7 @@ struct NowPlayingHeroCard: View {
                 .frame(height: 3)
 
             Text("\(timeString(elapsed)) / \(timeString(duration))")
-                .font(.system(size: 11, design: .monospaced))
+                .font(.system(size: DSFont.Size.sm, design: .monospaced))
                 .foregroundStyle(.secondary)
                 .monospacedDigit()
         }

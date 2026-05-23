@@ -40,7 +40,7 @@ struct DebugLogsAndEventsCard: View {
     private var logsSection: some View {
         VStack(alignment: .leading, spacing: 8) {
             Text("Log File")
-                .font(.system(size: 12, weight: .semibold))
+                .font(.system(size: DSFont.Size.body, weight: .semibold))
                 .foregroundStyle(.secondary)
                 .textCase(.uppercase)
 
@@ -51,12 +51,12 @@ struct DebugLogsAndEventsCard: View {
             HStack(alignment: .top) {
                 VStack(alignment: .leading, spacing: 2) {
                     Text(url?.path ?? "(no log file)")
-                        .font(.system(size: 11, design: .monospaced))
+                        .font(.system(size: DSFont.Size.sm, design: .monospaced))
                         .lineLimit(2)
                         .truncationMode(.middle)
                         .textSelection(.enabled)
                     Text("\(ByteCountFormatter.string(fromByteCount: size, countStyle: .file)) · \(lines) lines")
-                        .font(.system(size: 11))
+                        .font(.system(size: DSFont.Size.sm))
                         .foregroundStyle(.secondary)
                 }
                 Spacer()
@@ -136,12 +136,12 @@ struct DebugLogsAndEventsCard: View {
     private var firehoseSection: some View {
         VStack(alignment: .leading, spacing: 8) {
             Text("Notification Firehose")
-                .font(.system(size: 12, weight: .semibold))
+                .font(.system(size: DSFont.Size.body, weight: .semibold))
                 .foregroundStyle(.secondary)
                 .textCase(.uppercase)
 
             Text("Post any app notification with optional JSON userInfo.")
-                .font(.system(size: 11))
+                .font(.system(size: DSFont.Size.sm))
                 .foregroundStyle(.secondary)
 
             Picker("Name", selection: $selectedNotification) {
@@ -152,7 +152,7 @@ struct DebugLogsAndEventsCard: View {
             .pickerStyle(.menu)
 
             TextEditor(text: $userInfoJSON)
-                .font(.system(size: 11, design: .monospaced))
+                .font(.system(size: DSFont.Size.sm, design: .monospaced))
                 .frame(minHeight: 60, maxHeight: 100)
                 .overlay(
                     RoundedRectangle(cornerRadius: 6)
@@ -181,7 +181,7 @@ struct DebugLogsAndEventsCard: View {
 
             if let postStatus {
                 Text(postStatus)
-                    .font(.system(size: 11))
+                    .font(.system(size: DSFont.Size.sm))
                     .foregroundStyle(postStatus.hasPrefix("Posted") ? .green : .red)
             }
         }

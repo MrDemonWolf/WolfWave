@@ -35,10 +35,10 @@ struct OnboardingDiscordStepView: View {
 
             VStack(spacing: 6) {
                 Text("Light up your Discord status")
-                    .font(.system(size: 20, weight: .bold))
+                    .font(.system(size: DSFont.Size.xl, weight: .bold))
 
                 Text("Friends see your song, artist, and album art right under your name.")
-                    .font(.system(size: 13))
+                    .font(.system(size: DSFont.Size.base))
                     .foregroundStyle(.secondary)
                     .multilineTextAlignment(.center)
                     .frame(maxWidth: 440)
@@ -60,7 +60,7 @@ struct OnboardingDiscordStepView: View {
                     )
                 }
             )
-            .padding(14)
+            .padding(DSSpace.s5)
             .background(
                 RoundedRectangle(cornerRadius: 12, style: .continuous)
                     .fill(presenceEnabled
@@ -81,11 +81,11 @@ struct OnboardingDiscordStepView: View {
                 radius: 18, x: 0, y: 6
             )
             .frame(maxWidth: 420)
-            .padding(.horizontal, 24)
+            .padding(.horizontal, DSSpace.s8)
             .animation(.easeInOut(duration: 0.20), value: presenceEnabled)
 
             Text("Make sure Discord is open. We talk to it locally — nothing leaves your Mac.")
-                .font(.system(size: 11))
+                .font(.system(size: DSFont.Size.sm))
                 .foregroundStyle(.tertiary)
                 .multilineTextAlignment(.center)
                 .frame(maxWidth: 380)

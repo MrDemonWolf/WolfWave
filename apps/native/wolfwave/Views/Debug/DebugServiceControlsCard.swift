@@ -33,7 +33,7 @@ struct DebugServiceControlsCard: View {
             }
 
             Text("Drive services directly without waiting on real events.")
-                .font(.system(size: 12))
+                .font(.system(size: DSFont.Size.body))
                 .foregroundStyle(.secondary)
 
             playbackSection
@@ -62,7 +62,7 @@ struct DebugServiceControlsCard: View {
             TextField("Playlist", text: $fakePlaylist).textFieldStyle(.roundedBorder)
             HStack {
                 Text("Duration: \(Int(fakeDuration))s")
-                    .font(.system(size: 11))
+                    .font(.system(size: DSFont.Size.sm))
                     .foregroundStyle(.secondary)
                 Slider(value: $fakeDuration, in: 30...600, step: 15)
             }
@@ -101,7 +101,7 @@ struct DebugServiceControlsCard: View {
         VStack(alignment: .leading, spacing: 8) {
             sectionLabel("Twitch")
             Text("Connected: \(appDelegate?.twitchService?.isConnectedSnapshot.value == true ? "yes" : "no")")
-                .font(.system(size: 11))
+                .font(.system(size: DSFont.Size.sm))
                 .foregroundStyle(.secondary)
             HStack {
                 Button {
@@ -299,7 +299,7 @@ struct DebugServiceControlsCard: View {
 
     private func sectionLabel(_ text: String) -> some View {
         Text(text)
-            .font(.system(size: 12, weight: .semibold))
+            .font(.system(size: DSFont.Size.body, weight: .semibold))
             .foregroundStyle(.secondary)
             .textCase(.uppercase)
     }

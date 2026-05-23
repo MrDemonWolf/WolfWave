@@ -21,10 +21,10 @@ struct SuccessFeedbackRow: View {
     var body: some View {
         HStack(spacing: 8) {
             Image(systemName: "checkmark.circle.fill")
-                .font(.system(size: 14))
+                .font(.system(size: DSFont.Size.md))
                 .foregroundStyle(.green)
             Text(text)
-                .font(.system(size: 13, weight: fontWeight))
+                .font(.system(size: DSFont.Size.base, weight: fontWeight))
                 .foregroundStyle(.secondary)
         }
     }

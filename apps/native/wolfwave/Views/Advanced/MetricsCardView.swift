@@ -34,10 +34,10 @@ struct MetricsCardView: View {
         VStack(alignment: .leading, spacing: 12) {
             VStack(alignment: .leading, spacing: 4) {
                 Text("Performance")
-                    .font(.system(size: 13, weight: .semibold))
+                    .font(.system(size: DSFont.Size.base, weight: .semibold))
 
                 Text("Live runtime metrics, refreshed every couple of seconds.")
-                    .font(.system(size: 12))
+                    .font(.system(size: DSFont.Size.body))
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
             }
@@ -57,7 +57,7 @@ struct MetricsCardView: View {
                 Divider()
 
                 Text("Twitch API rate limits")
-                    .font(.system(size: 12, weight: .medium))
+                    .font(.system(size: DSFont.Size.body, weight: .medium))
                     .foregroundStyle(.secondary)
 
                 ForEach(snapshot.twitchRateLimits) { limit in
@@ -80,10 +80,10 @@ struct MetricsCardView: View {
     private func metricRow(_ label: String, _ value: String) -> some View {
         HStack(alignment: .firstTextBaseline) {
             Text(label)
-                .font(.system(size: 12))
+                .font(.system(size: DSFont.Size.body))
             Spacer()
             Text(value)
-                .font(.system(size: 12, weight: .medium))
+                .font(.system(size: DSFont.Size.body, weight: .medium))
                 .foregroundStyle(.secondary)
                 .monospacedDigit()
         }

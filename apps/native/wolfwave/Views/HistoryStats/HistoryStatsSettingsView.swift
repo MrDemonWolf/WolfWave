@@ -89,7 +89,7 @@ struct HistoryStatsSettingsView: View {
 
     private var intro: some View {
         Text("WolfWave can remember what you play — kept on this Mac, never uploaded.")
-            .font(.system(size: 12))
+            .font(.system(size: DSFont.Size.body))
             .foregroundStyle(.secondary)
             .fixedSize(horizontal: false, vertical: true)
     }
@@ -131,17 +131,17 @@ struct HistoryStatsSettingsView: View {
     private var offStateCard: some View {
         VStack(spacing: 8) {
             Image(systemName: "chart.bar.xaxis")
-                .font(.system(size: 28, weight: .light))
+                .font(.system(size: DSFont.Size.x28, weight: .light))
                 .foregroundStyle(.tertiary)
             Text("Nothing is being recorded")
-                .font(.system(size: 13, weight: .medium))
+                .font(.system(size: DSFont.Size.base, weight: .medium))
             Text("Turn on Listening History to start tracking your plays.")
-                .font(.system(size: 11))
+                .font(.system(size: DSFont.Size.sm))
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
         }
         .frame(maxWidth: .infinity)
-        .padding(.vertical, 28)
+        .padding(.vertical, DSSpace.s9)
         .cardStyle()
     }
 
@@ -176,12 +176,12 @@ struct HistoryStatsSettingsView: View {
     private func summaryStat(value: String, unit: String, label: String) -> some View {
         VStack(spacing: 2) {
             Text(value)
-                .font(.system(size: 22, weight: .bold))
+                .font(.system(size: DSFont.Size.x2xl, weight: .bold))
             Text(unit)
-                .font(.system(size: 11))
+                .font(.system(size: DSFont.Size.sm))
                 .foregroundStyle(.secondary)
             Text(label)
-                .font(.system(size: 10, weight: .semibold))
+                .font(.system(size: DSFont.Size.xs, weight: .semibold))
                 .foregroundStyle(.tertiary)
                 .textCase(.uppercase)
                 .tracking(0.5)
@@ -198,15 +198,15 @@ struct HistoryStatsSettingsView: View {
             ForEach(Array(snapshot.topArtists.prefix(5).enumerated()), id: \.element.id) { index, artist in
                 HStack(spacing: 10) {
                     Text("\(index + 1)")
-                        .font(.system(size: 12, weight: .bold, design: .rounded))
+                        .font(.system(size: DSFont.Size.body, weight: .bold, design: .rounded))
                         .foregroundStyle(.secondary)
                         .frame(width: 18, alignment: .leading)
                     Text(artist.name)
-                        .font(.system(size: 13))
+                        .font(.system(size: DSFont.Size.base))
                         .lineLimit(1)
                     Spacer()
                     Text(HistoryFormat.playCount(artist.count))
-                        .font(.system(size: 12))
+                        .font(.system(size: DSFont.Size.body))
                         .foregroundStyle(.secondary)
                 }
             }
@@ -223,29 +223,29 @@ struct HistoryStatsSettingsView: View {
 
             if snapshot.recent.isEmpty {
                 Text("Nothing recorded yet — play something in Apple Music and it'll show up here.")
-                    .font(.system(size: 12))
+                    .font(.system(size: DSFont.Size.body))
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
-                    .padding(.vertical, 4)
+                    .padding(.vertical, DSSpace.s1)
             } else {
                 ForEach(Array(snapshot.recent.enumerated()), id: \.offset) { _, play in
                     HStack(spacing: 10) {
                         Image(systemName: "music.note")
-                            .font(.system(size: 11))
+                            .font(.system(size: DSFont.Size.sm))
                             .foregroundStyle(.secondary)
                             .frame(width: 16)
                         VStack(alignment: .leading, spacing: 1) {
                             Text(play.track)
-                                .font(.system(size: 13))
+                                .font(.system(size: DSFont.Size.base))
                                 .lineLimit(1)
                             Text(play.artist)
-                                .font(.system(size: 11))
+                                .font(.system(size: DSFont.Size.sm))
                                 .foregroundStyle(.secondary)
                                 .lineLimit(1)
                         }
                         Spacer()
                         Text(HistoryFormat.relative(play.timestamp))
-                            .font(.system(size: 11))
+                            .font(.system(size: DSFont.Size.sm))
                             .foregroundStyle(.tertiary)
                     }
                 }
@@ -281,12 +281,12 @@ struct HistoryStatsSettingsView: View {
     private func cooldownRow(title: String, value: Binding<Double>) -> some View {
         HStack(spacing: 12) {
             Text(title)
-                .font(.system(size: 12))
+                .font(.system(size: DSFont.Size.body))
             Spacer()
             Slider(value: value, in: 0...60, step: 5)
                 .frame(width: 160)
             Text("\(Int(value.wrappedValue))s")
-                .font(.system(size: 12, weight: .medium))
+                .font(.system(size: DSFont.Size.body, weight: .medium))
                 .monospacedDigit()
                 .frame(width: 34, alignment: .trailing)
         }
@@ -326,7 +326,7 @@ struct HistoryStatsSettingsView: View {
     private func cardHeader(_ title: String, systemImage: String) -> some View {
         HStack(spacing: 6) {
             Image(systemName: systemImage)
-                .font(.system(size: 11, weight: .semibold))
+                .font(.system(size: DSFont.Size.sm, weight: .semibold))
                 .foregroundStyle(.secondary)
             Text(title)
                 .font(.caption)

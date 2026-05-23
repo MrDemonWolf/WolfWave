@@ -48,7 +48,7 @@ struct DebugInspectorsCard: View {
     private var bundleSection: some View {
         VStack(alignment: .leading, spacing: 6) {
             Text("Bundle & Build")
-                .font(.system(size: 12, weight: .semibold))
+                .font(.system(size: DSFont.Size.body, weight: .semibold))
                 .foregroundStyle(.secondary)
                 .textCase(.uppercase)
 
@@ -79,12 +79,12 @@ struct DebugInspectorsCard: View {
     private var keychainSection: some View {
         VStack(alignment: .leading, spacing: 6) {
             Text("Keychain")
-                .font(.system(size: 12, weight: .semibold))
+                .font(.system(size: DSFont.Size.body, weight: .semibold))
                 .foregroundStyle(.secondary)
                 .textCase(.uppercase)
 
             Text("Shows which credentials are stored. Values never displayed.")
-                .font(.system(size: 11))
+                .font(.system(size: DSFont.Size.sm))
                 .foregroundStyle(.secondary)
 
             keychainRow("WebSocket Auth Token", present: KeychainService.loadToken() != nil) {
@@ -111,7 +111,7 @@ struct DebugInspectorsCard: View {
         VStack(alignment: .leading, spacing: 6) {
             HStack {
                 Text("UserDefaults")
-                    .font(.system(size: 12, weight: .semibold))
+                    .font(.system(size: DSFont.Size.body, weight: .semibold))
                     .foregroundStyle(.secondary)
                     .textCase(.uppercase)
                 Spacer()
@@ -135,11 +135,11 @@ struct DebugInspectorsCard: View {
     private func inspectorRow(_ label: String, _ value: String) -> some View {
         HStack(alignment: .top) {
             Text(label)
-                .font(.system(size: 12))
+                .font(.system(size: DSFont.Size.body))
                 .foregroundStyle(.secondary)
                 .frame(width: 90, alignment: .leading)
             Text(value)
-                .font(.system(size: 12, design: .monospaced))
+                .font(.system(size: DSFont.Size.body, design: .monospaced))
                 .textSelection(.enabled)
             Spacer()
         }
@@ -150,7 +150,7 @@ struct DebugInspectorsCard: View {
             Image(systemName: present ? "checkmark.circle.fill" : "circle")
                 .foregroundStyle(present ? .green : .secondary)
             Text(label)
-                .font(.system(size: 12))
+                .font(.system(size: DSFont.Size.body))
             Spacer()
             if present {
                 Button {
@@ -172,12 +172,12 @@ struct DebugInspectorsCard: View {
         let value = UserDefaults.standard.object(forKey: key)
         return HStack(alignment: .top, spacing: 8) {
             Text(key)
-                .font(.system(size: 11, design: .monospaced))
+                .font(.system(size: DSFont.Size.sm, design: .monospaced))
                 .lineLimit(1)
                 .truncationMode(.middle)
                 .frame(maxWidth: 200, alignment: .leading)
             Text(formatValue(value))
-                .font(.system(size: 11, design: .monospaced))
+                .font(.system(size: DSFont.Size.sm, design: .monospaced))
                 .foregroundStyle(value == nil ? .secondary : .primary)
                 .lineLimit(1)
                 .truncationMode(.tail)

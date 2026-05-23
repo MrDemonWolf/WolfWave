@@ -27,7 +27,7 @@ struct ConfigRequiredBanner: View {
     var body: some View {
         #if DEBUG
         Text(message)
-            .font(.system(size: 11))
+            .font(.system(size: DSFont.Size.sm))
             .foregroundStyle(.orange)
             .transition(.opacity)
         #endif

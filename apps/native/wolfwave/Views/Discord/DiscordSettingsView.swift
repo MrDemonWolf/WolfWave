@@ -226,9 +226,9 @@ struct DiscordSettingsView: View {
                     HStack {
                         VStack(alignment: .leading, spacing: 2) {
                             Text("Display style")
-                                .font(.system(size: 13, weight: .medium))
+                                .font(.system(size: DSFont.Size.base, weight: .medium))
                             Text(playlistStyleSubtitle)
-                                .font(.system(size: 11))
+                                .font(.system(size: DSFont.Size.sm))
                                 .foregroundStyle(.tertiary)
                         }
                         Spacer()
@@ -287,16 +287,16 @@ struct DiscordSettingsView: View {
                 ),
                 playlistTooltip: previewPlaylistTooltip
             )
-            .padding(.horizontal, 4)
+            .padding(.horizontal, DSSpace.s1)
 
             if let tooltip = previewPlaylistTooltip {
                 HStack(spacing: 6) {
                     Image(systemName: "info.circle")
                     Text("Hover the app icon on Discord to see: \(tooltip)")
                 }
-                .font(.system(size: 11))
+                .font(.system(size: DSFont.Size.sm))
                 .foregroundStyle(.secondary)
-                .padding(.horizontal, 4)
+                .padding(.horizontal, DSSpace.s1)
             }
         }
         .transition(.opacity)

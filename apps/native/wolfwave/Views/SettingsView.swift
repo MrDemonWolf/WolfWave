@@ -178,7 +178,7 @@ struct SettingsView: View {
                     twitchViewModel.cancelOAuth()
                 }
             }
-            .padding(.top, 8)
+            .padding(.top, DSSpace.s2)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .background(Color(nsColor: .underPageBackgroundColor))
             .onAppear {
@@ -291,21 +291,21 @@ struct SettingsView: View {
             TwitchSettingsView(viewModel: twitchViewModel)
 
             Divider()
-                .padding(.vertical, 4)
+                .padding(.vertical, DSSpace.s1)
 
             // Bot Commands Section
             VStack(alignment: .leading, spacing: 16) {
                 VStack(alignment: .leading, spacing: 6) {
                     HStack(spacing: 8) {
                         Image(systemName: "bubble.left.fill")
-                            .font(.system(size: 15))
+                            .font(.system(size: DSFont.Size.x15))
                             .foregroundStyle(Color(nsColor: .controlAccentColor))
                         Text("Bot Commands")
                             .sectionSubHeader()
                     }
 
                     Text("Choose which commands people can use in chat.")
-                        .font(.system(size: 13))
+                        .font(.system(size: DSFont.Size.base))
                         .foregroundStyle(.secondary)
                 }
 
@@ -354,10 +354,10 @@ struct SettingsView: View {
 
                 HStack(spacing: 6) {
                     Image(systemName: "info.circle.fill")
-                        .font(.system(size: 11))
+                        .font(.system(size: DSFont.Size.sm))
                         .foregroundStyle(.secondary)
                     Text("Cooldowns don't apply to you or your mods.")
-                        .font(.system(size: 11))
+                        .font(.system(size: DSFont.Size.sm))
                         .foregroundStyle(.secondary)
                 }
             }
@@ -385,7 +385,7 @@ struct SettingsView: View {
             onChange: onChange
         )
         .padding(.horizontal, AppConstants.SettingsUI.cardPadding)
-        .padding(.vertical, 12)
+        .padding(.vertical, DSSpace.s4)
         .background(Color(nsColor: .controlBackgroundColor))
         .overlay(alignment: .bottom) {
             if !isLast {
@@ -405,14 +405,14 @@ struct SettingsView: View {
     ) -> some View {
         VStack(alignment: .leading, spacing: 8) {
             Text(label)
-                .font(.system(size: 11, weight: .medium))
+                .font(.system(size: DSFont.Size.sm, weight: .medium))
                 .foregroundStyle(.secondary)
                 .textCase(.uppercase)
 
             HStack(spacing: 12) {
                 VStack(alignment: .leading, spacing: 2) {
                     Text("Everyone: \(Int(globalCooldown.wrappedValue))s")
-                        .font(.system(size: 11))
+                        .font(.system(size: DSFont.Size.sm))
                         .foregroundStyle(.secondary)
                     Slider(value: globalCooldown, in: 0...30, step: 5)
                         .controlSize(.small)
@@ -423,7 +423,7 @@ struct SettingsView: View {
 
                 VStack(alignment: .leading, spacing: 2) {
                     Text("Per person: \(Int(userCooldown.wrappedValue))s")
-                        .font(.system(size: 11))
+                        .font(.system(size: DSFont.Size.sm))
                         .foregroundStyle(.secondary)
                     Slider(value: userCooldown, in: 0...60, step: 5)
                         .controlSize(.small)
@@ -434,7 +434,7 @@ struct SettingsView: View {
             }
         }
         .padding(.horizontal, AppConstants.SettingsUI.cardPadding)
-        .padding(.vertical, 8)
+        .padding(.vertical, DSSpace.s2)
         .background(Color(nsColor: .controlBackgroundColor))
         .overlay(alignment: .bottom) {
             if !isLast {

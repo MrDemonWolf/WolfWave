@@ -31,10 +31,10 @@ struct SongRequestSettingsView: View {
             if !isTwitchConnected {
                 HStack(spacing: 6) {
                     Image(systemName: "lock.fill")
-                        .font(.system(size: 11))
+                        .font(.system(size: DSFont.Size.sm))
                         .foregroundStyle(.secondary)
                     Text("Sign in to Twitch to enable song requests.")
-                        .font(.system(size: 11))
+                        .font(.system(size: DSFont.Size.sm))
                         .foregroundStyle(.secondary)
                 }
             }
@@ -42,7 +42,7 @@ struct SongRequestSettingsView: View {
             SongRequestMasterToggleCard(isTwitchConnected: isTwitchConnected)
 
             if isTwitchConnected {
-                Divider().padding(.vertical, 4)
+                Divider().padding(.vertical, DSSpace.s1)
                 VoteSkipCard()
             }
 
@@ -56,27 +56,27 @@ struct SongRequestSettingsView: View {
 
                 SongRequestQueueView()
 
-                Divider().padding(.vertical, 4)
+                Divider().padding(.vertical, DSSpace.s1)
 
                 SongRequestQueueConfigCard()
 
-                Divider().padding(.vertical, 4)
+                Divider().padding(.vertical, DSSpace.s1)
 
                 SongRequestAccessCard()
 
-                Divider().padding(.vertical, 4)
+                Divider().padding(.vertical, DSSpace.s1)
 
                 SongRequestRedemptionsCard()
 
-                Divider().padding(.vertical, 4)
+                Divider().padding(.vertical, DSSpace.s1)
 
                 SongRequestPlaybackCard()
 
-                Divider().padding(.vertical, 4)
+                Divider().padding(.vertical, DSSpace.s1)
 
                 SongRequestCommandsCard()
 
-                Divider().padding(.vertical, 4)
+                Divider().padding(.vertical, DSSpace.s1)
 
                 SongRequestBlocklistCard(blocklistProvider: { appDelegate?.songRequestService?.blocklist })
             }
@@ -129,19 +129,19 @@ fileprivate struct SongRequestHeader: View {
 
             HStack(alignment: .top, spacing: 8) {
                 Image(systemName: "info.circle.fill")
-                    .font(.system(size: 12))
+                    .font(.system(size: DSFont.Size.body))
                     .foregroundStyle(.blue)
-                    .padding(.top, 1)
+                    .padding(.top, DSSpace.s0)
                 VStack(alignment: .leading, spacing: 4) {
                     Text("How it works")
-                        .font(.system(size: 12, weight: .semibold))
+                        .font(.system(size: DSFont.Size.body, weight: .semibold))
                     Text("Viewers type **!sr song name** in your Twitch chat. WolfWave finds the song on Apple Music and adds it to the queue. Songs play one by one in your Music.app — no window will pop up, it just plays quietly in the background. You stay in control: use **!skip** to jump to the next song, or **!clearqueue** to wipe the queue. Only you and your mods can skip or clear.")
-                        .font(.system(size: 11))
+                        .font(.system(size: DSFont.Size.sm))
                         .foregroundStyle(.secondary)
                         .fixedSize(horizontal: false, vertical: true)
                 }
             }
-            .padding(10)
+            .padding(DSSpace.s3)
             .background(.blue.opacity(0.07))
             .clipShape(RoundedRectangle(cornerRadius: 8))
         }
@@ -218,13 +218,13 @@ fileprivate struct VoteSkipCard: View {
             VStack(alignment: .leading, spacing: 6) {
                 HStack(spacing: 8) {
                     Image(systemName: "hand.thumbsup.fill")
-                        .font(.system(size: 15))
+                        .font(.system(size: DSFont.Size.x15))
                         .foregroundStyle(Color(nsColor: .controlAccentColor))
                     Text("Chat Vote-Skip").sectionSubHeader()
                 }
 
                 Text("Let your Twitch chat vote to skip the current song. Skips the request queue when one is playing, otherwise it skips the current Apple Music track.")
-                    .font(.system(size: 13))
+                    .font(.system(size: DSFont.Size.base))
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
             }
@@ -241,7 +241,7 @@ fileprivate struct VoteSkipCard: View {
                 Divider()
 
                 HStack {
-                    Text("Minimum votes to skip").font(.system(size: 12))
+                    Text("Minimum votes to skip").font(.system(size: DSFont.Size.body))
                     Spacer()
                     Picker("", selection: $minVotes) {
                         ForEach([2, 3, 5, 7, 10], id: \.self) { count in
@@ -271,7 +271,7 @@ fileprivate struct VoteSkipCard: View {
 
                 if usePolls {
                     HStack {
-                        Text("Poll duration").font(.system(size: 12))
+                        Text("Poll duration").font(.system(size: DSFont.Size.body))
                         Spacer()
                         Picker("", selection: $pollDuration) {
                             ForEach([30, 60, 90, 120, 180, 300], id: \.self) { seconds in
@@ -285,10 +285,10 @@ fileprivate struct VoteSkipCard: View {
 
                     HStack(alignment: .top, spacing: 6) {
                         Image(systemName: "info.circle.fill")
-                            .font(.system(size: 11))
+                            .font(.system(size: DSFont.Size.sm))
                             .foregroundStyle(.secondary)
                         Text("Turning this on may ask you to sign in to Twitch again to grant poll permission.")
-                            .font(.system(size: 11))
+                            .font(.system(size: DSFont.Size.sm))
                             .foregroundStyle(.secondary)
                             .fixedSize(horizontal: false, vertical: true)
                     }
@@ -297,7 +297,7 @@ fileprivate struct VoteSkipCard: View {
 
                     VStack(alignment: .leading, spacing: 2) {
                         Text("Vote window: \(windowSeconds)s")
-                            .font(.system(size: 11))
+                            .font(.system(size: DSFont.Size.sm))
                             .foregroundStyle(.secondary)
                         Picker("", selection: $windowSeconds) {
                             ForEach([30, 60, 90, 120], id: \.self) { seconds in
@@ -310,7 +310,7 @@ fileprivate struct VoteSkipCard: View {
 
                     VStack(alignment: .leading, spacing: 2) {
                         Text("Cooldown between votes: \(Int(sessionCooldown))s")
-                            .font(.system(size: 11))
+                            .font(.system(size: DSFont.Size.sm))
                             .foregroundStyle(.secondary)
                         Slider(value: $sessionCooldown, in: 0...120, step: 15)
                             .controlSize(.small)
@@ -332,11 +332,11 @@ fileprivate struct VoteSkipCard: View {
                 if commandEnabled {
                     HStack(spacing: 8) {
                         Text("Custom aliases:")
-                            .font(.system(size: 11))
+                            .font(.system(size: DSFont.Size.sm))
                             .foregroundStyle(.tertiary)
                         TextField("e.g. skipvote, sv", text: $commandAliases)
                             .textFieldStyle(.roundedBorder)
-                            .font(.system(size: 11))
+                            .font(.system(size: DSFont.Size.sm))
                             .frame(maxWidth: 200)
                             .accessibilityLabel("Vote-skip command aliases")
                     }
@@ -363,7 +363,7 @@ fileprivate struct SongRequestMusicAuthCard: View {
                 Text(musicAuthStatus == .denied
                      ? "Apple Music access was denied. Enable it in System Settings → Privacy & Security → Media & Apple Music."
                      : "WolfWave needs Apple Music access to search and play requested songs.")
-                    .font(.system(size: 12))
+                    .font(.system(size: DSFont.Size.body))
                     .foregroundStyle(.secondary)
             }
 
@@ -407,10 +407,10 @@ fileprivate struct SongRequestQueueConfigCard: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             Text("Queue Settings")
-                .font(.system(size: 13, weight: .semibold))
+                .font(.system(size: DSFont.Size.base, weight: .semibold))
 
             HStack {
-                Text("Max queue size").font(.system(size: 12))
+                Text("Max queue size").font(.system(size: DSFont.Size.body))
                 Spacer()
                 Picker("", selection: $maxQueueSize) {
                     ForEach([5, 10, 15, 20, 25, 50], id: \.self) { size in
@@ -422,7 +422,7 @@ fileprivate struct SongRequestQueueConfigCard: View {
             }
 
             HStack {
-                Text("Per-user limit").font(.system(size: 12))
+                Text("Per-user limit").font(.system(size: DSFont.Size.body))
                 Spacer()
                 Picker("", selection: $perUserLimit) {
                     ForEach([1, 2, 3, 5, 10], id: \.self) { limit in
@@ -456,10 +456,10 @@ fileprivate struct SongRequestAccessCard: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             Text("Who Can Request")
-                .font(.system(size: 13, weight: .semibold))
+                .font(.system(size: DSFont.Size.base, weight: .semibold))
 
             Text("Pick a preset, or fine-tune who can use the !sr command below.")
-                .font(.system(size: 11))
+                .font(.system(size: DSFont.Size.sm))
                 .foregroundStyle(.secondary)
 
             // Preset buttons
@@ -472,7 +472,7 @@ fileprivate struct SongRequestAccessCard: View {
                         }
                     } label: {
                         Text(preset.displayName)
-                            .font(.system(size: 11, weight: .medium))
+                            .font(.system(size: DSFont.Size.sm, weight: .medium))
                             .frame(maxWidth: .infinity)
                     }
                     .buttonStyle(.bordered)
@@ -484,10 +484,10 @@ fileprivate struct SongRequestAccessCard: View {
 
             HStack(alignment: .top, spacing: 6) {
                 Image(systemName: activePreset == nil ? "slider.horizontal.3" : "checkmark.circle.fill")
-                    .font(.system(size: 11))
+                    .font(.system(size: DSFont.Size.sm))
                     .foregroundStyle(activePreset == nil ? Color.secondary : Color.green)
                 Text(activePreset?.summary ?? "Custom configuration.")
-                    .font(.system(size: 11))
+                    .font(.system(size: DSFont.Size.sm))
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
             }
@@ -496,9 +496,9 @@ fileprivate struct SongRequestAccessCard: View {
 
             HStack {
                 VStack(alignment: .leading, spacing: 2) {
-                    Text("!sr command audience").font(.system(size: 12))
+                    Text("!sr command audience").font(.system(size: DSFont.Size.body))
                     Text("Mods and you can always request.")
-                        .font(.system(size: 10))
+                        .font(.system(size: DSFont.Size.xs))
                         .foregroundStyle(.tertiary)
                 }
                 Spacer()
@@ -545,23 +545,23 @@ fileprivate struct SongRequestRedemptionsCard: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             Text("Channel Points & Bits")
-                .font(.system(size: 13, weight: .semibold))
+                .font(.system(size: DSFont.Size.base, weight: .semibold))
 
             Text("Let viewers redeem a song with channel points or a bit cheer.")
-                .font(.system(size: 11))
+                .font(.system(size: DSFont.Size.sm))
                 .foregroundStyle(.secondary)
 
             if let banner = redemptionStatus.bannerMessage {
                 HStack(alignment: .top, spacing: 8) {
                     Image(systemName: "exclamationmark.triangle.fill")
-                        .font(.system(size: 12))
+                        .font(.system(size: DSFont.Size.body))
                         .foregroundStyle(.orange)
                     Text(banner)
-                        .font(.system(size: 11))
+                        .font(.system(size: DSFont.Size.sm))
                         .foregroundStyle(.secondary)
                         .fixedSize(horizontal: false, vertical: true)
                 }
-                .padding(10)
+                .padding(DSSpace.s3)
                 .background(.orange.opacity(0.1))
                 .clipShape(RoundedRectangle(cornerRadius: 8))
                 .accessibilityIdentifier("songRequests.redemptionBanner")
@@ -579,7 +579,7 @@ fileprivate struct SongRequestRedemptionsCard: View {
 
             if channelPointsEnabled {
                 HStack {
-                    Text("Reward cost").font(.system(size: 12))
+                    Text("Reward cost").font(.system(size: DSFont.Size.body))
                     Spacer()
                     Picker("", selection: $channelPointsCost) {
                         ForEach([100, 250, 500, 1000, 2500, 5000], id: \.self) { cost in
@@ -593,7 +593,7 @@ fileprivate struct SongRequestRedemptionsCard: View {
                 .onChange(of: channelPointsCost) { _, _ in refresh() }
 
                 Text("Failed requests (song not found, blocked, queue full) refund the points automatically.")
-                    .font(.system(size: 10))
+                    .font(.system(size: DSFont.Size.xs))
                     .foregroundStyle(.tertiary)
                     .fixedSize(horizontal: false, vertical: true)
             }
@@ -612,7 +612,7 @@ fileprivate struct SongRequestRedemptionsCard: View {
 
             if bitsEnabled {
                 HStack {
-                    Text("Minimum bits").font(.system(size: 12))
+                    Text("Minimum bits").font(.system(size: DSFont.Size.body))
                     Spacer()
                     Picker("", selection: $bitsMinimum) {
                         ForEach([1, 50, 100, 200, 500, 1000], id: \.self) { amount in
@@ -654,7 +654,7 @@ fileprivate struct SongRequestPlaybackCard: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             Text("Playback")
-                .font(.system(size: 13, weight: .semibold))
+                .font(.system(size: DSFont.Size.base, weight: .semibold))
 
             ToggleSettingRow(
                 title: "Auto-Advance Queue",
@@ -676,16 +676,16 @@ fileprivate struct SongRequestPlaybackCard: View {
 
             VStack(alignment: .leading, spacing: 6) {
                 Text("Fallback playlist")
-                    .font(.system(size: 12, weight: .medium))
+                    .font(.system(size: DSFont.Size.body, weight: .medium))
                 TextField("e.g. Gaming Vibes", text: $fallbackPlaylist)
                     .textFieldStyle(.roundedBorder)
-                    .font(.system(size: 12))
+                    .font(.system(size: DSFont.Size.body))
                 VStack(alignment: .leading, spacing: 2) {
                     Text("Plays an Apple Music playlist when the queue is empty.")
                     Text("Type the playlist name exactly as it appears in Music.")
                     Text("Leave blank for silence.")
                 }
-                .font(.system(size: 10))
+                .font(.system(size: DSFont.Size.xs))
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
             }
@@ -719,13 +719,13 @@ fileprivate struct SongRequestCommandsCard: View {
             VStack(alignment: .leading, spacing: 6) {
                 HStack(spacing: 8) {
                     Image(systemName: "music.note.list")
-                        .font(.system(size: 15))
+                        .font(.system(size: DSFont.Size.x15))
                         .foregroundStyle(Color(nsColor: .controlAccentColor))
                     Text("Song Request Commands").sectionSubHeader()
                 }
 
                 Text("Toggle commands on/off and add custom aliases (comma-separated, without !).")
-                    .font(.system(size: 13))
+                    .font(.system(size: DSFont.Size.base))
                     .foregroundStyle(.secondary)
             }
 
@@ -802,10 +802,10 @@ fileprivate struct SongRequestCommandsCard: View {
 
             HStack(spacing: 6) {
                 Image(systemName: "info.circle.fill")
-                    .font(.system(size: 11))
+                    .font(.system(size: DSFont.Size.sm))
                     .foregroundStyle(.secondary)
                 Text("Cooldowns don't apply to you or your mods.")
-                    .font(.system(size: 11))
+                    .font(.system(size: DSFont.Size.sm))
                     .foregroundStyle(.secondary)
             }
         }
@@ -824,10 +824,10 @@ fileprivate struct SongRequestBlocklistCard: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             Text("Blocklist")
-                .font(.system(size: 13, weight: .semibold))
+                .font(.system(size: DSFont.Size.base, weight: .semibold))
 
             Text("Block specific songs or artists from being requested.")
-                .font(.system(size: 11))
+                .font(.system(size: DSFont.Size.sm))
                 .foregroundStyle(.tertiary)
 
             HStack(spacing: 8) {
@@ -840,7 +840,7 @@ fileprivate struct SongRequestBlocklistCard: View {
 
                 TextField(blocklistType == .song ? "Song title..." : "Artist name...", text: $blocklistText)
                     .textFieldStyle(.roundedBorder)
-                    .font(.system(size: 12))
+                    .font(.system(size: DSFont.Size.body))
 
                 Button("Add") {
                     let trimmed = blocklistText.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -860,17 +860,17 @@ fileprivate struct SongRequestBlocklistCard: View {
                     ForEach(blocklist) { item in
                         HStack {
                             Image(systemName: item.type == .song ? "music.note" : "person.fill")
-                                .font(.system(size: 10))
+                                .font(.system(size: DSFont.Size.xs))
                                 .foregroundStyle(.secondary)
                                 .frame(width: 16)
 
-                            Text(item.value).font(.system(size: 12))
+                            Text(item.value).font(.system(size: DSFont.Size.body))
 
                             Text(item.type == .song ? "Song" : "Artist")
-                                .font(.system(size: 10))
+                                .font(.system(size: DSFont.Size.xs))
                                 .foregroundStyle(.tertiary)
-                                .padding(.horizontal, 6)
-                                .padding(.vertical, 2)
+                                .padding(.horizontal, DSSpace.s2)
+                                .padding(.vertical, DSSpace.s0)
                                 .background(.quaternary)
                                 .clipShape(Capsule())
 
@@ -881,15 +881,15 @@ fileprivate struct SongRequestBlocklistCard: View {
                                 blocklist = blocklistProvider()?.allEntries ?? []
                             } label: {
                                 Image(systemName: "xmark.circle.fill")
-                                    .font(.system(size: 12))
+                                    .font(.system(size: DSFont.Size.body))
                                     .foregroundStyle(.secondary)
                             }
                             .buttonStyle(.plain)
                         }
-                        .padding(.vertical, 2)
+                        .padding(.vertical, DSSpace.s0)
                     }
                 }
-                .padding(.top, 4)
+                .padding(.top, DSSpace.s1)
             }
         }
         .padding(AppConstants.SettingsUI.cardPadding)
@@ -921,7 +921,7 @@ fileprivate struct CommandToggleRow: View {
             accessibilityIdentifier: accessibilityIdentifier
         )
         .padding(.horizontal, AppConstants.SettingsUI.cardPadding)
-        .padding(.vertical, 12)
+        .padding(.vertical, DSSpace.s4)
         .background(Color(nsColor: .controlBackgroundColor))
         .overlay(alignment: .bottom) {
             if !isLast {
@@ -940,14 +940,14 @@ fileprivate struct CooldownRow: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             Text(label)
-                .font(.system(size: 11, weight: .medium))
+                .font(.system(size: DSFont.Size.sm, weight: .medium))
                 .foregroundStyle(.secondary)
                 .textCase(.uppercase)
 
             HStack(spacing: 12) {
                 VStack(alignment: .leading, spacing: 2) {
                     Text("Everyone: \(Int(globalCooldown))s")
-                        .font(.system(size: 11))
+                        .font(.system(size: DSFont.Size.sm))
                         .foregroundStyle(.secondary)
                     Slider(value: $globalCooldown, in: 0...30, step: 5)
                         .controlSize(.small)
@@ -958,7 +958,7 @@ fileprivate struct CooldownRow: View {
 
                 VStack(alignment: .leading, spacing: 2) {
                     Text("Per person: \(Int(userCooldown))s")
-                        .font(.system(size: 11))
+                        .font(.system(size: DSFont.Size.sm))
                         .foregroundStyle(.secondary)
                     Slider(value: $userCooldown, in: 0...60, step: 5)
                         .controlSize(.small)
@@ -969,7 +969,7 @@ fileprivate struct CooldownRow: View {
             }
         }
         .padding(.horizontal, AppConstants.SettingsUI.cardPadding)
-        .padding(.vertical, 8)
+        .padding(.vertical, DSSpace.s2)
         .background(Color(nsColor: .controlBackgroundColor))
         .overlay(alignment: .bottom) {
             if !isLast {
@@ -986,15 +986,15 @@ fileprivate struct AliasRow: View {
     var body: some View {
         HStack(spacing: 8) {
             Text("Custom aliases:")
-                .font(.system(size: 11))
+                .font(.system(size: DSFont.Size.sm))
                 .foregroundStyle(.tertiary)
             TextField("e.g. play, add", text: $aliases)
                 .textFieldStyle(.roundedBorder)
-                .font(.system(size: 11))
+                .font(.system(size: DSFont.Size.sm))
                 .frame(maxWidth: 200)
         }
         .padding(.horizontal, AppConstants.SettingsUI.cardPadding)
-        .padding(.vertical, 6)
+        .padding(.vertical, DSSpace.s2)
         .background(Color(nsColor: .controlBackgroundColor))
         .overlay(alignment: .bottom) {
             if !isLast {

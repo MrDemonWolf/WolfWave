@@ -26,7 +26,7 @@ struct DebugUIPreviewsCard: View {
             }
 
             Text("Trigger popups, banners, and onboarding without the usual gating.")
-                .font(.system(size: 12))
+                .font(.system(size: DSFont.Size.body))
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
 
@@ -60,7 +60,7 @@ struct DebugUIPreviewsCard: View {
             .buttonStyle(.bordered)
             .pointerCursor()
 
-            Divider().padding(.vertical, 4)
+            Divider().padding(.vertical, DSSpace.s1)
 
             Button {
                 AppDelegate.shared?.showOnboarding()
@@ -81,7 +81,7 @@ struct DebugUIPreviewsCard: View {
             .buttonStyle(.bordered)
             .pointerCursor()
 
-            Divider().padding(.vertical, 4)
+            Divider().padding(.vertical, DSSpace.s1)
 
             Button {
                 NotificationCenter.default.post(

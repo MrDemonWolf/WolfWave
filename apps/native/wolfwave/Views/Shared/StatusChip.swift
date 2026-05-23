@@ -28,12 +28,12 @@ struct StatusChip: View {
                 .frame(width: 6, height: 6)
 
             Text(text)
-                .font(.system(size: 11, weight: .semibold))
+                .font(.system(size: DSFont.Size.sm, weight: .semibold))
                 .foregroundStyle(.primary)
         }
         .frame(minWidth: 130)
-        .padding(.horizontal, 10)
-        .padding(.vertical, 5)
+        .padding(.horizontal, DSSpace.s3)
+        .padding(.vertical, DSSpace.s1)
         .background(color.opacity(0.1))
         .clipShape(Capsule())
         .accessibilityElement(children: .combine)

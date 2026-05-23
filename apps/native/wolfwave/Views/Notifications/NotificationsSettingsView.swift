@@ -30,7 +30,7 @@ struct NotificationsSettingsView: View {
                     .sectionSubHeader()
 
                 Text("Get a heads-up in Notification Center as your music plays.")
-                    .font(.system(size: 13))
+                    .font(.system(size: DSFont.Size.base))
                     .foregroundStyle(.secondary)
             }
 
@@ -66,24 +66,24 @@ struct NotificationsSettingsView: View {
     private var permissionDeniedNotice: some View {
         HStack(alignment: .top, spacing: 10) {
             Image(systemName: "exclamationmark.triangle.fill")
-                .font(.system(size: 12))
+                .font(.system(size: DSFont.Size.body))
                 .foregroundStyle(.orange)
 
             VStack(alignment: .leading, spacing: 6) {
                 Text("Notifications are turned off for WolfWave. Enable them in System Settings to see song changes.")
-                    .font(.system(size: 11))
+                    .font(.system(size: DSFont.Size.sm))
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
 
                 Button("Open System Settings") {
                     NotificationService.shared.openSystemNotificationSettings()
                 }
-                .font(.system(size: 11))
+                .font(.system(size: DSFont.Size.sm))
                 .pointerCursor()
                 .accessibilityIdentifier("openNotificationSettingsButton")
             }
         }
-        .padding(10)
+        .padding(DSSpace.s3)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(Color.orange.opacity(0.08))
         .clipShape(RoundedRectangle(cornerRadius: 7))

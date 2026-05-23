@@ -31,9 +31,9 @@ struct ToggleSettingRow: View {
         HStack(spacing: 12) {
             VStack(alignment: .leading, spacing: 2) {
                 Text(title)
-                    .font(.system(size: 13, weight: .medium))
+                    .font(.system(size: DSFont.Size.base, weight: .medium))
                 Text(subtitle)
-                    .font(.system(size: 11))
+                    .font(.system(size: DSFont.Size.sm))
                     .foregroundStyle(.tertiary)
             }
             Spacer()

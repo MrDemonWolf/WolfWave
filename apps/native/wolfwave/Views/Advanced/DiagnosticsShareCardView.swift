@@ -29,17 +29,17 @@ struct DiagnosticsShareCardView: View {
         VStack(alignment: .leading, spacing: 12) {
             VStack(alignment: .leading, spacing: 4) {
                 Text("Diagnostics & Privacy")
-                    .font(.system(size: 13, weight: .semibold))
+                    .font(.system(size: DSFont.Size.base, weight: .semibold))
 
                 Text("WolfWave can collect crash and performance diagnostics using Apple's on-device MetricKit. Reports stay on your Mac — nothing is ever uploaded.")
-                    .font(.system(size: 12))
+                    .font(.system(size: DSFont.Size.body))
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
             }
 
             Toggle(isOn: $shareEnabled) {
                 Text("Collect on-device diagnostics")
-                    .font(.system(size: 12, weight: .medium))
+                    .font(.system(size: DSFont.Size.body, weight: .medium))
             }
             .toggleStyle(.switch)
             .onChange(of: shareEnabled) { _, enabled in
@@ -59,7 +59,7 @@ struct DiagnosticsShareCardView: View {
                 revealPayloadFolder()
             } label: {
                 Label("Reveal Diagnostics Folder", systemImage: "folder")
-                    .font(.system(size: 12, weight: .medium))
+                    .font(.system(size: DSFont.Size.body, weight: .medium))
             }
             .buttonStyle(.bordered)
             .controlSize(.small)
@@ -74,10 +74,10 @@ struct DiagnosticsShareCardView: View {
     private func metricRow(_ label: String, _ value: String) -> some View {
         HStack(alignment: .firstTextBaseline) {
             Text(label)
-                .font(.system(size: 12))
+                .font(.system(size: DSFont.Size.body))
             Spacer()
             Text(value)
-                .font(.system(size: 12, weight: .medium))
+                .font(.system(size: DSFont.Size.body, weight: .medium))
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.trailing)
         }

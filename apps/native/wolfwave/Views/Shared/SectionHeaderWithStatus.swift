@@ -49,7 +49,7 @@ struct SectionHeaderWithStatus: View {
             }
 
             Text(subtitle)
-                .font(.system(size: 13))
+                .font(.system(size: DSFont.Size.base))
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
         }

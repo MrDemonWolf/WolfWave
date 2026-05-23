@@ -49,8 +49,8 @@ struct OnboardingView: View {
             } else {
                 VStack(spacing: 0) {
                     progressDots
-                        .padding(.top, 20)
-                        .padding(.bottom, 16)
+                        .padding(.top, DSSpace.s7)
+                        .padding(.bottom, DSSpace.s6)
 
                     ScrollView(.vertical, showsIndicators: false) {
                         stepContent
@@ -63,8 +63,8 @@ struct OnboardingView: View {
                     Divider()
 
                     navigationBar
-                        .padding(.horizontal, 24)
-                        .padding(.vertical, 16)
+                        .padding(.horizontal, DSSpace.s8)
+                        .padding(.vertical, DSSpace.s6)
                         .background(.regularMaterial)
                 }
             }

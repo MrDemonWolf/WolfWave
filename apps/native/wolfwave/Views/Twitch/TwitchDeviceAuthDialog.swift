@@ -42,11 +42,11 @@ struct TwitchDeviceAuthDialog: View {
                     // Title and explanation
                     VStack(spacing: 8) {
                         Text("Reconnect to Twitch")
-                            .font(.system(size: 18, weight: .semibold))
+                            .font(.system(size: DSFont.Size.x18, weight: .semibold))
                             .tracking(-0.5)
                         
                         Text("Your session has expired. Authorize WolfWave to continue.")
-                            .font(.system(size: 13, weight: .regular))
+                            .font(.system(size: DSFont.Size.base, weight: .regular))
                             .foregroundStyle(.secondary)
                             .lineLimit(2)
                     }
@@ -54,10 +54,10 @@ struct TwitchDeviceAuthDialog: View {
                     
                     // Divider with subtle styling
                     Divider()
-                        .padding(.vertical, 8)
+                        .padding(.vertical, DSSpace.s2)
                 }
-                .padding(.horizontal, 24)
-                .padding(.vertical, 20)
+                .padding(.horizontal, DSSpace.s8)
+                .padding(.vertical, DSSpace.s7)
                 
                 // Content area
                 VStack(spacing: 20) {
@@ -68,7 +68,7 @@ struct TwitchDeviceAuthDialog: View {
                                 .progressViewStyle(.circular)
 
                             Text("Waiting for authorization…")
-                                .font(.system(size: 13, weight: .medium))
+                                .font(.system(size: DSFont.Size.base, weight: .medium))
                                 .foregroundStyle(.secondary)
                         }
                         .frame(maxWidth: .infinity)
@@ -81,8 +81,8 @@ struct TwitchDeviceAuthDialog: View {
                         )
                     }
                 }
-                .padding(.horizontal, 24)
-                .padding(.vertical, 20)
+                .padding(.horizontal, DSSpace.s8)
+                .padding(.vertical, DSSpace.s7)
                 
                 Spacer()
                 
@@ -96,7 +96,7 @@ struct TwitchDeviceAuthDialog: View {
                         onCancelPressed()
                     }) {
                         Text("Cancel")
-                            .font(.system(size: 13, weight: .regular))
+                            .font(.system(size: DSFont.Size.base, weight: .regular))
                     }
                     .keyboardShortcut(.cancelAction)
                     .buttonStyle(.plain)
@@ -106,7 +106,7 @@ struct TwitchDeviceAuthDialog: View {
                     // Primary authorize button - smaller and subtler tint
                     Button(action: handleAuthorizePressed) {
                         Text("Authorize on Twitch")
-                            .font(.system(size: 12, weight: .semibold))
+                            .font(.system(size: DSFont.Size.body, weight: .semibold))
                             .frame(minWidth: 100)
                     }
                     .buttonStyle(.borderedProminent)
@@ -116,8 +116,8 @@ struct TwitchDeviceAuthDialog: View {
                     .accessibilityHint("Open Twitch activation page to authorize")
                     .accessibilityIdentifier("authorizeOnTwitchButton")
                 }
-                .padding(.horizontal, 24)
-                .padding(.vertical, 16)
+                .padding(.horizontal, DSSpace.s8)
+                .padding(.vertical, DSSpace.s6)
             }
             .frame(maxWidth: 440)
             .background(Color(.windowBackgroundColor))
@@ -129,16 +129,16 @@ struct TwitchDeviceAuthDialog: View {
                         Image(systemName: "checkmark.circle.fill")
                             .foregroundStyle(.green)
                         Text("Copied to clipboard")
-                            .font(.system(size: 12, weight: .medium))
+                            .font(.system(size: DSFont.Size.body, weight: .medium))
                     }
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 8)
+                    .padding(.horizontal, DSSpace.s4)
+                    .padding(.vertical, DSSpace.s2)
                     .background(Color(.controlBackgroundColor))
                     .cornerRadius(6)
                     
                     Spacer()
                 }
-                .padding(16)
+                .padding(DSSpace.s6)
                 .transition(.move(edge: .top).combined(with: .opacity))
             }
         }
@@ -206,13 +206,13 @@ private struct DeviceCodeEntryView: View {
             // Instructions text
             VStack(alignment: .leading, spacing: 0) {
                 Text("Device Code")
-                    .font(.system(size: 11, weight: .semibold))
+                    .font(.system(size: DSFont.Size.sm, weight: .semibold))
                     .foregroundStyle(.secondary)
                     .tracking(0.5)
-                    .padding(.bottom, 6)
+                    .padding(.bottom, DSSpace.s2)
                 
                 Text("Enter this code on Twitch to authorize")
-                    .font(.system(size: 12, weight: .regular))
+                    .font(.system(size: DSFont.Size.body, weight: .regular))
                     .foregroundStyle(.secondary)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -221,11 +221,11 @@ private struct DeviceCodeEntryView: View {
             HStack(spacing: 10) {
                 // Code display - monospaced for clarity
                 Text(deviceCode)
-                    .font(.system(size: 20, weight: .semibold, design: .monospaced))
+                    .font(.system(size: DSFont.Size.xl, weight: .semibold, design: .monospaced))
                     .foregroundStyle(.primary)
                     .tracking(1.5)
                     .frame(maxWidth: .infinity, alignment: .center)
-                    .padding(.vertical, 12)
+                    .padding(.vertical, DSSpace.s4)
                     .accessibilityLabel("Device code")
                     .accessibilityValue(deviceCode)
                     .accessibilityIdentifier("deviceAuthCodeText")
@@ -233,7 +233,7 @@ private struct DeviceCodeEntryView: View {
                 // Copy button
                 Button(action: onCopyTapped) {
                     Image(systemName: isCodeCopied ? "checkmark.circle.fill" : "doc.on.doc")
-                        .font(.system(size: 15, weight: .regular))
+                        .font(.system(size: DSFont.Size.x15, weight: .regular))
                         .foregroundStyle(isCodeCopied ? .green : .secondary)
                         .frame(width: 30, height: 30)
                         .contentShape(Rectangle())
@@ -243,7 +243,7 @@ private struct DeviceCodeEntryView: View {
                 .accessibilityLabel(isCodeCopied ? "Copied to clipboard" : "Copy device code")
                 .accessibilityIdentifier("deviceAuthCopyButton")
             }
-            .padding(.horizontal, 12)
+            .padding(.horizontal, DSSpace.s4)
             .background(Color.gray.opacity(0.1))
             .cornerRadius(8)
 
@@ -253,28 +253,28 @@ private struct DeviceCodeEntryView: View {
                     Image(systemName: "checkmark.circle.fill")
                         .foregroundStyle(.green)
                     Text("Copied to clipboard")
-                        .font(.system(size: 11, weight: .medium))
+                        .font(.system(size: DSFont.Size.sm, weight: .medium))
                 }
-                .padding(.horizontal, 10)
-                .padding(.vertical, 6)
+                .padding(.horizontal, DSSpace.s3)
+                .padding(.vertical, DSSpace.s2)
                 .background(Color(nsColor: .controlBackgroundColor))
                 .cornerRadius(6)
                 .transition(.opacity.combined(with: .move(edge: .top)))
-                .padding(.bottom, 6)
+                .padding(.bottom, DSSpace.s2)
             }
             
             // Subtle branding or helper text
             HStack(spacing: 4) {
                 Image(systemName: "info.circle")
-                    .font(.system(size: 11, weight: .regular))
+                    .font(.system(size: DSFont.Size.sm, weight: .regular))
                     .foregroundStyle(.secondary)
                 
                 Text("This dialog will automatically close once authorized")
-                    .font(.system(size: 11, weight: .regular))
+                    .font(.system(size: DSFont.Size.sm, weight: .regular))
                     .foregroundStyle(.secondary)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(.horizontal, 4)
+            .padding(.horizontal, DSSpace.s1)
         }
     }
 }

@@ -39,16 +39,16 @@ struct OnboardingPreferencesStepView: View {
                 glowColor: Color.accentColor,
                 glyph:
                     Image(systemName: "gearshape.fill")
-                        .font(.system(size: 26, weight: .semibold))
+                        .font(.system(size: DSFont.Size.x26, weight: .semibold))
                         .foregroundStyle(.white)
             )
 
             VStack(spacing: 6) {
                 Text("A couple Mac settings")
-                    .font(.system(size: 20, weight: .bold))
+                    .font(.system(size: DSFont.Size.xl, weight: .bold))
 
                 Text("Start WolfWave at login, and get notified when something needs attention.")
-                    .font(.system(size: 13))
+                    .font(.system(size: DSFont.Size.base))
                     .foregroundStyle(.secondary)
                     .multilineTextAlignment(.center)
                     .frame(maxWidth: 440)
@@ -94,7 +94,7 @@ struct OnboardingPreferencesStepView: View {
                 )
             }
             .frame(maxWidth: 440)
-            .padding(.horizontal, 24)
+            .padding(.horizontal, DSSpace.s8)
 
             Spacer(minLength: 0)
         }
@@ -167,16 +167,16 @@ struct OnboardingPreferencesStepView: View {
                     .frame(width: 28, height: 28)
 
                 Image(systemName: icon)
-                    .font(.system(size: 13, weight: .semibold))
+                    .font(.system(size: DSFont.Size.base, weight: .semibold))
                     .foregroundStyle(iconColor)
             }
 
             VStack(alignment: .leading, spacing: 2) {
                 Text(title)
-                    .font(.system(size: 13, weight: .semibold))
+                    .font(.system(size: DSFont.Size.base, weight: .semibold))
 
                 Text(subtitle)
-                    .font(.system(size: 11))
+                    .font(.system(size: DSFont.Size.sm))
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
             }
@@ -190,7 +190,7 @@ struct OnboardingPreferencesStepView: View {
                 .accessibilityLabel(accessibilityLabel)
                 .accessibilityIdentifier(accessibilityIdentifier)
         }
-        .padding(12)
+        .padding(DSSpace.s4)
         .background(
             RoundedRectangle(cornerRadius: 12, style: .continuous)
                 .fill(Color(nsColor: .controlBackgroundColor))

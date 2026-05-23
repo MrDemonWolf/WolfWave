@@ -61,6 +61,14 @@ nonisolated enum DSColor {
 /// Generated typography sizes. CGFloat literals match prior hand-coded sizes.
 nonisolated enum DSFont {
     enum Size {
+        static let x9: CGFloat = 9
+        static let x15: CGFloat = 15
+        static let x16: CGFloat = 16
+        static let x18: CGFloat = 18
+        static let x24: CGFloat = 24
+        static let x26: CGFloat = 26
+        static let x28: CGFloat = 28
+        static let x36: CGFloat = 36
         static let xs: CGFloat = 10
         static let sm: CGFloat = 11
         static let body: CGFloat = 12
@@ -81,6 +89,7 @@ nonisolated enum DSFont {
 
 /// Generated spacing scale.
 nonisolated enum DSSpace {
+    static let s0: CGFloat = 2
     static let s1: CGFloat = 4
     static let s2: CGFloat = 8
     static let s3: CGFloat = 10
@@ -90,6 +99,8 @@ nonisolated enum DSSpace {
     static let s7: CGFloat = 20
     static let s8: CGFloat = 24
     static let s9: CGFloat = 28
+    static let s10: CGFloat = 32
+    static let s11: CGFloat = 44
 }
 
 /// Generated radius scale.

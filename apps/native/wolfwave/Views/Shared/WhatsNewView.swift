@@ -40,10 +40,10 @@ struct WhatsNewView: View {
                     .sectionHeader()
 
                 Text("Highlights from this release.")
-                    .font(.system(size: 13))
+                    .font(.system(size: DSFont.Size.base))
                     .foregroundStyle(.secondary)
             }
-            .padding(.top, 4)
+            .padding(.top, DSSpace.s1)
 
             // MARK: Feature List
             ScrollView {
@@ -64,7 +64,7 @@ struct WhatsNewView: View {
             .accessibilityHint("Dismisses the what's new screen")
             .accessibilityIdentifier("whatsNew.getStarted")
         }
-        .padding(24)
+        .padding(DSSpace.s8)
         .frame(idealWidth: 420, idealHeight: 540)
     }
 
@@ -74,7 +74,7 @@ struct WhatsNewView: View {
     private func featureRow(_ feature: (icon: String, iconColor: Color, title: String, description: String)) -> some View {
         HStack(spacing: 14) {
             Image(systemName: feature.icon)
-                .font(.system(size: 20))
+                .font(.system(size: DSFont.Size.xl))
                 .foregroundStyle(feature.iconColor)
                 .frame(width: 36, height: 36)
                 .background(feature.iconColor.opacity(0.12))
@@ -82,10 +82,10 @@ struct WhatsNewView: View {
 
             VStack(alignment: .leading, spacing: 2) {
                 Text(feature.title)
-                    .font(.system(size: 13, weight: .semibold))
+                    .font(.system(size: DSFont.Size.base, weight: .semibold))
 
                 Text(feature.description)
-                    .font(.system(size: 12))
+                    .font(.system(size: DSFont.Size.body))
                     .foregroundStyle(.secondary)
             }
 
