@@ -9,10 +9,17 @@ on:
         description: "Version to release (e.g. 1.1.0)"
         required: true
 
+permissions:
+  contents: read
+
 jobs:
   update-cask:
     name: Update wolfwave cask in homebrew-den
     runs-on: ubuntu-latest
+    # `homebrew-tap` environment requires Nathanial's manual approval before
+    # any step runs and scopes HOMEBREW_TAP_TOKEN to this job only.
+    # See repo Settings → Environments.
+    environment: homebrew-tap
     steps:
       - name: Extract version
         id: version
@@ -40,7 +47,7 @@ jobs:
           echo "SHA256: $SHA256"
 
       - name: Checkout homebrew-den
-        uses: actions/checkout@v6
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           repository: MrDemonWolf/homebrew-den
           token: ${{ secrets.HOMEBREW_TAP_TOKEN }}
