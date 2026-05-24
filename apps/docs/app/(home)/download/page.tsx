@@ -12,16 +12,17 @@ import { CopyButton } from "./copy-button";
 // ── Constants ────────────────────────────────────────────────
 const REPO_URL = "https://github.com/MrDemonWolf/WolfWave";
 const LATEST_RELEASE_URL = `${REPO_URL}/releases/latest`;
-const BREW_CMD = "brew install --cask wolfwave";
+const BREW_CMD = "brew install --cask mrdemonwolf/den/wolfwave";
 
 export const metadata: Metadata = {
   title: "Download WolfWave — Free for macOS 26+ (DMG or Homebrew)",
   description:
-    "Download WolfWave free for macOS 26+ on Apple Silicon. Install the signed .dmg or run `brew install --cask wolfwave`. Apple Music required. Free and open source.",
+    "Download WolfWave free for macOS 26+ on Apple Silicon. Install the signed .dmg or run `brew install --cask mrdemonwolf/den/wolfwave`. Apple Music required. Free and open source.",
   keywords: [
     "download wolfwave",
     "wolfwave dmg",
     "brew install wolfwave",
+    "brew tap mrdemonwolf/den",
     "apple music twitch bot download",
     "free macos streamer app",
   ],
