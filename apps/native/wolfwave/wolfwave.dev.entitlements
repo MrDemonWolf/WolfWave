@@ -6,6 +6,8 @@
 	<array>
 		<string>$(AppIdentifierPrefix)com.mrdemonwolf.wolfwave</string>
 	</array>
+	<key>com.apple.security.automation.apple-events</key>
+	<true/>
 	<key>com.apple.security.scripting-targets</key>
 	<dict>
 		<key>com.apple.Music</key>
@@ -13,6 +15,10 @@
 			<string>com.apple.Music</string>
 		</array>
 	</dict>
+	<key>com.apple.security.temporary-exception.apple-events</key>
+	<array>
+		<string>com.apple.Music</string>
+	</array>
 	<key>com.apple.security.temporary-exception.files.absolute-path.read-write</key>
 	<array>
 		<string>/var/folders/</string>
