@@ -132,6 +132,9 @@ export default function Layout({ children }: LayoutProps<"/">) {
   return (
     <html lang="en" className={`${unbounded.variable} ${instrumentSans.variable} ${instrumentSerif.variable} ${jetbrainsMono.variable}`} suppressHydrationWarning>
       <body className="flex flex-col min-h-screen">
+        <a href="#nd-page" className="skip-nav">
+          Skip to content
+        </a>
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}

@@ -46,10 +46,7 @@ function RequirementRow({
   value: string;
 }) {
   return (
-    <div
-      className="flex items-center gap-4 py-4 first:pt-0 last:pb-0"
-      style={{ borderBottom: "1px solid var(--hairline)" }}
-    >
+    <div className="flex items-center gap-4 py-4 first:pt-0 last:pb-0 border-b border-[var(--hairline)] last:border-b-0">
       <div
         className="w-10 h-10 rounded-xl inline-flex items-center justify-center shrink-0"
         style={{ backgroundColor: "var(--brand-50)", color: "var(--brand-500)" }}

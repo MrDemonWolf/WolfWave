@@ -71,7 +71,7 @@
   --bg-surface: #F5F5F7;
   --bg-elev:    #FBFBFD;
   --txt-1:      #1D1D1F;
-  --txt-2:      #6E6E73;
+  --txt-2:      #636366;
   --hairline:   #D2D2D7;
 }
 
@@ -128,7 +128,8 @@
 
 .ww-text-1     { color: var(--txt-1); }
 .ww-text-2     { color: var(--txt-2); }
-.ww-text-brand { color: var(--brand-500); }
+.ww-text-brand { color: var(--brand-600); }
+.dark .ww-text-brand { color: var(--brand-500); }
 
 .ww-hairline {
   border-color: var(--hairline);
@@ -323,6 +324,71 @@
 /* Mobile sheet — match hairline language */
 [data-nav-sheet] {
   border-color: var(--hairline) !important;
+}
+
+/* ── Skip to content ─────────────────────────────────────── */
+.skip-nav {
+  position: fixed;
+  top: -100%;
+  left: 1rem;
+  z-index: 9999;
+  padding: 0.75rem 1.25rem;
+  background-color: var(--brand-600);
+  color: #fff;
+  border-radius: 980px;
+  font-weight: 600;
+  font-size: 0.9rem;
+  text-decoration: none;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  transition: top 0.15s ease;
+}
+.skip-nav:focus {
+  top: 1rem;
+  outline: 2px solid var(--brand-500);
+  outline-offset: 2px;
+}
+
+/* ── Focus visible ───────────────────────────────────────── */
+:focus-visible {
+  outline: 2px solid var(--brand-600);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+.dark :focus-visible {
+  outline-color: var(--brand-500);
+}
+
+/* ── Docs prose readability ──────────────────────────────── */
+.fd-prose,
+[class*="prose"] {
+  line-height: 1.75;
+}
+.fd-prose p,
+[class*="prose"] p {
+  margin-bottom: 1.25rem;
+}
+.fd-prose h2,
+[class*="prose"] h2 {
+  margin-top: 2.5rem;
+  margin-bottom: 1rem;
+}
+.fd-prose h3,
+[class*="prose"] h3 {
+  margin-top: 2rem;
+  margin-bottom: 0.75rem;
+}
+.fd-prose :not(pre) > code,
+[class*="prose"] :not(pre) > code {
+  color: var(--brand-600);
+  background-color: var(--bg-surface);
+  padding: 0.15em 0.4em;
+  border-radius: 6px;
+  font-size: 0.9em;
+  font-weight: 500;
+}
+.dark .fd-prose :not(pre) > code,
+.dark [class*="prose"] :not(pre) > code {
+  color: var(--brand-500);
 }
 
 /* ── Reduced motion ──────────────────────────────────────── */
