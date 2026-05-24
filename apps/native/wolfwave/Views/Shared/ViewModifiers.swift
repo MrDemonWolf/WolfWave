@@ -229,3 +229,33 @@ extension Color {
         return String(format: "#%02X%02X%02X", r, g, b)
     }
 }
+
+// MARK: - Previews
+
+#Preview("Modifier samples") {
+    VStack(alignment: .leading, spacing: DSSpace.s5) {
+        Text("Section Header")
+            .sectionHeader()
+
+        Text("Sub-section header")
+            .sectionSubHeader()
+
+        VStack(alignment: .leading, spacing: DSSpace.s2) {
+            Text("Card with .cardStyle()")
+                .sectionSubHeader()
+            Text("Glass surface, internal padding, rounded corners.")
+                .font(.system(size: DSFont.Size.body))
+                .foregroundStyle(.secondary)
+        }
+        .cardStyle()
+
+        Text("Hover for pointer cursor")
+            .font(.system(size: DSFont.Size.body))
+            .padding(DSSpace.s3)
+            .background(Color.accentColor.opacity(0.12))
+            .clipShape(RoundedRectangle(cornerRadius: 6))
+            .pointerCursor()
+    }
+    .padding()
+    .frame(width: 480)
+}

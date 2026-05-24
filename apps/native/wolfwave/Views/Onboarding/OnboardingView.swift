@@ -248,3 +248,9 @@ struct OnboardingView: View {
         viewModel.completeOnboarding()
     }
 }
+
+// MARK: - Previews
+
+#Preview {
+    OnboardingView(onComplete: {})
+}

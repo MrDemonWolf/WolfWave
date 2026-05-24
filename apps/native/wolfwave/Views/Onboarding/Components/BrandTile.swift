@@ -44,3 +44,43 @@ struct BrandTile<Background: ShapeStyle, Glyph: View>: View {
             .accessibilityHidden(true)
     }
 }
+
+// MARK: - Previews
+
+#Preview("Brand tiles") {
+    HStack(spacing: 24) {
+        BrandTile(
+            background: AnyShapeStyle(AppConstants.Brand.twitch),
+            glowColor: AppConstants.Brand.twitch,
+            glyph: Image(systemName: "bolt.fill")
+                .font(.system(size: DSFont.Size.x24, weight: .bold))
+                .foregroundStyle(.white)
+        )
+
+        BrandTile(
+            background: AnyShapeStyle(AppConstants.Brand.discord),
+            glowColor: AppConstants.Brand.discord,
+            glyph: Image(systemName: "bubble.left.and.bubble.right.fill")
+                .font(.system(size: DSFont.Size.xl, weight: .bold))
+                .foregroundStyle(.white)
+        )
+
+        BrandTile(
+            background: AnyShapeStyle(
+                LinearGradient(
+                    colors: [
+                        AppConstants.Brand.appleMusicGradientStart,
+                        AppConstants.Brand.appleMusicGradientEnd,
+                    ],
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
+                )
+            ),
+            glowColor: AppConstants.Brand.appleMusicGradientEnd,
+            glyph: Image(systemName: "music.note")
+                .font(.system(size: DSFont.Size.x24, weight: .bold))
+                .foregroundStyle(.white)
+        )
+    }
+    .padding()
+}

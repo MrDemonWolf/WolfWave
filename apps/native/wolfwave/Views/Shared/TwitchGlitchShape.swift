@@ -73,3 +73,22 @@ struct TwitchGlitchShape: Shape {
         return path
     }
 }
+
+// MARK: - Previews
+
+#Preview("Twitch purple, multiple sizes") {
+    HStack(spacing: DSSpace.s8) {
+        TwitchGlitchShape()
+            .fill(AppConstants.Brand.twitch, style: FillStyle(eoFill: true))
+            .frame(width: 16, height: 16)
+
+        TwitchGlitchShape()
+            .fill(AppConstants.Brand.twitch, style: FillStyle(eoFill: true))
+            .frame(width: 32, height: 32)
+
+        TwitchGlitchShape()
+            .fill(AppConstants.Brand.twitch, style: FillStyle(eoFill: true))
+            .frame(width: 64, height: 64)
+    }
+    .padding()
+}

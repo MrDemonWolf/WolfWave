@@ -123,3 +123,45 @@ struct StatsChartsView: View {
         }
     }
 }
+
+// MARK: - Previews
+
+#Preview("With data") {
+    let calendar = Calendar.current
+    let today = calendar.startOfDay(for: Date())
+    let week: [DailyCount] = (0..<7).reversed().map { offset in
+        let day = calendar.date(byAdding: .day, value: -offset, to: today) ?? today
+        let counts = [12, 18, 7, 24, 31, 15, 22]
+        return DailyCount(id: day, count: counts[offset], seconds: TimeInterval(counts[offset] * 210))
+    }
+    let hours: [Int] = [
+        0, 0, 0, 0, 0, 0,       //  0–5: overnight
+        2, 5, 9, 14, 18, 12,    //  6–11: morning
+        20, 24, 22, 19, 16, 17, // 12–17: afternoon
+        21, 18, 12, 6, 3, 1,    // 18–23: evening
+    ]
+    let snapshot = StatsSnapshot(
+        totalPlays: 129,
+        totalListeningSeconds: 27_100,
+        playsToday: 22,
+        listeningSecondsToday: 4_620,
+        playsThisWeek: 129,
+        listeningSecondsThisWeek: 27_100,
+        topArtists: [],
+        topTracks: [],
+        topAlbums: [],
+        last7Days: week,
+        playsByHour: hours,
+        recent: [],
+        topTrackToday: nil
+    )
+    return StatsChartsView(snapshot: snapshot)
+        .padding()
+        .frame(width: 600)
+}
+
+#Preview("Empty") {
+    StatsChartsView(snapshot: .empty)
+        .padding()
+        .frame(width: 600)
+}

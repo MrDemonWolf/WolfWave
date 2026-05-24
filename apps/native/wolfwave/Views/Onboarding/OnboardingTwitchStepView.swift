@@ -229,3 +229,13 @@ struct OnboardingTwitchStepView: View {
         }
     }
 }
+
+// MARK: - Previews
+
+#Preview("Not connected") {
+    OnboardingTwitchStepView(twitchViewModel: TwitchViewModel())
+        .frame(
+            width: AppConstants.OnboardingUI.windowWidth,
+            height: AppConstants.OnboardingUI.windowHeight
+        )
+}

@@ -68,3 +68,30 @@ struct PillButton<Label: View>: View {
         .pointerCursor()
     }
 }
+
+// MARK: - Previews
+
+#Preview("Enabled") {
+    PillButton(
+        background: AnyShapeStyle(AppConstants.Brand.twitch),
+        glowColor: AppConstants.Brand.twitch,
+        action: {}
+    ) {
+        Text("Sign in with Twitch")
+    }
+    .padding()
+    .frame(width: 360)
+}
+
+#Preview("Disabled") {
+    PillButton(
+        background: AnyShapeStyle(AppConstants.Brand.discord),
+        glowColor: AppConstants.Brand.discord,
+        disabled: true,
+        action: {}
+    ) {
+        Text("Connect Discord")
+    }
+    .padding()
+    .frame(width: 360)
+}

@@ -90,3 +90,11 @@ struct MetricsCardView: View {
         .accessibilityElement(children: .combine)
     }
 }
+
+// MARK: - Previews
+
+#Preview {
+    MetricsCardView()
+        .padding()
+        .frame(width: 600)
+}

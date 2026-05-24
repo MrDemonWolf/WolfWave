@@ -43,3 +43,23 @@ struct StatusChip: View {
         .accessibilityIdentifier("statusChip.\(text)")
     }
 }
+
+// MARK: - Previews
+
+#Preview("Live") {
+    StatusChip(text: "Live", color: .green)
+        .padding()
+        .frame(width: 360)
+}
+
+#Preview("Off") {
+    StatusChip(text: "Off", color: .gray)
+        .padding()
+        .frame(width: 360)
+}
+
+#Preview("Error") {
+    StatusChip(text: "Error", color: .red)
+        .padding()
+        .frame(width: 360)
+}

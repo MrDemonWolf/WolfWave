@@ -91,3 +91,11 @@ struct DiagnosticsShareCardView: View {
         NSWorkspace.shared.activateFileViewerSelecting([dir])
     }
 }
+
+// MARK: - Previews
+
+#Preview {
+    DiagnosticsShareCardView()
+        .padding()
+        .frame(width: 600)
+}

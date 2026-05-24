@@ -127,3 +127,29 @@ struct ConnectionTestButton: View {
         }
     }
 }
+
+// MARK: - Previews
+
+#Preview {
+    VStack(spacing: DSSpace.s6) {
+        ConnectionTestButton(
+            label: "Check Discord",
+            icon: "antenna.radiowaves.left.and.right"
+        ) { completion in
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) {
+                completion(true)
+            }
+        }
+
+        ConnectionTestButton(
+            label: "Test Twitch",
+            icon: "bolt.horizontal"
+        ) { completion in
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) {
+                completion(false)
+            }
+        }
+    }
+    .padding()
+    .frame(width: 360)
+}

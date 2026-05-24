@@ -39,3 +39,17 @@ struct InfoRow: View {
         }
     }
 }
+
+// MARK: - Previews
+
+#Preview("Monospaced URL") {
+    InfoRow(label: "Local Address", value: "ws://localhost:8765")
+        .padding()
+        .frame(width: 360)
+}
+
+#Preview("Plain version") {
+    InfoRow(label: "Version", value: "1.2.0", isMonospaced: false)
+        .padding()
+        .frame(width: 360)
+}

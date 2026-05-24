@@ -33,3 +33,15 @@ struct ConfigRequiredBanner: View {
         #endif
     }
 }
+
+// MARK: - Previews
+
+#if DEBUG
+#Preview {
+    ConfigRequiredBanner(
+        message: "Set DISCORD_CLIENT_ID in Config.xcconfig to enable this feature."
+    )
+    .padding()
+    .frame(width: 420)
+}
+#endif

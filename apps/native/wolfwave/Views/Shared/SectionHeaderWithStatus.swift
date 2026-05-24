@@ -56,3 +56,25 @@ struct SectionHeaderWithStatus: View {
         .accessibilityElement(children: .combine)
     }
 }
+
+// MARK: - Previews
+
+#Preview("With status") {
+    SectionHeaderWithStatus(
+        title: "Discord Status",
+        subtitle: "Show your music on your Discord profile.",
+        statusText: "Connected",
+        statusColor: .green
+    )
+    .padding()
+    .frame(width: 480)
+}
+
+#Preview("Without status") {
+    SectionHeaderWithStatus(
+        title: "About WolfWave",
+        subtitle: "Native macOS menu bar app for Apple Music streamers."
+    )
+    .padding()
+    .frame(width: 480)
+}

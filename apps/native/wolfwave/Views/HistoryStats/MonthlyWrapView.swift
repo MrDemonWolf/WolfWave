@@ -245,3 +245,59 @@ struct MonthlyWrapCard: View {
         }
     }
 }
+
+// MARK: - Previews
+
+// Note: MonthlyWrapView itself requires a live ListeningHistoryService.
+// Previewing the visual card (MonthlyWrapCard) is enough for design iteration.
+
+#Preview("With data") {
+    let data = MonthlyWrapData(
+        monthLabel: "May 2026",
+        monthStart: Date(),
+        totalPlays: 412,
+        totalListeningSeconds: 76_320,
+        uniqueArtists: 58,
+        uniqueTracks: 184,
+        topArtist: CountedItem(
+            id: "taylor swift",
+            name: "Taylor Swift",
+            detail: nil,
+            count: 47
+        ),
+        topTrack: CountedItem(
+            id: "anti-hero|taylor swift",
+            name: "Anti-Hero",
+            detail: "Taylor Swift",
+            count: 22
+        ),
+        topAlbum: CountedItem(
+            id: "midnights",
+            name: "Midnights",
+            detail: "Taylor Swift",
+            count: 81
+        ),
+        busiestDay: nil
+    )
+    return MonthlyWrapCard(data: data)
+        .frame(width: 380)
+        .padding()
+}
+
+#Preview("Empty month") {
+    let data = MonthlyWrapData(
+        monthLabel: "April 2026",
+        monthStart: Date(),
+        totalPlays: 0,
+        totalListeningSeconds: 0,
+        uniqueArtists: 0,
+        uniqueTracks: 0,
+        topArtist: nil,
+        topTrack: nil,
+        topAlbum: nil,
+        busiestDay: nil
+    )
+    return MonthlyWrapCard(data: data)
+        .frame(width: 380)
+        .padding()
+}

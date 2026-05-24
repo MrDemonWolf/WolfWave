@@ -104,3 +104,13 @@ struct OnboardingCompletionView: View {
         }
     }
 }
+
+// MARK: - Previews
+
+#Preview {
+    OnboardingCompletionView(onDismiss: {})
+        .frame(
+            width: AppConstants.OnboardingUI.windowWidth,
+            height: AppConstants.OnboardingUI.windowHeight
+        )
+}
