@@ -863,6 +863,10 @@ nonisolated enum AppConstants {
     // MARK: - Settings UI
 
     /// Settings window configuration.
+    ///
+    /// Dimension values are sourced from `DSDimension.Settings` (generated from
+    /// `design-system/tokens.json`). These wrappers keep the existing call sites
+    /// stable while the design system stays the single source of truth.
     enum SettingsUI {
         /// Default application name shown in UI
         static let defaultAppName = "WolfWave"
@@ -870,35 +874,35 @@ nonisolated enum AppConstants {
         /// Minimum width for settings window. Sized so sidebar + detail pane fit
         /// the integration dashboard rows (icon · text · status chip · Configure)
         /// without truncation, while still working on a 1280×720 display.
-        static let minWidth: CGFloat = 820
+        static let minWidth: CGFloat = DSDimension.Settings.minWidth
 
         /// Minimum height for settings window. Fits the General tab's hero card
         /// plus the four-row integrations list on a 720p display with Dock visible.
-        static let minHeight: CGFloat = 600
+        static let minHeight: CGFloat = DSDimension.Settings.minHeight
 
         /// Ideal width for settings window when first opened.
-        static let idealWidth: CGFloat = 1180
+        static let idealWidth: CGFloat = DSDimension.Settings.idealWidth
 
-        /// Ideal height for settings window when first opened. Fits 720p w/ Dock.
-        static let idealHeight: CGFloat = 740
+        /// Ideal height for settings window when first opened.
+        static let idealHeight: CGFloat = DSDimension.Settings.idealHeight
 
         /// Maximum content width for detail pane
-        static let maxContentWidth: CGFloat = 720
+        static let maxContentWidth: CGFloat = DSDimension.Settings.maxContentWidth
 
         /// Standard horizontal padding for content sections
-        static let contentPaddingH: CGFloat = 28
+        static let contentPaddingH: CGFloat = DSDimension.Settings.contentPaddingH
 
         /// Standard vertical padding for content sections
-        static let contentPaddingV: CGFloat = 22
+        static let contentPaddingV: CGFloat = DSDimension.Settings.contentPaddingV
 
         /// Standard spacing between sections
-        static let sectionSpacing: CGFloat = 24
+        static let sectionSpacing: CGFloat = DSDimension.Settings.sectionSpacing
 
         /// Standard card padding
-        static let cardPadding: CGFloat = 16
+        static let cardPadding: CGFloat = DSDimension.Settings.cardPadding
 
         /// Standard card corner radius (matches macOS 26 Liquid Glass card radius).
-        static let cardCornerRadius: CGFloat = 14
+        static let cardCornerRadius: CGFloat = DSDimension.Settings.cardCornerRadius
     }
 
     // MARK: - Power Management
