@@ -36,6 +36,7 @@ struct HistoryStatsSettingsView: View {
 
     @State private var showWrapSheet = false
     @State private var showClearAlert = false
+    @State private var musicPermission: MusicPermissionState = MusicPermissionChecker.currentState()
 
     /// The shared history service. Accessed as a computed property so the
     /// Observation framework tracks property reads each time `body` runs.
@@ -52,22 +53,30 @@ struct HistoryStatsSettingsView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: AppConstants.SettingsUI.sectionSpacing) {
             intro
+            if musicPermission == .denied {
+                MusicPermissionBanner(
+                    message: "WolfWave needs Apple Music automation access to record what you play. Enable it in System Settings → Privacy & Security → Automation."
+                )
+            }
             togglesCard
-
-            if !historyEnabled {
-                offStateCard
-            } else {
-                if statsEnabled, snapshot.hasData {
-                    summaryCard
-                    StatsChartsView(snapshot: snapshot)
-                    topArtistsCard
-                }
-                recentCard
-                if statsEnabled {
-                    statsCommandCard
-                }
+            unifiedRecentCard
+            if historyEnabled, statsEnabled, snapshot.hasData {
+                summaryCard
+                StatsChartsView(snapshot: snapshot)
+                topArtistsCard
+            }
+            if historyEnabled, statsEnabled {
+                statsCommandCard
+            }
+            if historyEnabled {
                 actionsRow
             }
+        }
+        .onAppear {
+            musicPermission = MusicPermissionChecker.currentState()
+        }
+        .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
+            musicPermission = MusicPermissionChecker.currentState()
         }
         .sheet(isPresented: $showWrapSheet) {
             if let service {
@@ -100,8 +109,11 @@ struct HistoryStatsSettingsView: View {
         VStack(alignment: .leading, spacing: 0) {
             ToggleSettingRow(
                 title: "Listening History",
-                subtitle: "Keep a private log of the tracks you play.",
+                subtitle: musicPermission == .denied
+                    ? "Apple Music access required — see banner above."
+                    : "Keep a private log of the tracks you play.",
                 isOn: $historyEnabled,
+                isDisabled: musicPermission == .denied,
                 accessibilityLabel: "Toggle Listening History",
                 accessibilityIdentifier: "listeningHistoryToggle",
                 onChange: { handleHistoryChange($0) }
@@ -116,7 +128,7 @@ struct HistoryStatsSettingsView: View {
                     ? "Top artists, listening time, charts, and a monthly wrap."
                     : "Turn on Listening History first.",
                 isOn: $statsEnabled,
-                isDisabled: !historyEnabled,
+                isDisabled: !historyEnabled || musicPermission == .denied,
                 accessibilityLabel: "Toggle Stats and Charts",
                 accessibilityIdentifier: "statsEnabledToggle",
                 onChange: { handleStatsChange($0) }
@@ -124,25 +136,6 @@ struct HistoryStatsSettingsView: View {
             .padding(AppConstants.SettingsUI.cardPadding)
         }
         .cardStyleUnpadded()
-    }
-
-    // MARK: - Off State
-
-    private var offStateCard: some View {
-        VStack(spacing: 8) {
-            Image(systemName: "chart.bar.xaxis")
-                .font(.system(size: DSFont.Size.x28, weight: .light))
-                .foregroundStyle(.tertiary)
-            Text("Nothing is being recorded")
-                .font(.system(size: DSFont.Size.base, weight: .medium))
-            Text("Turn on Listening History to start tracking your plays.")
-                .font(.system(size: DSFont.Size.sm))
-                .foregroundStyle(.secondary)
-                .multilineTextAlignment(.center)
-        }
-        .frame(maxWidth: .infinity)
-        .padding(.vertical, DSSpace.s9)
-        .cardStyle()
     }
 
     // MARK: - Summary
@@ -217,42 +210,78 @@ struct HistoryStatsSettingsView: View {
 
     // MARK: - Recent
 
-    private var recentCard: some View {
-        VStack(alignment: .leading, spacing: 10) {
+    /// Single recently-played card whose outer frame stays a consistent size
+    /// across off / empty / populated states. Prevents the settings window
+    /// from resizing when the user flips Listening History on or off.
+    private var unifiedRecentCard: some View {
+        VStack(alignment: .leading, spacing: DSSpace.s3) {
             cardHeader("Recently played", systemImage: "clock.arrow.circlepath")
 
-            if snapshot.recent.isEmpty {
-                Text("Nothing recorded yet — play something in Apple Music and it'll show up here.")
-                    .font(.system(size: DSFont.Size.body))
-                    .foregroundStyle(.secondary)
-                    .fixedSize(horizontal: false, vertical: true)
-                    .padding(.vertical, DSSpace.s1)
-            } else {
-                ForEach(Array(snapshot.recent.enumerated()), id: \.offset) { _, play in
-                    HStack(spacing: 10) {
-                        Image(systemName: "music.note")
-                            .font(.system(size: DSFont.Size.sm))
-                            .foregroundStyle(.secondary)
-                            .frame(width: 16)
-                        VStack(alignment: .leading, spacing: 1) {
-                            Text(play.track)
-                                .font(.system(size: DSFont.Size.base))
-                                .lineLimit(1)
-                            Text(play.artist)
-                                .font(.system(size: DSFont.Size.sm))
-                                .foregroundStyle(.secondary)
-                                .lineLimit(1)
-                        }
-                        Spacer()
-                        Text(HistoryFormat.relative(play.timestamp))
-                            .font(.system(size: DSFont.Size.sm))
-                            .foregroundStyle(.tertiary)
-                    }
+            Group {
+                if !historyEnabled {
+                    emptyStateContent(
+                        title: "Nothing is being recorded",
+                        subtitle: "Turn on Listening History to start tracking your plays."
+                    )
+                } else if snapshot.recent.isEmpty {
+                    emptyStateContent(
+                        title: "Nothing recorded yet",
+                        subtitle: "Play something in Apple Music and it'll show up here."
+                    )
+                } else {
+                    recentPlaysList
                 }
             }
+            .frame(
+                maxWidth: .infinity,
+                minHeight: DSDimension.HistoryStats.recentCardMinHeight,
+                alignment: .top
+            )
         }
         .padding(AppConstants.SettingsUI.cardPadding)
         .cardStyleUnpadded()
+    }
+
+    @ViewBuilder
+    private func emptyStateContent(title: String, subtitle: String) -> some View {
+        VStack(spacing: DSSpace.s2) {
+            Image(systemName: "chart.bar.xaxis")
+                .font(.system(size: DSFont.Size.x28, weight: .light))
+                .foregroundStyle(.tertiary)
+            Text(title)
+                .font(.system(size: DSFont.Size.base, weight: .medium))
+            Text(subtitle)
+                .font(.system(size: DSFont.Size.sm))
+                .foregroundStyle(.secondary)
+                .multilineTextAlignment(.center)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+
+    private var recentPlaysList: some View {
+        VStack(alignment: .leading, spacing: DSSpace.s3) {
+            ForEach(Array(snapshot.recent.enumerated()), id: \.offset) { _, play in
+                HStack(spacing: DSSpace.s3) {
+                    Image(systemName: "music.note")
+                        .font(.system(size: DSFont.Size.sm))
+                        .foregroundStyle(.secondary)
+                        .frame(width: DSFont.Size.x16)
+                    VStack(alignment: .leading, spacing: 1) {
+                        Text(play.track)
+                            .font(.system(size: DSFont.Size.base))
+                            .lineLimit(1)
+                        Text(play.artist)
+                            .font(.system(size: DSFont.Size.sm))
+                            .foregroundStyle(.secondary)
+                            .lineLimit(1)
+                    }
+                    Spacer()
+                    Text(HistoryFormat.relative(play.timestamp))
+                        .font(.system(size: DSFont.Size.sm))
+                        .foregroundStyle(.tertiary)
+                }
+            }
+        }
     }
 
     // MARK: - !stats Command
@@ -341,6 +370,10 @@ struct HistoryStatsSettingsView: View {
     /// Cascades Stats off when History is turned off, then notifies the app
     /// delegate so recording starts or stops.
     private func handleHistoryChange(_ enabled: Bool) {
+        if enabled, musicPermission == .denied {
+            historyEnabled = false
+            return
+        }
         if !enabled {
             statsEnabled = false
             statsCommandEnabled = false

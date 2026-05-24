@@ -170,6 +170,9 @@ export const tokens = {
     "iconButton": {
       "minWidth": 22,
       "minHeight": 20
+    },
+    "historyStats": {
+      "recentCardMinHeight": 160
     }
   },
   "widget": {

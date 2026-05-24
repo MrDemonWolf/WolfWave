@@ -154,5 +154,9 @@ nonisolated enum DSDimension {
         static let minWidth: CGFloat = 22
         static let minHeight: CGFloat = 20
     }
+
+    enum HistoryStats {
+        static let recentCardMinHeight: CGFloat = 160
+    }
 }
 

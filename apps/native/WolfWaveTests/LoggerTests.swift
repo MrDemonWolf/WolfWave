@@ -197,19 +197,32 @@ struct LoggerTests {
             }
         }
 
-        // Verify at least some of the concurrent messages were written
+        // Verify at least some of the concurrent messages were written.
+        // Log rotation (>5MB) can split writes between wolfwave.log and the
+        // rotated wolfwave.log.1 backup if a prior test pushed the file near
+        // the limit, so scan both files when checking for our markers.
         guard let logURL = Log.exportLogFile() else {
             Issue.record("Failed to export log file")
             return
         }
-        let logData = try Data(contentsOf: logURL)
-        let content = String(decoding: logData, as: UTF8.self)
+        let combined = readLogIncludingBackup(at: logURL)
 
-        // Check that a sample of messages appear in the log
-        #expect(content.contains("Concurrent log \(uniquePrefix)_0"),
+        #expect(combined.contains("Concurrent log \(uniquePrefix)_0"),
             "First concurrent log message should be present")
-        #expect(content.contains("Concurrent log \(uniquePrefix)_\(iterations - 1)"),
+        #expect(combined.contains("Concurrent log \(uniquePrefix)_\(iterations - 1)"),
             "Last concurrent log message should be present")
+    }
+
+    /// Reads the current log file plus its rotated `.1` backup if present,
+    /// concatenated. Tolerates a rotation that happened mid-test run.
+    private func readLogIncludingBackup(at url: URL) -> String {
+        var content = (try? String(contentsOf: url, encoding: .utf8)) ?? ""
+        let backupURL = url.deletingLastPathComponent().appending(path: "wolfwave.log.1")
+        if FileManager.default.fileExists(atPath: backupURL.path),
+           let backup = try? String(contentsOf: backupURL, encoding: .utf8) {
+            content += backup
+        }
+        return content
     }
     
     // MARK: - Category Tests

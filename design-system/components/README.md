@@ -16,6 +16,7 @@ One markdown entry per reusable view. Stubs marked `(stub)` need filling in as w
 | IntegrationDashboardView | [integration-dashboard-view.md](integration-dashboard-view.md) | drafted |
 | ConnectionTestButton | [connection-test-button.md](connection-test-button.md) | drafted |
 | ConfigRequiredBanner | [config-required-banner.md](config-required-banner.md) | drafted |
+| MusicPermissionBanner | [music-permission-banner.md](music-permission-banner.md) | drafted |
 | CopyButton | [copy-button.md](copy-button.md) | drafted |
 | DSIconButton | [ds-icon-button.md](ds-icon-button.md) | drafted |
 | UpdateBannerView | [update-banner-view.md](update-banner-view.md) | drafted |
