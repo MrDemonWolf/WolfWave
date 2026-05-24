@@ -87,6 +87,12 @@ nonisolated enum AppConstants {
         /// Posted when the user toggles Listening History. UserInfo contains "enabled" Bool.
         static let listeningHistorySettingChanged = "ListeningHistorySettingChanged"
 
+        /// Posted when the playback data path detects Apple Music Automation is denied
+        /// (e.g., Music is running but ScriptingBridge reads return nil). Lets the
+        /// Music Monitor settings view flip to the denied banner without waiting for
+        /// the next `AEDeterminePermissionToAutomateTarget` poll.
+        static let musicPermissionDenied = "MusicPermissionDenied"
+
         /// All notification names — used by the DEBUG-only notification firehose.
         static let allNames: [String] = [
             trackingSettingChanged,
@@ -106,6 +112,7 @@ nonisolated enum AppConstants {
             songRequestHoldChanged,
             voteSkipStateChanged,
             listeningHistorySettingChanged,
+            musicPermissionDenied,
         ]
     }
 

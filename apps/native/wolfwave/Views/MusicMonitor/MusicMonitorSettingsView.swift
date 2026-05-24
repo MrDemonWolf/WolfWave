@@ -145,6 +145,7 @@ struct MusicMonitorSettingsView: View {
             }
             // A successful track read implies the user has granted access.
             if currentTrack != nil, permissionState == .denied {
+                MusicPermissionCache.write(.granted)
                 permissionState = .granted
             }
         }
@@ -167,6 +168,15 @@ struct MusicMonitorSettingsView: View {
         }
         .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
             refreshPermission()
+        }
+        .onReceive(notif(AppConstants.Notifications.musicPermissionDenied)) { _ in
+            // The data path detected that Music.app is running but ScriptingBridge
+            // reads return nil — the canonical TCC Automation denial. Flip the
+            // banner immediately and persist so other tabs see it too.
+            MusicPermissionCache.write(.denied)
+            withAnimation(.easeInOut(duration: 0.2)) {
+                permissionState = .denied
+            }
         }
     }
 

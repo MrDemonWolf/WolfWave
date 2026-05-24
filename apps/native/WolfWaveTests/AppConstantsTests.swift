@@ -39,6 +39,8 @@ struct AppConstantsTests {
         #expect(!AppConstants.Notifications.websocketServerStateChanged.isEmpty)
         #expect(!AppConstants.Notifications.powerStateChanged.isEmpty)
         #expect(!AppConstants.Notifications.twitchConnectionStateChanged.isEmpty)
+        #expect(!AppConstants.Notifications.musicPermissionDenied.isEmpty)
+        #expect(AppConstants.Notifications.allNames.contains(AppConstants.Notifications.musicPermissionDenied))
     }
     
     // MARK: - UserDefaults Keys Tests

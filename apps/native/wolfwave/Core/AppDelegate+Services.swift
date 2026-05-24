@@ -697,8 +697,19 @@ extension AppDelegate: PlaybackSourceDelegate {
 
     /// Clears track state and notifies services when playback stops.
     func playbackSource(didUpdateStatus status: String) {
-        if status == "No track playing" {
-            // Record the track that was playing before it stopped.
+        Log.info("AppDelegate: Playback status = \(status)", category: "Music")
+
+        // Any of these statuses mean "no track is reliably playing right now" —
+        // flush in-progress history and blank the cached snapshot so Discord
+        // Rich Presence and the WebSocket overlay don't keep broadcasting a
+        // stale song after Music quits, permission is revoked, or SB errors out.
+        let shouldClearPlayback = status == "No track playing"
+            || status == "Music access denied"
+            || status == "Music not running"
+            || status == "No track info"
+            || status == "Script error"
+
+        if shouldClearPlayback {
             flushCurrentPlayToHistory()
             currentSong = nil
             currentArtist = nil
@@ -706,9 +717,16 @@ extension AppDelegate: PlaybackSourceDelegate {
             currentPlaylist = nil
         }
 
+        if status == "Music access denied" {
+            // Tell the Music Monitor settings view to flip its banner now,
+            // without waiting for the next AEDeterminePermissionToAutomateTarget
+            // poll or the user clicking Recheck.
+            NotificationCenter.default.post(name: .musicPermissionDenied, object: nil)
+        }
+
         postNowPlayingUpdate(song: nil, artist: nil, album: nil)
 
-        if currentSong == nil {
+        if shouldClearPlayback {
             if let discordService {
                 Task { await discordService.clearPresence() }
             }

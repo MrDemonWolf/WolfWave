@@ -27,6 +27,23 @@ final class AppleMusicSource: PlaybackSource, @unchecked Sendable {
             static let notRunning = "NOT_RUNNING"
             static let notPlaying = "NOT_PLAYING"
             static let errorPrefix = "ERROR:"
+            /// Internal sentinel: SBApplication created but `playerState` read
+            /// returned nil while Music was running — textbook TCC Automation
+            /// denial signature. Mapped to the user-facing
+            /// "Music access denied" delegate status downstream.
+            static let accessDenied = "ACCESS_DENIED"
+            /// Internal sentinel: `SBApplication(bundleIdentifier:)` itself
+            /// returned nil. Rare; usually means Music.app is mid-launch or
+            /// the bundle isn't registered with LaunchServices yet.
+            static let scriptBridgeNil = "SB_NIL_APP"
+        }
+
+        enum DelegateStatus {
+            static let musicNotRunning = "Music not running"
+            static let noTrackInfo = "No track info"
+            static let noTrackPlaying = "No track playing"
+            static let scriptError = "Script error"
+            static let accessDenied = "Music access denied"
         }
     }
 
@@ -42,6 +59,9 @@ final class AppleMusicSource: PlaybackSource, @unchecked Sendable {
     nonisolated(unsafe) private var lastTrackSeenAt: Date = .distantPast
     nonisolated(unsafe) private var lastNotificationAt: Date = .distantPast
     nonisolated(unsafe) private var isTracking = false
+    /// Dedup gate for guard-failure logs — same key won't log twice in a row.
+    /// A successful track read resets this so the next failure logs again.
+    nonisolated(unsafe) private var lastGuardLogged: String?
 
     private let backgroundQueue = DispatchQueue(label: Constants.queueLabel, qos: .utility)
 
@@ -128,10 +148,14 @@ final class AppleMusicSource: PlaybackSource, @unchecked Sendable {
 
         let trackInfo: String? = await MainActor.run {
             guard let musicApp = SBApplication(bundleIdentifier: Constants.musicBundleIdentifier) else {
-                return nil
+                return Constants.Status.scriptBridgeNil
             }
             guard let stateObj = musicApp.value(forKey: "playerState") else {
-                return nil
+                // Music is running (checked above) but ScriptingBridge can't
+                // read its state — the canonical TCC Automation-denied
+                // signature. Surface it as a distinct sentinel so the UI
+                // can flip its permission banner without polling.
+                return Constants.Status.accessDenied
             }
             let isPlaying: Bool
             if let stateNum = stateObj as? NSNumber {
@@ -161,7 +185,10 @@ final class AppleMusicSource: PlaybackSource, @unchecked Sendable {
         if let trackInfo {
             handleTrackInfo(trackInfo)
         } else {
-            notifyDelegate(status: "No track info")
+            // `MainActor.run` block always returns a non-nil string today; this
+            // branch is a defensive net for an unforeseen Swift bridge edge.
+            logGuardOnce(key: "unknown-nil", message: "AppleMusicSource: ScriptingBridge returned nil unexpectedly")
+            notifyDelegate(status: Constants.DelegateStatus.noTrackInfo)
         }
     }
 
@@ -190,21 +217,47 @@ final class AppleMusicSource: PlaybackSource, @unchecked Sendable {
         let duration = components.count > 3 ? (Double(components[3]) ?? 0) : 0
         let elapsed = components.count > 4 ? (Double(components[4]) ?? 0) : 0
         let playlist = components.count > 5 ? components[5] : ""
-        stateLock.withLock { lastTrackSeenAt = Date() }
+        stateLock.withLock {
+            lastTrackSeenAt = Date()
+            // Reset the guard-log dedup gate so a future failure logs again.
+            lastGuardLogged = nil
+        }
         notifyDelegate(track: trackName, artist: artist, album: album, playlist: playlist, duration: duration, elapsed: elapsed)
         logTrackIfNew(trackInfo, trackName: trackName, artist: artist, album: album)
     }
 
     nonisolated private func handleTrackInfo(_ trackInfo: String) {
         if trackInfo.hasPrefix(Constants.Status.errorPrefix) {
-            notifyDelegate(status: "Script error")
+            logGuardOnce(key: "script-error", message: "AppleMusicSource: ScriptingBridge returned error — \(trackInfo)")
+            notifyDelegate(status: Constants.DelegateStatus.scriptError)
         } else if trackInfo == Constants.Status.notRunning {
-            notifyDelegate(status: "Music not running")
+            logGuardOnce(key: "not-running", message: "AppleMusicSource: Music.app not running")
+            notifyDelegate(status: Constants.DelegateStatus.musicNotRunning)
+        } else if trackInfo == Constants.Status.accessDenied {
+            // Music IS running but ScriptingBridge can't read state — TCC denied.
+            logGuardOnce(key: "access-denied", message: "AppleMusicSource: Music.app running but ScriptingBridge read returned nil — Automation permission likely denied")
+            notifyDelegate(status: Constants.DelegateStatus.accessDenied)
+        } else if trackInfo == Constants.Status.scriptBridgeNil {
+            logGuardOnce(key: "sb-nil", message: "AppleMusicSource: SBApplication(bundleIdentifier:) returned nil")
+            notifyDelegate(status: Constants.DelegateStatus.noTrackInfo)
         } else if trackInfo == Constants.Status.notPlaying {
             handleNotPlayingState()
         } else {
             processTrackInfoString(trackInfo)
         }
+    }
+
+    /// Deduped warning log for a guard-failure category. The next failure of
+    /// the same key is suppressed until either a different key fires or a
+    /// successful track read resets the gate (see `processTrackInfoString`).
+    nonisolated private func logGuardOnce(key: String, message: String) {
+        let shouldLog = stateLock.withLock { () -> Bool in
+            guard lastGuardLogged != key else { return false }
+            lastGuardLogged = key
+            return true
+        }
+        guard shouldLog else { return }
+        Log.warn(message, category: "Music")
     }
 
     nonisolated private func handleNotPlayingState() {
@@ -214,7 +267,7 @@ final class AppleMusicSource: PlaybackSource, @unchecked Sendable {
             scheduleTrackCheck(after: 0.5, reason: "idle-grace-recheck")
             return
         }
-        notifyDelegate(status: "No track playing")
+        notifyDelegate(status: Constants.DelegateStatus.noTrackPlaying)
     }
 
     nonisolated private func logTrackIfNew(_ trackInfo: String, trackName: String, artist: String, album: String) {
