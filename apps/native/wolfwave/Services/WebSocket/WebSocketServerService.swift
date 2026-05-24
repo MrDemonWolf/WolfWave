@@ -19,18 +19,23 @@ import Network
 ///
 /// ## Security model
 ///
-/// - The listener binds to `.ipv4(.loopback)` so connections must originate on the
-///   same Mac. Localhost is **not** treated as an authentication boundary on its own:
-///   any browser tab or sibling process on the host could still reach this port.
-/// - Every accepted connection must present the `wolfwave.token.<hex>` WebSocket
-///   subprotocol (`Sec-WebSocket-Protocol`) on the handshake. The token is minted on
-///   first launch by `WebSocketAuthToken.currentOrCreate()`, persisted in the macOS
-///   Keychain via `KeychainService.saveToken(_:)`, and never logged in full —
-///   redacted log lines only carry the first 4 characters.
-/// - Connections without the subprotocol, or with a mismatched value, are rejected
-///   by the `NWProtocolWebSocket` client-request handler before the connection
-///   transitions to `.ready`; the snapshot count is not bumped and no playback
-///   frames are sent.
+/// - The listener binds to all interfaces so LAN peers (a second-PC OBS, a phone
+///   browser) can reach the widget. Two-PC setups would otherwise be impossible.
+/// - Every accepted connection — loopback or LAN — must present the
+///   `wolfwave.token.<hex>` WebSocket subprotocol (`Sec-WebSocket-Protocol`)
+///   on the handshake. The token is minted on first launch by
+///   `WebSocketAuthToken.currentOrCreate()`, persisted in the macOS Keychain
+///   via `KeychainService.saveToken(_:)`, and never logged in full — redacted
+///   log lines only carry the first 4 characters.
+/// - Local widgets get the token for free: `WidgetHTTPService` injects it into
+///   the served `widget.html` so same-Mac OBS Browser Sources "just work".
+///   Remote browsers either fetch widget.html through the same HTTP service
+///   (token still injected) or open the URL directly with `?token=…` in the
+///   query string.
+/// - Connections without the subprotocol, or with a mismatched value, are
+///   rejected by the `NWProtocolWebSocket` client-request handler before the
+///   connection transitions to `.ready`; the snapshot count is not bumped and
+///   no playback frames are sent.
 /// - Rotating the token via `updateAuthToken(_:)` restarts the listener so every
 ///   already-authorized client is dropped.
 /// - The init that omits `authToken` exists for unit tests that exercise the pure
@@ -308,8 +313,7 @@ actor WebSocketServerService {
                 transition(to: .error)
                 return
             }
-            parameters.requiredLocalEndpoint = NWEndpoint.hostPort(host: .ipv4(.loopback), port: nwPort)
-            listener = try NWListener(using: parameters)
+            listener = try NWListener(using: parameters, on: nwPort)
         } catch {
             Log.error("WebSocketServerService: Failed to create listener: \(error)", category: "WebSocket")
             transition(to: .error)

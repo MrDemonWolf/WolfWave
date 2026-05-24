@@ -358,12 +358,14 @@ function buildWidget() {
 // MARK: - WebSocket
 function connect() {
   if (ws) return;
-  console.log('[WolfWave Widget] Connecting to ws://localhost:' + wsPort);
+  const wsHost = location.hostname || 'localhost';
+  const wsURL = 'ws://' + wsHost + ':' + wsPort;
+  console.log('[WolfWave Widget] Connecting to ' + wsURL);
   const protocols = wsToken ? ['wolfwave.token.' + wsToken] : [];
-  ws = new WebSocket('ws://localhost:' + wsPort, protocols);
+  ws = new WebSocket(wsURL, protocols);
 
   ws.onopen = function() {
-    console.log('[WolfWave Widget] Connected to ws://localhost:' + wsPort);
+    console.log('[WolfWave Widget] Connected to ' + wsURL);
     reconnectAttempts = 0;
   };
 

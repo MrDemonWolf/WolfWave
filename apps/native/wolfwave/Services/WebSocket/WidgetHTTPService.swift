@@ -11,10 +11,19 @@ import Network
 
 // MARK: - Widget HTTP Service
 
-/// Serves the bundled `widget.html` over a plain HTTP/1.1 connection on localhost.
+/// Serves the bundled `widget.html` over a plain HTTP/1.1 connection.
 ///
 /// Owned and driven by `WebSocketServerService` — starts when the WS server starts,
-/// stops when it stops. Binds to the loopback interface only.
+/// stops when it stops. Binds to all interfaces so LAN peers (a second-PC OBS,
+/// a phone browser) can fetch the widget for two-PC streaming setups.
+///
+/// ## Token injection
+///
+/// The bundled `widget.html` contains a `__WOLFWAVE_TOKEN__` sentinel. The
+/// substitution runs **only when the requesting peer is loopback** so a LAN
+/// fetch cannot lift the WebSocket credential out of the served HTML. Remote
+/// peers receive the raw template; the JS falls back to the `?token=` URL
+/// query string for the WebSocket handshake.
 ///
 /// - `GET /` or `GET /?...` → `200 OK` with `widget.html` body
 /// - `GET /widget-tokens.generated.js` → `200 OK` with generated design tokens JS
@@ -41,12 +50,14 @@ nonisolated final class WidgetHTTPService: @unchecked Sendable {
 
     // MARK: - Init
 
-    /// Creates a widget HTTP service bound to the loopback interface.
+    /// Creates a widget HTTP service.
     ///
     /// - Parameters:
-    ///   - port: TCP port to listen on.
-    ///   - authToken: WebSocket auth token to inject into the served HTML.
-    ///     Pass `nil` to ship the file untouched — only useful for tests.
+    ///   - port: TCP port to listen on. Bound on all interfaces so LAN peers
+    ///     can reach the widget for two-PC streaming setups.
+    ///   - authToken: WebSocket auth token to inject into the served HTML
+    ///     **for loopback requests only**. Pass `nil` to ship the file
+    ///     untouched — only useful for tests.
     init(port: UInt16, authToken: String? = nil) {
         self.port = port
         self.authToken = authToken
@@ -58,8 +69,10 @@ nonisolated final class WidgetHTTPService: @unchecked Sendable {
 
     // MARK: - Lifecycle
 
-    /// Brings up the loopback listener and begins accepting connections.
-    /// Idempotent — a second call while already running is a no-op.
+    /// Brings up the HTTP listener and begins accepting connections.
+    /// Binds to all interfaces; per-request loopback gating is enforced in
+    /// `serveWidget` for token injection. Idempotent — a second call while
+    /// already running is a no-op.
     func start() {
         guard listener == nil else { return }
 
@@ -69,13 +82,9 @@ nonisolated final class WidgetHTTPService: @unchecked Sendable {
             Log.error("WidgetHTTPService: Invalid port \(port)", category: "WebSocket")
             return
         }
-        parameters.requiredLocalEndpoint = NWEndpoint.hostPort(
-            host: .ipv4(.loopback),
-            port: nwPort
-        )
 
         do {
-            listener = try NWListener(using: parameters)
+            listener = try NWListener(using: parameters, on: nwPort)
         } catch {
             Log.error("WidgetHTTPService: Failed to create listener: \(error)", category: "WebSocket")
             return
@@ -151,6 +160,11 @@ nonisolated final class WidgetHTTPService: @unchecked Sendable {
 
     /// Writes the bundled `widget.html` as an HTTP/1.1 200 response and
     /// closes the connection. Falls back to a 404 when the asset is missing.
+    ///
+    /// Token injection is gated on the peer being loopback: a LAN peer
+    /// receives the raw template (its JS picks the token up from the
+    /// `?token=` URL query) so the credential never leaves this Mac in an
+    /// unauthenticated HTTP response.
     private func serveWidget(to connection: NWConnection) {
         guard let url = Bundle.main.url(forResource: "widget", withExtension: "html"),
               let raw = try? String(contentsOf: url, encoding: .utf8) else {
@@ -159,14 +173,15 @@ nonisolated final class WidgetHTTPService: @unchecked Sendable {
             return
         }
 
+        let isLoopback = Self.isLoopbackPeer(connection)
         let rendered: String
-        if let token = authToken, WebSocketAuthToken.isValid(token) {
+        if isLoopback, let token = authToken, WebSocketAuthToken.isValid(token) {
             // `isValid` gates the substitution on hex-only / bounded length so a
             // corrupted or hand-edited token can't inject `</script>` or other
             // characters that would break out of the JS string context.
             rendered = raw.replacingOccurrences(of: Self.tokenPlaceholder, with: token)
         } else {
-            if authToken != nil {
+            if isLoopback, let token = authToken, !WebSocketAuthToken.isValid(token) {
                 Log.warn(
                     "WidgetHTTPService: Refusing to inject non-hex auth token into widget.html",
                     category: "WebSocket"
@@ -234,6 +249,31 @@ nonisolated final class WidgetHTTPService: @unchecked Sendable {
         connection.send(content: response, completion: .contentProcessed { _ in
             connection.cancel()
         })
+    }
+
+    // MARK: - Peer Inspection
+
+    /// Returns `true` when the peer's remote endpoint is on `127.0.0.0/8` or `::1`.
+    ///
+    /// Used by `serveWidget` to gate token injection: only same-Mac peers see
+    /// the auth credential baked into the served HTML. LAN peers receive the
+    /// raw template and must supply `?token=…` in the URL.
+    private static func isLoopbackPeer(_ connection: NWConnection) -> Bool {
+        switch connection.endpoint {
+        case .hostPort(let host, _):
+            switch host {
+            case .ipv4(let addr):
+                return addr.isLoopback
+            case .ipv6(let addr):
+                return addr.isLoopback
+            case .name(let name, _):
+                return name == "localhost"
+            @unknown default:
+                return false
+            }
+        default:
+            return false
+        }
     }
 
     /// Writes a minimal `404 Not Found` plain-text response and closes the
