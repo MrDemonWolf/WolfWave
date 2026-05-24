@@ -146,26 +146,38 @@ final class AppleMusicSource: PlaybackSource, @unchecked Sendable {
             return
         }
 
-        let trackInfo: String? = await MainActor.run {
+        let result: (status: String, diagnostic: String?) = await MainActor.run {
             guard let musicApp = SBApplication(bundleIdentifier: Constants.musicBundleIdentifier) else {
-                return Constants.Status.scriptBridgeNil
+                return (Constants.Status.scriptBridgeNil, nil)
             }
             guard let stateObj = musicApp.value(forKey: "playerState") else {
                 // Music is running (checked above) but ScriptingBridge can't
                 // read its state — the canonical TCC Automation-denied
                 // signature. Surface it as a distinct sentinel so the UI
                 // can flip its permission banner without polling.
-                return Constants.Status.accessDenied
+                return (Constants.Status.accessDenied, nil)
             }
-            let isPlaying: Bool
+            let stateTypeDesc: String
+            let stateRawValue: String
             if let stateNum = stateObj as? NSNumber {
-                isPlaying = (stateNum.uint32Value == Constants.playerStatePlaying)
+                stateTypeDesc = "NSNumber"
+                stateRawValue = String(stateNum.uint32Value)
             } else {
-                isPlaying = false
+                stateTypeDesc = String(describing: type(of: stateObj))
+                stateRawValue = String(describing: stateObj)
             }
-            guard isPlaying else { return Constants.Status.notPlaying }
+            let isPlaying = (stateObj as? NSNumber)?.uint32Value == Constants.playerStatePlaying
+            guard isPlaying else {
+                let trackObj = musicApp.value(forKey: "currentTrack") as? SBObject
+                let trackPresence = trackObj == nil ? "nil" : "present"
+                let probeName = (trackObj?.value(forKey: "name") as? String) ?? ""
+                let probeArtist = (trackObj?.value(forKey: "artist") as? String) ?? ""
+                let diag = "playerState=\(stateRawValue) type=\(stateTypeDesc) currentTrack=\(trackPresence) name=\"\(probeName)\" artist=\"\(probeArtist)\""
+                return (Constants.Status.notPlaying, diag)
+            }
             guard let track = musicApp.value(forKey: "currentTrack") as? SBObject else {
-                return Constants.Status.notPlaying
+                let diag = "playerState=\(stateRawValue) type=\(stateTypeDesc) currentTrack=nil-after-playing"
+                return (Constants.Status.notPlaying, diag)
             }
             let name = track.value(forKey: "name") as? String ?? ""
             let artist = track.value(forKey: "artist") as? String ?? ""
@@ -174,22 +186,22 @@ final class AppleMusicSource: PlaybackSource, @unchecked Sendable {
             let elapsed = (musicApp.value(forKey: "playerPosition") as? Double) ?? 0
             let playlist = (musicApp.value(forKey: "currentPlaylist") as? SBObject)?
                 .value(forKey: "name") as? String ?? ""
-            return name + Constants.trackSeparator
+            let combined = name + Constants.trackSeparator
                 + artist + Constants.trackSeparator
                 + album + Constants.trackSeparator
                 + String(duration) + Constants.trackSeparator
                 + String(elapsed) + Constants.trackSeparator
                 + playlist
+            return (combined, nil)
         }
 
-        if let trackInfo {
-            handleTrackInfo(trackInfo)
-        } else {
-            // `MainActor.run` block always returns a non-nil string today; this
-            // branch is a defensive net for an unforeseen Swift bridge edge.
-            logGuardOnce(key: "unknown-nil", message: "AppleMusicSource: ScriptingBridge returned nil unexpectedly")
-            notifyDelegate(status: Constants.DelegateStatus.noTrackInfo)
+        if result.status == Constants.Status.notPlaying, let diag = result.diagnostic {
+            // Diagnostic-only: capture what ScriptingBridge actually returned
+            // when Music is running but we resolved to notPlaying. Helps
+            // disambiguate genuine pause vs. partial-TCC placeholder reads.
+            logGuardOnce(key: "diagnose-not-playing", message: "AppleMusicSource: diagnose-not-playing → \(diag)")
         }
+        handleTrackInfo(result.status)
     }
 
     // MARK: - Private Helpers

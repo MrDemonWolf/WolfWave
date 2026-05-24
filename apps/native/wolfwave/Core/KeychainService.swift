@@ -39,8 +39,23 @@ import Security
 nonisolated enum KeychainService {
     // MARK: - Constants
 
-    /// Service identifier for Keychain items (bundle-like identifier).
-    private static let service = "com.mrdemonwolf.wolfwave"
+    /// Service identifier for Keychain items.
+    ///
+    /// Scoped to the running bundle identifier so DEBUG (`…wolfwave.dev`) and
+    /// release (`com.mrdemonwolf.wolfwave`) builds keep separate items. Without
+    /// this, every rebuild whose code signature differs from the binary that
+    /// originally wrote the item triggers a "WolfWave wants to use your
+    /// confidential information stored in … keychain" ACL prompt.
+    ///
+    /// Release bundle ID is preserved verbatim to keep existing users' tokens
+    /// readable after upgrade.
+    private static let service: String = {
+        let releaseBundleID = "com.mrdemonwolf.wolfwave"
+        guard let bundleID = Bundle.main.bundleIdentifier, !bundleID.isEmpty else {
+            return releaseBundleID
+        }
+        return bundleID
+    }()
 
     /// Account identifier for WebSocket auth token.
     private static let websocketAuthToken = "websocketAuthToken"
