@@ -21,7 +21,12 @@ final class AppleMusicSource: PlaybackSource, @unchecked Sendable {
         static let trackSeparator = " | "
         static let notificationDedupWindow: TimeInterval = 0.75
         static let idleGraceWindow: TimeInterval = 2.0
-        static let playerStatePlaying: UInt32 = 1800426320
+        // Music.app FourCharCode player states ('kPSP', 'kPSp', etc.).
+        static let playerStatePlaying:     UInt32 = 1800426320  // 'kPSP'
+        static let playerStatePaused:      UInt32 = 1800426352  // 'kPSp'
+        static let playerStateFastForward: UInt32 = 1800426310  // 'kPSF'
+        static let playerStateRewinding:   UInt32 = 1800426322  // 'kPSR'
+        static let playerStateStopped:     UInt32 = 1800426067  // 'kPSS'
 
         enum Status {
             static let notRunning = "NOT_RUNNING"
@@ -157,42 +162,51 @@ final class AppleMusicSource: PlaybackSource, @unchecked Sendable {
                 // can flip its permission banner without polling.
                 return (Constants.Status.accessDenied, nil)
             }
-            let stateTypeDesc: String
-            let stateRawValue: String
-            if let stateNum = stateObj as? NSNumber {
-                stateTypeDesc = "NSNumber"
-                stateRawValue = String(stateNum.uint32Value)
-            } else {
-                stateTypeDesc = String(describing: type(of: stateObj))
-                stateRawValue = String(describing: stateObj)
-            }
-            let isPlaying = (stateObj as? NSNumber)?.uint32Value == Constants.playerStatePlaying
-            guard isPlaying else {
-                let trackObj = musicApp.value(forKey: "currentTrack") as? SBObject
+
+            let stateRaw = AppleMusicSource.extractPlayerState(stateObj)
+            let stateTypeDesc = String(describing: type(of: stateObj))
+            let stateRawDesc = stateRaw.map(String.init) ?? "unparsed(\(stateObj))"
+            let isTrackLoaded: Bool = {
+                guard let state = stateRaw else { return false }
+                return state == Constants.playerStatePlaying
+                    || state == Constants.playerStatePaused
+                    || state == Constants.playerStateFastForward
+                    || state == Constants.playerStateRewinding
+            }()
+
+            let trackObj = musicApp.value(forKey: "currentTrack") as? SBObject
+            let trackName = (trackObj?.value(forKey: "name") as? String) ?? ""
+
+            // Primary: state says a track is loaded → emit.
+            // Fallback: state parse failed (unknown bridge type) but Music
+            // gave us a real track name → trust the track. Caller logs the
+            // fallback path via `state-parse-fallback` so unknown bridges
+            // surface without spam.
+            let fallbackFired = stateRaw == nil && !trackName.isEmpty
+            let shouldEmit = isTrackLoaded || fallbackFired
+            guard shouldEmit, let track = trackObj, !trackName.isEmpty else {
                 let trackPresence = trackObj == nil ? "nil" : "present"
-                let probeName = (trackObj?.value(forKey: "name") as? String) ?? ""
                 let probeArtist = (trackObj?.value(forKey: "artist") as? String) ?? ""
-                let diag = "playerState=\(stateRawValue) type=\(stateTypeDesc) currentTrack=\(trackPresence) name=\"\(probeName)\" artist=\"\(probeArtist)\""
+                let diag = "playerState=\(stateRawDesc) type=\(stateTypeDesc) currentTrack=\(trackPresence) name=\"\(trackName)\" artist=\"\(probeArtist)\""
                 return (Constants.Status.notPlaying, diag)
             }
-            guard let track = musicApp.value(forKey: "currentTrack") as? SBObject else {
-                let diag = "playerState=\(stateRawValue) type=\(stateTypeDesc) currentTrack=nil-after-playing"
-                return (Constants.Status.notPlaying, diag)
-            }
-            let name = track.value(forKey: "name") as? String ?? ""
+
             let artist = track.value(forKey: "artist") as? String ?? ""
             let album = track.value(forKey: "album") as? String ?? ""
             let duration = (track.value(forKey: "duration") as? Double) ?? 0
             let elapsed = (musicApp.value(forKey: "playerPosition") as? Double) ?? 0
             let playlist = (musicApp.value(forKey: "currentPlaylist") as? SBObject)?
                 .value(forKey: "name") as? String ?? ""
-            let combined = name + Constants.trackSeparator
+            let combined = trackName + Constants.trackSeparator
                 + artist + Constants.trackSeparator
                 + album + Constants.trackSeparator
                 + String(duration) + Constants.trackSeparator
                 + String(elapsed) + Constants.trackSeparator
                 + playlist
-            return (combined, nil)
+            let diag: String? = fallbackFired
+                ? "raw=\(stateObj) type=\(stateTypeDesc)"
+                : nil
+            return (combined, diag)
         }
 
         if result.status == Constants.Status.notPlaying, let diag = result.diagnostic {
@@ -200,8 +214,47 @@ final class AppleMusicSource: PlaybackSource, @unchecked Sendable {
             // when Music is running but we resolved to notPlaying. Helps
             // disambiguate genuine pause vs. partial-TCC placeholder reads.
             logGuardOnce(key: "diagnose-not-playing", message: "AppleMusicSource: diagnose-not-playing → \(diag)")
+        } else if result.status != Constants.Status.notPlaying, let diag = result.diagnostic {
+            // Fallback emit path — state parse failed but currentTrack.name
+            // was non-empty so we trusted the track. Surface the unknown
+            // bridge type once so we can add it to extractPlayerState natively.
+            logGuardOnce(
+                key: "state-parse-fallback",
+                message: "AppleMusicSource: playerState bridge unknown — trusting currentTrack.name. \(diag)"
+            )
         }
         handleTrackInfo(result.status)
+    }
+
+    /// Tolerant FourCharCode extractor for Music.app's `playerState`.
+    ///
+    /// ScriptingBridge has historically bridged this property as `NSNumber`,
+    /// but macOS revisions have surfaced `Int`, raw `NSAppleEventDescriptor`
+    /// (with the OSType in `typeCodeValue`), and even the FourCharCode as a
+    /// 4-byte `String` (e.g. `"kPSP"`). Trying every realistic bridge keeps
+    /// the now-playing read working across SDK updates instead of silently
+    /// collapsing to `NOT_PLAYING`.
+    static func extractPlayerState(_ raw: Any) -> UInt32? {
+        if let num = raw as? NSNumber {
+            return num.uint32Value
+        }
+        if let int = raw as? Int {
+            return UInt32(truncatingIfNeeded: int)
+        }
+        if let uint = raw as? UInt32 {
+            return uint
+        }
+        if let desc = raw as? NSAppleEventDescriptor {
+            return UInt32(desc.typeCodeValue)
+        }
+        if let str = raw as? String, str.utf8.count == 4 {
+            var packed: UInt32 = 0
+            for byte in str.utf8 {
+                packed = (packed << 8) | UInt32(byte)
+            }
+            return packed
+        }
+        return nil
     }
 
     // MARK: - Private Helpers

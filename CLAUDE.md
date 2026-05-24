@@ -61,6 +61,21 @@ Xcode project is at `apps/native/wolfwave.xcodeproj` with scheme `WolfWave`. Bui
 
 If you think one of the apple-events entitlements is redundant: it isn't. Don't remove it.
 
+### `playerState` parsing — do NOT regress to `as? NSNumber`
+
+`AppleMusicSource.checkCurrentTrack` reads Music.app's `playerState` via `SBApplication.value(forKey:)`. **Do not** narrow the parse back to a single `stateObj as? NSNumber` cast — that quietly collapses every other bridge result into `NOT_PLAYING`, which silently blanks the now-playing card, Discord Rich Presence, and the overlay while Music is actively playing. PR #134 fixed the nil-return case; PR #136 fixed the "non-nil but unexpected bridge type" case.
+
+The current decision flow MUST be preserved:
+
+| Layer | Rule |
+|---|---|
+| `extractPlayerState(_:)` | Tolerant FourCharCode extractor — accept `NSNumber`, `Int`, `UInt32`, `NSAppleEventDescriptor.typeCodeValue`, and 4-byte `String` (e.g. `"kPSP"`). Return nil only for genuinely unknown bridge types. |
+| "Track loaded" set | `kPSP` (playing), `kPSp` (paused), `kPSF` (ffwd), `kPSR` (rewind). All four emit the track. **Pausing does not blank the UI** — that's deliberate, Discord/overlay should reflect the loaded track even while paused. Only `kPSS` (stopped) or empty `currentTrack` map to `NOT_PLAYING`. |
+| Fallback emit | If `extractPlayerState` returns nil but `currentTrack.name` is non-empty, trust the track and emit. Log once via `state-parse-fallback` so unknown bridge types surface in Console without spam. |
+| Diagnose log | When the parse + emit path resolves to `NOT_PLAYING` while Music is running, `diagnose-not-playing` log fires once with the raw value, bridge type, and currentTrack probe — keep it. Future regressions are invisible without it. |
+
+If a future SDK introduces a new bridge type, **add a branch to `extractPlayerState`** — don't simplify the parser. Coverage is locked in by `AppleMusicSourceTests.testExtractPlayerState*` (7 cases).
+
 ## Architecture
 
 **Pattern**: MVVM + Service-Oriented, with an NSApplicationDelegateAdaptor-based lifecycle.

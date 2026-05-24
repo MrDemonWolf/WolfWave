@@ -87,4 +87,45 @@ final class AppleMusicSourceTests: XCTestCase {
         monitor.stopTracking()
         monitor.forceRefresh()
     }
+
+    // MARK: - extractPlayerState (tolerant FourCharCode parser)
+
+    private static let kPSP: UInt32 = 1800426320  // 'kPSP' — playing
+    private static let kPSp: UInt32 = 1800426352  // 'kPSp' — paused
+
+    func testExtractPlayerStateFromNSNumber() {
+        let raw: NSNumber = NSNumber(value: Self.kPSP)
+        XCTAssertEqual(AppleMusicSource.extractPlayerState(raw), Self.kPSP)
+    }
+
+    func testExtractPlayerStateFromInt() {
+        let raw: Int = Int(Self.kPSp)
+        XCTAssertEqual(AppleMusicSource.extractPlayerState(raw), Self.kPSp)
+    }
+
+    func testExtractPlayerStateFromUInt32() {
+        let raw: UInt32 = Self.kPSP
+        XCTAssertEqual(AppleMusicSource.extractPlayerState(raw), Self.kPSP)
+    }
+
+    func testExtractPlayerStateFromFourCharString() {
+        XCTAssertEqual(AppleMusicSource.extractPlayerState("kPSP"), Self.kPSP)
+        XCTAssertEqual(AppleMusicSource.extractPlayerState("kPSp"), Self.kPSp)
+    }
+
+    func testExtractPlayerStateFromAppleEventDescriptor() {
+        let desc = NSAppleEventDescriptor(typeCode: Self.kPSP)
+        XCTAssertEqual(AppleMusicSource.extractPlayerState(desc), Self.kPSP)
+    }
+
+    func testExtractPlayerStateRejectsWrongLengthString() {
+        XCTAssertNil(AppleMusicSource.extractPlayerState("kPS"))
+        XCTAssertNil(AppleMusicSource.extractPlayerState("kPSPextra"))
+    }
+
+    func testExtractPlayerStateRejectsUnknownType() {
+        struct Bogus {}
+        XCTAssertNil(AppleMusicSource.extractPlayerState(Bogus()))
+        XCTAssertNil(AppleMusicSource.extractPlayerState([1, 2, 3]))
+    }
 }
