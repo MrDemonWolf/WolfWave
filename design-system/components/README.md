@@ -17,8 +17,10 @@ One markdown entry per reusable view. Stubs marked `(stub)` need filling in as w
 | ConnectionTestButton | [connection-test-button.md](connection-test-button.md) | drafted |
 | ConfigRequiredBanner | [config-required-banner.md](config-required-banner.md) | drafted |
 | CopyButton | [copy-button.md](copy-button.md) | drafted |
+| DSIconButton | [ds-icon-button.md](ds-icon-button.md) | drafted |
 | UpdateBannerView | [update-banner-view.md](update-banner-view.md) | drafted |
 | WhatsNewView | [whats-new-view.md](whats-new-view.md) | drafted |
+| AboutView | [about-view.md](about-view.md) | drafted |
 | TwitchGlitchShape | [twitch-glitch-shape.md](twitch-glitch-shape.md) | drafted |
 | ViewModifiers (cardStyle, interactiveRow, …) | [view-modifiers.md](view-modifiers.md) | drafted |
 

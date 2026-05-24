@@ -13,6 +13,13 @@
         "apps/marketing/shared/tokens.generated.ts"
       ]
     },
+    "//#ds:lint": {
+      "inputs": [
+        "apps/native/wolfwave/Views/**/*.swift",
+        "design-system/scripts/lint.ts",
+        "design-system/lint-allowlist.txt"
+      ]
+    },
     "build": {
       "dependsOn": ["^build", "//#tokens"],
       "outputs": [".next/**", "!.next/cache/**", "dist/**", ".source/**", "out/**"]

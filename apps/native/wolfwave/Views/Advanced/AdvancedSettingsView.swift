@@ -222,7 +222,7 @@ struct AdvancedSettingsView: View {
 
     /// Main view body with update card, setup wizard, diagnostics, and danger zone sections.
     var body: some View {
-        VStack(alignment: .leading, spacing: 16) {
+        VStack(alignment: .leading, spacing: DSSpace.s6) {
             SectionHeaderWithStatus(
                 title: "Advanced",
                 subtitle: "Updates, diagnostics, and reset options."
@@ -235,8 +235,8 @@ struct AdvancedSettingsView: View {
                 .padding(.vertical, DSSpace.s1)
 
             // Onboarding Card
-            VStack(alignment: .leading, spacing: 12) {
-                VStack(alignment: .leading, spacing: 4) {
+            VStack(alignment: .leading, spacing: DSSpace.s4) {
+                VStack(alignment: .leading, spacing: DSSpace.s1) {
                     Text("Setup Wizard")
                         .font(.system(size: DSFont.Size.base, weight: .semibold))
 
@@ -288,9 +288,9 @@ struct AdvancedSettingsView: View {
                 .padding(.vertical, DSSpace.s1)
 
             // Danger Zone Card
-            VStack(alignment: .leading, spacing: 16) {
-                VStack(alignment: .leading, spacing: 8) {
-                    HStack(spacing: 8) {
+            VStack(alignment: .leading, spacing: DSSpace.s6) {
+                VStack(alignment: .leading, spacing: DSSpace.s2) {
+                    HStack(spacing: DSSpace.s2) {
                         Image(systemName: "exclamationmark.triangle.fill")
                             .font(.system(size: DSFont.Size.md))
                             .foregroundStyle(.red)
@@ -347,8 +347,8 @@ struct AdvancedSettingsView: View {
 
     @ViewBuilder
     private var diagnosticsCard: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            VStack(alignment: .leading, spacing: 4) {
+        VStack(alignment: .leading, spacing: DSSpace.s4) {
+            VStack(alignment: .leading, spacing: DSSpace.s1) {
                 HStack(alignment: .firstTextBaseline) {
                     Text("Diagnostics")
                         .font(.system(size: DSFont.Size.base, weight: .semibold))
@@ -376,7 +376,7 @@ struct AdvancedSettingsView: View {
             .accessibilityLabel("Export application logs")
             .accessibilityHint("Save logs to a file for debugging")
 
-            HStack(spacing: 8) {
+            HStack(spacing: DSSpace.s2) {
                 Button(action: revealLogsInFinder) {
                     Label("Reveal in Finder", systemImage: "folder")
                         .font(.system(size: DSFont.Size.body))
@@ -429,8 +429,8 @@ struct AdvancedSettingsView: View {
 
     @ViewBuilder
     private var bugReportCard: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            VStack(alignment: .leading, spacing: 4) {
+        VStack(alignment: .leading, spacing: DSSpace.s4) {
+            VStack(alignment: .leading, spacing: DSSpace.s1) {
                 Text("Report a Bug")
                     .font(.system(size: DSFont.Size.base, weight: .semibold))
 
@@ -461,8 +461,8 @@ struct AdvancedSettingsView: View {
     /// expect legal documents to be reachable from within the app itself.
     @ViewBuilder
     private var legalCard: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            VStack(alignment: .leading, spacing: 4) {
+        VStack(alignment: .leading, spacing: DSSpace.s4) {
+            VStack(alignment: .leading, spacing: DSSpace.s1) {
                 Text("Legal")
                     .font(.system(size: DSFont.Size.base, weight: .semibold))
 
@@ -472,7 +472,7 @@ struct AdvancedSettingsView: View {
                     .fixedSize(horizontal: false, vertical: true)
             }
 
-            HStack(spacing: 8) {
+            HStack(spacing: DSSpace.s2) {
                 Button {
                     if let url = URL(string: AppConstants.URLs.privacyPolicy) {
                         NSWorkspace.shared.open(url)
@@ -520,8 +520,8 @@ struct AdvancedSettingsView: View {
     /// Update card shown for Homebrew installations (Sparkle disabled)
     @ViewBuilder
     private var homebrewUpdateCard: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            VStack(alignment: .leading, spacing: 4) {
+        VStack(alignment: .leading, spacing: DSSpace.s4) {
+            VStack(alignment: .leading, spacing: DSSpace.s1) {
                 Text("Software Update")
                     .font(.system(size: DSFont.Size.base, weight: .semibold))
 
@@ -530,12 +530,12 @@ struct AdvancedSettingsView: View {
                     .foregroundStyle(.secondary)
             }
 
-            HStack(spacing: 10) {
+            HStack(spacing: DSSpace.s3) {
                 Image(systemName: "info.circle.fill")
                     .font(.system(size: DSFont.Size.md))
                     .foregroundStyle(.blue)
 
-                VStack(alignment: .leading, spacing: 4) {
+                VStack(alignment: .leading, spacing: DSSpace.s1) {
                     Text("Homebrew Installation Detected")
                         .font(.system(size: DSFont.Size.body, weight: .semibold))
                     Text("Use Homebrew to check for and install updates.")
@@ -550,7 +550,7 @@ struct AdvancedSettingsView: View {
             .background(Color.blue.opacity(0.08))
             .clipShape(RoundedRectangle(cornerRadius: 6))
 
-            HStack(spacing: 8) {
+            HStack(spacing: DSSpace.s2) {
                 Text("$ brew upgrade wolfwave")
                     .font(.system(size: DSFont.Size.body, design: .monospaced))
                     .foregroundStyle(.primary)
@@ -574,10 +574,10 @@ struct AdvancedSettingsView: View {
     /// Update card shown for DMG installations (uses Sparkle)
     @ViewBuilder
     private var sparkleUpdateCard: some View {
-        VStack(alignment: .leading, spacing: 12) {
+        VStack(alignment: .leading, spacing: DSSpace.s4) {
             // Header row: title + version badge
             HStack {
-                VStack(alignment: .leading, spacing: 4) {
+                VStack(alignment: .leading, spacing: DSSpace.s1) {
                     Text("Software Update")
                         .font(.system(size: DSFont.Size.base, weight: .semibold))
 
@@ -603,7 +603,7 @@ struct AdvancedSettingsView: View {
 
             #if DEBUG
             // Development build indicator
-            HStack(spacing: 10) {
+            HStack(spacing: DSSpace.s3) {
                 Image(systemName: "hammer.fill")
                     .font(.system(size: DSFont.Size.md))
                     .foregroundStyle(.orange)
@@ -620,7 +620,7 @@ struct AdvancedSettingsView: View {
 
             // Info banner reflecting actual toggle state
             if updateCheckEnabled && !updateAvailable {
-                HStack(spacing: 10) {
+                HStack(spacing: DSSpace.s3) {
                     Image(systemName: "checkmark.circle.fill")
                         .font(.system(size: DSFont.Size.md))
                         .foregroundStyle(.green)
@@ -635,7 +635,7 @@ struct AdvancedSettingsView: View {
                 .clipShape(RoundedRectangle(cornerRadius: 6))
                 .transition(.opacity)
             } else if !updateCheckEnabled && !updateAvailable {
-                HStack(spacing: 10) {
+                HStack(spacing: DSSpace.s3) {
                     Image(systemName: "info.circle.fill")
                         .font(.system(size: DSFont.Size.md))
                         .foregroundStyle(.secondary)
@@ -745,13 +745,13 @@ struct AdvancedSettingsView: View {
     
     struct CheckingView: View {
         var body: some View {
-            VStack(alignment: .leading, spacing: 16) {
+            VStack(alignment: .leading, spacing: DSSpace.s6) {
                 Text("Advanced")
                     .sectionHeader()
 
-                VStack(alignment: .leading, spacing: 12) {
+                VStack(alignment: .leading, spacing: DSSpace.s4) {
                     HStack {
-                        VStack(alignment: .leading, spacing: 4) {
+                        VStack(alignment: .leading, spacing: DSSpace.s1) {
                             Text("Software Update")
                                 .font(.system(size: DSFont.Size.base, weight: .semibold))
                             

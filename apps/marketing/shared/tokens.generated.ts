@@ -166,6 +166,10 @@ export const tokens = {
       "brandTileSize": 56,
       "brandTileRadius": 14,
       "primaryButtonRadius": 8
+    },
+    "iconButton": {
+      "minWidth": 22,
+      "minHeight": 20
     }
   },
   "widget": {

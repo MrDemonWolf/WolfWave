@@ -150,6 +150,11 @@ function generateSwift(): string {
   for (const [k, v] of Object.entries(tokens.dimension.onboarding)) {
     lines.push(`        static let ${k}: CGFloat = ${v}`);
   }
+  lines.push("    }", "");
+  lines.push("    enum IconButton {");
+  for (const [k, v] of Object.entries(tokens.dimension.iconButton)) {
+    lines.push(`        static let ${k}: CGFloat = ${v}`);
+  }
   lines.push("    }", "}", "");
 
   return lines.join("\n") + "\n";

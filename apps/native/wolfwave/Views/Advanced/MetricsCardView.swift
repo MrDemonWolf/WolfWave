@@ -31,8 +31,8 @@ struct MetricsCardView: View {
     // MARK: - Body
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            VStack(alignment: .leading, spacing: 4) {
+        VStack(alignment: .leading, spacing: DSSpace.s4) {
+            VStack(alignment: .leading, spacing: DSSpace.s1) {
                 Text("Performance")
                     .font(.system(size: DSFont.Size.base, weight: .semibold))
 

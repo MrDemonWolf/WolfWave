@@ -149,5 +149,10 @@ nonisolated enum DSDimension {
         static let brandTileRadius: CGFloat = 14
         static let primaryButtonRadius: CGFloat = 8
     }
+
+    enum IconButton {
+        static let minWidth: CGFloat = 22
+        static let minHeight: CGFloat = 20
+    }
 }
 

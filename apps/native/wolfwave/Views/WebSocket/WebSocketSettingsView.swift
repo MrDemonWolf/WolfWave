@@ -193,8 +193,8 @@ fileprivate struct WebSocketServerCard: View {
 
             Divider().padding(.leading, cardPadding)
 
-            HStack(spacing: 12) {
-                VStack(alignment: .leading, spacing: 2) {
+            HStack(spacing: DSSpace.s4) {
+                VStack(alignment: .leading, spacing: DSSpace.s0) {
                     Text("Port").font(.system(size: DSFont.Size.base, weight: .medium))
                     Text(verbatim: "Default: \(AppConstants.WebSocketServer.defaultPort)")
                         .font(.system(size: DSFont.Size.sm))
@@ -245,8 +245,8 @@ fileprivate struct WebSocketServerCard: View {
 
             Divider().padding(.leading, cardPadding)
 
-            HStack(spacing: 8) {
-                VStack(alignment: .leading, spacing: 2) {
+            HStack(spacing: DSSpace.s2) {
+                VStack(alignment: .leading, spacing: DSSpace.s0) {
                     Text("Local Address")
                         .font(.system(size: DSFont.Size.sm, weight: .medium))
                         .foregroundStyle(.secondary)
@@ -269,8 +269,8 @@ fileprivate struct WebSocketServerCard: View {
                 if let networkURL = networkConnectionURL {
                     VStack(spacing: 0) {
                         Divider().padding(.leading, cardPadding)
-                        HStack(spacing: 8) {
-                            VStack(alignment: .leading, spacing: 2) {
+                        HStack(spacing: DSSpace.s2) {
+                            VStack(alignment: .leading, spacing: DSSpace.s0) {
                                 Text("Network Address")
                                     .font(.system(size: DSFont.Size.sm, weight: .medium))
                                     .foregroundStyle(.secondary)
@@ -311,12 +311,17 @@ fileprivate struct WebSocketServerCard: View {
 
     @ViewBuilder
     private var authTokenRow: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack(alignment: .firstTextBaseline, spacing: 8) {
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("Auth Token").font(.system(size: 13, weight: .medium))
-                    Text("Overlays must present this token to connect.")
-                        .font(.system(size: 11))
+        VStack(alignment: .leading, spacing: DSSpace.s2) {
+            HStack(alignment: .firstTextBaseline, spacing: DSSpace.s2) {
+                VStack(alignment: .leading, spacing: DSSpace.s0) {
+                    HStack(spacing: 6) {
+                        Image(systemName: "lock.fill")
+                            .font(.system(size: DSFont.Size.sm))
+                            .foregroundStyle(.secondary)
+                        Text("Auth Token").font(.system(size: DSFont.Size.base, weight: .medium))
+                    }
+                    Text("Required. Overlays must present this token to connect.")
+                        .font(.system(size: DSFont.Size.sm))
                         .foregroundStyle(.tertiary)
                 }
                 Spacer()
@@ -327,30 +332,26 @@ fileprivate struct WebSocketServerCard: View {
                     if isTokenRevealed {
                         TextField("Token", text: $tokenDraft)
                             .textFieldStyle(.roundedBorder)
-                            .font(.system(size: 12, design: .monospaced))
+                            .font(.system(size: DSFont.Size.body, design: .monospaced))
                             .autocorrectionDisabled(true)
                             .onSubmit { saveTokenEdit() }
                             .accessibilityIdentifier("websocketTokenFieldVisible")
                     } else {
                         SecureField("Token", text: $tokenDraft)
                             .textFieldStyle(.roundedBorder)
-                            .font(.system(size: 12, design: .monospaced))
+                            .font(.system(size: DSFont.Size.body, design: .monospaced))
                             .onSubmit { saveTokenEdit() }
                             .accessibilityIdentifier("websocketTokenFieldHidden")
                     }
                 }
 
-                Button {
-                    isTokenRevealed.toggle()
-                } label: {
-                    Image(systemName: isTokenRevealed ? "eye.slash" : "eye")
-                        .font(.system(size: 12))
-                }
-                .buttonStyle(.bordered)
-                .controlSize(.small)
+                DSIconButton(
+                    systemImage: isTokenRevealed ? "eye.slash" : "eye",
+                    action: { isTokenRevealed.toggle() },
+                    accessibilityLabel: isTokenRevealed ? "Hide token" : "Reveal token",
+                    accessibilityIdentifier: "websocketTokenRevealButton"
+                )
                 .help(isTokenRevealed ? "Hide token" : "Reveal token")
-                .accessibilityLabel(isTokenRevealed ? "Hide token" : "Reveal token")
-                .accessibilityIdentifier("websocketTokenRevealButton")
 
                 CopyButton(
                     text: currentToken,
@@ -365,21 +366,21 @@ fileprivate struct WebSocketServerCard: View {
             if let tokenError {
                 HStack(spacing: 6) {
                     Image(systemName: "exclamationmark.circle.fill")
-                        .font(.system(size: 11))
+                        .font(.system(size: DSFont.Size.sm))
                     Text(tokenError)
-                        .font(.system(size: 11))
+                        .font(.system(size: DSFont.Size.sm))
                 }
                 .foregroundStyle(.red)
                 .accessibilityIdentifier("websocketTokenError")
             }
 
-            HStack(spacing: 8) {
+            HStack(spacing: DSSpace.s2) {
                 Button {
                     regenerateToken()
                 } label: {
-                    HStack(spacing: 4) {
-                        Image(systemName: "arrow.clockwise").font(.system(size: 11))
-                        Text("Regenerate").font(.system(size: 11))
+                    HStack(spacing: DSSpace.s1) {
+                        Image(systemName: "arrow.clockwise").font(.system(size: DSFont.Size.sm))
+                        Text("Regenerate").font(.system(size: DSFont.Size.sm))
                     }
                 }
                 .buttonStyle(.bordered)
@@ -391,7 +392,7 @@ fileprivate struct WebSocketServerCard: View {
                     Button {
                         saveTokenEdit()
                     } label: {
-                        Text("Save").font(.system(size: 11))
+                        Text("Save").font(.system(size: DSFont.Size.sm))
                     }
                     .buttonStyle(.borderedProminent)
                     .controlSize(.small)
@@ -401,7 +402,7 @@ fileprivate struct WebSocketServerCard: View {
                         tokenDraft = currentToken
                         tokenError = nil
                     } label: {
-                        Text("Cancel").font(.system(size: 11))
+                        Text("Cancel").font(.system(size: DSFont.Size.sm))
                     }
                     .buttonStyle(.bordered)
                     .controlSize(.small)
@@ -526,7 +527,7 @@ fileprivate struct WebSocketBrowserSourceCard: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             VStack(alignment: .leading, spacing: 6) {
-                HStack(spacing: 8) {
+                HStack(spacing: DSSpace.s2) {
                     Image(systemName: "rectangle.inset.filled.and.person.filled")
                         .font(.system(size: DSFont.Size.md))
                         .foregroundStyle(Color(nsColor: .controlAccentColor))
@@ -563,8 +564,8 @@ fileprivate struct WebSocketBrowserSourceCard: View {
 
             Divider().padding(.leading, cardPadding)
 
-            HStack(spacing: 12) {
-                VStack(alignment: .leading, spacing: 2) {
+            HStack(spacing: DSSpace.s4) {
+                VStack(alignment: .leading, spacing: DSSpace.s0) {
                     Text("Widget Port (Advanced)").font(.system(size: DSFont.Size.base, weight: .medium))
                     Text(verbatim: "Default: \(AppConstants.WebSocketServer.widgetDefaultPort)")
                         .font(.system(size: DSFont.Size.sm))
@@ -611,13 +612,13 @@ fileprivate struct WebSocketBrowserSourceCard: View {
 
             Divider().padding(.leading, cardPadding)
 
-            VStack(alignment: .leading, spacing: 8) {
+            VStack(alignment: .leading, spacing: DSSpace.s2) {
                 Text(widgetURL)
                     .font(.system(size: DSFont.Size.sm, design: .monospaced))
                     .textSelection(.enabled)
                     .lineLimit(2)
                     .fixedSize(horizontal: false, vertical: true)
-                HStack(spacing: 8) {
+                HStack(spacing: DSSpace.s2) {
                     CopyButton(
                         text: widgetURL,
                         label: "Copy Link",
@@ -631,7 +632,7 @@ fileprivate struct WebSocketBrowserSourceCard: View {
                             NSWorkspace.shared.open(url)
                         }
                     } label: {
-                        HStack(spacing: 4) {
+                        HStack(spacing: DSSpace.s1) {
                             Image(systemName: "safari").font(.system(size: DSFont.Size.sm))
                             Text("Open").font(.system(size: DSFont.Size.sm))
                         }
@@ -651,8 +652,8 @@ fileprivate struct WebSocketBrowserSourceCard: View {
                 if let networkWidget = networkWidgetURL {
                     VStack(spacing: 0) {
                         Divider().padding(.leading, cardPadding)
-                        HStack(spacing: 8) {
-                            VStack(alignment: .leading, spacing: 2) {
+                        HStack(spacing: DSSpace.s2) {
+                            VStack(alignment: .leading, spacing: DSSpace.s0) {
                                 Text("Network Address")
                                     .font(.system(size: DSFont.Size.sm, weight: .medium))
                                     .foregroundStyle(.secondary)
@@ -665,7 +666,7 @@ fileprivate struct WebSocketBrowserSourceCard: View {
                                     .foregroundStyle(.tertiary)
                             }
                             Spacer()
-                            HStack(spacing: 8) {
+                            HStack(spacing: DSSpace.s2) {
                                 CopyButton(
                                     text: networkWidget,
                                     label: "Copy Link",
@@ -679,7 +680,7 @@ fileprivate struct WebSocketBrowserSourceCard: View {
                                         NSWorkspace.shared.open(url)
                                     }
                                 } label: {
-                                    HStack(spacing: 4) {
+                                    HStack(spacing: DSSpace.s1) {
                                         Image(systemName: "safari").font(.system(size: DSFont.Size.sm))
                                         Text("Open").font(.system(size: DSFont.Size.sm))
                                     }
@@ -702,7 +703,7 @@ fileprivate struct WebSocketBrowserSourceCard: View {
 
             Divider().padding(.leading, cardPadding)
 
-            HStack(alignment: .top, spacing: 8) {
+            HStack(alignment: .top, spacing: DSSpace.s2) {
                 Image(systemName: "info.circle.fill")
                     .font(.system(size: DSFont.Size.body))
                     .foregroundStyle(.blue)
@@ -785,7 +786,7 @@ fileprivate struct WebSocketWidgetAppearanceCard: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             VStack(alignment: .leading, spacing: 6) {
-                HStack(spacing: 8) {
+                HStack(spacing: DSSpace.s2) {
                     Image(systemName: "paintbrush.fill")
                         .font(.system(size: DSFont.Size.md))
                         .foregroundStyle(Color(nsColor: .controlAccentColor))
@@ -803,7 +804,7 @@ fileprivate struct WebSocketWidgetAppearanceCard: View {
             Divider().padding(.leading, cardPadding)
 
             HStack(spacing: 0) {
-                HStack(spacing: 8) {
+                HStack(spacing: DSSpace.s2) {
                     Text("Theme").font(.system(size: DSFont.Size.base, weight: .medium))
                     Spacer()
                     Picker("", selection: $widgetTheme) {
@@ -822,7 +823,7 @@ fileprivate struct WebSocketWidgetAppearanceCard: View {
 
                 Divider()
 
-                HStack(spacing: 8) {
+                HStack(spacing: DSSpace.s2) {
                     Text("Layout").font(.system(size: DSFont.Size.base, weight: .medium))
                     Spacer()
                     Picker("", selection: $widgetLayout) {
@@ -845,7 +846,7 @@ fileprivate struct WebSocketWidgetAppearanceCard: View {
                 Divider().padding(.leading, cardPadding)
 
                 HStack(spacing: 0) {
-                    HStack(spacing: 8) {
+                    HStack(spacing: DSSpace.s2) {
                         Text("Text Color").font(.system(size: DSFont.Size.base, weight: .medium))
                         Spacer()
                         ColorPicker("", selection: textColorBinding, supportsOpacity: false)
@@ -859,7 +860,7 @@ fileprivate struct WebSocketWidgetAppearanceCard: View {
 
                     Divider()
 
-                    HStack(spacing: 8) {
+                    HStack(spacing: DSSpace.s2) {
                         Text("Bg Color").font(.system(size: DSFont.Size.base, weight: .medium))
                         Spacer()
                         ColorPicker("", selection: backgroundColorBinding, supportsOpacity: false)
@@ -876,7 +877,7 @@ fileprivate struct WebSocketWidgetAppearanceCard: View {
 
             Divider().padding(.leading, cardPadding)
 
-            HStack(spacing: 12) {
+            HStack(spacing: DSSpace.s4) {
                 Text("Font").font(.system(size: DSFont.Size.base, weight: .medium))
                 Spacer()
                 Picker("", selection: $widgetFontFamily) {

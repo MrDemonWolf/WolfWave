@@ -125,3 +125,27 @@ jobs:
       - name: Run SwiftLint
         if: steps.filter.outputs.native == 'true'
         run: swiftlint lint --config .swiftlint.yml --reporter github-actions-logging
+
+  ds-lint:
+    name: Design-system lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Detect view or lint changes
+        id: filter
+        uses: dorny/paths-filter@v3
+        with:
+          filters: |
+            ds:
+              - 'apps/native/wolfwave/Views/**'
+              - 'design-system/scripts/lint.ts'
+              - 'design-system/lint-allowlist.txt'
+
+      - name: Install Bun
+        if: steps.filter.outputs.ds == 'true'
+        uses: oven-sh/setup-bun@v2
+
+      - name: Run design-system lint
+        if: steps.filter.outputs.ds == 'true'
+        run: bun run ds:lint

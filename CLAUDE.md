@@ -112,6 +112,17 @@ bun turbo build         # `tokens` is a build prerequisite — runs automaticall
 
 **When you touch any of these views, update the matching catalog entry in the same change.** That keeps token usage docs and anatomy diagrams from drifting.
 
+### Design-system discipline
+
+These rules are enforced by [`design-system/scripts/lint.ts`](design-system/scripts/lint.ts) (`bun run ds:lint`, also run in CI):
+
+- **Never** use literal numbers in `font(.system(size:))` — use `DSFont.Size.*` (`xs=10`, `sm=11`, `body=12`, `base=13`, `md=14`, `lg=17`, `xl=20`, `x2xl=22`).
+- **Never** use literal numbers in `spacing:` or `.padding(N)` — use `DSSpace.*` (`s0=2`, `s1=4`, `s2=8`, `s3=10`, `s4=12`, `s5=14`, `s6=16`, `s7=20`, `s8=24`, `s9=28`, `s10=32`, `s11=44`).
+- For single-glyph bordered buttons, use [`DSIconButton`](apps/native/wolfwave/Views/Shared/DSIconButton.swift) — do **not** hand-roll `Button { Image(...) } .buttonStyle(.bordered) .controlSize(.small)`. Hand-rolled icon-only buttons collapse to a narrower frame than text-label neighbors like `CopyButton`, causing visible drift.
+- When you touch a `Views/Shared/` component, update its catalog entry in [`design-system/components/`](design-system/components/) in the same change.
+
+Existing legacy literals are tracked in [`design-system/lint-allowlist.txt`](design-system/lint-allowlist.txt) — migrate them file-by-file in follow-up PRs; do **not** add new entries.
+
 ## Testing
 
 Unit tests live in `apps/native/WolfWaveTests/` and use XCTest + Swift Testing with `@testable import WolfWave`. The test target is a hosted unit test bundle (`TEST_HOST` = WolfWave.app). Current pass count: **1218 tests across 42 test files**.
