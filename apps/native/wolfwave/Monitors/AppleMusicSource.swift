@@ -88,6 +88,14 @@ final class AppleMusicSource: PlaybackSource, @unchecked Sendable {
         setupFallbackTimer()
     }
 
+    nonisolated func forceRefresh() {
+        guard stateLock.withLock({ isTracking }) else { return }
+        // Clear the notification dedup gate so a user-initiated refresh
+        // immediately after a system notification is not dropped.
+        stateLock.withLock { lastNotificationAt = .distantPast }
+        scheduleTrackCheck(reason: "force-refresh")
+    }
+
     // MARK: - Playback Monitoring
 
     @objc nonisolated private func musicPlayerInfoChanged(_ notification: Notification) {

@@ -55,6 +55,13 @@ class PlaybackSourceManager: PlaybackSourceDelegate {
         appleMusicSource.updateCheckInterval(interval)
     }
 
+    /// Pokes the active source for an immediate now-playing read.
+    /// No-op when tracking is not running.
+    func forceRefresh() {
+        guard isStarted else { return }
+        appleMusicSource.forceRefresh()
+    }
+
     // MARK: - PlaybackSourceDelegate (forwarding)
 
     func playbackSource(didUpdateTrack track: String, artist: String, album: String, playlist: String, duration: TimeInterval, elapsed: TimeInterval) {

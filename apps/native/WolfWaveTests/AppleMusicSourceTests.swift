@@ -68,4 +68,23 @@ final class AppleMusicSourceTests: XCTestCase {
         monitor.updateCheckInterval(10.0)
         monitor.stopTracking()
     }
+
+    // MARK: - Force Refresh Tests
+
+    func testForceRefreshBeforeStartIsNoOp() {
+        // Should not crash; no delegate set, no tracking active.
+        monitor.forceRefresh()
+    }
+
+    func testForceRefreshWhileTrackingDoesNotCrash() {
+        monitor.startTracking()
+        monitor.forceRefresh()
+        monitor.stopTracking()
+    }
+
+    func testForceRefreshAfterStopIsNoOp() {
+        monitor.startTracking()
+        monitor.stopTracking()
+        monitor.forceRefresh()
+    }
 }

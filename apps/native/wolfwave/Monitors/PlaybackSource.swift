@@ -74,4 +74,9 @@ protocol PlaybackSource: AnyObject {
     /// - Parameter interval: New interval in seconds. Sources may clamp to a
     ///   sane range.
     func updateCheckInterval(_ interval: TimeInterval)
+
+    /// Triggers an out-of-band poll of the underlying player, bypassing the
+    /// fallback timer and any internal dedup window. No-op when the source
+    /// is not currently tracking.
+    func forceRefresh()
 }

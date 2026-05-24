@@ -132,6 +132,9 @@ struct MusicMonitorSettingsView: View {
                 refreshPermission()
             }
             loadCurrentTrack()
+            if permissionState == .granted {
+                AppDelegate.shared?.refreshNowPlaying()
+            }
             loadIntegrationStatuses()
         }
         .onReceive(notif(AppConstants.Notifications.nowPlayingChanged)) { notification in
@@ -171,13 +174,13 @@ struct MusicMonitorSettingsView: View {
 
     @ViewBuilder
     private var permissionStatusRow: some View {
-        HStack(spacing: 12) {
+        HStack(spacing: DSSpace.s4) {
             Image(systemName: permissionIconName)
                 .font(.system(size: DSFont.Size.md, weight: .semibold))
                 .foregroundStyle(permissionIconColor)
                 .frame(width: 20)
 
-            VStack(alignment: .leading, spacing: 2) {
+            VStack(alignment: .leading, spacing: DSSpace.s0) {
                 Text(permissionTitle)
                     .font(.system(size: DSFont.Size.base, weight: .medium))
                 if let subtitle = permissionSubtitle {
@@ -307,6 +310,9 @@ struct MusicMonitorSettingsView: View {
         // If we're now granted, try to get the current track again.
         if next == .granted {
             loadCurrentTrack()
+            // Cached snap first so the UI doesn't briefly clear, then ask
+            // the source for a fresh ScriptingBridge read.
+            AppDelegate.shared?.refreshNowPlaying()
         }
     }
 

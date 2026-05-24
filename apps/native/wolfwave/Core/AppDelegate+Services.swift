@@ -403,7 +403,21 @@ extension AppDelegate {
     /// Starts or stops the music monitor when the tracking toggle changes.
     @objc func trackingSettingChanged(_ notification: Notification) {
         guard let enabled = notification.userInfo?["enabled"] as? Bool else { return }
-        enabled ? playbackSourceManager?.startTracking() : stopTrackingAndUpdate()
+        if enabled {
+            playbackSourceManager?.startTracking()
+            // Guarantee the ON edge yields a fresh now-playing read even
+            // when the monitor was already running.
+            playbackSourceManager?.forceRefresh()
+        } else {
+            stopTrackingAndUpdate()
+        }
+    }
+
+    /// Pokes the active playback source to broadcast a fresh now-playing
+    /// snapshot. Safe to call from the UI; no-ops if tracking is disabled.
+    @MainActor
+    func refreshNowPlaying() {
+        playbackSourceManager?.forceRefresh()
     }
 
     /// Stops the music monitor and clears the now-playing display.

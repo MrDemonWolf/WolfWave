@@ -52,8 +52,6 @@ apps/native/wolfwave/Views/HistoryStats/MonthlyWrapView.swift:180  # legacy debt
 apps/native/wolfwave/Views/HistoryStats/MonthlyWrapView.swift:47  # legacy debt
 apps/native/wolfwave/Views/HistoryStats/StatsChartsView.swift:32  # legacy debt
 apps/native/wolfwave/Views/HistoryStats/StatsChartsView.swift:62  # legacy debt
-apps/native/wolfwave/Views/MusicMonitor/MusicMonitorSettingsView.swift:174  # legacy debt
-apps/native/wolfwave/Views/MusicMonitor/MusicMonitorSettingsView.swift:180  # legacy debt
 apps/native/wolfwave/Views/MusicMonitor/MusicMonitorSettingsView.swift:83  # legacy debt
 apps/native/wolfwave/Views/MusicMonitor/PermissionDeniedView.swift:111  # legacy debt
 apps/native/wolfwave/Views/MusicMonitor/PermissionDeniedView.swift:127  # legacy debt
