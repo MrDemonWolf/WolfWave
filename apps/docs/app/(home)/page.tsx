@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import {
   ArrowRight,
@@ -12,6 +13,35 @@ import {
   Headphones,
   Twitch,
 } from "lucide-react";
+
+export const metadata: Metadata = {
+  title: "WolfWave — Free Apple Music to Twitch, Discord & OBS on Mac",
+  description:
+    "The only free macOS menu bar app that bridges Apple Music with Twitch chat, Discord Rich Presence, and OBS stream overlays. Open source. No Spotify needed.",
+  keywords: [
+    "apple music twitch chat bot mac",
+    "apple music discord rich presence mac",
+    "apple music obs overlay mac",
+    "apple music song requests twitch",
+    "free apple music twitch bot",
+    "spotchbot alternative apple music",
+    "macos menu bar music streamer",
+    "twitch song requests without spotify premium",
+  ],
+  alternates: { canonical: "/" },
+  openGraph: {
+    type: "website",
+    title: "WolfWave — Free Apple Music to Twitch, Discord & OBS on Mac",
+    description:
+      "The only free macOS menu bar app that bridges Apple Music with Twitch chat, Discord Rich Presence, and OBS stream overlays. Open source.",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "WolfWave — Free Apple Music to Twitch, Discord & OBS on Mac",
+    description:
+      "The only free macOS menu bar app that bridges Apple Music with Twitch chat, Discord Rich Presence, and OBS stream overlays. Open source.",
+  },
+};
 
 // ── Now Playing mock (used in hero) ──────────────────────────
 function NowPlayingMock() {

@@ -6,6 +6,8 @@ const extendedFrontmatter = frontmatterSchema.extend({
   section: z.string().optional(),
   ogChips: z.array(z.string()).optional(),
   ogEyebrow: z.string().optional(),
+  ogTitle: z.string().optional(),
+  ogDescription: z.string().optional(),
 });
 
 // You can customise Zod schemas for frontmatter and `meta.json` here

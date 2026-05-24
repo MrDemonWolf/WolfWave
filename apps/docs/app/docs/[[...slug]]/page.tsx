@@ -52,6 +52,114 @@ export default async function Page(props: PageProps<'/docs/[[...slug]]'>) {
     })),
   };
 
+  const slugRoot = params.slug?.[0];
+
+  const howToLd =
+    slugRoot === 'installation'
+      ? {
+          '@context': 'https://schema.org',
+          '@type': 'HowTo',
+          name: 'Install WolfWave on macOS',
+          description:
+            'Install WolfWave — the free Apple Music to Twitch, Discord, and OBS bridge — on macOS in under two minutes.',
+          totalTime: 'PT2M',
+          supply: [
+            { '@type': 'HowToSupply', name: 'Mac running macOS 26.0 or later' },
+            { '@type': 'HowToSupply', name: 'Apple Music app' },
+          ],
+          tool: [{ '@type': 'HowToTool', name: 'Homebrew (optional)' }],
+          step: [
+            {
+              '@type': 'HowToStep',
+              position: 1,
+              name: 'Download WolfWave',
+              text: 'Download the latest WolfWave.dmg from GitHub Releases, or run `brew install --cask wolfwave`.',
+              url: `${siteUrl}/download/`,
+            },
+            {
+              '@type': 'HowToStep',
+              position: 2,
+              name: 'Move to Applications',
+              text: 'Open the DMG and drag WolfWave to your Applications folder.',
+            },
+            {
+              '@type': 'HowToStep',
+              position: 3,
+              name: 'Grant Apple Music access',
+              text: 'Launch WolfWave from the menu bar and approve the Apple Music automation prompt.',
+            },
+            {
+              '@type': 'HowToStep',
+              position: 4,
+              name: 'Connect Twitch and Discord',
+              text: 'Sign in to Twitch (Device Code) and enable Discord Rich Presence in Settings.',
+            },
+          ],
+        }
+      : null;
+
+  const faqByPage: Record<string, Array<{ q: string; a: string }>> = {
+    usage: [
+      {
+        q: 'How do I show what I am listening to in Apple Music on Twitch?',
+        a: 'Install WolfWave, sign in to Twitch, and enable the !song command. Chat replies with the live Apple Music track.',
+      },
+      {
+        q: 'Do I need a Spotify account or premium?',
+        a: 'No. WolfWave reads directly from Apple Music on macOS — no Spotify, no premium, no extra subscription.',
+      },
+      {
+        q: 'How do Twitch song requests work?',
+        a: 'Enable Song Requests in WolfWave. Viewers type !sr <song name or Apple Music link> in chat and the track is added to the Apple Music queue.',
+      },
+      {
+        q: 'Can I show Apple Music in my Discord profile?',
+        a: 'Yes. WolfWave broadcasts Apple Music to Discord Rich Presence so your status reads "Listening to Apple Music" with track and album.',
+      },
+      {
+        q: 'Does WolfWave work as an OBS overlay?',
+        a: 'Yes. WolfWave runs a local WebSocket + HTTP widget you add to OBS as a Browser Source. Six themes, three layouts.',
+      },
+    ],
+    support: [
+      {
+        q: 'Is WolfWave free?',
+        a: 'Yes. WolfWave is free and open source under the MIT license. No accounts, no paywalls, no ads.',
+      },
+      {
+        q: 'Does WolfWave track me or send data to servers?',
+        a: 'No. WolfWave has no analytics and no servers. Tokens live in your macOS Keychain. Now-playing data goes only to the services you enable.',
+      },
+      {
+        q: 'How can I support the project?',
+        a: 'Sponsor MrDemonWolf on GitHub Sponsors, star the repo, or contribute a pull request.',
+      },
+    ],
+    'bot-commands': [
+      {
+        q: 'What chat commands does WolfWave support?',
+        a: '!song / !nowplaying for the current track, !last for the previous track, !sr to request a song, !queue and !myqueue to view the queue, !skip and !voteskip to skip.',
+      },
+      {
+        q: 'Can viewers redeem songs with channel points or bits?',
+        a: 'Yes. WolfWave can auto-create a "Request a Song" channel-point reward and accept bit-cheer boosts to jump the queue.',
+      },
+    ],
+  };
+
+  const faqs = slugRoot ? faqByPage[slugRoot] : undefined;
+  const faqLd = faqs
+    ? {
+        '@context': 'https://schema.org',
+        '@type': 'FAQPage',
+        mainEntity: faqs.map((f) => ({
+          '@type': 'Question',
+          name: f.q,
+          acceptedAnswer: { '@type': 'Answer', text: f.a },
+        })),
+      }
+    : null;
+
   return (
     <DocsPage toc={page.data.toc} full={page.data.full}>
       <script
@@ -62,6 +170,18 @@ export default async function Page(props: PageProps<'/docs/[[...slug]]'>) {
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbLd) }}
       />
+      {howToLd && (
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(howToLd) }}
+        />
+      )}
+      {faqLd && (
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(faqLd) }}
+        />
+      )}
       <DocsTitle>{page.data.title}</DocsTitle>
       <DocsDescription>{page.data.description}</DocsDescription>
       <DocsBody>
@@ -101,7 +221,9 @@ export async function generateMetadata(props: PageProps<'/docs/[[...slug]]'>): P
   const slug = params.slug?.join('/') ?? '';
   const pageUrl = `${siteUrl}/docs/${slug ? `${slug}/` : ''}`;
   const ogImage = getPageImage(page).url;
-  const alt = `${page.data.title} — WolfWave docs`;
+  const ogTitle = page.data.ogTitle ?? page.data.title;
+  const ogDescription = page.data.ogDescription ?? page.data.description;
+  const alt = `${ogTitle} — WolfWave for Apple Music on macOS (Twitch, Discord, OBS)`;
   const pageKeywords = page.data.keywords ?? [];
 
   return {
@@ -115,8 +237,8 @@ export async function generateMetadata(props: PageProps<'/docs/[[...slug]]'>): P
       type: 'article',
       url: pageUrl,
       siteName: 'WolfWave',
-      title: page.data.title,
-      description: page.data.description,
+      title: ogTitle,
+      description: ogDescription,
       images: [
         {
           url: ogImage,
@@ -130,8 +252,8 @@ export async function generateMetadata(props: PageProps<'/docs/[[...slug]]'>): P
       card: 'summary_large_image',
       site: '@mrdemonwolf',
       creator: '@mrdemonwolf',
-      title: page.data.title,
-      description: page.data.description,
+      title: ogTitle,
+      description: ogDescription,
       images: [ogImage],
     },
   };

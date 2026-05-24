@@ -92,8 +92,10 @@ const jsonLd = {
   name: "WolfWave",
   description:
     "Free macOS menu bar app that shares your Apple Music now-playing to Twitch chat, Discord Rich Presence, and OBS stream overlays — automatically.",
-  operatingSystem: "macOS",
+  operatingSystem: "macOS 26.0",
   applicationCategory: "MultimediaApplication",
+  applicationSubCategory: "Streaming",
+  processorRequirements: "Apple Silicon",
   offers: {
     "@type": "Offer",
     price: "0",
@@ -104,9 +106,25 @@ const jsonLd = {
     name: "MrDemonWolf, Inc.",
     url: "https://github.com/mrdemonwolf",
   },
+  publisher: {
+    "@type": "Organization",
+    name: "MrDemonWolf, Inc.",
+    url: "https://github.com/mrdemonwolf",
+  },
   url: siteUrl,
   downloadUrl: "https://github.com/mrdemonwolf/wolfwave/releases/latest",
+  installUrl: `${siteUrl}/download/`,
   softwareVersion: "2.0.0",
+  releaseNotes: `${siteUrl}/docs/changelog/`,
+  screenshot: `${siteUrl}/opengraph-image`,
+  featureList: [
+    "Apple Music now-playing to Twitch chat (!song, !last)",
+    "Twitch song requests for Apple Music (!sr) with channel points and bits",
+    "Discord Rich Presence — Listening to Apple Music",
+    "OBS browser-source overlay with 6 themes and 3 layouts",
+    "Vote-to-skip via chat or Twitch Polls",
+    "macOS menu bar app — no account required",
+  ],
   license: "https://github.com/mrdemonwolf/wolfwave/blob/main/LICENSE",
 };
 

@@ -17,10 +17,22 @@ const REPO_URL = "https://github.com/MrDemonWolf/WolfWave";
 const LATEST_RELEASE_URL = `${REPO_URL}/releases/latest`;
 
 export const metadata: Metadata = {
-  title: "Download",
+  title: "Download WolfWave — Free for macOS 26+ (DMG or Homebrew)",
   description:
-    "Download WolfWave for macOS — free and open source. Requires macOS 26+ on Apple Silicon and the Apple Music app.",
+    "Download WolfWave free for macOS 26+ on Apple Silicon. Install the signed .dmg or run `brew install --cask wolfwave`. Apple Music required. Free and open source.",
+  keywords: [
+    "download wolfwave",
+    "wolfwave dmg",
+    "brew install wolfwave",
+    "apple music twitch bot download",
+    "free macos streamer app",
+  ],
   alternates: { canonical: "/download" },
+  openGraph: {
+    title: "Download WolfWave — Free for macOS 26+",
+    description:
+      "Free macOS app — Apple Music to Twitch chat, Discord Rich Presence, OBS overlay. DMG or Homebrew. Apple Silicon.",
+  },
 };
 
 // ── Requirement row ──────────────────────────────────────────

@@ -4,18 +4,19 @@ export interface OgPreset {
 }
 
 const PRESETS: Record<string, OgPreset> = {
-  "": { eyebrow: "WolfWave Docs", chips: ["Twitch", "Discord", "OBS", "Apple Music"] },
-  features: { eyebrow: "Features", chips: ["Twitch", "Discord", "OBS", "Apple Music"] },
-  "getting-started": { eyebrow: "Getting Started", chips: ["Install", "Connect", "Stream", "Done"] },
-  installation: { eyebrow: "Install Guide", chips: ["Homebrew", "DMG", "macOS 26+", "Free"] },
-  usage: { eyebrow: "Usage", chips: ["Menu Bar", "Settings", "Now Playing", "Overlay"] },
-  "bot-commands": { eyebrow: "Bot Commands", chips: ["!song", "!sr", "!queue", "!skip"] },
-  changelog: { eyebrow: "Changelog", chips: ["Releases", "What's New"] },
-  development: { eyebrow: "Development", chips: ["Swift", "SwiftUI", "Xcode", "Open Source"] },
-  architecture: { eyebrow: "Architecture", chips: ["MVVM", "Services", "ScriptingBridge", "EventSub"] },
-  security: { eyebrow: "Security", chips: ["Keychain", "Sandbox", "OAuth", "Audited"] },
-  "privacy-policy": { eyebrow: "Privacy", chips: ["No Tracking", "Local-First", "Open Source"] },
-  "terms-of-service": { eyebrow: "Terms", chips: ["MIT License", "Free", "Open Source"] },
+  "": { eyebrow: "Free for macOS 26+", chips: ["Apple Music", "Twitch", "Discord", "OBS"] },
+  features: { eyebrow: "All-in-one", chips: ["!song bot", "Discord RPC", "OBS Overlay", "Song Requests"] },
+  "getting-started": { eyebrow: "Build from source", chips: ["Xcode 16", "Swift 5.9", "macOS 26", "Open Source"] },
+  installation: { eyebrow: "Install in 2 minutes", chips: ["DMG", "Homebrew", "Apple Silicon", "Free"] },
+  usage: { eyebrow: "5-minute setup", chips: ["Twitch", "Discord", "OBS", "Apple Music"] },
+  "bot-commands": { eyebrow: "For Apple Music", chips: ["!song", "!sr", "!queue", "!voteskip"] },
+  changelog: { eyebrow: "What's new", chips: ["Releases", "Auto-update"] },
+  development: { eyebrow: "Contribute", chips: ["Swift", "SwiftUI", "Xcode", "1218 tests"] },
+  architecture: { eyebrow: "Under the hood", chips: ["MVVM", "EventSub", "ScriptingBridge", "WebSocket"] },
+  security: { eyebrow: "Tokens stay safe", chips: ["Keychain", "App Sandbox", "OAuth", "EdDSA"] },
+  "privacy-policy": { eyebrow: "Local-first", chips: ["No Tracking", "No Servers", "Open Source"] },
+  "terms-of-service": { eyebrow: "MIT license", chips: ["Free", "Open Source", "No Warranty"] },
+  support: { eyebrow: "Support WolfWave", chips: ["GitHub Sponsors", "MIT", "Free Forever"] },
 };
 
 export function presetForSlug(slug: string[] | undefined): OgPreset {

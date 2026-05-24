@@ -75,8 +75,8 @@ export async function GET(_req: Request, { params }: RouteContext<'/og/docs/[...
     (
       <OgCard
         eyebrow={eyebrow}
-        title={page.data.title}
-        description={page.data.description}
+        title={page.data.ogTitle ?? page.data.title}
+        description={page.data.ogDescription ?? page.data.description}
         chips={chips}
       />
     ),
