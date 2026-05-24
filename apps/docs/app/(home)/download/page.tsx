@@ -6,6 +6,7 @@ import {
   Download,
   Github,
   Laptop,
+  Music,
   ShieldCheck,
   Sparkles,
   Terminal,
@@ -18,7 +19,7 @@ const LATEST_RELEASE_URL = `${REPO_URL}/releases/latest`;
 export const metadata: Metadata = {
   title: "Download",
   description:
-    "Download WolfWave for macOS — free and open source. Install via the .dmg or Homebrew. Requires macOS 26+ on Apple Silicon.",
+    "Download WolfWave for macOS — free and open source. Requires macOS 26+ on Apple Silicon and the Apple Music app.",
   alternates: { canonical: "/download" },
 };
 
@@ -77,7 +78,7 @@ export default function DownloadPage() {
         <div className="relative z-10 px-6 pt-24 pb-16 sm:pt-32 sm:pb-20">
           <div className="mx-auto max-w-3xl text-center">
             <p className="ww-reveal ww-reveal-1 ww-text-brand text-sm font-semibold mb-5">
-              macOS 26+ · Apple Silicon
+              macOS 26+ · Apple Silicon · Apple Music
             </p>
             <h1 className="ww-reveal ww-reveal-1 ww-display ww-text-1 text-5xl sm:text-7xl">
               Download WolfWave
@@ -133,9 +134,14 @@ export default function DownloadPage() {
               label="Processor"
               value="Apple Silicon — M1 or later"
             />
+            <RequirementRow
+              icon={Music}
+              label="Music app"
+              value="Apple Music (built into macOS)"
+            />
           </div>
           <p className="ww-text-2 text-sm text-center mt-4">
-            Intel Macs are not supported.
+            Intel Macs are not supported. Spotify and other players are not supported.
           </p>
         </div>
       </section>

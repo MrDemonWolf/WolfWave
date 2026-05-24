@@ -82,7 +82,7 @@ in OBS.
 | --- | --- |
 | Language | Swift 5.9+ |
 | UI | SwiftUI, AppKit |
-| Platform | macOS 26.0+ (Tahoe), Apple Silicon |
+| Platform | macOS 26.0+ (Tahoe), Apple Silicon, Apple Music app required |
 | Music | ScriptingBridge, MusicKit, AppleScript |
 | Twitch | EventSub WebSocket, Helix API |
 | Discord | Rich Presence via local IPC Unix domain socket |

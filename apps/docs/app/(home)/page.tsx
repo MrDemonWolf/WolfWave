@@ -104,7 +104,7 @@ export default function HomePage() {
         <div className="relative z-10 px-6 pt-24 pb-20 sm:pt-32 sm:pb-28">
           <div className="mx-auto max-w-4xl text-center">
             <p className="ww-reveal ww-reveal-1 ww-text-brand text-sm font-semibold mb-5">
-              Now available · macOS 26+
+              Now available · macOS 26+ · Apple Music
             </p>
             <h1 className="ww-reveal ww-reveal-1 ww-display ww-text-1 text-5xl sm:text-7xl lg:text-[5.5rem]">
               Your music.
@@ -483,7 +483,7 @@ ws.onmessage = (event) =&gt; {
             </Link>
           </div>
           <p className="mt-5 text-sm ww-text-2">
-            Free forever · macOS 26+ · Built native
+            Free forever · macOS 26+ · Apple Music
           </p>
         </div>
       </section>
