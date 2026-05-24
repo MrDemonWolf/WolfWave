@@ -126,10 +126,10 @@ nonisolated enum DSMotion {
 /// Window and onboarding dimension tokens (preserves legacy AppConstants values).
 nonisolated enum DSDimension {
     enum Settings {
-        static let minWidth: CGFloat = 720
-        static let minHeight: CGFloat = 520
-        static let idealWidth: CGFloat = 900
-        static let idealHeight: CGFloat = 600
+        static let minWidth: CGFloat = 820
+        static let minHeight: CGFloat = 600
+        static let idealWidth: CGFloat = 1180
+        static let idealHeight: CGFloat = 740
         static let maxContentWidth: CGFloat = 720
         static let contentPaddingH: CGFloat = 28
         static let contentPaddingV: CGFloat = 22

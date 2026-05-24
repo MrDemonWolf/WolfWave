@@ -185,11 +185,13 @@ struct AppConstantsTests {
         #expect(AppConstants.SettingsUI.minHeight > 0)
         #expect(AppConstants.SettingsUI.idealWidth >= AppConstants.SettingsUI.minWidth)
         #expect(AppConstants.SettingsUI.idealHeight >= AppConstants.SettingsUI.minHeight)
-        // Min size must fit on a 720p display with the Dock visible (~626pt usable height).
+        // Min size is the floor the user can drag to — it must fit a 720p
+        // display with the Dock visible (~626pt usable height).
         #expect(AppConstants.SettingsUI.minWidth <= 1280)
         #expect(AppConstants.SettingsUI.minHeight <= 626)
-        // Ideal size must also fit a 720p display with the Dock visible.
-        #expect(AppConstants.SettingsUI.idealHeight <= 626)
+        // Ideal size is the initial size; `createSettingsWindow()` clamps it
+        // to `NSScreen.main.visibleFrame`, so it may exceed 720p — the clamp
+        // ensures the window still opens fully on smaller displays.
     }
     
     // MARK: - Power Management Tests

@@ -867,19 +867,20 @@ nonisolated enum AppConstants {
         /// Default application name shown in UI
         static let defaultAppName = "WolfWave"
 
-        /// Minimum width for settings window. Sized so the sidebar + detail pane
-        /// remain usable on a 1280×720 display.
-        static let minWidth: CGFloat = 720
+        /// Minimum width for settings window. Sized so sidebar + detail pane fit
+        /// the integration dashboard rows (icon · text · status chip · Configure)
+        /// without truncation, while still working on a 1280×720 display.
+        static let minWidth: CGFloat = 820
 
-        /// Minimum height for settings window. Sized to fit a 720p display with
-        /// the Dock visible (~626pt usable vertical space).
-        static let minHeight: CGFloat = 520
+        /// Minimum height for settings window. Fits the General tab's hero card
+        /// plus the four-row integrations list on a 720p display with Dock visible.
+        static let minHeight: CGFloat = 600
 
         /// Ideal width for settings window when first opened.
-        static let idealWidth: CGFloat = 1080
+        static let idealWidth: CGFloat = 1180
 
         /// Ideal height for settings window when first opened. Fits 720p w/ Dock.
-        static let idealHeight: CGFloat = 680
+        static let idealHeight: CGFloat = 740
 
         /// Maximum content width for detail pane
         static let maxContentWidth: CGFloat = 720

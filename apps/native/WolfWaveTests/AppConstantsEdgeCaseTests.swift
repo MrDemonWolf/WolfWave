@@ -71,12 +71,14 @@ final class AppConstantsEdgeCaseTests: XCTestCase {
     }
 
     func testSettingsUIDimensionsFit720pWithDock() {
-        // Usable height on a 1280x720 display with the Dock visible is ~626pt
-        // (720 − 24pt menu bar − ~70pt Dock). Min and ideal must both fit.
+        // Min size is the floor users can drag to — it must fit a 1280x720
+        // display with the Dock visible (~626pt usable height: 720 − 24pt
+        // menu bar − ~70pt Dock). Ideal size is allowed to exceed this:
+        // `AppDelegate.createSettingsWindow()` clamps the initial frame to
+        // `NSScreen.main.visibleFrame`, so the window still opens fully on
+        // smaller displays without sacrificing roominess on 1080p+.
         XCTAssertLessThanOrEqual(AppConstants.SettingsUI.minWidth, 1280)
         XCTAssertLessThanOrEqual(AppConstants.SettingsUI.minHeight, 626)
-        XCTAssertLessThanOrEqual(AppConstants.SettingsUI.idealWidth, 1280)
-        XCTAssertLessThanOrEqual(AppConstants.SettingsUI.idealHeight, 626)
     }
 
     // MARK: - Power Management Tests

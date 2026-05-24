@@ -10,8 +10,9 @@ import SwiftUI
 /// A capsule-shaped status indicator with a colored dot and label text.
 ///
 /// Used across settings views (Discord, WebSocket, Twitch, etc.) to show
-/// connection or server state. Has a fixed minimum width so the pill doesn't
-/// resize when the text changes between states.
+/// connection or server state. Has a modest minimum width so the pill stays
+/// stable across short state labels ("Off"/"Live"/"On") without crowding the
+/// neighboring Configure affordance in tight rows.
 struct StatusChip: View {
 
     // MARK: - Properties
@@ -31,7 +32,7 @@ struct StatusChip: View {
                 .font(.system(size: DSFont.Size.sm, weight: .semibold))
                 .foregroundStyle(.primary)
         }
-        .frame(minWidth: 130)
+        .frame(minWidth: 88)
         .padding(.horizontal, DSSpace.s3)
         .padding(.vertical, DSSpace.s1)
         .background(color.opacity(0.1))

@@ -145,10 +145,10 @@ export const tokens = {
   },
   "dimension": {
     "settings": {
-      "minWidth": 720,
-      "minHeight": 520,
-      "idealWidth": 900,
-      "idealHeight": 600,
+      "minWidth": 820,
+      "minHeight": 600,
+      "idealWidth": 1180,
+      "idealHeight": 740,
       "maxContentWidth": 720,
       "contentPaddingH": 28,
       "contentPaddingV": 22,
