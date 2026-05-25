@@ -637,14 +637,6 @@ extension AppDelegate: NSMenuDelegate {
 
         submenu.addItem(.separator())
 
-        let docs = NSMenuItem(
-            title: "Documentation",
-            action: #selector(openDocs),
-            keyEquivalent: ""
-        )
-        docs.image = NSImage(systemSymbolName: "book", accessibilityDescription: nil)
-        submenu.addItem(docs)
-
         let bug = NSMenuItem(
             title: "Report a Bug",
             action: #selector(reportBug),
@@ -652,32 +644,6 @@ extension AppDelegate: NSMenuDelegate {
         )
         bug.image = NSImage(systemSymbolName: "ant", accessibilityDescription: nil)
         submenu.addItem(bug)
-
-        submenu.addItem(.separator())
-
-        let discord = NSMenuItem(
-            title: "Join Discord Community",
-            action: #selector(openCommunityDiscord),
-            keyEquivalent: ""
-        )
-        discord.image = menuItemIcon(named: "DiscordLogo")
-        submenu.addItem(discord)
-
-        let github = NSMenuItem(
-            title: "View on GitHub",
-            action: #selector(openGitHub),
-            keyEquivalent: ""
-        )
-        github.image = NSImage(systemSymbolName: "chevron.left.forwardslash.chevron.right", accessibilityDescription: nil)
-        submenu.addItem(github)
-
-        let sponsor = NSMenuItem(
-            title: "Sponsor WolfWave",
-            action: #selector(openSponsorPage),
-            keyEquivalent: ""
-        )
-        sponsor.image = NSImage(systemSymbolName: "heart.fill", accessibilityDescription: "Sponsor")
-        submenu.addItem(sponsor)
 
         return submenu
     }
