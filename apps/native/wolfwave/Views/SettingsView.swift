@@ -49,6 +49,7 @@ struct SettingsView: View {
         case twitchIntegration = "Twitch"
         case discord = "Discord"
         case advanced = "Advanced"
+        case about = "About"
         #if DEBUG
         case debug = "Debug"
         #endif
@@ -58,7 +59,7 @@ struct SettingsView: View {
         /// Cases — `.debug` only present in DEBUG builds.
         static var allCases: [SettingsSection] {
             var cases: [SettingsSection] = [
-                .general, .songRequests, .websocket, .historyStats, .twitchIntegration, .discord, .advanced,
+                .general, .songRequests, .websocket, .historyStats, .twitchIntegration, .discord, .advanced, .about,
             ]
             #if DEBUG
             cases.append(.debug)
@@ -76,6 +77,7 @@ struct SettingsView: View {
             case .twitchIntegration: return "message.badge.waveform"
             case .discord: return "headphones"
             case .advanced: return "gearshape.2"
+            case .about: return "info.circle"
             #if DEBUG
             case .debug: return "ladybug.fill"
             #endif
@@ -254,6 +256,8 @@ struct SettingsView: View {
             DiscordSettingsView()
         case .advanced:
             AdvancedSettingsView(showingResetAlert: $showingResetAlert)
+        case .about:
+            AboutSettingsView()
         #if DEBUG
         case .debug:
             DebugSettingsView()

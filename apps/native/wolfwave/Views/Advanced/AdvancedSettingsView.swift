@@ -173,30 +173,6 @@ struct AdvancedSettingsView: View {
         refreshLogStats()
     }
 
-    /// Opens the default browser at a prefilled GitHub bug report form.
-    private func reportBug() {
-        let appVersion = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "Unknown"
-        let build = Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "Unknown"
-        let osVersion = ProcessInfo.processInfo.operatingSystemVersionString
-        let arch = BugReportURL.currentArch()
-        let install: BugReportURL.InstallMethod = isHomebrewInstall ? .homebrew : .dmg
-
-        guard let url = BugReportURL.make(
-            base: AppConstants.URLs.githubIssuesNew,
-            appVersion: appVersion,
-            build: build,
-            osVersion: osVersion,
-            arch: arch,
-            install: install
-        ) else {
-            Log.error("Failed to build bug report URL", category: "App")
-            return
-        }
-
-        NSWorkspace.shared.open(url)
-        Log.info("Opened bug report flow", category: "App")
-    }
-
     /// Refreshes the displayed log size + line count from the Log singleton.
     private func refreshLogStats() {
         let bytes = Log.logFileSize()
@@ -274,12 +250,6 @@ struct AdvancedSettingsView: View {
 
             // Diagnostics & Privacy (on-device MetricKit opt-in)
             DiagnosticsShareCardView()
-
-            // Bug Report Card
-            bugReportCard
-
-            // Legal Card
-            legalCard
 
             Divider()
                 .padding(.vertical, DSSpace.s1)
@@ -420,86 +390,6 @@ struct AdvancedSettingsView: View {
             Text("The current log file will be erased. This can't be undone.")
         }
         .onAppear { refreshLogStats() }
-    }
-
-    // MARK: - Bug Report Card
-
-    @ViewBuilder
-    private var bugReportCard: some View {
-        VStack(alignment: .leading, spacing: DSSpace.s4) {
-            VStack(alignment: .leading, spacing: DSSpace.s1) {
-                Text("Report a Bug")
-                    .font(.system(size: DSFont.Size.base, weight: .semibold))
-
-                Text("Opens a GitHub issue prefilled with your app version and system info.")
-                    .font(.system(size: DSFont.Size.body))
-                    .foregroundStyle(.secondary)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-
-            Button(action: reportBug) {
-                Label("Report a Bug on GitHub", systemImage: "ant.fill")
-                    .font(.system(size: DSFont.Size.base, weight: .medium))
-                    .frame(maxWidth: .infinity)
-            }
-            .buttonStyle(.borderedProminent)
-            .controlSize(.regular)
-            .pointerCursor()
-            .accessibilityLabel("Report a bug on GitHub")
-            .accessibilityHint("Opens a new GitHub issue with system info prefilled")
-        }
-        .cardStyle()
-    }
-
-    // MARK: - Legal Card
-
-    /// Surfaces the Privacy Policy and Terms of Service inside the app so users
-    /// can reach them without opening the About panel. Apple's review guidelines
-    /// expect legal documents to be reachable from within the app itself.
-    @ViewBuilder
-    private var legalCard: some View {
-        VStack(alignment: .leading, spacing: DSSpace.s4) {
-            VStack(alignment: .leading, spacing: DSSpace.s1) {
-                Text("Legal")
-                    .font(.system(size: DSFont.Size.base, weight: .semibold))
-
-                Text("Read how WolfWave handles your data and the terms of using the app.")
-                    .font(.system(size: DSFont.Size.body))
-                    .foregroundStyle(.secondary)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-
-            HStack(spacing: DSSpace.s2) {
-                Button {
-                    if let url = URL(string: AppConstants.URLs.privacyPolicy) {
-                        NSWorkspace.shared.open(url)
-                    }
-                } label: {
-                    Label("Privacy Policy", systemImage: "hand.raised")
-                        .font(.system(size: DSFont.Size.base, weight: .medium))
-                        .frame(maxWidth: .infinity)
-                }
-                .buttonStyle(.bordered)
-                .controlSize(.regular)
-                .pointerCursor()
-                .accessibilityLabel("Open privacy policy")
-
-                Button {
-                    if let url = URL(string: AppConstants.URLs.termsOfService) {
-                        NSWorkspace.shared.open(url)
-                    }
-                } label: {
-                    Label("Terms of Service", systemImage: "doc.text")
-                        .font(.system(size: DSFont.Size.base, weight: .medium))
-                        .frame(maxWidth: .infinity)
-                }
-                .buttonStyle(.bordered)
-                .controlSize(.regular)
-                .pointerCursor()
-                .accessibilityLabel("Open terms of service")
-            }
-        }
-        .cardStyle()
     }
 
     // MARK: - Software Update Card
