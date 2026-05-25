@@ -230,17 +230,6 @@ extension AppDelegate: NSMenuDelegate {
         )
         menu.addItem(nowPlayingItem)
 
-        let openInMusic = NSMenuItem(
-            title: "Open in Apple Music",
-            action: #selector(openCurrentInAppleMusic),
-            keyEquivalent: ""
-        )
-        openInMusic.image = NSImage(
-            systemSymbolName: "arrow.up.right.square",
-            accessibilityDescription: "Open in Apple Music"
-        )
-        menu.addItem(openInMusic)
-
         let copyItem = NSMenuItem(
             title: "Copy Song Info",
             action: #selector(copyCurrentTrack),
@@ -814,15 +803,6 @@ extension AppDelegate {
             Task { await service.sendMessage(message) }
         }
         Log.debug("AppDelegate: Shared current track to Twitch chat", category: "App")
-    }
-
-    /// Brings Music.app forward so the user can see (and act on) the
-    /// currently-playing track.
-    @objc func openCurrentInAppleMusic() {
-        guard let url = NSWorkspace.shared.urlForApplication(
-            withBundleIdentifier: AppConstants.Music.bundleIdentifier
-        ) else { return }
-        NSWorkspace.shared.openApplication(at: url, configuration: NSWorkspace.OpenConfiguration())
     }
 
     /// Copies a recently-played track label from the submenu. The full
