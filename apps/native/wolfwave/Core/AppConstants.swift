@@ -177,6 +177,9 @@ nonisolated enum AppConstants {
         /// User-overridden label for Discord button 2. Empty string = use `AppConstants.Discord.defaultButton2Label`.
         static let discordButton2Label = "discordButton2Label"
 
+        /// Master switch: whether any profile buttons are shown on Discord (Bool, default: true)
+        static let discordButtonsEnabled = "discordButtonsEnabled"
+
         /// Whether the current Apple Music playlist is shown in Discord presence (Bool, default: false)
         static let discordPlaylistEnabled = "discordPlaylistEnabled"
 

@@ -19,17 +19,14 @@ struct DiscordSettingsView: View {
     @AppStorage(AppConstants.UserDefaults.discordPresenceEnabled)
     private var presenceEnabled = false
 
+    @AppStorage(AppConstants.UserDefaults.discordButtonsEnabled)
+    private var buttonsEnabled = true
+
     @AppStorage(AppConstants.UserDefaults.discordButton1Enabled)
     private var button1Enabled = true
 
-    @AppStorage(AppConstants.UserDefaults.discordButton1Label)
-    private var button1Label = ""
-
     @AppStorage(AppConstants.UserDefaults.discordButton2Enabled)
     private var button2Enabled = true
-
-    @AppStorage(AppConstants.UserDefaults.discordButton2Label)
-    private var button2Label = ""
 
     @AppStorage(AppConstants.UserDefaults.discordPlaylistEnabled)
     private var playlistEnabled = false
@@ -87,24 +84,9 @@ struct DiscordSettingsView: View {
         ) { notification in
             updateNowPlaying(from: notification.userInfo)
         }
+        .onChange(of: buttonsEnabled) { _, _ in scheduleSettingsResend() }
         .onChange(of: button1Enabled) { _, _ in scheduleSettingsResend() }
-        .onChange(of: button1Label) { _, newValue in
-            let max = AppConstants.Discord.buttonLabelMaxLength
-            if newValue.count > max {
-                button1Label = String(newValue.prefix(max))
-                return
-            }
-            scheduleSettingsResend()
-        }
         .onChange(of: button2Enabled) { _, _ in scheduleSettingsResend() }
-        .onChange(of: button2Label) { _, newValue in
-            let max = AppConstants.Discord.buttonLabelMaxLength
-            if newValue.count > max {
-                button2Label = String(newValue.prefix(max))
-                return
-            }
-            scheduleSettingsResend()
-        }
         .onChange(of: playlistEnabled) { _, _ in scheduleSettingsResend() }
         .onChange(of: playlistShowName) { _, _ in scheduleSettingsResend() }
         .onChange(of: playlistStyle) { _, _ in scheduleSettingsResend() }
@@ -176,27 +158,36 @@ struct DiscordSettingsView: View {
             )
 
             VStack(alignment: .leading, spacing: DSSpace.s6) {
-                DiscordButtonConfigRow(
-                    title: "Apple Music link",
-                    defaultLabel: AppConstants.Discord.defaultButton1Label,
-                    resolvedURL: nowPlaying.appleMusicURL,
-                    accessibilityPrefix: "discordButton1",
-                    isEnabled: $button1Enabled,
-                    customLabel: $button1Label
+                ToggleSettingRow(
+                    title: "Show buttons",
+                    subtitle: "Display action buttons on your Discord profile.",
+                    isOn: $buttonsEnabled,
+                    accessibilityLabel: "Show Discord profile buttons",
+                    accessibilityIdentifier: "discordButtonsMasterToggle"
                 )
 
-                Divider()
+                if buttonsEnabled {
+                    Divider()
 
-                DiscordButtonConfigRow(
-                    title: "Cross-service link (song.link)",
-                    defaultLabel: AppConstants.Discord.defaultButton2Label,
-                    resolvedURL: nowPlaying.songLinkURL,
-                    accessibilityPrefix: "discordButton2",
-                    isEnabled: $button2Enabled,
-                    customLabel: $button2Label
-                )
+                    DiscordButtonConfigRow(
+                        title: "Apple Music link",
+                        resolvedURL: nowPlaying.appleMusicURL,
+                        accessibilityPrefix: "discordButton1",
+                        isEnabled: $button1Enabled
+                    )
+
+                    Divider()
+
+                    DiscordButtonConfigRow(
+                        title: "Cross-service link (song.link)",
+                        resolvedURL: nowPlaying.songLinkURL,
+                        accessibilityPrefix: "discordButton2",
+                        isEnabled: $button2Enabled
+                    )
+                }
             }
             .cardStyle()
+            .animation(.easeInOut(duration: DSMotion.Duration.base), value: buttonsEnabled)
         }
         .transition(.opacity)
     }
@@ -275,13 +266,11 @@ struct DiscordSettingsView: View {
                 artworkURL: nowPlaying.artworkURL.flatMap(URL.init(string:)),
                 button1: previewButton(
                     enabled: button1Enabled,
-                    label: button1Label,
                     defaultLabel: AppConstants.Discord.defaultButton1Label,
                     url: nowPlaying.appleMusicURL ?? "https://music.apple.com/"
                 ),
                 button2: previewButton(
                     enabled: button2Enabled,
-                    label: button2Label,
                     defaultLabel: AppConstants.Discord.defaultButton2Label,
                     url: nowPlaying.songLinkURL ?? "https://song.link/"
                 ),
@@ -355,22 +344,18 @@ struct DiscordSettingsView: View {
     }
 
     private var buttonCountText: String {
+        guard buttonsEnabled else { return "Hidden" }
         let count = (button1Enabled ? 1 : 0) + (button2Enabled ? 1 : 0)
         return "\(count) of \(AppConstants.Discord.maxButtons) shown"
     }
 
     private func previewButton(
         enabled: Bool,
-        label: String,
         defaultLabel: String,
         url: String
     ) -> DiscordPreviewCard.PreviewButton? {
-        guard enabled else { return nil }
-        let trimmed = label.trimmingCharacters(in: .whitespacesAndNewlines)
-        let resolved = trimmed.isEmpty ? defaultLabel : trimmed
-        let truncated = String(resolved.prefix(AppConstants.Discord.buttonLabelMaxLength))
-        guard !truncated.isEmpty else { return nil }
-        return .init(label: truncated, url: url)
+        guard buttonsEnabled, enabled else { return nil }
+        return .init(label: defaultLabel, url: url)
     }
 
     private func refreshConnectionState() {
