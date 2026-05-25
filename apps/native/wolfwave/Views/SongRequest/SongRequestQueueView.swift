@@ -36,7 +36,7 @@ struct SongRequestQueueView: View {
     // MARK: - Body
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 16) {
+        VStack(alignment: .leading, spacing: DSSpace.s6) {
             // Header
             HStack {
                 Text("Song Request Queue")
@@ -125,10 +125,10 @@ struct SongRequestQueueView: View {
     /// - Parameter item: The currently-playing song request.
     /// - Returns: A styled row view.
     private func nowPlayingRow(_ item: SongRequestItem) -> some View {
-        HStack(spacing: 10) {
+        HStack(spacing: DSSpace.s3) {
             artworkPlaceholder
 
-            VStack(alignment: .leading, spacing: 2) {
+            VStack(alignment: .leading, spacing: DSSpace.s0) {
                 HStack(spacing: 6) {
                     Image(systemName: "waveform")
                         .font(.system(size: DSFont.Size.xs))
@@ -156,9 +156,9 @@ struct SongRequestQueueView: View {
     // MARK: - Queue List
 
     private var queueList: some View {
-        VStack(spacing: 4) {
+        VStack(spacing: DSSpace.s1) {
             ForEach(Array(items.enumerated()), id: \.element.id) { index, item in
-                HStack(spacing: 10) {
+                HStack(spacing: DSSpace.s3) {
                     Text("\(index + 1)")
                         .font(.system(size: DSFont.Size.sm, design: .monospaced))
                         .foregroundStyle(.tertiary)
@@ -202,7 +202,7 @@ struct SongRequestQueueView: View {
     // MARK: - Empty State
 
     private var emptyState: some View {
-        VStack(spacing: 8) {
+        VStack(spacing: DSSpace.s2) {
             Image(systemName: "music.note.list")
                 .font(.system(size: DSFont.Size.x24))
                 .foregroundStyle(.tertiary)
@@ -220,7 +220,7 @@ struct SongRequestQueueView: View {
     // MARK: - Action Buttons
 
     private var actionButtons: some View {
-        HStack(spacing: 8) {
+        HStack(spacing: DSSpace.s2) {
             Button {
                 Task {
                     _ = await service?.skip()

@@ -41,7 +41,7 @@ struct TwitchSettingsView: View {
     @State private var didLoadCredentials = false
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 16) {
+        VStack(alignment: .leading, spacing: DSSpace.s6) {
             headerView
 
             authCard
@@ -128,7 +128,7 @@ struct TwitchSettingsView: View {
     /// Shows one of: sign-in button, device-code flow, connected controls, or error retry.
     @ViewBuilder
     private var authCard: some View {
-        VStack(spacing: 14) {
+        VStack(spacing: DSSpace.s5) {
             // Card header (compact, copy-friendly — no logo)
             // Only show header when not connected
             if case .connected = viewModel.integrationState {
@@ -136,7 +136,7 @@ struct TwitchSettingsView: View {
             } else if case .authorizing = viewModel.integrationState {
                 // Header hidden when authorizing — helper text provides instruction
             } else {
-                VStack(alignment: .leading, spacing: 2) {
+                VStack(alignment: .leading, spacing: DSSpace.s0) {
                     Text(authCardHeaderTitle)
                         .font(.system(size: DSFont.Size.sm, weight: .medium))
                         .foregroundStyle(.secondary)
@@ -152,7 +152,7 @@ struct TwitchSettingsView: View {
             Group {
                 switch viewModel.integrationState {
                 case .notConnected:
-                    VStack(spacing: 12) {
+                    VStack(spacing: DSSpace.s4) {
                         Button(action: {
                             hasStartedActivation = false
                             viewModel.startOAuth()
@@ -174,7 +174,7 @@ struct TwitchSettingsView: View {
                     }
 
                 case .authorizing:
-                    VStack(spacing: 12) {
+                    VStack(spacing: DSSpace.s4) {
                         HStack(spacing: 0) {
                             Text("Visit ")
                             if let activateURL = URL(string: "https://www.twitch.tv/activate") {
@@ -212,7 +212,7 @@ struct TwitchSettingsView: View {
                         }
 
                         // Always-visible spinner + cancel row once device code is shown
-                        HStack(spacing: 8) {
+                        HStack(spacing: DSSpace.s2) {
                             ProgressView()
                                 .progressViewStyle(.circular)
                                 .controlSize(.small)
@@ -254,7 +254,7 @@ struct TwitchSettingsView: View {
                     )
 
                 case .error(let message):
-                    VStack(spacing: 8) {
+                    VStack(spacing: DSSpace.s2) {
                         Text(message)
                             .font(.system(size: DSFont.Size.base))
                             .foregroundStyle(.red)
@@ -313,8 +313,8 @@ private struct SignedInView: View {
 
     /// Row showing the signed-in Twitch username and a status icon.
     private var botAccountSection: some View {
-        HStack(alignment: .center, spacing: 12) {
-            VStack(alignment: .leading, spacing: 2) {
+        HStack(alignment: .center, spacing: DSSpace.s4) {
+            VStack(alignment: .leading, spacing: DSSpace.s0) {
                 Text("Twitch Account")
                     .font(.system(size: DSFont.Size.sm, weight: .medium))
                     .foregroundStyle(.secondary)
@@ -334,8 +334,8 @@ private struct SignedInView: View {
     /// Row with the channel name input field (or label when connected) and validation indicator.
     private var channelSection: some View {
         VStack(alignment: .leading, spacing: 0) {
-            HStack(alignment: .center, spacing: 12) {
-                VStack(alignment: .leading, spacing: 2) {
+            HStack(alignment: .center, spacing: DSSpace.s4) {
+                VStack(alignment: .leading, spacing: DSSpace.s0) {
                     Text("Channel")
                         .font(.system(size: DSFont.Size.sm, weight: .medium))
                         .foregroundStyle(.secondary)
@@ -371,7 +371,7 @@ private struct SignedInView: View {
             .accessibilityElement(children: .combine)
             .accessibilityLabel("Verifying channel")
         case .valid:
-            HStack(spacing: 4) {
+            HStack(spacing: DSSpace.s1) {
                 Image(systemName: "checkmark.circle.fill")
                     .foregroundStyle(.green)
                     .font(.system(size: DSFont.Size.sm))
@@ -383,7 +383,7 @@ private struct SignedInView: View {
             .accessibilityElement(children: .combine)
             .accessibilityLabel("Channel verified successfully")
         case .invalid:
-            HStack(spacing: 4) {
+            HStack(spacing: DSSpace.s1) {
                 Image(systemName: "xmark.circle.fill")
                     .foregroundStyle(.red)
                     .font(.system(size: DSFont.Size.sm))
@@ -395,7 +395,7 @@ private struct SignedInView: View {
             .accessibilityElement(children: .combine)
             .accessibilityLabel("Channel not found")
         case .error(let message):
-            HStack(spacing: 4) {
+            HStack(spacing: DSSpace.s1) {
                 Image(systemName: "exclamationmark.triangle.fill")
                     .foregroundStyle(.orange)
                     .font(.system(size: DSFont.Size.sm))
@@ -470,7 +470,7 @@ private struct SignedInView: View {
 
     /// Bottom row with Connect/Disconnect, Test Login, and Log Out buttons.
     private var actionButtonsSection: some View {
-        HStack(spacing: 10) {
+        HStack(spacing: DSSpace.s3) {
             if reauthNeeded {
                 Button(action: onReauth) {
                     Label("Sign in again", systemImage: "arrow.clockwise.circle.fill")

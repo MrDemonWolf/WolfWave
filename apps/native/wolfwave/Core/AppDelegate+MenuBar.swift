@@ -190,12 +190,13 @@ extension AppDelegate {
             return nil
         }
 
-        URLSession.shared.dataTask(with: url) { [weak self] data, _, _ in
-            guard let self, let data, let image = NSImage(data: data) else { return }
-            Task { @MainActor [weak self] in
+        Task { [weak self] in
+            guard let data = try? await HTTPClient.shared.data(url: url),
+                  let image = NSImage(data: data) else { return }
+            await MainActor.run { [weak self] in
                 self?.albumArtCache[key] = image
             }
-        }.resume()
+        }
 
         return nil
     }
@@ -479,7 +480,7 @@ extension AppDelegate: NSMenuDelegate {
 
         if KeychainService.loadTwitchToken() != nil {
             let connected = twitchService?.isConnectedSnapshot.value ?? false
-            let channel = UserDefaults.standard.string(forKey: "twitchChannelName")
+            let channel = UserDefaults.standard.string(forKey: AppConstants.UserDefaults.twitchChannelName)
             let twitchItem = makeStatusItem(
                 title: "Twitch Chat",
                 status: MenuStatusFormatter.twitchStatus(isConnected: connected, channelName: channel),

@@ -43,16 +43,16 @@ struct DiscordPreviewCard: View {
     // MARK: - Constants
 
     /// Discord card background `#2B2D31`.
-    private let cardBackground = Color(red: 0.169, green: 0.176, blue: 0.192)
+    private let cardBackground = AppConstants.Brand.discordSurface
     /// Discord button background `#4E5058`.
-    private let buttonBackground = Color(red: 0.306, green: 0.314, blue: 0.345)
+    private let buttonBackground = AppConstants.Brand.discordControl
     /// Faux progress bar fill — visual placeholder only.
     private let progressFraction: Double = 0.32
 
     // MARK: - Body
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
+        VStack(alignment: .leading, spacing: DSSpace.s4) {
             header
             content
             buttons
@@ -83,7 +83,7 @@ struct DiscordPreviewCard: View {
     }
 
     private var content: some View {
-        HStack(alignment: .top, spacing: 12) {
+        HStack(alignment: .top, spacing: DSSpace.s4) {
             artworkView
             VStack(alignment: .leading, spacing: 3) {
                 Text(trackTitle)

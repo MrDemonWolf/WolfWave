@@ -140,7 +140,7 @@ final class SongBlocklist {
     /// or malformed data so a corrupt store can never crash the launch path.
     private func load() {
         guard let data = storage.read(),
-              let decoded = try? JSONDecoder().decode([BlocklistItem].self, from: data) else {
+              let decoded = try? JSONCoders.camelCase.decode([BlocklistItem].self, from: data) else {
             return
         }
         entries = decoded
@@ -150,7 +150,7 @@ final class SongBlocklist {
     /// Called after every mutation.
     private func save() {
         let snapshot = lock.withLock { entries }
-        guard let data = try? JSONEncoder().encode(snapshot) else { return }
+        guard let data = try? JSONCoders.camelCaseEncoder.encode(snapshot) else { return }
         storage.write(data)
     }
 }

@@ -19,7 +19,7 @@ struct DebugLogsAndEventsCard: View {
     @State private var refreshTick = 0
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 16) {
+        VStack(alignment: .leading, spacing: DSSpace.s6) {
             HStack(spacing: 6) {
                 Image(systemName: "doc.text.magnifyingglass")
                     .foregroundStyle(.indigo)
@@ -38,7 +38,7 @@ struct DebugLogsAndEventsCard: View {
     // MARK: - Logs
 
     private var logsSection: some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: DSSpace.s2) {
             Text("Log File")
                 .font(.system(size: DSFont.Size.body, weight: .semibold))
                 .foregroundStyle(.secondary)
@@ -49,7 +49,7 @@ struct DebugLogsAndEventsCard: View {
             let lines = Log.logLineCount()
 
             HStack(alignment: .top) {
-                VStack(alignment: .leading, spacing: 2) {
+                VStack(alignment: .leading, spacing: DSSpace.s0) {
                     Text(url?.path ?? "(no log file)")
                         .font(.system(size: DSFont.Size.sm, design: .monospaced))
                         .lineLimit(2)
@@ -134,7 +134,7 @@ struct DebugLogsAndEventsCard: View {
     // MARK: - Notification Firehose
 
     private var firehoseSection: some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: DSSpace.s2) {
             Text("Notification Firehose")
                 .font(.system(size: DSFont.Size.body, weight: .semibold))
                 .foregroundStyle(.secondary)

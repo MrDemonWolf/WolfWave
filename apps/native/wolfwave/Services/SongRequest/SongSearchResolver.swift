@@ -88,7 +88,7 @@ final class SongSearchResolver {
 
         case .found(let title, let artist):
             // oEmbed gave us title/artist — search MusicKit
-            let searchQuery = artist != nil ? "\(title) \(artist!)" : title
+            let searchQuery = artist.map { "\(title) \($0)" } ?? title
             Log.debug("SongSearchResolver: oEmbed resolved to: \(searchQuery)", category: "SongRequest")
             return await resolveText(searchQuery)
 

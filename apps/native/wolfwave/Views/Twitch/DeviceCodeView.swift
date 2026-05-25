@@ -31,7 +31,7 @@ struct DeviceCodeView: View {
     // MARK: - Body
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
+        VStack(alignment: .leading, spacing: DSSpace.s4) {
             // Header: subtle label
             Text("Sign-in Code")
                 .font(.system(size: DSFont.Size.sm, weight: .medium))
@@ -40,7 +40,7 @@ struct DeviceCodeView: View {
 
 
             // Code container - monospaced, larger and calm
-            HStack(spacing: 8) {
+            HStack(spacing: DSSpace.s2) {
                 Text(userCode)
                     .font(.system(size: DSFont.Size.x28, weight: .medium, design: .monospaced))
                     .foregroundStyle(.primary)
@@ -157,7 +157,7 @@ struct DeviceCodeView: View {
     @ViewBuilder
     private var copyFeedbackView: some View {
         if showCopyFeedback {
-            HStack(spacing: 8) {
+            HStack(spacing: DSSpace.s2) {
                 Image(systemName: "checkmark.circle.fill")
                     .foregroundStyle(.green)
                 Text("Copied to clipboard")
@@ -176,7 +176,7 @@ struct DeviceCodeView: View {
 }
 
 #Preview("Standard Code") {
-    VStack(spacing: 24) {
+    VStack(spacing: DSSpace.s8) {
         DeviceCodeView(
             userCode: "ABCD-EFGH",
             verificationURI: "https://www.twitch.tv/activate?device_code=test",
@@ -205,7 +205,7 @@ struct DeviceCodeView: View {
 }
 
 #Preview("Compact Card") {
-    VStack(alignment: .leading, spacing: 12) {
+    VStack(alignment: .leading, spacing: DSSpace.s4) {
         Text("Enter this code on Twitch")
             .font(.system(size: DSFont.Size.base))
             .foregroundStyle(.secondary)

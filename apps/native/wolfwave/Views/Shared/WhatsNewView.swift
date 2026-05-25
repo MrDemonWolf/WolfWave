@@ -33,7 +33,7 @@ struct WhatsNewView: View {
     // MARK: - Body
 
     var body: some View {
-        VStack(spacing: 20) {
+        VStack(spacing: DSSpace.s7) {
             // MARK: Header
             VStack(spacing: 6) {
                 Text("What's New in WolfWave v\(Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0")")
@@ -47,7 +47,7 @@ struct WhatsNewView: View {
 
             // MARK: Feature List
             ScrollView {
-                VStack(spacing: 10) {
+                VStack(spacing: DSSpace.s3) {
                     ForEach(Array(features.enumerated()), id: \.offset) { _, feature in
                         featureRow(feature)
                     }
@@ -75,7 +75,7 @@ struct WhatsNewView: View {
 
     /// Renders a single feature as a card-styled row.
     private func featureRow(_ feature: (icon: String, iconColor: Color, title: String, description: String)) -> some View {
-        HStack(spacing: 14) {
+        HStack(spacing: DSSpace.s5) {
             Image(systemName: feature.icon)
                 .font(.system(size: DSFont.Size.xl))
                 .foregroundStyle(feature.iconColor)
@@ -83,7 +83,7 @@ struct WhatsNewView: View {
                 .background(feature.iconColor.opacity(0.12))
                 .clipShape(RoundedRectangle(cornerRadius: 8))
 
-            VStack(alignment: .leading, spacing: 2) {
+            VStack(alignment: .leading, spacing: DSSpace.s0) {
                 Text(feature.title)
                     .font(.system(size: DSFont.Size.base, weight: .semibold))
 

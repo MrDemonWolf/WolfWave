@@ -17,7 +17,7 @@ struct DebugUIPreviewsCard: View {
     @State private var customVersion: String = "99.0.0"
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
+        VStack(alignment: .leading, spacing: DSSpace.s4) {
             HStack(spacing: 6) {
                 Image(systemName: "eye.fill")
                     .foregroundStyle(.purple)
@@ -40,7 +40,7 @@ struct DebugUIPreviewsCard: View {
             .buttonStyle(.bordered)
             .pointerCursor()
 
-            HStack(spacing: 8) {
+            HStack(spacing: DSSpace.s2) {
                 TextField("Version (e.g. 99.0.0)", text: $customVersion)
                     .textFieldStyle(.roundedBorder)
                 Button("Show") {

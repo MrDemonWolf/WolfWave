@@ -24,7 +24,7 @@ struct DebugServiceControlsCard: View {
     private var appDelegate: AppDelegate? { AppDelegate.shared }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 16) {
+        VStack(alignment: .leading, spacing: DSSpace.s6) {
             HStack(spacing: 6) {
                 Image(systemName: "slider.horizontal.3")
                     .foregroundStyle(.green)
@@ -54,7 +54,7 @@ struct DebugServiceControlsCard: View {
     // MARK: - Playback
 
     private var playbackSection: some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: DSSpace.s2) {
             sectionLabel("Apple Music — Inject Track")
             TextField("Title", text: $fakeTitle).textFieldStyle(.roundedBorder)
             TextField("Artist", text: $fakeArtist).textFieldStyle(.roundedBorder)
@@ -98,7 +98,7 @@ struct DebugServiceControlsCard: View {
     // MARK: - Twitch
 
     private var twitchSection: some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: DSSpace.s2) {
             sectionLabel("Twitch")
             Text("Connected: \(appDelegate?.twitchService?.isConnectedSnapshot.value == true ? "yes" : "no")")
                 .font(.system(size: DSFont.Size.sm))
@@ -133,7 +133,7 @@ struct DebugServiceControlsCard: View {
     // MARK: - Discord
 
     private var discordSection: some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: DSSpace.s2) {
             sectionLabel("Discord RPC")
             HStack {
                 Button {
@@ -169,7 +169,7 @@ struct DebugServiceControlsCard: View {
     // MARK: - WebSocket
 
     private var webSocketSection: some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: DSSpace.s2) {
             sectionLabel("WebSocket Server")
             TextField("Track title", text: $wsTestTitle).textFieldStyle(.roundedBorder)
             TextField("Artist", text: $wsTestArtist).textFieldStyle(.roundedBorder)
@@ -210,7 +210,7 @@ struct DebugServiceControlsCard: View {
     // MARK: - Sparkle
 
     private var sparkleSection: some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: DSSpace.s2) {
             sectionLabel("Sparkle Updater")
             HStack {
                 Button {
@@ -238,7 +238,7 @@ struct DebugServiceControlsCard: View {
     // MARK: - Song Request
 
     private var songRequestSection: some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: DSSpace.s2) {
             sectionLabel("Song Request Queue")
             HStack {
                 TextField("Requester", text: $queueRequester).textFieldStyle(.roundedBorder)

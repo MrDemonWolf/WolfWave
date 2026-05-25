@@ -24,14 +24,14 @@ struct TwitchReauthView: View {
     var viewModel: TwitchViewModel
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 16) {
+        VStack(alignment: .leading, spacing: DSSpace.s6) {
             // Header with icon and title
-            HStack(spacing: 12) {
+            HStack(spacing: DSSpace.s4) {
                 Image(systemName: "exclamationmark.circle.fill")
                     .font(.title2)
                     .foregroundStyle(.orange)
                 
-                VStack(alignment: .leading, spacing: 2) {
+                VStack(alignment: .leading, spacing: DSSpace.s0) {
                     Text("Reconnect to Twitch")
                         .font(.headline)
                         .fontWeight(.semibold)
@@ -61,14 +61,14 @@ struct TwitchReauthView: View {
     // MARK: - Idle State Content
     
     private var idleContent: some View {
-        VStack(alignment: .leading, spacing: 14) {
+        VStack(alignment: .leading, spacing: DSSpace.s5) {
             Text("Please sign in again to keep the Twitch bot running.")
                 .font(.body)
                 .foregroundStyle(.secondary)
             
             // Sign in button (smaller, subtler color)
             Button(action: { viewModel.startOAuth() }) {
-                HStack(spacing: 8) {
+                HStack(spacing: DSSpace.s2) {
                     Image("TwitchLogo")
                         .renderingMode(.template)
                         .resizable()
@@ -92,16 +92,16 @@ struct TwitchReauthView: View {
     // MARK: - Authorizing State Content
     
     private var authorizingContent: some View {
-        VStack(alignment: .leading, spacing: 14) {
+        VStack(alignment: .leading, spacing: DSSpace.s5) {
             if !viewModel.authState.userCode.isEmpty {
-                VStack(alignment: .leading, spacing: 10) {
+                VStack(alignment: .leading, spacing: DSSpace.s3) {
                     Text("Sign-in Code")
                         .font(.caption)
                         .fontWeight(.semibold)
                         .foregroundStyle(.secondary)
                     
                     // Token field style device code display
-                    HStack(spacing: 12) {
+                    HStack(spacing: DSSpace.s4) {
                         Text(viewModel.authState.userCode)
                             .font(.system(.body, design: .monospaced))
                             .fontWeight(.semibold)
@@ -127,7 +127,7 @@ struct TwitchReauthView: View {
                     )
                     
                     // Helper text and button
-                    VStack(alignment: .leading, spacing: 8) {
+                    VStack(alignment: .leading, spacing: DSSpace.s2) {
                         Button(action: { openTwitchActivation() }) {
                             Text("Sign in on Twitch to continue")
                                 .font(.caption)
@@ -139,7 +139,7 @@ struct TwitchReauthView: View {
                         .accessibilityIdentifier("reauthOpenActivateLink")
                         
                         Button(action: { openTwitchActivation() }) {
-                            HStack(spacing: 8) {
+                            HStack(spacing: DSSpace.s2) {
                                 Image("TwitchLogo")
                                     .renderingMode(.template)
                                     .resizable()
@@ -163,13 +163,13 @@ struct TwitchReauthView: View {
             }
             
             // Status section
-            VStack(alignment: .leading, spacing: 10) {
-                HStack(spacing: 8) {
+            VStack(alignment: .leading, spacing: DSSpace.s3) {
+                HStack(spacing: DSSpace.s2) {
                     ProgressView()
                         .progressViewStyle(.circular)
                         .scaleEffect(0.8)
                     
-                    VStack(alignment: .leading, spacing: 2) {
+                    VStack(alignment: .leading, spacing: DSSpace.s0) {
                         Text("Waiting for authorization…")
                             .font(.body)
                             .fontWeight(.medium)
@@ -187,7 +187,7 @@ struct TwitchReauthView: View {
             Divider()
             
             // Action buttons
-            HStack(spacing: 8) {
+            HStack(spacing: DSSpace.s2) {
                 Spacer()
                 
                 Button("Cancel") {

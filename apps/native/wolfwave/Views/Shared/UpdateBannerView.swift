@@ -22,12 +22,12 @@ struct UpdateBannerView: View {
 
     var body: some View {
         if isUpdateAvailable && !isDismissed {
-            HStack(spacing: 10) {
+            HStack(spacing: DSSpace.s3) {
                 Image(systemName: "arrow.down.circle.fill")
                     .font(.system(size: DSFont.Size.x16))
                     .foregroundStyle(.white)
 
-                VStack(alignment: .leading, spacing: 2) {
+                VStack(alignment: .leading, spacing: DSSpace.s0) {
                     Text("Update Available")
                         .font(.system(size: DSFont.Size.body, weight: .semibold))
                         .foregroundStyle(.white)
@@ -111,8 +111,8 @@ struct UpdateBannerView: View {
 // MARK: - Preview
 
 #Preview("Update Available") {
-    VStack(spacing: 16) {
-        let view = UpdateBannerView()
+    VStack(spacing: DSSpace.s6) {
+        let view = UpdateBannerView().listening()
         view
             .onAppear {
                 NotificationCenter.default.post(
@@ -134,7 +134,7 @@ struct UpdateBannerView: View {
 }
 
 #Preview("No Update") {
-    VStack(spacing: 16) {
+    VStack(spacing: DSSpace.s6) {
         UpdateBannerView().listening()
         
         Text("No banner should appear")
@@ -146,8 +146,8 @@ struct UpdateBannerView: View {
 
 #Preview("Banner in Settings Context") {
     ScrollView {
-        VStack(alignment: .leading, spacing: 16) {
-            let view = UpdateBannerView()
+        VStack(alignment: .leading, spacing: DSSpace.s6) {
+            let view = UpdateBannerView().listening()
             view
                 .onAppear {
                     NotificationCenter.default.post(
@@ -161,7 +161,7 @@ struct UpdateBannerView: View {
                     )
                 }
             
-            VStack(alignment: .leading, spacing: 8) {
+            VStack(alignment: .leading, spacing: DSSpace.s2) {
                 Text("General Settings")
                     .sectionHeader()
                 

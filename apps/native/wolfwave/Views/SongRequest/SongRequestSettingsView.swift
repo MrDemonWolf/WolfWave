@@ -25,7 +25,7 @@ struct SongRequestSettingsView: View {
     // MARK: - Body
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 24) {
+        VStack(alignment: .leading, spacing: DSSpace.s8) {
             SongRequestHeader()
 
             if !isTwitchConnected {
@@ -127,12 +127,12 @@ fileprivate struct SongRequestHeader: View {
                 subtitle: "Let your Twitch viewers request songs via chat commands."
             )
 
-            HStack(alignment: .top, spacing: 8) {
+            HStack(alignment: .top, spacing: DSSpace.s2) {
                 Image(systemName: "info.circle.fill")
                     .font(.system(size: DSFont.Size.body))
                     .foregroundStyle(.blue)
                     .padding(.top, DSSpace.s0)
-                VStack(alignment: .leading, spacing: 4) {
+                VStack(alignment: .leading, spacing: DSSpace.s1) {
                     Text("How it works")
                         .font(.system(size: DSFont.Size.body, weight: .semibold))
                     Text("Viewers type **!sr song name** in your Twitch chat. WolfWave finds the song on Apple Music and adds it to the queue. Songs play one by one in your Music.app — no window will pop up, it just plays quietly in the background. You stay in control: use **!skip** to jump to the next song, or **!clearqueue** to wipe the queue. Only you and your mods can skip or clear.")
@@ -160,7 +160,7 @@ fileprivate struct SongRequestMasterToggleCard: View {
     let isTwitchConnected: Bool
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
+        VStack(alignment: .leading, spacing: DSSpace.s4) {
             ToggleSettingRow(
                 title: "Enable Song Requests",
                 subtitle: "Viewers can request songs with !sr in Twitch chat",
@@ -214,9 +214,9 @@ fileprivate struct VoteSkipCard: View {
     private var commandAliases = ""
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
+        VStack(alignment: .leading, spacing: DSSpace.s4) {
             VStack(alignment: .leading, spacing: 6) {
-                HStack(spacing: 8) {
+                HStack(spacing: DSSpace.s2) {
                     Image(systemName: "hand.thumbsup.fill")
                         .font(.system(size: DSFont.Size.x15))
                         .foregroundStyle(Color(nsColor: .controlAccentColor))
@@ -295,7 +295,7 @@ fileprivate struct VoteSkipCard: View {
                 } else {
                     Divider()
 
-                    VStack(alignment: .leading, spacing: 2) {
+                    VStack(alignment: .leading, spacing: DSSpace.s0) {
                         Text("Vote window: \(windowSeconds)s")
                             .font(.system(size: DSFont.Size.sm))
                             .foregroundStyle(.secondary)
@@ -308,7 +308,7 @@ fileprivate struct VoteSkipCard: View {
                         .accessibilityLabel("Vote window in seconds")
                     }
 
-                    VStack(alignment: .leading, spacing: 2) {
+                    VStack(alignment: .leading, spacing: DSSpace.s0) {
                         Text("Cooldown between votes: \(Int(sessionCooldown))s")
                             .font(.system(size: DSFont.Size.sm))
                             .foregroundStyle(.secondary)
@@ -330,7 +330,7 @@ fileprivate struct VoteSkipCard: View {
                 )
 
                 if commandEnabled {
-                    HStack(spacing: 8) {
+                    HStack(spacing: DSSpace.s2) {
                         Text("Custom aliases:")
                             .font(.system(size: DSFont.Size.sm))
                             .foregroundStyle(.tertiary)
@@ -356,8 +356,8 @@ fileprivate struct SongRequestMusicAuthCard: View {
     @Binding var isRequestingMusicAuth: Bool
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack(spacing: 8) {
+        VStack(alignment: .leading, spacing: DSSpace.s4) {
+            HStack(spacing: DSSpace.s2) {
                 Image(systemName: "exclamationmark.triangle.fill")
                     .foregroundStyle(.orange)
                 Text(musicAuthStatus == .denied
@@ -405,7 +405,7 @@ fileprivate struct SongRequestQueueConfigCard: View {
     private var perUserLimit = 2
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
+        VStack(alignment: .leading, spacing: DSSpace.s4) {
             Text("Queue Settings")
                 .font(.system(size: DSFont.Size.base, weight: .semibold))
 
@@ -454,7 +454,7 @@ fileprivate struct SongRequestAccessCard: View {
     private var activePreset: SongRequestPreset? { SongRequestPreset.current() }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
+        VStack(alignment: .leading, spacing: DSSpace.s4) {
             Text("Who Can Request")
                 .font(.system(size: DSFont.Size.base, weight: .semibold))
 
@@ -495,7 +495,7 @@ fileprivate struct SongRequestAccessCard: View {
             Divider()
 
             HStack {
-                VStack(alignment: .leading, spacing: 2) {
+                VStack(alignment: .leading, spacing: DSSpace.s0) {
                     Text("!sr command audience").font(.system(size: DSFont.Size.body))
                     Text("Mods and you can always request.")
                         .font(.system(size: DSFont.Size.xs))
@@ -543,7 +543,7 @@ fileprivate struct SongRequestRedemptionsCard: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
+        VStack(alignment: .leading, spacing: DSSpace.s4) {
             Text("Channel Points & Bits")
                 .font(.system(size: DSFont.Size.base, weight: .semibold))
 
@@ -552,7 +552,7 @@ fileprivate struct SongRequestRedemptionsCard: View {
                 .foregroundStyle(.secondary)
 
             if let banner = redemptionStatus.bannerMessage {
-                HStack(alignment: .top, spacing: 8) {
+                HStack(alignment: .top, spacing: DSSpace.s2) {
                     Image(systemName: "exclamationmark.triangle.fill")
                         .font(.system(size: DSFont.Size.body))
                         .foregroundStyle(.orange)
@@ -652,7 +652,7 @@ fileprivate struct SongRequestPlaybackCard: View {
     private var fallbackPlaylist = ""
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
+        VStack(alignment: .leading, spacing: DSSpace.s4) {
             Text("Playback")
                 .font(.system(size: DSFont.Size.base, weight: .semibold))
 
@@ -680,7 +680,7 @@ fileprivate struct SongRequestPlaybackCard: View {
                 TextField("e.g. Gaming Vibes", text: $fallbackPlaylist)
                     .textFieldStyle(.roundedBorder)
                     .font(.system(size: DSFont.Size.body))
-                VStack(alignment: .leading, spacing: 2) {
+                VStack(alignment: .leading, spacing: DSSpace.s0) {
                     Text("Plays an Apple Music playlist when the queue is empty.")
                     Text("Type the playlist name exactly as it appears in Music.")
                     Text("Leave blank for silence.")
@@ -715,9 +715,9 @@ fileprivate struct SongRequestCommandsCard: View {
     @AppStorage(AppConstants.UserDefaults.songRequestUserCooldown) private var userCooldown: Double = 30.0
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 16) {
+        VStack(alignment: .leading, spacing: DSSpace.s6) {
             VStack(alignment: .leading, spacing: 6) {
-                HStack(spacing: 8) {
+                HStack(spacing: DSSpace.s2) {
                     Image(systemName: "music.note.list")
                         .font(.system(size: DSFont.Size.x15))
                         .foregroundStyle(Color(nsColor: .controlAccentColor))
@@ -820,17 +820,32 @@ fileprivate struct SongRequestBlocklistCard: View {
     @State private var blocklistText = ""
     @State private var blocklistType: BlocklistItem.BlockType = .song
     @State private var blocklist: [BlocklistItem] = []
+    @State private var showClearAllAlert = false
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text("Blocklist")
-                .font(.system(size: DSFont.Size.base, weight: .semibold))
+        VStack(alignment: .leading, spacing: DSSpace.s4) {
+            HStack {
+                Text("Blocklist")
+                    .font(.system(size: DSFont.Size.base, weight: .semibold))
+
+                Spacer()
+
+                Button(role: .destructive) {
+                    showClearAllAlert = true
+                } label: {
+                    Label("Clear All", systemImage: "trash")
+                }
+                .buttonStyle(.bordered)
+                .controlSize(.small)
+                .disabled(blocklist.isEmpty)
+                .accessibilityIdentifier("blocklist.clearAll")
+            }
 
             Text("Block specific songs or artists from being requested.")
                 .font(.system(size: DSFont.Size.sm))
                 .foregroundStyle(.tertiary)
 
-            HStack(spacing: 8) {
+            HStack(spacing: DSSpace.s2) {
                 Picker("", selection: $blocklistType) {
                     Text("Song").tag(BlocklistItem.BlockType.song)
                     Text("Artist").tag(BlocklistItem.BlockType.artist)
@@ -856,7 +871,7 @@ fileprivate struct SongRequestBlocklistCard: View {
             }
 
             if !blocklist.isEmpty {
-                VStack(alignment: .leading, spacing: 4) {
+                VStack(alignment: .leading, spacing: DSSpace.s1) {
                     ForEach(blocklist) { item in
                         HStack {
                             Image(systemName: item.type == .song ? "music.note" : "person.fill")
@@ -898,6 +913,15 @@ fileprivate struct SongRequestBlocklistCard: View {
         .onAppear {
             blocklist = blocklistProvider()?.allEntries ?? []
         }
+        .alert("Clear blocklist?", isPresented: $showClearAllAlert) {
+            Button("Cancel", role: .cancel) {}
+            Button("Clear All", role: .destructive) {
+                blocklistProvider()?.clearAll()
+                blocklist = blocklistProvider()?.allEntries ?? []
+            }
+        } message: {
+            Text("This removes every entry from your song-request blocklist. This cannot be undone.")
+        }
     }
 }
 
@@ -938,14 +962,14 @@ fileprivate struct CooldownRow: View {
     var isLast: Bool = false
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: DSSpace.s2) {
             Text(label)
                 .font(.system(size: DSFont.Size.sm, weight: .medium))
                 .foregroundStyle(.secondary)
                 .textCase(.uppercase)
 
-            HStack(spacing: 12) {
-                VStack(alignment: .leading, spacing: 2) {
+            HStack(spacing: DSSpace.s4) {
+                VStack(alignment: .leading, spacing: DSSpace.s0) {
                     Text("Everyone: \(Int(globalCooldown))s")
                         .font(.system(size: DSFont.Size.sm))
                         .foregroundStyle(.secondary)
@@ -956,7 +980,7 @@ fileprivate struct CooldownRow: View {
                         .accessibilityHint("Adjusts the global cooldown between 0 and 30 seconds")
                 }
 
-                VStack(alignment: .leading, spacing: 2) {
+                VStack(alignment: .leading, spacing: DSSpace.s0) {
                     Text("Per person: \(Int(userCooldown))s")
                         .font(.system(size: DSFont.Size.sm))
                         .foregroundStyle(.secondary)
@@ -984,7 +1008,7 @@ fileprivate struct AliasRow: View {
     var isLast: Bool = false
 
     var body: some View {
-        HStack(spacing: 8) {
+        HStack(spacing: DSSpace.s2) {
             Text("Custom aliases:")
                 .font(.system(size: DSFont.Size.sm))
                 .foregroundStyle(.tertiary)

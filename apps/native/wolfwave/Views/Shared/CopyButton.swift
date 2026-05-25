@@ -38,7 +38,7 @@ struct CopyButton: View {
             }
         } label: {
             if let label, let copiedLabel {
-                HStack(spacing: 4) {
+                HStack(spacing: DSSpace.s1) {
                     Image(systemName: copied ? "checkmark" : "doc.on.doc")
                         .font(.system(size: DSFont.Size.sm))
                     Text(copied ? copiedLabel : label)
@@ -87,7 +87,7 @@ private struct CopyButtonStyleModifier: ViewModifier {
 // MARK: - Preview
 
 #Preview {
-    VStack(spacing: 16) {
+    VStack(spacing: DSSpace.s6) {
         CopyButton(
             text: "ws://localhost:9090",
             accessibilityLabel: "Copy URL"

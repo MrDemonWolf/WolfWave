@@ -33,7 +33,7 @@ All sensitive credentials are stored in the macOS Keychain:
 - **Twitch refresh token** — for silent token refresh
 - **Twitch broadcaster + bot account info** — IDs and usernames associated with the connected account
 
-The local WebSocket server is **loopback-only** — no token or JWT is required to connect from OBS, and no auth secrets for it are stored in Keychain.
+The local WebSocket server binds to all interfaces so a second-PC OBS or a phone browser on the same LAN can connect. Every accepted connection — loopback or LAN — must present the `wolfwave.token.<hex>` `Sec-WebSocket-Protocol` token, minted on first launch and stored in the macOS Keychain. See [WebSocket Server Security](#websocket-server-security) for details.
 
 <Callout type="warn">
   Tokens are **never** written to UserDefaults or stored on disk in plain text.
@@ -110,10 +110,13 @@ WolfWave runs inside the macOS App Sandbox with the minimum required entitlement
 
 ## WebSocket Server Security
 
-The built-in WebSocket server binds exclusively to `127.0.0.1` (IPv4 loopback):
+The built-in WebSocket server binds to all interfaces (LAN-reachable) so two-PC streaming setups and phone browsers can connect. Access is gated by a per-install auth token:
 
-- Only local connections are accepted — the server is **not reachable** from other machines on the network
-- This ensures that now-playing data is only available to local clients (e.g., OBS browser sources running on the same machine)
+- The token is a 32-byte random hex string, minted on first launch by `WebSocketAuthToken.currentOrCreate()` and persisted in the macOS Keychain.
+- Every accepted connection — loopback **and** LAN — must present `Sec-WebSocket-Protocol: wolfwave.token.<hex>` on the handshake; the listener rejects everything else.
+- `WidgetHTTPService` serves `widget.html` and injects the token automatically for loopback peers; remote browsers must supply `?token=…` in the URL.
+- Tokens are redacted to the first 4 characters in log lines, never written in full.
+- The Discord IPC channel is a separate local Unix socket (`$TMPDIR/discord-ipc-{0..9}`) — never LAN-reachable.
 
 ## JSON Response Validation
 
@@ -140,9 +143,22 @@ All external network traffic uses encrypted transport:
 | `id.twitch.tv/oauth2` | HTTPS | Twitch OAuth |
 | `eventsub.wss.twitch.tv/ws` | WSS | Twitch EventSub WebSocket |
 | `itunes.apple.com/search` | HTTPS | Album artwork for Discord Rich Presence |
-| `127.0.0.1:8765` | WebSocket (local) | Now-playing broadcast for OBS browser sources (loopback only) |
-| `127.0.0.1:8766` | HTTP (local) | Widget HTML server (loopback only) |
+| `github.com/MrDemonWolf/wolfwave/releases/...` | HTTPS | Sparkle appcast + signed updates |
+| `0.0.0.0:8765` | WebSocket (LAN) | Now-playing broadcast — token-gated via `Sec-WebSocket-Protocol`; same-Mac OBS gets the token automatically, remote browsers must supply `?token=…` |
+| `0.0.0.0:8766` | HTTP (LAN) | Widget HTML server — same token-gating rules |
 | Local Unix socket | IPC | Discord Rich Presence (`$TMPDIR/discord-ipc-{0..9}`) |
+
+The WebSocket and Widget HTTP listeners bind to all interfaces so a second-PC OBS or a phone browser on the same network can connect. Connections must present the 32-byte hex auth token (minted on first launch, stored in macOS Keychain, never logged in full).
+
+## Sparkle Updates
+
+Sparkle is configured with privacy-conscious defaults:
+
+- **EdDSA-signed appcast** — every release is signed with an Ed25519 key; the public key (`SUPublicEDKey`) ships in `Info.plist` and verifies the signature before any update is applied.
+- **Explicit consent for downloads** — `automaticallyDownloadsUpdates = false`. Sparkle never writes bytes to disk until you click *Install*.
+- **No anonymous system profile transmitted** — `SUSendProfileInfo` is not enabled, so background checks transmit only the appcast request itself (User-Agent + macOS version, no app-specific telemetry).
+- **DEBUG builds** — Sparkle is initialized with `startingUpdater: false`; manual checks read from a bundled `dev-appcast.xml`, so the developer experience never reaches the production feed.
+- **Homebrew installs** — Sparkle is disabled entirely; Homebrew manages updates.
 
 ## Best Practices
 

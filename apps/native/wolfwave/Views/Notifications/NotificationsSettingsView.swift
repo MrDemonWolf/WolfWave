@@ -24,7 +24,7 @@ struct NotificationsSettingsView: View {
     // MARK: - Body
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 16) {
+        VStack(alignment: .leading, spacing: DSSpace.s6) {
             VStack(alignment: .leading, spacing: 6) {
                 Text("Notifications")
                     .sectionSubHeader()
@@ -34,7 +34,7 @@ struct NotificationsSettingsView: View {
                     .foregroundStyle(.secondary)
             }
 
-            VStack(alignment: .leading, spacing: 12) {
+            VStack(alignment: .leading, spacing: DSSpace.s4) {
                 ToggleSettingRow(
                     title: "Song change notifications",
                     subtitle: "Show a notification with album art each time the track changes.",
@@ -64,7 +64,7 @@ struct NotificationsSettingsView: View {
 
     /// Shown when notifications are enabled in WolfWave but denied at the system level.
     private var permissionDeniedNotice: some View {
-        HStack(alignment: .top, spacing: 10) {
+        HStack(alignment: .top, spacing: DSSpace.s3) {
             Image(systemName: "exclamationmark.triangle.fill")
                 .font(.system(size: DSFont.Size.body))
                 .foregroundStyle(.orange)

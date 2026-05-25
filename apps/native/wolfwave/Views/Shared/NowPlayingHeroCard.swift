@@ -25,10 +25,10 @@ struct NowPlayingHeroCard: View {
     // MARK: - Body
 
     var body: some View {
-        HStack(alignment: .center, spacing: 16) {
+        HStack(alignment: .center, spacing: DSSpace.s6) {
             artworkView
 
-            VStack(alignment: .leading, spacing: 4) {
+            VStack(alignment: .leading, spacing: DSSpace.s1) {
                 Text("Now playing")
                     .font(.system(size: DSFont.Size.sm, weight: .semibold))
                     .foregroundStyle(.tertiary)
@@ -81,7 +81,7 @@ struct NowPlayingHeroCard: View {
     @ViewBuilder
     private var progressBar: some View {
         let fraction = duration > 0 ? min(max(elapsed / duration, 0), 1) : 0
-        HStack(spacing: 10) {
+        HStack(spacing: DSSpace.s3) {
             ProgressView(value: fraction)
                 .progressViewStyle(.linear)
                 .tint(.primary)

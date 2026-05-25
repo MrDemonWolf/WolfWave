@@ -28,8 +28,14 @@
   --ds-color-text-muted: #A1A1A6;
   --ds-color-partner-twitch: #9146FF;
   --ds-color-partner-discord: #5865F2;
+  --ds-color-partner-discord-surface: #2B2D31;
+  --ds-color-partner-discord-control: #4E5058;
   --ds-color-partner-apple-music-start: #FF5D8B;
   --ds-color-partner-apple-music-end: #FA233B;
+  --ds-color-partner-apple-music-surface-start: #FA5C75;
+  --ds-color-partner-apple-music-surface-end: #FA243B;
+  --ds-color-partner-apple-music-pulse-start: #FC4773;
+  --ds-color-partner-apple-music-pulse-end: #FA1A52;
   --ds-color-partner-obs-start: #2C2C2E;
   --ds-color-partner-obs-end: #1A1A1C;
   --ds-font-family-display: Unbounded, -apple-system, BlinkMacSystemFont, system-ui, sans-serif;

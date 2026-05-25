@@ -20,7 +20,7 @@ struct PermissionDeniedBanner: View {
         HStack(alignment: .top, spacing: 18) {
             iconStack
 
-            VStack(alignment: .leading, spacing: 8) {
+            VStack(alignment: .leading, spacing: DSSpace.s2) {
                 Text("Let WolfWave read what's playing.")
                     .font(.system(size: DSFont.Size.x18, weight: .bold))
                     .lineLimit(2)
@@ -30,9 +30,9 @@ struct PermissionDeniedBanner: View {
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
 
-                HStack(spacing: 8) {
+                HStack(spacing: DSSpace.s2) {
                     Button(action: onOpenSystemSettings) {
-                        HStack(spacing: 4) {
+                        HStack(spacing: DSSpace.s1) {
                             Text("Open System Settings")
                             Image(systemName: "chevron.right")
                                 .font(.system(size: DSFont.Size.xs, weight: .semibold))
@@ -69,8 +69,8 @@ struct PermissionDeniedBanner: View {
                 RoundedRectangle(cornerRadius: 18, style: .continuous)
                     .fill(LinearGradient(
                         colors: [
-                            Color(red: 0.98, green: 0.14, blue: 0.23),
-                            Color(red: 0.98, green: 0.36, blue: 0.46)
+                            AppConstants.Brand.appleMusicSurfaceEnd,
+                            AppConstants.Brand.appleMusicSurfaceStart
                         ],
                         startPoint: .topLeading, endPoint: .bottomTrailing
                     ))
@@ -79,7 +79,7 @@ struct PermissionDeniedBanner: View {
                     .foregroundStyle(.white)
             }
             .frame(width: 80, height: 80)
-            .shadow(color: Color(red: 0.98, green: 0.14, blue: 0.23).opacity(0.30), radius: 14, x: 0, y: 12)
+            .shadow(color: AppConstants.Brand.appleMusicSurfaceEnd.opacity(0.30), radius: 14, x: 0, y: 12)
 
             Circle()
                 .fill(Color.red)
@@ -108,23 +108,23 @@ struct PermissionInstructionSheet: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 18) {
-            HStack(spacing: 12) {
+            HStack(spacing: DSSpace.s4) {
                 ZStack {
                     RoundedRectangle(cornerRadius: 12, style: .continuous)
                         .fill(LinearGradient(
                             colors: [
-                                Color(red: 0.98, green: 0.14, blue: 0.23),
-                                Color(red: 0.98, green: 0.36, blue: 0.46)
+                                AppConstants.Brand.appleMusicSurfaceEnd,
+                                AppConstants.Brand.appleMusicSurfaceStart
                             ],
                             startPoint: .topLeading, endPoint: .bottomTrailing
-                        ))
+                    ))
                     Image(systemName: "music.note")
                         .font(.system(size: DSFont.Size.x2xl, weight: .semibold))
                         .foregroundStyle(.white)
                 }
                 .frame(width: 48, height: 48)
 
-                VStack(alignment: .leading, spacing: 2) {
+                VStack(alignment: .leading, spacing: DSSpace.s0) {
                     Text("Grant access to Music")
                         .font(.system(size: DSFont.Size.lg, weight: .bold))
                     Text("Three steps · takes about ten seconds")
@@ -134,7 +134,7 @@ struct PermissionInstructionSheet: View {
                 Spacer()
             }
 
-            VStack(alignment: .leading, spacing: 12) {
+            VStack(alignment: .leading, spacing: DSSpace.s4) {
                 step(n: 1) {
                     Text("Click \(Text("Open System Settings").bold()) below.")
                 }
@@ -150,7 +150,7 @@ struct PermissionInstructionSheet: View {
 
             Spacer()
 
-            HStack(spacing: 8) {
+            HStack(spacing: DSSpace.s2) {
                 Button("Not now") { dismiss() }
                     .buttonStyle(.borderless)
                 Spacer()
@@ -179,7 +179,7 @@ struct PermissionInstructionSheet: View {
     ///   - content: ViewBuilder closure returning the instruction `Text`.
     /// - Returns: A horizontally-aligned step row.
     private func step(n: Int, @ViewBuilder content: () -> Text) -> some View {
-        HStack(alignment: .top, spacing: 12) {
+        HStack(alignment: .top, spacing: DSSpace.s4) {
             ZStack {
                 Circle()
                     .fill(Color.accentColor)
@@ -203,14 +203,14 @@ struct PermissionInstructionSheet: View {
 /// Helps them recognize it once they get there.
 struct AutomationRowPreview: View {
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: DSSpace.s2) {
             Text("System Settings → Privacy & Security → Automation")
                 .font(.system(size: DSFont.Size.xs, weight: .semibold))
                 .foregroundStyle(.tertiary)
                 .textCase(.uppercase)
                 .tracking(0.6)
 
-            HStack(spacing: 10) {
+            HStack(spacing: DSSpace.s3) {
                 wolfMark
                 Text("WolfWave").font(.system(size: DSFont.Size.base, weight: .semibold))
                 Image(systemName: "chevron.right")
@@ -253,7 +253,7 @@ struct AutomationRowPreview: View {
     private var appleMusicMark: some View {
         RoundedRectangle(cornerRadius: 4)
             .fill(LinearGradient(
-                colors: [Color(red: 0.99, green: 0.28, blue: 0.45), Color(red: 0.98, green: 0.10, blue: 0.32)],
+                colors: [AppConstants.Brand.appleMusicPulseStart, AppConstants.Brand.appleMusicPulseEnd],
                 startPoint: .top, endPoint: .bottom
             ))
             .frame(width: 20, height: 20)
@@ -270,7 +270,7 @@ struct AutomationRowPreview: View {
 /// Empty/disabled Now Playing card shown while permission is missing.
 struct PermissionPausedNowPlayingCard: View {
     var body: some View {
-        HStack(spacing: 14) {
+        HStack(spacing: DSSpace.s5) {
             ZStack {
                 RoundedRectangle(cornerRadius: 10, style: .continuous)
                     .fill(.quaternary.opacity(0.5))
@@ -285,7 +285,7 @@ struct PermissionPausedNowPlayingCard: View {
             }
             .frame(width: 56, height: 56)
 
-            VStack(alignment: .leading, spacing: 2) {
+            VStack(alignment: .leading, spacing: DSSpace.s0) {
                 Text("Waiting for Music permission")
                     .font(.system(size: DSFont.Size.md, weight: .semibold))
                 Text("We can't see what's playing until you turn on Music in Automation.")

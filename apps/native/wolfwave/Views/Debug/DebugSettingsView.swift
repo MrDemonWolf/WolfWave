@@ -27,7 +27,7 @@ struct DebugSettingsView: View {
 
     private var header: some View {
         VStack(alignment: .leading, spacing: 6) {
-            HStack(spacing: 8) {
+            HStack(spacing: DSSpace.s2) {
                 Image(systemName: "ladybug.fill")
                     .font(.system(size: DSFont.Size.x18))
                     .foregroundStyle(.orange)
@@ -41,7 +41,7 @@ struct DebugSettingsView: View {
     }
 
     private var warningBanner: some View {
-        HStack(spacing: 8) {
+        HStack(spacing: DSSpace.s2) {
             Image(systemName: "exclamationmark.triangle.fill")
                 .foregroundStyle(.orange)
             Text("These tools mutate live state. Use at your own risk.")

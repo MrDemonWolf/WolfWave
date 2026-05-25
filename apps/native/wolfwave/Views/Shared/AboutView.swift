@@ -60,7 +60,7 @@ struct AboutView: View {
     // MARK: - Hero
 
     private var hero: some View {
-        VStack(spacing: 10) {
+        VStack(spacing: DSSpace.s3) {
             Image(nsImage: NSApp.applicationIconImage)
                 .resizable()
                 .aspectRatio(contentMode: .fit)
@@ -137,7 +137,7 @@ struct AboutView: View {
     // MARK: - Legal Links
 
     private var legalLinksRow: some View {
-        HStack(spacing: 10) {
+        HStack(spacing: DSSpace.s3) {
             if let url = URL(string: AppConstants.URLs.docs) {
                 Link("Documentation", destination: url)
                     .accessibilityLabel("Open WolfWave documentation")

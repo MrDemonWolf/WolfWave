@@ -28,7 +28,7 @@ struct InfoRow: View {
     // MARK: - Body
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 2) {
+        VStack(alignment: .leading, spacing: DSSpace.s0) {
             Text(label)
                 .font(.system(size: DSFont.Size.sm, weight: .medium))
                 .foregroundStyle(.secondary)
@@ -37,6 +37,8 @@ struct InfoRow: View {
                 .font(.system(size: DSFont.Size.body, design: isMonospaced ? .monospaced : .default))
                 .textSelection(.enabled)
         }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("\(label): \(value)")
     }
 }
 

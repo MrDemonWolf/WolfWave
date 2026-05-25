@@ -80,7 +80,7 @@ struct MusicMonitorSettingsView: View {
             .cardStyleUnpadded()
 
             // Hero now-playing
-            VStack(alignment: .leading, spacing: 8) {
+            VStack(alignment: .leading, spacing: DSSpace.s2) {
                 Text("Live from Apple Music")
                     .font(.caption)
                     .fontWeight(.semibold)

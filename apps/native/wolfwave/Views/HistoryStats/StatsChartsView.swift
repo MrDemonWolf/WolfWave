@@ -29,7 +29,7 @@ struct StatsChartsView: View {
 
     @ViewBuilder
     private var weekChart: some View {
-        VStack(alignment: .leading, spacing: 10) {
+        VStack(alignment: .leading, spacing: DSSpace.s3) {
             chartHeader("Last 7 days", systemImage: "calendar")
 
             Chart(snapshot.last7Days) { day in
@@ -59,7 +59,7 @@ struct StatsChartsView: View {
 
     @ViewBuilder
     private var hourChart: some View {
-        VStack(alignment: .leading, spacing: 10) {
+        VStack(alignment: .leading, spacing: DSSpace.s3) {
             chartHeader("When you listen", systemImage: "clock")
 
             Chart(0..<24, id: \.self) { hour in

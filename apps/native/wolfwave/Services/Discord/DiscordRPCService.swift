@@ -177,12 +177,12 @@ actor DiscordRPCService {
     init(clientID: String? = nil) {
         self.clientID = clientID ?? Self.resolveClientID() ?? ""
 
-        var stateCont: AsyncStream<ConnectionState>.Continuation!
-        self.stateChanges = AsyncStream { stateCont = $0 }
+        let (stateStream, stateCont) = AsyncStream<ConnectionState>.makeStream()
+        self.stateChanges = stateStream
         self.stateContinuation = stateCont
 
-        var artCont: AsyncStream<ArtworkResolution>.Continuation!
-        self.artworkResolutions = AsyncStream { artCont = $0 }
+        let (artStream, artCont) = AsyncStream<ArtworkResolution>.makeStream()
+        self.artworkResolutions = artStream
         self.artworkContinuation = artCont
 
         // Re-send presence when display settings change so users see button-label

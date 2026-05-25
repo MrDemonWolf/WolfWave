@@ -20,7 +20,7 @@ struct AppVisibilitySettingsView: View {
     // MARK: - Body
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 16) {
+        VStack(alignment: .leading, spacing: DSSpace.s6) {
             // Section Header
             VStack(alignment: .leading, spacing: 6) {
                 Text("App Visibility")
@@ -32,8 +32,8 @@ struct AppVisibilitySettingsView: View {
             }
 
             // Launch at Login Card
-            VStack(alignment: .leading, spacing: 12) {
-                VStack(alignment: .leading, spacing: 2) {
+            VStack(alignment: .leading, spacing: DSSpace.s4) {
+                VStack(alignment: .leading, spacing: DSSpace.s0) {
                     Text("Startup")
                         .font(.system(size: DSFont.Size.base, weight: .medium))
                     Text("Automatically start WolfWave when you log in")
@@ -68,8 +68,8 @@ struct AppVisibilitySettingsView: View {
             .clipShape(RoundedRectangle(cornerRadius: AppConstants.SettingsUI.cardCornerRadius))
 
             // Picker Card
-            VStack(alignment: .leading, spacing: 12) {
-                VStack(alignment: .leading, spacing: 2) {
+            VStack(alignment: .leading, spacing: DSSpace.s4) {
+                VStack(alignment: .leading, spacing: DSSpace.s0) {
                     Text("Display Mode")
                         .font(.system(size: DSFont.Size.base, weight: .medium))
                     Text("Where should WolfWave live?")
@@ -105,7 +105,7 @@ struct AppVisibilitySettingsView: View {
                 .accessibilityIdentifier("dockVisibilityPicker")
 
                 if launchAtLogin && dockVisibility != AppConstants.DockVisibility.dockOnly {
-                    HStack(alignment: .top, spacing: 10) {
+                    HStack(alignment: .top, spacing: DSSpace.s3) {
                         Image(systemName: "info.circle.fill")
                             .font(.system(size: DSFont.Size.body))
                             .foregroundStyle(.indigo)
@@ -129,7 +129,7 @@ struct AppVisibilitySettingsView: View {
 
             // Menu Bar Only Info Notice
             if dockVisibility == AppConstants.DockVisibility.menuOnly {
-                HStack(alignment: .top, spacing: 10) {
+                HStack(alignment: .top, spacing: DSSpace.s3) {
                     Image(systemName: "info.circle.fill")
                         .font(.system(size: DSFont.Size.base))
                         .foregroundStyle(.blue)
@@ -191,7 +191,7 @@ private struct RadioOption: View {
             selection = tag
             onChange(tag)
         } label: {
-            HStack(spacing: 8) {
+            HStack(spacing: DSSpace.s2) {
                 Image(systemName: selection == tag ? "circle.inset.filled" : "circle")
                     .font(.system(size: DSFont.Size.base))
                     .foregroundStyle(disabled ? Color.secondary.opacity(0.4) : (selection == tag ? Color.accentColor : Color.secondary))

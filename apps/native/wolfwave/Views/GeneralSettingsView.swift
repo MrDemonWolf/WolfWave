@@ -14,7 +14,7 @@ struct GeneralSettingsView: View {
     var configure: (IntegrationDashboardView.Section) -> Void = { _ in }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 24) {
+        VStack(alignment: .leading, spacing: DSSpace.s8) {
             SectionHeaderWithStatus(
                 title: "General",
                 subtitle: "Manage how WolfWave tracks your music and where it shows up.",

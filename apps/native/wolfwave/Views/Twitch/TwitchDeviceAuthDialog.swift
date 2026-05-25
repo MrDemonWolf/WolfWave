@@ -38,9 +38,9 @@ struct TwitchDeviceAuthDialog: View {
             // Main content
             VStack(spacing: 0) {
                 // Spacer for natural top breathing room
-                VStack(spacing: 24) {
+                VStack(spacing: DSSpace.s8) {
                     // Title and explanation
-                    VStack(spacing: 8) {
+                    VStack(spacing: DSSpace.s2) {
                         Text("Reconnect to Twitch")
                             .font(.system(size: DSFont.Size.x18, weight: .semibold))
                             .tracking(-0.5)
@@ -60,10 +60,10 @@ struct TwitchDeviceAuthDialog: View {
                 .padding(.vertical, DSSpace.s7)
                 
                 // Content area
-                VStack(spacing: 20) {
+                VStack(spacing: DSSpace.s7) {
                     if isWaiting {
                         // Native, minimal waiting state
-                        VStack(spacing: 10) {
+                        VStack(spacing: DSSpace.s3) {
                             ProgressView()
                                 .progressViewStyle(.circular)
 
@@ -87,7 +87,7 @@ struct TwitchDeviceAuthDialog: View {
                 Spacer()
                 
                 // Action buttons - standard macOS layout at bottom
-                HStack(spacing: 12) {
+                HStack(spacing: DSSpace.s4) {
                     Spacer()
 
                     // Cancel button (text style, lower emphasis)
@@ -125,7 +125,7 @@ struct TwitchDeviceAuthDialog: View {
             // Copy feedback toast
             if showCopyFeedback {
                 VStack {
-                    HStack(spacing: 8) {
+                    HStack(spacing: DSSpace.s2) {
                         Image(systemName: "checkmark.circle.fill")
                             .foregroundStyle(.green)
                         Text("Copied to clipboard")
@@ -202,7 +202,7 @@ private struct DeviceCodeEntryView: View {
     // MARK: - Body
 
     var body: some View {
-        VStack(spacing: 16) {
+        VStack(spacing: DSSpace.s6) {
             // Instructions text
             VStack(alignment: .leading, spacing: 0) {
                 Text("Device Code")
@@ -218,7 +218,7 @@ private struct DeviceCodeEntryView: View {
             .frame(maxWidth: .infinity, alignment: .leading)
             
             // Device code field with copy button
-            HStack(spacing: 10) {
+            HStack(spacing: DSSpace.s3) {
                 // Code display - monospaced for clarity
                 Text(deviceCode)
                     .font(.system(size: DSFont.Size.xl, weight: .semibold, design: .monospaced))
@@ -249,7 +249,7 @@ private struct DeviceCodeEntryView: View {
 
             // Inline copy feedback placed just above the code field
             if isCodeCopied {
-                HStack(spacing: 8) {
+                HStack(spacing: DSSpace.s2) {
                     Image(systemName: "checkmark.circle.fill")
                         .foregroundStyle(.green)
                     Text("Copied to clipboard")
@@ -264,7 +264,7 @@ private struct DeviceCodeEntryView: View {
             }
             
             // Subtle branding or helper text
-            HStack(spacing: 4) {
+            HStack(spacing: DSSpace.s1) {
                 Image(systemName: "info.circle")
                     .font(.system(size: DSFont.Size.sm, weight: .regular))
                     .foregroundStyle(.secondary)

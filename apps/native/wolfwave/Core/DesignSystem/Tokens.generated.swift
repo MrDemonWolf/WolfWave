@@ -52,8 +52,14 @@ nonisolated enum DSColor {
     // MARK: Partner
     static let partnerTwitch = Color(red: 0.569, green: 0.275, blue: 1.000)
     static let partnerDiscord = Color(red: 0.345, green: 0.396, blue: 0.949)
+    static let partnerDiscordSurface = Color(red: 0.169, green: 0.176, blue: 0.192)
+    static let partnerDiscordControl = Color(red: 0.306, green: 0.314, blue: 0.345)
     static let partnerAppleMusicStart = Color(red: 1.000, green: 0.365, blue: 0.545)
     static let partnerAppleMusicEnd = Color(red: 0.980, green: 0.137, blue: 0.231)
+    static let partnerAppleMusicSurfaceStart = Color(red: 0.980, green: 0.361, blue: 0.459)
+    static let partnerAppleMusicSurfaceEnd = Color(red: 0.980, green: 0.141, blue: 0.231)
+    static let partnerAppleMusicPulseStart = Color(red: 0.988, green: 0.278, blue: 0.451)
+    static let partnerAppleMusicPulseEnd = Color(red: 0.980, green: 0.102, blue: 0.322)
     static let partnerObsStart = Color(red: 0.173, green: 0.173, blue: 0.180)
     static let partnerObsEnd = Color(red: 0.102, green: 0.102, blue: 0.110)
 }

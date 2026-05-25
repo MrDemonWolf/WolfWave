@@ -294,9 +294,9 @@ struct SettingsView: View {
                 .padding(.vertical, DSSpace.s1)
 
             // Bot Commands Section
-            VStack(alignment: .leading, spacing: 16) {
+            VStack(alignment: .leading, spacing: DSSpace.s6) {
                 VStack(alignment: .leading, spacing: 6) {
-                    HStack(spacing: 8) {
+                    HStack(spacing: DSSpace.s2) {
                         Image(systemName: "bubble.left.fill")
                             .font(.system(size: DSFont.Size.x15))
                             .foregroundStyle(Color(nsColor: .controlAccentColor))
@@ -403,14 +403,14 @@ struct SettingsView: View {
         userCooldown: Binding<Double>,
         isLast: Bool = false
     ) -> some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: DSSpace.s2) {
             Text(label)
                 .font(.system(size: DSFont.Size.sm, weight: .medium))
                 .foregroundStyle(.secondary)
                 .textCase(.uppercase)
 
-            HStack(spacing: 12) {
-                VStack(alignment: .leading, spacing: 2) {
+            HStack(spacing: DSSpace.s4) {
+                VStack(alignment: .leading, spacing: DSSpace.s0) {
                     Text("Everyone: \(Int(globalCooldown.wrappedValue))s")
                         .font(.system(size: DSFont.Size.sm))
                         .foregroundStyle(.secondary)
@@ -421,7 +421,7 @@ struct SettingsView: View {
                         .accessibilityHint("Adjusts the global cooldown between 0 and 30 seconds")
                 }
 
-                VStack(alignment: .leading, spacing: 2) {
+                VStack(alignment: .leading, spacing: DSSpace.s0) {
                     Text("Per person: \(Int(userCooldown.wrappedValue))s")
                         .font(.system(size: DSFont.Size.sm))
                         .foregroundStyle(.secondary)

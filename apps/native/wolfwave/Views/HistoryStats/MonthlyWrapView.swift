@@ -44,7 +44,7 @@ struct MonthlyWrapView: View {
     // MARK: - Body
 
     var body: some View {
-        VStack(spacing: 16) {
+        VStack(spacing: DSSpace.s6) {
             header
 
             MonthlyWrapCard(data: wrap)
@@ -165,8 +165,8 @@ struct MonthlyWrapCard: View {
     let data: MonthlyWrapData
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            VStack(alignment: .leading, spacing: 2) {
+        VStack(alignment: .leading, spacing: DSSpace.s5) {
+            VStack(alignment: .leading, spacing: DSSpace.s0) {
                 Text("WOLFWAVE · MONTHLY WRAP")
                     .font(.system(size: DSFont.Size.x9, weight: .bold))
                     .tracking(1.4)
@@ -177,7 +177,7 @@ struct MonthlyWrapCard: View {
             }
 
             if data.hasData {
-                HStack(spacing: 24) {
+                HStack(spacing: DSSpace.s8) {
                     statBlock(value: "\(data.totalPlays)", label: "plays")
                     statBlock(value: HistoryFormat.listeningTime(data.totalListeningSeconds), label: "listened")
                 }

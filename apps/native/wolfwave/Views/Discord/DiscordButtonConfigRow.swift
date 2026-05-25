@@ -35,7 +35,7 @@ struct DiscordButtonConfigRow: View {
     // MARK: - Body
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
+        VStack(alignment: .leading, spacing: DSSpace.s3) {
             ToggleSettingRow(
                 title: title,
                 subtitle: isEnabled

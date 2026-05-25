@@ -31,7 +31,7 @@ struct IntegrationDashboardView: View {
     // MARK: - Body
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
+        VStack(alignment: .leading, spacing: DSSpace.s3) {
             HStack {
                 Text("Integrations")
                     .sectionSubHeader()
@@ -112,9 +112,9 @@ struct IntegrationDashboardView: View {
         subtitle: String,
         action: @escaping () -> Void
     ) -> some View {
-        HStack(spacing: 12) {
+        HStack(spacing: DSSpace.s4) {
             icon
-            VStack(alignment: .leading, spacing: 2) {
+            VStack(alignment: .leading, spacing: DSSpace.s0) {
                 Text(name)
                     .font(.system(size: DSFont.Size.base, weight: .medium))
                 Text(subtitle)
@@ -125,7 +125,7 @@ struct IntegrationDashboardView: View {
             Spacer(minLength: 8)
             chip
             Button(action: action) {
-                HStack(spacing: 2) {
+                HStack(spacing: DSSpace.s0) {
                     Text("Configure")
                     Image(systemName: "chevron.right")
                         .font(.system(size: DSFont.Size.xs, weight: .semibold))

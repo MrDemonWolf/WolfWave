@@ -50,7 +50,7 @@ struct DiscordSettingsView: View {
     // MARK: - Body
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 16) {
+        VStack(alignment: .leading, spacing: DSSpace.s6) {
             connectionSection
             if presenceEnabled && hasClientID {
                 buttonsSection
@@ -113,7 +113,7 @@ struct DiscordSettingsView: View {
     // MARK: - Sections
 
     private var connectionSection: some View {
-        VStack(alignment: .leading, spacing: 16) {
+        VStack(alignment: .leading, spacing: DSSpace.s6) {
             SectionHeaderWithStatus(
                 title: "Discord Status",
                 subtitle: "Show your music on your Discord profile.",
@@ -136,7 +136,7 @@ struct DiscordSettingsView: View {
             .cardStyle()
 
             if presenceEnabled && hasClientID {
-                HStack(spacing: 10) {
+                HStack(spacing: DSSpace.s3) {
                     ConnectionTestButton(
                         label: "Check Discord",
                         icon: "antenna.radiowaves.left.and.right"
@@ -167,7 +167,7 @@ struct DiscordSettingsView: View {
     }
 
     private var buttonsSection: some View {
-        VStack(alignment: .leading, spacing: 12) {
+        VStack(alignment: .leading, spacing: DSSpace.s4) {
             SectionHeaderWithStatus(
                 title: "Profile Buttons",
                 subtitle: "Up to two buttons appear under your song on Discord.",
@@ -175,7 +175,7 @@ struct DiscordSettingsView: View {
                 statusColor: .secondary
             )
 
-            VStack(alignment: .leading, spacing: 16) {
+            VStack(alignment: .leading, spacing: DSSpace.s6) {
                 DiscordButtonConfigRow(
                     title: "Apple Music link",
                     defaultLabel: AppConstants.Discord.defaultButton1Label,
@@ -202,7 +202,7 @@ struct DiscordSettingsView: View {
     }
 
     private var playlistSection: some View {
-        VStack(alignment: .leading, spacing: 12) {
+        VStack(alignment: .leading, spacing: DSSpace.s4) {
             SectionHeaderWithStatus(
                 title: "Playlist",
                 subtitle: "Show the Apple Music playlist you're listening from.",
@@ -210,7 +210,7 @@ struct DiscordSettingsView: View {
                 statusColor: playlistEnabled ? .green : .secondary
             )
 
-            VStack(alignment: .leading, spacing: 16) {
+            VStack(alignment: .leading, spacing: DSSpace.s6) {
                 ToggleSettingRow(
                     title: "Show playlist",
                     subtitle: "Adds the current playlist to your Discord status",
@@ -224,7 +224,7 @@ struct DiscordSettingsView: View {
                     Divider()
 
                     HStack {
-                        VStack(alignment: .leading, spacing: 2) {
+                        VStack(alignment: .leading, spacing: DSSpace.s0) {
                             Text("Display style")
                                 .font(.system(size: DSFont.Size.base, weight: .medium))
                             Text(playlistStyleSubtitle)
@@ -260,7 +260,7 @@ struct DiscordSettingsView: View {
     }
 
     private var previewSection: some View {
-        VStack(alignment: .leading, spacing: 12) {
+        VStack(alignment: .leading, spacing: DSSpace.s4) {
             SectionHeaderWithStatus(
                 title: "Preview",
                 subtitle: "How your profile will look on Discord.",

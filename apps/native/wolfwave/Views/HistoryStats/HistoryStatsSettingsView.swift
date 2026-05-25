@@ -167,7 +167,7 @@ struct HistoryStatsSettingsView: View {
 
     @ViewBuilder
     private func summaryStat(value: String, unit: String, label: String) -> some View {
-        VStack(spacing: 2) {
+        VStack(spacing: DSSpace.s0) {
             Text(value)
                 .font(.system(size: DSFont.Size.x2xl, weight: .bold))
             Text(unit)
@@ -185,11 +185,11 @@ struct HistoryStatsSettingsView: View {
     // MARK: - Top Artists
 
     private var topArtistsCard: some View {
-        VStack(alignment: .leading, spacing: 10) {
+        VStack(alignment: .leading, spacing: DSSpace.s3) {
             cardHeader("Top artists", systemImage: "music.mic")
 
             ForEach(Array(snapshot.topArtists.prefix(5).enumerated()), id: \.element.id) { index, artist in
-                HStack(spacing: 10) {
+                HStack(spacing: DSSpace.s3) {
                     Text("\(index + 1)")
                         .font(.system(size: DSFont.Size.body, weight: .bold, design: .rounded))
                         .foregroundStyle(.secondary)
@@ -287,7 +287,7 @@ struct HistoryStatsSettingsView: View {
     // MARK: - !stats Command
 
     private var statsCommandCard: some View {
-        VStack(alignment: .leading, spacing: 12) {
+        VStack(alignment: .leading, spacing: DSSpace.s4) {
             ToggleSettingRow(
                 title: "!stats Twitch command",
                 subtitle: "Lets chat ask for today's top track. Replies only while your stream is live.",
@@ -308,7 +308,7 @@ struct HistoryStatsSettingsView: View {
 
     @ViewBuilder
     private func cooldownRow(title: String, value: Binding<Double>) -> some View {
-        HStack(spacing: 12) {
+        HStack(spacing: DSSpace.s4) {
             Text(title)
                 .font(.system(size: DSFont.Size.body))
             Spacer()
@@ -324,7 +324,7 @@ struct HistoryStatsSettingsView: View {
     // MARK: - Actions
 
     private var actionsRow: some View {
-        HStack(spacing: 10) {
+        HStack(spacing: DSSpace.s3) {
             if statsEnabled {
                 Button {
                     showWrapSheet = true

@@ -19,7 +19,7 @@ struct SuccessFeedbackRow: View {
     // MARK: - Body
 
     var body: some View {
-        HStack(spacing: 8) {
+        HStack(spacing: DSSpace.s2) {
             Image(systemName: "checkmark.circle.fill")
                 .font(.system(size: DSFont.Size.md))
                 .foregroundStyle(.green)
@@ -27,13 +27,15 @@ struct SuccessFeedbackRow: View {
                 .font(.system(size: DSFont.Size.base, weight: fontWeight))
                 .foregroundStyle(.secondary)
         }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("Success: \(text)")
     }
 }
 
 // MARK: - Preview
 
 #Preview {
-    VStack(spacing: 12) {
+    VStack(spacing: DSSpace.s4) {
         SuccessFeedbackRow(text: "Discord Status enabled!")
         SuccessFeedbackRow(text: "You're all set!", fontWeight: .medium)
     }

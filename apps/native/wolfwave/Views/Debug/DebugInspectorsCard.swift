@@ -16,7 +16,7 @@ struct DebugInspectorsCard: View {
     @State private var filter: String = ""
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 16) {
+        VStack(alignment: .leading, spacing: DSSpace.s6) {
             HStack(spacing: 6) {
                 Image(systemName: "magnifyingglass")
                     .foregroundStyle(.blue)
@@ -170,7 +170,7 @@ struct DebugInspectorsCard: View {
     private func userDefaultsRow(key: String) -> some View {
         _ = refreshTick
         let value = UserDefaults.standard.object(forKey: key)
-        return HStack(alignment: .top, spacing: 8) {
+        return HStack(alignment: .top, spacing: DSSpace.s2) {
             Text(key)
                 .font(.system(size: DSFont.Size.sm, design: .monospaced))
                 .lineLimit(1)

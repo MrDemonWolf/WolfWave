@@ -28,8 +28,8 @@ struct ToggleSettingRow: View {
     // MARK: - Body
 
     var body: some View {
-        HStack(spacing: 12) {
-            VStack(alignment: .leading, spacing: 2) {
+        HStack(spacing: DSSpace.s4) {
+            VStack(alignment: .leading, spacing: DSSpace.s0) {
                 Text(title)
                     .font(.system(size: DSFont.Size.base, weight: .medium))
                 Text(subtitle)
@@ -65,7 +65,7 @@ struct ToggleSettingRow: View {
 // MARK: - Preview
 
 #Preview {
-    VStack(spacing: 16) {
+    VStack(spacing: DSSpace.s6) {
         ToggleSettingRow(
             title: "Enable Feature",
             subtitle: "A short description of what this does",

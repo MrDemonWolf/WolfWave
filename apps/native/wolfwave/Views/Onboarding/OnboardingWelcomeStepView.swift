@@ -50,6 +50,9 @@ struct OnboardingWelcomeStepView: View {
                 .opacity(brandLineVisible ? 1 : 0)
                 .offset(y: brandLineVisible ? 0 : 6)
 
+            privacyLine
+                .opacity(brandLineVisible ? 1 : 0)
+
             Spacer()
         }
         .padding(.horizontal, DSSpace.s10)
@@ -104,6 +107,26 @@ struct OnboardingWelcomeStepView: View {
         Circle()
             .fill(Color.secondary.opacity(0.30))
             .frame(width: 3, height: 3)
+    }
+
+    // MARK: - Privacy Line
+
+    /// Short one-liner clarifying what WolfWave sees and where the privacy
+    /// policy lives, so first-launch consent is explicit.
+    private var privacyLine: some View {
+        VStack(spacing: DSSpace.s1) {
+            Text("Reads your Apple Music track. Shares only what you turn on.")
+                .font(.system(size: DSFont.Size.sm))
+                .foregroundStyle(.tertiary)
+                .multilineTextAlignment(.center)
+
+            if let url = URL(string: AppConstants.URLs.privacyPolicy) {
+                Link("Privacy policy", destination: url)
+                    .font(.system(size: DSFont.Size.sm))
+                    .accessibilityLabel("Open WolfWave privacy policy")
+                    .accessibilityIdentifier("onboarding.welcome.privacyLink")
+            }
+        }
     }
 
     /// Tinted brand-asset chip (asset-catalog template image) used in the
