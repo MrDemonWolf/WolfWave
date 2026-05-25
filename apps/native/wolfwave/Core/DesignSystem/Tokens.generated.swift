@@ -126,10 +126,10 @@ nonisolated enum DSMotion {
 /// Window and onboarding dimension tokens (preserves legacy AppConstants values).
 nonisolated enum DSDimension {
     enum Settings {
-        static let minWidth: CGFloat = 820
-        static let minHeight: CGFloat = 600
-        static let idealWidth: CGFloat = 1180
-        static let idealHeight: CGFloat = 740
+        static let minWidth: CGFloat = 880
+        static let minHeight: CGFloat = 620
+        static let idealWidth: CGFloat = 1240
+        static let idealHeight: CGFloat = 780
         static let maxContentWidth: CGFloat = 720
         static let contentPaddingH: CGFloat = 28
         static let contentPaddingV: CGFloat = 22
@@ -139,8 +139,8 @@ nonisolated enum DSDimension {
     }
 
     enum Onboarding {
-        static let windowWidth: CGFloat = 600
-        static let windowHeight: CGFloat = 480
+        static let windowWidth: CGFloat = 680
+        static let windowHeight: CGFloat = 560
         static let primaryButtonHeight: CGFloat = 32
         static let primaryButtonMinWidth: CGFloat = 200
         static let navButtonMinWidth: CGFloat = 80
@@ -148,6 +148,18 @@ nonisolated enum DSDimension {
         static let brandTileSize: CGFloat = 56
         static let brandTileRadius: CGFloat = 14
         static let primaryButtonRadius: CGFloat = 8
+    }
+
+    enum About {
+        static let windowWidth: CGFloat = 380
+        static let windowHeight: CGFloat = 520
+        static let minWidth: CGFloat = 360
+        static let minHeight: CGFloat = 480
+    }
+
+    enum WhatsNew {
+        static let windowWidth: CGFloat = 460
+        static let windowHeight: CGFloat = 580
     }
 
     enum IconButton {

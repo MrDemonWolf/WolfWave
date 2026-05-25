@@ -35,6 +35,37 @@ struct WolfWaveApp: App {
         Settings {
             EmptyView()
         }
+        .commands {
+            // Route the standard App menu's About/Settings to our AppKit
+            // windows so the system main menu matches the tray when the app
+            // is dock-visible.
+            CommandGroup(replacing: .appInfo) {
+                Button("About \(appDelegate.appName)") {
+                    appDelegate.showAbout()
+                }
+            }
+            CommandGroup(after: .appInfo) {
+                Button("Check for Updates\u{2026}") {
+                    appDelegate.checkForUpdatesFromMenu()
+                }
+            }
+            CommandGroup(replacing: .appSettings) {
+                Button("Settings\u{2026}") {
+                    appDelegate.openSettings()
+                }
+                .keyboardShortcut(",", modifiers: .command)
+            }
+            // Mirror the tray Help submenu in the system Help menu.
+            CommandGroup(replacing: .help) {
+                Button("\(appDelegate.appName) Help") { appDelegate.openDocs() }
+                Button("What's New") { appDelegate.showWhatsNewFromMenu() }
+                Divider()
+                Button("Report a Bug\u{2026}") { appDelegate.reportBug() }
+                Button("Join Discord Community") { appDelegate.openCommunityDiscord() }
+                Button("View on GitHub") { appDelegate.openGitHub() }
+                Button("Sponsor \(appDelegate.appName)") { appDelegate.openSponsorPage() }
+            }
+        }
     }
 }
 

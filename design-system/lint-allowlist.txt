@@ -101,8 +101,8 @@ apps/native/wolfwave/Views/Shared/UpdateBannerView.swift:25  # legacy debt
 apps/native/wolfwave/Views/Shared/UpdateBannerView.swift:30  # legacy debt
 apps/native/wolfwave/Views/Shared/WhatsNewView.swift:36  # legacy debt
 apps/native/wolfwave/Views/Shared/WhatsNewView.swift:50  # legacy debt
-apps/native/wolfwave/Views/Shared/WhatsNewView.swift:75  # legacy debt
-apps/native/wolfwave/Views/Shared/WhatsNewView.swift:83  # legacy debt
+apps/native/wolfwave/Views/Shared/WhatsNewView.swift:78  # legacy debt
+apps/native/wolfwave/Views/Shared/WhatsNewView.swift:86  # legacy debt
 apps/native/wolfwave/Views/SongRequest/SongRequestQueueView.swift:128  # legacy debt
 apps/native/wolfwave/Views/SongRequest/SongRequestQueueView.swift:131  # legacy debt
 apps/native/wolfwave/Views/SongRequest/SongRequestQueueView.swift:159  # legacy debt

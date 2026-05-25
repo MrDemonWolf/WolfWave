@@ -80,8 +80,15 @@ extension AppDelegate {
         window.titleVisibility = .hidden
         window.titlebarAppearsTransparent = true
         window.isMovableByWindowBackground = true
-        window.styleMask = [.titled, .closable, .fullSizeContentView]
-        window.setContentSize(NSSize(width: 360, height: 480))
+        window.styleMask = [.titled, .closable, .miniaturizable, .resizable, .fullSizeContentView]
+        window.setContentSize(NSSize(
+            width: DSDimension.About.windowWidth,
+            height: DSDimension.About.windowHeight
+        ))
+        window.contentMinSize = NSSize(
+            width: DSDimension.About.minWidth,
+            height: DSDimension.About.minHeight
+        )
         window.isReleasedWhenClosed = false
         window.collectionBehavior = [.moveToActiveSpace]
         window.delegate = self
@@ -171,7 +178,10 @@ extension AppDelegate {
         let window = NSWindow(contentViewController: hostingController)
         window.title = "What's New"
         window.styleMask = [.titled, .closable]
-        window.setContentSize(NSSize(width: 420, height: 540))
+        window.setContentSize(NSSize(
+            width: DSDimension.WhatsNew.windowWidth,
+            height: DSDimension.WhatsNew.windowHeight
+        ))
         window.isReleasedWhenClosed = false
         window.delegate = self
         window.center()

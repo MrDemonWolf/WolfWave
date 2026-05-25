@@ -216,8 +216,8 @@ struct AppConstantsTests {
     func testOnboardingUIConstants() async throws {
         #expect(AppConstants.OnboardingUI.windowWidth > 0)
         #expect(AppConstants.OnboardingUI.windowHeight > 0)
-        #expect(AppConstants.OnboardingUI.windowWidth == 600)
-        #expect(AppConstants.OnboardingUI.windowHeight == 480)
+        #expect(AppConstants.OnboardingUI.windowWidth == 680)
+        #expect(AppConstants.OnboardingUI.windowHeight == 560)
     }
     
     // MARK: - Menu Labels Tests

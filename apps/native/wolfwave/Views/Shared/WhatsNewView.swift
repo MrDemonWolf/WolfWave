@@ -65,7 +65,10 @@ struct WhatsNewView: View {
             .accessibilityIdentifier("whatsNew.getStarted")
         }
         .padding(DSSpace.s8)
-        .frame(idealWidth: 420, idealHeight: 540)
+        .frame(
+            idealWidth: DSDimension.WhatsNew.windowWidth,
+            idealHeight: DSDimension.WhatsNew.windowHeight
+        )
     }
 
     // MARK: - Private Helpers
@@ -102,5 +105,8 @@ struct WhatsNewView: View {
 
 #Preview {
     WhatsNewView()
-        .frame(width: 420, height: 540)
+        .frame(
+            width: DSDimension.WhatsNew.windowWidth,
+            height: DSDimension.WhatsNew.windowHeight
+        )
 }

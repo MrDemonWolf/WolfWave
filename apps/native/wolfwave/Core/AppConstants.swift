@@ -930,34 +930,37 @@ nonisolated enum AppConstants {
     // MARK: - Onboarding UI
 
     /// Onboarding wizard window configuration.
+    ///
+    /// Dimension values are sourced from `DSDimension.Onboarding` (generated
+    /// from `design-system/tokens.json`).
     enum OnboardingUI {
         /// Width of the onboarding window
-        static let windowWidth: CGFloat = 600
+        static let windowWidth: CGFloat = DSDimension.Onboarding.windowWidth
 
         /// Height of the onboarding window
-        static let windowHeight: CGFloat = 480
+        static let windowHeight: CGFloat = DSDimension.Onboarding.windowHeight
 
         /// Standard height for primary action buttons (e.g. Sign in with Twitch).
-        static let primaryButtonHeight: CGFloat = 32
+        static let primaryButtonHeight: CGFloat = DSDimension.Onboarding.primaryButtonHeight
 
         /// Minimum width for primary action buttons so labels can swap without resizing.
-        static let primaryButtonMinWidth: CGFloat = 200
+        static let primaryButtonMinWidth: CGFloat = DSDimension.Onboarding.primaryButtonMinWidth
 
         /// Minimum width for navigation bar buttons (Back, Skip, Next/Finish, Skip All).
-        static let navButtonMinWidth: CGFloat = 80
+        static let navButtonMinWidth: CGFloat = DSDimension.Onboarding.navButtonMinWidth
 
         /// Reserved vertical space for state-swapping content within a step
         /// (e.g. Twitch `notConnected` → `authorizing` → `connected`).
-        static let stepContentMinHeight: CGFloat = 220
+        static let stepContentMinHeight: CGFloat = DSDimension.Onboarding.stepContentMinHeight
 
         /// Side length of the brand tile used as the visual anchor for each integration step.
-        static let brandTileSize: CGFloat = 56
+        static let brandTileSize: CGFloat = DSDimension.Onboarding.brandTileSize
 
         /// Corner radius of the brand tile (continuous-rounded square).
-        static let brandTileRadius: CGFloat = 14
+        static let brandTileRadius: CGFloat = DSDimension.Onboarding.brandTileRadius
 
         /// Corner radius for primary CTA buttons (continuous rounded rect, macOS-standard for 36pt height).
-        static let primaryButtonRadius: CGFloat = 8
+        static let primaryButtonRadius: CGFloat = DSDimension.Onboarding.primaryButtonRadius
     }
 
     // MARK: - Brand Colors

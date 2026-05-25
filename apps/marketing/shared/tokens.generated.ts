@@ -145,10 +145,10 @@ export const tokens = {
   },
   "dimension": {
     "settings": {
-      "minWidth": 820,
-      "minHeight": 600,
-      "idealWidth": 1180,
-      "idealHeight": 740,
+      "minWidth": 880,
+      "minHeight": 620,
+      "idealWidth": 1240,
+      "idealHeight": 780,
       "maxContentWidth": 720,
       "contentPaddingH": 28,
       "contentPaddingV": 22,
@@ -157,8 +157,8 @@ export const tokens = {
       "cardCornerRadius": 14
     },
     "onboarding": {
-      "windowWidth": 600,
-      "windowHeight": 480,
+      "windowWidth": 680,
+      "windowHeight": 560,
       "primaryButtonHeight": 32,
       "primaryButtonMinWidth": 200,
       "navButtonMinWidth": 80,
@@ -166,6 +166,16 @@ export const tokens = {
       "brandTileSize": 56,
       "brandTileRadius": 14,
       "primaryButtonRadius": 8
+    },
+    "about": {
+      "windowWidth": 380,
+      "windowHeight": 520,
+      "minWidth": 360,
+      "minHeight": 480
+    },
+    "whatsNew": {
+      "windowWidth": 460,
+      "windowHeight": 580
     },
     "iconButton": {
       "minWidth": 22,

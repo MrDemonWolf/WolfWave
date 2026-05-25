@@ -151,6 +151,16 @@ function generateSwift(): string {
     lines.push(`        static let ${k}: CGFloat = ${v}`);
   }
   lines.push("    }", "");
+  lines.push("    enum About {");
+  for (const [k, v] of Object.entries(tokens.dimension.about)) {
+    lines.push(`        static let ${k}: CGFloat = ${v}`);
+  }
+  lines.push("    }", "");
+  lines.push("    enum WhatsNew {");
+  for (const [k, v] of Object.entries(tokens.dimension.whatsNew)) {
+    lines.push(`        static let ${k}: CGFloat = ${v}`);
+  }
+  lines.push("    }", "");
   lines.push("    enum IconButton {");
   for (const [k, v] of Object.entries(tokens.dimension.iconButton)) {
     lines.push(`        static let ${k}: CGFloat = ${v}`);
