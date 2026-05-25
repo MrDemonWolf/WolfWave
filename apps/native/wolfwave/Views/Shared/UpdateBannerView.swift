@@ -26,6 +26,7 @@ struct UpdateBannerView: View {
                 Image(systemName: "arrow.down.circle.fill")
                     .font(.system(size: DSFont.Size.x16))
                     .foregroundStyle(.white)
+                    .symbolEffect(.bounce, value: latestVersion)
 
                 VStack(alignment: .leading, spacing: DSSpace.s0) {
                     Text("Update Available")
@@ -49,7 +50,7 @@ struct UpdateBannerView: View {
                 }
 
                 Button {
-                    withAnimation(.easeOut(duration: 0.2)) {
+                    withAnimation(.easeOut(duration: DSMotion.Duration.base)) {
                         isDismissed = true
                     }
                 } label: {

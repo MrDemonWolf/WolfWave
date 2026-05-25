@@ -22,21 +22,27 @@ struct StatusChip: View {
 
     // MARK: - Body
 
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
     var body: some View {
         HStack(spacing: 6) {
             Circle()
                 .fill(color)
                 .frame(width: 6, height: 6)
+                .contentTransition(.interpolate)
 
             Text(text)
                 .font(.system(size: DSFont.Size.sm, weight: .semibold))
                 .foregroundStyle(.primary)
+                .contentTransition(.opacity)
         }
         .frame(minWidth: 88)
         .padding(.horizontal, DSSpace.s3)
         .padding(.vertical, DSSpace.s1)
         .background(color.opacity(0.1))
         .clipShape(Capsule())
+        .animation(reduceMotion ? nil : .easeInOut(duration: DSMotion.Duration.base), value: text)
+        .animation(reduceMotion ? nil : .easeInOut(duration: DSMotion.Duration.base), value: color)
         .accessibilityElement(children: .combine)
         .accessibilityLabel(text)
         .accessibilityValue(text)

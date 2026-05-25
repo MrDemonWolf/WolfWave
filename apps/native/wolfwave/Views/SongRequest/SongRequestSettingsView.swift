@@ -900,6 +900,8 @@ fileprivate struct SongRequestBlocklistCard: View {
                                     .foregroundStyle(.secondary)
                             }
                             .buttonStyle(.plain)
+                            .accessibilityLabel("Remove from blocklist")
+                            .accessibilityHint(item.value)
                         }
                         .padding(.vertical, DSSpace.s0)
                     }

@@ -60,7 +60,7 @@ struct OnboardingView: View {
                         }
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                         .clipped()
-                        .animation(.spring(response: 0.35, dampingFraction: 0.85), value: viewModel.currentStep)
+                        .animation(DSMotion.Spring.snappy, value: viewModel.currentStep)
                     }
 
                     Divider()
@@ -77,7 +77,7 @@ struct OnboardingView: View {
             height: AppConstants.OnboardingUI.windowHeight
         )
         .background(Color(nsColor: .windowBackgroundColor))
-        .animation(.easeInOut(duration: 0.3), value: viewModel.showCompletion)
+        .animation(.easeInOut(duration: DSMotion.Duration.slow), value: viewModel.showCompletion)
         .onChange(of: viewModel.currentStep) { _, _ in
             musicPermissionState = MusicPermissionChecker.currentState()
         }
@@ -99,7 +99,7 @@ struct OnboardingView: View {
                             color: step == viewModel.currentStep ? Color.accentColor.opacity(0.40) : .clear,
                             radius: 3, x: 0, y: 1
                         )
-                        .animation(.spring(response: 0.3, dampingFraction: 0.6), value: viewModel.currentStep)
+                        .animation(DSMotion.Spring.gentle, value: viewModel.currentStep)
                 }
                 .frame(width: 12, height: 12)
                 .accessibilityHidden(true)

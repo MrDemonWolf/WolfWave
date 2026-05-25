@@ -49,6 +49,13 @@ struct HistoryStatsSettingsView: View {
         service?.snapshot ?? .empty
     }
 
+    /// True until `ListeningHistoryService` finishes loading from disk. Drives
+    /// the `.skeleton` placeholder on derived content cards.
+    private var isLoadingHistory: Bool {
+        guard historyEnabled, statsEnabled else { return false }
+        return service?.isLoaded == false
+    }
+
     // MARK: - Body
 
     var body: some View {
@@ -61,10 +68,14 @@ struct HistoryStatsSettingsView: View {
             }
             togglesCard
             unifiedRecentCard
+                .skeleton(isLoadingHistory)
             if historyEnabled, statsEnabled, snapshot.hasData {
                 summaryCard
+                    .skeleton(isLoadingHistory)
                 StatsChartsView(snapshot: snapshot)
+                    .skeleton(isLoadingHistory)
                 topArtistsCard
+                    .skeleton(isLoadingHistory)
             }
             if historyEnabled, statsEnabled {
                 statsCommandCard

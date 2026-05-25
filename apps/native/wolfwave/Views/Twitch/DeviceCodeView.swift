@@ -65,7 +65,7 @@ struct DeviceCodeView: View {
                 .accessibilityIdentifier("copyDeviceCodeButton")
                 .transition(.opacity)
                 .opacity((isHovering || isCodeCopied) ? 1.0 : 0.9)
-                .animation(.easeInOut(duration: 0.12), value: isHovering || isCodeCopied)
+                .animation(.easeInOut(duration: DSMotion.Duration.fast), value: isHovering || isCodeCopied)
             }
             .transition(.move(edge: .top).combined(with: .opacity))
             .padding(DSSpace.s4)
@@ -76,7 +76,7 @@ struct DeviceCodeView: View {
             )
             .clipShape(RoundedRectangle(cornerRadius: 8))
             .onHover { hovering in
-                withAnimation(.easeInOut(duration: 0.15)) {
+                withAnimation(.easeInOut(duration: DSMotion.Duration.fast)) {
                     isHovering = hovering
                 }
                 if hovering {
@@ -114,7 +114,7 @@ struct DeviceCodeView: View {
                 .offset(x: -8, y: -8),
             alignment: .topTrailing
         )
-        .animation(.spring(response: 0.35, dampingFraction: 0.82, blendDuration: 0), value: userCode)
+        .animation(DSMotion.Spring.snappy, value: userCode)
     }
 
     // MARK: - Helpers
@@ -129,14 +129,14 @@ struct DeviceCodeView: View {
         onCopy()
         
         // Show feedback
-        withAnimation(.easeInOut(duration: 0.18)) {
+        withAnimation(.easeInOut(duration: DSMotion.Duration.fast)) {
             showCopyFeedback = true
         }
 
         // Auto-dismiss feedback and reset state
         Task { @MainActor in
             try? await Task.sleep(for: .milliseconds(1300))
-            withAnimation(.easeInOut(duration: 0.18)) {
+            withAnimation(.easeInOut(duration: DSMotion.Duration.fast)) {
                 showCopyFeedback = false
             }
             isCodeCopied = false

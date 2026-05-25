@@ -23,9 +23,11 @@ struct SuccessFeedbackRow: View {
             Image(systemName: "checkmark.circle.fill")
                 .font(.system(size: DSFont.Size.md))
                 .foregroundStyle(.green)
+                .symbolEffect(.bounce, value: text)
             Text(text)
                 .font(.system(size: DSFont.Size.base, weight: fontWeight))
                 .foregroundStyle(.secondary)
+                .contentTransition(.opacity)
         }
         .accessibilityElement(children: .ignore)
         .accessibilityLabel("Success: \(text)")

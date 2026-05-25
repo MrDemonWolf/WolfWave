@@ -185,10 +185,10 @@ struct AboutView: View {
         pasteboard.clearContents()
         pasteboard.setString(payload, forType: .string)
 
-        withAnimation(.easeInOut(duration: 0.15)) { versionCopied = true }
+        withAnimation(.easeInOut(duration: DSMotion.Duration.fast)) { versionCopied = true }
         Task { @MainActor in
             try? await Task.sleep(for: .milliseconds(1500))
-            withAnimation(.easeInOut(duration: 0.2)) { versionCopied = false }
+            withAnimation(.easeInOut(duration: DSMotion.Duration.base)) { versionCopied = false }
         }
     }
 

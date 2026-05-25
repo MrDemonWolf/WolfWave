@@ -24,6 +24,12 @@ ConnectionTestButton(label: "Check Discord", icon: "antenna.radiowaves.left.and.
 - `.controlSize(.small)` — matches the height of inline form controls
 - `.stableWidth { ... }` modifier — measures all four states and pins to the widest, so the button doesn't pop during transitions
 
+## Motion
+
+- `.symbolEffect(.bounce, value: result)` on the `checkmark.circle.fill` and `xmark.circle.fill` SF symbols — the icon bounces on the transition into success/failure for an immediate "done" cue.
+- Animations on result swap use `withAnimation` (no DSMotion duration override — the default carries the bounce timing).
+- Previews use `Task.sleep(for: .milliseconds(600))` instead of `DispatchQueue.main.asyncAfter` — keeps the demo on structured concurrency.
+
 ## State machine
 ```mermaid
 stateDiagram-v2

@@ -151,7 +151,7 @@ struct TwitchDeviceAuthDialog: View {
     /// animation hold so the state change reads naturally.
     private func handleAuthorizePressed() {
         // Transition to waiting state
-        withAnimation(.easeInOut(duration: 0.3)) {
+        withAnimation(.easeInOut(duration: DSMotion.Duration.slow)) {
             isWaiting = true
         }
         
@@ -175,14 +175,14 @@ struct TwitchDeviceAuthDialog: View {
         isCodeCopied = true
         
         // Show toast feedback
-        withAnimation(.easeInOut(duration: 0.2)) {
+        withAnimation(.easeInOut(duration: DSMotion.Duration.base)) {
             showCopyFeedback = true
         }
         
         // Auto-dismiss feedback and reset button state in sync
         Task { @MainActor in
             try? await Task.sleep(for: .seconds(2))
-            withAnimation(.easeInOut(duration: 0.2)) {
+            withAnimation(.easeInOut(duration: DSMotion.Duration.base)) {
                 showCopyFeedback = false
                 isCodeCopied = false
             }

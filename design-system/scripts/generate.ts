@@ -135,6 +135,16 @@ function generateSwift(): string {
   for (const [k, v] of Object.entries(tokens.motion.duration)) {
     lines.push(`        static let ${k}: Double = ${(v as number) / 1000}`);
   }
+  lines.push("    }", "");
+  lines.push("    /// Named spring presets. Use via `.spring(DSMotion.Spring.snappy)`.");
+  lines.push("    enum Spring {");
+  for (const [k, v] of Object.entries(
+    (tokens.motion.spring ?? {}) as Record<string, { response: number; damping: number }>
+  )) {
+    lines.push(
+      `        static let ${k} = SwiftUI.Animation.spring(response: ${v.response}, dampingFraction: ${v.damping}, blendDuration: 0)`
+    );
+  }
   lines.push("    }", "}", "");
 
   lines.push(

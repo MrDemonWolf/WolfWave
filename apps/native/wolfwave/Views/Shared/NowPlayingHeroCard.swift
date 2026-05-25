@@ -39,12 +39,16 @@ struct NowPlayingHeroCard: View {
                     .font(.system(size: DSFont.Size.x18, weight: .semibold))
                     .lineLimit(1)
                     .foregroundStyle(track == nil ? .secondary : .primary)
+                    .contentTransition(.opacity)
+                    .id(track ?? "")
 
                 if let subtitle = subtitleText {
                     Text(subtitle)
                         .font(.system(size: DSFont.Size.base))
                         .foregroundStyle(.secondary)
                         .lineLimit(1)
+                        .contentTransition(.opacity)
+                        .id(subtitle)
                 }
 
                 if track != nil, duration > 0 {
@@ -56,9 +60,12 @@ struct NowPlayingHeroCard: View {
         }
         .padding(DSSpace.s7)
         .glassEffect(.regular, in: .rect(cornerRadius: AppConstants.SettingsUI.cardCornerRadius))
+        .animation(reduceMotion ? nil : .easeInOut(duration: DSMotion.Duration.base), value: track)
         .accessibilityElement(children: .combine)
         .accessibilityLabel(accessibilityLabel)
     }
+
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     // MARK: - Subviews
 
@@ -80,17 +87,20 @@ struct NowPlayingHeroCard: View {
 
     @ViewBuilder
     private var progressBar: some View {
-        let fraction = duration > 0 ? min(max(elapsed / duration, 0), 1) : 0
         HStack(spacing: DSSpace.s3) {
-            ProgressView(value: fraction)
-                .progressViewStyle(.linear)
-                .tint(.primary)
-                .frame(height: 3)
+            TimelineView(.animation(minimumInterval: 0.1, paused: reduceMotion)) { _ in
+                let fraction = duration > 0 ? min(max(elapsed / duration, 0), 1) : 0
+                ProgressView(value: fraction)
+                    .progressViewStyle(.linear)
+                    .tint(.primary)
+                    .frame(height: 3)
+            }
 
             Text("\(timeString(elapsed)) / \(timeString(duration))")
                 .font(.system(size: DSFont.Size.sm, design: .monospaced))
                 .foregroundStyle(.secondary)
                 .monospacedDigit()
+                .contentTransition(.numericText())
         }
     }
 

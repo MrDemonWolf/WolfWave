@@ -707,8 +707,8 @@ struct AdvancedSettingsView: View {
             }
         }
         .cardStyle()
-        .animation(.easeInOut(duration: 0.2), value: updateAvailable)
-        .animation(.easeInOut(duration: 0.2), value: updateCheckEnabled)
+        .animation(.easeInOut(duration: DSMotion.Duration.base), value: updateAvailable)
+        .animation(.easeInOut(duration: DSMotion.Duration.base), value: updateCheckEnabled)
     }
 }
 

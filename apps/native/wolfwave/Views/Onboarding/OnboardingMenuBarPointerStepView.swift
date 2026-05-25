@@ -58,16 +58,16 @@ struct OnboardingMenuBarPointerStepView: View {
         }
         .onAppear {
             guard !reduceMotion else { return }
-            withAnimation(.easeInOut(duration: 0.9).repeatForever(autoreverses: true)) {
+            withAnimation(.easeInOut(duration: DSMotion.Duration.pulse).repeatForever(autoreverses: true)) {
                 arrowBobbing = true
             }
-            withAnimation(.easeInOut(duration: 1.4).repeatForever(autoreverses: true)) {
+            withAnimation(.easeInOut(duration: DSMotion.Duration.pulseSlow).repeatForever(autoreverses: true)) {
                 iconPulsing = true
             }
         }
         .onDisappear {
             // Stop the CADisplayLink-driven loops once the user moves past this step.
-            withAnimation(.linear(duration: 0)) {
+            withAnimation(.linear(duration: DSMotion.Duration.instant)) {
                 arrowBobbing = false
                 iconPulsing = false
             }

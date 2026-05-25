@@ -82,7 +82,7 @@ struct OnboardingDiscordStepView: View {
             )
             .frame(maxWidth: 420)
             .padding(.horizontal, DSSpace.s8)
-            .animation(.easeInOut(duration: 0.20), value: presenceEnabled)
+            .animation(.easeInOut(duration: DSMotion.Duration.base), value: presenceEnabled)
 
             Text("Make sure Discord is open. We talk to it locally — nothing leaves your Mac.")
                 .font(.system(size: DSFont.Size.sm))

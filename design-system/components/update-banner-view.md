@@ -35,7 +35,14 @@ NotificationCenter.default.post(
 - `DSFont.Size.body` (12) `.semibold` — title `"Update Available"`
 - `DSFont.Size.sm` (11) `.white@85%` — body line
 - `DSRadius.lg` (10) — clip shape
+- `DSMotion.Duration.base` (0.22) — dismiss `easeOut`
 - `.move(edge: .top).combined(with: .opacity)` — entry transition
+
+## Motion
+
+- **Entry** — `.transition(.move(edge: .top).combined(with: .opacity))` when `isUpdateAvailable && !isDismissed` flips true.
+- **Dismiss** — `withAnimation(.easeOut(duration: DSMotion.Duration.base))` on tap.
+- **Icon attention** — `.symbolEffect(.bounce, value: latestVersion)` on `arrow.down.circle.fill`. A new version arriving (new `latestVersion` string) bounces the icon to draw the eye to the banner. Subsequent re-renders with the same version don't re-trigger.
 
 ## Anatomy
 ```mermaid

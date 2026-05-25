@@ -98,8 +98,241 @@ struct DebugUIPreviewsCard: View {
             }
             .buttonStyle(.bordered)
             .pointerCursor()
+
+            Divider().padding(.vertical, DSSpace.s1)
+
+            MotionGallerySection()
         }
         .cardStyle()
+    }
+}
+
+// MARK: - Motion Gallery
+
+/// Visual gallery for the polished SwiftUI transitions added in the
+/// Apple/SwiftUI modernization pass. Designers can verify `contentTransition`,
+/// `symbolEffect`, `TimelineView`, and the `AsyncImage` phased loading without
+/// triggering real Twitch/Discord state.
+///
+/// To validate Reduce Motion: flip System Settings → Accessibility → Reduce
+/// Motion. The "Reduce Motion" chip in the section header mirrors the system
+/// value, and every demo here respects it.
+private struct MotionGallerySection: View {
+
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @State private var chipState: ChipDemoState = .off
+    @State private var trackIndex: Int = 0
+    @State private var elapsed: TimeInterval = 0
+    @State private var artURL: URL? = URL(string: "https://is1-ssl.mzstatic.com/image/thumb/Music112/v4/8a/4f/f6/8a4ff6a6-2bcb-fbf9-4cdb-3f8c1c4e6e3e/source/512x512bb.jpg")
+    @State private var cacheBuster: Int = 0
+    @State private var isExpanded: Bool = false
+
+    private enum ChipDemoState: CaseIterable {
+        case off, connecting, live, error
+
+        var text: String {
+            switch self {
+            case .off:        return "Off"
+            case .connecting: return "Connecting…"
+            case .live:       return "Live"
+            case .error:      return "Error"
+            }
+        }
+
+        var color: Color {
+            switch self {
+            case .off:        return .secondary
+            case .connecting: return DSColor.warning
+            case .live:       return DSColor.success
+            case .error:      return DSColor.error
+            }
+        }
+
+        func next() -> ChipDemoState {
+            let all = ChipDemoState.allCases
+            let i = all.firstIndex(of: self) ?? 0
+            return all[(i + 1) % all.count]
+        }
+    }
+
+    private struct DemoTrack {
+        let title: String
+        let artist: String
+        let album: String
+        let duration: TimeInterval
+    }
+
+    private static let demoTracks: [DemoTrack] = [
+        DemoTrack(title: "Anti-Hero",      artist: "Taylor Swift",  album: "Midnights",      duration: 201),
+        DemoTrack(title: "Bad Habit",       artist: "Steve Lacy",    album: "Gemini Rights",  duration: 232),
+        DemoTrack(title: "As It Was",       artist: "Harry Styles",  album: "Harry's House",  duration: 167),
+        DemoTrack(title: "About Damn Time", artist: "Lizzo",         album: "Special",        duration: 191)
+    ]
+
+    private var currentTrack: DemoTrack {
+        Self.demoTracks[trackIndex % Self.demoTracks.count]
+    }
+
+    var body: some View {
+        DisclosureGroup(isExpanded: $isExpanded) {
+            VStack(alignment: .leading, spacing: DSSpace.s5) {
+                reduceMotionMirror
+                Divider()
+                chipCycleDemo
+                Divider()
+                trackSwapDemo
+                Divider()
+                albumArtPhasedDemo
+            }
+            .padding(.top, DSSpace.s3)
+        } label: {
+            HStack(spacing: 6) {
+                Image(systemName: "wand.and.rays")
+                    .foregroundStyle(.purple)
+                Text("Motion Gallery")
+                    .sectionSubHeader()
+                Spacer()
+            }
+        }
+    }
+
+    // MARK: Reduce-motion mirror
+
+    private var reduceMotionMirror: some View {
+        HStack(spacing: DSSpace.s2) {
+            Text("System setting:")
+                .font(.system(size: DSFont.Size.sm))
+                .foregroundStyle(.secondary)
+            StatusChip(
+                text: reduceMotion ? "Reduce Motion: On" : "Reduce Motion: Off",
+                color: reduceMotion ? DSColor.warning : DSColor.success
+            )
+            Spacer()
+        }
+    }
+
+    // MARK: Chip cycle
+
+    private var chipCycleDemo: some View {
+        VStack(alignment: .leading, spacing: DSSpace.s2) {
+            Text("StatusChip — auto-cycles every 1.2s")
+                .font(.system(size: DSFont.Size.sm, weight: .semibold))
+                .foregroundStyle(.secondary)
+            HStack(spacing: DSSpace.s4) {
+                StatusChip(text: chipState.text, color: chipState.color)
+                Button("Advance") {
+                    chipState = chipState.next()
+                }
+                .buttonStyle(.bordered)
+                .controlSize(.small)
+            }
+            // `.periodic` keeps the demo lively without a Combine pipeline. The
+            // timeline ticks every 1.2s; we advance state on each tick.
+            .onAppear { startChipTimer() }
+        }
+    }
+
+    @State private var chipTimerTask: Task<Void, Never>?
+
+    private func startChipTimer() {
+        chipTimerTask?.cancel()
+        chipTimerTask = Task { @MainActor in
+            while !Task.isCancelled {
+                try? await Task.sleep(for: .milliseconds(1200))
+                guard !Task.isCancelled else { return }
+                chipState = chipState.next()
+            }
+        }
+    }
+
+    // MARK: Track swap
+
+    private var trackSwapDemo: some View {
+        VStack(alignment: .leading, spacing: DSSpace.s2) {
+            Text("NowPlayingHeroCard — title contentTransition + TimelineView scrubber")
+                .font(.system(size: DSFont.Size.sm, weight: .semibold))
+                .foregroundStyle(.secondary)
+
+            NowPlayingHeroCard(
+                track: currentTrack.title,
+                artist: currentTrack.artist,
+                album: currentTrack.album,
+                elapsed: elapsed,
+                duration: currentTrack.duration
+            )
+
+            HStack(spacing: DSSpace.s2) {
+                Button("Next track") {
+                    trackIndex += 1
+                    elapsed = 0
+                }
+                .buttonStyle(.bordered)
+                .controlSize(.small)
+
+                Button("+5s") {
+                    elapsed = min(elapsed + 5, currentTrack.duration)
+                }
+                .buttonStyle(.bordered)
+                .controlSize(.small)
+
+                Button("-5s") {
+                    elapsed = max(elapsed - 5, 0)
+                }
+                .buttonStyle(.bordered)
+                .controlSize(.small)
+
+                Spacer()
+            }
+        }
+    }
+
+    // MARK: AlbumArt phased load
+
+    private var albumArtPhasedDemo: some View {
+        VStack(alignment: .leading, spacing: DSSpace.s2) {
+            Text("AlbumArtView — direct image vs URL phased load")
+                .font(.system(size: DSFont.Size.sm, weight: .semibold))
+                .foregroundStyle(.secondary)
+
+            HStack(alignment: .top, spacing: DSSpace.s5) {
+                VStack(spacing: DSSpace.s1) {
+                    AlbumArtView(size: 92)
+                    Text("Branded fallback")
+                        .font(.system(size: DSFont.Size.xs))
+                        .foregroundStyle(.tertiary)
+                }
+
+                VStack(spacing: DSSpace.s1) {
+                    AlbumArtView(url: bustedURL, size: 92)
+                    Text("AsyncImage(url:)")
+                        .font(.system(size: DSFont.Size.xs))
+                        .foregroundStyle(.tertiary)
+                }
+
+                VStack(spacing: DSSpace.s2) {
+                    Button("Bust cache & reload") {
+                        cacheBuster += 1
+                    }
+                    .buttonStyle(.bordered)
+                    .controlSize(.small)
+
+                    Text("Force a fresh AsyncImage request by changing the URL query.")
+                        .font(.system(size: DSFont.Size.xs))
+                        .foregroundStyle(.tertiary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+
+                Spacer(minLength: 0)
+            }
+        }
+    }
+
+    private var bustedURL: URL? {
+        guard let base = artURL,
+              var comps = URLComponents(url: base, resolvingAgainstBaseURL: false)
+        else { return artURL }
+        comps.queryItems = [URLQueryItem(name: "v", value: String(cacheBuster))]
+        return comps.url
     }
 }
 

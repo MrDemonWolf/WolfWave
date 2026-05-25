@@ -34,7 +34,17 @@ NowPlayingHeroCard(
 - `DSFont.Size.sm` (11) monospaced — scrubber timestamps
 - `DSSpace.s6` (16) — card outer padding (rendered as 18 for hero weight)
 - `DSSpace.s6` (16) — artwork ↔ text gap
+- `DSMotion.Duration.base` (0.22) — track-change animation, gated by `@Environment(\.accessibilityReduceMotion)`
 - Composes `AlbumArtView` (92pt) — see [album-art-view.md](album-art-view.md)
+
+## Motion
+
+- **Title swap** — `id(track ?? "")` + `.contentTransition(.opacity)` so each unique title gets its own identity and cross-fades into the next.
+- **Subtitle swap** — same `id(subtitle)` + `.contentTransition(.opacity)` pattern for `artist — album`.
+- **Timecode** — `.contentTransition(.numericText())` on the `M:SS / M:SS` text. Digits tween instead of blink-replacing every second.
+- **Scrubber** — wrapped in `TimelineView(.animation(minimumInterval: 0.1, paused: reduceMotion))`. The `ProgressView(value:)` fraction is recomputed every 100ms inside the timeline, so the bar interpolates between the ~1s source updates instead of stepping.
+- **Outer animation** — `.animation(reduceMotion ? nil : .easeInOut(duration: DSMotion.Duration.base), value: track)` so callers don't need to wrap track mutations in `withAnimation`.
+- All motion respects `accessibilityReduceMotion`: timeline pauses, animation becomes `nil`, contentTransitions degrade to instant swaps.
 
 ## Anatomy
 ```mermaid
@@ -42,15 +52,18 @@ graph LR
   Card[HStack spacing 16 padding 18 .glassEffect] --> Art[AlbumArtView 92pt or fallback music.note tile]
   Card --> Text[VStack alignment leading spacing 4]
   Text --> Eyebrow[Text — NOW PLAYING uppercase]
-  Text --> Title[Text — lg semibold]
-  Text --> Subtitle[Text — base secondary]
-  Text --> Progress[HStack — ProgressView linear + M:SS / M:SS]
+  Text --> Title[Text — lg semibold .contentTransition .opacity id track]
+  Text --> Subtitle[Text — base secondary .contentTransition .opacity id subtitle]
+  Text --> Progress[TimelineView .animation 0.1s]
+  Progress --> Bar[ProgressView linear — fraction]
+  Progress --> Stamp[Text M:SS / M:SS — .contentTransition .numericText]
 ```
 
 ## Accessibility
 - `accessibilityElement(children: .combine)` — VoiceOver reads the whole card.
 - Compound label: `"Now playing: <track>, by <artist>, on <album>"` — falls back to permission-state copy when no track.
 - `monospacedDigit()` keeps timestamps stable as the seconds tick.
+- Reduce Motion: scrubber timeline pauses (the static fraction still renders), title/subtitle contentTransitions degrade to step swaps, outer animation drops to `nil`.
 
 ## Do / Don't
 - ✅ Place at the top of the General tab, single instance per pane.

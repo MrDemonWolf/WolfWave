@@ -58,8 +58,8 @@ struct DiscordSettingsView: View {
                 previewSection
             }
         }
-        .animation(.easeInOut(duration: 0.2), value: presenceEnabled)
-        .animation(.easeInOut(duration: 0.2), value: playlistEnabled)
+        .animation(.easeInOut(duration: DSMotion.Duration.base), value: presenceEnabled)
+        .animation(.easeInOut(duration: DSMotion.Duration.base), value: playlistEnabled)
         .onAppear {
             hasClientID = DiscordRPCService.resolveClientID() != nil
             refreshConnectionState()
@@ -71,7 +71,7 @@ struct DiscordSettingsView: View {
             )
         ) { notification in
             if let rawValue = notification.userInfo?["state"] as? String {
-                withAnimation(.easeInOut(duration: 0.2)) {
+                withAnimation(.easeInOut(duration: DSMotion.Duration.base)) {
                     switch rawValue {
                     case "connected":   connectionState = .connected
                     case "connecting":  connectionState = .connecting

@@ -123,9 +123,21 @@ nonisolated enum DSRadius {
 /// Generated motion tokens (durations in seconds for SwiftUI animations).
 nonisolated enum DSMotion {
     enum Duration {
+        static let instant: Double = 0
         static let fast: Double = 0.15
         static let base: Double = 0.22
         static let slow: Double = 0.32
+        static let long: Double = 0.4
+        static let pulse: Double = 0.9
+        static let pulseSlow: Double = 1.4
+    }
+
+    /// Named spring presets. Use via `.spring(DSMotion.Spring.snappy)`.
+    enum Spring {
+        static let snappy = SwiftUI.Animation.spring(response: 0.35, dampingFraction: 0.82, blendDuration: 0)
+        static let bouncy = SwiftUI.Animation.spring(response: 0.45, dampingFraction: 0.78, blendDuration: 0)
+        static let gentle = SwiftUI.Animation.spring(response: 0.3, dampingFraction: 0.6, blendDuration: 0)
+        static let expressive = SwiftUI.Animation.spring(response: 0.5, dampingFraction: 0.6, blendDuration: 0)
     }
 }
 

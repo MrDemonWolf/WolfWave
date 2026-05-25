@@ -63,15 +63,15 @@ struct OnboardingWelcomeStepView: View {
                 brandLineVisible = true
                 return
             }
-            withAnimation(.spring(response: 0.45, dampingFraction: 0.78)) {
+            withAnimation(DSMotion.Spring.bouncy) {
                 heroVisible = true
             }
             try? await Task.sleep(for: .milliseconds(180))
-            withAnimation(.easeOut(duration: 0.30)) {
+            withAnimation(.easeOut(duration: DSMotion.Duration.slow)) {
                 taglineVisible = true
             }
             try? await Task.sleep(for: .milliseconds(140))
-            withAnimation(.easeOut(duration: 0.30)) {
+            withAnimation(.easeOut(duration: DSMotion.Duration.slow)) {
                 brandLineVisible = true
             }
         }

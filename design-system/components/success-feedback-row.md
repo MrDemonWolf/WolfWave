@@ -28,10 +28,16 @@ graph LR
   Row --> Label[Text — base secondary]
 ```
 
+## Motion
+
+- `.symbolEffect(.bounce, value: text)` on the `checkmark.circle.fill` glyph — a bounce fires whenever the row appears or the success text changes, giving a satisfying "done" cue.
+- `.contentTransition(.opacity)` on the label — text changes cross-fade.
+- For first-paint, callers should still wrap the row in `.transition(.opacity)` at the parent — the row itself doesn't animate insertion.
+
 ## Accessibility
 - Reads naturally as "checkmark, <text>" via VoiceOver — no extra label needed.
 - Colour is decorative; the checkmark glyph + text both convey success.
-- No animation — pair with `.transition(.opacity)` at the call site if it appears asynchronously.
+- The `symbolEffect` respects system Reduce Motion automatically (SF Symbol effects degrade to no-op under the system setting).
 
 ## Do / Don't
 - ✅ Use after the action settles (toggle flipped, OAuth completed, copy succeeded).

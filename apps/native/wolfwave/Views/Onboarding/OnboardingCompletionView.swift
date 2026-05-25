@@ -55,7 +55,7 @@ struct OnboardingCompletionView: View {
             }
             .opacity(showText ? 1 : 0)
             .animation(
-                reduceMotion ? .none : .easeOut(duration: 0.4),
+                reduceMotion ? .none : .easeOut(duration: DSMotion.Duration.long),
                 value: showText
             )
 
@@ -70,7 +70,7 @@ struct OnboardingCompletionView: View {
                 .animation(
                     reduceMotion
                         ? .none
-                        : .spring(response: 0.5, dampingFraction: 0.6),
+                        : DSMotion.Spring.expressive,
                     value: showCheck
                 )
                 .accessibilityHidden(true)

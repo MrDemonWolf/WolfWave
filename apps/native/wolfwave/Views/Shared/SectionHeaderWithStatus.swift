@@ -44,7 +44,7 @@ struct SectionHeaderWithStatus: View {
 
                     StatusChip(text: statusText, color: statusColor)
                         .accessibilityLabel("\(title) status: \(statusText)")
-                        .animation(.easeInOut(duration: 0.2), value: statusText)
+                        .animation(.easeInOut(duration: DSMotion.Duration.base), value: statusText)
                 }
             }
 

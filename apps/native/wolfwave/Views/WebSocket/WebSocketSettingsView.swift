@@ -56,7 +56,7 @@ struct WebSocketSettingsView: View {
                 for: NSNotification.Name(AppConstants.Notifications.websocketServerStateChanged)
             )
         ) { notification in
-            withAnimation(.easeInOut(duration: 0.2)) {
+            withAnimation(.easeInOut(duration: DSMotion.Duration.base)) {
                 if let rawValue = notification.userInfo?["state"] as? String,
                    let state = WebSocketServerService.ServerState(rawValue: rawValue) {
                     serverState = state
@@ -107,7 +107,7 @@ struct WebSocketSettingsView: View {
         let ip = await NetworkInfoService.shared.refreshIPv4()
         await MainActor.run {
             guard ip != localNetworkIP else { return }
-            withAnimation(.easeInOut(duration: 0.22)) {
+            withAnimation(.easeInOut(duration: DSMotion.Duration.base)) {
                 localNetworkIP = ip
             }
         }
@@ -184,7 +184,7 @@ fileprivate struct WebSocketServerCard: View {
                 accessibilityLabel: "Toggle Stream Widgets",
                 accessibilityIdentifier: "websocketEnabledToggle",
                 onChange: { _ in
-                    withAnimation(.easeInOut(duration: 0.2)) {
+                    withAnimation(.easeInOut(duration: DSMotion.Duration.base)) {
                         notifyServerSettingChanged()
                     }
                 }
@@ -298,7 +298,7 @@ fileprivate struct WebSocketServerCard: View {
                     .transition(.opacity.combined(with: .move(edge: .top)))
                 }
             }
-            .animation(.easeInOut(duration: 0.22), value: localNetworkIP)
+            .animation(.easeInOut(duration: DSMotion.Duration.base), value: localNetworkIP)
         }
         .background(Color(nsColor: .controlBackgroundColor))
         .clipShape(RoundedRectangle(cornerRadius: AppConstants.SettingsUI.cardCornerRadius))
@@ -715,7 +715,7 @@ fileprivate struct WebSocketBrowserSourceCard: View {
                     .transition(.opacity.combined(with: .move(edge: .top)))
                 }
             }
-            .animation(.easeInOut(duration: 0.22), value: localNetworkIP)
+            .animation(.easeInOut(duration: DSMotion.Duration.base), value: localNetworkIP)
 
             Divider().padding(.leading, cardPadding)
 

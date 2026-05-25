@@ -24,17 +24,46 @@ content
 
 Adds hover background + pointer cursor for list rows that act as buttons.
 
-- **Tokens:** `DSRadius.sm` (6), `Color.primary.opacity(0.04)`.
+- **Tokens:** `DSRadius.sm` (6), `Color.primary.opacity(0.04)`, `DSMotion.Duration.fast` (0.15) for the hover-fade.
 - **When to use:** rows in custom selection lists that aren't `Button` / `List` rows.
 - **When _not_:** for `Toggle`/`Picker` controls — they have native affordance.
+- **Cursor:** uses SwiftUI `.pointerStyle(isEnabled ? .link : nil)` — the system handles push/pop. No manual `NSCursor` calls.
 
 ## `.pointerCursor()`
 
-Sets `NSCursor.pointingHand` on hover. Use on clickable non-Button views (`Image`, `Text` with `.onTapGesture`, etc.).
+Pointing-hand cursor on hover for clickable non-Button views (`Image`, `Text` with `.onTapGesture`, etc.).
 
-## `.disabledCursor(_:)`
+- Wraps SwiftUI `.pointerStyle(.link)` (macOS 15+) — never leaks like a manual `NSCursor.push/pop` pair would.
+- (`.disabledCursor(_:)` was removed — was unused. If you need a not-allowed cursor, gate the parent `Button` with `.disabled(true)` and let the system pick.)
 
-Sets `NSCursor.operationNotAllowed` when `isDisabled == true`.
+## `Animation.reducedMotion(_:reduceMotion:)`
+
+Returns the supplied animation, or `nil` when the user has Reduce Motion enabled.
+
+```swift
+@Environment(\.accessibilityReduceMotion) private var reduceMotion
+// …
+.animation(
+    .reducedMotion(.easeInOut(duration: DSMotion.Duration.base), reduceMotion: reduceMotion),
+    value: state
+)
+```
+
+## `.reduceMotionAware(_:reduceMotion:value:)`
+
+Sugar for the above — applies an animation that respects Reduce Motion. Pulls the value via `@Environment(\.accessibilityReduceMotion)` at the call site.
+
+## `.skeleton(_:)`
+
+Renders content as a redacted placeholder while loading. Suppresses hit-testing and VoiceOver so users can't tap or hear stale data.
+
+```swift
+QueueRow(item: placeholder).skeleton(isLoading)
+```
+
+- Wraps `.redacted(reason: isLoading ? .placeholder : [])` with `.accessibilityHidden(isLoading)` + `.allowsHitTesting(!isLoading)`.
+- **When to use:** first-paint loading states with content shape (lists, grids, stat cards).
+- **When _not_:** for short, indeterminate spinners — `ProgressView()` is the right tool there.
 
 ## `.sectionHeader()` / sub-header
 

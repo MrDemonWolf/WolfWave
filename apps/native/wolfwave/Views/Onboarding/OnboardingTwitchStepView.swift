@@ -39,7 +39,7 @@ struct OnboardingTwitchStepView: View {
             }
             .frame(maxWidth: 420)
             .padding(.horizontal, DSSpace.s8)
-            .animation(.easeInOut(duration: 0.22), value: stateKey)
+            .animation(.easeInOut(duration: DSMotion.Duration.base), value: stateKey)
 
             Spacer(minLength: 0)
         }

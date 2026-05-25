@@ -140,7 +140,7 @@ struct MusicMonitorSettingsView: View {
             loadIntegrationStatuses()
         }
         .onReceive(notif(AppConstants.Notifications.nowPlayingChanged)) { notification in
-            withAnimation(.easeInOut(duration: 0.25)) {
+            withAnimation(.easeInOut(duration: DSMotion.Duration.base)) {
                 currentTrack = notification.userInfo?["track"] as? String
                 currentArtist = notification.userInfo?["artist"] as? String
                 currentAlbum = notification.userInfo?["album"] as? String
@@ -152,18 +152,18 @@ struct MusicMonitorSettingsView: View {
             }
         }
         .onReceive(notif(AppConstants.Notifications.twitchConnectionStateChanged)) { notification in
-            withAnimation(.easeInOut(duration: 0.2)) {
+            withAnimation(.easeInOut(duration: DSMotion.Duration.base)) {
                 twitchConnected = notification.userInfo?["isConnected"] as? Bool ?? false
             }
         }
         .onReceive(notif(AppConstants.Notifications.discordStateChanged)) { notification in
-            withAnimation(.easeInOut(duration: 0.2)) {
+            withAnimation(.easeInOut(duration: DSMotion.Duration.base)) {
                 let state = notification.userInfo?["state"] as? String ?? ""
                 discordActive = state == "connected"
             }
         }
         .onReceive(notif(AppConstants.Notifications.websocketServerStateChanged)) { notification in
-            withAnimation(.easeInOut(duration: 0.2)) {
+            withAnimation(.easeInOut(duration: DSMotion.Duration.base)) {
                 let state = notification.userInfo?["state"] as? String ?? ""
                 widgetRunning = state == "listening"
             }
@@ -176,7 +176,7 @@ struct MusicMonitorSettingsView: View {
             // reads return nil — the canonical TCC Automation denial. Flip the
             // banner immediately and persist so other tabs see it too.
             MusicPermissionCache.write(.denied)
-            withAnimation(.easeInOut(duration: 0.2)) {
+            withAnimation(.easeInOut(duration: DSMotion.Duration.base)) {
                 permissionState = .denied
             }
         }
@@ -341,7 +341,7 @@ struct MusicMonitorSettingsView: View {
     /// permission state doesn't change (the common already-granted case).
     private func recheckTapped() {
         guard !isRechecking else { return }
-        withAnimation(.easeInOut(duration: 0.15)) {
+        withAnimation(.easeInOut(duration: DSMotion.Duration.fast)) {
             isRechecking = true
             recheckConfirmed = false
         }
@@ -360,7 +360,7 @@ struct MusicMonitorSettingsView: View {
             }
             await MainActor.run {
                 MusicPermissionCache.write(next)
-                withAnimation(.easeInOut(duration: 0.2)) {
+                withAnimation(.easeInOut(duration: DSMotion.Duration.base)) {
                     permissionState = next
                     isRechecking = false
                     recheckConfirmed = (next == .granted)
@@ -372,7 +372,7 @@ struct MusicMonitorSettingsView: View {
             }
             try? await Task.sleep(nanoseconds: 1_200_000_000)
             await MainActor.run {
-                withAnimation(.easeInOut(duration: 0.25)) {
+                withAnimation(.easeInOut(duration: DSMotion.Duration.base)) {
                     recheckConfirmed = false
                 }
             }
@@ -387,7 +387,7 @@ struct MusicMonitorSettingsView: View {
             let next = MusicPermissionChecker.currentState()
             await MainActor.run {
                 MusicPermissionCache.write(next)
-                withAnimation(.easeInOut(duration: 0.2)) {
+                withAnimation(.easeInOut(duration: DSMotion.Duration.base)) {
                     permissionState = next
                 }
                 // If we're now granted, try to get the current track again.
@@ -408,7 +408,7 @@ struct MusicMonitorSettingsView: View {
         Task {
             let resolved = MusicPermissionChecker.requestAccess()
             await MainActor.run {
-                withAnimation(.easeInOut(duration: 0.2)) {
+                withAnimation(.easeInOut(duration: DSMotion.Duration.base)) {
                     permissionState = resolved
                 }
                 isRequesting = false

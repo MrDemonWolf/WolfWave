@@ -47,7 +47,7 @@ struct TwitchSettingsView: View {
             authCard
                 .transition(.opacity.combined(with: .move(edge: .bottom)))
                 .animation(
-                    .spring(response: 0.35, dampingFraction: 0.82, blendDuration: 0),
+                    DSMotion.Spring.snappy,
                     value: (viewModel.credentialsSaved || viewModel.channelConnected
                         || viewModel.authState.isInProgress))
         }
@@ -167,7 +167,7 @@ struct TwitchSettingsView: View {
                         .pointerCursor()
                         .scaleEffect(viewModel.authState.isInProgress ? 0.995 : 1.0)
                         .animation(
-                            .easeInOut(duration: 0.12), value: viewModel.authState.isInProgress
+                            .easeInOut(duration: DSMotion.Duration.fast), value: viewModel.authState.isInProgress
                         )
                         .accessibilityLabel("Sign in with Twitch")
                         .accessibilityHint("Starts the Twitch authorization flow")
@@ -207,7 +207,7 @@ struct TwitchSettingsView: View {
                                     removal: .opacity)
                             )
                             .animation(
-                                .spring(response: 0.35, dampingFraction: 0.82, blendDuration: 0),
+                                DSMotion.Spring.snappy,
                                 value: viewModel.authState.userCode)
                         }
 
@@ -271,7 +271,7 @@ struct TwitchSettingsView: View {
             }
         }
         .cardStyle()
-        .animation(.easeInOut(duration: 0.2), value: viewModel.integrationState)
+        .animation(.easeInOut(duration: DSMotion.Duration.base), value: viewModel.integrationState)
     }
 }
 
@@ -346,7 +346,7 @@ private struct SignedInView: View {
             }
 
             channelValidationIndicator
-                .animation(.easeInOut(duration: 0.2), value: channelValidationState)
+                .animation(.easeInOut(duration: DSMotion.Duration.base), value: channelValidationState)
         }
         .padding(.horizontal, AppConstants.SettingsUI.cardPadding)
         .padding(.vertical, DSSpace.s4)
@@ -575,7 +575,7 @@ private struct SignedInView: View {
                 }
                 .disabled(testAuthResult == .testing)
                 .pointerCursor()
-                .animation(.easeInOut(duration: 0.2), value: testAuthResult)
+                .animation(.easeInOut(duration: DSMotion.Duration.base), value: testAuthResult)
                 .help("Checks if your Twitch sign-in is working")
                 .accessibilityLabel("Test Twitch sign-in")
                 .accessibilityHint("Checks if your Twitch sign-in is working")

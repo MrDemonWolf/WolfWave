@@ -15,8 +15,11 @@ struct AlbumArtView: View {
     // MARK: - Properties
 
     var image: NSImage? = nil
+    var url: URL? = nil
     var size: CGFloat = 64
     var cornerRadius: CGFloat? = nil
+
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     // MARK: - Body
 
@@ -27,19 +30,20 @@ struct AlbumArtView: View {
                 Image(nsImage: image)
                     .resizable()
                     .aspectRatio(contentMode: .fill)
-            } else {
-                LinearGradient(
-                    colors: [DSColor.brand500, DSColor.brand800],
-                    startPoint: .topLeading,
-                    endPoint: .bottomTrailing
-                )
-                .overlay(alignment: .center) {
-                    Image("WolfMark")
-                        .resizable()
-                        .aspectRatio(contentMode: .fit)
-                        .frame(width: size * 0.52, height: size * 0.52)
-                        .foregroundStyle(.white)
+                    .transition(.opacity)
+            } else if let url {
+                AsyncImage(url: url, transaction: Transaction(animation: reduceMotion ? nil : .easeInOut(duration: DSMotion.Duration.base))) { phase in
+                    switch phase {
+                    case .success(let img):
+                        img.resizable().aspectRatio(contentMode: .fill)
+                    case .empty, .failure:
+                        placeholder
+                    @unknown default:
+                        placeholder
+                    }
                 }
+            } else {
+                placeholder
             }
         }
         .frame(width: size, height: size)
@@ -53,6 +57,22 @@ struct AlbumArtView: View {
         // the semantic content. Hiding here keeps VoiceOver from announcing
         // "image" before the song title.
         .accessibilityHidden(true)
+    }
+
+    @ViewBuilder
+    private var placeholder: some View {
+        LinearGradient(
+            colors: [DSColor.brand500, DSColor.brand800],
+            startPoint: .topLeading,
+            endPoint: .bottomTrailing
+        )
+        .overlay(alignment: .center) {
+            Image("WolfMark")
+                .resizable()
+                .aspectRatio(contentMode: .fit)
+                .frame(width: size * 0.52, height: size * 0.52)
+                .foregroundStyle(.white)
+        }
     }
 
 }

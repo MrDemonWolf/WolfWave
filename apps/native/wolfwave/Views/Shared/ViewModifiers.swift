@@ -10,54 +10,14 @@ import AppKit
 
 // MARK: - Cursor Modifiers
 
-/// A view modifier that changes the cursor to a pointing hand on hover.
-/// Use this for clickable elements that aren't standard buttons.
-struct PointerCursorModifier: ViewModifier {
-    @State private var isHovering = false
-
-    func body(content: Content) -> some View {
-        content
-            .onHover { hovering in
-                isHovering = hovering
-                if hovering {
-                    NSCursor.pointingHand.push()
-                } else {
-                    NSCursor.pop()
-                }
-            }
-    }
-}
-
-/// A view modifier that shows the not-allowed cursor for disabled elements.
-struct DisabledCursorModifier: ViewModifier {
-    let isDisabled: Bool
-
-    func body(content: Content) -> some View {
-        content
-            .onHover { hovering in
-                if isDisabled {
-                    if hovering {
-                        NSCursor.operationNotAllowed.push()
-                    } else {
-                        NSCursor.pop()
-                    }
-                }
-            }
-    }
-}
-
-// MARK: - View Extensions
-
 extension View {
     /// Adds a pointing hand cursor when hovering over this view.
-    /// Use for clickable elements that aren't standard buttons.
+    ///
+    /// Use for clickable elements that aren't standard buttons. Wraps SwiftUI's
+    /// `.pointerStyle(.link)` (macOS 15+) — the system manages push/pop so this
+    /// never leaks like a manual `NSCursor.push`/`pop` pair would.
     func pointerCursor() -> some View {
-        modifier(PointerCursorModifier())
-    }
-
-    /// Shows not-allowed cursor when the element is disabled.
-    func disabledCursor(_ isDisabled: Bool) -> some View {
-        modifier(DisabledCursorModifier(isDisabled: isDisabled))
+        pointerStyle(.link)
     }
 }
 
@@ -79,17 +39,11 @@ struct InteractiveRowModifier: ViewModifier {
                     .fill(isHovering && isEnabled ? Color.primary.opacity(0.04) : Color.clear)
             )
             .onHover { hovering in
-                withAnimation(.easeInOut(duration: 0.15)) {
+                withAnimation(.easeInOut(duration: DSMotion.Duration.fast)) {
                     isHovering = hovering
                 }
-                if isEnabled {
-                    if hovering {
-                        NSCursor.pointingHand.push()
-                    } else {
-                        NSCursor.pop()
-                    }
-                }
             }
+            .pointerStyle(isEnabled ? .link : nil)
     }
 }
 
@@ -190,6 +144,70 @@ extension View {
                 .allowsHitTesting(false)
         )
         .fixedSize(horizontal: true, vertical: false)
+    }
+}
+
+// MARK: - Reduce-Motion Helpers
+
+/// Returns the supplied animation, or `.none` when the user has Reduce Motion
+/// enabled in System Settings → Accessibility.
+///
+/// Use at call sites that opt in to motion:
+///
+/// ```swift
+/// @Environment(\.accessibilityReduceMotion) private var reduceMotion
+/// // …
+/// .animation(.reducedMotion(.easeInOut(duration: DSMotion.Duration.base),
+///                           reduceMotion: reduceMotion),
+///            value: state)
+/// ```
+extension Animation {
+    /// Returns `self` when reduce-motion is off, `nil` otherwise.
+    static func reducedMotion(_ animation: Animation, reduceMotion: Bool) -> Animation? {
+        reduceMotion ? nil : animation
+    }
+}
+
+extension View {
+    /// Applies an animation that respects the user's Reduce Motion preference.
+    ///
+    /// Wraps `.animation(_:value:)` and substitutes `nil` (no animation) when
+    /// `reduceMotion` is `true`. Pull the value via
+    /// `@Environment(\.accessibilityReduceMotion)`.
+    func reduceMotionAware<V: Equatable>(
+        _ animation: Animation,
+        reduceMotion: Bool,
+        value: V
+    ) -> some View {
+        self.animation(reduceMotion ? nil : animation, value: value)
+    }
+}
+
+// MARK: - Skeleton Loading
+
+/// A view modifier that renders the content as a redacted placeholder while
+/// `isLoading` is true. Use instead of swapping in custom shimmer rows — the
+/// system handles VoiceOver suppression and respects Reduce Motion.
+struct SkeletonModifier: ViewModifier {
+    let isLoading: Bool
+
+    func body(content: Content) -> some View {
+        content
+            .redacted(reason: isLoading ? .placeholder : [])
+            .accessibilityHidden(isLoading)
+            .allowsHitTesting(!isLoading)
+    }
+}
+
+extension View {
+    /// Renders this view as a redacted placeholder when `isLoading` is true.
+    ///
+    /// Use for first-paint loading states (queue lists, validation results,
+    /// search-in-flight). The redacted reason is `.placeholder`, which renders
+    /// the content as opaque shapes. Hit-testing and VoiceOver are suppressed
+    /// while loading so the user can't tap or hear stale data.
+    func skeleton(_ isLoading: Bool) -> some View {
+        modifier(SkeletonModifier(isLoading: isLoading))
     }
 }
 

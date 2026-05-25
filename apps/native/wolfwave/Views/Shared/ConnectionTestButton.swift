@@ -56,9 +56,11 @@ struct ConnectionTestButton: View {
             case .success:
                 Label("Connected", systemImage: "checkmark.circle.fill")
                     .font(.system(size: DSFont.Size.body, weight: .medium))
+                    .symbolEffect(.bounce, value: result)
             case .failure:
                 Label("Failed", systemImage: "xmark.circle.fill")
                     .font(.system(size: DSFont.Size.body, weight: .medium))
+                    .symbolEffect(.bounce, value: result)
             }
         }
         .buttonStyle(.bordered)
@@ -136,7 +138,8 @@ struct ConnectionTestButton: View {
             label: "Check Discord",
             icon: "antenna.radiowaves.left.and.right"
         ) { completion in
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) {
+            Task { @MainActor in
+                try? await Task.sleep(for: .milliseconds(600))
                 completion(true)
             }
         }
@@ -145,7 +148,8 @@ struct ConnectionTestButton: View {
             label: "Test Twitch",
             icon: "bolt.horizontal"
         ) { completion in
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) {
+            Task { @MainActor in
+                try? await Task.sleep(for: .milliseconds(600))
                 completion(false)
             }
         }

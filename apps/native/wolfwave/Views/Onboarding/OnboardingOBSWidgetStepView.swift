@@ -77,7 +77,7 @@ struct OnboardingOBSWidgetStepView: View {
 
             Spacer(minLength: 0)
         }
-        .animation(.easeInOut(duration: 0.20), value: overlayEnabled)
+        .animation(.easeInOut(duration: DSMotion.Duration.base), value: overlayEnabled)
     }
 
     // MARK: - Toggle Card
@@ -114,7 +114,7 @@ struct OnboardingOBSWidgetStepView: View {
             color: overlayEnabled ? Color.accentColor.opacity(0.16) : .clear,
             radius: 16, x: 0, y: 4
         )
-        .animation(.easeInOut(duration: 0.20), value: overlayEnabled)
+        .animation(.easeInOut(duration: DSMotion.Duration.base), value: overlayEnabled)
     }
 
     // MARK: - URL Reveal
