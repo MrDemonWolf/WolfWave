@@ -52,13 +52,16 @@ struct OnboardingView: View {
                         .padding(.top, DSSpace.s7)
                         .padding(.bottom, DSSpace.s6)
 
-                    ScrollView(.vertical, showsIndicators: false) {
-                        stepContent
-                            .frame(maxWidth: .infinity)
+                    GeometryReader { geo in
+                        ScrollView(.vertical, showsIndicators: false) {
+                            stepContent
+                                .frame(maxWidth: .infinity)
+                                .frame(minHeight: geo.size.height)
+                        }
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                        .clipped()
+                        .animation(.spring(response: 0.35, dampingFraction: 0.85), value: viewModel.currentStep)
                     }
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    .clipped()
-                    .animation(.spring(response: 0.35, dampingFraction: 0.85), value: viewModel.currentStep)
 
                     Divider()
 

@@ -85,6 +85,7 @@ All notable changes to this project will be documented in this file.
 
 ### Fixed
 
+- **Onboarding step centering** — step content (Welcome, Discord, Twitch, etc.) is now vertically centered in the wizard window instead of pinned to the top with empty space below. The surrounding `ScrollView` previously gave step views unbounded height, collapsing their `Spacer()`s; the scroll view is now constrained to the viewport height so the existing centering layout works.
 - **Two-PC stream widget** — the overlay WebSocket and widget HTTP server now bind to all interfaces (previously loopback only) and the bundled `widget.html` connects to `location.hostname` instead of a hardcoded `localhost`. Streamers can open `http://<lan-ip>:7780` from a second computer or phone on the same network and the widget loads. The Network Address URL in Settings → Stream Widgets now actually works.
 - **GitHub URL config plumbing** — `GITHUB_REPO_OWNER` and `GITHUB_REPO_NAME` from `Config.xcconfig` now flow through `Info.plist` into the bundle, so Report a Bug / releases URLs resolve from config instead of always falling back to the hardcoded defaults.
 - **Intel Homebrew cask detection** — Intel Macs using Homebrew now correctly trigger the Homebrew code path (Sparkle disabled, Homebrew update card shown, bug reports tagged `Homebrew`). Previously the path matcher checked `/usr/local/Cellar/` only, missing the `/usr/local/Caskroom/` location used by casks.

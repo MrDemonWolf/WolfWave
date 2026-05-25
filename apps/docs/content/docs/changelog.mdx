@@ -86,6 +86,7 @@ _Developer-facing changes — not visible to end users._
 - **Accessibility labels** — added explicit `accessibilityLabel`/`Hint`/`Identifier` to permission and About-panel buttons that previously relied only on inferred labels (better VoiceOver clarity)
 
 ### Fixed
+- Onboarding step content is now vertically centered in the wizard window — fixes step views being pinned to the top with empty space below
 - GitHub URL config plumbing — `GITHUB_REPO_OWNER` / `GITHUB_REPO_NAME` from `Config.xcconfig` now flow through `Info.plist` so Report a Bug and releases URLs resolve from config
 - **Intel Homebrew cask detection** — Intel Macs using Homebrew now correctly disable Sparkle and show the Homebrew update card; the previous matcher missed `/usr/local/Caskroom/`
 - Native build warnings, SwiftUI layout reentrancy, and duplicate log emission
