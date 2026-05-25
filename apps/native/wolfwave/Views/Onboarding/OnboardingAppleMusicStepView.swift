@@ -18,6 +18,7 @@ struct OnboardingAppleMusicStepView: View {
 
     @State private var permissionState: MusicPermissionState = MusicPermissionChecker.currentState()
     @State private var isRequesting = false
+    @State private var isRechecking = false
 
     // MARK: - Body
 
@@ -109,11 +110,19 @@ struct OnboardingAppleMusicStepView: View {
                 )
 
                 HStack(spacing: 8) {
-                    Button("Recheck") {
-                        permissionState = MusicPermissionChecker.currentState()
+                    Button(action: recheckTapped) {
+                        HStack(spacing: 6) {
+                            if isRechecking {
+                                ProgressView()
+                                    .progressViewStyle(.circular)
+                                    .controlSize(.small)
+                            }
+                            Text("Recheck")
+                        }
                     }
                     .buttonStyle(.bordered)
                     .pointerCursor()
+                    .disabled(isRechecking)
                     .accessibilityLabel("Recheck Apple Music access")
                     .accessibilityHint("Re-queries macOS for the current automation permission state")
                     .accessibilityIdentifier("onboardingAppleMusic.recheckButton")
@@ -169,6 +178,30 @@ struct OnboardingAppleMusicStepView: View {
     }
 
     // MARK: - Actions
+
+    /// Re-queries Apple Music automation permission with a brief spinner so
+    /// the user gets visible feedback even when the state doesn't change.
+    private func recheckTapped() {
+        guard !isRechecking else { return }
+        withAnimation(.easeInOut(duration: 0.15)) {
+            isRechecking = true
+        }
+        Task {
+            let start = Date()
+            let next = MusicPermissionChecker.currentState()
+            let elapsed = Date().timeIntervalSince(start)
+            let minSpin: TimeInterval = 0.25
+            if elapsed < minSpin {
+                try? await Task.sleep(nanoseconds: UInt64((minSpin - elapsed) * 1_000_000_000))
+            }
+            await MainActor.run {
+                withAnimation(.easeInOut(duration: 0.2)) {
+                    permissionState = next
+                    isRechecking = false
+                }
+            }
+        }
+    }
 
     /// Prompts the user for Apple Music automation permission via
     /// `MusicPermissionChecker.requestAccess()` and refreshes the UI state
