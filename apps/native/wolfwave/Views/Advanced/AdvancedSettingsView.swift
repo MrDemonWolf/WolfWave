@@ -275,9 +275,6 @@ struct AdvancedSettingsView: View {
             // Diagnostics & Privacy (on-device MetricKit opt-in)
             DiagnosticsShareCardView()
 
-            // Performance Metrics Card
-            MetricsCardView()
-
             // Bug Report Card
             bugReportCard
 

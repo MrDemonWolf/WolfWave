@@ -20,6 +20,7 @@ struct DebugSettingsView: View {
             warningBanner
             DebugUIPreviewsCard()
             DebugInspectorsCard()
+            DebugMetricsCard()
             DebugServiceControlsCard()
             DebugLogsAndEventsCard()
         }

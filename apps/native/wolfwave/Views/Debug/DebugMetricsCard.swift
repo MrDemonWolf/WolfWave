@@ -1,18 +1,19 @@
 //
-//  MetricsCardView.swift
+//  DebugMetricsCard.swift
 //  wolfwave
 //
 //  Created by MrDemonWolf, Inc. on 5/22/26.
 //
 
+#if DEBUG
 import Combine
 import SwiftUI
 
-// MARK: - Metrics Card View
+// MARK: - Debug Metrics Card
 
-/// Advanced-settings card showing live runtime metrics from `MetricsService` —
+/// Debug-tab card showing live runtime metrics from `MetricsService` —
 /// WebSocket overlay throughput, Twitch API rate-limit headroom, and memory use.
-struct MetricsCardView: View {
+struct DebugMetricsCard: View {
 
     // MARK: - State
 
@@ -94,7 +95,8 @@ struct MetricsCardView: View {
 // MARK: - Previews
 
 #Preview {
-    MetricsCardView()
+    DebugMetricsCard()
         .padding()
         .frame(width: 600)
 }
+#endif
