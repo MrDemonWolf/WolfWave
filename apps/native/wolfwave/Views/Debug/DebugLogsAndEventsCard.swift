@@ -18,6 +18,14 @@ struct DebugLogsAndEventsCard: View {
     @State private var postStatus: String?
     @State private var refreshTick = 0
 
+    /// Log file stats — loaded off-main via `.task(id: refreshTick)` so the
+    /// card paints instantly. `logLineCount()` streams the entire log file
+    /// through `fileQueue.sync` and would stall first paint on big logs.
+    @State private var logURL: URL?
+    @State private var logSize: Int64 = 0
+    @State private var logLines: Int = 0
+    @State private var logStatsLoaded = false
+
     var body: some View {
         VStack(alignment: .leading, spacing: DSSpace.s6) {
             HStack(spacing: 6) {
@@ -31,8 +39,18 @@ struct DebugLogsAndEventsCard: View {
             Divider()
             firehoseSection
         }
-        .id(refreshTick)
         .cardStyle()
+        .task(id: refreshTick) {
+            let stats = await Task.detached(priority: .userInitiated) {
+                (url: Log.exportLogFile(), size: Log.logFileSize(), lines: Log.logLineCount())
+            }.value
+            await MainActor.run {
+                logURL = stats.url
+                logSize = stats.size
+                logLines = stats.lines
+                logStatsLoaded = true
+            }
+        }
     }
 
     // MARK: - Logs
@@ -44,20 +62,17 @@ struct DebugLogsAndEventsCard: View {
                 .foregroundStyle(.secondary)
                 .textCase(.uppercase)
 
-            let url = Log.exportLogFile()
-            let size = Log.logFileSize()
-            let lines = Log.logLineCount()
-
             HStack(alignment: .top) {
                 VStack(alignment: .leading, spacing: DSSpace.s0) {
-                    Text(url?.path ?? "(no log file)")
+                    Text(logURL?.path ?? "(no log file)")
                         .font(.system(size: DSFont.Size.sm, design: .monospaced))
                         .lineLimit(2)
                         .truncationMode(.middle)
                         .textSelection(.enabled)
-                    Text("\(ByteCountFormatter.string(fromByteCount: size, countStyle: .file)) · \(lines) lines")
+                    Text("\(ByteCountFormatter.string(fromByteCount: logSize, countStyle: .file)) · \(logLines) lines")
                         .font(.system(size: DSFont.Size.sm))
                         .foregroundStyle(.secondary)
+                        .redacted(reason: logStatsLoaded ? [] : .placeholder)
                 }
                 Spacer()
                 Button {
@@ -71,7 +86,7 @@ struct DebugLogsAndEventsCard: View {
 
             HStack {
                 Button {
-                    if let url {
+                    if let url = logURL {
                         NSWorkspace.shared.activateFileViewerSelecting([url])
                     }
                 } label: {
@@ -80,10 +95,10 @@ struct DebugLogsAndEventsCard: View {
                 }
                 .buttonStyle(.bordered)
                 .pointerCursor()
-                .disabled(url == nil)
+                .disabled(logURL == nil)
 
                 Button {
-                    if let path = url?.path {
+                    if let path = logURL?.path {
                         NSPasteboard.general.clearContents()
                         NSPasteboard.general.setString(path, forType: .string)
                     }
@@ -93,7 +108,7 @@ struct DebugLogsAndEventsCard: View {
                 }
                 .buttonStyle(.bordered)
                 .pointerCursor()
-                .disabled(url == nil)
+                .disabled(logURL == nil)
 
                 Button(role: .destructive) {
                     Log.clearLogFile()

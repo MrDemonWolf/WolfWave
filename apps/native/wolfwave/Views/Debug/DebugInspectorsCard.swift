@@ -15,6 +15,19 @@ struct DebugInspectorsCard: View {
     @State private var refreshTick = 0
     @State private var filter: String = ""
 
+    /// Keychain presence flags — loaded off-main via `.task(id: refreshTick)`
+    /// so the card paints instantly. Each `KeychainService.load…()` call is a
+    /// `SecItemCopyMatching` syscall; running 5 in `body` per render is wasteful.
+    @State private var keychainPresence: [String: Bool] = [:]
+
+    private static let keychainKeys: [(label: String, key: String)] = [
+        ("WebSocket Auth Token", "token"),
+        ("Twitch OAuth Token", "twitchToken"),
+        ("Twitch Username", "twitchUsername"),
+        ("Twitch Bot User ID", "twitchBotUserID"),
+        ("Twitch Channel ID", "twitchChannelID"),
+    ]
+
     var body: some View {
         VStack(alignment: .leading, spacing: DSSpace.s6) {
             HStack(spacing: 6) {
@@ -41,6 +54,18 @@ struct DebugInspectorsCard: View {
         }
         .id(refreshTick)
         .cardStyle()
+        .task(id: refreshTick) {
+            let presence = await Task.detached(priority: .userInitiated) {
+                [
+                    "token": KeychainService.loadToken() != nil,
+                    "twitchToken": KeychainService.loadTwitchToken() != nil,
+                    "twitchUsername": KeychainService.loadTwitchUsername() != nil,
+                    "twitchBotUserID": KeychainService.loadTwitchBotUserID() != nil,
+                    "twitchChannelID": KeychainService.loadTwitchChannelID() != nil,
+                ]
+            }.value
+            await MainActor.run { keychainPresence = presence }
+        }
     }
 
     // MARK: - Bundle / Build
@@ -87,19 +112,19 @@ struct DebugInspectorsCard: View {
                 .font(.system(size: DSFont.Size.sm))
                 .foregroundStyle(.secondary)
 
-            keychainRow("WebSocket Auth Token", present: KeychainService.loadToken() != nil) {
+            keychainRow("WebSocket Auth Token", present: keychainPresence["token"] ?? false) {
                 KeychainService.deleteToken()
             }
-            keychainRow("Twitch OAuth Token", present: KeychainService.loadTwitchToken() != nil) {
+            keychainRow("Twitch OAuth Token", present: keychainPresence["twitchToken"] ?? false) {
                 KeychainService.deleteTwitchToken()
             }
-            keychainRow("Twitch Username", present: KeychainService.loadTwitchUsername() != nil) {
+            keychainRow("Twitch Username", present: keychainPresence["twitchUsername"] ?? false) {
                 KeychainService.deleteTwitchUsername()
             }
-            keychainRow("Twitch Bot User ID", present: KeychainService.loadTwitchBotUserID() != nil) {
+            keychainRow("Twitch Bot User ID", present: keychainPresence["twitchBotUserID"] ?? false) {
                 KeychainService.deleteTwitchBotUserID()
             }
-            keychainRow("Twitch Channel ID", present: KeychainService.loadTwitchChannelID() != nil) {
+            keychainRow("Twitch Channel ID", present: keychainPresence["twitchChannelID"] ?? false) {
                 KeychainService.deleteTwitchChannelID()
             }
         }

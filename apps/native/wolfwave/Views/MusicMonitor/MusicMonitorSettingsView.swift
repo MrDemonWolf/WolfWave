@@ -336,7 +336,7 @@ struct MusicMonitorSettingsView: View {
         NotificationCenter.default.publisher(for: NSNotification.Name(name))
     }
 
-    /// Button-driven recheck. Wraps `refreshPermission()` with a brief spinner
+    /// Button-driven recheck. Wraps the off-main probe with a brief spinner
     /// + checkmark so the user gets unambiguous feedback even when the
     /// permission state doesn't change (the common already-granted case).
     private func recheckTapped() {
@@ -347,7 +347,11 @@ struct MusicMonitorSettingsView: View {
         }
         Task {
             let start = Date()
-            let next = MusicPermissionChecker.currentState()
+            // Apple Events probe can take tens of milliseconds — dispatch off
+            // the main actor so the spinner can actually animate while we wait.
+            let next = await Task.detached(priority: .userInitiated) {
+                MusicPermissionChecker.currentState()
+            }.value
             // Minimum visible spinner duration so the probe doesn't blink invisibly.
             let elapsed = Date().timeIntervalSince(start)
             let minSpin: TimeInterval = 0.25
@@ -375,20 +379,25 @@ struct MusicMonitorSettingsView: View {
         }
     }
 
-    /// Re-queries Apple Music automation permission, caches the result, and
-    /// reloads the current track if permission is now granted.
+    /// Re-queries Apple Music automation permission off the main actor, caches
+    /// the result, and reloads the current track if permission is now granted.
+    /// The Apple Events probe can take tens of milliseconds — keep it off main.
     private func refreshPermission() {
-        let next = MusicPermissionChecker.currentState()
-        MusicPermissionCache.write(next)
-        withAnimation(.easeInOut(duration: 0.2)) {
-            permissionState = next
-        }
-        // If we're now granted, try to get the current track again.
-        if next == .granted {
-            loadCurrentTrack()
-            // Cached snap first so the UI doesn't briefly clear, then ask
-            // the source for a fresh ScriptingBridge read.
-            AppDelegate.shared?.refreshNowPlaying()
+        Task.detached(priority: .userInitiated) {
+            let next = MusicPermissionChecker.currentState()
+            await MainActor.run {
+                MusicPermissionCache.write(next)
+                withAnimation(.easeInOut(duration: 0.2)) {
+                    permissionState = next
+                }
+                // If we're now granted, try to get the current track again.
+                if next == .granted {
+                    loadCurrentTrack()
+                    // Cached snap first so the UI doesn't briefly clear, then ask
+                    // the source for a fresh ScriptingBridge read.
+                    AppDelegate.shared?.refreshNowPlaying()
+                }
+            }
         }
     }
 
@@ -459,17 +468,17 @@ struct MusicMonitorSettingsView: View {
 /// milliseconds — measurable when switching back to the General settings pane. Cache the result
 /// for a short window so re-entering the pane within the same session is instant. The cache is
 /// invalidated by `NSApplication.didBecomeActiveNotification` and by explicit refresh calls.
-private enum MusicPermissionCache {
-    private static let ttl: TimeInterval = 30
+enum MusicPermissionCache {
+    nonisolated private static let ttl: TimeInterval = 30
     nonisolated(unsafe) private static var value: MusicPermissionState?
     nonisolated(unsafe) private static var storedAt: Date?
 
-    static func read() -> MusicPermissionState? {
+    nonisolated static func read() -> MusicPermissionState? {
         guard let value, let storedAt, Date().timeIntervalSince(storedAt) < ttl else { return nil }
         return value
     }
 
-    static func write(_ state: MusicPermissionState) {
+    nonisolated static func write(_ state: MusicPermissionState) {
         value = state
         storedAt = Date()
     }

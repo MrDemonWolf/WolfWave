@@ -24,7 +24,11 @@ enum MusicPermissionChecker {
 
     /// Asks the system whether the calling process is allowed to send Apple
     /// Events to Music.app. Does not prompt; returns the cached decision.
-    static func currentState() -> MusicPermissionState {
+    ///
+    /// `nonisolated` so callers can dispatch this tens-of-millisecond Apple
+    /// Events probe to a background `Task.detached` and keep the main thread
+    /// free for UI work.
+    nonisolated static func currentState() -> MusicPermissionState {
         let target = NSAppleEventDescriptor(bundleIdentifier: AppConstants.Music.bundleIdentifier)
         let status = AEDeterminePermissionToAutomateTarget(
             target.aeDesc, typeWildCard, typeWildCard, false

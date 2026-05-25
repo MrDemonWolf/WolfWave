@@ -173,6 +173,14 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         initializeTrackingState()
         applyInitialDockVisibility()
 
+        // Pre-warm the Apple Music permission probe off-main so the first open
+        // of General and History & Stats settings doesn't pay the
+        // tens-of-milliseconds Apple Events round-trip on the main thread.
+        Task.detached(priority: .utility) {
+            let state = MusicPermissionChecker.currentState()
+            await MainActor.run { MusicPermissionCache.write(state) }
+        }
+
         // Defer onboarding and What's New past the initial layout pass
         // to avoid "layoutSubtreeIfNeeded on a view already being laid out" warning
         Task { @MainActor [weak self] in

@@ -36,7 +36,7 @@ struct HistoryStatsSettingsView: View {
 
     @State private var showWrapSheet = false
     @State private var showClearAlert = false
-    @State private var musicPermission: MusicPermissionState = MusicPermissionChecker.currentState()
+    @State private var musicPermission: MusicPermissionState = MusicPermissionCache.read() ?? .unknown
 
     /// The shared history service. Accessed as a computed property so the
     /// Observation framework tracks property reads each time `body` runs.

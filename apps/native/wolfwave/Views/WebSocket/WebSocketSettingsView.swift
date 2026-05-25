@@ -134,9 +134,10 @@ fileprivate struct WebSocketServerCard: View {
 
     @State private var portText: String = ""
 
-    /// Currently-persisted token. Re-read from Keychain after edits / regens so
-    /// the displayed URL row stays in sync.
-    @State private var currentToken: String = WebSocketAuthToken.currentOrCreate()
+    /// Currently-persisted token. Seeded empty so struct init doesn't hit the
+    /// Keychain — populated by `.task` off-main on first appear, and re-read
+    /// after edits/regens so the displayed URL row stays in sync.
+    @State private var currentToken: String = ""
 
     /// Live edit buffer for the token field. Seeded from `currentToken` and only
     /// committed when the user hits Save or presses return.
@@ -304,6 +305,16 @@ fileprivate struct WebSocketServerCard: View {
         .onAppear {
             portText = String(storedPort)
             tokenDraft = currentToken
+        }
+        .task {
+            guard currentToken.isEmpty else { return }
+            let token = await Task.detached(priority: .userInitiated) {
+                WebSocketAuthToken.currentOrCreate()
+            }.value
+            await MainActor.run {
+                currentToken = token
+                if tokenDraft.isEmpty { tokenDraft = token }
+            }
         }
     }
 
@@ -729,7 +740,12 @@ fileprivate struct WebSocketBrowserSourceCard: View {
         .clipShape(RoundedRectangle(cornerRadius: AppConstants.SettingsUI.cardCornerRadius))
         .onAppear {
             widgetPortText = String(storedWidgetPort)
-            currentToken = WebSocketAuthToken.currentOrCreate()
+        }
+        .task {
+            let token = await Task.detached(priority: .userInitiated) {
+                WebSocketAuthToken.currentOrCreate()
+            }.value
+            await MainActor.run { currentToken = token }
         }
     }
 
