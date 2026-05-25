@@ -67,6 +67,46 @@ enum Log {
         #endif
     }
 
+    // MARK: - OSLog Level Gate
+
+    /// Numeric severity rank for `LogLevel`. Higher = more severe.
+    nonisolated private static func rank(_ level: LogLevel) -> Int {
+        switch level {
+        case .debug: return 0
+        case .info:  return 1
+        case .warn:  return 2
+        case .error: return 3
+        }
+    }
+
+    /// Minimum severity that reaches `os.Logger`. File writes are unaffected.
+    ///
+    /// Defaults:
+    /// - Under XCTest (CI / `xcodebuild test`): `.error` — keeps unit-test runs
+    ///   from flooding the captured xcodebuild output with thousands of info
+    ///   lines per suite while still surfacing real failures.
+    /// - Otherwise: `.debug` — full chatter, same as historical behavior.
+    ///
+    /// Override with the `WOLFWAVE_LOG_LEVEL` env var (`silent` / `error` /
+    /// `warn` / `info` / `debug`). `silent` suppresses every OSLog dispatch
+    /// including errors.
+    nonisolated private static let minOSLogRank: Int = {
+        let env = ProcessInfo.processInfo.environment
+        if let raw = env["WOLFWAVE_LOG_LEVEL"]?.lowercased() {
+            switch raw {
+            case "silent": return Int.max
+            case "error":  return rank(.error)
+            case "warn":   return rank(.warn)
+            case "info":   return rank(.info)
+            case "debug":  return rank(.debug)
+            default: break
+            }
+        }
+        let underTest = env["XCTestConfigurationFilePath"] != nil
+            || NSClassFromString("XCTest") != nil
+        return underTest ? rank(.error) : rank(.debug)
+    }()
+
     // MARK: - OSLog
 
     /// Subsystem identifier used for all OSLog entries.
@@ -233,6 +273,8 @@ enum Log {
         // OSLog → Xcode console + Console.app + Instruments.
         // Source location appended so it's clickable in Xcode 16+.
         // Messages are marked .public since PII has already been redacted above.
+        // Gate by minOSLogRank so XCTest runs / CI don't flood captured stdout.
+        guard rank(level) >= minOSLogRank else { return }
         let logger = osLogger(for: category)
         let osMessage = "\(redactedMessage)  (\(location))"
         switch level {

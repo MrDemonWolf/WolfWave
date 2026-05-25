@@ -72,6 +72,13 @@ jobs:
           # routes allocations through the standard zone and
           # bypasses the bug. Full suite passes locally (849/0).
           MallocNanoZone: "0"
+          # Silence routine OSLog chatter (debug/info/warn) for the test
+          # run so the captured xcodebuild output isn't flooded with
+          # thousands of log lines per suite. Errors still surface. The
+          # file sink is untouched, so LoggerTests / LoggerClearTests
+          # keep asserting on on-disk content. Logger.swift also
+          # auto-detects XCTest; this just pins the level explicitly.
+          WOLFWAVE_LOG_LEVEL: error
         run: |
           # SongRequestCommandTests and TrackInfoCommandTests are
           # excluded on the macos-26 GitHub runner — both reliably
