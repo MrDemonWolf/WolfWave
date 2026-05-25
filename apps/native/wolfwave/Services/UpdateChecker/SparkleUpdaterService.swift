@@ -80,6 +80,10 @@ final class SparkleUpdaterService: NSObject {
     /// Whether the app was installed via Homebrew (Sparkle should be disabled in this case)
     private let isHomebrewInstall: Bool
 
+    /// True when Sparkle is wired and ready to drive a real update check.
+    /// False for Homebrew installs or when `setupSparkle()` never produced an `SPUUpdater`.
+    var isAvailable: Bool { !isHomebrewInstall && updater != nil }
+
     // MARK: - Initialization
 
     override init() {
@@ -143,19 +147,25 @@ final class SparkleUpdaterService: NSObject {
     ///
     /// Shows Sparkle's update dialog with results. If an update is available,
     /// the user can choose to download and install it immediately.
-    func checkForUpdates() {
+    ///
+    /// - Returns: `true` when Sparkle handled the request and presented its UI;
+    ///   `false` when the call was a no-op (Homebrew install or uninitialized
+    ///   updater) so callers can open a fallback URL instead of failing silently.
+    @discardableResult
+    func checkForUpdates() -> Bool {
         guard !isHomebrewInstall else {
             Log.warn("SparkleUpdaterService: Manual check ignored — app is managed by Homebrew", category: "Update")
-            return
+            return false
         }
 
         guard let updater = updater else {
             Log.error("SparkleUpdaterService: Cannot check for updates — updater not initialized", category: "Update")
-            return
+            return false
         }
 
         Log.info("SparkleUpdaterService: Manual update check triggered", category: "Update")
         updater.checkForUpdates()
+        return true
     }
 
     /// Checks for updates silently in the background.

@@ -50,12 +50,28 @@ final class SparkleUpdaterServiceTests: XCTestCase {
 
     func testCheckForUpdatesDoesNotCrash() {
         let service = SparkleUpdaterService()
-        service.checkForUpdates()
+        _ = service.checkForUpdates()
     }
 
     func testCheckForUpdatesInBackgroundDoesNotCrash() {
         let service = SparkleUpdaterService()
         service.checkForUpdatesInBackground()
+    }
+
+    // MARK: - Availability Signal Tests
+
+    func testIsAvailableReflectsUpdaterAndHomebrewState() {
+        // In a unit-test host bundle Sparkle's `SPUStandardUpdaterController`
+        // typically does not produce an `SPUUpdater` (no main bundle Info.plist
+        // appcast wiring), so `isAvailable` should be false. Either way, the
+        // boolean must agree with the `checkForUpdates()` return so callers
+        // can rely on a single signal to decide whether to open the fallback.
+        let service = SparkleUpdaterService()
+        XCTAssertEqual(
+            service.isAvailable,
+            service.checkForUpdates(),
+            "isAvailable and checkForUpdates() must agree on whether Sparkle handled the call"
+        )
     }
 
     // MARK: - SPUUpdaterDelegate Tests

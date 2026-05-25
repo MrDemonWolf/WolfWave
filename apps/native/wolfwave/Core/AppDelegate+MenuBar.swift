@@ -865,8 +865,15 @@ extension AppDelegate {
 
     /// Triggers a manual Sparkle update check (works in DEBUG via the
     /// bundled dev-appcast.xml; reaches the real appcast in release builds).
+    /// Falls back to opening the GitHub Releases page when Sparkle is
+    /// unavailable (Homebrew install or updater not initialized) so the
+    /// click is never silent.
     @objc func checkForUpdatesFromMenu() {
-        sparkleUpdater?.checkForUpdates()
+        if sparkleUpdater?.checkForUpdates() != true {
+            if let url = URL(string: AppConstants.URLs.githubReleases) {
+                NSWorkspace.shared.open(url)
+            }
+        }
     }
 
     /// Re-opens the What's New sheet for the current marketing version.

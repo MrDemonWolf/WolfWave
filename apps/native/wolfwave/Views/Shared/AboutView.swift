@@ -192,15 +192,20 @@ struct AboutView: View {
         }
     }
 
-    /// Triggers a manual Sparkle update check. No-op for Homebrew installs
-    /// (Sparkle itself logs a warning in that case).
+    /// Triggers a manual Sparkle update check. Falls back to opening the
+    /// GitHub Releases page when Sparkle is unavailable (Homebrew install
+    /// or updater not initialized) so the click is never silent.
     private func checkForUpdates() {
-        AppDelegate.shared?.sparkleUpdater?.checkForUpdates()
+        if AppDelegate.shared?.sparkleUpdater?.checkForUpdates() != true {
+            if let url = URL(string: AppConstants.URLs.githubReleases) {
+                NSWorkspace.shared.open(url)
+            }
+        }
     }
 
-    /// Opens the GitHub Releases page in the user's default browser.
+    /// Opens the documentation changelog page in the user's default browser.
     private func openReleaseNotes() {
-        guard let url = URL(string: AppConstants.URLs.githubReleases) else { return }
+        guard let url = URL(string: AppConstants.URLs.changelog) else { return }
         NSWorkspace.shared.open(url)
     }
 

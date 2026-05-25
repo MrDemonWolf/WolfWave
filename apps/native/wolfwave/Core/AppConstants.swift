@@ -740,6 +740,9 @@ nonisolated enum AppConstants {
         /// Terms of service page URL
         static let termsOfService = "https://mrdemonwolf.github.io/wolfwave/docs/terms-of-service"
 
+        /// Documentation changelog page URL (Fumadocs route).
+        static let changelog = "\(docs)/docs/changelog"
+
         /// GitHub repository owner (cached at first access).
         ///
         /// Lookup order:
