@@ -4,12 +4,14 @@
 
 # WolfWave - Your Music, Everywhere on Stream
 
-WolfWave is a native macOS menu bar app that bridges Apple Music with
-Twitch chat, Discord Rich Presence, and OBS stream overlays. Built for
-streamers and creators on Apple Silicon, it surfaces what you're
-listening to everywhere your audience already is — automatically.
+Stop telling chat what song is playing. WolfWave is a tiny native macOS
+menu bar app that bridges Apple Music with Twitch chat, Discord Rich
+Presence, and OBS stream overlays. Play something in Apple Music — your
+Twitch chat, your Discord profile, and your stream overlay all update on
+their own.
 
-Keep your music in sync. Keep your stream alive.
+Free, open source, signed and notarized by Apple. Built for streamers
+and creators on macOS.
 
 ## Features
 
@@ -140,7 +142,7 @@ Native app (Make):
 
 - `make build` — Debug build via `xcodebuild`.
 - `make clean` — Clean build artifacts.
-- `make test` — Run the unit test suite (879 tests across 26 files).
+- `make test` — Run the unit test suite (1218 tests across 42 files).
 - `make update-deps` — Resolve SwiftPM dependencies.
 - `make open-xcode` — Open the Xcode project.
 - `make ci` — CI-friendly build.
@@ -156,7 +158,7 @@ Native app (Make):
 - No force unwrapping — optionals and `guard` only.
 - Credentials always via `KeychainService`, never `UserDefaults`.
 - Thread-safe service layer (NSLock, serial dispatch queues, MainActor isolation).
-- 879 unit tests across 26 files, auto-discovered via Xcode synchronized groups.
+- 1218 unit tests across 42 files, auto-discovered via Xcode synchronized groups.
 
 ## Project Structure
 
@@ -178,7 +180,9 @@ wolfwave/
 
 ## License
 
-![GitHub license](https://img.shields.io/github/license/mrdemonwolf/wolfwave.svg?style=for-the-badge&logo=github)
+[![GitHub license](https://img.shields.io/github/license/mrdemonwolf/wolfwave.svg?style=for-the-badge&logo=github)](https://github.com/mrdemonwolf)
+
+WolfWave is released under the MIT License.
 
 ## Contact
 

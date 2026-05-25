@@ -1,6 +1,10 @@
 # Discord Rich Presence Assets
 
-Upload these PNG files to your Discord Developer Portal as Rich Presence Art Assets.
+These PNG files are uploaded to the Discord Developer Portal as Rich
+Presence Art Assets. `DiscordRPCService` references them by the asset
+names below — keep the names in sync.
+
+For product context, see the [root README](../README.md).
 
 ## How to upload
 
@@ -13,10 +17,10 @@ Upload these PNG files to your Discord Developer Portal as Rich Presence Art Ass
 
 | File | Asset Name | Description | Status |
 |------|-----------|-------------|--------|
-| `apple_music.png` | `apple_music` | Apple Music logo | Already uploaded ✅ |
-| `spotify.png` | `spotify` | Spotify logo | **Upload needed** ⬆️ |
-| `youtube.png` | `youtube` | YouTube/browser icon | **Upload needed** ⬆️ |
-| `music_generic.png` | `music_generic` | Generic music fallback | **Upload needed** ⬆️ |
+| `apple_music.png` | `apple_music` | Apple Music logo | Uploaded |
+| `spotify.png` | `spotify` | Spotify logo | Upload needed |
+| `youtube.png` | `youtube` | YouTube / browser icon | Upload needed |
+| `music_generic.png` | `music_generic` | Generic music fallback | Upload needed |
 
 ## Notes
 

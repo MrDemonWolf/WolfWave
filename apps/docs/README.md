@@ -1,47 +1,37 @@
-# docs
+# WolfWave Docs Site
 
-This is a Next.js application generated with
-[Create Fumadocs](https://github.com/fuma-nama/fumadocs).
+The public documentation site for WolfWave at
+[mrdemonwolf.github.io/wolfwave](https://mrdemonwolf.github.io/wolfwave).
+This is a Next.js app powered by [Fumadocs](https://fumadocs.dev) with
+static export, deployed to GitHub Pages by `.github/workflows/docs.yml`.
 
-It is a Next.js app with [Static Export](https://nextjs.org/docs/app/guides/static-exports) configured.
+For the product itself, see the [root README](../../README.md).
 
-Run development server:
+## Run locally
+
+From the repo root:
 
 ```bash
-npm run dev
-# or
-pnpm dev
-# or
-yarn dev
+bun install
+bun run dev --filter docs
 ```
 
-Open http://localhost:3000 with your browser to see the result.
+Open <http://localhost:3000>.
 
-## Explore
+## Layout
 
-In the project, you can see:
+| Path | What it is |
+| --- | --- |
+| `app/(home)` | Landing page and download page. |
+| `app/docs` | Documentation layout — Fumadocs renders the MDX from `content/docs/`. |
+| `app/api/search/route.ts` | Static search index. |
+| `content/docs/` | All MDX content. Sidebar order is in `content/docs/meta.json`. |
+| `app/global.css` + `app/tokens.generated.css` | Token-driven styling. Generated CSS comes from `design-system/tokens.json` — do not edit by hand. |
 
-- `lib/source.ts`: Code for content source adapter, [`loader()`](https://fumadocs.dev/docs/headless/source-api) provides the interface to access your content.
-- `lib/layout.shared.tsx`: Shared options for layouts, optional but preferred to keep.
+## Build
 
-| Route                     | Description                                            |
-| ------------------------- | ------------------------------------------------------ |
-| `app/(home)`              | The route group for your landing page and other pages. |
-| `app/docs`                | The documentation layout and pages.                    |
-| `app/api/search/route.ts` | The Route Handler for search.                          |
+```bash
+bun run build --filter docs
+```
 
-### Fumadocs MDX
-
-A `source.config.ts` config file has been included, you can customise different options like frontmatter schema.
-
-Read the [Introduction](https://fumadocs.dev/docs/mdx) for further details.
-
-## Learn More
-
-To learn more about Next.js and Fumadocs, take a look at the following
-resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js
-  features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-- [Fumadocs](https://fumadocs.dev) - learn about Fumadocs
+Outputs a static export to `apps/docs/out/`.

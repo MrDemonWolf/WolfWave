@@ -2,9 +2,10 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import {
   ArrowRight,
+  Check,
   Download,
   Github,
-  MessageSquare,
+  Minus,
   Radio,
   Wifi,
   Shield,
@@ -12,12 +13,13 @@ import {
   Code2,
   Headphones,
   Twitch,
+  X as XIcon,
 } from "lucide-react";
 
 export const metadata: Metadata = {
   title: "WolfWave — Free Apple Music to Twitch, Discord & OBS on Mac",
   description:
-    "The only free macOS menu bar app that bridges Apple Music with Twitch chat, Discord Rich Presence, and OBS stream overlays. Open source. No Spotify needed.",
+    "Stop telling chat what song is playing. WolfWave puts your Apple Music track into Twitch chat, Discord Rich Presence, and your OBS overlay — automatically. Free, native macOS, open source.",
   keywords: [
     "apple music twitch chat bot mac",
     "apple music discord rich presence mac",
@@ -33,13 +35,13 @@ export const metadata: Metadata = {
     type: "website",
     title: "WolfWave — Free Apple Music to Twitch, Discord & OBS on Mac",
     description:
-      "The only free macOS menu bar app that bridges Apple Music with Twitch chat, Discord Rich Presence, and OBS stream overlays. Open source.",
+      "Stop telling chat what song is playing. WolfWave bridges Apple Music with Twitch chat, Discord Rich Presence, and your stream overlay — automatically.",
   },
   twitter: {
     card: "summary_large_image",
     title: "WolfWave — Free Apple Music to Twitch, Discord & OBS on Mac",
     description:
-      "The only free macOS menu bar app that bridges Apple Music with Twitch chat, Discord Rich Presence, and OBS stream overlays. Open source.",
+      "Stop telling chat what song is playing. WolfWave bridges Apple Music with Twitch chat, Discord Rich Presence, and your stream overlay — automatically.",
   },
 };
 
@@ -125,6 +127,55 @@ function SectionHead({
   );
 }
 
+// ── Comparison cell ──────────────────────────────────────────
+type CellState = "yes" | "no" | "partial";
+
+function CompareCell({ state, label }: { state: CellState; label?: string }) {
+  const tone =
+    state === "yes"
+      ? { bg: "var(--brand-50)", color: "var(--brand-500)" }
+      : state === "partial"
+        ? { bg: "var(--bg-surface)", color: "var(--txt-2)" }
+        : { bg: "var(--bg-surface)", color: "var(--txt-2)" };
+  const Icon = state === "yes" ? Check : state === "partial" ? Minus : XIcon;
+  return (
+    <div className="flex items-center justify-center gap-1.5">
+      <span
+        className="inline-flex items-center justify-center w-7 h-7 rounded-full"
+        style={{ backgroundColor: tone.bg, color: tone.color }}
+        aria-label={state === "yes" ? "Yes" : state === "no" ? "No" : "Partial"}
+      >
+        <Icon className="w-3.5 h-3.5" aria-hidden="true" />
+      </span>
+      {label ? <span className="text-xs ww-text-2">{label}</span> : null}
+    </div>
+  );
+}
+
+// ── FAQ row (native details/summary, token-styled) ───────────
+function FaqRow({ q, a }: { q: string; a: React.ReactNode }) {
+  return (
+    <details
+      className="group ww-card ww-bg-base"
+      style={{ border: "1px solid var(--hairline)" }}
+    >
+      <summary
+        className="cursor-pointer list-none flex items-center justify-between gap-4"
+        style={{ fontWeight: 600 }}
+      >
+        <span className="ww-text-1 text-base sm:text-lg">{q}</span>
+        <span
+          className="ww-text-2 text-2xl leading-none transition-transform group-open:rotate-45"
+          aria-hidden="true"
+        >
+          +
+        </span>
+      </summary>
+      <div className="mt-4 ww-text-2 text-base leading-relaxed">{a}</div>
+    </details>
+  );
+}
+
 export default function HomePage() {
   return (
     <main className="ww-font ww-bg-base">
@@ -136,14 +187,18 @@ export default function HomePage() {
             <p className="ww-reveal ww-reveal-1 ww-text-brand text-sm font-semibold mb-5">
               Now available · macOS 26+ · Apple Music
             </p>
+            {/*
+              Hero headline — primary live, alternate kept for A/B reference.
+              Alt: "Stop announcing every song you play."
+            */}
             <h1 className="ww-reveal ww-reveal-1 ww-display ww-text-1 text-5xl sm:text-7xl lg:text-[5.5rem]">
-              Your music.
+              Stop telling chat
               <br />
-              <span className="ww-text-brand">Everywhere you stream.</span>
+              <span className="ww-text-brand">what song is playing.</span>
             </h1>
             <p className="ww-reveal ww-reveal-2 ww-text-2 text-lg sm:text-xl mt-7 max-w-2xl mx-auto leading-relaxed">
-              WolfWave is a tiny menu bar app for Mac. Play something in Apple
-              Music — Twitch chat, your Discord profile, and your stream
+              WolfWave is a tiny Mac menu bar app. Play something in Apple
+              Music — your Twitch chat, your Discord profile, and your stream
               overlay all update on their own.
             </p>
             <div className="ww-reveal ww-reveal-3 mt-10 flex flex-col sm:flex-row items-center justify-center gap-3">
@@ -152,13 +207,38 @@ export default function HomePage() {
                 Download for Mac
               </Link>
               <Link href="/docs" className="ww-btn ww-btn-secondary">
-                Learn more
+                See how it works
                 <ArrowRight className="w-4 h-4" />
               </Link>
             </div>
             <p className="mt-5 text-sm ww-text-2">
-              Free and open source · 3.7 MB · No account needed
+              Free and open source · 3.7 MB · No account needed · macOS 26+ · Apple Silicon
             </p>
+
+            {/* Trust strip — credibility badges, no fabricated quotes */}
+            <div className="ww-reveal ww-reveal-3 mt-8 flex flex-wrap items-center justify-center gap-2">
+              <a
+                href="https://github.com/MrDemonWolf/WolfWave"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="ww-pill"
+                aria-label="View WolfWave on GitHub"
+              >
+                <Github className="w-3 h-3" /> Open source · MIT
+              </a>
+              <span className="ww-pill">
+                <Shield className="w-3 h-3" /> Signed &amp; notarized by Apple
+              </span>
+              <a
+                href="https://mrdwolf.net/discord"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="ww-pill"
+                aria-label="Join the Discord community"
+              >
+                <Radio className="w-3 h-3" /> Discord community
+              </a>
+            </div>
           </div>
 
           <div className="mt-16 sm:mt-20 ww-reveal ww-reveal-3">
@@ -181,21 +261,21 @@ export default function HomePage() {
               {
                 icon: Twitch,
                 title: "For streamers",
-                body: "Viewers always know the track. !song, song requests, and a live overlay are ready the moment you finish setup.",
+                body: "Chat answers itself. !song, song requests, and a live overlay are ready the moment you finish setup.",
                 href: "/docs/usage",
                 cta: "Streaming guide",
               },
               {
                 icon: Headphones,
                 title: "For listeners",
-                body: "Show friends what you're playing in Discord — album art, real progress, your full Apple Music library.",
+                body: "Friends see your taste — album art, live progress, and your full Apple Music library right on your Discord profile.",
                 href: "/docs/features",
                 cta: "What's included",
               },
               {
                 icon: Code2,
                 title: "For developers",
-                body: "A local WebSocket exposes every play, pause, and skip. Build a custom overlay in roughly 20 lines.",
+                body: "Real-time data, your overlay. A local WebSocket exposes every play, pause, and skip — wire it up in roughly 20 lines.",
                 href: "/docs/architecture",
                 cta: "Read the architecture",
               },
@@ -326,7 +406,7 @@ export default function HomePage() {
               Discord Rich Presence
             </p>
             <h2 className="ww-display ww-text-1 text-4xl sm:text-5xl">
-              Show what you're listening to.
+              Your friends see what you're listening to.
             </h2>
             <p className="ww-text-2 text-lg mt-5 leading-relaxed">
               Real Rich Presence — album art, live progress, and a click-through
@@ -352,7 +432,7 @@ export default function HomePage() {
               Stream overlay
             </p>
             <h2 className="ww-display ww-text-1 text-4xl sm:text-5xl">
-              Drop it in OBS.
+              A now-playing card for OBS in 30 seconds.
             </h2>
             <p className="ww-text-2 text-lg mt-5 leading-relaxed">
               Add a browser source pointing at your Mac's local server. Pick a
@@ -400,19 +480,140 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* ═══════════════ DEVELOPERS ═══════════════ */}
+      {/* ═══════════════ COMPARISON ═══════════════ */}
       <section className="ww-bg-surface px-6 py-24 sm:py-32">
+        <div className="mx-auto max-w-6xl">
+          <SectionHead
+            eyebrow="Honest comparison"
+            title={<>WolfWave vs. the rest.</>}
+            sub="Built for people who use Apple Music — not Spotify. Free, native, and yours to fork."
+          />
+
+          <div className="mt-12 overflow-x-auto">
+            <div
+              className="ww-card ww-bg-base min-w-[640px]"
+              style={{ border: "1px solid var(--hairline)" }}
+            >
+              <table className="w-full text-sm">
+                <thead>
+                  <tr
+                    style={{
+                      borderBottom: "1px solid var(--hairline)",
+                    }}
+                  >
+                    <th
+                      className="text-left py-4 pr-4 ww-text-2 font-medium"
+                      scope="col"
+                    >
+                      Feature
+                    </th>
+                    <th
+                      className="text-center py-4 px-3 ww-text-brand font-semibold"
+                      scope="col"
+                    >
+                      WolfWave
+                    </th>
+                    <th
+                      className="text-center py-4 px-3 ww-text-2 font-medium"
+                      scope="col"
+                    >
+                      Browser source widgets
+                    </th>
+                    <th
+                      className="text-center py-4 pl-3 ww-text-2 font-medium"
+                      scope="col"
+                    >
+                      Spotify-only bots
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {[
+                    {
+                      feature: "Apple Music support",
+                      ww: "yes",
+                      browser: "partial",
+                      spotify: "no",
+                    },
+                    {
+                      feature: "Native macOS app",
+                      ww: "yes",
+                      browser: "no",
+                      spotify: "no",
+                    },
+                    {
+                      feature: "Free, no paywall",
+                      ww: "yes",
+                      browser: "partial",
+                      spotify: "partial",
+                    },
+                    {
+                      feature: "Chat song requests",
+                      ww: "yes",
+                      browser: "no",
+                      spotify: "yes",
+                    },
+                    {
+                      feature: "Stream overlay included",
+                      ww: "yes",
+                      browser: "yes",
+                      spotify: "no",
+                    },
+                    {
+                      feature: "Discord Rich Presence",
+                      ww: "yes",
+                      browser: "no",
+                      spotify: "no",
+                    },
+                    {
+                      feature: "Open source",
+                      ww: "yes",
+                      browser: "partial",
+                      spotify: "no",
+                    },
+                  ].map((row, i, arr) => (
+                    <tr
+                      key={row.feature}
+                      style={
+                        i < arr.length - 1
+                          ? { borderBottom: "1px solid var(--hairline)" }
+                          : undefined
+                      }
+                    >
+                      <td className="py-4 pr-4 ww-text-1">{row.feature}</td>
+                      <td className="py-4 px-3">
+                        <CompareCell state={row.ww as CellState} />
+                      </td>
+                      <td className="py-4 px-3">
+                        <CompareCell state={row.browser as CellState} />
+                      </td>
+                      <td className="py-4 pl-3">
+                        <CompareCell state={row.spotify as CellState} />
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <p className="mt-5 text-center text-xs ww-text-2">
+            Partial means "depends on the tool / depends on your plan." See the{" "}
+            <Link href="/docs/features" className="ww-text-brand font-semibold">
+              full feature breakdown
+            </Link>
+            .
+          </p>
+        </div>
+      </section>
+
+      {/* ═══════════════ DEVELOPERS ═══════════════ */}
+      <section className="ww-bg-base px-6 py-24 sm:py-32">
         <div className="mx-auto max-w-5xl">
           <SectionHead
             eyebrow="For developers"
             title={<>Native Swift. Open source.</>}
-            sub={
-              <>
-                Zero external dependencies. The WebSocket feed is fully
-                documented — wire it into your overlay, your Home Assistant
-                dashboard, or a Stream Deck plugin.
-              </>
-            }
+            sub="The WebSocket feed is fully documented — wire it into your overlay, your Home Assistant dashboard, or a Stream Deck plugin."
           />
 
           <div className="mt-12">
@@ -453,6 +654,69 @@ ws.onmessage = (event) =&gt; {
         </div>
       </section>
 
+      {/* ═══════════════ BADGES ═══════════════ */}
+      <section className="ww-bg-surface px-6 py-20">
+        <div className="mx-auto max-w-5xl">
+          <div
+            className="ww-card ww-bg-base flex flex-wrap items-center justify-center gap-3"
+            style={{ border: "1px solid var(--hairline)" }}
+          >
+            <a
+              href="https://github.com/MrDemonWolf/WolfWave"
+              target="_blank"
+              rel="noopener noreferrer"
+              aria-label="GitHub stars"
+            >
+              <img
+                src="https://img.shields.io/github/stars/MrDemonWolf/WolfWave?style=flat&color=0A84FF&labelColor=1C1C1E&logo=github"
+                alt="GitHub stars"
+                height={28}
+              />
+            </a>
+            <a
+              href="https://github.com/MrDemonWolf/WolfWave/blob/main/LICENSE"
+              target="_blank"
+              rel="noopener noreferrer"
+              aria-label="MIT license"
+            >
+              <img
+                src="https://img.shields.io/github/license/MrDemonWolf/WolfWave?color=0A84FF&labelColor=1C1C1E"
+                alt="MIT license"
+                height={28}
+              />
+            </a>
+            <a
+              href="https://github.com/MrDemonWolf/WolfWave/releases/latest"
+              target="_blank"
+              rel="noopener noreferrer"
+              aria-label="Latest release"
+            >
+              <img
+                src="https://img.shields.io/github/v/release/MrDemonWolf/WolfWave?color=0A84FF&labelColor=1C1C1E&label=latest"
+                alt="Latest release"
+                height={28}
+              />
+            </a>
+            <a
+              href="https://mrdwolf.net/discord"
+              target="_blank"
+              rel="noopener noreferrer"
+              aria-label="Discord community"
+            >
+              <img
+                src="https://img.shields.io/badge/discord-community-0A84FF?labelColor=1C1C1E&logo=discord&logoColor=white"
+                alt="Discord community"
+                height={28}
+              />
+            </a>
+            <span className="ww-pill">
+              <Shield className="w-3 h-3" /> Signed by Apple
+            </span>
+            <span className="ww-pill">macOS 26+ · Apple Silicon</span>
+          </div>
+        </div>
+      </section>
+
       {/* ═══════════════ PRIVACY ═══════════════ */}
       <section className="ww-bg-base px-6 py-24 sm:py-32">
         <div className="mx-auto max-w-3xl text-center">
@@ -485,8 +749,137 @@ ws.onmessage = (event) =&gt; {
         </div>
       </section>
 
+      {/* ═══════════════ FAQ ═══════════════ */}
+      <section className="ww-bg-surface px-6 py-24 sm:py-32">
+        <div className="mx-auto max-w-3xl">
+          <SectionHead
+            eyebrow="Questions, answered"
+            title={<>Anything else?</>}
+            sub="The short answers. Longer ones live in the docs."
+          />
+
+          <div className="mt-12 space-y-3">
+            <FaqRow
+              q="Does it work with Spotify?"
+              a={
+                <>
+                  No. WolfWave reads Apple Music via ScriptingBridge — the same
+                  framework Apple uses internally. If your streaming setup is
+                  Spotify-first, this is not the right tool.
+                </>
+              }
+            />
+            <FaqRow
+              q="Will my viewers see ads or upsells?"
+              a={
+                <>
+                  Never. WolfWave is free and open source. No ads, no premium
+                  tier, no upsell screens. If you want to give back,{" "}
+                  <Link href="/docs/support" className="ww-text-brand font-semibold">
+                    sponsor the project
+                  </Link>
+                  .
+                </>
+              }
+            />
+            <FaqRow
+              q="Does it slow down my stream?"
+              a={
+                <>
+                  No. The app is native, under 30 MB, and event-driven — it
+                  reacts to Apple Music's own notifications with a 2-second
+                  fallback poll. CPU and memory impact are negligible during a
+                  stream.
+                </>
+              }
+            />
+            <FaqRow
+              q="Is my Twitch token safe?"
+              a={
+                <>
+                  Yes. WolfWave uses Twitch's OAuth Device Code flow, stores
+                  tokens in macOS Keychain (the same place Safari and Mail keep
+                  your passwords), and never writes them to disk in plaintext.
+                  The app is sandboxed and notarized by Apple.
+                </>
+              }
+            />
+            <FaqRow
+              q="Does it work on Intel Macs?"
+              a={
+                <>
+                  No. WolfWave requires Apple Silicon (M1 or later) running
+                  macOS 26 (Tahoe) or newer. Intel Macs are not supported.
+                </>
+              }
+            />
+            <FaqRow
+              q="Can I use it on a second-PC OBS setup?"
+              a={
+                <>
+                  Yes. The local WebSocket binds to all interfaces, so an OBS
+                  machine on the same LAN can connect to your Mac as a browser
+                  source. Every connection presents a per-install token from
+                  Keychain — see the{" "}
+                  <Link href="/docs/security" className="ww-text-brand font-semibold">
+                    security docs
+                  </Link>
+                  .
+                </>
+              }
+            />
+            <FaqRow
+              q="How do updates work?"
+              a={
+                <>
+                  WolfWave uses Sparkle with EdDSA-signed appcasts — same
+                  framework Things, Tower, and many other Mac apps use.
+                  Homebrew installs are managed by Homebrew instead, and you'll
+                  get notified when a new release lands.
+                </>
+              }
+            />
+            <FaqRow
+              q="Is it really free?"
+              a={
+                <>
+                  Yes. MIT licensed, no paywall, no premium tier. The whole
+                  source is on{" "}
+                  <a
+                    href="https://github.com/MrDemonWolf/WolfWave"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="ww-text-brand font-semibold"
+                  >
+                    GitHub
+                  </a>
+                  .
+                </>
+              }
+            />
+          </div>
+
+          <p className="mt-10 text-center text-sm ww-text-2">
+            More questions?{" "}
+            <Link href="/docs/faq" className="ww-text-brand font-semibold">
+              Read the full FAQ
+            </Link>{" "}
+            or{" "}
+            <a
+              href="https://mrdwolf.net/discord"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="ww-text-brand font-semibold"
+            >
+              ask in Discord
+            </a>
+            .
+          </p>
+        </div>
+      </section>
+
       {/* ═══════════════ CTA ═══════════════ */}
-      <section className="ww-bg-surface px-6 py-28 sm:py-36">
+      <section className="ww-bg-base px-6 py-28 sm:py-36">
         <div className="mx-auto max-w-4xl text-center">
           <div
             className="w-12 h-12 rounded-2xl inline-flex items-center justify-center mb-6 mx-auto"
@@ -511,6 +904,15 @@ ws.onmessage = (event) =&gt; {
               Read the docs
               <ArrowRight className="w-4 h-4" />
             </Link>
+            <a
+              href="https://github.com/MrDemonWolf/WolfWave"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="ww-btn ww-btn-ghost"
+            >
+              <Github className="w-4 h-4" />
+              Star on GitHub
+            </a>
           </div>
           <p className="mt-5 text-sm ww-text-2">
             Free forever · macOS 26+ · Apple Music

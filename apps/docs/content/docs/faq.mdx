@@ -1,0 +1,95 @@
+---
+title: FAQ
+description: Common questions about WolfWave — Spotify support, performance, security, Twitch tokens, Intel Mac compatibility, multi-PC setups, and updates.
+keywords:
+  - wolfwave faq
+  - wolfwave questions
+  - apple music twitch bot faq
+  - wolfwave vs spotchbot
+  - wolfwave spotify
+  - wolfwave second pc obs
+ogTitle: WolfWave FAQ — Spotify, security, performance, multi-PC setups
+ogDescription: Short answers to the questions people ask before installing WolfWave.
+ogChips:
+  - Spotify
+  - Security
+  - Performance
+  - Multi-PC
+ogEyebrow: Frequently asked
+---
+
+The short answers live here. Anything more in-depth links out to the full docs.
+
+## General
+
+### Does WolfWave work with Spotify?
+
+No. WolfWave reads Apple Music via `ScriptingBridge` — the same framework Apple uses internally for its own integrations. There is no Spotify hook, and we don't plan to add one. If your streaming setup is Spotify-first, SpotchBot and other Spotify-only tools are a better fit.
+
+### Is it really free?
+
+Yes. MIT licensed, no paywall, no premium tier, no upsell screens. The full source lives on [GitHub](https://github.com/MrDemonWolf/WolfWave). If you'd like to give back, [sponsor the project](/docs/support).
+
+### Does it work on Intel Macs?
+
+No. WolfWave requires Apple Silicon (M1 or later) running macOS 26 (Tahoe) or newer. Intel Macs are not supported.
+
+### What does the menu bar app actually do?
+
+It watches Apple Music for the current track, then pushes that data into three places at once:
+
+- **Twitch chat** — replies to `!song`, `!last`, and the rest.
+- **Discord** — a "Listening to Apple Music" Rich Presence card with album art and progress.
+- **Local WebSocket** — every play/pause/skip event, ready for an OBS browser source or a custom overlay.
+
+See [Features](/docs/features) for the full list.
+
+## Streaming &amp; performance
+
+### Does it slow down my stream?
+
+No. The app is native Swift, under 30 MB on disk, and event-driven — it reacts to Apple Music's own notifications and falls back to a 2-second poll only if those notifications are missed. CPU and memory impact during a stream are negligible.
+
+### Will my viewers see ads?
+
+Never. WolfWave is free and open source. No ads, no upsells, no tracking pixels.
+
+### Can I use it on a second-PC OBS setup?
+
+Yes. The local WebSocket binds to all interfaces, so an OBS machine on the same LAN can connect to your Mac as a browser source. Every connection — loopback or LAN — must present a per-install token stored in macOS Keychain. See [Security](/docs/security) for the protocol details.
+
+### Does it work with VTuber overlays / NerdOrDie templates / my own HTML?
+
+If your overlay can consume a WebSocket feed or a small HTTP endpoint, yes. The data is plain JSON: title, artist, album, artwork URL, position, duration. See [Architecture](/docs/architecture) for the schema.
+
+## Security &amp; privacy
+
+### Is my Twitch token safe?
+
+Yes. WolfWave uses Twitch's OAuth Device Code flow (no password ever enters the app), stores tokens in macOS Keychain (same place Safari and Mail keep your passwords), and never writes them to disk in plaintext. The app is sandboxed and notarized by Apple.
+
+### Does WolfWave send any of my data to a server?
+
+No. There is no WolfWave server. The only outbound network traffic is to services you turn on yourself: Twitch (when chat is connected), Discord IPC (a local Unix socket on your Mac), and the iTunes Search API for album artwork. There's no telemetry, no analytics, no crash reporting.
+
+### What about App Sandbox?
+
+WolfWave runs under the macOS App Sandbox with the minimum entitlements needed to control Apple Music via AppleEvents and talk to the Discord IPC socket. See the [`wolfwave.entitlements`](https://github.com/MrDemonWolf/WolfWave/blob/main/apps/native/wolfwave/wolfwave.entitlements) file in the repo for the exact set.
+
+## Updates &amp; install
+
+### How do updates work?
+
+Sparkle with EdDSA-signed appcasts — the same framework Things, Tower, and many other Mac apps use. The signing key is rotated independently of the developer certificate, so even a compromised release server can't ship an unsigned update.
+
+Homebrew installs are managed by Homebrew instead — `brew upgrade --cask wolfwave` brings you to the latest version.
+
+### Why isn't WolfWave on the Mac App Store?
+
+The App Store sandbox blocks the Discord IPC Unix socket, which would break Rich Presence entirely. WolfWave ships outside the store with full Developer ID signing and Apple notarization.
+
+### Where do I get help?
+
+- [Discord community](https://mrdwolf.net/discord) — the fastest way to get a real human.
+- [GitHub Issues](https://github.com/MrDemonWolf/WolfWave/issues) — for bug reports.
+- [Support page](/docs/support) — sponsor, star, share.
