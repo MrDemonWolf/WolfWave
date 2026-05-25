@@ -23,51 +23,36 @@ struct OnboardingAppleMusicStepView: View {
     // MARK: - Body
 
     var body: some View {
-        VStack(spacing: 16) {
-            Spacer(minLength: 0)
-
-            BrandTile(
-                background: AnyShapeStyle(
-                    LinearGradient(
-                        colors: [
-                            AppConstants.Brand.appleMusicGradientStart,
-                            AppConstants.Brand.appleMusicGradientEnd
-                        ],
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing
-                    )
-                ),
-                glowColor: AppConstants.Brand.appleMusicGradientEnd,
-                glyph:
-                    Image("AppleMusicLogo")
-                        .renderingMode(.template)
-                        .resizable()
-                        .aspectRatio(contentMode: .fit)
-                        .frame(width: 28, height: 28)
-                        .foregroundStyle(.white)
-            )
-
-            VStack(spacing: 6) {
-                Text("Let WolfWave see what's playing")
-                    .font(.system(size: DSFont.Size.xl, weight: .bold))
-                    .multilineTextAlignment(.center)
-                    .fixedSize(horizontal: false, vertical: true)
-
-                Text("WolfWave reads the current track from the Music app. We never play, pause, skip, or change your library.")
-                    .font(.system(size: DSFont.Size.base))
-                    .foregroundStyle(.secondary)
-                    .multilineTextAlignment(.center)
-                    .frame(maxWidth: 460)
-                    .fixedSize(horizontal: false, vertical: true)
+        OnboardingStepScaffold(
+            title: "Let WolfWave see what's playing",
+            description: "WolfWave reads the current track from the Music app. We never play, pause, skip, or change your library.",
+            icon: {
+                BrandTile(
+                    background: AnyShapeStyle(
+                        LinearGradient(
+                            colors: [
+                                AppConstants.Brand.appleMusicGradientStart,
+                                AppConstants.Brand.appleMusicGradientEnd
+                            ],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
+                    ),
+                    glowColor: AppConstants.Brand.appleMusicGradientEnd,
+                    glyph:
+                        Image("AppleMusicLogo")
+                            .renderingMode(.template)
+                            .resizable()
+                            .aspectRatio(contentMode: .fit)
+                            .frame(width: 28, height: 28)
+                            .foregroundStyle(.white)
+                )
+            },
+            extras: {
+                content
+                    .animation(.easeInOut(duration: DSMotion.Duration.base), value: permissionState)
             }
-
-            content
-                .frame(maxWidth: 440)
-                .padding(.horizontal, DSSpace.s8)
-                .animation(.easeInOut(duration: DSMotion.Duration.base), value: permissionState)
-
-            Spacer(minLength: 0)
-        }
+        )
     }
 
     // MARK: - State Content

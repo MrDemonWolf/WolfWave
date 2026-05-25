@@ -25,79 +25,66 @@ struct OnboardingPreferencesStepView: View {
     // MARK: - Body
 
     var body: some View {
-        VStack(spacing: 12) {
-            Spacer(minLength: 0)
-
-            BrandTile(
-                background: AnyShapeStyle(
-                    LinearGradient(
-                        colors: [Color.accentColor, Color.accentColor.opacity(0.75)],
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing
+        OnboardingStepScaffold(
+            title: "A couple Mac settings",
+            description: "Start WolfWave at login, and get notified when something needs attention.",
+            icon: {
+                BrandTile(
+                    background: AnyShapeStyle(
+                        LinearGradient(
+                            colors: [Color.accentColor, Color.accentColor.opacity(0.75)],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
+                    ),
+                    glowColor: Color.accentColor,
+                    glyph:
+                        Image(systemName: "gearshape.fill")
+                            .font(.system(size: DSFont.Size.x26, weight: .semibold))
+                            .foregroundStyle(.white)
+                )
+            },
+            extras: {
+                VStack(spacing: DSSpace.s2) {
+                    preferenceRow(
+                        icon: "power",
+                        iconColor: .green,
+                        title: "Start WolfWave at login",
+                        subtitle: "Starts in the menu bar — no Dock icon clutter.",
+                        isOn: Binding(
+                            get: { launchAtLogin },
+                            set: { newValue in
+                                guard LaunchAtLoginService.setEnabled(newValue) else { return }
+                                launchAtLogin = newValue
+                            }
+                        ),
+                        accessibilityLabel: "Start WolfWave at login",
+                        accessibilityIdentifier: "onboardingLaunchAtLoginToggle"
                     )
-                ),
-                glowColor: Color.accentColor,
-                glyph:
-                    Image(systemName: "gearshape.fill")
-                        .font(.system(size: DSFont.Size.x26, weight: .semibold))
-                        .foregroundStyle(.white)
-            )
 
-            VStack(spacing: 6) {
-                Text("A couple Mac settings")
-                    .font(.system(size: DSFont.Size.xl, weight: .bold))
+                    notificationsRow
 
-                Text("Start WolfWave at login, and get notified when something needs attention.")
-                    .font(.system(size: DSFont.Size.base))
-                    .foregroundStyle(.secondary)
-                    .multilineTextAlignment(.center)
-                    .frame(maxWidth: 440)
-                    .fixedSize(horizontal: false, vertical: true)
+                    preferenceRow(
+                        icon: "chart.bar.xaxis",
+                        iconColor: .purple,
+                        title: "Remember my listening history",
+                        subtitle: "Private & on-device. Powers top artists and stats.",
+                        isOn: Binding(
+                            get: { listeningHistoryEnabled },
+                            set: { newValue in
+                                listeningHistoryEnabled = newValue
+                                NotificationCenter.default.post(
+                                    AppConstants.Notifications.listeningHistorySettingChanged,
+                                    userInfo: ["enabled": newValue]
+                                )
+                            }
+                        ),
+                        accessibilityLabel: "Remember my listening history",
+                        accessibilityIdentifier: "onboardingListeningHistoryToggle"
+                    )
+                }
             }
-
-            VStack(spacing: 8) {
-                preferenceRow(
-                    icon: "power",
-                    iconColor: .green,
-                    title: "Start WolfWave at login",
-                    subtitle: "Starts in the menu bar — no Dock icon clutter.",
-                    isOn: Binding(
-                        get: { launchAtLogin },
-                        set: { newValue in
-                            guard LaunchAtLoginService.setEnabled(newValue) else { return }
-                            launchAtLogin = newValue
-                        }
-                    ),
-                    accessibilityLabel: "Start WolfWave at login",
-                    accessibilityIdentifier: "onboardingLaunchAtLoginToggle"
-                )
-
-                notificationsRow
-
-                preferenceRow(
-                    icon: "chart.bar.xaxis",
-                    iconColor: .purple,
-                    title: "Remember my listening history",
-                    subtitle: "Private & on-device. Powers top artists and stats.",
-                    isOn: Binding(
-                        get: { listeningHistoryEnabled },
-                        set: { newValue in
-                            listeningHistoryEnabled = newValue
-                            NotificationCenter.default.post(
-                                AppConstants.Notifications.listeningHistorySettingChanged,
-                                userInfo: ["enabled": newValue]
-                            )
-                        }
-                    ),
-                    accessibilityLabel: "Remember my listening history",
-                    accessibilityIdentifier: "onboardingListeningHistoryToggle"
-                )
-            }
-            .frame(maxWidth: 440)
-            .padding(.horizontal, DSSpace.s8)
-
-            Spacer(minLength: 0)
-        }
+        )
         .task {
             await refreshNotificationStatus()
         }

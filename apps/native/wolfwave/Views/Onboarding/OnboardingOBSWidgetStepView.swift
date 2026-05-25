@@ -34,50 +34,36 @@ struct OnboardingOBSWidgetStepView: View {
     // MARK: - Body
 
     var body: some View {
-        VStack(spacing: 16) {
-            Spacer(minLength: 0)
-
-            BrandTile(
-                background: AnyShapeStyle(
-                    LinearGradient(
-                        colors: [AppConstants.Brand.obsGradientStart, AppConstants.Brand.obsGradientEnd],
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing
-                    )
-                ),
-                glowColor: Color.black,
-                glyph:
-                    Image("OBSLogo")
-                        .renderingMode(.template)
-                        .resizable()
-                        .aspectRatio(contentMode: .fit)
-                        .frame(width: 30, height: 30)
-                        .foregroundStyle(.white)
-            )
-
-            VStack(spacing: 6) {
-                Text("Your overlay, ready to drop in")
-                    .font(.system(size: DSFont.Size.xl, weight: .bold))
-
-                Text("One toggle. We'll give you the URL to paste into OBS.")
-                    .font(.system(size: DSFont.Size.base))
-                    .foregroundStyle(.secondary)
-                    .multilineTextAlignment(.center)
-                    .frame(maxWidth: 440)
-                    .fixedSize(horizontal: false, vertical: true)
+        OnboardingStepScaffold(
+            title: "Your overlay, ready to drop in",
+            description: "One toggle. We'll give you the URL to paste into OBS.",
+            icon: {
+                BrandTile(
+                    background: AnyShapeStyle(
+                        LinearGradient(
+                            colors: [AppConstants.Brand.obsGradientStart, AppConstants.Brand.obsGradientEnd],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
+                    ),
+                    glowColor: Color.black,
+                    glyph:
+                        Image("OBSLogo")
+                            .renderingMode(.template)
+                            .resizable()
+                            .aspectRatio(contentMode: .fit)
+                            .frame(width: 30, height: 30)
+                            .foregroundStyle(.white)
+                )
+            },
+            extras: {
+                VStack(spacing: DSSpace.s4) {
+                    overlayToggleCard
+                    urlReveal
+                }
+                .animation(.easeInOut(duration: DSMotion.Duration.base), value: overlayEnabled)
             }
-
-            overlayToggleCard
-                .frame(maxWidth: 440)
-                .padding(.horizontal, DSSpace.s8)
-
-            urlReveal
-                .frame(maxWidth: 440)
-                .padding(.horizontal, DSSpace.s8)
-
-            Spacer(minLength: 0)
-        }
-        .animation(.easeInOut(duration: DSMotion.Duration.base), value: overlayEnabled)
+        )
     }
 
     // MARK: - Toggle Card

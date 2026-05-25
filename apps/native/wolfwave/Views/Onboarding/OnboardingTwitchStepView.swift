@@ -20,65 +20,44 @@ struct OnboardingTwitchStepView: View {
     // MARK: - Body
 
     var body: some View {
-        VStack(spacing: 18) {
-            Spacer(minLength: 0)
-
-            header
-
-            Group {
-                switch twitchViewModel.integrationState {
-                case .notConnected:
-                    notConnectedContent
-                case .authorizing:
-                    authorizingContent
-                case .connected:
-                    connectedContent
-                case .error(let message):
-                    errorContent(message: message)
+        OnboardingStepScaffold(
+            title: "Sign in to Twitch",
+            description: "So !song works in your chat automatically. We only listen — we never post unless you ask.",
+            icon: {
+                BrandTile(
+                    background: AnyShapeStyle(AppConstants.Brand.twitch),
+                    glowColor: AppConstants.Brand.twitch,
+                    glyph:
+                        Image("TwitchLogo")
+                            .renderingMode(.template)
+                            .resizable()
+                            .aspectRatio(contentMode: .fit)
+                            .frame(width: 28, height: 28)
+                            .foregroundStyle(.white)
+                )
+            },
+            extras: {
+                Group {
+                    switch twitchViewModel.integrationState {
+                    case .notConnected:
+                        notConnectedContent
+                    case .authorizing:
+                        authorizingContent
+                    case .connected:
+                        connectedContent
+                    case .error(let message):
+                        errorContent(message: message)
+                    }
                 }
+                .animation(.easeInOut(duration: DSMotion.Duration.base), value: stateKey)
             }
-            .frame(maxWidth: 420)
-            .padding(.horizontal, DSSpace.s8)
-            .animation(.easeInOut(duration: DSMotion.Duration.base), value: stateKey)
-
-            Spacer(minLength: 0)
-        }
+        )
         .onAppear {
             twitchViewModel.loadSavedCredentials()
             if twitchViewModel.twitchService == nil {
                 if let appDelegate = AppDelegate.shared {
                     twitchViewModel.twitchService = appDelegate.twitchService
                 }
-            }
-        }
-    }
-
-    // MARK: - Header
-
-    private var header: some View {
-        VStack(spacing: 12) {
-            BrandTile(
-                background: AnyShapeStyle(AppConstants.Brand.twitch),
-                glowColor: AppConstants.Brand.twitch,
-                glyph:
-                    Image("TwitchLogo")
-                        .renderingMode(.template)
-                        .resizable()
-                        .aspectRatio(contentMode: .fit)
-                        .frame(width: 28, height: 28)
-                        .foregroundStyle(.white)
-            )
-
-            VStack(spacing: 6) {
-                Text("Sign in to Twitch")
-                    .font(.system(size: DSFont.Size.xl, weight: .bold))
-
-                Text("So !song works in your chat automatically. We only listen — we never post unless you ask.")
-                    .font(.system(size: DSFont.Size.base))
-                    .foregroundStyle(.secondary)
-                    .multilineTextAlignment(.center)
-                    .frame(maxWidth: 420)
-                    .fixedSize(horizontal: false, vertical: true)
             }
         }
     }
