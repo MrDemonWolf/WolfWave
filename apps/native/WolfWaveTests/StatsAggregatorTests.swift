@@ -163,4 +163,62 @@ struct StatsAggregatorTests {
         #expect(snapshot.recent.first?.track == "Newest")
         #expect(snapshot.recent.last?.track == "Oldest")
     }
+
+    // MARK: - Lifetime Tally Merge
+
+    @Test("Totals include lifetime tally counts in addition to live records")
+    func testLifetimeTotalsMerged() {
+        let now = date(2026, 5, 20)
+        let records = [
+            record(track: "Live", artist: "Wolf", at: now, played: 100),
+        ]
+        var lifetime = LifetimeTally.empty
+        lifetime.trimmedPlayCount = 42
+        lifetime.trimmedListeningSeconds = 9_000
+
+        let snapshot = StatsAggregator.snapshot(
+            from: records, lifetime: lifetime, now: now, calendar: calendar
+        )
+        #expect(snapshot.totalPlays == 43)
+        #expect(snapshot.totalListeningSeconds == 9_100)
+        // Today/week windows still derive from live records only.
+        #expect(snapshot.playsToday == 1)
+    }
+
+    @Test("Top artists merge counts from both records and the lifetime tally")
+    func testLifetimeTopArtistsMerged() {
+        let now = date(2026, 5, 20)
+        let records = [
+            record(track: "T1", artist: "Wolf", at: date(2026, 5, 20)),
+            record(track: "T2", artist: "Fox", at: date(2026, 5, 20)),
+        ]
+        var lifetime = LifetimeTally.empty
+        lifetime.artistCounts["wolf"] = .init(
+            name: "Wolf", detail: nil, count: 10, seconds: 1000
+        )
+        lifetime.artistCounts["bear"] = .init(
+            name: "Bear", detail: nil, count: 5, seconds: 500
+        )
+
+        let snapshot = StatsAggregator.snapshot(
+            from: records, lifetime: lifetime, now: now, calendar: calendar
+        )
+        let wolf = snapshot.topArtists.first { $0.name == "Wolf" }
+        let bear = snapshot.topArtists.first { $0.name == "Bear" }
+        let fox = snapshot.topArtists.first { $0.name == "Fox" }
+        #expect(wolf?.count == 11)  // 10 lifetime + 1 live
+        #expect(bear?.count == 5)   // lifetime-only
+        #expect(fox?.count == 1)    // live-only
+        // Wolf has the highest merged count, so it ranks first.
+        #expect(snapshot.topArtists.first?.name == "Wolf")
+    }
+
+    @Test("hasData is true when only the lifetime tally is non-empty")
+    func testLifetimeOnlyHasData() {
+        var lifetime = LifetimeTally.empty
+        lifetime.trimmedPlayCount = 1
+        let snapshot = StatsAggregator.snapshot(from: [], lifetime: lifetime)
+        #expect(snapshot.hasData)
+        #expect(snapshot.totalPlays == 1)
+    }
 }

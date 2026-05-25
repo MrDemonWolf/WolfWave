@@ -37,6 +37,7 @@ struct HistoryStatsSettingsView: View {
     @State private var showWrapSheet = false
     @State private var showClearAlert = false
     @State private var musicPermission: MusicPermissionState = MusicPermissionCache.read() ?? .unknown
+    @State private var visibleRecentCount: Int = AppConstants.History.recentDisplayCount
 
     /// The shared history service. Accessed as a computed property so the
     /// Observation framework tracks property reads each time `body` runs.
@@ -223,7 +224,7 @@ struct HistoryStatsSettingsView: View {
                         title: "Nothing is being recorded",
                         subtitle: "Turn on Listening History to start tracking your plays."
                     )
-                } else if snapshot.recent.isEmpty {
+                } else if recentPlaysSorted.isEmpty {
                     emptyStateContent(
                         title: "Nothing recorded yet",
                         subtitle: "Play something in Apple Music and it'll show up here."
@@ -258,9 +259,19 @@ struct HistoryStatsSettingsView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
+    /// All recorded plays, newest first. Sorted lazily off the service's
+    /// `records` so we don't depend on the snapshot's limited `recent` slice.
+    private var recentPlaysSorted: [PlayRecord] {
+        guard let service else { return [] }
+        return service.records.sorted { $0.timestamp > $1.timestamp }
+    }
+
     private var recentPlaysList: some View {
-        VStack(alignment: .leading, spacing: DSSpace.s3) {
-            ForEach(Array(snapshot.recent.enumerated()), id: \.offset) { _, play in
+        let all = recentPlaysSorted
+        let visible = Array(all.prefix(visibleRecentCount))
+        let hasMore = visible.count < all.count
+        return VStack(alignment: .leading, spacing: DSSpace.s3) {
+            ForEach(Array(visible.enumerated()), id: \.offset) { _, play in
                 HStack(spacing: DSSpace.s3) {
                     Image(systemName: "music.note")
                         .font(.system(size: DSFont.Size.sm))
@@ -280,6 +291,18 @@ struct HistoryStatsSettingsView: View {
                         .font(.system(size: DSFont.Size.sm))
                         .foregroundStyle(.tertiary)
                 }
+            }
+            if hasMore {
+                Button {
+                    visibleRecentCount += AppConstants.History.recentPageStep
+                } label: {
+                    Label("Load \(AppConstants.History.recentPageStep) more", systemImage: "arrow.down.circle")
+                        .font(.system(size: DSFont.Size.sm))
+                }
+                .buttonStyle(.borderless)
+                .accessibilityLabel("Load \(AppConstants.History.recentPageStep) more plays")
+                .accessibilityIdentifier("loadMoreHistoryButton")
+                .padding(.top, DSSpace.s1)
             }
         }
     }
@@ -377,6 +400,7 @@ struct HistoryStatsSettingsView: View {
         if !enabled {
             statsEnabled = false
             statsCommandEnabled = false
+            visibleRecentCount = AppConstants.History.recentDisplayCount
         }
         NotificationCenter.default.post(
             AppConstants.Notifications.listeningHistorySettingChanged,

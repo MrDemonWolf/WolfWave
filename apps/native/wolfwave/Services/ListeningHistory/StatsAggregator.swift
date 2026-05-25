@@ -91,19 +91,23 @@ enum StatsAggregator {
     /// How many entries each "top" list contains.
     static let topListLimit = 10
 
-    /// Builds a snapshot from `records`.
+    /// Builds a snapshot from `records`, optionally folding in a persisted
+    /// `LifetimeTally` for stats that must outlive the rolling record window.
     ///
     /// - Parameters:
-    ///   - records: All recorded plays, in any order.
+    ///   - records: All recorded plays currently in memory, in any order.
+    ///   - lifetime: Tally of plays previously trimmed out of `records`.
+    ///     Defaults to `.empty` — pass a non-empty tally to merge totals + top-N.
     ///   - now: The reference "now" for today/this-week windows. Injectable for tests.
     ///   - calendar: Calendar used for day bucketing. Injectable for tests.
     /// - Returns: A fully-derived snapshot.
     static func snapshot(
         from records: [PlayRecord],
+        lifetime: LifetimeTally = .empty,
         now: Date = Date(),
         calendar: Calendar = .current
     ) -> StatsSnapshot {
-        guard !records.isEmpty else { return .empty }
+        guard !records.isEmpty || !lifetime.isEmpty else { return .empty }
 
         let startOfToday = calendar.startOfDay(for: now)
         let weekStart = calendar.date(byAdding: .day, value: -6, to: startOfToday) ?? startOfToday
@@ -137,23 +141,31 @@ enum StatsAggregator {
             .prefix(AppConstants.History.recentDisplayCount)
 
         return StatsSnapshot(
-            totalPlays: records.count,
-            totalListeningSeconds: totalSeconds,
+            totalPlays: records.count + lifetime.trimmedPlayCount,
+            totalListeningSeconds: totalSeconds + lifetime.trimmedListeningSeconds,
             playsToday: todayPlays,
             listeningSecondsToday: todaySeconds,
             playsThisWeek: weekPlays,
             listeningSecondsThisWeek: weekSeconds,
-            topArtists: topItems(records, key: \.artistKey, name: \.artist, detail: nil),
-            topTracks: topItems(records, key: \.trackKey, name: \.track, detail: \.artist),
+            topArtists: topItems(
+                records, key: \.artistKey, name: \.artist, detail: nil,
+                merging: lifetime.artistCounts
+            ),
+            topTracks: topItems(
+                records, key: \.trackKey, name: \.track, detail: \.artist,
+                merging: lifetime.trackCounts
+            ),
             topAlbums: topItems(
                 records.filter { !$0.album.isEmpty },
-                key: \.albumKey, name: \.album, detail: \.artist
+                key: \.albumKey, name: \.album, detail: \.artist,
+                merging: lifetime.albumCounts
             ),
             last7Days: dailyBuckets(records, startOfToday: startOfToday, calendar: calendar),
             playsByHour: byHour,
             recent: Array(recent),
             topTrackToday: topItems(
-                todayRecords, key: \.trackKey, name: \.track, detail: \.artist
+                todayRecords, key: \.trackKey, name: \.track, detail: \.artist,
+                merging: [:]
             ).first
         )
     }
@@ -172,7 +184,8 @@ enum StatsAggregator {
         _ records: [PlayRecord],
         key: KeyPath<PlayRecord, String>,
         name: KeyPath<PlayRecord, String>,
-        detail: KeyPath<PlayRecord, String>?
+        detail: KeyPath<PlayRecord, String>?,
+        merging tally: [String: LifetimeTally.TallyEntry]
     ) -> [CountedItem] {
         struct Bucket {
             var name: String
@@ -181,6 +194,17 @@ enum StatsAggregator {
             var latest: Date
         }
         var buckets: [String: Bucket] = [:]
+
+        // Seed with the persisted lifetime counts. Records (live, newer) win
+        // the display-string tie-break because they're processed second.
+        for (groupKey, entry) in tally {
+            buckets[groupKey] = Bucket(
+                name: entry.name,
+                detail: entry.detail,
+                count: entry.count,
+                latest: .distantPast
+            )
+        }
 
         for record in records {
             let groupKey = record[keyPath: key]

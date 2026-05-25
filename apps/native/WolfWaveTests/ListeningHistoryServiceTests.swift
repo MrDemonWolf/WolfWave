@@ -25,7 +25,11 @@ struct ListeningHistoryServiceTests {
     }
 
     private func makeService(enabled: Bool, directory: URL) -> ListeningHistoryService {
-        ListeningHistoryService(store: PlayLogStore(directory: directory), enabled: enabled)
+        ListeningHistoryService(
+            store: PlayLogStore(directory: directory),
+            tallyStore: LifetimeTallyStore(directory: directory),
+            enabled: enabled
+        )
     }
 
     // MARK: - Scrobble Threshold
@@ -155,6 +159,125 @@ struct ListeningHistoryServiceTests {
         #expect(second.isLoaded)
         #expect(second.snapshot.totalPlays == 2)
         try? FileManager.default.removeItem(at: dir)
+    }
+
+    // MARK: - Rolling Window Cap
+
+    @Test("loadFromDisk trims to maxRetainedRecords and folds the rest into the lifetime tally")
+    func testLoadFromDiskTrimsToCap() async {
+        let dir = makeTempDirectory()
+        defer { try? FileManager.default.removeItem(at: dir) }
+
+        let cap = AppConstants.History.maxRetainedRecords
+        let overflow = 5
+        let total = cap + overflow
+
+        // Seed the play log directly with `total` records, oldest first.
+        let store = PlayLogStore(directory: dir)
+        let base = Date().addingTimeInterval(-Double(total) * 60) // 1/min back
+        var seeded: [PlayRecord] = []
+        seeded.reserveCapacity(total)
+        for i in 0..<total {
+            seeded.append(PlayRecord(
+                timestamp: base.addingTimeInterval(Double(i) * 60),
+                track: "T\(i)", artist: "A\(i % 50)", album: "Al",
+                duration: 200, playedSeconds: 200
+            ))
+        }
+        store.replaceAll(with: seeded)
+
+        let service = makeService(enabled: true, directory: dir)
+        await service.loadFromDisk()
+
+        #expect(service.records.count == cap)
+        #expect(service.snapshot.totalPlays == total)
+        // The newest record must still be present after trimming.
+        #expect(service.records.last?.track == "T\(total - 1)")
+
+        // The lifetime tally file must exist and reflect the trimmed overflow.
+        let tallyOnDisk = LifetimeTallyStore(directory: dir).load()
+        #expect(tallyOnDisk.trimmedPlayCount == overflow)
+    }
+
+    @Test("recordTrackChange past the cap folds the oldest play into the tally")
+    func testRecordPastCapFolds() async {
+        let dir = makeTempDirectory()
+        defer { try? FileManager.default.removeItem(at: dir) }
+
+        let cap = AppConstants.History.maxRetainedRecords
+
+        // Seed the disk log with `cap` records via replaceAll (fast), then
+        // load — service is at the cap with no trimming required.
+        let store = PlayLogStore(directory: dir)
+        let base = Date().addingTimeInterval(-Double(cap) * 60)
+        var seeded: [PlayRecord] = []
+        seeded.reserveCapacity(cap)
+        for i in 0..<cap {
+            seeded.append(PlayRecord(
+                timestamp: base.addingTimeInterval(Double(i) * 60),
+                track: "T\(i)", artist: "Wolf", album: "Al",
+                duration: 200, playedSeconds: 200
+            ))
+        }
+        store.replaceAll(with: seeded)
+
+        let service = makeService(enabled: true, directory: dir)
+        await service.loadFromDisk()
+        #expect(service.records.count == cap)
+
+        // One more push should evict the oldest into the tally.
+        service.recordTrackChange(
+            track: "Overflow", artist: "Wolf", album: "",
+            duration: 200, playedSeconds: 200
+        )
+        #expect(service.records.count == cap)
+        #expect(service.records.last?.track == "Overflow")
+        #expect(service.records.first?.track == "T1")
+        #expect(service.snapshot.totalPlays == cap + 1)
+        // The folded record (T0) should appear in the persisted tally.
+        let tally = LifetimeTallyStore(directory: dir).load()
+        #expect(tally.trimmedPlayCount == 1)
+        #expect(tally.trackCounts["t0|wolf"]?.count == 1)
+    }
+
+    @Test("shutdown synchronously persists compaction + tally when window overflowed")
+    func testShutdownPersistsCompaction() async {
+        let dir = makeTempDirectory()
+        defer { try? FileManager.default.removeItem(at: dir) }
+
+        let cap = AppConstants.History.maxRetainedRecords
+        let store = PlayLogStore(directory: dir)
+        let base = Date().addingTimeInterval(-Double(cap) * 60)
+        var seeded: [PlayRecord] = []
+        seeded.reserveCapacity(cap)
+        for i in 0..<cap {
+            seeded.append(PlayRecord(
+                timestamp: base.addingTimeInterval(Double(i) * 60),
+                track: "T\(i)", artist: "Wolf", album: "Al",
+                duration: 200, playedSeconds: 200
+            ))
+        }
+        store.replaceAll(with: seeded)
+
+        let service = makeService(enabled: true, directory: dir)
+        await service.loadFromDisk()
+        // Drive the service one record past the cap — fold + arm compaction.
+        service.recordTrackChange(
+            track: "Overflow", artist: "Wolf", album: "",
+            duration: 200, playedSeconds: 200
+        )
+
+        // shutdown() must compact the NDJSON and persist the tally synchronously.
+        service.shutdown()
+
+        let onDisk = PlayLogStore(directory: dir).loadAll()
+        #expect(onDisk.count == cap)
+        #expect(onDisk.last?.track == "Overflow")
+        #expect(onDisk.first?.track == "T1")
+
+        let tally = LifetimeTallyStore(directory: dir).load()
+        #expect(tally.trimmedPlayCount == 1)
+        #expect(tally.trackCounts["t0|wolf"]?.count == 1)
     }
 
     // MARK: - Chat Line

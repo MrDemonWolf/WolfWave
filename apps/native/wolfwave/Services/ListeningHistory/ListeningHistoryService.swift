@@ -38,6 +38,15 @@ final class ListeningHistoryService {
     // MARK: - Private
 
     private let store: PlayLogStore
+    private let tallyStore: LifetimeTallyStore
+
+    /// Lifetime tally of trimmed plays. Merged into every snapshot so
+    /// totals/top-N stay accurate after the rolling window evicts records.
+    private var lifetime: LifetimeTally = .empty
+
+    /// Set to `true` when `records` has been mutated past the cap but the
+    /// NDJSON file has not yet been compacted. Drives `shutdown()` rewrite.
+    private var needsCompaction = false
 
     // MARK: - Init
 
@@ -45,9 +54,15 @@ final class ListeningHistoryService {
     ///
     /// - Parameters:
     ///   - store: Backing play-log store. Defaults to the Application Support log.
+    ///   - tallyStore: Lifetime tally store. Defaults to the Application Support sidecar.
     ///   - enabled: Initial enabled state (typically the persisted UserDefaults value).
-    init(store: PlayLogStore = PlayLogStore(), enabled: Bool) {
+    init(
+        store: PlayLogStore = PlayLogStore(),
+        tallyStore: LifetimeTallyStore = LifetimeTallyStore(),
+        enabled: Bool
+    ) {
         self.store = store
+        self.tallyStore = tallyStore
         self.isEnabled = enabled
     }
 
@@ -76,7 +91,20 @@ final class ListeningHistoryService {
     }
 
     /// Flushes buffered writes — call before the app terminates.
+    ///
+    /// If the in-memory window has overflowed during this session, the play
+    /// log is compacted to the live records here so the next launch starts
+    /// from a normalized file. The lifetime tally is also persisted.
+    ///
+    /// Both writes run **synchronously** so they're guaranteed to complete
+    /// before `applicationWillTerminate` returns and the process exits — a
+    /// detached `Task` would be racing termination.
     func shutdown() {
+        if needsCompaction {
+            store.replaceAll(with: records)
+            tallyStore.save(lifetime)
+            needsCompaction = false
+        }
         store.flush()
     }
 
@@ -112,6 +140,20 @@ final class ListeningHistoryService {
         )
         store.append(record)
         records.append(record)
+
+        // Enforce the rolling window: fold the oldest record into the lifetime
+        // tally before dropping it. NDJSON compaction is deferred to shutdown
+        // so the hot path stays append-only.
+        let cap = AppConstants.History.maxRetainedRecords
+        if records.count > cap {
+            let overflow = records.count - cap
+            let evicted = Array(records.prefix(overflow))
+            records.removeFirst(overflow)
+            lifetime.fold(evicted)
+            tallyStore.save(lifetime)
+            needsCompaction = true
+        }
+
         rebuildSnapshot()
         Log.debug(
             "ListeningHistoryService: Recorded play — \(trimmedTrack) (\(Int(playedSeconds))s)",
@@ -122,7 +164,10 @@ final class ListeningHistoryService {
     /// Deletes all recorded history, on disk and in memory.
     func clearHistory() {
         store.clear()
+        tallyStore.clear()
         records = []
+        lifetime = .empty
+        needsCompaction = false
         rebuildSnapshot()
         Log.info("ListeningHistoryService: History cleared by user", category: AppConstants.History.logCategory)
     }
@@ -172,37 +217,80 @@ final class ListeningHistoryService {
 
     // MARK: - Private Helpers
 
-    /// Loads history from disk on a background task, applies retention, then
-    /// publishes the result on the main actor.
+    /// Loads history from disk on a background task, applies retention and the
+    /// rolling-window cap (folding evicted records into the lifetime tally),
+    /// then publishes the result on the main actor.
     ///
     /// Internal rather than private so tests can await it directly.
     func loadFromDisk() async {
         let store = self.store
+        let tallyStore = self.tallyStore
         let retentionDays = Foundation.UserDefaults.standard.integer(
             forKey: AppConstants.UserDefaults.historyRetentionDays
         )
-        let loaded = await Task.detached(priority: .utility) { () -> [PlayRecord] in
-            let all = store.loadAll()
-            guard retentionDays > 0 else { return all }
-            let cutoff = Date().addingTimeInterval(-Double(retentionDays) * 86_400)
-            let kept = all.filter { $0.timestamp >= cutoff }
-            if kept.count != all.count {
-                store.replaceAll(with: kept)
+        let cap = AppConstants.History.maxRetainedRecords
+
+        struct LoadResult {
+            let records: [PlayRecord]
+            let tally: LifetimeTally
+            let trimmedCount: Int
+        }
+
+        let result = await Task.detached(priority: .utility) { () -> LoadResult in
+            var tally = tallyStore.load()
+            var all = store.loadAll()
+            var rewrote = false
+
+            // 1. Day-based retention (existing behavior — these records are
+            //    *expired* by the user's setting, so they're dropped, NOT
+            //    folded into the lifetime tally).
+            if retentionDays > 0 {
+                let cutoff = Date().addingTimeInterval(-Double(retentionDays) * 86_400)
+                let kept = all.filter { $0.timestamp >= cutoff }
+                if kept.count != all.count {
+                    all = kept
+                    rewrote = true
+                }
             }
-            return kept
+
+            // 2. Rolling-window cap — fold the oldest overflow into the tally.
+            var trimmedCount = 0
+            if all.count > cap {
+                let overflow = all.count - cap
+                let evicted = Array(all.prefix(overflow))
+                all.removeFirst(overflow)
+                tally.fold(evicted)
+                tallyStore.save(tally)
+                trimmedCount = overflow
+                rewrote = true
+            }
+
+            if rewrote {
+                store.replaceAll(with: all)
+            }
+            return LoadResult(records: all, tally: tally, trimmedCount: trimmedCount)
         }.value
 
-        records = loaded
+        records = result.records
+        lifetime = result.tally
         isLoaded = true
+        needsCompaction = false
         rebuildSnapshot()
+        if result.trimmedCount > 0 {
+            Log.info(
+                "ListeningHistoryService: Trimmed \(result.trimmedCount) old plays into lifetime tally (cap \(cap))",
+                category: AppConstants.History.logCategory
+            )
+        }
         Log.info(
-            "ListeningHistoryService: Loaded \(loaded.count) plays from disk",
+            "ListeningHistoryService: Loaded \(result.records.count) plays from disk",
             category: AppConstants.History.logCategory
         )
     }
 
-    /// Recomputes `snapshot` from the current `records`.
+    /// Recomputes `snapshot` from the current `records` plus the persisted
+    /// `lifetime` tally so totals/top-N remain correct after trimming.
     private func rebuildSnapshot() {
-        snapshot = StatsAggregator.snapshot(from: records)
+        snapshot = StatsAggregator.snapshot(from: records, lifetime: lifetime)
     }
 }

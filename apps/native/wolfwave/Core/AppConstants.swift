@@ -669,6 +669,10 @@ nonisolated enum AppConstants {
         /// Append-only NDJSON play log filename.
         static let logFileName = "plays.ndjson"
 
+        /// Sidecar file holding the lifetime tally (totals + top-N per key)
+        /// that survives rolling-window record trimming.
+        static let lifetimeTallyFileName = "lifetime-tally.json"
+
         /// Minimum fraction of a track that must play before it counts as a play.
         static let scrobbleFraction: Double = 0.5
 
@@ -676,8 +680,19 @@ nonisolated enum AppConstants {
         /// of track length — mirrors Last.fm's 4-minute rule.
         static let scrobbleAbsoluteSeconds: TimeInterval = 240
 
-        /// Number of recent plays surfaced in the History & Stats settings pane.
-        static let recentDisplayCount = 8
+        /// Initial number of recent plays shown in the History & Stats pane.
+        static let recentDisplayCount = 10
+
+        /// How many additional plays the *Load more* button reveals per tap.
+        static let recentPageStep = 10
+
+        /// Maximum number of `PlayRecord`s retained on disk and in memory.
+        /// Older plays are folded into the lifetime tally and dropped.
+        static let maxRetainedRecords = 10_000
+
+        /// Per-dimension (artist/track/album) cap on the number of entries the
+        /// lifetime tally retains. When full, the lowest-count entry is evicted.
+        static let lifetimeTopKeyCap = 2_000
 
         /// Logging category for history-related log lines.
         static let logCategory = "History"
