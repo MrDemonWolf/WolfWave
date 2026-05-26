@@ -42,58 +42,25 @@ extension AppDelegate {
         }
     }
 
-    /// Shows the custom About window. Brings the existing window forward
-    /// if already open, otherwise creates and centers a new one.
+    /// Opens Settings and switches the sidebar to the About tab.
+    ///
+    /// About is no longer a standalone window — single source of truth lives
+    /// in `AboutSettingsView` (sidebar tab). The notification is queued after
+    /// `openSettings()` so a freshly-created `SettingsView` has its
+    /// `.onReceive(.openSettingsSection)` subscription active by the time it fires.
     @objc func showAbout() {
         statusItem?.menu?.cancelTracking()
+        openSettings()
 
-        if currentDockVisibilityMode == AppConstants.DockVisibility.menuOnly {
-            NSApp.setActivationPolicy(.regular)
-        }
-
-        // Defer past the current AppKit layout / menu-tracking pass to avoid
-        // "layoutSubtreeIfNeeded on a view already being laid out" warnings.
-        RunLoop.main.perform { [weak self] in
+        RunLoop.main.perform {
             MainActor.assumeIsolated {
-                guard let self else { return }
-
-                if let existing = self.aboutWindow {
-                    if existing.isMiniaturized { existing.deminiaturize(nil) }
-                    self.showWindow(existing)
-                    return
-                }
-
-                self.aboutWindow = self.createAboutWindow()
-                self.showWindow(self.aboutWindow)
+                NotificationCenter.default.post(
+                    name: .openSettingsSection,
+                    object: nil,
+                    userInfo: ["section": SettingsView.SettingsSection.about.rawValue]
+                )
             }
         }
-    }
-
-    /// Builds the About window. Mirrors `createSettingsWindow()` so that
-    /// `NSWindowDelegate` conformance is established inside MainActor-isolated
-    /// context (avoids actor-isolation warnings when the caller is a
-    /// nonisolated closure such as `RunLoop.main.perform`).
-    private func createAboutWindow() -> NSWindow {
-        let hosting = NSHostingController(rootView: AboutView())
-        let window = NSWindow(contentViewController: hosting)
-        window.title = "About \(appName)"
-        window.titleVisibility = .hidden
-        window.titlebarAppearsTransparent = true
-        window.isMovableByWindowBackground = true
-        window.styleMask = [.titled, .closable, .miniaturizable, .resizable, .fullSizeContentView]
-        window.setContentSize(NSSize(
-            width: DSDimension.About.windowWidth,
-            height: DSDimension.About.windowHeight
-        ))
-        window.contentMinSize = NSSize(
-            width: DSDimension.About.minWidth,
-            height: DSDimension.About.minHeight
-        )
-        window.isReleasedWhenClosed = false
-        window.collectionBehavior = [.moveToActiveSpace]
-        window.delegate = self
-        window.center()
-        return window
     }
 }
 
@@ -305,11 +272,6 @@ extension AppDelegate: NSWindowDelegate {
         } else if window === whatsNewWindow {
             Task { @MainActor [weak self] in
                 self?.whatsNewWindow = nil
-                self?.restoreMenuOnlyIfNeeded()
-            }
-        } else if window === aboutWindow {
-            Task { @MainActor [weak self] in
-                self?.aboutWindow = nil
                 self?.restoreMenuOnlyIfNeeded()
             }
         }

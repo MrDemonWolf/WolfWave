@@ -96,6 +96,10 @@ nonisolated enum AppConstants {
         /// the next `AEDeterminePermissionToAutomateTarget` poll.
         static let musicPermissionDenied = "MusicPermissionDenied"
 
+        /// Posted to request that the Settings window switch to a specific sidebar
+        /// section. UserInfo contains "section" String matching `SettingsView.SettingsSection.rawValue`.
+        static let openSettingsSection = "OpenSettingsSection"
+
         /// All notification names — used by the DEBUG-only notification firehose.
         static let allNames: [String] = [
             trackingSettingChanged,
@@ -117,6 +121,7 @@ nonisolated enum AppConstants {
             listeningHistorySettingChanged,
             musicPermissionDenied,
             streamerModeChanged,
+            openSettingsSection,
         ]
     }
 

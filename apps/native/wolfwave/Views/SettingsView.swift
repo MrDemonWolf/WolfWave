@@ -191,6 +191,11 @@ struct SettingsView: View {
                     UserDefaults.standard.removeObject(forKey: AppConstants.UserDefaults.selectedSettingsSection)
                 }
             }
+            .onReceive(NotificationCenter.default.publisher(for: .openSettingsSection)) { note in
+                guard let raw = note.userInfo?["section"] as? String,
+                      let section = SettingsSection(rawValue: raw) else { return }
+                selectedSection = section
+            }
         }
         .onAppear {
             // Link the view model to the app delegate's service (without reconnecting)

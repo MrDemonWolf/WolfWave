@@ -8,8 +8,10 @@
 import AppKit
 import SwiftUI
 
-/// Settings sidebar variant of `AboutView`. Same hero + actions + legal links,
-/// but laid out for the settings detail pane (no fixed frame, scroll-friendly).
+/// About pane shown in the Settings sidebar. Single source of truth for app
+/// identity, quick actions, and legal links — replaces the legacy standalone
+/// About window. Uses the same section-header + `.cardStyle()` rhythm as
+/// `AdvancedSettingsView` / `GeneralSettingsView`.
 struct AboutSettingsView: View {
 
     // MARK: - State
@@ -45,22 +47,33 @@ struct AboutSettingsView: View {
                 subtitle: "App info, links, and legal."
             )
 
-            VStack(spacing: DSSpace.s5) {
-                hero
-                versionPill
-                actionGrid
-                legalLinksRow
-                footer
-            }
-            .frame(maxWidth: .infinity)
-            .padding(AppConstants.SettingsUI.cardPadding)
-            .background(Color(nsColor: .controlBackgroundColor))
-            .clipShape(RoundedRectangle(cornerRadius: AppConstants.SettingsUI.cardCornerRadius))
+            identityCard
+            actionsCard
+            linksCard
         }
         .accessibilityIdentifier("about-settings.root")
     }
 
-    // MARK: - Hero
+    // MARK: - Identity Card
+
+    private var identityCard: some View {
+        VStack(alignment: .leading, spacing: DSSpace.s4) {
+            VStack(alignment: .leading, spacing: DSSpace.s1) {
+                Text("Identity")
+                    .font(.system(size: DSFont.Size.base, weight: .semibold))
+                Text("App name, version, and quick-copy build info.")
+                    .font(.system(size: DSFont.Size.sm))
+                    .foregroundStyle(.secondary)
+            }
+
+            VStack(spacing: DSSpace.s3) {
+                hero
+                versionPill
+            }
+            .frame(maxWidth: .infinity)
+        }
+        .cardStyle()
+    }
 
     private var hero: some View {
         VStack(spacing: DSSpace.s3) {
@@ -75,8 +88,6 @@ struct AboutSettingsView: View {
                 .accessibilityAddTraits(.isHeader)
         }
     }
-
-    // MARK: - Version Pill
 
     private var versionPill: some View {
         Button(action: copyVersion) {
@@ -96,7 +107,22 @@ struct AboutSettingsView: View {
         .accessibilityIdentifier("about-settings.versionPill")
     }
 
-    // MARK: - Action Grid
+    // MARK: - Actions Card
+
+    private var actionsCard: some View {
+        VStack(alignment: .leading, spacing: DSSpace.s4) {
+            VStack(alignment: .leading, spacing: DSSpace.s1) {
+                Text("Quick actions")
+                    .font(.system(size: DSFont.Size.base, weight: .semibold))
+                Text("Updates, release notes, feedback, and sponsorship.")
+                    .font(.system(size: DSFont.Size.sm))
+                    .foregroundStyle(.secondary)
+            }
+
+            actionGrid
+        }
+        .cardStyle()
+    }
 
     private var actionGrid: some View {
         Grid(horizontalSpacing: 8, verticalSpacing: 8) {
@@ -129,7 +155,26 @@ struct AboutSettingsView: View {
         .accessibilityIdentifier("about-settings.action.\(title)")
     }
 
-    // MARK: - Legal Links
+    // MARK: - Links & Legal Card
+
+    private var linksCard: some View {
+        VStack(alignment: .leading, spacing: DSSpace.s4) {
+            VStack(alignment: .leading, spacing: DSSpace.s1) {
+                Text("Links & legal")
+                    .font(.system(size: DSFont.Size.base, weight: .semibold))
+                Text("Documentation, policies, and attributions.")
+                    .font(.system(size: DSFont.Size.sm))
+                    .foregroundStyle(.secondary)
+            }
+
+            VStack(spacing: DSSpace.s3) {
+                legalLinksRow
+                footer
+            }
+            .frame(maxWidth: .infinity)
+        }
+        .cardStyle()
+    }
 
     private var legalLinksRow: some View {
         HStack(spacing: DSSpace.s3) {
@@ -154,8 +199,6 @@ struct AboutSettingsView: View {
         .font(.system(size: DSFont.Size.sm))
         .accessibilityElement(children: .contain)
     }
-
-    // MARK: - Footer
 
     private var footer: some View {
         VStack(spacing: 6) {
@@ -187,11 +230,15 @@ struct AboutSettingsView: View {
     }
 
     private func checkForUpdates() {
-        AppDelegate.shared?.sparkleUpdater?.checkForUpdates()
+        if AppDelegate.shared?.sparkleUpdater?.checkForUpdates() != true {
+            if let url = URL(string: AppConstants.URLs.githubReleases) {
+                NSWorkspace.shared.open(url)
+            }
+        }
     }
 
     private func openReleaseNotes() {
-        guard let url = URL(string: AppConstants.URLs.githubReleases) else { return }
+        guard let url = URL(string: AppConstants.URLs.changelog) else { return }
         NSWorkspace.shared.open(url)
     }
 

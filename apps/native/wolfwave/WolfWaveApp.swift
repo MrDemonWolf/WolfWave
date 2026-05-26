@@ -88,7 +88,6 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     var settingsWindow: NSWindow?
     var onboardingWindow: NSWindow?
     var whatsNewWindow: NSWindow?
-    var aboutWindow: NSWindow?
     var twitchService: TwitchChatService?
     var discordService: DiscordRPCService?
     var sparkleUpdater: SparkleUpdaterService?
