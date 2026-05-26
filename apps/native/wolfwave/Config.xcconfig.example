@@ -34,6 +34,26 @@ GITHUB_REPO_OWNER = your_github_username
 GITHUB_REPO_NAME = wolfwave
 
 // ----------------------------------------------------------------------------
+// FORK BRANDING (optional)
+// ----------------------------------------------------------------------------
+// Overrides for forks/whitelabels. Defaults match the upstream MrDemonWolf
+// build — change these to point at your own docs site, community, and legal
+// entity. Each value falls back to the upstream default if left blank.
+//
+// To rename the app itself, edit CFBundleDisplayName in Info.plist (or set
+// PRODUCT_NAME in an xcconfig overlay — see Config.Debug.xcconfig).
+// ----------------------------------------------------------------------------
+
+// Documentation site root. Privacy/terms/changelog pages derive from this.
+DOCS_URL = https://mrdemonwolf.github.io/wolfwave
+
+// Community Discord invite — opened from tray menu "Help ▸ Join Discord Community".
+COMMUNITY_DISCORD_URL = https://mrdwolf.net/discord
+
+// Legal entity shown in About + Monthly Wrap footers.
+COPYRIGHT_HOLDER = MrDemonWolf, Inc.
+
+// ----------------------------------------------------------------------------
 // ADVANCED: PER-ENVIRONMENT OVERRIDES
 // ----------------------------------------------------------------------------
 // Create Config.Debug.xcconfig or Config.Release.xcconfig to override values

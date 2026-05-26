@@ -45,6 +45,11 @@ Open `apps/native/wolfwave/Config.xcconfig` and set your keys:
 ```
 TWITCH_CLIENT_ID = your_twitch_client_id_here
 DISCORD_CLIENT_ID = your_discord_client_id_here
+
+# Optional — fork/whitelabel branding overrides. Leave as-is for the upstream defaults.
+DOCS_URL = https://mrdemonwolf.github.io/wolfwave
+COMMUNITY_DISCORD_URL = https://mrdwolf.net/discord
+COPYRIGHT_HOLDER = MrDemonWolf, Inc.
 ```
 
 <Callout type="info">
@@ -56,6 +61,14 @@ DISCORD_CLIENT_ID = your_discord_client_id_here
 
 <Callout type="warn">
   `Config.xcconfig` is gitignored — each contributor uses their own.
+</Callout>
+
+<Callout type="info">
+  **Forking WolfWave?** Override `DOCS_URL`, `COMMUNITY_DISCORD_URL`, and
+  `COPYRIGHT_HOLDER` to point at your own site, community, and legal entity.
+  Each falls back to the upstream MrDemonWolf default if left blank. To rename
+  the app itself, edit `CFBundleDisplayName` in `Info.plist` (or set
+  `PRODUCT_NAME` in an xcconfig overlay).
 </Callout>
 
 ## Open the Project

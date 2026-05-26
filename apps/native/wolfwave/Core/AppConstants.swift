@@ -16,12 +16,64 @@ import AppKit
 import SwiftUI
 
 nonisolated enum AppConstants {
+    // MARK: - Info.plist Helper
+
+    /// Reads a string from Info.plist, trims whitespace, treats the literal
+    /// `$(KEY)` placeholder as missing, then falls back to the environment
+    /// variable of the same name, then to `fallback`.
+    ///
+    /// Used to source brand- and fork-configurable values from
+    /// `Config.xcconfig` (expanded into Info.plist at build time) while
+    /// keeping a sane default baked into the binary.
+    static func infoPlistString(_ key: String, fallback: String) -> String {
+        infoPlistString(
+            key,
+            fallback: fallback,
+            plistLookup: { Bundle.main.object(forInfoDictionaryKey: $0) as? String },
+            envLookup: { ProcessInfo.processInfo.environment[$0] }
+        )
+    }
+
+    /// Testable variant: takes injectable Info.plist and environment lookups.
+    static func infoPlistString(
+        _ key: String,
+        fallback: String,
+        plistLookup: (String) -> String?,
+        envLookup: (String) -> String?
+    ) -> String {
+        if let plistValue = plistLookup(key) {
+            let trimmed = plistValue.trimmingCharacters(in: .whitespacesAndNewlines)
+            if !trimmed.isEmpty, trimmed != "$(\(key))" {
+                return trimmed
+            }
+        }
+        if let env = envLookup(key) {
+            let trimmed = env.trimmingCharacters(in: .whitespacesAndNewlines)
+            if !trimmed.isEmpty { return trimmed }
+        }
+        return fallback
+    }
+
     // MARK: - App Identifiers
-    
+
     /// Application bundle and display information.
     enum AppInfo {
         static let bundleIdentifier = "com.mrdemonwolf.wolfwave"
-        static let displayName = "WolfWave"
+
+        /// User-facing app name. Reads `CFBundleDisplayName` (set in Info.plist
+        /// and overridden per build configuration via `PRODUCT_NAME` /
+        /// `Config.Debug.xcconfig`). Forks rename by editing those.
+        static let displayName = infoPlistString(
+            "CFBundleDisplayName",
+            fallback: "WolfWave"
+        )
+
+        /// Legal entity shown in About + Monthly Wrap footers.
+        /// Override via `COPYRIGHT_HOLDER` in `Config.xcconfig`.
+        static let copyrightHolder = infoPlistString(
+            "COPYRIGHT_HOLDER",
+            fallback: "MrDemonWolf, Inc."
+        )
     }
     
     // MARK: - Notifications
@@ -749,57 +801,34 @@ nonisolated enum AppConstants {
 
     /// Application URLs for documentation, legal, and GitHub.
     enum URLs {
-        /// Documentation site URL
-        static let docs = "https://mrdemonwolf.github.io/wolfwave"
+        /// Documentation site URL. Override via `DOCS_URL` in `Config.xcconfig`.
+        static let docs = infoPlistString(
+            "DOCS_URL",
+            fallback: "https://mrdemonwolf.github.io/wolfwave"
+        )
 
-        /// Privacy policy page URL
-        static let privacyPolicy = "https://mrdemonwolf.github.io/wolfwave/docs/privacy-policy"
+        /// Privacy policy page URL (derived from `docs`).
+        static let privacyPolicy = "\(docs)/docs/privacy-policy"
 
-        /// Terms of service page URL
-        static let termsOfService = "https://mrdemonwolf.github.io/wolfwave/docs/terms-of-service"
+        /// Terms of service page URL (derived from `docs`).
+        static let termsOfService = "\(docs)/docs/terms-of-service"
 
         /// Documentation changelog page URL (Fumadocs route).
         static let changelog = "\(docs)/docs/changelog"
 
-        /// GitHub repository owner (cached at first access).
-        ///
-        /// Lookup order:
-        /// 1. `GITHUB_REPO_OWNER` key in Info.plist (expanded from Config.xcconfig at build time)
-        /// 2. `GITHUB_REPO_OWNER` environment variable (for dev/CI overrides)
-        /// 3. Fallback to "mrdemonwolf"
-        static let repoOwner: String = {
-            if let plistValue = Bundle.main.object(forInfoDictionaryKey: "GITHUB_REPO_OWNER") as? String {
-                let trimmed = plistValue.trimmingCharacters(in: .whitespacesAndNewlines)
-                if !trimmed.isEmpty, trimmed != "$(GITHUB_REPO_OWNER)" {
-                    return trimmed
-                }
-            }
-            if let env = ProcessInfo.processInfo.environment["GITHUB_REPO_OWNER"] {
-                let trimmed = env.trimmingCharacters(in: .whitespacesAndNewlines)
-                if !trimmed.isEmpty { return trimmed }
-            }
-            return "mrdemonwolf"
-        }()
+        /// GitHub repository owner. Lookup: `GITHUB_REPO_OWNER` Info.plist key
+        /// → env var → `"mrdemonwolf"`.
+        static let repoOwner = infoPlistString(
+            "GITHUB_REPO_OWNER",
+            fallback: "mrdemonwolf"
+        )
 
-        /// GitHub repository name (cached at first access).
-        ///
-        /// Lookup order:
-        /// 1. `GITHUB_REPO_NAME` key in Info.plist (expanded from Config.xcconfig at build time)
-        /// 2. `GITHUB_REPO_NAME` environment variable (for dev/CI overrides)
-        /// 3. Fallback to "wolfwave"
-        static let repoName: String = {
-            if let plistValue = Bundle.main.object(forInfoDictionaryKey: "GITHUB_REPO_NAME") as? String {
-                let trimmed = plistValue.trimmingCharacters(in: .whitespacesAndNewlines)
-                if !trimmed.isEmpty, trimmed != "$(GITHUB_REPO_NAME)" {
-                    return trimmed
-                }
-            }
-            if let env = ProcessInfo.processInfo.environment["GITHUB_REPO_NAME"] {
-                let trimmed = env.trimmingCharacters(in: .whitespacesAndNewlines)
-                if !trimmed.isEmpty { return trimmed }
-            }
-            return "wolfwave"
-        }()
+        /// GitHub repository name. Lookup: `GITHUB_REPO_NAME` Info.plist key
+        /// → env var → `"wolfwave"`.
+        static let repoName = infoPlistString(
+            "GITHUB_REPO_NAME",
+            fallback: "wolfwave"
+        )
 
         /// GitHub repository URL (resolved from config)
         static let github = "https://github.com/\(repoOwner)/\(repoName)"
@@ -829,7 +858,11 @@ nonisolated enum AppConstants {
         static var githubSponsors: String { "https://github.com/sponsors/\(sponsorUser)" }
 
         /// Community Discord invite — opened from the tray menu "Help ▸ Join Discord Community".
-        static let communityDiscord = "https://mrdwolf.net/discord"
+        /// Override via `COMMUNITY_DISCORD_URL` in `Config.xcconfig`.
+        static let communityDiscord = infoPlistString(
+            "COMMUNITY_DISCORD_URL",
+            fallback: "https://mrdwolf.net/discord"
+        )
     }
 
     // MARK: - WebSocket Server

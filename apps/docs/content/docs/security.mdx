@@ -91,10 +91,17 @@ API keys are stored in `Config.xcconfig`:
 |-----|---------|------------|
 | `TWITCH_CLIENT_ID` | Identifies the app to Twitch | Public (not a secret) |
 | `DISCORD_CLIENT_ID` | Identifies the app to Discord | Public (not a secret) |
+| `GITHUB_REPO_OWNER` | GitHub owner used for Sparkle updates + issue links | Public (branding) |
+| `GITHUB_REPO_NAME` | GitHub repo name used for Sparkle updates + issue links | Public (branding) |
+| `DOCS_URL` | Documentation site root; privacy/terms/changelog derive from it | Public (branding) |
+| `COMMUNITY_DISCORD_URL` | Community Discord invite in tray menu | Public (branding) |
+| `COPYRIGHT_HOLDER` | Legal entity in About + Monthly Wrap footers | Public (branding) |
 
 <Callout type="info">
-  Both values are public OAuth client identifiers, not secrets. They identify your
-  application to the respective services.
+  All values are public — OAuth client identifiers and branding strings, not
+  secrets. The branding keys (`DOCS_URL`, `COMMUNITY_DISCORD_URL`,
+  `COPYRIGHT_HOLDER`, plus the two `GITHUB_REPO_*`) are optional fork
+  overrides; each falls back to the upstream MrDemonWolf default if blank.
 </Callout>
 
 ## Entitlements

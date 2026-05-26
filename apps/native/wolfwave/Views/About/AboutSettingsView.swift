@@ -208,7 +208,7 @@ struct AboutSettingsView: View {
                 .multilineTextAlignment(.center)
                 .fixedSize(horizontal: false, vertical: true)
 
-            Text("© 2026 MrDemonWolf, Inc. All rights reserved.")
+            Text("© 2026 \(AppConstants.AppInfo.copyrightHolder) All rights reserved.")
                 .font(.system(size: DSFont.Size.xs))
                 .foregroundStyle(.tertiary)
         }
