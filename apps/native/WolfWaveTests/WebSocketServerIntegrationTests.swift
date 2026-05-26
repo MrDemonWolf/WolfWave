@@ -153,4 +153,73 @@ final class WebSocketServerIntegrationTests: XCTestCase, @unchecked Sendable {
         let stream = service.stateChanges
         _ = stream
     }
+
+    // MARK: - Replay-on-Connect Tests
+
+    /// A freshly-connected client should immediately receive the last-known
+    /// `now_playing` frame so the widget doesn't sit on a blank placeholder
+    /// when OBS restarts the browser source mid-stream.
+    func testFreshConnectionReceivesLastKnownState() {
+        let port: UInt16 = 59009
+        let service = WebSocketServerService(port: port)
+
+        let listening = expectation(description: "server listening")
+        let listenObs = observe(service, fulfilling: listening) { state, _ in state == .listening }
+        Task { await service.setEnabled(true) }
+        wait(for: [listening], timeout: 5)
+        listenObs.cancel()
+
+        // Seed state before any client connects.
+        let stateSeeded = expectation(description: "state seeded")
+        Task {
+            await service.updateNowPlaying(
+                track: "Replay Test Track",
+                artist: "Test Artist",
+                album: "Test Album",
+                duration: 200,
+                elapsed: 12,
+                artworkURL: nil
+            )
+            stateSeeded.fulfill()
+        }
+        wait(for: [stateSeeded], timeout: 5)
+
+        // Open a client. Service was constructed with the test-only `init(port:)`,
+        // so `authToken` is nil and any handshake is accepted.
+        guard let url = URL(string: "ws://127.0.0.1:\(port)/") else {
+            XCTFail("bad ws url"); return
+        }
+        let session = URLSession(configuration: .ephemeral)
+        let task = session.webSocketTask(with: url)
+        task.resume()
+
+        // Drain frames until we see a `now_playing` carrying our seeded track.
+        let gotState = expectation(description: "received now_playing replay")
+        func recv() {
+            task.receive { result in
+                switch result {
+                case .success(let message):
+                    let text: String
+                    switch message {
+                    case .string(let s): text = s
+                    case .data(let d): text = String(data: d, encoding: .utf8) ?? ""
+                    @unknown default: text = ""
+                    }
+                    if text.contains("\"type\":\"now_playing\"") && text.contains("Replay Test Track") {
+                        gotState.fulfill()
+                        return
+                    }
+                    recv()
+                case .failure:
+                    return
+                }
+            }
+        }
+        recv()
+
+        wait(for: [gotState], timeout: 5)
+
+        task.cancel(with: .normalClosure, reason: nil)
+        Task { await service.setEnabled(false) }
+    }
 }

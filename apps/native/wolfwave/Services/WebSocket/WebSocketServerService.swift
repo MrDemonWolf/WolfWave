@@ -493,7 +493,13 @@ actor WebSocketServerService {
         let playing = isPlaying
         let artwork = currentArtworkURL
 
-        guard let track, let artist, let album else { return }
+        guard let track, let artist, let album else {
+            Log.debug(
+                "WebSocketServerService: No playback state to replay on connect",
+                category: "WebSocket"
+            )
+            return
+        }
 
         let message: [String: Any] = [
             "type": "now_playing",
@@ -503,6 +509,10 @@ actor WebSocketServerService {
                 "isPlaying": playing, "artworkURL": artwork ?? "",
             ],
         ]
+        Log.debug(
+            "WebSocketServerService: Replaying last-known state to new client (track=\(track))",
+            category: "WebSocket"
+        )
         Self.sendJSON(message, to: connection)
     }
 

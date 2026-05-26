@@ -48,6 +48,11 @@ nonisolated final class WidgetHTTPService: @unchecked Sendable {
     /// live auth token before sending the response.
     private static let tokenPlaceholder = "__WOLFWAVE_TOKEN__"
 
+    /// `<script src>` tag in the bundled `widget.html` that we replace with an
+    /// inlined `<script>` block carrying `widget-tokens.generated.js` so the
+    /// browser doesn't have to make a second HTTP round-trip before first paint.
+    private static let tokensScriptTag = "<script src=\"widget-tokens.generated.js\"></script>"
+
     // MARK: - Init
 
     /// Creates a widget HTTP service.
@@ -174,7 +179,7 @@ nonisolated final class WidgetHTTPService: @unchecked Sendable {
         }
 
         let isLoopback = Self.isLoopbackPeer(connection)
-        let rendered: String
+        var rendered: String
         if isLoopback, let token = authToken, WebSocketAuthToken.isValid(token) {
             // `isValid` gates the substitution on hex-only / bounded length so a
             // corrupted or hand-edited token can't inject `</script>` or other
@@ -189,6 +194,21 @@ nonisolated final class WidgetHTTPService: @unchecked Sendable {
             }
             rendered = raw
         }
+
+        // Inline widget-tokens.generated.js to save the second HTTP round-trip
+        // on first paint. If the bundle asset is missing, leave the original
+        // <script src> tag so the /widget-tokens.generated.js route still works.
+        if let tokensURL = Bundle.main.url(forResource: "widget-tokens.generated", withExtension: "js"),
+           let tokensJS = try? String(contentsOf: tokensURL, encoding: .utf8) {
+            let inlined = "<script>\n" + tokensJS + "\n</script>"
+            rendered = rendered.replacingOccurrences(of: Self.tokensScriptTag, with: inlined)
+        } else {
+            Log.warn(
+                "WidgetHTTPService: widget-tokens.generated.js not found in bundle — falling back to external <script src>",
+                category: "WebSocket"
+            )
+        }
+
         let body = Data(rendered.utf8)
 
         let header = "HTTP/1.1 200 OK\r\n" +

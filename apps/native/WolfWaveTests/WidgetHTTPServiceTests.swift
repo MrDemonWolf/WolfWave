@@ -93,4 +93,70 @@ final class WidgetHTTPServiceTests: XCTestCase {
         service.stop()
         // No crash = pass
     }
+
+    // MARK: - Served HTML Body Tests
+
+    /// Fetches `GET /` from the running service and returns the body as a string.
+    private func fetchServedWidget(port: UInt16, timeout: TimeInterval = 5) -> String? {
+        guard let url = URL(string: "http://127.0.0.1:\(port)/") else { return nil }
+        let exp = expectation(description: "fetch /")
+        var body: String?
+        let config = URLSessionConfiguration.ephemeral
+        config.requestCachePolicy = .reloadIgnoringLocalAndRemoteCacheData
+        let session = URLSession(configuration: config)
+        let task = session.dataTask(with: url) { data, _, _ in
+            if let data { body = String(data: data, encoding: .utf8) }
+            exp.fulfill()
+        }
+        task.resume()
+        wait(for: [exp], timeout: timeout)
+        return body
+    }
+
+    func testServedWidgetInlinesTokensJS() {
+        let port: UInt16 = 59997
+        let service = WidgetHTTPService(port: port)
+        service.start()
+        defer { service.stop() }
+
+        // Give the listener a beat to bind.
+        Thread.sleep(forTimeInterval: 0.2)
+
+        guard let body = fetchServedWidget(port: port) else {
+            XCTFail("Failed to fetch served widget.html")
+            return
+        }
+
+        XCTAssertTrue(
+            body.contains("window.WW_TOKENS"),
+            "Served HTML should contain inlined window.WW_TOKENS literal from widget-tokens.generated.js"
+        )
+        XCTAssertFalse(
+            body.contains("<script src=\"widget-tokens.generated.js\"></script>"),
+            "Served HTML should not still reference the external tokens JS — it should be inlined"
+        )
+    }
+
+    func testServedWidgetContainsPlaceholder() {
+        let port: UInt16 = 59996
+        let service = WidgetHTTPService(port: port)
+        service.start()
+        defer { service.stop() }
+
+        Thread.sleep(forTimeInterval: 0.2)
+
+        guard let body = fetchServedWidget(port: port) else {
+            XCTFail("Failed to fetch served widget.html")
+            return
+        }
+
+        XCTAssertTrue(
+            body.contains("class=\"placeholder\""),
+            "Served HTML should include the pre-WebSocket placeholder so the page doesn't render blank"
+        )
+        XCTAssertTrue(
+            body.contains("Waiting for music"),
+            "Placeholder should carry the 'Waiting for music' copy"
+        )
+    }
 }

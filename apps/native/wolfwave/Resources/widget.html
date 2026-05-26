@@ -33,6 +33,21 @@ body { width: 100%; height: 100%; background: transparent; overflow: hidden; fon
   filter: blur(0px);
 }
 
+/* Pre-WebSocket placeholder — visible immediately so the page never looks
+   blank while we wait for the first now_playing frame. buildWidget() blows
+   this away with innerHTML when a real track arrives. */
+#widget.placeholder {
+  max-width: 500px; height: 100px;
+  background: rgba(20, 20, 28, 0.55);
+  border-radius: 12px;
+  display: flex; align-items: center; justify-content: center;
+  opacity: 0.55;
+  transform: translateY(0) scale(1);
+  filter: blur(0px);
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 13px;
+}
+
 /* Blur layer */
 .blur-layer {
   position: absolute; inset: 0; transform: scale(1.4);
@@ -81,7 +96,7 @@ body { width: 100%; height: 100%; background: transparent; overflow: hidden; fon
 </head>
 <body>
 <div id="root">
-  <div id="widget" class="hidden"></div>
+  <div id="widget" class="placeholder">Waiting for music&hellip;</div>
 </div>
 <script src="widget-tokens.generated.js"></script>
 <script>
@@ -202,7 +217,7 @@ function stopProgressLoop() {
 function showWidget() {
   visible = true;
   const el = document.getElementById('widget');
-  if (el) { el.classList.remove('hidden'); el.classList.add('visible'); }
+  if (el) { el.classList.remove('hidden'); el.classList.remove('placeholder'); el.classList.add('visible'); }
   if (hideTimer) clearTimeout(hideTimer);
   if (autohide > 0) {
     hideTimer = setTimeout(function() { hideWidget(); }, autohide * 1000);
