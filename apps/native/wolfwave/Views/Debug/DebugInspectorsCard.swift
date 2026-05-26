@@ -30,20 +30,25 @@ struct DebugInspectorsCard: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: DSSpace.s6) {
-            HStack(spacing: 6) {
-                Image(systemName: "magnifyingglass")
-                    .foregroundStyle(.blue)
-                Text("State Inspectors")
-                    .sectionSubHeader()
-                Spacer()
-                Button {
-                    refreshTick &+= 1
-                } label: {
-                    Image(systemName: "arrow.clockwise")
+            VStack(alignment: .leading, spacing: DSSpace.s1) {
+                HStack(spacing: 6) {
+                    Image(systemName: "magnifyingglass")
+                        .foregroundStyle(.blue)
+                    Text("State Inspectors")
+                        .sectionSubHeader()
+                    Spacer()
+                    Button {
+                        refreshTick &+= 1
+                    } label: {
+                        Image(systemName: "arrow.clockwise")
+                    }
+                    .buttonStyle(.borderless)
+                    .pointerCursor()
+                    .help("Refresh values")
                 }
-                .buttonStyle(.borderless)
-                .pointerCursor()
-                .help("Refresh values")
+                Text("Live state from Keychain and services. Read-only.")
+                    .font(.system(size: DSFont.Size.body))
+                    .foregroundStyle(.secondary)
             }
 
             bundleSection

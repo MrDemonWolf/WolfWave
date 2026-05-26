@@ -28,11 +28,16 @@ struct DebugLogsAndEventsCard: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: DSSpace.s6) {
-            HStack(spacing: 6) {
-                Image(systemName: "doc.text.magnifyingglass")
-                    .foregroundStyle(.indigo)
-                Text("Logs & Events")
-                    .sectionSubHeader()
+            VStack(alignment: .leading, spacing: DSSpace.s1) {
+                HStack(spacing: 6) {
+                    Image(systemName: "doc.text.magnifyingglass")
+                        .foregroundStyle(.indigo)
+                    Text("Logs & Events")
+                        .sectionSubHeader()
+                }
+                Text("Log file stats, export, and notification probes.")
+                    .font(.system(size: DSFont.Size.body))
+                    .foregroundStyle(.secondary)
             }
 
             logsSection
