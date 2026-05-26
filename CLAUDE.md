@@ -27,7 +27,7 @@ bun run build --filter docs              # Build docs site
 ```bash
 make build          # Debug build via xcodebuild
 make clean          # Clean build artifacts
-make test           # Run unit tests (1218 tests across 42 test files)
+make test           # Run unit tests (~65 test files; run locally for current pass count)
 make test-verbose   # Run unit tests with full xcodebuild output
 make test-ci        # Run unit tests in CI mode (writes TestResults.xcresult)
 make update-deps    # Resolve SwiftPM dependencies
@@ -86,19 +86,21 @@ If a future SDK introduces a new bridge type, **add a branch to `extractPlayerSt
 
 ### Source layout (`apps/native/WolfWave/`)
 
-- **Core/** — `AppConstants.swift` + `AppConstants+Notifications.swift` (centralized config enums for keys, identifiers, timing, notification names), the `AppDelegate+*` extensions, `KeychainService.swift` (macOS Security framework wrapper), `Logger.swift` (structured logging), `PowerStateMonitor.swift`, `NetworkInfoService.swift` (LAN IP cache), `SongRequestItem.swift`, `BlocklistItem.swift`. Foundation utilities: `HTTPClient.swift` (shared async HTTP wrapper), `JSONCoders.swift` (shared `JSONEncoder`/`JSONDecoder`), `BugReportURL.swift` (pre-filled GitHub issue URL builder), `Bundle+InstallMethod.swift` (DMG vs Homebrew install detection).
+- **Core/** — `AppConstants.swift` + `AppConstants+Notifications.swift` (centralized config enums for keys, identifiers, timing, notification names), the `AppDelegate+*` extensions, `KeychainService.swift` (macOS Security framework wrapper), `Logger.swift` (structured logging), `PowerStateMonitor.swift`, `NetworkInfoService.swift` (LAN IP cache), `StreamerMode.swift` (UI-only masking of sensitive values for on-camera safety — observable singleton read across settings views and the menu bar), `SongRequestItem.swift`, `BlocklistItem.swift`. Foundation utilities: `HTTPClient.swift` (shared async HTTP wrapper), `JSONCoders.swift` (shared `JSONEncoder`/`JSONDecoder`), `BugReportURL.swift` (pre-filled GitHub issue URL builder), `Bundle+InstallMethod.swift` (DMG vs Homebrew install detection).
 - **Monitors/** — Playback source abstraction. `PlaybackSource.swift` (protocol), `AppleMusicSource.swift` (ScriptingBridge + distributed notifications + 2s fallback polling), `PlaybackSourceManager.swift` (selects + multiplexes sources). Delegate pattern via `PlaybackSourceDelegate`.
 - **Services/Twitch/** — `TwitchChatService.swift` (EventSub WebSocket + Helix chat API, thread-safe with NSLock, network path monitoring for reconnection, Twitch user ID redacted in logs; also dispatches `channel.channel_points_custom_reward_redemption.add` and `channel.bits.use` events into the song-request pipeline), `TwitchChannelPointsService.swift` (Helix create / reconcile / fulfill / cancel for the WolfWave-managed "Request a Song" reward), `TwitchDeviceAuth.swift` (OAuth Device Code flow).
 - **Services/Twitch/Commands/** — `BotCommand` protocol (`triggers`, `description`, `execute(message:) -> String?`), `AsyncBotCommand` for I/O-bound commands, `BotCommandContext`, `BotCommandDispatcher`. Concrete commands: `TrackInfoCommand` (used for both `!song` and `!last`), `SongRequestCommand`, `QueueCommand`, `MyQueueCommand`, `SkipCommand`, `HoldCommand`, `ClearQueueCommand`, `VoteSkipCommand` (chat vote-to-skip). `CooldownManager` enforces global + per-user cooldowns.
 - **Services/SongRequest/** — `SongRequestService.swift` (request flow orchestrator; `processRequest(query:username:source:)` takes a `RequestSource` so chat commands, channel-point redemptions, and bit cheers share the same pipeline), `SongRequestAccess.swift` (`RequestAudience` chat-command gate, `RequestSource`, `SongRequestPreset` one-tap configurations, `RedemptionStatus` for the settings re-auth banner), `SongRequestQueue.swift` (queue with hold mode, Music.app-closed buffering, and a `boost(username:)` method for bit-cheer boosts), `SkipVoteManager.swift` (chat vote-to-skip sessions — chat tally or Twitch Polls), `SongSearchResolver.swift` + `LinkResolverService.swift` (MusicKit search / Apple Music link resolve), `AppleMusicController.swift` (AppleScript playback with focus preservation), `SongBlocklist.swift`.
 - **Services/Discord/** — `DiscordRPCService.swift` (Discord Rich Presence via local IPC Unix domain socket, auto-reconnect with backoff).
 - **Services/UpdateChecker/** — `SparkleUpdaterService.swift` (Sparkle framework wrapper for auto-updates, EdDSA-signed appcast verification, Homebrew install detection disables Sparkle, DEBUG mode allows manual check via bundled `dev-appcast.xml`).
-- **Services/WebSocket/** — `WebSocketServerService.swift` (overlay broadcast), `WidgetHTTPService.swift` (static widget HTTP server).
-- **Services/** — `ArtworkService.swift` (iTunes Search artwork fetch + cache), `LaunchAtLoginService.swift`.
-- **Views/** — SwiftUI settings shell `SettingsView.swift` with `NavigationSplitView` sidebar. Per-section views decomposed into `GeneralSettingsView.swift`, `MusicMonitor/MusicMonitorSettingsView.swift`, `AppVisibility/AppVisibilitySettingsView.swift`, `WebSocket/WebSocketSettingsView.swift`, `Twitch/TwitchSettingsView.swift`, `Discord/DiscordSettingsView.swift`, `SongRequest/SongRequestSettingsView.swift` + `SongRequestQueueView.swift`, `Advanced/AdvancedSettingsView.swift`. `TwitchViewModel` is the main observable for auth/connection state.
+- **Services/WebSocket/** — `WebSocketServerService.swift` (overlay broadcast, per-install auth-token handshake — connections must present `Sec-WebSocket-Protocol: wolfwave.token.<hex>` or get rejected), `WidgetHTTPService.swift` (static widget HTTP server; auto-injects the auth token into served `widget.html` for loopback peers).
+- **Services/ListeningHistory/** — `ListeningHistoryService.swift` (opt-in, on-device append-only NDJSON play log; records a track only after it crosses the half-length or 4-minute mark so skips don't count), `StatsAggregator.swift` (top artists / listening time / 7-day trend / listening-by-hour rollups powering History & Stats), `MonthlyWrap.swift` (per-month "wrapped"-style summary + share-card export), `HistoryFormatting.swift` (date/duration formatting helpers).
+- **Services/Notifications/** — `NotificationService.swift` (opt-in song-change banner via `UNUserNotificationCenter`; reuses a stable identifier so a new track replaces the previous banner instead of stacking).
+- **Services/** — `ArtworkService.swift` (iTunes Search artwork fetch + cache), `LaunchAtLoginService.swift`, plus `DiagnosticsService.swift` (opt-in MetricKit diagnostics + share card).
+- **Views/** — SwiftUI settings shell `SettingsView.swift` with `NavigationSplitView` sidebar. Per-section views decomposed into `GeneralSettingsView.swift`, `MusicMonitor/MusicMonitorSettingsView.swift`, `AppVisibility/AppVisibilitySettingsView.swift`, `WebSocket/WebSocketSettingsView.swift` (Stream Widgets — token reveal/regenerate/edit controls), `Twitch/TwitchSettingsView.swift`, `Discord/DiscordSettingsView.swift`, `SongRequest/SongRequestSettingsView.swift` + `SongRequestQueueView.swift`, `Notifications/NotificationsSettingsView.swift`, `HistoryStats/HistoryStatsSettingsView.swift` + `StatsChartsView.swift` + `MonthlyWrapView.swift` (SwiftUI Charts powered, gated on the opt-in Listening History setting), `About/AboutSettingsView.swift`, `Advanced/AdvancedSettingsView.swift`. `TwitchViewModel` is the main observable for auth/connection state.
 - **Views/Onboarding/** — macOS 26 Liquid Glass onboarding wizard. The `OnboardingStep` enum (in `OnboardingViewModel.swift`) defines the step order: Welcome → Discord → Twitch → OBS Widget (overlay URL + HTTP widget toggle) → Preferences → Apple Music Access → Menu Bar Pointer, followed by `OnboardingCompletionView`. Components in `Onboarding/Components/` (`PillButton`, `BrandTile`).
 - **Views/Debug/** — **DEBUG-only** developer tooling tab. `DebugSettingsView.swift` shell plus cards: `DebugInspectorsCard`, `DebugLogsAndEventsCard`, `DebugMetricsCard`, `DebugServiceControlsCard`, `DebugUIPreviewsCard`. Not compiled into release builds.
-- **Views/Shared/** — Shared UI components: `StatusChip`, `InfoRow`, `ToggleSettingRow`, `SuccessFeedbackRow`, `SectionHeaderWithStatus`, `NowPlayingHeroCard`, `AlbumArtView`, `IntegrationDashboardView`, `ConnectionTestButton`, `ConfigRequiredBanner`, `CopyButton`, `UpdateBannerView`, `WhatsNewView`, `AboutView`, `TwitchGlitchShape`, `ViewModifiers`.
+- **Views/Shared/** — Shared UI components: `StatusChip`, `InfoRow`, `ToggleSettingRow`, `SuccessFeedbackRow`, `SectionHeaderWithStatus`, `NowPlayingHeroCard`, `AlbumArtView`, `IntegrationDashboardView`, `ConnectionTestButton`, `ConfigRequiredBanner`, `CopyButton`, `UpdateBannerView`, `WhatsNewView`, `WarningBanner`, `ActionGrid`, `LoadingRow`, `MusicPermissionBanner`, `DSIconButton`, `TwitchGlitchShape`, `ViewModifiers`. Sensitive fields wrap their value in a `StreamerMode.shared` check before rendering — when Streamer Mode is on, the value is replaced with a `••••••` mask and Copy/Open buttons are disabled.
 
 ### Key patterns
 
@@ -154,7 +156,9 @@ Existing legacy literals are tracked in [`design-system/lint-allowlist.txt`](des
 
 ## Testing
 
-Unit tests live in `apps/native/WolfWaveTests/` and use XCTest + Swift Testing with `@testable import WolfWave`. The test target is a hosted unit test bundle (`TEST_HOST` = WolfWave.app). Current pass count: **1218 tests across 42 test files**.
+Unit tests live in `apps/native/WolfWaveTests/` and use XCTest + Swift Testing with `@testable import WolfWave`. The test target is a hosted unit test bundle (`TEST_HOST` = WolfWave.app). Current pass count: ~65 test files. <!-- TODO(test-count): run `make test` post-audit and write the exact test + file count back here. -->
+
+> Auto-discovery: `apps/native/WolfWaveTests/` is a `PBXFileSystemSynchronizedRootGroup` — dropping a new `*.swift` file in is enough, no Xcode project edit required.
 
 ### Test files
 
@@ -167,7 +171,18 @@ Unit tests live in `apps/native/WolfWaveTests/` and use XCTest + Swift Testing w
 - `SkipVoteManagerTests.swift`, `VoteSkipCommandTests.swift` — Chat vote-to-skip (threshold, dedup, window expiry, cooldown, subscriber gate, Polls mode, reply formatting)
 - `SongRequestAccessTests.swift` — `RequestAudience` permission rules, `SongRequestPreset` apply/detect, `RedemptionStatus` banner messages
 - `SongRequestQueueBoostTests.swift` — bit-cheer boost: moves a user's most-recent queued item to the front
+- `TwitchChannelPointsServiceTests.swift` — Helix create / reconcile / fulfill / cancel for the WolfWave-managed "Request a Song" reward
 - `TwitchBitsParsingTests.swift` — `channel.bits.use` message parsing (cheermote fragment stripping)
+- `StatsCommandTests.swift` — `!stats` live-gating via `stream.online` / `stream.offline` EventSub
+- `StreamerModeTests.swift` — masking rules + Streamer Mode toggle persistence
+- `ListeningHistoryServiceTests.swift`, `PlayLogStoreTests.swift`, `RecentTracksBufferTests.swift`, `HistoryFormattingTests.swift`, `StatsAggregatorTests.swift`, `MonthlyWrapTests.swift`, `LifetimeTallyTests.swift` — opt-in History & Stats pipeline (NDJSON append, rollups, monthly wrap, lifetime totals)
+- `NotificationServiceTests.swift` — song-change notification banner dedup + identifier reuse
+- `MetricsServiceTests.swift`, `DiagnosticsServiceTests.swift`, `DebugDiagnosticsTests.swift` — Opt-in MetricKit diagnostics + Debug-tab diagnostics
+- `WebSocketServerAuthTests.swift` — Per-install auth-token handshake (rejects missing/mismatched `wolfwave.token.<hex>` subprotocol)
+- `AppleMusicControllerTests.swift` — AppleScript playback dispatch + focus preservation
+- `LinkResolverServiceTests.swift`, `SongSearchResolverTests.swift` — MusicKit search + Apple Music link resolve
+- `MusicPermissionBannerTests.swift`, `MenuStatusFormatterTests.swift`, `OnboardingCompletionViewTests.swift`, `ActionGridTests.swift`, `LoadingRowTests.swift`, `WarningBannerTests.swift` — Shared view + onboarding state coverage
+- `HTTPClientTests.swift`, `ArtworkServiceNetworkTests.swift`, `TwitchDeviceAuthNetworkTests.swift`, `AppConstantsConfigOverrideTests.swift` — Foundation utilities + config plumbing
 - `AppleMusicSourceTests.swift` — Playback source start/stop and delegate wiring
 - `OnboardingViewModelTests.swift` + `OnboardingViewModelEdgeCaseTests.swift` — Step navigation, boundary conditions, UserDefaults persistence
 - `TwitchViewModelTests.swift`, `TwitchChatServiceTests.swift`, `TwitchDeviceAuthTests.swift`, `TwitchDeviceAuthErrorTests.swift` — Twitch auth + EventSub + view model state

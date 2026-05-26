@@ -17,11 +17,19 @@ and creators on macOS.
 
 - **Now Playing in Twitch Chat** — Viewers type `!song`, `!currentsong`, or `!nowplaying` and instantly see the track you're spinning.
 - **Song Requests** — Viewers request songs with `!sr <track>`. Requests play through Apple Music without taking focus from OBS.
+- **Channel Points & Bits** — WolfWave-managed "Request a Song" channel-point reward, plus bit cheers that boost the cheerer's queued track to the front.
+- **Chat Vote-Skip** — Viewers vote off a song with `!voteskip` / `!vs`. Choose chat-tally mode or native Twitch Polls.
 - **Hold-Mode Queue** — Mods can hold, resume, skip, and clear the request queue from chat or the menu bar.
 - **Live Queue View** — See what's playing, what's next, and who requested each track right inside the app.
 - **Fallback Playlist** — Configure an Apple Music playlist that takes over when the queue runs dry.
-- **Discord Rich Presence** — Shows "Listening to Apple Music" on your Discord profile with album art and clickable open-in-Apple-Music + song.link buttons.
-- **OBS Stream Widget** — Drop-in browser source overlay powered by a local WebSocket server.
+- **Listening History & Stats** — Opt-in, on-device log of what you actually play. Top artists, listening time, 7-day trend, and a listening-by-hour chart built on SwiftUI Charts.
+- **Monthly Wrap** — A personal "wrapped"-style summary for any month, exportable as a shareable PNG.
+- **`!stats` in Chat** — Viewers ask for today's top track; replies only while you're live.
+- **Discord Rich Presence** — Shows "Listening to Apple Music" on your Discord profile with album art, the active Apple Music playlist, and clickable open-in-Apple-Music + song.link buttons.
+- **Stream Widgets** — Drop-in browser source overlay powered by a local WebSocket server with a per-install auth token, six themes (`Default`, `Dark`, `Light`, `Glass`, `Neon`, `WolfWave`), and three layouts (`Horizontal`, `Vertical`, `Compact`). Two-PC streamers can connect from a second machine on the LAN.
+- **Streamer Mode** — One-tap tray toggle that masks the connected Twitch channel name, widget URLs, and auth token across the UI so the app is safe to show on camera.
+- **Song-Change Notifications** — Opt-in macOS banner on every track change, with album art. The banner replaces in place instead of stacking.
+- **On-Device Diagnostics** — Opt-in MetricKit diagnostics card with a share helper for attaching reports to a bug filing. Reports stay on-device.
 - **macOS 26 Liquid Glass Design** — Refreshed onboarding, settings, and menu bar built for Tahoe.
 - **Secure by Default** — Credentials live in the macOS Keychain, never plain text.
 - **Automatic Updates** — Sparkle (DMG) or Homebrew (`brew upgrade --cask`).
@@ -57,6 +65,8 @@ The app is signed and notarized by Apple — no Gatekeeper warnings.
 | `!sr <song>` | Requests a song for the queue |
 | `!queue` | Shows the full request queue |
 | `!myqueue` | Shows just your own requests |
+| `!voteskip` `!vs` | Casts a vote to skip the current song |
+| `!stats` | Shows today's top track (live only) |
 
 ### Mod and Broadcaster Commands
 
@@ -72,11 +82,13 @@ The app is signed and notarized by Apple — no Gatekeeper warnings.
 Enable in **Settings > Discord** to show what you're listening to on
 your Discord profile. Album artwork is fetched automatically.
 
-### OBS Stream Widget
+### Stream Widgets
 
-Enable in **Settings > Now-Playing Widget** to start a local WebSocket
-server. Copy the widget URL and add it as a Browser Source (500 x 120)
-in OBS.
+Enable in **Settings > Stream Widgets** to start a local WebSocket
+server. Copy the widget URL (auth token auto-injected) and add it as a
+Browser Source (500 x 120) in OBS. Two-PC streamers can reach the
+overlay from a second computer or phone on the same network. Regenerate
+the token from Settings to drop every active client.
 
 ## Tech Stack
 
@@ -90,6 +102,8 @@ in OBS.
 | Discord | Rich Presence via local IPC Unix domain socket |
 | Networking | URLSession, Network framework, NWListener (WebSocket overlay) |
 | Updates | Sparkle (EdDSA-signed appcast) |
+| Charts | SwiftUI Charts (History & Stats) |
+| Diagnostics | MetricKit (opt-in) |
 | Security | macOS Keychain (Security framework) |
 | Docs | Fumadocs (Next.js), bun, Turborepo |
 | Marketing | Remotion |
@@ -142,7 +156,7 @@ Native app (Make):
 
 - `make build` — Debug build via `xcodebuild`.
 - `make clean` — Clean build artifacts.
-- `make test` — Run the unit test suite (1218 tests across 42 files).
+- `make test` — Run the unit test suite (see CHANGELOG.md for current counts).
 - `make update-deps` — Resolve SwiftPM dependencies.
 - `make open-xcode` — Open the Xcode project.
 - `make ci` — CI-friendly build.
@@ -158,7 +172,7 @@ Native app (Make):
 - No force unwrapping — optionals and `guard` only.
 - Credentials always via `KeychainService`, never `UserDefaults`.
 - Thread-safe service layer (NSLock, serial dispatch queues, MainActor isolation).
-- 1218 unit tests across 42 files, auto-discovered via Xcode synchronized groups.
+- Unit tests auto-discovered via Xcode synchronized groups under `apps/native/WolfWaveTests/`.
 
 ## Project Structure
 

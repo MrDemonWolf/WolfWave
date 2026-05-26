@@ -21,6 +21,17 @@ ogEyebrow: Tokens stay safe
 
 WolfWave is designed with security as a priority. All sensitive data is handled using macOS system APIs — Keychain, App Sandbox, OAuth Device Code, and EdDSA-signed updates.
 
+## Listening History (Opt-In, On-Device)
+
+The Listening History + Stats + Monthly Wrap features are **off by default** and never run unless you turn them on in **Settings → History & Stats** or during onboarding.
+
+- **On-device only** — the play log is an append-only NDJSON file inside the app's sandbox. Nothing is uploaded, no server is contacted.
+- **Smart recording** — a track is only logged after it crosses the half-length or 4-minute mark, so skips don't pad the stats.
+- **Inspectable** — open the History & Stats settings to see what's stored. The data never leaves the device unless you choose to share an exported Monthly Wrap image.
+- **Reset anytime** — clearing history removes the entire log; no shadow copies elsewhere.
+
+`!stats` (Twitch chat) reads from this log and replies only while your stream is live.
+
 ## Code Signing & Notarization
 
 WolfWave is distributed as a signed and notarized DMG:

@@ -101,6 +101,35 @@ Two ways to run a vote, set in **Settings → Song Requests → Chat Vote-Skip**
 
 ---
 
+## Live Stats
+**TL;DR: Today's top track, on demand.**
+
+Viewers can ask for the track you've played the most today. Requires the opt-in Listening History (Settings → History & Stats).
+
+| Command   | Who      | What it does                                |
+| --------- | -------- | ------------------------------------------- |
+| `!stats`  | Everyone | Replies with today's top track + play count |
+
+<Callout type="info">
+  Live-gated: replies only fire while your stream is online. WolfWave subscribes to `stream.online` / `stream.offline` EventSub events to track live state, so the command stays quiet when you're offline.
+</Callout>
+
+---
+
+## Channel Points &amp; Bits
+**TL;DR: Reward requests without a chat command.**
+
+Two extra ways for viewers to add a track — both feed the same queue, blocklist, and audience rules as `!sr`.
+
+- **Channel Points reward** — WolfWave creates and manages a "Request a Song" custom reward on your channel. Redeeming it acts like a `!sr` from that viewer. Fulfilment and cancellation are reconciled automatically.
+- **Bit Boost** — when a viewer cheers bits, their most-recent queued request jumps to the front of the queue.
+
+<Callout type="info">
+  Enable from **Settings → Song Requests → Channel Points & Bits**. Requires Twitch Affiliate or Partner to create the reward.
+</Callout>
+
+---
+
 ## Cooldowns &amp; Spam
 **TL;DR: No spamming allowed.**
 

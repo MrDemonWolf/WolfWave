@@ -46,15 +46,29 @@ Flip the **Sync Music** switch in Settings. WolfWave instantly spots when you ch
 
 WolfWave hosts the widget right on your Mac. No external links. No internet needed.
 
-1. Open **Settings → Now-Playing Widget**.
+1. Open **Settings → Stream Widgets**.
 2. Click **Enable Widget Server**.
-3. Copy the **Widget Link** (`http://localhost:8766`).
+3. Copy the **Widget Link**. The per-install auth token is already in the URL — keep it intact.
 4. In OBS, add a **Browser Source** and paste the link.
 5. Set the size to **500 × 120**.
 
 <Callout type="info">
   **Important**: Turn on "Shutdown source when not visible" in OBS so the widget reconnects cleanly when you switch scenes.
 </Callout>
+
+### Auth Token
+
+The widget is gated by a per-install token, stored in the macOS Keychain and auto-injected into the Widget Link.
+
+- **Reveal it**: Eye toggle next to the token field — hidden by default.
+- **Regenerate**: Drops every active client. Re-copy the Widget Link into OBS afterward.
+- **Custom value**: Edit the token field to supply your own string (handy when you want a memorable value or you're rotating after a leak).
+
+Connecting from a second computer or phone? Use `http://<your-lan-ip>:7780/?token=<token>` — both the host and the token are required.
+
+### Themes &amp; Layouts
+
+Pick from six themes (`Default`, `Dark`, `Light`, `Glass`, `Neon`, `WolfWave`) and three layouts (`Horizontal`, `Vertical`, `Compact`) in **Settings → Stream Widgets**.
 
 ---
 
@@ -63,9 +77,11 @@ WolfWave hosts the widget right on your Mac. No external links. No internet need
 
 Once you're logged into Twitch (**Settings → Twitch**), the bot auto-connects when you open the app.
 
-- **Pick commands**: Choose which ones chat can use (like `!song`, `!last`, `!sr`).
+- **Pick commands**: Choose which ones chat can use (like `!song`, `!last`, `!sr`, `!voteskip`, `!stats`).
 - **Cooldowns**: Set wait times so nobody spams.
 - **Mod Bypass**: Mods and you can use commands as much as you want.
+
+See the [Bot Commands](/docs/bot-commands) page for the full list, including [Vote-Skip](/docs/bot-commands#vote-skip) and [Live Stats](/docs/bot-commands#live-stats).
 
 ---
 
@@ -79,6 +95,15 @@ Open **Settings → Song Requests** to turn it on.
 - **Hold Mode**: Pause new requests when you need a break. Flip it from Settings or `!hold` in chat.
 - **Blocklist**: Block specific tracks, artists, or albums you never want played.
 - **Quick Access**: Hold/resume the queue directly from the menu bar.
+
+---
+
+## Streamer Mode
+**TL;DR: One tap to make WolfWave camera-safe.**
+
+Flip **Streamer Mode** from the menu bar's **Streamer Quick Actions** before you go live. WolfWave masks the connected Twitch channel name, the overlay/widget URLs, the WebSocket URI, and the auth token across every settings view. Copy/Open buttons next to masked values are disabled so screenshots can't reveal the underlying value via accessibility.
+
+Streamer Mode is UI-only — your WebSocket broadcast, Discord Rich Presence, and Twitch chat output keep working as usual.
 
 ---
 
@@ -96,7 +121,9 @@ When **Discord Status** is on, WolfWave updates your Discord profile to "Listeni
 ## Settings
 From the menu bar, open **Settings** to:
 
-- **Now-Playing Widget**: Port, colors, fonts.
+- **Stream Widgets**: Port, themes, layouts, auth token.
+- **History & Stats**: Listening history opt-in, Stats charts, Monthly Wrap.
+- **Notifications**: Song-change banner toggle.
 - **Twitch**: Log in, pick commands, tweak cooldowns.
 - **Discord**: Turn the profile status on/off.
 - **Song Requests**: Queue, hold, blocklist.

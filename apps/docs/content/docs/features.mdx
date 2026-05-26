@@ -29,6 +29,7 @@ One app. Apple Music → Twitch, Discord, OBS. Done.
 - **Native Sync**: Talks to Apple Music directly. No hacks, no lag.
 - **Set and Forget**: Sits in your menu bar. Quiet.
 - **Smart History**: Remembers your last song so `!last` just works.
+- **Song-Change Notifications**: Opt-in macOS banner on every track change, with album art. The banner replaces in place instead of stacking.
 - **Power Saver**: Slows down on Low Power Mode to save battery.
 
 ---
@@ -53,6 +54,15 @@ One app. Apple Music → Twitch, Discord, OBS. Done.
 - **Mod Controls**: `!skip`, `!hold`, `!clearqueue` for trusted users.
 - **Chat Vote-Skip**: Let chat skip a song together with `!voteskip` — chat-tally or native Twitch poll, with a minimum-vote threshold you set.
 - **Apple Music Links Welcome**: Paste a track URL — WolfWave resolves it.
+
+---
+
+## Channel Points &amp; Bits
+**TL;DR: Reward your community for keeping the queue full.**
+
+- **WolfWave-managed Channel-Point Reward**: One toggle and WolfWave creates, reconciles, and fulfills a "Request a Song" Channel Points reward for you. Redemptions feed straight into the song-request pipeline.
+- **Bit Boost**: When a viewer cheers bits, their most-recent queued request jumps to the front. Same pipeline, same blocklist, same audience rules — bits just bump priority.
+- **Same Audience Controls**: Channel-point + bit requests respect the request audience, blocklist, per-user limits, and hold-mode that already gate chat requests.
 
 ---
 
@@ -84,7 +94,19 @@ One app. Apple Music → Twitch, Discord, OBS. Done.
 - **No Internet Needed**: The widget runs on your Mac. Works offline.
 - **OBS Ready**: Add as a Browser Source. Done.
 - **Real-time**: Updates the millisecond the song changes.
+- **Auth Token Built-in**: Every install ships with a per-install auth token, auto-injected into the widget URL. Regenerate from Settings to drop every active client. Two-PC streamers can connect from a second computer or phone over the LAN.
+- **Six Themes, Three Layouts**: `Default`, `Dark`, `Light`, `Glass`, `Neon`, `WolfWave` × `Horizontal`, `Vertical`, `Compact`. Pick one in Settings.
 - **Customizable**: Tweak colors, fonts, and layout to fit your stream.
+
+---
+
+## Streamer Mode
+**TL;DR: One tap to make WolfWave camera-safe.**
+
+- **One Toggle**: Flip from the menu bar's Streamer Quick Actions.
+- **Masks Sensitive Values**: Connected Twitch channel name, overlay/widget URLs, the WebSocket URI, and the auth token all swap to `••••••` masks across the UI.
+- **Disables Copy/Open**: Buttons next to masked values are disabled so screenshots can't leak the underlying value via accessibility.
+- **UI-Only**: WebSocket broadcasts, Discord Rich Presence, and Twitch chat output are unaffected — only what's drawn on your screen changes.
 
 ---
 

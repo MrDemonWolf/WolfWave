@@ -64,6 +64,7 @@ apps/native/
     │   ├── Logger.swift                    # Structured logging
     │   ├── PowerStateMonitor.swift         # Low Power Mode + thermal pressure
     │   ├── NetworkInfoService.swift        # LAN IP cache
+    │   ├── StreamerMode.swift              # UI-only on-camera masking
     │   ├── SongRequestItem.swift           # Queue item model
     │   └── BlocklistItem.swift             # Blocklist model
     ├── Monitors/
@@ -73,17 +74,28 @@ apps/native/
     ├── Services/
     │   ├── ArtworkService.swift            # iTunes Search artwork fetch + cache
     │   ├── LaunchAtLoginService.swift
+    │   ├── DiagnosticsService.swift        # Opt-in MetricKit diagnostics + share card
     │   ├── Discord/
     │   │   └── DiscordRPCService.swift     # Discord Rich Presence via IPC socket
+    │   ├── ListeningHistory/
+    │   │   ├── ListeningHistoryService.swift # Opt-in NDJSON play log
+    │   │   ├── StatsAggregator.swift       # Top artists, listening time, trends
+    │   │   ├── MonthlyWrap.swift           # "Wrapped"-style monthly summary
+    │   │   └── HistoryFormatting.swift     # Date/duration formatting helpers
+    │   ├── Notifications/
+    │   │   └── NotificationService.swift   # Opt-in song-change banner
     │   ├── SongRequest/
-    │   │   ├── SongRequestService.swift    # Request flow orchestrator
-    │   │   ├── SongRequestQueue.swift      # Queue + hold mode + buffering
+    │   │   ├── SongRequestService.swift    # Request flow orchestrator (chat + channel points + bits)
+    │   │   ├── SongRequestQueue.swift      # Queue + hold mode + buffering + bit-cheer boost
+    │   │   ├── SongRequestAccess.swift     # RequestAudience, RequestSource, presets
+    │   │   ├── SkipVoteManager.swift       # Chat vote-to-skip + Twitch Polls
     │   │   ├── SongSearchResolver.swift    # MusicKit search
     │   │   ├── LinkResolverService.swift   # Apple Music URL resolve
     │   │   ├── AppleMusicController.swift  # AppleScript playback control
     │   │   └── SongBlocklist.swift         # Track/artist/album blocklist
     │   ├── Twitch/
     │   │   ├── TwitchChatService.swift     # EventSub WebSocket + Helix API
+    │   │   ├── TwitchChannelPointsService.swift # Managed "Request a Song" reward
     │   │   ├── TwitchDeviceAuth.swift      # OAuth Device Code flow
     │   │   └── Commands/                   # Bot command system
     │   │       ├── BotCommand.swift        # Command protocol + AsyncBotCommand
@@ -96,18 +108,27 @@ apps/native/
     │   │       ├── MyQueueCommand.swift
     │   │       ├── SkipCommand.swift
     │   │       ├── HoldCommand.swift
-    │   │       └── ClearQueueCommand.swift
+    │   │       ├── ClearQueueCommand.swift
+    │   │       ├── VoteSkipCommand.swift   # !voteskip / !vs
+    │   │       └── StatsCommand.swift      # !stats (live-gated)
     │   ├── UpdateChecker/
     │   │   └── SparkleUpdaterService.swift # Sparkle framework wrapper
     │   └── WebSocket/
-    │       ├── WebSocketServerService.swift # Local WS overlay broadcast
-    │       └── WidgetHTTPService.swift     # Local HTTP widget server (127.0.0.1:8766)
+    │       ├── WebSocketServerService.swift # Local WS overlay broadcast (auth-token gated)
+    │       └── WidgetHTTPService.swift     # Local HTTP widget server (auto-injects token)
     ├── Views/
     │   ├── SettingsView.swift              # NavigationSplitView shell
+    │   ├── About/AboutSettingsView.swift
     │   ├── Advanced/AdvancedSettingsView.swift
     │   ├── AppVisibility/AppVisibilitySettingsView.swift
+    │   ├── Debug/                          # DEBUG-only developer tooling tab
     │   ├── Discord/DiscordSettingsView.swift
+    │   ├── HistoryStats/
+    │   │   ├── HistoryStatsSettingsView.swift
+    │   │   ├── StatsChartsView.swift       # SwiftUI Charts
+    │   │   └── MonthlyWrapView.swift
     │   ├── MusicMonitor/MusicMonitorSettingsView.swift
+    │   ├── Notifications/NotificationsSettingsView.swift
     │   ├── SongRequest/
     │   │   ├── SongRequestSettingsView.swift
     │   │   └── SongRequestQueueView.swift

@@ -62,6 +62,10 @@ Yes. The local WebSocket binds to all interfaces, so an OBS machine on the same 
 
 If your overlay can consume a WebSocket feed or a small HTTP endpoint, yes. The data is plain JSON: title, artist, album, artwork URL, position, duration. See [Architecture](/docs/architecture) for the schema.
 
+### What is Streamer Mode?
+
+A one-tap toggle (in the menu bar's **Streamer Quick Actions**) that masks sensitive values across WolfWave's UI so the app is safe to show on camera. It hides your connected Twitch channel name, overlay/widget URLs, the WebSocket URI, and the auth token, and disables Copy/Open buttons next to those values. It's UI-only — WebSocket broadcast, Discord Rich Presence, and Twitch chat output keep working.
+
 ## Security &amp; privacy
 
 ### Is my Twitch token safe?
@@ -71,6 +75,14 @@ Yes. WolfWave uses Twitch's OAuth Device Code flow (no password ever enters the 
 ### Does WolfWave send any of my data to a server?
 
 No. There is no WolfWave server. The only outbound network traffic is to services you turn on yourself: Twitch (when chat is connected), Discord IPC (a local Unix socket on your Mac), and the iTunes Search API for album artwork. There's no telemetry, no analytics, no crash reporting.
+
+### How does Listening History store my data?
+
+Listening History is **off by default**. When you turn it on, WolfWave appends a row to a local NDJSON file inside the app's sandbox for each track that plays past its halfway mark (or 4 minutes, whichever is shorter). Nothing is uploaded — the Stats charts, Monthly Wrap, and `!stats` command all read from that local file. Clear it from **Settings → History & Stats** and the log is gone. See [Security](/docs/security#listening-history-opt-in-on-device) for the full breakdown.
+
+### Does the Now-Playing Widget URL leak if I screenshare it?
+
+The widget URL embeds a per-install auth token. If you accidentally show it on stream you can regenerate it from **Settings → Stream Widgets** — that drops every active connection until OBS reconnects with the new URL. Before going live, flip on **Streamer Mode** (see above) to mask the URL in the WolfWave UI entirely.
 
 ### What about App Sandbox?
 
