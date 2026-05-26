@@ -129,6 +129,9 @@ fileprivate struct WebSocketServerCard: View {
     @AppStorage(AppConstants.UserDefaults.websocketEnabled)
     private var websocketEnabled = false
 
+    @AppStorage(AppConstants.UserDefaults.streamerModeEnabled)
+    private var streamerMode = false
+
     @AppStorage(AppConstants.UserDefaults.websocketServerPort)
     private var storedPort: Int = Int(AppConstants.WebSocketServer.defaultPort)
 
@@ -251,14 +254,14 @@ fileprivate struct WebSocketServerCard: View {
                     Text("Local Address")
                         .font(.system(size: DSFont.Size.sm, weight: .medium))
                         .foregroundStyle(.secondary)
-                    Text(connectionURL)
+                    Text(StreamerMode.mask(connectionURL, style: .url, isOn: streamerMode))
                         .font(.system(size: DSFont.Size.body, design: .monospaced))
                         .textSelection(.enabled)
                 }
                 Spacer()
                 CopyButton(
                     text: connectionURL,
-                    isDisabled: !websocketEnabled,
+                    isDisabled: !websocketEnabled || streamerMode,
                     accessibilityLabel: "Copy local connection URL",
                     accessibilityIdentifier: "copyConnectionURLButton"
                 )
@@ -275,7 +278,7 @@ fileprivate struct WebSocketServerCard: View {
                                 Text("Network Address")
                                     .font(.system(size: DSFont.Size.sm, weight: .medium))
                                     .foregroundStyle(.secondary)
-                                Text(networkURL)
+                                Text(StreamerMode.mask(networkURL, style: .url, isOn: streamerMode))
                                     .font(.system(size: DSFont.Size.body, design: .monospaced))
                                     .textSelection(.enabled)
                                     .contentTransition(.opacity)
@@ -286,7 +289,7 @@ fileprivate struct WebSocketServerCard: View {
                             Spacer()
                             CopyButton(
                                 text: networkURL,
-                                isDisabled: !websocketEnabled,
+                                isDisabled: !websocketEnabled || streamerMode,
                                 accessibilityLabel: "Copy network connection URL",
                                 accessibilityIdentifier: "copyNetworkConnectionURLButton"
                             )
@@ -340,7 +343,7 @@ fileprivate struct WebSocketServerCard: View {
 
             HStack(spacing: 6) {
                 Group {
-                    if isTokenRevealed {
+                    if isTokenRevealed && !streamerMode {
                         TextField("Token", text: $tokenDraft)
                             .textFieldStyle(.roundedBorder)
                             .font(.system(size: DSFont.Size.body, design: .monospaced))
@@ -352,6 +355,7 @@ fileprivate struct WebSocketServerCard: View {
                             .textFieldStyle(.roundedBorder)
                             .font(.system(size: DSFont.Size.body, design: .monospaced))
                             .onSubmit { saveTokenEdit() }
+                            .disabled(streamerMode)
                             .accessibilityIdentifier("websocketTokenFieldHidden")
                     }
                 }
@@ -363,12 +367,13 @@ fileprivate struct WebSocketServerCard: View {
                     accessibilityIdentifier: "websocketTokenRevealButton"
                 )
                 .help(isTokenRevealed ? "Hide token" : "Reveal token")
+                .disabled(streamerMode)
 
                 CopyButton(
                     text: currentToken,
                     label: "Copy",
                     copiedLabel: "Copied",
-                    isDisabled: currentToken.isEmpty,
+                    isDisabled: currentToken.isEmpty || streamerMode,
                     accessibilityLabel: "Copy auth token",
                     accessibilityIdentifier: "copyWebsocketTokenButton"
                 )
@@ -503,6 +508,9 @@ fileprivate struct WebSocketServerCard: View {
 // MARK: - Browser Source Card
 
 fileprivate struct WebSocketBrowserSourceCard: View {
+    @AppStorage(AppConstants.UserDefaults.streamerModeEnabled)
+    private var streamerMode = false
+
     @AppStorage(AppConstants.UserDefaults.websocketEnabled)
     private var websocketEnabled = false
 
@@ -629,7 +637,7 @@ fileprivate struct WebSocketBrowserSourceCard: View {
             Divider().padding(.leading, cardPadding)
 
             VStack(alignment: .leading, spacing: DSSpace.s2) {
-                Text(widgetURL)
+                Text(StreamerMode.mask(widgetURL, style: .url, isOn: streamerMode))
                     .font(.system(size: DSFont.Size.sm, design: .monospaced))
                     .textSelection(.enabled)
                     .lineLimit(2)
@@ -639,7 +647,7 @@ fileprivate struct WebSocketBrowserSourceCard: View {
                         text: widgetURL,
                         label: "Copy Link",
                         copiedLabel: "Copied",
-                        isDisabled: !websocketEnabled || !widgetHTTPEnabled,
+                        isDisabled: !websocketEnabled || !widgetHTTPEnabled || streamerMode,
                         accessibilityLabel: "Copy widget URL",
                         accessibilityIdentifier: "copyWidgetURLButton"
                     )
@@ -655,7 +663,7 @@ fileprivate struct WebSocketBrowserSourceCard: View {
                     }
                     .buttonStyle(.bordered)
                     .controlSize(.small)
-                    .disabled(!websocketEnabled || !widgetHTTPEnabled)
+                    .disabled(!websocketEnabled || !widgetHTTPEnabled || streamerMode)
                     .accessibilityLabel("Open widget in browser")
                     .accessibilityHint("Opens the widget in your default browser")
                     .accessibilityIdentifier("openWidgetURLButton")
@@ -673,7 +681,7 @@ fileprivate struct WebSocketBrowserSourceCard: View {
                                 Text("Network Address")
                                     .font(.system(size: DSFont.Size.sm, weight: .medium))
                                     .foregroundStyle(.secondary)
-                                Text(networkWidget)
+                                Text(StreamerMode.mask(networkWidget, style: .url, isOn: streamerMode))
                                     .font(.system(size: DSFont.Size.body, design: .monospaced))
                                     .textSelection(.enabled)
                                     .contentTransition(.opacity)
@@ -687,7 +695,7 @@ fileprivate struct WebSocketBrowserSourceCard: View {
                                     text: networkWidget,
                                     label: "Copy Link",
                                     copiedLabel: "Copied",
-                                    isDisabled: !websocketEnabled || !widgetHTTPEnabled,
+                                    isDisabled: !websocketEnabled || !widgetHTTPEnabled || streamerMode,
                                     accessibilityLabel: "Copy network widget URL",
                                     accessibilityIdentifier: "copyNetworkWidgetURLButton"
                                 )
@@ -703,7 +711,7 @@ fileprivate struct WebSocketBrowserSourceCard: View {
                                 }
                                 .buttonStyle(.bordered)
                                 .controlSize(.small)
-                                .disabled(!websocketEnabled || !widgetHTTPEnabled)
+                                .disabled(!websocketEnabled || !widgetHTTPEnabled || streamerMode)
                                 .accessibilityLabel("Open network widget in browser")
                                 .accessibilityIdentifier("openNetworkWidgetURLButton")
                             }

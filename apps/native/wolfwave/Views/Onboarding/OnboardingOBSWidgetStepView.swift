@@ -16,6 +16,9 @@ struct OnboardingOBSWidgetStepView: View {
 
     @Binding var websocketEnabled: Bool
 
+    @AppStorage(AppConstants.UserDefaults.streamerModeEnabled)
+    private var streamerMode = false
+
     @AppStorage(AppConstants.UserDefaults.widgetHTTPEnabled)
     private var widgetHTTPEnabled = false
 
@@ -115,7 +118,7 @@ struct OnboardingOBSWidgetStepView: View {
                     .tracking(0.6)
 
                 HStack(spacing: 8) {
-                    Text(verbatim: overlayURL)
+                    Text(verbatim: StreamerMode.mask(overlayURL, style: .url, isOn: streamerMode))
                         .font(.system(size: DSFont.Size.md, weight: .medium, design: .monospaced))
                         .foregroundStyle(.primary)
                         .lineLimit(1)
@@ -123,6 +126,7 @@ struct OnboardingOBSWidgetStepView: View {
 
                     CopyButton(
                         text: overlayURL,
+                        isDisabled: streamerMode,
                         accessibilityLabel: "Copy overlay URL"
                     )
                 }

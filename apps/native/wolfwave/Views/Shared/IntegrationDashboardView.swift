@@ -12,6 +12,9 @@ import SwiftUI
 /// integration state pushed via NotificationCenter.
 struct IntegrationDashboardView: View {
 
+    @AppStorage(AppConstants.UserDefaults.streamerModeEnabled)
+    private var streamerMode = false
+
     // MARK: - Inputs
 
     var twitchConnected: Bool
@@ -199,7 +202,10 @@ struct IntegrationDashboardView: View {
     private var twitchSubtitle: String {
         if permissionPaused { return "Will reply once Music permission is restored." }
         if twitchConnected {
-            let channel = twitchChannel.map { "@\($0)" } ?? "your channel"
+            let displayName = twitchChannel.map {
+                StreamerMode.mask($0, style: .channel, isOn: streamerMode)
+            }
+            let channel = displayName.map { "@\($0)" } ?? "your channel"
             if let n = twitchViewerCount, n > 0 {
                 return "Connected to \(channel) · \(n) people watching"
             }
@@ -232,7 +238,8 @@ struct IntegrationDashboardView: View {
     private var widgetSubtitle: String {
         if permissionPaused { return "Showing the last known track until permission is fixed." }
         if widgetRunning {
-            return "Drop this URL into OBS: \(widgetURL ?? "http://localhost")"
+            let display = StreamerMode.mask(widgetURL ?? "http://localhost", style: .url, isOn: streamerMode)
+            return "Drop this URL into OBS: \(display)"
         }
         return "Turn on the widget server to feed your overlay."
     }

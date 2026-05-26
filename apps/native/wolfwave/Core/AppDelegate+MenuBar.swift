@@ -521,7 +521,10 @@ extension AppDelegate: NSMenuDelegate {
 
         if KeychainService.loadTwitchToken() != nil {
             let connected = twitchService?.isConnectedSnapshot.value ?? false
-            let channel = UserDefaults.standard.string(forKey: AppConstants.UserDefaults.twitchChannelName)
+            let rawChannel = UserDefaults.standard.string(forKey: AppConstants.UserDefaults.twitchChannelName)
+            let channel = rawChannel.map {
+                StreamerMode.mask($0, style: .channel, isOn: StreamerMode.isEnabled)
+            }
             let twitchItem = makeStatusItem(
                 title: "Twitch",
                 status: MenuStatusFormatter.twitchStatus(isConnected: connected, channelName: channel),
@@ -571,6 +574,20 @@ extension AppDelegate: NSMenuDelegate {
     // MARK: - Streamer Quick Actions
 
     private func buildStreamerActions(into menu: NSMenu) {
+        let streamerModeOn = StreamerMode.isEnabled
+        let streamerModeItem = NSMenuItem(
+            title: "Streamer Mode",
+            action: #selector(toggleStreamerMode),
+            keyEquivalent: ""
+        )
+        streamerModeItem.state = streamerModeOn ? .on : .off
+        streamerModeItem.image = NSImage(
+            systemSymbolName: streamerModeOn ? "eye.slash.fill" : "eye.slash",
+            accessibilityDescription: "Streamer Mode"
+        )
+        streamerModeItem.toolTip = "Hide channel name, overlay URL, and other sensitive details from the WolfWave UI while you're on stream."
+        menu.addItem(streamerModeItem)
+
         let widgetsEnabled = UserDefaults.standard.bool(forKey: AppConstants.UserDefaults.websocketEnabled)
         if widgetsEnabled {
             let copyItem = NSMenuItem(
@@ -758,6 +775,16 @@ extension AppDelegate {
             UserDefaults.standard.set(AppConstants.Twitch.settingsSection, forKey: AppConstants.UserDefaults.selectedSettingsSection)
             openSettings()
         }
+    }
+
+    /// Toggles Streamer Mode — masks sensitive values in the WolfWave UI
+    /// (channel name, overlay URL, WebSocket URI, etc.) so the app can be
+    /// safely shown on stream. UI-only; does not change broadcast payloads.
+    @objc func toggleStreamerMode() {
+        toggleBoolSetting(
+            key: AppConstants.UserDefaults.streamerModeEnabled,
+            notification: AppConstants.Notifications.streamerModeChanged
+        )
     }
 
     /// Toggles Discord Rich Presence on/off.

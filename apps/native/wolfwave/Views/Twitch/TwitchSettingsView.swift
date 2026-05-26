@@ -279,6 +279,9 @@ struct TwitchSettingsView: View {
 
 /// View displayed when the user is signed in, showing bot info and channel controls.
 private struct SignedInView: View {
+    @AppStorage(AppConstants.UserDefaults.streamerModeEnabled)
+    private var streamerMode = false
+
     let botUsername: String
     @Binding var channelID: String
     let isChannelConnected: Bool
@@ -415,37 +418,43 @@ private struct SignedInView: View {
     private var channelInputView: some View {
         switch (isChannelConnected, reauthNeeded) {
         case (true, _):
-            Text(channelID.isEmpty ? "Not set" : channelID)
+            Text(channelID.isEmpty ? "Not set" : StreamerMode.mask(channelID, style: .channel, isOn: streamerMode))
                 .font(.system(size: DSFont.Size.base, weight: .semibold))
         case (false, true):
-            Text(channelID.isEmpty ? "Not set" : channelID)
+            Text(channelID.isEmpty ? "Not set" : StreamerMode.mask(channelID, style: .channel, isOn: streamerMode))
                 .font(.system(size: DSFont.Size.base, weight: .semibold))
                 .foregroundStyle(.secondary)
         case (false, false):
-            TextField("Channel Name", text: $channelID)
-                .font(.system(size: DSFont.Size.base))
-                .textFieldStyle(.plain)
-                .disabled(isConnecting)
-                .accessibilityLabel("Twitch channel name")
-                .accessibilityHint("Enter your Twitch channel name")
-                .accessibilityIdentifier("twitchChannelTextField")
-                .onSubmit {
-                    if !shouldDisableConnectButton {
-                        onJoinChannel()
+            if streamerMode {
+                Text(channelID.isEmpty ? "Not set" : StreamerMode.mask(channelID, style: .channel, isOn: true))
+                    .font(.system(size: DSFont.Size.base, weight: .semibold))
+                    .foregroundStyle(.secondary)
+            } else {
+                TextField("Channel Name", text: $channelID)
+                    .font(.system(size: DSFont.Size.base))
+                    .textFieldStyle(.plain)
+                    .disabled(isConnecting)
+                    .accessibilityLabel("Twitch channel name")
+                    .accessibilityHint("Enter your Twitch channel name")
+                    .accessibilityIdentifier("twitchChannelTextField")
+                    .onSubmit {
+                        if !shouldDisableConnectButton {
+                            onJoinChannel()
+                        }
                     }
-                }
-                .onChange(of: channelID) { oldValue, newValue in
-                    let sanitized = newValue.lowercased().trimmingCharacters(
-                        in: CharacterSet.whitespacesAndNewlines)
-                    if sanitized != newValue {
-                        channelID = sanitized
+                    .onChange(of: channelID) { oldValue, newValue in
+                        let sanitized = newValue.lowercased().trimmingCharacters(
+                            in: CharacterSet.whitespacesAndNewlines)
+                        if sanitized != newValue {
+                            channelID = sanitized
+                        }
+                        if oldValue.lowercased().trimmingCharacters(in: .whitespacesAndNewlines)
+                            != sanitized
+                        {
+                            onChannelIDChanged()
+                        }
                     }
-                    if oldValue.lowercased().trimmingCharacters(in: .whitespacesAndNewlines)
-                        != sanitized
-                    {
-                        onChannelIDChanged()
-                    }
-                }
+            }
         }
     }
 
