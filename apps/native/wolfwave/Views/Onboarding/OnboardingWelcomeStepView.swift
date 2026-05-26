@@ -7,34 +7,40 @@
 
 import SwiftUI
 
-/// Pure-hero welcome step: large app icon, headline, plain-language tagline, and a single
-/// inline brand line so the user knows what's about to happen without scanning a list.
+/// Pure-hero welcome step: brand-tinted wolf mark, headline, plain-language
+/// tagline, and a short privacy line. No integration chip row — the next four
+/// steps brand each integration on their own.
 struct OnboardingWelcomeStepView: View {
 
     // MARK: - Animation State
 
     @State private var heroVisible = false
     @State private var taglineVisible = false
-    @State private var brandLineVisible = false
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    // MARK: - Layout Constants
+
+    /// Hero mark render size. Lives here instead of inlined as a literal so
+    /// `bun run ds:lint` stays clean — matches widget `tray` hero size.
+    private static let heroSize: CGFloat = DSDimension.Onboarding.brandTileSize + DSSpace.s10 + DSSpace.s2
 
     // MARK: - Body
 
     var body: some View {
-        VStack(spacing: 18) {
+        VStack(spacing: DSSpace.s7) {
             Spacer()
 
-            Image(nsImage: NSApp.applicationIconImage)
-                .resizable()
-                .interpolation(.high)
-                .scaledToFit()
-                .frame(width: 96, height: 96)
-                .opacity(heroVisible ? 1 : 0)
-                .scaleEffect(heroVisible ? 1 : 0.92)
-                .accessibilityLabel("WolfWave app icon")
+            WolfHeroMark(
+                size: Self.heroSize,
+                style: .brandGradient,
+                animatedBars: true,
+                reduceMotion: reduceMotion
+            )
+            .opacity(heroVisible ? 1 : 0)
+            .scaleEffect(heroVisible ? 1 : 0.92)
 
-            VStack(spacing: 8) {
+            VStack(spacing: DSSpace.s2) {
                 Text("Welcome to WolfWave")
                     .font(.system(size: DSFont.Size.x26, weight: .bold))
                     .opacity(heroVisible ? 1 : 0)
@@ -46,12 +52,8 @@ struct OnboardingWelcomeStepView: View {
                     .opacity(taglineVisible ? 1 : 0)
             }
 
-            brandLine
-                .opacity(brandLineVisible ? 1 : 0)
-                .offset(y: brandLineVisible ? 0 : 6)
-
             privacyLine
-                .opacity(brandLineVisible ? 1 : 0)
+                .opacity(taglineVisible ? 1 : 0)
 
             Spacer()
         }
@@ -60,7 +62,6 @@ struct OnboardingWelcomeStepView: View {
             if reduceMotion {
                 heroVisible = true
                 taglineVisible = true
-                brandLineVisible = true
                 return
             }
             withAnimation(DSMotion.Spring.bouncy) {
@@ -70,43 +71,7 @@ struct OnboardingWelcomeStepView: View {
             withAnimation(.easeOut(duration: DSMotion.Duration.slow)) {
                 taglineVisible = true
             }
-            try? await Task.sleep(for: .milliseconds(140))
-            withAnimation(.easeOut(duration: DSMotion.Duration.slow)) {
-                brandLineVisible = true
-            }
         }
-    }
-
-    // MARK: - Brand Line
-
-    private var brandLine: some View {
-        HStack(spacing: 14) {
-            brandChip(image: "AppleMusicLogo", color: AppConstants.Brand.appleMusicGradientEnd)
-            dot
-            brandChip(image: "TwitchLogo", color: AppConstants.Brand.twitch)
-            dot
-            brandChip(image: "DiscordLogo", color: AppConstants.Brand.discord)
-            dot
-            brandChip(systemSymbol: "tv.badge.wifi", color: .accentColor)
-        }
-        .padding(.horizontal, DSSpace.s6)
-        .padding(.vertical, DSSpace.s3)
-        .background(
-            Capsule(style: .continuous)
-                .fill(.regularMaterial)
-        )
-        .overlay(
-            Capsule(style: .continuous)
-                .stroke(Color.primary.opacity(0.06), lineWidth: 0.5)
-        )
-        .accessibilityElement(children: .ignore)
-        .accessibilityLabel("Connects with Apple Music, Twitch, Discord, and OBS overlays.")
-    }
-
-    private var dot: some View {
-        Circle()
-            .fill(Color.secondary.opacity(0.30))
-            .frame(width: 3, height: 3)
     }
 
     // MARK: - Privacy Line
@@ -127,36 +92,6 @@ struct OnboardingWelcomeStepView: View {
                     .accessibilityIdentifier("onboarding.welcome.privacyLink")
             }
         }
-    }
-
-    /// Tinted brand-asset chip (asset-catalog template image) used in the
-    /// "integrates with" pills row.
-    ///
-    /// - Parameters:
-    ///   - image: Asset name of the brand image.
-    ///   - color: Tint applied via `.foregroundStyle`.
-    @ViewBuilder
-    private func brandChip(image: String, color: Color) -> some View {
-        Image(image)
-            .renderingMode(.template)
-            .resizable()
-            .aspectRatio(contentMode: .fit)
-            .frame(width: 16, height: 16)
-            .foregroundStyle(color)
-    }
-
-    /// Tinted SF Symbol variant of `brandChip` for integrations without a
-    /// dedicated brand asset (e.g. OBS).
-    ///
-    /// - Parameters:
-    ///   - systemSymbol: SF Symbol name.
-    ///   - color: Tint applied via `.foregroundStyle`.
-    @ViewBuilder
-    private func brandChip(systemSymbol: String, color: Color) -> some View {
-        Image(systemName: systemSymbol)
-            .font(.system(size: DSFont.Size.md, weight: .semibold))
-            .foregroundStyle(color)
-            .frame(width: 18, height: 16)
     }
 }
 

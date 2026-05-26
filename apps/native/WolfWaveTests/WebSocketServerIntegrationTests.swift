@@ -84,7 +84,9 @@ final class WebSocketServerIntegrationTests: XCTestCase, @unchecked Sendable {
 
         let obs3 = observe(service, fulfilling: secondListen) { state, _ in state == .listening }
         Task { await service.setEnabled(true) }
-        wait(for: [secondListen], timeout: 5)
+        // macOS can hold the port in TIME_WAIT briefly after stop; give the
+        // second listen a generous window so CI runners don't flake.
+        wait(for: [secondListen], timeout: 15)
         obs3.cancel()
 
         Task { await service.setEnabled(false) }

@@ -7,7 +7,9 @@
 
 import SwiftUI
 
-/// Celebration screen shown after onboarding completes, with sequenced animations before auto-dismiss.
+/// Celebration screen shown after onboarding completes. The animated
+/// howl-wave bars on the `WolfHeroMark` are the celebration cue — no
+/// separate checkmark.
 struct OnboardingCompletionView: View {
 
     // MARK: - Properties
@@ -17,41 +19,45 @@ struct OnboardingCompletionView: View {
 
     // MARK: - Animation State
 
-    @State private var showIcon = false
+    @State private var showHero = false
     @State private var showText = false
-    @State private var showCheck = false
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    // MARK: - Layout Constants
+
+    private static let heroSize: CGFloat = DSDimension.Onboarding.brandTileSize + DSSpace.s10
 
     // MARK: - Body
 
     var body: some View {
-        VStack(spacing: 20) {
+        VStack(spacing: DSSpace.s7) {
             Spacer()
 
-            // App icon — drops in with spring bounce
-            Image(nsImage: NSApp.applicationIconImage)
-                .resizable()
-                .scaledToFit()
-                .frame(width: 80, height: 80)
-                .offset(y: showIcon ? 0 : -40)
-                .opacity(showIcon ? 1 : 0)
-                .animation(
-                    reduceMotion
-                        ? .none
-                        : .interpolatingSpring(stiffness: 200, damping: 12),
-                    value: showIcon
-                )
-                .accessibilityLabel("WolfWave app icon")
+            WolfHeroMark(
+                size: Self.heroSize,
+                style: .brandGradient,
+                animatedBars: true,
+                reduceMotion: reduceMotion
+            )
+            .offset(y: showHero ? 0 : -DSSpace.s10)
+            .opacity(showHero ? 1 : 0)
+            .animation(
+                reduceMotion
+                    ? .none
+                    : .interpolatingSpring(stiffness: 200, damping: 14),
+                value: showHero
+            )
 
-            // Title and subtitle — fade in together
-            VStack(spacing: 8) {
-                Text("You're all set!")
+            VStack(spacing: DSSpace.s2) {
+                Text("Howl yeah — you're set.")
                     .font(.system(size: DSFont.Size.x24, weight: .bold))
+                    .multilineTextAlignment(.center)
 
-                Text("WolfWave is running in your menu bar.")
+                Text("WolfWave's in your menu bar. Click the wolf any time.")
                     .font(.system(size: DSFont.Size.x15))
                     .foregroundStyle(.secondary)
+                    .multilineTextAlignment(.center)
             }
             .opacity(showText ? 1 : 0)
             .animation(
@@ -59,49 +65,48 @@ struct OnboardingCompletionView: View {
                 value: showText
             )
 
-            // Green checkmark — scales in with spring
-            Image(systemName: "checkmark.circle.fill")
-                .resizable()
-                .scaledToFit()
-                .frame(width: 44, height: 44)
-                .foregroundStyle(.green)
-                .scaleEffect(showCheck ? 1 : 0)
-                .opacity(showCheck ? 1 : 0)
-                .animation(
-                    reduceMotion
-                        ? .none
-                        : DSMotion.Spring.expressive,
-                    value: showCheck
-                )
-                .accessibilityHidden(true)
-
             Spacer()
+
+            Text(Self.copyrightLine)
+                .font(.system(size: DSFont.Size.xs))
+                .foregroundStyle(.tertiary)
+                .padding(.bottom, DSSpace.s4)
+                .opacity(showText ? 1 : 0)
+                .animation(
+                    reduceMotion ? .none : .easeOut(duration: DSMotion.Duration.long),
+                    value: showText
+                )
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(Color(nsColor: .windowBackgroundColor))
         .accessibilityElement(children: .combine)
-        .accessibilityLabel("Setup complete. WolfWave is running in your menu bar.")
+        .accessibilityLabel("Setup complete. WolfWave is in your menu bar.")
         .task {
             if reduceMotion {
-                showIcon = true
+                showHero = true
                 showText = true
-                showCheck = true
-                try? await Task.sleep(for: .milliseconds(1500))
+                try? await Task.sleep(for: .milliseconds(1200))
                 guard !Task.isCancelled else { return }
                 onDismiss()
             } else {
-                showIcon = true
-                try? await Task.sleep(for: .milliseconds(300))
+                showHero = true
+                try? await Task.sleep(for: .milliseconds(280))
                 guard !Task.isCancelled else { return }
                 showText = true
-                try? await Task.sleep(for: .milliseconds(300))
-                guard !Task.isCancelled else { return }
-                showCheck = true
-                try? await Task.sleep(for: .milliseconds(1900))
+                try? await Task.sleep(for: .milliseconds(1500))
                 guard !Task.isCancelled else { return }
                 onDismiss()
             }
         }
+    }
+
+    // MARK: - Copyright
+
+    /// Hardcoded for now. When the config refactor lands a `COPYRIGHT_HOLDER`
+    /// key, swap to `AppConstants.copyrightHolder`.
+    private static var copyrightLine: String {
+        let year = Calendar.current.component(.year, from: Date())
+        return "© \(year) MrDemonWolf, Inc."
     }
 }
 
