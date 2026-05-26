@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { absoluteUrl } from "@/lib/site";
 import {
   ArrowRight,
   Check,
@@ -30,18 +31,31 @@ export const metadata: Metadata = {
     "macos menu bar music streamer",
     "twitch song requests without spotify premium",
   ],
-  alternates: { canonical: "/" },
+  alternates: { canonical: absoluteUrl("/") },
   openGraph: {
     type: "website",
+    url: absoluteUrl("/"),
+    siteName: "WolfWave",
     title: "WolfWave — Free Apple Music to Twitch, Discord & OBS on Mac",
     description:
       "Stop telling chat what song is playing. WolfWave bridges Apple Music with Twitch chat, Discord Rich Presence, and your stream overlay — automatically.",
+    images: [
+      {
+        url: absoluteUrl("/opengraph-image.png"),
+        width: 1200,
+        height: 630,
+        alt: "WolfWave — Apple Music to Twitch, Discord, and OBS overlay on macOS",
+      },
+    ],
   },
   twitter: {
     card: "summary_large_image",
+    site: "@mrdemonwolf",
+    creator: "@mrdemonwolf",
     title: "WolfWave — Free Apple Music to Twitch, Discord & OBS on Mac",
     description:
       "Stop telling chat what song is playing. WolfWave bridges Apple Music with Twitch chat, Discord Rich Presence, and your stream overlay — automatically.",
+    images: [absoluteUrl("/opengraph-image.png")],
   },
 };
 

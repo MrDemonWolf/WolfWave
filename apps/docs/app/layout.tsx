@@ -1,7 +1,7 @@
 import { Unbounded, Instrument_Sans, Instrument_Serif, JetBrains_Mono } from "next/font/google";
 import type { Metadata } from "next";
 import { Provider } from "@/components/provider";
-import { siteUrl, basePath } from "@/lib/site";
+import { siteUrl, basePath, absoluteUrl } from "@/lib/site";
 import "./global.css";
 
 const unbounded = Unbounded({
@@ -74,6 +74,14 @@ export const metadata: Metadata = {
     title: "WolfWave — Your Music, Live Everywhere",
     description:
       "WolfWave is a free, open-source macOS menu bar app that broadcasts your Apple Music to Twitch chat, Discord Rich Presence, and stream overlays via WebSocket. No account required.",
+    images: [
+      {
+        url: absoluteUrl("/opengraph-image.png"),
+        width: 1200,
+        height: 630,
+        alt: "WolfWave — Apple Music to Twitch, Discord, and OBS overlay on macOS",
+      },
+    ],
   },
   twitter: {
     card: "summary_large_image",
@@ -82,6 +90,7 @@ export const metadata: Metadata = {
     title: "WolfWave — Your Music, Live Everywhere",
     description:
       "Free macOS menu bar app that shares your Apple Music now-playing to Twitch chat, Discord Rich Presence, and OBS stream overlays — automatically.",
+    images: [absoluteUrl("/opengraph-image.png")],
   },
   metadataBase: new URL(siteUrl),
 };
