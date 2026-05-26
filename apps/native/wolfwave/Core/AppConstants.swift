@@ -1037,5 +1037,9 @@ nonisolated enum AppConstants {
         /// OBS Studio gradient stops — neutral dark.
         static let obsGradientStart = DSColor.partnerObsStart
         static let obsGradientEnd = DSColor.partnerObsEnd
+
+        /// WolfWave gradient stops — navy → royal blue. Used for branded share cards (Monthly Wrap export).
+        static let wolfwaveGradientStart = DSColor.partnerWolfwaveGradientStart
+        static let wolfwaveGradientEnd = DSColor.partnerWolfwaveGradientEnd
     }
 }

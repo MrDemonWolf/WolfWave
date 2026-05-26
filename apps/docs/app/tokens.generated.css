@@ -38,6 +38,8 @@
   --ds-color-partner-apple-music-pulse-end: #FA1A52;
   --ds-color-partner-obs-start: #2C2C2E;
   --ds-color-partner-obs-end: #1A1A1C;
+  --ds-color-partner-wolfwave-gradient-start: #0A2540;
+  --ds-color-partner-wolfwave-gradient-end: #2563EB;
   --ds-font-family-display: Unbounded, -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
   --ds-font-family-sans: "Instrument Sans", -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
   --ds-font-family-serif: "Instrument Serif", ui-serif, Georgia, serif;

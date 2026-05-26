@@ -65,7 +65,9 @@ window.WW_TOKENS = {
       "appleMusicPulseStart": "#FC4773",
       "appleMusicPulseEnd": "#FA1A52",
       "obsStart": "#2C2C2E",
-      "obsEnd": "#1A1A1C"
+      "obsEnd": "#1A1A1C",
+      "wolfwaveGradientStart": "#0A2540",
+      "wolfwaveGradientEnd": "#2563EB"
     }
   },
   "font": {

@@ -62,6 +62,8 @@ nonisolated enum DSColor {
     static let partnerAppleMusicPulseEnd = Color(red: 0.980, green: 0.102, blue: 0.322)
     static let partnerObsStart = Color(red: 0.173, green: 0.173, blue: 0.180)
     static let partnerObsEnd = Color(red: 0.102, green: 0.102, blue: 0.110)
+    static let partnerWolfwaveGradientStart = Color(red: 0.039, green: 0.145, blue: 0.251)
+    static let partnerWolfwaveGradientEnd = Color(red: 0.145, green: 0.388, blue: 0.922)
 }
 
 /// Generated typography sizes. CGFloat literals match prior hand-coded sizes.

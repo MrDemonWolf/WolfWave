@@ -167,10 +167,20 @@ struct MonthlyWrapCard: View {
     var body: some View {
         VStack(alignment: .leading, spacing: DSSpace.s5) {
             VStack(alignment: .leading, spacing: DSSpace.s0) {
-                Text("WOLFWAVE · MONTHLY WRAP")
-                    .font(.system(size: DSFont.Size.x9, weight: .bold))
-                    .tracking(1.4)
-                    .foregroundStyle(.white.opacity(0.7))
+                HStack(spacing: DSSpace.s2) {
+                    if let mark = NSImage(named: "TrayIcon") {
+                        Image(nsImage: mark)
+                            .resizable()
+                            .renderingMode(.template)
+                            .interpolation(.high)
+                            .frame(width: DSSpace.s6, height: DSSpace.s6)
+                            .foregroundStyle(.white)
+                    }
+                    Text("WOLFWAVE · MONTHLY WRAP")
+                        .font(.system(size: DSFont.Size.x9, weight: .bold))
+                        .tracking(1.4)
+                        .foregroundStyle(.white.opacity(0.7))
+                }
                 Text(data.monthLabel)
                     .font(.system(size: DSFont.Size.x24, weight: .bold))
                     .foregroundStyle(.white)
@@ -203,14 +213,23 @@ struct MonthlyWrapCard: View {
                     .foregroundStyle(.white.opacity(0.8))
                     .padding(.vertical, DSSpace.s4)
             }
+
+            HStack {
+                Text("WolfWave by MrDemonWolf, Inc.")
+                Spacer()
+                Text("wolfwave.app")
+            }
+            .font(.system(size: DSFont.Size.xs, weight: .medium))
+            .foregroundStyle(.white.opacity(0.55))
+            .padding(.top, DSSpace.s2)
         }
         .padding(DSSpace.s7)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(
             LinearGradient(
                 colors: [
-                    AppConstants.Brand.appleMusicGradientStart,
-                    AppConstants.Brand.appleMusicGradientEnd,
+                    AppConstants.Brand.wolfwaveGradientStart,
+                    AppConstants.Brand.wolfwaveGradientEnd
                 ],
                 startPoint: .topLeading,
                 endPoint: .bottomTrailing

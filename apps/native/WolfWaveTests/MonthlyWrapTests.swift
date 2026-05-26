@@ -7,6 +7,7 @@
 
 import Testing
 import Foundation
+import SwiftUI
 @testable import WolfWave
 
 /// Tests for the monthly "wrapped"-style summary builder.
@@ -86,5 +87,12 @@ struct MonthlyWrapTests {
         ]
         let wrap = MonthlyWrap.data(from: records, month: date(2026, 5, 15), calendar: calendar)
         #expect(wrap.busiestDay?.count == 2)
+    }
+
+    @Test("MonthlyWrapCard renders without crashing on the WolfWave gradient")
+    func testCardRenders() {
+        let data = MonthlyWrap.data(from: [], month: date(2026, 5, 15), calendar: calendar)
+        let renderer = ImageRenderer(content: MonthlyWrapCard(data: data).frame(width: 380))
+        #expect(renderer.nsImage != nil)
     }
 }
