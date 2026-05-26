@@ -180,6 +180,13 @@ final class ListeningHistoryService {
         MonthlyWrap.data(from: records, month: month)
     }
 
+    /// First day of the earliest month containing a recorded play.
+    /// `nil` when no plays have been recorded yet.
+    var earliestRecordedMonth: Date? {
+        guard let earliest = records.map(\.timestamp).min() else { return nil }
+        return Calendar.current.dateInterval(of: .month, for: earliest)?.start
+    }
+
     /// A chat-ready one-liner for the `!stats` command.
     ///
     /// Reports today's play count and top track, falling back to a friendly

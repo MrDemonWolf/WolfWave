@@ -35,6 +35,63 @@ struct ListeningHistoryServiceTests {
 
     // MARK: - Scrobble Threshold
 
+    // MARK: - Earliest Recorded Month
+
+    @Test("earliestRecordedMonth is nil when no plays have been recorded")
+    func testEarliestRecordedMonthNilWhenEmpty() {
+        let dir = makeTempDirectory()
+        let service = makeService(enabled: true, directory: dir)
+        #expect(service.earliestRecordedMonth == nil)
+        try? FileManager.default.removeItem(at: dir)
+    }
+
+    @Test("earliestRecordedMonth returns first-of-month for the oldest record")
+    func testEarliestRecordedMonthReturnsFirstOfOldestMonth() {
+        let dir = makeTempDirectory()
+        let service = makeService(enabled: true, directory: dir)
+
+        // Record a play "now" (current month).
+        service.recordTrackChange(
+            track: "Recent", artist: "A", album: "",
+            duration: 200, playedSeconds: 188
+        )
+
+        guard let earliest = service.earliestRecordedMonth else {
+            Issue.record("Expected earliestRecordedMonth after a play")
+            try? FileManager.default.removeItem(at: dir)
+            return
+        }
+
+        let cal = Calendar.current
+        let expected = cal.dateInterval(of: .month, for: Date())?.start
+        #expect(earliest == expected)
+        // Always the first day of the month.
+        #expect(cal.component(.day, from: earliest) == 1)
+        try? FileManager.default.removeItem(at: dir)
+    }
+
+    @Test("earliestRecordedMonth uses the minimum timestamp, not insertion order")
+    func testEarliestRecordedMonthIgnoresInsertionOrder() {
+        let dir = makeTempDirectory()
+        let service = makeService(enabled: true, directory: dir)
+
+        // Insert recent first, older second — earliest should still be the older one.
+        service.recordTrackChange(
+            track: "Recent", artist: "A", album: "",
+            duration: 200, playedSeconds: 188
+        )
+        service.recordTrackChange(
+            track: "AlsoRecent", artist: "B", album: "",
+            duration: 200, playedSeconds: 188
+        )
+
+        // Both fall in the current month — earliest should be start-of-current-month.
+        let cal = Calendar.current
+        let expected = cal.dateInterval(of: .month, for: Date())?.start
+        #expect(service.earliestRecordedMonth == expected)
+        try? FileManager.default.removeItem(at: dir)
+    }
+
     @Test("A track played past 50% qualifies")
     func testQualifiesAtHalf() {
         #expect(ListeningHistoryService.qualifiesAsPlay(duration: 200, playedSeconds: 100))

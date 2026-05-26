@@ -42,13 +42,26 @@ struct MonthlyWrapView: View {
         calendar.isDate(month, equalTo: Date(), toGranularity: .month)
     }
 
+    /// Whether the shown month is the earliest month containing data (can't go back further).
+    private var isEarliestMonth: Bool {
+        guard let earliest = service.earliestRecordedMonth else { return true }
+        return calendar.isDate(month, equalTo: earliest, toGranularity: .month)
+    }
+
+    /// Whether any plays have ever been recorded.
+    private var hasAnyHistory: Bool {
+        service.earliestRecordedMonth != nil
+    }
+
     // MARK: - Body
 
     var body: some View {
         VStack(spacing: DSSpace.s6) {
-            header
+            if hasAnyHistory {
+                header
+            }
 
-            MonthlyWrapCard(data: wrap)
+            MonthlyWrapCard(data: wrap, hasAnyHistory: hasAnyHistory)
                 .frame(width: 380)
 
             footer
@@ -69,6 +82,7 @@ struct MonthlyWrapView: View {
             }
             .buttonStyle(.borderless)
             .pointerCursor()
+            .disabled(isEarliestMonth)
             .accessibilityLabel("Previous month")
 
             Spacer()
@@ -115,10 +129,13 @@ struct MonthlyWrapView: View {
 
     // MARK: - Actions
 
-    /// Moves the shown month, never past the current month.
+    /// Moves the shown month, clamped between the earliest recorded month and the current month.
     private func shiftMonth(by delta: Int) {
         guard let next = calendar.date(byAdding: .month, value: delta, to: month) else { return }
         if delta > 0, next > Date() { return }
+        if delta < 0,
+           let earliest = service.earliestRecordedMonth,
+           next < earliest { return }
         month = next
         didExport = false
     }
@@ -127,7 +144,7 @@ struct MonthlyWrapView: View {
     @MainActor
     private func exportImage() {
         let renderer = ImageRenderer(content:
-            MonthlyWrapCard(data: wrap)
+            MonthlyWrapCard(data: wrap, hasAnyHistory: hasAnyHistory)
                 .frame(width: 380)
                 .padding(DSSpace.s7)
                 .background(Color(nsColor: .windowBackgroundColor))
@@ -164,6 +181,9 @@ struct MonthlyWrapView: View {
 struct MonthlyWrapCard: View {
 
     let data: MonthlyWrapData
+    /// `false` when no plays have ever been recorded — switches the empty branch
+    /// from a per-month "no plays" message to a punchy onboarding CTA.
+    var hasAnyHistory: Bool = true
 
     var body: some View {
         VStack(alignment: .leading, spacing: DSSpace.s5) {
@@ -208,6 +228,16 @@ struct MonthlyWrapCard: View {
                 Text("\(data.uniqueArtists) artists · \(data.uniqueTracks) tracks")
                     .font(.system(size: DSFont.Size.sm, weight: .medium))
                     .foregroundStyle(.white.opacity(0.7))
+            } else if !hasAnyHistory {
+                VStack(alignment: .leading, spacing: DSSpace.s2) {
+                    Text("Nothing to wrap yet.")
+                        .font(.system(size: DSFont.Size.lg, weight: .bold))
+                        .foregroundStyle(.white)
+                    Text("Go rave it out — your Monthly Wrap unlocks once you've logged some plays.")
+                        .font(.system(size: DSFont.Size.base))
+                        .foregroundStyle(.white.opacity(0.85))
+                }
+                .padding(.vertical, DSSpace.s4)
             } else {
                 Text("No plays recorded in \(data.monthLabel).")
                     .font(.system(size: DSFont.Size.base))
@@ -317,7 +347,25 @@ struct MonthlyWrapCard: View {
         topAlbum: nil,
         busiestDay: nil
     )
-    return MonthlyWrapCard(data: data)
+    return MonthlyWrapCard(data: data, hasAnyHistory: true)
+        .frame(width: 380)
+        .padding()
+}
+
+#Preview("No history yet") {
+    let data = MonthlyWrapData(
+        monthLabel: "May 2026",
+        monthStart: Date(),
+        totalPlays: 0,
+        totalListeningSeconds: 0,
+        uniqueArtists: 0,
+        uniqueTracks: 0,
+        topArtist: nil,
+        topTrack: nil,
+        topAlbum: nil,
+        busiestDay: nil
+    )
+    return MonthlyWrapCard(data: data, hasAnyHistory: false)
         .frame(width: 380)
         .padding()
 }
