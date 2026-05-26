@@ -303,8 +303,7 @@ fileprivate struct WebSocketServerCard: View {
             }
             .animation(.easeInOut(duration: DSMotion.Duration.base), value: localNetworkIP)
         }
-        .background(Color(nsColor: .controlBackgroundColor))
-        .clipShape(RoundedRectangle(cornerRadius: AppConstants.SettingsUI.cardCornerRadius))
+        .cardStyleUnpadded()
         .onAppear {
             portText = String(storedPort)
             tokenDraft = currentToken
@@ -930,8 +929,7 @@ fileprivate struct WebSocketWidgetAppearanceCard: View {
             .padding(.horizontal, cardPadding)
             .padding(.vertical, DSSpace.s4)
         }
-        .background(Color(nsColor: .controlBackgroundColor))
-        .clipShape(RoundedRectangle(cornerRadius: AppConstants.SettingsUI.cardCornerRadius))
+        .cardStyleUnpadded()
         .task {
             guard fontFamilies.isEmpty else { return }
             let families = await Task.detached(priority: .userInitiated) {

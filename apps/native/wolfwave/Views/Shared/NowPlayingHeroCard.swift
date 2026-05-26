@@ -59,7 +59,7 @@ struct NowPlayingHeroCard: View {
             Spacer(minLength: 0)
         }
         .padding(DSSpace.s7)
-        .glassEffect(.regular, in: .rect(cornerRadius: AppConstants.SettingsUI.cardCornerRadius))
+        .cardStyleUnpadded()
         .animation(reduceMotion ? nil : .easeInOut(duration: DSMotion.Duration.base), value: track)
         .accessibilityElement(children: .combine)
         .accessibilityLabel(accessibilityLabel)

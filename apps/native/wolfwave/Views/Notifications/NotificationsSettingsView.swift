@@ -51,9 +51,7 @@ struct NotificationsSettingsView: View {
                 }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(AppConstants.SettingsUI.cardPadding)
-            .background(Color(nsColor: .controlBackgroundColor))
-            .clipShape(RoundedRectangle(cornerRadius: AppConstants.SettingsUI.cardCornerRadius))
+            .cardStyle()
         }
         .task {
             await refreshAuthorizationStatus()

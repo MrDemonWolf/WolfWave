@@ -57,7 +57,7 @@ struct PermissionDeniedBanner: View {
             }
         }
         .padding(DSSpace.s7)
-        .glassEffect(.regular, in: .rect(cornerRadius: AppConstants.SettingsUI.cardCornerRadius))
+        .cardStyleUnpadded()
         .accessibilityElement(children: .combine)
         .accessibilityLabel("Music access denied. Open System Settings to grant Automation access for the Music app.")
     }
@@ -297,7 +297,7 @@ struct PermissionPausedNowPlayingCard: View {
             StatusChip(text: "Denied", color: .red)
         }
         .padding(DSSpace.s6)
-        .glassEffect(.regular, in: .rect(cornerRadius: AppConstants.SettingsUI.cardCornerRadius))
+        .cardStyleUnpadded()
     }
 }
 

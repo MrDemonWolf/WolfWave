@@ -63,9 +63,7 @@ struct AppVisibilitySettingsView: View {
                 .accessibilityIdentifier("launchAtLoginToggle")
             }
             .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(AppConstants.SettingsUI.cardPadding)
-            .background(Color(nsColor: .controlBackgroundColor))
-            .clipShape(RoundedRectangle(cornerRadius: AppConstants.SettingsUI.cardCornerRadius))
+            .cardStyle()
 
             // Picker Card
             VStack(alignment: .leading, spacing: DSSpace.s4) {

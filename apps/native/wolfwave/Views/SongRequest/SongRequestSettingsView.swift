@@ -780,8 +780,7 @@ fileprivate struct SongRequestCommandsCard: View {
                     AliasRow(aliases: $clearQueueAliases, isLast: true)
                 }
             }
-            .background(Color(nsColor: .controlBackgroundColor))
-            .clipShape(RoundedRectangle(cornerRadius: AppConstants.SettingsUI.cardCornerRadius))
+            .cardStyleUnpadded()
 
             HStack(spacing: 6) {
                 Image(systemName: "info.circle.fill")
