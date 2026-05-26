@@ -18,7 +18,7 @@
                BlueprintIdentifier = "D40965C92F0F906C00B292B6"
                BuildableName = "WolfWave.app"
                BlueprintName = "WolfWave"
-               ReferencedContainer = "container:wolfwave.xcodeproj">
+               ReferencedContainer = "container:WolfWave.xcodeproj">
             </BuildableReference>
          </BuildActionEntry>
       </BuildActionEntries>
@@ -37,7 +37,7 @@
                BlueprintIdentifier = "D4A1B2082F0F906C00B292B6"
                BuildableName = "WolfWaveTests.xctest"
                BlueprintName = "WolfWaveTests"
-               ReferencedContainer = "container:wolfwave.xcodeproj">
+               ReferencedContainer = "container:WolfWave.xcodeproj">
             </BuildableReference>
          </TestableReference>
       </Testables>
@@ -60,7 +60,7 @@
             BlueprintIdentifier = "D40965C92F0F906C00B292B6"
             BuildableName = "WolfWave.app"
             BlueprintName = "WolfWave"
-            ReferencedContainer = "container:wolfwave.xcodeproj">
+            ReferencedContainer = "container:WolfWave.xcodeproj">
          </BuildableReference>
       </BuildableProductRunnable>
    </LaunchAction>
@@ -77,7 +77,7 @@
             BlueprintIdentifier = "D40965C92F0F906C00B292B6"
             BuildableName = "WolfWave.app"
             BlueprintName = "WolfWave"
-            ReferencedContainer = "container:wolfwave.xcodeproj">
+            ReferencedContainer = "container:WolfWave.xcodeproj">
          </BuildableReference>
       </BuildableProductRunnable>
    </ProfileAction>
