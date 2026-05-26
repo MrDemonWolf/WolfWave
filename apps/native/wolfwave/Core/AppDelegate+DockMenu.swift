@@ -82,7 +82,7 @@ extension AppDelegate {
     private func addDockServiceToggles(into menu: NSMenu) {
         let trackingOn = UserDefaults.standard.bool(forKey: AppConstants.UserDefaults.trackingEnabled)
         let trackingItem = NSMenuItem(
-            title: "Sync Music",
+            title: "Apple Music",
             action: #selector(toggleTracking),
             keyEquivalent: ""
         )
@@ -92,7 +92,7 @@ extension AppDelegate {
         if KeychainService.loadTwitchToken() != nil {
             let connected = twitchService?.isConnectedSnapshot.value ?? false
             let twitchItem = NSMenuItem(
-                title: "Twitch Chat",
+                title: "Twitch",
                 action: #selector(toggleTwitchConnection),
                 keyEquivalent: ""
             )
@@ -102,7 +102,7 @@ extension AppDelegate {
 
         let discordEnabled = UserDefaults.standard.bool(forKey: AppConstants.UserDefaults.discordPresenceEnabled)
         let discordItem = NSMenuItem(
-            title: "Discord Status",
+            title: "Discord",
             action: #selector(toggleDiscordPresence),
             keyEquivalent: ""
         )
@@ -111,7 +111,7 @@ extension AppDelegate {
 
         let widgetsEnabled = UserDefaults.standard.bool(forKey: AppConstants.UserDefaults.websocketEnabled)
         let widgetsItem = NSMenuItem(
-            title: "Stream Widgets",
+            title: "OBS Overlay",
             action: #selector(toggleWebSocket),
             keyEquivalent: ""
         )

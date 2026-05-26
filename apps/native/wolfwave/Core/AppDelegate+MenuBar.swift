@@ -137,6 +137,55 @@ extension AppDelegate {
         return item
     }
 
+    /// Builds the "Copy Song Link" menu item. Shows a `song.link` multi-platform
+    /// URL when resolved; falls back to the Apple Music track URL while the
+    /// song.link sentinel is still warming. Disabled (with a "Resolving…"
+    /// hint) when neither URL is cached yet, so the row's position is stable.
+    ///
+    /// Mirrors the same `ArtworkService.cachedTrackLinks` source the Discord
+    /// RPC button row uses, so what the streamer pastes matches what their
+    /// audience sees.
+    fileprivate func makeCopySongLinkItem(song: String, artist: String?) -> NSMenuItem {
+        let item = NSMenuItem(
+            title: "Copy Song Link",
+            action: #selector(copySongLink),
+            keyEquivalent: ""
+        )
+        item.image = NSImage(
+            systemSymbolName: "link",
+            accessibilityDescription: "Copy Song Link"
+        )
+
+        let hasLink: Bool
+        if let artist {
+            let links = ArtworkService.shared.cachedTrackLinks(track: song, artist: artist)
+            hasLink = (links.songLinkURL != nil) || (links.trackViewURL != nil)
+        } else {
+            hasLink = false
+        }
+
+        if !hasLink {
+            item.isEnabled = false
+            let attributed = NSMutableAttributedString(
+                string: "Copy Song Link",
+                attributes: [
+                    .font: NSFont.menuFont(ofSize: 0),
+                    .foregroundColor: NSColor.labelColor,
+                ]
+            )
+            attributed.append(NSAttributedString(
+                string: "  Resolving\u{2026}",
+                attributes: [
+                    .font: NSFont.menuFont(ofSize: NSFont.systemFontSize(for: .small)),
+                    .foregroundColor: NSColor.secondaryLabelColor,
+                ]
+            ))
+            item.attributedTitle = attributed
+        }
+
+        return item
+    }
+
     /// Returns a tray menu item with a primary title and a dimmed trailing
     /// status string, e.g. `"Twitch Chat"` + `"@nathanial"`.
     fileprivate func makeStatusItem(
@@ -240,6 +289,9 @@ extension AppDelegate: NSMenuDelegate {
             accessibilityDescription: "Copy Song Info"
         )
         menu.addItem(copyItem)
+
+        let linkItem = makeCopySongLinkItem(song: song, artist: currentArtist)
+        menu.addItem(linkItem)
 
         if twitchService?.isConnectedSnapshot.value ?? false {
             let shareItem = NSMenuItem(
@@ -459,7 +511,7 @@ extension AppDelegate: NSMenuDelegate {
     private func buildServiceToggles(into menu: NSMenu) {
         let trackingOn = UserDefaults.standard.bool(forKey: AppConstants.UserDefaults.trackingEnabled)
         let trackingItem = makeStatusItem(
-            title: "Sync Music",
+            title: "Apple Music",
             status: MenuStatusFormatter.musicStatus(trackingEnabled: trackingOn),
             action: #selector(toggleTracking),
             on: trackingOn,
@@ -471,7 +523,7 @@ extension AppDelegate: NSMenuDelegate {
             let connected = twitchService?.isConnectedSnapshot.value ?? false
             let channel = UserDefaults.standard.string(forKey: AppConstants.UserDefaults.twitchChannelName)
             let twitchItem = makeStatusItem(
-                title: "Twitch Chat",
+                title: "Twitch",
                 status: MenuStatusFormatter.twitchStatus(isConnected: connected, channelName: channel),
                 action: #selector(toggleTwitchConnection),
                 on: connected,
@@ -489,7 +541,7 @@ extension AppDelegate: NSMenuDelegate {
             }
         }()
         let discordItem = makeStatusItem(
-            title: "Discord Status",
+            title: "Discord",
             status: MenuStatusFormatter.discordStatus(enabled: discordEnabled, state: discordState),
             action: #selector(toggleDiscordPresence),
             on: discordEnabled,
@@ -501,7 +553,7 @@ extension AppDelegate: NSMenuDelegate {
         let widgetPort = resolvedWidgetPort()
         let clientCount = websocketServer?.connectedClientCount ?? 0
         let overlayItem = makeStatusItem(
-            title: "Stream Widgets",
+            title: "OBS Overlay",
             status: MenuStatusFormatter.widgetsStatus(
                 enabled: widgetsEnabled,
                 widgetPort: widgetPort,
@@ -545,13 +597,13 @@ extension AppDelegate: NSMenuDelegate {
         }
 
         let reconnectItem = NSMenuItem(
-            title: "Reconnect All Services",
+            title: "Restart Integrations",
             action: #selector(reconnectAllServices),
             keyEquivalent: ""
         )
         reconnectItem.image = NSImage(
             systemSymbolName: "arrow.triangle.2.circlepath",
-            accessibilityDescription: "Reconnect All Services"
+            accessibilityDescription: "Restart Integrations"
         )
         menu.addItem(reconnectItem)
 
@@ -626,6 +678,24 @@ extension AppDelegate: NSMenuDelegate {
 
         submenu.addItem(.separator())
 
+        let docs = NSMenuItem(
+            title: "Documentation",
+            action: #selector(openDocs),
+            keyEquivalent: ""
+        )
+        docs.image = NSImage(systemSymbolName: "book", accessibilityDescription: nil)
+        submenu.addItem(docs)
+
+        let community = NSMenuItem(
+            title: "Community Discord",
+            action: #selector(openCommunityDiscord),
+            keyEquivalent: ""
+        )
+        community.image = NSImage(systemSymbolName: "bubble.left.and.bubble.right", accessibilityDescription: nil)
+        submenu.addItem(community)
+
+        submenu.addItem(.separator())
+
         let bug = NSMenuItem(
             title: "Report a Bug",
             action: #selector(reportBug),
@@ -633,6 +703,14 @@ extension AppDelegate: NSMenuDelegate {
         )
         bug.image = NSImage(systemSymbolName: "ant", accessibilityDescription: nil)
         submenu.addItem(bug)
+
+        let github = NSMenuItem(
+            title: "Star on GitHub",
+            action: #selector(openGitHub),
+            keyEquivalent: ""
+        )
+        github.image = NSImage(systemSymbolName: "star", accessibilityDescription: nil)
+        submenu.addItem(github)
 
         return submenu
     }
@@ -795,6 +873,22 @@ extension AppDelegate {
         Log.debug("AppDelegate: Copied current track: \(value)", category: "App")
     }
 
+    /// Copies a multi-platform `song.link` URL for the currently-playing track
+    /// to the pasteboard, falling back to the Apple Music track URL when the
+    /// song.link sentinel hasn't resolved yet. No-op when nothing is cached —
+    /// the menu item is disabled in that state, so this guard is belt-and-suspenders.
+    @objc func copySongLink() {
+        guard let song = currentSong, let artist = currentArtist else { return }
+        let links = ArtworkService.shared.cachedTrackLinks(track: song, artist: artist)
+        guard let url = links.songLinkURL ?? links.trackViewURL else {
+            Log.debug("AppDelegate: Copy Song Link no-op — no URL cached for \(song) — \(artist)", category: "App")
+            return
+        }
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.setString(url, forType: .string)
+        Log.debug("AppDelegate: Copied song link: \(url)", category: "App")
+    }
+
     /// Sends the same `!song` reply a viewer would see, directly to chat.
     @objc func shareCurrentTrackToTwitch() {
         guard twitchService?.isConnectedSnapshot.value ?? false else { return }
@@ -827,11 +921,33 @@ extension AppDelegate {
 
     /// Force-cycles Twitch, Discord, and the websocket overlays so a streamer
     /// can recover from a network blip without poking each integration.
+    ///
+    /// Twitch leaves *and* rejoins (when creds + channel are available) so
+    /// the menu item lives up to its name — previously it only left, which
+    /// required opening Settings to come back online.
     @objc func reconnectAllServices() {
-        // Twitch: only attempt when creds exist; settings can drive the join
-        // otherwise.
+        // Twitch: leave then rejoin when creds + channel + clientID are all present.
         if let twitch = twitchService, twitch.isConnectedSnapshot.value {
-            Task { await twitch.leaveChannel() }
+            let token = KeychainService.loadTwitchToken()
+            let channel = UserDefaults.standard.string(forKey: AppConstants.UserDefaults.twitchChannelName)
+            let clientID = TwitchChatService.resolveClientID()
+            Task {
+                await twitch.leaveChannel()
+                Log.info("AppDelegate: Twitch left channel for restart", category: "App")
+                guard let token, !token.isEmpty,
+                      let channel, !channel.isEmpty,
+                      let clientID, !clientID.isEmpty else {
+                    Log.info("AppDelegate: Skipped Twitch rejoin (missing creds or channel)", category: "App")
+                    return
+                }
+                try? await Task.sleep(for: .milliseconds(250))
+                do {
+                    try await twitch.connectToChannel(channelName: channel, token: token, clientID: clientID)
+                    Log.info("AppDelegate: Twitch rejoin requested for #\(channel)", category: "App")
+                } catch {
+                    Log.warn("AppDelegate: Twitch rejoin failed: \(error.localizedDescription)", category: "App")
+                }
+            }
         }
 
         // Discord: setEnabled(false) → setEnabled(true) tears down and
@@ -842,6 +958,7 @@ extension AppDelegate {
                 await discord?.setEnabled(false)
                 try? await Task.sleep(for: .milliseconds(250))
                 await discord?.setEnabled(true)
+                Log.info("AppDelegate: Discord IPC cycled", category: "App")
             }
         }
 
@@ -852,10 +969,11 @@ extension AppDelegate {
                 await server?.setEnabled(false)
                 try? await Task.sleep(for: .milliseconds(250))
                 await server?.setEnabled(true)
+                Log.info("AppDelegate: Widget WebSocket server cycled", category: "App")
             }
         }
 
-        Log.info("AppDelegate: Reconnect-all triggered from tray", category: "App")
+        Log.info("AppDelegate: Restart Integrations triggered from tray", category: "App")
     }
 }
 
