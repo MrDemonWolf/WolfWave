@@ -212,7 +212,7 @@ export default function HomePage() {
               </Link>
             </div>
             <p className="mt-5 text-sm ww-text-2">
-              Free and open source · 3.7 MB · No account needed · macOS 26+ · Apple Silicon
+              Free and open source · ~10 MB · No account needed · macOS 26+ · Apple Silicon
             </p>
 
             {/* Trust strip — credibility badges, no fabricated quotes */}

@@ -12,6 +12,7 @@ import {
 import { presetForSlug } from '../../_components/og-presets';
 
 export const revalidate = false;
+export const dynamic = 'force-static';
 
 interface ChangelogInfo {
   version: string;

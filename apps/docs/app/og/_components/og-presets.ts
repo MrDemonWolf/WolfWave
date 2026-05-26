@@ -17,6 +17,7 @@ const PRESETS: Record<string, OgPreset> = {
   "privacy-policy": { eyebrow: "Local-first", chips: ["No Tracking", "No Servers", "Open Source"] },
   "terms-of-service": { eyebrow: "MIT license", chips: ["Free", "Open Source", "No Warranty"] },
   support: { eyebrow: "Support WolfWave", chips: ["GitHub Sponsors", "MIT", "Free Forever"] },
+  "design-system": { eyebrow: "Design System", chips: ["Tokens", "Components", "Brand", "Liquid Glass"] },
 };
 
 export function presetForSlug(slug: string[] | undefined): OgPreset {
