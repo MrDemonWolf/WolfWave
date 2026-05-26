@@ -107,9 +107,9 @@ final class TwitchChannelPointsServiceTests: XCTestCase {
         }
 
         let service = makeService()
-        let id = try await service.ensureReward(credentials: creds, cost: 500)
+        let rewardID = try await service.ensureReward(credentials: creds, cost: 500)
 
-        XCTAssertEqual(id, "reward_new")
+        XCTAssertEqual(rewardID, "reward_new")
         XCTAssertEqual(UserDefaults.standard.string(forKey: storageKey), "reward_new")
 
         let request = try XCTUnwrap(captured.value)
@@ -219,9 +219,9 @@ final class TwitchChannelPointsServiceTests: XCTestCase {
             )
         }
 
-        let id = try await makeService().ensureReward(credentials: creds, cost: 500)
+        let rewardID = try await makeService().ensureReward(credentials: creds, cost: 500)
 
-        XCTAssertEqual(id, "existing_id")
+        XCTAssertEqual(rewardID, "existing_id")
         let snap = state.value
         XCTAssertEqual(snap.callCount, 1, "Should not POST when GET confirms reward")
         XCTAssertEqual(snap.lastMethod, "GET")
@@ -253,9 +253,9 @@ final class TwitchChannelPointsServiceTests: XCTestCase {
             )
         }
 
-        let id = try await makeService().ensureReward(credentials: creds, cost: 200)
+        let rewardID = try await makeService().ensureReward(credentials: creds, cost: 200)
 
-        XCTAssertEqual(id, "fresh_id")
+        XCTAssertEqual(rewardID, "fresh_id")
         XCTAssertEqual(methods.value, ["GET", "POST"])
         XCTAssertEqual(UserDefaults.standard.string(forKey: storageKey), "fresh_id")
     }
@@ -279,9 +279,9 @@ final class TwitchChannelPointsServiceTests: XCTestCase {
             )
         }
 
-        let id = try await makeService().ensureReward(credentials: creds, cost: 200)
+        let rewardID = try await makeService().ensureReward(credentials: creds, cost: 200)
 
-        XCTAssertEqual(id, "recreated_id")
+        XCTAssertEqual(rewardID, "recreated_id")
         XCTAssertEqual(methods.value, ["GET", "POST"])
     }
 
@@ -354,8 +354,8 @@ final class TwitchChannelPointsServiceTests: XCTestCase {
         XCTAssertTrue(http.errorDescription?.contains("404") ?? false)
         XCTAssertTrue(http.errorDescription?.contains("oops") ?? false)
 
-        struct SE: LocalizedError { var errorDescription: String? { "boom" } }
-        let transport = TwitchChannelPointsService.RewardError.transport(underlying: SE())
+        struct StubError: LocalizedError { var errorDescription: String? { "boom" } }
+        let transport = TwitchChannelPointsService.RewardError.transport(underlying: StubError())
         XCTAssertTrue(transport.errorDescription?.contains("boom") ?? false)
 
         let malformed = TwitchChannelPointsService.RewardError.malformedResponse

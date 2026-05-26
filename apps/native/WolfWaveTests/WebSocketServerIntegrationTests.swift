@@ -201,8 +201,8 @@ final class WebSocketServerIntegrationTests: XCTestCase, @unchecked Sendable {
                 case .success(let message):
                     let text: String
                     switch message {
-                    case .string(let s): text = s
-                    case .data(let d): text = String(data: d, encoding: .utf8) ?? ""
+                    case .string(let str): text = str
+                    case .data(let data): text = String(data: data, encoding: .utf8) ?? ""
                     @unknown default: text = ""
                     }
                     if text.contains("\"type\":\"now_playing\"") && text.contains("Replay Test Track") {
