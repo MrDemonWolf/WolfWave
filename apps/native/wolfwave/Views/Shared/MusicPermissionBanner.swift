@@ -29,15 +29,7 @@ struct MusicPermissionBanner: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: DSSpace.s4) {
-            HStack(alignment: .top, spacing: DSSpace.s2) {
-                Image(systemName: "exclamationmark.triangle.fill")
-                    .foregroundStyle(.orange)
-                    .accessibilityHidden(true)
-                Text(message)
-                    .font(.system(size: DSFont.Size.body))
-                    .foregroundStyle(.secondary)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
+            WarningBanner(text: message)
 
             Button {
                 onOpenSettings()
@@ -50,9 +42,6 @@ struct MusicPermissionBanner: View {
             .accessibilityIdentifier("musicPermissionOpenSettings")
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(AppConstants.SettingsUI.cardPadding)
-        .background(.orange.opacity(0.1))
-        .clipShape(RoundedRectangle(cornerRadius: AppConstants.SettingsUI.cardCornerRadius))
         .accessibilityElement(children: .combine)
         .accessibilityLabel("Apple Music permission required. \(message)")
     }

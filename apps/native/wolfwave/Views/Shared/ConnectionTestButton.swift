@@ -46,13 +46,7 @@ struct ConnectionTestButton: View {
                 Label(label, systemImage: icon)
                     .font(.system(size: DSFont.Size.body, weight: .medium))
             case .testing:
-                HStack(spacing: 6) {
-                    ProgressView()
-                        .progressViewStyle(.circular)
-                        .controlSize(.mini)
-                    Text("Testing\u{2026}")
-                        .font(.system(size: DSFont.Size.body))
-                }
+                LoadingRow(text: "Testing\u{2026}")
             case .success:
                 Label("Connected", systemImage: "checkmark.circle.fill")
                     .font(.system(size: DSFont.Size.body, weight: .medium))
@@ -69,13 +63,7 @@ struct ConnectionTestButton: View {
         .stableWidth {
             Label(label, systemImage: icon)
                 .font(.system(size: DSFont.Size.body, weight: .medium))
-            HStack(spacing: 6) {
-                ProgressView()
-                    .progressViewStyle(.circular)
-                    .controlSize(.mini)
-                Text("Testing...")
-                    .font(.system(size: DSFont.Size.body))
-            }
+            LoadingRow(text: "Testing...")
             Label("Connected", systemImage: "checkmark.circle.fill")
                 .font(.system(size: DSFont.Size.body, weight: .medium))
             Label("Failed", systemImage: "xmark.circle.fill")

@@ -125,34 +125,25 @@ struct AboutSettingsView: View {
     }
 
     private var actionGrid: some View {
-        Grid(horizontalSpacing: 8, verticalSpacing: 8) {
+        ActionGrid(columns: 2) {
             GridRow {
-                actionButton("Check for Updates", systemImage: "arrow.down.circle", action: checkForUpdates)
-                actionButton("Release Notes", systemImage: "list.bullet.rectangle", action: openReleaseNotes)
+                ActionGridButton(title: "Check for Updates", systemImage: "arrow.down.circle", action: checkForUpdates,
+                                 accessibilityIdentifier: "about-settings.action.Check for Updates")
+                ActionGridButton(title: "Release Notes", systemImage: "list.bullet.rectangle", action: openReleaseNotes,
+                                 accessibilityIdentifier: "about-settings.action.Release Notes")
             }
             GridRow {
-                actionButton("Website", systemImage: "globe", action: openWebsite)
-                actionButton("Send Feedback", systemImage: "envelope", action: sendFeedback)
+                ActionGridButton(title: "Website", systemImage: "globe", action: openWebsite,
+                                 accessibilityIdentifier: "about-settings.action.Website")
+                ActionGridButton(title: "Send Feedback", systemImage: "envelope", action: sendFeedback,
+                                 accessibilityIdentifier: "about-settings.action.Send Feedback")
             }
             GridRow {
-                actionButton("Sponsor on GitHub", systemImage: "heart.fill", action: openSponsor)
+                ActionGridButton(title: "Sponsor on GitHub", systemImage: "heart.fill", action: openSponsor,
+                                 accessibilityIdentifier: "about-settings.action.Sponsor on GitHub")
                     .gridCellColumns(2)
             }
         }
-    }
-
-    private func actionButton(_ title: String, systemImage: String, action: @escaping () -> Void) -> some View {
-        Button(action: action) {
-            Label(title, systemImage: systemImage)
-                .font(.system(size: DSFont.Size.body, weight: .medium))
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, DSSpace.s0)
-        }
-        .buttonStyle(.bordered)
-        .controlSize(.regular)
-        .pointerCursor()
-        .accessibilityLabel(title)
-        .accessibilityIdentifier("about-settings.action.\(title)")
     }
 
     // MARK: - Links & Legal Card
@@ -175,6 +166,8 @@ struct AboutSettingsView: View {
         }
         .cardStyle()
     }
+
+    // MARK: - Legal Links
 
     private var legalLinksRow: some View {
         HStack(spacing: DSSpace.s3) {

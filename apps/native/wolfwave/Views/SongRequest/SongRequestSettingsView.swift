@@ -357,15 +357,9 @@ fileprivate struct SongRequestMusicAuthCard: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: DSSpace.s4) {
-            HStack(spacing: DSSpace.s2) {
-                Image(systemName: "exclamationmark.triangle.fill")
-                    .foregroundStyle(.orange)
-                Text(musicAuthStatus == .denied
-                     ? "Apple Music access was denied. Enable it in System Settings → Privacy & Security → Media & Apple Music."
-                     : "WolfWave needs Apple Music access to search and play requested songs.")
-                    .font(.system(size: DSFont.Size.body))
-                    .foregroundStyle(.secondary)
-            }
+            WarningBanner(text: musicAuthStatus == .denied
+                ? "Apple Music access was denied. Enable it in System Settings → Privacy & Security → Media & Apple Music."
+                : "WolfWave needs Apple Music access to search and play requested songs.")
 
             if musicAuthStatus != .denied {
                 Button {
@@ -552,19 +546,8 @@ fileprivate struct SongRequestRedemptionsCard: View {
                 .foregroundStyle(.secondary)
 
             if let banner = redemptionStatus.bannerMessage {
-                HStack(alignment: .top, spacing: DSSpace.s2) {
-                    Image(systemName: "exclamationmark.triangle.fill")
-                        .font(.system(size: DSFont.Size.body))
-                        .foregroundStyle(.orange)
-                    Text(banner)
-                        .font(.system(size: DSFont.Size.sm))
-                        .foregroundStyle(.secondary)
-                        .fixedSize(horizontal: false, vertical: true)
-                }
-                .padding(DSSpace.s3)
-                .background(.orange.opacity(0.1))
-                .clipShape(RoundedRectangle(cornerRadius: 8))
-                .accessibilityIdentifier("songRequests.redemptionBanner")
+                WarningBanner(text: banner)
+                    .accessibilityIdentifier("songRequests.redemptionBanner")
             }
 
             // Channel Points

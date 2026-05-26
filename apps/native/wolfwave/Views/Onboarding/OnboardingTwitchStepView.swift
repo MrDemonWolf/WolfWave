@@ -111,13 +111,7 @@ struct OnboardingTwitchStepView: View {
             }
 
             HStack(spacing: 12) {
-                ProgressView()
-                    .progressViewStyle(.circular)
-                    .controlSize(.small)
-
-                Text("Waiting for Twitch\u{2026}")
-                    .font(.system(size: DSFont.Size.base))
-                    .foregroundStyle(.secondary)
+                LoadingRow(text: "Waiting for Twitch\u{2026}")
 
                 Spacer()
 

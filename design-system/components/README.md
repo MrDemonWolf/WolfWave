@@ -19,6 +19,9 @@ One markdown entry per reusable view. Stubs marked `(stub)` need filling in as w
 | MusicPermissionBanner | [music-permission-banner.md](music-permission-banner.md) | drafted |
 | CopyButton | [copy-button.md](copy-button.md) | drafted |
 | DSIconButton | [ds-icon-button.md](ds-icon-button.md) | drafted |
+| WarningBanner | [warning-banner.md](warning-banner.md) | drafted |
+| LoadingRow | [loading-row.md](loading-row.md) | drafted |
+| ActionGrid | [action-grid.md](action-grid.md) | drafted |
 | UpdateBannerView | [update-banner-view.md](update-banner-view.md) | drafted |
 | WhatsNewView | [whats-new-view.md](whats-new-view.md) | drafted |
 | AboutView | [about-view.md](about-view.md) | drafted |

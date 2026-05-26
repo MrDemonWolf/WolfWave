@@ -19,6 +19,10 @@ content
 - **Tokens:** `DSDimension.Settings.cardPadding` (16), `DSDimension.Settings.cardCornerRadius` (14).
 - **When to use:** any grouped settings region. Default container.
 - **When _not_:** inside another card (no nesting), or for full-bleed hero sections.
+- **Legitimate hand-rolls** — only two sites should still draw their own card chrome:
+  - `AboutSettingsView` — uses `Color(nsColor: .controlBackgroundColor)` for the standard panel surface (intentionally not glass).
+  - `DebugSettingsView` warning chrome — superseded by [`WarningBanner(strokeVisible: true)`](warning-banner.md), which carries its own tint + stroke and is **not** a glass card.
+  Everywhere else, reach for `.cardStyle()` / `.cardStyleUnpadded()` before drawing a `RoundedRectangle(cornerRadius: AppConstants.SettingsUI.cardCornerRadius)` clip.
 
 ## `.interactiveRow(isEnabled:)`
 

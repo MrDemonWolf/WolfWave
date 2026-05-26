@@ -82,21 +82,9 @@ struct DebugSettingsView: View {
     // MARK: - Warning Banner
 
     private var warningBanner: some View {
-        HStack(spacing: DSSpace.s2) {
-            Image(systemName: "exclamationmark.triangle.fill")
-                .foregroundStyle(.orange)
-            Text("These tools mutate live state. Use at your own risk.")
-                .font(.system(size: DSFont.Size.body))
-                .foregroundStyle(.secondary)
-            Spacer()
-        }
-        .padding(.horizontal, DSSpace.s4)
-        .padding(.vertical, DSSpace.s2)
-        .background(Color.orange.opacity(0.08))
-        .clipShape(RoundedRectangle(cornerRadius: AppConstants.SettingsUI.cardCornerRadius))
-        .overlay(
-            RoundedRectangle(cornerRadius: AppConstants.SettingsUI.cardCornerRadius)
-                .stroke(Color.orange.opacity(0.25), lineWidth: 1)
+        WarningBanner(
+            text: "These tools mutate live state. Use at your own risk.",
+            strokeVisible: true
         )
     }
 
