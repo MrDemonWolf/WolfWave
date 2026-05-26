@@ -106,6 +106,15 @@ All notable changes to this project will be documented in this file.
 - **Settings window sidebar toggle** — removed the duplicate titlebar toggle, restored the toolbar sidebar toggle, and eliminated the floating `>>` reveal control (#59, #61, #77).
 - **About panel** — removed the spacer that left a gap between the legal links and the footer (#60).
 - **Brand icon cutouts** — app icon logo cutouts preserved by switching to the `evenodd` fill-rule (#62).
+- **Apple Music control under sandbox** — granted the Apple Events entitlement so the sandboxed app can actually drive Music.app; before this fix the "WolfWave wants to control Music" prompt never appeared and ScriptingBridge silently no-op'd (#124).
+- **Now-playing survives ScriptingBridge drift** — the `playerState` parser now accepts every bridge type Music.app returns (NSNumber, Int, UInt32, type-code descriptor, 4-byte string), instead of collapsing unexpected types to `NOT_PLAYING` and silently blanking the now-playing card, Discord Rich Presence, and overlay while music is actively playing (#134, #135, #136).
+- **Recheck + Sync toggle** — both now force a fresh now-playing read instead of waiting for the next track change, so the UI catches up immediately after granting permission or flipping playback tracking (#125).
+- **Apple Music permission Recheck button** — visibly responds when tapped (previously it ran the check but gave no feedback, making it look broken) (#141).
+- **Stats card layout** — fixed jumping card sizes in History & Stats and added an Apple Music permission gate so the section doesn't render half-empty when access is denied (#118).
+- **Settings window sizing** — enlarged the default window and tightened `StatusChip` so integration rows fit without horizontal scroll (#114).
+- **About panel Check for Updates** — the button now actually invokes Sparkle; the Release Notes link now points at the docs changelog instead of an empty popover (#150).
+- **Onboarding Preferences step** — no longer overlaps the nav bar on shorter window heights (#94).
+- **Onboarding step header** — anchored so icons stop drifting between steps (#145).
 
 ### Removed
 

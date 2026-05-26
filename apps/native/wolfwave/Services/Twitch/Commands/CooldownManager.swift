@@ -1,8 +1,9 @@
 //
 //  CooldownManager.swift
-//  wolfwave
+//  WolfWave
 //
-//  Created by MrDemonWolf, Inc. on 2/17/26.
+//  Created by Nathanial Henniges on 2026-02-17.
+//  Copyright © 2026 MrDemonWolf, Inc. All rights reserved.
 //
 
 import Foundation

@@ -1,8 +1,9 @@
 //
 //  PowerStateMonitor.swift
-//  wolfwave
+//  WolfWave
 //
-//  Created by MrDemonWolf, Inc. on 2/20/26.
+//  Created by Nathanial Henniges on 2026-02-20.
+//  Copyright © 2026 MrDemonWolf, Inc. All rights reserved.
 //
 
 import Foundation

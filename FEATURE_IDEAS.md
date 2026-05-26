@@ -2,43 +2,12 @@
 
 Future feature ideas for WolfWave. These are not committed to any release — just a running list of things worth building.
 
-## Progress
+## Pending
 
-- [x] Song Request Queue
-- [x] Listening History & Stats
 - [ ] Custom Bot Commands
-- [x] Overlay Themes
-- [ ] WebSocket Authentication
-- [ ] Notification Center Integration
 - [ ] Stream Deck Plugin
-- [ ] Playlist Detection
-- [x] Chat Voting
 
-**4 of 9 shipped.**
-
----
-
-## Song Request Queue
-
-Let Twitch viewers request songs via `!request <song name>` or `!sr <song name>`. Requests appear in a queue visible from the menu bar or a dedicated settings view. The streamer can approve, skip, or clear requests.
-
-**URL Support**: Accepts Spotify track URLs (`open.spotify.com/track/...`) and YouTube URLs (`youtube.com/watch?v=...`) — resolves them to Apple Music via the song.link API so the streamer can play the right track.
-
-**Apple Music Search**: Plain-text requests use the iTunes Search API to find the best match, with a confidence threshold to avoid bad guesses.
-
-**Status**: ✅ Done
-**Complexity**: Medium–High
-**Builds on**: Existing `BotCommand` protocol, `TwitchChatService`, `ArtworkService` (already calls iTunes Search API)
-
----
-
-## Listening History & Stats
-
-Opt-in, on-device listening history with a Stats section in the settings sidebar — top artists, listening time, SwiftUI Charts, and a shareable Monthly Wrap. Plays are stored in an append-only NDJSON log; a `!stats` Twitch command reports the day's top track while the stream is live.
-
-**Status**: ✅ Done
-**Complexity**: Medium–High
-**Builds on**: `PlaybackSourceDelegate` callbacks, existing settings sidebar pattern, SwiftUI Charts framework
+> Shipped ideas previously tracked here (Song Request Queue, Listening History & Stats, Overlay/Widget Themes, Chat Voting, WebSocket Authentication, Notification Center Integration, Playlist Detection) landed in the v2.0.0 release and have been removed from this list. See [`CHANGELOG.md`](CHANGELOG.md) for details.
 
 ---
 
@@ -52,46 +21,13 @@ Let users define their own Twitch bot command responses via the settings UI. For
 
 ---
 
-## Overlay Themes
-
-Ship multiple pre-built WebSocket overlay themes (minimal, retro, neon, glassmorphism). Users pick a theme in settings. Overlay clients receive the theme name and render accordingly.
-
-**Status**: ✅ Done
-**Complexity**: Medium
-**Builds on**: Existing WebSocket server, browser source overlay
-
----
-
-## WebSocket Authentication
-
-Token-based authentication for widget connections — prevents unauthorized local processes from connecting to the WebSocket server. Configured in Settings → Now-Playing Widget (Advanced).
-
-**Status**: ⬜ Not started
-**Complexity**: Low–Medium
-**Builds on**: Existing `WebSocketServerService`
-
----
-
-## Notification Center Integration
-
-Optional macOS notifications for music activity.
-
-- **Song changes** — *Implemented.* macOS notification when the song changes, showing track name, artist, and album art. Toggled in Settings → General → Notifications. Handled by `NotificationService`.
-- **Skip vote started** — *Pending.* Notify when a chat skip vote begins. Blocked on the **Chat Voting** feature below — no vote-to-skip mechanism exists yet (`!skip` is a direct mod-only skip). Adding it is a single `NotificationService.postSkipVote(...)` method once Chat Voting lands.
-
-**Status**: ⬜ Not started
-**Complexity**: Low
-**Builds on**: `UserNotifications` framework, `NotificationService`, `ArtworkService`
-
----
-
 ## Stream Deck Plugin
 
 An Elgato Stream Deck plugin to control and monitor WolfWave from physical keys — the streamer's most-used WolfWave actions become one-press buttons that also reflect live state (track title, queue size, connection health).
 
 **How it works**: A Stream Deck plugin is a standalone process bundled as a `.sdPlugin` folder and installed into Elgato's Stream Deck app. The Stream Deck app launches the plugin and exchanges JSON events with it over a WebSocket. Because the plugin runs on the same Mac as WolfWave, it talks to WolfWave over `localhost`. Built with Elgato's official TypeScript/Node SDK (`@elgato/streamdeck`); a `manifest.json` declares each Action, its icons/states, and an HTML Property Inspector for settings (WolfWave port + auth token).
 
-**The control-API gap**: WolfWave's `WebSocketServerService` currently _broadcasts_ now-playing data but ignores inbound frames, and `WidgetHTTPService` is GET-only — there is no way to send commands _into_ the app. The recommended fix is to make the WebSocket **bidirectional**: handle inbound JSON command messages in `WebSocketServerService.receiveMessage`. The plugin then uses one connection for both the live now-playing feed and outbound commands. This should land alongside the **WebSocket Authentication** idea so a token gates who may issue commands.
+**The control-API gap**: WolfWave's `WebSocketServerService` currently _broadcasts_ now-playing data but ignores inbound frames, and `WidgetHTTPService` is GET-only — there is no way to send commands _into_ the app. The recommended fix is to make the WebSocket **bidirectional**: handle inbound JSON command messages in `WebSocketServerService.receiveMessage`. The plugin then uses one connection for both the live now-playing feed and outbound commands. The existing v2.0.0 widget auth token already gates who may issue commands.
 
 **Action ideas**:
 
@@ -118,7 +54,7 @@ An Elgato Stream Deck plugin to control and monitor WolfWave from physical keys 
 
 **Implementation sketch** (for when this is picked up):
 
-1. **App side — inbound command channel.** Make `WebSocketServerService.receiveMessage` parse inbound text frames instead of discarding them. Define a command envelope, e.g. `{ "type": "command", "action": "skip", "token": "...", "protocol": 1 }`. Reject frames whose token doesn't match (depends on the **WebSocket Authentication** idea) and unknown/incompatible `protocol` versions.
+1. **App side — inbound command channel.** Make `WebSocketServerService.receiveMessage` parse inbound text frames instead of discarding them. Define a command envelope, e.g. `{ "type": "command", "action": "skip", "token": "...", "protocol": 1 }`. Reject frames whose token doesn't match the widget auth token and unknown/incompatible `protocol` versions.
 2. **App side — command router.** Add a small dispatcher that maps each `action` to existing services: `skip`/`playPause` → `AppleMusicController`, `hold`/`resume`/`clearQueue`/`approveNext` → `SongRequestService` / `SongRequestQueue`, `blockCurrent` → `SongBlocklist`, `toggleMusicSync` → playback tracking, `toggleDiscord` → `DiscordRPCService`, `toggleOverlay` → `setEnabled`, `cycleTheme` → widget theme `UserDefaults` + `broadcastWidgetConfig()`. Send a JSON ack back so the plugin can update key state.
 3. **App side — state for keys.** The plugin already gets `now_playing` / `playback_state` / `progress`. Add broadcasts for queue size and connection health so the Queue Counter and Stream Health keys can render without polling.
 4. **Plugin side — scaffold.** New `apps/streamdeck/` bun workspace; scaffold with the `@elgato/streamdeck` CLI. One Action class per idea above; `manifest.json` declares Actions, states, and icons.
@@ -129,14 +65,4 @@ An Elgato Stream Deck plugin to control and monitor WolfWave from physical keys 
 **Status**: ⬜ Not started
 **Complexity**: High
 **Approach**: Elgato `@elgato/streamdeck` SDK + a bidirectional command channel on `WebSocketServerService` (handle inbound JSON in `receiveMessage`)
-**Builds on**: Existing `WebSocketServerService` broadcast feed; pairs with the **WebSocket Authentication** idea for command auth
-
----
-
-## Playlist Detection
-
-Show the current playlist name in Discord Rich Presence when playing from a named playlist. Displayed as a secondary line below the artist name.
-
-**Status**: ⬜ Not started
-**Complexity**: Low
-**Builds on**: ScriptingBridge (Apple Music exposes current playlist via `currentPlaylist`)
+**Builds on**: Existing `WebSocketServerService` broadcast feed; the v2.0.0 widget auth token gates inbound commands

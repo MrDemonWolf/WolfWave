@@ -1,3 +1,11 @@
+//
+//  DSIconButton.swift
+//  WolfWave
+//
+//  Created by Nathanial Henniges on 2026-05-23.
+//  Copyright © 2026 MrDemonWolf, Inc. All rights reserved.
+//
+
 import SwiftUI
 
 /// Bordered, small-control icon button sized to align with `CopyButton` and

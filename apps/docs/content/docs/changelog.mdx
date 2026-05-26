@@ -102,6 +102,15 @@ _Developer-facing changes — not visible to end users._
 - Brand icons in menu bar render as templates with refreshed logo SVGs
 - Settings window sidebar toggle — removed the duplicate titlebar toggle, restored the toolbar sidebar toggle, eliminated the floating `>>` reveal control
 - About panel spacer gap removed; app icon logo cutouts preserved via the `evenodd` fill-rule
+- Apple Music control under sandbox — granted the Apple Events entitlement so the permission prompt actually appears and ScriptingBridge can drive Music.app
+- Now-playing survives ScriptingBridge drift — the player-state parser accepts every bridge type Music.app returns instead of silently blanking the card, Discord Rich Presence, and overlay
+- Recheck + Sync toggle force a fresh now-playing read so the UI catches up immediately
+- Apple Music permission Recheck button visibly responds when tapped
+- Stats card layout — fixed jumping card sizes and added an Apple Music permission gate
+- Settings window default size enlarged; `StatusChip` tightened so integration rows fit
+- About panel Check for Updates now invokes Sparkle; Release Notes points at the docs changelog
+- Onboarding Preferences step no longer overlaps the nav bar on shorter window heights
+- Onboarding step header anchored so icons stop drifting between steps
 
 ### Removed
 - `WallpaperBloomBackground` — replaced with native macOS chrome

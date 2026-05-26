@@ -1,8 +1,9 @@
 //
 //  AppleMusicSource.swift
-//  wolfwave
+//  WolfWave
 //
-//  Created by MrDemonWolf, Inc. on 3/28/26.
+//  Created by Nathanial Henniges on 2026-01-08.
+//  Copyright © 2026 MrDemonWolf, Inc. All rights reserved.
 //
 
 import Foundation

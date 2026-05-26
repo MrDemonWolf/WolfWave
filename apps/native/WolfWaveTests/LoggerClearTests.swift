@@ -1,8 +1,9 @@
 //
 //  LoggerClearTests.swift
-//  WolfWaveTests
+//  WolfWave
 //
-//  Created by MrDemonWolf, Inc. on 5/15/26.
+//  Created by Nathanial Henniges on 2026-05-15.
+//  Copyright © 2026 MrDemonWolf, Inc. All rights reserved.
 //
 
 import XCTest

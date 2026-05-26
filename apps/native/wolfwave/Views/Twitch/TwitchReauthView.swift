@@ -1,18 +1,9 @@
 //
 //  TwitchReauthView.swift
-//  wolfwave
+//  WolfWave
 //
-//  Created by MrDemonWolf, Inc. on 1/17/26.
-//
-//
-//  Session Expiration: Displays when OAuth token has expired and needs renewal.
-//  Provides seamless re-authentication flow without losing other app state.
-//
-//  Native macOS Dialog: Designed as a true system dialog with SF Symbols,
-//  proper spacing, and macOS Human Interface Guidelines compliance.
-//
-//  State Consistency: Automatically updates when auth status changes.
-//  Non-intrusive overlay that doesn't disrupt other settings.
+//  Created by Nathanial Henniges on 2026-01-13.
+//  Copyright © 2026 MrDemonWolf, Inc. All rights reserved.
 //
 
 import SwiftUI

@@ -1,28 +1,9 @@
 //
 //  TwitchDeviceAuth.swift
-//  wolfwave
+//  WolfWave
 //
-//  Created by MrDemonWolf, Inc. on 1/17/26.
-//
-
-//  Device Code OAuth Flow: Implements RFC 8628 OAuth Device Code Grant Flow.
-//  Suitable for public clients (desktop apps) without client secrets.
-//
-//  Thread Safety: Designed for concurrent use with async/await.
-//  All network operations are properly isolated.
-//
-//  Polling: Uses linear backoff (+5s) when receiving "slow_down" errors.
-//  Maximum polling attempts based on token expiration time.
-//
-//  Network: All HTTP requests have 15-second timeouts.
-//  Properly handles Twitch API rate limits and error responses.
-//
-//  Security: Client ID is required but not logged. Error handling is safe.
-//  Device codes expire after specified duration (typically 600 seconds).
-//
-//  References:
-//  - https://dev.twitch.tv/docs/authentication/getting-tokens-oauth/#device-code-grant-flow
-//  - RFC 8628: https://tools.ietf.org/html/rfc8628
+//  Created by Nathanial Henniges on 2026-01-08.
+//  Copyright © 2026 MrDemonWolf, Inc. All rights reserved.
 //
 
 import Foundation

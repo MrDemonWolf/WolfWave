@@ -1,8 +1,9 @@
 //
 //  SuccessFeedbackRow.swift
-//  wolfwave
+//  WolfWave
 //
-//  Created by MrDemonWolf, Inc. on 3/22/26.
+//  Created by Nathanial Henniges on 2026-03-27.
+//  Copyright © 2026 MrDemonWolf, Inc. All rights reserved.
 //
 
 import SwiftUI

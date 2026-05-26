@@ -1,8 +1,9 @@
 //
 //  SectionHeaderWithStatus.swift
-//  wolfwave
+//  WolfWave
 //
-//  Created by MrDemonWolf, Inc. on 4/4/26.
+//  Created by Nathanial Henniges on 2026-04-04.
+//  Copyright © 2026 MrDemonWolf, Inc. All rights reserved.
 //
 
 import SwiftUI

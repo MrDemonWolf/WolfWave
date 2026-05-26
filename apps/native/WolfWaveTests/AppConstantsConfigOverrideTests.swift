@@ -1,8 +1,9 @@
 //
 //  AppConstantsConfigOverrideTests.swift
-//  wolfwave
+//  WolfWave
 //
-//  Created by MrDemonWolf, Inc. on 5/25/26.
+//  Created by Nathanial Henniges on 2026-05-26.
+//  Copyright © 2026 MrDemonWolf, Inc. All rights reserved.
 //
 
 import Testing
