@@ -2,7 +2,7 @@
 
 One markdown entry per reusable view. Stubs marked `(stub)` need filling in as we touch each component.
 
-## Shared (`apps/native/wolfwave/Views/Shared/`)
+## Shared (`apps/native/WolfWave/Views/Shared/`)
 
 | Component | File | Status |
 |---|---|---|
@@ -28,13 +28,13 @@ One markdown entry per reusable view. Stubs marked `(stub)` need filling in as w
 | TwitchGlitchShape | [twitch-glitch-shape.md](twitch-glitch-shape.md) | drafted |
 | ViewModifiers (cardStyle, interactiveRow, …) | [view-modifiers.md](view-modifiers.md) | drafted |
 
-## History (`apps/native/wolfwave/Views/HistoryStats/`)
+## History (`apps/native/WolfWave/Views/HistoryStats/`)
 
 | Component | File | Status |
 |---|---|---|
 | MonthlyWrapCard | [monthly-wrap-card.md](monthly-wrap-card.md) | drafted |
 
-## Onboarding (`apps/native/wolfwave/Views/Onboarding/Components/`)
+## Onboarding (`apps/native/WolfWave/Views/Onboarding/Components/`)
 
 | Component | File | Status |
 |---|---|---|
@@ -47,7 +47,7 @@ One markdown entry per reusable view. Stubs marked `(stub)` need filling in as w
 ```markdown
 # <ComponentName>
 
-**File:** `apps/native/wolfwave/Views/Shared/<ComponentName>.swift`
+**File:** `apps/native/WolfWave/Views/Shared/<ComponentName>.swift`
 
 ## Purpose
 One sentence — what problem it solves.

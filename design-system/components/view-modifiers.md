@@ -1,6 +1,6 @@
 # ViewModifiers
 
-**File:** [`apps/native/wolfwave/Views/Shared/ViewModifiers.swift`](../../apps/native/wolfwave/Views/Shared/ViewModifiers.swift)
+**File:** [`apps/native/WolfWave/Views/Shared/ViewModifiers.swift`](../../apps/native/WolfWave/Views/Shared/ViewModifiers.swift)
 
 Bundle of cross-cutting SwiftUI view modifiers. Each is exposed as a chainable extension on `View`.
 

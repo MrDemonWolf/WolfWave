@@ -1,6 +1,6 @@
 # ConfigRequiredBanner
 
-**File:** [`apps/native/wolfwave/Views/Shared/ConfigRequiredBanner.swift`](../../apps/native/wolfwave/Views/Shared/ConfigRequiredBanner.swift)
+**File:** [`apps/native/WolfWave/Views/Shared/ConfigRequiredBanner.swift`](../../apps/native/WolfWave/Views/Shared/ConfigRequiredBanner.swift)
 
 ## Purpose
 DEBUG-only warning when a developer's `Config.xcconfig` is missing a required value (e.g. `DISCORD_CLIENT_ID`). Compiled out of Release builds entirely.

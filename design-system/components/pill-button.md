@@ -1,6 +1,6 @@
 # PillButton
 
-**File:** [`apps/native/wolfwave/Views/Onboarding/Components/PillButton.swift`](../../apps/native/wolfwave/Views/Onboarding/Components/PillButton.swift)
+**File:** [`apps/native/WolfWave/Views/Onboarding/Components/PillButton.swift`](../../apps/native/WolfWave/Views/Onboarding/Components/PillButton.swift)
 
 ## Purpose
 Onboarding primary CTA — pill-shaped button with a brand-coloured fill, inner light highlight, and brand-tinted glow shadow. Used for "Sign in with Twitch", "Grant Apple Music Access", "Connect Discord", etc.

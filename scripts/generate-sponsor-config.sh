@@ -3,7 +3,7 @@
 # generate-sponsor-config.sh
 #
 # Reads .github/FUNDING.yml and writes the GitHub Sponsors handle into
-# apps/native/wolfwave/Core/SponsorConfig.generated.swift.
+# apps/native/WolfWave/Core/SponsorConfig.generated.swift.
 #
 # Single source of truth: .github/FUNDING.yml (the same file GitHub renders the
 # repo's "Sponsor this project" button from). Run this after editing FUNDING.yml
@@ -14,7 +14,7 @@ set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 FUNDING_FILE="$REPO_ROOT/.github/FUNDING.yml"
-OUTPUT_FILE="$REPO_ROOT/apps/native/wolfwave/Core/SponsorConfig.generated.swift"
+OUTPUT_FILE="$REPO_ROOT/apps/native/WolfWave/Core/SponsorConfig.generated.swift"
 
 if [[ ! -f "$FUNDING_FILE" ]]; then
     echo "warning: $FUNDING_FILE not found; leaving SponsorConfig unchanged" >&2

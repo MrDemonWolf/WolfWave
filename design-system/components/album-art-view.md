@@ -1,6 +1,6 @@
 # AlbumArtView
 
-**File:** [`apps/native/wolfwave/Views/Shared/AlbumArtView.swift`](../../apps/native/wolfwave/Views/Shared/AlbumArtView.swift)
+**File:** [`apps/native/WolfWave/Views/Shared/AlbumArtView.swift`](../../apps/native/WolfWave/Views/Shared/AlbumArtView.swift)
 
 ## Purpose
 Sized album-art tile with a WolfWave-branded fallback — the wolf mark on a brand-blue gradient — when no artwork is available. Used for every album thumbnail in the app — General hero, Discord preview, menu-bar header, queue rows, widget preview.

@@ -1,6 +1,6 @@
 # WolfWave build & distribution commands
 
-PROJECT     = apps/native/wolfwave.xcodeproj
+PROJECT     = apps/native/WolfWave.xcodeproj
 SCHEME      = WolfWave
 DESTINATION = platform=macOS,arch=arm64
 PROD_DESTINATION = generic/platform=macOS
@@ -39,7 +39,7 @@ build: sponsor-config
 	xcodebuild -project $(PROJECT) -scheme $(SCHEME) \
 		-destination '$(DESTINATION)' -configuration Debug build -quiet
 
-# Regenerate apps/native/wolfwave/Core/SponsorConfig.generated.swift from
+# Regenerate apps/native/WolfWave/Core/SponsorConfig.generated.swift from
 # .github/FUNDING.yml. Idempotent — safe to run as a build prerequisite.
 sponsor-config:
 	@bash scripts/generate-sponsor-config.sh

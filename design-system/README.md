@@ -19,9 +19,9 @@ design-system/
 
 | Platform | Output | Consumed by |
 |---|---|---|
-| Native macOS | `apps/native/wolfwave/Core/DesignSystem/Tokens.generated.swift` | `DSColor`, `DSFont`, `DSSpace`, `DSRadius`, `DSMotion`, `DSDimension` |
+| Native macOS | `apps/native/WolfWave/Core/DesignSystem/Tokens.generated.swift` | `DSColor`, `DSFont`, `DSSpace`, `DSRadius`, `DSMotion`, `DSDimension` |
 | Docs site | `apps/docs/app/tokens.generated.css` | CSS custom properties (`--ds-*`) imported by `global.css` |
-| Widget overlay | `apps/native/wolfwave/Resources/widget-tokens.generated.js` | `window.WW_TOKENS` global in `widget.html` |
+| Widget overlay | `apps/native/WolfWave/Resources/widget-tokens.generated.js` | `window.WW_TOKENS` global in `widget.html` |
 | Marketing | `apps/marketing/shared/tokens.generated.ts` | Typed `tokens` export for Remotion projects |
 
 ## Token namespaces
@@ -58,7 +58,7 @@ WolfWave's primary brand color is **Apple System Blue `#0A84FF`** (matches macOS
 
 ## Component catalog
 
-Every reusable SwiftUI view under `apps/native/wolfwave/Views/Shared/` and `apps/native/wolfwave/Views/Onboarding/Components/` has a corresponding markdown file in `components/`. Each entry covers: purpose, props, tokens used, accessibility notes, do/don't, and an example snippet. The docs site renders these as a live styleguide at `/docs/design-system/components`.
+Every reusable SwiftUI view under `apps/native/WolfWave/Views/Shared/` and `apps/native/WolfWave/Views/Onboarding/Components/` has a corresponding markdown file in `components/`. Each entry covers: purpose, props, tokens used, accessibility notes, do/don't, and an example snippet. The docs site renders these as a live styleguide at `/docs/design-system/components`.
 
 ## Out of scope (for now)
 

@@ -7,15 +7,15 @@
         "design-system/scripts/generate.ts"
       ],
       "outputs": [
-        "apps/native/wolfwave/Core/DesignSystem/Tokens.generated.swift",
+        "apps/native/WolfWave/Core/DesignSystem/Tokens.generated.swift",
         "apps/docs/app/tokens.generated.css",
-        "apps/native/wolfwave/Resources/widget-tokens.generated.js",
+        "apps/native/WolfWave/Resources/widget-tokens.generated.js",
         "apps/marketing/shared/tokens.generated.ts"
       ]
     },
     "//#ds:lint": {
       "inputs": [
-        "apps/native/wolfwave/Views/**/*.swift",
+        "apps/native/WolfWave/Views/**/*.swift",
         "design-system/scripts/lint.ts",
         "design-system/lint-allowlist.txt"
       ]

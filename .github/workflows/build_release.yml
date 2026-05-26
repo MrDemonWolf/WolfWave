@@ -17,7 +17,7 @@ permissions:
 
 env:
   SCHEME: WolfWave
-  PROJECT: apps/native/wolfwave.xcodeproj
+  PROJECT: apps/native/WolfWave.xcodeproj
   CONFIGURATION: Release
 
 jobs:
@@ -35,7 +35,7 @@ jobs:
           printf 'TWITCH_CLIENT_ID = %s\nDISCORD_CLIENT_ID = %s\nGITHUB_REPO_OWNER = mrdemonwolf\nGITHUB_REPO_NAME = wolfwave\n' \
             "${{ secrets.TWITCH_CLIENT_ID }}" \
             "${{ secrets.DISCORD_CLIENT_ID }}" \
-            > apps/native/wolfwave/Config.xcconfig
+            > apps/native/WolfWave/Config.xcconfig
 
       - name: Regenerate SponsorConfig from FUNDING.yml
         run: bash scripts/generate-sponsor-config.sh
@@ -76,7 +76,7 @@ jobs:
           printf 'TWITCH_CLIENT_ID = %s\nDISCORD_CLIENT_ID = %s\nGITHUB_REPO_OWNER = mrdemonwolf\nGITHUB_REPO_NAME = wolfwave\n' \
             "${{ secrets.TWITCH_CLIENT_ID }}" \
             "${{ secrets.DISCORD_CLIENT_ID }}" \
-            > apps/native/wolfwave/Config.xcconfig
+            > apps/native/WolfWave/Config.xcconfig
 
       - name: Regenerate SponsorConfig from FUNDING.yml
         run: bash scripts/generate-sponsor-config.sh

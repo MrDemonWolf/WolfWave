@@ -1,6 +1,6 @@
 # CopyButton
 
-**File:** [`apps/native/wolfwave/Views/Shared/CopyButton.swift`](../../apps/native/wolfwave/Views/Shared/CopyButton.swift)
+**File:** [`apps/native/WolfWave/Views/Shared/CopyButton.swift`](../../apps/native/WolfWave/Views/Shared/CopyButton.swift)
 
 ## Purpose
 Copy-to-clipboard button with a checkmark confirmation. Two variants: bordered (form rows) and borderless (compact inline use, e.g. URL row).

@@ -1,6 +1,6 @@
 # WarningBanner
 
-**File:** [`apps/native/wolfwave/Views/Shared/WarningBanner.swift`](../../apps/native/wolfwave/Views/Shared/WarningBanner.swift)
+**File:** [`apps/native/WolfWave/Views/Shared/WarningBanner.swift`](../../apps/native/WolfWave/Views/Shared/WarningBanner.swift)
 
 ## Purpose
 Inline tinted callout that flags a warning, caution, or error condition inside a settings pane. Standardizes the `exclamationmark.triangle.fill` + tinted background + rounded-clip pattern that had drifted across the codebase.

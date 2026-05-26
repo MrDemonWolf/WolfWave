@@ -1,6 +1,6 @@
 # ConnectionTestButton
 
-**File:** [`apps/native/wolfwave/Views/Shared/ConnectionTestButton.swift`](../../apps/native/wolfwave/Views/Shared/ConnectionTestButton.swift)
+**File:** [`apps/native/WolfWave/Views/Shared/ConnectionTestButton.swift`](../../apps/native/WolfWave/Views/Shared/ConnectionTestButton.swift)
 
 ## Purpose
 Inline pill that runs a one-shot connection probe (idle → testing → success/failure → idle). Auto-resets after 3 seconds. Use for Discord, Twitch, or any service that can report a boolean result.

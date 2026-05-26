@@ -1,6 +1,6 @@
 # LoadingRow
 
-**File:** [`apps/native/wolfwave/Views/Shared/LoadingRow.swift`](../../apps/native/wolfwave/Views/Shared/LoadingRow.swift)
+**File:** [`apps/native/WolfWave/Views/Shared/LoadingRow.swift`](../../apps/native/WolfWave/Views/Shared/LoadingRow.swift)
 
 ## Purpose
 Inline row pairing a small circular `ProgressView` with a secondary label — used for short-lived async waits inside settings panes (connection tests, onboarding handshake, "waiting for service" lines).

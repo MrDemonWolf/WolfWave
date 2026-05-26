@@ -5,7 +5,7 @@
  * Greps Swift sources for raw literals that bypass the design-token system.
  * Exits non-zero with a file:line:col report on violation.
  *
- * Scope: apps/native/wolfwave/Views/ — excluding Onboarding/ (separate design
+ * Scope: apps/native/WolfWave/Views/ — excluding Onboarding/ (separate design
  * language) and *.generated.swift. Tests are also skipped.
  *
  * Allowlist: design-system/lint-allowlist.txt — one `path:line` per line,
@@ -25,7 +25,7 @@ import { readFileSync, readdirSync, statSync } from "node:fs";
 import { resolve, join, relative } from "node:path";
 
 const ROOT = resolve(import.meta.dir, "..", "..");
-const SCAN_ROOT = resolve(ROOT, "apps/native/wolfwave/Views");
+const SCAN_ROOT = resolve(ROOT, "apps/native/WolfWave/Views");
 const ALLOWLIST_PATH = resolve(ROOT, "design-system/lint-allowlist.txt");
 
 interface Violation {

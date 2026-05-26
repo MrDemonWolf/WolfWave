@@ -1,6 +1,6 @@
 # InfoRow
 
-**File:** [`apps/native/wolfwave/Views/Shared/InfoRow.swift`](../../apps/native/wolfwave/Views/Shared/InfoRow.swift)
+**File:** [`apps/native/WolfWave/Views/Shared/InfoRow.swift`](../../apps/native/WolfWave/Views/Shared/InfoRow.swift)
 
 ## Purpose
 Label + value row for read-only technical info (URLs, ports, versions). Value is selectable for copy/paste.

@@ -1,6 +1,6 @@
 # DSIconButton
 
-**File:** [`apps/native/wolfwave/Views/Shared/DSIconButton.swift`](../../apps/native/wolfwave/Views/Shared/DSIconButton.swift)
+**File:** [`apps/native/WolfWave/Views/Shared/DSIconButton.swift`](../../apps/native/WolfWave/Views/Shared/DSIconButton.swift)
 
 ## Purpose
 Single-glyph bordered button sized to height-match `CopyButton` and other `.bordered .small` controls. Use it whenever you'd otherwise hand-roll `Button { Image(systemName:) } .buttonStyle(.bordered) .controlSize(.small)`. Hand-rolled icon buttons collapse to a narrower frame than their text-label neighbors, which is why eye/copy pairs visually drift.

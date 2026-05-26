@@ -1,6 +1,6 @@
 # BrandTile
 
-**File:** [`apps/native/wolfwave/Views/Onboarding/Components/BrandTile.swift`](../../apps/native/wolfwave/Views/Onboarding/Components/BrandTile.swift)
+**File:** [`apps/native/WolfWave/Views/Onboarding/Components/BrandTile.swift`](../../apps/native/WolfWave/Views/Onboarding/Components/BrandTile.swift)
 
 ## Purpose
 56×56 rounded-square brand mark used as the visual anchor at the top of each onboarding integration step (Twitch, Discord, Apple Music). Solid or gradient fill, inner light highlight, soft brand-tinted glow, centered glyph.

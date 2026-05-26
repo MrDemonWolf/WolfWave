@@ -1,6 +1,6 @@
 # NowPlayingHeroCard
 
-**File:** [`apps/native/wolfwave/Views/Shared/NowPlayingHeroCard.swift`](../../apps/native/wolfwave/Views/Shared/NowPlayingHeroCard.swift)
+**File:** [`apps/native/WolfWave/Views/Shared/NowPlayingHeroCard.swift`](../../apps/native/WolfWave/Views/Shared/NowPlayingHeroCard.swift)
 
 ## Purpose
 The "Now Playing" hero on the General tab — 92pt album art, title/artist/album, and a scrubber. Composes `AlbumArtView` for the artwork tile and the Liquid Glass `.glassEffect()` for the card background.

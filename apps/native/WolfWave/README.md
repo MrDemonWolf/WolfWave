@@ -16,9 +16,9 @@ instructions, and contribution guidelines.
 
 ```text
 apps/native/
-├── wolfwave/             # App source (Swift, SwiftUI, AppKit)
+├── WolfWave/             # App source (Swift, SwiftUI, AppKit)
 ├── WolfWaveTests/        # Unit tests (1218 tests across 42 files)
-└── wolfwave.xcodeproj    # Xcode project
+└── WolfWave.xcodeproj    # Xcode project
 ```
 
 Open in Xcode with `make open-xcode` from the repo root, or run the test

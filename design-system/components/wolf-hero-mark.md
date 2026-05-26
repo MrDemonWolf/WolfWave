@@ -1,6 +1,6 @@
 # WolfHeroMark
 
-**File:** [`apps/native/wolfwave/Views/Onboarding/Components/WolfHeroMark.swift`](../../apps/native/wolfwave/Views/Onboarding/Components/WolfHeroMark.swift)
+**File:** [`apps/native/WolfWave/Views/Onboarding/Components/WolfHeroMark.swift`](../../apps/native/WolfWave/Views/Onboarding/Components/WolfHeroMark.swift)
 
 ## Purpose
 Reusable wolf silhouette + howl-wave bars hero mark. Renders the WolfWave brand language at any size with optional brand-gradient fill and staggered bar entrance animation. Used on the onboarding Welcome + Completion screens; future surfaces (MonthlyWrap, About) will reuse it.

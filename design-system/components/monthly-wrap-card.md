@@ -1,6 +1,6 @@
 # MonthlyWrapCard
 
-**File:** [`apps/native/wolfwave/Views/HistoryStats/MonthlyWrapView.swift`](../../apps/native/wolfwave/Views/HistoryStats/MonthlyWrapView.swift)
+**File:** [`apps/native/WolfWave/Views/HistoryStats/MonthlyWrapView.swift`](../../apps/native/WolfWave/Views/HistoryStats/MonthlyWrapView.swift)
 
 ## Purpose
 Shareable "wrapped"-style summary card for a single calendar month — wordmark + wolf mark lockup, headline stats (plays, listening time, top artist, top track), and an attribution footer. Rendered both in the sheet UI and exported to PNG via `ImageRenderer(scale: 2)`.

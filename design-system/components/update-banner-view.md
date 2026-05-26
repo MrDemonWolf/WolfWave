@@ -1,6 +1,6 @@
 # UpdateBannerView
 
-**File:** [`apps/native/wolfwave/Views/Shared/UpdateBannerView.swift`](../../apps/native/wolfwave/Views/Shared/UpdateBannerView.swift)
+**File:** [`apps/native/WolfWave/Views/Shared/UpdateBannerView.swift`](../../apps/native/WolfWave/Views/Shared/UpdateBannerView.swift)
 
 ## Purpose
 Gradient banner shown in Settings when Sparkle has detected a newer version. Self-listening — call `.listening()` to wire it to `updateStateChanged` notifications and forget it.

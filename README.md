@@ -113,7 +113,7 @@ cd WolfWave
 ```
 
 ```bash
-cp apps/native/wolfwave/Config.xcconfig.example apps/native/wolfwave/Config.xcconfig
+cp apps/native/WolfWave/Config.xcconfig.example apps/native/WolfWave/Config.xcconfig
 ```
 
 Edit `Config.xcconfig` with your Twitch Client ID and Discord
@@ -166,9 +166,9 @@ Native app (Make):
 wolfwave/
 ├── apps/
 │   ├── native/                 # Native macOS app (Swift, SwiftUI, AppKit)
-│   │   ├── wolfwave/           # App source
+│   │   ├── WolfWave/           # App source
 │   │   ├── WolfWaveTests/      # Unit tests
-│   │   └── wolfwave.xcodeproj  # Xcode project
+│   │   └── WolfWave.xcodeproj  # Xcode project
 │   ├── docs/                   # Fumadocs documentation site
 │   └── marketing/              # Remotion-based promo videos
 ├── assets/                     # Brand assets, logos

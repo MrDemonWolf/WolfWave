@@ -1,6 +1,6 @@
 # MusicPermissionBanner
 
-**File:** [`apps/native/wolfwave/Views/Shared/MusicPermissionBanner.swift`](../../apps/native/wolfwave/Views/Shared/MusicPermissionBanner.swift)
+**File:** [`apps/native/WolfWave/Views/Shared/MusicPermissionBanner.swift`](../../apps/native/WolfWave/Views/Shared/MusicPermissionBanner.swift)
 
 ## Purpose
 Orange-tinted warning card shown when WolfWave is missing the Apple Music access it needs for a feature. Pairs a clear explanation with an "Open System Settings" call-to-action that deep-links to the Automation pane via `MusicPermissionChecker.openAutomationSettings()`.

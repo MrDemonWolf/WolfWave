@@ -1,6 +1,6 @@
 # IntegrationDashboardView
 
-**File:** [`apps/native/wolfwave/Views/Shared/IntegrationDashboardView.swift`](../../apps/native/wolfwave/Views/Shared/IntegrationDashboardView.swift)
+**File:** [`apps/native/WolfWave/Views/Shared/IntegrationDashboardView.swift`](../../apps/native/WolfWave/Views/Shared/IntegrationDashboardView.swift)
 
 ## Purpose
 Compact "where is WolfWave broadcasting right now" dashboard. One row per integration (Twitch chat, Discord profile, Stream Widgets, Remote send) with brand glyph, plain-language status subtitle, `StatusChip`, and a "Configure ›" route into the relevant settings pane.

@@ -1,6 +1,6 @@
 # ToggleSettingRow
 
-**File:** [`apps/native/wolfwave/Views/Shared/ToggleSettingRow.swift`](../../apps/native/wolfwave/Views/Shared/ToggleSettingRow.swift)
+**File:** [`apps/native/WolfWave/Views/Shared/ToggleSettingRow.swift`](../../apps/native/WolfWave/Views/Shared/ToggleSettingRow.swift)
 
 ## Purpose
 Title + subtitle + native macOS switch in a single horizontal row, used everywhere a setting is "off/on" with explanatory text.

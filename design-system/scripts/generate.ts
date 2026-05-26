@@ -3,9 +3,9 @@
  * WolfWave design token generator.
  *
  * Reads `design-system/tokens.json` and emits platform-specific outputs:
- *   - Swift  → apps/native/wolfwave/Core/DesignSystem/Tokens.generated.swift
+ *   - Swift  → apps/native/WolfWave/Core/DesignSystem/Tokens.generated.swift
  *   - CSS    → apps/docs/app/tokens.generated.css
- *   - JS     → apps/native/wolfwave/Resources/widget-tokens.generated.js
+ *   - JS     → apps/native/WolfWave/Resources/widget-tokens.generated.js
  *   - TS     → apps/marketing/shared/tokens.generated.ts
  *
  * Idempotent: re-running produces identical files. CI may diff to detect drift.
@@ -285,12 +285,12 @@ function safeIdent(s: string): string {
 // ── Emit ──────────────────────────────────────────────────────────────────
 console.log("Generating WolfWave design tokens…");
 write(
-  "apps/native/wolfwave/Core/DesignSystem/Tokens.generated.swift",
+  "apps/native/WolfWave/Core/DesignSystem/Tokens.generated.swift",
   generateSwift()
 );
 write("apps/docs/app/tokens.generated.css", generateCSS());
 write(
-  "apps/native/wolfwave/Resources/widget-tokens.generated.js",
+  "apps/native/WolfWave/Resources/widget-tokens.generated.js",
   generateWidgetJS()
 );
 write("apps/marketing/shared/tokens.generated.ts", generateTS());

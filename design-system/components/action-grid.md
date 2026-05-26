@@ -1,6 +1,6 @@
 # ActionGrid
 
-**File:** [`apps/native/wolfwave/Views/Shared/ActionGrid.swift`](../../apps/native/wolfwave/Views/Shared/ActionGrid.swift)
+**File:** [`apps/native/WolfWave/Views/Shared/ActionGrid.swift`](../../apps/native/WolfWave/Views/Shared/ActionGrid.swift)
 
 ## Purpose
 Standardized grid of bordered icon + label action buttons. Used by the custom About panel and the About settings tab to present a 2-column grid of secondary actions ("Check for Updates", "Release Notes", "Website", "Send Feedback", "Sponsor"). Replaces a hand-rolled `Grid` + private `actionButton(_:systemImage:action:)` helper that was duplicated across both About views.

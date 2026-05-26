@@ -1,6 +1,6 @@
 # WhatsNewView
 
-**File:** [`apps/native/wolfwave/Views/Shared/WhatsNewView.swift`](../../apps/native/wolfwave/Views/Shared/WhatsNewView.swift)
+**File:** [`apps/native/WolfWave/Views/Shared/WhatsNewView.swift`](../../apps/native/WolfWave/Views/Shared/WhatsNewView.swift)
 
 ## Purpose
 "What's New" sheet shown once per version after onboarding completes. Header + scrollable feature list + a single "Get Started" CTA.

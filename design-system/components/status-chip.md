@@ -1,6 +1,6 @@
 # StatusChip
 
-**File:** [`apps/native/wolfwave/Views/Shared/StatusChip.swift`](../../apps/native/wolfwave/Views/Shared/StatusChip.swift)
+**File:** [`apps/native/WolfWave/Views/Shared/StatusChip.swift`](../../apps/native/WolfWave/Views/Shared/StatusChip.swift)
 
 ## Purpose
 Capsule-shaped status indicator (colored dot + label) used in settings sections to show connection or server state.

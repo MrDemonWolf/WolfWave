@@ -1,6 +1,6 @@
 # TwitchGlitchShape
 
-**File:** [`apps/native/wolfwave/Views/Shared/TwitchGlitchShape.swift`](../../apps/native/wolfwave/Views/Shared/TwitchGlitchShape.swift)
+**File:** [`apps/native/WolfWave/Views/Shared/TwitchGlitchShape.swift`](../../apps/native/WolfWave/Views/Shared/TwitchGlitchShape.swift)
 
 ## Purpose
 SwiftUI `Shape` that draws the official Twitch "Glitch" silhouette — outer speech-bubble polygon + two rectangular eye cutouts. Used as a brand glyph alongside Discord/Apple Music marks.

@@ -15,7 +15,7 @@ concurrency:
 
 env:
   SCHEME: WolfWave
-  PROJECT: apps/native/wolfwave.xcodeproj
+  PROJECT: apps/native/WolfWave.xcodeproj
 
 jobs:
   test:
@@ -49,13 +49,13 @@ jobs:
         if: steps.filter.outputs.native == 'true'
         run: |
           printf 'TWITCH_CLIENT_ID = placeholder\nDISCORD_CLIENT_ID = placeholder\nGITHUB_REPO_OWNER = mrdemonwolf\nGITHUB_REPO_NAME = wolfwave\n' \
-            > apps/native/wolfwave/Config.xcconfig
+            > apps/native/WolfWave/Config.xcconfig
 
       - name: Verify SponsorConfig.generated.swift is in sync with FUNDING.yml
         if: steps.filter.outputs.native == 'true'
         run: |
           bash scripts/generate-sponsor-config.sh
-          if ! git diff --exit-code -- apps/native/wolfwave/Core/SponsorConfig.generated.swift; then
+          if ! git diff --exit-code -- apps/native/WolfWave/Core/SponsorConfig.generated.swift; then
             echo "::error::SponsorConfig.generated.swift is out of sync with .github/FUNDING.yml. Run \`make sponsor-config\` and commit the result."
             exit 1
           fi
@@ -152,7 +152,7 @@ jobs:
         with:
           filters: |
             ds:
-              - 'apps/native/wolfwave/Views/**'
+              - 'apps/native/WolfWave/Views/**'
               - 'design-system/scripts/lint.ts'
               - 'design-system/lint-allowlist.txt'
 

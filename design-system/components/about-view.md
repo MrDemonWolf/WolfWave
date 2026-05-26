@@ -1,6 +1,6 @@
 # AboutView
 
-**File:** [`apps/native/wolfwave/Views/Shared/AboutView.swift`](../../apps/native/wolfwave/Views/Shared/AboutView.swift)
+**File:** [`apps/native/WolfWave/Views/Shared/AboutView.swift`](../../apps/native/WolfWave/Views/Shared/AboutView.swift)
 
 ## Purpose
 Standalone "About WolfWave" sheet — app icon, version string with copy affordance, links (homepage, docs, GitHub, sponsors, license), trademark + copyright footer. Shown from the menu bar and from the Help menu.

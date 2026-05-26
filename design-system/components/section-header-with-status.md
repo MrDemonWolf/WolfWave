@@ -1,6 +1,6 @@
 # SectionHeaderWithStatus
 
-**File:** [`apps/native/wolfwave/Views/Shared/SectionHeaderWithStatus.swift`](../../apps/native/wolfwave/Views/Shared/SectionHeaderWithStatus.swift)
+**File:** [`apps/native/WolfWave/Views/Shared/SectionHeaderWithStatus.swift`](../../apps/native/WolfWave/Views/Shared/SectionHeaderWithStatus.swift)
 
 ## Purpose
 Top-level section header (title + subtitle) with an optional inline `StatusChip` on the trailing edge. The connective tissue between every settings pane (Discord, Twitch, WebSocket).

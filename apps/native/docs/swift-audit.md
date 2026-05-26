@@ -1,7 +1,7 @@
 # Swift Audit — Phase 2a: Concurrency
 
 **Date:** 2026-05-07
-**Scope:** `apps/native/wolfwave/{Services,Core,Monitors}/**/*.swift`
+**Scope:** `apps/native/WolfWave/{Services,Core,Monitors}/**/*.swift`
 **Target:** Swift 6 + Approachable Concurrency (Swift 6.2 default-MainActor isolation, `-strict-concurrency=complete`) on macOS 26.0+
 
 ## Current build state

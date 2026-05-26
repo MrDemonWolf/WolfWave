@@ -39,7 +39,7 @@ make notarize       # Notarize the DMG (requires Developer ID + env vars)
 make verify-notarize # Verify the notarization ticket is stapled
 ```
 
-Xcode project is at `apps/native/wolfwave.xcodeproj` with scheme `WolfWave`. Build and run with Cmd+R in Xcode.
+Xcode project is at `apps/native/WolfWave.xcodeproj` with scheme `WolfWave`. Build and run with Cmd+R in Xcode.
 
 ## Build Configuration
 
@@ -49,7 +49,7 @@ Xcode project is at `apps/native/wolfwave.xcodeproj` with scheme `WolfWave`. Bui
 
 ### Entitlements — do NOT remove
 
-`apps/native/wolfwave/wolfwave.entitlements` must keep **all** of the following keys for Music.app control to work under the App Sandbox. Removing any of them will silently break ScriptingBridge — distributed notifications still fire, but `value(forKey:)` reads return nil and the WebSocket broadcasts an empty `playback_state`. See PR #65 / PR #124 history for the regression that proved this the hard way.
+`apps/native/WolfWave/WolfWave.entitlements` must keep **all** of the following keys for Music.app control to work under the App Sandbox. Removing any of them will silently break ScriptingBridge — distributed notifications still fire, but `value(forKey:)` reads return nil and the WebSocket broadcasts an empty `playback_state`. See PR #65 / PR #124 history for the regression that proved this the hard way.
 
 | Key | Why it's required |
 |---|---|
@@ -84,7 +84,7 @@ If a future SDK introduces a new bridge type, **add a branch to `extractPlayerSt
 
 `WolfWaveApp.swift` → AppDelegate manages the menu bar status item, initializes services (`PlaybackSourceManager`, `TwitchChatService`, `DiscordRPCService`, `SparkleUpdaterService`, `SongRequestService`), handles settings + onboarding window lifecycle, and wires song info callbacks into the Twitch and Discord services. AppDelegate is split into `AppDelegate+MenuBar.swift`, `AppDelegate+Services.swift`, and `AppDelegate+Windows.swift`. The system tray menu is dynamic (rebuilt via `NSMenuDelegate` on each open) with now-playing info, quick toggles, hold/resume for the request queue, and conditional items.
 
-### Source layout (`apps/native/wolfwave/`)
+### Source layout (`apps/native/WolfWave/`)
 
 - **Core/** — `AppConstants.swift` + `AppConstants+Notifications.swift` (centralized config enums for keys, identifiers, timing, notification names), the `AppDelegate+*` extensions, `KeychainService.swift` (macOS Security framework wrapper), `Logger.swift` (structured logging), `PowerStateMonitor.swift`, `NetworkInfoService.swift` (LAN IP cache), `SongRequestItem.swift`, `BlocklistItem.swift`. Foundation utilities: `HTTPClient.swift` (shared async HTTP wrapper), `JSONCoders.swift` (shared `JSONEncoder`/`JSONDecoder`), `BugReportURL.swift` (pre-filled GitHub issue URL builder), `Bundle+InstallMethod.swift` (DMG vs Homebrew install detection).
 - **Monitors/** — Playback source abstraction. `PlaybackSource.swift` (protocol), `AppleMusicSource.swift` (ScriptingBridge + distributed notifications + 2s fallback polling), `PlaybackSourceManager.swift` (selects + multiplexes sources). Delegate pattern via `PlaybackSourceDelegate`.
@@ -116,9 +116,9 @@ Single source of truth: [`design-system/tokens.json`](design-system/tokens.json)
 
 | Output | Path | Consumer |
 |---|---|---|
-| Swift | `apps/native/wolfwave/Core/DesignSystem/Tokens.generated.swift` | Native app — `DSColor`, `DSFont`, `DSSpace`, `DSRadius`, `DSMotion`, `DSDimension` |
+| Swift | `apps/native/WolfWave/Core/DesignSystem/Tokens.generated.swift` | Native app — `DSColor`, `DSFont`, `DSSpace`, `DSRadius`, `DSMotion`, `DSDimension` |
 | CSS | `apps/docs/app/tokens.generated.css` | Fumadocs site (`--ds-*` custom properties) |
-| Widget JS | `apps/native/wolfwave/Resources/widget-tokens.generated.js` | `widget.html` reads via `window.WW_TOKENS` |
+| Widget JS | `apps/native/WolfWave/Resources/widget-tokens.generated.js` | `widget.html` reads via `window.WW_TOKENS` |
 | Marketing TS | `apps/marketing/shared/tokens.generated.ts` | Remotion projects |
 
 ### Regenerating
@@ -147,7 +147,7 @@ These rules are enforced by [`design-system/scripts/lint.ts`](design-system/scri
 
 - **Never** use literal numbers in `font(.system(size:))` — use `DSFont.Size.*` (`xs=10`, `sm=11`, `body=12`, `base=13`, `md=14`, `lg=17`, `xl=20`, `x2xl=22`).
 - **Never** use literal numbers in `spacing:` or `.padding(N)` — use `DSSpace.*` (`s0=2`, `s1=4`, `s2=8`, `s3=10`, `s4=12`, `s5=14`, `s6=16`, `s7=20`, `s8=24`, `s9=28`, `s10=32`, `s11=44`).
-- For single-glyph bordered buttons, use [`DSIconButton`](apps/native/wolfwave/Views/Shared/DSIconButton.swift) — do **not** hand-roll `Button { Image(...) } .buttonStyle(.bordered) .controlSize(.small)`. Hand-rolled icon-only buttons collapse to a narrower frame than text-label neighbors like `CopyButton`, causing visible drift.
+- For single-glyph bordered buttons, use [`DSIconButton`](apps/native/WolfWave/Views/Shared/DSIconButton.swift) — do **not** hand-roll `Button { Image(...) } .buttonStyle(.bordered) .controlSize(.small)`. Hand-rolled icon-only buttons collapse to a narrower frame than text-label neighbors like `CopyButton`, causing visible drift.
 - When you touch a `Views/Shared/` component, update its catalog entry in [`design-system/components/`](design-system/components/) in the same change.
 
 Existing legacy literals are tracked in [`design-system/lint-allowlist.txt`](design-system/lint-allowlist.txt) — migrate them file-by-file in follow-up PRs; do **not** add new entries.
@@ -248,7 +248,7 @@ Version is set in `MARKETING_VERSION` in `project.pbxproj` (4 occurrences). `CUR
 
 Run through every item before pushing the release tag.
 
-1. **`apps/native/wolfwave.xcodeproj/project.pbxproj`** — bump `MARKETING_VERSION` (4 occurrences) and `CURRENT_PROJECT_VERSION` (4 occurrences). Sparkle uses the build number as its primary comparator.
+1. **`apps/native/WolfWave.xcodeproj/project.pbxproj`** — bump `MARKETING_VERSION` (4 occurrences) and `CURRENT_PROJECT_VERSION` (4 occurrences). Sparkle uses the build number as its primary comparator.
 2. **`CHANGELOG.md`** — add `## [X.Y.Z] - YYYY-MM-DD` entry in Keep-a-Changelog format.
 3. **`apps/docs/content/docs/changelog.mdx`** — add `## vX.Y.Z — Month DD, YYYY` entry in MDX format.
 4. **Push git tag** — `git tag vX.Y.Z && git push origin vX.Y.Z` — triggers the release workflow (builds, signs, notarizes, creates GitHub Release).

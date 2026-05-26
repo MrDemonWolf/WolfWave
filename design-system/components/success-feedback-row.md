@@ -1,6 +1,6 @@
 # SuccessFeedbackRow
 
-**File:** [`apps/native/wolfwave/Views/Shared/SuccessFeedbackRow.swift`](../../apps/native/wolfwave/Views/Shared/SuccessFeedbackRow.swift)
+**File:** [`apps/native/WolfWave/Views/Shared/SuccessFeedbackRow.swift`](../../apps/native/WolfWave/Views/Shared/SuccessFeedbackRow.swift)
 
 ## Purpose
 Inline green checkmark + confirmation label — the "you did the thing" reassurance after a successful action.
