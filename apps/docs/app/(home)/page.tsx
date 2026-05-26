@@ -3,6 +3,7 @@ import Link from "next/link";
 import { absoluteUrl } from "@/lib/site";
 import {
   ArrowRight,
+  BookOpen,
   Check,
   Download,
   Github,
@@ -13,9 +14,11 @@ import {
   Music,
   Code2,
   Headphones,
+  Terminal,
   Twitch,
   X as XIcon,
 } from "lucide-react";
+import { DeveloperTabs } from "./DeveloperTabs";
 
 export const metadata: Metadata = {
   title: "WolfWave — Free Apple Music to Twitch, Discord & OBS on Mac",
@@ -262,7 +265,10 @@ export default function HomePage() {
       </section>
 
       {/* ═══════════════ AUDIENCES ═══════════════ */}
-      <section className="ww-bg-surface px-6 py-24 sm:py-32">
+      <section
+        id="audiences"
+        className="ww-bg-surface px-6 py-24 sm:py-32 scroll-mt-20"
+      >
         <div className="mx-auto max-w-6xl">
           <SectionHead
             eyebrow="Made for everyone"
@@ -328,7 +334,10 @@ export default function HomePage() {
       </section>
 
       {/* ═══════════════ TWITCH ═══════════════ */}
-      <section className="ww-bg-base px-6 py-24 sm:py-32">
+      <section
+        id="twitch"
+        className="ww-bg-base px-6 py-24 sm:py-32 scroll-mt-20"
+      >
         <div className="mx-auto max-w-6xl grid md:grid-cols-2 gap-12 lg:gap-16 items-center">
           <div>
             <p className="ww-text-brand text-sm font-semibold mb-3">
@@ -379,7 +388,10 @@ export default function HomePage() {
       </section>
 
       {/* ═══════════════ DISCORD ═══════════════ */}
-      <section className="ww-bg-surface px-6 py-24 sm:py-32">
+      <section
+        id="discord"
+        className="ww-bg-surface px-6 py-24 sm:py-32 scroll-mt-20"
+      >
         <div className="mx-auto max-w-6xl grid md:grid-cols-2 gap-12 lg:gap-16 items-center">
           <div
             className="ww-card ww-bg-base order-2 md:order-1"
@@ -439,7 +451,10 @@ export default function HomePage() {
       </section>
 
       {/* ═══════════════ OVERLAY ═══════════════ */}
-      <section className="ww-bg-base px-6 py-24 sm:py-32">
+      <section
+        id="overlay"
+        className="ww-bg-base px-6 py-24 sm:py-32 scroll-mt-20"
+      >
         <div className="mx-auto max-w-6xl grid md:grid-cols-2 gap-12 lg:gap-16 items-center">
           <div>
             <p className="ww-text-brand text-sm font-semibold mb-3">
@@ -495,7 +510,10 @@ export default function HomePage() {
       </section>
 
       {/* ═══════════════ COMPARISON ═══════════════ */}
-      <section className="ww-bg-surface px-6 py-24 sm:py-32">
+      <section
+        id="compare"
+        className="ww-bg-surface px-6 py-24 sm:py-32 scroll-mt-20"
+      >
         <div className="mx-auto max-w-6xl">
           <SectionHead
             eyebrow="Honest comparison"
@@ -622,54 +640,286 @@ export default function HomePage() {
       </section>
 
       {/* ═══════════════ DEVELOPERS ═══════════════ */}
-      <section className="ww-bg-base px-6 py-24 sm:py-32">
-        <div className="mx-auto max-w-5xl">
+      <section
+        id="developers"
+        className="ww-bg-base px-6 py-24 sm:py-32 scroll-mt-20 relative overflow-hidden"
+        style={{
+          backgroundImage:
+            "radial-gradient(color-mix(in srgb, var(--hairline) 70%, transparent) 1px, transparent 1px)",
+          backgroundSize: "32px 32px",
+          backgroundPosition: "0 0",
+        }}
+      >
+        <div className="mx-auto max-w-5xl relative">
           <SectionHead
             eyebrow="For developers"
-            title={<>Native Swift. Open source.</>}
-            sub="The WebSocket feed is fully documented — wire it into your overlay, your Home Assistant dashboard, or a Stream Deck plugin."
+            title={
+              <>
+                Built like a Swift app.
+                <br />
+                <span className="ww-text-brand">Hackable like a webhook.</span>
+              </>
+            }
+            sub="A local WebSocket emits every play, pause, and skip. Wire it into your overlay, your Home Assistant dashboard, or a Stream Deck plugin. MIT-licensed — read the code, fork it, ship your own build."
           />
 
-          <div className="mt-12">
-            <pre
-              className="ww-code"
-              dangerouslySetInnerHTML={{
-                __html: `<span style="color: var(--txt-2)">// Subscribe to every track change in real time.</span>
-<span style="color: var(--brand-500)">const</span> ws = <span style="color: var(--brand-500)">new</span> WebSocket(<span style="color: var(--brand-500)">"ws://localhost:8080/now-playing"</span>);
+          {/* Section ToC / jumpbar */}
+          <nav
+            aria-label="Developer section contents"
+            className="mt-10 flex flex-wrap items-center justify-center gap-2"
+          >
+            {[
+              { id: "dev-what", n: "01", label: "What" },
+              { id: "dev-why", n: "02", label: "Why" },
+              { id: "dev-how", n: "03", label: "How" },
+              { id: "dev-docs", n: "04", label: "Docs" },
+            ].map((step) => (
+              <a
+                key={step.id}
+                href={`#${step.id}`}
+                className="ww-mono inline-flex items-center gap-2 px-3 py-1.5 text-xs rounded-full transition-colors"
+                style={{
+                  border: "1px solid var(--hairline)",
+                  color: "var(--txt-2)",
+                  backgroundColor: "var(--bg-surface)",
+                }}
+              >
+                <span style={{ color: "var(--brand-500)" }}>{step.n}</span>
+                <span className="ww-text-1">{step.label}</span>
+              </a>
+            ))}
+          </nav>
 
-ws.onmessage = (event) =&gt; {
-  <span style="color: var(--brand-500)">const</span> { title, artist, artwork } = JSON.parse(event.data);
-  document.querySelector(<span style="color: var(--brand-500)">"#title"</span>).textContent = title;
-};`,
-              }}
-            />
+          {/* ── WHAT ─────────────────────────────────────────── */}
+          <div id="dev-what" className="mt-20 scroll-mt-24">
+            <p className="ww-mono text-xs ww-text-2 mb-4 text-center">
+              01 · WHAT IT IS
+            </p>
+            <div className="grid md:grid-cols-3 gap-4">
+              {[
+                {
+                  icon: Code2,
+                  title: "Native Swift",
+                  body: "A real macOS menu-bar app — not an Electron wrapper, not a browser extension. Sandboxed, signed, and notarized.",
+                },
+                {
+                  icon: Radio,
+                  title: "Local WebSocket",
+                  body: "ws://localhost:8080/now-playing streams every track change in milliseconds. JSON payload, no auth gymnastics for loopback.",
+                },
+                {
+                  icon: Github,
+                  title: "Open source, MIT",
+                  body: "Read the whole codebase on GitHub. Fork it, audit the security model, ship a custom build for your stream.",
+                },
+              ].map(({ icon: Icon, title, body }) => (
+                <div
+                  key={title}
+                  className="ww-card ww-bg-base"
+                  style={{ border: "1px solid var(--hairline)" }}
+                >
+                  <div
+                    className="w-10 h-10 rounded-xl inline-flex items-center justify-center mb-4"
+                    style={{
+                      backgroundColor: "var(--brand-50)",
+                      color: "var(--brand-500)",
+                    }}
+                  >
+                    <Icon className="w-5 h-5" />
+                  </div>
+                  <h3 className="ww-display ww-text-1 text-lg mb-2">{title}</h3>
+                  <p className="ww-text-2 text-sm leading-relaxed">{body}</p>
+                </div>
+              ))}
+            </div>
           </div>
 
-          <div className="mt-10 flex flex-wrap items-center justify-center gap-3">
-            <Link href="/docs/architecture" className="ww-btn ww-btn-ghost">
-              Architecture
-            </Link>
-            <Link href="/docs/development" className="ww-btn ww-btn-ghost">
-              Development guide
-            </Link>
-            <Link href="/docs/security" className="ww-btn ww-btn-ghost">
-              Security model
-            </Link>
-            <a
-              href="https://github.com/MrDemonWolf/WolfWave"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="ww-btn ww-btn-ghost"
-            >
-              <Github className="w-4 h-4" />
-              GitHub
-            </a>
+          {/* ── WHY ──────────────────────────────────────────── */}
+          <div id="dev-why" className="mt-20 scroll-mt-24">
+            <p className="ww-mono text-xs ww-text-2 mb-4 text-center">
+              02 · WHY YOU&apos;LL CARE
+            </p>
+            <div className="grid md:grid-cols-2 gap-4">
+              <div
+                className="ww-card ww-bg-surface"
+                style={{ border: "1px solid var(--hairline)" }}
+              >
+                <p className="ww-mono text-xs ww-text-2 mb-3">WITHOUT WOLFWAVE</p>
+                <ul className="space-y-2.5 text-sm ww-text-2">
+                  {[
+                    "Scraping Spotify Web Player to fake an Apple Music feed.",
+                    "Browser-source overlays that flicker on every track change.",
+                    "Twitch tokens copy-pasted into a Node script that crashes at 3am.",
+                    "No Discord Rich Presence — your friends never see what you're playing.",
+                  ].map((item) => (
+                    <li key={item} className="flex gap-2.5">
+                      <XIcon
+                        className="w-4 h-4 mt-0.5 shrink-0"
+                        style={{ color: "var(--txt-2)" }}
+                        aria-hidden="true"
+                      />
+                      <span>{item}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+
+              <div
+                className="ww-card ww-bg-base"
+                style={{
+                  border: "1px solid var(--hairline)",
+                  borderLeft: "2px solid var(--brand-500)",
+                }}
+              >
+                <p className="ww-mono text-xs ww-text-brand mb-3">WITH WOLFWAVE</p>
+                <ul className="space-y-2.5 text-sm ww-text-1">
+                  {[
+                    "One menu-bar app reads Apple Music via ScriptingBridge.",
+                    "One WebSocket feed drives your overlay — no polling, no flicker.",
+                    "Tokens live in macOS Keychain. EventSub reconnects itself.",
+                    "Discord Rich Presence ships in the box. Just sign in.",
+                  ].map((item) => (
+                    <li key={item} className="flex gap-2.5">
+                      <Check
+                        className="w-4 h-4 mt-0.5 shrink-0"
+                        style={{ color: "var(--brand-500)" }}
+                        aria-hidden="true"
+                      />
+                      <span>{item}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            </div>
+          </div>
+
+          {/* ── HOW ──────────────────────────────────────────── */}
+          <div id="dev-how" className="mt-20 scroll-mt-24">
+            <p className="ww-mono text-xs ww-text-2 mb-4 text-center">
+              03 · HOW IT WIRES UP
+            </p>
+            <DeveloperTabs />
+          </div>
+
+          {/* ── DOCS ─────────────────────────────────────────── */}
+          <div id="dev-docs" className="mt-20 scroll-mt-24">
+            <p className="ww-mono text-xs ww-text-2 mb-4 text-center">
+              04 · WHERE TO GO NEXT
+            </p>
+            <div className="grid sm:grid-cols-2 gap-4">
+              {[
+                {
+                  icon: Terminal,
+                  title: "Architecture",
+                  body: "How the menu-bar app, services, and WebSocket feed fit together.",
+                  href: "/docs/architecture",
+                  external: false,
+                },
+                {
+                  icon: BookOpen,
+                  title: "Development guide",
+                  body: "Build from source, run the test suite, contribute a PR.",
+                  href: "/docs/development",
+                  external: false,
+                },
+                {
+                  icon: Shield,
+                  title: "Security model",
+                  body: "Keychain storage, code-signing, token validation, sandbox.",
+                  href: "/docs/security",
+                  external: false,
+                },
+                {
+                  icon: Github,
+                  title: "GitHub",
+                  body: "Star the repo, fork it, or file an issue with reproduction steps.",
+                  href: "https://github.com/MrDemonWolf/WolfWave",
+                  external: true,
+                },
+              ].map(({ icon: Icon, title, body, href, external }) => {
+                const inner = (
+                  <>
+                    <div className="flex items-start gap-4">
+                      <div
+                        className="w-10 h-10 rounded-xl inline-flex items-center justify-center shrink-0"
+                        style={{
+                          backgroundColor: "var(--brand-50)",
+                          color: "var(--brand-500)",
+                        }}
+                      >
+                        <Icon className="w-5 h-5" />
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <h3 className="ww-display ww-text-1 text-lg mb-1">
+                          {title}
+                        </h3>
+                        <p className="ww-text-2 text-sm leading-relaxed">
+                          {body}
+                        </p>
+                        <span className="ww-text-brand mt-3 inline-flex items-center gap-1.5 text-sm font-semibold">
+                          Read
+                          <ArrowRight className="w-3.5 h-3.5" />
+                        </span>
+                      </div>
+                    </div>
+                  </>
+                );
+                const className = "ww-card ww-card-hover ww-bg-base block";
+                const style = { border: "1px solid var(--hairline)" } as const;
+                return external ? (
+                  <a
+                    key={title}
+                    href={href}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className={className}
+                    style={style}
+                  >
+                    {inner}
+                  </a>
+                ) : (
+                  <Link
+                    key={title}
+                    href={href}
+                    className={className}
+                    style={style}
+                  >
+                    {inner}
+                  </Link>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* ── Conversion footer ────────────────────────────── */}
+          <div className="mt-16 text-center">
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
+              <Link href="#download" className="ww-btn ww-btn-primary">
+                <Download className="w-4 h-4" />
+                Download for macOS
+              </Link>
+              <Link href="/docs/changelog" className="ww-btn ww-btn-ghost">
+                Read the changelog
+                <ArrowRight className="w-4 h-4" />
+              </Link>
+            </div>
+            <p className="mt-5 text-sm ww-text-2">
+              MIT-licensed · macOS 26+ · Built by{" "}
+              <a
+                href="https://github.com/MrDemonWolf"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="ww-text-brand font-semibold"
+              >
+                @MrDemonWolf
+              </a>
+            </p>
           </div>
         </div>
       </section>
 
       {/* ═══════════════ BADGES ═══════════════ */}
-      <section className="ww-bg-surface px-6 py-20">
+      <section id="download" className="ww-bg-surface px-6 py-20 scroll-mt-20">
         <div className="mx-auto max-w-5xl">
           <div
             className="ww-card ww-bg-base flex flex-wrap items-center justify-center gap-3"
@@ -732,7 +982,10 @@ ws.onmessage = (event) =&gt; {
       </section>
 
       {/* ═══════════════ PRIVACY ═══════════════ */}
-      <section className="ww-bg-base px-6 py-24 sm:py-32">
+      <section
+        id="privacy"
+        className="ww-bg-base px-6 py-24 sm:py-32 scroll-mt-20"
+      >
         <div className="mx-auto max-w-3xl text-center">
           <div
             className="w-12 h-12 rounded-2xl inline-flex items-center justify-center mb-6"
@@ -764,7 +1017,10 @@ ws.onmessage = (event) =&gt; {
       </section>
 
       {/* ═══════════════ FAQ ═══════════════ */}
-      <section className="ww-bg-surface px-6 py-24 sm:py-32">
+      <section
+        id="faq"
+        className="ww-bg-surface px-6 py-24 sm:py-32 scroll-mt-20"
+      >
         <div className="mx-auto max-w-3xl">
           <SectionHead
             eyebrow="Questions, answered"
@@ -893,7 +1149,7 @@ ws.onmessage = (event) =&gt; {
       </section>
 
       {/* ═══════════════ CTA ═══════════════ */}
-      <section className="ww-bg-base px-6 py-28 sm:py-36">
+      <section id="cta" className="ww-bg-base px-6 py-28 sm:py-36 scroll-mt-20">
         <div className="mx-auto max-w-4xl text-center">
           <div
             className="w-12 h-12 rounded-2xl inline-flex items-center justify-center mb-6 mx-auto"
