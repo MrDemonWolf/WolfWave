@@ -63,33 +63,6 @@ export const metadata: Metadata = {
   },
 };
 
-// ── Menu bar screenshot (used in hero) ───────────────────────
-// Real capture of the WolfWave menu bar dropdown — natural width 348px.
-function NowPlayingMock() {
-  return (
-    <figure
-      className="ww-pulse-ring mx-auto"
-      style={{ width: "100%", maxWidth: 348 }}
-      aria-label="WolfWave menu bar dropdown"
-    >
-      <img
-        src="/screens/menu-bar.png"
-        alt="WolfWave menu bar dropdown showing Power of the Tribe (Defqon.1 2024 Anthem) by Sound Rush now playing, with Apple Music tracking, Discord and OBS Overlay status, and controls for Pause, Next Track, Streamer Mode, and Settings."
-        width={348}
-        height={584}
-        className="block h-auto"
-        style={{
-          width: "100%",
-          borderRadius: "0.85rem",
-          boxShadow: "0 30px 80px -18px rgba(0,0,0,0.55)",
-        }}
-        loading="eager"
-        decoding="async"
-        fetchPriority="high"
-      />
-    </figure>
-  );
-}
 
 // ── Section heading helper ───────────────────────────────────
 function SectionHead({
@@ -239,9 +212,6 @@ export default function HomePage() {
             </div>
           </div>
 
-          <div className="mt-16 sm:mt-20 ww-reveal ww-reveal-3">
-            <NowPlayingMock />
-          </div>
         </div>
       </section>
 
