@@ -52,6 +52,13 @@ nonisolated final class ArtworkService: @unchecked Sendable {
     /// Maximum number of entries retained across all three caches.
     private let cacheMaxEntries = 200
 
+    /// Pending completion handlers for in-flight requests, keyed by `cacheKey`.
+    /// A non-nil entry means a network request is already running for that key;
+    /// additional callers append their completion and wait instead of issuing
+    /// a duplicate request. Single-flight dedupes concurrent misses (e.g.
+    /// menu bar + Discord both fetching on the same track change).
+    private var inFlight: [String: [@Sendable (TrackLinks) -> Void]] = [:]
+
     /// Serial queue protecting cache mutations.
     private let cacheQueue = DispatchQueue(
         label: "com.mrdemonwolf.wolfwave.artworkCache",
@@ -113,21 +120,40 @@ nonisolated final class ArtworkService: @unchecked Sendable {
     func fetchTrackLinks(track: String, artist: String, completion: @escaping @Sendable (TrackLinks) -> Void) {
         let cacheKey = "\(artist)|\(track)"
 
-        let cached: TrackLinks = cacheQueue.sync {
-            TrackLinks(
+        // Atomically check cache + register as in-flight waiter under one lock.
+        // Returns the cached value if hit, otherwise indicates whether this
+        // caller should issue the network request (first miss) or just wait.
+        enum Decision { case hit(TrackLinks), leader, waiter }
+        let decision: Decision = cacheQueue.sync {
+            let cached = TrackLinks(
                 artworkURL: cache[cacheKey],
                 trackViewURL: trackViewURLCache[cacheKey],
                 songLinkURL: songLinkURLCache[cacheKey]
             )
+            if cached.artworkURL != nil {
+                return .hit(cached)
+            }
+            if inFlight[cacheKey] != nil {
+                inFlight[cacheKey]?.append(completion)
+                return .waiter
+            }
+            inFlight[cacheKey] = [completion]
+            return .leader
         }
 
-        if cached.artworkURL != nil {
+        switch decision {
+        case .hit(let cached):
             completion(cached)
             return
+        case .waiter:
+            return
+        case .leader:
+            break
         }
 
+        // Leader path: issue one network request and fan out the result to all waiters.
         guard var components = URLComponents(string: AppConstants.API.itunesSearch) else {
-            completion(TrackLinks(artworkURL: nil, trackViewURL: nil, songLinkURL: nil))
+            finishInFlight(cacheKey: cacheKey, with: TrackLinks(artworkURL: nil, trackViewURL: nil, songLinkURL: nil))
             return
         }
         components.queryItems = [
@@ -137,18 +163,19 @@ nonisolated final class ArtworkService: @unchecked Sendable {
             URLQueryItem(name: "term", value: "\(track) \(artist)"),
         ]
         guard let url = components.url else {
-            completion(TrackLinks(artworkURL: nil, trackViewURL: nil, songLinkURL: nil))
+            finishInFlight(cacheKey: cacheKey, with: TrackLinks(artworkURL: nil, trackViewURL: nil, songLinkURL: nil))
             return
         }
 
         session.dataTask(with: url) { [weak self] data, _, error in
+            guard let self else { return }
             guard let data, error == nil,
                   let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
                   let results = json["results"] as? [[String: Any]],
                   let first = results.first
             else {
                 Log.debug("Artwork: iTunes lookup failed for \"\(track)\" by \(artist)", category: "Artwork")
-                completion(TrackLinks(artworkURL: nil, trackViewURL: nil, songLinkURL: nil))
+                self.finishInFlight(cacheKey: cacheKey, with: TrackLinks(artworkURL: nil, trackViewURL: nil, songLinkURL: nil))
                 return
             }
 
@@ -157,8 +184,9 @@ nonisolated final class ArtworkService: @unchecked Sendable {
             let trackViewURL = first["trackViewUrl"] as? String
             let songLinkURL = (first["trackId"] as? Int).map { "\(AppConstants.API.songLinkTrackPrefix)\($0)" }
 
-            self?.cacheQueue.sync {
-                guard let self else { return }
+            let links = TrackLinks(artworkURL: artworkURL, trackViewURL: trackViewURL, songLinkURL: songLinkURL)
+
+            self.cacheQueue.sync {
                 let isNewKey = self.cache[cacheKey] == nil
                     && self.trackViewURLCache[cacheKey] == nil
                     && self.songLinkURLCache[cacheKey] == nil
@@ -177,8 +205,22 @@ nonisolated final class ArtworkService: @unchecked Sendable {
             }
 
             Log.debug("Artwork: Found track links for \"\(track)\"", category: "Artwork")
-            completion(TrackLinks(artworkURL: artworkURL, trackViewURL: trackViewURL, songLinkURL: songLinkURL))
+            self.finishInFlight(cacheKey: cacheKey, with: links)
         }.resume()
+    }
+
+    /// Pops all pending waiters for `cacheKey` and invokes them with `links`.
+    /// Called outside the cache lock to avoid holding it while running arbitrary
+    /// caller code.
+    private func finishInFlight(cacheKey: String, with links: TrackLinks) {
+        let waiters: [@Sendable (TrackLinks) -> Void] = cacheQueue.sync {
+            let pending = inFlight[cacheKey] ?? []
+            inFlight.removeValue(forKey: cacheKey)
+            return pending
+        }
+        for waiter in waiters {
+            waiter(links)
+        }
     }
 
     /// Returns cached track links for a track without making a network request.
