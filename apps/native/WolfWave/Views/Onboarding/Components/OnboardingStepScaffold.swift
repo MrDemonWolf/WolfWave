@@ -8,12 +8,16 @@
 
 import SwiftUI
 
-/// Shared header-anchored layout for every onboarding integration step.
+/// Shared centered layout for every onboarding integration step.
 ///
-/// Locks the icon → title → description block to a constant vertical position
-/// across steps so it doesn't drift when a step's `extras` block changes height.
-/// Previously each step rolled its own `VStack` with Spacer top + bottom, which
-/// centered the whole column and shifted the icon whenever extras were added.
+/// Vertically centers the icon → title → description → extras block while
+/// reserving a fixed minimum height for the extras slot. Because the header
+/// block is constant-height (icon + fixed-vertical text) and the extras slot
+/// has a floor, the (header + extras) column is the same size on every step,
+/// so balanced top/bottom spacers land the icon at an identical Y offset
+/// across Welcome → Discord → Twitch → … → Completion. Steps whose extras
+/// grow beyond the floor (e.g. Twitch device-code state) push the bottom
+/// spacer down but never shift the header upward.
 struct OnboardingStepScaffold<Icon: View, Extras: View>: View {
 
     // MARK: - Properties
@@ -28,6 +32,8 @@ struct OnboardingStepScaffold<Icon: View, Extras: View>: View {
 
     var body: some View {
         VStack(spacing: DSSpace.s7) {
+            Spacer(minLength: 0)
+
             VStack(spacing: DSSpace.s4) {
                 icon()
 
@@ -45,16 +51,16 @@ struct OnboardingStepScaffold<Icon: View, Extras: View>: View {
                         .fixedSize(horizontal: false, vertical: true)
                 }
             }
-            .padding(.top, DSSpace.s8)
             .padding(.horizontal, DSSpace.s8)
 
             extras()
                 .frame(maxWidth: 440)
+                .frame(minHeight: DSDimension.Onboarding.stepContentMinHeight, alignment: .top)
                 .padding(.horizontal, DSSpace.s8)
 
             Spacer(minLength: 0)
         }
-        .frame(maxWidth: .infinity)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 }
 
