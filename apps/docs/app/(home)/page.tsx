@@ -9,7 +9,6 @@ import {
   Github,
   Minus,
   Radio,
-  Wifi,
   Shield,
   Music,
   Code2,
@@ -19,6 +18,8 @@ import {
   X as XIcon,
 } from "lucide-react";
 import { DeveloperTabs } from "./DeveloperTabs";
+import { DiscordPresenceCard } from "./_widgets/DiscordPresenceCard";
+import { OBSOverlayWidget } from "./_widgets/OBSOverlayWidget";
 
 export const metadata: Metadata = {
   title: "WolfWave — Free Apple Music to Twitch, Discord & OBS on Mac",
@@ -62,51 +63,31 @@ export const metadata: Metadata = {
   },
 };
 
-// ── Now Playing mock (used in hero) ──────────────────────────
+// ── Menu bar screenshot (used in hero) ───────────────────────
+// Real capture of the WolfWave menu bar dropdown — natural width 348px.
 function NowPlayingMock() {
   return (
-    <div className="ww-pulse-ring ww-card w-full max-w-md mx-auto">
-      <div className="flex items-center gap-4">
-        <div
-          className="w-16 h-16 rounded-xl shrink-0"
-          style={{ background: "linear-gradient(135deg, #0A84FF, #5AC8FA)" }}
-          aria-hidden="true"
-        />
-        <div className="min-w-0 flex-1">
-          <p className="ww-text-1 text-base font-semibold truncate">Kbps Plz</p>
-          <p className="ww-text-2 text-sm truncate">DevBowzer · Album Vol. 2</p>
-          <div
-            className="h-1 rounded-full mt-3"
-            style={{ backgroundColor: "var(--hairline)" }}
-          >
-            <div
-              className="h-1 rounded-full"
-              style={{ width: "62%", backgroundColor: "var(--brand-500)" }}
-            />
-          </div>
-          <div className="flex justify-between mt-1.5 text-xs ww-text-2">
-            <span>2:07</span>
-            <span>3:20</span>
-          </div>
-        </div>
-      </div>
-      <div
-        className="mt-5 pt-4 flex items-center justify-between border-t"
-        style={{ borderColor: "var(--hairline)" }}
-      >
-        <div className="flex items-center gap-2">
-          <span className="ww-pill">
-            <Twitch className="w-3 h-3" /> Twitch
-          </span>
-          <span className="ww-pill">
-            <Radio className="w-3 h-3" /> Discord
-          </span>
-          <span className="ww-pill">
-            <Wifi className="w-3 h-3" /> Overlay
-          </span>
-        </div>
-      </div>
-    </div>
+    <figure
+      className="ww-pulse-ring mx-auto"
+      style={{ width: "100%", maxWidth: 348 }}
+      aria-label="WolfWave menu bar dropdown"
+    >
+      <img
+        src="/screens/menu-bar.png"
+        alt="WolfWave menu bar dropdown showing Power of the Tribe (Defqon.1 2024 Anthem) by Sound Rush now playing, with Apple Music tracking, Discord and OBS Overlay status, and controls for Pause, Next Track, Streamer Mode, and Settings."
+        width={348}
+        height={584}
+        className="block h-auto"
+        style={{
+          width: "100%",
+          borderRadius: "0.85rem",
+          boxShadow: "0 30px 80px -18px rgba(0,0,0,0.55)",
+        }}
+        loading="eager"
+        decoding="async"
+        fetchPriority="high"
+      />
+    </figure>
   );
 }
 
@@ -374,7 +355,7 @@ export default function HomePage() {
             <div className="flex gap-2">
               <span className="font-semibold ww-text-brand">WolfWave</span>
               <span className="ww-text-1">
-                Now playing: <strong>Kbps Plz</strong> by DevBowzer · Album Vol. 2
+                Now playing: <strong>Midnight Routine</strong> by Local Maxima
               </span>
             </div>
             <div className="flex gap-2">
@@ -393,39 +374,13 @@ export default function HomePage() {
         className="ww-bg-surface px-6 py-24 sm:py-32 scroll-mt-20"
       >
         <div className="mx-auto max-w-6xl grid md:grid-cols-2 gap-12 lg:gap-16 items-center">
-          <div
-            className="ww-card ww-bg-base order-2 md:order-1"
-            style={{ border: "1px solid var(--hairline)" }}
+          <figure
+            className="order-2 md:order-1 mx-auto"
+            style={{ width: "100%", maxWidth: 437 }}
+            aria-label="Discord Rich Presence — Listening to WolfWave"
           >
-            <p className="ww-mono text-xs ww-text-2 mb-3">
-              LISTENING TO APPLE MUSIC
-            </p>
-            <div className="flex gap-3 items-center">
-              <div
-                className="w-16 h-16 rounded-lg shrink-0"
-                style={{ background: "linear-gradient(135deg, #5865F2, #0A84FF)" }}
-                aria-hidden="true"
-              />
-              <div className="min-w-0 flex-1">
-                <p className="ww-text-1 text-base font-semibold truncate">
-                  Kbps Plz
-                </p>
-                <p className="ww-text-2 text-sm truncate">DevBowzer</p>
-                <div
-                  className="h-1 rounded-full mt-3"
-                  style={{ backgroundColor: "var(--hairline)" }}
-                >
-                  <div
-                    className="h-1 rounded-full"
-                    style={{
-                      width: "62%",
-                      background: "linear-gradient(to right, #5865F2, #0A84FF)",
-                    }}
-                  />
-                </div>
-              </div>
-            </div>
-          </div>
+            <DiscordPresenceCard />
+          </figure>
 
           <div className="order-1 md:order-2">
             <p className="ww-text-brand text-sm font-semibold mb-3">
@@ -477,9 +432,15 @@ export default function HomePage() {
             </Link>
           </div>
 
-          <div
-            className="rounded-2xl overflow-hidden"
-            style={{ border: "1px solid var(--hairline)" }}
+          <figure
+            className="rounded-2xl overflow-hidden mx-auto"
+            style={{
+              width: "100%",
+              maxWidth: 560,
+              border: "1px solid var(--hairline)",
+              boxShadow: "0 24px 60px -18px rgba(0,0,0,0.35)",
+            }}
+            aria-label="WolfWave overlay rendered inside an OBS browser source"
           >
             <div
               className="px-4 py-2.5 flex items-center gap-2 text-xs ww-mono ww-text-2"
@@ -487,25 +448,35 @@ export default function HomePage() {
                 backgroundColor: "var(--bg-surface)",
                 borderBottom: "1px solid var(--hairline)",
               }}
+              aria-hidden="true"
             >
-              <span className="w-2.5 h-2.5 rounded-full" style={{ background: "#ff5f57" }} />
-              <span className="w-2.5 h-2.5 rounded-full" style={{ background: "#febc2e" }} />
-              <span className="w-2.5 h-2.5 rounded-full" style={{ background: "#28c840" }} />
+              <span
+                className="w-2.5 h-2.5 rounded-full"
+                style={{ background: "#ff5f57" }}
+              />
+              <span
+                className="w-2.5 h-2.5 rounded-full"
+                style={{ background: "#febc2e" }}
+              />
+              <span
+                className="w-2.5 h-2.5 rounded-full"
+                style={{ background: "#28c840" }}
+              />
               <span className="ml-2">localhost:8080/now-playing</span>
             </div>
-            <div className="ww-bg-surface p-6 flex items-center gap-4">
-              <div
-                className="w-14 h-14 rounded-lg shrink-0"
-                style={{ background: "linear-gradient(135deg, #0A84FF, #5AC8FA)" }}
-              />
-              <div className="min-w-0">
-                <p className="ww-text-1 text-sm font-semibold truncate">
-                  Kbps Plz
-                </p>
-                <p className="ww-text-2 text-xs truncate">DevBowzer</p>
-              </div>
+            <div
+              style={{
+                // Stage backdrop — neutral checkerboard to read as "browser source"
+                backgroundColor: "#0d0d0f",
+                backgroundImage:
+                  "linear-gradient(45deg, rgba(255,255,255,0.025) 25%, transparent 25%), linear-gradient(-45deg, rgba(255,255,255,0.025) 25%, transparent 25%), linear-gradient(45deg, transparent 75%, rgba(255,255,255,0.025) 75%), linear-gradient(-45deg, transparent 75%, rgba(255,255,255,0.025) 75%)",
+                backgroundSize: "16px 16px",
+                backgroundPosition: "0 0, 0 8px, 8px -8px, -8px 0",
+              }}
+            >
+              <OBSOverlayWidget />
             </div>
-          </div>
+          </figure>
         </div>
       </section>
 
