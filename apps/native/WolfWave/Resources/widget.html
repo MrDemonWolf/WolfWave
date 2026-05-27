@@ -1,466 +1,617 @@
+<!-- GENERATED — edit apps/widget/src/widget.html — run `bun run --filter widget build` to rebuild. -->
 <!DOCTYPE html>
+<!--
+═══════════════════════════════════════════════════════════════════════════════
+  WolfWave OBS Widget — Source Template
+
+  This file is processed by ../build.ts. Placeholders below are replaced with
+  the inlined Tailwind CSS, the generated design-system tokens, and the
+  bundled widget runtime, then written to:
+
+      apps/native/WolfWave/Resources/widget.html
+
+  Do NOT edit the generated file directly — your edits get overwritten on
+  the next `bun run --filter widget build`.
+
+  Placeholders (all replaced at build time):
+    *,:after,:before{--tw-border-spacing-x:0;--tw-border-spacing-y:0;--tw-translate-x:0;--tw-translate-y:0;--tw-rotate:0;--tw-skew-x:0;--tw-skew-y:0;--tw-scale-x:1;--tw-scale-y:1;--tw-pan-x: ;--tw-pan-y: ;--tw-pinch-zoom: ;--tw-scroll-snap-strictness:proximity;--tw-gradient-from-position: ;--tw-gradient-via-position: ;--tw-gradient-to-position: ;--tw-ordinal: ;--tw-slashed-zero: ;--tw-numeric-figure: ;--tw-numeric-spacing: ;--tw-numeric-fraction: ;--tw-ring-inset: ;--tw-ring-offset-width:0px;--tw-ring-offset-color:#fff;--tw-ring-color:rgba(59,130,246,.5);--tw-ring-offset-shadow:0 0 #0000;--tw-ring-shadow:0 0 #0000;--tw-shadow:0 0 #0000;--tw-shadow-colored:0 0 #0000;--tw-blur: ;--tw-brightness: ;--tw-contrast: ;--tw-grayscale: ;--tw-hue-rotate: ;--tw-invert: ;--tw-saturate: ;--tw-sepia: ;--tw-drop-shadow: ;--tw-backdrop-blur: ;--tw-backdrop-brightness: ;--tw-backdrop-contrast: ;--tw-backdrop-grayscale: ;--tw-backdrop-hue-rotate: ;--tw-backdrop-invert: ;--tw-backdrop-opacity: ;--tw-backdrop-saturate: ;--tw-backdrop-sepia: ;--tw-contain-size: ;--tw-contain-layout: ;--tw-contain-paint: ;--tw-contain-style: }::backdrop{--tw-border-spacing-x:0;--tw-border-spacing-y:0;--tw-translate-x:0;--tw-translate-y:0;--tw-rotate:0;--tw-skew-x:0;--tw-skew-y:0;--tw-scale-x:1;--tw-scale-y:1;--tw-pan-x: ;--tw-pan-y: ;--tw-pinch-zoom: ;--tw-scroll-snap-strictness:proximity;--tw-gradient-from-position: ;--tw-gradient-via-position: ;--tw-gradient-to-position: ;--tw-ordinal: ;--tw-slashed-zero: ;--tw-numeric-figure: ;--tw-numeric-spacing: ;--tw-numeric-fraction: ;--tw-ring-inset: ;--tw-ring-offset-width:0px;--tw-ring-offset-color:#fff;--tw-ring-color:rgba(59,130,246,.5);--tw-ring-offset-shadow:0 0 #0000;--tw-ring-shadow:0 0 #0000;--tw-shadow:0 0 #0000;--tw-shadow-colored:0 0 #0000;--tw-blur: ;--tw-brightness: ;--tw-contrast: ;--tw-grayscale: ;--tw-hue-rotate: ;--tw-invert: ;--tw-saturate: ;--tw-sepia: ;--tw-drop-shadow: ;--tw-backdrop-blur: ;--tw-backdrop-brightness: ;--tw-backdrop-contrast: ;--tw-backdrop-grayscale: ;--tw-backdrop-hue-rotate: ;--tw-backdrop-invert: ;--tw-backdrop-opacity: ;--tw-backdrop-saturate: ;--tw-backdrop-sepia: ;--tw-contain-size: ;--tw-contain-layout: ;--tw-contain-paint: ;--tw-contain-style: }.\!visible{visibility:visible!important}.visible{visibility:visible}.relative{position:relative}.inline{display:inline}.flex{display:flex}.contents{display:contents}.hidden{display:none}.h-full{height:100%}.shrink-0{flex-shrink:0}.flex-col{flex-direction:column}.items-center{align-items:center}.justify-center{justify-content:center}.border{border-width:1px}.filter{filter:var(--tw-blur) var(--tw-brightness) var(--tw-contrast) var(--tw-grayscale) var(--tw-hue-rotate) var(--tw-invert) var(--tw-saturate) var(--tw-sepia) var(--tw-drop-shadow)}.transition{transition-property:color,background-color,border-color,text-decoration-color,fill,stroke,opacity,box-shadow,transform,filter,-webkit-backdrop-filter;transition-property:color,background-color,border-color,text-decoration-color,fill,stroke,opacity,box-shadow,transform,filter,backdrop-filter;transition-property:color,background-color,border-color,text-decoration-color,fill,stroke,opacity,box-shadow,transform,filter,backdrop-filter,-webkit-backdrop-filter;transition-timing-function:cubic-bezier(.4,0,.2,1);transition-duration:.15s}*,:after,:before{box-sizing:border-box;margin:0;padding:0}body{width:100%;height:100%;overflow:hidden;font-family:-apple-system,BlinkMacSystemFont,Segoe UI,sans-serif}#root,body{background:transparent}#root{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;padding:1rem}#widget{width:100%;overflow:hidden;position:relative;will-change:opacity,transform,filter}#widget.widget-entering,#widget.widget-hidden{opacity:0;transform:translateY(12px) scale(.97);filter:blur(2px);pointer-events:none}#widget.widget-visible{opacity:1;transform:translateY(0) scale(1);filter:blur(0);transition:opacity .6s cubic-bezier(.34,1.56,.64,1),transform .6s cubic-bezier(.34,1.56,.64,1),filter .48s cubic-bezier(.4,0,.2,1)}#widget.widget-exiting{opacity:0;transform:translateY(8px) scale(.99);filter:blur(4px);pointer-events:none;transition:opacity .5s cubic-bezier(.4,0,.2,1),transform .5s cubic-bezier(.4,0,.2,1),filter .5s cubic-bezier(.4,0,.2,1)}#widget.placeholder{max-width:500px;height:100px;background:rgba(20,20,28,.55);border-radius:12px;display:flex;align-items:center;justify-content:center;opacity:.55;color:hsla(0,0%,100%,.7);font-size:13px}.artwork,.track-meta{transition:opacity .14s ease-out,transform .14s ease-out}.track-meta.swap-out{opacity:0;transform:translateX(4px)}.track-meta.swap-in{opacity:0;transform:translateX(-4px)}.artwork.swap-in,.artwork.swap-out{opacity:0;transform:scale(.94)}.progress-track{width:100%;border-radius:9999px;overflow:hidden}.progress-fill{height:100%;border-radius:9999px;transition:width 1s linear}.progress-fill.draining{transition:width .4s ease-out}.time-row{display:flex;justify-content:space-between;margin-top:2px}.blur-layer{transform:scale(1.4);filter:blur(20px);opacity:.9;background-size:cover;background-position:50%}.blur-layer,.noise-layer{position:absolute;inset:0}.noise-layer{pointer-events:none;z-index:10;opacity:.04;border-radius:inherit;background-image:url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 256 256'%3E%3Cfilter id='a'%3E%3CfeTurbulence baseFrequency='.9' numOctaves='4' stitchTiles='stitch' type='fractalNoise'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23a)'/%3E%3C/svg%3E");background-repeat:repeat;background-size:128px 128px}.overlay-layer{position:absolute;inset:0}  → contents of dist/widget.css
+    /*
+ * WolfWave Design System — GENERATED FILE. Do not edit by hand.
+ * Source: design-system/tokens.json
+ * Run `bun run tokens` to regenerate.
+ */
+window.WW_TOKENS = {
+  "color": {
+    "brand": {
+      "50": "#F0F7FF",
+      "100": "#D9ECFF",
+      "200": "#B0D6FF",
+      "300": "#7FB8FF",
+      "400": "#4A9CFF",
+      "500": "#0A84FF",
+      "600": "#0066CC",
+      "700": "#004E9F",
+      "800": "#003A78",
+      "900": "#002551"
+    },
+    "brandDark": {
+      "500": "#0A84FF",
+      "600": "#409CFF"
+    },
+    "semantic": {
+      "success": "#34C759",
+      "warning": "#FF9F0A",
+      "error": "#FF453A",
+      "info": "#0A84FF"
+    },
+    "surface": {
+      "light": {
+        "base": "#FFFFFF",
+        "surface": "#F5F5F7",
+        "elev": "#FBFBFD",
+        "hairline": "#D2D2D7"
+      },
+      "dark": {
+        "base": "#000000",
+        "surface": "#1C1C1E",
+        "elev": "#0A0A0C",
+        "hairline": "#2C2C2E"
+      }
+    },
+    "text": {
+      "light": {
+        "primary": "#1D1D1F",
+        "secondary": "#6E6E73",
+        "muted": "#A1A1A6"
+      },
+      "dark": {
+        "primary": "#F5F5F7",
+        "secondary": "#A1A1A6",
+        "muted": "#6E6E73"
+      }
+    },
+    "partner": {
+      "twitch": "#9146FF",
+      "discord": "#5865F2",
+      "discordSurface": "#2B2D31",
+      "discordControl": "#4E5058",
+      "appleMusicStart": "#FF5D8B",
+      "appleMusicEnd": "#FA233B",
+      "appleMusicSurfaceStart": "#FA5C75",
+      "appleMusicSurfaceEnd": "#FA243B",
+      "appleMusicPulseStart": "#FC4773",
+      "appleMusicPulseEnd": "#FA1A52",
+      "obsStart": "#2C2C2E",
+      "obsEnd": "#1A1A1C",
+      "wolfwaveGradientStart": "#0A2540",
+      "wolfwaveGradientEnd": "#2563EB"
+    }
+  },
+  "font": {
+    "family": {
+      "display": "Unbounded, -apple-system, BlinkMacSystemFont, system-ui, sans-serif",
+      "sans": "\"Instrument Sans\", -apple-system, BlinkMacSystemFont, system-ui, sans-serif",
+      "serif": "\"Instrument Serif\", ui-serif, Georgia, serif",
+      "mono": "\"JetBrains Mono\", ui-monospace, \"SF Mono\", Menlo, monospace",
+      "systemAppleDisplay": "-apple-system, BlinkMacSystemFont, \"SF Pro Display\", system-ui, sans-serif"
+    },
+    "size": {
+      "9": 9,
+      "15": 15,
+      "16": 16,
+      "18": 18,
+      "24": 24,
+      "26": 26,
+      "28": 28,
+      "36": 36,
+      "xs": 10,
+      "sm": 11,
+      "body": 12,
+      "base": 13,
+      "md": 14,
+      "lg": 17,
+      "xl": 20,
+      "2xl": 22
+    },
+    "weight": {
+      "regular": 400,
+      "medium": 500,
+      "semibold": 600,
+      "bold": 700
+    }
+  },
+  "space": {
+    "0": 2,
+    "1": 4,
+    "2": 8,
+    "3": 10,
+    "4": 12,
+    "5": 14,
+    "6": 16,
+    "7": 20,
+    "8": 24,
+    "9": 28,
+    "10": 32,
+    "11": 44
+  },
+  "radius": {
+    "xs": 4,
+    "sm": 6,
+    "md": 8,
+    "lg": 10,
+    "xl": 14,
+    "2xl": 16,
+    "pill": 9999
+  },
+  "motion": {
+    "duration": {
+      "instant": 0,
+      "fast": 150,
+      "base": 220,
+      "slow": 320,
+      "long": 400,
+      "pulse": 900,
+      "pulseSlow": 1400
+    },
+    "easing": {
+      "standard": "cubic-bezier(0.4, 0.0, 0.2, 1)",
+      "emphasized": "cubic-bezier(0.2, 0.0, 0, 1)"
+    },
+    "spring": {
+      "snappy": {
+        "response": 0.35,
+        "damping": 0.82
+      },
+      "bouncy": {
+        "response": 0.45,
+        "damping": 0.78
+      },
+      "gentle": {
+        "response": 0.3,
+        "damping": 0.6
+      },
+      "expressive": {
+        "response": 0.5,
+        "damping": 0.6
+      }
+    }
+  },
+  "shadow": {
+    "xs": "0 1px 2px rgba(0,0,0,0.08)",
+    "sm": "0 2px 4px rgba(0,0,0,0.08)",
+    "md": "0 4px 12px rgba(0,0,0,0.10)",
+    "lg": "0 8px 32px rgba(0,0,0,0.20)",
+    "glow": "0 0 20px rgba(10,132,255,0.30)"
+  },
+  "themes": {
+    "Default": {
+      "containerBg": "transparent",
+      "containerBorder": "none",
+      "containerShadow": "0 0 4px rgba(0,0,0,1)",
+      "containerRadius": "12px",
+      "backdropFilter": "none",
+      "overlayBg": "rgba(0,0,0,0.50)",
+      "textPrimary": "#FFFFFF",
+      "textSecondary": "rgba(255,255,255,0.90)",
+      "textMuted": "rgba(255,255,255,0.70)",
+      "textShadow": "2px 2px 2px rgb(0 0 0)",
+      "progressTrackBg": "rgba(255,255,255,0.20)",
+      "progressFillBg": "#FFFFFF",
+      "showArtworkBlur": true
+    },
+    "Dark": {
+      "containerBg": "#0D0D0D",
+      "containerBorder": "1px solid rgba(255,255,255,0.08)",
+      "containerShadow": "0 4px 12px rgba(0,0,0,0.6)",
+      "containerRadius": "12px",
+      "backdropFilter": "none",
+      "overlayBg": "transparent",
+      "textPrimary": "#E4E4E7",
+      "textSecondary": "#A1A1AA",
+      "textMuted": "#71717A",
+      "textShadow": "none",
+      "progressTrackBg": "rgba(255,255,255,0.08)",
+      "progressFillBg": "#A78BFA",
+      "showArtworkBlur": false
+    },
+    "Light": {
+      "containerBg": "rgba(255,255,255,0.92)",
+      "containerBorder": "1px solid rgba(0,0,0,0.08)",
+      "containerShadow": "0 4px 16px rgba(0,0,0,0.10)",
+      "containerRadius": "12px",
+      "backdropFilter": "blur(16px)",
+      "overlayBg": "transparent",
+      "textPrimary": "#18181B",
+      "textSecondary": "#3F3F46",
+      "textMuted": "#71717A",
+      "textShadow": "none",
+      "progressTrackBg": "rgba(0,0,0,0.08)",
+      "progressFillBg": "#3B82F6",
+      "showArtworkBlur": false
+    },
+    "Glass": {
+      "containerBg": "rgba(0,0,0,0.30)",
+      "containerBorder": "1px solid rgba(255,255,255,0.10)",
+      "containerShadow": "0 8px 32px rgba(0,0,0,0.20)",
+      "containerRadius": "16px",
+      "backdropFilter": "blur(24px)",
+      "overlayBg": "transparent",
+      "textPrimary": "#F5F5F7",
+      "textSecondary": "rgba(245,245,247,0.80)",
+      "textMuted": "rgba(245,245,247,0.50)",
+      "textShadow": "none",
+      "progressTrackBg": "rgba(255,255,255,0.10)",
+      "progressFillBg": "#007AFF",
+      "showArtworkBlur": false
+    },
+    "Neon": {
+      "containerBg": "rgba(10,10,30,0.85)",
+      "containerBorder": "1px solid #00FFAA",
+      "containerShadow": "0 0 20px rgba(0,255,170,0.30), 0 0 60px rgba(0,255,170,0.10)",
+      "containerRadius": "12px",
+      "backdropFilter": "none",
+      "overlayBg": "transparent",
+      "textPrimary": "#00FFAA",
+      "textSecondary": "#00E5FF",
+      "textMuted": "rgba(0,255,170,0.50)",
+      "textShadow": "0 0 8px rgba(0,255,170,0.50)",
+      "progressTrackBg": "rgba(0,255,170,0.15)",
+      "progressFillBg": "linear-gradient(90deg, #00FFAA, #00E5FF)",
+      "showArtworkBlur": false
+    },
+    "WolfWave": {
+      "containerBg": "rgba(28,28,30,0.92)",
+      "containerBorder": "1px solid rgba(10,132,255,0.40)",
+      "containerShadow": "0 0 20px rgba(10,132,255,0.30), 0 8px 32px rgba(0,0,0,0.40)",
+      "containerRadius": "14px",
+      "backdropFilter": "blur(20px)",
+      "overlayBg": "transparent",
+      "textPrimary": "#F5F5F7",
+      "textSecondary": "#A1A1A6",
+      "textMuted": "#6E6E73",
+      "textShadow": "none",
+      "progressTrackBg": "rgba(10,132,255,0.15)",
+      "progressFillBg": "linear-gradient(90deg, #0A84FF, #409CFF)",
+      "showArtworkBlur": true
+    }
+  },
+  "layouts": {
+    "Horizontal": {
+      "maxWidth": 500,
+      "height": 100
+    },
+    "Vertical": {
+      "maxWidth": 220,
+      "height": 280
+    },
+    "Compact": {
+      "maxWidth": 350,
+      "height": 56
+    }
+  }
+};
+     → contents of widget-tokens.generated.js
+    (()=>{var{defineProperty:y,getOwnPropertyNames:e,getOwnPropertyDescriptor:jj}=Object,qj=Object.prototype.hasOwnProperty;function Gj(q){return this[q]}var Jj=(q)=>{var j=(u??=new WeakMap).get(q),G;if(j)return j;if(j=y({},"__esModule",{value:!0}),q&&typeof q==="object"||typeof q==="function"){for(var J of e(q))if(!qj.call(j,J))y(j,J,{get:Gj.bind(q,J),enumerable:!(G=jj(q,J))||G.enumerable})}return u.set(q,j),j},u;var Dj={},_=new URLSearchParams(location.search),Qj=_.get("port")||_.get("wsPort")||"8765",p=Number(_.get("duration")||"0"),x=_.has("hideAlbumArt");var w=_.get("token")||("__WOLFWAVE_TOKEN__".indexOf("__")===0?"":"__WOLFWAVE_TOKEN__");var d=typeof window<"u"&&window.WW_TOKENS||{},h=d.themes||{Default:{containerBg:"transparent",containerBorder:"none",containerShadow:"none",containerRadius:"12px",backdropFilter:"none",overlayBg:"rgba(0,0,0,0.50)",textPrimary:"#FFFFFF",textSecondary:"rgba(255,255,255,0.90)",textMuted:"rgba(255,255,255,0.70)",textShadow:"none",progressTrackBg:"rgba(255,255,255,0.20)",progressFillBg:"#FFFFFF",showArtworkBlur:!0}},f=d.layouts||{Horizontal:{maxWidth:500,height:100},Vertical:{maxWidth:220,height:280},Compact:{maxWidth:350,height:56}},S={theme:"Default",layout:"Horizontal",textColor:"#FFFFFF",backgroundColor:"#1A1A2E",fontFamily:"System Default"},Q=null,W={...S},X=0,N={value:0,timestamp:0,isPlaying:!1},F=!1,Z=null,H=null,K=null,Y=null,I=null,O=0,k=!1;function C(q){let j=Math.floor(q/60),G=Math.floor(q%60);return j+":"+String(G).padStart(2,"0")}function D(q){return String(q).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;")}function Vj(q){if(!q||q==="System Default"||q==="System")return'-apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif';return'"'+q+'", sans-serif'}function Xj(q){let G={...h[q.theme]||h.Default};if(G.fontFamily=Vj(q.fontFamily),q.theme==="Default"||q.theme==="Glass"){if(q.textColor&&q.textColor!==S.textColor)G.textPrimary=q.textColor,G.textSecondary=q.textColor,G.progressFillBg=q.textColor;if(q.backgroundColor&&q.backgroundColor!==S.backgroundColor)G.overlayBg=q.backgroundColor}return G}function c(){if(Z!==null)cancelAnimationFrame(Z);function q(){let j=N;if(j.isPlaying&&j.timestamp>0)X=j.value+(Date.now()-j.timestamp)/1000;Zj(),Z=requestAnimationFrame(q)}Z=requestAnimationFrame(q)}function m(){if(Z!==null)cancelAnimationFrame(Z),Z=null}function g(){F=!0;let q=document.getElementById("widget");if(!q)return;if(K!==null)clearTimeout(K),K=null;if(q.classList.remove("placeholder"),q.classList.remove("widget-exiting"),q.classList.remove("widget-visible"),q.classList.add("widget-entering"),requestAnimationFrame(()=>{requestAnimationFrame(()=>{q.classList.remove("widget-entering"),q.classList.add("widget-visible")})}),H!==null)clearTimeout(H);if(p>0)H=window.setTimeout(()=>A(),p*1000)}function A(){if(!F)return;F=!1;let q=document.getElementById("widget");if(!q)return;q.classList.remove("widget-visible"),q.classList.add("widget-exiting");let j=document.querySelector(".progress-fill");if(j)j.classList.add("draining"),j.style.width="0%";if(K!==null)clearTimeout(K);K=window.setTimeout(()=>{q.classList.remove("widget-exiting"),q.classList.add("widget-hidden")},500)}function Yj(q){let j=document.querySelector(".track-meta"),G=document.querySelector(".artwork");if(!j&&!G){q();return}j?.classList.add("swap-out"),G?.classList.add("swap-out"),setTimeout(()=>{q();let J=document.querySelector(".track-meta"),V=document.querySelector(".artwork");J?.classList.add("swap-in"),V?.classList.add("swap-in"),requestAnimationFrame(()=>{requestAnimationFrame(()=>{J?.classList.remove("swap-in"),V?.classList.remove("swap-in")})})},140)}function Zj(){if(!Q)return;let q=Q.duration||0,j=q>0?Math.min(X/q*100,100):0,G=q>0?Math.max(q-X,0):0,J=document.querySelector(".progress-fill"),V=document.querySelector(".elapsed-time"),B=document.querySelector(".remaining-time");if(J&&!J.classList.contains("draining"))J.style.width=j+"%";if(V)V.textContent=C(X);if(B)B.textContent="-"+C(G)}function U(){if(!Q)return;let q=document.getElementById("widget");if(!q)return;let j=Xj(W),G=W.layout||"Horizontal",J=f[G]||f.Horizontal,V=Q.duration||0,B=V>0?Math.min(X/V*100,100):0,s=V>0?Math.max(V-X,0):0;q.style.maxWidth=J.maxWidth+"px",q.style.height=J.height+"px",q.style.background=j.containerBg,q.style.border=j.containerBorder,q.style.boxShadow=j.containerShadow,q.style.borderRadius=j.containerRadius,q.style.backdropFilter=j.backdropFilter;function M($,L,P){let z=Q.artworkURL||null;if(z&&!z.startsWith("http://")&&!z.startsWith("https://"))z=null;if(!z){let T=Math.round($*0.52);return'<div class="artwork flex items-center justify-center" style="width:'+$+"px;height:"+L+"px;border-radius:"+P+';background:linear-gradient(135deg,#0A84FF,#003A78);box-shadow:0 2px 8px rgba(0,0,0,0.3);"><svg width="'+T+'" height="'+T+'" viewBox="0 0 100 100" fill="#FFFFFF"><rect x="24" y="43" width="3.5" height="30" rx="1.75"/><rect x="19" y="49" width="3.5" height="24" rx="1.75" opacity="0.9"/><rect x="14" y="55" width="3.5" height="18" rx="1.75" opacity="0.73"/><rect x="9" y="61" width="3.5" height="12" rx="1.75" opacity="0.54"/><rect x="4" y="66" width="3.5" height="7" rx="1.75" opacity="0.34"/><rect x="-1" y="69" width="3.5" height="4" rx="1.75" opacity="0.18"/><rect x="72.5" y="43" width="3.5" height="30" rx="1.75"/><rect x="77.5" y="49" width="3.5" height="24" rx="1.75" opacity="0.9"/><rect x="82.5" y="55" width="3.5" height="18" rx="1.75" opacity="0.73"/><rect x="87.5" y="61" width="3.5" height="12" rx="1.75" opacity="0.54"/><rect x="92.5" y="66" width="3.5" height="7" rx="1.75" opacity="0.34"/><rect x="97.5" y="69" width="3.5" height="4" rx="1.75" opacity="0.18"/><polygon points="33,41 33,11 45,38"/><polygon points="67,41 67,11 55,38"/><ellipse cx="50" cy="52" rx="18" ry="17.5"/><ellipse cx="50" cy="63" rx="11" ry="8"/></svg></div>'}return'<img class="artwork" src="'+encodeURI(z).replace(/'/g,"%27").replace(/"/g,"%22")+'" crossorigin="anonymous" style="width:'+$+"px;height:"+L+"px;border-radius:"+P+';object-fit:cover;box-shadow:0 2px 8px rgba(0,0,0,0.3);">'}let l=G==="Vertical"?"3px":"4px",R=G==="Vertical"?"9px":"10px",r="width:"+B+"%;background:"+j.progressFillBg+";height:100%;border-radius:9999px;",b='<div class="progress-track" style="background:'+j.progressTrackBg+";height:"+l+';"><div class="progress-fill" style="'+r+'"></div></div><div class="time-row"><span class="elapsed-time" style="color:'+j.textMuted+";font-family:"+j.fontFamily+";font-size:"+R+';">'+C(X)+'</span><span class="remaining-time" style="color:'+j.textMuted+";font-family:"+j.fontFamily+";font-size:"+R+';">-'+C(s)+"</span></div>",v=!!Q.artworkURL&&(Q.artworkURL.startsWith("http://")||Q.artworkURL.startsWith("https://")),n=v?encodeURI(Q.artworkURL).replace(/'/g,"%27").replace(/"/g,"%22").replace(/\)/g,"%29"):"",i=j.showArtworkBlur&&v?'<div class="blur-layer" style="background-image:url('+n+');"></div>':"",t=j.overlayBg&&j.overlayBg!=="transparent"?'<div class="overlay-layer" style="background:'+j.overlayBg+';"></div>':"",a='<div class="noise-layer"></div>',E="";if(G==="Horizontal")E='<div class="flex h-full">'+(x?"":'<div style="flex-shrink:0;padding:5px;">'+M(90,90,"10px")+"</div>")+'<div style="display:flex;flex-direction:column;flex:1;min-width:0;justify-content:center;padding:8px 12px 8px 0;"><div class="track-meta" style="min-width:0;"><p style="font-size:18px;font-weight:700;line-height:1.2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:'+j.textPrimary+";text-shadow:"+j.textShadow+";font-family:"+j.fontFamily+';">'+D(Q.track)+'</p><p style="font-size:13px;font-style:italic;font-weight:300;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:'+j.textSecondary+";text-shadow:"+j.textShadow+";font-family:"+j.fontFamily+';">'+D(Q.artist)+'</p></div><div style="display:flex;align-items:center;margin-top:auto;gap:6px;"><div style="flex:1;min-width:0;">'+b+"</div></div></div></div>";else if(G==="Vertical")E='<div class="flex-col h-full items-center" style="padding:8px;">'+(x?"":'<div class="shrink-0">'+M(200,200,"10px")+"</div>")+'<div class="track-meta" style="display:flex;flex-direction:column;flex:1;min-width:0;width:100%;align-items:center;justify-content:center;margin-top:4px;"><p style="font-size:13px;font-weight:700;text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%;color:'+j.textPrimary+";text-shadow:"+j.textShadow+";font-family:"+j.fontFamily+';">'+D(Q.track)+'</p><p style="font-size:11px;font-style:italic;font-weight:300;text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%;color:'+j.textSecondary+";text-shadow:"+j.textShadow+";font-family:"+j.fontFamily+';">'+D(Q.artist)+'</p></div><div style="width:100%;padding:0 4px;margin-top:auto;">'+b+"</div></div>";else E='<div class="flex h-full items-center" style="padding:0 4px;">'+(x?"":'<div style="flex-shrink:0;padding:5px;">'+M(46,46,"8px")+"</div>")+'<div class="track-meta" style="flex:1;min-width:0;padding:0 8px;"><p style="font-size:13px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:'+j.textPrimary+";text-shadow:"+j.textShadow+";font-family:"+j.fontFamily+';">'+D(Q.track)+'<span style="color:'+j.textMuted+';"> — </span>'+'<span style="color:'+j.textSecondary+';">'+D(Q.artist)+"</span></p></div></div>";q.innerHTML=i+t+a+'<div class="relative h-full">'+E+"</div>"}function o(){if(Y)return;let j="ws://"+(location.hostname||"localhost")+":"+Qj;console.log("[WolfWave Widget] Connecting to "+j);let G=w?["wolfwave.token."+w]:[];Y=new WebSocket(j,G),Y.onopen=()=>{console.log("[WolfWave Widget] Connected to "+j),O=0},Y.onmessage=(J)=>{try{zj(JSON.parse(J.data))}catch(V){console.warn("[WolfWave Widget] Failed to parse message:",V)}},Y.onclose=()=>{Y=null,Q=null,k=!1,m(),A(),O++;let J=Math.min(1000*Math.pow(2,O-1),15000);if(console.log("[WolfWave Widget] Disconnected — reconnect in "+J+"ms (attempt "+O+")"),I!==null)clearTimeout(I);I=window.setTimeout(o,J)},Y.onerror=(J)=>{console.warn("[WolfWave Widget] WebSocket error:",J)}}function $j(q,j){if(!q)return!1;return q.track===j.track&&q.artist===j.artist}function zj(q){switch(q.type){case"now_playing":{let j=q.data,G=$j(Q,j);if(Q=j,N={value:j.elapsed,timestamp:Date.now(),isPlaying:j.isPlaying},X=j.elapsed,k=!0,F&&!G)Yj(U);else U();if(j.isPlaying){if(!F)g();c()}break}case"progress":{let j=q.data;N={value:j.elapsed,timestamp:Date.now(),isPlaying:j.isPlaying};break}case"playback_state":{let j=q.data;if(Q)Object.assign(Q,j);if(!j.isPlaying)N={value:X,timestamp:Date.now(),isPlaying:!1},m(),A();else{if(N={value:X,timestamp:Date.now(),isPlaying:!0},!F)g();c()}break}case"widget_config":{W={...S,...q.data},U();break}case"welcome":if(O=0,!k)console.log("[WolfWave Widget] Connected, waiting for music...");break}}(function(){let j=document.getElementById("widget");if(j&&!j.classList.contains("placeholder"))j.classList.add("widget-hidden");o()})();})();
+     → contents of dist/widget.js
+═══════════════════════════════════════════════════════════════════════════════
+-->
 <html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>WolfWave Widget</title>
+<!--
+  Favicon is inlined as data: URI so the bundle never makes a second HTTP
+  request — important for OBS Browser Source and direct-from-bundle opens.
+-->
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg viewBox='8 2 84 94' xmlns='http://www.w3.org/2000/svg'%3E%3Cstyle%3E:root%7B--fill:%23111%7D%40media(prefers-color-scheme:dark)%7B:root%7B--fill:%23FFF%7D%7D%3C/style%3E%3Cdefs%3E%3Cmask id='m'%3E%3Crect x='0' y='0' width='100' height='100' fill='white'/%3E%3Cpolygon points='32,38 35.5,9 46,33' fill='black'/%3E%3Cpolygon points='68,38 64.5,9 54,33' fill='black'/%3E%3Cpath d='M32,43 C34,37.5 44.5,37.5 46.5,43 C44.5,48.5 34,48.5 32,43Z' fill='black'/%3E%3Cpath d='M53.5,43 C55.5,37.5 66,37.5 68,43 C66,48.5 55.5,48.5 53.5,43Z' fill='black'/%3E%3C/mask%3E%3C/defs%3E%3Cg fill='var(--fill)' mask='url(%23m)'%3E%3Crect x='25' y='38' width='4.5' height='35' rx='2.25'/%3E%3Crect x='18.5' y='47' width='4.5' height='26' rx='2.25' opacity='.78'/%3E%3Crect x='12' y='55' width='4.5' height='18' rx='2.25' opacity='.55'/%3E%3Crect x='5.5' y='62' width='4.5' height='11' rx='2.25' opacity='.33'/%3E%3Crect x='70.5' y='38' width='4.5' height='35' rx='2.25'/%3E%3Crect x='77' y='47' width='4.5' height='26' rx='2.25' opacity='.78'/%3E%3Crect x='83.5' y='55' width='4.5' height='18' rx='2.25' opacity='.55'/%3E%3Crect x='90' y='62' width='4.5' height='11' rx='2.25' opacity='.33'/%3E%3Cpolygon points='29,40 33,4 48,35'/%3E%3Cpolygon points='71,40 67,4 52,35'/%3E%3Cpath d='M50,18 C61,16 72,26 72,42 L70,57 L62,67 L50,71 L38,67 L30,57 L28,42 C28,26 39,16 50,18Z'/%3E%3Cpath d='M38,53 Q50,51 62,53 L60,67 Q50,77 40,67Z'/%3E%3Cpath d='M42,53 C42,46 58,46 58,53 C58,61 51,65 50,65 C49,65 42,61 42,53Z'/%3E%3C/g%3E%3Cpath d='M29,40 Q38,34 46.5,39 Q50,36.5 53.5,39 Q62,34 71,40' fill='none' stroke='var(--fill)' stroke-width='3' stroke-linecap='round' stroke-linejoin='round' opacity='.75'/%3E%3C/svg%3E">
-<style>
-/* Base reset */
-*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
-/* Body */
-body { width: 100%; height: 100%; background: transparent; overflow: hidden; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
-
-/* Root container */
-#root { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; padding: 1rem; background: transparent; }
-
-/* Widget show/hide transition */
-#widget {
-  width: 100%; overflow: hidden; position: relative;
-  transition: opacity 0.5s cubic-bezier(0.34, 1.56, 0.64, 1),
-              transform 0.5s cubic-bezier(0.34, 1.56, 0.64, 1),
-              filter 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-}
-#widget.hidden {
-  opacity: 0;
-  transform: translateY(12px) scale(0.97);
-  filter: blur(2px);
-}
-#widget.visible {
-  opacity: 1;
-  transform: translateY(0) scale(1);
-  filter: blur(0px);
-}
-
-/* Pre-WebSocket placeholder — visible immediately so the page never looks
-   blank while we wait for the first now_playing frame. buildWidget() blows
-   this away with innerHTML when a real track arrives. */
-#widget.placeholder {
-  max-width: 500px; height: 100px;
-  background: rgba(20, 20, 28, 0.55);
-  border-radius: 12px;
-  display: flex; align-items: center; justify-content: center;
-  opacity: 0.55;
-  transform: translateY(0) scale(1);
-  filter: blur(0px);
-  color: rgba(255, 255, 255, 0.7);
-  font-size: 13px;
-}
-
-/* Blur layer */
-.blur-layer {
-  position: absolute; inset: 0; transform: scale(1.4);
-  filter: blur(20px); opacity: 0.9;
-  background-size: cover; background-position: center;
-}
-
-/* Noise texture */
-.noise-layer {
-  position: absolute; inset: 0;
-  pointer-events: none; z-index: 10;
-  opacity: 0.04; border-radius: inherit;
-  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
-  background-repeat: repeat;
-  background-size: 128px 128px;
-}
-
-/* Overlay layer */
-.overlay-layer { position: absolute; inset: 0; }
-
-/* Layout helpers */
-.flex { display: flex; }
-.flex-col { display: flex; flex-direction: column; }
-.items-center { align-items: center; }
-.justify-center { justify-content: center; }
-.h-full { height: 100%; }
-.w-full { width: 100%; }
-.relative { position: relative; }
-.shrink-0 { flex-shrink: 0; }
-.min-w-0 { min-width: 0; }
-.flex-1 { flex: 1; }
-
-/* Progress bar */
-.progress-track {
-  width: 100%; border-radius: 9999px; overflow: hidden;
-}
-.progress-fill {
-  height: 100%; border-radius: 9999px;
-  transition: width 1s linear;
-}
-.time-row {
-  display: flex; justify-content: space-between; margin-top: 2px;
-}
-
-</style>
+<!--
+  Inlined Tailwind output. The build script generates this from src/widget.css
+  by scanning widget.html + widget.ts for utility classes. Everything else
+  (state classes, custom transitions, decorative layers) lives inside that
+  CSS file too — see src/widget.css for the full breakdown.
+-->
+<style>*,:after,:before{--tw-border-spacing-x:0;--tw-border-spacing-y:0;--tw-translate-x:0;--tw-translate-y:0;--tw-rotate:0;--tw-skew-x:0;--tw-skew-y:0;--tw-scale-x:1;--tw-scale-y:1;--tw-pan-x: ;--tw-pan-y: ;--tw-pinch-zoom: ;--tw-scroll-snap-strictness:proximity;--tw-gradient-from-position: ;--tw-gradient-via-position: ;--tw-gradient-to-position: ;--tw-ordinal: ;--tw-slashed-zero: ;--tw-numeric-figure: ;--tw-numeric-spacing: ;--tw-numeric-fraction: ;--tw-ring-inset: ;--tw-ring-offset-width:0px;--tw-ring-offset-color:#fff;--tw-ring-color:rgba(59,130,246,.5);--tw-ring-offset-shadow:0 0 #0000;--tw-ring-shadow:0 0 #0000;--tw-shadow:0 0 #0000;--tw-shadow-colored:0 0 #0000;--tw-blur: ;--tw-brightness: ;--tw-contrast: ;--tw-grayscale: ;--tw-hue-rotate: ;--tw-invert: ;--tw-saturate: ;--tw-sepia: ;--tw-drop-shadow: ;--tw-backdrop-blur: ;--tw-backdrop-brightness: ;--tw-backdrop-contrast: ;--tw-backdrop-grayscale: ;--tw-backdrop-hue-rotate: ;--tw-backdrop-invert: ;--tw-backdrop-opacity: ;--tw-backdrop-saturate: ;--tw-backdrop-sepia: ;--tw-contain-size: ;--tw-contain-layout: ;--tw-contain-paint: ;--tw-contain-style: }::backdrop{--tw-border-spacing-x:0;--tw-border-spacing-y:0;--tw-translate-x:0;--tw-translate-y:0;--tw-rotate:0;--tw-skew-x:0;--tw-skew-y:0;--tw-scale-x:1;--tw-scale-y:1;--tw-pan-x: ;--tw-pan-y: ;--tw-pinch-zoom: ;--tw-scroll-snap-strictness:proximity;--tw-gradient-from-position: ;--tw-gradient-via-position: ;--tw-gradient-to-position: ;--tw-ordinal: ;--tw-slashed-zero: ;--tw-numeric-figure: ;--tw-numeric-spacing: ;--tw-numeric-fraction: ;--tw-ring-inset: ;--tw-ring-offset-width:0px;--tw-ring-offset-color:#fff;--tw-ring-color:rgba(59,130,246,.5);--tw-ring-offset-shadow:0 0 #0000;--tw-ring-shadow:0 0 #0000;--tw-shadow:0 0 #0000;--tw-shadow-colored:0 0 #0000;--tw-blur: ;--tw-brightness: ;--tw-contrast: ;--tw-grayscale: ;--tw-hue-rotate: ;--tw-invert: ;--tw-saturate: ;--tw-sepia: ;--tw-drop-shadow: ;--tw-backdrop-blur: ;--tw-backdrop-brightness: ;--tw-backdrop-contrast: ;--tw-backdrop-grayscale: ;--tw-backdrop-hue-rotate: ;--tw-backdrop-invert: ;--tw-backdrop-opacity: ;--tw-backdrop-saturate: ;--tw-backdrop-sepia: ;--tw-contain-size: ;--tw-contain-layout: ;--tw-contain-paint: ;--tw-contain-style: }.\!visible{visibility:visible!important}.visible{visibility:visible}.relative{position:relative}.inline{display:inline}.flex{display:flex}.contents{display:contents}.hidden{display:none}.h-full{height:100%}.shrink-0{flex-shrink:0}.flex-col{flex-direction:column}.items-center{align-items:center}.justify-center{justify-content:center}.border{border-width:1px}.filter{filter:var(--tw-blur) var(--tw-brightness) var(--tw-contrast) var(--tw-grayscale) var(--tw-hue-rotate) var(--tw-invert) var(--tw-saturate) var(--tw-sepia) var(--tw-drop-shadow)}.transition{transition-property:color,background-color,border-color,text-decoration-color,fill,stroke,opacity,box-shadow,transform,filter,-webkit-backdrop-filter;transition-property:color,background-color,border-color,text-decoration-color,fill,stroke,opacity,box-shadow,transform,filter,backdrop-filter;transition-property:color,background-color,border-color,text-decoration-color,fill,stroke,opacity,box-shadow,transform,filter,backdrop-filter,-webkit-backdrop-filter;transition-timing-function:cubic-bezier(.4,0,.2,1);transition-duration:.15s}*,:after,:before{box-sizing:border-box;margin:0;padding:0}body{width:100%;height:100%;overflow:hidden;font-family:-apple-system,BlinkMacSystemFont,Segoe UI,sans-serif}#root,body{background:transparent}#root{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;padding:1rem}#widget{width:100%;overflow:hidden;position:relative;will-change:opacity,transform,filter}#widget.widget-entering,#widget.widget-hidden{opacity:0;transform:translateY(12px) scale(.97);filter:blur(2px);pointer-events:none}#widget.widget-visible{opacity:1;transform:translateY(0) scale(1);filter:blur(0);transition:opacity .6s cubic-bezier(.34,1.56,.64,1),transform .6s cubic-bezier(.34,1.56,.64,1),filter .48s cubic-bezier(.4,0,.2,1)}#widget.widget-exiting{opacity:0;transform:translateY(8px) scale(.99);filter:blur(4px);pointer-events:none;transition:opacity .5s cubic-bezier(.4,0,.2,1),transform .5s cubic-bezier(.4,0,.2,1),filter .5s cubic-bezier(.4,0,.2,1)}#widget.placeholder{max-width:500px;height:100px;background:rgba(20,20,28,.55);border-radius:12px;display:flex;align-items:center;justify-content:center;opacity:.55;color:hsla(0,0%,100%,.7);font-size:13px}.artwork,.track-meta{transition:opacity .14s ease-out,transform .14s ease-out}.track-meta.swap-out{opacity:0;transform:translateX(4px)}.track-meta.swap-in{opacity:0;transform:translateX(-4px)}.artwork.swap-in,.artwork.swap-out{opacity:0;transform:scale(.94)}.progress-track{width:100%;border-radius:9999px;overflow:hidden}.progress-fill{height:100%;border-radius:9999px;transition:width 1s linear}.progress-fill.draining{transition:width .4s ease-out}.time-row{display:flex;justify-content:space-between;margin-top:2px}.blur-layer{transform:scale(1.4);filter:blur(20px);opacity:.9;background-size:cover;background-position:50%}.blur-layer,.noise-layer{position:absolute;inset:0}.noise-layer{pointer-events:none;z-index:10;opacity:.04;border-radius:inherit;background-image:url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 256 256'%3E%3Cfilter id='a'%3E%3CfeTurbulence baseFrequency='.9' numOctaves='4' stitchTiles='stitch' type='fractalNoise'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23a)'/%3E%3C/svg%3E");background-repeat:repeat;background-size:128px 128px}.overlay-layer{position:absolute;inset:0}</style>
 </head>
 <body>
+<!--
+  #root is the centered viewport. The widget itself slides into the middle.
+  We start `#widget` with the `placeholder` class so the OBS scene never
+  flashes blank during the initial WebSocket handshake.
+-->
 <div id="root">
   <div id="widget" class="placeholder">Waiting for music&hellip;</div>
 </div>
-<script src="widget-tokens.generated.js"></script>
-<script>
-// MARK: - Config
-const params = new URLSearchParams(location.search);
-const wsPort = params.get('port') || params.get('wsPort') || '8765';
-const autohide = Number(params.get('duration') || '0');
-const hideAlbumArt = params.has('hideAlbumArt');
 
-// Auth token. `WidgetHTTPService` substitutes the live token for the
-// `__WOLFWAVE_TOKEN__` sentinel when it serves this file; when the page is
-// opened directly (file://, dev), we fall back to the `?token=` query string.
-const injectedToken = '__WOLFWAVE_TOKEN__';
-const wsToken = params.get('token') || (injectedToken.indexOf('__') === 0 ? '' : injectedToken);
-
-// MARK: - Font Resolution
-function resolveFontFamily(name) {
-  if (!name || name === 'System Default' || name === 'System') {
-    return '-apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif';
-  }
-  return '"' + name + '", sans-serif';
-}
-
-// MARK: - Theme Data
-// Themes + layouts come from window.WW_TOKENS (generated from design-system/tokens.json).
-// Fallback to an empty Default theme if the generated bundle failed to load —
-// keeps the widget from throwing instead of silently dying.
-const WW_TOKENS = (typeof window !== 'undefined' && window.WW_TOKENS) || {};
-const themePresets = WW_TOKENS.themes || {
-  'Default': {
-    containerBg: 'transparent', containerBorder: 'none',
-    containerShadow: 'none', containerRadius: '12px',
-    backdropFilter: 'none', overlayBg: 'rgba(0,0,0,0.50)',
-    textPrimary: '#FFFFFF', textSecondary: 'rgba(255,255,255,0.90)',
-    textMuted: 'rgba(255,255,255,0.70)', textShadow: 'none',
-    progressTrackBg: 'rgba(255,255,255,0.20)', progressFillBg: '#FFFFFF',
-    showArtworkBlur: true,
+<!--
+  Design-system tokens (themes + layouts). Inlined to keep the widget a
+  single self-contained file. Generated from design-system/tokens.json by
+  design-system/scripts/generate.ts.
+-->
+<script>/*
+ * WolfWave Design System — GENERATED FILE. Do not edit by hand.
+ * Source: design-system/tokens.json
+ * Run `bun run tokens` to regenerate.
+ */
+window.WW_TOKENS = {
+  "color": {
+    "brand": {
+      "50": "#F0F7FF",
+      "100": "#D9ECFF",
+      "200": "#B0D6FF",
+      "300": "#7FB8FF",
+      "400": "#4A9CFF",
+      "500": "#0A84FF",
+      "600": "#0066CC",
+      "700": "#004E9F",
+      "800": "#003A78",
+      "900": "#002551"
+    },
+    "brandDark": {
+      "500": "#0A84FF",
+      "600": "#409CFF"
+    },
+    "semantic": {
+      "success": "#34C759",
+      "warning": "#FF9F0A",
+      "error": "#FF453A",
+      "info": "#0A84FF"
+    },
+    "surface": {
+      "light": {
+        "base": "#FFFFFF",
+        "surface": "#F5F5F7",
+        "elev": "#FBFBFD",
+        "hairline": "#D2D2D7"
+      },
+      "dark": {
+        "base": "#000000",
+        "surface": "#1C1C1E",
+        "elev": "#0A0A0C",
+        "hairline": "#2C2C2E"
+      }
+    },
+    "text": {
+      "light": {
+        "primary": "#1D1D1F",
+        "secondary": "#6E6E73",
+        "muted": "#A1A1A6"
+      },
+      "dark": {
+        "primary": "#F5F5F7",
+        "secondary": "#A1A1A6",
+        "muted": "#6E6E73"
+      }
+    },
+    "partner": {
+      "twitch": "#9146FF",
+      "discord": "#5865F2",
+      "discordSurface": "#2B2D31",
+      "discordControl": "#4E5058",
+      "appleMusicStart": "#FF5D8B",
+      "appleMusicEnd": "#FA233B",
+      "appleMusicSurfaceStart": "#FA5C75",
+      "appleMusicSurfaceEnd": "#FA243B",
+      "appleMusicPulseStart": "#FC4773",
+      "appleMusicPulseEnd": "#FA1A52",
+      "obsStart": "#2C2C2E",
+      "obsEnd": "#1A1A1C",
+      "wolfwaveGradientStart": "#0A2540",
+      "wolfwaveGradientEnd": "#2563EB"
+    }
   },
-};
-const layoutDimensions = WW_TOKENS.layouts || {
-  'Horizontal': { maxWidth: 500, height: 100 },
-  'Vertical':   { maxWidth: 220, height: 280 },
-  'Compact':    { maxWidth: 350, height: 56  },
-};
-
-// NOTE: Theme values (textColor, backgroundColor) are currently from hardcoded presets.
-// If user-supplied custom values are added in the future, they must be sanitized
-// before injection into style attributes to prevent CSS injection.
-const defaultConfig = {
-  theme: 'Default', layout: 'Horizontal',
-  textColor: '#FFFFFF', backgroundColor: '#1A1A2E', fontFamily: 'System Default',
-};
-
-// MARK: - State
-let nowPlaying = null;
-let widgetConfig = Object.assign({}, defaultConfig);
-let elapsed = 0;
-let elapsedRef = { value: 0, timestamp: 0, isPlaying: false };
-let visible = false;
-let rafId = null;
-let hideTimer = null;
-let ws = null;
-let reconnectTimer = null;
-let reconnectAttempts = 0;
-let hasReceivedTrack = false;
-
-// MARK: - Helpers
-function formatTime(secs) {
-  const m = Math.floor(secs / 60);
-  const s = Math.floor(secs % 60);
-  return m + ':' + String(s).padStart(2, '0');
-}
-
-function escapeHtml(str) {
-  return String(str)
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;');
-}
-
-function resolveTheme(config) {
-  const preset = themePresets[config.theme] || themePresets['Default'];
-  const resolved = Object.assign({}, preset);
-  resolved.fontFamily = resolveFontFamily(config.fontFamily);
-  if (config.theme === 'Default' || config.theme === 'Glass') {
-    if (config.textColor && config.textColor !== defaultConfig.textColor) {
-      resolved.textPrimary = config.textColor;
-      resolved.textSecondary = config.textColor;
-      resolved.progressFillBg = config.textColor;
+  "font": {
+    "family": {
+      "display": "Unbounded, -apple-system, BlinkMacSystemFont, system-ui, sans-serif",
+      "sans": "\"Instrument Sans\", -apple-system, BlinkMacSystemFont, system-ui, sans-serif",
+      "serif": "\"Instrument Serif\", ui-serif, Georgia, serif",
+      "mono": "\"JetBrains Mono\", ui-monospace, \"SF Mono\", Menlo, monospace",
+      "systemAppleDisplay": "-apple-system, BlinkMacSystemFont, \"SF Pro Display\", system-ui, sans-serif"
+    },
+    "size": {
+      "9": 9,
+      "15": 15,
+      "16": 16,
+      "18": 18,
+      "24": 24,
+      "26": 26,
+      "28": 28,
+      "36": 36,
+      "xs": 10,
+      "sm": 11,
+      "body": 12,
+      "base": 13,
+      "md": 14,
+      "lg": 17,
+      "xl": 20,
+      "2xl": 22
+    },
+    "weight": {
+      "regular": 400,
+      "medium": 500,
+      "semibold": 600,
+      "bold": 700
     }
-    if (config.backgroundColor && config.backgroundColor !== defaultConfig.backgroundColor) {
-      resolved.overlayBg = config.backgroundColor;
-    }
-  }
-  return resolved;
-}
-
-// MARK: - Progress Loop
-function startProgressLoop() {
-  if (rafId) cancelAnimationFrame(rafId);
-  function tick() {
-    const ref = elapsedRef;
-    if (ref.isPlaying && ref.timestamp > 0) {
-      elapsed = ref.value + (Date.now() - ref.timestamp) / 1000;
-    }
-    updateProgress();
-    rafId = requestAnimationFrame(tick);
-  }
-  rafId = requestAnimationFrame(tick);
-}
-
-function stopProgressLoop() {
-  if (rafId) { cancelAnimationFrame(rafId); rafId = null; }
-}
-
-// MARK: - Visibility
-function showWidget() {
-  visible = true;
-  const el = document.getElementById('widget');
-  if (el) { el.classList.remove('hidden'); el.classList.remove('placeholder'); el.classList.add('visible'); }
-  if (hideTimer) clearTimeout(hideTimer);
-  if (autohide > 0) {
-    hideTimer = setTimeout(function() { hideWidget(); }, autohide * 1000);
-  }
-}
-
-function hideWidget() {
-  visible = false;
-  const el = document.getElementById('widget');
-  if (el) { el.classList.remove('visible'); el.classList.add('hidden'); }
-}
-
-// MARK: - Render (progress updates only -- runs every RAF frame)
-function updateProgress() {
-  if (!nowPlaying) return;
-  const duration = nowPlaying.duration || 0;
-  const progress = duration > 0 ? Math.min((elapsed / duration) * 100, 100) : 0;
-  const remaining = duration > 0 ? Math.max(duration - elapsed, 0) : 0;
-  const fill = document.querySelector('.progress-fill');
-  const elapsedEl = document.querySelector('.elapsed-time');
-  const remainingEl = document.querySelector('.remaining-time');
-  if (fill) fill.style.width = progress + '%';
-  if (elapsedEl) elapsedEl.textContent = formatTime(elapsed);
-  if (remainingEl) remainingEl.textContent = '-' + formatTime(remaining);
-}
-
-// MARK: - Render (full rebuild -- on track change or config change)
-function buildWidget() {
-  if (!nowPlaying) return;
-  const el = document.getElementById('widget');
-  if (!el) return;
-
-  const theme = resolveTheme(widgetConfig);
-  const layout = widgetConfig.layout || 'Horizontal';
-  const dims = layoutDimensions[layout] || layoutDimensions['Horizontal'];
-  const duration = nowPlaying.duration || 0;
-  const progress = duration > 0 ? Math.min((elapsed / duration) * 100, 100) : 0;
-  const remaining = duration > 0 ? Math.max(duration - elapsed, 0) : 0;
-
-  // Container styles
-  el.style.maxWidth = dims.maxWidth + 'px';
-  el.style.height = dims.height + 'px';
-  el.style.background = theme.containerBg;
-  el.style.border = theme.containerBorder;
-  el.style.boxShadow = theme.containerShadow;
-  el.style.borderRadius = theme.containerRadius;
-  el.style.backdropFilter = theme.backdropFilter;
-
-  // Artwork HTML
-  function artImg(w, h, radius) {
-    var artURL = nowPlaying.artworkURL;
-    if (artURL && !artURL.startsWith('http://') && !artURL.startsWith('https://')) {
-      artURL = null;
-    }
-    if (!artURL) {
-      // WolfWave-branded fallback — wolf mark on a brand-blue gradient. Stays
-      // consistent across every theme. Keep the SVG geometry in sync with
-      // Assets.xcassets/WolfMark.imageset/WolfMark.svg.
-      var mark = Math.round(w * 0.52);
-      return '<div class="flex items-center justify-center" style="width:' + w + 'px;height:' + h + 'px;border-radius:' + radius + ';background:linear-gradient(135deg,#0A84FF,#003A78);box-shadow:0 2px 8px rgba(0,0,0,0.3);">'
-        + '<svg width="' + mark + '" height="' + mark + '" viewBox="0 0 100 100" fill="#FFFFFF">'
-        + '<rect x="24" y="43" width="3.5" height="30" rx="1.75"/>'
-        + '<rect x="19" y="49" width="3.5" height="24" rx="1.75" opacity="0.9"/>'
-        + '<rect x="14" y="55" width="3.5" height="18" rx="1.75" opacity="0.73"/>'
-        + '<rect x="9" y="61" width="3.5" height="12" rx="1.75" opacity="0.54"/>'
-        + '<rect x="4" y="66" width="3.5" height="7" rx="1.75" opacity="0.34"/>'
-        + '<rect x="-1" y="69" width="3.5" height="4" rx="1.75" opacity="0.18"/>'
-        + '<rect x="72.5" y="43" width="3.5" height="30" rx="1.75"/>'
-        + '<rect x="77.5" y="49" width="3.5" height="24" rx="1.75" opacity="0.9"/>'
-        + '<rect x="82.5" y="55" width="3.5" height="18" rx="1.75" opacity="0.73"/>'
-        + '<rect x="87.5" y="61" width="3.5" height="12" rx="1.75" opacity="0.54"/>'
-        + '<rect x="92.5" y="66" width="3.5" height="7" rx="1.75" opacity="0.34"/>'
-        + '<rect x="97.5" y="69" width="3.5" height="4" rx="1.75" opacity="0.18"/>'
-        + '<polygon points="33,41 33,11 45,38"/>'
-        + '<polygon points="67,41 67,11 55,38"/>'
-        + '<ellipse cx="50" cy="52" rx="18" ry="17.5"/>'
-        + '<ellipse cx="50" cy="63" rx="11" ry="8"/>'
-        + '</svg>'
-        + '</div>';
-    }
-    var safeURL = encodeURI(artURL).replace(/'/g, '%27').replace(/"/g, '%22');
-    return '<img src="' + safeURL + '" crossorigin="anonymous" '
-      + 'style="width:' + w + 'px;height:' + h + 'px;border-radius:' + radius + ';object-fit:cover;box-shadow:0 2px 8px rgba(0,0,0,0.3);">';
-  }
-
-  // Progress bar HTML
-  const barH = layout === 'Vertical' ? '3px' : '4px';
-  const timeSize = layout === 'Vertical' ? '9px' : '10px';
-  const fillStyle = 'width:' + progress + '%;background:' + theme.progressFillBg + ';height:100%;border-radius:9999px;transition:width 1s linear;';
-  const progressBar =
-    '<div class="progress-track" style="background:' + theme.progressTrackBg + ';height:' + barH + ';">'
-    + '<div class="progress-fill" style="' + fillStyle + '"></div>'
-    + '</div>'
-    + '<div class="time-row">'
-    + '<span class="elapsed-time" style="color:' + theme.textMuted + ';font-family:' + theme.fontFamily + ';font-size:' + timeSize + ';">' + formatTime(elapsed) + '</span>'
-    + '<span class="remaining-time" style="color:' + theme.textMuted + ';font-family:' + theme.fontFamily + ';font-size:' + timeSize + ';">-' + formatTime(remaining) + '</span>'
-    + '</div>';
-
-  // Blur / overlay / noise layers
-  const validArtworkURL = nowPlaying.artworkURL && (nowPlaying.artworkURL.startsWith('http://') || nowPlaying.artworkURL.startsWith('https://'));
-  const safeBlurURL = validArtworkURL ? encodeURI(nowPlaying.artworkURL).replace(/'/g, '%27').replace(/"/g, '%22').replace(/\)/g, '%29') : '';
-  const blurLayer = (theme.showArtworkBlur && validArtworkURL)
-    ? '<div class="blur-layer" style="background-image:url(' + safeBlurURL + ');"></div>'
-    : '';
-  const overlayLayer = (theme.overlayBg && theme.overlayBg !== 'transparent')
-    ? '<div class="overlay-layer" style="background:' + theme.overlayBg + ';"></div>'
-    : '';
-  const noiseLayer = '<div class="noise-layer"></div>';
-
-  // Layout HTML
-  let layoutHTML = '';
-  if (layout === 'Horizontal') {
-    const art = hideAlbumArt ? '' : '<div style="flex-shrink:0;padding:5px;">' + artImg(90, 90, '10px') + '</div>';
-    layoutHTML = '<div class="flex h-full">'
-      + art
-      + '<div style="display:flex;flex-direction:column;flex:1;min-width:0;justify-content:center;padding:8px 12px 8px 0;">'
-      + '<div style="min-width:0;">'
-      + '<p style="font-size:18px;font-weight:700;line-height:1.2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:' + theme.textPrimary + ';text-shadow:' + theme.textShadow + ';font-family:' + theme.fontFamily + ';">' + escapeHtml(nowPlaying.track) + '</p>'
-      + '<p style="font-size:13px;font-style:italic;font-weight:300;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:' + theme.textSecondary + ';text-shadow:' + theme.textShadow + ';font-family:' + theme.fontFamily + ';">' + escapeHtml(nowPlaying.artist) + '</p>'
-      + '</div>'
-      + '<div style="display:flex;align-items:center;margin-top:auto;gap:6px;">'
-      + '<div style="flex:1;min-width:0;">' + progressBar + '</div>'
-      + '</div>'
-      + '</div>'
-      + '</div>';
-  } else if (layout === 'Vertical') {
-    const art = hideAlbumArt ? '' : '<div class="shrink-0">' + artImg(200, 200, '10px') + '</div>';
-    layoutHTML = '<div class="flex-col h-full items-center" style="padding:8px;">'
-      + art
-      + '<div style="display:flex;flex-direction:column;flex:1;min-width:0;width:100%;align-items:center;justify-content:center;margin-top:4px;">'
-      + '<p style="font-size:13px;font-weight:700;text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%;color:' + theme.textPrimary + ';text-shadow:' + theme.textShadow + ';font-family:' + theme.fontFamily + ';">' + escapeHtml(nowPlaying.track) + '</p>'
-      + '<p style="font-size:11px;font-style:italic;font-weight:300;text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%;color:' + theme.textSecondary + ';text-shadow:' + theme.textShadow + ';font-family:' + theme.fontFamily + ';">' + escapeHtml(nowPlaying.artist) + '</p>'
-      + '</div>'
-      + '<div style="width:100%;padding:0 4px;margin-top:auto;">' + progressBar + '</div>'
-      + '</div>';
-  } else { // Compact
-    const art = hideAlbumArt ? '' : '<div style="flex-shrink:0;padding:5px;">' + artImg(46, 46, '8px') + '</div>';
-    layoutHTML = '<div class="flex h-full items-center" style="padding:0 4px;">'
-      + art
-      + '<div style="flex:1;min-width:0;padding:0 8px;">'
-      + '<p style="font-size:13px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:' + theme.textPrimary + ';text-shadow:' + theme.textShadow + ';font-family:' + theme.fontFamily + ';">'
-      + escapeHtml(nowPlaying.track)
-      + '<span style="color:' + theme.textMuted + ';">&mdash;</span>'
-      + '<span style="color:' + theme.textSecondary + ';">' + escapeHtml(nowPlaying.artist) + '</span>'
-      + '</p>'
-      + '</div>'
-      + '</div>';
-  }
-
-  el.innerHTML = blurLayer + overlayLayer + noiseLayer + '<div class="relative h-full">' + layoutHTML + '</div>';
-}
-
-// MARK: - WebSocket
-function connect() {
-  if (ws) return;
-  const wsHost = location.hostname || 'localhost';
-  const wsURL = 'ws://' + wsHost + ':' + wsPort;
-  console.log('[WolfWave Widget] Connecting to ' + wsURL);
-  const protocols = wsToken ? ['wolfwave.token.' + wsToken] : [];
-  ws = new WebSocket(wsURL, protocols);
-
-  ws.onopen = function() {
-    console.log('[WolfWave Widget] Connected to ' + wsURL);
-    reconnectAttempts = 0;
-  };
-
-  ws.onmessage = function(event) {
-    try {
-      handleMessage(JSON.parse(event.data));
-    } catch(e) {
-      console.warn('[WolfWave Widget] Failed to parse message:', e);
-    }
-  };
-
-  ws.onclose = function() {
-    ws = null;
-    nowPlaying = null;
-    hasReceivedTrack = false;
-    stopProgressLoop();
-    hideWidget();
-    reconnectAttempts++;
-    console.log('[WolfWave Widget] Disconnected — reconnect attempt ' + reconnectAttempts);
-    clearTimeout(reconnectTimer);
-    reconnectTimer = setTimeout(connect, 5000);
-  };
-
-  ws.onerror = function(e) {
-    console.warn('[WolfWave Widget] WebSocket error:', e);
-  };
-}
-
-function handleMessage(msg) {
-  switch (msg.type) {
-    case 'now_playing': {
-      const data = msg.data;
-      nowPlaying = data;
-      elapsedRef = { value: data.elapsed, timestamp: Date.now(), isPlaying: data.isPlaying };
-      elapsed = data.elapsed;
-      hasReceivedTrack = true;
-      buildWidget();
-      if (data.isPlaying) {
-        showWidget();
-        startProgressLoop();
+  },
+  "space": {
+    "0": 2,
+    "1": 4,
+    "2": 8,
+    "3": 10,
+    "4": 12,
+    "5": 14,
+    "6": 16,
+    "7": 20,
+    "8": 24,
+    "9": 28,
+    "10": 32,
+    "11": 44
+  },
+  "radius": {
+    "xs": 4,
+    "sm": 6,
+    "md": 8,
+    "lg": 10,
+    "xl": 14,
+    "2xl": 16,
+    "pill": 9999
+  },
+  "motion": {
+    "duration": {
+      "instant": 0,
+      "fast": 150,
+      "base": 220,
+      "slow": 320,
+      "long": 400,
+      "pulse": 900,
+      "pulseSlow": 1400
+    },
+    "easing": {
+      "standard": "cubic-bezier(0.4, 0.0, 0.2, 1)",
+      "emphasized": "cubic-bezier(0.2, 0.0, 0, 1)"
+    },
+    "spring": {
+      "snappy": {
+        "response": 0.35,
+        "damping": 0.82
+      },
+      "bouncy": {
+        "response": 0.45,
+        "damping": 0.78
+      },
+      "gentle": {
+        "response": 0.3,
+        "damping": 0.6
+      },
+      "expressive": {
+        "response": 0.5,
+        "damping": 0.6
       }
-      break;
     }
-    case 'progress': {
-      const data = msg.data;
-      elapsedRef = { value: data.elapsed, timestamp: Date.now(), isPlaying: data.isPlaying };
-      break;
+  },
+  "shadow": {
+    "xs": "0 1px 2px rgba(0,0,0,0.08)",
+    "sm": "0 2px 4px rgba(0,0,0,0.08)",
+    "md": "0 4px 12px rgba(0,0,0,0.10)",
+    "lg": "0 8px 32px rgba(0,0,0,0.20)",
+    "glow": "0 0 20px rgba(10,132,255,0.30)"
+  },
+  "themes": {
+    "Default": {
+      "containerBg": "transparent",
+      "containerBorder": "none",
+      "containerShadow": "0 0 4px rgba(0,0,0,1)",
+      "containerRadius": "12px",
+      "backdropFilter": "none",
+      "overlayBg": "rgba(0,0,0,0.50)",
+      "textPrimary": "#FFFFFF",
+      "textSecondary": "rgba(255,255,255,0.90)",
+      "textMuted": "rgba(255,255,255,0.70)",
+      "textShadow": "2px 2px 2px rgb(0 0 0)",
+      "progressTrackBg": "rgba(255,255,255,0.20)",
+      "progressFillBg": "#FFFFFF",
+      "showArtworkBlur": true
+    },
+    "Dark": {
+      "containerBg": "#0D0D0D",
+      "containerBorder": "1px solid rgba(255,255,255,0.08)",
+      "containerShadow": "0 4px 12px rgba(0,0,0,0.6)",
+      "containerRadius": "12px",
+      "backdropFilter": "none",
+      "overlayBg": "transparent",
+      "textPrimary": "#E4E4E7",
+      "textSecondary": "#A1A1AA",
+      "textMuted": "#71717A",
+      "textShadow": "none",
+      "progressTrackBg": "rgba(255,255,255,0.08)",
+      "progressFillBg": "#A78BFA",
+      "showArtworkBlur": false
+    },
+    "Light": {
+      "containerBg": "rgba(255,255,255,0.92)",
+      "containerBorder": "1px solid rgba(0,0,0,0.08)",
+      "containerShadow": "0 4px 16px rgba(0,0,0,0.10)",
+      "containerRadius": "12px",
+      "backdropFilter": "blur(16px)",
+      "overlayBg": "transparent",
+      "textPrimary": "#18181B",
+      "textSecondary": "#3F3F46",
+      "textMuted": "#71717A",
+      "textShadow": "none",
+      "progressTrackBg": "rgba(0,0,0,0.08)",
+      "progressFillBg": "#3B82F6",
+      "showArtworkBlur": false
+    },
+    "Glass": {
+      "containerBg": "rgba(0,0,0,0.30)",
+      "containerBorder": "1px solid rgba(255,255,255,0.10)",
+      "containerShadow": "0 8px 32px rgba(0,0,0,0.20)",
+      "containerRadius": "16px",
+      "backdropFilter": "blur(24px)",
+      "overlayBg": "transparent",
+      "textPrimary": "#F5F5F7",
+      "textSecondary": "rgba(245,245,247,0.80)",
+      "textMuted": "rgba(245,245,247,0.50)",
+      "textShadow": "none",
+      "progressTrackBg": "rgba(255,255,255,0.10)",
+      "progressFillBg": "#007AFF",
+      "showArtworkBlur": false
+    },
+    "Neon": {
+      "containerBg": "rgba(10,10,30,0.85)",
+      "containerBorder": "1px solid #00FFAA",
+      "containerShadow": "0 0 20px rgba(0,255,170,0.30), 0 0 60px rgba(0,255,170,0.10)",
+      "containerRadius": "12px",
+      "backdropFilter": "none",
+      "overlayBg": "transparent",
+      "textPrimary": "#00FFAA",
+      "textSecondary": "#00E5FF",
+      "textMuted": "rgba(0,255,170,0.50)",
+      "textShadow": "0 0 8px rgba(0,255,170,0.50)",
+      "progressTrackBg": "rgba(0,255,170,0.15)",
+      "progressFillBg": "linear-gradient(90deg, #00FFAA, #00E5FF)",
+      "showArtworkBlur": false
+    },
+    "WolfWave": {
+      "containerBg": "rgba(28,28,30,0.92)",
+      "containerBorder": "1px solid rgba(10,132,255,0.40)",
+      "containerShadow": "0 0 20px rgba(10,132,255,0.30), 0 8px 32px rgba(0,0,0,0.40)",
+      "containerRadius": "14px",
+      "backdropFilter": "blur(20px)",
+      "overlayBg": "transparent",
+      "textPrimary": "#F5F5F7",
+      "textSecondary": "#A1A1A6",
+      "textMuted": "#6E6E73",
+      "textShadow": "none",
+      "progressTrackBg": "rgba(10,132,255,0.15)",
+      "progressFillBg": "linear-gradient(90deg, #0A84FF, #409CFF)",
+      "showArtworkBlur": true
     }
-    case 'playback_state': {
-      const data = msg.data;
-      if (nowPlaying) Object.assign(nowPlaying, data);
-      if (!data.isPlaying) {
-        // Freeze elapsed at current computed value so resume doesn't jump
-        elapsedRef = { value: elapsed, timestamp: Date.now(), isPlaying: false };
-        stopProgressLoop();
-        hideWidget();
-      } else {
-        // Reset timestamp on resume so elapsed counts from now
-        elapsedRef = { value: elapsed, timestamp: Date.now(), isPlaying: true };
-        showWidget();
-        startProgressLoop();
-      }
-      break;
+  },
+  "layouts": {
+    "Horizontal": {
+      "maxWidth": 500,
+      "height": 100
+    },
+    "Vertical": {
+      "maxWidth": 220,
+      "height": 280
+    },
+    "Compact": {
+      "maxWidth": 350,
+      "height": 56
     }
-    case 'widget_config': {
-      widgetConfig = Object.assign({}, defaultConfig, msg.data);
-      buildWidget();
-      break;
-    }
-    case 'welcome':
-      reconnectAttempts = 0;
-      if (!hasReceivedTrack) {
-        console.log('[WolfWave Widget] Connected, waiting for music...');
-      }
-      break;
   }
-}
+};
+</script>
 
-// MARK: - Init
-connect();
+<!--
+  Widget runtime. Compiled from src/widget.ts by ../build.ts. Read that file
+  to understand state, transitions, message dispatch, etc. Every section is
+  banner-commented for top-to-bottom reading.
+-->
+<script>(()=>{var{defineProperty:y,getOwnPropertyNames:e,getOwnPropertyDescriptor:jj}=Object,qj=Object.prototype.hasOwnProperty;function Gj(q){return this[q]}var Jj=(q)=>{var j=(u??=new WeakMap).get(q),G;if(j)return j;if(j=y({},"__esModule",{value:!0}),q&&typeof q==="object"||typeof q==="function"){for(var J of e(q))if(!qj.call(j,J))y(j,J,{get:Gj.bind(q,J),enumerable:!(G=jj(q,J))||G.enumerable})}return u.set(q,j),j},u;var Dj={},_=new URLSearchParams(location.search),Qj=_.get("port")||_.get("wsPort")||"8765",p=Number(_.get("duration")||"0"),x=_.has("hideAlbumArt");var w=_.get("token")||("__WOLFWAVE_TOKEN__".indexOf("__")===0?"":"__WOLFWAVE_TOKEN__");var d=typeof window<"u"&&window.WW_TOKENS||{},h=d.themes||{Default:{containerBg:"transparent",containerBorder:"none",containerShadow:"none",containerRadius:"12px",backdropFilter:"none",overlayBg:"rgba(0,0,0,0.50)",textPrimary:"#FFFFFF",textSecondary:"rgba(255,255,255,0.90)",textMuted:"rgba(255,255,255,0.70)",textShadow:"none",progressTrackBg:"rgba(255,255,255,0.20)",progressFillBg:"#FFFFFF",showArtworkBlur:!0}},f=d.layouts||{Horizontal:{maxWidth:500,height:100},Vertical:{maxWidth:220,height:280},Compact:{maxWidth:350,height:56}},S={theme:"Default",layout:"Horizontal",textColor:"#FFFFFF",backgroundColor:"#1A1A2E",fontFamily:"System Default"},Q=null,W={...S},X=0,N={value:0,timestamp:0,isPlaying:!1},F=!1,Z=null,H=null,K=null,Y=null,I=null,O=0,k=!1;function C(q){let j=Math.floor(q/60),G=Math.floor(q%60);return j+":"+String(G).padStart(2,"0")}function D(q){return String(q).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;")}function Vj(q){if(!q||q==="System Default"||q==="System")return'-apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif';return'"'+q+'", sans-serif'}function Xj(q){let G={...h[q.theme]||h.Default};if(G.fontFamily=Vj(q.fontFamily),q.theme==="Default"||q.theme==="Glass"){if(q.textColor&&q.textColor!==S.textColor)G.textPrimary=q.textColor,G.textSecondary=q.textColor,G.progressFillBg=q.textColor;if(q.backgroundColor&&q.backgroundColor!==S.backgroundColor)G.overlayBg=q.backgroundColor}return G}function c(){if(Z!==null)cancelAnimationFrame(Z);function q(){let j=N;if(j.isPlaying&&j.timestamp>0)X=j.value+(Date.now()-j.timestamp)/1000;Zj(),Z=requestAnimationFrame(q)}Z=requestAnimationFrame(q)}function m(){if(Z!==null)cancelAnimationFrame(Z),Z=null}function g(){F=!0;let q=document.getElementById("widget");if(!q)return;if(K!==null)clearTimeout(K),K=null;if(q.classList.remove("placeholder"),q.classList.remove("widget-exiting"),q.classList.remove("widget-visible"),q.classList.add("widget-entering"),requestAnimationFrame(()=>{requestAnimationFrame(()=>{q.classList.remove("widget-entering"),q.classList.add("widget-visible")})}),H!==null)clearTimeout(H);if(p>0)H=window.setTimeout(()=>A(),p*1000)}function A(){if(!F)return;F=!1;let q=document.getElementById("widget");if(!q)return;q.classList.remove("widget-visible"),q.classList.add("widget-exiting");let j=document.querySelector(".progress-fill");if(j)j.classList.add("draining"),j.style.width="0%";if(K!==null)clearTimeout(K);K=window.setTimeout(()=>{q.classList.remove("widget-exiting"),q.classList.add("widget-hidden")},500)}function Yj(q){let j=document.querySelector(".track-meta"),G=document.querySelector(".artwork");if(!j&&!G){q();return}j?.classList.add("swap-out"),G?.classList.add("swap-out"),setTimeout(()=>{q();let J=document.querySelector(".track-meta"),V=document.querySelector(".artwork");J?.classList.add("swap-in"),V?.classList.add("swap-in"),requestAnimationFrame(()=>{requestAnimationFrame(()=>{J?.classList.remove("swap-in"),V?.classList.remove("swap-in")})})},140)}function Zj(){if(!Q)return;let q=Q.duration||0,j=q>0?Math.min(X/q*100,100):0,G=q>0?Math.max(q-X,0):0,J=document.querySelector(".progress-fill"),V=document.querySelector(".elapsed-time"),B=document.querySelector(".remaining-time");if(J&&!J.classList.contains("draining"))J.style.width=j+"%";if(V)V.textContent=C(X);if(B)B.textContent="-"+C(G)}function U(){if(!Q)return;let q=document.getElementById("widget");if(!q)return;let j=Xj(W),G=W.layout||"Horizontal",J=f[G]||f.Horizontal,V=Q.duration||0,B=V>0?Math.min(X/V*100,100):0,s=V>0?Math.max(V-X,0):0;q.style.maxWidth=J.maxWidth+"px",q.style.height=J.height+"px",q.style.background=j.containerBg,q.style.border=j.containerBorder,q.style.boxShadow=j.containerShadow,q.style.borderRadius=j.containerRadius,q.style.backdropFilter=j.backdropFilter;function M($,L,P){let z=Q.artworkURL||null;if(z&&!z.startsWith("http://")&&!z.startsWith("https://"))z=null;if(!z){let T=Math.round($*0.52);return'<div class="artwork flex items-center justify-center" style="width:'+$+"px;height:"+L+"px;border-radius:"+P+';background:linear-gradient(135deg,#0A84FF,#003A78);box-shadow:0 2px 8px rgba(0,0,0,0.3);"><svg width="'+T+'" height="'+T+'" viewBox="0 0 100 100" fill="#FFFFFF"><rect x="24" y="43" width="3.5" height="30" rx="1.75"/><rect x="19" y="49" width="3.5" height="24" rx="1.75" opacity="0.9"/><rect x="14" y="55" width="3.5" height="18" rx="1.75" opacity="0.73"/><rect x="9" y="61" width="3.5" height="12" rx="1.75" opacity="0.54"/><rect x="4" y="66" width="3.5" height="7" rx="1.75" opacity="0.34"/><rect x="-1" y="69" width="3.5" height="4" rx="1.75" opacity="0.18"/><rect x="72.5" y="43" width="3.5" height="30" rx="1.75"/><rect x="77.5" y="49" width="3.5" height="24" rx="1.75" opacity="0.9"/><rect x="82.5" y="55" width="3.5" height="18" rx="1.75" opacity="0.73"/><rect x="87.5" y="61" width="3.5" height="12" rx="1.75" opacity="0.54"/><rect x="92.5" y="66" width="3.5" height="7" rx="1.75" opacity="0.34"/><rect x="97.5" y="69" width="3.5" height="4" rx="1.75" opacity="0.18"/><polygon points="33,41 33,11 45,38"/><polygon points="67,41 67,11 55,38"/><ellipse cx="50" cy="52" rx="18" ry="17.5"/><ellipse cx="50" cy="63" rx="11" ry="8"/></svg></div>'}return'<img class="artwork" src="'+encodeURI(z).replace(/'/g,"%27").replace(/"/g,"%22")+'" crossorigin="anonymous" style="width:'+$+"px;height:"+L+"px;border-radius:"+P+';object-fit:cover;box-shadow:0 2px 8px rgba(0,0,0,0.3);">'}let l=G==="Vertical"?"3px":"4px",R=G==="Vertical"?"9px":"10px",r="width:"+B+"%;background:"+j.progressFillBg+";height:100%;border-radius:9999px;",b='<div class="progress-track" style="background:'+j.progressTrackBg+";height:"+l+';"><div class="progress-fill" style="'+r+'"></div></div><div class="time-row"><span class="elapsed-time" style="color:'+j.textMuted+";font-family:"+j.fontFamily+";font-size:"+R+';">'+C(X)+'</span><span class="remaining-time" style="color:'+j.textMuted+";font-family:"+j.fontFamily+";font-size:"+R+';">-'+C(s)+"</span></div>",v=!!Q.artworkURL&&(Q.artworkURL.startsWith("http://")||Q.artworkURL.startsWith("https://")),n=v?encodeURI(Q.artworkURL).replace(/'/g,"%27").replace(/"/g,"%22").replace(/\)/g,"%29"):"",i=j.showArtworkBlur&&v?'<div class="blur-layer" style="background-image:url('+n+');"></div>':"",t=j.overlayBg&&j.overlayBg!=="transparent"?'<div class="overlay-layer" style="background:'+j.overlayBg+';"></div>':"",a='<div class="noise-layer"></div>',E="";if(G==="Horizontal")E='<div class="flex h-full">'+(x?"":'<div style="flex-shrink:0;padding:5px;">'+M(90,90,"10px")+"</div>")+'<div style="display:flex;flex-direction:column;flex:1;min-width:0;justify-content:center;padding:8px 12px 8px 0;"><div class="track-meta" style="min-width:0;"><p style="font-size:18px;font-weight:700;line-height:1.2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:'+j.textPrimary+";text-shadow:"+j.textShadow+";font-family:"+j.fontFamily+';">'+D(Q.track)+'</p><p style="font-size:13px;font-style:italic;font-weight:300;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:'+j.textSecondary+";text-shadow:"+j.textShadow+";font-family:"+j.fontFamily+';">'+D(Q.artist)+'</p></div><div style="display:flex;align-items:center;margin-top:auto;gap:6px;"><div style="flex:1;min-width:0;">'+b+"</div></div></div></div>";else if(G==="Vertical")E='<div class="flex-col h-full items-center" style="padding:8px;">'+(x?"":'<div class="shrink-0">'+M(200,200,"10px")+"</div>")+'<div class="track-meta" style="display:flex;flex-direction:column;flex:1;min-width:0;width:100%;align-items:center;justify-content:center;margin-top:4px;"><p style="font-size:13px;font-weight:700;text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%;color:'+j.textPrimary+";text-shadow:"+j.textShadow+";font-family:"+j.fontFamily+';">'+D(Q.track)+'</p><p style="font-size:11px;font-style:italic;font-weight:300;text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%;color:'+j.textSecondary+";text-shadow:"+j.textShadow+";font-family:"+j.fontFamily+';">'+D(Q.artist)+'</p></div><div style="width:100%;padding:0 4px;margin-top:auto;">'+b+"</div></div>";else E='<div class="flex h-full items-center" style="padding:0 4px;">'+(x?"":'<div style="flex-shrink:0;padding:5px;">'+M(46,46,"8px")+"</div>")+'<div class="track-meta" style="flex:1;min-width:0;padding:0 8px;"><p style="font-size:13px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:'+j.textPrimary+";text-shadow:"+j.textShadow+";font-family:"+j.fontFamily+';">'+D(Q.track)+'<span style="color:'+j.textMuted+';"> — </span>'+'<span style="color:'+j.textSecondary+';">'+D(Q.artist)+"</span></p></div></div>";q.innerHTML=i+t+a+'<div class="relative h-full">'+E+"</div>"}function o(){if(Y)return;let j="ws://"+(location.hostname||"localhost")+":"+Qj;console.log("[WolfWave Widget] Connecting to "+j);let G=w?["wolfwave.token."+w]:[];Y=new WebSocket(j,G),Y.onopen=()=>{console.log("[WolfWave Widget] Connected to "+j),O=0},Y.onmessage=(J)=>{try{zj(JSON.parse(J.data))}catch(V){console.warn("[WolfWave Widget] Failed to parse message:",V)}},Y.onclose=()=>{Y=null,Q=null,k=!1,m(),A(),O++;let J=Math.min(1000*Math.pow(2,O-1),15000);if(console.log("[WolfWave Widget] Disconnected — reconnect in "+J+"ms (attempt "+O+")"),I!==null)clearTimeout(I);I=window.setTimeout(o,J)},Y.onerror=(J)=>{console.warn("[WolfWave Widget] WebSocket error:",J)}}function $j(q,j){if(!q)return!1;return q.track===j.track&&q.artist===j.artist}function zj(q){switch(q.type){case"now_playing":{let j=q.data,G=$j(Q,j);if(Q=j,N={value:j.elapsed,timestamp:Date.now(),isPlaying:j.isPlaying},X=j.elapsed,k=!0,F&&!G)Yj(U);else U();if(j.isPlaying){if(!F)g();c()}break}case"progress":{let j=q.data;N={value:j.elapsed,timestamp:Date.now(),isPlaying:j.isPlaying};break}case"playback_state":{let j=q.data;if(Q)Object.assign(Q,j);if(!j.isPlaying)N={value:X,timestamp:Date.now(),isPlaying:!1},m(),A();else{if(N={value:X,timestamp:Date.now(),isPlaying:!0},!F)g();c()}break}case"widget_config":{W={...S,...q.data},U();break}case"welcome":if(O=0,!k)console.log("[WolfWave Widget] Connected, waiting for music...");break}}(function(){let j=document.getElementById("widget");if(j&&!j.classList.contains("placeholder"))j.classList.add("widget-hidden");o()})();})();
 </script>
 </body>
 </html>

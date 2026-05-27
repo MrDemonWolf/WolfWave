@@ -157,6 +157,43 @@ The bot is implemented with `TwitchChatService` using Twitch Helix + EventSub (n
 - **All other requests** → `404 Not Found`.
 - **Lifecycle**: Owned by `WebSocketServerService`; starts/stops with the WS server.
 
+## Building the OBS Widget
+
+The bundled `widget.html` is **not hand-written** — it's generated from the
+`apps/widget/` Tailwind + TypeScript workspace. Source files:
+
+- `apps/widget/src/widget.html` — HTML shell with placeholders
+- `apps/widget/src/widget.css` — Tailwind directives + custom transition classes
+- `apps/widget/src/widget.ts` — runtime (state, transitions, WS, render)
+- `apps/widget/build.ts` — bundles JS, runs Tailwind, inlines everything
+
+The build emits a single self-contained file at
+`apps/native/WolfWave/Resources/widget.html` (committed to the repo so
+Xcode-only builds keep working).
+
+### When to rebuild
+
+Whenever you touch any of these:
+
+- Anything under `apps/widget/src/**`
+- `design-system/tokens.json` (themes / layouts / colors)
+- `apps/widget/tailwind.config.ts` or `build.ts`
+
+### How rebuilds happen
+
+| Trigger | Mechanism |
+|---------|-----------|
+| `Cmd+B` in Xcode | Pre-build Run Script phase `Build OBS Widget (Tailwind → inline)` runs `bun run --filter widget build` automatically |
+| CI (test + release) | Bun setup + widget build runs before every `xcodebuild` invocation |
+| Manual | `bun run --filter widget build` from the repo root |
+
+The Xcode script is tolerant of missing `bun` — it exits 0 with a warning so
+a fresh clone without the JS toolchain still builds (just with whatever
+`widget.html` is committed).
+
+For the full architecture, message contract, theme system, and transition
+state machine, see the [OBS Widget Architecture](/docs/widget) page.
+
 ## Sparkle Updater Service
 
 `SparkleUpdaterService` wraps the Sparkle framework for auto-updates.

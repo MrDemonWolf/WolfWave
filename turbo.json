@@ -21,8 +21,23 @@
       ]
     },
     "build": {
-      "dependsOn": ["^build", "//#tokens"],
+      "dependsOn": ["^build", "//#tokens", "widget#build"],
       "outputs": [".next/**", "!.next/cache/**", "dist/**", ".source/**", "out/**"]
+    },
+    "widget#build": {
+      "dependsOn": ["//#tokens"],
+      "inputs": [
+        "apps/widget/src/**",
+        "apps/widget/tailwind.config.ts",
+        "apps/widget/postcss.config.js",
+        "apps/widget/build.ts",
+        "apps/widget/package.json",
+        "design-system/tokens.json"
+      ],
+      "outputs": [
+        "apps/widget/dist/**",
+        "apps/native/WolfWave/Resources/widget.html"
+      ]
     },
     "dev": {
       "cache": false,

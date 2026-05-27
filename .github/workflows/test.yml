@@ -39,11 +39,28 @@ jobs:
           filters: |
             native:
               - 'apps/native/**'
+              - 'apps/widget/**'
+              - 'design-system/tokens.json'
+              - 'package.json'
+              - 'bun.lock'
+              - 'turbo.json'
               - 'Makefile'
 
       - name: Skip notice (docs/marketing only)
         if: steps.filter.outputs.native != 'true'
         run: echo "No native changes detected — skipping Swift build & test."
+
+      - name: Install Bun
+        if: steps.filter.outputs.native == 'true'
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+
+      - name: Install JS dependencies
+        if: steps.filter.outputs.native == 'true'
+        run: bun install --frozen-lockfile
+
+      - name: Build OBS widget
+        if: steps.filter.outputs.native == 'true'
+        run: bun run --filter widget build
 
       - name: Create Config.xcconfig
         if: steps.filter.outputs.native == 'true'

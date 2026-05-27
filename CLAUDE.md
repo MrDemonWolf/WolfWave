@@ -20,7 +20,16 @@ bun dev                                  # Start all dev servers via Turbo
 bun run dev --filter docs                # Start docs dev server only
 bun run dev --filter wolfwave-announcement  # Open Remotion studio only
 bun run build --filter docs              # Build docs site
+bun run --filter widget build            # Rebuild OBS widget (Tailwind → inline)
 ```
+
+> **OBS widget**: source lives at `apps/widget/`; the bundled
+> `apps/native/WolfWave/Resources/widget.html` is a **generated artifact**
+> (still committed). Xcode auto-runs the widget rebuild via a pre-build
+> script phase (`Build OBS Widget (Tailwind → inline)`), CI rebuilds it
+> before every `xcodebuild` invocation, and the manual fallback is
+> `bun run --filter widget build`. See `apps/widget/README.md` and the
+> [OBS Widget Architecture](apps/docs/content/docs/widget.mdx) docs page.
 
 ### Native App (Make)
 

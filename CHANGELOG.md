@@ -44,6 +44,7 @@ All notable changes to this project will be documented in this file.
 - **On-device diagnostics** — opt-in MetricKit diagnostics report card in Advanced settings. Reports stay on-device; a share card lets you attach the payload to a bug report manually. Off by default (#85).
 - **Discord playlist presence** — Discord Rich Presence now surfaces the current Apple Music playlist name alongside the track when one is active.
 - **WolfMark branding** — new WolfMark album-art placeholder replaces the generic music icon in the now-playing card and overlay widget; branded download page, repo `README.md`, and `SECURITY.md` shipped alongside.
+- **OBS widget transitions** — the now-playing overlay now slides in with a subtle bounce when a song starts and slides + blurs out calmly when playback stops, with the progress bar draining smoothly to zero. Skipping a track while the widget is visible crossfades the inner artwork + metadata instead of re-triggering the entrance, so rapid skips no longer strobe the stream. Pause behavior is unchanged — the card stays mounted while music is paused.
 
 ### Changed
 
@@ -83,6 +84,7 @@ All notable changes to this project will be documented in this file.
 - **Sparkle delegate hardening** — implemented `allowedSystemProfileKeys(for:)` returning an empty array, opting WolfWave out of Sparkle's system-profile telemetry beam (OS version, CPU arch, bundle metadata never leave the user's machine on update checks). Documented the `automaticallyDownloadsUpdates = false` rationale: explicit user consent is required before bytes touch the disk.
 - **WebSocket security-model documentation** — added a `## Security model` doc block to `WebSocketServerService.swift` explaining the current loopback-only contract and matching it against `NSLocalNetworkUsageDescription`. Token-based auth + origin validation tracked as a follow-up.
 - **New unit tests** — `SongBlocklistTests`, `HistoryFormattingTests`, `LaunchAtLoginServiceTests` cover three previously-untested services. `AppleMusicController` builder tests and `TwitchChannelPointsService` Helix payload tests tracked as follow-ups.
+- **OBS widget build pipeline** — the overlay widget source moved out of the hand-edited `apps/native/WolfWave/Resources/widget.html` into a new `apps/widget/` Tailwind + TypeScript workspace. The bundled HTML is now a generated, fully inlined artifact (compiled CSS + design tokens + JS runtime in one file, no external `<link>`/`<script src>`). Xcode rebuilds it via a pre-build Run Script phase (`Build OBS Widget (Tailwind → inline)`); CI rebuilds it before every `xcodebuild` invocation in `test.yml` and `build_release.yml`. Manual rebuild is `bun run --filter widget build`. The WebSocket payload contract, widget URL, and theme/layout URL params are unchanged. Source files are heavily commented top-to-bottom with banner sections and per-function explanations so the runtime can be read end-to-end.
 
 ### Fixed
 

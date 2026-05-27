@@ -1,0 +1,213 @@
+/* ═══════════════════════════════════════════════════════════════════════════
+ * WolfWave OBS Widget — Source CSS
+ *
+ * This file is processed by Tailwind CLI at build time. The output is then
+ * inlined into the final widget.html (see ../build.ts). Anything you write
+ * here ends up in a single <style> block in the generated file.
+ *
+ * Sections:
+ *   1. Tailwind layers  — base / components / utilities
+ *   2. Custom base      — reset, body transparent
+ *   3. State classes    — widget-hidden / widget-entering / widget-visible / widget-exiting
+ *   4. Inner transitions — track-swap (artwork + meta crossfade)
+ *   5. Progress + decorative layers (blur, overlay, noise)
+ *
+ * Why hand-written transition classes instead of pure Tailwind utilities?
+ * The transition state machine in widget.ts toggles between four states with
+ * different easings and properties. Expressing all of that purely as utility
+ * strings makes the HTML unreadable. So: utilities for layout/typography,
+ * named state classes for animation.
+ * ═══════════════════════════════════════════════════════════════════════════ */
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ─── 2. Custom base ─────────────────────────────────────────────────────── */
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  width: 100%;
+  height: 100%;
+  background: transparent;     /* OBS browser source treats this as alpha 0 */
+  overflow: hidden;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+#root {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  background: transparent;
+}
+
+/* ─── 3. Container transition state machine ──────────────────────────────────
+ *
+ * Four states live on `#widget`, swapped by `transitions.ts` helpers in the
+ * order: hidden → entering → visible → exiting → hidden.
+ *
+ *   widget-hidden    — invisible, off-screen, no pointer events. Safe to mount.
+ *   widget-entering  — start frame of the enter animation (same as hidden).
+ *                       Class is removed in next RAF so transition fires.
+ *   widget-visible   — fully shown. The "resting" state.
+ *   widget-exiting   — visible → about to be hidden. Different easing/blur.
+ *
+ * Why a state machine and not just `.visible` + `.hidden`? We need different
+ * easings for arrive vs. leave (bouncy arrival, calm exit) and different
+ * durations. Toggling between two classes can't express that.
+ *
+ * Easings chosen deliberately:
+ *   enter — cubic-bezier(0.34, 1.56, 0.64, 1) overshoots slightly. Feels
+ *           energetic, like the card landed on the stream.
+ *   exit  — cubic-bezier(0.4, 0, 0.2, 1) is Material Standard. Calm fade out.
+ * ──────────────────────────────────────────────────────────────────────── */
+
+#widget {
+  width: 100%;
+  overflow: hidden;
+  position: relative;
+  will-change: opacity, transform, filter;
+}
+
+#widget.widget-hidden,
+#widget.widget-entering {
+  opacity: 0;
+  transform: translateY(12px) scale(0.97);
+  filter: blur(2px);
+  pointer-events: none;
+}
+
+#widget.widget-visible {
+  opacity: 1;
+  transform: translateY(0) scale(1);
+  filter: blur(0);
+  transition:
+    opacity 600ms cubic-bezier(0.34, 1.56, 0.64, 1),
+    transform 600ms cubic-bezier(0.34, 1.56, 0.64, 1),
+    filter 480ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+#widget.widget-exiting {
+  opacity: 0;
+  transform: translateY(8px) scale(0.99);
+  filter: blur(4px);
+  pointer-events: none;
+  transition:
+    opacity 500ms cubic-bezier(0.4, 0, 0.2, 1),
+    transform 500ms cubic-bezier(0.4, 0, 0.2, 1),
+    filter 500ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Pre-WebSocket placeholder. Visible immediately so the page never looks dead
+ * while we wait for the first now_playing frame. */
+#widget.placeholder {
+  max-width: 500px;
+  height: 100px;
+  background: rgba(20, 20, 28, 0.55);
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0.55;
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 13px;
+}
+
+/* ─── 4. Inner track-swap transition ──────────────────────────────────────
+ *
+ * When a new track arrives WHILE the widget is already visible, we don't
+ * want the whole container to re-enter — that re-triggers the bouncy
+ * animation on every skip, which is jarring during a stream. Instead we
+ * crossfade the inner `.track-meta` + `.artwork` only.
+ *
+ * Flow (per swap):
+ *   1. element gets `.swap-out`   — fades + slides 4px right, 140ms
+ *   2. after 140ms, DOM updates with new content
+ *   3. element gets `.swap-in`    — slides in from 4px left, 140ms
+ *   4. class is cleared
+ * ──────────────────────────────────────────────────────────────────────── */
+
+.track-meta, .artwork {
+  transition:
+    opacity 140ms ease-out,
+    transform 140ms ease-out;
+}
+
+.track-meta.swap-out {
+  opacity: 0;
+  transform: translateX(4px);
+}
+
+.track-meta.swap-in {
+  opacity: 0;
+  transform: translateX(-4px);
+}
+
+.artwork.swap-out {
+  opacity: 0;
+  transform: scale(0.94);
+}
+
+.artwork.swap-in {
+  opacity: 0;
+  transform: scale(0.94);
+}
+
+/* ─── 5. Progress bar + decorative layers ────────────────────────────────── */
+
+.progress-track {
+  width: 100%;
+  border-radius: 9999px;
+  overflow: hidden;
+}
+
+.progress-fill {
+  height: 100%;
+  border-radius: 9999px;
+  /* Default tick uses 1s linear (matches server progress cadence). When the
+   * track stops we swap this to a one-shot drain transition via JS. */
+  transition: width 1s linear;
+}
+
+.progress-fill.draining {
+  transition: width 400ms ease-out;
+}
+
+.time-row {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 2px;
+}
+
+/* Background blur of the artwork — gives every theme an album-aware tint. */
+.blur-layer {
+  position: absolute;
+  inset: 0;
+  transform: scale(1.4);
+  filter: blur(20px);
+  opacity: 0.9;
+  background-size: cover;
+  background-position: center;
+}
+
+/* SVG noise overlay — kills the banding artifact that giant blurs create. */
+.noise-layer {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 10;
+  opacity: 0.04;
+  border-radius: inherit;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  background-repeat: repeat;
+  background-size: 128px 128px;
+}
+
+.overlay-layer {
+  position: absolute;
+  inset: 0;
+}

@@ -54,6 +54,7 @@ All notable changes to WolfWave are documented here.
 - **On-device diagnostics** — opt-in MetricKit diagnostics in Advanced settings with a share card for attaching reports to a bug filing; reports stay on-device
 - **Discord playlist presence** — Discord Rich Presence now shows the current Apple Music playlist alongside the track
 - **WolfMark branding** — new album-art placeholder, branded download page, and refreshed repo README + SECURITY docs
+- **OBS widget transitions** — the overlay slides in with a subtle bounce when a song starts and slides + blurs out calmly when playback stops, with the progress bar draining smoothly to zero. Rapid track skips crossfade the artwork + metadata instead of re-triggering the entrance — no strobing on stream. Pause keeps the card mounted.
 
 ### Changed
 - Music playback via AppleScript + focus preservation — Music.app never steals focus from OBS or streaming tools
@@ -90,6 +91,7 @@ _Developer-facing changes — not visible to end users._
 - **WebSocket security-model doc** — added a `## Security model` block to `WebSocketServerService.swift` documenting the loopback-only contract; token-based auth tracked as a follow-up
 - **New unit tests** — `SongBlocklistTests`, `HistoryFormattingTests`, `LaunchAtLoginServiceTests` cover three previously-untested services
 - **Accessibility labels** — added explicit `accessibilityLabel`/`Hint`/`Identifier` to permission and About-panel buttons that previously relied only on inferred labels (better VoiceOver clarity)
+- **OBS widget build pipeline** — widget source moved into a new `apps/widget/` Tailwind + TypeScript workspace. The bundled `widget.html` is now a generated artifact with the compiled CSS, design tokens, and JS runtime all inlined — still a single self-contained file. Xcode auto-rebuilds it via a pre-build Run Script phase; CI rebuilds it before every `xcodebuild` invocation. Manual command: `bun run --filter widget build`. WebSocket payload contract, widget URL, and theme/layout URL params are unchanged. See [OBS Widget Architecture](/docs/widget) for the pipeline + transition state machine.
 
 ### Fixed
 - Onboarding step content is now vertically centered in the wizard window — fixes step views being pinned to the top with empty space below

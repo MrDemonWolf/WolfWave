@@ -1,0 +1,14 @@
+{
+  "name": "widget",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "build": "bun run build.ts",
+    "dev": "bun run build.ts --watch"
+  },
+  "devDependencies": {
+    "tailwindcss": "^3.4.13",
+    "@types/bun": "^1.1.0"
+  }
+}

@@ -267,6 +267,14 @@ Tiny companion HTTP server that serves the bundled `widget.html` to OBS:
 - **All other requests** → `404 Not Found`.
 - **Lifecycle**: Owned by `WebSocketServerService`; starts/stops with the WS server.
 
+The bundled `widget.html` is a **generated artifact**. Its source lives in
+the `apps/widget/` workspace (Tailwind + TypeScript), and the build pipeline
+inlines the compiled CSS, design tokens, and JS runtime into a single
+self-contained HTML file. Xcode rebuilds it via a pre-build script phase;
+CI rebuilds it before every `xcodebuild` invocation. See the
+[OBS Widget Architecture](/docs/widget) page for the full pipeline,
+message contract, theme/layout system, and transition state machine.
+
 ### SparkleUpdaterService
 
 Wraps the Sparkle framework for auto-updates:
