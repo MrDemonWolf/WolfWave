@@ -157,12 +157,8 @@ nonisolated final class LifetimeTallyStore: @unchecked Sendable {
         label: "com.mrdemonwolf.wolfwave.lifetimetally", qos: .utility
     )
 
-    private let encoder: JSONEncoder = {
-        let enc = JSONEncoder()
-        enc.outputFormatting = []
-        return enc
-    }()
-    private let decoder = JSONDecoder()
+    private let encoder = JSONCoders.defaultEncoder
+    private let decoder = JSONCoders.default
 
     // MARK: - Init
 

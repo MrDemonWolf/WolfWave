@@ -39,7 +39,7 @@ bun run --filter widget build            # Rebuild OBS widget (Tailwind → inli
 ```bash
 make build          # Debug build via xcodebuild
 make clean          # Clean build artifacts
-make test           # Run unit tests (~65 test files; run locally for current pass count)
+make test           # Run unit tests (66 test files; run locally for current pass count)
 make test-verbose   # Run unit tests with full xcodebuild output
 make test-ci        # Run unit tests in CI mode (writes TestResults.xcresult)
 make update-deps    # Resolve SwiftPM dependencies
@@ -168,7 +168,7 @@ Existing legacy literals are tracked in [`design-system/lint-allowlist.txt`](des
 
 ## Testing
 
-Unit tests live in `apps/native/WolfWaveTests/` and use XCTest + Swift Testing with `@testable import WolfWave`. The test target is a hosted unit test bundle (`TEST_HOST` = WolfWave.app). Current pass count: ~65 test files. <!-- TODO(test-count): run `make test` post-audit and write the exact test + file count back here. -->
+Unit tests live in `apps/native/WolfWaveTests/` and use XCTest + Swift Testing with `@testable import WolfWave`. The test target is a hosted unit test bundle (`TEST_HOST` = WolfWave.app). Current file count: 66 test files (run `ls apps/native/WolfWaveTests/*.swift | wc -l` to verify).
 
 > Auto-discovery: `apps/native/WolfWaveTests/` is a `PBXFileSystemSynchronizedRootGroup` — dropping a new `*.swift` file in is enough, no Xcode project edit required.
 
@@ -179,7 +179,8 @@ Unit tests live in `apps/native/WolfWaveTests/` and use XCTest + Swift Testing w
 - `BotCommandDispatcherTests.swift` — Message routing, callback wiring, length guards, whitespace handling
 - `CommandIntegrationTests.swift` — End-to-end dispatcher flow per command
 - `CooldownManagerTests.swift` — Global + per-user cooldown enforcement
-- `SongRequestServiceTests.swift`, `SongRequestQueueTests.swift`, `SongRequestCommandTests.swift` — Song Request system (queue, hold mode, request command parse)
+- `SongRequestServiceTests.swift`, `SongRequestQueueTests.swift`, `SongRequestCommandTests.swift`, `HoldCommandTests.swift`, `SongBlocklistTests.swift` — Song Request system (queue, hold mode, request command parse, blocklist)
+- `LaunchAtLoginServiceTests.swift` — SMAppService registration/unregister state
 - `SkipVoteManagerTests.swift`, `VoteSkipCommandTests.swift` — Chat vote-to-skip (threshold, dedup, window expiry, cooldown, subscriber gate, Polls mode, reply formatting)
 - `SongRequestAccessTests.swift` — `RequestAudience` permission rules, `SongRequestPreset` apply/detect, `RedemptionStatus` banner messages
 - `SongRequestQueueBoostTests.swift` — bit-cheer boost: moves a user's most-recent queued item to the front

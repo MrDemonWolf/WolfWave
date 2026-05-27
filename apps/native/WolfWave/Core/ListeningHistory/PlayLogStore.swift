@@ -35,10 +35,12 @@ nonisolated final class PlayLogStore: @unchecked Sendable {
     /// Open write handle, positioned at end of file. Only touched on `ioQueue`.
     private var fileHandle: FileHandle?
 
-    /// Encoder/decoder are configured for `PlayRecord`'s explicit `CodingKeys`,
-    /// so no key/date strategy is needed.
-    private let encoder = JSONEncoder()
-    private let decoder = JSONDecoder()
+    /// Shared default coders — `PlayRecord` has explicit `CodingKeys` and
+    /// its `Date` properties use the default `deferredToDate` strategy, so the
+    /// strategy-free `JSONCoders.default` / `.defaultEncoder` match the
+    /// on-disk format exactly.
+    private let encoder = JSONCoders.defaultEncoder
+    private let decoder = JSONCoders.default
 
     // MARK: - Init
 

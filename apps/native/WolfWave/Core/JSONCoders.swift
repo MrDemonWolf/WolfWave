@@ -46,7 +46,29 @@ nonisolated enum JSONCoders {
         return decoder
     }()
 
+    /// Decoder with no key or date strategy applied — matches Swift's default
+    /// `JSONDecoder()` behavior.
+    ///
+    /// Use for on-disk formats whose schema is owned by us (explicit
+    /// `CodingKeys` on the model, `Date`s stored via the default
+    /// `deferredToDate` strategy). Sharing this instance avoids per-store
+    /// `JSONDecoder()` allocations without changing the on-disk format.
+    static let `default`: JSONDecoder = {
+        let decoder = JSONDecoder()
+        return decoder
+    }()
+
     // MARK: - Encoders
+
+    /// Encoder with no key or date strategy applied — matches Swift's default
+    /// `JSONEncoder()` behavior.
+    ///
+    /// Pair with `JSONCoders.default` for on-disk persistence whose format is
+    /// owned by us (NDJSON play log, lifetime tally JSON).
+    static let defaultEncoder: JSONEncoder = {
+        let encoder = JSONEncoder()
+        return encoder
+    }()
 
     /// Encoder that converts `camelCase` Swift properties to `snake_case`
     /// JSON keys and emits ISO-8601 date strings.

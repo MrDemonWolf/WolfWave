@@ -152,7 +152,7 @@ final class NotificationService {
               let remoteURL = URL(string: urlString) else { return nil }
 
         do {
-            let (data, _) = try await URLSession.shared.data(from: remoteURL)
+            let data = try await HTTPClient.shared.data(url: remoteURL)
             let ext = remoteURL.pathExtension.isEmpty ? "jpg" : remoteURL.pathExtension
             let fileURL = FileManager.default.temporaryDirectory
                 .appending(path: "wolfwave-artwork-\(UUID().uuidString).\(ext)")
