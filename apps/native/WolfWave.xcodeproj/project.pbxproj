@@ -170,7 +170,7 @@
 					};
 				};
 			};
-			buildConfigurationList = D40965C52F0F906C00B292B6 /* Build configuration list for PBXProject "wolfwave" */;
+			buildConfigurationList = D40965C52F0F906C00B292B6 /* Build configuration list for PBXProject "WolfWave" */;
 			developmentRegion = en;
 			hasScannedForEncodings = 0;
 			knownRegions = (
@@ -532,7 +532,7 @@
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
-		D40965C52F0F906C00B292B6 /* Build configuration list for PBXProject "wolfwave" */ = {
+		D40965C52F0F906C00B292B6 /* Build configuration list for PBXProject "WolfWave" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				D40965D32F0F906D00B292B6 /* Debug */,
