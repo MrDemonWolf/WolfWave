@@ -55,7 +55,7 @@ struct OnboardingStepScaffold<Icon: View, Extras: View>: View {
 
             extras()
                 .frame(maxWidth: 440)
-                .frame(minHeight: DSDimension.Onboarding.stepContentMinHeight, alignment: .top)
+                .frame(minHeight: DSDimension.Onboarding.stepContentMinHeight, alignment: .center)
                 .padding(.horizontal, DSSpace.s8)
 
             Spacer(minLength: 0)
