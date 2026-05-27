@@ -9,6 +9,63 @@
 import Foundation
 import Network
 
+// MARK: - Helix Response Models
+
+/// `GET /helix/users` response. Used by `fetchBotIdentity` and `resolveUsername`.
+nonisolated private struct HelixUsersResponse: Decodable {
+    struct User: Decodable {
+        let id: String
+        let login: String
+        let displayName: String?
+    }
+    let data: [User]
+}
+
+/// `GET https://id.twitch.tv/oauth2/validate` response. Used by `validateToken`.
+nonisolated private struct TwitchValidateResponse: Decodable {
+    let scopes: [String]?
+}
+
+/// `POST /helix/chat/messages` response. Used by `sendMessage` to confirm delivery.
+nonisolated private struct HelixSendMessageResponse: Decodable {
+    struct SentMessage: Decodable {
+        let isSent: Bool
+    }
+    let data: [SentMessage]
+}
+
+/// `GET /helix/streams` response. Used by `seedStreamLiveState`.
+nonisolated private struct HelixStreamsResponse: Decodable {
+    struct Stream: Decodable {
+        let id: String
+    }
+    let data: [Stream]
+}
+
+/// Maps an `HTTPClient.HTTPError` to the matching `TwitchChatService.ConnectionError`.
+/// Preserves the existing 401 → `authenticationFailed` mapping; everything else
+/// becomes `.networkError(...)` with the underlying description.
+nonisolated private func mapHelixError(_ error: Error) -> TwitchChatService.ConnectionError {
+    if let httpError = error as? HTTPClient.HTTPError {
+        switch httpError {
+        case .unexpectedStatus(401, _):
+            return .authenticationFailed
+        case .unexpectedStatus(let code, _):
+            return .networkError("HTTP \(code)")
+        case .invalidResponse:
+            return .networkError("No HTTP response")
+        case .decodingFailed:
+            return .networkError("Unable to decode response")
+        case .transport(let underlying):
+            return .networkError(underlying.localizedDescription)
+        }
+    }
+    if let connectionError = error as? TwitchChatService.ConnectionError {
+        return connectionError
+    }
+    return .networkError(error.localizedDescription)
+}
+
 /// Service managing Twitch chat connection and bot commands via EventSub WebSocket.
 ///
 /// Handles:
@@ -703,55 +760,44 @@ actor TwitchChatService {
             throw ConnectionError.networkError("Invalid users endpoint")
         }
 
-        var request = URLRequest(url: url)
-        request.httpMethod = "GET"
-        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
-        request.setValue(clientID, forHTTPHeaderField: "Client-ID")
-
-        let (data, response) = try await URLSession.shared.data(for: request)
-
-        guard let http = response as? HTTPURLResponse else {
-            throw ConnectionError.networkError("No HTTP response")
-        }
-        guard (200..<300).contains(http.statusCode) else {
-            if http.statusCode == 401 {
+        let response: HelixUsersResponse
+        do {
+            response = try await HTTPClient.shared.get(
+                url: url,
+                headers: helixHeaders(token: token, clientID: clientID))
+        } catch {
+            let mapped = mapHelixError(error)
+            if case .authenticationFailed = mapped {
                 Log.error(
                     "TwitchChatService: Authentication failed (401) - invalid or expired OAuth token",
                     category: "Twitch")
-                throw ConnectionError.authenticationFailed
+            } else {
+                Log.error(
+                    "TwitchChatService: Users endpoint failed - \(error.localizedDescription)",
+                    category: "Twitch")
             }
-            Log.error(
-                "TwitchChatService: Users endpoint error HTTP \(http.statusCode)", category: "Twitch")
-            throw ConnectionError.networkError("Users endpoint returned \(http.statusCode)")
+            throw mapped
         }
 
-        let json: [String: Any]
-        do {
-            guard let parsed = try JSONSerialization.jsonObject(with: data) as? [String: Any] else {
-                Log.error("TwitchChatService: User identity response is not a JSON object", category: "Twitch")
-                throw ConnectionError.networkError("Unable to decode user identity JSON")
-            }
-            json = parsed
-        } catch {
-            if let connectionError = error as? ConnectionError { throw connectionError }
-            Log.error("TwitchChatService: Failed to decode user identity JSON - \(error.localizedDescription)", category: "Twitch")
-            throw ConnectionError.networkError("Unable to decode user identity JSON: \(error.localizedDescription)")
-        }
-
-        guard let dataArray = json["data"] as? [[String: Any]],
-              let first = dataArray.first,
-              let userID = first["id"] as? String,
-              let login = first["login"] as? String else {
+        guard let first = response.data.first else {
             Log.error("TwitchChatService: Failed to parse user identity from response", category: "Twitch")
             throw ConnectionError.networkError("Unable to parse user identity")
         }
 
-        let displayName = first["display_name"] as? String ?? login
+        let displayName = first.displayName ?? first.login
 
-        botID = userID
+        botID = first.id
         botUsername = displayName
 
-        return BotIdentity(userID: userID, login: login, displayName: displayName)
+        return BotIdentity(userID: first.id, login: first.login, displayName: displayName)
+    }
+
+    /// Bearer + Client-Id header pair shared by every Helix call.
+    private func helixHeaders(token: String, clientID: String) -> [String: String] {
+        [
+            "Authorization": "Bearer \(token)",
+            "Client-Id": clientID,
+        ]
     }
 
     /// Leaves the current channel and disconnects from EventSub.
@@ -802,8 +848,7 @@ actor TwitchChatService {
         request.setValue("OAuth \(token)", forHTTPHeaderField: "Authorization")
 
         do {
-            let (data, response) = try await URLSession.shared.data(for: request)
-            guard let http = response as? HTTPURLResponse else { return false }
+            let (data, http) = try await HTTPClient.shared.send(request)
 
             guard (200..<300).contains(http.statusCode) else {
                 if http.statusCode == 401 {
@@ -814,12 +859,12 @@ actor TwitchChatService {
                 return false
             }
 
-            guard let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
+            guard let parsed = try? JSONCoders.snakeCase.decode(TwitchValidateResponse.self, from: data) else {
                 Log.warn("TwitchChatService: Could not parse token validate response", category: "Twitch")
                 return false
             }
 
-            if let scopes = json["scopes"] as? [String] {
+            if let scopes = parsed.scopes {
                 // Vote-skip Polls mode needs the polls scope. Only require it when
                 // the user has actually enabled Polls mode, so existing users are
                 // not forced to re-authorize unless they opt in.
@@ -903,14 +948,12 @@ actor TwitchChatService {
                 token: token,
                 clientID: clientID)
             do {
-                guard let json = try JSONSerialization.jsonObject(with: data) as? [String: Any],
-                      let dataArray = json["data"] as? [[String: Any]],
-                      let messageData = dataArray.first else {
+                let parsed = try JSONCoders.snakeCase.decode(HelixSendMessageResponse.self, from: data)
+                guard let first = parsed.data.first else {
                     Log.warn("TwitchChatService: Could not parse send-message response", category: "Twitch")
                     return
                 }
-                let isSent = messageData["is_sent"] as? Bool ?? false
-                if !isSent {
+                if !first.isSent {
                     Log.warn("TwitchChatService: Message dropped by Twitch", category: "Twitch")
                 }
             } catch {
@@ -1114,18 +1157,16 @@ actor TwitchChatService {
             }
         }
 
-        let (data, response) = try await URLSession.shared.data(for: request)
+        let (data, http) = try await HTTPClient.shared.send(request)
 
-        if let httpResponse = response as? HTTPURLResponse {
-            await rateLimiter.updateRateLimitState(
-                endpoint: endpoint, from: httpResponse.allHeaderFields)
+        await rateLimiter.updateRateLimitState(
+            endpoint: endpoint, from: http.allHeaderFields)
 
-            if !(200..<300).contains(httpResponse.statusCode) {
-                let responseText = String(data: data, encoding: .utf8) ?? "No response body"
-                Log.warn(
-                    "TwitchChatService: API \(endpoint) returned HTTP \(httpResponse.statusCode) - \(responseText)",
-                    category: "Twitch")
-            }
+        if !(200..<300).contains(http.statusCode) {
+            let responseText = String(data: data, encoding: .utf8) ?? "No response body"
+            Log.warn(
+                "TwitchChatService: API \(endpoint) returned HTTP \(http.statusCode) - \(responseText)",
+                category: "Twitch")
         }
 
         return data
@@ -1469,8 +1510,7 @@ actor TwitchChatService {
         }
 
         do {
-            let (data, response) = try await URLSession.shared.data(for: request)
-            guard let http = response as? HTTPURLResponse else { return false }
+            let (data, http) = try await HTTPClient.shared.send(request)
             if (200..<300).contains(http.statusCode) {
                 Log.info("TwitchChatService: Vote-skip poll created", category: "Twitch")
                 return true
@@ -1581,26 +1621,24 @@ actor TwitchChatService {
         }
 
         do {
-            let (data, response) = try await URLSession.shared.data(for: request)
-            if let http = response as? HTTPURLResponse {
-                if (200..<300).contains(http.statusCode) {
-                    Log.info("TwitchChatService: Connected to chat", category: "Twitch")
-                    if shouldSendConnectionMessageOnSubscribe {
-                        sendConnectionMessage()
-                    }
-                } else {
-                    let responseText = String(data: data, encoding: .utf8) ?? "No response"
-                    Log.error(
-                        "TwitchChatService: EventSub subscription failed - HTTP \(http.statusCode) - \(responseText)",
-                        category: "Twitch")
-                    setConnected(false)
-                    NotificationCenter.default.post(
-                        name: TwitchChatService.connectionStateChanged,
-                        object: nil,
-                        userInfo: ["isConnected": false]
-                    )
-                    connectionStateContinuation.yield(false)
+            let (data, http) = try await HTTPClient.shared.send(request)
+            if (200..<300).contains(http.statusCode) {
+                Log.info("TwitchChatService: Connected to chat", category: "Twitch")
+                if shouldSendConnectionMessageOnSubscribe {
+                    sendConnectionMessage()
                 }
+            } else {
+                let responseText = String(data: data, encoding: .utf8) ?? "No response"
+                Log.error(
+                    "TwitchChatService: EventSub subscription failed - HTTP \(http.statusCode) - \(responseText)",
+                    category: "Twitch")
+                setConnected(false)
+                NotificationCenter.default.post(
+                    name: TwitchChatService.connectionStateChanged,
+                    object: nil,
+                    userInfo: ["isConnected": false]
+                )
+                connectionStateContinuation.yield(false)
             }
         } catch {
             Log.error(
@@ -1641,15 +1679,11 @@ actor TwitchChatService {
               let clientID,
               let url = URL(string: apiBaseURL + "/streams?user_id=\(broadcasterID)") else { return }
 
-        var request = URLRequest(url: url)
-        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
-        request.setValue(clientID, forHTTPHeaderField: "Client-ID")
-
         do {
-            let (data, _) = try await URLSession.shared.data(for: request)
-            guard let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-                  let streams = json["data"] as? [[String: Any]] else { return }
-            let live = !streams.isEmpty
+            let response: HelixStreamsResponse = try await HTTPClient.shared.get(
+                url: url,
+                headers: helixHeaders(token: token, clientID: clientID))
+            let live = !response.data.isEmpty
             streamLive = live
             Log.info("TwitchChatService: Seeded stream-live state — live=\(live)", category: "Twitch")
         } catch {
@@ -1769,8 +1803,7 @@ actor TwitchChatService {
         }
 
         do {
-            let (data, response) = try await URLSession.shared.data(for: request)
-            guard let http = response as? HTTPURLResponse else { return }
+            let (data, http) = try await HTTPClient.shared.send(request)
             if (200..<300).contains(http.statusCode) {
                 Log.info("TwitchChatService: Subscribed to \(label)", category: "Twitch")
             } else if http.statusCode == 409 {
@@ -2069,48 +2102,37 @@ actor TwitchChatService {
 
         var request = URLRequest(url: url)
         request.httpMethod = "GET"
-        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
-        request.setValue(clientID, forHTTPHeaderField: "Client-ID")
+        for (key, value) in helixHeaders(token: token, clientID: clientID) {
+            request.setValue(value, forHTTPHeaderField: key)
+        }
         request.timeoutInterval = 15
 
         do {
-            let (data, response) = try await URLSession.shared.data(for: request)
-
-            guard let http = response as? HTTPURLResponse else {
-                throw ConnectionError.networkError("No HTTP response")
-            }
+            let (data, http) = try await HTTPClient.shared.send(request)
             guard (200..<300).contains(http.statusCode) else {
                 if http.statusCode == 401 { throw ConnectionError.authenticationFailed }
                 throw ConnectionError.networkError("HTTP \(http.statusCode)")
             }
 
-            let json: [String: Any]
+            let parsed: HelixUsersResponse
             do {
-                guard let parsed = try JSONSerialization.jsonObject(with: data) as? [String: Any] else {
-                    throw ConnectionError.networkError("Username response is not a JSON object")
-                }
-                json = parsed
+                parsed = try JSONCoders.snakeCase.decode(HelixUsersResponse.self, from: data)
             } catch {
-                if let connectionError = error as? ConnectionError { throw connectionError }
                 throw ConnectionError.networkError(
                     "Failed to decode username response: \(error.localizedDescription)")
             }
 
-            guard let dataArray = json["data"] as? [[String: Any]],
-                  let first = dataArray.first,
-                  let userID = first["id"] as? String,
-                  !userID.isEmpty else {
+            guard let first = parsed.data.first, !first.id.isEmpty else {
                 throw ConnectionError.networkError("Unable to resolve username")
             }
-
-            return userID
+            return first.id
         } catch let error as ConnectionError {
             throw error
         } catch {
             Log.error(
                 "TwitchChatService: Failed to resolve username - \(error.localizedDescription)",
                 category: "Twitch")
-            throw ConnectionError.networkError(error.localizedDescription)
+            throw mapHelixError(error)
         }
     }
 

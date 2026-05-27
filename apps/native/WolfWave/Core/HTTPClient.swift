@@ -129,6 +129,26 @@ nonisolated struct HTTPClient: Sendable {
         return try await perform(request)
     }
 
+    /// Performs an arbitrary request and returns the raw response without
+    /// validating the status code.
+    ///
+    /// Use when the caller needs to inspect the HTTP status, headers, or
+    /// raw body — for example, sites that branch on 401 / 403 / 409 or
+    /// capture rate-limit headers from the response.
+    ///
+    /// - Parameter request: Fully-constructed request to perform.
+    /// - Returns: Tuple of `(Data, HTTPURLResponse)`.
+    /// - Throws: `HTTPError.invalidResponse` if the response isn't HTTP, or
+    ///   `HTTPError.transport` on session failure. Non-2xx statuses are
+    ///   **not** thrown — the caller decides.
+    func send(_ request: URLRequest) async throws -> (Data, HTTPURLResponse) {
+        let (data, response) = try await transport(request)
+        guard let http = response as? HTTPURLResponse else {
+            throw HTTPError.invalidResponse
+        }
+        return (data, http)
+    }
+
     /// Fetches raw bytes for a URL with no decoding (e.g. image download).
     ///
     /// - Parameters:
