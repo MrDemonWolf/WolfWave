@@ -309,7 +309,18 @@ nonisolated enum KeychainService {
             addQuery[kSecAttrAccessible as String] = kSecAttrAccessibleAfterFirstUnlock
             let addStatus = SecItemAdd(addQuery as CFDictionary, nil)
 
-            guard addStatus == errSecSuccess else {
+            if addStatus == errSecDuplicateItem {
+                // Update said "not found" but Add says "duplicate" — an existing
+                // entry differs only in `kSecAttrAccessible`, which `searchQuery`
+                // doesn't include and `SecItemUpdate` evaluates as a non-match.
+                // Self-heal: delete the mismatched entry and retry once.
+                SecItemDelete(searchQuery as CFDictionary)
+                let retryStatus = SecItemAdd(addQuery as CFDictionary, nil)
+                guard retryStatus == errSecSuccess else {
+                    Log.error("Failed to save \(account) after duplicate-item recovery - OSStatus \(retryStatus)", category: "Keychain")
+                    throw KeychainError.saveFailed(retryStatus)
+                }
+            } else if addStatus != errSecSuccess {
                 Log.error("Failed to save \(account) - OSStatus \(addStatus)", category: "Keychain")
                 throw KeychainError.saveFailed(addStatus)
             }

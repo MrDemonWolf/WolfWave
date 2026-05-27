@@ -603,6 +603,42 @@ extension AppDelegate {
                 openSettingsToTwitch()
             }
         }
+
+        if isValid {
+            await autoReconnectTwitchIfPossible(token: token)
+        }
+    }
+
+    /// Auto-reconnects EventSub on launch when a valid token + channel name exist.
+    ///
+    /// Suppresses the "I'm online" chat ping that fires on explicit user-driven
+    /// connects — auto-reconnect is silent. Called only after the token has been
+    /// validated against Twitch.
+    func autoReconnectTwitchIfPossible(token: String) async {
+        guard let service = twitchService else { return }
+        guard let clientID = TwitchChatService.resolveClientID(), !clientID.isEmpty else {
+            Log.debug("AppDelegate: Skipping Twitch auto-reconnect — no Client ID", category: "Twitch")
+            return
+        }
+        guard let channel = KeychainService.loadTwitchChannelID(), !channel.isEmpty else {
+            Log.debug("AppDelegate: Skipping Twitch auto-reconnect — no stored channel name", category: "Twitch")
+            return
+        }
+
+        Log.info("AppDelegate: Auto-reconnecting Twitch to channel \(channel)", category: "Twitch")
+        await service.setShouldSendConnectionMessageOnSubscribe(false)
+        do {
+            try await service.connectToChannel(
+                channelName: channel,
+                token: token,
+                clientID: clientID
+            )
+        } catch {
+            Log.error(
+                "AppDelegate: Twitch auto-reconnect failed - \(error.localizedDescription)",
+                category: "Twitch"
+            )
+        }
     }
 }
 

@@ -105,18 +105,29 @@ struct TwitchSettingsView: View {
         }
     }
 
+    /// Minimum height reserved for the pre-connected auth content. Sized to the
+    /// tallest pre-connected state (`authorizing` with device-code card + spinner
+    /// row) so the card doesn't visibly resize when transitioning between
+    /// `notConnected` → `authorizing` → `error`. The `connected` state owns its
+    /// own taller layout and is excluded.
+    private var reservedAuthContentHeight: CGFloat? {
+        switch viewModel.integrationState {
+        case .connected: return nil
+        default: return 220
+        }
+    }
+
     /// Main card that switches content based on integration state.
     ///
     /// Shows one of: sign-in button, device-code flow, connected controls, or error retry.
     @ViewBuilder
     private var authCard: some View {
         VStack(spacing: DSSpace.s5) {
-            // Card header (compact, copy-friendly — no logo)
-            // Only show header when not connected
+            // Card header is always present for non-connected states so the
+            // card never collapses its top section mid-transition. Connected
+            // state hides it because `SignedInView` carries its own header rows.
             if case .connected = viewModel.integrationState {
-                // Header hidden when connected
-            } else if case .authorizing = viewModel.integrationState {
-                // Header hidden when authorizing — helper text provides instruction
+                EmptyView()
             } else {
                 VStack(alignment: .leading, spacing: DSSpace.s0) {
                     Text(authCardHeaderTitle)
@@ -128,132 +139,159 @@ struct TwitchSettingsView: View {
                         .foregroundStyle(.secondary)
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
+                .transition(.opacity)
             }
 
-            // Main content switches by integration state
+            // Main content switches by integration state, framed in a
+            // reserved-height container so pre-connected transitions don't
+            // resize the card.
             Group {
                 switch viewModel.integrationState {
                 case .notConnected:
-                    VStack(spacing: DSSpace.s4) {
-                        Button(action: {
-                            hasStartedActivation = false
-                            viewModel.startOAuth()
-                        }) {
-                            Text("Sign in to Twitch")
-                                .font(.system(size: DSFont.Size.base, weight: .semibold))
-                                .frame(maxWidth: .infinity)
-                                .frame(height: 32)
-                        }
-                        .buttonStyle(.borderedProminent)
-                        .controlSize(.regular)
-                        .pointerCursor()
-                        .scaleEffect(viewModel.authState.isInProgress ? 0.995 : 1.0)
-                        .animation(
-                            .easeInOut(duration: DSMotion.Duration.fast), value: viewModel.authState.isInProgress
-                        )
-                        .accessibilityLabel("Sign in with Twitch")
-                        .accessibilityHint("Starts the Twitch authorization flow")
-                    }
-
+                    notConnectedContent
                 case .authorizing:
-                    VStack(spacing: DSSpace.s4) {
-                        HStack(spacing: 0) {
-                            Text("Visit ")
-                            if let activateURL = URL(string: "https://www.twitch.tv/activate") {
-                                Link("twitch.tv/activate", destination: activateURL)
-                                    .pointerCursor()
-                            } else {
-                                Text("twitch.tv/activate")
-                            }
-                            Text(" and enter this code:")
-                        }
-                        .font(.system(size: DSFont.Size.base))
-                        .foregroundStyle(.secondary)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-
-                        if case .waitingForAuth(let code, let uri) = viewModel.authState {
-                            DeviceCodeView(
-                                userCode: code, verificationURI: uri,
-                                onCopy: {
-                                    // small feedback handled in DeviceCodeView
-                                    viewModel.statusMessage = "Code copied"
-                                    hasStartedActivation = true
-                                },
-                                onActivate: {
-                                    hasStartedActivation = true
-                                }
-                            )
-                            .transition(
-                                .asymmetric(
-                                    insertion: .move(edge: .top).combined(with: .opacity),
-                                    removal: .opacity)
-                            )
-                            .animation(
-                                DSMotion.Spring.snappy,
-                                value: viewModel.authState.userCode)
-                        }
-
-                        // Always-visible spinner + cancel row once device code is shown
-                        HStack(spacing: DSSpace.s2) {
-                            ProgressView()
-                                .progressViewStyle(.circular)
-                                .controlSize(.small)
-
-                            Text("Waiting for authorization\u{2026}")
-                                .font(.system(size: DSFont.Size.base))
-                                .foregroundStyle(.secondary)
-
-                            Spacer()
-
-                            Button("Cancel") {
-                                viewModel.cancelOAuth()
-                            }
-                            .buttonStyle(.bordered)
-                            .tint(.red)
-                            .controlSize(.small)
-                            .pointerCursor()
-                            .accessibilityLabel("Cancel authorization")
-                            .accessibilityHint("Stops the Twitch sign-in process")
-                        }
-                    }
-
+                    authorizingContent
                 case .connected:
-                    SignedInView(
-                        botUsername: viewModel.botUsername,
-                        channelID: $viewModel.channelID,
-                        isChannelConnected: viewModel.channelConnected,
-                        isConnecting: viewModel.isConnecting,
-                        reauthNeeded: viewModel.reauthNeeded,
-                        credentialsSaved: viewModel.credentialsSaved,
-                        channelValidationState: viewModel.channelValidationState,
-                        testAuthResult: viewModel.testAuthResult,
-                        onReauth: { viewModel.clearCredentials(); viewModel.startOAuth() },
-                        onClearCredentials: { viewModel.clearCredentials() },
-                        onJoinChannel: { viewModel.joinChannel() },
-                        onLeaveChannel: { viewModel.leaveChannel() },
-                        onChannelIDChanged: { viewModel.saveChannelID() },
-                        onTestConnection: { viewModel.testConnection() }
-                    )
-
+                    connectedContent
                 case .error(let message):
-                    VStack(spacing: DSSpace.s2) {
-                        Text(message)
-                            .font(.system(size: DSFont.Size.base))
-                            .foregroundStyle(.red)
-                        HStack {
-                            Button("Retry") { viewModel.startOAuth() }
-                                .buttonStyle(.bordered)
-                                .pointerCursor()
-                                .accessibilityLabel("Retry Twitch authorization")
-                                .accessibilityHint("Tries the Twitch sign-in process again")
-                            Spacer()
-                        }
-                    }
+                    errorContent(message: message)
                 }
             }
+            .frame(
+                maxWidth: .infinity,
+                minHeight: reservedAuthContentHeight,
+                alignment: .top
+            )
         }
         .cardStyle()
         .animation(.easeInOut(duration: DSMotion.Duration.base), value: viewModel.integrationState)
+    }
+
+    // MARK: - State Content Subviews
+
+    /// Sign-in CTA shown when no token is stored.
+    private var notConnectedContent: some View {
+        VStack(spacing: DSSpace.s4) {
+            Button(action: {
+                hasStartedActivation = false
+                viewModel.startOAuth()
+            }) {
+                Text("Sign in to Twitch")
+                    .font(.system(size: DSFont.Size.base, weight: .semibold))
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 32)
+            }
+            .buttonStyle(.borderedProminent)
+            .controlSize(.regular)
+            .pointerCursor()
+            .scaleEffect(viewModel.authState.isInProgress ? 0.995 : 1.0)
+            .animation(
+                .easeInOut(duration: DSMotion.Duration.fast),
+                value: viewModel.authState.isInProgress
+            )
+            .accessibilityLabel("Sign in with Twitch")
+            .accessibilityHint("Starts the Twitch authorization flow")
+        }
+        .transition(.opacity.combined(with: .move(edge: .top)))
+    }
+
+    /// Device-code flow with copy + cancel affordances.
+    private var authorizingContent: some View {
+        VStack(spacing: DSSpace.s4) {
+            HStack(spacing: 0) {
+                Text("Visit ")
+                if let activateURL = URL(string: "https://www.twitch.tv/activate") {
+                    Link("twitch.tv/activate", destination: activateURL)
+                        .pointerCursor()
+                } else {
+                    Text("twitch.tv/activate")
+                }
+                Text(" and enter this code:")
+            }
+            .font(.system(size: DSFont.Size.base))
+            .foregroundStyle(.secondary)
+            .frame(maxWidth: .infinity, alignment: .leading)
+
+            if case .waitingForAuth(let code, let uri) = viewModel.authState {
+                DeviceCodeView(
+                    userCode: code, verificationURI: uri,
+                    onCopy: {
+                        viewModel.statusMessage = "Code copied"
+                        hasStartedActivation = true
+                    },
+                    onActivate: {
+                        hasStartedActivation = true
+                    }
+                )
+                // Symmetric transition — same shape in and out — so the card
+                // doesn't snap on dismissal.
+                .transition(.opacity.combined(with: .move(edge: .top)))
+                .animation(DSMotion.Spring.snappy, value: viewModel.authState.userCode)
+            }
+
+            // Always-visible spinner + cancel row once device code is shown
+            HStack(spacing: DSSpace.s2) {
+                ProgressView()
+                    .progressViewStyle(.circular)
+                    .controlSize(.small)
+
+                Text("Waiting for authorization\u{2026}")
+                    .font(.system(size: DSFont.Size.base))
+                    .foregroundStyle(.secondary)
+
+                Spacer()
+
+                Button("Cancel") {
+                    viewModel.cancelOAuth()
+                }
+                .buttonStyle(.bordered)
+                .tint(.red)
+                .controlSize(.small)
+                .pointerCursor()
+                .accessibilityLabel("Cancel authorization")
+                .accessibilityHint("Stops the Twitch sign-in process")
+            }
+        }
+        .transition(.opacity.combined(with: .move(edge: .top)))
+    }
+
+    /// Signed-in dashboard with bot + channel + actions.
+    private var connectedContent: some View {
+        SignedInView(
+            botUsername: viewModel.botUsername,
+            channelID: $viewModel.channelID,
+            isChannelConnected: viewModel.channelConnected,
+            isConnecting: viewModel.isConnecting,
+            reauthNeeded: viewModel.reauthNeeded,
+            credentialsSaved: viewModel.credentialsSaved,
+            channelValidationState: viewModel.channelValidationState,
+            testAuthResult: viewModel.testAuthResult,
+            onReauth: { viewModel.clearCredentials(); viewModel.startOAuth() },
+            onClearCredentials: { viewModel.clearCredentials() },
+            onJoinChannel: { viewModel.joinChannel() },
+            onLeaveChannel: { viewModel.leaveChannel() },
+            onChannelIDChanged: { viewModel.saveChannelID() },
+            onTestConnection: { viewModel.testConnection() }
+        )
+        .transition(.opacity)
+    }
+
+    /// Error message + retry CTA.
+    private func errorContent(message: String) -> some View {
+        VStack(spacing: DSSpace.s2) {
+            Text(message)
+                .font(.system(size: DSFont.Size.base))
+                .foregroundStyle(.red)
+            HStack {
+                Button("Retry") { viewModel.startOAuth() }
+                    .buttonStyle(.bordered)
+                    .pointerCursor()
+                    .accessibilityLabel("Retry Twitch authorization")
+                    .accessibilityHint("Tries the Twitch sign-in process again")
+                Spacer()
+            }
+        }
+        .transition(.opacity.combined(with: .move(edge: .top)))
     }
 }
 

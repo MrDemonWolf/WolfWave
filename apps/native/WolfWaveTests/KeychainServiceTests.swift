@@ -272,4 +272,48 @@ struct KeychainServiceTests {
         // Should succeed silently
         #expect(true)
     }
+
+    // MARK: - Duplicate-Item Self-Heal
+
+    @Test("upsertItem self-heals when an existing entry has mismatched kSecAttrAccessible")
+    func testUpsertItemSelfHealsDuplicateItem() async throws {
+        // Pre-seed the websocketAuthToken slot with a `kSecAttrAccessibleWhenUnlocked`
+        // entry — different from the upsert path's `kSecAttrAccessibleAfterFirstUnlock`.
+        // SecItemUpdate's match query doesn't include kSecAttrAccessible, but the
+        // existing entry's primary-key collision still trips SecItemAdd with
+        // errSecDuplicateItem. The upsert must recover and overwrite.
+        // KeychainService uses Bundle.main.bundleIdentifier as service id
+        // (falls back to com.mrdemonwolf.wolfwave). Mirror that here.
+        let service = Bundle.main.bundleIdentifier ?? "com.mrdemonwolf.wolfwave"
+        let account = "websocketAuthToken"
+
+        // Best-effort wipe before seeding.
+        let wipeQuery: [String: Any] = [
+            kSecClass as String: kSecClassGenericPassword,
+            kSecAttrService as String: service,
+            kSecAttrAccount as String: account,
+        ]
+        SecItemDelete(wipeQuery as CFDictionary)
+
+        let seed: [String: Any] = [
+            kSecClass as String: kSecClassGenericPassword,
+            kSecAttrService as String: service,
+            kSecAttrAccount as String: account,
+            kSecValueData as String: Data("stale".utf8),
+            kSecAttrAccessible as String: kSecAttrAccessibleWhenUnlocked,
+        ]
+        let seedStatus = SecItemAdd(seed as CFDictionary, nil)
+        // -25299 (already exists from a prior unclean test run) is fine — we
+        // just need *some* entry with mismatched accessibility in place.
+        #expect(seedStatus == errSecSuccess || seedStatus == errSecDuplicateItem)
+
+        // Now upsert — should not throw, even though the legacy entry uses a
+        // different `kSecAttrAccessible`.
+        let fresh = "fresh_token_\(UUID().uuidString)"
+        try KeychainService.saveToken(fresh)
+
+        #expect(KeychainService.loadToken() == fresh)
+
+        KeychainService.deleteToken()
+    }
 }
