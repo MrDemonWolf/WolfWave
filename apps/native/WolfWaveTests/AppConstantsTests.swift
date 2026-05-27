@@ -80,7 +80,6 @@ struct AppConstantsTests {
     @Test("Music app constants are defined")
     func testMusicAppConstants() async throws {
         #expect(AppConstants.Music.bundleIdentifier == "com.apple.Music")
-        #expect(!AppConstants.Music.playerInfoNotification.isEmpty)
     }
     
     // MARK: - Twitch Tests
@@ -141,7 +140,6 @@ struct AppConstantsTests {
         #expect(!AppConstants.URLs.privacyPolicy.isEmpty)
         #expect(!AppConstants.URLs.termsOfService.isEmpty)
         #expect(!AppConstants.URLs.github.isEmpty)
-        #expect(!AppConstants.URLs.githubReleasesAPI.isEmpty)
         #expect(!AppConstants.URLs.githubReleases.isEmpty)
         #expect(!AppConstants.URLs.sponsorUser.isEmpty)
         #expect(!AppConstants.URLs.githubSponsors.isEmpty)
@@ -151,7 +149,6 @@ struct AppConstantsTests {
         #expect(URL(string: AppConstants.URLs.privacyPolicy) != nil)
         #expect(URL(string: AppConstants.URLs.termsOfService) != nil)
         #expect(URL(string: AppConstants.URLs.github) != nil)
-        #expect(URL(string: AppConstants.URLs.githubReleasesAPI) != nil)
         #expect(URL(string: AppConstants.URLs.githubReleases) != nil)
         #expect(URL(string: AppConstants.URLs.githubSponsors) != nil)
         #expect(AppConstants.URLs.githubSponsors.hasPrefix("https://github.com/sponsors/"))
@@ -173,9 +170,6 @@ struct AppConstantsTests {
     
     @Test("Dispatch queue labels are defined")
     func testDispatchQueueLabels() async throws {
-        #expect(!AppConstants.DispatchQueues.musicPlaybackMonitor.isEmpty)
-        #expect(!AppConstants.DispatchQueues.twitchNetworkMonitor.isEmpty)
-        #expect(!AppConstants.DispatchQueues.discordIPC.isEmpty)
         #expect(!AppConstants.DispatchQueues.websocketServer.isEmpty)
     }
     

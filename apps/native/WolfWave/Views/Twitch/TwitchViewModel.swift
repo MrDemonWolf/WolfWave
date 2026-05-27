@@ -840,11 +840,6 @@ final class TwitchViewModel {
         authState = state
     }
 
-    /// Retrieves the TwitchChatService from AppDelegate if twitchService is not yet set.
-    private func getTwitchServiceFromAppDelegate() -> TwitchChatService? {
-        return AppDelegate.shared?.twitchService
-    }
-
     /// Stores a freshly-issued OAuth token in the Keychain, clears the
     /// re-auth flag, and resolves the bot identity (username + user ID) via
     /// Helix so subsequent EventSub subscriptions have everything they need.

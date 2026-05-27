@@ -14,8 +14,6 @@ import MusicKit
 enum PlaybackError: Error {
     /// Music.app is not currently running. The request has been buffered.
     case musicAppNotRunning
-    /// The song has no Apple Music URL to open.
-    case noURL
 }
 
 /// Abstracts Apple Music search and playback control so the live

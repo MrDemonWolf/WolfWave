@@ -7,7 +7,7 @@ import {
   spring,
   interpolateColors,
 } from 'remotion';
-import { brand, raveColors, raveColor } from '../brand';
+import { brand, raveColor } from '../brand';
 
 // --- Shared styles ---
 

@@ -6,7 +6,6 @@
 //  Copyright © 2026 MrDemonWolf, Inc. All rights reserved.
 //
 
-import AppKit
 import SwiftUI
 
 /// Apple Music access step. Requests Apple Events automation permission for

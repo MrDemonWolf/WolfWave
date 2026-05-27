@@ -141,9 +141,6 @@ actor DiscordRPCService {
     /// Process ID sent with SET_ACTIVITY (Discord requires it).
     private let pid = ProcessInfo.processInfo.processIdentifier
 
-    /// Tracks the last artwork lookup key to avoid redundant re-sends.
-    private var lastArtworkKey: String?
-
     /// Snapshot of the most recent `updatePresence` call. Used to re-send the
     /// current activity when display settings (button labels, toggles, state format)
     /// change via `discordPresenceSettingsChanged`, so users see the effect of a

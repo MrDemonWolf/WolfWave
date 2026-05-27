@@ -14,7 +14,6 @@ import SwiftUI
 /// Includes shortcuts to the What's New popup, the onboarding wizard, and a
 /// simulated update banner so designers can iterate without bumping versions.
 struct DebugUIPreviewsCard: View {
-    @State private var showingWhatsNewVersionPicker = false
     @State private var customVersion: String = "99.0.0"
 
     var body: some View {

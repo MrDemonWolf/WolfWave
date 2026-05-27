@@ -9,7 +9,7 @@ import {
   spring,
   interpolateColors,
 } from 'remotion';
-import { brand, raveColors, raveColor } from '../brand';
+import { brand } from '../brand';
 
 const WAVEFORM_PATH =
   'M 0 540 Q 120 340 240 540 Q 320 680 400 540 Q 440 440 480 380 Q 520 320 540 340 Q 560 360 580 540 Q 600 680 640 540 Q 720 340 800 540 Q 840 440 880 380 Q 920 320 940 340 Q 960 360 980 540 Q 1060 740 1140 540 Q 1200 380 1260 340 Q 1300 320 1340 380 Q 1380 440 1420 540 Q 1500 740 1580 540 Q 1660 340 1740 540 Q 1820 680 1920 540';

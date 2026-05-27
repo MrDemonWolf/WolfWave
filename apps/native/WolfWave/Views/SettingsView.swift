@@ -104,16 +104,6 @@ struct SettingsView: View {
         }
     }
 
-    // MARK: - Properties
-
-    /// Application name from bundle metadata, with fallback to default.
-    ///
-    /// Used in window titles, notifications, and menu items.
-    private var appName: String {
-        Bundle.main.infoDictionary?["CFBundleDisplayName"] as? String ?? Bundle.main
-            .infoDictionary?["CFBundleName"] as? String ?? AppConstants.SettingsUI.defaultAppName
-    }
-
     // MARK: - User Settings
 
     /// Whether music tracking is currently enabled

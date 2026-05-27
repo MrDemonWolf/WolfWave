@@ -9,7 +9,7 @@ import {
   spring,
   interpolateColors,
 } from 'remotion';
-import { brand, raveColor } from '../brand';
+import { brand } from '../brand';
 
 export const CTAOutroScene: React.FC = () => {
   const frame = useCurrentFrame();

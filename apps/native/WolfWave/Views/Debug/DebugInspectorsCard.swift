@@ -21,14 +21,6 @@ struct DebugInspectorsCard: View {
     /// `SecItemCopyMatching` syscall; running 5 in `body` per render is wasteful.
     @State private var keychainPresence: [String: Bool] = [:]
 
-    private static let keychainKeys: [(label: String, key: String)] = [
-        ("WebSocket Auth Token", "token"),
-        ("Twitch OAuth Token", "twitchToken"),
-        ("Twitch Username", "twitchUsername"),
-        ("Twitch Bot User ID", "twitchBotUserID"),
-        ("Twitch Channel ID", "twitchChannelID"),
-    ]
-
     var body: some View {
         VStack(alignment: .leading, spacing: DSSpace.s6) {
             VStack(alignment: .leading, spacing: DSSpace.s1) {

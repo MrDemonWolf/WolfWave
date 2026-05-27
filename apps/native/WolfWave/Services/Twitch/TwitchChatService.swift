@@ -441,12 +441,6 @@ actor TwitchChatService {
         monitor.start(queue: networkMonitorQueue)
     }
 
-    /// Stops network connectivity monitoring.
-    private func stopNetworkMonitoring() {
-        networkPathMonitor?.cancel()
-        networkPathMonitor = nil
-    }
-
     /// Handles network path changes and triggers reconnection if needed.
     ///
     /// Rate-limits network-triggered reconnects to prevent infinite loops when

@@ -15,7 +15,7 @@ export const brand = {
   fontMono: 'JetBrains Mono',
 };
 
-export const raveColors = [brand.cyan, brand.magenta, brand.purple, brand.lime, brand.pink];
+const raveColors = [brand.cyan, brand.magenta, brand.purple, brand.lime, brand.pink];
 
 /** Pick a rave color based on frame and index for cycling effects */
 export const raveColor = (frame: number, i: number): string => {
