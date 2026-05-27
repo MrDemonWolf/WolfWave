@@ -62,6 +62,14 @@ jobs:
         if: steps.filter.outputs.native == 'true'
         run: bun run --filter widget build
 
+      - name: Verify widget.html is in sync with apps/widget/ sources
+        if: steps.filter.outputs.native == 'true'
+        run: |
+          if ! git diff --exit-code -- apps/native/WolfWave/Resources/widget.html; then
+            echo "::error::widget.html is out of sync with apps/widget/ sources. Run \`make widget\` (or \`bun run --filter widget build\`) and commit the result."
+            exit 1
+          fi
+
       - name: Create Config.xcconfig
         if: steps.filter.outputs.native == 'true'
         run: |

@@ -109,7 +109,6 @@
 			isa = PBXNativeTarget;
 			buildConfigurationList = D40965D52F0F906D00B292B6 /* Build configuration list for PBXNativeTarget "WolfWave" */;
 			buildPhases = (
-				D4D9E7012F0F906C00B292B6 /* Build OBS Widget */,
 				D40965C62F0F906C00B292B6 /* Sources */,
 				D40965C72F0F906C00B292B6 /* Frameworks */,
 				D40965C82F0F906C00B292B6 /* Resources */,
@@ -210,35 +209,6 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXResourcesBuildPhase section */
-
-/* Begin PBXShellScriptBuildPhase section */
-		D4D9E7012F0F906C00B292B6 /* Build OBS Widget */ = {
-			isa = PBXShellScriptBuildPhase;
-			alwaysOutOfDate = 0;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			inputFileListPaths = (
-			);
-			inputPaths = (
-				"$(SRCROOT)/../../apps/widget/src/widget.html",
-				"$(SRCROOT)/../../apps/widget/src/widget.css",
-				"$(SRCROOT)/../../apps/widget/src/widget.ts",
-				"$(SRCROOT)/../../apps/widget/build.ts",
-				"$(SRCROOT)/../../apps/widget/tailwind.config.ts",
-				"$(SRCROOT)/../../design-system/tokens.json",
-			);
-			name = "Build OBS Widget (Tailwind → inline)";
-			outputFileListPaths = (
-			);
-			outputPaths = (
-				"$(SRCROOT)/WolfWave/Resources/widget.html",
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-			shellPath = /bin/sh;
-			shellScript = "# Rebuild the OBS overlay widget (Tailwind + TypeScript → single inlined widget.html)\n# Source: apps/widget/. Output: WolfWave/Resources/widget.html.\n# Tolerant of missing bun so fresh clones without the JS toolchain still build.\n\nBUN_BIN=\"$(command -v bun || true)\"\nif [ -z \"$BUN_BIN\" ] && [ -x \"$HOME/.bun/bin/bun\" ]; then\n  BUN_BIN=\"$HOME/.bun/bin/bun\"\nfi\nif [ -z \"$BUN_BIN\" ]; then\n  echo \"warning: bun not found on PATH — skipping widget rebuild. Run 'bun run --filter widget build' from the repo root if widget.html is stale.\"\n  exit 0\nfi\n\ncd \"${SRCROOT}/../..\" || exit 1\n\"$BUN_BIN\" run --filter widget build\n";
-		};
-/* End PBXShellScriptBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
 		D40965C62F0F906C00B292B6 /* Sources */ = {

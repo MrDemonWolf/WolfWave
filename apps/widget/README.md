@@ -66,9 +66,16 @@ user can change theme via `?theme=Glass` URL param without rebuilding.
 # regenerate tokens (only when tokens.json changes)
 bun run tokens
 
-# rebuild widget
+# rebuild widget (from the repo root)
+make widget
+# …or equivalently:
 bun run --filter widget build
 ```
+
+The generated `apps/native/WolfWave/Resources/widget.html` is committed to the
+repo and shipped by the native app as-is — Xcode no longer rebuilds it. Commit
+the regenerated `widget.html` alongside any change under `apps/widget/`; CI
+runs the build and fails the PR on drift.
 
 Then open the generated HTML directly to spot-check:
 

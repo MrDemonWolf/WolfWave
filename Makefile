@@ -14,11 +14,12 @@ DMG_NAME = WolfWave-$(VERSION).dmg
 
 .SHELLFLAGS = -ec
 
-.PHONY: help build clean test test-verbose test-ci lint update-deps open-xcode ci prod-build prod-install notarize verify-notarize sponsor-config
+.PHONY: help build clean test test-verbose test-ci lint update-deps open-xcode ci prod-build prod-install notarize verify-notarize sponsor-config widget
 
 help:
 	@echo "Available targets:"
 	@echo "  build          Debug build"
+	@echo "  widget         Rebuild the OBS overlay widget (apps/widget -> Resources/widget.html)"
 	@echo "  clean          Clean build artifacts"
 	@echo "  test           Run tests"
 	@echo "  lint           Run SwiftLint (requires: brew install swiftlint)"
@@ -43,6 +44,12 @@ build: sponsor-config
 # .github/FUNDING.yml. Idempotent — safe to run as a build prerequisite.
 sponsor-config:
 	@bash scripts/generate-sponsor-config.sh
+
+# Rebuild the OBS overlay widget (Tailwind + TypeScript -> single inlined
+# apps/native/WolfWave/Resources/widget.html). Run this after editing any
+# file under apps/widget/. The output is committed; CI fails on drift.
+widget:
+	bun run --filter widget build
 
 clean:
 	xcodebuild -project $(PROJECT) -scheme $(SCHEME) \

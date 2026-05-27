@@ -25,10 +25,13 @@ bun run --filter widget build            # Rebuild OBS widget (Tailwind → inli
 
 > **OBS widget**: source lives at `apps/widget/`; the bundled
 > `apps/native/WolfWave/Resources/widget.html` is a **generated artifact**
-> (still committed). Xcode auto-runs the widget rebuild via a pre-build
-> script phase (`Build OBS Widget (Tailwind → inline)`), CI rebuilds it
-> before every `xcodebuild` invocation, and the manual fallback is
-> `bun run --filter widget build`. See `apps/widget/README.md` and the
+> that is **committed** to the repo. Xcode does **not** rebuild it — the
+> native build ships the committed file as-is, so contributors who only
+> touch Swift never need `bun`. If you edit anything under `apps/widget/`,
+> run `make widget` (or `bun run --filter widget build`) and commit the
+> regenerated `widget.html` alongside your source change. CI rebuilds the
+> widget and fails the PR on any drift between sources and the committed
+> output. See `apps/widget/README.md` and the
 > [OBS Widget Architecture](apps/docs/content/docs/widget.mdx) docs page.
 
 ### Native App (Make)
