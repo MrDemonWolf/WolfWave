@@ -47,20 +47,20 @@ final class StreamerModeTests: XCTestCase {
 
     func testMaskTokenOn() {
         let masked = StreamerMode.mask("super-secret-abcdef", style: .token, isOn: true)
-        XCTAssertEqual(masked, "••••••••")
+        XCTAssertEqual(masked, "hidden — streamer mode")
         XCTAssertFalse(masked.contains("super-secret"))
     }
 
     func testMaskChannelOn() {
         let masked = StreamerMode.mask("mychannelname", style: .channel, isOn: true)
-        XCTAssertEqual(masked, "•••••••")
+        XCTAssertEqual(masked, "hidden")
         XCTAssertFalse(masked.contains("my"))
     }
 
     func testMaskGenericOn() {
         XCTAssertEqual(
             StreamerMode.mask("anything", style: .generic, isOn: true),
-            "•••"
+            "hidden"
         )
     }
 

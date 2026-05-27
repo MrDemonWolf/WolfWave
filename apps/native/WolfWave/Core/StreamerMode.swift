@@ -31,13 +31,17 @@ nonisolated enum StreamerMode {
     /// - Returns: `value` unchanged when `isOn == false`; otherwise a
     ///   placeholder appropriate for `style`. An empty input is returned
     ///   unchanged so views can still render the "not set" empty state.
+    ///
+    /// Placeholders always name **why** the value is hidden so a viewer on
+    /// camera (or a confused user) immediately knows it's Streamer Mode
+    /// masking the value, not a bug or empty state.
     static func mask(_ value: String, style: Style, isOn: Bool) -> String {
         guard isOn, !value.isEmpty else { return value }
         switch style {
         case .url:     return "hidden — streamer mode"
-        case .token:   return "••••••••"
-        case .channel: return "•••••••"
-        case .generic: return "•••"
+        case .token:   return "hidden — streamer mode"
+        case .channel: return "hidden"
+        case .generic: return "hidden"
         }
     }
 

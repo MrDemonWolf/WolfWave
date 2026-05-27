@@ -252,9 +252,12 @@ fileprivate struct WebSocketServerCard: View {
 
             HStack(spacing: DSSpace.s2) {
                 VStack(alignment: .leading, spacing: DSSpace.s0) {
-                    Text("Local Address")
-                        .font(.system(size: DSFont.Size.sm, weight: .medium))
-                        .foregroundStyle(.secondary)
+                    HStack(spacing: DSSpace.s2) {
+                        Text("Local Address")
+                            .font(.system(size: DSFont.Size.sm, weight: .medium))
+                            .foregroundStyle(.secondary)
+                        if streamerMode { StreamerModeBadge() }
+                    }
                     Text(StreamerMode.mask(connectionURL, style: .url, isOn: streamerMode))
                         .font(.system(size: DSFont.Size.body, design: .monospaced))
                         .textSelection(.enabled)
@@ -276,9 +279,12 @@ fileprivate struct WebSocketServerCard: View {
                         Divider().padding(.leading, cardPadding)
                         HStack(spacing: DSSpace.s2) {
                             VStack(alignment: .leading, spacing: DSSpace.s0) {
-                                Text("Network Address")
-                                    .font(.system(size: DSFont.Size.sm, weight: .medium))
-                                    .foregroundStyle(.secondary)
+                                HStack(spacing: DSSpace.s2) {
+                                    Text("Network Address")
+                                        .font(.system(size: DSFont.Size.sm, weight: .medium))
+                                        .foregroundStyle(.secondary)
+                                    if streamerMode { StreamerModeBadge() }
+                                }
                                 Text(StreamerMode.mask(networkURL, style: .url, isOn: streamerMode))
                                     .font(.system(size: DSFont.Size.body, design: .monospaced))
                                     .textSelection(.enabled)
@@ -333,6 +339,7 @@ fileprivate struct WebSocketServerCard: View {
                             .font(.system(size: DSFont.Size.sm))
                             .foregroundStyle(.secondary)
                         Text("Auth Token").font(.system(size: DSFont.Size.base, weight: .medium))
+                        if streamerMode { StreamerModeBadge() }
                     }
                     Text("Required. Overlays must present this token to connect.")
                         .font(.system(size: DSFont.Size.sm))
@@ -401,7 +408,10 @@ fileprivate struct WebSocketServerCard: View {
                 }
                 .buttonStyle(.bordered)
                 .controlSize(.small)
-                .help("Generate a new random token. Active overlays will disconnect until updated.")
+                .disabled(streamerMode)
+                .help(streamerMode
+                    ? "Turn off Streamer Mode to regenerate the token."
+                    : "Generate a new random token. Active overlays will disconnect until updated.")
                 .accessibilityIdentifier("regenerateWebsocketTokenButton")
 
                 if hasTokenEdits {
@@ -412,6 +422,7 @@ fileprivate struct WebSocketServerCard: View {
                     }
                     .buttonStyle(.borderedProminent)
                     .controlSize(.small)
+                    .disabled(streamerMode)
                     .accessibilityIdentifier("saveWebsocketTokenButton")
 
                     Button {
@@ -637,6 +648,9 @@ fileprivate struct WebSocketBrowserSourceCard: View {
             Divider().padding(.leading, cardPadding)
 
             VStack(alignment: .leading, spacing: DSSpace.s2) {
+                if streamerMode {
+                    HStack { StreamerModeBadge(); Spacer() }
+                }
                 Text(StreamerMode.mask(widgetURL, style: .url, isOn: streamerMode))
                     .font(.system(size: DSFont.Size.sm, design: .monospaced))
                     .textSelection(.enabled)
@@ -678,9 +692,12 @@ fileprivate struct WebSocketBrowserSourceCard: View {
                         Divider().padding(.leading, cardPadding)
                         HStack(spacing: DSSpace.s2) {
                             VStack(alignment: .leading, spacing: DSSpace.s0) {
-                                Text("Network Address")
-                                    .font(.system(size: DSFont.Size.sm, weight: .medium))
-                                    .foregroundStyle(.secondary)
+                                HStack(spacing: DSSpace.s2) {
+                                    Text("Network Address")
+                                        .font(.system(size: DSFont.Size.sm, weight: .medium))
+                                        .foregroundStyle(.secondary)
+                                    if streamerMode { StreamerModeBadge() }
+                                }
                                 Text(StreamerMode.mask(networkWidget, style: .url, isOn: streamerMode))
                                     .font(.system(size: DSFont.Size.body, design: .monospaced))
                                     .textSelection(.enabled)

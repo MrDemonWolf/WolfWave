@@ -400,17 +400,26 @@ private struct SignedInView: View {
     private var channelInputView: some View {
         switch (isChannelConnected, reauthNeeded) {
         case (true, _):
-            Text(channelID.isEmpty ? "Not set" : StreamerMode.mask(channelID, style: .channel, isOn: streamerMode))
-                .font(.system(size: DSFont.Size.base, weight: .semibold))
+            HStack(spacing: DSSpace.s2) {
+                Text(channelID.isEmpty ? "Not set" : StreamerMode.mask(channelID, style: .channel, isOn: streamerMode))
+                    .font(.system(size: DSFont.Size.base, weight: .semibold))
+                if streamerMode { StreamerModeBadge() }
+            }
         case (false, true):
-            Text(channelID.isEmpty ? "Not set" : StreamerMode.mask(channelID, style: .channel, isOn: streamerMode))
-                .font(.system(size: DSFont.Size.base, weight: .semibold))
-                .foregroundStyle(.secondary)
-        case (false, false):
-            if streamerMode {
-                Text(channelID.isEmpty ? "Not set" : StreamerMode.mask(channelID, style: .channel, isOn: true))
+            HStack(spacing: DSSpace.s2) {
+                Text(channelID.isEmpty ? "Not set" : StreamerMode.mask(channelID, style: .channel, isOn: streamerMode))
                     .font(.system(size: DSFont.Size.base, weight: .semibold))
                     .foregroundStyle(.secondary)
+                if streamerMode { StreamerModeBadge() }
+            }
+        case (false, false):
+            if streamerMode {
+                HStack(spacing: DSSpace.s2) {
+                    Text(channelID.isEmpty ? "Not set" : StreamerMode.mask(channelID, style: .channel, isOn: true))
+                        .font(.system(size: DSFont.Size.base, weight: .semibold))
+                        .foregroundStyle(.secondary)
+                    StreamerModeBadge()
+                }
             } else {
                 TextField("Channel Name", text: $channelID)
                     .font(.system(size: DSFont.Size.base))

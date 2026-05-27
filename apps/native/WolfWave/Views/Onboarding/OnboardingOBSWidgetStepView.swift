@@ -113,10 +113,13 @@ struct OnboardingOBSWidgetStepView: View {
     private var urlReveal: some View {
         if overlayEnabled {
             VStack(alignment: .leading, spacing: 10) {
-                Text("BROWSER SOURCE URL")
-                    .font(.system(size: DSFont.Size.xs, weight: .semibold))
-                    .foregroundStyle(.tertiary)
-                    .tracking(0.6)
+                HStack(spacing: DSSpace.s2) {
+                    Text("BROWSER SOURCE URL")
+                        .font(.system(size: DSFont.Size.xs, weight: .semibold))
+                        .foregroundStyle(.tertiary)
+                        .tracking(0.6)
+                    if streamerMode { StreamerModeBadge() }
+                }
 
                 HStack(spacing: 8) {
                     Text(verbatim: StreamerMode.mask(overlayURL, style: .url, isOn: streamerMode))
