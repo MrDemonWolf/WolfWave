@@ -610,6 +610,32 @@ final class TwitchViewModel {
         )
     }
 
+    /// Clears OAuth credentials and bot identity without touching the channel name.
+    /// Use for re-authentication flows where the target channel should be preserved.
+    func clearAuthOnly() {
+        if channelConnected {
+            leaveChannel()
+        }
+
+        KeychainService.deleteTwitchUsername()
+        KeychainService.deleteTwitchBotUserID()
+        KeychainService.deleteTwitchToken()
+
+        botUsername = ""
+        oauthToken = ""
+        credentialsSaved = false
+        reauthNeeded = false
+        UserDefaults.standard.set(false, forKey: AppConstants.UserDefaults.twitchReauthNeeded)
+        statusMessage = ""
+        authState = .idle
+        channelValidationState = .idle
+
+        NotificationCenter.default.post(
+            name: NSNotification.Name(AppConstants.Notifications.twitchReauthNeededChanged),
+            object: nil
+        )
+    }
+
     /// Joins the configured Twitch channel with the saved bot credentials.
     ///
     /// Prerequisites:

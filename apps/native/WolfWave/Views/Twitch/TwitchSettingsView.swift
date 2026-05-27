@@ -266,7 +266,7 @@ struct TwitchSettingsView: View {
             credentialsSaved: viewModel.credentialsSaved,
             channelValidationState: viewModel.channelValidationState,
             testAuthResult: viewModel.testAuthResult,
-            onReauth: { viewModel.clearCredentials(); viewModel.startOAuth() },
+            onReauth: { viewModel.clearAuthOnly(); viewModel.startOAuth() },
             onClearCredentials: { viewModel.clearCredentials() },
             onJoinChannel: { viewModel.joinChannel() },
             onLeaveChannel: { viewModel.leaveChannel() },

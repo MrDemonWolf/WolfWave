@@ -273,8 +273,33 @@ struct TwitchViewModelTests {
         #expect(viewModel.channelValidationState == .idle)
     }
     
+    @Test("clearAuthOnly preserves channel ID")
+    func testClearAuthOnlyPreservesChannelID() {
+        let viewModel = TwitchViewModel()
+
+        viewModel.botUsername = "testbot"
+        viewModel.oauthToken = "token123"
+        viewModel.channelID = "mrdemonwolf"
+        viewModel.credentialsSaved = true
+        viewModel.reauthNeeded = true
+        viewModel.statusMessage = "Test status"
+        viewModel.authState = .inProgress
+        viewModel.channelValidationState = .valid
+
+        viewModel.clearAuthOnly()
+
+        #expect(viewModel.channelID == "mrdemonwolf")
+        #expect(viewModel.botUsername == "")
+        #expect(viewModel.oauthToken == "")
+        #expect(viewModel.credentialsSaved == false)
+        #expect(viewModel.reauthNeeded == false)
+        #expect(viewModel.statusMessage == "")
+        #expect(viewModel.authState == .idle)
+        #expect(viewModel.channelValidationState == .idle)
+    }
+
     // MARK: - Save Credentials Tests
-    
+
     @Test("Save credentials validates empty token")
     func testSaveCredentialsEmptyToken() async throws {
         let viewModel = TwitchViewModel()
