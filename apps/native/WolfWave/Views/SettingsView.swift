@@ -404,9 +404,7 @@ struct SettingsView: View {
     ) -> some View {
         VStack(alignment: .leading, spacing: DSSpace.s2) {
             Text(label)
-                .font(.system(size: DSFont.Size.sm, weight: .medium))
-                .foregroundStyle(.secondary)
-                .textCase(.uppercase)
+                .sectionEyebrow()
 
             HStack(spacing: DSSpace.s4) {
                 VStack(alignment: .leading, spacing: DSSpace.s0) {

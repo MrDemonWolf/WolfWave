@@ -38,10 +38,7 @@ struct NowPlayingHeroCard: View {
             VStack(alignment: .leading, spacing: DSSpace.s1) {
                 HStack(spacing: DSSpace.s2) {
                     Text(isPaused && track != nil ? "Paused" : "Now playing")
-                        .font(.system(size: DSFont.Size.sm, weight: .semibold))
-                        .foregroundStyle(.tertiary)
-                        .textCase(.uppercase)
-                        .tracking(0.6)
+                        .sectionEyebrow()
                         .contentTransition(.opacity)
                         .id(isPaused)
                 }

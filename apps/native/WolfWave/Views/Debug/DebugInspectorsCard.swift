@@ -26,7 +26,7 @@ struct DebugInspectorsCard: View {
             VStack(alignment: .leading, spacing: DSSpace.s1) {
                 HStack(spacing: 6) {
                     Image(systemName: "magnifyingglass")
-                        .foregroundStyle(.blue)
+                        .foregroundStyle(DSColor.info)
                     Text("State Inspectors")
                         .sectionSubHeader()
                     Spacer()
@@ -70,10 +70,8 @@ struct DebugInspectorsCard: View {
 
     private var bundleSection: some View {
         VStack(alignment: .leading, spacing: 6) {
-            Text("Bundle & Build")
-                .font(.system(size: DSFont.Size.body, weight: .semibold))
-                .foregroundStyle(.secondary)
-                .textCase(.uppercase)
+            Text("Bundle & build")
+                .sectionEyebrow()
 
             inspectorRow("Version", bundleString("CFBundleShortVersionString"))
             inspectorRow("Build", bundleString("CFBundleVersion"))
@@ -102,9 +100,7 @@ struct DebugInspectorsCard: View {
     private var keychainSection: some View {
         VStack(alignment: .leading, spacing: 6) {
             Text("Keychain")
-                .font(.system(size: DSFont.Size.body, weight: .semibold))
-                .foregroundStyle(.secondary)
-                .textCase(.uppercase)
+                .sectionEyebrow()
 
             Text("Shows which credentials are stored. Values never displayed.")
                 .font(.system(size: DSFont.Size.sm))
@@ -133,10 +129,8 @@ struct DebugInspectorsCard: View {
     private var userDefaultsSection: some View {
         VStack(alignment: .leading, spacing: 6) {
             HStack {
-                Text("UserDefaults")
-                    .font(.system(size: DSFont.Size.body, weight: .semibold))
-                    .foregroundStyle(.secondary)
-                    .textCase(.uppercase)
+                Text("User defaults")
+                    .sectionEyebrow()
                 Spacer()
                 TextField("Filter", text: $filter)
                     .textFieldStyle(.roundedBorder)
@@ -171,7 +165,7 @@ struct DebugInspectorsCard: View {
     private func keychainRow(_ label: String, present: Bool, onDelete: @escaping () -> Void) -> some View {
         HStack {
             Image(systemName: present ? "checkmark.circle.fill" : "circle")
-                .foregroundStyle(present ? .green : .secondary)
+                .foregroundStyle(present ? DSColor.success : .secondary)
             Text(label)
                 .font(.system(size: DSFont.Size.body))
             Spacer()
@@ -181,7 +175,7 @@ struct DebugInspectorsCard: View {
                     refreshTick &+= 1
                 } label: {
                     Image(systemName: "trash")
-                        .foregroundStyle(.red)
+                        .foregroundStyle(DSColor.error)
                 }
                 .buttonStyle(.borderless)
                 .pointerCursor()

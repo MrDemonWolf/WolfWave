@@ -183,6 +183,7 @@ struct TwitchSettingsView: View {
             }
             .buttonStyle(.borderedProminent)
             .controlSize(.regular)
+            .tint(DSColor.partnerTwitch)
             .pointerCursor()
             .scaleEffect(viewModel.authState.isInProgress ? 0.995 : 1.0)
             .animation(

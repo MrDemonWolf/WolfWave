@@ -747,7 +747,7 @@ fileprivate struct WebSocketBrowserSourceCard: View {
             HStack(alignment: .top, spacing: DSSpace.s2) {
                 Image(systemName: "info.circle.fill")
                     .font(.system(size: DSFont.Size.body))
-                    .foregroundStyle(.blue)
+                    .foregroundStyle(DSColor.info)
                 Text("In OBS, set the Width and Height to **\(AppConstants.Widget.recommendedDimensionsText)** for best results. Enable \"Shutdown source when not visible\" so the widget reconnects properly.")
                     .font(.system(size: DSFont.Size.sm))
                     .foregroundStyle(.secondary)
@@ -755,8 +755,8 @@ fileprivate struct WebSocketBrowserSourceCard: View {
             }
             .padding(DSSpace.s3)
             .frame(maxWidth: .infinity, alignment: .leading)
-            .background(Color.blue.opacity(0.08))
-            .clipShape(RoundedRectangle(cornerRadius: 6))
+            .background(DSColor.info.opacity(0.12))
+            .clipShape(RoundedRectangle(cornerRadius: DSRadius.sm))
             .padding(.horizontal, cardPadding)
             .padding(.top, DSSpace.s4)
             .padding(.bottom, cardPadding)

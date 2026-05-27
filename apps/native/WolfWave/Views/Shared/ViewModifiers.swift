@@ -127,6 +127,31 @@ extension View {
     }
 }
 
+// MARK: - Section Eyebrow (Sentence-case micro-header)
+
+/// Sentence-case micro-header used inside cards to label sub-sections
+/// ("Recently played", "Top artists", "Bundle & build"). Replaces the
+/// legacy ALL-CAPS + letter-spacing pattern — HIG (macOS 26) prefers
+/// sentence case for in-card labels; reserve full caps for tiny eyebrow
+/// tags above hero cards only.
+struct SectionEyebrowModifier: ViewModifier {
+    func body(content: Content) -> some View {
+        content
+            .font(.system(size: DSFont.Size.sm, weight: .semibold))
+            .foregroundStyle(.secondary)
+    }
+}
+
+extension View {
+    /// Applies the section eyebrow style — sentence-case, sm, semibold, secondary.
+    ///
+    /// Use for in-card sub-section labels (e.g. `Text("Recently played").sectionEyebrow()`).
+    /// Pairs naturally with a leading SF Symbol via `Label(_, systemImage:)`.
+    func sectionEyebrow() -> some View {
+        modifier(SectionEyebrowModifier())
+    }
+}
+
 // MARK: - Stable Width (No State-Change Resize)
 
 extension View {

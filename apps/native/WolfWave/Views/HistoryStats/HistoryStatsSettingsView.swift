@@ -155,44 +155,27 @@ struct HistoryStatsSettingsView: View {
 
     private var summaryCard: some View {
         HStack(spacing: 0) {
-            summaryStat(
+            StatTile(
                 value: "\(snapshot.playsThisWeek)",
-                unit: HistoryFormat.listeningTime(snapshot.listeningSecondsThisWeek),
-                label: "This week"
+                secondary: HistoryFormat.listeningTime(snapshot.listeningSecondsThisWeek),
+                caption: "This week"
             )
             Divider().frame(height: 40)
-            summaryStat(
+            StatTile(
                 value: "\(snapshot.playsToday)",
-                unit: HistoryFormat.listeningTime(snapshot.listeningSecondsToday),
-                label: "Today"
+                secondary: HistoryFormat.listeningTime(snapshot.listeningSecondsToday),
+                caption: "Today"
             )
             Divider().frame(height: 40)
-            summaryStat(
+            StatTile(
                 value: "\(snapshot.totalPlays)",
-                unit: HistoryFormat.listeningTime(snapshot.totalListeningSeconds),
-                label: "All time"
+                secondary: HistoryFormat.listeningTime(snapshot.totalListeningSeconds),
+                caption: "All time"
             )
         }
         .frame(maxWidth: .infinity)
         .padding(AppConstants.SettingsUI.cardPadding)
         .cardStyleUnpadded()
-    }
-
-    @ViewBuilder
-    private func summaryStat(value: String, unit: String, label: String) -> some View {
-        VStack(spacing: DSSpace.s0) {
-            Text(value)
-                .font(.system(size: DSFont.Size.x2xl, weight: .bold))
-            Text(unit)
-                .font(.system(size: DSFont.Size.sm))
-                .foregroundStyle(.secondary)
-            Text(label)
-                .font(.system(size: DSFont.Size.xs, weight: .semibold))
-                .foregroundStyle(.tertiary)
-                .textCase(.uppercase)
-                .tracking(0.5)
-        }
-        .frame(maxWidth: .infinity)
     }
 
     // MARK: - Top Artists
@@ -343,17 +326,14 @@ struct HistoryStatsSettingsView: View {
 
     @ViewBuilder
     private func cooldownRow(title: String, value: Binding<Double>) -> some View {
-        HStack(spacing: DSSpace.s4) {
-            Text(title)
-                .font(.system(size: DSFont.Size.body))
-            Spacer()
-            Slider(value: value, in: 0...60, step: 5)
-                .frame(width: 160)
-            Text("\(Int(value.wrappedValue))s")
-                .font(.system(size: DSFont.Size.body, weight: .medium))
-                .monospacedDigit()
-                .frame(width: 34, alignment: .trailing)
-        }
+        LabeledSlider(
+            label: title,
+            value: value,
+            range: 0...60,
+            step: 5,
+            format: { "\(Int($0))s" },
+            accessibilityIdentifier: "cooldown.\(title)"
+        )
     }
 
     // MARK: - Actions
@@ -393,11 +373,7 @@ struct HistoryStatsSettingsView: View {
                 .font(.system(size: DSFont.Size.sm, weight: .semibold))
                 .foregroundStyle(.secondary)
             Text(title)
-                .font(.caption)
-                .fontWeight(.semibold)
-                .foregroundStyle(.secondary)
-                .textCase(.uppercase)
-                .tracking(0.6)
+                .sectionEyebrow()
         }
         .accessibilityAddTraits(.isHeader)
     }

@@ -84,8 +84,8 @@ struct NotificationsSettingsView: View {
         }
         .padding(DSSpace.s3)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Color.orange.opacity(0.08))
-        .clipShape(RoundedRectangle(cornerRadius: 7))
+        .background(DSColor.warning.opacity(0.12))
+        .clipShape(RoundedRectangle(cornerRadius: DSRadius.sm))
         .accessibilityElement(children: .combine)
         .accessibilityLabel("Notifications are turned off for WolfWave. Open System Settings to enable them.")
     }

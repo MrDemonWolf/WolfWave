@@ -208,10 +208,7 @@ struct AutomationRowPreview: View {
     var body: some View {
         VStack(alignment: .leading, spacing: DSSpace.s2) {
             Text("System Settings → Privacy & Security → Automation")
-                .font(.system(size: DSFont.Size.xs, weight: .semibold))
-                .foregroundStyle(.tertiary)
-                .textCase(.uppercase)
-                .tracking(0.6)
+                .sectionEyebrow()
 
             HStack(spacing: DSSpace.s3) {
                 wolfMark

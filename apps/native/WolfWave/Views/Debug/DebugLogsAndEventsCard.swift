@@ -32,7 +32,7 @@ struct DebugLogsAndEventsCard: View {
             VStack(alignment: .leading, spacing: DSSpace.s1) {
                 HStack(spacing: 6) {
                     Image(systemName: "doc.text.magnifyingglass")
-                        .foregroundStyle(.indigo)
+                        .foregroundStyle(DSColor.info)
                     Text("Logs & Events")
                         .sectionSubHeader()
                 }
@@ -63,10 +63,8 @@ struct DebugLogsAndEventsCard: View {
 
     private var logsSection: some View {
         VStack(alignment: .leading, spacing: DSSpace.s2) {
-            Text("Log File")
-                .font(.system(size: DSFont.Size.body, weight: .semibold))
-                .foregroundStyle(.secondary)
-                .textCase(.uppercase)
+            Text("Log file")
+                .sectionEyebrow()
 
             HStack(alignment: .top) {
                 VStack(alignment: .leading, spacing: DSSpace.s0) {
@@ -156,10 +154,8 @@ struct DebugLogsAndEventsCard: View {
 
     private var firehoseSection: some View {
         VStack(alignment: .leading, spacing: DSSpace.s2) {
-            Text("Notification Firehose")
-                .font(.system(size: DSFont.Size.body, weight: .semibold))
-                .foregroundStyle(.secondary)
-                .textCase(.uppercase)
+            Text("Notification firehose")
+                .sectionEyebrow()
 
             Text("Post any app notification with optional JSON userInfo.")
                 .font(.system(size: DSFont.Size.sm))
@@ -203,7 +199,7 @@ struct DebugLogsAndEventsCard: View {
             if let postStatus {
                 Text(postStatus)
                     .font(.system(size: DSFont.Size.sm))
-                    .foregroundStyle(postStatus.hasPrefix("Posted") ? .green : .red)
+                    .foregroundStyle(postStatus.hasPrefix("Posted") ? DSColor.success : DSColor.error)
             }
         }
     }

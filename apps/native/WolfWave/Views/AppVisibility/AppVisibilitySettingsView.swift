@@ -107,7 +107,7 @@ struct AppVisibilitySettingsView: View {
                     HStack(alignment: .top, spacing: DSSpace.s3) {
                         Image(systemName: "info.circle.fill")
                             .font(.system(size: DSFont.Size.body))
-                            .foregroundStyle(.indigo)
+                            .foregroundStyle(DSColor.info)
                         Text("\"Dock Only\" is unavailable while Launch at Login is on — the menu bar icon must always be reachable.")
                             .font(.system(size: DSFont.Size.sm))
                             .foregroundStyle(.secondary)
@@ -115,8 +115,8 @@ struct AppVisibilitySettingsView: View {
                     }
                     .padding(DSSpace.s3)
                     .frame(maxWidth: .infinity, alignment: .leading)
-                    .background(Color.indigo.opacity(0.07))
-                    .clipShape(RoundedRectangle(cornerRadius: 7))
+                    .background(DSColor.info.opacity(0.12))
+                    .clipShape(RoundedRectangle(cornerRadius: DSRadius.sm))
                     .accessibilityElement(children: .combine)
                     .accessibilityLabel("Dock Only is unavailable while Launch at Login is enabled.")
                 }
@@ -131,7 +131,7 @@ struct AppVisibilitySettingsView: View {
                 HStack(alignment: .top, spacing: DSSpace.s3) {
                     Image(systemName: "info.circle.fill")
                         .font(.system(size: DSFont.Size.base))
-                        .foregroundStyle(.blue)
+                        .foregroundStyle(DSColor.info)
                     Text("The app will temporarily appear in the Dock while the settings window is open.")
                         .font(.system(size: DSFont.Size.body))
                         .foregroundStyle(.secondary)
@@ -139,8 +139,8 @@ struct AppVisibilitySettingsView: View {
                 }
                 .padding(DSSpace.s4)
                 .frame(maxWidth: .infinity, alignment: .leading)
-                .background(Color.blue.opacity(0.08))
-                .clipShape(RoundedRectangle(cornerRadius: 8))
+                .background(DSColor.info.opacity(0.12))
+                .clipShape(RoundedRectangle(cornerRadius: DSRadius.md))
                 .accessibilityElement(children: .combine)
                 .accessibilityLabel("The app will temporarily appear in the Dock while the settings window is open.")
             }

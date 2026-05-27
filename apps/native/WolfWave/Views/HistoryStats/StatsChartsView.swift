@@ -100,11 +100,7 @@ struct StatsChartsView: View {
                 .font(.system(size: DSFont.Size.sm, weight: .semibold))
                 .foregroundStyle(.secondary)
             Text(title)
-                .font(.caption)
-                .fontWeight(.semibold)
-                .foregroundStyle(.secondary)
-                .textCase(.uppercase)
-                .tracking(0.6)
+                .sectionEyebrow()
         }
         .accessibilityAddTraits(.isHeader)
     }

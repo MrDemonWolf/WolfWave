@@ -29,7 +29,7 @@ struct DebugServiceControlsCard: View {
         VStack(alignment: .leading, spacing: DSSpace.s6) {
             HStack(spacing: 6) {
                 Image(systemName: "slider.horizontal.3")
-                    .foregroundStyle(.green)
+                    .foregroundStyle(DSColor.success)
                 Text("Service Controls")
                     .sectionSubHeader()
             }
@@ -304,9 +304,7 @@ struct DebugServiceControlsCard: View {
 
     private func sectionLabel(_ text: String) -> some View {
         Text(text)
-            .font(.system(size: DSFont.Size.body, weight: .semibold))
-            .foregroundStyle(.secondary)
-            .textCase(.uppercase)
+            .sectionEyebrow()
     }
 }
 

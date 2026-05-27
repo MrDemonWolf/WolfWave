@@ -86,11 +86,7 @@ struct MusicMonitorSettingsView: View {
             // Hero now-playing
             VStack(alignment: .leading, spacing: DSSpace.s2) {
                 Text("Live from Apple Music")
-                    .font(.caption)
-                    .fontWeight(.semibold)
-                    .foregroundStyle(.secondary)
-                    .textCase(.uppercase)
-                    .tracking(0.6)
+                    .sectionEyebrow()
                     .accessibilityAddTraits(.isHeader)
 
                 if permissionState == .denied {

@@ -261,10 +261,10 @@ struct AdvancedSettingsView: View {
                     HStack(spacing: DSSpace.s2) {
                         Image(systemName: "exclamationmark.triangle.fill")
                             .font(.system(size: DSFont.Size.md))
-                            .foregroundStyle(.red)
+                            .foregroundStyle(DSColor.error)
                         Text("Danger Zone")
                             .font(.system(size: DSFont.Size.md, weight: .semibold))
-                            .foregroundStyle(.red)
+                            .foregroundStyle(DSColor.error)
                     }
                     .accessibilityElement(children: .combine)
                     .accessibilityLabel("Danger Zone")
@@ -275,25 +275,20 @@ struct AdvancedSettingsView: View {
                         .fixedSize(horizontal: false, vertical: true)
                 }
 
-                Button(role: .destructive, action: { showingResetAlert = true }) {
-                    Label("Reset All Settings to Defaults", systemImage: "trash.fill")
-                        .font(.system(size: DSFont.Size.base, weight: .semibold))
-                        .frame(maxWidth: .infinity)
-                }
-                .buttonStyle(.borderedProminent)
-                .controlSize(.regular)
-                .tint(.red)
-                .pointerCursor()
-                .accessibilityLabel("Reset all settings to defaults")
+                DestructiveButton(
+                    title: "Reset All Settings to Defaults",
+                    systemImage: "trash",
+                    accessibilityIdentifier: "resetAllSettingsButton",
+                    action: { showingResetAlert = true }
+                )
                 .accessibilityHint("Permanently delete all settings and stored credentials")
-                .accessibilityIdentifier("resetAllSettingsButton")
             }
             .padding(AppConstants.SettingsUI.cardPadding)
-            .background(Color.red.opacity(0.06))
+            .background(DSColor.error.opacity(0.06))
             .clipShape(RoundedRectangle(cornerRadius: AppConstants.SettingsUI.cardCornerRadius))
             .overlay(
                 RoundedRectangle(cornerRadius: AppConstants.SettingsUI.cardCornerRadius)
-                    .stroke(Color.red.opacity(0.2), lineWidth: 1)
+                    .stroke(DSColor.error.opacity(0.2), lineWidth: 1)
             )
         }
         .onAppear {
@@ -371,16 +366,12 @@ struct AdvancedSettingsView: View {
                     .transition(.opacity)
             }
 
-            Button(role: .destructive, action: { showingClearLogsAlert = true }) {
-                Label("Clear Logs", systemImage: "trash")
-                    .font(.system(size: DSFont.Size.body, weight: .medium))
-                    .frame(maxWidth: .infinity)
-            }
-            .buttonStyle(.bordered)
-            .controlSize(.small)
-            .tint(.red)
-            .pointerCursor()
-            .accessibilityLabel("Clear application logs")
+            DestructiveButton(
+                title: "Clear Logs",
+                systemImage: "trash",
+                accessibilityIdentifier: "clearLogsButton",
+                action: { showingClearLogsAlert = true }
+            )
             .accessibilityHint("Erases the current log file")
         }
         .cardStyle()
@@ -421,10 +412,10 @@ struct AdvancedSettingsView: View {
             HStack(spacing: DSSpace.s3) {
                 Image(systemName: "info.circle.fill")
                     .font(.system(size: DSFont.Size.md))
-                    .foregroundStyle(.blue)
+                    .foregroundStyle(DSColor.info)
 
                 VStack(alignment: .leading, spacing: DSSpace.s1) {
-                    Text("Homebrew Installation Detected")
+                    Text("Homebrew installation detected")
                         .font(.system(size: DSFont.Size.body, weight: .semibold))
                     Text("Use Homebrew to check for and install updates.")
                         .font(.system(size: DSFont.Size.sm))
@@ -435,8 +426,8 @@ struct AdvancedSettingsView: View {
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(DSSpace.s3)
-            .background(Color.blue.opacity(0.08))
-            .clipShape(RoundedRectangle(cornerRadius: 6))
+            .background(DSColor.info.opacity(0.12))
+            .clipShape(RoundedRectangle(cornerRadius: DSRadius.sm))
 
             HStack(spacing: DSSpace.s2) {
                 Text("$ brew upgrade wolfwave")
@@ -454,7 +445,7 @@ struct AdvancedSettingsView: View {
             .padding(.horizontal, DSSpace.s3)
             .padding(.vertical, DSSpace.s2)
             .background(Color(nsColor: .textBackgroundColor))
-            .clipShape(RoundedRectangle(cornerRadius: 6))
+            .clipShape(RoundedRectangle(cornerRadius: DSRadius.sm))
         }
         .cardStyle()
     }
@@ -494,16 +485,16 @@ struct AdvancedSettingsView: View {
             HStack(spacing: DSSpace.s3) {
                 Image(systemName: "hammer.fill")
                     .font(.system(size: DSFont.Size.md))
-                    .foregroundStyle(.orange)
+                    .foregroundStyle(DSColor.warning)
 
-                Text("Development Build — update checks use dev-appcast.xml")
+                Text("Development build — update checks use dev-appcast.xml")
                     .font(.system(size: DSFont.Size.sm))
                     .foregroundStyle(.secondary)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(DSSpace.s3)
-            .background(Color.orange.opacity(0.08))
-            .clipShape(RoundedRectangle(cornerRadius: 6))
+            .background(DSColor.warning.opacity(0.12))
+            .clipShape(RoundedRectangle(cornerRadius: DSRadius.sm))
             #endif
 
             // Info banner reflecting actual toggle state
@@ -511,7 +502,7 @@ struct AdvancedSettingsView: View {
                 HStack(spacing: DSSpace.s3) {
                     Image(systemName: "checkmark.circle.fill")
                         .font(.system(size: DSFont.Size.md))
-                        .foregroundStyle(.green)
+                        .foregroundStyle(DSColor.success)
 
                     Text("Auto-updates on. We'll notify you of new versions.")
                         .font(.system(size: DSFont.Size.sm))
@@ -519,8 +510,8 @@ struct AdvancedSettingsView: View {
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(DSSpace.s3)
-                .background(Color.green.opacity(0.08))
-                .clipShape(RoundedRectangle(cornerRadius: 6))
+                .background(DSColor.success.opacity(0.12))
+                .clipShape(RoundedRectangle(cornerRadius: DSRadius.sm))
                 .transition(.opacity)
             } else if !updateCheckEnabled && !updateAvailable {
                 HStack(spacing: DSSpace.s3) {
@@ -534,8 +525,8 @@ struct AdvancedSettingsView: View {
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(DSSpace.s3)
-                .background(Color.gray.opacity(0.08))
-                .clipShape(RoundedRectangle(cornerRadius: 6))
+                .background(Color.secondary.opacity(0.08))
+                .clipShape(RoundedRectangle(cornerRadius: DSRadius.sm))
                 .transition(.opacity)
             }
 

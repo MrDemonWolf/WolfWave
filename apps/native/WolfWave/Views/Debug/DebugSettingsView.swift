@@ -35,7 +35,7 @@ struct DebugSettingsView: View {
                 }
                 .padding(.top, DSSpace.s3)
             } label: {
-                groupLabel("State & Diagnostics", systemImage: "scope", tint: .blue)
+                groupLabel("State & Diagnostics", systemImage: "scope", tint: DSColor.info)
             }
 
             DisclosureGroup(isExpanded: $controlsExpanded) {
@@ -46,7 +46,7 @@ struct DebugSettingsView: View {
                 }
                 .padding(.top, DSSpace.s3)
             } label: {
-                groupLabel("Active Controls", systemImage: "bolt.fill", tint: .orange)
+                groupLabel("Active Controls", systemImage: "bolt.fill", tint: DSColor.warning)
             }
         }
     }
@@ -59,7 +59,7 @@ struct DebugSettingsView: View {
                 HStack(spacing: DSSpace.s2) {
                     Image(systemName: "ladybug.fill")
                         .font(.system(size: DSFont.Size.x18))
-                        .foregroundStyle(.orange)
+                        .foregroundStyle(DSColor.warning)
                     Text("Debug Tools")
                         .sectionHeader()
                 }
