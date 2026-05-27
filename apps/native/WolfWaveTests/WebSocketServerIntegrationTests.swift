@@ -225,4 +225,69 @@ final class WebSocketServerIntegrationTests: XCTestCase, @unchecked Sendable {
         task.cancel(with: .normalClosure, reason: nil)
         Task { await service.setEnabled(false) }
     }
+
+    /// `updateNowPlaying(isPaused: true)` must broadcast `isPlaying:false` so
+    /// the overlay widget renders the paused affordance instead of treating
+    /// the track as live.
+    func testUpdateNowPlaying_isPaused_broadcastsNotPlaying() {
+        let port: UInt16 = 59010
+        let service = WebSocketServerService(port: port)
+
+        let listening = expectation(description: "server listening")
+        let listenObs = observe(service, fulfilling: listening) { state, _ in state == .listening }
+        Task { await service.setEnabled(true) }
+        wait(for: [listening], timeout: 5)
+        listenObs.cancel()
+
+        // Open the client before seeding so we capture the live `now_playing`
+        // broadcast rather than the replay frame.
+        guard let url = URL(string: "ws://127.0.0.1:\(port)/") else {
+            XCTFail("bad ws url"); return
+        }
+        let session = URLSession(configuration: .ephemeral)
+        let task = session.webSocketTask(with: url)
+        task.resume()
+
+        let gotPaused = expectation(description: "received paused now_playing")
+        func recv() {
+            task.receive { result in
+                switch result {
+                case .success(let message):
+                    let text: String
+                    switch message {
+                    case .string(let str): text = str
+                    case .data(let data): text = String(data: data, encoding: .utf8) ?? ""
+                    @unknown default: text = ""
+                    }
+                    if text.contains("\"type\":\"now_playing\"")
+                        && text.contains("Paused Track")
+                        && text.contains("\"isPlaying\":false") {
+                        gotPaused.fulfill()
+                        return
+                    }
+                    recv()
+                case .failure:
+                    return
+                }
+            }
+        }
+        recv()
+
+        Task {
+            await service.updateNowPlaying(
+                track: "Paused Track",
+                artist: "Test Artist",
+                album: "Test Album",
+                duration: 200,
+                elapsed: 12,
+                artworkURL: nil,
+                isPaused: true
+            )
+        }
+
+        wait(for: [gotPaused], timeout: 5)
+
+        task.cancel(with: .normalClosure, reason: nil)
+        Task { await service.setEnabled(false) }
+    }
 }

@@ -115,6 +115,10 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     var currentPlaylist: String?
     var currentDuration: TimeInterval = 0
     var currentElapsed: TimeInterval = 0
+    /// `true` while the loaded track is paused in the active source. Drives
+    /// the paused affordances in Discord Rich Presence, the OBS widget, and
+    /// `NowPlayingHeroCard` without clearing the now-playing snapshot.
+    var currentIsPaused: Bool = false
     var lastSong: String?
     var lastArtist: String?
 
@@ -218,13 +222,14 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     // MARK: - Track Display Updates
 
     /// Posts a `nowPlayingChanged` notification for settings view observers.
-    func postNowPlayingUpdate(song: String?, artist: String?, album: String?, playlist: String? = nil) {
+    func postNowPlayingUpdate(song: String?, artist: String?, album: String?, playlist: String? = nil, isPaused: Bool = false) {
         Task { @MainActor in
             var userInfo: [String: Any] = [:]
             if let song { userInfo["track"] = song }
             if let artist { userInfo["artist"] = artist }
             if let album { userInfo["album"] = album }
             if let playlist { userInfo["playlist"] = playlist }
+            userInfo["isPaused"] = isPaused
             NotificationCenter.default.post(
                 name: .nowPlayingChanged,
                 object: nil,

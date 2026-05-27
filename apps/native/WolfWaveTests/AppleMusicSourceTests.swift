@@ -129,4 +129,45 @@ final class AppleMusicSourceTests: XCTestCase {
         XCTAssertNil(AppleMusicSource.extractPlayerState(Bogus()))
         XCTAssertNil(AppleMusicSource.extractPlayerState([1, 2, 3]))
     }
+
+    // MARK: - Paused state distinct from playing
+
+    /// `kPSp` (paused) and `kPSP` (playing) MUST decode to different FourCharCode
+    /// values — the paused affordance in Discord/widget/UI keys off the
+    /// difference. Regression guard for callers that try to collapse them.
+    func testPausedAndPlayingDecodeDistinctValues() {
+        let playing = AppleMusicSource.extractPlayerState("kPSP")
+        let paused = AppleMusicSource.extractPlayerState("kPSp")
+        XCTAssertNotNil(playing)
+        XCTAssertNotNil(paused)
+        XCTAssertNotEqual(playing, paused)
+        XCTAssertEqual(paused, Self.kPSp)
+    }
+
+    /// Protocol compile-time guard: any conforming delegate must accept
+    /// `isPaused`. If a future refactor accidentally drops the param, this
+    /// stub won't compile.
+    func testPlaybackSourceDelegateProtocolIncludesIsPaused() {
+        final class CaptureDelegate: PlaybackSourceDelegate {
+            var lastIsPaused: Bool?
+            func playbackSource(
+                didUpdateTrack track: String,
+                artist: String,
+                album: String,
+                playlist: String,
+                duration: TimeInterval,
+                elapsed: TimeInterval,
+                isPaused: Bool
+            ) {
+                lastIsPaused = isPaused
+            }
+            func playbackSource(didUpdateStatus status: String) {}
+        }
+        let cap = CaptureDelegate()
+        cap.playbackSource(
+            didUpdateTrack: "T", artist: "A", album: "Al",
+            playlist: "P", duration: 100, elapsed: 10, isPaused: true
+        )
+        XCTAssertEqual(cap.lastIsPaused, true)
+    }
 }

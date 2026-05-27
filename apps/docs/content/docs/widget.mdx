@@ -61,6 +61,21 @@ fields server-side is safe, renaming fields requires a coordinated change.
 
 The widget never sends back. The native app pushes, the browser renders.
 
+## Paused playback
+
+When Music.app reports the loaded track as paused (`kPSp`), the widget stays
+on stream — the card is **not** hidden. Instead:
+
+- The widget root gains the `.is-paused` class
+- Album artwork drops to ~55% opacity with reduced saturation
+- A pause glyph overlays the artwork
+- The progress bar transition is cut so the bar visibly freezes the moment
+  pause arrives
+
+The card only fades out on a genuine "track cleared" event (Music.app quits,
+permission revoked, or tracking disabled). Hitting pause keeps the song
+context visible so chat knows the integration is still healthy.
+
 ## Themes and layouts
 
 Themes and layouts live in `design-system/tokens.json` under `widget.themes`

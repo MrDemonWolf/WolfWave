@@ -211,3 +211,37 @@ body {
   position: absolute;
   inset: 0;
 }
+
+/* ─── 6. Paused state ──────────────────────────────────────────────────────
+ *
+ * Set on `#widget` by `buildWidget()` when the server reports `isPlaying:false`
+ * on a still-loaded track. The card stays on stream — we just dim the
+ * artwork, desaturate it slightly, and overlay a pause glyph. The progress
+ * bar freezes naturally because `startProgressLoop` is suspended.
+ *
+ * Why dim + glyph instead of hiding? Hiding made viewers think the integration
+ * broke when the streamer pause-buffered to chat. The paused affordance keeps
+ * the song context visible so chat knows "track is still loaded, just paused."
+ * ──────────────────────────────────────────────────────────────────────── */
+
+.pause-overlay {
+  opacity: 0;
+  transition: opacity 200ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+#widget.is-paused .artwork {
+  opacity: 0.55;
+  filter: saturate(0.6);
+  transition: opacity 240ms cubic-bezier(0.4, 0, 0.2, 1),
+              filter 240ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+#widget.is-paused .pause-overlay {
+  opacity: 1;
+}
+
+#widget.is-paused .progress-fill {
+  /* Cut the 1s linear interpolation so the bar visibly stops the moment
+   * we go paused, instead of crawling another second forward. */
+  transition: none;
+}

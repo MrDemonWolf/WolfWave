@@ -36,13 +36,17 @@ protocol PlaybackSourceDelegate: AnyObject {
     ///   - playlist: Current playlist name (may be empty when unavailable).
     ///   - duration: Total track duration in seconds.
     ///   - elapsed: Current playhead position in seconds.
+    ///   - isPaused: `true` when the source reports the loaded track as paused
+    ///     (Music.app `kPSp`). The track stays "loaded" — Discord, the widget,
+    ///     and the now-playing UI keep showing it but render a paused affordance.
     func playbackSource(
         didUpdateTrack track: String,
         artist: String,
         album: String,
         playlist: String,
         duration: TimeInterval,
-        elapsed: TimeInterval
+        elapsed: TimeInterval,
+        isPaused: Bool
     )
 
     /// Called when only the playback status changes (paused, stopped, no track).

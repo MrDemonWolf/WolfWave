@@ -202,6 +202,49 @@ final class DiscordPresenceBuilderTests: XCTestCase {
         XCTAssertEqual(stamps?["end"], 1_700_000_150_000)
     }
 
+    // MARK: - buildActivity + paused state
+
+    func test_buildActivity_paused_omitsTimestamps() {
+        let activity = DiscordRPCService.buildActivity(
+            track: "T", artist: "A", album: "Al",
+            artworkURL: nil, duration: 180, elapsed: 30,
+            appleMusicURL: nil, songLinkURL: nil,
+            isPaused: true,
+            defaults: defaults, now: Date()
+        )
+        // Discord has no paused flag — we stop the live ticker by dropping
+        // `timestamps` entirely while paused.
+        XCTAssertNil(activity["timestamps"])
+    }
+
+    func test_buildActivity_paused_swapsSmallImageAndTooltip() {
+        let activity = DiscordRPCService.buildActivity(
+            track: "T", artist: "A", album: "Al",
+            artworkURL: nil, duration: 180, elapsed: 30,
+            appleMusicURL: nil, songLinkURL: nil,
+            isPaused: true,
+            defaults: defaults, now: Date()
+        )
+        let assets = activity["assets"] as? [String: String]
+        XCTAssertEqual(assets?["small_image"], "pause")
+        XCTAssertEqual(assets?["small_text"], "Paused")
+        // Album art / large image untouched.
+        XCTAssertEqual(assets?["large_image"], "apple_music")
+    }
+
+    func test_buildActivity_playing_keepsTimestamps() {
+        let activity = DiscordRPCService.buildActivity(
+            track: "T", artist: "A", album: "Al",
+            artworkURL: nil, duration: 180, elapsed: 30,
+            appleMusicURL: nil, songLinkURL: nil,
+            isPaused: false,
+            defaults: defaults, now: Date()
+        )
+        XCTAssertNotNil(activity["timestamps"])
+        let assets = activity["assets"] as? [String: String]
+        XCTAssertEqual(assets?["small_image"], "apple_music")
+    }
+
     func test_buildActivity_assetsAlwaysIncludeFallbackImage() {
         let activity = DiscordRPCService.buildActivity(
             track: "T", artist: "A", album: "Album Name",

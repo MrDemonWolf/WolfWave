@@ -17,6 +17,7 @@ struct DebugServiceControlsCard: View {
     @State private var fakeAlbum: String = "Test Album"
     @State private var fakePlaylist: String = "Test Playlist"
     @State private var fakeDuration: Double = 180
+    @State private var fakeIsPaused: Bool = false
     @State private var queueRequester: String = "tester"
     @State private var queueCount: Int = 3
     @State private var wsTestTitle: String = "WS Test"
@@ -67,6 +68,8 @@ struct DebugServiceControlsCard: View {
                     .foregroundStyle(.secondary)
                 Slider(value: $fakeDuration, in: 30...600, step: 15)
             }
+            Toggle("Inject as paused", isOn: $fakeIsPaused)
+                .font(.system(size: DSFont.Size.sm))
             HStack {
                 Button {
                     appDelegate?.playbackSource(
@@ -75,7 +78,8 @@ struct DebugServiceControlsCard: View {
                         album: fakeAlbum,
                         playlist: fakePlaylist,
                         duration: fakeDuration,
-                        elapsed: 0
+                        elapsed: 0,
+                        isPaused: fakeIsPaused
                     )
                 } label: {
                     Label("Inject Track", systemImage: "music.note")

@@ -126,8 +126,28 @@ The bot is implemented with `TwitchChatService` using Twitch Helix + EventSub (n
 ### Usage
 
 - Start the service: `connect()` — discovers and connects to Discord's IPC socket.
-- Update presence: `updatePresence(track:artist:album:duration:elapsed:)` — sets the listening activity.
+- Update presence: `updatePresence(track:artist:album:duration:elapsed:isPaused:)` — sets the listening activity. Pass `isPaused: true` when Music.app reports `kPSp` so the live ticker is suppressed and the pause badge swaps in.
 - Clear presence: `clearPresence()` — removes the activity from the user's profile.
+
+### Paused-state handling
+
+Discord has no native "paused" activity flag. WolfWave works around it with two changes inside `buildActivity` when `isPaused == true`:
+
+1. The `timestamps` block is omitted — without `start`/`end` the Discord client stops the progress ticker instead of marching past the real elapsed value.
+2. `assets.small_image` is swapped from `apple_music` to `pause` and `assets.small_text` becomes `"Paused"`.
+
+The track text, large image, and buttons stay unchanged so chat can still read what's loaded.
+
+### Rich Presence art assets (required upload)
+
+`small_image` / `large_image` reference asset names registered against your Discord application. The PNGs live in [`discord-assets/`](https://github.com/MrDemonWolf-Inc/wolfwave/tree/main/discord-assets) and are **not** bundled with the app — you upload them once via the Discord developer portal.
+
+| Asset name | Used when |
+|---|---|
+| `apple_music` | Default `large_image` fallback + `small_image` "source" badge while playing |
+| `pause` | `small_image` badge that replaces `apple_music` while paused |
+
+**Fork maintainers**: if you ship WolfWave with your own `DISCORD_CLIENT_ID`, you must upload both assets to your Discord application's **Rich Presence → Art Assets** page before Rich Presence will render correctly. See [`discord-assets/README.md`](https://github.com/MrDemonWolf-Inc/wolfwave/blob/main/discord-assets/README.md) for the upload steps and asset specs.
 
 ## WebSocket Server Service
 

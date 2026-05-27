@@ -152,6 +152,7 @@ actor DiscordRPCService {
         let playlist: String
         let duration: TimeInterval
         let elapsed: TimeInterval
+        let isPaused: Bool
         let capturedAt: Date
     }
     private var lastPresence: LastPresence?
@@ -251,13 +252,18 @@ actor DiscordRPCService {
     ///   - playlist: Current Apple Music playlist name (empty if none / unknown).
     ///   - duration: Total track duration in seconds (0 if unknown).
     ///   - elapsed: Elapsed time in seconds (0 if unknown).
+    ///   - isPaused: `true` when the loaded track is paused. Discord has no
+    ///     native paused flag — when set we omit `timestamps` (stops the live
+    ///     ticker) and swap `small_image` to a `pause` art asset with a
+    ///     `"Paused"` tooltip. Track text stays unchanged.
     func updatePresence(
         track: String,
         artist: String,
         album: String,
         playlist: String,
         duration: TimeInterval = 0,
-        elapsed: TimeInterval = 0
+        elapsed: TimeInterval = 0,
+        isPaused: Bool = false
     ) {
         guard state == .connected else { return }
 
@@ -268,7 +274,8 @@ actor DiscordRPCService {
             artworkURL: cached.artworkURL,
             duration: duration, elapsed: elapsed,
             appleMusicURL: cached.trackViewURL,
-            songLinkURL: cached.songLinkURL
+            songLinkURL: cached.songLinkURL,
+            isPaused: isPaused
         )
 
         // Fetch track links asynchronously on cache miss
@@ -285,7 +292,8 @@ actor DiscordRPCService {
                     guard let self else { return }
                     await self.handleResolvedLinks(
                         track: track, artist: artist, album: album, playlist: playlist,
-                        links: links, duration: duration, elapsed: elapsed
+                        links: links, duration: duration, elapsed: elapsed,
+                        isPaused: isPaused
                     )
                 }
             }
@@ -316,7 +324,8 @@ actor DiscordRPCService {
         playlist: String,
         links: TrackLinks,
         duration: TimeInterval,
-        elapsed: TimeInterval
+        elapsed: TimeInterval,
+        isPaused: Bool
     ) {
         if state == .connected {
             sendPresenceActivity(
@@ -324,7 +333,8 @@ actor DiscordRPCService {
                 artworkURL: links.artworkURL,
                 duration: duration, elapsed: elapsed,
                 appleMusicURL: links.trackViewURL,
-                songLinkURL: links.songLinkURL
+                songLinkURL: links.songLinkURL,
+                isPaused: isPaused
             )
         }
         // Notify listeners (e.g., WebSocket server) only when artwork is resolved
@@ -372,12 +382,14 @@ actor DiscordRPCService {
         duration: TimeInterval,
         elapsed: TimeInterval,
         appleMusicURL: String? = nil,
-        songLinkURL: String? = nil
+        songLinkURL: String? = nil,
+        isPaused: Bool = false
     ) {
         // Cache so settings changes can trigger a re-send without waiting for the next track.
         lastPresence = LastPresence(
             track: track, artist: artist, album: album, playlist: playlist,
             duration: duration, elapsed: elapsed,
+            isPaused: isPaused,
             capturedAt: Date()
         )
 
@@ -391,6 +403,7 @@ actor DiscordRPCService {
             elapsed: elapsed,
             appleMusicURL: appleMusicURL,
             songLinkURL: songLinkURL,
+            isPaused: isPaused,
             defaults: .standard,
             now: Date()
         )
@@ -431,7 +444,8 @@ actor DiscordRPCService {
             duration: snap.duration,
             elapsed: elapsed,
             appleMusicURL: cached.trackViewURL,
-            songLinkURL: cached.songLinkURL
+            songLinkURL: cached.songLinkURL,
+            isPaused: snap.isPaused
         )
     }
 
@@ -455,6 +469,7 @@ actor DiscordRPCService {
         elapsed: TimeInterval,
         appleMusicURL: String?,
         songLinkURL: String?,
+        isPaused: Bool = false,
         defaults: UserDefaults,
         now: Date
     ) -> [String: Any] {
@@ -472,14 +487,24 @@ actor DiscordRPCService {
         ]
 
         let largeImage = artworkURL ?? "apple_music"
+        // When paused: swap the small badge to the "pause" art asset (uploaded
+        // to the Discord developer portal — see discord-assets/README.md) and
+        // override the tooltip. Source-of-truth keeps `large_image` intact so
+        // album art still shows.
+        let smallImageKey = isPaused ? "pause" : "apple_music"
+        let smallTextValue = isPaused ? "Paused" : smallText(playlist: playlistDisplay, style: style)
         activity["assets"] = [
             "large_image": largeImage,
             "large_text": album,
-            "small_image": "apple_music",
-            "small_text": smallText(playlist: playlistDisplay, style: style),
+            "small_image": smallImageKey,
+            "small_text": smallTextValue,
         ]
 
-        if duration > 0 {
+        // Discord has no native paused flag. Omitting `timestamps` stops the
+        // live ticker on the client so it doesn't keep counting up past the
+        // real elapsed value while the user is paused. Resumes will rebuild
+        // the timestamps from the next non-paused update.
+        if duration > 0 && !isPaused {
             let nowEpoch = now.timeIntervalSince1970
             let start = nowEpoch - elapsed
             let end = start + duration

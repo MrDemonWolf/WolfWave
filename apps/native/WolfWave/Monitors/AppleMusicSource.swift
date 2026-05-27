@@ -198,12 +198,16 @@ final class AppleMusicSource: PlaybackSource, @unchecked Sendable {
             let elapsed = (musicApp.value(forKey: "playerPosition") as? Double) ?? 0
             let playlist = (musicApp.value(forKey: "currentPlaylist") as? SBObject)?
                 .value(forKey: "name") as? String ?? ""
+            // Paused only when Music.app explicitly reports `kPSp`. ffwd/rewind
+            // and the unknown-bridge fallback path both count as "playing".
+            let isPaused = stateRaw == Constants.playerStatePaused
             let combined = trackName + Constants.trackSeparator
                 + artist + Constants.trackSeparator
                 + album + Constants.trackSeparator
                 + String(duration) + Constants.trackSeparator
                 + String(elapsed) + Constants.trackSeparator
-                + playlist
+                + playlist + Constants.trackSeparator
+                + (isPaused ? "1" : "0")
             let diag: String? = fallbackFired
                 ? "raw=\(stateObj) type=\(stateTypeDesc)"
                 : nil
@@ -267,10 +271,10 @@ final class AppleMusicSource: PlaybackSource, @unchecked Sendable {
         }
     }
 
-    nonisolated private func notifyDelegate(track: String, artist: String, album: String, playlist: String, duration: TimeInterval, elapsed: TimeInterval) {
+    nonisolated private func notifyDelegate(track: String, artist: String, album: String, playlist: String, duration: TimeInterval, elapsed: TimeInterval, isPaused: Bool) {
         Task { @MainActor [weak self] in
             guard let self else { return }
-            self.delegate?.playbackSource(didUpdateTrack: track, artist: artist, album: album, playlist: playlist, duration: duration, elapsed: elapsed)
+            self.delegate?.playbackSource(didUpdateTrack: track, artist: artist, album: album, playlist: playlist, duration: duration, elapsed: elapsed, isPaused: isPaused)
         }
     }
 
@@ -283,12 +287,15 @@ final class AppleMusicSource: PlaybackSource, @unchecked Sendable {
         let duration = components.count > 3 ? (Double(components[3]) ?? 0) : 0
         let elapsed = components.count > 4 ? (Double(components[4]) ?? 0) : 0
         let playlist = components.count > 5 ? components[5] : ""
+        // Component 6 is the paused flag ("1"/"0"). Older callers that
+        // don't append it fall back to "playing".
+        let isPaused = components.count > 6 ? (components[6] == "1") : false
         stateLock.withLock {
             lastTrackSeenAt = Date()
             // Reset the guard-log dedup gate so a future failure logs again.
             lastGuardLogged = nil
         }
-        notifyDelegate(track: trackName, artist: artist, album: album, playlist: playlist, duration: duration, elapsed: elapsed)
+        notifyDelegate(track: trackName, artist: artist, album: album, playlist: playlist, duration: duration, elapsed: elapsed, isPaused: isPaused)
         logTrackIfNew(trackInfo, trackName: trackName, artist: artist, album: album)
     }
 

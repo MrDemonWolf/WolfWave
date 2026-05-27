@@ -24,6 +24,10 @@ struct NowPlayingHeroCard: View {
     var elapsed: TimeInterval = 0
     var duration: TimeInterval = 0
     var trackingEnabled: Bool = true
+    /// Renders the paused affordance: dimmed artwork, pause glyph overlay,
+    /// frozen scrubber. The track text and subtitle remain at full opacity
+    /// so the loaded song is still readable.
+    var isPaused: Bool = false
 
     // MARK: - Body
 
@@ -32,11 +36,15 @@ struct NowPlayingHeroCard: View {
             artworkView
 
             VStack(alignment: .leading, spacing: DSSpace.s1) {
-                Text("Now playing")
-                    .font(.system(size: DSFont.Size.sm, weight: .semibold))
-                    .foregroundStyle(.tertiary)
-                    .textCase(.uppercase)
-                    .tracking(0.6)
+                HStack(spacing: DSSpace.s2) {
+                    Text(isPaused && track != nil ? "Paused" : "Now playing")
+                        .font(.system(size: DSFont.Size.sm, weight: .semibold))
+                        .foregroundStyle(.tertiary)
+                        .textCase(.uppercase)
+                        .tracking(0.6)
+                        .contentTransition(.opacity)
+                        .id(isPaused)
+                }
 
                 Text(track ?? (trackingEnabled ? "Nothing playing right now" : "Sync Music is off"))
                     .font(.system(size: DSFont.Size.x18, weight: .semibold))
@@ -75,7 +83,22 @@ struct NowPlayingHeroCard: View {
     @ViewBuilder
     private var artworkView: some View {
         if track != nil {
-            AlbumArtView(image: artwork, size: 92)
+            ZStack {
+                AlbumArtView(image: artwork, size: 92)
+                    .opacity(isPaused ? 0.55 : 1)
+                    .saturation(isPaused ? 0.6 : 1)
+                    .animation(reduceMotion ? nil : .easeInOut(duration: DSMotion.Duration.base), value: isPaused)
+
+                if isPaused {
+                    Image(systemName: "pause.circle.fill")
+                        .font(.system(size: DSFont.Size.x26, weight: .semibold))
+                        .symbolRenderingMode(.palette)
+                        .foregroundStyle(.white, .black.opacity(0.55))
+                        .shadow(color: .black.opacity(0.35), radius: 6, y: 2)
+                        .transition(.opacity.combined(with: .scale))
+                }
+            }
+            .accessibilityLabel(isPaused ? "Paused" : "Now playing")
         } else {
             ZStack {
                 RoundedRectangle(cornerRadius: 10, style: .continuous)
@@ -91,7 +114,7 @@ struct NowPlayingHeroCard: View {
     @ViewBuilder
     private var progressBar: some View {
         HStack(spacing: DSSpace.s3) {
-            TimelineView(.animation(minimumInterval: 0.1, paused: reduceMotion)) { _ in
+            TimelineView(.animation(minimumInterval: 0.1, paused: reduceMotion || isPaused)) { _ in
                 let fraction = duration > 0 ? min(max(elapsed / duration, 0), 1) : 0
                 ProgressView(value: fraction)
                     .progressViewStyle(.linear)
@@ -131,7 +154,7 @@ struct NowPlayingHeroCard: View {
         guard let track else {
             return trackingEnabled ? "Nothing playing right now" : "Sync Music is off"
         }
-        var label = "Now playing: \(track)"
+        var label = isPaused ? "Paused: \(track)" : "Now playing: \(track)"
         if let artist { label += ", by \(artist)" }
         if let album { label += ", on \(album)" }
         return label
@@ -145,6 +168,20 @@ struct NowPlayingHeroCard: View {
         album: "Midnights",
         elapsed: 68,
         duration: 201
+    )
+    .padding()
+    .frame(width: 720)
+    .background(Color(nsColor: .underPageBackgroundColor))
+}
+
+#Preview("Paused") {
+    NowPlayingHeroCard(
+        track: "Anti-Hero",
+        artist: "Taylor Swift",
+        album: "Midnights",
+        elapsed: 68,
+        duration: 201,
+        isPaused: true
     )
     .padding()
     .frame(width: 720)

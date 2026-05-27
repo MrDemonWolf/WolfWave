@@ -36,6 +36,7 @@ struct MusicMonitorSettingsView: View {
     @State private var currentTrack: String?
     @State private var currentArtist: String?
     @State private var currentAlbum: String?
+    @State private var currentIsPaused: Bool = false
 
     // MARK: - Integration status
 
@@ -99,7 +100,8 @@ struct MusicMonitorSettingsView: View {
                         track: currentTrack,
                         artist: currentArtist,
                         album: currentAlbum,
-                        trackingEnabled: trackingEnabled
+                        trackingEnabled: trackingEnabled,
+                        isPaused: currentIsPaused
                     )
                 }
             }
@@ -145,6 +147,7 @@ struct MusicMonitorSettingsView: View {
                 currentTrack = notification.userInfo?["track"] as? String
                 currentArtist = notification.userInfo?["artist"] as? String
                 currentAlbum = notification.userInfo?["album"] as? String
+                currentIsPaused = notification.userInfo?["isPaused"] as? Bool ?? false
             }
             // A successful track read implies the user has granted access.
             if currentTrack != nil, permissionState == .denied {
@@ -427,6 +430,7 @@ struct MusicMonitorSettingsView: View {
             currentTrack = appDelegate.currentSong
             currentArtist = appDelegate.currentArtist
             currentAlbum = appDelegate.currentAlbum
+            currentIsPaused = appDelegate.currentIsPaused
         }
     }
 

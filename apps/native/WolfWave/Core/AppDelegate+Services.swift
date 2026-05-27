@@ -617,9 +617,11 @@ extension AppDelegate: PlaybackSourceDelegate {
         album: String,
         playlist: String,
         duration: TimeInterval,
-        elapsed: TimeInterval
+        elapsed: TimeInterval,
+        isPaused: Bool
     ) {
-        if currentSong != track {
+        let isSameTrack = currentSong == track
+        if !isSameTrack {
             // The outgoing track's last polled playhead position (`currentElapsed`)
             // is how far it actually played — hand it to history before we
             // overwrite the now-playing state.
@@ -641,7 +643,9 @@ extension AppDelegate: PlaybackSourceDelegate {
             recentTracks.push(RecentTrack(title: track, artist: artist, playedAt: Date()))
 
             // Suppress the first track after launch (it was already playing);
-            // notify on every genuine change thereafter.
+            // notify on every genuine change thereafter. Pause/resume of the
+            // same track is filtered above by the `isSameTrack` guard so
+            // toggling play state never re-fires the banner.
             if hasSeenInitialTrack {
                 maybePostSongChangeNotification(track: track, artist: artist, album: album)
             }
@@ -654,8 +658,9 @@ extension AppDelegate: PlaybackSourceDelegate {
         currentPlaylist = playlist
         currentDuration = duration
         currentElapsed = elapsed
+        currentIsPaused = isPaused
 
-        postNowPlayingUpdate(song: track, artist: artist, album: album, playlist: playlist)
+        postNowPlayingUpdate(song: track, artist: artist, album: album, playlist: playlist, isPaused: isPaused)
 
         Task { [weak self] in
             await self?.websocketServer?.updateNowPlaying(
@@ -663,7 +668,8 @@ extension AppDelegate: PlaybackSourceDelegate {
                 artist: artist,
                 album: album,
                 duration: duration,
-                elapsed: elapsed
+                elapsed: elapsed,
+                isPaused: isPaused
             )
         }
 
@@ -677,7 +683,8 @@ extension AppDelegate: PlaybackSourceDelegate {
                     album: album,
                     playlist: playlist,
                     duration: duration,
-                    elapsed: elapsed
+                    elapsed: elapsed,
+                    isPaused: isPaused
                 )
             }
         }
@@ -716,6 +723,7 @@ extension AppDelegate: PlaybackSourceDelegate {
             currentArtist = nil
             currentAlbum = nil
             currentPlaylist = nil
+            currentIsPaused = false
         }
 
         if status == "Music access denied" {

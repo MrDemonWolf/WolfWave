@@ -459,6 +459,10 @@ function buildWidget(): void {
   const duration = nowPlaying.duration || 0;
   const progress = duration > 0 ? Math.min((elapsed / duration) * 100, 100) : 0;
   const remaining = duration > 0 ? Math.max(duration - elapsed, 0) : 0;
+  // Paused affordance: track stays on stream but artwork dims and a pause
+  // glyph overlays the album art. CSS keys off the `.is-paused` root class.
+  const isPaused = nowPlaying.isPlaying === false;
+  el.classList.toggle("is-paused", isPaused);
 
   // Container styles. We write theme-driven values inline (the themes are
   // runtime-swappable, so utility classes can't pre-compile them).
@@ -475,14 +479,31 @@ function buildWidget(): void {
    * SVG fallback (wolf mark on brand-blue gradient). Keep the SVG in sync
    * with Assets.xcassets/WolfMark.imageset/WolfMark.svg.
    */
+  function pauseOverlay(w: number, radius: string): string {
+    const glyph = Math.max(Math.round(w * 0.42), 18);
+    return (
+      '<div class="pause-overlay" aria-hidden="true" style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;border-radius:' + radius + ';pointer-events:none;">' +
+      '<div class="pause-overlay-bg" style="width:' + glyph + "px;height:" + glyph + 'px;border-radius:9999px;background:rgba(0,0,0,0.55);backdrop-filter:blur(6px);display:flex;align-items:center;justify-content:center;">' +
+      '<svg width="' + Math.round(glyph * 0.55) + '" height="' + Math.round(glyph * 0.55) + '" viewBox="0 0 24 24" fill="#FFFFFF">' +
+      '<rect x="6" y="5" width="4" height="14" rx="1.2"/>' +
+      '<rect x="14" y="5" width="4" height="14" rx="1.2"/>' +
+      "</svg>" +
+      "</div>" +
+      "</div>"
+    );
+  }
+
   function artImg(w: number, h: number, radius: string): string {
     let artURL = nowPlaying!.artworkURL || null;
     if (artURL && !artURL.startsWith("http://") && !artURL.startsWith("https://")) {
       artURL = null;
     }
+    const wrapOpen = '<div class="artwork-wrap" style="position:relative;display:inline-block;width:' + w + "px;height:" + h + 'px;">';
+    const wrapClose = pauseOverlay(w, radius) + "</div>";
     if (!artURL) {
       const mark = Math.round(w * 0.52);
       return (
+        wrapOpen +
         '<div class="artwork flex items-center justify-center" style="width:' + w + "px;height:" + h + "px;border-radius:" + radius + ";background:linear-gradient(135deg,#0A84FF,#003A78);box-shadow:0 2px 8px rgba(0,0,0,0.3);\">" +
         '<svg width="' + mark + '" height="' + mark + '" viewBox="0 0 100 100" fill="#FFFFFF">' +
         '<rect x="24" y="43" width="3.5" height="30" rx="1.75"/>' +
@@ -502,15 +523,18 @@ function buildWidget(): void {
         '<ellipse cx="50" cy="52" rx="18" ry="17.5"/>' +
         '<ellipse cx="50" cy="63" rx="11" ry="8"/>' +
         "</svg>" +
-        "</div>"
+        "</div>" +
+        wrapClose
       );
     }
     // Encode the URL once. Music.app artwork is iTunes CDN, but a malicious
     // mock server could theoretically send a quote in the URL — encode it.
     const safeURL = encodeURI(artURL).replace(/'/g, "%27").replace(/"/g, "%22");
     return (
+      wrapOpen +
       '<img class="artwork" src="' + safeURL + '" crossorigin="anonymous" ' +
-      'style="width:' + w + "px;height:" + h + "px;border-radius:" + radius + ";object-fit:cover;box-shadow:0 2px 8px rgba(0,0,0,0.3);\">"
+      'style="width:' + w + "px;height:" + h + "px;border-radius:" + radius + ";object-fit:cover;box-shadow:0 2px 8px rgba(0,0,0,0.3);\">" +
+      wrapClose
     );
   }
 
@@ -676,9 +700,14 @@ function handleMessage(msg: WSMessage): void {
         buildWidget();
       }
 
+      // Show the card whether the track is playing OR paused — paused tracks
+      // still belong on stream with a paused affordance. `exitWidget` only
+      // fires from the server-driven "track cleared" path.
+      if (!visible) enterWidget();
       if (data.isPlaying) {
-        if (!visible) enterWidget();
         startProgressLoop();
+      } else {
+        stopProgressLoop();
       }
       break;
     }
@@ -695,10 +724,13 @@ function handleMessage(msg: WSMessage): void {
         // Freeze elapsed at current computed value so resume doesn't jump.
         elapsedRef = { value: elapsed, timestamp: Date.now(), isPlaying: false };
         stopProgressLoop();
-        exitWidget();
+        // Don't exit — paused track stays on stream with `.is-paused` styling.
+        // Re-render so the pause overlay + dim filter apply.
+        buildWidget();
       } else {
         elapsedRef = { value: elapsed, timestamp: Date.now(), isPlaying: true };
         if (!visible) enterWidget();
+        buildWidget();
         startProgressLoop();
       }
       break;

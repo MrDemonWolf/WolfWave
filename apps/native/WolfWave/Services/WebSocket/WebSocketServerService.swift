@@ -200,25 +200,35 @@ actor WebSocketServerService {
     }
 
     /// Stores new track metadata and broadcasts a `now_playing` message to all clients.
+    ///
+    /// - Parameter isPaused: `true` when the underlying source reports the
+    ///   loaded track as paused. The broadcast still goes out so overlay
+    ///   clients can render a paused affordance; the progress ticker is
+    ///   suspended while paused and resumed on the next non-paused update.
     func updateNowPlaying(
         track: String,
         artist: String,
         album: String,
         duration: TimeInterval,
         elapsed: TimeInterval,
-        artworkURL: String? = nil
+        artworkURL: String? = nil,
+        isPaused: Bool = false
     ) {
         currentTrack = track
         currentArtist = artist
         currentAlbum = album
         currentDuration = duration
         currentElapsed = elapsed
-        isPlaying = true
+        isPlaying = !isPaused
         lastElapsedUpdate = Date()
         if let artworkURL { currentArtworkURL = artworkURL }
 
         broadcastNowPlaying()
-        startProgressTimer()
+        if isPaused {
+            stopProgressTimer()
+        } else {
+            startProgressTimer()
+        }
     }
 
     /// Updates the artwork URL and re-broadcasts the current track to all clients.
