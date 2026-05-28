@@ -253,7 +253,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     /// `AppleMusicSource` playerState rules, so chat sees `⏸️ Paused:` instead
     /// of the silent fallback that confused viewers in earlier builds.
     func getCurrentSongInfo() -> String {
-        guard isMusicAppOpen() else { return "🐺 Please open Apple Music" }
+        guard isMusicAppOpen() else { return "🐺 The streamer needs to open Apple Music" }
         guard let song = currentSong, let artist = currentArtist else { return "🐺 Nothing playing right now" }
         let verb = currentIsPaused ? "⏸️ Paused" : "▶️ Playing"
         return "🐺 \(verb): \(song) by \(artist)"
@@ -261,7 +261,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
     /// Returns a formatted string with the previously played track for Twitch bot commands.
     func getLastSongInfo() -> String {
-        guard isMusicAppOpen() else { return "🐺 Please open Apple Music" }
+        guard isMusicAppOpen() else { return "🐺 The streamer needs to open Apple Music" }
         guard let song = lastSong, let artist = lastArtist else {
             return "🐺 No previous tracks yet, keep the music flowing!"
         }
