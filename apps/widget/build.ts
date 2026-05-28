@@ -63,13 +63,38 @@ async function buildJS(): Promise<string> {
   return await readFile(jsPath, "utf8");
 }
 
+/**
+ * Resolve the locally-installed tailwindcss binary.
+ *
+ * Do NOT shell out to `bunx tailwindcss` — when the package isn't installed
+ * locally (fresh worktree, CI cache miss) bunx silently fetches the latest
+ * remote, which is Tailwind v4. v4 moved the CLI into a separate
+ * `@tailwindcss/cli` package, so the bare `tailwindcss` package has no bin and
+ * the build dies with a cryptic "could not determine executable to run for
+ * package tailwindcss". Pin to the local bin and fail loud instead.
+ *
+ * bun's workspace install may hoist the bin to the root node_modules or keep
+ * it widget-local depending on the dependency tree, so check both.
+ */
+function resolveTailwindBin(): string {
+  const candidates = [
+    resolve(__dirname, "node_modules/.bin/tailwindcss"),
+    resolve(ROOT, "node_modules/.bin/tailwindcss"),
+  ];
+  const bin = candidates.find((p) => existsSync(p));
+  if (!bin) {
+    throw new Error(
+      "tailwindcss CLI not found — run `bun install` first " +
+        `(looked in: ${candidates.join(", ")})`,
+    );
+  }
+  return bin;
+}
+
 async function buildCSS(): Promise<string> {
   log("running tailwind CLI");
   await mkdir(DIST, { recursive: true });
-  // Use the locally-installed tailwindcss binary. Resolved via bun (the
-  // workspace shares its node_modules with the root install).
-  await run("bunx", [
-    "tailwindcss",
+  await run(resolveTailwindBin(), [
     "-c",
     resolve(__dirname, "tailwind.config.ts"),
     "-i",

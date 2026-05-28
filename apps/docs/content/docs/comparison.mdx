@@ -1,0 +1,158 @@
+---
+title: "WolfWave vs. Jam Deck, Cider, Now Playing & More"
+description: "Side-by-side comparison of WolfWave against every other Apple Music streaming tool — Jam Deck, Cider + cider4obs, Now Playing Pro, MusicRPC, NextFire, Nyan, Moobot."
+ogTitle: "Apple Music streamers shouldn't need five apps."
+ogDescription: "WolfWave bundles Twitch bot, Discord RPC, OBS overlay, and song requests for the real Apple Music app. See how it compares to Jam Deck, Cider, and Now Playing."
+keywords:
+  - jam deck alternative twitch
+  - cider apple music obs alternative
+  - apple music twitch bot mac
+  - songify alternative mac
+  - spotchbot alternative apple music
+  - now playing app alternative
+  - musicrpc alternative
+  - apple music obs overlay mac
+ogChips:
+  - vs Jam Deck
+  - vs Cider
+  - vs Now Playing
+  - All-in-one
+ogEyebrow: Comparison
+---
+
+Apple Music streamers shouldn't need five apps. Here's how WolfWave stacks up.
+
+---
+
+## The Big Picture
+
+**TL;DR: Every other tool does one piece. WolfWave does all of them — natively, from the real Music.app.**
+
+| Tool | Reads real Music.app | OBS overlay | Twitch chat bot | Song requests into Music.app | Discord Rich Presence | Native macOS | Price |
+|---|---|---|---|---|---|---|---|
+| **WolfWave** | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | Free |
+| Jam Deck | ✅ | ✅ | ❌ | ❌ | ❌ | 🟡 Python | Free |
+| Cider + cider4obs | ❌ replaces Music.app | ✅ | ❌ | ❌ | ✅ | 🟡 Electron | Donation-ware |
+| Now Playing Pro | 🟡 DJ-software first | ✅ | ✅ | ❌ | ✅ | ❌ Win+Mac | Paid |
+| MusicRPC | ✅ | ❌ | ❌ | ❌ | ✅ | ✅ | $0.99 |
+| NextFire RPC | ✅ | ❌ | ❌ | ❌ | ✅ | ✅ Deno | Free |
+| Nyan / Streamling / Zyphen | ❌ Cider or Last.fm | ✅ | ❌ | ❌ | ❌ | ❌ web | Free |
+| Moobot / StreamElements | ❌ YouTube/Spotify | ❌ | ✅ | 🟡 YouTube only | ❌ | ❌ cloud | Free/paid |
+
+Legend: ✅ first-class · 🟡 partial · ❌ not supported
+
+---
+
+## vs. Jam Deck
+
+**TL;DR: Jam Deck is a great overlay. That's all it is.**
+
+[Jam Deck](https://github.com/detekoi/jam-deck) is a Python menu bar app that reads Apple Music via AppleScript and serves a browser source on `localhost:8080`. Same source-of-truth idea as WolfWave (real Music.app, no Cider), but the scope stops at the overlay.
+
+- **No Twitch chat bot.** No `!song`, no `!last`.
+- **No song requests.** Viewers can't queue tracks.
+- **No Discord Rich Presence.**
+- **No notarized installer** — clone the repo, run `py2app`.
+
+If you only need a now-playing overlay and nothing else, Jam Deck works. If you want chat, Discord, and requests in the same app, that's WolfWave.
+
+---
+
+## vs. Cider + cider4obs
+
+**TL;DR: Cider gave you a WebSocket. You had to give up Apple Music to get it.**
+
+[Cider](https://cider.sh/) is a third-party Apple Music client built on Vue + Electron. It exposes a WebSocket API, and [cider4obs](https://github.com/ryzetech/cider4obs) is a browser-source page that reads from it.
+
+The catch: **you have to stop using `Music.app` and run Cider instead.** That means losing the native Music app's library sync, Handoff, AirPlay routing, and everything else Apple ships.
+
+- **WolfWave reads `Music.app` directly via ScriptingBridge.** No client swap.
+- **WolfWave's overlay WebSocket is token-authenticated** (`wolfwave.token.<hex>` subprotocol). Cider's WS is open by default.
+- **Cider has no Twitch bot, no song requests.** cider4obs is overlay-only.
+
+Cider is a fine alternative Apple Music client. WolfWave is a streaming bridge for the real one.
+
+---
+
+## vs. Now Playing Pro
+
+**TL;DR: The closest "all-in-one" — but it's built for DJs, not Apple Music streamers.**
+
+[Now Playing](https://www.nowplayingapp.com/) ships a Twitch bot and a "live playlist" Discord bot. The closest competitor in feature *breadth*. But:
+
+- **Aimed at DJ software** — Serato, rekordbox, Traktor, Virtual DJ. Apple Music from `Music.app` isn't the headline source.
+- **Paid.** WolfWave is free + open source.
+- **Not a native SwiftUI app.** Runs cross-platform via a different stack.
+- **No song-request queue feeding directly into Apple Music** via MusicKit.
+
+If you DJ in Serato and stream to Twitch, Now Playing fits. If you just play Apple Music and want chat to request tracks, WolfWave fits.
+
+---
+
+## vs. MusicRPC / NextFire / Discord-only Tools
+
+**TL;DR: One feature each. WolfWave includes all of them.**
+
+- [MusicRPC](https://apps.apple.com/us/app/musicrpc/id6753595358) — $0.99 Mac App Store app. Apple Music → Discord Rich Presence. Nothing else.
+- [NextFire apple-music-discord-rpc](https://github.com/NextFire/apple-music-discord-rpc) — OSS Deno menu bar. Same scope as MusicRPC, free.
+
+Both are good single-purpose RPC apps. WolfWave's Discord RPC matches what they do — with the rest of the stream bundle around it.
+
+---
+
+## vs. Multi-Source Overlays (Nyan, Streamling, Zyphen)
+
+**TL;DR: Their "Apple Music support" means Cider or Last.fm scrobbles — not the real Music.app.**
+
+[Nyan's Music Overlay](https://music.nyako.cat/setup) and friends list Apple Music support, but the fine print reads **"via Cider"** or **"via Last.fm scrobbles."** No direct `Music.app` read.
+
+WolfWave reads `Music.app` directly. Track changes hit the overlay in under a second — no scrobble lag, no Cider required.
+
+---
+
+## vs. Moobot / StreamElements / Pretzel
+
+**TL;DR: Cloud chat bots. Song requests, but YouTube — not Apple Music.**
+
+[Moobot](https://moo.bot/docs/song-requests-music-through-twitch-bot) and [StreamElements](https://docs.streamelements.com/chatbot/commands/default/song) run in the cloud. Viewers can request tracks, but the player is YouTube embedded in the dashboard. They can't reach into Music.app on your Mac.
+
+WolfWave's `!sr` resolves through MusicKit and queues into the real `Music.app`. The audio your viewers requested is the audio you actually play.
+
+---
+
+## What Only WolfWave Does
+
+**TL;DR: Nobody else combines these in one binary.**
+
+- **Real `Music.app` reads** — ScriptingBridge with tolerant FourCharCode parsing. No Cider, no Last.fm.
+- **Song requests into Apple Music** — `!sr <query>` resolves via MusicKit and queues in `Music.app`. No competitor does this.
+- **Channel Points + Bits Boost** — WolfWave manages a "Request a Song" reward through Helix and dispatches `channel.bits.use` to boost a viewer's queued track.
+- **Token-authenticated overlay WebSocket** — OBS clients must present the per-install token. Cider's WS is open.
+- **Listening History + Monthly Wrap** — on-device, opt-in NDJSON log, SwiftUI Charts, exportable share card. Streamer tools don't ship this; only generic scrobblers do.
+- **Streamer Mode masking** — `••••••` on sensitive fields. Built for on-camera safety.
+- **Sparkle EdDSA auto-update + Homebrew + DMG** — proper distribution. Jam Deck is `git clone`, NextFire is `deno`.
+
+---
+
+## Honest Gaps
+
+**TL;DR: WolfWave is opinionated. Here's what it doesn't do.**
+
+- **macOS only.** Cross-platform tools (Cider, Nyan, Now Playing Pro) cover Windows. WolfWave doesn't.
+- **Apple Music only.** Spotify, YouTube Music, and Tidal are out of scope on purpose.
+- **No public WebSocket protocol docs** yet beyond what the overlay widget ships — Cider's documented WS lets third-party widgets bloom. Tracked as a future doc improvement.
+
+Consistent with the brand: native macOS, Apple Music, streamers. Pick the tool that matches your stack.
+
+---
+
+## Sources
+
+- [Jam Deck — detekoi/jam-deck](https://github.com/detekoi/jam-deck)
+- [Cider Collective](https://cider.sh/) · [cider4obs — ryzetech/cider4obs](https://github.com/ryzetech/cider4obs)
+- [Now Playing Pro](https://www.nowplayingapp.com/)
+- [MusicRPC — Mac App Store](https://apps.apple.com/us/app/musicrpc/id6753595358)
+- [NextFire apple-music-discord-rpc](https://github.com/NextFire/apple-music-discord-rpc)
+- [Nyan's Music Overlay](https://music.nyako.cat/setup)
+- [Moobot Song Requests](https://moo.bot/docs/song-requests-music-through-twitch-bot)
+- [StreamElements !song](https://docs.streamelements.com/chatbot/commands/default/song)
