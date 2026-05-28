@@ -678,14 +678,6 @@ extension AppDelegate: NSMenuDelegate {
     private func buildHelpSubmenu() -> NSMenu {
         let submenu = NSMenu()
 
-        let check = NSMenuItem(
-            title: "Check for Updates\u{2026}",
-            action: #selector(checkForUpdatesFromMenu),
-            keyEquivalent: ""
-        )
-        check.image = NSImage(systemSymbolName: "arrow.down.circle", accessibilityDescription: nil)
-        submenu.addItem(check)
-
         let whatsNew = NSMenuItem(
             title: "What's New",
             action: #selector(showWhatsNewFromMenu),
