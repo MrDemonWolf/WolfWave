@@ -177,12 +177,12 @@ struct OnboardingOBSWidgetStepView: View {
         widgetHTTPEnabled = enabled
 
         NotificationCenter.default.post(
-            name: NSNotification.Name(AppConstants.Notifications.websocketServerChanged),
+            name: Notification.Name.websocketServerChanged,
             object: nil,
             userInfo: nil
         )
         NotificationCenter.default.post(
-            name: NSNotification.Name(AppConstants.Notifications.widgetHTTPServerChanged),
+            name: Notification.Name.widgetHTTPServerChanged,
             object: nil,
             userInfo: nil
         )

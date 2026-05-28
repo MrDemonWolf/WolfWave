@@ -63,7 +63,7 @@ extension AppDelegate {
                 case .disconnected: stateString = "disconnected"
                 }
                 NotificationCenter.default.post(
-                    name: NSNotification.Name(AppConstants.Notifications.discordStateChanged),
+                    name: Notification.Name.discordStateChanged,
                     object: self,
                     userInfo: ["state": stateString]
                 )
@@ -78,7 +78,7 @@ extension AppDelegate {
             }
         }
 
-        let enabled = UserDefaults.standard.bool(forKey: AppConstants.UserDefaults.discordPresenceEnabled)
+        let enabled = FeatureFlags.discordEnabled
         if enabled {
             Task { await service.setEnabled(true) }
         }
@@ -123,7 +123,7 @@ extension AppDelegate {
             }
         }
 
-        let enabled = UserDefaults.standard.bool(forKey: AppConstants.UserDefaults.websocketEnabled)
+        let enabled = FeatureFlags.websocketEnabled
         if enabled {
             Task { await server.setEnabled(true) }
         }
@@ -179,7 +179,7 @@ extension AppDelegate {
         }
 
         // Start playback monitoring if song requests are enabled
-        let enabled = UserDefaults.standard.bool(forKey: AppConstants.UserDefaults.songRequestEnabled)
+        let enabled = FeatureFlags.songRequestEnabled
         if enabled {
             songRequestService?.startPlaybackMonitoring()
         }
@@ -230,7 +230,7 @@ extension AppDelegate {
     /// Creates the listening history service and loads existing history if the
     /// feature is enabled.
     func setupHistoryService() {
-        let enabled = UserDefaults.standard.bool(forKey: AppConstants.UserDefaults.listeningHistoryEnabled)
+        let enabled = FeatureFlags.listeningHistoryEnabled
         historyService = ListeningHistoryService(enabled: enabled)
         historyService?.start()
         Log.info(
@@ -250,7 +250,7 @@ extension AppDelegate {
 
         notificationObservers.append(
             NotificationCenter.default.addObserver(
-                forName: NSNotification.Name(AppConstants.Notifications.powerStateChanged),
+                forName: Notification.Name.powerStateChanged,
                 object: nil,
                 queue: .main
             ) { [weak self] notification in
@@ -292,7 +292,7 @@ extension AppDelegate {
 
         notificationObservers.append(
             nc.addObserver(
-                forName: NSNotification.Name(AppConstants.Notifications.trackingSettingChanged),
+                forName: Notification.Name.trackingSettingChanged,
                 object: nil,
                 queue: .main
             ) { [weak self] notification in
@@ -303,7 +303,7 @@ extension AppDelegate {
 
         notificationObservers.append(
             nc.addObserver(
-                forName: NSNotification.Name(AppConstants.Notifications.dockVisibilityChanged),
+                forName: Notification.Name.dockVisibilityChanged,
                 object: nil,
                 queue: .main
             ) { [weak self] notification in
@@ -331,7 +331,7 @@ extension AppDelegate {
 
         notificationObservers.append(
             nc.addObserver(
-                forName: NSNotification.Name(AppConstants.Notifications.discordPresenceChanged),
+                forName: Notification.Name.discordPresenceChanged,
                 object: nil,
                 queue: .main
             ) { [weak self] notification in
@@ -342,7 +342,7 @@ extension AppDelegate {
 
         notificationObservers.append(
             nc.addObserver(
-                forName: NSNotification.Name(AppConstants.Notifications.websocketServerChanged),
+                forName: Notification.Name.websocketServerChanged,
                 object: nil,
                 queue: .main
             ) { [weak self] notification in
@@ -353,7 +353,7 @@ extension AppDelegate {
 
         notificationObservers.append(
             nc.addObserver(
-                forName: NSNotification.Name(AppConstants.Notifications.widgetHTTPServerChanged),
+                forName: Notification.Name.widgetHTTPServerChanged,
                 object: nil,
                 queue: .main
             ) { [weak self] notification in
@@ -364,7 +364,7 @@ extension AppDelegate {
 
         notificationObservers.append(
             nc.addObserver(
-                forName: NSNotification.Name(AppConstants.Notifications.updateStateChanged),
+                forName: Notification.Name.updateStateChanged,
                 object: nil,
                 queue: .main
             ) { [weak self] notification in
@@ -375,7 +375,7 @@ extension AppDelegate {
 
         notificationObservers.append(
             nc.addObserver(
-                forName: NSNotification.Name(AppConstants.Notifications.songRequestSettingChanged),
+                forName: Notification.Name.songRequestSettingChanged,
                 object: nil,
                 queue: .main
             ) { [weak self] notification in
@@ -386,7 +386,7 @@ extension AppDelegate {
 
         notificationObservers.append(
             nc.addObserver(
-                forName: NSNotification.Name(AppConstants.Notifications.listeningHistorySettingChanged),
+                forName: Notification.Name.listeningHistorySettingChanged,
                 object: nil,
                 queue: .main
             ) { [weak self] notification in
@@ -463,7 +463,7 @@ extension AppDelegate {
     /// Toggles the WebSocket server and applies any port change from the notification.
     @objc func websocketServerSettingChanged(_ notification: Notification) {
         let enabled = notification.userInfo?["enabled"] as? Bool
-            ?? UserDefaults.standard.bool(forKey: AppConstants.UserDefaults.websocketEnabled)
+            ?? FeatureFlags.websocketEnabled
         let portChange = notification.userInfo?["port"] as? UInt16
         Task { [weak self] in
             await self?.websocketServer?.setEnabled(enabled)
@@ -476,7 +476,7 @@ extension AppDelegate {
     /// Toggles the widget HTTP server independently from the WebSocket server.
     @objc func widgetHTTPServerSettingChanged(_ notification: Notification) {
         let enabled = notification.userInfo?["enabled"] as? Bool
-            ?? UserDefaults.standard.object(forKey: AppConstants.UserDefaults.widgetHTTPEnabled) as? Bool ?? false
+            ?? FeatureFlags.widgetHTTPEnabled
         Task { [weak self] in await self?.websocketServer?.setWidgetHTTPEnabled(enabled) }
     }
 
@@ -530,7 +530,7 @@ extension AppDelegate {
     }
 
     private func isTrackingEnabled() -> Bool {
-        UserDefaults.standard.bool(forKey: AppConstants.UserDefaults.trackingEnabled)
+        FeatureFlags.trackingEnabled
     }
 }
 

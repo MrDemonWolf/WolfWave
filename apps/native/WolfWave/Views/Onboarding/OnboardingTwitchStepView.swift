@@ -132,9 +132,9 @@ struct OnboardingTwitchStepView: View {
         HStack(spacing: 14) {
             ZStack {
                 Circle()
-                    .fill(Color.green)
+                    .fill(DSColor.success)
                     .frame(width: 36, height: 36)
-                    .shadow(color: Color.green.opacity(0.40), radius: 8, x: 0, y: 4)
+                    .shadow(color: DSColor.success.opacity(0.40), radius: 8, x: 0, y: 4)
 
                 Image(systemName: "checkmark")
                     .font(.system(size: DSFont.Size.x16, weight: .bold))

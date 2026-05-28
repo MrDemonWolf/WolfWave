@@ -294,7 +294,7 @@ struct AdvancedSettingsView: View {
         .onAppear {
             isHomebrewInstall = Bundle.main.isHomebrewInstall
         }
-        .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name(AppConstants.Notifications.updateStateChanged))) { notification in
+        .onReceive(NotificationCenter.default.publisher(for: Notification.Name.updateStateChanged)) { notification in
             isCheckingForUpdates = false
             if let version = notification.userInfo?["latestVersion"] as? String,
                let available = notification.userInfo?["isUpdateAvailable"] as? Bool {
@@ -609,7 +609,7 @@ struct AdvancedSettingsView: View {
         .frame(width: 700)
         .onAppear {
             NotificationCenter.default.post(
-                name: NSNotification.Name(AppConstants.Notifications.updateStateChanged),
+                name: Notification.Name.updateStateChanged,
                 object: nil,
                 userInfo: [
                     "latestVersion": "1.2.0",

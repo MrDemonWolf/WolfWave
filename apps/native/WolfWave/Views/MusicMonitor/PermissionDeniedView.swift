@@ -85,7 +85,7 @@ struct PermissionDeniedBanner: View {
             .shadow(color: AppConstants.Brand.appleMusicSurfaceEnd.opacity(0.30), radius: 14, x: 0, y: 12)
 
             Circle()
-                .fill(Color.red)
+                .fill(DSColor.error)
                 .frame(width: 30, height: 30)
                 .overlay(
                     Image(systemName: "lock.fill")

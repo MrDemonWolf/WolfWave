@@ -126,7 +126,7 @@ final class DiagnosticsService: NSObject, MXMetricManagerSubscriber, @unchecked 
         let dir = payloadDirectory
         do {
             try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
-            let stamp = ISO8601DateFormatter().string(from: Date())
+            let stamp = SharedFormatters.iso8601.string(from: Date())
                 .replacingOccurrences(of: ":", with: "-")
             for (index, data) in payloads.enumerated() {
                 let url = dir.appending(path: "\(prefix)-\(stamp)-\(index).json")

@@ -86,7 +86,7 @@ struct SongRequestSettingsView: View {
             musicAuthStatus = MusicAuthorization.currentStatus
             refreshTwitchState()
         }
-        .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name(AppConstants.Notifications.twitchConnectionStateChanged))) { notification in
+        .onReceive(NotificationCenter.default.publisher(for: Notification.Name.twitchConnectionStateChanged)) { notification in
             if let connected = notification.userInfo?["isConnected"] as? Bool {
                 updateTwitchState(connected)
             }
@@ -110,7 +110,7 @@ struct SongRequestSettingsView: View {
         if !connected && songRequestEnabled {
             songRequestEnabled = false
             NotificationCenter.default.post(
-                name: NSNotification.Name(AppConstants.Notifications.songRequestSettingChanged),
+                name: Notification.Name.songRequestSettingChanged,
                 object: nil,
                 userInfo: ["enabled": false]
             )
@@ -171,7 +171,7 @@ fileprivate struct SongRequestMasterToggleCard: View {
                 accessibilityIdentifier: "songRequests.enableToggle",
                 onChange: { enabled in
                     NotificationCenter.default.post(
-                        name: NSNotification.Name(AppConstants.Notifications.songRequestSettingChanged),
+                        name: Notification.Name.songRequestSettingChanged,
                         object: nil,
                         userInfo: ["enabled": enabled]
                     )
@@ -480,7 +480,7 @@ fileprivate struct SongRequestAccessCard: View {
             HStack(alignment: .top, spacing: 6) {
                 Image(systemName: activePreset == nil ? "slider.horizontal.3" : "checkmark.circle.fill")
                     .font(.system(size: DSFont.Size.sm))
-                    .foregroundStyle(activePreset == nil ? Color.secondary : Color.green)
+                    .foregroundStyle(activePreset == nil ? Color.secondary : DSColor.success)
                 Text(activePreset?.summary ?? "Custom configuration.")
                     .font(.system(size: DSFont.Size.sm))
                     .foregroundStyle(.secondary)

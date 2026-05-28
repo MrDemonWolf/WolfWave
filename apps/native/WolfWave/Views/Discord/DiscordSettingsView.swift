@@ -65,7 +65,7 @@ struct DiscordSettingsView: View {
         }
         .onReceive(
             NotificationCenter.default.publisher(
-                for: NSNotification.Name(AppConstants.Notifications.discordStateChanged)
+                for: Notification.Name.discordStateChanged
             )
         ) { notification in
             if let rawValue = notification.userInfo?["state"] as? String {
@@ -80,7 +80,7 @@ struct DiscordSettingsView: View {
         }
         .onReceive(
             NotificationCenter.default.publisher(
-                for: NSNotification.Name(AppConstants.Notifications.nowPlayingChanged)
+                for: Notification.Name.nowPlayingChanged
             )
         ) { notification in
             updateNowPlaying(from: notification.userInfo)
@@ -395,7 +395,7 @@ struct DiscordSettingsView: View {
 
     private func notifyPresenceSettingChanged(enabled: Bool) {
         NotificationCenter.default.post(
-            name: NSNotification.Name(AppConstants.Notifications.discordPresenceChanged),
+            name: Notification.Name.discordPresenceChanged,
             object: nil,
             userInfo: ["enabled": enabled]
         )
@@ -408,7 +408,7 @@ struct DiscordSettingsView: View {
             try? await Task.sleep(for: .milliseconds(300))
             guard !Task.isCancelled else { return }
             NotificationCenter.default.post(
-                name: NSNotification.Name(AppConstants.Notifications.discordPresenceSettingsChanged),
+                name: Notification.Name.discordPresenceSettingsChanged,
                 object: nil
             )
         }
@@ -455,7 +455,7 @@ private struct NowPlayingSnapshot {
         .frame(width: 600)
         .onAppear {
             NotificationCenter.default.post(
-                name: NSNotification.Name(AppConstants.Notifications.discordStateChanged),
+                name: Notification.Name.discordStateChanged,
                 object: nil,
                 userInfo: ["state": "connected"]
             )

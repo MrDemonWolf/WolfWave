@@ -87,11 +87,11 @@ struct OnboardingAppleMusicStepView: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .background(
                     RoundedRectangle(cornerRadius: 10, style: .continuous)
-                        .fill(Color.orange.opacity(0.10))
+                        .fill(DSColor.warning.opacity(0.10))
                 )
                 .overlay(
                     RoundedRectangle(cornerRadius: 10, style: .continuous)
-                        .stroke(Color.orange.opacity(0.40), lineWidth: 0.5)
+                        .stroke(DSColor.warning.opacity(0.40), lineWidth: 0.5)
                 )
 
                 HStack(spacing: 8) {

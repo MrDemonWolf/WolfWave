@@ -648,7 +648,7 @@ actor WebSocketServerService {
 
         Task { @MainActor in
             NotificationCenter.default.post(
-                name: NSNotification.Name(AppConstants.Notifications.websocketServerStateChanged),
+                name: Notification.Name.websocketServerStateChanged,
                 object: nil,
                 userInfo: ["state": currentState.rawValue, "clients": count]
             )

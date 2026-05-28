@@ -101,17 +101,14 @@ struct LifetimeTallyTests {
 
     @Test("Store load returns .empty when file is absent")
     func testStoreLoadMissing() throws {
-        let dir = FileManager.default.temporaryDirectory
-            .appendingPathComponent("wolfwave-tally-\(UUID().uuidString)", isDirectory: true)
+        let dir = makeIsolatedTempDirectory(prefix: "wolfwave-tally")
         let store = LifetimeTallyStore(directory: dir)
         #expect(store.load().isEmpty)
     }
 
     @Test("Store save then load reproduces the tally")
     func testStoreSaveLoad() throws {
-        let dir = FileManager.default.temporaryDirectory
-            .appendingPathComponent("wolfwave-tally-\(UUID().uuidString)", isDirectory: true)
-        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        let dir = makeIsolatedTempDirectory(prefix: "wolfwave-tally")
         defer { try? FileManager.default.removeItem(at: dir) }
 
         let store = LifetimeTallyStore(directory: dir)
@@ -125,9 +122,7 @@ struct LifetimeTallyTests {
 
     @Test("Store clear removes the file so the next load is empty")
     func testStoreClear() throws {
-        let dir = FileManager.default.temporaryDirectory
-            .appendingPathComponent("wolfwave-tally-\(UUID().uuidString)", isDirectory: true)
-        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        let dir = makeIsolatedTempDirectory(prefix: "wolfwave-tally")
         defer { try? FileManager.default.removeItem(at: dir) }
 
         let store = LifetimeTallyStore(directory: dir)

@@ -19,10 +19,7 @@ struct ListeningHistoryServiceTests {
     // MARK: - Helpers
 
     private func makeTempDirectory() -> URL {
-        let dir = FileManager.default.temporaryDirectory
-            .appendingPathComponent("history-svc-test-\(UUID().uuidString)", isDirectory: true)
-        try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
-        return dir
+        makeIsolatedTempDirectory(prefix: "history-svc-test")
     }
 
     private func makeService(enabled: Bool, directory: URL) -> ListeningHistoryService {

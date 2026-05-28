@@ -46,7 +46,7 @@ private final class Box<Value>: @unchecked Sendable {
 
 /// Covers `TwitchChannelPointsService` Helix request construction and reward
 /// reconciliation, driven by `MockURLProtocol`. No real network traffic.
-final class TwitchChannelPointsServiceTests: XCTestCase {
+final class TwitchChannelPointsServiceTests: WolfWaveTestCase {
 
     private let storageKey = AppConstants.UserDefaults.songRequestChannelPointsRewardID
 

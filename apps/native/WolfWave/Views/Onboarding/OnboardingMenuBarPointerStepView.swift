@@ -156,10 +156,14 @@ struct OnboardingMenuBarPointerStepView: View {
 
     // MARK: - Helpers
 
-    private var currentTime: String {
+    private static let menuBarClockFormatter: DateFormatter = {
         let formatter = DateFormatter()
         formatter.dateFormat = "EEE h:mm a"
-        return formatter.string(from: Date())
+        return formatter
+    }()
+
+    private var currentTime: String {
+        Self.menuBarClockFormatter.string(from: Date())
     }
 }
 

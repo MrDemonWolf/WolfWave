@@ -461,7 +461,7 @@ struct SettingsView: View {
     /// Posts a notification when music tracking is toggled on or off.
     private func notifyTrackingSettingChanged(enabled: Bool) {
         NotificationCenter.default.post(
-            name: NSNotification.Name(AppConstants.Notifications.trackingSettingChanged),
+            name: Notification.Name.trackingSettingChanged,
             object: nil,
             userInfo: ["enabled": enabled]
         )
@@ -478,14 +478,14 @@ struct SettingsView: View {
     private func resetSettings() {
         // Disconnect Discord before clearing UserDefaults
         NotificationCenter.default.post(
-            name: NSNotification.Name(AppConstants.Notifications.discordPresenceChanged),
+            name: Notification.Name.discordPresenceChanged,
             object: nil,
             userInfo: ["enabled": false]
         )
 
         // Disconnect WebSocket server before clearing UserDefaults
         NotificationCenter.default.post(
-            name: NSNotification.Name(AppConstants.Notifications.websocketServerChanged),
+            name: Notification.Name.websocketServerChanged,
             object: nil,
             userInfo: ["enabled": false]
         )

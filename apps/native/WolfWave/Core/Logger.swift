@@ -9,6 +9,28 @@
 import Foundation
 import os
 
+/// Typed log category. Use the enum form to avoid typos that silently route
+/// a log line to a sibling category. String overloads on `Log` remain for
+/// incremental migration.
+enum LogCategory: String {
+    case app = "App"
+    case twitch = "Twitch"
+    case discord = "Discord"
+    case music = "Music"
+    case keychain = "Keychain"
+    case network = "Network"
+    case websocket = "WebSocket"
+    case update = "Update"
+    case songRequest = "SongRequest"
+    case devTools = "DevTools"
+    case dev = "Dev"
+    case diagnostics = "Diagnostics"
+    case onboarding = "Onboarding"
+    case artwork = "Artwork"
+    case whatsNew = "WhatsNew"
+    case history = "History"
+}
+
 /// Severity classification used by every log line. The raw value is the
 /// emoji-prefixed string that appears in both the on-disk log file and the
 /// macOS unified logging system.
@@ -53,11 +75,7 @@ enum Log {
 
     /// Shared timestamp formatter used by every log line. Locale-stable
     /// HH:mm:ss.SSS so file output collates correctly in any timezone.
-    nonisolated private static let formatter: DateFormatter = {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "HH:mm:ss.SSS"
-        return formatter
-    }()
+    nonisolated private static var formatter: DateFormatter { SharedFormatters.logTimestamp }
 
     /// Whether debug logging is enabled (only in DEBUG builds)
     nonisolated private static var isDebugLoggingEnabled: Bool {
@@ -331,6 +349,59 @@ enum Log {
     ) {
         log(message, level: .error, category: category, file: file, line: line)
         // Flush immediately for errors to ensure they're written if app crashes
+        flush()
+    }
+
+    // MARK: - Typed-category overloads
+    //
+    // Forward to the string-keyed implementations. Prefer these at new call
+    // sites so the category name is enum-checked rather than free-form string.
+
+    nonisolated static func log(
+        _ message: String,
+        level: LogLevel = .info,
+        category: LogCategory,
+        file: StaticString = #fileID,
+        line: UInt = #line
+    ) {
+        log(message, level: level, category: category.rawValue, file: file, line: line)
+    }
+
+    nonisolated static func debug(
+        _ message: @autoclosure () -> String,
+        category: LogCategory,
+        file: StaticString = #fileID,
+        line: UInt = #line
+    ) {
+        guard isDebugLoggingEnabled else { return }
+        log(message(), level: .debug, category: category.rawValue, file: file, line: line)
+    }
+
+    nonisolated static func info(
+        _ message: String,
+        category: LogCategory,
+        file: StaticString = #fileID,
+        line: UInt = #line
+    ) {
+        log(message, level: .info, category: category.rawValue, file: file, line: line)
+    }
+
+    nonisolated static func warn(
+        _ message: String,
+        category: LogCategory,
+        file: StaticString = #fileID,
+        line: UInt = #line
+    ) {
+        log(message, level: .warn, category: category.rawValue, file: file, line: line)
+    }
+
+    nonisolated static func error(
+        _ message: String,
+        category: LogCategory,
+        file: StaticString = #fileID,
+        line: UInt = #line
+    ) {
+        log(message, level: .error, category: category.rawValue, file: file, line: line)
         flush()
     }
 

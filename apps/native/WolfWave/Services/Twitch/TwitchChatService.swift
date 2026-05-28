@@ -179,7 +179,7 @@ actor TwitchChatService {
     // MARK: - Static Constants
 
     nonisolated static let connectionStateChanged =
-        NSNotification.Name(AppConstants.Notifications.twitchConnectionStateChanged)
+        Notification.Name.twitchConnectionStateChanged
 
     /// Title used for vote-skip Twitch polls. Also the match key for `channel.poll.end`.
     nonisolated static let skipPollTitle = "Skip the current song?"

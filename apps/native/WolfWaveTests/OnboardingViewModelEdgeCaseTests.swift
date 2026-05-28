@@ -10,7 +10,7 @@ import XCTest
 @testable import WolfWave
 
 @MainActor
-final class OnboardingViewModelEdgeCaseTests: XCTestCase {
+final class OnboardingViewModelEdgeCaseTests: WolfWaveTestCase {
     var viewModel: OnboardingViewModel?
 
     override func setUp() {

@@ -186,7 +186,7 @@ actor DiscordRPCService {
 
         // Re-send presence when display settings change so users see button-label
         // edits and similar tweaks immediately.
-        let name = NSNotification.Name(AppConstants.Notifications.discordPresenceSettingsChanged)
+        let name = Notification.Name.discordPresenceSettingsChanged
         self.settingsObserver = NotificationCenter.default.addObserver(
             forName: name, object: nil, queue: nil
         ) { [weak self] _ in

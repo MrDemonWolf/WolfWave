@@ -70,7 +70,7 @@ extension AppDelegate {
     }
 
     private func addDockSongRequestHold(into menu: NSMenu) {
-        guard UserDefaults.standard.bool(forKey: AppConstants.UserDefaults.songRequestEnabled) else { return }
+        guard FeatureFlags.songRequestEnabled else { return }
         let holdEnabled = songRequestService?.isHoldEnabled ?? false
         menu.addItem(NSMenuItem(
             title: holdEnabled ? "Resume Song Requests" : "Hold Song Requests",
@@ -81,7 +81,7 @@ extension AppDelegate {
     }
 
     private func addDockServiceToggles(into menu: NSMenu) {
-        let trackingOn = UserDefaults.standard.bool(forKey: AppConstants.UserDefaults.trackingEnabled)
+        let trackingOn = FeatureFlags.trackingEnabled
         let trackingItem = NSMenuItem(
             title: "Apple Music",
             action: #selector(toggleTracking),
@@ -101,7 +101,7 @@ extension AppDelegate {
             menu.addItem(twitchItem)
         }
 
-        let discordEnabled = UserDefaults.standard.bool(forKey: AppConstants.UserDefaults.discordPresenceEnabled)
+        let discordEnabled = FeatureFlags.discordEnabled
         let discordItem = NSMenuItem(
             title: "Discord",
             action: #selector(toggleDiscordPresence),
@@ -110,7 +110,7 @@ extension AppDelegate {
         discordItem.state = discordEnabled ? .on : .off
         menu.addItem(discordItem)
 
-        let widgetsEnabled = UserDefaults.standard.bool(forKey: AppConstants.UserDefaults.websocketEnabled)
+        let widgetsEnabled = FeatureFlags.websocketEnabled
         let widgetsItem = NSMenuItem(
             title: "OBS Overlay",
             action: #selector(toggleWebSocket),

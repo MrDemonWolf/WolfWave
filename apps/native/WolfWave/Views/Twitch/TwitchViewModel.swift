@@ -297,7 +297,7 @@ final class TwitchViewModel {
         // @MainActor state directly via `MainActor.assumeIsolated` — no Task hop.
         if reauthObserver == nil {
             reauthObserver = NotificationCenter.default.addObserver(
-                forName: NSNotification.Name(AppConstants.Notifications.twitchReauthNeededChanged),
+                forName: Notification.Name.twitchReauthNeededChanged,
                 object: nil,
                 queue: .main
             ) { [weak self] _ in
@@ -539,7 +539,7 @@ final class TwitchViewModel {
             reauthNeeded = false
             UserDefaults.standard.set(false, forKey: AppConstants.UserDefaults.twitchReauthNeeded)
             NotificationCenter.default.post(
-                name: NSNotification.Name(AppConstants.Notifications.twitchReauthNeededChanged),
+                name: Notification.Name.twitchReauthNeededChanged,
                 object: nil
             )
             statusMessage = "✅ Credentials saved successfully"
@@ -605,7 +605,7 @@ final class TwitchViewModel {
         channelValidationState = .idle
 
         NotificationCenter.default.post(
-            name: NSNotification.Name(AppConstants.Notifications.twitchReauthNeededChanged),
+            name: Notification.Name.twitchReauthNeededChanged,
             object: nil
         )
     }
@@ -631,7 +631,7 @@ final class TwitchViewModel {
         channelValidationState = .idle
 
         NotificationCenter.default.post(
-            name: NSNotification.Name(AppConstants.Notifications.twitchReauthNeededChanged),
+            name: Notification.Name.twitchReauthNeededChanged,
             object: nil
         )
     }
@@ -883,7 +883,7 @@ final class TwitchViewModel {
             reauthNeeded = false
             UserDefaults.standard.set(false, forKey: AppConstants.UserDefaults.twitchReauthNeeded)
             NotificationCenter.default.post(
-                name: NSNotification.Name(AppConstants.Notifications.twitchReauthNeededChanged),
+                name: Notification.Name.twitchReauthNeededChanged,
                 object: nil
             )
             credentialsSaved = true

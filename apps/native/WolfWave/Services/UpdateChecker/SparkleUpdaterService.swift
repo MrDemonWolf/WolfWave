@@ -234,7 +234,7 @@ extension SparkleUpdaterService: SPUUpdaterDelegate {
         Log.info("SparkleUpdaterService: Update found — v\(version)", category: "Update")
 
         NotificationCenter.default.post(
-            name: NSNotification.Name(AppConstants.Notifications.updateStateChanged),
+            name: Notification.Name.updateStateChanged,
             object: nil,
             userInfo: [
                 "isUpdateAvailable": true,
@@ -249,7 +249,7 @@ extension SparkleUpdaterService: SPUUpdaterDelegate {
         Log.info("SparkleUpdaterService: No update available — app is up to date", category: "Update")
 
         NotificationCenter.default.post(
-            name: NSNotification.Name(AppConstants.Notifications.updateStateChanged),
+            name: Notification.Name.updateStateChanged,
             object: nil,
             userInfo: [
                 "isUpdateAvailable": false,

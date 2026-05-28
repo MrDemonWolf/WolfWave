@@ -115,10 +115,14 @@ enum MonthlyWrap {
         )
     }
 
-    /// Formats a "Month Year" label for the given date.
-    private static func monthLabel(for date: Date) -> String {
+    private static let monthLabelFormatter: DateFormatter = {
         let formatter = DateFormatter()
         formatter.dateFormat = "LLLL yyyy"
-        return formatter.string(from: date)
+        return formatter
+    }()
+
+    /// Formats a "Month Year" label for the given date.
+    private static func monthLabel(for date: Date) -> String {
+        monthLabelFormatter.string(from: date)
     }
 }

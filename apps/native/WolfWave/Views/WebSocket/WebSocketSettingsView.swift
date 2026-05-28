@@ -54,7 +54,7 @@ struct WebSocketSettingsView: View {
         }
         .onReceive(
             NotificationCenter.default.publisher(
-                for: NSNotification.Name(AppConstants.Notifications.websocketServerStateChanged)
+                for: Notification.Name.websocketServerStateChanged
             )
         ) { notification in
             withAnimation(.easeInOut(duration: DSMotion.Duration.base)) {
@@ -500,7 +500,7 @@ fileprivate struct WebSocketServerCard: View {
         storedPort = Int(port)
         let userInfo: [String: Any] = ["port": port]
         NotificationCenter.default.post(
-            name: NSNotification.Name(AppConstants.Notifications.websocketServerChanged),
+            name: Notification.Name.websocketServerChanged,
             object: nil,
             userInfo: userInfo
         )
@@ -510,7 +510,7 @@ fileprivate struct WebSocketServerCard: View {
     /// Used after a setting change persists, to nudge the service to re-read.
     private func notifyServerSettingChanged() {
         NotificationCenter.default.post(
-            name: NSNotification.Name(AppConstants.Notifications.websocketServerChanged),
+            name: Notification.Name.websocketServerChanged,
             object: nil
         )
     }
@@ -588,7 +588,7 @@ fileprivate struct WebSocketBrowserSourceCard: View {
                 accessibilityIdentifier: "widgetHTTPEnabledToggle",
                 onChange: { _ in
                     NotificationCenter.default.post(
-                        name: NSNotification.Name(AppConstants.Notifications.widgetHTTPServerChanged),
+                        name: Notification.Name.widgetHTTPServerChanged,
                         object: nil
                     )
                 }
@@ -781,7 +781,7 @@ fileprivate struct WebSocketBrowserSourceCard: View {
         guard isWidgetPortValid, let port = UInt16(widgetPortText) else { return }
         storedWidgetPort = Int(port)
         NotificationCenter.default.post(
-            name: NSNotification.Name(AppConstants.Notifications.widgetHTTPServerChanged),
+            name: Notification.Name.widgetHTTPServerChanged,
             object: nil
         )
     }
@@ -977,7 +977,7 @@ fileprivate struct WebSocketWidgetAppearanceCard: View {
         .frame(width: 700)
         .onAppear {
             NotificationCenter.default.post(
-                name: NSNotification.Name(AppConstants.Notifications.websocketServerStateChanged),
+                name: Notification.Name.websocketServerStateChanged,
                 object: nil,
                 userInfo: ["state": "listening", "clients": 2]
             )

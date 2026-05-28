@@ -19,10 +19,7 @@ struct PlayLogStoreTests {
 
     /// Creates a fresh, unique temporary directory for an isolated store.
     private func makeTempDirectory() -> URL {
-        let dir = FileManager.default.temporaryDirectory
-            .appendingPathComponent("playlog-test-\(UUID().uuidString)", isDirectory: true)
-        try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
-        return dir
+        makeIsolatedTempDirectory(prefix: "playlog-test")
     }
 
     private func sampleRecord(track: String, artist: String = "The Weeknd") -> PlayRecord {

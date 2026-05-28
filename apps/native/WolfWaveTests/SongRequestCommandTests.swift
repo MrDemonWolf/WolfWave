@@ -11,7 +11,7 @@ import XCTest
 @testable import WolfWave
 
 @MainActor
-final class SongRequestCommandTests: XCTestCase {
+final class SongRequestCommandTests: WolfWaveTestCase {
 
     override func setUp() {
         super.setUp()

@@ -454,7 +454,7 @@ struct MusicMonitorSettingsView: View {
     /// - Parameter enabled: New tracking value.
     private func notifyTrackingSettingChanged(enabled: Bool) {
         NotificationCenter.default.post(
-            name: NSNotification.Name(AppConstants.Notifications.trackingSettingChanged),
+            name: Notification.Name.trackingSettingChanged,
             object: nil,
             userInfo: ["enabled": enabled]
         )
@@ -504,7 +504,7 @@ private extension UInt16 {
         .frame(width: 720)
         .onAppear {
             NotificationCenter.default.post(
-                name: NSNotification.Name(AppConstants.Notifications.nowPlayingChanged),
+                name: Notification.Name.nowPlayingChanged,
                 object: nil,
                 userInfo: [
                     "track": "Anti-Hero",

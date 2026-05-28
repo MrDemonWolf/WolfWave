@@ -166,7 +166,7 @@ struct AppVisibilitySettingsView: View {
     ///   `.dockOnly`, or `.both`.
     private func applyDockVisibility(_ mode: String) {
         NotificationCenter.default.post(
-            name: NSNotification.Name(AppConstants.Notifications.dockVisibilityChanged),
+            name: Notification.Name.dockVisibilityChanged,
             object: nil,
             userInfo: ["mode": mode]
         )

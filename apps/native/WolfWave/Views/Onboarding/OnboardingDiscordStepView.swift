@@ -46,7 +46,7 @@ struct OnboardingDiscordStepView: View {
                         accessibilityIdentifier: "onboardingDiscordToggle",
                         onChange: { newValue in
                             NotificationCenter.default.post(
-                                name: NSNotification.Name(AppConstants.Notifications.discordPresenceChanged),
+                                name: Notification.Name.discordPresenceChanged,
                                 object: nil,
                                 userInfo: ["enabled": newValue]
                             )

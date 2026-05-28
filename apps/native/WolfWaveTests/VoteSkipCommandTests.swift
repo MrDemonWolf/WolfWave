@@ -11,7 +11,7 @@ import XCTest
 @testable import WolfWave
 
 @MainActor
-final class VoteSkipCommandTests: XCTestCase {
+final class VoteSkipCommandTests: WolfWaveTestCase {
 
     private let keys: [String] = [
         AppConstants.UserDefaults.voteSkipEnabled,

@@ -11,7 +11,7 @@ import XCTest
 @testable import WolfWave
 
 @MainActor
-final class HoldCommandTests: XCTestCase {
+final class HoldCommandTests: WolfWaveTestCase {
 
     // MARK: - Setup
 

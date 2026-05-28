@@ -77,7 +77,7 @@ final class PowerStateMonitor {
         isReducedMode = newValue
 
         NotificationCenter.default.post(
-            name: NSNotification.Name(AppConstants.Notifications.powerStateChanged),
+            name: Notification.Name.powerStateChanged,
             object: nil,
             userInfo: ["isReducedMode": newValue]
         )

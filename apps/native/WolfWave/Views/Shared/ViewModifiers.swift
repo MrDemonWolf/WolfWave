@@ -91,6 +91,18 @@ extension View {
     func cardStyleUnpadded() -> some View {
         modifier(CardModifier(padded: false))
     }
+
+    /// Applies just the card clip-shape using a design-system radius.
+    ///
+    /// Use when you've already composed the background/material yourself
+    /// (e.g. a custom-tinted card or an `.overlay`-based stroke) and only
+    /// need the standard rounded corner. Defaults to the settings-card radius;
+    /// pass a `DSRadius.*` value for nested rows.
+    ///
+    /// Prefer `cardStyle()` for the full glass-effect card shell.
+    func cardClipShape(radius: CGFloat = AppConstants.SettingsUI.cardCornerRadius) -> some View {
+        clipShape(RoundedRectangle(cornerRadius: radius, style: .continuous))
+    }
 }
 
 // MARK: - Section Header Style

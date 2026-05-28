@@ -49,6 +49,6 @@ nonisolated enum StreamerMode {
     /// view re-renders on flip; this is for non-SwiftUI call sites (AppKit
     /// menu rebuild, plain-Swift helpers).
     static var isEnabled: Bool {
-        UserDefaults.standard.bool(forKey: AppConstants.UserDefaults.streamerModeEnabled)
+        FeatureFlags.streamerModeEnabled
     }
 }

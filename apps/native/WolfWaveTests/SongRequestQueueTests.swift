@@ -12,7 +12,7 @@ import XCTest
 @testable import WolfWave
 
 @MainActor
-final class SongRequestQueueTests: XCTestCase {
+final class SongRequestQueueTests: WolfWaveTestCase {
     var queue: SongRequestQueue!
 
     override func setUp() {

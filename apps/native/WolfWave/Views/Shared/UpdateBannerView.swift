@@ -85,7 +85,7 @@ struct UpdateBannerView: View {
             }
             .onReceive(
                 NotificationCenter.default.publisher(
-                    for: NSNotification.Name(AppConstants.Notifications.updateStateChanged)
+                    for: Notification.Name.updateStateChanged
                 )
             ) { notification in
                 guard let userInfo = notification.userInfo,
@@ -118,7 +118,7 @@ struct UpdateBannerView: View {
         view
             .onAppear {
                 NotificationCenter.default.post(
-                    name: NSNotification.Name(AppConstants.Notifications.updateStateChanged),
+                    name: Notification.Name.updateStateChanged,
                     object: nil,
                     userInfo: [
                         "isUpdateAvailable": true,
@@ -153,7 +153,7 @@ struct UpdateBannerView: View {
             view
                 .onAppear {
                     NotificationCenter.default.post(
-                        name: NSNotification.Name(AppConstants.Notifications.updateStateChanged),
+                        name: Notification.Name.updateStateChanged,
                         object: nil,
                         userInfo: [
                             "isUpdateAvailable": true,

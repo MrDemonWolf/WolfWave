@@ -390,7 +390,7 @@ extension AppDelegate: NSMenuDelegate {
     // MARK: - Song Requests
 
     private func buildSongRequestSection(into menu: NSMenu) {
-        guard UserDefaults.standard.bool(forKey: AppConstants.UserDefaults.songRequestEnabled),
+        guard FeatureFlags.songRequestEnabled,
               let srQueue = songRequestService?.queue else { return }
 
         let queueCount = srQueue.count
@@ -510,7 +510,7 @@ extension AppDelegate: NSMenuDelegate {
     // MARK: - Service Toggles
 
     private func buildServiceToggles(into menu: NSMenu) {
-        let trackingOn = UserDefaults.standard.bool(forKey: AppConstants.UserDefaults.trackingEnabled)
+        let trackingOn = FeatureFlags.trackingEnabled
         let trackingItem = makeStatusItem(
             title: "Apple Music",
             status: MenuStatusFormatter.musicStatus(trackingEnabled: trackingOn),
@@ -536,7 +536,7 @@ extension AppDelegate: NSMenuDelegate {
             menu.addItem(twitchItem)
         }
 
-        let discordEnabled = UserDefaults.standard.bool(forKey: AppConstants.UserDefaults.discordPresenceEnabled)
+        let discordEnabled = FeatureFlags.discordEnabled
         let discordState: MenuStatusFormatter.DiscordState = {
             switch discordService?.stateSnapshot {
             case .connected: return .connected
@@ -553,7 +553,7 @@ extension AppDelegate: NSMenuDelegate {
         )
         menu.addItem(discordItem)
 
-        let widgetsEnabled = UserDefaults.standard.bool(forKey: AppConstants.UserDefaults.websocketEnabled)
+        let widgetsEnabled = FeatureFlags.websocketEnabled
         let widgetPort = resolvedWidgetPort()
         let clientCount = websocketServer?.connectedClientCount ?? 0
         let overlayItem = makeStatusItem(
@@ -589,7 +589,7 @@ extension AppDelegate: NSMenuDelegate {
         streamerModeItem.toolTip = "Hide channel name, overlay URL, and other sensitive details from the WolfWave UI while you're on stream."
         menu.addItem(streamerModeItem)
 
-        let widgetsEnabled = UserDefaults.standard.bool(forKey: AppConstants.UserDefaults.websocketEnabled)
+        let widgetsEnabled = FeatureFlags.websocketEnabled
         if widgetsEnabled {
             let copyItem = NSMenuItem(
                 title: "Copy Widget Link",
@@ -799,13 +799,13 @@ extension AppDelegate {
     /// Toggles the WebSocket overlay broadcast plus the bundled widget HTTP
     /// server. Both flags are kept in sync from this single tray control.
     @objc func toggleWebSocket() {
-        let current = UserDefaults.standard.bool(forKey: AppConstants.UserDefaults.websocketEnabled)
+        let current = FeatureFlags.websocketEnabled
         let newValue = !current
         UserDefaults.standard.set(newValue, forKey: AppConstants.UserDefaults.websocketEnabled)
         // Keep widgetHTTPEnabled in sync with the tray toggle
         UserDefaults.standard.set(newValue, forKey: AppConstants.UserDefaults.widgetHTTPEnabled)
         NotificationCenter.default.post(
-            name: NSNotification.Name(AppConstants.Notifications.websocketServerChanged),
+            name: Notification.Name.websocketServerChanged,
             object: nil,
             userInfo: ["enabled": newValue, "widgetHTTPEnabled": newValue]
         )
@@ -980,7 +980,7 @@ extension AppDelegate {
 
         // Discord: setEnabled(false) → setEnabled(true) tears down and
         // re-opens the IPC socket with fresh state.
-        if UserDefaults.standard.bool(forKey: AppConstants.UserDefaults.discordPresenceEnabled) {
+        if FeatureFlags.discordEnabled {
             let discord = discordService
             Task {
                 await discord?.setEnabled(false)
@@ -991,7 +991,7 @@ extension AppDelegate {
         }
 
         // Widgets: same toggle dance restarts the NWListener.
-        if UserDefaults.standard.bool(forKey: AppConstants.UserDefaults.websocketEnabled) {
+        if FeatureFlags.websocketEnabled {
             let server = websocketServer
             Task {
                 await server?.setEnabled(false)
