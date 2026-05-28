@@ -197,50 +197,59 @@ final class SongRequestCommandTests: WolfWaveTestCase {
 
     // MARK: - Blocklist
 
-    func testBlocklistAddAndCheck() {
+    func testBlocklistAddAndCheck() async {
         let blocklist = SongBlocklist(storage: InMemoryBlocklistStorage())
-        blocklist.clearAll()
+        await blocklist.clearAll()
 
         let songItem = BlocklistItem(value: "Bad Song", type: .song)
-        blocklist.add(songItem)
-        XCTAssertTrue(blocklist.isBlocked(title: "Bad Song", artist: "Any Artist"))
-        XCTAssertTrue(blocklist.isBlocked(title: "bad song", artist: "Any Artist"))
-        XCTAssertFalse(blocklist.isBlocked(title: "Good Song", artist: "Any Artist"))
+        await blocklist.add(songItem)
+        let blocked1 = await blocklist.isBlocked(title: "Bad Song", artist: "Any Artist")
+        let blocked2 = await blocklist.isBlocked(title: "bad song", artist: "Any Artist")
+        let blocked3 = await blocklist.isBlocked(title: "Good Song", artist: "Any Artist")
+        XCTAssertTrue(blocked1)
+        XCTAssertTrue(blocked2)
+        XCTAssertFalse(blocked3)
 
         let artistItem = BlocklistItem(value: "Bad Artist", type: .artist)
-        blocklist.add(artistItem)
-        XCTAssertTrue(blocklist.isBlocked(title: "Any Song", artist: "Bad Artist"))
-        XCTAssertTrue(blocklist.isBlocked(title: "Any Song", artist: "bad artist"))
-        XCTAssertFalse(blocklist.isBlocked(title: "Any Song", artist: "Good Artist"))
+        await blocklist.add(artistItem)
+        let blocked4 = await blocklist.isBlocked(title: "Any Song", artist: "Bad Artist")
+        let blocked5 = await blocklist.isBlocked(title: "Any Song", artist: "bad artist")
+        let blocked6 = await blocklist.isBlocked(title: "Any Song", artist: "Good Artist")
+        XCTAssertTrue(blocked4)
+        XCTAssertTrue(blocked5)
+        XCTAssertFalse(blocked6)
 
-        blocklist.clearAll()
+        await blocklist.clearAll()
     }
 
-    func testBlocklistRemove() {
+    func testBlocklistRemove() async {
         let blocklist = SongBlocklist(storage: InMemoryBlocklistStorage())
-        blocklist.clearAll()
+        await blocklist.clearAll()
 
         let item = BlocklistItem(value: "Remove Me", type: .song)
-        blocklist.add(item)
-        XCTAssertTrue(blocklist.isBlocked(title: "Remove Me", artist: ""))
+        await blocklist.add(item)
+        let before = await blocklist.isBlocked(title: "Remove Me", artist: "")
+        XCTAssertTrue(before)
 
-        blocklist.remove(id: item.id)
-        XCTAssertFalse(blocklist.isBlocked(title: "Remove Me", artist: ""))
+        await blocklist.remove(id: item.id)
+        let after = await blocklist.isBlocked(title: "Remove Me", artist: "")
+        XCTAssertFalse(after)
 
-        blocklist.clearAll()
+        await blocklist.clearAll()
     }
 
-    func testBlocklistNoDuplicates() {
+    func testBlocklistNoDuplicates() async {
         let blocklist = SongBlocklist(storage: InMemoryBlocklistStorage())
-        blocklist.clearAll()
+        await blocklist.clearAll()
 
         let item1 = BlocklistItem(value: "Duplicate", type: .song)
         let item2 = BlocklistItem(value: "duplicate", type: .song)
-        blocklist.add(item1)
-        blocklist.add(item2) // Should be ignored (case-insensitive)
-        XCTAssertEqual(blocklist.allEntries.count, 1)
+        await blocklist.add(item1)
+        await blocklist.add(item2) // Should be ignored (case-insensitive)
+        let count = await blocklist.allEntries.count
+        XCTAssertEqual(count, 1)
 
-        blocklist.clearAll()
+        await blocklist.clearAll()
     }
 
     // MARK: - QueueCommand Output

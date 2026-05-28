@@ -123,13 +123,12 @@ extension AppDelegate {
     /// Shows the What's New sheet once per version for returning users.
     func checkWhatsNew() {
         let currentVersion = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "0"
-        let lastSeen = UserDefaults.standard.string(forKey: AppConstants.UserDefaults.lastSeenWhatsNewVersion) ?? ""
+        let lastSeen = Preferences.lastSeenWhatsNewVersion
 
         guard lastSeen != currentVersion else { return }
 
         // Don't show on first install (onboarding handles that)
-        let hasCompletedOnboarding = UserDefaults.standard.bool(forKey: AppConstants.UserDefaults.hasCompletedOnboarding)
-        guard hasCompletedOnboarding else { return }
+        guard Preferences.hasCompletedOnboarding else { return }
 
         Task { @MainActor [weak self] in
             try? await Task.sleep(for: .seconds(1))
@@ -154,7 +153,7 @@ extension AppDelegate {
         window.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)
         whatsNewWindow = window
-        UserDefaults.standard.set(version, forKey: AppConstants.UserDefaults.lastSeenWhatsNewVersion)
+        Preferences.setLastSeenWhatsNewVersion(version)
     }
 }
 

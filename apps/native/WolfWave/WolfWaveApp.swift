@@ -138,8 +138,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     var hasSeenInitialTrack = false
 
     var currentDockVisibilityMode: String {
-        UserDefaults.standard.string(forKey: AppConstants.UserDefaults.dockVisibility)
-            ?? AppConstants.DockVisibility.default
+        Preferences.dockVisibility ?? AppConstants.DockVisibility.default
     }
 
     var appName: String {
@@ -271,7 +270,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     /// Appends a song.link URL to `reply` when the toggle is on and ArtworkService has a cached URL.
     /// Shared by `getCurrentSongInfo` and `getLastSongInfo` to avoid duplicate logic.
     private func appendSongLink(to reply: String, track: String, artist: String) -> String {
-        guard UserDefaults.standard.bool(forKey: AppConstants.UserDefaults.songCommandSongLinkEnabled),
+        guard FeatureFlags.songCommandSongLinkEnabled,
               let url = ArtworkService.shared.cachedTrackLinks(track: track, artist: artist).songLinkURL
         else { return reply }
         return "\(reply) — \(url)"

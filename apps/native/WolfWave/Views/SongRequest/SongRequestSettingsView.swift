@@ -904,9 +904,12 @@ fileprivate struct SongRequestBlocklistCard: View {
                     let trimmed = blocklistText.trimmingCharacters(in: .whitespacesAndNewlines)
                     guard !trimmed.isEmpty else { return }
                     let item = BlocklistItem(value: trimmed, type: blocklistType)
-                    blocklistProvider()?.add(item)
-                    blocklist = blocklistProvider()?.allEntries ?? []
+                    let provider = blocklistProvider()
                     blocklistText = ""
+                    Task {
+                        await provider?.add(item)
+                        blocklist = await provider?.allEntries ?? []
+                    }
                 }
                 .buttonStyle(.borderedProminent)
                 .controlSize(.small)
@@ -935,8 +938,11 @@ fileprivate struct SongRequestBlocklistCard: View {
                             Spacer()
 
                             Button {
-                                blocklistProvider()?.remove(id: item.id)
-                                blocklist = blocklistProvider()?.allEntries ?? []
+                                let provider = blocklistProvider()
+                                Task {
+                                    await provider?.remove(id: item.id)
+                                    blocklist = await provider?.allEntries ?? []
+                                }
                             } label: {
                                 Image(systemName: "xmark.circle.fill")
                                     .font(.system(size: DSFont.Size.body))
@@ -955,14 +961,17 @@ fileprivate struct SongRequestBlocklistCard: View {
         .padding(AppConstants.SettingsUI.cardPadding)
         .background(.quaternary.opacity(0.5))
         .clipShape(RoundedRectangle(cornerRadius: AppConstants.SettingsUI.cardCornerRadius))
-        .onAppear {
-            blocklist = blocklistProvider()?.allEntries ?? []
+        .task {
+            blocklist = await blocklistProvider()?.allEntries ?? []
         }
         .alert("Clear blocklist?", isPresented: $showClearAllAlert) {
             Button("Cancel", role: .cancel) {}
             Button("Clear All", role: .destructive) {
-                blocklistProvider()?.clearAll()
-                blocklist = blocklistProvider()?.allEntries ?? []
+                let provider = blocklistProvider()
+                Task {
+                    await provider?.clearAll()
+                    blocklist = await provider?.allEntries ?? []
+                }
             }
         } message: {
             Text("This removes every entry from your song-request blocklist. This cannot be undone.")

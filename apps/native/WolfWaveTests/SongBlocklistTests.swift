@@ -14,110 +14,130 @@ final class SongBlocklistTests: XCTestCase {
 
     // MARK: - Empty Start
 
-    func testNewListIsEmpty() {
+    func testNewListIsEmpty() async {
         let storage = InMemoryBlocklistStorage()
         let list = SongBlocklist(storage: storage)
-        XCTAssertTrue(list.allEntries.isEmpty)
+        let entries = await list.allEntries
+        XCTAssertTrue(entries.isEmpty)
     }
 
-    func testIsBlockedReturnsFalseOnEmptyList() {
+    func testIsBlockedReturnsFalseOnEmptyList() async {
         let list = SongBlocklist(storage: InMemoryBlocklistStorage())
-        XCTAssertFalse(list.isBlocked(title: "Anything", artist: "Anyone"))
+        let blocked = await list.isBlocked(title: "Anything", artist: "Anyone")
+        XCTAssertFalse(blocked)
     }
 
     // MARK: - Add
 
-    func testAddSongMakesItBlocked() {
+    func testAddSongMakesItBlocked() async {
         let list = SongBlocklist(storage: InMemoryBlocklistStorage())
-        list.add(BlocklistItem(value: "Anti-Hero", type: .song))
-        XCTAssertTrue(list.isBlocked(title: "Anti-Hero", artist: "Taylor Swift"))
-        XCTAssertFalse(list.isBlocked(title: "Bad Blood", artist: "Taylor Swift"))
+        await list.add(BlocklistItem(value: "Anti-Hero", type: .song))
+        let blockedAnti = await list.isBlocked(title: "Anti-Hero", artist: "Taylor Swift")
+        let blockedOther = await list.isBlocked(title: "Bad Blood", artist: "Taylor Swift")
+        XCTAssertTrue(blockedAnti)
+        XCTAssertFalse(blockedOther)
     }
 
-    func testAddArtistBlocksAllSongsByThatArtist() {
+    func testAddArtistBlocksAllSongsByThatArtist() async {
         let list = SongBlocklist(storage: InMemoryBlocklistStorage())
-        list.add(BlocklistItem(value: "Drake", type: .artist))
-        XCTAssertTrue(list.isBlocked(title: "One Dance", artist: "Drake"))
-        XCTAssertTrue(list.isBlocked(title: "God's Plan", artist: "Drake"))
-        XCTAssertFalse(list.isBlocked(title: "One Dance", artist: "Calvin Harris"))
+        await list.add(BlocklistItem(value: "Drake", type: .artist))
+        let blockedDrake1 = await list.isBlocked(title: "One Dance", artist: "Drake")
+        let blockedDrake2 = await list.isBlocked(title: "God's Plan", artist: "Drake")
+        let notBlocked = await list.isBlocked(title: "One Dance", artist: "Calvin Harris")
+        XCTAssertTrue(blockedDrake1)
+        XCTAssertTrue(blockedDrake2)
+        XCTAssertFalse(notBlocked)
     }
 
-    func testAddIsCaseInsensitive() {
+    func testAddIsCaseInsensitive() async {
         let list = SongBlocklist(storage: InMemoryBlocklistStorage())
-        list.add(BlocklistItem(value: "ANTI-HERO", type: .song))
-        XCTAssertTrue(list.isBlocked(title: "anti-hero", artist: ""))
-        XCTAssertTrue(list.isBlocked(title: "Anti-Hero", artist: ""))
+        await list.add(BlocklistItem(value: "ANTI-HERO", type: .song))
+        let lower = await list.isBlocked(title: "anti-hero", artist: "")
+        let mixed = await list.isBlocked(title: "Anti-Hero", artist: "")
+        XCTAssertTrue(lower)
+        XCTAssertTrue(mixed)
     }
 
-    func testAddSameItemTwiceDoesNotDuplicate() {
+    func testAddSameItemTwiceDoesNotDuplicate() async {
         let list = SongBlocklist(storage: InMemoryBlocklistStorage())
-        list.add(BlocklistItem(value: "Drake", type: .artist))
-        list.add(BlocklistItem(value: "drake", type: .artist))
-        XCTAssertEqual(list.allEntries.count, 1)
+        await list.add(BlocklistItem(value: "Drake", type: .artist))
+        await list.add(BlocklistItem(value: "drake", type: .artist))
+        let count = await list.allEntries.count
+        XCTAssertEqual(count, 1)
     }
 
-    func testSongAndArtistOfSameNameCoexist() {
+    func testSongAndArtistOfSameNameCoexist() async {
         let list = SongBlocklist(storage: InMemoryBlocklistStorage())
-        list.add(BlocklistItem(value: "Madonna", type: .song))
-        list.add(BlocklistItem(value: "Madonna", type: .artist))
-        XCTAssertEqual(list.allEntries.count, 2)
+        await list.add(BlocklistItem(value: "Madonna", type: .song))
+        await list.add(BlocklistItem(value: "Madonna", type: .artist))
+        let count = await list.allEntries.count
+        XCTAssertEqual(count, 2)
     }
 
     // MARK: - Remove
 
-    func testRemoveByIDDropsEntry() {
+    func testRemoveByIDDropsEntry() async {
         let list = SongBlocklist(storage: InMemoryBlocklistStorage())
         let item = BlocklistItem(value: "Drake", type: .artist)
-        list.add(item)
-        list.remove(id: item.id)
-        XCTAssertTrue(list.allEntries.isEmpty)
-        XCTAssertFalse(list.isBlocked(title: "any", artist: "Drake"))
+        await list.add(item)
+        await list.remove(id: item.id)
+        let entries = await list.allEntries
+        let blocked = await list.isBlocked(title: "any", artist: "Drake")
+        XCTAssertTrue(entries.isEmpty)
+        XCTAssertFalse(blocked)
     }
 
-    func testRemoveUnknownIDIsNoOp() {
+    func testRemoveUnknownIDIsNoOp() async {
         let list = SongBlocklist(storage: InMemoryBlocklistStorage())
-        list.add(BlocklistItem(value: "Drake", type: .artist))
-        list.remove(id: UUID())
-        XCTAssertEqual(list.allEntries.count, 1)
+        await list.add(BlocklistItem(value: "Drake", type: .artist))
+        await list.remove(id: UUID())
+        let count = await list.allEntries.count
+        XCTAssertEqual(count, 1)
     }
 
-    func testClearAllEmptiesTheList() {
+    func testClearAllEmptiesTheList() async {
         let list = SongBlocklist(storage: InMemoryBlocklistStorage())
-        list.add(BlocklistItem(value: "Drake", type: .artist))
-        list.add(BlocklistItem(value: "Anti-Hero", type: .song))
-        list.clearAll()
-        XCTAssertTrue(list.allEntries.isEmpty)
+        await list.add(BlocklistItem(value: "Drake", type: .artist))
+        await list.add(BlocklistItem(value: "Anti-Hero", type: .song))
+        await list.clearAll()
+        let entries = await list.allEntries
+        XCTAssertTrue(entries.isEmpty)
     }
 
     // MARK: - Persistence
 
-    func testEntriesSurviveReload() {
+    func testEntriesSurviveReload() async {
         let storage = InMemoryBlocklistStorage()
         let first = SongBlocklist(storage: storage)
-        first.add(BlocklistItem(value: "Drake", type: .artist))
-        first.add(BlocklistItem(value: "Anti-Hero", type: .song))
+        await first.add(BlocklistItem(value: "Drake", type: .artist))
+        await first.add(BlocklistItem(value: "Anti-Hero", type: .song))
 
         let second = SongBlocklist(storage: storage)
-        XCTAssertEqual(second.allEntries.count, 2)
-        XCTAssertTrue(second.isBlocked(title: "anything", artist: "Drake"))
-        XCTAssertTrue(second.isBlocked(title: "anti-hero", artist: "anyone"))
+        let count = await second.allEntries.count
+        let blockedDrake = await second.isBlocked(title: "anything", artist: "Drake")
+        let blockedSong = await second.isBlocked(title: "anti-hero", artist: "anyone")
+        XCTAssertEqual(count, 2)
+        XCTAssertTrue(blockedDrake)
+        XCTAssertTrue(blockedSong)
     }
 
-    func testCorruptStorageProducesEmptyList() {
+    func testCorruptStorageProducesEmptyList() async {
         let storage = InMemoryBlocklistStorage(initialData: Data("not-json".utf8))
         let list = SongBlocklist(storage: storage)
-        XCTAssertTrue(list.allEntries.isEmpty)
+        let entries = await list.allEntries
+        XCTAssertTrue(entries.isEmpty)
     }
 
-    func testRemoveIsPersisted() {
+    func testRemoveIsPersisted() async {
         let storage = InMemoryBlocklistStorage()
         let first = SongBlocklist(storage: storage)
         let item = BlocklistItem(value: "Drake", type: .artist)
-        first.add(item)
-        first.remove(id: item.id)
+        await first.add(item)
+        await first.remove(id: item.id)
 
         let second = SongBlocklist(storage: storage)
-        XCTAssertTrue(second.allEntries.isEmpty)
+        let entries = await second.allEntries
+        XCTAssertTrue(entries.isEmpty)
     }
 
     // MARK: - In-Memory Storage Behavior

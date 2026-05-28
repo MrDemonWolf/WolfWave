@@ -52,6 +52,14 @@ nonisolated enum FeatureFlags {
         defaults.bool(forKey: AppConstants.UserDefaults.songRequestEnabled)
     }
 
+    static var songCommandSongLinkEnabled: Bool {
+        defaults.bool(forKey: AppConstants.UserDefaults.songCommandSongLinkEnabled)
+    }
+
+    static var songChangeNotificationsEnabled: Bool {
+        defaults.bool(forKey: AppConstants.UserDefaults.songChangeNotificationsEnabled)
+    }
+
     // MARK: UI
 
     static var streamerModeEnabled: Bool {

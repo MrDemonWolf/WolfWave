@@ -86,11 +86,12 @@ extension AppDelegate {
 
     /// Creates the WebSocket server on the configured port and enables if configured.
     func setupWebSocketServer() {
-        // Warm the LAN IP cache on a background queue so the Now-Playing Server settings
+        // Warm the LAN IP cache on a background task so the Now-Playing Server settings
         // can render the Network Address row instantly on first open instead of waiting
-        // on `getifaddrs`. Sync work runs off-main; cache becomes visible to the next
-        // view init. Also schedule an async refresh that picks up later interface changes.
-        DispatchQueue.global(qos: .userInitiated).async {
+        // on `getifaddrs`. Synchronous work runs off-main; cache becomes visible to the
+        // next view init. Also schedule an async refresh that picks up later interface
+        // changes.
+        Task.detached(priority: .userInitiated) {
             NetworkInfoService.warmCache()
         }
         Task.detached(priority: .utility) {
@@ -104,7 +105,7 @@ extension AppDelegate {
             _ = NSFontManager.shared.availableFontFamilies
         }
 
-        let storedPort = UserDefaults.standard.integer(forKey: AppConstants.UserDefaults.websocketServerPort)
+        let storedPort = Preferences.websocketServerPort
         let port: UInt16 = storedPort > 0 ? UInt16(clamping: storedPort) : AppConstants.WebSocketServer.defaultPort
 
         let token = WebSocketAuthToken.currentOrCreate()
@@ -195,19 +196,31 @@ extension AppDelegate {
     /// skip action and chat-message relay can reach the live services.
     func setupSkipVoteManager() {
         let voteManager = SkipVoteManager()
-
-        voteManager.performSkip = { [weak self] in
-            await self?.songRequestService?.voteSkip()
-        }
-        voteManager.sendChatMessage = { [weak self] message in
-            guard let service = self?.twitchService else { return }
-            Task { await service.sendMessage(message) }
-        }
-        voteManager.createPoll = { [weak self] title, duration in
-            await self?.twitchService?.createSkipPoll(title: title, durationSeconds: duration) ?? false
-        }
-
         skipVoteManager = voteManager
+
+        let performSkip: @Sendable () async -> Void = { [weak self] in
+            let service = await MainActor.run { self?.songRequestService }
+            await service?.voteSkip()
+        }
+        let sendChatMessage: @Sendable (String) -> Void = { [weak self] message in
+            Task { @MainActor [weak self] in
+                guard let service = self?.twitchService else { return }
+                await service.sendMessage(message)
+            }
+        }
+        let createPoll: @Sendable (String, Int) async -> Bool = { [weak self] title, duration in
+            let service = await MainActor.run { self?.twitchService }
+            return await service?.createSkipPoll(title: title, durationSeconds: duration) ?? false
+        }
+
+        Task {
+            await voteManager.configure(
+                performSkip: performSkip,
+                sendChatMessage: sendChatMessage,
+                createPoll: createPoll
+            )
+        }
+
         if let twitchService {
             Task { [weak self] in
                 await twitchService.setSkipVoteManager { [weak self] in
@@ -518,9 +531,7 @@ extension AppDelegate {
 
     /// Defaults tracking to enabled on first launch, then starts or stops the monitor.
     func initializeTrackingState() {
-        if UserDefaults.standard.object(forKey: AppConstants.UserDefaults.trackingEnabled) == nil {
-            UserDefaults.standard.set(true, forKey: AppConstants.UserDefaults.trackingEnabled)
-        }
+        Preferences.seedTrackingEnabledDefaultIfNeeded()
 
         if isTrackingEnabled() {
             playbackSourceManager?.startTracking()
@@ -553,7 +564,7 @@ extension AppDelegate {
 
     @MainActor
     private func setReauthNeeded(_ needed: Bool) {
-        UserDefaults.standard.set(needed, forKey: AppConstants.UserDefaults.twitchReauthNeeded)
+        Preferences.setTwitchReauthNeeded(needed)
     }
 
     private func showTwitchAuthNotification(title: String, message: String) {
@@ -580,7 +591,7 @@ extension AppDelegate {
     }
 
     private func openSettingsToTwitch() {
-        UserDefaults.standard.set(AppConstants.Twitch.settingsSection, forKey: AppConstants.UserDefaults.selectedSettingsSection)
+        Preferences.setSelectedSettingsSection(AppConstants.Twitch.settingsSection)
         openSettings()
     }
 
@@ -730,9 +741,7 @@ extension AppDelegate: PlaybackSourceDelegate {
     /// setting. Called only on a genuine track change, never on the first
     /// track seen after launch.
     private func maybePostSongChangeNotification(track: String, artist: String, album: String) {
-        guard UserDefaults.standard.bool(
-            forKey: AppConstants.UserDefaults.songChangeNotificationsEnabled
-        ) else { return }
+        guard FeatureFlags.songChangeNotificationsEnabled else { return }
 
         Task {
             await NotificationService.shared.postSongChange(track: track, artist: artist, album: album)

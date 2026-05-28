@@ -12,7 +12,10 @@ import Foundation
 ///
 /// Passed to `AsyncBotCommand` implementations so they can make decisions
 /// based on who sent the message (e.g., mod-only commands, per-user limits).
-struct BotCommandContext {
+///
+/// Declared `nonisolated` so non-MainActor consumers (e.g. the `SkipVoteManager`
+/// actor) can read the fields without crossing into MainActor.
+nonisolated struct BotCommandContext: Sendable {
 
     // MARK: - Properties
 

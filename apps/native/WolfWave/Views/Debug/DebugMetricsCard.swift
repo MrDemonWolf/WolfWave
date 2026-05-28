@@ -7,7 +7,6 @@
 //
 
 #if DEBUG
-import Combine
 import SwiftUI
 
 // MARK: - Debug Metrics Card
@@ -20,8 +19,8 @@ struct DebugMetricsCard: View {
 
     @State private var snapshot = MetricsService.shared.snapshot()
 
-    /// Refreshes the displayed snapshot on a steady interval.
-    private let refreshTimer = Timer.publish(every: 2, on: .main, in: .common).autoconnect()
+    /// Interval between metric snapshots while the card is on-screen.
+    private static let refreshInterval: Duration = .seconds(2)
 
     private static let byteFormatter: ByteCountFormatter = {
         let formatter = ByteCountFormatter()
@@ -71,8 +70,13 @@ struct DebugMetricsCard: View {
             }
         }
         .cardStyle()
-        .onReceive(refreshTimer) { _ in
-            snapshot = MetricsService.shared.snapshot()
+        .task {
+            // Driven by structured concurrency so the loop cancels when the
+            // card disappears — no Combine subscription to clean up.
+            while !Task.isCancelled {
+                snapshot = MetricsService.shared.snapshot()
+                try? await Task.sleep(for: Self.refreshInterval)
+            }
         }
         .accessibilityIdentifier("performanceMetricsCard")
     }

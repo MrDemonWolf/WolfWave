@@ -210,7 +210,7 @@ final class SongRequestService {
 
         switch searchResult {
         case .found(let song):
-            if blocklist.isBlocked(title: song.title, artist: song.artistName) {
+            if await blocklist.isBlocked(title: song.title, artist: song.artistName) {
                 return .blocked
             }
 

@@ -198,6 +198,10 @@ struct LoggerTests {
             }
         }
 
+        // Log writes are dispatched async onto the file queue — drain it
+        // before reading so CI doesn't see a half-flushed snapshot.
+        Log.flush()
+
         // Verify at least some of the concurrent messages were written.
         // Log rotation (>5MB) can split writes between wolfwave.log and the
         // rotated wolfwave.log.1 backup if a prior test pushed the file near

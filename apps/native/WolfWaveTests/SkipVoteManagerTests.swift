@@ -74,8 +74,9 @@ final class SkipVoteManagerTests: WolfWaveTestCase {
         enableFeature(minVotes: 3)
         let manager = SkipVoteManager()
         let outcome = await manager.recordVote(context: context(userID: "1"))
+        let state = await manager.currentVoteState()
         XCTAssertEqual(outcome, .started(count: 1, needed: 3))
-        XCTAssertEqual(manager.currentVoteState()?.count, 1)
+        XCTAssertEqual(state?.count, 1)
     }
 
     func testSecondVoterIsCounted() async {
@@ -89,27 +90,36 @@ final class SkipVoteManagerTests: WolfWaveTestCase {
     func testThresholdReachedSkipsAndPasses() async {
         enableFeature(minVotes: 3)
         let manager = SkipVoteManager()
-        var skipCount = 0
-        manager.performSkip = { skipCount += 1 }
+        let skipCount = AtomicInt()
+        await manager.configure(
+            performSkip: { skipCount.increment() },
+            sendChatMessage: nil,
+            createPoll: nil
+        )
 
         _ = await manager.recordVote(context: context(userID: "1"))
         _ = await manager.recordVote(context: context(userID: "2"))
         let outcome = await manager.recordVote(context: context(userID: "3"))
 
+        let state = await manager.currentVoteState()
         XCTAssertEqual(outcome, .passed(count: 3))
-        XCTAssertEqual(skipCount, 1)
-        XCTAssertNil(manager.currentVoteState(), "Session should reset after passing")
+        XCTAssertEqual(skipCount.value, 1)
+        XCTAssertNil(state, "Session should reset after passing")
     }
 
     func testMinVotesOnePassesImmediately() async {
         enableFeature(minVotes: 1)
         let manager = SkipVoteManager()
-        var skipped = false
-        manager.performSkip = { skipped = true }
+        let skipped = AtomicBool()
+        await manager.configure(
+            performSkip: { skipped.set(true) },
+            sendChatMessage: nil,
+            createPoll: nil
+        )
 
         let outcome = await manager.recordVote(context: context(userID: "1"))
         XCTAssertEqual(outcome, .passed(count: 1))
-        XCTAssertTrue(skipped)
+        XCTAssertTrue(skipped.value)
     }
 
     // MARK: - Duplicate Voter
@@ -125,12 +135,16 @@ final class SkipVoteManagerTests: WolfWaveTestCase {
     func testDuplicateVoteDoesNotCrossThreshold() async {
         enableFeature(minVotes: 2)
         let manager = SkipVoteManager()
-        var skipCount = 0
-        manager.performSkip = { skipCount += 1 }
+        let skipCount = AtomicInt()
+        await manager.configure(
+            performSkip: { skipCount.increment() },
+            sendChatMessage: nil,
+            createPoll: nil
+        )
 
         _ = await manager.recordVote(context: context(userID: "1"))
         _ = await manager.recordVote(context: context(userID: "1"))
-        XCTAssertEqual(skipCount, 0, "Same user voting twice must not pass a 2-vote threshold")
+        XCTAssertEqual(skipCount.value, 0, "Same user voting twice must not pass a 2-vote threshold")
     }
 
     // MARK: - Subscriber-only
@@ -164,7 +178,7 @@ final class SkipVoteManagerTests: WolfWaveTestCase {
     func testCooldownBlocksRapidReVote() async {
         enableFeature(minVotes: 1, cooldown: 60)
         let manager = SkipVoteManager()
-        manager.performSkip = {}
+        await manager.configure(performSkip: {}, sendChatMessage: nil, createPoll: nil)
 
         let first = await manager.recordVote(context: context(userID: "1"))
         XCTAssertEqual(first, .passed(count: 1))
@@ -182,17 +196,24 @@ final class SkipVoteManagerTests: WolfWaveTestCase {
     func testWindowExpiryFailsSession() async throws {
         enableFeature(minVotes: 5, window: 1)
         let manager = SkipVoteManager()
-        var chatMessage: String?
-        manager.sendChatMessage = { chatMessage = $0 }
+        let chatMessage = AtomicString()
+        await manager.configure(
+            performSkip: nil,
+            sendChatMessage: { chatMessage.set($0) },
+            createPoll: nil
+        )
 
         _ = await manager.recordVote(context: context(userID: "1"))
-        XCTAssertNotNil(manager.currentVoteState())
+        let preState = await manager.currentVoteState()
+        XCTAssertNotNil(preState)
 
         try await Task.sleep(for: .seconds(2))
 
-        XCTAssertNil(manager.currentVoteState(), "Session should reset after the window expires")
-        XCTAssertNotNil(chatMessage)
-        XCTAssertTrue(chatMessage?.contains("failed") ?? false)
+        let postState = await manager.currentVoteState()
+        XCTAssertNil(postState, "Session should reset after the window expires")
+        let message = chatMessage.value
+        XCTAssertNotNil(message)
+        XCTAssertTrue(message?.contains("failed") ?? false)
     }
 
     // MARK: - Reset
@@ -201,8 +222,9 @@ final class SkipVoteManagerTests: WolfWaveTestCase {
         enableFeature(minVotes: 3)
         let manager = SkipVoteManager()
         _ = await manager.recordVote(context: context(userID: "1"))
-        manager.reset()
-        XCTAssertNil(manager.currentVoteState())
+        await manager.reset()
+        let state = await manager.currentVoteState()
+        XCTAssertNil(state)
     }
 
     // MARK: - Polls Mode
@@ -219,7 +241,11 @@ final class SkipVoteManagerTests: WolfWaveTestCase {
         enableFeature(minVotes: 3)
         UserDefaults.standard.set(true, forKey: AppConstants.UserDefaults.voteSkipUsePolls)
         let manager = SkipVoteManager()
-        manager.createPoll = { _, _ in true }
+        await manager.configure(
+            performSkip: nil,
+            sendChatMessage: nil,
+            createPoll: { _, _ in true }
+        )
         let outcome = await manager.recordVote(context: context(userID: "1", isModerator: true))
         XCTAssertEqual(outcome, .pollStarted)
     }
@@ -228,7 +254,11 @@ final class SkipVoteManagerTests: WolfWaveTestCase {
         enableFeature(minVotes: 3)
         UserDefaults.standard.set(true, forKey: AppConstants.UserDefaults.voteSkipUsePolls)
         let manager = SkipVoteManager()
-        manager.createPoll = { _, _ in false }
+        await manager.configure(
+            performSkip: nil,
+            sendChatMessage: nil,
+            createPoll: { _, _ in false }
+        )
         let outcome = await manager.recordVote(context: context(userID: "1", isBroadcaster: true))
         XCTAssertEqual(outcome, .started(count: 1, needed: 3), "Failed poll should fall back to a chat tally")
     }
@@ -236,27 +266,64 @@ final class SkipVoteManagerTests: WolfWaveTestCase {
     func testPollEndedSkipsWhenSkipWins() async {
         enableFeature(minVotes: 3)
         let manager = SkipVoteManager()
-        var skipped = false
-        manager.performSkip = { skipped = true }
+        let skipped = AtomicBool()
+        await manager.configure(
+            performSkip: { skipped.set(true) },
+            sendChatMessage: nil,
+            createPoll: nil
+        )
         await manager.handlePollEnded(skipVotes: 5, keepVotes: 2)
-        XCTAssertTrue(skipped)
+        XCTAssertTrue(skipped.value)
     }
 
     func testPollEndedDoesNotSkipBelowMinimum() async {
         enableFeature(minVotes: 10)
         let manager = SkipVoteManager()
-        var skipped = false
-        manager.performSkip = { skipped = true }
+        let skipped = AtomicBool()
+        await manager.configure(
+            performSkip: { skipped.set(true) },
+            sendChatMessage: nil,
+            createPoll: nil
+        )
         await manager.handlePollEnded(skipVotes: 5, keepVotes: 2)
-        XCTAssertFalse(skipped, "Skip wins but is below the minimum vote threshold")
+        XCTAssertFalse(skipped.value, "Skip wins but is below the minimum vote threshold")
     }
 
     func testPollEndedDoesNotSkipWhenKeepWins() async {
         enableFeature(minVotes: 1)
         let manager = SkipVoteManager()
-        var skipped = false
-        manager.performSkip = { skipped = true }
+        let skipped = AtomicBool()
+        await manager.configure(
+            performSkip: { skipped.set(true) },
+            sendChatMessage: nil,
+            createPoll: nil
+        )
         await manager.handlePollEnded(skipVotes: 2, keepVotes: 9)
-        XCTAssertFalse(skipped)
+        XCTAssertFalse(skipped.value)
     }
+}
+
+// MARK: - Sendable Atomic Boxes for closure capture
+
+/// Thread-safe Int counter — used by `@Sendable` closures captured into the
+/// actor under test. NSLock is fine here; the test isn't measuring lock perf.
+private final class AtomicInt: @unchecked Sendable {
+    private let lock = NSLock()
+    private var stored = 0
+    var value: Int { lock.withLock { stored } }
+    func increment() { lock.withLock { stored += 1 } }
+}
+
+private final class AtomicBool: @unchecked Sendable {
+    private let lock = NSLock()
+    private var stored = false
+    var value: Bool { lock.withLock { stored } }
+    func set(_ newValue: Bool) { lock.withLock { stored = newValue } }
+}
+
+private final class AtomicString: @unchecked Sendable {
+    private let lock = NSLock()
+    private var stored: String?
+    var value: String? { lock.withLock { stored } }
+    func set(_ newValue: String?) { lock.withLock { stored = newValue } }
 }

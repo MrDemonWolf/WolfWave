@@ -27,6 +27,10 @@ nonisolated struct TwitchChannelPointsService: Sendable {
         let broadcasterID: String
         let token: String
         let clientID: String
+
+        var helix: HelixClient.Credentials {
+            HelixClient.Credentials(token: token, clientID: clientID)
+        }
     }
 
     /// How a channel-point redemption should be resolved.
@@ -38,6 +42,10 @@ nonisolated struct TwitchChannelPointsService: Sendable {
     }
 
     /// Errors produced by Helix channel-point calls.
+    ///
+    /// Kept as a thin wrapper around `HelixClient.HelixError` so existing
+    /// callers continue to switch on the same cases while sharing the
+    /// underlying HTTP/transport plumbing.
     enum RewardError: Error, LocalizedError {
         case http(status: Int, body: String)
         case transport(underlying: Error)
@@ -53,17 +61,44 @@ nonisolated struct TwitchChannelPointsService: Sendable {
                 return "Unexpected response from Twitch."
             }
         }
+
+        /// Maps a `HelixError` into the legacy `RewardError` cases used by
+        /// existing call sites and tests.
+        static func from(_ error: HelixClient.HelixError) -> RewardError {
+            switch error {
+            case let .http(status, body):
+                return .http(status: status, body: body)
+            case let .unauthorized(body):
+                return .http(status: 401, body: body)
+            case let .rateLimited(body):
+                return .http(status: 429, body: body)
+            case .malformedResponse, .decodingFailed, .encodingFailed:
+                return .malformedResponse
+            case let .transport(message):
+                return .transport(
+                    underlying: NSError(
+                        domain: "HelixTransport", code: -1,
+                        userInfo: [NSLocalizedDescriptionKey: message]))
+            }
+        }
     }
 
     // MARK: - Properties
 
     private let baseURL = AppConstants.Twitch.apiBaseURL
-    private let session: URLSession
+    private let helix: HelixClient
 
     // MARK: - Init
 
+    /// Backwards-compatible initializer that lets tests inject a custom
+    /// `URLSession` (e.g. one backed by `MockURLProtocol`).
     init(session: URLSession = .shared) {
-        self.session = session
+        self.helix = HelixClient(http: HTTPClient(session: session))
+    }
+
+    /// Test seam — inject a fully-configured `HelixClient`.
+    init(helix: HelixClient) {
+        self.helix = helix
     }
 
     // MARK: - Reward Lifecycle
@@ -102,9 +137,14 @@ nonisolated struct TwitchChannelPointsService: Sendable {
         ]
         guard let url = components?.url else { throw RewardError.malformedResponse }
 
-        _ = try await send(
-            url: url, method: "PATCH", credentials: credentials,
-            body: ["cost": cost])
+        do {
+            _ = try await helix.sendJSON(
+                url: url, method: "PATCH",
+                credentials: credentials.helix,
+                body: ["cost": cost])
+        } catch let error as HelixClient.HelixError {
+            throw RewardError.from(error)
+        }
     }
 
     /// Resolves a redemption — `fulfilled` spends the points, `canceled` refunds
@@ -125,9 +165,14 @@ nonisolated struct TwitchChannelPointsService: Sendable {
         ]
         guard let url = components?.url else { throw RewardError.malformedResponse }
 
-        _ = try await send(
-            url: url, method: "PATCH", credentials: credentials,
-            body: ["status": resolution.rawValue])
+        do {
+            _ = try await helix.sendJSON(
+                url: url, method: "PATCH",
+                credentials: credentials.helix,
+                body: ["status": resolution.rawValue])
+        } catch let error as HelixClient.HelixError {
+            throw RewardError.from(error)
+        }
     }
 
     // MARK: - Private Helpers
@@ -143,11 +188,15 @@ nonisolated struct TwitchChannelPointsService: Sendable {
         guard let url = components?.url else { return false }
 
         do {
-            let json = try await send(url: url, method: "GET", credentials: credentials, body: nil)
+            let json = try await helix.sendJSON(
+                url: url, method: "GET",
+                credentials: credentials.helix)
             let data = json?["data"] as? [[String: Any]] ?? []
             return !data.isEmpty
-        } catch RewardError.http(let status, _) where status == 404 {
+        } catch let HelixClient.HelixError.http(status, _) where status == 404 {
             return false
+        } catch let error as HelixClient.HelixError {
+            throw RewardError.from(error)
         }
     }
 
@@ -166,52 +215,20 @@ nonisolated struct TwitchChannelPointsService: Sendable {
             "is_user_input_required": true,
         ]
 
-        let json = try await send(
-            url: url, method: "POST", credentials: credentials, body: body)
+        let json: [String: Any]?
+        do {
+            json = try await helix.sendJSON(
+                url: url, method: "POST",
+                credentials: credentials.helix,
+                body: body)
+        } catch let error as HelixClient.HelixError {
+            throw RewardError.from(error)
+        }
         guard let data = json?["data"] as? [[String: Any]],
             let id = data.first?["id"] as? String, !id.isEmpty
         else {
             throw RewardError.malformedResponse
         }
         return id
-    }
-
-    /// Performs an authenticated Helix request, returning the parsed JSON object
-    /// (or `nil` for an empty `204` body).
-    @discardableResult
-    private func send(
-        url: URL,
-        method: String,
-        credentials: Credentials,
-        body: [String: Any]?
-    ) async throws -> [String: Any]? {
-        var request = URLRequest(url: url)
-        request.httpMethod = method
-        request.setValue("Bearer \(credentials.token)", forHTTPHeaderField: "Authorization")
-        request.setValue(credentials.clientID, forHTTPHeaderField: "Client-Id")
-        if let body {
-            request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-            request.httpBody = try JSONSerialization.data(withJSONObject: body)
-        }
-
-        let data: Data
-        let response: URLResponse
-        do {
-            (data, response) = try await session.data(for: request)
-        } catch {
-            throw RewardError.transport(underlying: error)
-        }
-
-        guard let http = response as? HTTPURLResponse else {
-            throw RewardError.malformedResponse
-        }
-        guard (200..<300).contains(http.statusCode) else {
-            throw RewardError.http(
-                status: http.statusCode,
-                body: String(data: data, encoding: .utf8) ?? "")
-        }
-
-        guard !data.isEmpty else { return nil }
-        return try? JSONSerialization.jsonObject(with: data) as? [String: Any]
     }
 }

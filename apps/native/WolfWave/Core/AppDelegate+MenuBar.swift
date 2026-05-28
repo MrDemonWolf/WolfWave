@@ -522,10 +522,10 @@ extension AppDelegate: NSMenuDelegate {
 
         if KeychainService.loadTwitchToken() != nil {
             let connected = twitchService?.isConnectedSnapshot.value ?? false
-            let rawChannel = UserDefaults.standard.string(forKey: AppConstants.UserDefaults.twitchChannelName)
-            let channel = rawChannel.map {
-                StreamerMode.mask($0, style: .channel, isOn: StreamerMode.isEnabled)
-            }
+            let rawChannel = Preferences.twitchChannelName
+            let channel: String? = rawChannel.isEmpty
+                ? nil
+                : StreamerMode.mask(rawChannel, style: .channel, isOn: StreamerMode.isEnabled)
             let twitchItem = makeStatusItem(
                 title: "Twitch",
                 status: MenuStatusFormatter.twitchStatus(isConnected: connected, channelName: channel),
@@ -729,7 +729,7 @@ extension AppDelegate: NSMenuDelegate {
 
     /// Resolves the user-configured widget HTTP port, falling back to the default.
     fileprivate func resolvedWidgetPort() -> UInt16 {
-        let stored = UserDefaults.standard.integer(forKey: AppConstants.UserDefaults.widgetPort)
+        let stored = Preferences.widgetPort
         return stored > 0
             ? UInt16(clamping: stored)
             : AppConstants.WebSocketServer.widgetDefaultPort
@@ -765,7 +765,7 @@ extension AppDelegate {
             }
         } else {
             // Connecting requires channel + credentials — open Twitch settings
-            UserDefaults.standard.set(AppConstants.Twitch.settingsSection, forKey: AppConstants.UserDefaults.selectedSettingsSection)
+            Preferences.setSelectedSettingsSection(AppConstants.Twitch.settingsSection)
             openSettings()
         }
     }
@@ -793,9 +793,9 @@ extension AppDelegate {
     @objc func toggleWebSocket() {
         let current = FeatureFlags.websocketEnabled
         let newValue = !current
-        UserDefaults.standard.set(newValue, forKey: AppConstants.UserDefaults.websocketEnabled)
+        Preferences.setWebSocketEnabled(newValue)
         // Keep widgetHTTPEnabled in sync with the tray toggle
-        UserDefaults.standard.set(newValue, forKey: AppConstants.UserDefaults.widgetHTTPEnabled)
+        Preferences.setWidgetHTTPEnabled(newValue)
         NotificationCenter.default.post(
             name: Notification.Name.websocketServerChanged,
             object: nil,
@@ -949,7 +949,8 @@ extension AppDelegate {
         // Twitch: leave then rejoin when creds + channel + clientID are all present.
         if let twitch = twitchService, twitch.isConnectedSnapshot.value {
             let token = KeychainService.loadTwitchToken()
-            let channel = UserDefaults.standard.string(forKey: AppConstants.UserDefaults.twitchChannelName)
+            let channelRaw = Preferences.twitchChannelName
+            let channel: String? = channelRaw.isEmpty ? nil : channelRaw
             let clientID = TwitchChatService.resolveClientID()
             Task {
                 await twitch.leaveChannel()

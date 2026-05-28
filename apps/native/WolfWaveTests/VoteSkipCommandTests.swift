@@ -102,12 +102,12 @@ final class VoteSkipCommandTests: WolfWaveTestCase {
 
     // MARK: - Execution
 
-    func testExecuteRepliesWhenVotePasses() {
+    func testExecuteRepliesWhenVotePasses() async {
         UserDefaults.standard.set(true, forKey: AppConstants.UserDefaults.voteSkipEnabled)
         UserDefaults.standard.set(1, forKey: AppConstants.UserDefaults.voteSkipMinVotes)
 
         let manager = SkipVoteManager()
-        manager.performSkip = {}
+        await manager.configure(performSkip: {}, sendChatMessage: nil, createPoll: nil)
         let command = VoteSkipCommand()
         command.skipVoteManager = { manager }
 
@@ -116,7 +116,7 @@ final class VoteSkipCommandTests: WolfWaveTestCase {
             XCTAssertFalse(response.isEmpty)
             replied.fulfill()
         }
-        wait(for: [replied], timeout: 2)
+        await fulfillment(of: [replied], timeout: 2)
     }
 
     func testExecuteStaysSilentWhenFeatureDisabled() {
