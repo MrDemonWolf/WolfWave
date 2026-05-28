@@ -1,0 +1,83 @@
+---
+title: Acknowledgements & Licenses
+description: Third-party services and open-source software WolfWave depends on, plus trademark notices and full license text for bundled libraries.
+keywords:
+  - wolfwave acknowledgements
+  - wolfwave licenses
+  - wolfwave third-party notices
+  - sparkle license
+ogTitle: WolfWave Acknowledgements & Licenses
+ogDescription: Third-party services, open-source libraries, and trademark notices for WolfWave.
+ogChips:
+  - Open Source
+  - Attribution
+  - Trademarks
+ogEyebrow: Legal
+---
+
+WolfWave is built on top of work by many other people and projects. This page collects the third-party services WolfWave talks to, the open-source libraries it bundles, and the trademark notices that go with them.
+
+## Third-Party Services
+
+WolfWave is a client of the following services. Your use of each is governed by that service's terms.
+
+| Service | Used for | Terms |
+| --- | --- | --- |
+| **Twitch** | EventSub WebSocket subscriptions, Helix chat + channel-point + bits APIs, OAuth Device Code flow | [Terms](https://www.twitch.tv/p/legal/terms-of-service/) · [Developer Agreement](https://www.twitch.tv/p/legal/developer-agreement/) |
+| **Discord** | Local IPC Rich Presence over Unix domain socket | [Terms](https://discord.com/terms) · [Developer Terms](https://discord.com/developers/docs/policies-and-agreements/developer-terms-of-service) |
+| **Apple Music** | Playback monitoring via ScriptingBridge + MusicKit search | [Apple Media Services Terms](https://www.apple.com/legal/internet-services/itunes/) |
+| **Odesli (song.link)** | Cross-platform track link resolution for Discord Rich Presence buttons and chat replies | [Terms](https://song.link/terms) |
+| **iTunes Search API** | Album artwork lookup and Apple Music URL resolution | [Apple API terms](https://www.apple.com/legal/internet-services/itunes/) |
+
+## Open-Source Software
+
+### Sparkle
+
+WolfWave ships [Sparkle](https://sparkle-project.org), the standard auto-update framework for macOS apps, for delivering signed application updates outside the Mac App Store.
+
+Sparkle is distributed under the MIT license:
+
+```
+Copyright (c) 2006-2013 Andy Matuschak.
+Copyright (c) 2009-2013 Elgato Systems GmbH.
+Copyright (c) 2011-2014 Kornel Lesiński.
+Copyright (c) 2015-2017 Mayur Pawashe.
+Copyright (c) 2014 C.W. Betts.
+Copyright (c) 2014 Petroules Corporation.
+Copyright (c) 2014 Big Nerd Ranch.
+All rights reserved.
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in
+all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+THE SOFTWARE.
+```
+
+Sparkle additionally bundles a small set of vendored components under permissive licenses; their notices are included verbatim in the Sparkle source distribution.
+
+## Trademark Notices
+
+- **Twitch** is a trademark of Twitch Interactive, Inc.
+- **Discord** is a trademark of Discord Inc.
+- **OBS** and **OBS Studio** are trademarks of the OBS Project.
+- **Apple**, **Apple Music**, **MusicKit**, and **macOS** are trademarks of Apple Inc., registered in the U.S. and other countries.
+- **song.link** is a trademark of Song, Inc. (operating as Odesli).
+
+WolfWave is **not affiliated with, endorsed by, or sponsored by** any of these companies. All brand names and logos are the property of their respective owners and are used only to describe the services WolfWave integrates with.
+
+## WolfWave Itself
+
+WolfWave is published by **MrDemonWolf, Inc.** under the MIT license. See the [Terms of Service](/docs/terms-of-service) and [Privacy Policy](/docs/privacy-policy) for more.

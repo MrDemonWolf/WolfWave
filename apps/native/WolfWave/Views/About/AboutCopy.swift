@@ -44,7 +44,7 @@ enum AboutCopy {
     // MARK: - Legal Copy
 
     static let trademarkNotice =
-        "Twitch, Discord, OBS, and Apple Music are trademarks of their respective owners. WolfWave is not affiliated with or endorsed by any of them."
+        "Twitch, Discord, OBS, Apple Music, and Apple are trademarks of their respective owners. song.link is a trademark of Song, Inc. (Odesli). WolfWave is not affiliated with, endorsed by, or sponsored by any of them."
 
     static var copyrightLine: String {
         "© 2026 \(AppConstants.AppInfo.copyrightHolder) All rights reserved."

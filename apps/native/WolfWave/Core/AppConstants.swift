@@ -805,6 +805,9 @@ nonisolated enum AppConstants {
         /// Terms of service page URL (derived from `docs`).
         static let termsOfService = "\(docs)/docs/terms-of-service"
 
+        /// Third-party acknowledgements + license notices page URL.
+        static let acknowledgements = "\(docs)/docs/acknowledgements"
+
         /// Documentation changelog page URL (Fumadocs route).
         static let changelog = "\(docs)/docs/changelog"
 
