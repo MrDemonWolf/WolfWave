@@ -43,23 +43,21 @@ extension AppDelegate {
         }
     }
 
-    /// Opens Settings and switches the sidebar to the About tab.
+    /// Shows the system standard About panel from the menu bar.
     ///
-    /// About is no longer a standalone window — single source of truth lives
-    /// in `AboutSettingsView` (sidebar tab). The notification is queued after
-    /// `openSettings()` so a freshly-created `SettingsView` has its
-    /// `.onReceive(.openSettingsSection)` subscription active by the time it fires.
+    /// About lives in two surfaces with intentionally different presentations:
+    /// the menu bar opens the native, compact `NSApplication` panel here;
+    /// the Settings sidebar shows the rich `AboutSettingsView` card layout.
+    /// Both pull identity, version, and legal strings from `AboutCopy` so they
+    /// stay in sync. Deferred past the menu-tracking pass to avoid AppKit
+    /// "layoutSubtreeIfNeeded" warnings.
     @objc func showAbout() {
         statusItem?.menu?.cancelTracking()
-        openSettings()
 
         RunLoop.main.perform {
             MainActor.assumeIsolated {
-                NotificationCenter.default.post(
-                    name: .openSettingsSection,
-                    object: nil,
-                    userInfo: ["section": SettingsView.SettingsSection.about.rawValue]
-                )
+                NSApp.activate(ignoringOtherApps: true)
+                NSApp.orderFrontStandardAboutPanel(options: AboutCopy.standardAboutPanelOptions())
             }
         }
     }
