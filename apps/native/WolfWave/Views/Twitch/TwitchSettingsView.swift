@@ -84,24 +84,26 @@ struct TwitchSettingsView: View {
     /// Title text for the auth card header, adapts to reauth/signed-in/signed-out states.
     private var authCardHeaderTitle: String {
         if viewModel.reauthNeeded {
-            return "Sign In Again"
+            return "Sign in again"
         } else if viewModel.credentialsSaved && viewModel.botUsername != "" {
-            return "All Set!"
+            return "All set"
+        } else if viewModel.authState.isInProgress {
+            return "Authorize WolfWave with Twitch"
         } else {
-            return "Not signed in"
+            return "Connect WolfWave to your Twitch account"
         }
     }
 
     /// Subtitle text for the auth card header with a short call-to-action.
     private var authCardHeaderSubtitle: String {
         if viewModel.reauthNeeded {
-            return "Sign-in expired. Sign in again."
+            return "Your sign-in expired. Reconnect to keep chat commands working."
         } else if viewModel.credentialsSaved && viewModel.botUsername != "" {
             return ""
         } else if viewModel.authState.isInProgress {
-            return "Enter the code below on Twitch to connect."
+            return "Enter the code below at twitch.tv/activate to finish signing in."
         } else {
-            return "Sign in to get started."
+            return "Sign in so WolfWave can post chat commands and read redemptions."
         }
     }
 
@@ -176,10 +178,18 @@ struct TwitchSettingsView: View {
                 hasStartedActivation = false
                 viewModel.startOAuth()
             }) {
-                Text("Sign in to Twitch")
-                    .font(.system(size: DSFont.Size.base, weight: .semibold))
-                    .frame(maxWidth: .infinity)
-                    .frame(height: 32)
+                HStack(spacing: DSSpace.s2) {
+                    Image("TwitchLogo")
+                        .renderingMode(.template)
+                        .resizable()
+                        .aspectRatio(contentMode: .fit)
+                        .frame(width: 14, height: 14)
+                        .foregroundStyle(.white)
+                    Text("Connect with Twitch")
+                        .font(.system(size: DSFont.Size.base, weight: .semibold))
+                }
+                .frame(maxWidth: .infinity)
+                .frame(height: 32)
             }
             .buttonStyle(.borderedProminent)
             .controlSize(.regular)
@@ -190,7 +200,7 @@ struct TwitchSettingsView: View {
                 .easeInOut(duration: DSMotion.Duration.fast),
                 value: viewModel.authState.isInProgress
             )
-            .accessibilityLabel("Sign in with Twitch")
+            .accessibilityLabel("Connect with Twitch")
             .accessibilityHint("Starts the Twitch authorization flow")
         }
         .transition(.opacity.combined(with: .move(edge: .top)))
@@ -199,20 +209,6 @@ struct TwitchSettingsView: View {
     /// Device-code flow with copy + cancel affordances.
     private var authorizingContent: some View {
         VStack(spacing: DSSpace.s4) {
-            HStack(spacing: 0) {
-                Text("Visit ")
-                if let activateURL = URL(string: "https://www.twitch.tv/activate") {
-                    Link("twitch.tv/activate", destination: activateURL)
-                        .pointerCursor()
-                } else {
-                    Text("twitch.tv/activate")
-                }
-                Text(" and enter this code:")
-            }
-            .font(.system(size: DSFont.Size.base))
-            .foregroundStyle(.secondary)
-            .frame(maxWidth: .infinity, alignment: .leading)
-
             if case .waitingForAuth(let code, let uri) = viewModel.authState {
                 DeviceCodeView(
                     userCode: code, verificationURI: uri,
@@ -236,7 +232,7 @@ struct TwitchSettingsView: View {
                     .progressViewStyle(.circular)
                     .controlSize(.small)
 
-                Text("Waiting for authorization\u{2026}")
+                Text("Waiting for you to approve on Twitch\u{2026}")
                     .font(.system(size: DSFont.Size.base))
                     .foregroundStyle(.secondary)
 
@@ -512,14 +508,14 @@ private struct SignedInView: View {
         HStack(spacing: DSSpace.s3) {
             if reauthNeeded {
                 Button(action: onReauth) {
-                    Label("Sign in again", systemImage: "arrow.clockwise.circle.fill")
+                    Label("Reconnect with Twitch", systemImage: "arrow.clockwise.circle.fill")
                         .font(.system(size: DSFont.Size.body, weight: .medium))
                 }
                 .buttonStyle(.bordered)
                 .tint(.orange)
                 .controlSize(.small)
                 .pointerCursor()
-                .accessibilityLabel("Sign in to Twitch again")
+                .accessibilityLabel("Reconnect with Twitch")
                 .accessibilityHint("Clears credentials and starts a new sign-in")
                 .accessibilityIdentifier("twitchReauthButton")
             } else {

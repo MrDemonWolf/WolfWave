@@ -34,7 +34,7 @@ struct DeviceCodeView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: DSSpace.s4) {
             // Header: subtle label
-            Text("Sign-in Code")
+            Text("Your code")
                 .font(.system(size: DSFont.Size.sm, weight: .medium))
                 .foregroundStyle(.secondary)
                 .transition(.move(edge: .top).combined(with: .opacity))
@@ -93,7 +93,7 @@ struct DeviceCodeView: View {
             // Primary action: open activation URL with subtler, smaller button
             Button(action: openActivationURL) {
                 HStack(spacing: 6) {
-                    Text("Continue to Twitch to sign in")
+                    Text("Open twitch.tv/activate")
                         .font(.system(size: DSFont.Size.body, weight: .medium))
                     Image(systemName: "arrow.up.right")
                         .font(.system(size: DSFont.Size.xs, weight: .semibold))
@@ -104,8 +104,8 @@ struct DeviceCodeView: View {
             .buttonStyle(.borderedProminent)
             .controlSize(.small)
             .pointerCursor()
-            .accessibilityLabel("Continue to Twitch to Authorize")
-            .accessibilityHint("Opens twitch.tv/activate in your browser")
+            .accessibilityLabel("Open twitch.tv/activate")
+            .accessibilityHint("Opens the Twitch activation page in your browser so you can approve WolfWave")
             .accessibilityIdentifier("openTwitchButton")
         }
         // Position the small "copied" toast near the copy button (top-right)

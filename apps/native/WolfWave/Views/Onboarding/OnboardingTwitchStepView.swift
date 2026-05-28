@@ -22,7 +22,7 @@ struct OnboardingTwitchStepView: View {
 
     var body: some View {
         OnboardingStepScaffold(
-            title: "Sign in to Twitch",
+            title: "Connect WolfWave to Twitch",
             description: "So !song works in your chat automatically. We only listen — we never post unless you ask.",
             icon: {
                 BrandTile(
@@ -82,14 +82,14 @@ struct OnboardingTwitchStepView: View {
                             .aspectRatio(contentMode: .fit)
                             .frame(width: 14, height: 14)
                             .foregroundStyle(.white)
-                        Text("Sign in with Twitch")
+                        Text("Connect with Twitch")
                     }
                 }
             )
-            .accessibilityLabel("Sign in with Twitch")
-            .accessibilityHint("Opens Twitch sign-in in your browser")
+            .accessibilityLabel("Connect with Twitch")
+            .accessibilityHint("Opens Twitch in your browser to authorize WolfWave")
 
-            Text("Opens twitch.tv in your browser. Takes about 10 seconds.")
+            Text("Opens twitch.tv/activate in your browser. Takes about 10 seconds.")
                 .font(.system(size: DSFont.Size.sm))
                 .foregroundStyle(.tertiary)
         }

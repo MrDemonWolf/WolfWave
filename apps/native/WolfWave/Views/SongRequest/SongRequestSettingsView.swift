@@ -34,7 +34,7 @@ struct SongRequestSettingsView: View {
                     Image(systemName: "lock.fill")
                         .font(.system(size: DSFont.Size.sm))
                         .foregroundStyle(.secondary)
-                    Text("Sign in to Twitch to enable song requests.")
+                    Text("Connect with Twitch to enable song requests.")
                         .font(.system(size: DSFont.Size.sm))
                         .foregroundStyle(.secondary)
                 }

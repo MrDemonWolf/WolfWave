@@ -203,7 +203,7 @@ enum RedemptionStatus: String {
         case .ok:
             return nil
         case .scopeMissing:
-            return "Sign in to Twitch again to grant channel-point and bits access."
+            return "Reconnect with Twitch to grant channel-point and bits access."
         case .botAccount:
             return "Channel-point and bit requests need you to sign in with your broadcaster account, not a separate bot account."
         case .subscribeFailed:

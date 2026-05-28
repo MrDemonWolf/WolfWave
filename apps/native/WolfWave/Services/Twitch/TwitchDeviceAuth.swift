@@ -303,9 +303,9 @@ nonisolated final class TwitchDeviceAuth {
 
             if pollAttempts % 10 == 0 {
                 // Update UI every 10 polls
-                progress("Still waiting for Twitch approval... Please check your browser.")
+                progress("Still waiting on Twitch — check your browser tab.")
             } else if pollAttempts == 1 {
-                progress("Waiting for authorization...")
+                progress("Waiting for you to approve on Twitch\u{2026}")
             }
 
             let params: [String: String] = [
