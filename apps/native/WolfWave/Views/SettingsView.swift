@@ -118,6 +118,10 @@ struct SettingsView: View {
     @AppStorage(AppConstants.UserDefaults.lastSongCommandEnabled)
     private var lastSongCommandEnabled = false
 
+    /// Whether !song / !last replies include a song.link URL
+    @AppStorage(AppConstants.UserDefaults.songCommandSongLinkEnabled)
+    private var songCommandSongLinkEnabled = false
+
     /// Cooldown settings for bot commands
     @AppStorage(AppConstants.UserDefaults.songCommandGlobalCooldown)
     private var songGlobalCooldown: Double = 15.0
@@ -335,7 +339,7 @@ struct SettingsView: View {
                         isOn: $lastSongCommandEnabled,
                         accessibilityLabel: "Enable Last Played Song command",
                         accessibilityIdentifier: "lastSongCommandToggle",
-                        isLast: !lastSongCommandEnabled
+                        isLast: !lastSongCommandEnabled && !currentSongCommandEnabled
                     ) { enabled in
                         Log.debug("SettingsView: Last Song Command \(enabled ? "enabled" : "disabled")", category: "Twitch")
                     }
@@ -345,8 +349,19 @@ struct SettingsView: View {
                             label: "!last cooldowns",
                             globalCooldown: $lastSongGlobalCooldown,
                             userCooldown: $lastSongUserCooldown,
-                            isLast: true
+                            isLast: !currentSongCommandEnabled && !lastSongCommandEnabled
                         )
+                    }
+
+                    if currentSongCommandEnabled || lastSongCommandEnabled {
+                        commandToggleRow(
+                            title: "Include song.link",
+                            subtitle: "Appends a cross-platform link to !song and !last replies",
+                            isOn: $songCommandSongLinkEnabled,
+                            accessibilityLabel: "Include song.link URL in song command reply",
+                            accessibilityIdentifier: "songCommandSongLinkToggle",
+                            isLast: true
+                        ) { _ in }
                     }
                 }
                 .cardStyleUnpadded()

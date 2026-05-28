@@ -256,7 +256,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         guard isMusicAppOpen() else { return "🐺 The streamer needs to open Apple Music" }
         guard let song = currentSong, let artist = currentArtist else { return "🐺 Nothing playing right now" }
         let verb = currentIsPaused ? "⏸️ Paused" : "▶️ Playing"
-        return "🐺 \(verb): \(song) by \(artist)"
+        return appendSongLink(to: "🐺 \(verb): \(song) by \(artist)", track: song, artist: artist)
     }
 
     /// Returns a formatted string with the previously played track for Twitch bot commands.
@@ -265,7 +265,16 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         guard let song = lastSong, let artist = lastArtist else {
             return "🐺 No previous tracks yet, keep the music flowing!"
         }
-        return "🐺 Previous: \(song) by \(artist)"
+        return appendSongLink(to: "🐺 Previous: \(song) by \(artist)", track: song, artist: artist)
+    }
+
+    /// Appends a song.link URL to `reply` when the toggle is on and ArtworkService has a cached URL.
+    /// Shared by `getCurrentSongInfo` and `getLastSongInfo` to avoid duplicate logic.
+    private func appendSongLink(to reply: String, track: String, artist: String) -> String {
+        guard UserDefaults.standard.bool(forKey: AppConstants.UserDefaults.songCommandSongLinkEnabled),
+              let url = ArtworkService.shared.cachedTrackLinks(track: track, artist: artist).songLinkURL
+        else { return reply }
+        return "\(reply) — \(url)"
     }
 
     /// Returns a formatted listening-stats string for the `!stats` Twitch command.

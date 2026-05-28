@@ -218,6 +218,9 @@ nonisolated enum AppConstants {
         /// Whether "last song" bot command is enabled (Bool, default: false)
         static let lastSongCommandEnabled = "lastSongCommandEnabled"
 
+        /// Whether !song / !last replies include a song.link URL (Bool, default: false)
+        static let songCommandSongLinkEnabled = "songCommandSongLinkEnabled"
+
         /// Whether the first-launch onboarding wizard has been completed (Bool, default: false)
         static let hasCompletedOnboarding = "hasCompletedOnboarding"
 
@@ -478,6 +481,7 @@ nonisolated enum AppConstants {
             songCommandUserCooldown,
             lastSongCommandGlobalCooldown,
             lastSongCommandUserCooldown,
+            songCommandSongLinkEnabled,
             widgetTheme,
             widgetLayout,
             widgetTextColor,
