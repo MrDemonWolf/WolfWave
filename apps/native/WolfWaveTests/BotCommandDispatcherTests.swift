@@ -56,7 +56,10 @@ final class BotCommandDispatcherTests: XCTestCase {
     }
 
     func testExactly500CharsProcessed() {
-        let message = "!song" + String(repeating: "x", count: 495)
+        // "!song" + space + filler = 500 chars. Routing matches on the first
+        // whitespace token, so the trailing filler must be separated by a space
+        // to register as a real command invocation.
+        let message = "!song " + String(repeating: "x", count: 494)
         dispatcher.setCurrentSongInfo { "Artist - Song" }
         let result = dispatcher.processMessage(message)
         XCTAssertNotNil(result)

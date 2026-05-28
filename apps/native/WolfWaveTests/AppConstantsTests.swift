@@ -56,6 +56,13 @@ struct AppConstantsTests {
         #expect(!AppConstants.UserDefaults.currentSongCommandEnabled.isEmpty)
         #expect(!AppConstants.UserDefaults.lastSongCommandEnabled.isEmpty)
     }
+
+    @Test("New command alias keys are registered in allKeys")
+    func testAliasKeysRegistered() async throws {
+        #expect(AppConstants.UserDefaults.allKeys.contains(AppConstants.UserDefaults.songCommandAliases))
+        #expect(AppConstants.UserDefaults.allKeys.contains(AppConstants.UserDefaults.lastSongCommandAliases))
+        #expect(AppConstants.UserDefaults.allKeys.contains(AppConstants.UserDefaults.statsCommandAliases))
+    }
     
     // MARK: - Dock Visibility Tests
     

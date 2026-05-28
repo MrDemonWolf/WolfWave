@@ -280,6 +280,12 @@ nonisolated enum AppConstants {
         /// Per-user cooldown for !last command in seconds (Double, default: 15.0)
         static let lastSongCommandUserCooldown = "lastSongCommandUserCooldown"
 
+        /// Custom aliases for !song command (String, comma-separated)
+        static let songCommandAliases = "songCommandAliases"
+
+        /// Custom aliases for !last command (String, comma-separated)
+        static let lastSongCommandAliases = "lastSongCommandAliases"
+
         /// Widget theme name (String, default: "Default")
         static let widgetTheme = "widgetTheme"
 
@@ -446,6 +452,9 @@ nonisolated enum AppConstants {
         /// Per-user cooldown for the !stats command in seconds (Double, default: 15.0)
         static let statsCommandUserCooldown = "statsCommandUserCooldown"
 
+        /// Custom aliases for the !stats command (String, comma-separated)
+        static let statsCommandAliases = "statsCommandAliases"
+
         /// Days of listening history to retain. 0 = keep everything (Int, default: 0)
         static let historyRetentionDays = "historyRetentionDays"
 
@@ -481,6 +490,8 @@ nonisolated enum AppConstants {
             songCommandUserCooldown,
             lastSongCommandGlobalCooldown,
             lastSongCommandUserCooldown,
+            songCommandAliases,
+            lastSongCommandAliases,
             songCommandSongLinkEnabled,
             widgetTheme,
             widgetLayout,
@@ -532,6 +543,7 @@ nonisolated enum AppConstants {
             statsCommandEnabled,
             statsCommandGlobalCooldown,
             statsCommandUserCooldown,
+            statsCommandAliases,
             historyRetentionDays,
             streamerModeEnabled,
         ]

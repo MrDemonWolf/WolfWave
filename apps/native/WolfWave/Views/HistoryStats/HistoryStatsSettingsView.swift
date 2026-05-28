@@ -33,6 +33,12 @@ struct HistoryStatsSettingsView: View {
     @AppStorage(AppConstants.UserDefaults.statsCommandUserCooldown)
     private var statsUserCooldown: Double = 15
 
+    @AppStorage(AppConstants.UserDefaults.statsCommandAliases)
+    private var statsCommandAliases = ""
+
+    @AppStorage(AppConstants.UserDefaults.historyRetentionDays)
+    private var historyRetentionDays = 0
+
     // MARK: - State
 
     @State private var showWrapSheet = false
@@ -82,6 +88,7 @@ struct HistoryStatsSettingsView: View {
                 statsCommandCard
             }
             if historyEnabled {
+                retentionCard
                 actionsRow
             }
         }
@@ -318,7 +325,53 @@ struct HistoryStatsSettingsView: View {
                 Divider()
                 cooldownRow(title: "Global cooldown", value: $statsGlobalCooldown)
                 cooldownRow(title: "Per-user cooldown", value: $statsUserCooldown)
+
+                HStack(spacing: DSSpace.s2) {
+                    Text("Custom aliases:")
+                        .font(.system(size: DSFont.Size.sm))
+                        .foregroundStyle(.tertiary)
+                    TextField("e.g. nowstats, mystats", text: $statsCommandAliases)
+                        .textFieldStyle(.roundedBorder)
+                        .font(.system(size: DSFont.Size.sm))
+                        .frame(maxWidth: 200)
+                        .accessibilityLabel("Stats command aliases")
+                        .accessibilityIdentifier("statsCommandAliases")
+                }
             }
+        }
+        .padding(AppConstants.SettingsUI.cardPadding)
+        .cardStyleUnpadded()
+    }
+
+    // MARK: - Retention
+
+    /// Picker for how many days of listening history `ListeningHistoryService`
+    /// keeps on disk before pruning. `0` means keep forever.
+    private var retentionCard: some View {
+        VStack(alignment: .leading, spacing: DSSpace.s3) {
+            cardHeader("History retention", systemImage: "calendar")
+
+            HStack {
+                Text("Keep history for")
+                    .font(.system(size: DSFont.Size.body))
+                Spacer()
+                Picker("Keep history for", selection: $historyRetentionDays) {
+                    Text("Forever").tag(0)
+                    Text("7 days").tag(7)
+                    Text("30 days").tag(30)
+                    Text("90 days").tag(90)
+                    Text("180 days").tag(180)
+                    Text("365 days").tag(365)
+                }
+                .pickerStyle(.menu)
+                .labelsHidden()
+                .frame(width: 120)
+                .accessibilityIdentifier("historyRetentionDays")
+            }
+
+            Text("Older entries are pruned the next time the app launches.")
+                .font(.system(size: DSFont.Size.xs))
+                .foregroundStyle(.tertiary)
         }
         .padding(AppConstants.SettingsUI.cardPadding)
         .cardStyleUnpadded()

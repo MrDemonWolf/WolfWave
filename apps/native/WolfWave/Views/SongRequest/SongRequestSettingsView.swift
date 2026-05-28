@@ -523,6 +523,8 @@ fileprivate struct SongRequestRedemptionsCard: View {
     private var channelPointsEnabled = false
     @AppStorage(AppConstants.UserDefaults.songRequestChannelPointsCost)
     private var channelPointsCost = 500
+    @AppStorage(AppConstants.UserDefaults.songRequestChannelPointsRewardID)
+    private var rewardID = ""
 
     @AppStorage(AppConstants.UserDefaults.songRequestBitsEnabled)
     private var bitsEnabled = false
@@ -531,10 +533,21 @@ fileprivate struct SongRequestRedemptionsCard: View {
     @AppStorage(AppConstants.UserDefaults.songRequestBitsBoostEnabled)
     private var bitsBoostEnabled = false
 
+    @AppStorage(AppConstants.UserDefaults.streamerModeEnabled)
+    private var streamerMode = false
+
+    @State private var showRecreateAlert = false
+
     private func refresh() {
         if let service = AppDelegate.shared?.twitchService {
             Task { await service.refreshRedemptionSubscriptions() }
         }
+    }
+
+    private func recreateReward() {
+        Foundation.UserDefaults.standard.removeObject(
+            forKey: AppConstants.UserDefaults.songRequestChannelPointsRewardID)
+        refresh()
     }
 
     var body: some View {
@@ -580,6 +593,31 @@ fileprivate struct SongRequestRedemptionsCard: View {
                     .font(.system(size: DSFont.Size.xs))
                     .foregroundStyle(.tertiary)
                     .fixedSize(horizontal: false, vertical: true)
+
+                HStack(spacing: DSSpace.s2) {
+                    VStack(alignment: .leading, spacing: DSSpace.s0) {
+                        Text("Managed reward ID")
+                            .font(.system(size: DSFont.Size.xs))
+                            .foregroundStyle(.tertiary)
+                        Text(rewardID.isEmpty
+                            ? "Not created yet"
+                            : (streamerMode ? "\u{2022}\u{2022}\u{2022}\u{2022}\u{2022}\u{2022}" : rewardID))
+                            .font(.system(size: DSFont.Size.xs, design: .monospaced))
+                            .foregroundStyle(.secondary)
+                            .lineLimit(1)
+                            .truncationMode(.middle)
+                    }
+                    Spacer()
+                    Button {
+                        showRecreateAlert = true
+                    } label: {
+                        Label("Recreate Reward", systemImage: "arrow.clockwise")
+                            .font(.system(size: DSFont.Size.sm))
+                    }
+                    .buttonStyle(.bordered)
+                    .controlSize(.small)
+                    .accessibilityIdentifier("songRequests.recreateReward")
+                }
             }
 
             Divider()
@@ -620,6 +658,12 @@ fileprivate struct SongRequestRedemptionsCard: View {
         .padding(AppConstants.SettingsUI.cardPadding)
         .background(.quaternary.opacity(0.5))
         .clipShape(RoundedRectangle(cornerRadius: AppConstants.SettingsUI.cardCornerRadius))
+        .alert("Recreate Channel Point reward?", isPresented: $showRecreateAlert) {
+            Button("Cancel", role: .cancel) {}
+            Button("Recreate", role: .destructive) { recreateReward() }
+        } message: {
+            Text("Clears the stored reward ID so WolfWave will create a fresh \u{201C}Request a Song\u{201D} reward on Twitch. Use this if you deleted the reward manually.")
+        }
     }
 }
 
@@ -635,10 +679,26 @@ fileprivate struct SongRequestPlaybackCard: View {
     @AppStorage(AppConstants.UserDefaults.songRequestFallbackPlaylist)
     private var fallbackPlaylist = ""
 
+    @AppStorage(AppConstants.UserDefaults.songRequestHoldEnabled)
+    private var holdEnabled = false
+
     var body: some View {
         VStack(alignment: .leading, spacing: DSSpace.s4) {
             Text("Playback")
                 .font(.system(size: DSFont.Size.base, weight: .semibold))
+
+            ToggleSettingRow(
+                title: "Hold Queue",
+                subtitle: "Requests still queue, but nothing plays until you resume",
+                isOn: $holdEnabled,
+                accessibilityLabel: "Hold the request queue",
+                accessibilityIdentifier: "songRequests.holdEnabled",
+                onChange: { enabled in
+                    if let service = AppDelegate.shared?.songRequestService {
+                        Task { await service.setHold(enabled) }
+                    }
+                }
+            )
 
             ToggleSettingRow(
                 title: "Auto-Advance Queue",

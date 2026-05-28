@@ -123,10 +123,27 @@ Two extra ways for viewers to add a track — both feed the same queue, blocklis
 
 - **Channel Points reward** — WolfWave creates and manages a "Request a Song" custom reward on your channel. Redeeming it acts like a `!sr` from that viewer. Fulfilment and cancellation are reconciled automatically.
 - **Bit Boost** — when a viewer cheers bits, their most-recent queued request jumps to the front of the queue.
+- **Recreate Reward** — if you ever delete the reward manually on Twitch, click **Recreate Reward** in the Channel Points & Bits card to mint a fresh one. The managed reward ID is shown below the cost picker (masked under Streamer Mode).
 
 <Callout type="info">
   Enable from **Settings → Song Requests → Channel Points & Bits**. Requires Twitch Affiliate or Partner to create the reward.
 </Callout>
+
+---
+
+## Custom Aliases
+**TL;DR: Type your own command names.**
+
+Supported commands can use comma-separated aliases. Add `np, track` to `!song` and viewers can use `!np` or `!track` instead.
+
+| Command     | Where to set                                      |
+| ----------- | ------------------------------------------------- |
+| `!song`     | Settings → Twitch → Bot Commands                  |
+| `!last`     | Settings → Twitch → Bot Commands                  |
+| `!stats`    | Settings → History & Stats → `!stats` Twitch command |
+| `!sr`, `!queue`, `!myqueue`, `!skip`, `!clearqueue`, `!voteskip` | Settings → Song Requests |
+
+Aliases honor the same enable, cooldown, audience, and live-gate rules as the canonical command. The `!` prefix is added automatically.
 
 ---
 

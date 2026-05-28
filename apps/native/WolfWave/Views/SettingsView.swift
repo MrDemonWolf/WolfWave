@@ -112,28 +112,6 @@ struct SettingsView: View {
     @AppStorage(AppConstants.UserDefaults.trackingEnabled)
     private var trackingEnabled = true
 
-    /// Whether the Current Playing Song command is enabled
-    @AppStorage(AppConstants.UserDefaults.currentSongCommandEnabled)
-    private var currentSongCommandEnabled = false
-
-    /// Whether the Last Played Song command is enabled
-    @AppStorage(AppConstants.UserDefaults.lastSongCommandEnabled)
-    private var lastSongCommandEnabled = false
-
-    /// Whether !song / !last replies include a song.link URL
-    @AppStorage(AppConstants.UserDefaults.songCommandSongLinkEnabled)
-    private var songCommandSongLinkEnabled = false
-
-    /// Cooldown settings for bot commands
-    @AppStorage(AppConstants.UserDefaults.songCommandGlobalCooldown)
-    private var songGlobalCooldown: Double = 15.0
-    @AppStorage(AppConstants.UserDefaults.songCommandUserCooldown)
-    private var songUserCooldown: Double = 15.0
-    @AppStorage(AppConstants.UserDefaults.lastSongCommandGlobalCooldown)
-    private var lastSongGlobalCooldown: Double = 15.0
-    @AppStorage(AppConstants.UserDefaults.lastSongCommandUserCooldown)
-    private var lastSongUserCooldown: Double = 15.0
-
     @AppStorage(AppConstants.UserDefaults.dockVisibility)
     private var dockVisibility = "both"
 
@@ -293,7 +271,7 @@ struct SettingsView: View {
         .accessibilityIdentifier(section.rawValue.replacingOccurrences(of: " ", with: "-").lowercased())
     }
     
-    /// Twitch detail pane — auth settings plus bot command toggles and cooldown sliders.
+    /// Twitch detail pane — auth settings plus the bot commands card.
     private func twitchIntegrationView() -> some View {
         VStack(alignment: .leading, spacing: AppConstants.SettingsUI.sectionSpacing) {
             TwitchSettingsView(viewModel: twitchViewModel)
@@ -301,162 +279,7 @@ struct SettingsView: View {
             Divider()
                 .padding(.vertical, DSSpace.s1)
 
-            // Bot Commands Section
-            VStack(alignment: .leading, spacing: DSSpace.s6) {
-                VStack(alignment: .leading, spacing: 6) {
-                    HStack(spacing: DSSpace.s2) {
-                        Image(systemName: "bubble.left.fill")
-                            .font(.system(size: DSFont.Size.x15))
-                            .foregroundStyle(Color(nsColor: .controlAccentColor))
-                        Text("Bot Commands")
-                            .sectionSubHeader()
-                    }
-
-                    Text("Choose which commands people can use in chat.")
-                        .font(.system(size: DSFont.Size.base))
-                        .foregroundStyle(.secondary)
-                }
-
-                VStack(spacing: 1) {
-                    commandToggleRow(
-                        title: "!song Command",
-                        subtitle: "!song  ·  !currentsong  ·  !nowplaying",
-                        isOn: $currentSongCommandEnabled,
-                        accessibilityLabel: "Enable Current Playing Song command",
-                        accessibilityIdentifier: "currentSongCommandToggle",
-                        isFirst: true
-                    ) { enabled in
-                        Log.debug("SettingsView: Current Song Command \(enabled ? "enabled" : "disabled")", category: "Twitch")
-                    }
-
-                    if currentSongCommandEnabled {
-                        cooldownRow(
-                            label: "!song cooldowns",
-                            globalCooldown: $songGlobalCooldown,
-                            userCooldown: $songUserCooldown
-                        )
-                    }
-
-                    commandToggleRow(
-                        title: "!last Command",
-                        subtitle: "!last  ·  !lastsong  ·  !prevsong",
-                        isOn: $lastSongCommandEnabled,
-                        accessibilityLabel: "Enable Last Played Song command",
-                        accessibilityIdentifier: "lastSongCommandToggle",
-                        isLast: !lastSongCommandEnabled && !currentSongCommandEnabled
-                    ) { enabled in
-                        Log.debug("SettingsView: Last Song Command \(enabled ? "enabled" : "disabled")", category: "Twitch")
-                    }
-
-                    if lastSongCommandEnabled {
-                        cooldownRow(
-                            label: "!last cooldowns",
-                            globalCooldown: $lastSongGlobalCooldown,
-                            userCooldown: $lastSongUserCooldown,
-                            isLast: !currentSongCommandEnabled && !lastSongCommandEnabled
-                        )
-                    }
-
-                    if currentSongCommandEnabled || lastSongCommandEnabled {
-                        commandToggleRow(
-                            title: "Include song.link",
-                            subtitle: "Appends a cross-platform link to !song and !last replies",
-                            isOn: $songCommandSongLinkEnabled,
-                            accessibilityLabel: "Include song.link URL in song command reply",
-                            accessibilityIdentifier: "songCommandSongLinkToggle",
-                            isLast: true
-                        ) { _ in }
-                    }
-                }
-                .cardStyleUnpadded()
-
-                HStack(spacing: 6) {
-                    Image(systemName: "info.circle.fill")
-                        .font(.system(size: DSFont.Size.sm))
-                        .foregroundStyle(.secondary)
-                    Text("Cooldowns don't apply to you or your mods.")
-                        .font(.system(size: DSFont.Size.sm))
-                        .foregroundStyle(.secondary)
-                }
-            }
-        }
-    }
-
-    /// A toggle row for enabling/disabling a single bot command.
-    @ViewBuilder
-    private func commandToggleRow(
-        title: String,
-        subtitle: String,
-        isOn: Binding<Bool>,
-        accessibilityLabel: String,
-        accessibilityIdentifier: String,
-        isFirst: Bool = false,
-        isLast: Bool = false,
-        onChange: @escaping (Bool) -> Void
-    ) -> some View {
-        ToggleSettingRow(
-            title: title,
-            subtitle: subtitle,
-            isOn: isOn,
-            accessibilityLabel: accessibilityLabel,
-            accessibilityIdentifier: accessibilityIdentifier,
-            onChange: onChange
-        )
-        .padding(.horizontal, AppConstants.SettingsUI.cardPadding)
-        .padding(.vertical, DSSpace.s4)
-        .background(Color(nsColor: .controlBackgroundColor))
-        .overlay(alignment: .bottom) {
-            if !isLast {
-                Divider()
-                    .padding(.leading, AppConstants.SettingsUI.cardPadding)
-            }
-        }
-    }
-
-    /// A row with global and per-user cooldown sliders for a bot command.
-    @ViewBuilder
-    private func cooldownRow(
-        label: String,
-        globalCooldown: Binding<Double>,
-        userCooldown: Binding<Double>,
-        isLast: Bool = false
-    ) -> some View {
-        VStack(alignment: .leading, spacing: DSSpace.s2) {
-            Text(label)
-                .sectionEyebrow()
-
-            HStack(spacing: DSSpace.s4) {
-                VStack(alignment: .leading, spacing: DSSpace.s0) {
-                    Text("Everyone: \(Int(globalCooldown.wrappedValue))s")
-                        .font(.system(size: DSFont.Size.sm))
-                        .foregroundStyle(.secondary)
-                    Slider(value: globalCooldown, in: 0...30, step: 5)
-                        .controlSize(.small)
-                        .accessibilityLabel("\(label) global cooldown")
-                        .accessibilityValue("\(Int(globalCooldown.wrappedValue)) seconds")
-                        .accessibilityHint("Adjusts the global cooldown between 0 and 30 seconds")
-                }
-
-                VStack(alignment: .leading, spacing: DSSpace.s0) {
-                    Text("Per person: \(Int(userCooldown.wrappedValue))s")
-                        .font(.system(size: DSFont.Size.sm))
-                        .foregroundStyle(.secondary)
-                    Slider(value: userCooldown, in: 0...60, step: 5)
-                        .controlSize(.small)
-                        .accessibilityLabel("\(label) per-user cooldown")
-                        .accessibilityValue("\(Int(userCooldown.wrappedValue)) seconds")
-                        .accessibilityHint("Adjusts the per-user cooldown between 0 and 60 seconds")
-                }
-            }
-        }
-        .padding(.horizontal, AppConstants.SettingsUI.cardPadding)
-        .padding(.vertical, DSSpace.s2)
-        .background(Color(nsColor: .controlBackgroundColor))
-        .overlay(alignment: .bottom) {
-            if !isLast {
-                Divider()
-                    .padding(.leading, AppConstants.SettingsUI.cardPadding)
-            }
+            TwitchCommandsCard()
         }
     }
 

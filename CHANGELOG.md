@@ -26,6 +26,10 @@ All notable changes to this project will be documented in this file.
 - **Fallback playlist** — configure an Apple Music playlist to play when the request queue empties.
 - **Song Request Queue UI** — full queue view with now-playing card, position badges, per-requester labels, and Skip / Hold / Clear controls.
 - **Per-user and global request limits**, subscriber-only mode, per-command enable/disable toggles, and custom alias configuration.
+- **Custom aliases for `!song`, `!last`, and `!stats`** — comma-separated alias fields in Settings → Twitch and Settings → History & Stats. Aliases honor the same enable, cooldown, and Twitch live-gate rules as the canonical command. Fixes a latent bug where aliases matched in the dispatcher but the command returned no reply.
+- **Hold-queue toggle in Song Request settings** — flip the request queue between Hold and Playing directly from the Playback card; previously reachable only via the menu bar and queue view.
+- **Recreate Reward button** — clears the stored Channel-Point reward ID and forces WolfWave to create a fresh "Request a Song" reward on Twitch. Use after manually deleting the reward on the Twitch dashboard. The managed reward ID renders below the cost picker (masked when Streamer Mode is on).
+- **History retention picker** — pick how many days of listening history to keep (Forever / 7 / 30 / 90 / 180 / 365). Older entries are pruned at next launch.
 - **macOS 26 Liquid Glass onboarding redesign** — full wizard rebuild with two new steps (Menu Bar Pointer + OBS Widget) to match Tahoe's design language (#26).
 - **Apple Music onboarding step** — first-launch wizard authorizes MusicKit library access for song search with a graceful denied-state recovery path.
 - **OBS Widget onboarding step** — overlay URL preview and HTTP widget toggle wired directly into onboarding so streamers can copy the overlay link before completing setup (d62b8ac).
