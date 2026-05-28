@@ -1,54 +1,192 @@
 ---
-title: Welcome to WolfWave
-description: Free macOS app that shares your Apple Music to Twitch chat, Discord Rich Presence, and your OBS stream overlay — automatically. No Spotify needed.
-ogTitle: WolfWave — Apple Music for Twitch, Discord & OBS on Mac
-ogDescription: The only free macOS menu bar app that bridges Apple Music with Twitch chat, Discord Rich Presence, and stream overlays. Open source.
+title: Documentation
+description: Install, configure, and extend the Apple Music → Twitch / Discord / OBS bridge for macOS. Free, open source, sandboxed.
+ogTitle: WolfWave Docs. Howl quietly. Stream loud.
+ogDescription: Install, configure, and extend the Apple Music → Twitch / Discord / OBS bridge for macOS. Free, open source, sandboxed.
+ogEyebrow: Documentation
+ogChips:
+  - Install
+  - Use
+  - Build
+  - Hack
 keywords:
+  - wolfwave docs
   - apple music twitch chat bot mac
   - apple music discord rich presence mac
   - apple music obs overlay mac
   - free twitch song requests apple music
   - macos menu bar music streamer
-  - spotchbot alternative apple music
-ogChips:
-  - Apple Music
-  - Twitch
-  - Discord
-  - OBS
-ogEyebrow: Free for macOS 26+
 ---
 
-# WolfWave
+<div className="docs-hero">
 
-**Stop telling chat what song is playing.**
+<span className="docs-eyebrow">Documentation</span>
 
-WolfWave is a tiny menu bar app for Mac. Play something in Apple Music — your Twitch chat, your Discord profile, and your stream overlay all update on their own. No accounts. No servers. No subscriptions.
+<h1 className="docs-hero-title">Howl quietly.<br /><span className="accent">Stream loud.</span></h1>
 
----
+<p className="docs-hero-sub">WolfWave bridges Apple Music with Twitch, Discord, and OBS. Automatically. These docs cover every part of that loop, from your first launch to a custom overlay over WebSocket.</p>
 
-## What it does
+<div className="docs-hero-pills">
+  <span className="ww-pill">Free · MIT</span>
+  <span className="ww-pill">macOS 26+</span>
+  <span className="ww-pill">Apple Silicon</span>
+  <span className="ww-pill">No account needed</span>
+</div>
 
-- **Spots every track instantly.** Native Apple integrations, not polling.
-- **Answers `!song` in chat.** Title, artist, album — under a second.
-- **Takes song requests.** `!sr <song>` queues it up. Built-in blocklist and mod controls.
-- **Updates Discord Rich Presence.** Album art and live progress, just like Spotify.
-- **Streams a Now Playing overlay.** Drop into OBS, customize, or build your own.
-- **Stays private.** Tokens in macOS Keychain. Sandboxed. Zero telemetry.
+</div>
 
----
-
-## Why people pick WolfWave
+## Pick your path
 
 <Cards>
-  <Card title="Set it and forget it" description="Run the wizard once. WolfWave lives in your menu bar from then on." />
-  <Card title="Native, not Electron" description="Pure Swift. No background bloat. No impact on your stream." />
-  <Card title="Open and hackable" description="MIT licensed. Documented WebSocket feed. Build whatever you want." />
-  <Card title="Private by default" description="Your music never leaves your Mac. Credentials live in Keychain." />
+  <Card title="🎮 For streamers" href="/docs/installation" description="Install, connect Twitch, drop the overlay into OBS. Five minutes, no terminal." />
+  <Card title="🛠 For builders" href="/docs/architecture" description="Native Swift. Local WebSocket. Fork it, wire it into your own overlay or Home Assistant." />
 </Cards>
 
----
+### Streamers start here
 
-## Backed by these legends
+<Cards>
+  <Card title="Install" href="/docs/installation" description="DMG or Homebrew. Signed and notarized." />
+  <Card title="Use it" href="/docs/usage" description="Menu bar, widget, song requests, Streamer Mode." />
+  <Card title="Bot commands" href="/docs/bot-commands" description="!song, !sr, !voteskip. Every trigger." />
+  <Card title="FAQ" href="/docs/faq" description="Spotify? Intel Mac? Second-PC OBS? Answered." />
+</Cards>
+
+### Builders start here
+
+<Cards>
+  <Card title="Architecture" href="/docs/architecture" description="MVVM + service-oriented Swift. ScriptingBridge → Apple Music." />
+  <Card title="Development" href="/docs/development" description="Build from source. Run the tests. Ship a PR." />
+  <Card title="OBS widget" href="/docs/widget" description="Tailwind + TypeScript workspace. Inlined into one HTML file." />
+  <Card title="Security" href="/docs/security" description="Keychain, App Sandbox, OAuth, EdDSA-signed updates." />
+</Cards>
+
+## Most-asked topics
+
+<Tabs items={["Connect Twitch", "OBS overlay", "Song requests", "Discord status"]}>
+
+<Tab value="Connect Twitch">
+
+<Steps>
+
+<Step>
+
+**Open Settings → Twitch.** Click *Connect Twitch Account*.
+
+</Step>
+
+<Step>
+
+**Authorize on twitch.tv.** WolfWave uses OAuth Device Code. No password ever touches the app.
+
+</Step>
+
+<Step>
+
+**Flip the commands you want.** `!song`, `!last`, `!sr`, `!voteskip` are all off by default.
+
+</Step>
+
+</Steps>
+
+Full walkthrough: [Twitch chat bot setup](/docs/usage#twitch-chat-bot) · [Every command](/docs/bot-commands)
+
+</Tab>
+
+<Tab value="OBS overlay">
+
+<Steps>
+
+<Step>
+
+**Settings → Stream Widgets.** Click *Enable Widget Server*.
+
+</Step>
+
+<Step>
+
+**Copy the Widget Link.** Your per-install auth token is baked in. Leave the URL intact.
+
+</Step>
+
+<Step>
+
+**Paste into OBS as a Browser Source.** Pick your layout: Horizontal (500×120), Vertical (320×360), Compact (320×80).
+
+</Step>
+
+</Steps>
+
+Full walkthrough: [OBS widget setup](/docs/usage#now-playing-widget) · [Themes & layouts](/docs/widget)
+
+</Tab>
+
+<Tab value="Song requests">
+
+<Steps>
+
+<Step>
+
+**Settings → Song Requests.** Turn it on. Set who can request. Everyone, subs, mods.
+
+</Step>
+
+<Step>
+
+**Pick a preset or wire your own.** Channel-point reward and bit boost are one toggle each.
+
+</Step>
+
+<Step>
+
+**Chat types `!sr <song>`.** WolfWave finds it on Apple Music and queues it. Blocklist + hold mode in the same panel.
+
+</Step>
+
+</Steps>
+
+Full walkthrough: [Song requests](/docs/usage#song-requests) · [Vote-to-skip](/docs/bot-commands#vote-skip)
+
+</Tab>
+
+<Tab value="Discord status">
+
+<Steps>
+
+<Step>
+
+**Settings → Discord.** Toggle *Discord Status* on.
+
+</Step>
+
+<Step>
+
+**That's it.** No bot token, no server. WolfWave talks to your Discord desktop app via local IPC socket.
+
+</Step>
+
+<Step>
+
+**Verify on your profile.** "Listening to Apple Music" with album art and live progress.
+
+</Step>
+
+</Steps>
+
+Full walkthrough: [Discord Rich Presence](/docs/usage#discord-status) · [Features](/docs/features#discord-status)
+
+</Tab>
+
+</Tabs>
+
+## What's new
+
+<Callout type="info">
+  **Check the [changelog](/docs/changelog)** for every release. WolfWave auto-updates via Sparkle (EdDSA-signed); Homebrew installs update with `brew upgrade --cask wolfwave`.
+</Callout>
+
+## Backed by sponsors
+
+<Callout type="info">
 
 WolfWave is free and open-source. These folks keep it that way.
 
@@ -58,13 +196,4 @@ WolfWave is free and open-source. These folks keep it that way.
 
 [**Become a sponsor →**](https://github.com/sponsors/nathanialhenniges)
 
----
-
-## Get started
-
-<Cards>
-  <Card title="Install" href="/docs/installation" description="Download and run the setup wizard." />
-  <Card title="Use it" href="/docs/usage" description="Connect Twitch, Discord, and OBS." />
-  <Card title="Bot commands" href="/docs/bot-commands" description="`!song`, `!sr`, and the rest." />
-  <Card title="Support the project" href="/docs/support" description="Sponsor, star, share, file issues." />
-</Cards>
+</Callout>

@@ -1,21 +1,23 @@
 ---
-title: Contribute to WolfWave (Swift / SwiftUI)
-description: Set up Xcode 16, run the test suite (1218 tests across 42 files), regenerate design tokens, and ship a PR to WolfWave — the open-source Apple Music streamer app.
+title: Contribute
+description: Set up Xcode 16, run the test suite, regenerate design tokens, and ship a PR to WolfWave. The open-source Apple Music streamer app.
 keywords:
   - contribute to wolfwave
   - wolfwave development
   - swift open source mac app
   - swiftui menu bar contribute
   - macos test suite xctest
-ogTitle: Contribute to WolfWave — Swift, SwiftUI, Xcode
-ogDescription: Xcode 16, 1218 XCTest tests, design-token codegen. Ship a PR to the open-source Apple Music streamer app.
+ogTitle: Contribute to WolfWave. Swift, SwiftUI, Xcode
+ogDescription: Xcode 16, full XCTest + Swift Testing suite, design-token codegen. Ship a PR to the open-source Apple Music streamer app.
 ogChips:
   - Swift
   - SwiftUI
   - Xcode 16
-  - 1218 tests
+  - XCTest
 ogEyebrow: Contribute
 ---
+
+<span className="docs-eyebrow">Contribute</span>
 
 This guide covers everything you need to contribute to WolfWave.
 
@@ -41,7 +43,7 @@ This guide covers everything you need to contribute to WolfWave.
 | ---------------------- | ------------------------------------------ |
 | `make build`           | Debug build                                |
 | `make clean`           | Clean build artifacts                      |
-| `make test`            | Run unit tests (849 tests across 26 files) |
+| `make test`            | Run unit tests (XCTest + Swift Testing)    |
 | `make update-deps`     | Resolve SwiftPM dependencies               |
 | `make open-xcode`      | Open the Xcode project                     |
 | `make ci`              | CI-friendly build                          |
@@ -70,8 +72,8 @@ This project follows Swift best practices with professional-grade documentation:
 
 Playback is abstracted behind the `PlaybackSource` protocol so additional sources can plug in later.
 
-- **`AppleMusicSource`** — ScriptingBridge + distributed notifications, with a 2-second fallback poll.
-- **`PlaybackSourceManager`** — selects + multiplexes sources, exposes `PlaybackSourceDelegate` for track updates.
+- **`AppleMusicSource`**. ScriptingBridge + distributed notifications, with a 2-second fallback poll.
+- **`PlaybackSourceManager`**. Selects + multiplexes sources, exposes `PlaybackSourceDelegate` for track updates.
 
 ## Twitch Chat Service
 
@@ -96,20 +98,20 @@ The bot is implemented with `TwitchChatService` using Twitch Helix + EventSub (n
 
 `BotCommandDispatcher` routes incoming chat messages to registered commands. Concrete commands live in `Services/Twitch/Commands/`:
 
-- `TrackInfoCommand` — handles both `!song` / `!currentsong` / `!nowplaying` **and** `!last` / `!lastsong` / `!prevsong` via shared fixtures.
-- `SongRequestCommand` — `!songrequest` / `!sr`.
-- `QueueCommand` / `MyQueueCommand` — read-only queue inspection.
-- `SkipCommand` / `HoldCommand` / `ClearQueueCommand` — mod-only controls.
+- `TrackInfoCommand`. Handles both `!song` / `!currentsong` / `!nowplaying` **and** `!last` / `!lastsong` / `!prevsong` via shared fixtures.
+- `SongRequestCommand` , `!songrequest` / `!sr`.
+- `QueueCommand` / `MyQueueCommand`. Read-only queue inspection.
+- `SkipCommand` / `HoldCommand` / `ClearQueueCommand`. Mod-only controls.
 - `CooldownManager` enforces global + per-user cooldowns; mods bypass automatically.
 
 ## Song Request Service
 
 `SongRequestService` orchestrates request flow end-to-end.
 
-- **`SongRequestQueue`** — queue with hold mode + Music.app-closed buffering.
-- **`SongSearchResolver`** / **`LinkResolverService`** — resolve queries via MusicKit and Apple Music URLs.
-- **`AppleMusicController`** — plays tracks via AppleScript while preserving window focus.
-- **`SongBlocklist`** — block tracks, artists, or albums by ID.
+- **`SongRequestQueue`**. Queue with hold mode + Music.app-closed buffering.
+- **`SongSearchResolver`** / **`LinkResolverService`**. Resolve queries via MusicKit and Apple Music URLs.
+- **`AppleMusicController`**. Plays tracks via AppleScript while preserving window focus.
+- **`SongBlocklist`**. Block tracks, artists, or albums by ID.
 
 ## Discord Rich Presence Service
 
@@ -125,22 +127,22 @@ The bot is implemented with `TwitchChatService` using Twitch Helix + EventSub (n
 
 ### Usage
 
-- Start the service: `connect()` — discovers and connects to Discord's IPC socket.
-- Update presence: `updatePresence(track:artist:album:duration:elapsed:isPaused:)` — sets the listening activity. Pass `isPaused: true` when Music.app reports `kPSp` so the live ticker is suppressed and the pause badge swaps in.
-- Clear presence: `clearPresence()` — removes the activity from the user's profile.
+- Start the service: `connect()`. Discovers and connects to Discord's IPC socket.
+- Update presence: `updatePresence(track:artist:album:duration:elapsed:isPaused:)`. Sets the listening activity. Pass `isPaused: true` when Music.app reports `kPSp` so the live ticker is suppressed and the pause badge swaps in.
+- Clear presence: `clearPresence()`. Removes the activity from the user's profile.
 
 ### Paused-state handling
 
 Discord has no native "paused" activity flag. WolfWave works around it with two changes inside `buildActivity` when `isPaused == true`:
 
-1. The `timestamps` block is omitted — without `start`/`end` the Discord client stops the progress ticker instead of marching past the real elapsed value.
+1. The `timestamps` block is omitted. Without `start`/`end` the Discord client stops the progress ticker instead of marching past the real elapsed value.
 2. `assets.small_image` is swapped from `apple_music` to `pause` and `assets.small_text` becomes `"Paused"`.
 
 The track text, large image, and buttons stay unchanged so chat can still read what's loaded.
 
 ### Rich Presence art assets (required upload)
 
-`small_image` / `large_image` reference asset names registered against your Discord application. The PNGs live in [`discord-assets/`](https://github.com/MrDemonWolf-Inc/wolfwave/tree/main/discord-assets) and are **not** bundled with the app — you upload them once via the Discord developer portal.
+`small_image` / `large_image` reference asset names registered against your Discord application. The PNGs live in [`discord-assets/`](https://github.com/MrDemonWolf-Inc/wolfwave/tree/main/discord-assets) and are **not** bundled with the app. You upload them once via the Discord developer portal.
 
 | Asset name | Used when |
 |---|---|
@@ -159,33 +161,33 @@ The track text, large image, and buttons stay unchanged so chat can still read w
 - **Multi-client Support**: Multiple browser sources or tools can connect simultaneously.
 - **Progress Broadcasting**: 1-second interval timer broadcasts elapsed time during playback.
 - **Auto-retry**: Reconnects the listener after failures with configurable delay.
-- **Loopback-only**: Binds to `127.0.0.1` — never reachable from the network.
+- **Loopback-only**: Binds to `127.0.0.1`. Never reachable from the network.
 
 ### Usage
 
-- Enable/disable: `setEnabled(_:)` — starts or stops the `NWListener`.
-- Update port: `updatePort(_:)` — restarts the server on a new port if running (default `8765`).
-- Track change: `updateNowPlaying(track:artist:album:duration:elapsed:artworkURL:)` — broadcasts `now_playing` JSON.
-- Clear: `clearNowPlaying()` — broadcasts `playback_state` with `isPlaying: false`.
+- Enable/disable: `setEnabled(_:)`. Starts or stops the `NWListener`.
+- Update port: `updatePort(_:)`. Restarts the server on a new port if running (default `8765`).
+- Track change: `updateNowPlaying(track:artist:album:duration:elapsed:artworkURL:)`. Broadcasts `now_playing` JSON.
+- Clear: `clearNowPlaying()`. Broadcasts `playback_state` with `isPlaying: false`.
 
 ## Widget HTTP Service
 
 `WidgetHTTPService` is a tiny companion HTTP server that serves the bundled `widget.html` to OBS.
 
-- **Loopback-only**: Binds to `127.0.0.1:8766` — never exposed to the network.
+- **Loopback-only**: Binds to `127.0.0.1:8766`. Never exposed to the network.
 - **`GET /`** → `200 OK` with `widget.html` bytes from the app bundle.
 - **All other requests** → `404 Not Found`.
 - **Lifecycle**: Owned by `WebSocketServerService`; starts/stops with the WS server.
 
 ## Building the OBS Widget
 
-The bundled `widget.html` is **not hand-written** — it's generated from the
+The bundled `widget.html` is **not hand-written**. It's generated from the
 `apps/widget/` Tailwind + TypeScript workspace. Source files:
 
-- `apps/widget/src/widget.html` — HTML shell with placeholders
-- `apps/widget/src/widget.css` — Tailwind directives + custom transition classes
-- `apps/widget/src/widget.ts` — runtime (state, transitions, WS, render)
-- `apps/widget/build.ts` — bundles JS, runs Tailwind, inlines everything
+- `apps/widget/src/widget.html`. HTML shell with placeholders
+- `apps/widget/src/widget.css`. Tailwind directives + custom transition classes
+- `apps/widget/src/widget.ts`. Runtime (state, transitions, WS, render)
+- `apps/widget/build.ts`. Bundles JS, runs Tailwind, inlines everything
 
 The build emits a single self-contained file at
 `apps/native/WolfWave/Resources/widget.html` (committed to the repo so
@@ -207,7 +209,7 @@ Whenever you touch any of these:
 | CI (test + release) | Bun setup + widget build runs before every `xcodebuild` invocation |
 | Manual | `bun run --filter widget build` from the repo root |
 
-The Xcode script is tolerant of missing `bun` — it exits 0 with a warning so
+The Xcode script is tolerant of missing `bun`. It exits 0 with a warning so
 a fresh clone without the JS toolchain still builds (just with whatever
 `widget.html` is committed).
 
@@ -221,7 +223,7 @@ state machine, see the [OBS Widget Architecture](/docs/widget) page.
 - **EdDSA-signed appcast**: Every update is verified against the public key in `Info.plist`.
 - **DEBUG builds**: Automatic checks disabled; manual "Check Now" reads the bundled `dev-appcast.xml`.
 - **Release builds**: Polls the remote `SUFeedURL`.
-- **Homebrew installs**: Fully disabled — updates handled by Homebrew.
+- **Homebrew installs**: Fully disabled. Updates handled by Homebrew.
 
 ## Testing
 
@@ -235,40 +237,13 @@ Or press **Cmd+U** in Xcode. The test target (`WolfWaveTests`) is a hosted unit 
 
 ### Test Coverage
 
-Current pass count: **849 tests across 26 test files**.
+Tests live in [`apps/native/WolfWaveTests/`](https://github.com/MrDemonWolf/WolfWave/tree/main/apps/native/WolfWaveTests) and cover the playback parser, command dispatcher, Twitch + Discord services, WebSocket auth handshake, Keychain wrapper, onboarding state machine, listening history pipeline, and the full Sparkle updater.
 
-| Test File                              | Coverage                                                                              |
-| -------------------------------------- | ------------------------------------------------------------------------------------- |
-| `AppConstantsTests`                    | Constant integrity, URL validity, dimension bounds, WebSocket constants               |
-| `AppConstantsEdgeCaseTests`            | Cross-references, boundary values                                                     |
-| `AppleMusicSourceTests`                | Playback source start/stop, delegate wiring                                           |
-| `ArtworkServiceTests`                  | Cache miss/hit, cache key format, completion calls                                    |
-| `ArtworkServiceCacheTests`             | Cache eviction policy                                                                 |
-| `BotCommandDispatcherTests`            | Message routing, callbacks, length guards, whitespace                                 |
-| `CommandIntegrationTests`              | End-to-end dispatcher flow per command                                                |
-| `CooldownManagerTests`                 | Global + per-user cooldown, moderator bypass, reset                                   |
-| `DiscordRPCServiceTests`               | IPC framing, reconnect backoff                                                        |
-| `KeychainServiceTests`                 | Save/load/delete, Unicode, concurrent access                                          |
-| `LoggerTests`                          | Log level formatting, file rotation, category filtering                               |
-| `OnboardingViewModelTests`             | Step navigation, boundaries, UserDefaults persistence                                 |
-| `OnboardingViewModelEdgeCaseTests`     | Boundary conditions                                                                   |
-| `PowerStateMonitorTests`               | Singleton, state property access                                                      |
-| `SongRequestServiceTests`              | Request flow orchestration                                                            |
-| `SongRequestQueueTests`                | Queue, hold mode, Music.app-closed buffering                                          |
-| `SongRequestCommandTests`              | `!sr` / `!songrequest` parsing                                                        |
-| `SparkleUpdaterServiceTests`           | Sparkle init, manual check gating, Homebrew detection                                 |
-| `TrackInfoCommandTests`                | Shared coverage for `!song`/`!currentsong`/`!nowplaying` + `!last`/`!lastsong`/`!prevsong` |
-| `TwitchChatServiceTests`               | Connection state, message handling, service lifecycle                                 |
-| `TwitchDeviceAuthTests`                | Error descriptions, response properties, input validation                             |
-| `TwitchDeviceAuthErrorTests`           | Error path coverage                                                                   |
-| `TwitchViewModelTests`                 | AuthState/IntegrationState enums, computed properties                                 |
-| `WebSocketServerServiceTests`          | Server state, port validation, constants, notifications                               |
-| `WebSocketServerIntegrationTests`      | End-to-end overlay broadcast                                                          |
-| `WidgetHTTPServiceTests`               | Static widget serving                                                                 |
+For the live pass count and per-file coverage, run `make test` locally or browse the directory on GitHub. Enumerating files here just rots on every PR.
 
 ### Adding New Tests
 
-Test files are auto-discovered via `PBXFileSystemSynchronizedRootGroup` — just add `.swift` files to `apps/native/WolfWaveTests/`. Use `@testable import WolfWave` to access internal types.
+Test files are auto-discovered via `PBXFileSystemSynchronizedRootGroup`. Just add `.swift` files to `apps/native/WolfWaveTests/`. Use `@testable import WolfWave` to access internal types.
 
 ## CI/CD
 
@@ -309,6 +284,6 @@ For a complete step-by-step release checklist, see [PUBLISH.md](https://github.c
 
 ## Support development
 
-WolfWave is built and maintained by one person. If the project saves you time or earns you viewers, please consider sponsoring — it directly funds development.
+WolfWave is built and maintained by one person. If the project saves you time or earns you viewers, please consider sponsoring. It directly funds development.
 
 [**Sponsor on GitHub →**](https://github.com/sponsors/nathanialhenniges)

@@ -1,14 +1,14 @@
 ---
-title: OBS Widget Architecture
-description: How WolfWave's now-playing OBS overlay is built — a Tailwind + TypeScript workspace that compiles into a single self-contained widget.html with smooth play/stop transitions.
+title: OBS Widget
+description: How WolfWave's now-playing OBS overlay is built. A Tailwind + TypeScript workspace that compiles into a single self-contained widget.html with smooth play/stop transitions.
 keywords:
   - wolfwave obs widget
   - obs browser source widget
   - now-playing overlay
   - tailwind obs overlay
   - wolfwave widget transitions
-ogTitle: WolfWave OBS Widget — Build Pipeline & Transitions
-ogDescription: Tailwind + TypeScript source compiles to a single inlined widget.html. Transition state machine — bouncy enter, calm exit, crossfade on skip.
+ogTitle: WolfWave OBS Widget. Build Pipeline & Transitions
+ogDescription: Tailwind + TypeScript source compiles to a single inlined widget.html. Transition state machine. Bouncy enter, calm exit, crossfade on skip.
 ogChips:
   - OBS overlay
   - Tailwind
@@ -16,6 +16,8 @@ ogChips:
   - Single-file
 ogEyebrow: Developers
 ---
+
+<span className="docs-eyebrow">Developers</span>
 
 The WolfWave OBS overlay is a single self-contained HTML file that lives in
 `apps/native/WolfWave/Resources/widget.html`. It's the file the native app
@@ -48,7 +50,7 @@ works copied off the machine.
 ## Message contract
 
 The widget consumes one-way WebSocket messages from
-`WebSocketServerService.swift`. Schemas are frozen by the test suite — adding
+`WebSocketServerService.swift`. Schemas are frozen by the test suite. Adding
 fields server-side is safe, renaming fields requires a coordinated change.
 
 | Type | Payload | Cadence |
@@ -64,7 +66,7 @@ The widget never sends back. The native app pushes, the browser renders.
 ## Paused playback
 
 When Music.app reports the loaded track as paused (`kPSp`), the widget stays
-on stream — the card is **not** hidden. Instead:
+on stream. The card is **not** hidden. Instead:
 
 - The widget root gains the `.is-paused` class
 - Album artwork drops to ~55% opacity with reduced saturation
@@ -89,11 +91,11 @@ those CSS variables.
 
 URL parameters:
 
-- `?theme=Glass` — pick one of the six theme names
-- `?layout=Vertical` — pick one of the three layout names
-- `?token=<hex>` — auth token (auto-injected for loopback peers)
-- `?duration=8` — auto-hide after N seconds (0 = never)
-- `?hideAlbumArt` — render without the artwork tile
+- `?theme=Glass`. Pick one of the six theme names
+- `?layout=Vertical`. Pick one of the three layout names
+- `?token=<hex>`. Auth token (auto-injected for loopback peers)
+- `?duration=8`. Auto-hide after N seconds (0 = never)
+- `?hideAlbumArt`. Render without the artwork tile
 
 ## Transitions
 
@@ -107,7 +109,7 @@ The container moves through a four-state machine. Class swaps are driven from
 | track skip while visible | inner `.track-meta` + `.artwork` crossfade | 280 ms total |
 | song stops | `.progress-fill.draining` width 0 | 400 ms ease-out |
 
-The container animation does **not** re-trigger on track skip — that's
+The container animation does **not** re-trigger on track skip. That's
 deliberate. Otherwise rapid skips strobe the stream.
 
 Pause does **not** trigger the exit animation. Per the native
@@ -121,7 +123,7 @@ apps/widget/
 ├── src/
 │   ├── widget.html       # HTML shell with %%TAILWIND_CSS%% / %%TOKENS_JS%% / %%WIDGET_JS%% placeholders
 │   ├── widget.css        # @tailwind directives + custom state classes (transitions, progress, decorative layers)
-│   └── widget.ts         # All runtime — state, transitions, WS, message dispatch, render
+│   └── widget.ts         # All runtime. State, transitions, WS, message dispatch, render
 ├── tailwind.config.ts    # Token-driven theme.extend; preflight + container disabled
 ├── postcss.config.js
 ├── build.ts              # Bundles JS, runs Tailwind, inlines into the template, writes the output file
@@ -152,12 +154,12 @@ point your browser at `http://localhost:<widgetHTTPPort>/`.
 
 You don't usually need to run the command manually:
 
-- **Xcode** — a pre-build Run Script phase (`Build OBS Widget (Tailwind → inline)`)
+- **Xcode**. A pre-build Run Script phase (`Build OBS Widget (Tailwind → inline)`)
   runs `bun run --filter widget build` whenever any input file changes. If
   `bun` isn't on PATH the script exits 0 with a warning, so a fresh clone
-  without the JS toolchain still builds — it just bundles whatever
+  without the JS toolchain still builds. It just bundles whatever
   `widget.html` is committed.
-- **CI** — both [`test.yml`](https://github.com/MrDemonWolf/wolfwave/blob/main/.github/workflows/test.yml)
+- **CI**. Both [`test.yml`](https://github.com/MrDemonWolf/wolfwave/blob/main/.github/workflows/test.yml)
   and [`build_release.yml`](https://github.com/MrDemonWolf/wolfwave/blob/main/.github/workflows/build_release.yml)
   set up Bun and rebuild the widget before invoking `xcodebuild`, so every
   shipped DMG carries a freshly-built widget.
@@ -171,11 +173,11 @@ per-install token stored in the macOS Keychain.
 
 For loopback peers, `WidgetHTTPService` substitutes the live token into the
 served `widget.html` automatically. For LAN peers (two-PC streamers, phones),
-the token must be appended manually to the URL — Settings → Stream Widgets
+the token must be appended manually to the URL. Settings → Stream Widgets
 exposes the URL with the token baked in.
 
 ## See also
 
-- [Architecture overview](/docs/architecture) — full system diagram
-- [Development setup](/docs/development) — Xcode + dependencies
-- [Security model](/docs/security) — auth tokens, sandboxing, IPC
+- [Architecture overview](/docs/architecture). Full system diagram
+- [Development setup](/docs/development). Xcode + dependencies
+- [Security model](/docs/security). Auth tokens, sandboxing, IPC

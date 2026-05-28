@@ -1,110 +1,110 @@
 ---
-title: WolfWave Changelog — Releases & What's New
-description: Every WolfWave release — new features, fixes, and breaking changes. Auto-updating via Sparkle. macOS menu bar app for Apple Music streamers.
+title: Changelog
+description: Every WolfWave release. New features, fixes, and breaking changes. Auto-updating via Sparkle. macOS menu bar app for Apple Music streamers.
 keywords:
   - wolfwave changelog
   - wolfwave release notes
   - wolfwave updates
   - apple music twitch bot changelog
-ogTitle: WolfWave Changelog — What's New
-ogDescription: Every release — features, fixes, breaking changes. Auto-updating via Sparkle.
+ogTitle: WolfWave Changelog. What's New
+ogDescription: Every release. Features, fixes, breaking changes. Auto-updating via Sparkle.
 ---
 
-# Changelog
+<span className="docs-eyebrow">Release notes</span>
 
 All notable changes to WolfWave are documented here.
 
 
-## v2.0.0 — Unreleased
+## v2.0.0. Unreleased
 
 ### Security
-- **Stream Widgets auth token** — the overlay WebSocket and widget HTTP server now require a per-install authentication token. Connections without a matching `wolfwave.token.<hex>` subprotocol are rejected on the handshake before any playback data is sent. The token is minted on first launch, stored in the macOS Keychain, and auto-injected into the widget URL and served `widget.html` so existing OBS browser sources keep working without manual changes. Settings → Stream Widgets exposes the token behind an eye toggle (hidden by default), a Regenerate button, and a free-form edit field for streamers who want to supply their own value; regenerating or editing the token drops every active client until they reconnect with the new credential
-- **Streamer Mode** — new tray-menu toggle masks the connected Twitch channel name, overlay/widget URLs, the WebSocket URI, and the auth token across the WolfWave UI so the app is safe to show on camera. Copy/Open buttons next to masked values are disabled so screenshots can't reveal the underlying value via accessibility. UI-only redaction — the WebSocket broadcast payload, Discord Rich Presence, and Twitch chat output are unaffected
+- **Stream Widgets auth token**. The overlay WebSocket and widget HTTP server now require a per-install authentication token. Connections without a matching `wolfwave.token.<hex>` subprotocol are rejected on the handshake before any playback data is sent. The token is minted on first launch, stored in the macOS Keychain, and auto-injected into the widget URL and served `widget.html` so existing OBS browser sources keep working without manual changes. Settings → Stream Widgets exposes the token behind an eye toggle (hidden by default), a Regenerate button, and a free-form edit field for streamers who want to supply their own value; regenerating or editing the token drops every active client until they reconnect with the new credential
+- **Streamer Mode**. New tray-menu toggle masks the connected Twitch channel name, overlay/widget URLs, the WebSocket URI, and the auth token across the WolfWave UI so the app is safe to show on camera. Copy/Open buttons next to masked values are disabled so screenshots can't reveal the underlying value via accessibility. UI-only redaction. The WebSocket broadcast payload, Discord Rich Presence, and Twitch chat output are unaffected
 
 ### Added
-- **Chat Vote-Skip** — viewers vote to skip the current song with `!voteskip` / `!vs`; chat-tally mode counts unique voters against a minimum threshold, opt-in Twitch Polls mode opens a native poll (Affiliate/Partner). Configurable in Settings → Song Requests → Chat Vote-Skip
-- **Listening History** — opt-in, on-device log of the tracks you play; off by default, turn it on in Settings or onboarding
-- **Stats & Charts** — top artists, listening time, 7-day trend, and listening-by-hour charts in the new History & Stats section
-- **Monthly Wrap** — a personal "wrapped"-style monthly summary, exportable as a shareable image
-- **`!stats` command** — viewers ask for today's top track in chat; replies only while the stream is live
-- **Song Requests** — viewers request songs via `!sr <song>` in Twitch chat; plays through Music.app with no focus-steal on the streamer's screen
-- **`!queue` / `!myqueue`** — show the full queue or a viewer's own requests in chat
-- **`!skip` / `!next`** — mod-only skip current request
-- **`!clearqueue`** — mod-only wipe the queue (with confirmation)
-- **`!hold` / `!resume`** — mod-only hold mode; requests buffer without auto-playing so the streamer can curate before releasing
-- **Hold controls** — Hold/Resume button in Queue settings view and menu bar toggle
-- **Music.app closed buffering** — requests save when Music.app is closed, flush on relaunch
-- **Fallback playlist** — plays a configured Apple Music playlist when the queue empties
-- **Song Request Queue UI** — now-playing card, position badges, per-requester labels, and action controls
+- **Chat Vote-Skip**. Viewers vote to skip the current song with `!voteskip` / `!vs`; chat-tally mode counts unique voters against a minimum threshold, opt-in Twitch Polls mode opens a native poll (Affiliate/Partner). Configurable in Settings → Song Requests → Chat Vote-Skip
+- **Listening History**. Opt-in, on-device log of the tracks you play; off by default, turn it on in Settings or onboarding
+- **Stats & Charts**. Top artists, listening time, 7-day trend, and listening-by-hour charts in the new History & Stats section
+- **Monthly Wrap**. A personal "wrapped"-style monthly summary, exportable as a shareable image
+- **`!stats` command**. Viewers ask for today's top track in chat; replies only while the stream is live
+- **Song Requests**. Viewers request songs via `!sr <song>` in Twitch chat; plays through Music.app with no focus-steal on the streamer's screen
+- **`!queue` / `!myqueue`**. Show the full queue or a viewer's own requests in chat
+- **`!skip` / `!next`**. Mod-only skip current request
+- **`!clearqueue`**. Mod-only wipe the queue (with confirmation)
+- **`!hold` / `!resume`**. Mod-only hold mode; requests buffer without auto-playing so the streamer can curate before releasing
+- **Hold controls**. Hold/Resume button in Queue settings view and menu bar toggle
+- **Music.app closed buffering**. Requests save when Music.app is closed, flush on relaunch
+- **Fallback playlist**. Plays a configured Apple Music playlist when the queue empties
+- **Song Request Queue UI**. Now-playing card, position badges, per-requester labels, and action controls
 - **Per-user limits, subscriber-only mode, command aliases**, and enable/disable toggles per command
-- **Custom aliases for `!song`, `!last`, `!stats`** — comma-separated alias fields in Settings → Twitch and Settings → History & Stats; aliases honor the same cooldown and live-gate rules as the canonical command
-- **Hold-queue toggle in Song Request settings** — flip the request queue between Hold and Playing from the Playback card; previously menu-bar only
-- **Recreate Reward button** — clears the stored Channel-Point reward ID and forces a fresh "Request a Song" reward on Twitch; use after deleting the reward manually. The managed reward ID renders below the cost picker (masked under Streamer Mode)
-- **History retention picker** — keep listening history for Forever / 7 / 30 / 90 / 180 / 365 days; older entries prune at next launch
-- **macOS 26 Liquid Glass onboarding** — full wizard rebuild with two new steps (Menu Bar Pointer + OBS Widget) and Liquid Glass materials to match Tahoe's design language
-- **Apple Music onboarding step** — MusicKit authorization during the first-launch wizard with a graceful denied-state recovery path
-- **OBS Widget onboarding step** — overlay URL preview and HTTP widget toggle wired into onboarding so streamers can copy the overlay link before completing setup
-- **Apple-style docs redesign** — system blue theme, refreshed typography, and a cleaner component palette across the documentation site
-- **2026 marketing landing page** — redesigned dark, streamer-focused landing page with refreshed brand identity
-- **Docs SEO infrastructure** — OG image, sitemap, robots.txt, and JSON-LD structured data
-- **LAN IP cache** — overlay URL lookups in settings no longer block on every redraw
-- **Diagnostics + bug report flow** — Export Logs, Clear Logs, and a one-click Report a Bug button in Advanced settings; the issue is pre-filled with redacted log context
-- **Branded About panel** — native SwiftUI About window replaces the default sheet
-- **Dynamic docs SEO + section-aware OG cards** — every docs page ships its own OG image; the changelog generates a live OG card per release
-- **Apple Music logo on Music access row** — granted state now shows the Apple Music brand mark
-- **Widget themes** — six selectable overlay-widget themes (Default, Dark, Light, Glass, Neon, WolfWave) and three layouts (Horizontal, Vertical, Compact)
-- **Discord presence polish** — friendlier presence buttons, a live presence preview in Discord settings, and cleaner connection-state handling
-- **Song-change notifications** — opt-in macOS notification on every track change, with track name, artist, and album art; off by default in Settings → General → Notifications
-- **On-device diagnostics** — opt-in MetricKit diagnostics in Advanced settings with a share card for attaching reports to a bug filing; reports stay on-device
-- **Discord playlist presence** — Discord Rich Presence now shows the current Apple Music playlist alongside the track
-- **WolfMark branding** — new album-art placeholder, branded download page, and refreshed repo README + SECURITY docs
-- **OBS widget transitions** — the overlay slides in with a subtle bounce when a song starts and slides + blurs out calmly when playback stops, with the progress bar draining smoothly to zero. Rapid track skips crossfade the artwork + metadata instead of re-triggering the entrance — no strobing on stream. Pause keeps the card mounted.
+- **Custom aliases for `!song`, `!last`, `!stats`**. Comma-separated alias fields in Settings → Twitch and Settings → History & Stats. Aliases honor the same cooldown and live-gate rules as the canonical command
+- **Hold-queue toggle in Song Request settings**. Flip the request queue between Hold and Playing from the Playback card. Previously menu-bar only
+- **Recreate Reward button**. Clears the stored Channel-Point reward ID and forces a fresh "Request a Song" reward on Twitch. Use after deleting the reward manually. The managed reward ID renders below the cost picker (masked under Streamer Mode)
+- **History retention picker**. Keep listening history for Forever / 7 / 30 / 90 / 180 / 365 days. Older entries prune at next launch
+- **macOS 26 Liquid Glass onboarding**. Full wizard rebuild with two new steps (Menu Bar Pointer + OBS Widget) and Liquid Glass materials to match Tahoe's design language
+- **Apple Music onboarding step**. MusicKit authorization during the first-launch wizard with a graceful denied-state recovery path
+- **OBS Widget onboarding step**. Overlay URL preview and HTTP widget toggle wired into onboarding so streamers can copy the overlay link before completing setup
+- **Apple-style docs redesign**. System blue theme, refreshed typography, and a cleaner component palette across the documentation site
+- **2026 marketing landing page**. Redesigned dark, streamer-focused landing page with refreshed brand identity
+- **Docs SEO infrastructure**. OG image, sitemap, robots.txt, and JSON-LD structured data
+- **LAN IP cache**. Overlay URL lookups in settings no longer block on every redraw
+- **Diagnostics + bug report flow**. Export Logs, Clear Logs, and a one-click Report a Bug button in Advanced settings; the issue is pre-filled with redacted log context
+- **Branded About panel**. Native SwiftUI About window replaces the default sheet
+- **Dynamic docs SEO + section-aware OG cards**. Every docs page ships its own OG image; the changelog generates a live OG card per release
+- **Apple Music logo on Music access row**. Granted state now shows the Apple Music brand mark
+- **Widget themes**. Six selectable overlay-widget themes (Default, Dark, Light, Glass, Neon, WolfWave) and three layouts (Horizontal, Vertical, Compact)
+- **Discord presence polish**. Friendlier presence buttons, a live presence preview in Discord settings, and cleaner connection-state handling
+- **Song-change notifications**. Opt-in macOS notification on every track change, with track name, artist, and album art; off by default in Settings → General → Notifications
+- **On-device diagnostics**. Opt-in MetricKit diagnostics in Advanced settings with a share card for attaching reports to a bug filing; reports stay on-device
+- **Discord playlist presence**. Discord Rich Presence now shows the current Apple Music playlist alongside the track
+- **WolfMark branding**. New album-art placeholder, branded download page, and refreshed repo README + SECURITY docs
+- **OBS widget transitions**. The overlay slides in with a subtle bounce when a song starts and slides + blurs out calmly when playback stops, with the progress bar draining smoothly to zero. Rapid track skips crossfade the artwork + metadata instead of re-triggering the entrance. No strobing on stream. Pause keeps the card mounted.
 
 ### Changed
-- Music playback via AppleScript + focus preservation — Music.app never steals focus from OBS or streaming tools
+- Music playback via AppleScript + focus preservation. Music.app never steals focus from OBS or streaming tools
 - MusicKit used exclusively for search/resolve, not playback
 - Settings views decomposed into per-section files for sharper redraws and easier editing
-- Onboarding polish — redundant success rows removed, Apple Music permission copy tightened, stable button + step sizing eliminates UI shift
+- Onboarding polish. Redundant success rows removed, Apple Music permission copy tightened, stable button + step sizing eliminates UI shift
 - OBS step collapsed to a single toggle with the overlay URL promoted to first-class status
 - Tightened user-facing wording across onboarding, settings, and the menu bar
 - Notifications toggle disables itself once permission is authorized; denied state unified across the wizard
 - `PillButton` now uses the macOS-standard rounded rectangle (replaces `Capsule`)
 - Menu bar preview tray icon renders crisply via `NSImage`
 - Settings window sized to fit cleanly on 720p and 1080p displays
-- Music permission row is actionable and self-healing — tap to re-request or deep-link into System Settings
-- Docs theming — unified violet/cyan brand palette with full light-mode support
+- Music permission row is actionable and self-healing. Tap to re-request or deep-link into System Settings
+- Docs theming. Unified violet/cyan brand palette with full light-mode support
 - Test suite consolidated (408 tests across 30 files, all passing)
-- **Settings views read from `DSFont` and `DSSpace`** — settings, onboarding, and shared views now reference the generated design tokens instead of hardcoded font sizes and paddings; consistent typography and spacing across every settings tab
-- **Concurrency polish** — remaining `DispatchQueue.main.async` sites in menu-bar, song-request, and Discord settings switched to structured `Task { @MainActor }` for Swift 6 cleanliness
-- **Logger PII regex literals** — patterns moved to compile-checked `#/.../#` literals; no more `try! Regex(...)` warnings
+- **Settings views read from `DSFont` and `DSSpace`**. Settings, onboarding, and shared views now reference the generated design tokens instead of hardcoded font sizes and paddings; consistent typography and spacing across every settings tab
+- **Concurrency polish**. Remaining `DispatchQueue.main.async` sites in menu-bar, song-request, and Discord settings switched to structured `Task { @MainActor }` for Swift 6 cleanliness
+- **Logger PII regex literals**. Patterns moved to compile-checked `#/.../#` literals; no more `try! Regex(...)` warnings
 
 ### Performance
-- Settings page switch latency eliminated — navigation between sections is now instant
+- Settings page switch latency eliminated. Navigation between sections is now instant
 - Font enumeration deferred off-main so Widget Setup never blocks first paint
 - Now-Playing Server row renders instantly thanks to the cached LAN IP lookup
 
 ### Developer
 
-_Developer-facing changes — not visible to end users._
+_Developer-facing changes. Not visible to end users._
 
-- **Unified design system** — a single `design-system/tokens.json` source feeds a generator that emits four platform outputs (Swift, docs CSS, widget JS, marketing TS); a Turbo `tokens` task runs as a build prerequisite
-- **Component catalog** — one markdown entry per reusable view under `design-system/components/`
-- **DEBUG-only Debug settings tab** — developer tooling (inspectors, service controls, log/event views, UI previews) plus What's New preview controls, available only in DEBUG builds
-- **Expanded design-token roster** — `font.size` now exposes 9/15/16/18/24/26/28/36 px slots and `space` adds `s0` (2 px), `s10` (32 px), `s11` (44 px) so every view can reference a token without rounding visual semantics
-- **Sparkle delegate hardening** — opted out of Sparkle's system-profile telemetry (`allowedSystemProfileKeys` returns empty); explicit user consent now documented as the contract for `automaticallyDownloadsUpdates = false`
-- **WebSocket security-model doc** — added a `## Security model` block to `WebSocketServerService.swift` documenting the loopback-only contract; token-based auth tracked as a follow-up
-- **New unit tests** — `SongBlocklistTests`, `HistoryFormattingTests`, `LaunchAtLoginServiceTests` cover three previously-untested services
-- **Accessibility labels** — added explicit `accessibilityLabel`/`Hint`/`Identifier` to permission and About-panel buttons that previously relied only on inferred labels (better VoiceOver clarity)
-- **OBS widget build pipeline** — widget source moved into a new `apps/widget/` Tailwind + TypeScript workspace. The bundled `widget.html` is now a generated artifact with the compiled CSS, design tokens, and JS runtime all inlined — still a single self-contained file. Xcode auto-rebuilds it via a pre-build Run Script phase; CI rebuilds it before every `xcodebuild` invocation. Manual command: `bun run --filter widget build`. WebSocket payload contract, widget URL, and theme/layout URL params are unchanged. See [OBS Widget Architecture](/docs/widget) for the pipeline + transition state machine.
+- **Unified design system**. A single `design-system/tokens.json` source feeds a generator that emits four platform outputs (Swift, docs CSS, widget JS, marketing TS); a Turbo `tokens` task runs as a build prerequisite
+- **Component catalog**. One markdown entry per reusable view under `design-system/components/`
+- **DEBUG-only Debug settings tab**. Developer tooling (inspectors, service controls, log/event views, UI previews) plus What's New preview controls, available only in DEBUG builds
+- **Expanded design-token roster** , `font.size` now exposes 9/15/16/18/24/26/28/36 px slots and `space` adds `s0` (2 px), `s10` (32 px), `s11` (44 px) so every view can reference a token without rounding visual semantics
+- **Sparkle delegate hardening**. Opted out of Sparkle's system-profile telemetry (`allowedSystemProfileKeys` returns empty); explicit user consent now documented as the contract for `automaticallyDownloadsUpdates = false`
+- **WebSocket security-model doc**. Added a `## Security model` block to `WebSocketServerService.swift` documenting the loopback-only contract; token-based auth tracked as a follow-up
+- **New unit tests** , `SongBlocklistTests`, `HistoryFormattingTests`, `LaunchAtLoginServiceTests` cover three previously-untested services
+- **Accessibility labels**. Added explicit `accessibilityLabel`/`Hint`/`Identifier` to permission and About-panel buttons that previously relied only on inferred labels (better VoiceOver clarity)
+- **OBS widget build pipeline**. Widget source moved into a new `apps/widget/` Tailwind + TypeScript workspace. The bundled `widget.html` is now a generated artifact with the compiled CSS, design tokens, and JS runtime all inlined. Still a single self-contained file. Xcode auto-rebuilds it via a pre-build Run Script phase; CI rebuilds it before every `xcodebuild` invocation. Manual command: `bun run --filter widget build`. WebSocket payload contract, widget URL, and theme/layout URL params are unchanged. See [OBS Widget Architecture](/docs/widget) for the pipeline + transition state machine.
 
 ### Fixed
-- **Twitch bot silent after relaunch** — EventSub now auto-reconnects to the saved channel on launch after token validation, so chat commands work without reopening the Twitch settings pane. Silent reconnect — no "online" chat ping unless you explicitly click Connect
-- **Keychain duplicate-item self-heal** — `upsertItem` recovers from `errSecDuplicateItem` (OSStatus -25299) when a legacy entry uses a mismatched accessibility class — fixes the WebSocket auth token mint error after onboarding
-- **Twitch auth UI layout shifts** — the Twitch settings card no longer resizes between "Not signed in", "Authorizing", and "Error" states. Reserved minHeight + symmetric transitions; deleted the unused `TwitchReauthView` so re-auth surfaces inline in the same card
-- Onboarding step content is now vertically centered in the wizard window — fixes step views being pinned to the top with empty space below. Reserved extras slot now center-aligns its contents so compact steps (Discord, Preferences) no longer leave dead space below the toggle
-- **Two-PC stream widget** — overlay WebSocket and widget HTTP server bind to all interfaces (previously loopback only) and `widget.html` connects to `location.hostname` instead of hardcoded `localhost`. Streamers can open `http://<lan-ip>:7780` from a second computer or phone on the same network and the widget loads (paired with the new auth token so LAN exposure stays gated)
-- GitHub URL config plumbing — `GITHUB_REPO_OWNER` / `GITHUB_REPO_NAME` from `Config.xcconfig` now flow through `Info.plist` so Report a Bug and releases URLs resolve from config
-- **Intel Homebrew cask detection** — Intel Macs using Homebrew now correctly disable Sparkle and show the Homebrew update card; the previous matcher missed `/usr/local/Caskroom/`
+- **Twitch bot silent after relaunch**. EventSub now auto-reconnects to the saved channel on launch after token validation, so chat commands work without reopening the Twitch settings pane. Silent reconnect. No "online" chat ping unless you explicitly click Connect
+- **Keychain duplicate-item self-heal** , `upsertItem` recovers from `errSecDuplicateItem` (OSStatus -25299) when a legacy entry uses a mismatched accessibility class. Fixes the WebSocket auth token mint error after onboarding
+- **Twitch auth UI layout shifts**. The Twitch settings card no longer resizes between "Not signed in", "Authorizing", and "Error" states. Reserved minHeight + symmetric transitions; deleted the unused `TwitchReauthView` so re-auth surfaces inline in the same card
+- Onboarding step content is now vertically centered in the wizard window. Fixes step views being pinned to the top with empty space below. Reserved extras slot now center-aligns its contents so compact steps (Discord, Preferences) no longer leave dead space below the toggle
+- **Two-PC stream widget**. Overlay WebSocket and widget HTTP server bind to all interfaces (previously loopback only) and `widget.html` connects to `location.hostname` instead of hardcoded `localhost`. Streamers can open `http://<lan-ip>:7780` from a second computer or phone on the same network and the widget loads (paired with the new auth token so LAN exposure stays gated)
+- GitHub URL config plumbing , `GITHUB_REPO_OWNER` / `GITHUB_REPO_NAME` from `Config.xcconfig` now flow through `Info.plist` so Report a Bug and releases URLs resolve from config
+- **Intel Homebrew cask detection**. Intel Macs using Homebrew now correctly disable Sparkle and show the Homebrew update card; the previous matcher missed `/usr/local/Caskroom/`
 - Native build warnings, SwiftUI layout reentrancy, and duplicate log emission
 - Onboarding URL bug, permissions correctness, and layout stability
 - Docs favicon 404s resolved; DMG size pill now reflects the actual 3.7 MB
@@ -116,37 +116,37 @@ _Developer-facing changes — not visible to end users._
 - Docs `/wolfwave` basePath hardcoded so GitHub Pages URLs always resolve
 - Menu bar pointer arrow anchored to TrayIcon center in onboarding
 - Brand icons in menu bar render as templates with refreshed logo SVGs
-- Settings window sidebar toggle — removed the duplicate titlebar toggle, restored the toolbar sidebar toggle, eliminated the floating `>>` reveal control
+- Settings window sidebar toggle. Removed the duplicate titlebar toggle, restored the toolbar sidebar toggle, eliminated the floating `>>` reveal control
 - About panel spacer gap removed; app icon logo cutouts preserved via the `evenodd` fill-rule
-- Apple Music control under sandbox — granted the Apple Events entitlement so the permission prompt actually appears and ScriptingBridge can drive Music.app
-- Now-playing survives ScriptingBridge drift — the player-state parser accepts every bridge type Music.app returns instead of silently blanking the card, Discord Rich Presence, and overlay
+- Apple Music control under sandbox. Granted the Apple Events entitlement so the permission prompt actually appears and ScriptingBridge can drive Music.app
+- Now-playing survives ScriptingBridge drift. The player-state parser accepts every bridge type Music.app returns instead of silently blanking the card, Discord Rich Presence, and overlay
 - Recheck + Sync toggle force a fresh now-playing read so the UI catches up immediately
 - Apple Music permission Recheck button visibly responds when tapped
-- Stats card layout — fixed jumping card sizes and added an Apple Music permission gate
+- Stats card layout. Fixed jumping card sizes and added an Apple Music permission gate
 - Settings window default size enlarged; `StatusChip` tightened so integration rows fit
 - About panel Check for Updates now invokes Sparkle; Release Notes points at the docs changelog
 - Onboarding Preferences step no longer overlaps the nav bar on shorter window heights
 - Onboarding step header anchored so icons stop drifting between steps
 
 ### Removed
-- `WallpaperBloomBackground` — replaced with native macOS chrome
+- `WallpaperBloomBackground`. Replaced with native macOS chrome
 - Redundant onboarding success rows
 
 ---
 
-## v1.2.0 — April 4, 2026
+## v1.2.0. April 4, 2026
 
 ### Added
-- **Docs landing page** — redesigned as a dark, streamer-focused marketing page
-- **Theme-aware favicon** — automatically switches between light and dark mode
-- **Shared UI components** — reusable settings components for a more consistent look
+- **Docs landing page**. Redesigned as a dark, streamer-focused marketing page
+- **Theme-aware favicon**. Automatically switches between light and dark mode
+- **Shared UI components**. Reusable settings components for a more consistent look
 
 ### Changed
-- **Music architecture** — refactored to a pluggable source system, laying groundwork for future music sources beyond Apple Music
-- **AppDelegate decomposed** — split into focused extensions for maintainability
-- **Logger** — streamlined format with local time and emoji prefixes
-- **Widget settings** — compact 2-per-row layout, auto-sizing dropdowns
-- **Settings UI** — unified headers and test buttons across Discord & Twitch sections
+- **Music architecture**. Refactored to a pluggable source system, laying groundwork for future music sources beyond Apple Music
+- **AppDelegate decomposed**. Split into focused extensions for maintainability
+- **Logger**. Streamlined format with local time and emoji prefixes
+- **Widget settings**. Compact 2-per-row layout, auto-sizing dropdowns
+- **Settings UI**. Unified headers and test buttons across Discord & Twitch sections
 
 ### Fixed
 - Settings window not appearing when opened from menu bar in menu-bar-only mode
@@ -155,29 +155,29 @@ _Developer-facing changes — not visible to end users._
 
 [Full changelog on GitHub](https://github.com/mrdemonwolf/wolfwave/blob/main/CHANGELOG.md)
 
-## v1.1.0 — March 31, 2026
+## v1.1.0. March 31, 2026
 
 ### Added
-- **Discord buttons** — Rich Presence now shows two clickable buttons: Open in Apple Music (direct track link) and song.link (opens on Spotify, YouTube Music, Tidal, and more)
-- **Launch at Login** — new toggle in Settings → App Visibility. Uses SMAppService, appears in System Settings → General → Login Items
-- **Custom DMG background** — installer window has a polished dark background with WolfWave brand colors
-- **Homebrew auto-update** — GitHub Actions now automatically opens a pull request on the Homebrew tap on new releases
+- **Discord buttons**. Rich Presence now shows two clickable buttons: Open in Apple Music (direct track link) and song.link (opens on Spotify, YouTube Music, Tidal, and more)
+- **Launch at Login**. New toggle in Settings → App Visibility. Uses SMAppService, appears in System Settings → General → Login Items
+- **Custom DMG background**. Installer window has a polished dark background with WolfWave brand colors
+- **Homebrew auto-update**. GitHub Actions now automatically opens a pull request on the Homebrew tap on new releases
 
 ### Fixed
-- iTunes Search API URL encoding — track/artist names with &, +, or = no longer break artwork lookups
+- iTunes Search API URL encoding. Track/artist names with &, +, or = no longer break artwork lookups
 - Launch at Login toggle now reverts if SMAppService registration fails
 
-## v1.0.2 — March 31, 2026
+## v1.0.2. March 31, 2026
 
 ### Fixed
 - App icon missing in CI-built releases
 - Sparkle updater unable to detect new versions (build number now incremented per release)
 - Sparkle initialization race condition fixed
 
-## v1.0.1 — March 30, 2026
+## v1.0.1. March 30, 2026
 
 ### Changed
-- Dropped Intel (x86_64) support — Apple Silicon only
+- Dropped Intel (x86_64) support. Apple Silicon only
 - Raised minimum macOS version to 26.0 (Tahoe)
 - Logger: replaced NSLock with serial DispatchQueue for thread-safe file I/O
 - TwitchChatService/DiscordRPCService: documented thread safety patterns
@@ -193,7 +193,7 @@ _Developer-facing changes — not visible to end users._
 - Removed duplicate "up to date" alert (Sparkle handles it natively)
 - Added VoiceOver accessibility labels across all settings and onboarding views
 
-## v1.0.0 — March 30, 2026
+## v1.0.0. March 30, 2026
 
 ### Added
 - Native macOS menu bar app for Apple Music integration

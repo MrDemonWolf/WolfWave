@@ -1,8 +1,8 @@
 ---
-title: Component Catalog — WolfWave SwiftUI UI Library
-description: Every reusable SwiftUI component shipped in the WolfWave macOS app — status chips, cards, action grids, banners. Each entry has API, tokens, accessibility notes, and a do/don't list.
+title: Component Catalog
+description: Every reusable SwiftUI component shipped in the WolfWave macOS app. Status chips, cards, action grids, banners. Each entry has API, tokens, accessibility notes, and a do/don't list.
 ogTitle: WolfWave Component Catalog
-ogDescription: Reusable SwiftUI components — status chips, cards, action grids, banners. With tokens, API, and accessibility notes.
+ogDescription: Reusable SwiftUI components. Status chips, cards, action grids, banners. With tokens, API, and accessibility notes.
 keywords:
   - swiftui component catalog
   - wolfwave components
@@ -16,6 +16,8 @@ ogChips:
   - Chips
 ogEyebrow: Components
 ---
+
+<span className="docs-eyebrow">Components</span>
 
 WolfWave's native macOS app ships a small library of SwiftUI components under `apps/native/WolfWave/Views/Shared/` and `Views/Onboarding/Components/`. Each entry below links to its source plus a markdown catalog entry with API, tokens, accessibility notes, and a do/don't list.
 
@@ -49,6 +51,6 @@ WolfWave's native macOS app ships a small library of SwiftUI components under `a
 ## How to add a component
 
 1. Build the SwiftUI view under `Views/Shared/` or `Views/Onboarding/Components/`.
-2. Reference `DSColor` / `DSFont` / `DSSpace` / `DSRadius` tokens — no hardcoded numbers.
+2. Reference `DSColor` / `DSFont` / `DSSpace` / `DSRadius` tokens. No hardcoded numbers.
 3. Add a markdown entry in `design-system/components/<name>.md` following the [template](https://github.com/mrdemonwolf/wolfwave/blob/main/design-system/components/README.md).
 4. Add a row to the table above.

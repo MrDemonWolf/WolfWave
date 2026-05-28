@@ -1,6 +1,6 @@
 ---
-title: Getting Started Building WolfWave from Source
-description: Build WolfWave from source on macOS — Xcode 16, Swift 5.9, macOS 26. Configure Twitch + Discord client IDs and run the open-source menu bar app locally in minutes.
+title: Build from Source
+description: Build WolfWave from source on macOS. Xcode 16, Swift 5.9, macOS 26. Configure Twitch + Discord client IDs and run the open-source menu bar app locally in minutes.
 ogTitle: Build WolfWave from Source
 ogDescription: Xcode 16, Swift 5.9, macOS 26. Clone, configure Twitch + Discord IDs, run locally in minutes.
 keywords:
@@ -16,6 +16,8 @@ ogChips:
   - Open Source
 ogEyebrow: Build from source
 ---
+
+<span className="docs-eyebrow">Build from source</span>
 
 This guide is for developers who want to build WolfWave from source. If you just want to use WolfWave, see the [Installation](./installation) guide.
 
@@ -48,7 +50,7 @@ Open `apps/native/WolfWave/Config.xcconfig` and set your keys:
 TWITCH_CLIENT_ID = your_twitch_client_id_here
 DISCORD_CLIENT_ID = your_discord_client_id_here
 
-# Optional — fork/whitelabel branding overrides. Leave as-is for the upstream defaults.
+# Optional. Fork/whitelabel branding overrides. Leave as-is for the upstream defaults.
 DOCS_URL = https://mrdemonwolf.github.io/wolfwave
 COMMUNITY_DISCORD_URL = https://mrdwolf.net/discord
 COPYRIGHT_HOLDER = MrDemonWolf, Inc.
@@ -62,7 +64,7 @@ COPYRIGHT_HOLDER = MrDemonWolf, Inc.
 </Callout>
 
 <Callout type="warn">
-  `Config.xcconfig` is gitignored — each contributor uses their own.
+  `Config.xcconfig` is gitignored. Each contributor uses their own.
 </Callout>
 
 <Callout type="info">
@@ -140,6 +142,6 @@ After the workflow completes, build and notarize locally with `make prod-build &
 
 ## Support development
 
-WolfWave is built and maintained by one person. If you find the project valuable, please consider sponsoring — it directly funds development time and Apple Developer Program fees.
+WolfWave is built and maintained by one person. If you find the project valuable, please consider sponsoring. It directly funds development time and Apple Developer Program fees.
 
 [**Sponsor on GitHub →**](https://github.com/sponsors/nathanialhenniges)

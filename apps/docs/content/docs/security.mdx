@@ -1,13 +1,13 @@
 ---
-title: WolfWave Security — Keychain, Sandbox, OAuth, EdDSA Updates
-description: How WolfWave keeps your Twitch and Discord tokens safe — macOS Keychain storage, App Sandbox, OAuth Device Code flow, and EdDSA-signed Sparkle updates.
+title: Security
+description: How WolfWave keeps your Twitch and Discord tokens safe. MacOS Keychain storage, App Sandbox, OAuth Device Code flow, and EdDSA-signed Sparkle updates.
 keywords:
   - wolfwave security
   - twitch token keychain mac
   - macos app sandbox streamer
   - oauth device code twitch swift
   - sparkle eddsa updates
-ogTitle: WolfWave Security — Keychain, Sandbox, OAuth
+ogTitle: WolfWave Security. Keychain, Sandbox, OAuth
 ogDescription: Tokens stay in your macOS Keychain. App Sandbox, OAuth Device Code, EdDSA-signed updates. No servers.
 ogChips:
   - Keychain
@@ -17,18 +17,20 @@ ogChips:
 ogEyebrow: Tokens stay safe
 ---
 
-**Your tokens never leave your Mac.**
+<span className="docs-eyebrow">Tokens stay safe</span>
 
-WolfWave is designed with security as a priority. All sensitive data is handled using macOS system APIs — Keychain, App Sandbox, OAuth Device Code, and EdDSA-signed updates.
+<Callout type="info">
+  **Your tokens never leave your Mac.** All sensitive data is handled using macOS system APIs. Keychain, App Sandbox, OAuth Device Code, and EdDSA-signed updates.
+</Callout>
 
 ## Listening History (Opt-In, On-Device)
 
 The Listening History + Stats + Monthly Wrap features are **off by default** and never run unless you turn them on in **Settings → History & Stats** or during onboarding.
 
-- **On-device only** — the play log is an append-only NDJSON file inside the app's sandbox. Nothing is uploaded, no server is contacted.
-- **Smart recording** — a track is only logged after it crosses the half-length or 4-minute mark, so skips don't pad the stats.
-- **Inspectable** — open the History & Stats settings to see what's stored. The data never leaves the device unless you choose to share an exported Monthly Wrap image.
-- **Reset anytime** — clearing history removes the entire log; no shadow copies elsewhere.
+- **On-device only**. The play log is an append-only NDJSON file inside the app's sandbox. Nothing is uploaded, no server is contacted.
+- **Smart recording**. A track is only logged after it crosses the half-length or 4-minute mark, so skips don't pad the stats.
+- **Inspectable**. Open the History & Stats settings to see what's stored. The data never leaves the device unless you choose to share an exported Monthly Wrap image.
+- **Reset anytime**. Clearing history removes the entire log; no shadow copies elsewhere.
 
 `!stats` (Twitch chat) reads from this log and replies only while your stream is live.
 
@@ -43,18 +45,18 @@ WolfWave is distributed as a signed and notarized DMG:
 - **Stapled ticket** allows offline Gatekeeper verification
 
 <Callout type="info">
-  The app is signed and notarized by Apple — no Gatekeeper warnings on first launch.
+  The app is signed and notarized by Apple. No Gatekeeper warnings on first launch.
 </Callout>
 
 ## Credential Storage
 
 All sensitive credentials are stored in the macOS Keychain:
 
-- **Twitch OAuth access token** — used for Helix API + EventSub
-- **Twitch refresh token** — for silent token refresh
-- **Twitch broadcaster + bot account info** — IDs and usernames associated with the connected account
+- **Twitch OAuth access token**. Used for Helix API + EventSub
+- **Twitch refresh token**. For silent token refresh
+- **Twitch broadcaster + bot account info**. IDs and usernames associated with the connected account
 
-The local WebSocket server binds to all interfaces so a second-PC OBS or a phone browser on the same LAN can connect. Every accepted connection — loopback or LAN — must present the `wolfwave.token.<hex>` `Sec-WebSocket-Protocol` token, minted on first launch and stored in the macOS Keychain. See [WebSocket Server Security](#websocket-server-security) for details.
+The local WebSocket server binds to all interfaces so a second-PC OBS or a phone browser on the same LAN can connect. Every accepted connection. Loopback or LAN. Must present the `wolfwave.token.<hex>` `Sec-WebSocket-Protocol` token, minted on first launch and stored in the macOS Keychain. See [WebSocket Server Security](#websocket-server-security) for details.
 
 <Callout type="warn">
   Tokens are **never** written to UserDefaults or stored on disk in plain text.
@@ -117,7 +119,7 @@ API keys are stored in `Config.xcconfig`:
 | `COPYRIGHT_HOLDER` | Legal entity in About + Monthly Wrap footers | Public (branding) |
 
 <Callout type="info">
-  All values are public — OAuth client identifiers and branding strings, not
+  All values are public. OAuth client identifiers and branding strings, not
   secrets. The branding keys (`DOCS_URL`, `COMMUNITY_DISCORD_URL`,
   `COPYRIGHT_HOLDER`, plus the two `GITHUB_REPO_*`) are optional fork
   overrides; each falls back to the upstream MrDemonWolf default if blank.
@@ -141,10 +143,10 @@ WolfWave runs inside the macOS App Sandbox with the minimum required entitlement
 The built-in WebSocket server binds to all interfaces (LAN-reachable) so two-PC streaming setups and phone browsers can connect. Access is gated by a per-install auth token:
 
 - The token is a 32-byte random hex string, minted on first launch by `WebSocketAuthToken.currentOrCreate()` and persisted in the macOS Keychain.
-- Every accepted connection — loopback **and** LAN — must present `Sec-WebSocket-Protocol: wolfwave.token.<hex>` on the handshake; the listener rejects everything else.
+- Every accepted connection. Loopback **and** LAN. Must present `Sec-WebSocket-Protocol: wolfwave.token.<hex>` on the handshake; the listener rejects everything else.
 - `WidgetHTTPService` serves `widget.html` and injects the token automatically for loopback peers; remote browsers must supply `?token=…` in the URL.
 - Tokens are redacted to the first 4 characters in log lines, never written in full.
-- The Discord IPC channel is a separate local Unix socket (`$TMPDIR/discord-ipc-{0..9}`) — never LAN-reachable.
+- The Discord IPC channel is a separate local Unix socket (`$TMPDIR/discord-ipc-{0..9}`). Never LAN-reachable.
 
 ## JSON Response Validation
 
@@ -159,7 +161,7 @@ Every incoming EventSub message is validated before processing:
 
 - `message_id` and `message_timestamp` are required on every message
 - Messages older than **10 minutes** are rejected to prevent replay attacks
-- Subscription type is verified before processing notifications — unexpected types are ignored
+- Subscription type is verified before processing notifications. Unexpected types are ignored
 
 ## Network Security
 
@@ -172,8 +174,8 @@ All external network traffic uses encrypted transport:
 | `eventsub.wss.twitch.tv/ws` | WSS | Twitch EventSub WebSocket |
 | `itunes.apple.com/search` | HTTPS | Album artwork for Discord Rich Presence |
 | `github.com/MrDemonWolf/wolfwave/releases/...` | HTTPS | Sparkle appcast + signed updates |
-| `0.0.0.0:8765` | WebSocket (LAN) | Now-playing broadcast — token-gated via `Sec-WebSocket-Protocol`; same-Mac OBS gets the token automatically, remote browsers must supply `?token=…` |
-| `0.0.0.0:8766` | HTTP (LAN) | Widget HTML server — same token-gating rules |
+| `0.0.0.0:8765` | WebSocket (LAN) | Now-playing broadcast. Token-gated via `Sec-WebSocket-Protocol`; same-Mac OBS gets the token automatically, remote browsers must supply `?token=…` |
+| `0.0.0.0:8766` | HTTP (LAN) | Widget HTML server. Same token-gating rules |
 | Local Unix socket | IPC | Discord Rich Presence (`$TMPDIR/discord-ipc-{0..9}`) |
 
 The WebSocket and Widget HTTP listeners bind to all interfaces so a second-PC OBS or a phone browser on the same network can connect. Connections must present the 32-byte hex auth token (minted on first launch, stored in macOS Keychain, never logged in full).
@@ -182,11 +184,11 @@ The WebSocket and Widget HTTP listeners bind to all interfaces so a second-PC OB
 
 Sparkle is configured with privacy-conscious defaults:
 
-- **EdDSA-signed appcast** — every release is signed with an Ed25519 key; the public key (`SUPublicEDKey`) ships in `Info.plist` and verifies the signature before any update is applied.
-- **Explicit consent for downloads** — `automaticallyDownloadsUpdates = false`. Sparkle never writes bytes to disk until you click *Install*.
-- **No anonymous system profile transmitted** — `SUSendProfileInfo` is not enabled, so background checks transmit only the appcast request itself (User-Agent + macOS version, no app-specific telemetry).
-- **DEBUG builds** — Sparkle is initialized with `startingUpdater: false`; manual checks read from a bundled `dev-appcast.xml`, so the developer experience never reaches the production feed.
-- **Homebrew installs** — Sparkle is disabled entirely; Homebrew manages updates.
+- **EdDSA-signed appcast**. Every release is signed with an Ed25519 key; the public key (`SUPublicEDKey`) ships in `Info.plist` and verifies the signature before any update is applied.
+- **Explicit consent for downloads** , `automaticallyDownloadsUpdates = false`. Sparkle never writes bytes to disk until you click *Install*.
+- **No anonymous system profile transmitted** , `SUSendProfileInfo` is not enabled, so background checks transmit only the appcast request itself (User-Agent + macOS version, no app-specific telemetry).
+- **DEBUG builds**. Sparkle is initialized with `startingUpdater: false`; manual checks read from a bundled `dev-appcast.xml`, so the developer experience never reaches the production feed.
+- **Homebrew installs**. Sparkle is disabled entirely; Homebrew manages updates.
 
 ## Best Practices
 

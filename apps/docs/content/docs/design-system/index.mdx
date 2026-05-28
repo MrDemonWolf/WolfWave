@@ -1,8 +1,8 @@
 ---
-title: WolfWave Design System — Tokens, Components, Brand
-description: WolfWave's visual language — design tokens, reusable SwiftUI components, and brand assets. One source of truth powering the native app, docs, widget, and marketing.
+title: Design System
+description: WolfWave's visual language. Design tokens, reusable SwiftUI components, and brand assets. One source of truth powering the native app, docs, widget, and marketing.
 ogTitle: WolfWave Design System
-ogDescription: Tokens, components, and brand — the visual language behind the app, docs, widget, and marketing. Open source.
+ogDescription: Tokens, components, and brand. The visual language behind the app, docs, widget, and marketing. Open source.
 keywords:
   - wolfwave design system
   - swiftui design tokens
@@ -16,6 +16,8 @@ ogChips:
 ogEyebrow: Design System
 ---
 
+<span className="docs-eyebrow">Design System</span>
+
 WolfWave's design system is the single source of truth for how the product looks and feels across:
 
 - **The native macOS app** (Swift / SwiftUI, macOS 26 Liquid Glass)
@@ -25,7 +27,7 @@ WolfWave's design system is the single source of truth for how the product looks
 
 ## Canonical source
 
-All tokens live in [`design-system/tokens.json`](https://github.com/) at the repo root. A bun script (`bun run tokens`) generates per-platform outputs that are committed alongside the source — consumers never need to run the generator unless they're editing tokens.
+All tokens live in [`design-system/tokens.json`](https://github.com/) at the repo root. A bun script (`bun run tokens`) generates per-platform outputs that are committed alongside the source. Consumers never need to run the generator unless they're editing tokens.
 
 ```text
 design-system/tokens.json   ← edit this
@@ -38,6 +40,6 @@ design-system/tokens.json   ← edit this
 
 ## In this section
 
-- [Foundations](./foundations) — colors, type, spacing, radius, motion, shadows.
-- [Components](./components) — catalog of reusable SwiftUI views and their Tailwind/CSS equivalents.
-- [Brand](./brand) — logo usage, partner colors, voice.
+- [Foundations](./foundations). Colors, type, spacing, radius, motion, shadows.
+- [Components](./components). Catalog of reusable SwiftUI views and their Tailwind/CSS equivalents.
+- [Brand](./brand). Logo usage, partner colors, voice.

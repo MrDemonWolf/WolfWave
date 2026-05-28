@@ -1,7 +1,7 @@
 ---
-title: Twitch Chat Commands for Apple Music
-description: "Full !song, !sr, !queue, !skip, and vote-to-skip command reference for WolfWave — with cooldowns, permissions, and channel-point and bits redemptions."
-ogTitle: "!song, !sr, !queue, !skip — Apple Music for Twitch"
+title: Bot Commands
+description: "Full !song, !sr, !queue, !skip, and vote-to-skip command reference for WolfWave. With cooldowns, permissions, and channel-point and bits redemptions."
+ogTitle: "!song, !sr, !queue, !skip. Apple Music for Twitch"
 ogDescription: "Every WolfWave chat command. Song requests via !sr, channel-point + bits boosts, chat or Twitch Polls vote-to-skip. No Spotify required."
 keywords:
   - "!song command twitch apple music"
@@ -19,10 +19,12 @@ ogChips:
 ogEyebrow: For Apple Music
 ---
 
+<span className="docs-eyebrow">For Apple Music</span>
+
 Once you've connected your Twitch account, these commands are ready to go.
 
 <Callout type="info">
-  Most commands are **off by default** — flip the ones you want on in **Settings → Twitch → Bot Commands**.
+  Most commands are **off by default**. Flip the ones you want on in **Settings → Twitch → Bot Commands**.
 </Callout>
 
 ---
@@ -78,21 +80,21 @@ Everyone can add tracks to your queue. Mods get extra controls.
 ## Vote-Skip
 **TL;DR: Chat votes a song off.**
 
-Let your community skip a track together — no mod needed.
+Let your community skip a track together. No mod needed.
 
 | Command       | Who      | What it does                          |
 | ------------- | -------- | ------------------------------------- |
 | `!voteskip`   | Everyone | Cast a vote to skip the current song  |
 | `!vs`         | Everyone | Short alias for `!voteskip`           |
 
-When enough viewers vote within the time window, the song is skipped — the
+When enough viewers vote within the time window, the song is skipped. The
 queued request if one is playing, otherwise the current Apple Music track. If
 the window runs out first, the song stays.
 
 Two ways to run a vote, set in **Settings → Song Requests → Chat Vote-Skip**:
 
-- **Chat tally** — `!voteskip` votes are counted until the minimum is reached.
-- **Twitch Polls** — a mod's `!voteskip` opens a native Twitch poll (Affiliate/Partner only).
+- **Chat tally** , `!voteskip` votes are counted until the minimum is reached.
+- **Twitch Polls**. A mod's `!voteskip` opens a native Twitch poll (Affiliate/Partner only).
 
 <Callout type="info">
   Set the minimum votes, vote window, cooldown, and subscriber-only voting in
@@ -119,11 +121,11 @@ Viewers can ask for the track you've played the most today. Requires the opt-in 
 ## Channel Points &amp; Bits
 **TL;DR: Reward requests without a chat command.**
 
-Two extra ways for viewers to add a track — both feed the same queue, blocklist, and audience rules as `!sr`.
+Two extra ways for viewers to add a track. Both feed the same queue, blocklist, and audience rules as `!sr`.
 
-- **Channel Points reward** — WolfWave creates and manages a "Request a Song" custom reward on your channel. Redeeming it acts like a `!sr` from that viewer. Fulfilment and cancellation are reconciled automatically.
-- **Bit Boost** — when a viewer cheers bits, their most-recent queued request jumps to the front of the queue.
-- **Recreate Reward** — if you ever delete the reward manually on Twitch, click **Recreate Reward** in the Channel Points & Bits card to mint a fresh one. The managed reward ID is shown below the cost picker (masked under Streamer Mode).
+- **Channel Points reward**. WolfWave creates and manages a "Request a Song" custom reward on your channel. Redeeming it acts like a `!sr` from that viewer. Fulfilment and cancellation are reconciled automatically.
+- **Bit Boost**. When a viewer cheers bits, their most-recent queued request jumps to the front of the queue.
+- **Recreate Reward**. If you ever delete the reward manually on Twitch, click **Recreate Reward** in the Channel Points & Bits card to mint a fresh one. The managed reward ID is shown below the cost picker (masked under Streamer Mode).
 
 <Callout type="info">
   Enable from **Settings → Song Requests → Channel Points & Bits**. Requires Twitch Affiliate or Partner to create the reward.

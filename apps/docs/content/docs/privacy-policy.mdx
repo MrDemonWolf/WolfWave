@@ -1,12 +1,12 @@
 ---
-title: WolfWave Privacy Policy
+title: Privacy Policy
 description: WolfWave has no tracking, no analytics, no servers. Tokens are stored in macOS Keychain. Now-playing data never leaves your Mac unless you enable a service.
 keywords:
   - wolfwave privacy
   - mac streamer app no tracking
   - twitch bot privacy
   - apple music local first
-ogTitle: WolfWave Privacy — No Tracking, No Servers
+ogTitle: WolfWave Privacy. No Tracking, No Servers
 ogDescription: Zero tracking. Zero analytics. Zero servers. Tokens stay in macOS Keychain. Local-first by design.
 ogChips:
   - No Tracking
@@ -22,6 +22,8 @@ export function ContactEmail() {
   return <a href={`mailto:${email}`}>{email}</a>
 }
 
+<span className="docs-eyebrow">Local-first</span>
+
 **Effective Date:** February 12, 2026
 **Last Updated:** May 24, 2026
 
@@ -31,16 +33,16 @@ MrDemonWolf, Inc. ("we", "us", or "our") operates the WolfWave application. This
 
 ### Information You Provide
 
-- **Twitch Account Credentials** — When you connect your Twitch account via OAuth Device Code Flow, WolfWave receives an OAuth access token from Twitch. This token is stored locally in your macOS Keychain and is never transmitted to us.
-- **Channel Name** — The Twitch channel name you connect to is stored locally in your macOS UserDefaults so the menu bar can display it.
-- **Discord Application ID** — Your Discord Application ID is stored in the app's build configuration and used to connect to Discord's local IPC socket.
-- **Song Request Blocklist** — Song titles and artist names you choose to block from song requests are stored locally in your macOS UserDefaults. You can remove individual entries or clear the entire list at any time from **Settings → Song Requests → Blocklist → Clear All**.
+- **Twitch Account Credentials**. When you connect your Twitch account via OAuth Device Code Flow, WolfWave receives an OAuth access token from Twitch. This token is stored locally in your macOS Keychain and is never transmitted to us.
+- **Channel Name**. The Twitch channel name you connect to is stored locally in your macOS UserDefaults so the menu bar can display it.
+- **Discord Application ID**. Your Discord Application ID is stored in the app's build configuration and used to connect to Discord's local IPC socket.
+- **Song Request Blocklist**. Song titles and artist names you choose to block from song requests are stored locally in your macOS UserDefaults. You can remove individual entries or clear the entire list at any time from **Settings → Song Requests → Blocklist → Clear All**.
 
 ### Information Collected Automatically
 
-- **Now Playing Data** — WolfWave reads the currently playing track, artist, and album from Apple Music on your device using ScriptingBridge. This data is only used locally and shared with the services you explicitly enable (Twitch chat, Discord Rich Presence, WebSocket).
-- **Listening History (opt-in)** — When you enable **Settings → History & Stats → Listening History**, WolfWave records each scrobbled play (track, artist, album, timestamp, duration) to a local NDJSON file under Application Support. Recording only happens while the toggle is on. You set the retention window in days (0 = keep everything) and can clear all recorded history at any time from the same pane.
-- **Twitch Viewer Activity (transient)** — When the Song Request, vote-skip, or chat-command features are enabled, WolfWave receives chat messages, channel-point redemptions, and bit cheers via the Twitch EventSub WebSocket. Viewer usernames and message bodies are held in memory for the lifetime of the queue or vote session and discarded when the queue is cleared, the session ends, or the app quits. None of this data is written to disk except for the optional blocklist entries you create yourself.
+- **Now Playing Data**. WolfWave reads the currently playing track, artist, and album from Apple Music on your device using ScriptingBridge. This data is only used locally and shared with the services you explicitly enable (Twitch chat, Discord Rich Presence, WebSocket).
+- **Listening History (opt-in)**. When you enable **Settings → History & Stats → Listening History**, WolfWave records each scrobbled play (track, artist, album, timestamp, duration) to a local NDJSON file under Application Support. Recording only happens while the toggle is on. You set the retention window in days (0 = keep everything) and can clear all recorded history at any time from the same pane.
+- **Twitch Viewer Activity (transient)**. When the Song Request, vote-skip, or chat-command features are enabled, WolfWave receives chat messages, channel-point redemptions, and bit cheers via the Twitch EventSub WebSocket. Viewer usernames and message bodies are held in memory for the lifetime of the queue or vote session and discarded when the queue is cleared, the session ends, or the app quits. None of this data is written to disk except for the optional blocklist entries you create yourself.
 
 ## How We Use Information
 
@@ -59,7 +61,7 @@ WolfWave processes data **entirely on your device**. We do not operate servers o
 
 WolfWave includes an **optional, opt-in** diagnostics feature that is turned **off by default**. When you enable "Collect on-device diagnostics" in Advanced settings, WolfWave uses Apple's MetricKit framework to gather crash, hang, and performance reports.
 
-These reports are aggregated by macOS on your device and stored locally on your Mac under Application Support. They are **never uploaded** — WolfWave has no analytics servers and no code that transmits diagnostics anywhere. WolfWave also keeps a local, anonymous app-launch count that never leaves your device. Turning the feature off stops collection immediately.
+These reports are aggregated by macOS on your device and stored locally on your Mac under Application Support. They are **never uploaded**. WolfWave has no analytics servers and no code that transmits diagnostics anywhere. WolfWave also keeps a local, anonymous app-launch count that never leaves your device. Turning the feature off stops collection immediately.
 
 ## Data Storage
 

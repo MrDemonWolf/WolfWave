@@ -1,7 +1,7 @@
 ---
-title: Install WolfWave on macOS — DMG or Homebrew
+title: Install
 description: Download WolfWave free for macOS 26+ on Apple Silicon. Install the signed .dmg or run `brew install --cask mrdemonwolf/den/wolfwave`. Free Apple Music bot for Twitch.
-ogTitle: Install WolfWave — Free Apple Music Bot for Twitch on Mac
+ogTitle: Install WolfWave. Free Apple Music Bot for Twitch on Mac
 ogDescription: Two-minute install. DMG or Homebrew. macOS 26+ on Apple Silicon. Signed and notarized. Free and open source.
 keywords:
   - install wolfwave
@@ -19,38 +19,129 @@ ogChips:
 ogEyebrow: Install in 2 minutes
 ---
 
+<span className="docs-eyebrow">Install in 2 minutes</span>
+
 ## What you need
 
 - **macOS 26.0+** (Tahoe)
-- **Apple Silicon** (M1 or later) — Intel Macs are not supported
-- **Apple Music app** — WolfWave only reads from Apple Music (built into macOS). Spotify and other players are not supported.
+- **Apple Silicon** (M1 or later). Intel Macs are not supported
+- **Apple Music app**. WolfWave only reads from Apple Music (built into macOS). Spotify and other players are not supported.
 
-## Download WolfWave
+## Get WolfWave
 
-Two ways to install — the `.dmg` installer for most people, or Homebrew for developers. The download page has both, plus system requirements.
+<Tabs items={["DMG (recommended)", "Homebrew"]}>
+
+<Tab value="DMG (recommended)">
+
+The standard installer. Signed and notarized, no Gatekeeper warnings.
 
 <Cards>
   <Card
-    title="Download WolfWave"
+    title="Download the .dmg"
     href="/download"
-    description="Get the .dmg installer or install via Homebrew."
+    description="Latest signed release direct from GitHub."
   />
 </Cards>
 
+1. Open the `.dmg`.
+2. Drag **WolfWave** into **Applications**.
+3. Launch from Spotlight or Launchpad.
+
+</Tab>
+
+<Tab value="Homebrew">
+
+Best for developers who want one-command installs and `brew upgrade` parity.
+
+```bash
+brew install --cask mrdemonwolf/den/wolfwave
+```
+
+Updates come through Homebrew. Sparkle's in-app updater is disabled in this install mode.
+
+```bash
+brew upgrade --cask wolfwave
+```
+
+</Tab>
+
+</Tabs>
+
 <Callout type="info">
-  WolfWave is signed and notarized by Apple — no Gatekeeper warnings.
+  WolfWave is signed and notarized by Apple. No Gatekeeper warnings, no right-click "Open Anyway" dance.
 </Callout>
 
 ## First launch
 
-WolfWave opens a quick setup wizard on first run:
+WolfWave opens an 8-step setup wizard the first time you launch. Skip any optional step and come back later from **Settings**.
 
-1. **Music Access** — Click OK when macOS asks to see Apple Music.
-2. **Twitch** (optional) — Connect your account to enable `!song`, `!sr`, and other chat commands.
-3. **Discord** (optional) — Show "Listening to Apple Music" on your profile.
-4. **Stream Widget** (optional) — Turn on the local widget server for your OBS browser source. The widget URL already includes your per-install auth token — keep the URL intact when you paste it into OBS.
+<Steps>
 
-That's it. WolfWave lives in your **menu bar** — click the wolf icon at the top of your screen to see what's playing or open Settings.
+<Step>
+
+### Welcome
+
+Quick intro to what WolfWave does and what's about to be set up.
+
+</Step>
+
+<Step>
+
+### Discord *(optional)*
+
+Sign in to your Discord desktop app. WolfWave talks to it over local IPC. No bot token, no server.
+
+</Step>
+
+<Step>
+
+### Twitch *(optional)*
+
+OAuth Device Code flow. You're sent to twitch.tv to approve; tokens land in your macOS Keychain.
+
+</Step>
+
+<Step>
+
+### OBS Widget *(optional)*
+
+Turn on the local widget server, copy the URL (your per-install auth token is baked in), and drop it into OBS as a Browser Source.
+
+</Step>
+
+<Step>
+
+### Preferences
+
+Launch at login, song-change notifications, and other quality-of-life toggles.
+
+</Step>
+
+<Step>
+
+### Apple Music Access
+
+Click *OK* when macOS asks WolfWave to control Apple Music. Required. This is how WolfWave reads the now-playing track.
+
+</Step>
+
+<Step>
+
+### Menu Bar Pointer
+
+A friendly arrow shows where the wolf icon lives. Top-right of your screen.
+
+</Step>
+
+<Step>
+
+### Done
+
+WolfWave is running. Click the wolf icon any time to see what's playing or open **Settings**.
+
+</Step>
+
+</Steps>
 
 ---
 

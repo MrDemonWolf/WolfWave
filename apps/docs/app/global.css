@@ -4,7 +4,7 @@
 @import "./tokens.generated.css";
 
 /* ──────────────────────────────────────────────────────────
-   WolfWave docs — Apple-inspired, system blue (#0A84FF)
+   WolfWave docs. Apple-inspired, system blue (#0A84FF)
    ────────────────────────────────────────────────────────── */
 
 @theme {
@@ -133,6 +133,86 @@
 
 .ww-hairline {
   border-color: var(--hairline);
+}
+
+/* ── Liquid Glass. MacOS 26 Tahoe chrome ───────────────── */
+.ww-glass {
+  background-color: color-mix(in srgb, var(--bg-elev) 65%, transparent);
+  -webkit-backdrop-filter: saturate(180%) blur(30px);
+  backdrop-filter: saturate(180%) blur(30px);
+  border: 1px solid color-mix(in srgb, var(--hairline) 80%, transparent);
+  border-radius: 1.25rem;
+  box-shadow:
+    0 1px 0 0 color-mix(in srgb, #ffffff 60%, transparent) inset,
+    0 24px 60px -28px rgba(0, 0, 0, 0.25);
+  position: relative;
+}
+.dark .ww-glass {
+  background-color: color-mix(in srgb, var(--bg-elev) 55%, transparent);
+  border-color: color-mix(in srgb, var(--hairline) 70%, transparent);
+  box-shadow:
+    0 1px 0 0 rgba(255, 255, 255, 0.06) inset,
+    0 24px 60px -20px rgba(0, 0, 0, 0.6);
+}
+.ww-glass::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, #ffffff 8%, transparent) 0%,
+    transparent 30%
+  );
+  pointer-events: none;
+}
+.dark .ww-glass::before {
+  background: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.04) 0%,
+    transparent 30%
+  );
+}
+
+/* ── Hero app-icon. Squircle with soft drop-shadow ─────── */
+.ww-hero-icon {
+  width: clamp(120px, 18vw, 200px);
+  height: auto;
+  aspect-ratio: 1;
+  border-radius: 26%;
+  margin: 0 auto 2rem;
+  display: block;
+  filter:
+    drop-shadow(0 14px 28px rgba(10, 132, 255, 0.18))
+    drop-shadow(0 32px 56px rgba(0, 0, 0, 0.22));
+  will-change: transform;
+  animation: ww-icon-float 6s ease-in-out infinite;
+}
+@keyframes ww-icon-float {
+  0%, 100% { transform: translateY(0); }
+  50%      { transform: translateY(-6px); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .ww-hero-icon { animation: none; }
+}
+
+/* ── Apple-display hero scale ─────────────────────────────── */
+.ww-hero-headline {
+  font-family: var(--font-unbounded), -apple-system, BlinkMacSystemFont,
+    "SF Pro Display", "Inter", system-ui, sans-serif;
+  font-weight: 700;
+  letter-spacing: -0.04em;
+  line-height: 1.02;
+  font-size: clamp(2rem, 10vw, 6.75rem);
+  margin: 0;
+  word-break: break-word;
+  hyphens: auto;
+}
+@media (min-width: 768px) {
+  .ww-hero-headline {
+    line-height: 0.98;
+    letter-spacing: -0.045em;
+  }
 }
 
 /* ── Hero subtle radial (only decorative element) ────────── */
@@ -267,14 +347,14 @@
   border-bottom-color: var(--hairline);
 }
 
-/* Brand link wrapper — strip default link chrome (Tailwind handles brand inner) */
+/* Brand link wrapper. Strip default link chrome (Tailwind handles brand inner) */
 #nd-nav a:has([data-ww-brand]) {
   padding: 0 !important;
   background: transparent !important;
   border-radius: 0 !important;
 }
 
-/* Nav links — pill hover, refined typography */
+/* Nav links. Pill hover, refined typography */
 #nd-nav a[href]:not(:has([data-ww-brand])):not([aria-label]) {
   font-family: var(--font-instrument), -apple-system, system-ui, sans-serif;
   font-size: 0.9rem;
@@ -290,7 +370,7 @@
   color: var(--txt-1);
 }
 
-/* GitHub icon — pill ghost */
+/* GitHub icon. Pill ghost */
 #nd-nav a[aria-label] {
   border-radius: 980px;
   transition: background-color 0.15s ease;
@@ -299,7 +379,7 @@
   background-color: var(--bg-surface);
 }
 
-/* Theme toggle — soften segmented control, match aesthetic */
+/* Theme toggle. Soften segmented control, match aesthetic */
 #nd-nav [data-theme-toggle] {
   border-color: var(--hairline);
   background-color: color-mix(in srgb, var(--bg-surface) 60%, transparent);
@@ -313,7 +393,7 @@
   color: var(--brand-600);
 }
 
-/* Search toggle (large pill input) — Apple search-field tone */
+/* Search toggle (large pill input). Apple search-field tone */
 #nd-nav button[data-search-full],
 #nd-nav [data-search-full] {
   background-color: var(--bg-surface);
@@ -321,7 +401,7 @@
   border-radius: 980px;
 }
 
-/* Mobile sheet — match hairline language */
+/* Mobile sheet. Match hairline language */
 [data-nav-sheet] {
   border-color: var(--hairline) !important;
 }
@@ -413,4 +493,189 @@
 
 #nav-sidebar nav > div > p:first-child {
   margin-top: 0;
+}
+
+/* ──────────────────────────────────────────────────────────
+   Docs page polish. Extends marketing aesthetic into MDX
+   ────────────────────────────────────────────────────────── */
+
+/* When the docs-hero block is used, suppress the auto-rendered frontmatter
+   title + description so the hero acts as the page header. */
+article:has(.docs-hero) > h1:first-of-type,
+article:has(.docs-hero) > p:first-of-type,
+[data-page]:has(.docs-hero) > h1:first-of-type,
+[data-page]:has(.docs-hero) > p:first-of-type {
+  display: none;
+}
+
+/* Docs hero. Only on /docs landing where `.docs-hero` wraps the intro */
+.docs-hero {
+  position: relative;
+  padding: 2rem 0 3rem;
+  margin-bottom: 2.5rem;
+  border-bottom: 1px solid var(--hairline);
+}
+.docs-hero::before {
+  content: "";
+  position: absolute;
+  inset: -2rem -10% auto -10%;
+  height: 60%;
+  background: radial-gradient(
+    ellipse 50% 60% at 50% 20%,
+    rgba(10, 132, 255, 0.08) 0%,
+    transparent 70%
+  );
+  pointer-events: none;
+  z-index: 0;
+}
+.dark .docs-hero::before {
+  background: radial-gradient(
+    ellipse 50% 60% at 50% 20%,
+    rgba(10, 132, 255, 0.14) 0%,
+    transparent 70%
+  );
+}
+.docs-hero > * {
+  position: relative;
+  z-index: 1;
+}
+
+.docs-eyebrow {
+  display: inline-block;
+  font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--brand-500);
+  margin-bottom: 1rem;
+}
+
+.docs-hero-title {
+  font-family: var(--font-unbounded), -apple-system, BlinkMacSystemFont,
+    "SF Pro Display", "Inter", system-ui, sans-serif;
+  font-weight: 700;
+  letter-spacing: -0.025em;
+  line-height: 1.02;
+  font-size: clamp(2.5rem, 6vw, 4.25rem);
+  color: var(--txt-1);
+  margin: 0 0 1.25rem !important;
+}
+.docs-hero-title .accent {
+  color: var(--brand-500);
+}
+
+.docs-hero-sub {
+  color: var(--txt-2);
+  font-size: 1.15rem;
+  line-height: 1.6;
+  max-width: 42rem;
+  margin: 0 0 1.5rem !important;
+}
+
+.docs-hero-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 1.5rem;
+}
+
+/* Tighter prose H1 on landing. Fumadocs auto-injects the frontmatter title */
+.fd-prose > h1:first-child,
+[class*="prose"] > h1:first-child {
+  margin-top: 0;
+}
+
+/* Refined Fumadocs Card. Match marketing landing ww-card aesthetic */
+.fd-card,
+a[data-card],
+div[data-card] {
+  border: 1px solid var(--hairline) !important;
+  border-radius: 1rem !important;
+  background-color: var(--bg-elev) !important;
+  transition: transform 0.2s ease, border-color 0.2s ease,
+    box-shadow 0.2s ease !important;
+}
+.fd-card:hover,
+a[data-card]:hover,
+div[data-card]:hover {
+  transform: translateY(-2px);
+  border-color: color-mix(in srgb, var(--brand-500) 35%, var(--hairline));
+  box-shadow: 0 12px 32px -16px rgba(10, 132, 255, 0.18);
+}
+.dark .fd-card:hover,
+.dark a[data-card]:hover,
+.dark div[data-card]:hover {
+  box-shadow: 0 12px 32px -12px rgba(10, 132, 255, 0.28);
+}
+
+/* Steps. Brand-tinted index circles */
+.fd-steps [data-step],
+.fd-steps li::before,
+[class*="step"][class*="circle"] {
+  background-color: var(--brand-50) !important;
+  color: var(--brand-500) !important;
+  border-color: color-mix(in srgb, var(--brand-500) 30%, transparent) !important;
+  font-weight: 600;
+}
+
+/* Tabs. Pill segmented control matching the navbar theme toggle */
+[role="tablist"] {
+  background-color: var(--bg-surface) !important;
+  border: 1px solid var(--hairline) !important;
+  border-radius: 980px !important;
+  padding: 4px !important;
+  gap: 2px;
+}
+[role="tab"] {
+  border-radius: 980px !important;
+  padding: 0.4rem 1rem !important;
+  font-size: 0.85rem !important;
+  font-weight: 500;
+  color: var(--txt-2) !important;
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+[role="tab"][data-state="active"],
+[role="tab"][aria-selected="true"] {
+  background-color: var(--brand-50) !important;
+  color: var(--brand-500) !important;
+}
+
+/* Accordion. Match marketing landing FaqRow aesthetic.
+   Fumadocs renders each item as <div data-state data-orientation>. */
+div[data-orientation="vertical"][data-state] {
+  border: 1px solid var(--hairline) !important;
+  border-radius: 1rem !important;
+  background-color: var(--bg-elev) !important;
+  margin-bottom: 0.6rem !important;
+  overflow: hidden;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+div[data-orientation="vertical"][data-state="open"] {
+  border-color: color-mix(in srgb, var(--brand-500) 30%, var(--hairline)) !important;
+  box-shadow: 0 8px 24px -16px rgba(10, 132, 255, 0.18);
+}
+div[data-orientation="vertical"][data-state] > h3 {
+  margin: 0 !important;
+}
+div[data-orientation="vertical"][data-state] > h3 > button {
+  width: 100%;
+  padding: 1rem 1.25rem !important;
+  font-weight: 600 !important;
+  color: var(--txt-1) !important;
+  font-size: 1rem !important;
+}
+div[data-orientation="vertical"][data-state] > h3 > button:hover {
+  background-color: color-mix(in srgb, var(--brand-50) 60%, transparent) !important;
+}
+div[data-orientation="vertical"][data-state] > h3 > button > svg {
+  color: var(--brand-500) !important;
+  transition: transform 0.2s ease;
+}
+div[data-orientation="vertical"][data-state="open"] > h3 > button > svg {
+  transform: rotate(90deg);
+}
+div[data-orientation="vertical"][data-state] > div[role="region"] {
+  padding: 0 1.25rem 1rem !important;
+  color: var(--txt-2);
 }

@@ -1,7 +1,7 @@
 import { ImageResponse } from "next/og";
 import { OgCard, OG_SIZE, OG_CONTENT_TYPE, loadOgFonts } from "./og/_components/og-card";
 
-export const alt = "WolfWave — free macOS app connecting Apple Music to Twitch, Discord, and stream overlays";
+export const alt = "WolfWave. Free macOS app connecting Apple Music to Twitch, Discord, and stream overlays.";
 export const size = OG_SIZE;
 export const contentType = OG_CONTENT_TYPE;
 export const dynamic = "force-static";
@@ -12,10 +12,10 @@ export default async function Image() {
   return new ImageResponse(
     (
       <OgCard
-        eyebrow="v2.0.0 — Free & Open Source"
+        eyebrow="v2.0.0 · Free & Open Source"
         title="Your Music, Live Everywhere."
         accentWord="Everywhere."
-        description="macOS menu bar app for Apple Music — Twitch, Discord, and stream overlays update automatically."
+        description="A tiny macOS menu bar app. Play in Apple Music, and Twitch chat, Discord, and your overlay all update on their own."
         chips={["Twitch Chat Bot", "Discord Status", "Stream Overlay", "Open Source"]}
       />
     ),

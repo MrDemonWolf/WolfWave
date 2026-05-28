@@ -1,8 +1,8 @@
 ---
-title: How to Use WolfWave — Stream Apple Music to Twitch, Discord, OBS
+title: How to Use
 description: Connect Twitch, enable Discord Rich Presence, add the OBS browser source, and turn on song requests. Step-by-step macOS guide for Apple Music streamers.
 ogTitle: Stream Apple Music to Twitch, Discord & OBS in 5 minutes
-ogDescription: Step-by-step — connect Twitch, enable Discord Rich Presence, add the OBS browser source, and accept song requests from chat.
+ogDescription: Step-by-step. Connect Twitch, enable Discord Rich Presence, add the OBS browser source, and accept song requests from chat.
 keywords:
   - how to show apple music on twitch chat
   - connect apple music to discord mac free
@@ -18,6 +18,8 @@ ogChips:
 ogEyebrow: 5-minute setup
 ---
 
+<span className="docs-eyebrow">5-minute setup</span>
+
 WolfWave runs itself once set up. Here's how each piece works.
 
 ---
@@ -31,7 +33,8 @@ WolfWave lives in your **macOS Menu Bar** (top-right of your screen).
 ---
 
 ## Sync Music
-**TL;DR: Keep the music flowing.**
+
+<Callout type="info">**TL;DR**: Keep the music flowing.</Callout>
 
 Flip the **Sync Music** switch in Settings. WolfWave instantly spots when you change a song.
 
@@ -42,15 +45,26 @@ Flip the **Sync Music** switch in Settings. WolfWave instantly spots when you ch
 ---
 
 ## Now-Playing Widget
-**TL;DR: The easiest widget you've ever set up.**
+
+<Callout type="info">**TL;DR**: The easiest widget you've ever set up.</Callout>
 
 WolfWave hosts the widget right on your Mac. No external links. No internet needed.
 
-1. Open **Settings → Stream Widgets**.
-2. Click **Enable Widget Server**.
-3. Copy the **Widget Link**. The per-install auth token is already in the URL — keep it intact.
-4. In OBS, add a **Browser Source** and paste the link.
-5. Set the size to **500 × 120**.
+<Steps>
+
+<Step>Open **Settings → Stream Widgets**.</Step>
+<Step>Click **Enable Widget Server**.</Step>
+<Step>Copy the **Widget Link**. The per-install auth token is already in the URL. Keep it intact.</Step>
+<Step>In OBS, add a **Browser Source** and paste the link.</Step>
+<Step>Set the size to match your layout. See the table below.</Step>
+
+</Steps>
+
+| Layout | Browser Source size |
+|---|---|
+| Horizontal *(default)* | **500 × 120** |
+| Vertical | **320 × 360** |
+| Compact | **320 × 80** |
 
 <Callout type="info">
   **Important**: Turn on "Shutdown source when not visible" in OBS so the widget reconnects cleanly when you switch scenes.
@@ -60,11 +74,11 @@ WolfWave hosts the widget right on your Mac. No external links. No internet need
 
 The widget is gated by a per-install token, stored in the macOS Keychain and auto-injected into the Widget Link.
 
-- **Reveal it**: Eye toggle next to the token field — hidden by default.
+- **Reveal it**: Eye toggle next to the token field. Hidden by default.
 - **Regenerate**: Drops every active client. Re-copy the Widget Link into OBS afterward.
 - **Custom value**: Edit the token field to supply your own string (handy when you want a memorable value or you're rotating after a leak).
 
-Connecting from a second computer or phone? Use `http://<your-lan-ip>:7780/?token=<token>` — both the host and the token are required.
+Connecting from a second computer or phone? Use `http://<your-lan-ip>:7780/?token=<token>`. Both the host and the token are required.
 
 ### Themes &amp; Layouts
 
@@ -73,7 +87,8 @@ Pick from six themes (`Default`, `Dark`, `Light`, `Glass`, `Neon`, `WolfWave`) a
 ---
 
 ## Twitch Chat Bot
-**TL;DR: Chat commands for everyone.**
+
+<Callout type="info">**TL;DR**: Chat commands for everyone.</Callout>
 
 Once you're logged into Twitch (**Settings → Twitch**), the bot auto-connects when you open the app.
 
@@ -86,7 +101,8 @@ See the [Bot Commands](/docs/bot-commands) page for the full list, including [Vo
 ---
 
 ## Song Requests
-**TL;DR: Let chat queue up tracks.**
+
+<Callout type="info">**TL;DR**: Let chat queue up tracks.</Callout>
 
 Open **Settings → Song Requests** to turn it on.
 
@@ -99,16 +115,18 @@ Open **Settings → Song Requests** to turn it on.
 ---
 
 ## Streamer Mode
-**TL;DR: One tap to make WolfWave camera-safe.**
+
+<Callout type="info">**TL;DR**: One tap to make WolfWave camera-safe.</Callout>
 
 Flip **Streamer Mode** from the menu bar's **Streamer Quick Actions** before you go live. WolfWave masks the connected Twitch channel name, the overlay/widget URLs, the WebSocket URI, and the auth token across every settings view. Copy/Open buttons next to masked values are disabled so screenshots can't reveal the underlying value via accessibility.
 
-Streamer Mode is UI-only — your WebSocket broadcast, Discord Rich Presence, and Twitch chat output keep working as usual.
+Streamer Mode is UI-only. Your WebSocket broadcast, Discord Rich Presence, and Twitch chat output keep working as usual.
 
 ---
 
 ## Discord Status
-**TL;DR: Show your status.**
+
+<Callout type="info">**TL;DR**: Show your status.</Callout>
 
 When **Discord Status** is on, WolfWave updates your Discord profile to "Listening to Apple Music".
 
