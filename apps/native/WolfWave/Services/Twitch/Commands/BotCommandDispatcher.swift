@@ -123,6 +123,33 @@ final class BotCommandDispatcher {
         }
     }
 
+    // MARK: - Async Provider Wiring (Production Path)
+
+    /// Wires the async `!song` provider. Preferred by `processMessageAsync`
+    /// — bridges MainActor-isolated AppDelegate state without the deprecated
+    /// `runSync` semaphore that previously deadlocked MainActor.
+    func setCurrentSongInfoAsync(callback: @Sendable @escaping () async -> String) {
+        lock.withLock {
+            songCommand.getTrackInfoAsync = callback
+        }
+    }
+
+    /// Wires the async `!last` provider. See `setCurrentSongInfoAsync` for the
+    /// deadlock rationale.
+    func setLastSongInfoAsync(callback: @Sendable @escaping () async -> String) {
+        lock.withLock {
+            lastSongCommand.getTrackInfoAsync = callback
+        }
+    }
+
+    /// Wires the async `!stats` provider. See `setCurrentSongInfoAsync` for the
+    /// deadlock rationale.
+    func setStatsInfoAsync(callback: @Sendable @escaping () async -> String) {
+        lock.withLock {
+            statsCommand.getTrackInfoAsync = callback
+        }
+    }
+
     /// Wires the enabled-state provider for the `!stats` command.
     ///
     /// - Parameter callback: Closure returning `true` if `!stats` should respond
@@ -246,6 +273,96 @@ final class BotCommandDispatcher {
 
                     // Sync command
                     if let response = command.execute(message: trimmedMessage) {
+                        cooldownManager.recordUse(trigger: canonical, userID: userID)
+                        Log.debug(
+                            "BotCommandDispatcher: Command '\(trigger)' (group: \(canonical)) executed — cooldown set: global=\(String(format: "%.1f", globalCD))s, per-user=\(String(format: "%.1f", userCD))s",
+                            category: "Twitch")
+                        return response
+                    }
+                    break
+                }
+            }
+        }
+
+        return nil
+    }
+
+    /// Async variant of `processMessage` for the production chat-message path.
+    ///
+    /// Mirrors `processMessage` but awaits `TrackInfoCommand.executeAsync`,
+    /// so async providers (`setCurrentSongInfoAsync`, etc.) can reach
+    /// MainActor-isolated app state without the deprecated `runSync`
+    /// semaphore bridge.
+    func processMessageAsync(
+        _ message: String,
+        userID: String = "",
+        isModerator: Bool = false,
+        context: BotCommandContext?,
+        asyncReply: ((String) -> Void)?
+    ) async -> String? {
+        Log.debug("BotCommandDispatcher: processMessageAsync enter msg=\(message.prefix(40))", category: "Twitch")
+        let trimmedMessage = message.trimmingCharacters(in: .whitespaces)
+
+        guard !trimmedMessage.isEmpty, trimmedMessage.count <= AppConstants.Twitch.maxMessageLength else {
+            Log.debug("BotCommandDispatcher: processMessageAsync — empty/too-long, bail", category: "Twitch")
+            return nil
+        }
+
+        let lowered = trimmedMessage.lowercased()
+
+        let snapshot = lock.withLock { commands }
+        for command in snapshot {
+            let triggers = command.allTriggers
+            for trigger in triggers {
+                let triggerLowered = trigger.lowercased()
+                if lowered.hasPrefix(triggerLowered) {
+                    Log.debug("BotCommandDispatcher: matched trigger \(trigger)", category: "Twitch")
+                    guard command.isCommandEnabled else {
+                        Log.debug("BotCommandDispatcher: command \(trigger) disabled, bail", category: "Twitch")
+                        return nil
+                    }
+
+                    let canonical = command.triggers.first ?? trigger
+                    let (globalCD, userCD) = cooldownValues(for: trigger, command: command)
+
+                    if cooldownManager.isOnCooldown(
+                        trigger: canonical,
+                        userID: userID,
+                        isModerator: isModerator,
+                        globalCooldown: globalCD,
+                        userCooldown: userCD
+                    ) {
+                        let remaining = cooldownManager.remainingCooldown(
+                            trigger: canonical,
+                            userID: userID,
+                            globalCooldown: globalCD,
+                            userCooldown: userCD
+                        )
+                        Log.debug(
+                            "BotCommandDispatcher: Command '\(trigger)' (group: \(canonical)) on cooldown for user \(userID) — global: \(String(format: "%.1f", remaining.global))s remaining, per-user: \(String(format: "%.1f", remaining.perUser))s remaining",
+                            category: "Twitch")
+                        return nil
+                    }
+
+                    if let asyncCommand = command as? AsyncBotCommand, let ctx = context, let reply = asyncReply {
+                        cooldownManager.recordUse(trigger: canonical, userID: userID)
+                        asyncCommand.execute(message: trimmedMessage, context: ctx, reply: reply)
+                        Log.debug(
+                            "BotCommandDispatcher: Async command '\(trigger)' (group: \(canonical)) dispatched",
+                            category: "Twitch")
+                        return nil
+                    }
+
+                    let response: String?
+                    if let track = command as? TrackInfoCommand {
+                        Log.debug("BotCommandDispatcher: TrackInfoCommand.executeAsync start \(trigger)", category: "Twitch")
+                        response = await track.executeAsync(message: trimmedMessage)
+                        Log.debug("BotCommandDispatcher: TrackInfoCommand.executeAsync done \(trigger) → \(response?.prefix(40) ?? "nil")", category: "Twitch")
+                    } else {
+                        response = command.execute(message: trimmedMessage)
+                    }
+
+                    if let response {
                         cooldownManager.recordUse(trigger: canonical, userID: userID)
                         Log.debug(
                             "BotCommandDispatcher: Command '\(trigger)' (group: \(canonical)) executed — cooldown set: global=\(String(format: "%.1f", globalCD))s, per-user=\(String(format: "%.1f", userCD))s",

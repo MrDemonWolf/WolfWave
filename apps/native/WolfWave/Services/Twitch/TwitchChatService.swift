@@ -624,10 +624,11 @@ actor TwitchChatService {
         self.isProcessingDisconnect = false
 
         // Wire dispatcher providers. The dispatcher is `@MainActor`, so wiring
-        // hops to MainActor. The sync provider closures read the async
-        // providers through a nonisolated `ProviderRegistry` + `runSync`
-        // semaphore bridge — that's safe because dispatcher.processMessage is
-        // also called via MainActor.run, never re-entering this actor.
+        // hops to MainActor. Track-info providers are wired as async closures
+        // and consumed via `processMessageAsync` — that avoids the deadlock
+        // the previous `runSync` semaphore bridge introduced when an AppDelegate
+        // provider hopped back to MainActor while MainActor was blocked on the
+        // semaphore.
         let providers = self.providers
         let streamLiveSnapshot = self.streamLiveSnapshot
         let currentSongCommandEnabled: @Sendable () -> Bool = { [weak self] in
@@ -642,17 +643,23 @@ actor TwitchChatService {
             return streamLiveSnapshot.value
         }
         await MainActor.run {
-            commandDispatcher.setCurrentSongInfo {
-                guard let provider = providers.current() else { return "No track currently playing" }
-                return Self.runSync { await provider() } ?? "No track currently playing"
+            commandDispatcher.setCurrentSongInfoAsync {
+                Log.debug("Twitch provider: current song closure invoked", category: "Twitch")
+                guard let provider = providers.current() else {
+                    Log.debug("Twitch provider: current song — no provider, default", category: "Twitch")
+                    return "No track currently playing"
+                }
+                let result = await provider()
+                Log.debug("Twitch provider: current song returned \(result.prefix(40))", category: "Twitch")
+                return result
             }
-            commandDispatcher.setLastSongInfo {
+            commandDispatcher.setLastSongInfoAsync {
                 guard let provider = providers.last() else { return "No previous track available" }
-                return Self.runSync { await provider() } ?? "No previous track available"
+                return await provider()
             }
-            commandDispatcher.setStatsInfo {
+            commandDispatcher.setStatsInfoAsync {
                 guard let provider = providers.stats() else { return "No listening stats yet" }
-                return Self.runSync { await provider() } ?? "No listening stats yet"
+                return await provider()
             }
             commandDispatcher.setCurrentSongCommandEnabled(callback: currentSongCommandEnabled)
             commandDispatcher.setLastSongCommandEnabled(callback: lastSongCommandEnabled)
@@ -1014,9 +1021,13 @@ actor TwitchChatService {
 
     /// Parses and handles an incoming message from EventSub.
     func handleEventSubMessage(_ json: [String: Any]) async {
+        Log.debug("TwitchChatService: handleEventSubMessage enter (isProcessingDisconnect=\(isProcessingDisconnect))", category: "Twitch")
         if isProcessingDisconnect { return }
 
-        guard let event = json["event"] as? [String: Any] else { return }
+        guard let event = json["event"] as? [String: Any] else {
+            Log.debug("TwitchChatService: handleEventSubMessage — payload has no event, bail", category: "Twitch")
+            return
+        }
 
         let messageID = (event["message_id"] as? String ?? "")
             .trimmingCharacters(in: .whitespacesAndNewlines)
@@ -1097,16 +1108,19 @@ actor TwitchChatService {
                 Task { await self.sendMessage(response, replyTo: messageID) }
             }
 
-            // BotCommandDispatcher is `@MainActor` — hop to call it.
-            let response: String? = await MainActor.run {
-                commandDispatcher.processMessage(
-                    text,
-                    userID: userID,
-                    isModerator: bypassCooldown,
-                    context: context,
-                    asyncReply: asyncReply
-                )
-            }
+            // BotCommandDispatcher is `@MainActor`. `processMessageAsync` auto-hops
+            // and awaits the async track-info providers, so MainActor isn't blocked
+            // on a semaphore while the provider tries to re-enter MainActor (which
+            // was the original `runSync` deadlock).
+            Log.debug("TwitchChatService: dispatch enter text=\(text.prefix(40))", category: "Twitch")
+            let response: String? = await commandDispatcher.processMessageAsync(
+                text,
+                userID: userID,
+                isModerator: bypassCooldown,
+                context: context,
+                asyncReply: asyncReply
+            )
+            Log.debug("TwitchChatService: dispatch exit response=\(response?.prefix(40) ?? "nil")", category: "Twitch")
             if let response {
                 await sendMessage(response, replyTo: messageID)
             }
@@ -1428,8 +1442,11 @@ actor TwitchChatService {
             return
         }
 
+        Log.debug("TwitchChatService: handleNotification subType=\(subType)", category: "Twitch")
+
         switch subType {
         case AppConstants.Twitch.eventSubChatMessage:
+            Log.debug("TwitchChatService: routing chat message → handleEventSubMessage", category: "Twitch")
             await handleEventSubMessage(payload)
         case "channel.poll.end":
             handlePollEndEvent(payload)
@@ -2136,34 +2153,6 @@ actor TwitchChatService {
         }
     }
 
-    // MARK: - Sync Bridge
-
-    /// Synchronously invokes an `async` operation by spinning a `DispatchSemaphore`.
-    ///
-    /// Used only by the dispatcher's legacy sync provider closures (`!song`,
-    /// `!last`, `!stats`) — those closures are called from
-    /// `BotCommandDispatcher.processMessage`, which is itself called from
-    /// inside the actor. Re-entering the actor synchronously from there is
-    /// safe because the providers ultimately hop to `@MainActor` to read
-    /// AppDelegate state, never back into this actor.
-    ///
-    /// Long-term, the dispatcher should expose an `async` `processMessage` so
-    /// this bridge can be removed; tracked under G5 follow-up.
-    nonisolated private static func runSync<T: Sendable>(_ work: @escaping @Sendable () async -> T) -> T? {
-        let semaphore = DispatchSemaphore(value: 0)
-        let box = SendableBox<T>()
-        Task.detached {
-            box.value = await work()
-            semaphore.signal()
-        }
-        semaphore.wait()
-        return box.value
-    }
-
-    /// Sendable box used by `runSync` to ship a value across the semaphore.
-    private final class SendableBox<T: Sendable>: @unchecked Sendable {
-        var value: T?
-    }
 
     /// Lock-protected registry for the three async track-info providers.
     ///

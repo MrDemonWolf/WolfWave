@@ -40,29 +40,37 @@ struct TwitchSettingsView: View {
             guard !didLoadCredentials else { return }
             didLoadCredentials = true
 
-            viewModel.loadSavedCredentials()
+            // Defer the @Observable mutations past the current SwiftUI view-update
+            // tick. Mutating `botUsername`, `oauthToken`, `credentialsSaved`,
+            // `channelID`, `reauthNeeded`, `channelConnected` inline during
+            // `onAppear` re-invalidates the header + auth-card body that already
+            // depend on them, which races AppKit layout and triggers the
+            // `layoutSubtreeIfNeeded on a view which is already being laid out`
+            // recursion that has been associated with the post-onboarding hang.
+            Task { @MainActor in
+                Log.debug("TwitchSettingsView: onAppear first-mount — loading credentials", category: "Twitch")
+                viewModel.loadSavedCredentials()
 
-            // Ensure the service is set on the view model
-            if viewModel.twitchService == nil {
-                if let appDelegate = AppDelegate.shared {
-                    viewModel.twitchService = appDelegate.twitchService
-                    if viewModel.twitchService == nil {
-                        Log.error(
-                            "TwitchSettingsView: AppDelegate.twitchService is nil!",
-                            category: "Twitch")
+                if viewModel.twitchService == nil {
+                    if let appDelegate = AppDelegate.shared {
+                        viewModel.twitchService = appDelegate.twitchService
+                        if viewModel.twitchService == nil {
+                            Log.error(
+                                "TwitchSettingsView: AppDelegate.twitchService is nil!",
+                                category: "Twitch")
+                        }
+                    } else {
+                        Log.error("TwitchSettingsView: AppDelegate.shared is nil", category: "Twitch")
                     }
-                } else {
-                    Log.error("TwitchSettingsView: AppDelegate.shared is nil", category: "Twitch")
                 }
-            }
 
-            if let svc = viewModel.twitchService {
-                viewModel.channelConnected = svc.isConnectedSnapshot.value
-            }
+                if let svc = viewModel.twitchService {
+                    viewModel.channelConnected = svc.isConnectedSnapshot.value
+                }
 
-            // If reauthentication is needed, disconnect from the channel
-            if viewModel.reauthNeeded && viewModel.channelConnected {
-                viewModel.leaveChannel()
+                if viewModel.reauthNeeded && viewModel.channelConnected {
+                    viewModel.leaveChannel()
+                }
             }
         }
     }
@@ -107,19 +115,7 @@ struct TwitchSettingsView: View {
         }
     }
 
-    /// Minimum height reserved for the pre-connected auth content. Sized to the
-    /// tallest pre-connected state (`authorizing` with device-code card + spinner
-    /// row) so the card doesn't visibly resize when transitioning between
-    /// `notConnected` → `authorizing` → `error`. The `connected` state owns its
-    /// own taller layout and is excluded.
-    private var reservedAuthContentHeight: CGFloat? {
-        switch viewModel.integrationState {
-        case .connected: return nil
-        default: return 220
-        }
-    }
-
-    /// Main card that switches content based on integration state.
+/// Main card that switches content based on integration state.
     ///
     /// Shows one of: sign-in button, device-code flow, connected controls, or error retry.
     @ViewBuilder
@@ -144,9 +140,9 @@ struct TwitchSettingsView: View {
                 .transition(.opacity)
             }
 
-            // Main content switches by integration state, framed in a
-            // reserved-height container so pre-connected transitions don't
-            // resize the card.
+            // Main content switches by integration state. Card sizes to fit
+            // each state — the outer `.animation` interpolates height when the
+            // device-code panel drops in or back out.
             Group {
                 switch viewModel.integrationState {
                 case .notConnected:
@@ -159,11 +155,7 @@ struct TwitchSettingsView: View {
                     errorContent(message: message)
                 }
             }
-            .frame(
-                maxWidth: .infinity,
-                minHeight: reservedAuthContentHeight,
-                alignment: .top
-            )
+            .frame(maxWidth: .infinity, alignment: .top)
         }
         .cardStyle()
         .animation(.easeInOut(duration: DSMotion.Duration.base), value: viewModel.integrationState)
@@ -193,7 +185,6 @@ struct TwitchSettingsView: View {
             }
             .buttonStyle(.borderedProminent)
             .controlSize(.regular)
-            .tint(DSColor.partnerTwitch)
             .pointerCursor()
             .scaleEffect(viewModel.authState.isInProgress ? 0.995 : 1.0)
             .animation(
@@ -263,7 +254,7 @@ struct TwitchSettingsView: View {
             credentialsSaved: viewModel.credentialsSaved,
             channelValidationState: viewModel.channelValidationState,
             testAuthResult: viewModel.testAuthResult,
-            onReauth: { viewModel.clearAuthOnly(); viewModel.startOAuth() },
+            onReauth: { viewModel.clearCredentials(); viewModel.startOAuth() },
             onClearCredentials: { viewModel.clearCredentials() },
             onJoinChannel: { viewModel.joinChannel() },
             onLeaveChannel: { viewModel.leaveChannel() },

@@ -55,6 +55,17 @@ final class TrackInfoCommand: BotCommand {
         set { lock.withLock { _isEnabled = newValue } }
     }
 
+    private var _getTrackInfoAsync: (@Sendable () async -> String)?
+
+    /// Async provider preferred by `executeAsync`. Falls back to `getTrackInfo`
+    /// when nil. Wired by production at `BotCommandDispatcher.setCurrentSongInfoAsync`
+    /// so the chat-command path can reach MainActor-isolated app state without
+    /// the deprecated sync semaphore bridge.
+    var getTrackInfoAsync: (@Sendable () async -> String)? {
+        get { lock.withLock { _getTrackInfoAsync } }
+        set { lock.withLock { _getTrackInfoAsync = newValue } }
+    }
+
     // MARK: - Private State
 
     private let defaultMessage: String
@@ -105,6 +116,38 @@ final class TrackInfoCommand: BotCommand {
                 }
 
                 let result = trackInfoProvider?() ?? defaultMessage
+                return result.truncatedForChat()
+            }
+        }
+
+        return nil
+    }
+
+    /// Async variant used by production. Awaits `getTrackInfoAsync` when set so
+    /// MainActor-isolated app state can be read without the deprecated
+    /// `runSync` semaphore bridge that previously deadlocked MainActor on the
+    /// first `!song`/`!last`/`!stats` chat command after Twitch auth.
+    func executeAsync(message: String) async -> String? {
+        let lowered = message.lowercased()
+
+        for trigger in triggers {
+            if lowered.hasPrefix(trigger) {
+                let enabledCheck = isEnabled
+                let asyncProvider = getTrackInfoAsync
+                let syncProvider = getTrackInfo
+
+                if let enabledCheck, !enabledCheck() {
+                    return nil
+                }
+
+                let result: String
+                if let asyncProvider {
+                    result = await asyncProvider()
+                } else if let syncProvider {
+                    result = syncProvider()
+                } else {
+                    result = defaultMessage
+                }
                 return result.truncatedForChat()
             }
         }
