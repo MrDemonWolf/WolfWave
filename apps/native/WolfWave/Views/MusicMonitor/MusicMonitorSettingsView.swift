@@ -36,6 +36,7 @@ struct MusicMonitorSettingsView: View {
     @State private var currentTrack: String?
     @State private var currentArtist: String?
     @State private var currentAlbum: String?
+    @State private var currentArtworkURL: URL?
     @State private var currentIsPaused: Bool = false
 
     // MARK: - Integration status
@@ -96,6 +97,7 @@ struct MusicMonitorSettingsView: View {
                         track: currentTrack,
                         artist: currentArtist,
                         album: currentAlbum,
+                        artworkURL: currentArtworkURL,
                         trackingEnabled: trackingEnabled,
                         isPaused: currentIsPaused
                     )
@@ -145,12 +147,14 @@ struct MusicMonitorSettingsView: View {
                 currentArtist = payload.artist
                 currentAlbum = payload.album
                 currentIsPaused = payload.isPaused
+                currentArtworkURL = nil
             }
             // A successful track read implies the user has granted access.
             if currentTrack != nil, permissionState == .denied {
                 MusicPermissionCache.write(.granted)
                 permissionState = .granted
             }
+            fetchArtwork()
         }
         .onReceive(notif(AppConstants.Notifications.twitchConnectionStateChanged)) { notification in
             withAnimation(.easeInOut(duration: DSMotion.Duration.base)) {
@@ -426,6 +430,21 @@ struct MusicMonitorSettingsView: View {
             currentArtist = appDelegate.currentArtist
             currentAlbum = appDelegate.currentAlbum
             currentIsPaused = appDelegate.currentIsPaused
+        }
+        fetchArtwork()
+    }
+
+    /// Fetches artwork for the current track from `ArtworkService` and stores
+    /// the resolved URL. Called on initial load and on every track change.
+    private func fetchArtwork() {
+        guard let track = currentTrack, let artist = currentArtist else {
+            currentArtworkURL = nil
+            return
+        }
+        ArtworkService.shared.fetchTrackLinks(track: track, artist: artist) { links in
+            DispatchQueue.main.async {
+                currentArtworkURL = links.artworkURL.flatMap(URL.init(string:))
+            }
         }
     }
 

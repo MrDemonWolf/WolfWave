@@ -81,8 +81,8 @@ struct DiscordPreviewCard: View {
             Circle()
                 .fill(Color.green)
                 .frame(width: 8, height: 8)
-            (Text("LISTENING TO ").foregroundStyle(Color.white.opacity(0.55))
-                + Text("WOLFWAVE").foregroundStyle(Color.white.opacity(0.9)))
+            Text("LISTENING TO \(Text("WOLFWAVE").foregroundStyle(Color.white.opacity(0.9)))")
+                .foregroundStyle(Color.white.opacity(0.55))
                 .font(.system(size: DSFont.Size.sm, weight: .bold))
                 .kerning(0.6)
         }
@@ -152,17 +152,16 @@ struct DiscordPreviewCard: View {
 
     private var artworkPlaceholder: some View {
         LinearGradient(
-            colors: [
-                AppConstants.Brand.appleMusicGradientStart,
-                AppConstants.Brand.appleMusicGradientEnd,
-            ],
+            colors: [DSColor.brand500, DSColor.brand800],
             startPoint: .topLeading,
             endPoint: .bottomTrailing
         )
         .overlay(
-            Image(systemName: "music.note")
-                .font(.system(size: DSFont.Size.x28, weight: .bold))
-                .foregroundStyle(.white.opacity(0.8))
+            Image("WolfMark")
+                .resizable()
+                .aspectRatio(contentMode: .fit)
+                .frame(width: 42, height: 42)
+                .foregroundStyle(.white)
         )
     }
 

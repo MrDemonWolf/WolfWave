@@ -21,6 +21,7 @@ struct NowPlayingHeroCard: View {
     let artist: String?
     let album: String?
     var artwork: NSImage? = nil
+    var artworkURL: URL? = nil
     var elapsed: TimeInterval = 0
     var duration: TimeInterval = 0
     var trackingEnabled: Bool = true
@@ -81,7 +82,7 @@ struct NowPlayingHeroCard: View {
     private var artworkView: some View {
         if track != nil {
             ZStack {
-                AlbumArtView(image: artwork, size: 92)
+                AlbumArtView(image: artwork, url: artworkURL, size: 92)
                     .opacity(isPaused ? 0.55 : 1)
                     .saturation(isPaused ? 0.6 : 1)
                     .animation(reduceMotion ? nil : .easeInOut(duration: DSMotion.Duration.base), value: isPaused)
