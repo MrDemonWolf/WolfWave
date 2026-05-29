@@ -15,7 +15,7 @@ final class ArtworkServiceTests: XCTestCase {
 
     override func setUp() {
         super.setUp()
-        service = ArtworkService()
+        service = ArtworkService(persistenceURL: nil)
     }
 
     override func tearDown() {

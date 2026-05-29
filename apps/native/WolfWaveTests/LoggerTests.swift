@@ -26,93 +26,63 @@ struct LoggerTests {
     }
     
     // MARK: - PII Redaction Tests
-    
+    //
+    // Redaction is verified against the pure `Log.redactForTesting` pipeline
+    // rather than by writing a line and reading it back from the on-disk log.
+    // `Log` is a process-global singleton, so other suites write into the same
+    // app-wide file concurrently (e.g. WebSocketServerIntegrationTests
+    // deliberately double-binds a port to assert `.error`, emitting
+    // "🛑 ERROR [WebSocket] ... Address already in use"). A large enough burst
+    // can rotate that file mid-test and evict the line we just wrote, which
+    // made these readback assertions flaky in CI. Testing the redaction
+    // function directly is deterministic and needs no file at all.
+
+    // Token fixtures below are synthetic placeholders, not real credentials.
+    // The redaction rules key on the `oauth_` / `Bearer ` prefixes (see
+    // Logger.swift), so low-entropy readable values exercise them fully while
+    // keeping secret scanners (GitGuardian) quiet — avoid random/UUID suffixes.
+
     @Test("Redacts OAuth tokens from log messages")
-    func testOAuthTokenRedaction() async throws {
-        let uniqueID = UUID().uuidString
-        let message = "User token: oauth_abc123def456ghi789_\(uniqueID)"
-        Log.info(message, category: "Test")
+    func testOAuthTokenRedaction() {
+        let token = "oauth_example_placeholder_not_a_real_token"
+        let redacted = Log.redactForTesting("User token: \(token)")
 
-        guard let logURL = Log.exportLogFile() else {
-            Issue.record("Failed to export log file")
-            return
-        }
-        let logData = try Data(contentsOf: logURL)
-        let content = String(decoding: logData, as: UTF8.self)
-
-        // The raw OAuth token should not appear in the log output
-        #expect(!content.contains("oauth_abc123def456ghi789_\(uniqueID)"),
-            "OAuth token should be redacted from log output")
+        #expect(!redacted.contains(token), "OAuth token should be redacted")
     }
 
     @Test("Redacts Bearer tokens from log messages")
-    func testBearerTokenRedaction() async throws {
-        let uniqueID = UUID().uuidString
-        let message = "Authorization: Bearer abc123def456ghi789jkl012_\(uniqueID)"
-        Log.info(message, category: "Test")
+    func testBearerTokenRedaction() {
+        let token = "Bearer example_placeholder_not_a_real_token"
+        let redacted = Log.redactForTesting("Authorization: \(token)")
 
-        guard let logURL = Log.exportLogFile() else {
-            Issue.record("Failed to export log file")
-            return
-        }
-        let logData = try Data(contentsOf: logURL)
-        let content = String(decoding: logData, as: UTF8.self)
-
-        #expect(!content.contains("Bearer abc123def456ghi789jkl012_\(uniqueID)"),
-            "Bearer token should be redacted from log output")
+        #expect(!redacted.contains(token), "Bearer token should be redacted")
     }
 
     @Test("Redacts long alphanumeric tokens")
-    func testLongTokenRedaction() async throws {
-        let uniqueID = UUID().uuidString
-        let longToken = "abcdefghijklmnopqrstuvwxyz1234567890abcdefghijklmnopqrstuvwxyz\(uniqueID)"
-        let message = "Token value: \(longToken)"
-        Log.info(message, category: "Test")
+    func testLongTokenRedaction() {
+        // 60-char alphanumeric run (> the 30-char redaction threshold).
+        let longToken = "abcdefghijklmnopqrstuvwxyz1234567890abcdefghijklmnopqrstuvwxyz"
+        let redacted = Log.redactForTesting("Token value: \(longToken)")
 
-        guard let logURL = Log.exportLogFile() else {
-            Issue.record("Failed to export log file")
-            return
-        }
-        let logData = try Data(contentsOf: logURL)
-        let content = String(decoding: logData, as: UTF8.self)
-
-        #expect(!content.contains(longToken),
-            "Long alphanumeric token should be redacted from log output")
+        #expect(!redacted.contains(longToken),
+            "Long alphanumeric token should be redacted")
     }
 
     @Test("Redacts Client-ID values")
-    func testClientIDRedaction() async throws {
-        let uniqueID = UUID().uuidString
-        let message = "Client-ID: abc123def456_\(uniqueID)"
-        Log.info(message, category: "Test")
+    func testClientIDRedaction() {
+        let value = "Client-ID: abc123def456789"
+        let redacted = Log.redactForTesting(value)
 
-        guard let logURL = Log.exportLogFile() else {
-            Issue.record("Failed to export log file")
-            return
-        }
-        let logData = try Data(contentsOf: logURL)
-        let content = String(decoding: logData, as: UTF8.self)
-
-        #expect(!content.contains("Client-ID: abc123def456_\(uniqueID)"),
-            "Client-ID value should be redacted from log output")
+        #expect(!redacted.contains(value), "Client-ID value should be redacted")
     }
 
     @Test("Does not redact normal text")
-    func testNormalTextNotRedacted() async throws {
-        let uniqueID = UUID().uuidString
-        let message = "Normal log message with no sensitive data \(uniqueID)"
-        Log.info(message, category: "Test")
-        Log.flush()
+    func testNormalTextNotRedacted() {
+        // No 8+ digit runs or 30+ char tokens, so nothing should match a rule.
+        let message = "Normal log message with no sensitive data here"
 
-        guard let logURL = Log.exportLogFile() else {
-            Issue.record("Failed to export log file")
-            return
-        }
-        let logData = try Data(contentsOf: logURL)
-        let content = String(decoding: logData, as: UTF8.self)
-
-        #expect(content.contains(message),
-            "Normal text should not be redacted from log output")
+        #expect(Log.redactForTesting(message) == message,
+            "Normal text should pass through redaction unchanged")
     }
     
     // MARK: - Log File Tests
@@ -148,9 +118,10 @@ struct LoggerTests {
             Issue.record("Failed to export log file")
             return
         }
-        
-        let logData = try Data(contentsOf: logURL)
-        let logContent = String(decoding: logData, as: UTF8.self)
+
+        // Concurrent suites write into the same global log; a burst can rotate
+        // it and move our line into the .1 backup, so scan both.
+        let logContent = readLogIncludingBackup(at: logURL)
 
         // Verify test message is in log file
         #expect(logContent.contains(testMessage))
@@ -165,19 +136,18 @@ struct LoggerTests {
         let debugMessage = "Debug message \(UUID().uuidString)"
         
         Log.debug(debugMessage, category: "Test")
-        
+        Log.flush()
+
         // In release builds, this should not be written
         // In debug builds, it should be written
         #if DEBUG
         if let logURL = Log.exportLogFile() {
-            let logData = try Data(contentsOf: logURL)
-            let content = String(decoding: logData, as: UTF8.self)
+            let content = readLogIncludingBackup(at: logURL)
             #expect(content.contains(debugMessage))
         }
         #else
         if let logURL = Log.exportLogFile() {
-            let logData = try Data(contentsOf: logURL)
-            let content = String(decoding: logData, as: UTF8.self)
+            let content = readLogIncludingBackup(at: logURL)
             #expect(!content.contains(debugMessage))
         }
         #endif
@@ -238,14 +208,14 @@ struct LoggerTests {
         Log.info("Network message", category: "Network")
         Log.info("Twitch message", category: "Twitch")
         Log.info("OAuth message", category: "OAuth")
-        
+        Log.flush()
+
         guard let logURL = Log.exportLogFile() else {
             Issue.record("Failed to export log file")
             return
         }
-        
-        let logData = try Data(contentsOf: logURL)
-        let content = String(decoding: logData, as: UTF8.self)
+
+        let content = readLogIncludingBackup(at: logURL)
 
         #expect(content.contains("[App]"))
         #expect(content.contains("[Network]"))

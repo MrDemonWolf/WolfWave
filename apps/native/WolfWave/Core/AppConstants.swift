@@ -799,6 +799,13 @@ nonisolated enum AppConstants {
 
         /// song.link universal music link prefix; append a track id to form a full URL.
         static let songLinkTrackPrefix = "https://song.link/i/"
+
+        /// How long a completed artwork lookup (including a miss) is trusted before
+        /// a track is re-queried. The links cache is persisted to disk, so this TTL
+        /// survives relaunches — a track is looked up roughly once a week instead of
+        /// once per launch. Tracks absent from iTunes (e.g. indie releases) therefore
+        /// stop re-hitting the network on every playback tick.
+        static let artworkLookupTTL: TimeInterval = 7 * 24 * 3600
     }
 
     // MARK: - URLs

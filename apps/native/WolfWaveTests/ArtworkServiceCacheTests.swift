@@ -11,11 +11,11 @@ import XCTest
 
 @MainActor
 final class ArtworkServiceCacheTests: XCTestCase {
-    var service = ArtworkService()
+    var service = ArtworkService(persistenceURL: nil)
 
     override func setUp() {
         super.setUp()
-        service = ArtworkService()
+        service = ArtworkService(persistenceURL: nil)
     }
 
     // MARK: - Cache Miss Tests

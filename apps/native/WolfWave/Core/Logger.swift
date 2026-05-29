@@ -437,6 +437,21 @@ enum Log {
         }
     }
 
+    #if DEBUG
+    /// Test-only hook exposing the PII redaction pipeline.
+    ///
+    /// Redaction is verified through this pure function instead of by writing
+    /// to and reading back the app-wide on-disk log file. `Log` is a
+    /// process-global singleton, so other suites (e.g. WebSocket integration
+    /// tests that deliberately trigger bind errors) write into that same file
+    /// concurrently — a burst large enough to rotate it mid-test made the
+    /// file-readback assertions flaky in CI. Testing the function directly is
+    /// deterministic and touches no file.
+    nonisolated static func redactForTesting(_ message: String) -> String {
+        redactSensitiveInfo(message)
+    }
+    #endif
+
     // MARK: - Export
 
     /// Returns the URL of the current log file for export/sharing.

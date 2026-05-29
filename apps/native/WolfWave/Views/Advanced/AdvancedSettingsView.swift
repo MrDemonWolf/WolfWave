@@ -50,6 +50,12 @@ struct AdvancedSettingsView: View {
     /// Whether the "Copied!" feedback row is shown after copying logs.
     @State private var showingCopyFeedback = false
 
+    /// Whether the clear-artwork-cache confirmation alert is shown.
+    @State private var showingClearArtworkAlert = false
+
+    /// Formatted artwork cache summary (e.g. "42 tracks · 18 KB").
+    @State private var artworkStatsText: String = "—"
+
     /// Opens a save panel to export the application log file.
     ///
     /// Presents the panel as a sheet on the settings window when available,
@@ -158,6 +164,24 @@ struct AdvancedSettingsView: View {
         logLineCountText = "\(formattedLines) lines"
     }
 
+    /// Clears the persisted artwork links cache (memory + disk).
+    private func clearArtworkCache() {
+        ArtworkService.shared.clearCache()
+        Log.info("Artwork cache cleared by user", category: "App")
+        refreshArtworkStats()
+    }
+
+    /// Refreshes the displayed artwork cache entry count + disk size.
+    private func refreshArtworkStats() {
+        let stats = ArtworkService.shared.cacheStats()
+        let byteFormatter = ByteCountFormatter()
+        byteFormatter.allowedUnits = [.useKB, .useMB]
+        byteFormatter.countStyle = .file
+        let size = byteFormatter.string(fromByteCount: stats.diskBytes)
+        let trackWord = stats.entryCount == 1 ? "track" : "tracks"
+        artworkStatsText = "\(stats.entryCount) \(trackWord) · \(size)"
+    }
+
     /// Returns the host window for sheet presentation, or nil if none is visible.
     @MainActor
     private func hostWindow() -> NSWindow? {
@@ -210,6 +234,9 @@ struct AdvancedSettingsView: View {
 
             // Diagnostics Card
             diagnosticsCard
+
+            // Artwork Cache Card
+            artworkCacheCard
 
             // Diagnostics & Privacy (on-device MetricKit opt-in)
             DiagnosticsShareCardView()
@@ -331,6 +358,46 @@ struct AdvancedSettingsView: View {
             Text("The current log file will be erased. This can't be undone.")
         }
         .onAppear { refreshLogStats() }
+    }
+
+    // MARK: - Artwork Cache Card
+
+    @ViewBuilder
+    private var artworkCacheCard: some View {
+        VStack(alignment: .leading, spacing: DSSpace.s4) {
+            VStack(alignment: .leading, spacing: DSSpace.s1) {
+                HStack(alignment: .firstTextBaseline) {
+                    Text("Artwork Cache")
+                        .font(.system(size: DSFont.Size.base, weight: .semibold))
+                    Spacer()
+                    Text(artworkStatsText)
+                        .font(.system(size: DSFont.Size.sm, design: .monospaced))
+                        .foregroundStyle(.secondary)
+                        .accessibilityLabel("Artwork cache: \(artworkStatsText)")
+                }
+
+                Text("Saved album art links so tracks don't reload every launch. Clear to force a fresh lookup.")
+                    .font(.system(size: DSFont.Size.body))
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+
+            DestructiveButton(
+                title: "Clear Artwork Cache",
+                systemImage: "trash",
+                accessibilityIdentifier: "clearArtworkCacheButton",
+                action: { showingClearArtworkAlert = true }
+            )
+            .accessibilityHint("Erases saved album art links")
+        }
+        .cardStyle()
+        .alert("Clear artwork cache?", isPresented: $showingClearArtworkAlert) {
+            Button("Cancel", role: .cancel) {}
+            Button("Clear", role: .destructive) { clearArtworkCache() }
+        } message: {
+            Text("Saved album art links will be erased. They'll be fetched again as tracks play.")
+        }
+        .onAppear { refreshArtworkStats() }
     }
 
 }
