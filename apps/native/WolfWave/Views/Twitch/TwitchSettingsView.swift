@@ -306,6 +306,12 @@ private struct SignedInView: View {
     var onTestConnection: () -> Void
     @State private var showingDisconnectConfirmation = false
 
+    /// Shared height for every button in the action row. Pinning all of them to
+    /// one value keeps Join/Leave, Test Login, and Log Out visually aligned —
+    /// without it, the taller `checkmark.circle.fill` glyph makes the connect
+    /// button a hair taller than its neighbors.
+    private static let actionButtonHeight: CGFloat = 22
+
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             botAccountSection
@@ -436,6 +442,12 @@ private struct SignedInView: View {
             HStack(spacing: DSSpace.s2) {
                 Text(channelID.isEmpty ? "Not set" : StreamerMode.mask(channelID, style: .channel, isOn: streamerMode))
                     .font(.system(size: DSFont.Size.base, weight: .semibold))
+                if !channelID.isEmpty {
+                    Image(systemName: "checkmark.seal.fill")
+                        .foregroundStyle(.blue)
+                        .font(.system(size: DSFont.Size.base))
+                        .accessibilityLabel("Verified channel")
+                }
                 if streamerMode { StreamerModeBadge() }
             }
         case (false, true):
@@ -512,6 +524,7 @@ private struct SignedInView: View {
                 .buttonStyle(.bordered)
                 .tint(.orange)
                 .controlSize(.small)
+                .frame(height: Self.actionButtonHeight)
                 .pointerCursor()
                 .accessibilityLabel("Reconnect with Twitch")
                 .accessibilityHint("Clears credentials and starts a new sign-in")
@@ -557,6 +570,7 @@ private struct SignedInView: View {
                             .font(.system(size: DSFont.Size.body))
                     }
                 }
+                .frame(height: Self.actionButtonHeight)
                 .pointerCursor()
                 .accessibilityLabel(
                     isChannelConnected ? "Leave channel" : "Join channel"
@@ -607,6 +621,7 @@ private struct SignedInView: View {
                         .font(.system(size: DSFont.Size.body, weight: .medium))
                 }
                 .disabled(testAuthResult == .testing)
+                .frame(height: Self.actionButtonHeight)
                 .pointerCursor()
                 .animation(.easeInOut(duration: DSMotion.Duration.base), value: testAuthResult)
                 .help("Checks if your Twitch sign-in is working")
@@ -627,6 +642,7 @@ private struct SignedInView: View {
                 .buttonStyle(.bordered)
                 .tint(.red)
                 .controlSize(.small)
+                .frame(height: Self.actionButtonHeight)
                 .pointerCursor()
                 .accessibilityLabel("Clear saved Twitch credentials")
                 .accessibilityHint("Signs out of your Twitch account")

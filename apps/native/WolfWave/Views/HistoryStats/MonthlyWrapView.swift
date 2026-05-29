@@ -221,7 +221,7 @@ struct MonthlyWrapCard: View {
                 if let track = data.topTrack {
                     wrapRow(
                         caption: "TOP TRACK",
-                        value: track.detail.map { "\(track.name) — \($0)" } ?? track.name
+                        value: track.detail.map { "\(track.name) · \($0)" } ?? track.name
                     )
                 }
 
@@ -245,13 +245,16 @@ struct MonthlyWrapCard: View {
                     .padding(.vertical, DSSpace.s4)
             }
 
-            HStack {
+            HStack(alignment: .center) {
                 Text("WolfWave by MrDemonWolf, Inc.")
+                    .font(.system(size: DSFont.Size.xs, weight: .medium))
+                    .foregroundStyle(.white.opacity(0.55))
                 Spacer()
-                Text("wolfwave.app")
+                QRCodeImage(
+                    string: AppConstants.URLs.docs,
+                    size: DSDimension.Onboarding.brandTileSize
+                )
             }
-            .font(.system(size: DSFont.Size.xs, weight: .medium))
-            .foregroundStyle(.white.opacity(0.55))
             .padding(.top, DSSpace.s2)
         }
         .padding(DSSpace.s7)

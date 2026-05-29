@@ -45,10 +45,13 @@ GITHUB_REPO_NAME = wolfwave
 // ----------------------------------------------------------------------------
 
 // Documentation site root. Privacy/terms/changelog pages derive from this.
-DOCS_URL = https://mrdemonwolf.github.io/wolfwave
+// NOTE: xcconfig treats "//" as a comment, which would silently truncate a URL
+// to "https:". The "$()" expands to nothing and breaks up the "//" token so the
+// full URL survives. Keep this escape on any value that contains "//".
+DOCS_URL = https:/$()/mrdemonwolf.github.io/wolfwave
 
-// Community Discord invite — opened from tray menu "Help ▸ Join Discord Community".
-COMMUNITY_DISCORD_URL = https://mrdwolf.net/discord
+// Community Discord invite, opened from tray menu "Help > Join Discord Community".
+COMMUNITY_DISCORD_URL = https:/$()/mrdwolf.net/discord
 
 // Legal entity shown in About + Monthly Wrap footers.
 COPYRIGHT_HOLDER = MrDemonWolf, Inc.

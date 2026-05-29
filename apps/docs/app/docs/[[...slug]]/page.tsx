@@ -114,7 +114,7 @@ export default async function Page(props: PageProps<'/docs/[[...slug]]'>) {
       },
       {
         q: 'Can I show Apple Music in my Discord profile?',
-        a: 'Yes. WolfWave broadcasts Apple Music to Discord Rich Presence so your status reads "Listening to Apple Music" with track and album.',
+        a: 'Yes. WolfWave broadcasts Apple Music to Discord Rich Presence so your status reads "Listening to WolfWave" with the track, album, and Apple Music album art.',
       },
       {
         q: 'Does WolfWave work as an OBS overlay?',

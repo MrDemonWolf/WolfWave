@@ -15,9 +15,9 @@ import SwiftUI
 /// Discord client to update.
 ///
 /// Visual styling deliberately matches the Discord desktop client (dark grey
-/// surface, blurple "Listening to" header, gray pill buttons) rather than
-/// macOS Liquid Glass — this view represents Discord, not native chrome,
-/// so `.glassEffect()` should NOT be applied here.
+/// surface, muted "Listening to WolfWave" header with a green now-playing dot,
+/// gray pill buttons) rather than macOS Liquid Glass. This view represents
+/// Discord, not native chrome, so `.glassEffect()` should NOT be applied here.
 struct DiscordPreviewCard: View {
 
     // MARK: - Types
@@ -73,14 +73,19 @@ struct DiscordPreviewCard: View {
     // MARK: - Subviews
 
     private var header: some View {
+        // Mirrors Discord's real "Listening to <app>" row: muted gray label with
+        // the app name brighter, preceded by a green now-playing dot. Discord
+        // shows the registered application name (WolfWave), not "Apple Music",
+        // and the header is never blurple/purple.
         HStack(spacing: 6) {
-            Image(systemName: "headphones")
-                .font(.system(size: DSFont.Size.sm, weight: .semibold))
-            Text("LISTENING TO APPLE MUSIC")
-                .font(.system(size: DSFont.Size.sm, weight: .semibold))
+            Circle()
+                .fill(Color.green)
+                .frame(width: 8, height: 8)
+            (Text("LISTENING TO ").foregroundStyle(Color.white.opacity(0.55))
+                + Text("WOLFWAVE").foregroundStyle(Color.white.opacity(0.9)))
+                .font(.system(size: DSFont.Size.sm, weight: .bold))
                 .kerning(0.6)
         }
-        .foregroundStyle(AppConstants.Brand.discord)
     }
 
     private var content: some View {
@@ -197,7 +202,7 @@ struct DiscordPreviewCard: View {
     }
 
     private var accessibilitySummary: String {
-        var parts = ["Discord preview", "Listening to Apple Music", trackTitle, artist, album]
+        var parts = ["Discord preview", "Listening to WolfWave", trackTitle, artist, album]
         if let playlistTooltip { parts.append("App icon tooltip: \(playlistTooltip)") }
         if let b1 = button1 { parts.append("Button: \(b1.label)") }
         if let b2 = button2 { parts.append("Button: \(b2.label)") }

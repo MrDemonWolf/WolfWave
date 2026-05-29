@@ -806,8 +806,13 @@ nonisolated enum AppConstants {
     /// Application URLs for documentation, legal, and GitHub.
     enum URLs {
         /// Documentation site URL. Override via `DOCS_URL` in `Config.xcconfig`.
-        static let docs = infoPlistString(
-            "DOCS_URL",
+        ///
+        /// Guards against the xcconfig `//`-comment gotcha: if a misconfigured
+        /// build truncates the value to something without a `://` scheme (e.g.
+        /// `https:`), fall back to the upstream default so privacy/terms/
+        /// acknowledgements links never ship broken.
+        static let docs = validURL(
+            infoPlistString("DOCS_URL", fallback: "https://mrdemonwolf.github.io/wolfwave"),
             fallback: "https://mrdemonwolf.github.io/wolfwave"
         )
 
@@ -863,10 +868,20 @@ nonisolated enum AppConstants {
 
         /// Community Discord invite — opened from the tray menu "Help ▸ Join Discord Community".
         /// Override via `COMMUNITY_DISCORD_URL` in `Config.xcconfig`.
-        static let communityDiscord = infoPlistString(
-            "COMMUNITY_DISCORD_URL",
+        static let communityDiscord = validURL(
+            infoPlistString("COMMUNITY_DISCORD_URL", fallback: "https://mrdwolf.net/discord"),
             fallback: "https://mrdwolf.net/discord"
         )
+
+        /// Returns `value` when it parses as an absolute URL with a scheme and
+        /// host, otherwise `fallback`. Catches xcconfig `//`-truncated values
+        /// like `https:` that would otherwise produce broken links.
+        private static func validURL(_ value: String, fallback: String) -> String {
+            guard let url = URL(string: value), url.scheme != nil, url.host != nil else {
+                return fallback
+            }
+            return value
+        }
     }
 
     // MARK: - WebSocket Server

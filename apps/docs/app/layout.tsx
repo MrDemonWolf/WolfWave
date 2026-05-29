@@ -129,7 +129,7 @@ const jsonLd = {
   featureList: [
     "Apple Music now-playing to Twitch chat (!song, !last)",
     "Twitch song requests for Apple Music (!sr) with channel points and bits",
-    "Discord Rich Presence — Listening to Apple Music",
+    "Discord Rich Presence, Listening to WolfWave with Apple Music album art",
     "OBS browser-source overlay with 6 themes and 3 layouts",
     "Vote-to-skip via chat or Twitch Polls",
     "macOS menu bar app — no account required",

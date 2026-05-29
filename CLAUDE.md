@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-WolfWave is a native macOS menu bar app that bridges Apple Music with Twitch, Discord, and stream overlays. It tracks the currently playing song via ScriptingBridge and broadcasts it to Twitch chat via bot commands (EventSub + Helix API), shows "Listening to Apple Music" on Discord via Rich Presence, and streams now-playing data to overlays via WebSocket.
+WolfWave is a native macOS menu bar app that bridges Apple Music with Twitch, Discord, and stream overlays. It tracks the currently playing song via ScriptingBridge and broadcasts it to Twitch chat via bot commands (EventSub + Helix API), shows "Listening to WolfWave" (with Apple Music album art) on Discord via Rich Presence, and streams now-playing data to overlays via WebSocket.
 
 **Stack**: Swift 5.9+, SwiftUI, AppKit, macOS 26.0+, Xcode 16+. Minimal dependencies (Sparkle for auto-updates) — all other functionality uses native Apple frameworks.
 
@@ -56,6 +56,12 @@ Xcode project is at `apps/native/WolfWave.xcodeproj` with scheme `WolfWave`. Bui
 ## Build Configuration
 
 `Config.xcconfig` holds `TWITCH_CLIENT_ID`, `DISCORD_CLIENT_ID`, `GITHUB_REPO_OWNER`, `GITHUB_REPO_NAME` and is **not committed** (gitignored). Copy from `Config.xcconfig.example` and fill in your keys. Values are expanded into `Info.plist` at build time.
+
+> URL values must escape `//` with `$()` (e.g. `DOCS_URL = https:/$()/...`). xcconfig treats a bare `//` as a comment and silently truncates the value to `https:`, which breaks every derived in-app link (docs, privacy, acknowledgements, community Discord).
+
+### Worktrees: copy the local Config.xcconfig
+
+`Config.xcconfig` is gitignored, so a fresh git worktree under `.claude/worktrees/` won't have one and the native app can't build there. **When working in a worktree and `apps/native/WolfWave/Config.xcconfig` is missing, copy it from the primary checkout before building** — find it via `git worktree list` (first entry is the main worktree) and copy that worktree's `apps/native/WolfWave/Config.xcconfig` into the current one. Only copy an existing real config; never synthesize one from `Config.xcconfig.example` to unblock a build without asking.
 
 `Info.plist` also contains `SUPublicEDKey` (Sparkle EdDSA public key) and `SUFeedURL` (appcast URL). These are committed and should not be modified unless rotating the Sparkle signing key.
 

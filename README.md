@@ -25,7 +25,7 @@ and creators on macOS.
 - **Listening History & Stats** — Opt-in, on-device log of what you actually play. Top artists, listening time, 7-day trend, and a listening-by-hour chart built on SwiftUI Charts.
 - **Monthly Wrap** — A personal "wrapped"-style summary for any month, exportable as a shareable PNG.
 - **`!stats` in Chat** — Viewers ask for today's top track; replies only while you're live.
-- **Discord Rich Presence** — Shows "Listening to Apple Music" on your Discord profile with album art, the active Apple Music playlist, and clickable open-in-Apple-Music + song.link buttons.
+- **Discord Rich Presence** — Shows "Listening to WolfWave" on your Discord profile with Apple Music album art, the active Apple Music playlist, and clickable open-in-Apple-Music + song.link buttons.
 - **Stream Widgets** — Drop-in browser source overlay powered by a local WebSocket server with a per-install auth token, six themes (`Default`, `Dark`, `Light`, `Glass`, `Neon`, `WolfWave`), and three layouts (`Horizontal`, `Vertical`, `Compact`). Two-PC streamers can connect from a second machine on the LAN.
 - **Streamer Mode** — One-tap tray toggle that masks the connected Twitch channel name, widget URLs, and auth token across the UI so the app is safe to show on camera.
 - **Song-Change Notifications** — Opt-in macOS banner on every track change, with album art. The banner replaces in place instead of stacking.

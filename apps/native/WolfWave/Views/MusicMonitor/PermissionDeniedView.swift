@@ -44,11 +44,11 @@ struct PermissionDeniedBanner: View {
                     .buttonStyle(.borderedProminent)
                     .controlSize(.regular)
 
-                    Button("Try again", action: onTryAgain)
+                    Button("Try Again", action: onTryAgain)
                         .buttonStyle(.bordered)
                         .controlSize(.regular)
 
-                    Button("Show instructions", action: onShowInstructions)
+                    Button("Show Instructions", action: onShowInstructions)
                         .buttonStyle(.borderless)
                         .controlSize(.small)
 
@@ -157,7 +157,7 @@ struct PermissionInstructionSheet: View {
                 Button("Not now") { dismiss() }
                     .buttonStyle(.borderless)
                 Spacer()
-                Button("Try again") {
+                Button("Try Again") {
                     onTryAgain()
                 }
                 .buttonStyle(.bordered)

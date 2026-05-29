@@ -69,14 +69,17 @@ final class NotificationService {
         let trimmedArtist = artist.trimmingCharacters(in: .whitespacesAndNewlines)
         let trimmedAlbum = album.trimmingCharacters(in: .whitespacesAndNewlines)
 
-        content.title = trimmedTrack.isEmpty ? "Now Playing" : trimmedTrack
+        // "Now Playing" header keeps the banner self-explanatory; the song name
+        // sits on the subtitle line, artist + album on the body line.
+        content.title = "Now Playing"
+        content.subtitle = trimmedTrack.isEmpty ? "Unknown song" : trimmedTrack
 
         if trimmedArtist.isEmpty {
             content.body = trimmedAlbum
         } else if trimmedAlbum.isEmpty {
             content.body = trimmedArtist
         } else {
-            content.body = "\(trimmedArtist) — \(trimmedAlbum)"
+            content.body = "\(trimmedArtist) · \(trimmedAlbum)"
         }
 
         // Silent banner — song changes are frequent, so a sound would be noise.

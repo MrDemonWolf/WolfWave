@@ -133,8 +133,14 @@ struct SettingsView: View {
 
     var body: some View {
         NavigationSplitView {
-            List(SettingsSection.allCases, selection: $selectedSection) { section in
-                sidebarRow(for: section)
+            List(selection: $selectedSection) {
+                ForEach(Self.sidebarGroups, id: \.title) { group in
+                    Section(group.title) {
+                        ForEach(group.sections) { section in
+                            sidebarRow(for: section)
+                        }
+                    }
+                }
             }
             .navigationSplitViewColumnWidth(min: 220, ideal: 240, max: 280)
         } detail: {
@@ -248,6 +254,22 @@ struct SettingsView: View {
     }
 
     // MARK: - Sidebar Helpers
+
+    /// Grouped sidebar layout. Headers keep related sections together so the
+    /// list scans cleanly: setup first, then integrations, insights, and the
+    /// app-level pages. `.debug` is appended to the App group in DEBUG builds.
+    private static var sidebarGroups: [(title: String, sections: [SettingsSection])] {
+        var app: [SettingsSection] = [.softwareUpdate, .advanced, .about]
+        #if DEBUG
+        app.append(.debug)
+        #endif
+        return [
+            ("Setup", [.general]),
+            ("Integrations", [.twitchIntegration, .discord, .websocket, .songRequests]),
+            ("Insights", [.historyStats]),
+            ("App", app),
+        ]
+    }
 
     /// Builds a sidebar row with a brand icon (if available) or an SF Symbol fallback.
     @ViewBuilder

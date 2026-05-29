@@ -18,15 +18,16 @@ struct NotificationServiceTests {
 
     // MARK: - Song Change Content
 
-    @Test("Song change content uses track as title and artist + album as body")
+    @Test("Song change content uses Now Playing title, track subtitle, artist + album body")
     func testSongChangeContentFull() async throws {
         let content = NotificationService.makeSongChangeContent(
             track: "Blinding Lights",
             artist: "The Weeknd",
             album: "After Hours"
         )
-        #expect(content.title == "Blinding Lights")
-        #expect(content.body == "The Weeknd — After Hours")
+        #expect(content.title == "Now Playing")
+        #expect(content.subtitle == "Blinding Lights")
+        #expect(content.body == "The Weeknd · After Hours")
     }
 
     @Test("Song change content falls back to artist only when album is empty")
@@ -36,7 +37,8 @@ struct NotificationServiceTests {
             artist: "Some Artist",
             album: ""
         )
-        #expect(content.title == "Some Song")
+        #expect(content.title == "Now Playing")
+        #expect(content.subtitle == "Some Song")
         #expect(content.body == "Some Artist")
     }
 
@@ -50,7 +52,7 @@ struct NotificationServiceTests {
         #expect(content.body == "Some Album")
     }
 
-    @Test("Song change content uses a default title when the track is empty")
+    @Test("Song change content uses an Unknown song subtitle when the track is empty")
     func testSongChangeContentEmptyTrack() async throws {
         let content = NotificationService.makeSongChangeContent(
             track: "",
@@ -58,6 +60,7 @@ struct NotificationServiceTests {
             album: "Album"
         )
         #expect(content.title == "Now Playing")
+        #expect(content.subtitle == "Unknown song")
     }
 
     @Test("Song change content trims surrounding whitespace")
@@ -67,19 +70,19 @@ struct NotificationServiceTests {
             artist: "  Artist  ",
             album: "  Album  "
         )
-        #expect(content.title == "Track")
-        #expect(content.body == "Artist — Album")
+        #expect(content.subtitle == "Track")
+        #expect(content.body == "Artist · Album")
     }
 
     @Test("Song change content preserves unusual characters")
     func testSongChangeContentUnusualCharacters() async throws {
         let content = NotificationService.makeSongChangeContent(
-            track: "Café — naïve 🎧",
+            track: "Café naïve 🎧",
             artist: "Sigur Rós",
             album: "( )"
         )
-        #expect(content.title == "Café — naïve 🎧")
-        #expect(content.body == "Sigur Rós — ( )")
+        #expect(content.subtitle == "Café naïve 🎧")
+        #expect(content.body == "Sigur Rós · ( )")
     }
 
     @Test("Song change content carries no sound")

@@ -153,7 +153,7 @@ struct OnboardingTwitchStepView: View {
 
             Spacer()
 
-            Button("Sign out") {
+            Button("Sign Out") {
                 twitchViewModel.cancelOAuth()
             }
             .buttonStyle(.bordered)
