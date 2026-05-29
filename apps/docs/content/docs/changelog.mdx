@@ -44,13 +44,9 @@ All notable changes to WolfWave are documented here.
 - **macOS 26 Liquid Glass onboarding**. Full wizard rebuild with two new steps (Menu Bar Pointer + OBS Widget) and Liquid Glass materials to match Tahoe's design language
 - **Apple Music onboarding step**. MusicKit authorization during the first-launch wizard with a graceful denied-state recovery path
 - **OBS Widget onboarding step**. Overlay URL preview and HTTP widget toggle wired into onboarding so streamers can copy the overlay link before completing setup
-- **Apple-style docs redesign**. System blue theme, refreshed typography, and a cleaner component palette across the documentation site
-- **2026 marketing landing page**. Redesigned dark, streamer-focused landing page with refreshed brand identity
-- **Docs SEO infrastructure**. OG image, sitemap, robots.txt, and JSON-LD structured data
 - **LAN IP cache**. Overlay URL lookups in settings no longer block on every redraw
 - **Diagnostics + bug report flow**. Export Logs, Clear Logs, and a one-click Report a Bug button in Advanced settings; the issue is pre-filled with redacted log context
 - **Branded About panel**. Native SwiftUI About window replaces the default sheet
-- **Dynamic docs SEO + section-aware OG cards**. Every docs page ships its own OG image; the changelog generates a live OG card per release
 - **Apple Music logo on Music access row**. Granted state now shows the Apple Music brand mark
 - **Widget themes**. Six selectable overlay-widget themes (Default, Dark, Light, Glass, Neon, WolfWave) and three layouts (Horizontal, Vertical, Compact)
 - **Discord presence polish**. Friendlier presence buttons, a live presence preview in Discord settings, and cleaner connection-state handling
@@ -72,13 +68,16 @@ All notable changes to WolfWave are documented here.
 - Menu bar preview tray icon renders crisply via `NSImage`
 - Settings window sized to fit cleanly on 720p and 1080p displays
 - Music permission row is actionable and self-healing. Tap to re-request or deep-link into System Settings
-- Docs theming. Unified violet/cyan brand palette with full light-mode support
 - Test suite consolidated (408 tests across 30 files, all passing)
 - **Settings views read from `DSFont` and `DSSpace`**. Settings, onboarding, and shared views now reference the generated design tokens instead of hardcoded font sizes and paddings; consistent typography and spacing across every settings tab
 - **Concurrency polish**. Remaining `DispatchQueue.main.async` sites in menu-bar, song-request, and Discord settings switched to structured `Task { @MainActor }` for Swift 6 cleanliness
 - **Logger PII regex literals**. Patterns moved to compile-checked `#/.../#` literals; no more `try! Regex(...)` warnings
+- **Liquid Glass onboarding surface**. The wizard content panel now renders on a `.glassEffect(.regular)` material, matching the glass convention used by settings cards and the now-playing card
+- **Streamer Mode Twitch account masking**. The signed-in Twitch account name in Settings is now masked when Streamer Mode is on, matching the existing channel-ID rows and menu bar
+- **Onboarding step accessibility**. VoiceOver now announces the current step by name ("Step 3 of 7: Twitch") via `accessibilityHint` and `accessibilityValue` on the progress dots
 
 ### Performance
+- **Timer wakeup coalescing**. Periodic timers (fallback poll, WebSocket progress tick, Discord poll, song-request auto-advance) now carry leeway/tolerance so macOS can batch their wakeups together, cutting idle energy use for an all-day menu bar app. Real-time track changes still arrive via distributed notifications; polling behavior is otherwise unchanged
 - Settings page switch latency eliminated. Navigation between sections is now instant
 - Font enumeration deferred off-main so Widget Setup never blocks first paint
 - Now-Playing Server row renders instantly thanks to the cached LAN IP lookup
@@ -96,6 +95,11 @@ _Developer-facing changes. Not visible to end users._
 - **New unit tests** , `SongBlocklistTests`, `HistoryFormattingTests`, `LaunchAtLoginServiceTests` cover three previously-untested services
 - **Accessibility labels**. Added explicit `accessibilityLabel`/`Hint`/`Identifier` to permission and About-panel buttons that previously relied only on inferred labels (better VoiceOver clarity)
 - **OBS widget build pipeline**. Widget source moved into a new `apps/widget/` Tailwind + TypeScript workspace. The bundled `widget.html` is now a generated artifact with the compiled CSS, design tokens, and JS runtime all inlined. Still a single self-contained file. Xcode auto-rebuilds it via a pre-build Run Script phase; CI rebuilds it before every `xcodebuild` invocation. Manual command: `bun run --filter widget build`. WebSocket payload contract, widget URL, and theme/layout URL params are unchanged. See [OBS Widget Architecture](/docs/widget) for the pipeline + transition state machine.
+- **Inside-out release signing**. `build_release.yml` now signs nested bundles deepest-first before the app shell, dropping `--deep --force` which stripped per-bundle entitlements. The pipeline is XPC-ready for any future sandbox helper
+- **Typed NotificationCenter payload helpers**. `Core/NotificationPayloads.swift` centralizes all notification payload post/observe pairs so send and receive sides share the same keys and types, removing ~38 hand-decoded `userInfo` sites
+- **HelixClient**. Shared HTTP wrapper for all Helix API calls, replacing per-service `send()` helpers. Maps 401, 429, and structured Helix error payloads uniformly
+- **Preferences typed accessor**. `Core/Preferences.swift` centralizes UserDefaults reads/writes for non-bool keys across AppDelegate and WolfWaveApp
+- **Actor adoption**. `SongBlocklist` and `SkipVoteManager` converted from `final class + NSLock` to actors; `BotCommandContext` marked `nonisolated + Sendable`. Combine fully removed from the app target
 
 ### Fixed
 - **Twitch bot silent after relaunch**. EventSub now auto-reconnects to the saved channel on launch after token validation, so chat commands work without reopening the Twitch settings pane. Silent reconnect. No "online" chat ping unless you explicitly click Connect
@@ -107,13 +111,11 @@ _Developer-facing changes. Not visible to end users._
 - **Intel Homebrew cask detection**. Intel Macs using Homebrew now correctly disable Sparkle and show the Homebrew update card; the previous matcher missed `/usr/local/Caskroom/`
 - Native build warnings, SwiftUI layout reentrancy, and duplicate log emission
 - Onboarding URL bug, permissions correctness, and layout stability
-- Docs favicon 404s resolved; DMG size pill now reflects the actual 3.7 MB
 - Export Logs crash on empty or large logs
 - Settings/About show deferred past the AppKit layout pass to silence recursion warnings
 - Music access icon adapts to light/dark mode; top scroll fade removed
 - PillButton width shift across state changes pinned down
 - Apple Music + OBS logos trimmed to glyphs so template rendering tints correctly
-- Docs `/wolfwave` basePath hardcoded so GitHub Pages URLs always resolve
 - Menu bar pointer arrow anchored to TrayIcon center in onboarding
 - Brand icons in menu bar render as templates with refreshed logo SVGs
 - Settings window sidebar toggle. Removed the duplicate titlebar toggle, restored the toolbar sidebar toggle, eliminated the floating `>>` reveal control
@@ -127,6 +129,7 @@ _Developer-facing changes. Not visible to end users._
 - About panel Check for Updates now invokes Sparkle; Release Notes points at the docs changelog
 - Onboarding Preferences step no longer overlaps the nav bar on shorter window heights
 - Onboarding step header anchored so icons stop drifting between steps
+- **Vote-skip window timer race**. A timer that outlasted a fast-passing vote could clear a newer session when session cooldown is 0. The timer now captures a session token at spawn and bails if a different session has since opened
 
 ### Removed
 - `WallpaperBloomBackground`. Replaced with native macOS chrome
@@ -137,8 +140,6 @@ _Developer-facing changes. Not visible to end users._
 ## v1.2.0. April 4, 2026
 
 ### Added
-- **Docs landing page**. Redesigned as a dark, streamer-focused marketing page
-- **Theme-aware favicon**. Automatically switches between light and dark mode
 - **Shared UI components**. Reusable settings components for a more consistent look
 
 ### Changed

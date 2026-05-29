@@ -34,13 +34,9 @@ All notable changes to this project will be documented in this file.
 - **Apple Music onboarding step** — first-launch wizard authorizes MusicKit library access for song search with a graceful denied-state recovery path.
 - **OBS Widget onboarding step** — overlay URL preview and HTTP widget toggle wired directly into onboarding so streamers can copy the overlay link before completing setup (d62b8ac).
 - **macOS 26 Liquid Glass redesign foundation** — refreshed settings + menu bar chrome with native Liquid Glass materials and Music permission flow (#22, #26).
-- **Apple-style docs redesign** — system blue theme, refreshed typography and component palette across the documentation site (#27).
-- **2026 marketing landing page** — redesigned dark, streamer-focused docs landing page with refreshed brand identity.
-- **Docs SEO infrastructure** — OG image, sitemap, robots.txt, and JSON-LD structured data for better discoverability.
 - **LAN IP cache** — `NetworkInfoService` caches the local IP for the overlay/widget URL surface so settings views no longer block on lookup (#34).
 - **Diagnostics + bug report flow** — Advanced settings gains Export Logs and Clear Logs actions plus a one-click "Report a Bug" flow that pre-fills a GitHub issue with redacted log context (#50).
 - **Branded About panel** — replaced the default `NSAboutPanelOptionKey` sheet with a native SwiftUI About window built around WolfWave's identity (#55).
-- **Dynamic docs SEO + section-aware OG cards** — every docs page now ships its own OG image; the changelog page generates a live OG card per release (#43, #56).
 - **Apple Music logo on Music access row** — granted-state row now shows the Apple Music brand mark instead of a generic icon (#38).
 - **Widget themes** — six selectable overlay-widget themes (`Default`, `Dark`, `Light`, `Glass`, `Neon`, `WolfWave`) and three layouts (`Horizontal`, `Vertical`, `Compact`), served to `widget.html` via `window.WW_TOKENS` (#76).
 - **Discord presence polish** — friendlier presence buttons, a live presence preview in Discord settings, and cleaner connection-state handling (#73).
@@ -61,7 +57,6 @@ All notable changes to this project will be documented in this file.
 - **Menu bar preview tray icon** — loads via `NSImage` for crisp rendering at every density (#32).
 - **Settings window sizing** — minimum and ideal dimensions tuned to fit cleanly on 720p and 1080p displays without clipping (#33).
 - **Music permission row** — actionable + self-healing; tapping it re-requests or deep-links to System Settings depending on authorization state (#31).
-- **Docs theming** — unified violet/cyan brand palette with full light-mode support.
 - **OBS step copy** — onboarding OBS Widget step collapsed to a single toggle with the overlay URL promoted to first-class status (#36).
 - **OBS branding in settings** — swapped the bespoke OBS logo for the `tv.badge.wifi` SF Symbol so the chip respects template tinting (#46).
 - **AdvancedSettingsView** — refactored to use the shared `cardStyle()` helper for consistent material + corner radii (#52).
@@ -70,9 +65,13 @@ All notable changes to this project will be documented in this file.
 - **Design-token migration completed** — settings views now read from `DSFont` and `DSSpace` across every view file; no hardcoded `.font(.system(size:))` or `.padding(N)` literals remain in `apps/native/WolfWave/Views/`. Added missing tokens (`x9/x15/x16/x18/x24/x26/x28/x36` font sizes, `s0/s10/s11` space) to `design-system/tokens.json`.
 - **Concurrency polish** — replaced stray `DispatchQueue.main.async` sites in `AppDelegate+MenuBar`, `DiscordSettingsView`, and `AppleMusicController` with structured `Task { @MainActor }` for Swift 6 cleanliness; matches the project rule that new async work uses async/await, not `DispatchQueue`.
 - **Logger regex literals** — `Logger.swift` PII-redaction patterns now use compile-checked `#/.../#` literals instead of `try! Regex(...)`, dropping the SwiftLint `force_unwrapping` warnings.
+- **Liquid Glass onboarding surface** — the wizard content panel now renders on a `.glassEffect(.regular)` material, matching the glass convention used by settings cards and the now-playing card (#198).
+- **Streamer Mode Twitch account masking** — the signed-in Twitch account name in Settings is now masked when Streamer Mode is on, matching the existing channel-ID rows and menu bar (#198).
+- **Onboarding step accessibility** — VoiceOver now announces the current step by name ("Step 3 of 7: Twitch") via `accessibilityHint` and `accessibilityValue` on the progress dots (#198).
 
 ### Performance
 
+- **Timer wakeup coalescing** — periodic timers (fallback poll, WebSocket progress tick, Discord availability poll, song-request auto-advance) now carry leeway/tolerance so macOS can batch their wakeups together, cutting idle energy use for an all-day menu bar app. Real-time track changes still arrive via distributed notifications; polling behavior is otherwise unchanged (#199).
 - **Settings page switch latency** — eliminated jank when navigating between settings sections (#51).
 - **Font enumeration deferred off main** — Widget Setup network row no longer blocks the main thread on first paint (#54).
 - **Now-Playing Server row** — renders instantly thanks to the cached LAN IP lookup (#39).
@@ -89,6 +88,11 @@ All notable changes to this project will be documented in this file.
 - **WebSocket security-model documentation** — added a `## Security model` doc block to `WebSocketServerService.swift` explaining the current loopback-only contract and matching it against `NSLocalNetworkUsageDescription`. Token-based auth + origin validation tracked as a follow-up.
 - **New unit tests** — `SongBlocklistTests`, `HistoryFormattingTests`, `LaunchAtLoginServiceTests` cover three previously-untested services. `AppleMusicController` builder tests and `TwitchChannelPointsService` Helix payload tests tracked as follow-ups.
 - **OBS widget build pipeline** — the overlay widget source moved out of the hand-edited `apps/native/WolfWave/Resources/widget.html` into a new `apps/widget/` Tailwind + TypeScript workspace. The bundled HTML is now a generated, fully inlined artifact (compiled CSS + design tokens + JS runtime in one file, no external `<link>`/`<script src>`). Xcode rebuilds it via a pre-build Run Script phase (`Build OBS Widget (Tailwind → inline)`); CI rebuilds it before every `xcodebuild` invocation in `test.yml` and `build_release.yml`. Manual rebuild is `bun run --filter widget build`. The WebSocket payload contract, widget URL, and theme/layout URL params are unchanged. Source files are heavily commented top-to-bottom with banner sections and per-function explanations so the runtime can be read end-to-end.
+- **Inside-out release signing** — `build_release.yml` now signs nested bundles deepest-first before the app shell, dropping `--deep --force` which stripped per-bundle entitlements. The pipeline is XPC-ready for any future sandbox helper (#199).
+- **Typed NotificationCenter payload helpers** — `Core/NotificationPayloads.swift` centralizes all notification payload post/observe pairs so send and receive sides share the same keys and types, removing ~38 hand-decoded `userInfo` sites (#198).
+- **HelixClient** — shared HTTP wrapper for all Helix API calls, replacing per-service `send()` helpers. Maps 401, 429, and structured Helix error payloads uniformly; covered by `HelixClientTests` (#197).
+- **Preferences typed accessor** — `Core/Preferences.swift` centralizes UserDefaults reads/writes for non-bool keys, replacing scattered `UserDefaults.standard.{string,integer,bool}(forKey:)` calls across AppDelegate and WolfWaveApp (#197).
+- **Actor adoption** — `SongBlocklist` and `SkipVoteManager` converted from `final class + NSLock` to actors; `BotCommandContext` marked `nonisolated + Sendable`. Combine fully removed from the app target, with the last publisher replaced by a `.task` loop (#197).
 
 ### Fixed
 
@@ -101,14 +105,12 @@ All notable changes to this project will be documented in this file.
 - **Intel Homebrew cask detection** — Intel Macs using Homebrew now correctly trigger the Homebrew code path (Sparkle disabled, Homebrew update card shown, bug reports tagged `Homebrew`). Previously the path matcher checked `/usr/local/Cellar/` only, missing the `/usr/local/Caskroom/` location used by casks.
 - Native build warnings, SwiftUI layout reentrancy, and duplicate log emission cleaned up (#22).
 - Onboarding URL bug, permissions correctness, and layout stability polished (#28).
-- Docs favicon 404s resolved and DMG size pill now reflects the actual 3.7 MB.
 - **Export Logs crash** — Advanced settings no longer crashes when exporting empty or large logs (#50).
 - **Settings / About window show** — deferred past the AppKit layout pass to silence `layoutSubtreeIfNeeded` recursion warnings (#53).
 - **Music access icon** — adapts to light/dark mode and kills the top scroll fade that clipped the section header (#48).
 - **PillButton width shift** — pinned button geometry across state changes so it no longer jumps mid-animation (#49).
 - **Apple Music logo** — trimmed to the glyph so template rendering picks up the system tint (#37).
 - **OBS logo** — trimmed to the glyph for matching template rendering (#45).
-- **Docs basePath** — hardcoded `/wolfwave` so GitHub Pages URLs resolve in every build context (#44).
 - **Menu bar pointer arrow** — anchored to the `TrayIcon` center in the onboarding preview (#41).
 - **Brand icons in menu bar** — render as templates with refreshed logo SVGs (#40).
 - **CI** — skip `TrackInfoCommandTests` on the `macos-26` runner where MusicKit isn't available (#42).
@@ -124,6 +126,7 @@ All notable changes to this project will be documented in this file.
 - **About panel Check for Updates** — the button now actually invokes Sparkle; the Release Notes link now points at the docs changelog instead of an empty popover (#150).
 - **Onboarding Preferences step** — no longer overlaps the nav bar on shorter window heights (#94).
 - **Onboarding step header** — anchored so icons stop drifting between steps (#145).
+- **Vote-skip window timer race** — a timer that outlasted a fast-passing vote could clear a newer session when session cooldown is 0. The timer now captures a session token at spawn and bails if a different session has since opened (#198).
 
 ### Removed
 
@@ -134,8 +137,6 @@ All notable changes to this project will be documented in this file.
 
 ### Added
 
-- **Docs landing page** — redesigned as a dark, streamer-focused marketing page with brand identity.
-- **Theme-aware favicon** — docs site SVG favicon automatically switches between light and dark variants based on system appearance.
 - **Shared UI components** — extracted reusable `ConnectionTestButton`, `SectionHeaderWithStatus`, `InfoRow`, and `ConfigRequiredBanner` for consistent settings UI across sections.
 
 ### Changed
