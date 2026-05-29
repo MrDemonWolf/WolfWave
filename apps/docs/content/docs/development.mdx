@@ -37,6 +37,16 @@ This guide covers everything you need to contribute to WolfWave.
 4. Open the project: `make open-xcode`
 5. Resolve dependencies: `make update-deps`
 
+### Branding overrides
+
+`DOCS_URL`, `COMMUNITY_DISCORD_URL`, and `COPYRIGHT_HOLDER` control the docs link, community Discord invite, and legal entity shown in About + Monthly Wrap. You can change them at three levels, in priority order:
+
+1. **Per-machine / fork** — set them in `Config.xcconfig`. Highest priority. Gitignored, so this only affects your local builds.
+2. **Project-wide default** — edit the fallback strings in `Core/AppConstants.swift` (`AppInfo.copyrightHolder`, `URLs.docs`, `URLs.communityDiscord`). This is the **source of truth** shipped to every user. Change it here if you want to move the upstream default.
+3. **CI** — `.github/workflows/build_release.yml` and `test.yml` write these keys into the generated `Config.xcconfig` so the built `Info.plist` carries literal values instead of empty placeholders. Keep them in sync with the `AppConstants` defaults if you change the upstream values.
+
+Each key falls back to the `AppConstants` default when blank or unset, so leaving them out never breaks a build. To rename the app itself, edit `CFBundleDisplayName` in `Info.plist` (or set `PRODUCT_NAME` in an xcconfig overlay).
+
 ## Development Commands
 
 | Command                | Description                                |

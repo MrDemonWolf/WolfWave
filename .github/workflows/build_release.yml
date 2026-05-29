@@ -41,7 +41,7 @@ jobs:
 
       - name: Create Config.xcconfig
         run: |
-          printf 'TWITCH_CLIENT_ID = %s\nDISCORD_CLIENT_ID = %s\nGITHUB_REPO_OWNER = mrdemonwolf\nGITHUB_REPO_NAME = wolfwave\n' \
+          printf 'TWITCH_CLIENT_ID = %s\nDISCORD_CLIENT_ID = %s\nGITHUB_REPO_OWNER = mrdemonwolf\nGITHUB_REPO_NAME = wolfwave\nDOCS_URL = https://mrdemonwolf.github.io/wolfwave\nCOMMUNITY_DISCORD_URL = https://mrdwolf.net/discord\nCOPYRIGHT_HOLDER = MrDemonWolf, Inc.\n' \
             "${{ secrets.TWITCH_CLIENT_ID }}" \
             "${{ secrets.DISCORD_CLIENT_ID }}" \
             > apps/native/WolfWave/Config.xcconfig
@@ -91,7 +91,7 @@ jobs:
 
       - name: Create Config.xcconfig
         run: |
-          printf 'TWITCH_CLIENT_ID = %s\nDISCORD_CLIENT_ID = %s\nGITHUB_REPO_OWNER = mrdemonwolf\nGITHUB_REPO_NAME = wolfwave\n' \
+          printf 'TWITCH_CLIENT_ID = %s\nDISCORD_CLIENT_ID = %s\nGITHUB_REPO_OWNER = mrdemonwolf\nGITHUB_REPO_NAME = wolfwave\nDOCS_URL = https://mrdemonwolf.github.io/wolfwave\nCOMMUNITY_DISCORD_URL = https://mrdwolf.net/discord\nCOPYRIGHT_HOLDER = MrDemonWolf, Inc.\n' \
             "${{ secrets.TWITCH_CLIENT_ID }}" \
             "${{ secrets.DISCORD_CLIENT_ID }}" \
             > apps/native/WolfWave/Config.xcconfig

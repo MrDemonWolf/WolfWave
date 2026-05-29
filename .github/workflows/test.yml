@@ -73,7 +73,7 @@ jobs:
       - name: Create Config.xcconfig
         if: steps.filter.outputs.native == 'true'
         run: |
-          printf 'TWITCH_CLIENT_ID = placeholder\nDISCORD_CLIENT_ID = placeholder\nGITHUB_REPO_OWNER = mrdemonwolf\nGITHUB_REPO_NAME = wolfwave\n' \
+          printf 'TWITCH_CLIENT_ID = placeholder\nDISCORD_CLIENT_ID = placeholder\nGITHUB_REPO_OWNER = mrdemonwolf\nGITHUB_REPO_NAME = wolfwave\nDOCS_URL = https://mrdemonwolf.github.io/wolfwave\nCOMMUNITY_DISCORD_URL = https://mrdwolf.net/discord\nCOPYRIGHT_HOLDER = MrDemonWolf, Inc.\n' \
             > apps/native/WolfWave/Config.xcconfig
 
       - name: Verify SponsorConfig.generated.swift is in sync with FUNDING.yml
