@@ -133,6 +133,51 @@ jobs:
           name: TestResults
           path: TestResults.xcresult
 
+  docs:
+    name: Docs Build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+
+      - name: Detect docs changes
+        id: filter
+        uses: dorny/paths-filter@fbd0ab8f3e69293af611ebaee6363fc25e6d187d # v4.0.1
+        with:
+          filters: |
+            docs:
+              - 'apps/docs/**'
+              - 'design-system/tokens.json'
+              - 'design-system/scripts/generate.ts'
+              - 'package.json'
+              - 'bun.lock'
+              - 'turbo.json'
+
+      - name: Skip notice (no docs changes)
+        if: steps.filter.outputs.docs != 'true'
+        run: echo "No docs changes detected — skipping docs build & checks."
+
+      - name: Install Bun
+        if: steps.filter.outputs.docs == 'true'
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+
+      - name: Install deps
+        if: steps.filter.outputs.docs == 'true'
+        run: bun install --frozen-lockfile
+
+      - name: Type check
+        if: steps.filter.outputs.docs == 'true'
+        run: bun run --filter docs types:check
+
+      - name: Lint
+        if: steps.filter.outputs.docs == 'true'
+        run: bun run --filter docs lint
+
+      - name: Build docs
+        if: steps.filter.outputs.docs == 'true'
+        run: bunx turbo build --filter docs
+
   lint:
     name: SwiftLint
     runs-on: macos-26

@@ -60,12 +60,9 @@ export function useCyclingTrack(): CyclingTrackState {
     return () => window.clearInterval(id);
   }, [motionEnabled]);
 
-  // Reset elapsed when index changes.
-  useEffect(() => {
-    setElapsedSec(0);
-  }, [index]);
-
-  // Tick the fake elapsed counter.
+  // Tick the fake elapsed counter. The cycle effect above already resets
+  // elapsedSec to 0 each time it bumps the index, so no separate reset is
+  // needed — index changes nowhere else.
   const track = SAMPLE_TRACKS[index];
   useEffect(() => {
     if (!motionEnabled) return;

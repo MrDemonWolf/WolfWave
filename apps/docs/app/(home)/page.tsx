@@ -363,7 +363,7 @@ export default function HomePage() {
               Discord Rich Presence
             </p>
             <h2 className="ww-display ww-text-1 text-4xl sm:text-5xl">
-              Your friends see what you're listening to.
+              Your friends see what you&apos;re listening to.
             </h2>
             <p className="ww-text-2 text-lg mt-5 leading-relaxed">
               Spotify users have had this for years. Apple Music users never
@@ -395,7 +395,8 @@ export default function HomePage() {
               A now-playing card for OBS in 30 seconds.
             </h2>
             <p className="ww-text-2 text-lg mt-5 leading-relaxed">
-              Add a browser source pointing at your Mac's local server. Pick a
+              Add a browser source pointing at your Mac&apos;s local server. Pick
+              a
               theme or write your own. Every track update streams in real time
               over WebSocket.
             </p>
@@ -577,7 +578,8 @@ export default function HomePage() {
           </div>
 
           <p className="mt-5 text-center text-xs ww-text-2">
-            Partial means "depends on the tool / depends on your plan." See the{" "}
+            Partial means &quot;depends on the tool / depends on your plan.&quot;
+            See the{" "}
             <Link href="/docs/features" className="ww-text-brand font-semibold">
               full feature breakdown
             </Link>
@@ -948,7 +950,8 @@ export default function HomePage() {
           </h2>
           <p className="ww-text-2 text-lg mt-5 leading-relaxed">
             Your music never leaves your Mac. Tokens live in macOS Keychain.
-            The app runs sandboxed. There's no telemetry. There's nothing to
+            The app runs sandboxed. There&apos;s no telemetry. There&apos;s
+            nothing to
             send.
           </p>
           <div className="mt-8 flex flex-wrap items-center justify-center gap-2">
@@ -980,8 +983,9 @@ export default function HomePage() {
               q="Does it work with Spotify?"
               a={
                 <>
-                  No, and that's the point. Spotify already has plenty of tools.
-                  Apple Music had almost none, so that's what WolfWave was built
+                  No, and that&apos;s the point. Spotify already has plenty of
+                  tools. Apple Music had almost none, so that&apos;s what
+                  WolfWave was built
                   for. It reads Apple Music via ScriptingBridge, the same
                   framework Apple uses internally. If your setup is
                   Spotify-first, this is not the right tool.
@@ -1006,7 +1010,7 @@ export default function HomePage() {
               a={
                 <>
                   No. The app is native, under 30 MB, and event-driven. It
-                  reacts to Apple Music's own notifications with a 2-second
+                  reacts to Apple Music&apos;s own notifications with a 2-second
                   fallback poll. CPU and memory impact are negligible during a
                   stream.
                 </>
@@ -1016,7 +1020,7 @@ export default function HomePage() {
               q="Is my Twitch token safe?"
               a={
                 <>
-                  Yes. WolfWave uses Twitch's OAuth Device Code flow, stores
+                  Yes. WolfWave uses Twitch&apos;s OAuth Device Code flow, stores
                   tokens in macOS Keychain (the same place Safari and Mail keep
                   your passwords), and never writes them to disk in plaintext.
                   The app is sandboxed and notarized by Apple.
@@ -1053,7 +1057,8 @@ export default function HomePage() {
                 <>
                   WolfWave uses Sparkle with EdDSA-signed appcasts. Same
                   framework Things, Tower, and many other Mac apps use.
-                  Homebrew installs are managed by Homebrew instead, and you'll
+                  Homebrew installs are managed by Homebrew instead, and
+                  you&apos;ll
                   get notified when a new release lands.
                 </>
               }
@@ -1112,7 +1117,7 @@ export default function HomePage() {
           <h2 className="ww-display ww-text-1 text-5xl sm:text-6xl lg:text-7xl">
             Press play.
             <br />
-            <span className="ww-text-brand">We'll handle the rest.</span>
+            <span className="ww-text-brand">We&apos;ll handle the rest.</span>
           </h2>
           <div className="mt-10 flex flex-col sm:flex-row items-center justify-center gap-3">
             <Link href="/download" className="ww-btn ww-btn-primary">
