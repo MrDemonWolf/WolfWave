@@ -4,82 +4,28 @@ import { useState } from "react";
 import { AlbumArt } from "./AlbumArt";
 import { formatTime } from "./sample-tracks";
 import { useCyclingTrack } from "./useCyclingTrack";
+import {
+  WIDGET_THEMES,
+  WIDGET_LAYOUTS,
+  USER_THEMES,
+  DEFAULT_THEME,
+  DEFAULT_LAYOUT,
+  type WidgetThemeName,
+  type WidgetLayoutName,
+} from "./widget-themes.generated";
 
 /**
- * Theme dict ported verbatim from
- * `apps/native/WolfWave/Resources/widget-tokens.generated.js` so the
- * preview matches the real OBS browser-source output 1:1.
+ * Theme + layout data comes from `widget-themes.generated.ts`, which the
+ * design-token generator emits from `design-system/tokens.json`. That keeps
+ * this preview in lockstep with the native app's themes and its shipped
+ * default (Default / Horizontal) instead of a hand-copied dict that drifts.
  */
-const WW_THEMES = {
-  WolfWave: {
-    containerBg: "rgba(28,28,30,0.92)",
-    containerBorder: "1px solid rgba(10,132,255,0.40)",
-    containerShadow:
-      "0 0 20px rgba(10,132,255,0.30), 0 8px 32px rgba(0,0,0,0.40)",
-    containerRadius: "14px",
-    backdropFilter: "blur(20px)",
-    textPrimary: "#F5F5F7",
-    textSecondary: "#A1A1A6",
-    textShadow: "none",
-    progressTrackBg: "rgba(10,132,255,0.15)",
-    progressFillBg: "linear-gradient(90deg, #0A84FF, #409CFF)",
-  },
-  Glass: {
-    containerBg: "rgba(0,0,0,0.30)",
-    containerBorder: "1px solid rgba(255,255,255,0.10)",
-    containerShadow: "0 8px 32px rgba(0,0,0,0.20)",
-    containerRadius: "16px",
-    backdropFilter: "blur(24px)",
-    textPrimary: "#F5F5F7",
-    textSecondary: "rgba(245,245,247,0.80)",
-    textShadow: "none",
-    progressTrackBg: "rgba(255,255,255,0.10)",
-    progressFillBg: "#007AFF",
-  },
-  Neon: {
-    containerBg: "rgba(10,10,30,0.85)",
-    containerBorder: "1px solid #00FFAA",
-    containerShadow:
-      "0 0 20px rgba(0,255,170,0.30), 0 0 60px rgba(0,255,170,0.10)",
-    containerRadius: "12px",
-    backdropFilter: "none",
-    textPrimary: "#00FFAA",
-    textSecondary: "#00E5FF",
-    textShadow: "0 0 8px rgba(0,255,170,0.50)",
-    progressTrackBg: "rgba(0,255,170,0.15)",
-    progressFillBg: "linear-gradient(90deg, #00FFAA, #00E5FF)",
-  },
-  Dark: {
-    containerBg: "#0D0D0D",
-    containerBorder: "1px solid rgba(255,255,255,0.08)",
-    containerShadow: "0 4px 12px rgba(0,0,0,0.6)",
-    containerRadius: "12px",
-    backdropFilter: "none",
-    textPrimary: "#E4E4E7",
-    textSecondary: "#A1A1AA",
-    textShadow: "none",
-    progressTrackBg: "rgba(255,255,255,0.08)",
-    progressFillBg: "#A78BFA",
-  },
-  Light: {
-    containerBg: "rgba(255,255,255,0.92)",
-    containerBorder: "1px solid rgba(0,0,0,0.08)",
-    containerShadow: "0 4px 16px rgba(0,0,0,0.10)",
-    containerRadius: "12px",
-    backdropFilter: "blur(16px)",
-    textPrimary: "#18181B",
-    textSecondary: "#3F3F46",
-    textShadow: "none",
-    progressTrackBg: "rgba(0,0,0,0.08)",
-    progressFillBg: "#3B82F6",
-  },
-} as const;
+type ThemeName = WidgetThemeName;
+type LayoutName = WidgetLayoutName;
+type ThemeVals = (typeof WIDGET_THEMES)[ThemeName];
 
-type ThemeName = keyof typeof WW_THEMES;
-type LayoutName = "Horizontal" | "Vertical" | "Compact";
-
-const THEMES: ThemeName[] = ["WolfWave", "Glass", "Neon", "Dark", "Light"];
-const LAYOUTS: LayoutName[] = ["Horizontal", "Vertical", "Compact"];
+const THEMES: ThemeName[] = USER_THEMES;
+const LAYOUTS = Object.keys(WIDGET_LAYOUTS) as LayoutName[];
 
 /**
  * Recreation of the live WolfWave OBS browser-source overlay.
@@ -92,8 +38,8 @@ const LAYOUTS: LayoutName[] = ["Horizontal", "Vertical", "Compact"];
  * better than any static screenshot could.
  */
 export function OBSOverlayWidget() {
-  const [theme, setTheme] = useState<ThemeName>("WolfWave");
-  const [layout, setLayout] = useState<LayoutName>("Horizontal");
+  const [theme, setTheme] = useState<ThemeName>(DEFAULT_THEME);
+  const [layout, setLayout] = useState<LayoutName>(DEFAULT_LAYOUT);
 
   return (
     <div style={{ width: "100%" }}>
@@ -112,7 +58,7 @@ export function OBSOverlayWidget() {
           padding: 16,
         }}
       >
-        <WidgetCard theme={WW_THEMES[theme]} layout={layout} />
+        <WidgetCard theme={WIDGET_THEMES[theme]} layout={layout} />
       </div>
       <span className="sr-only">
         Interactive widget preview cycling fictional sample tracks. Use the
@@ -126,12 +72,16 @@ function WidgetCard({
   theme,
   layout,
 }: {
-  theme: (typeof WW_THEMES)[ThemeName];
+  theme: ThemeVals;
   layout: LayoutName;
 }) {
   const { track, elapsedSec, progress, motionEnabled } = useCyclingTrack();
 
-  const base = {
+  const dims = WIDGET_LAYOUTS[layout];
+  const scrim = theme.overlayBg && theme.overlayBg !== "transparent";
+
+  const shell = {
+    position: "relative" as const,
     background: theme.containerBg,
     border: theme.containerBorder,
     boxShadow: theme.containerShadow,
@@ -143,36 +93,188 @@ function WidgetCard({
     fontFamily:
       "'Instrument Sans', var(--ds-font-family-sans), system-ui, sans-serif",
     overflow: "hidden" as const,
+    width: "100%",
+    maxWidth: dims.maxWidth,
     transition:
       "background 0.25s ease, border-color 0.25s ease, box-shadow 0.25s ease, border-radius 0.25s ease",
   };
+
+  // Transparent themes (Default) read against the OBS scene, not a card.
+  // Mirror widget.html: a blurred copy of the artwork fills the frame with a
+  // dark scrim over it so the text stays legible. Marketing art is a CSS
+  // gradient, so we blur the gradient itself.
+  const bgLayers = (
+    <>
+      {theme.showArtworkBlur ? (
+        <div
+          aria-hidden="true"
+          style={{
+            position: "absolute",
+            inset: 0,
+            background: track.gradient,
+            transform: "scale(1.4)",
+            filter: "blur(22px)",
+            transition: "background 0.4s ease",
+          }}
+        />
+      ) : null}
+      {scrim ? (
+        <div
+          aria-hidden="true"
+          style={{ position: "absolute", inset: 0, background: theme.overlayBg }}
+        />
+      ) : null}
+    </>
+  );
 
   if (layout === "Compact") {
     return (
       <div
         role="group"
         aria-roledescription="OBS overlay demo"
+        style={{ ...shell, height: dims.height }}
+      >
+        {bgLayers}
+        <div
+          style={{
+            position: "relative",
+            zIndex: 1,
+            height: "100%",
+            display: "flex",
+            alignItems: "center",
+            gap: 10,
+            padding: "8px 12px",
+          }}
+        >
+          <AlbumArt
+            gradient={track.gradient}
+            glyph={track.glyph}
+            size={40}
+            radius={6}
+          />
+          <div style={{ minWidth: 0, flex: 1 }}>
+            <div
+              style={{
+                fontSize: 13,
+                fontWeight: 600,
+                lineHeight: 1.2,
+                whiteSpace: "nowrap",
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+              }}
+            >
+              {track.title}
+            </div>
+            <div
+              style={{
+                fontSize: 11,
+                color: theme.textSecondary,
+                marginTop: 1,
+                whiteSpace: "nowrap",
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+              }}
+            >
+              {track.artist}
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (layout === "Vertical") {
+    return (
+      <div role="group" aria-roledescription="OBS overlay demo" style={shell}>
+        {bgLayers}
+        <div
+          style={{
+            position: "relative",
+            zIndex: 1,
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            gap: 12,
+            padding: 14,
+          }}
+        >
+          <AlbumArt
+            gradient={track.gradient}
+            glyph={track.glyph}
+            size={184}
+            radius={10}
+          />
+          <div style={{ width: "100%", textAlign: "center" }}>
+            <div
+              style={{
+                fontSize: 14,
+                fontWeight: 600,
+                lineHeight: 1.25,
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+                whiteSpace: "nowrap",
+              }}
+            >
+              {track.title}
+            </div>
+            <div
+              style={{
+                fontSize: 12,
+                color: theme.textSecondary,
+                marginTop: 4,
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+                whiteSpace: "nowrap",
+              }}
+            >
+              {track.artist}
+            </div>
+          </div>
+          <ProgressBar
+            theme={theme}
+            elapsedSec={elapsedSec}
+            durationSec={track.durationSec}
+            progress={progress}
+            motionEnabled={motionEnabled}
+            showCounters
+          />
+        </div>
+      </div>
+    );
+  }
+
+  // Horizontal (default)
+  return (
+    <div
+      role="group"
+      aria-roledescription="OBS overlay demo"
+      style={{ ...shell, height: dims.height }}
+    >
+      {bgLayers}
+      <div
         style={{
-          ...base,
-          width: "100%",
-          maxWidth: 350,
-          height: 56,
-          padding: "8px 12px",
-          display: "flex",
+          position: "relative",
+          zIndex: 1,
+          height: "100%",
+          display: "grid",
+          gridTemplateColumns: "80px 1fr",
+          gap: 12,
           alignItems: "center",
-          gap: 10,
+          padding: 10,
         }}
       >
         <AlbumArt
           gradient={track.gradient}
           glyph={track.glyph}
-          size={40}
-          radius={6}
+          size={80}
+          radius={8}
         />
-        <div style={{ minWidth: 0, flex: 1 }}>
+        <div
+          style={{ minWidth: 0, display: "flex", flexDirection: "column", gap: 6 }}
+        >
           <div
             style={{
-              fontSize: 13,
+              fontSize: 15,
               fontWeight: 600,
               lineHeight: 1.2,
               whiteSpace: "nowrap",
@@ -184,136 +286,24 @@ function WidgetCard({
           </div>
           <div
             style={{
-              fontSize: 11,
-              color: theme.textSecondary,
-              marginTop: 1,
-              whiteSpace: "nowrap",
-              overflow: "hidden",
-              textOverflow: "ellipsis",
-            }}
-          >
-            {track.artist}
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  if (layout === "Vertical") {
-    return (
-      <div
-        role="group"
-        aria-roledescription="OBS overlay demo"
-        style={{
-          ...base,
-          width: "100%",
-          maxWidth: 220,
-          padding: 14,
-          display: "flex",
-          flexDirection: "column",
-          alignItems: "center",
-          gap: 12,
-        }}
-      >
-        <AlbumArt
-          gradient={track.gradient}
-          glyph={track.glyph}
-          size={184}
-          radius={10}
-        />
-        <div style={{ width: "100%", textAlign: "center" }}>
-          <div
-            style={{
-              fontSize: 14,
-              fontWeight: 600,
-              lineHeight: 1.25,
-              overflow: "hidden",
-              textOverflow: "ellipsis",
-              whiteSpace: "nowrap",
-            }}
-          >
-            {track.title}
-          </div>
-          <div
-            style={{
               fontSize: 12,
               color: theme.textSecondary,
-              marginTop: 4,
+              whiteSpace: "nowrap",
               overflow: "hidden",
               textOverflow: "ellipsis",
-              whiteSpace: "nowrap",
             }}
           >
             {track.artist}
           </div>
+          <ProgressBar
+            theme={theme}
+            elapsedSec={elapsedSec}
+            durationSec={track.durationSec}
+            progress={progress}
+            motionEnabled={motionEnabled}
+            showCounters
+          />
         </div>
-        <ProgressBar
-          theme={theme}
-          elapsedSec={elapsedSec}
-          durationSec={track.durationSec}
-          progress={progress}
-          motionEnabled={motionEnabled}
-          showCounters
-        />
-      </div>
-    );
-  }
-
-  // Horizontal (default)
-  return (
-    <div
-      role="group"
-      aria-roledescription="OBS overlay demo"
-      style={{
-        ...base,
-        width: "100%",
-        maxWidth: 500,
-        height: 100,
-        padding: 10,
-        display: "grid",
-        gridTemplateColumns: "80px 1fr",
-        gap: 12,
-        alignItems: "center",
-      }}
-    >
-      <AlbumArt
-        gradient={track.gradient}
-        glyph={track.glyph}
-        size={80}
-        radius={8}
-      />
-      <div style={{ minWidth: 0, display: "flex", flexDirection: "column", gap: 6 }}>
-        <div
-          style={{
-            fontSize: 15,
-            fontWeight: 600,
-            lineHeight: 1.2,
-            whiteSpace: "nowrap",
-            overflow: "hidden",
-            textOverflow: "ellipsis",
-          }}
-        >
-          {track.title}
-        </div>
-        <div
-          style={{
-            fontSize: 12,
-            color: theme.textSecondary,
-            whiteSpace: "nowrap",
-            overflow: "hidden",
-            textOverflow: "ellipsis",
-          }}
-        >
-          {track.artist}
-        </div>
-        <ProgressBar
-          theme={theme}
-          elapsedSec={elapsedSec}
-          durationSec={track.durationSec}
-          progress={progress}
-          motionEnabled={motionEnabled}
-          showCounters
-        />
       </div>
     </div>
   );
@@ -327,7 +317,7 @@ function ProgressBar({
   motionEnabled,
   showCounters,
 }: {
-  theme: (typeof WW_THEMES)[ThemeName];
+  theme: ThemeVals;
   elapsedSec: number;
   durationSec: number;
   progress: number;

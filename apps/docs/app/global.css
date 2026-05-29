@@ -201,18 +201,43 @@
   font-family: var(--font-unbounded), -apple-system, BlinkMacSystemFont,
     "SF Pro Display", "Inter", system-ui, sans-serif;
   font-weight: 700;
-  letter-spacing: -0.04em;
-  line-height: 1.02;
-  font-size: clamp(2rem, 10vw, 6.75rem);
+  letter-spacing: -0.035em;
+  line-height: 1.05;
+  font-size: clamp(2.25rem, 6vw, 3.75rem);
   margin: 0;
-  word-break: break-word;
-  hyphens: auto;
+  text-wrap: balance;
 }
-@media (min-width: 768px) {
+@media (min-width: 1024px) {
   .ww-hero-headline {
-    line-height: 0.98;
-    letter-spacing: -0.045em;
+    line-height: 1.02;
+    letter-spacing: -0.04em;
   }
+}
+
+/* ── Hero product card. Soft seated glow + idle float ────── */
+.ww-hero-card-glow {
+  position: absolute;
+  inset: 8% -6%;
+  z-index: 0;
+  background: radial-gradient(
+    ellipse 70% 60% at 50% 50%,
+    rgba(10, 132, 255, 0.16) 0%,
+    transparent 70%
+  );
+  filter: blur(8px);
+  pointer-events: none;
+}
+.ww-hero-card-float {
+  z-index: 1;
+  will-change: transform;
+  animation: ww-card-float 7s ease-in-out infinite;
+}
+@keyframes ww-card-float {
+  0%, 100% { transform: translateY(0); }
+  50%      { transform: translateY(-7px); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .ww-hero-card-float { animation: none; }
 }
 
 /* ── Hero subtle radial (only decorative element) ────────── */

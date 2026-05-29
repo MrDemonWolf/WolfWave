@@ -243,6 +243,7 @@ window.WW_TOKENS = {
       "showArtworkBlur": false
     },
     "WolfWave": {
+      "hidden": true,
       "containerBg": "rgba(28,28,30,0.92)",
       "containerBorder": "1px solid rgba(10,132,255,0.40)",
       "containerShadow": "0 0 20px rgba(10,132,255,0.30), 0 8px 32px rgba(0,0,0,0.40)",
@@ -271,5 +272,7 @@ window.WW_TOKENS = {
       "maxWidth": 350,
       "height": 56
     }
-  }
+  },
+  "defaultTheme": "Default",
+  "defaultLayout": "Horizontal"
 };

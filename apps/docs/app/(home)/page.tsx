@@ -19,6 +19,7 @@ import {
 } from "lucide-react";
 import { DeveloperTabs } from "./DeveloperTabs";
 import { DiscordPresenceCard } from "./_widgets/DiscordPresenceCard";
+import { HeroNowPlaying } from "./_widgets/HeroNowPlaying";
 import { OBSOverlayWidget } from "./_widgets/OBSOverlayWidget";
 
 export const metadata: Metadata = {
@@ -153,58 +154,71 @@ export default function HomePage() {
       {/* ═══════════════ HERO ═══════════════ */}
       <section className="relative overflow-hidden">
         <div className="ww-hero-glow" aria-hidden="true" />
-        <div className="relative z-10 px-6 pt-12 pb-16 sm:pt-24 sm:pb-24">
-          <div className="mx-auto max-w-4xl text-center">
-            <p className="ww-reveal ww-reveal-1 ww-text-brand text-sm font-semibold mb-5">
-              Built for Apple Music · macOS 26+
-            </p>
-            <h1 className="ww-reveal ww-reveal-1 ww-hero-headline ww-text-1">
-              Streaming tools are built for Spotify.
-              <br />
-              <span className="ww-text-brand">This one's for Apple Music.</span>
-            </h1>
-            <p className="ww-reveal ww-reveal-2 ww-text-2 text-lg sm:text-xl mt-7 max-w-2xl mx-auto leading-relaxed">
-              WolfWave is a tiny Mac menu bar app for the people who actually
-              use Apple Music. Press play and your Twitch chat, your Discord
-              profile, and your stream overlay all update on their own.
-            </p>
-            <div className="ww-reveal ww-reveal-3 mt-10 flex flex-col sm:flex-row items-center justify-center gap-3">
-              <Link href="/download" className="ww-btn ww-btn-primary">
-                <Download className="w-4 h-4" />
-                Download for Mac
-              </Link>
-              <Link href="/docs" className="ww-btn ww-btn-secondary">
-                See how it works
-                <ArrowRight className="w-4 h-4" />
-              </Link>
-            </div>
-            <p className="mt-5 text-sm ww-text-2">
-              Free and open source · ~10 MB · No account needed · macOS 26+ · Apple Silicon
-            </p>
+        <div className="relative z-10 px-6 pt-12 pb-16 sm:pt-20 sm:pb-24">
+          <div className="mx-auto max-w-6xl grid lg:grid-cols-[1.05fr_0.95fr] gap-12 lg:gap-16 items-center">
+            {/* Claim */}
+            <div className="text-center lg:text-left">
+              <p className="ww-reveal ww-reveal-1 ww-text-brand text-sm font-semibold mb-5">
+                Built for Apple Music · macOS 26+
+              </p>
+              <h1 className="ww-reveal ww-reveal-1 ww-hero-headline ww-text-1">
+                Streaming tools are built for Spotify.{" "}
+                <span className="ww-text-brand">This one&apos;s for Apple Music.</span>
+              </h1>
+              <p className="ww-reveal ww-reveal-2 ww-text-2 text-lg sm:text-xl mt-6 max-w-xl mx-auto lg:mx-0 leading-relaxed">
+                WolfWave is a tiny Mac menu bar app for the people who actually
+                use Apple Music. Press play and your Twitch chat, your Discord
+                profile, and your stream overlay all update on their own.
+              </p>
+              <div className="ww-reveal ww-reveal-3 mt-8 flex flex-col sm:flex-row items-center justify-center lg:justify-start gap-3">
+                <Link href="/download" className="ww-btn ww-btn-primary">
+                  <Download className="w-4 h-4" />
+                  Download for Mac
+                </Link>
+                <Link href="/docs" className="ww-btn ww-btn-secondary">
+                  See how it works
+                  <ArrowRight className="w-4 h-4" />
+                </Link>
+              </div>
+              <p className="mt-5 text-sm ww-text-2">
+                Free and open source · ~10 MB · No account needed · macOS 26+ · Apple Silicon
+              </p>
 
-            {/* Trust strip. Credibility badges, no fabricated quotes */}
-            <div className="ww-reveal ww-reveal-3 mt-8 flex flex-wrap items-center justify-center gap-2">
-              <a
-                href="https://github.com/MrDemonWolf/WolfWave"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="ww-pill"
-                aria-label="View WolfWave on GitHub"
-              >
-                <Github className="w-3 h-3" /> Open source · MIT
-              </a>
-              <span className="ww-pill">
-                <Shield className="w-3 h-3" /> Signed &amp; notarized by Apple
-              </span>
-              <a
-                href="https://mrdwolf.net/discord"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="ww-pill"
-                aria-label="Join the Discord community"
-              >
-                <Radio className="w-3 h-3" /> Discord community
-              </a>
+              {/* Trust strip. Credibility badges, no fabricated quotes */}
+              <div className="ww-reveal ww-reveal-3 mt-7 flex flex-wrap items-center justify-center lg:justify-start gap-2">
+                <a
+                  href="https://github.com/MrDemonWolf/WolfWave"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="ww-pill"
+                  aria-label="View WolfWave on GitHub"
+                >
+                  <Github className="w-3 h-3" /> Open source · MIT
+                </a>
+                <span className="ww-pill">
+                  <Shield className="w-3 h-3" /> Signed &amp; notarized by Apple
+                </span>
+                <a
+                  href="https://mrdwolf.net/discord"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="ww-pill"
+                  aria-label="Join the Discord community"
+                >
+                  <Radio className="w-3 h-3" /> Discord community
+                </a>
+              </div>
+            </div>
+
+            {/* Product visual */}
+            <div className="ww-reveal ww-reveal-2 relative flex justify-center lg:justify-end">
+              <div
+                aria-hidden="true"
+                className="ww-hero-card-glow"
+              />
+              <div className="ww-hero-card-float relative">
+                <HeroNowPlaying />
+              </div>
             </div>
           </div>
 

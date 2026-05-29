@@ -260,8 +260,45 @@ function generateWidgetJS(): string {
     shadow: tokens.shadow,
     themes: tokens.widget?.themes ?? {},
     layouts: tokens.widget?.layouts ?? {},
+    defaultTheme: tokens.widget?.defaultTheme ?? "Default",
+    defaultLayout: tokens.widget?.defaultLayout ?? "Horizontal",
   };
   return `${banner}\nwindow.WW_TOKENS = ${JSON.stringify(obj, null, 2)};\n`;
+}
+
+// ── Docs widget themes TS ───────────────────────────────────────────────────
+// Typed module the marketing site imports so its OBS-overlay preview stays in
+// sync with the native app's themes + default. `USER_THEMES` excludes any theme
+// marked `hidden` in tokens.json (matches the native picker list).
+function generateDocsWidgetThemes(): string {
+  const banner = `/*\n * ${BANNER_LINES.join("\n * ")}\n */`;
+  const themes = (tokens.widget?.themes ?? {}) as Record<
+    string,
+    Record<string, unknown> & { hidden?: boolean }
+  >;
+  const layouts = tokens.widget?.layouts ?? {};
+  const defaultTheme = tokens.widget?.defaultTheme ?? "Default";
+  const defaultLayout = tokens.widget?.defaultLayout ?? "Horizontal";
+  const userThemes = Object.entries(themes)
+    .filter(([, v]) => !v.hidden)
+    .map(([k]) => k);
+  return [
+    banner,
+    "",
+    `export const WIDGET_THEMES = ${JSON.stringify(themes, null, 2)} as const;`,
+    "",
+    `export const WIDGET_LAYOUTS = ${JSON.stringify(layouts, null, 2)} as const;`,
+    "",
+    "export type WidgetThemeName = keyof typeof WIDGET_THEMES;",
+    "export type WidgetLayoutName = keyof typeof WIDGET_LAYOUTS;",
+    "",
+    "/** Themes shown in the picker (excludes `hidden` themes). */",
+    `export const USER_THEMES: WidgetThemeName[] = ${JSON.stringify(userThemes)};`,
+    "",
+    `export const DEFAULT_THEME: WidgetThemeName = ${JSON.stringify(defaultTheme)};`,
+    `export const DEFAULT_LAYOUT: WidgetLayoutName = ${JSON.stringify(defaultLayout)};`,
+    "",
+  ].join("\n");
 }
 
 // ── Marketing TS ──────────────────────────────────────────────────────────
@@ -294,4 +331,8 @@ write(
   generateWidgetJS()
 );
 write("apps/marketing/shared/tokens.generated.ts", generateTS());
+write(
+  "apps/docs/app/(home)/_widgets/widget-themes.generated.ts",
+  generateDocsWidgetThemes()
+);
 console.log("Done.");
