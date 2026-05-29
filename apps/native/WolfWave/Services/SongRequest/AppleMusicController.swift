@@ -124,8 +124,15 @@ final class AppleMusicController: AppleMusicControlling {
     // MARK: - Playback State (via AppleScript → Music.app)
 
     /// Whether Music.app is currently playing.
+    ///
+    /// Returns `false` without scripting when Music.app is closed. A bare
+    /// `tell application "Music"` auto-launches Music.app, so probing player
+    /// state on a closed app would relaunch it — the exact behavior that kept
+    /// Music popping back open after the user quit it (poll loop in
+    /// `SongRequestService`).
     var isPlaying: Bool {
-        runAppleScript("""
+        guard isMusicAppRunning else { return false }
+        return runAppleScript("""
         tell application "Music"
             if player state is playing then
                 return "true"
@@ -137,8 +144,12 @@ final class AppleMusicController: AppleMusicControlling {
     }
 
     /// Whether Music.app is paused (as opposed to stopped or finished).
+    ///
+    /// Returns `false` without scripting when Music.app is closed — see
+    /// `isPlaying` for why probing a closed app must be avoided.
     var isPaused: Bool {
-        runAppleScript("""
+        guard isMusicAppRunning else { return false }
+        return runAppleScript("""
         tell application "Music"
             if player state is paused then
                 return "true"
@@ -305,7 +316,11 @@ final class AppleMusicController: AppleMusicControlling {
     }
 
     /// Stop playback in Music.app.
+    ///
+    /// No-op when Music.app is closed — there is nothing to stop, and a bare
+    /// `tell application "Music"` would relaunch the app the user just quit.
     func clearPlayerQueue() async {
+        guard isMusicAppRunning else { return }
         runAppleScript("""
         tell application "Music"
             stop

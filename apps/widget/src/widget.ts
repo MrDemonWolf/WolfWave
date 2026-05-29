@@ -719,15 +719,19 @@ function handleMessage(msg: WSMessage): void {
     }
     case "playback_state": {
       const data = msg.data;
-      if (nowPlaying) Object.assign(nowPlaying, data);
       if (!data.isPlaying) {
-        // Freeze elapsed at current computed value so resume doesn't jump.
-        elapsedRef = { value: elapsed, timestamp: Date.now(), isPlaying: false };
+        // The server only emits `playback_state { isPlaying: false }` when
+        // playback has fully stopped — Music.app quit, permission revoked, or
+        // the source errored (`WebSocketServerService.clearNowPlaying`). A
+        // *pause* arrives as a `now_playing` message with `isPlaying: false`
+        // instead, so this branch always means "nothing is playing" and the
+        // overlay should leave the stream rather than linger on the last track.
+        nowPlaying = null;
+        elapsedRef = { value: 0, timestamp: Date.now(), isPlaying: false };
         stopProgressLoop();
-        // Don't exit — paused track stays on stream with `.is-paused` styling.
-        // Re-render so the pause overlay + dim filter apply.
-        buildWidget();
+        exitWidget();
       } else {
+        if (nowPlaying) Object.assign(nowPlaying, data);
         elapsedRef = { value: elapsed, timestamp: Date.now(), isPlaying: true };
         if (!visible) enterWidget();
         buildWidget();

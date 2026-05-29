@@ -263,10 +263,22 @@ actor WebSocketServerService {
         }
     }
 
-    /// Marks playback as stopped and broadcasts the state change.
+    /// Marks playback as fully stopped and broadcasts the state change.
+    ///
+    /// Called when Music.app quits, permission is revoked, or the source
+    /// errors — never on a plain pause (that path keeps the track and goes
+    /// through `updateNowPlaying`). Clears the cached track so a stale song
+    /// can't leak into a later `now_playing` re-broadcast, and so overlay
+    /// clients hide the card instead of lingering on the last track.
     func clearNowPlaying() {
         isPlaying = false
         lastElapsedUpdate = nil
+        currentTrack = nil
+        currentArtist = nil
+        currentAlbum = nil
+        currentArtworkURL = nil
+        currentDuration = 0
+        currentElapsed = 0
 
         stopProgressTimer()
         broadcastPlaybackState()

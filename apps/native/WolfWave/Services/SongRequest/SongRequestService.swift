@@ -151,6 +151,10 @@ final class SongRequestService {
 
                 guard self.isAutoAdvanceEnabled else { continue }
                 guard !self.isHoldEnabled else { continue }
+                // Music.app closed — nothing to advance, and probing player state
+                // would relaunch the app the user just quit. Buffered requests
+                // flush via the didLaunchApplication observer when Music reopens.
+                guard self.musicController.isMusicAppRunning else { continue }
                 // Don't advance when the user has paused — only when playback has stopped/finished
                 guard !self.musicController.isPlaying && !self.musicController.isPaused else { continue }
 
