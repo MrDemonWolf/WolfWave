@@ -90,9 +90,12 @@ nonisolated enum WebSocketAuthToken {
         return token.prefix(4) + "…"
     }
 
-    // MARK: - Private
+    // MARK: - Generation
 
-    private static func generate() -> String {
+    /// Mints a fresh 64-hex-char (32 random byte) token. Exposed at module scope
+    /// so unit tests can verify token shape and uniqueness without round-tripping
+    /// through the Keychain (which prompts for access under ad-hoc test signing).
+    static func generate() -> String {
         var bytes = [UInt8](repeating: 0, count: 32)
         let status = SecRandomCopyBytes(kSecRandomDefault, bytes.count, &bytes)
         if status != errSecSuccess {

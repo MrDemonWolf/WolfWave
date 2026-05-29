@@ -233,14 +233,10 @@ extension SparkleUpdaterService: SPUUpdaterDelegate {
         let version = item.displayVersionString
         Log.info("SparkleUpdaterService: Update found — v\(version)", category: "Update")
 
-        NotificationCenter.default.post(
-            name: Notification.Name.updateStateChanged,
-            object: nil,
-            userInfo: [
-                "isUpdateAvailable": true,
-                "latestVersion": version,
-                "releaseURL": item.infoURL?.absoluteString ?? ""
-            ]
+        NotificationCenter.default.postUpdateState(
+            isUpdateAvailable: true,
+            latestVersion: version,
+            releaseURL: item.infoURL?.absoluteString ?? ""
         )
     }
 
@@ -248,13 +244,9 @@ extension SparkleUpdaterService: SPUUpdaterDelegate {
     func updaterDidNotFindUpdate(_ updater: SPUUpdater) {
         Log.info("SparkleUpdaterService: No update available — app is up to date", category: "Update")
 
-        NotificationCenter.default.post(
-            name: Notification.Name.updateStateChanged,
-            object: nil,
-            userInfo: [
-                "isUpdateAvailable": false,
-                "latestVersion": Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "Unknown"
-            ]
+        NotificationCenter.default.postUpdateState(
+            isUpdateAvailable: false,
+            latestVersion: Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "Unknown"
         )
     }
 

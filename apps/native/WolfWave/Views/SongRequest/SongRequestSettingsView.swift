@@ -87,7 +87,7 @@ struct SongRequestSettingsView: View {
             refreshTwitchState()
         }
         .onReceive(NotificationCenter.default.publisher(for: Notification.Name.twitchConnectionStateChanged)) { notification in
-            if let connected = notification.userInfo?["isConnected"] as? Bool {
+            if let connected = notification.isConnectedFlag {
                 updateTwitchState(connected)
             }
         }
@@ -109,11 +109,7 @@ struct SongRequestSettingsView: View {
         isTwitchConnected = connected
         if !connected && songRequestEnabled {
             songRequestEnabled = false
-            NotificationCenter.default.post(
-                name: Notification.Name.songRequestSettingChanged,
-                object: nil,
-                userInfo: ["enabled": false]
-            )
+            NotificationCenter.default.postEnabled(.songRequestSettingChanged, enabled: false)
         }
     }
 }
@@ -170,11 +166,7 @@ fileprivate struct SongRequestMasterToggleCard: View {
                 accessibilityLabel: "Enable song requests",
                 accessibilityIdentifier: "songRequests.enableToggle",
                 onChange: { enabled in
-                    NotificationCenter.default.post(
-                        name: Notification.Name.songRequestSettingChanged,
-                        object: nil,
-                        userInfo: ["enabled": enabled]
-                    )
+                    NotificationCenter.default.postEnabled(.songRequestSettingChanged, enabled: enabled)
                 }
             )
         }

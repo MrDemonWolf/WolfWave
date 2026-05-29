@@ -28,6 +28,20 @@ final class OnboardingViewModel {
         case preferences = 4
         case appleMusicAccess = 5
         case menuBarPointer = 6
+
+        /// Short spoken name for VoiceOver, used in the progress indicator's
+        /// accessibility value (e.g. "Step 3 of 7: Twitch").
+        nonisolated var accessibilityTitle: String {
+            switch self {
+            case .welcome: return "Welcome"
+            case .discordConnect: return "Discord"
+            case .twitchConnect: return "Twitch"
+            case .obsWidget: return "OBS Widget"
+            case .preferences: return "Preferences"
+            case .appleMusicAccess: return "Apple Music Access"
+            case .menuBarPointer: return "Menu Bar"
+            }
+        }
     }
 
     // MARK: - Observable State

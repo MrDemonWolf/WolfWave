@@ -84,13 +84,9 @@ struct DebugUIPreviewsCard: View {
             Divider().padding(.vertical, DSSpace.s1)
 
             Button {
-                NotificationCenter.default.post(
-                    name: .updateStateChanged,
-                    object: nil,
-                    userInfo: [
-                        "isUpdateAvailable": true,
-                        "latestVersion": "99.0.0",
-                    ]
+                NotificationCenter.default.postUpdateState(
+                    isUpdateAvailable: true,
+                    latestVersion: "99.0.0"
                 )
             } label: {
                 Label("Simulate Update Available", systemImage: "arrow.down.app")

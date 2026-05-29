@@ -140,10 +140,11 @@ struct MusicMonitorSettingsView: View {
         }
         .onReceive(notif(AppConstants.Notifications.nowPlayingChanged)) { notification in
             withAnimation(.easeInOut(duration: DSMotion.Duration.base)) {
-                currentTrack = notification.userInfo?["track"] as? String
-                currentArtist = notification.userInfo?["artist"] as? String
-                currentAlbum = notification.userInfo?["album"] as? String
-                currentIsPaused = notification.userInfo?["isPaused"] as? Bool ?? false
+                let payload = notification.nowPlaying
+                currentTrack = payload.track
+                currentArtist = payload.artist
+                currentAlbum = payload.album
+                currentIsPaused = payload.isPaused
             }
             // A successful track read implies the user has granted access.
             if currentTrack != nil, permissionState == .denied {
@@ -153,19 +154,17 @@ struct MusicMonitorSettingsView: View {
         }
         .onReceive(notif(AppConstants.Notifications.twitchConnectionStateChanged)) { notification in
             withAnimation(.easeInOut(duration: DSMotion.Duration.base)) {
-                twitchConnected = notification.userInfo?["isConnected"] as? Bool ?? false
+                twitchConnected = notification.isConnectedFlag ?? false
             }
         }
         .onReceive(notif(AppConstants.Notifications.discordStateChanged)) { notification in
             withAnimation(.easeInOut(duration: DSMotion.Duration.base)) {
-                let state = notification.userInfo?["state"] as? String ?? ""
-                discordActive = state == "connected"
+                discordActive = (notification.stateString ?? "") == "connected"
             }
         }
         .onReceive(notif(AppConstants.Notifications.websocketServerStateChanged)) { notification in
             withAnimation(.easeInOut(duration: DSMotion.Duration.base)) {
-                let state = notification.userInfo?["state"] as? String ?? ""
-                widgetRunning = state == "listening"
+                widgetRunning = (notification.stateString ?? "") == "listening"
             }
         }
         .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
@@ -453,11 +452,7 @@ struct MusicMonitorSettingsView: View {
     ///
     /// - Parameter enabled: New tracking value.
     private func notifyTrackingSettingChanged(enabled: Bool) {
-        NotificationCenter.default.post(
-            name: Notification.Name.trackingSettingChanged,
-            object: nil,
-            userInfo: ["enabled": enabled]
-        )
+        NotificationCenter.default.postEnabled(.trackingSettingChanged, enabled: enabled)
     }
 }
 
@@ -503,14 +498,10 @@ private extension UInt16 {
         .padding()
         .frame(width: 720)
         .onAppear {
-            NotificationCenter.default.post(
-                name: Notification.Name.nowPlayingChanged,
-                object: nil,
-                userInfo: [
-                    "track": "Anti-Hero",
-                    "artist": "Taylor Swift",
-                    "album": "Midnights"
-                ]
+            NotificationCenter.default.postNowPlaying(
+                track: "Anti-Hero",
+                artist: "Taylor Swift",
+                album: "Midnights"
             )
         }
 }

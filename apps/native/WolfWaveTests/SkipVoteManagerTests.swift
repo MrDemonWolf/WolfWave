@@ -90,9 +90,9 @@ final class SkipVoteManagerTests: WolfWaveTestCase {
     func testThresholdReachedSkipsAndPasses() async {
         enableFeature(minVotes: 3)
         let manager = SkipVoteManager()
-        let skipCount = AtomicInt()
+        let skipCount = Atomic(0)
         await manager.configure(
-            performSkip: { skipCount.increment() },
+            performSkip: { skipCount.mutate { $0 += 1 } },
             sendChatMessage: nil,
             createPoll: nil
         )
@@ -110,7 +110,7 @@ final class SkipVoteManagerTests: WolfWaveTestCase {
     func testMinVotesOnePassesImmediately() async {
         enableFeature(minVotes: 1)
         let manager = SkipVoteManager()
-        let skipped = AtomicBool()
+        let skipped = Atomic(false)
         await manager.configure(
             performSkip: { skipped.set(true) },
             sendChatMessage: nil,
@@ -135,9 +135,9 @@ final class SkipVoteManagerTests: WolfWaveTestCase {
     func testDuplicateVoteDoesNotCrossThreshold() async {
         enableFeature(minVotes: 2)
         let manager = SkipVoteManager()
-        let skipCount = AtomicInt()
+        let skipCount = Atomic(0)
         await manager.configure(
-            performSkip: { skipCount.increment() },
+            performSkip: { skipCount.mutate { $0 += 1 } },
             sendChatMessage: nil,
             createPoll: nil
         )
@@ -196,7 +196,7 @@ final class SkipVoteManagerTests: WolfWaveTestCase {
     func testWindowExpiryFailsSession() async throws {
         enableFeature(minVotes: 5, window: 1)
         let manager = SkipVoteManager()
-        let chatMessage = AtomicString()
+        let chatMessage = Atomic<String?>(nil)
         await manager.configure(
             performSkip: nil,
             sendChatMessage: { chatMessage.set($0) },
@@ -266,7 +266,7 @@ final class SkipVoteManagerTests: WolfWaveTestCase {
     func testPollEndedSkipsWhenSkipWins() async {
         enableFeature(minVotes: 3)
         let manager = SkipVoteManager()
-        let skipped = AtomicBool()
+        let skipped = Atomic(false)
         await manager.configure(
             performSkip: { skipped.set(true) },
             sendChatMessage: nil,
@@ -279,7 +279,7 @@ final class SkipVoteManagerTests: WolfWaveTestCase {
     func testPollEndedDoesNotSkipBelowMinimum() async {
         enableFeature(minVotes: 10)
         let manager = SkipVoteManager()
-        let skipped = AtomicBool()
+        let skipped = Atomic(false)
         await manager.configure(
             performSkip: { skipped.set(true) },
             sendChatMessage: nil,
@@ -292,7 +292,7 @@ final class SkipVoteManagerTests: WolfWaveTestCase {
     func testPollEndedDoesNotSkipWhenKeepWins() async {
         enableFeature(minVotes: 1)
         let manager = SkipVoteManager()
-        let skipped = AtomicBool()
+        let skipped = Atomic(false)
         await manager.configure(
             performSkip: { skipped.set(true) },
             sendChatMessage: nil,
@@ -303,27 +303,21 @@ final class SkipVoteManagerTests: WolfWaveTestCase {
     }
 }
 
-// MARK: - Sendable Atomic Boxes for closure capture
+// MARK: - Sendable Atomic Box for closure capture
 
-/// Thread-safe Int counter — used by `@Sendable` closures captured into the
-/// actor under test. NSLock is fine here; the test isn't measuring lock perf.
-private final class AtomicInt: @unchecked Sendable {
+/// Thread-safe value box — used by `@Sendable` closures captured into the actor
+/// under test. NSLock is fine here; the test isn't measuring lock perf.
+private final class Atomic<Value>: @unchecked Sendable {
     private let lock = NSLock()
-    private var stored = 0
-    var value: Int { lock.withLock { stored } }
-    func increment() { lock.withLock { stored += 1 } }
-}
+    private var stored: Value
 
-private final class AtomicBool: @unchecked Sendable {
-    private let lock = NSLock()
-    private var stored = false
-    var value: Bool { lock.withLock { stored } }
-    func set(_ newValue: Bool) { lock.withLock { stored = newValue } }
-}
+    init(_ value: Value) { stored = value }
 
-private final class AtomicString: @unchecked Sendable {
-    private let lock = NSLock()
-    private var stored: String?
-    var value: String? { lock.withLock { stored } }
-    func set(_ newValue: String?) { lock.withLock { stored = newValue } }
+    var value: Value { lock.withLock { stored } }
+
+    /// Atomically replaces the stored value.
+    func set(_ newValue: Value) { lock.withLock { stored = newValue } }
+
+    /// Atomically transforms the stored value in place.
+    func mutate(_ transform: (inout Value) -> Void) { lock.withLock { transform(&stored) } }
 }

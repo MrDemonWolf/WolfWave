@@ -78,7 +78,7 @@ final class ClearQueueCommandTests: WolfWaveTestCase {
         command.songRequestService = { self.makeService() }
 
         let reply = await captureReply { done in
-            command.execute(message: "!clearqueue", context: privilegedContext()) { done($0) }
+            command.execute(message: "!clearqueue", context: self.privilegedContext()) { done($0) }
         }
         XCTAssertTrue(reply.lowercased().contains("already empty"))
     }
@@ -92,37 +92,5 @@ final class ClearQueueCommandTests: WolfWaveTestCase {
         var replyCalled = false
         command.execute(message: "!clearqueue", context: privilegedContext()) { _ in replyCalled = true }
         XCTAssertFalse(replyCalled)
-    }
-
-    // MARK: - Reply Capture
-
-    private func captureReply(
-        timeout: TimeInterval = 2.0,
-        _ trigger: (@escaping (String) -> Void) -> Void
-    ) async -> String {
-        await withCheckedContinuation { continuation in
-            let box = ReplyOnceBox()
-            trigger { value in
-                guard box.fulfill() else { return }
-                continuation.resume(returning: value)
-            }
-            Task { @MainActor in
-                try? await Task.sleep(for: .seconds(timeout))
-                guard box.fulfill() else { return }
-                continuation.resume(returning: "")
-            }
-        }
-    }
-}
-
-private final class ReplyOnceBox {
-    private var done = false
-    private let lock = NSLock()
-
-    func fulfill() -> Bool {
-        lock.lock(); defer { lock.unlock() }
-        if done { return false }
-        done = true
-        return true
     }
 }

@@ -443,10 +443,7 @@ struct HistoryStatsSettingsView: View {
             statsCommandEnabled = false
             visibleRecentCount = AppConstants.History.recentDisplayCount
         }
-        NotificationCenter.default.post(
-            AppConstants.Notifications.listeningHistorySettingChanged,
-            userInfo: ["enabled": enabled]
-        )
+        NotificationCenter.default.postEnabled(.listeningHistorySettingChanged, enabled: enabled)
     }
 
     /// Cascades the `!stats` command off when Stats is turned off.

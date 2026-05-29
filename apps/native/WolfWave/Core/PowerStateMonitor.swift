@@ -76,10 +76,6 @@ final class PowerStateMonitor {
         guard newValue != isReducedMode else { return }
         isReducedMode = newValue
 
-        NotificationCenter.default.post(
-            name: Notification.Name.powerStateChanged,
-            object: nil,
-            userInfo: ["isReducedMode": newValue]
-        )
+        NotificationCenter.default.postPowerState(isReducedMode: newValue)
     }
 }

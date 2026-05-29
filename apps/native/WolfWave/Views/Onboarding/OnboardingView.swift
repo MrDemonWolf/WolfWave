@@ -71,6 +71,10 @@ struct OnboardingView: View {
                         .padding(.vertical, DSSpace.s6)
                         .background(.regularMaterial)
                 }
+                // macOS 26 Liquid Glass: the wizard content rides on a glass
+                // panel so it picks up the window backdrop instead of a flat
+                // fill. The windowBackgroundColor below is the opaque fallback.
+                .glassEffect(.regular, in: .rect)
             }
         }
         .frame(
@@ -108,7 +112,8 @@ struct OnboardingView: View {
         }
         .accessibilityElement(children: .ignore)
         .accessibilityLabel("Setup progress")
-        .accessibilityValue("Step \(viewModel.currentStep.rawValue + 1) of \(OnboardingViewModel.OnboardingStep.allCases.count)")
+        .accessibilityValue("Step \(viewModel.currentStep.rawValue + 1) of \(OnboardingViewModel.OnboardingStep.allCases.count): \(viewModel.currentStep.accessibilityTitle)")
+        .accessibilityHint("Shows how far you are through WolfWave setup. Use Back and Next to move between steps.")
     }
 
     // MARK: - Step Content

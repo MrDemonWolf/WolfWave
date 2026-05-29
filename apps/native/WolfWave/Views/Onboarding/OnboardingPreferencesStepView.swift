@@ -74,10 +74,8 @@ struct OnboardingPreferencesStepView: View {
                             get: { listeningHistoryEnabled },
                             set: { newValue in
                                 listeningHistoryEnabled = newValue
-                                NotificationCenter.default.post(
-                                    AppConstants.Notifications.listeningHistorySettingChanged,
-                                    userInfo: ["enabled": newValue]
-                                )
+                                NotificationCenter.default.postEnabled(
+                                    .listeningHistorySettingChanged, enabled: newValue)
                             }
                         ),
                         accessibilityLabel: "Remember my listening history",

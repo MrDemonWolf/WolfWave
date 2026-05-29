@@ -322,6 +322,13 @@ private struct SignedInView: View {
 
     // MARK: - Sections
 
+    /// Signed-in Twitch username, masked under Streamer Mode so it is safe on
+    /// camera. Empty stays "Not set" so the empty state still reads clearly.
+    private var displayUsername: String {
+        guard !botUsername.isEmpty else { return "Not set" }
+        return StreamerMode.mask(botUsername, style: .channel, isOn: streamerMode)
+    }
+
     /// Row showing the signed-in Twitch username and a status icon.
     private var botAccountSection: some View {
         HStack(alignment: .center, spacing: DSSpace.s4) {
@@ -329,7 +336,7 @@ private struct SignedInView: View {
                 Text("Twitch Account")
                     .font(.system(size: DSFont.Size.sm, weight: .medium))
                     .foregroundStyle(.secondary)
-                Text(botUsername.isEmpty ? "Not set" : botUsername)
+                Text(displayUsername)
                     .font(.system(size: DSFont.Size.base, weight: .semibold))
             }
             Spacer()
@@ -338,7 +345,7 @@ private struct SignedInView: View {
         .padding(.horizontal, AppConstants.SettingsUI.cardPadding)
         .padding(.vertical, DSSpace.s4)
         .accessibilityElement(children: .combine)
-        .accessibilityLabel("Twitch account: \(botUsername.isEmpty ? "Not set" : botUsername)")
+        .accessibilityLabel("Twitch account: \(displayUsername)")
         .accessibilityValue(reauthNeeded ? "Sign-in expired" : "Signed in")
     }
 

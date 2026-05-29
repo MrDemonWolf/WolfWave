@@ -68,7 +68,7 @@ struct DiscordSettingsView: View {
                 for: Notification.Name.discordStateChanged
             )
         ) { notification in
-            if let rawValue = notification.userInfo?["state"] as? String {
+            if let rawValue = notification.stateString {
                 withAnimation(.easeInOut(duration: DSMotion.Duration.base)) {
                     switch rawValue {
                     case "connected":   connectionState = .connected
@@ -83,7 +83,7 @@ struct DiscordSettingsView: View {
                 for: Notification.Name.nowPlayingChanged
             )
         ) { notification in
-            updateNowPlaying(from: notification.userInfo)
+            updateNowPlaying(from: notification)
         }
         .onChange(of: buttonsEnabled) { _, _ in scheduleSettingsResend() }
         .onChange(of: button1Enabled) { _, _ in scheduleSettingsResend() }
@@ -374,12 +374,11 @@ struct DiscordSettingsView: View {
         // The nowPlayingChanged notification takes over once a track changes.
     }
 
-    private func updateNowPlaying(from userInfo: [AnyHashable: Any]?) {
-        guard let info = userInfo,
-              let track = info["track"] as? String,
-              let artist = info["artist"] as? String else { return }
-        let album = (info["album"] as? String) ?? ""
-        let playlist = (info["playlist"] as? String) ?? ""
+    private func updateNowPlaying(from notification: Notification) {
+        let payload = notification.nowPlaying
+        guard let track = payload.track, let artist = payload.artist else { return }
+        let album = payload.album ?? ""
+        let playlist = payload.playlist ?? ""
         let links = ArtworkService.shared.cachedTrackLinks(track: track, artist: artist)
         nowPlaying = NowPlayingSnapshot(
             track: track,
@@ -394,11 +393,7 @@ struct DiscordSettingsView: View {
     }
 
     private func notifyPresenceSettingChanged(enabled: Bool) {
-        NotificationCenter.default.post(
-            name: Notification.Name.discordPresenceChanged,
-            object: nil,
-            userInfo: ["enabled": enabled]
-        )
+        NotificationCenter.default.postEnabled(.discordPresenceChanged, enabled: enabled)
     }
 
     /// Debounce notification by 300ms so rapid typing/toggling doesn't spam the socket.
@@ -454,10 +449,6 @@ private struct NowPlayingSnapshot {
         .padding()
         .frame(width: 600)
         .onAppear {
-            NotificationCenter.default.post(
-                name: Notification.Name.discordStateChanged,
-                object: nil,
-                userInfo: ["state": "connected"]
-            )
+            NotificationCenter.default.postDiscordState("connected")
         }
 }

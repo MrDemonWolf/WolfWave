@@ -53,10 +53,9 @@ struct SoftwareUpdateSettingsView: View {
         }
         .onReceive(NotificationCenter.default.publisher(for: Notification.Name.updateStateChanged)) { notification in
             isCheckingForUpdates = false
-            if let version = notification.userInfo?["latestVersion"] as? String,
-               let available = notification.userInfo?["isUpdateAvailable"] as? Bool {
-                latestVersion = version
-                updateAvailable = available && skippedVersion != version
+            if let update = notification.updateState {
+                latestVersion = update.latestVersion
+                updateAvailable = update.isUpdateAvailable && skippedVersion != update.latestVersion
                 isManualCheck = false
             }
         }

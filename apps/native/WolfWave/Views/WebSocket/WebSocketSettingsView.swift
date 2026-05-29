@@ -58,11 +58,11 @@ struct WebSocketSettingsView: View {
             )
         ) { notification in
             withAnimation(.easeInOut(duration: DSMotion.Duration.base)) {
-                if let rawValue = notification.userInfo?["state"] as? String,
+                if let rawValue = notification.stateString,
                    let state = WebSocketServerService.ServerState(rawValue: rawValue) {
                     serverState = state
                 }
-                if let clients = notification.userInfo?["clients"] as? Int {
+                if let clients = notification.clientsCount {
                     clientCount = clients
                 }
             }
@@ -498,21 +498,13 @@ fileprivate struct WebSocketServerCard: View {
     private func applyPort() {
         guard isPortValid, let port = UInt16(portText) else { return }
         storedPort = Int(port)
-        let userInfo: [String: Any] = ["port": port]
-        NotificationCenter.default.post(
-            name: Notification.Name.websocketServerChanged,
-            object: nil,
-            userInfo: userInfo
-        )
+        NotificationCenter.default.postWebSocketServerChanged(port: port)
     }
 
     /// Posts a `websocketServerChanged` notification without altering settings.
     /// Used after a setting change persists, to nudge the service to re-read.
     private func notifyServerSettingChanged() {
-        NotificationCenter.default.post(
-            name: Notification.Name.websocketServerChanged,
-            object: nil
-        )
+        NotificationCenter.default.postWebSocketServerChanged()
     }
 }
 
@@ -976,11 +968,7 @@ fileprivate struct WebSocketWidgetAppearanceCard: View {
         .padding()
         .frame(width: 700)
         .onAppear {
-            NotificationCenter.default.post(
-                name: Notification.Name.websocketServerStateChanged,
-                object: nil,
-                userInfo: ["state": "listening", "clients": 2]
-            )
+            NotificationCenter.default.postWebSocketServerState("listening", clients: 2)
         }
 }
 

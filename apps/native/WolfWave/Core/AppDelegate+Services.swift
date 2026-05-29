@@ -62,11 +62,7 @@ extension AppDelegate {
                 case .connecting: stateString = "connecting"
                 case .disconnected: stateString = "disconnected"
                 }
-                NotificationCenter.default.post(
-                    name: Notification.Name.discordStateChanged,
-                    object: self,
-                    userInfo: ["state": stateString]
-                )
+                NotificationCenter.default.postDiscordState(stateString)
             }
         }
 
@@ -416,7 +412,7 @@ extension AppDelegate {
 
     /// Starts or stops the music monitor when the tracking toggle changes.
     @objc func trackingSettingChanged(_ notification: Notification) {
-        guard let enabled = notification.userInfo?["enabled"] as? Bool else { return }
+        guard let enabled = notification.enabledFlag else { return }
         if enabled {
             playbackSourceManager?.startTracking()
             // Guarantee the ON edge yields a fresh now-playing read even
@@ -442,7 +438,7 @@ extension AppDelegate {
 
     /// Enables or disables the Discord IPC service and pushes current track if enabling.
     @objc func discordPresenceSettingChanged(_ notification: Notification) {
-        guard let enabled = notification.userInfo?["enabled"] as? Bool else { return }
+        guard let enabled = notification.enabledFlag else { return }
         guard let discordService else { return }
 
         let song = currentSong
@@ -469,15 +465,14 @@ extension AppDelegate {
 
     /// Applies the new dock visibility mode from the notification payload.
     @objc func dockVisibilityChanged(_ notification: Notification) {
-        guard let mode = notification.userInfo?["mode"] as? String else { return }
+        guard let mode = notification.modeString else { return }
         applyDockVisibility(mode)
     }
 
     /// Toggles the WebSocket server and applies any port change from the notification.
     @objc func websocketServerSettingChanged(_ notification: Notification) {
-        let enabled = notification.userInfo?["enabled"] as? Bool
-            ?? FeatureFlags.websocketEnabled
-        let portChange = notification.userInfo?["port"] as? UInt16
+        let enabled = notification.enabledFlag ?? FeatureFlags.websocketEnabled
+        let portChange = notification.portValue
         Task { [weak self] in
             await self?.websocketServer?.setEnabled(enabled)
             if let portChange {
@@ -488,14 +483,13 @@ extension AppDelegate {
 
     /// Toggles the widget HTTP server independently from the WebSocket server.
     @objc func widgetHTTPServerSettingChanged(_ notification: Notification) {
-        let enabled = notification.userInfo?["enabled"] as? Bool
-            ?? FeatureFlags.widgetHTTPEnabled
+        let enabled = notification.enabledFlag ?? FeatureFlags.widgetHTTPEnabled
         Task { [weak self] in await self?.websocketServer?.setWidgetHTTPEnabled(enabled) }
     }
 
     /// Starts or stops the song request playback monitor when the setting changes.
     @objc func songRequestSettingChanged(_ notification: Notification) {
-        guard let enabled = notification.userInfo?["enabled"] as? Bool else { return }
+        guard let enabled = notification.enabledFlag else { return }
         if enabled {
             songRequestService?.startPlaybackMonitoring()
         } else {
@@ -505,7 +499,7 @@ extension AppDelegate {
 
     /// Enables or disables listening-history recording when the toggle changes.
     @objc func listeningHistorySettingChanged(_ notification: Notification) {
-        guard let enabled = notification.userInfo?["enabled"] as? Bool else { return }
+        guard let enabled = notification.enabledFlag else { return }
         if enabled {
             historyService?.enable()
         } else {
@@ -517,9 +511,8 @@ extension AppDelegate {
 
     /// Shows a notification if a new version is available (Sparkle handles this automatically).
     @objc func handleUpdateStateChanged(_ notification: Notification) {
-        guard let isAvailable = notification.userInfo?["isUpdateAvailable"] as? Bool,
-              let version = notification.userInfo?["latestVersion"] as? String,
-              isAvailable else { return }
+        guard let update = notification.updateState, update.isUpdateAvailable else { return }
+        let version = update.latestVersion
 
         Log.info("AppDelegate: Update available notification received — v\(version)", category: "Update")
     }

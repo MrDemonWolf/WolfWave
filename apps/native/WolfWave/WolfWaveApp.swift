@@ -223,16 +223,12 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     /// Posts a `nowPlayingChanged` notification for settings view observers.
     func postNowPlayingUpdate(song: String?, artist: String?, album: String?, playlist: String? = nil, isPaused: Bool = false) {
         Task { @MainActor in
-            var userInfo: [String: Any] = [:]
-            if let song { userInfo["track"] = song }
-            if let artist { userInfo["artist"] = artist }
-            if let album { userInfo["album"] = album }
-            if let playlist { userInfo["playlist"] = playlist }
-            userInfo["isPaused"] = isPaused
-            NotificationCenter.default.post(
-                name: .nowPlayingChanged,
-                object: nil,
-                userInfo: userInfo.isEmpty ? nil : userInfo
+            NotificationCenter.default.postNowPlaying(
+                track: song,
+                artist: artist,
+                album: album,
+                playlist: playlist,
+                isPaused: isPaused
             )
         }
     }

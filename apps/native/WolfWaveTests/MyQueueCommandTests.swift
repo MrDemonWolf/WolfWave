@@ -57,7 +57,7 @@ final class MyQueueCommandTests: WolfWaveTestCase {
         command.getQueue = { self.makeQueueWith(users: ["other_user"]) }
 
         let reply = await captureReply { done in
-            command.execute(message: "!myqueue", context: context(username: "viewer")) { done($0) }
+            command.execute(message: "!myqueue", context: self.context(username: "viewer")) { done($0) }
         }
         XCTAssertTrue(reply.lowercased().contains("don't have any"))
         XCTAssertTrue(reply.contains("!sr"))
@@ -70,7 +70,7 @@ final class MyQueueCommandTests: WolfWaveTestCase {
         }
 
         let reply = await captureReply { done in
-            command.execute(message: "!myqueue", context: context(username: "alpha")) { done($0) }
+            command.execute(message: "!myqueue", context: self.context(username: "alpha")) { done($0) }
         }
 
         XCTAssertTrue(reply.contains("#1"))
@@ -88,37 +88,5 @@ final class MyQueueCommandTests: WolfWaveTestCase {
         var replyCalled = false
         command.execute(message: "!myqueue", context: context(username: "alpha")) { _ in replyCalled = true }
         XCTAssertFalse(replyCalled)
-    }
-
-    // MARK: - Reply Capture
-
-    private func captureReply(
-        timeout: TimeInterval = 2.0,
-        _ trigger: (@escaping (String) -> Void) -> Void
-    ) async -> String {
-        await withCheckedContinuation { continuation in
-            let box = ReplyOnceBox()
-            trigger { value in
-                guard box.fulfill() else { return }
-                continuation.resume(returning: value)
-            }
-            Task { @MainActor in
-                try? await Task.sleep(for: .seconds(timeout))
-                guard box.fulfill() else { return }
-                continuation.resume(returning: "")
-            }
-        }
-    }
-}
-
-private final class ReplyOnceBox {
-    private var done = false
-    private let lock = NSLock()
-
-    func fulfill() -> Bool {
-        lock.lock(); defer { lock.unlock() }
-        if done { return false }
-        done = true
-        return true
     }
 }

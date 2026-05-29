@@ -829,11 +829,7 @@ actor TwitchChatService {
         hasSentConnectionMessage = false
 
         setConnected(false)
-        NotificationCenter.default.post(
-            name: TwitchChatService.connectionStateChanged,
-            object: nil,
-            userInfo: ["isConnected": false]
-        )
+        NotificationCenter.default.postTwitchConnectionState(isConnected: false)
         connectionStateContinuation.yield(false)
 
         Log.info("TwitchChatService: Left channel", category: "Twitch")
@@ -1193,11 +1189,7 @@ actor TwitchChatService {
         guard let url = URL(string: "wss://eventsub.wss.twitch.tv/ws") else {
             Log.error("TwitchChatService: Invalid EventSub URL", category: "Twitch")
             setConnected(false)
-            NotificationCenter.default.post(
-                name: TwitchChatService.connectionStateChanged,
-                object: nil,
-                userInfo: ["isConnected": false]
-            )
+            NotificationCenter.default.postTwitchConnectionState(isConnected: false)
             connectionStateContinuation.yield(false)
             return
         }
@@ -1236,11 +1228,7 @@ actor TwitchChatService {
             "TwitchChatService: Session welcome timeout - WebSocket may not be responding",
             category: "Twitch")
         setConnected(false)
-        NotificationCenter.default.post(
-            name: TwitchChatService.connectionStateChanged,
-            object: nil,
-            userInfo: ["isConnected": false]
-        )
+        NotificationCenter.default.postTwitchConnectionState(isConnected: false)
         connectionStateContinuation.yield(false)
 
         disconnectFromEventSub()
@@ -1321,11 +1309,8 @@ actor TwitchChatService {
         }
 
         setConnected(false)
-        NotificationCenter.default.post(
-            name: TwitchChatService.connectionStateChanged,
-            object: nil,
-            userInfo: ["isConnected": false, "error": error.localizedDescription]
-        )
+        NotificationCenter.default.postTwitchConnectionState(
+            isConnected: false, error: error.localizedDescription)
         connectionStateContinuation.yield(false)
 
         if let channelName = reconnectChannelName,
@@ -1417,11 +1402,7 @@ actor TwitchChatService {
             category: "Twitch")
 
         setConnected(true)
-        NotificationCenter.default.post(
-            name: TwitchChatService.connectionStateChanged,
-            object: nil,
-            userInfo: ["isConnected": true]
-        )
+        NotificationCenter.default.postTwitchConnectionState(isConnected: true)
         connectionStateContinuation.yield(true)
 
         await subscribeToChannelChatMessage()
@@ -1596,11 +1577,7 @@ actor TwitchChatService {
                 "TwitchChatService: Missing credentials for EventSub subscription",
                 category: "Twitch")
             setConnected(false)
-            NotificationCenter.default.post(
-                name: TwitchChatService.connectionStateChanged,
-                object: nil,
-                userInfo: ["isConnected": false]
-            )
+            NotificationCenter.default.postTwitchConnectionState(isConnected: false)
             connectionStateContinuation.yield(false)
             return
         }
@@ -1650,11 +1627,7 @@ actor TwitchChatService {
                     "TwitchChatService: EventSub subscription failed - HTTP \(http.statusCode) - \(responseText)",
                     category: "Twitch")
                 setConnected(false)
-                NotificationCenter.default.post(
-                    name: TwitchChatService.connectionStateChanged,
-                    object: nil,
-                    userInfo: ["isConnected": false]
-                )
+                NotificationCenter.default.postTwitchConnectionState(isConnected: false)
                 connectionStateContinuation.yield(false)
             }
         } catch {
@@ -1662,11 +1635,7 @@ actor TwitchChatService {
                 "TwitchChatService: EventSub subscription error - \(error.localizedDescription)",
                 category: "Twitch")
             setConnected(false)
-            NotificationCenter.default.post(
-                name: TwitchChatService.connectionStateChanged,
-                object: nil,
-                userInfo: ["isConnected": false]
-            )
+            NotificationCenter.default.postTwitchConnectionState(isConnected: false)
             connectionStateContinuation.yield(false)
         }
     }

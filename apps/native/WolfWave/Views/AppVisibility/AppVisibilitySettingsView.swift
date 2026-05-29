@@ -165,11 +165,7 @@ struct AppVisibilitySettingsView: View {
     /// - Parameter mode: One of `AppConstants.DockVisibility.menuOnly`,
     ///   `.dockOnly`, or `.both`.
     private func applyDockVisibility(_ mode: String) {
-        NotificationCenter.default.post(
-            name: Notification.Name.dockVisibilityChanged,
-            object: nil,
-            userInfo: ["mode": mode]
-        )
+        NotificationCenter.default.postDockVisibility(mode: mode)
     }
 }
 

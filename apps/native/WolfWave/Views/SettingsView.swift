@@ -167,7 +167,7 @@ struct SettingsView: View {
                 }
             }
             .onReceive(NotificationCenter.default.publisher(for: .openSettingsSection)) { note in
-                guard let raw = note.userInfo?["section"] as? String,
+                guard let raw = note.sectionString,
                       let section = SettingsSection(rawValue: raw) else { return }
                 selectedSection = section
             }
@@ -287,11 +287,7 @@ struct SettingsView: View {
 
     /// Posts a notification when music tracking is toggled on or off.
     private func notifyTrackingSettingChanged(enabled: Bool) {
-        NotificationCenter.default.post(
-            name: Notification.Name.trackingSettingChanged,
-            object: nil,
-            userInfo: ["enabled": enabled]
-        )
+        NotificationCenter.default.postEnabled(.trackingSettingChanged, enabled: enabled)
     }
 
     /// Resets all settings to their default values and clears the stored token.
@@ -304,18 +300,10 @@ struct SettingsView: View {
     /// 5. Notifies the app that tracking has been re-enabled
     private func resetSettings() {
         // Disconnect Discord before clearing UserDefaults
-        NotificationCenter.default.post(
-            name: Notification.Name.discordPresenceChanged,
-            object: nil,
-            userInfo: ["enabled": false]
-        )
+        NotificationCenter.default.postEnabled(.discordPresenceChanged, enabled: false)
 
         // Disconnect WebSocket server before clearing UserDefaults
-        NotificationCenter.default.post(
-            name: Notification.Name.websocketServerChanged,
-            object: nil,
-            userInfo: ["enabled": false]
-        )
+        NotificationCenter.default.postWebSocketServerChanged(enabled: false)
 
         // Clear UserDefaults (every key the app writes)
         AppConstants.UserDefaults.allKeys.forEach {

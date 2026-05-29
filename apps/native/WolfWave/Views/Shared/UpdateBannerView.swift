@@ -88,14 +88,12 @@ struct UpdateBannerView: View {
                     for: Notification.Name.updateStateChanged
                 )
             ) { notification in
-                guard let userInfo = notification.userInfo,
-                      let available = userInfo["isUpdateAvailable"] as? Bool,
-                      let version = userInfo["latestVersion"] as? String
-                else { return }
+                guard let update = notification.updateState else { return }
+                let available = update.isUpdateAvailable
 
                 if available {
-                    latestVersion = version
-                    if let urlString = userInfo["releaseURL"] as? String,
+                    latestVersion = update.latestVersion
+                    if let urlString = update.releaseURL,
                        let url = URL(string: urlString)
                     {
                         releaseURL = url
@@ -117,14 +115,10 @@ struct UpdateBannerView: View {
         let view = UpdateBannerView().listening()
         view
             .onAppear {
-                NotificationCenter.default.post(
-                    name: Notification.Name.updateStateChanged,
-                    object: nil,
-                    userInfo: [
-                        "isUpdateAvailable": true,
-                        "latestVersion": "1.2.0",
-                        "releaseURL": "https://github.com/mrdemonwolf/wolfwave/releases/tag/v1.2.0"
-                    ]
+                NotificationCenter.default.postUpdateState(
+                    isUpdateAvailable: true,
+                    latestVersion: "1.2.0",
+                    releaseURL: "https://github.com/mrdemonwolf/wolfwave/releases/tag/v1.2.0"
                 )
             }
         
@@ -152,14 +146,10 @@ struct UpdateBannerView: View {
             let view = UpdateBannerView().listening()
             view
                 .onAppear {
-                    NotificationCenter.default.post(
-                        name: Notification.Name.updateStateChanged,
-                        object: nil,
-                        userInfo: [
-                            "isUpdateAvailable": true,
-                            "latestVersion": "2.0.0",
-                            "releaseURL": "https://github.com/mrdemonwolf/wolfwave/releases"
-                        ]
+                    NotificationCenter.default.postUpdateState(
+                        isUpdateAvailable: true,
+                        latestVersion: "2.0.0",
+                        releaseURL: "https://github.com/mrdemonwolf/wolfwave/releases"
                     )
                 }
             

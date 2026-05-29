@@ -796,10 +796,9 @@ extension AppDelegate {
         Preferences.setWebSocketEnabled(newValue)
         // Keep widgetHTTPEnabled in sync with the tray toggle
         Preferences.setWidgetHTTPEnabled(newValue)
-        NotificationCenter.default.post(
-            name: Notification.Name.websocketServerChanged,
-            object: nil,
-            userInfo: ["enabled": newValue, "widgetHTTPEnabled": newValue]
+        NotificationCenter.default.postWebSocketServerChanged(
+            enabled: newValue,
+            widgetHTTPEnabled: newValue
         )
         Task { [weak self] in await self?.websocketServer?.setWidgetHTTPEnabled(newValue) }
     }
@@ -818,11 +817,12 @@ extension AppDelegate {
         let current = UserDefaults.standard.bool(forKey: key)
         let newValue = !current
         UserDefaults.standard.set(newValue, forKey: key)
-        NotificationCenter.default.post(
-            name: NSNotification.Name(notification),
-            object: nil,
-            userInfo: includeEnabledInUserInfo ? ["enabled": newValue] : nil
-        )
+        let name = NSNotification.Name(notification)
+        if includeEnabledInUserInfo {
+            NotificationCenter.default.postEnabled(name, enabled: newValue)
+        } else {
+            NotificationCenter.default.post(name: name, object: nil)
+        }
     }
 
     /// Toggles song-request auto-play. While held, new requests still queue

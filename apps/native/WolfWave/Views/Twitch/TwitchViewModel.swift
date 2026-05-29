@@ -314,8 +314,8 @@ final class TwitchViewModel {
                 object: nil,
                 queue: .main
             ) { [weak self] note in
-                let isConnected = note.userInfo?["isConnected"] as? Bool
-                let errorMessage = note.userInfo?["error"] as? String
+                let isConnected = note.isConnectedFlag
+                let errorMessage = note.errorMessage
                 MainActor.assumeIsolated {
                     self?.handleTwitchConnectionState(
                         isConnected: isConnected, errorMessage: errorMessage)

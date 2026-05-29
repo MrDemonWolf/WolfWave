@@ -141,7 +141,7 @@ final class HoldCommandTests: WolfWaveTestCase {
         command.songRequestService = { service }
 
         let reply = await captureReply { done in
-            command.execute(message: "!hold", context: privilegedContext()) { done($0) }
+            command.execute(message: "!hold", context: self.privilegedContext()) { done($0) }
         }
 
         XCTAssertTrue(service.isHoldEnabled)
@@ -157,7 +157,7 @@ final class HoldCommandTests: WolfWaveTestCase {
         let reply = await captureReply { done in
             command.execute(
                 message: "!hold",
-                context: privilegedContext(broadcaster: false, moderator: true)
+                context: self.privilegedContext(broadcaster: false, moderator: true)
             ) { done($0) }
         }
 
@@ -174,7 +174,7 @@ final class HoldCommandTests: WolfWaveTestCase {
         command.songRequestService = { service }
 
         let reply = await captureReply { done in
-            command.execute(message: "!resume", context: privilegedContext()) { done($0) }
+            command.execute(message: "!resume", context: self.privilegedContext()) { done($0) }
         }
 
         XCTAssertFalse(service.isHoldEnabled)
@@ -188,7 +188,7 @@ final class HoldCommandTests: WolfWaveTestCase {
         command.songRequestService = { service }
 
         let reply = await captureReply { done in
-            command.execute(message: "!unhold", context: privilegedContext()) { done($0) }
+            command.execute(message: "!unhold", context: self.privilegedContext()) { done($0) }
         }
 
         XCTAssertFalse(service.isHoldEnabled)
@@ -203,7 +203,7 @@ final class HoldCommandTests: WolfWaveTestCase {
         command.songRequestService = { service }
 
         _ = await captureReply { done in
-            command.execute(message: "!HOLD", context: privilegedContext()) { done($0) }
+            command.execute(message: "!HOLD", context: self.privilegedContext()) { done($0) }
         }
 
         XCTAssertTrue(service.isHoldEnabled, "Uppercase !HOLD should still enable hold mode")
@@ -215,7 +215,7 @@ final class HoldCommandTests: WolfWaveTestCase {
         command.songRequestService = { service }
 
         _ = await captureReply { done in
-            command.execute(message: "!hold for a sec", context: privilegedContext()) { done($0) }
+            command.execute(message: "!hold for a sec", context: self.privilegedContext()) { done($0) }
         }
 
         XCTAssertTrue(service.isHoldEnabled)
@@ -228,43 +228,7 @@ final class HoldCommandTests: WolfWaveTestCase {
         command.songRequestService = { nil }
 
         var replyCalled = false
-        command.execute(message: "!hold", context: privilegedContext()) { _ in replyCalled = true }
+        command.execute(message: "!hold", context: self.privilegedContext()) { _ in replyCalled = true }
         XCTAssertFalse(replyCalled)
-    }
-
-    // MARK: - Reply Capture
-
-    /// Waits for an async reply callback delivered via `Task` inside a command's `execute`.
-    private func captureReply(
-        timeout: TimeInterval = 2.0,
-        _ trigger: (@escaping (String) -> Void) -> Void
-    ) async -> String {
-        await withCheckedContinuation { continuation in
-            let box = ReplyBox()
-            trigger { value in
-                guard box.fulfill() else { return }
-                continuation.resume(returning: value)
-            }
-            Task { @MainActor in
-                try? await Task.sleep(for: .seconds(timeout))
-                guard box.fulfill() else { return }
-                continuation.resume(returning: "")
-            }
-        }
-    }
-}
-
-// MARK: - ReplyBox
-
-/// Ensures the continuation in `captureReply` resumes exactly once.
-private final class ReplyBox {
-    private var done = false
-    private let lock = NSLock()
-
-    func fulfill() -> Bool {
-        lock.lock(); defer { lock.unlock() }
-        if done { return false }
-        done = true
-        return true
     }
 }

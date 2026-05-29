@@ -82,6 +82,12 @@ actor SkipVoteManager {
     private var lastSessionEnd: Date?
     private var pollActive = false
 
+    /// Monotonic id bumped each time a new chat-tally session opens. The window
+    /// timer captures the id at spawn time and checks it before expiring, so a
+    /// stale timer (whose sleep ran past a fast pass + immediate re-open with a
+    /// zero cooldown) can't clear the session that replaced it.
+    private var sessionGeneration = 0
+
     // MARK: - Configuration
 
     private nonisolated var defaults: Foundation.UserDefaults { .standard }
@@ -196,6 +202,7 @@ actor SkipVoteManager {
                 }
                 voters = [context.userID]
                 sessionStart = now
+                sessionGeneration += 1
                 if voters.count >= needed {
                     let count = voters.count
                     finishSession()
@@ -268,16 +275,19 @@ actor SkipVoteManager {
     /// Spawns the window timer that fails the session if the threshold is never met.
     private func startWindowTask() {
         let seconds = windowSeconds
+        let generation = sessionGeneration
         windowTask = Task { [weak self] in
             try? await Task.sleep(for: .seconds(seconds))
             guard !Task.isCancelled else { return }
-            await self?.windowExpired()
+            await self?.windowExpired(generation: generation)
         }
     }
 
     /// Called when a session's window elapses without reaching the threshold.
-    private func windowExpired() {
-        guard sessionStart != nil else { return }
+    /// Ignores the call if a different session has since opened (`generation`
+    /// mismatch) — a fast pass + zero-cooldown re-open can outrun this timer.
+    private func windowExpired(generation: Int) {
+        guard sessionStart != nil, generation == sessionGeneration else { return }
         let count = voters.count
         voters.removeAll()
         sessionStart = nil
@@ -292,18 +302,8 @@ actor SkipVoteManager {
         let state: (count: Int, needed: Int)? = sessionStart != nil
             ? (voters.count, minVotes)
             : nil
-        var info: [String: Any] = [:]
-        if let state {
-            info["count"] = state.count
-            info["needed"] = state.needed
-        }
-        let infoCopy = info
         Task { @MainActor in
-            NotificationCenter.default.post(
-                name: .voteSkipStateChanged,
-                object: nil,
-                userInfo: infoCopy.isEmpty ? nil : infoCopy
-            )
+            NotificationCenter.default.postVoteSkipState(state)
         }
     }
 }

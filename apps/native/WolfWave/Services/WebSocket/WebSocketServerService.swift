@@ -647,11 +647,7 @@ actor WebSocketServerService {
         stateContinuation.yield((currentState, count))
 
         Task { @MainActor in
-            NotificationCenter.default.post(
-                name: Notification.Name.websocketServerStateChanged,
-                object: nil,
-                userInfo: ["state": currentState.rawValue, "clients": count]
-            )
+            NotificationCenter.default.postWebSocketServerState(currentState.rawValue, clients: count)
         }
     }
 }
