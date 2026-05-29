@@ -44,6 +44,7 @@ xcdebugger/
 # Swift Package Manager
 ############################################################
 /.build/
+**/.build/
 /.swiftpm/
 Package.pins
 # For apps, keep Package.resolved tracked for reproducible builds.
