@@ -24,7 +24,7 @@ import { OBSOverlayWidget } from "./_widgets/OBSOverlayWidget";
 export const metadata: Metadata = {
   title: "WolfWave. Free Apple Music to Twitch, Discord & OBS on Mac",
   description:
-    "Stop telling chat what song is playing. WolfWave puts your Apple Music track into Twitch chat, Discord Rich Presence, and your OBS overlay. Automatically. Free, native macOS, open source.",
+    "Every streaming music tool is built for Spotify. WolfWave is built for Apple Music. It puts your track into Twitch chat, Discord Rich Presence, and your OBS overlay on its own. Free, native macOS, open source.",
   keywords: [
     "apple music twitch chat bot mac",
     "apple music discord rich presence mac",
@@ -42,7 +42,7 @@ export const metadata: Metadata = {
     siteName: "WolfWave",
     title: "WolfWave. Free Apple Music to Twitch, Discord & OBS on Mac",
     description:
-      "Stop telling chat what song is playing. WolfWave bridges Apple Music with Twitch chat, Discord Rich Presence, and your stream overlay. Automatically.",
+      "The streaming tool world is built for Spotify. WolfWave is built for Apple Music. It bridges your track to Twitch chat, Discord Rich Presence, and your stream overlay on its own.",
     images: [
       {
         url: absoluteUrl("/opengraph-image.png"),
@@ -58,7 +58,7 @@ export const metadata: Metadata = {
     creator: "@mrdemonwolf",
     title: "WolfWave. Free Apple Music to Twitch, Discord & OBS on Mac",
     description:
-      "Stop telling chat what song is playing. WolfWave bridges Apple Music with Twitch chat, Discord Rich Presence, and your stream overlay. Automatically.",
+      "The streaming tool world is built for Spotify. WolfWave is built for Apple Music. It bridges your track to Twitch chat, Discord Rich Presence, and your stream overlay on its own.",
     images: [absoluteUrl("/opengraph-image.png")],
   },
 };
@@ -156,17 +156,17 @@ export default function HomePage() {
         <div className="relative z-10 px-6 pt-12 pb-16 sm:pt-24 sm:pb-24">
           <div className="mx-auto max-w-4xl text-center">
             <p className="ww-reveal ww-reveal-1 ww-text-brand text-sm font-semibold mb-5">
-              Now available · macOS 26+ · Apple Music
+              Built for Apple Music · macOS 26+
             </p>
             <h1 className="ww-reveal ww-reveal-1 ww-hero-headline ww-text-1">
-              Play once.
+              Streaming tools are built for Spotify.
               <br />
-              <span className="ww-text-brand">Show up everywhere.</span>
+              <span className="ww-text-brand">This one's for Apple Music.</span>
             </h1>
             <p className="ww-reveal ww-reveal-2 ww-text-2 text-lg sm:text-xl mt-7 max-w-2xl mx-auto leading-relaxed">
-              WolfWave is a tiny Mac menu bar app. Play something in Apple
-              Music. Your Twitch chat, your Discord profile, and your stream
-              overlay all update on their own.
+              WolfWave is a tiny Mac menu bar app for the people who actually
+              use Apple Music. Press play and your Twitch chat, your Discord
+              profile, and your stream overlay all update on their own.
             </p>
             <div className="ww-reveal ww-reveal-3 mt-10 flex flex-col sm:flex-row items-center justify-center gap-3">
               <Link href="/download" className="ww-btn ww-btn-primary">
@@ -220,7 +220,7 @@ export default function HomePage() {
           <SectionHead
             eyebrow="Pick your lane"
             title={<>Three kinds of people. One wolf.</>}
-            sub="Streamers want chat to behave. Listeners want their friends to see what's on. Devs want a feed they can wire up. WolfWave covers all three."
+            sub="Whatever you do with Apple Music, the tools have ignored you. Streamers, listeners, and developers all got built for Spotify first. WolfWave covers all three."
           />
 
           <div className="mt-14 grid md:grid-cols-3 gap-5">
@@ -228,21 +228,21 @@ export default function HomePage() {
               {
                 icon: Twitch,
                 title: "For streamers",
-                body: "Chat answers itself. !song, song requests, and a live overlay are ready the moment you finish setup.",
+                body: "Stream on Apple Music without the workarounds. !song, song requests, and a live overlay are ready the moment you finish setup.",
                 href: "/docs/usage",
                 cta: "Streaming guide",
               },
               {
                 icon: Headphones,
                 title: "For listeners",
-                body: "Friends see your taste. Album art, live progress, and your full Apple Music library right on your Discord profile.",
+                body: "Spotify friends get Rich Presence. Now you do too. Album art, live progress, and your full Apple Music library on your Discord profile.",
                 href: "/docs/features",
                 cta: "What's included",
               },
               {
                 icon: Code2,
                 title: "For developers",
-                body: "Real-time data, your overlay. A local WebSocket exposes every play, pause, and skip. Wire it up in roughly 20 lines.",
+                body: "A real Apple Music feed to build on. A local WebSocket exposes every play, pause, and skip. Wire it up in roughly 20 lines.",
                 href: "/docs/architecture",
                 cta: "Read the architecture",
               },
@@ -352,9 +352,9 @@ export default function HomePage() {
               Your friends see what you're listening to.
             </h2>
             <p className="ww-text-2 text-lg mt-5 leading-relaxed">
-              Real Rich Presence. Album art, live progress, and a click-through
-              to your library. Like Spotify, but for everything you actually own
-              in Apple Music.
+              Spotify users have had this for years. Apple Music users never
+              did. Real Rich Presence with album art, live progress, and a
+              click-through to your library.
             </p>
             <Link
               href="/docs/features"
@@ -451,7 +451,7 @@ export default function HomePage() {
           <SectionHead
             eyebrow="Honest comparison"
             title={<>WolfWave vs. the rest.</>}
-            sub="Built for people who use Apple Music. Not Spotify. Free, native, and yours to fork."
+            sub="The rest target Spotify and treat Apple Music as an afterthought, if at all. WolfWave starts with Apple Music. Free, native, and yours to fork."
           />
 
           <div className="mt-12 overflow-x-auto">
@@ -966,8 +966,10 @@ export default function HomePage() {
               q="Does it work with Spotify?"
               a={
                 <>
-                  No. WolfWave reads Apple Music via ScriptingBridge. The same
-                  framework Apple uses internally. If your streaming setup is
+                  No, and that's the point. Spotify already has plenty of tools.
+                  Apple Music had almost none, so that's what WolfWave was built
+                  for. It reads Apple Music via ScriptingBridge, the same
+                  framework Apple uses internally. If your setup is
                   Spotify-first, this is not the right tool.
                 </>
               }
