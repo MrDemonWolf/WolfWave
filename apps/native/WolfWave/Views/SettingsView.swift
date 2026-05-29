@@ -134,10 +134,18 @@ struct SettingsView: View {
     var body: some View {
         NavigationSplitView {
             List(selection: $selectedSection) {
-                ForEach(Self.sidebarGroups, id: \.title) { group in
-                    Section(group.title) {
-                        ForEach(group.sections) { section in
-                            sidebarRow(for: section)
+                ForEach(Self.sidebarGroups, id: \.sections) { group in
+                    if let title = group.title {
+                        Section(title) {
+                            ForEach(group.sections) { section in
+                                sidebarRow(for: section)
+                            }
+                        }
+                    } else {
+                        Section {
+                            ForEach(group.sections) { section in
+                                sidebarRow(for: section)
+                            }
                         }
                     }
                 }
@@ -258,13 +266,13 @@ struct SettingsView: View {
     /// Grouped sidebar layout. Headers keep related sections together so the
     /// list scans cleanly: setup first, then integrations, insights, and the
     /// app-level pages. `.debug` is appended to the App group in DEBUG builds.
-    private static var sidebarGroups: [(title: String, sections: [SettingsSection])] {
-        var app: [SettingsSection] = [.softwareUpdate, .advanced, .about]
+    private static var sidebarGroups: [(title: String?, sections: [SettingsSection])] {
+        var app: [SettingsSection] = [.softwareUpdate, .about, .advanced]
         #if DEBUG
         app.append(.debug)
         #endif
         return [
-            ("Setup", [.general]),
+            (nil, [.general]),
             ("Integrations", [.twitchIntegration, .discord, .websocket, .songRequests]),
             ("Insights", [.historyStats]),
             ("App", app),
