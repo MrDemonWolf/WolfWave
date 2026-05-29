@@ -753,8 +753,7 @@ fileprivate struct WebSocketBrowserSourceCard: View {
             .padding(.top, DSSpace.s4)
             .padding(.bottom, cardPadding)
         }
-        .background(Color(nsColor: .controlBackgroundColor))
-        .clipShape(RoundedRectangle(cornerRadius: AppConstants.SettingsUI.cardCornerRadius))
+        .cardStyleUnpadded()
         .onAppear {
             widgetPortText = String(storedWidgetPort)
         }

@@ -122,9 +122,7 @@ struct AppVisibilitySettingsView: View {
                 }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(AppConstants.SettingsUI.cardPadding)
-            .background(Color(nsColor: .controlBackgroundColor))
-            .clipShape(RoundedRectangle(cornerRadius: AppConstants.SettingsUI.cardCornerRadius))
+            .cardStyle()
 
             // Menu Bar Only Info Notice
             if dockVisibility == AppConstants.DockVisibility.menuOnly {
