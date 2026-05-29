@@ -365,7 +365,16 @@ final class AppleMusicSource: PlaybackSource, @unchecked Sendable {
     nonisolated private func setupFallbackTimer() {
         let interval = stateLock.withLock { currentCheckInterval }
         let newTimer = DispatchSource.makeTimerSource(queue: backgroundQueue)
-        newTimer.schedule(deadline: .now() + interval, repeating: interval)
+        // This is a *fallback* poll — real-time track changes arrive via the
+        // distributed notification. Give the timer generous leeway (20% of the
+        // interval) so macOS can coalesce its wakeups with other system timers,
+        // cutting idle energy use for an all-day menu bar app. The fallback
+        // doesn't need millisecond precision.
+        newTimer.schedule(
+            deadline: .now() + interval,
+            repeating: interval,
+            leeway: .milliseconds(Int(interval * 200))
+        )
         newTimer.setEventHandler { [weak self] in
             guard let self, self.stateLock.withLock({ self.isTracking }) else { return }
             self.scheduleTrackCheck(reason: "timer")

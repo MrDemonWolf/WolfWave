@@ -397,7 +397,10 @@ nonisolated final class TwitchDeviceAuth {
                     }
                 }
 
-                try await Task.sleep(for: .seconds(currentInterval))
+                // Device-code poll: tolerance only ever delays the wakeup (never
+                // earlier), so it can't trip Twitch's slow_down rate limit while
+                // still letting macOS coalesce the timer.
+                try await Task.sleep(for: .seconds(currentInterval), tolerance: .seconds(Double(currentInterval) * 0.1))
             } catch let error as TwitchDeviceAuthError {
                 throw error
             } catch {

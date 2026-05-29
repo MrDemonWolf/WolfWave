@@ -564,7 +564,8 @@ actor TwitchChatService {
 
         reconnectTask?.cancel()
         reconnectTask = Task { [weak self] in
-            try? await Task.sleep(for: .seconds(delaySeconds))
+            // Backoff timing tolerates 10% jitter — lets the wakeup coalesce.
+            try? await Task.sleep(for: .seconds(delaySeconds), tolerance: .seconds(delaySeconds * 0.1))
             if Task.isCancelled { return }
             await self?.attemptReconnect(channelName: channelName, token: token, clientID: clientID)
         }
@@ -991,7 +992,8 @@ actor TwitchChatService {
             category: "Twitch")
 
         Task { [weak self] in
-            try? await Task.sleep(for: .seconds(delay))
+            // Retry backoff tolerates 10% jitter for wakeup coalescing.
+            try? await Task.sleep(for: .seconds(delay), tolerance: .seconds(delay * 0.1))
             await self?.retryPendingMessages()
         }
     }

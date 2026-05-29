@@ -158,14 +158,46 @@ jobs:
           echo "path=$APP_PATH" >> "$GITHUB_OUTPUT"
           echo "App: $APP_PATH"
 
-      - name: Code sign app bundle
+      - name: Code sign app bundle (inside-out)
         env:
           APP_PATH: ${{ steps.app.outputs.path }}
         run: |
-          codesign --deep --force --verify --verbose \
-            --sign "Developer ID Application" \
-            --options runtime --timestamp "$APP_PATH"
-          echo "App signed"
+          set -euo pipefail
+          IDENTITY="Developer ID Application"
+          ENTITLEMENTS="apps/native/WolfWave/WolfWave.entitlements"
+
+          # Sign inside-out, never --deep. --deep re-signs nested bundles but
+          # attaches NO per-bundle entitlements, which would strip a sandboxed
+          # helper's grant (e.g. Sparkle's updater apps, or a future .xpc that
+          # needs network.server). We sign the deepest nested code first, then
+          # the outer app, so each bundle's seal stays valid.
+
+          # 1. Nested code (frameworks, XPC services, helper apps, dylibs),
+          #    deepest path first. --preserve-metadata=entitlements keeps each
+          #    bundle's own entitlements from the xcodebuild signature instead
+          #    of dropping them.
+          find "$APP_PATH/Contents" \
+            \( -name "*.framework" -o -name "*.xpc" -o -name "*.app" -o -name "*.dylib" \) \
+            -print0 \
+            | while IFS= read -r -d '' nested; do
+                printf '%s\t%s\0' "$(printf '%s' "$nested" | tr -cd '/' | wc -c)" "$nested"
+              done \
+            | sort -z -rn -k1,1 \
+            | while IFS=$'\t' read -r -d '' _depth nested; do
+                echo "Signing nested: $nested"
+                codesign --force --options runtime --timestamp \
+                  --preserve-metadata=entitlements,flags,runtime \
+                  --sign "$IDENTITY" "$nested"
+              done
+
+          # 2. Outer app bundle WITH its entitlements (no --deep).
+          codesign --force --options runtime --timestamp \
+            --entitlements "$ENTITLEMENTS" \
+            --sign "$IDENTITY" "$APP_PATH"
+
+          # 3. Verify the whole tree, strictly.
+          codesign --verify --deep --strict --verbose=2 "$APP_PATH"
+          echo "App signed inside-out"
 
       - name: Create DMG
         env:

@@ -145,7 +145,9 @@ final class SongRequestService {
             guard let self else { return }
 
             while !Task.isCancelled {
-                try? await Task.sleep(for: .seconds(2))
+                // Auto-advance polling is not time-critical — 0.4s tolerance lets
+                // macOS coalesce the wakeup.
+                try? await Task.sleep(for: .seconds(2), tolerance: .milliseconds(400))
 
                 guard self.isAutoAdvanceEnabled else { continue }
                 guard !self.isHoldEnabled else { continue }

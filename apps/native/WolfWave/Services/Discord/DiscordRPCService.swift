@@ -1071,7 +1071,9 @@ actor DiscordRPCService {
         let interval = currentPollInterval
         pollTask = Task { [weak self] in
             while !Task.isCancelled {
-                try? await Task.sleep(for: .seconds(interval))
+                // Availability polling tolerates coarse timing — allow 10%
+                // tolerance so the wakeup coalesces with other timers.
+                try? await Task.sleep(for: .seconds(interval), tolerance: .seconds(interval * 0.1))
                 guard !Task.isCancelled, let self else { return }
                 await self.pollTick()
             }
