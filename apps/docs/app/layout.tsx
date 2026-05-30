@@ -1,7 +1,7 @@
 import { Unbounded, Instrument_Sans, Instrument_Serif, JetBrains_Mono } from "next/font/google";
 import type { Metadata } from "next";
 import { Provider } from "@/components/provider";
-import { siteUrl, basePath, absoluteUrl } from "@/lib/site";
+import { siteUrl, basePath, absoluteUrl, homepageSeo } from "@/lib/site";
 import "./global.css";
 
 const unbounded = Unbounded({
@@ -32,11 +32,10 @@ const jetbrainsMono = JetBrains_Mono({
 
 export const metadata: Metadata = {
   title: {
-    default: "WolfWave — Your Music, Live Everywhere",
+    default: homepageSeo.title,
     template: "%s | WolfWave",
   },
-  description:
-    "Free macOS menu bar app that shares your Apple Music now-playing to Twitch chat, Discord Rich Presence, and OBS stream overlays — automatically.",
+  description: homepageSeo.description,
   keywords: [
     "WolfWave",
     "Apple Music",
@@ -71,15 +70,14 @@ export const metadata: Metadata = {
     locale: "en_US",
     url: siteUrl,
     siteName: "WolfWave",
-    title: "WolfWave — Your Music, Live Everywhere",
-    description:
-      "WolfWave is a free, open-source macOS menu bar app that broadcasts your Apple Music to Twitch chat, Discord Rich Presence, and stream overlays via WebSocket. No account required.",
+    title: homepageSeo.title,
+    description: homepageSeo.socialDescription,
     images: [
       {
         url: absoluteUrl("/opengraph-image.png"),
         width: 1200,
         height: 630,
-        alt: "WolfWave — Apple Music to Twitch, Discord, and OBS overlay on macOS",
+        alt: homepageSeo.ogImageAlt,
       },
     ],
   },
@@ -87,9 +85,8 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     site: "@mrdemonwolf",
     creator: "@mrdemonwolf",
-    title: "WolfWave — Your Music, Live Everywhere",
-    description:
-      "Free macOS menu bar app that shares your Apple Music now-playing to Twitch chat, Discord Rich Presence, and OBS stream overlays — automatically.",
+    title: homepageSeo.title,
+    description: homepageSeo.socialDescription,
     images: [absoluteUrl("/opengraph-image.png")],
   },
   metadataBase: new URL(siteUrl),
@@ -99,8 +96,7 @@ const jsonLd = {
   "@context": "https://schema.org",
   "@type": "SoftwareApplication",
   name: "WolfWave",
-  description:
-    "Free macOS menu bar app that shares your Apple Music now-playing to Twitch chat, Discord Rich Presence, and OBS stream overlays — automatically.",
+  description: homepageSeo.description,
   operatingSystem: "macOS 26.0",
   applicationCategory: "MultimediaApplication",
   applicationSubCategory: "Streaming",
@@ -132,7 +128,7 @@ const jsonLd = {
     "Discord Rich Presence, Listening to WolfWave with Apple Music album art",
     "OBS browser-source overlay with 6 themes and 3 layouts",
     "Vote-to-skip via chat or Twitch Polls",
-    "macOS menu bar app — no account required",
+    "macOS menu bar app, no account required",
   ],
   license: "https://github.com/mrdemonwolf/wolfwave/blob/main/LICENSE",
 };

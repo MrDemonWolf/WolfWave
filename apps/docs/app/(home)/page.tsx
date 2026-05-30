@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { absoluteUrl } from "@/lib/site";
+import { absoluteUrl, homepageSeo } from "@/lib/site";
 import {
   ArrowRight,
   BookOpen,
@@ -22,34 +22,25 @@ import { DiscordPresenceCard } from "./_widgets/DiscordPresenceCard";
 import { HeroNowPlaying } from "./_widgets/HeroNowPlaying";
 import { OBSOverlayWidget } from "./_widgets/OBSOverlayWidget";
 
+// Homepage SEO is centralized in `homepageSeo` (lib/site.ts) so the page meta,
+// the OG image, and the Twitter image always tell the same story.
 export const metadata: Metadata = {
-  title: "WolfWave. Free Apple Music to Twitch, Discord & OBS on Mac",
-  description:
-    "Every streaming music tool is built for Spotify. WolfWave is built for Apple Music. It puts your track into Twitch chat, Discord Rich Presence, and your OBS overlay on its own. Free, native macOS, open source.",
-  keywords: [
-    "apple music twitch chat bot mac",
-    "apple music discord rich presence mac",
-    "apple music obs overlay mac",
-    "apple music song requests twitch",
-    "free apple music twitch bot",
-    "spotchbot alternative apple music",
-    "macos menu bar music streamer",
-    "twitch song requests without spotify premium",
-  ],
+  title: homepageSeo.title,
+  description: homepageSeo.description,
+  keywords: [...homepageSeo.keywords],
   alternates: { canonical: absoluteUrl("/") },
   openGraph: {
     type: "website",
     url: absoluteUrl("/"),
     siteName: "WolfWave",
-    title: "WolfWave. Free Apple Music to Twitch, Discord & OBS on Mac",
-    description:
-      "The streaming tool world is built for Spotify. WolfWave is built for Apple Music. It bridges your track to Twitch chat, Discord Rich Presence, and your stream overlay on its own.",
+    title: homepageSeo.title,
+    description: homepageSeo.socialDescription,
     images: [
       {
         url: absoluteUrl("/opengraph-image.png"),
         width: 1200,
         height: 630,
-        alt: "WolfWave. Apple Music to Twitch, Discord, and OBS overlay on macOS",
+        alt: homepageSeo.ogImageAlt,
       },
     ],
   },
@@ -57,9 +48,8 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     site: "@mrdemonwolf",
     creator: "@mrdemonwolf",
-    title: "WolfWave. Free Apple Music to Twitch, Discord & OBS on Mac",
-    description:
-      "The streaming tool world is built for Spotify. WolfWave is built for Apple Music. It bridges your track to Twitch chat, Discord Rich Presence, and your stream overlay on its own.",
+    title: homepageSeo.title,
+    description: homepageSeo.socialDescription,
     images: [absoluteUrl("/opengraph-image.png")],
   },
 };
@@ -162,13 +152,13 @@ export default function HomePage() {
                 Built for Apple Music · macOS 26+
               </p>
               <h1 className="ww-reveal ww-reveal-1 ww-hero-headline ww-text-1">
-                Streaming tools are built for Spotify.{" "}
-                <span className="ww-text-brand">This one&apos;s for Apple Music.</span>
+                Streaming tools chose Spotify.{" "}
+                <span className="ww-text-brand">WolfWave chose Apple Music.</span>
               </h1>
               <p className="ww-reveal ww-reveal-2 ww-text-2 text-lg sm:text-xl mt-6 max-w-xl mx-auto lg:mx-0 leading-relaxed">
-                WolfWave is a tiny Mac menu bar app for the people who actually
-                use Apple Music. Press play and your Twitch chat, your Discord
-                profile, and your stream overlay all update on their own.
+                WolfWave is a tiny Mac menu bar app for the people who live in
+                Apple Music. Hit play once. Your Twitch chat, your Discord
+                profile, and your OBS overlay keep themselves in sync.
               </p>
               <div className="ww-reveal ww-reveal-3 mt-8 flex flex-col sm:flex-row items-center justify-center lg:justify-start gap-3">
                 <Link href="/download" className="ww-btn ww-btn-primary">
@@ -234,7 +224,7 @@ export default function HomePage() {
           <SectionHead
             eyebrow="Pick your lane"
             title={<>Three kinds of people. One wolf.</>}
-            sub="Whatever you do with Apple Music, the tools have ignored you. Streamers, listeners, and developers all got built for Spotify first. WolfWave covers all three."
+            sub="Every streaming tool got built for Spotify first, so Apple Music users got skipped. Streamers, listeners, builders. WolfWave covers all three."
           />
 
           <div className="mt-14 grid md:grid-cols-3 gap-5">
@@ -242,21 +232,21 @@ export default function HomePage() {
               {
                 icon: Twitch,
                 title: "For streamers",
-                body: "Stream on Apple Music without the workarounds. !song, song requests, and a live overlay are ready the moment you finish setup.",
+                body: "Go live on Apple Music without the hacks. !song replies, chat song requests, and a real-time overlay are ready the minute setup ends.",
                 href: "/docs/usage",
                 cta: "Streaming guide",
               },
               {
                 icon: Headphones,
                 title: "For listeners",
-                body: "Spotify friends get Rich Presence. Now you do too. Album art, live progress, and your full Apple Music library on your Discord profile.",
+                body: "Spotify friends always had Rich Presence. Now you do too. Album art, live progress, and your full Apple Music library on your Discord profile.",
                 href: "/docs/features",
                 cta: "What's included",
               },
               {
                 icon: Code2,
                 title: "For developers",
-                body: "A real Apple Music feed to build on. A local WebSocket exposes every play, pause, and skip. Wire it up in roughly 20 lines.",
+                body: "A real Apple Music feed to build on. A local WebSocket streams every play, pause, and skip. Wire it into anything in about 20 lines.",
                 href: "/docs/architecture",
                 cta: "Read the architecture",
               },
@@ -305,9 +295,10 @@ export default function HomePage() {
               Chat that knows the song.
             </h2>
             <p className="ww-text-2 text-lg mt-5 leading-relaxed">
-              When viewers type <code className="ww-mono ww-text-1">!song</code>,
-              WolfWave answers in under a second. Title, artist, album, straight
-              from Apple Music. No bots to wire up. No browser tabs to babysit.
+              Viewers type <code className="ww-mono ww-text-1">!song</code> and
+              WolfWave answers in under a second. Title, artist, and album,
+              straight from Apple Music. No third-party bot to host. No browser
+              tab to babysit.
             </p>
             <Link
               href="/docs/bot-commands"
@@ -363,12 +354,12 @@ export default function HomePage() {
               Discord Rich Presence
             </p>
             <h2 className="ww-display ww-text-1 text-4xl sm:text-5xl">
-              Your friends see what you&apos;re listening to.
+              Your friends see what you&apos;re playing.
             </h2>
             <p className="ww-text-2 text-lg mt-5 leading-relaxed">
-              Spotify users have had this for years. Apple Music users never
-              did. Real Rich Presence with album art, live progress, and a
-              click-through to your library.
+              Spotify users had this for years. Apple Music users got nothing.
+              WolfWave puts real Rich Presence on your profile, with album art,
+              live progress, and a tap through to the track.
             </p>
             <Link
               href="/docs/features"
@@ -395,10 +386,9 @@ export default function HomePage() {
               A now-playing card for OBS in 30 seconds.
             </h2>
             <p className="ww-text-2 text-lg mt-5 leading-relaxed">
-              Add a browser source pointing at your Mac&apos;s local server. Pick
-              a
-              theme or write your own. Every track update streams in real time
-              over WebSocket.
+              Drop a browser source on your Mac&apos;s local server, pick a
+              theme or build your own, and every track change lands on stream in
+              real time over WebSocket.
             </p>
             <Link
               href="/docs/usage"
@@ -466,7 +456,7 @@ export default function HomePage() {
           <SectionHead
             eyebrow="Honest comparison"
             title={<>WolfWave vs. the rest.</>}
-            sub="The rest target Spotify and treat Apple Music as an afterthought, if at all. WolfWave starts with Apple Music. Free, native, and yours to fork."
+            sub="Most tools chase Spotify and bolt on Apple Music later, if ever. WolfWave starts with Apple Music. Free, native, and yours to fork."
           />
 
           <div className="mt-12 overflow-x-auto">
@@ -609,7 +599,7 @@ export default function HomePage() {
                 <span className="ww-text-brand">Hackable like a webhook.</span>
               </>
             }
-            sub="A local WebSocket emits every play, pause, and skip. Wire it into your overlay, your Home Assistant dashboard, or a Stream Deck plugin. MIT-licensed. Read the code, fork it, ship your own build."
+            sub="A local WebSocket emits every play, pause, and skip. Point it at your overlay, your Home Assistant dashboard, or a Stream Deck plugin. MIT licensed, so read the code, fork it, and ship your own build."
           />
 
           {/* Section ToC / jumpbar */}
@@ -696,10 +686,10 @@ export default function HomePage() {
                 <p className="ww-mono text-xs ww-text-2 mb-3">WITHOUT WOLFWAVE</p>
                 <ul className="space-y-2.5 text-sm ww-text-2">
                   {[
-                    "Scraping Spotify Web Player to fake an Apple Music feed.",
+                    "Scraping the Spotify Web Player to fake an Apple Music feed.",
                     "Browser-source overlays that flicker on every track change.",
-                    "Twitch tokens copy-pasted into a Node script that crashes at 3am.",
-                    "No Discord Rich Presence. Your friends never see what you're playing.",
+                    "Twitch tokens pasted into a Node script that dies at 3am.",
+                    "No Discord Rich Presence. Friends never see what you're playing.",
                   ].map((item) => (
                     <li key={item} className="flex gap-2.5">
                       <XIcon
@@ -723,9 +713,9 @@ export default function HomePage() {
                 <p className="ww-mono text-xs ww-text-brand mb-3">WITH WOLFWAVE</p>
                 <ul className="space-y-2.5 text-sm ww-text-1">
                   {[
-                    "One menu-bar app reads Apple Music via ScriptingBridge.",
-                    "One WebSocket feed drives your overlay. No polling, no flicker.",
-                    "Tokens live in macOS Keychain. EventSub reconnects itself.",
+                    "One menu-bar app reads Apple Music over ScriptingBridge.",
+                    "One WebSocket feed drives the overlay. No polling, no flicker.",
+                    "Tokens live in the macOS Keychain. EventSub reconnects itself.",
                     "Discord Rich Presence ships in the box. Just sign in.",
                   ].map((item) => (
                     <li key={item} className="flex gap-2.5">
@@ -949,10 +939,8 @@ export default function HomePage() {
             Private by default.
           </h2>
           <p className="ww-text-2 text-lg mt-5 leading-relaxed">
-            Your music never leaves your Mac. Tokens live in macOS Keychain.
-            The app runs sandboxed. There&apos;s no telemetry. There&apos;s
-            nothing to
-            send.
+            Your music never leaves your Mac. Tokens sit in the macOS Keychain.
+            The app runs sandboxed. No telemetry, nothing to phone home.
           </p>
           <div className="mt-8 flex flex-wrap items-center justify-center gap-2">
             {["Sandboxed", "Keychain", "No telemetry", "MIT licensed"].map(

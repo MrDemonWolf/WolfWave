@@ -243,6 +243,65 @@ Sparkle uses EdDSA (Ed25519) signing for update verification. The public key is 
 
 Docs site built with Fumadocs (Next.js) at `apps/docs/`. Content in `apps/docs/content/docs/` as `.mdx` files. Sidebar defined in `apps/docs/content/docs/meta.json` with Guide/Developers sections. Deployed to GitHub Pages. Run with `bun run dev --filter docs` from root.
 
+### SEO & Open Graph images
+
+The docs site generates Open Graph / Twitter card images at build time. Both paths are wired so changing page copy updates the social card. Do **not** hand-edit generated PNGs.
+
+**Per-page docs cards (automatic).** Each MDX file under `content/docs/` drives its own card via `apps/docs/app/og/docs/[...slug]/route.tsx`, which reads these optional frontmatter fields and falls back to a section preset in `apps/docs/app/og/_components/og-presets.ts`:
+
+| Frontmatter field | Card slot | Fallback |
+|---|---|---|
+| `ogTitle` | headline | `title` |
+| `ogDescription` | sub-line | `description` |
+| `ogEyebrow` | pill | preset by first slug segment |
+| `ogChips` | chip row | preset by first slug segment |
+| `keywords` | `<meta keywords>` | none |
+
+The changelog page is special-cased: its card is built from the latest `## vX.Y.Z` block in `changelog.mdx`, not from chips. The shared card visual lives in `apps/docs/app/og/_components/og-card.tsx` (`OgCard` + `ChangelogOgCard`).
+
+**Homepage / root card (single source of truth).** Homepage social copy lives in one constant, `homepageSeo` in `apps/docs/lib/site.ts`. It feeds `app/layout.tsx` (root meta + JSON-LD), `app/(home)/page.tsx` (homepage meta), `app/opengraph-image.tsx`, and `app/twitter-image.tsx`. Edit `homepageSeo` once and the meta tags plus both images update on the next build.
+
+**The rule when you touch SEO or visible copy:**
+
+- Changed a docs page's title, description, or pitch: update that page's frontmatter (`ogTitle` / `ogDescription` / `ogChips` / `keywords`) so its card matches.
+- Changed the homepage or landing pitch: edit `homepageSeo` in `lib/site.ts`. Never hardcode homepage strings back into `layout.tsx`, `opengraph-image.tsx`, or `twitter-image.tsx`.
+- Added a new docs page: start from the frontmatter template below so the card and SEO match the rest of the site.
+
+**New-page frontmatter template:**
+
+```yaml
+---
+title: Short page title
+description: One-sentence search snippet, around 150 chars, keyword-rich.
+ogTitle: Card headline (defaults to title)
+ogDescription: Card sub-line (defaults to description)
+ogEyebrow: Small pill label
+ogChips:
+  - Three
+  - Or four
+  - Short
+  - Chips
+keywords:
+  - primary long-tail phrase
+  - secondary phrase
+---
+```
+
+**OG image standards (what a good card follows):**
+
+- 1200x630 px (1.91:1). This is `OG_SIZE`; do not change it.
+- Keep total weight well under 8 MB. Text cards from `next/og` are tiny, so no action needed unless you embed heavy raster art.
+- Leave roughly 60 px of breathing room around key text. X, iMessage, and Discord crop the frame differently, so center-weight the message.
+- One headline plus three or four chips. High contrast, large type, no paragraphs.
+- Use absolute image URLs (`absoluteUrl(...)`; `metadataBase` is set) and `twitter:card = summary_large_image`.
+- Give every image real `alt` text.
+
+**Validate after a change:**
+
+1. `bun run build --filter docs`. The OG routes are `force-static`, so they build here and fail the build on a code error.
+2. Eyeball the PNGs locally (`bun run dev --filter docs`): `/opengraph-image.png`, `/twitter-image.png`, and a page card such as `/og/docs/installation/image.png`.
+3. After deploy, re-scrape with opengraph.xyz, the Facebook Sharing Debugger, the X Card Validator, and the LinkedIn Post Inspector. Social platforms cache cards hard, so a rebuild alone will not refresh what people already saw.
+
 ## Marketing
 
 Remotion-based video projects live in `apps/marketing/`. Each subfolder is a standalone Remotion project (React + TypeScript) for producing announcement/promo videos.
