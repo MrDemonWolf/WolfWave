@@ -186,6 +186,13 @@ nonisolated enum AppConstants {
         /// track change so a new song replaces the previous notification in
         /// Notification Center rather than stacking.
         static let songChangeIdentifier = "com.mrdemonwolf.wolfwave.notification.songChange"
+
+        /// Stable identifier for the skip-vote-started notification (chat tally or
+        /// Twitch poll). Reused so a fresh vote-start replaces the previous one.
+        static let skipVoteStartedIdentifier = "com.mrdemonwolf.wolfwave.notification.skipVoteStarted"
+
+        /// Stable identifier for the skip-vote-passed notification.
+        static let skipVotePassedIdentifier = "com.mrdemonwolf.wolfwave.notification.skipVotePassed"
     }
 
     // MARK: - UserDefaults Keys
@@ -435,6 +442,12 @@ nonisolated enum AppConstants {
         /// Whether a macOS notification is posted when the song changes (Bool, default: false)
         static let songChangeNotificationsEnabled = "songChangeNotificationsEnabled"
 
+        /// Whether a macOS notification is posted when a chat skip-vote starts (Bool, default: false)
+        static let skipVoteStartedNotificationsEnabled = "skipVoteStartedNotificationsEnabled"
+
+        /// Whether a macOS notification is posted when a chat skip-vote passes (Bool, default: false)
+        static let skipVotePassedNotificationsEnabled = "skipVotePassedNotificationsEnabled"
+
         // MARK: Listening History & Stats Keys
 
         /// Whether the on-disk listening history log is being recorded (Bool, default: false — opt-in)
@@ -538,6 +551,8 @@ nonisolated enum AppConstants {
             voteSkipUsePolls,
             voteSkipPollDuration,
             songChangeNotificationsEnabled,
+            skipVoteStartedNotificationsEnabled,
+            skipVotePassedNotificationsEnabled,
             listeningHistoryEnabled,
             statsEnabled,
             statsCommandEnabled,

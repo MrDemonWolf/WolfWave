@@ -8,10 +8,10 @@
 
 import AppKit
 import SwiftUI
-import UserNotifications
 
-/// Preferences step — wire up the two macOS-level conveniences (launch at login,
-/// notifications) so the user doesn't have to hunt for them in Settings later.
+/// Preferences step — wire up the Mac-level conveniences (launch at login,
+/// listening history) so the user doesn't have to hunt for them in Settings
+/// later. Permissions (Apple Music, notifications) live in the next step.
 struct OnboardingPreferencesStepView: View {
 
     // MARK: - Properties
@@ -21,14 +21,12 @@ struct OnboardingPreferencesStepView: View {
     @AppStorage(AppConstants.UserDefaults.listeningHistoryEnabled)
     private var listeningHistoryEnabled = false
 
-    @State private var notificationsStatus: UNAuthorizationStatus = .notDetermined
-
     // MARK: - Body
 
     var body: some View {
         OnboardingStepScaffold(
             title: "A couple Mac settings",
-            description: "Start WolfWave at login, and get notified when something needs attention.",
+            description: "Start WolfWave at login and choose whether to remember your listening history.",
             icon: {
                 BrandTile(
                     background: AnyShapeStyle(
@@ -63,8 +61,6 @@ struct OnboardingPreferencesStepView: View {
                         accessibilityIdentifier: "onboardingLaunchAtLoginToggle"
                     )
 
-                    notificationsRow
-
                     preferenceRow(
                         icon: "chart.bar.xaxis",
                         iconColor: .purple,
@@ -84,42 +80,6 @@ struct OnboardingPreferencesStepView: View {
                 }
             }
         )
-        .task {
-            await refreshNotificationStatus()
-        }
-    }
-
-    // MARK: - Notifications Row
-
-    /// Notifications row with three states:
-    ///   - notDetermined → toggle requests authorization
-    ///   - authorized / provisional → toggle is on, locked
-    ///   - denied → button deep-links to System Settings → Notifications
-    @ViewBuilder
-    private var notificationsRow: some View {
-        let isAuthorized = notificationsStatus == .authorized || notificationsStatus == .provisional
-
-        preferenceRow(
-            icon: "bell.badge.fill",
-            iconColor: .red,
-            title: "Allow notifications",
-            subtitle: notificationsStatus == .denied
-                ? "Enable in System Settings so we can ping you about updates."
-                : "We'll only ping for important things — updates, reconnect prompts.",
-            isOn: Binding(
-                get: { isAuthorized },
-                set: { newValue in
-                    if notificationsStatus == .denied {
-                        if newValue { openNotificationsSettings() }
-                    } else {
-                        if newValue { requestNotificationAuthorization() }
-                    }
-                }
-            ),
-            accessibilityLabel: "Allow notifications",
-            accessibilityIdentifier: "onboardingNotificationsToggle"
-        )
-        .disabled(isAuthorized)
     }
 
     // MARK: - Row
@@ -185,38 +145,6 @@ struct OnboardingPreferencesStepView: View {
             RoundedRectangle(cornerRadius: 12, style: .continuous)
                 .stroke(Color.primary.opacity(0.06), lineWidth: 0.5)
         )
-    }
-
-    // MARK: - Notifications
-
-    /// Queries the current notification authorization status and updates the
-    /// view state on the main actor. Used to re-sync the UI after a user
-    /// flips the toggle in System Settings.
-    private func refreshNotificationStatus() async {
-        let settings = await UNUserNotificationCenter.current().notificationSettings()
-        await MainActor.run {
-            notificationsStatus = settings.authorizationStatus
-        }
-    }
-
-    /// Requests notification authorization (`.alert`, `.sound`, `.badge`) and
-    /// refreshes the view state with whatever decision the user makes.
-    private func requestNotificationAuthorization() {
-        Task {
-            _ = try? await UNUserNotificationCenter.current()
-                .requestAuthorization(options: [.alert, .sound, .badge])
-            let settings = await UNUserNotificationCenter.current().notificationSettings()
-            await MainActor.run {
-                notificationsStatus = settings.authorizationStatus
-            }
-        }
-    }
-
-    /// Opens System Settings → Notifications. macOS 13+ deep-link.
-    private func openNotificationsSettings() {
-        if let url = URL(string: "x-apple.systempreferences:com.apple.Notifications-Settings.extension") {
-            NSWorkspace.shared.open(url)
-        }
     }
 }
 

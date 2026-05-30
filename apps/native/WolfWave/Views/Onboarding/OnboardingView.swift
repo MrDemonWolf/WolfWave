@@ -10,7 +10,7 @@ import SwiftUI
 
 /// First-launch onboarding wizard with progress dots, step content, and navigation.
 ///
-/// Steps: Welcome → Discord → Twitch → OBS → Preferences → Apple Music → Menu bar pointer.
+/// Steps: Welcome → Discord → Twitch → OBS → Preferences → Permissions → Menu bar pointer.
 /// Hosted in a dedicated `NSWindow` created by `AppDelegate.showOnboarding()`.
 struct OnboardingView: View {
 
@@ -132,8 +132,8 @@ struct OnboardingView: View {
                 OnboardingOBSWidgetStepView(websocketEnabled: $websocketEnabled)
             case .preferences:
                 OnboardingPreferencesStepView(launchAtLogin: $launchAtLogin)
-            case .appleMusicAccess:
-                OnboardingAppleMusicStepView()
+            case .permissions:
+                OnboardingPermissionsStepView()
             case .menuBarPointer:
                 OnboardingMenuBarPointerStepView()
             }
@@ -237,7 +237,7 @@ struct OnboardingView: View {
         switch viewModel.currentStep {
         case .twitchConnect:
             return !twitchViewModel.credentialsSaved
-        case .appleMusicAccess:
+        case .permissions:
             return musicPermissionState != .granted
         default:
             return false

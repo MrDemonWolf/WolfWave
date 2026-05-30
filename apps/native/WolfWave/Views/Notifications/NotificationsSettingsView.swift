@@ -17,6 +17,17 @@ struct NotificationsSettingsView: View {
     @AppStorage(AppConstants.UserDefaults.songChangeNotificationsEnabled)
     private var songChangeNotificationsEnabled = false
 
+    @AppStorage(AppConstants.UserDefaults.skipVoteStartedNotificationsEnabled)
+    private var skipVoteStartedNotificationsEnabled = false
+
+    @AppStorage(AppConstants.UserDefaults.skipVotePassedNotificationsEnabled)
+    private var skipVotePassedNotificationsEnabled = false
+
+    /// Master vote-skip toggle — the skip-vote notification rows do nothing
+    /// without it, so they're disabled (with a hint) when it's off.
+    @AppStorage(AppConstants.UserDefaults.voteSkipEnabled)
+    private var voteSkipEnabled = false
+
     // MARK: - State
 
     /// Cached system authorization status, used to surface the denied-permission notice.
@@ -47,7 +58,42 @@ struct NotificationsSettingsView: View {
                     if enabled { handleEnabled() }
                 }
 
-                if songChangeNotificationsEnabled && authorizationStatus == .denied {
+                Divider()
+
+                ToggleSettingRow(
+                    title: "Skip vote started",
+                    subtitle: "Notify when chat opens a vote to skip the current song.",
+                    isOn: $skipVoteStartedNotificationsEnabled,
+                    accessibilityLabel: "Skip vote started notifications",
+                    accessibilityIdentifier: "skipVoteStartedNotificationsToggle",
+                    accessibilityHint: "Posts a macOS notification when a chat skip-vote starts"
+                ) { enabled in
+                    if enabled { handleEnabled() }
+                }
+                .disabled(!voteSkipEnabled)
+
+                ToggleSettingRow(
+                    title: "Skip vote passed",
+                    subtitle: "Notify when a chat skip-vote wins and the song is skipped.",
+                    isOn: $skipVotePassedNotificationsEnabled,
+                    accessibilityLabel: "Skip vote passed notifications",
+                    accessibilityIdentifier: "skipVotePassedNotificationsToggle",
+                    accessibilityHint: "Posts a macOS notification when a chat skip-vote passes"
+                ) { enabled in
+                    if enabled { handleEnabled() }
+                }
+                .disabled(!voteSkipEnabled)
+
+                if !voteSkipEnabled {
+                    Text("Turn on vote-to-skip in Song Requests to use these.")
+                        .font(.system(size: DSFont.Size.sm))
+                        .foregroundStyle(.secondary)
+                }
+
+                if (songChangeNotificationsEnabled
+                    || skipVoteStartedNotificationsEnabled
+                    || skipVotePassedNotificationsEnabled)
+                    && authorizationStatus == .denied {
                     permissionDeniedNotice
                 }
             }
@@ -69,7 +115,7 @@ struct NotificationsSettingsView: View {
                 .foregroundStyle(.orange)
 
             VStack(alignment: .leading, spacing: 6) {
-                Text("Notifications are turned off for WolfWave. Enable them in System Settings to see song changes.")
+                Text("Notifications are turned off for WolfWave. Enable them in System Settings to get these alerts.")
                     .font(.system(size: DSFont.Size.sm))
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)

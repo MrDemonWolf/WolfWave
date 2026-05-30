@@ -60,6 +60,19 @@ nonisolated enum FeatureFlags {
         defaults.bool(forKey: AppConstants.UserDefaults.songChangeNotificationsEnabled)
     }
 
+    /// Master toggle for chat vote-to-skip. Gates the skip-vote notifications too.
+    static var voteSkipEnabled: Bool {
+        defaults.bool(forKey: AppConstants.UserDefaults.voteSkipEnabled)
+    }
+
+    static var skipVoteStartedNotificationsEnabled: Bool {
+        defaults.bool(forKey: AppConstants.UserDefaults.skipVoteStartedNotificationsEnabled)
+    }
+
+    static var skipVotePassedNotificationsEnabled: Bool {
+        defaults.bool(forKey: AppConstants.UserDefaults.skipVotePassedNotificationsEnabled)
+    }
+
     // MARK: UI
 
     static var streamerModeEnabled: Bool {

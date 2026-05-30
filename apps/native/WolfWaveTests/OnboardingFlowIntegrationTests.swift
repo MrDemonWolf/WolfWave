@@ -11,7 +11,7 @@ import XCTest
 
 /// End-to-end traversal of the onboarding wizard: drives `OnboardingViewModel`
 /// through every step in order (Welcome → Discord → Twitch → OBS Widget →
-/// Preferences → Apple Music Access → Menu Bar Pointer → Completion) and
+/// Preferences → Permissions → Menu Bar Pointer → Completion) and
 /// confirms the completed flag lands in UserDefaults. Per-step navigation and
 /// boundary conditions are covered by `OnboardingViewModelTests`; this suite is
 /// the full-walk integration check.
@@ -35,7 +35,7 @@ final class OnboardingFlowIntegrationTests: WolfWaveTestCase {
     func testWalkingEveryStepReachesMenuBarPointer() {
         let expectedOrder: [OnboardingViewModel.OnboardingStep] = [
             .welcome, .discordConnect, .twitchConnect, .obsWidget,
-            .preferences, .appleMusicAccess, .menuBarPointer,
+            .preferences, .permissions, .menuBarPointer,
         ]
 
         var visited: [OnboardingViewModel.OnboardingStep] = [viewModel.currentStep]

@@ -41,6 +41,7 @@ All notable changes to this project will be documented in this file.
 - **Widget themes** — six selectable overlay-widget themes (`Default`, `Dark`, `Light`, `Glass`, `Neon`, `WolfWave`) and three layouts (`Horizontal`, `Vertical`, `Compact`), served to `widget.html` via `window.WW_TOKENS` (#76).
 - **Discord presence polish** — friendlier presence buttons, a live presence preview in Discord settings, and cleaner connection-state handling (#73).
 - **Song-change notifications** — opt-in macOS notification on every track change, with track name, artist, and album art; reuses a stable identifier so a new song replaces the previous banner instead of stacking. Off by default; enable in Settings → General → Notifications (#83).
+- **Skip-vote notifications** — opt-in macOS notifications when a chat skip-vote starts and when it passes. The "started" banner is silent and reports the vote threshold (or points at the open Twitch poll); the "passed" banner names the skipped track and plays the default system sound. Both off by default in Settings → Notifications, where they stay disabled until Chat Vote-Skip is turned on. The onboarding Permissions step also lets you pick which alerts you want.
 - **On-device diagnostics** — opt-in MetricKit diagnostics report card in Advanced settings. Reports stay on-device; a share card lets you attach the payload to a bug report manually. Off by default (#85).
 - **Discord playlist presence** — Discord Rich Presence now surfaces the current Apple Music playlist name alongside the track when one is active.
 - **WolfMark branding** — new WolfMark album-art placeholder replaces the generic music icon in the now-playing card and overlay widget; branded download page, repo `README.md`, and `SECURITY.md` shipped alongside.
@@ -53,6 +54,7 @@ All notable changes to this project will be documented in this file.
 - **Settings views decomposed** — split the monolithic `SettingsView` into per-section files (`GeneralSettingsView`, `MusicMonitorSettingsView`, `AppVisibilitySettingsView`, `TwitchSettingsView`, `DiscordSettingsView`, `WebSocketSettingsView`, `SongRequestSettingsView`, `AdvancedSettingsView`) for sharper redraws and easier editing (#34).
 - **Onboarding flow polish** — dropped redundant success rows, tightened Apple Music permission step copy, stable button + step sizing to eliminate UI shift (#21, #25, #28).
 - **Notifications toggle** — disables itself once permission is authorized and unifies the denied state across the wizard (#29).
+- **Onboarding permissions consolidated** — the Apple Music access step, the notification-permission ask, and the per-alert notification toggles now live together in a single "Permissions" step instead of separate screens.
 - **`PillButton`** — replaced `Capsule` with the macOS-standard rounded rectangle to match system button geometry (#30).
 - **Menu bar preview tray icon** — loads via `NSImage` for crisp rendering at every density (#32).
 - **Settings window sizing** — minimum and ideal dimensions tuned to fit cleanly on 720p and 1080p displays without clipping (#33).

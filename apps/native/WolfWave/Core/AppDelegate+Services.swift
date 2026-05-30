@@ -208,12 +208,18 @@ extension AppDelegate {
             let service = await MainActor.run { self?.twitchService }
             return await service?.createSkipPoll(title: title, durationSeconds: duration) ?? false
         }
+        let onVoteEvent: @Sendable (SkipVoteManager.VoteEvent) -> Void = { [weak self] event in
+            Task { @MainActor [weak self] in
+                self?.handleVoteEvent(event)
+            }
+        }
 
         Task {
             await voteManager.configure(
                 performSkip: performSkip,
                 sendChatMessage: sendChatMessage,
-                createPoll: createPoll
+                createPoll: createPoll,
+                onVoteEvent: onVoteEvent
             )
         }
 
@@ -738,6 +744,40 @@ extension AppDelegate: PlaybackSourceDelegate {
 
         Task {
             await NotificationService.shared.postSongChange(track: track, artist: artist, album: album)
+        }
+    }
+
+    /// Posts a macOS notification for a skip-vote lifecycle event when both the
+    /// vote-skip feature and the matching notification toggle are on.
+    ///
+    /// Belt-and-braces gating: the settings UI already hides/disables these
+    /// toggles when vote-skip is off, but we re-check `voteSkipEnabled` here so a
+    /// stale persisted toggle can't fire a notification for an impossible event.
+    @MainActor
+    func handleVoteEvent(_ event: SkipVoteManager.VoteEvent) {
+        guard FeatureFlags.voteSkipEnabled else { return }
+
+        let track = currentSong ?? ""
+        let artist = currentArtist ?? ""
+
+        switch event {
+        case .started(let needed):
+            guard FeatureFlags.skipVoteStartedNotificationsEnabled else { return }
+            Task {
+                await NotificationService.shared.postSkipVoteStarted(
+                    track: track, artist: artist, votesNeeded: needed, viaPoll: false)
+            }
+        case .pollStarted:
+            guard FeatureFlags.skipVoteStartedNotificationsEnabled else { return }
+            Task {
+                await NotificationService.shared.postSkipVoteStarted(
+                    track: track, artist: artist, votesNeeded: 0, viaPoll: true)
+            }
+        case .passed:
+            guard FeatureFlags.skipVotePassedNotificationsEnabled else { return }
+            Task {
+                await NotificationService.shared.postSkipVotePassed(track: track, artist: artist)
+            }
         }
     }
 

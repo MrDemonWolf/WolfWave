@@ -26,7 +26,7 @@ final class OnboardingViewModel {
         case twitchConnect = 2
         case obsWidget = 3
         case preferences = 4
-        case appleMusicAccess = 5
+        case permissions = 5
         case menuBarPointer = 6
 
         /// Short spoken name for VoiceOver, used in the progress indicator's
@@ -38,7 +38,7 @@ final class OnboardingViewModel {
             case .twitchConnect: return "Twitch"
             case .obsWidget: return "OBS Widget"
             case .preferences: return "Preferences"
-            case .appleMusicAccess: return "Apple Music Access"
+            case .permissions: return "Permissions"
             case .menuBarPointer: return "Menu Bar"
             }
         }

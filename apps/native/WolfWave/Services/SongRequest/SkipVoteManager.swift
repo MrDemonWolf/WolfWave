@@ -48,6 +48,19 @@ actor SkipVoteManager {
         case pollNotAllowed
     }
 
+    /// A lifecycle signal emitted to the optional `onVoteEvent` hook so a consumer
+    /// (e.g. `AppDelegate`) can post a macOS notification. The manager stays "dumb":
+    /// it knows nothing about notifications or user preferences — it only reports
+    /// that the event happened.
+    enum VoteEvent: Sendable {
+        /// A chat-tally session just opened. `needed` is the vote threshold.
+        case started(needed: Int)
+        /// A native Twitch poll just opened.
+        case pollStarted
+        /// A vote (chat tally or poll) reached the threshold — song is being skipped.
+        case passed
+    }
+
     // MARK: - Wiring
 
     /// Skips the current song. Wired by `AppDelegate` to `SongRequestService.voteSkip()`.
@@ -61,17 +74,24 @@ actor SkipVoteManager {
     /// `TwitchChatService.createSkipPoll(...)`. Unset until Polls mode is used.
     private var createPoll: (@Sendable (_ title: String, _ durationSeconds: Int) async -> Bool)?
 
-    /// Installs the closures used to skip, send chat messages, and create polls.
-    /// Called once at startup from `AppDelegate.setupSkipVoteManager()` so the
-    /// actor's mutable closure properties are only assigned from inside the actor.
+    /// Lifecycle hook for vote events (start / poll-start / pass). Wired by
+    /// `AppDelegate` to post macOS notifications. The manager does no gating here.
+    private var onVoteEvent: (@Sendable (VoteEvent) -> Void)?
+
+    /// Installs the closures used to skip, send chat messages, create polls, and
+    /// report vote events. Called once at startup from
+    /// `AppDelegate.setupSkipVoteManager()` so the actor's mutable closure
+    /// properties are only assigned from inside the actor.
     func configure(
         performSkip: (@Sendable () async -> Void)?,
         sendChatMessage: (@Sendable (String) -> Void)?,
-        createPoll: (@Sendable (_ title: String, _ durationSeconds: Int) async -> Bool)?
+        createPoll: (@Sendable (_ title: String, _ durationSeconds: Int) async -> Bool)?,
+        onVoteEvent: (@Sendable (VoteEvent) -> Void)? = nil
     ) {
         self.performSkip = performSkip
         self.sendChatMessage = sendChatMessage
         self.createPoll = createPoll
+        self.onVoteEvent = onVoteEvent
     }
 
     // MARK: - State
@@ -160,6 +180,7 @@ actor SkipVoteManager {
         if skipVotes > keepVotes && skipVotes >= needed {
             sendChatMessage?("✅ The vote passed — skipping! (\(skipVotes) skip / \(keepVotes) keep)")
             await performSkip?()
+            onVoteEvent?(.passed)
         } else {
             sendChatMessage?("📊 Vote over — the song stays. (\(skipVotes) skip / \(keepVotes) keep)")
         }
@@ -228,7 +249,10 @@ actor SkipVoteManager {
         switch decision {
         case .outcome(let outcome):
             switch outcome {
-            case .started, .counted:
+            case .started(_, let needed):
+                postState()
+                onVoteEvent?(.started(needed: needed))
+            case .counted:
                 postState()
             default:
                 break
@@ -237,6 +261,7 @@ actor SkipVoteManager {
         case .pass(let count):
             postState()
             await performSkip?()
+            onVoteEvent?(.passed)
             return .passed(count: count)
         }
     }
@@ -251,6 +276,7 @@ actor SkipVoteManager {
 
         let success = await createPoll?("Skip the current song?", pollDuration) ?? false
         if success {
+            onVoteEvent?(.pollStarted)
             return .pollStarted
         }
 

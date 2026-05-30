@@ -13,9 +13,9 @@ import UserNotifications
 /// Centralizes macOS User Notification delivery for WolfWave.
 ///
 /// Wraps `UNUserNotificationCenter` so callers don't repeat authorization and
-/// error-handling boilerplate. Currently posts song-change notifications; the
-/// private `post(content:identifier:)` core is the extension point for future
-/// notification types (for example, a skip-vote alert).
+/// error-handling boilerplate. Posts song-change and skip-vote (started /
+/// passed) notifications; the private `post(content:identifier:)` core is the
+/// shared extension point for any future notification type.
 final class NotificationService {
 
     // MARK: - Singleton
@@ -85,6 +85,117 @@ final class NotificationService {
         // Silent banner — song changes are frequent, so a sound would be noise.
         content.sound = nil
         return content
+    }
+
+    // MARK: - Skip Vote
+
+    /// Posts a notification when a chat skip-vote starts.
+    ///
+    /// Silent (like song-change) — the start is informational, not urgent.
+    /// Reuses a stable identifier so a fresh vote-start replaces the previous
+    /// one. Attaches current-track artwork when available. No-op without
+    /// notification authorization.
+    ///
+    /// - Parameters:
+    ///   - track: Currently-playing song title (may be empty).
+    ///   - artist: Currently-playing artist (may be empty).
+    ///   - votesNeeded: Votes required to skip (chat-tally mode).
+    ///   - viaPoll: `true` when a native Twitch poll opened instead of a chat tally.
+    func postSkipVoteStarted(
+        track: String,
+        artist: String,
+        votesNeeded: Int,
+        viaPoll: Bool
+    ) async {
+        let content = Self.makeSkipVoteStartedContent(
+            track: track, artist: artist, votesNeeded: votesNeeded, viaPoll: viaPoll)
+
+        if let attachment = await songChangeArtworkAttachment(track: track, artist: artist) {
+            content.attachments = [attachment]
+        }
+
+        await post(content: content, identifier: AppConstants.UserNotification.skipVoteStartedIdentifier)
+    }
+
+    /// Posts a notification when a chat skip-vote passes.
+    ///
+    /// Plays the default system sound — passing is a rare, worth-a-chime event.
+    /// Attaches current-track artwork when available. No-op without
+    /// notification authorization.
+    ///
+    /// - Parameters:
+    ///   - track: The skipped song's title (may be empty).
+    ///   - artist: The skipped song's artist (may be empty).
+    func postSkipVotePassed(track: String, artist: String) async {
+        let content = Self.makeSkipVotePassedContent(track: track, artist: artist)
+
+        if let attachment = await songChangeArtworkAttachment(track: track, artist: artist) {
+            content.attachments = [attachment]
+        }
+
+        await post(content: content, identifier: AppConstants.UserNotification.skipVotePassedIdentifier)
+    }
+
+    /// Builds the notification content for a skip-vote start.
+    ///
+    /// Pure — performs no system calls — so it can be unit-tested directly.
+    ///
+    /// - Parameters:
+    ///   - track: Currently-playing song title (may be empty).
+    ///   - artist: Currently-playing artist (may be empty).
+    ///   - votesNeeded: Votes required to skip (chat-tally mode).
+    ///   - viaPoll: `true` when a native Twitch poll opened.
+    /// - Returns: A configured, silent notification content value.
+    static func makeSkipVoteStartedContent(
+        track: String,
+        artist: String,
+        votesNeeded: Int,
+        viaPoll: Bool
+    ) -> UNMutableNotificationContent {
+        let content = UNMutableNotificationContent()
+
+        content.title = "Skip Vote Started"
+        content.subtitle = Self.trackLine(track: track, artist: artist)
+        content.body = viaPoll
+            ? "A Twitch poll is open. Viewers vote in the poll widget."
+            : "Chat is voting to skip. \(max(votesNeeded, 1)) votes needed."
+
+        // Silent — the start is informational. The "passed" banner gets the chime.
+        content.sound = nil
+        return content
+    }
+
+    /// Builds the notification content for a passed skip-vote.
+    ///
+    /// Pure — performs no system calls — so it can be unit-tested directly.
+    ///
+    /// - Parameters:
+    ///   - track: The skipped song's title (may be empty).
+    ///   - artist: The skipped song's artist (may be empty).
+    /// - Returns: A configured notification content value with the default sound.
+    static func makeSkipVotePassedContent(
+        track: String,
+        artist: String
+    ) -> UNMutableNotificationContent {
+        let content = UNMutableNotificationContent()
+
+        content.title = "Skip Vote Passed"
+        let line = Self.trackLine(track: track, artist: artist)
+        content.subtitle = line.isEmpty ? "" : "Skipping \(line)"
+        content.body = "Chat voted to skip the current song."
+
+        // Rare, celebratory event — a chime is warranted.
+        content.sound = .default
+        return content
+    }
+
+    /// Formats a `track — artist` line, tolerating either field being empty.
+    private static func trackLine(track: String, artist: String) -> String {
+        let trimmedTrack = track.trimmingCharacters(in: .whitespacesAndNewlines)
+        let trimmedArtist = artist.trimmingCharacters(in: .whitespacesAndNewlines)
+        if trimmedTrack.isEmpty { return trimmedArtist }
+        if trimmedArtist.isEmpty { return trimmedTrack }
+        return "\(trimmedTrack) · \(trimmedArtist)"
     }
 
     // MARK: - Authorization

@@ -95,21 +95,109 @@ struct NotificationServiceTests {
         #expect(content.sound == nil)
     }
 
-    // MARK: - Identifier
+    // MARK: - Skip Vote Started Content
 
-    @Test("Song change notification identifier is stable and non-empty")
-    func testSongChangeIdentifier() async throws {
-        #expect(!AppConstants.UserNotification.songChangeIdentifier.isEmpty)
-        #expect(AppConstants.UserNotification.songChangeIdentifier
-            == "com.mrdemonwolf.wolfwave.notification.songChange")
+    @Test("Skip vote started (chat tally) shows the vote threshold in the body")
+    func testSkipVoteStartedChat() async throws {
+        let content = NotificationService.makeSkipVoteStartedContent(
+            track: "Blinding Lights",
+            artist: "The Weeknd",
+            votesNeeded: 3,
+            viaPoll: false
+        )
+        #expect(content.title == "Skip Vote Started")
+        #expect(content.subtitle == "Blinding Lights · The Weeknd")
+        #expect(content.body == "Chat is voting to skip. 3 votes needed.")
     }
 
-    // MARK: - UserDefaults Key
+    @Test("Skip vote started (poll mode) points at the Twitch poll widget")
+    func testSkipVoteStartedPoll() async throws {
+        let content = NotificationService.makeSkipVoteStartedContent(
+            track: "Some Song",
+            artist: "Some Artist",
+            votesNeeded: 0,
+            viaPoll: true
+        )
+        #expect(content.title == "Skip Vote Started")
+        #expect(content.body == "A Twitch poll is open. Viewers vote in the poll widget.")
+    }
 
-    @Test("Song change notifications key is registered for reset")
-    func testSongChangeKeyInAllKeys() async throws {
-        #expect(!AppConstants.UserDefaults.songChangeNotificationsEnabled.isEmpty)
-        #expect(AppConstants.UserDefaults.allKeys
-            .contains(AppConstants.UserDefaults.songChangeNotificationsEnabled))
+    @Test("Skip vote started clamps a zero/negative threshold to at least 1")
+    func testSkipVoteStartedClampsThreshold() async throws {
+        let content = NotificationService.makeSkipVoteStartedContent(
+            track: "T", artist: "A", votesNeeded: 0, viaPoll: false)
+        #expect(content.body == "Chat is voting to skip. 1 votes needed.")
+    }
+
+    @Test("Skip vote started is silent")
+    func testSkipVoteStartedSilent() async throws {
+        let content = NotificationService.makeSkipVoteStartedContent(
+            track: "T", artist: "A", votesNeeded: 2, viaPoll: false)
+        #expect(content.sound == nil)
+    }
+
+    @Test("Skip vote started tolerates an empty track or artist")
+    func testSkipVoteStartedEmptyFields() async throws {
+        let onlyArtist = NotificationService.makeSkipVoteStartedContent(
+            track: "", artist: "Artist", votesNeeded: 2, viaPoll: false)
+        #expect(onlyArtist.subtitle == "Artist")
+
+        let onlyTrack = NotificationService.makeSkipVoteStartedContent(
+            track: "Track", artist: "", votesNeeded: 2, viaPoll: false)
+        #expect(onlyTrack.subtitle == "Track")
+    }
+
+    // MARK: - Skip Vote Passed Content
+
+    @Test("Skip vote passed names the skipped track and plays the default sound")
+    func testSkipVotePassed() async throws {
+        let content = NotificationService.makeSkipVotePassedContent(
+            track: "Blinding Lights",
+            artist: "The Weeknd"
+        )
+        #expect(content.title == "Skip Vote Passed")
+        #expect(content.subtitle == "Skipping Blinding Lights · The Weeknd")
+        #expect(content.body == "Chat voted to skip the current song.")
+        #expect(content.sound == .default)
+    }
+
+    @Test("Skip vote passed leaves the subtitle empty when no track is known")
+    func testSkipVotePassedNoTrack() async throws {
+        let content = NotificationService.makeSkipVotePassedContent(track: "", artist: "")
+        #expect(content.subtitle == "")
+        #expect(content.sound == .default)
+    }
+
+    // MARK: - Identifiers
+
+    @Test("Notification identifiers are stable and non-empty")
+    func testIdentifiers() async throws {
+        #expect(AppConstants.UserNotification.songChangeIdentifier
+            == "com.mrdemonwolf.wolfwave.notification.songChange")
+        #expect(AppConstants.UserNotification.skipVoteStartedIdentifier
+            == "com.mrdemonwolf.wolfwave.notification.skipVoteStarted")
+        #expect(AppConstants.UserNotification.skipVotePassedIdentifier
+            == "com.mrdemonwolf.wolfwave.notification.skipVotePassed")
+        // All distinct so they don't replace each other in Notification Center.
+        let ids = Set([
+            AppConstants.UserNotification.songChangeIdentifier,
+            AppConstants.UserNotification.skipVoteStartedIdentifier,
+            AppConstants.UserNotification.skipVotePassedIdentifier
+        ])
+        #expect(ids.count == 3)
+    }
+
+    // MARK: - UserDefaults Keys
+
+    @Test("Notification preference keys are registered for reset")
+    func testKeysInAllKeys() async throws {
+        for key in [
+            AppConstants.UserDefaults.songChangeNotificationsEnabled,
+            AppConstants.UserDefaults.skipVoteStartedNotificationsEnabled,
+            AppConstants.UserDefaults.skipVotePassedNotificationsEnabled
+        ] {
+            #expect(!key.isEmpty)
+            #expect(AppConstants.UserDefaults.allKeys.contains(key))
+        }
     }
 }

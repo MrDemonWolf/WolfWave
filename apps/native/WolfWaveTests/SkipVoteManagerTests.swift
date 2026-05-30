@@ -301,6 +301,66 @@ final class SkipVoteManagerTests: WolfWaveTestCase {
         await manager.handlePollEnded(skipVotes: 2, keepVotes: 9)
         XCTAssertFalse(skipped.value)
     }
+
+    // MARK: - Vote Event Hook
+
+    func testOnVoteEventFiresStartedWhenSessionOpens() async {
+        enableFeature(minVotes: 3)
+        let manager = SkipVoteManager()
+        let events = Atomic<[String]>([])
+        await manager.configure(
+            performSkip: nil,
+            sendChatMessage: nil,
+            createPoll: nil,
+            onVoteEvent: { event in
+                if case .started(let needed) = event {
+                    events.mutate { $0.append("started:\(needed)") }
+                }
+            }
+        )
+
+        _ = await manager.recordVote(context: context(userID: "1"))
+        XCTAssertEqual(events.value, ["started:3"])
+    }
+
+    func testOnVoteEventFiresPassedOnThreshold() async {
+        enableFeature(minVotes: 2)
+        let manager = SkipVoteManager()
+        let events = Atomic<[String]>([])
+        await manager.configure(
+            performSkip: nil,
+            sendChatMessage: nil,
+            createPoll: nil,
+            onVoteEvent: { event in
+                switch event {
+                case .started: events.mutate { $0.append("started") }
+                case .passed: events.mutate { $0.append("passed") }
+                case .pollStarted: events.mutate { $0.append("pollStarted") }
+                }
+            }
+        )
+
+        _ = await manager.recordVote(context: context(userID: "1"))
+        _ = await manager.recordVote(context: context(userID: "2"))
+        XCTAssertEqual(events.value, ["started", "passed"])
+    }
+
+    func testOnVoteEventFiresPassedFromPollResult() async {
+        enableFeature(minVotes: 3)
+        let manager = SkipVoteManager()
+        let events = Atomic<[String]>([])
+        await manager.configure(
+            performSkip: nil,
+            sendChatMessage: nil,
+            createPoll: nil,
+            onVoteEvent: { event in
+                if case .passed = event { events.mutate { $0.append("passed") } }
+            }
+        )
+
+        await manager.handlePollEnded(skipVotes: 9, keepVotes: 2)
+        XCTAssertEqual(events.value, ["passed"])
+    }
 }
 
 // MARK: - Sendable Atomic Box for closure capture

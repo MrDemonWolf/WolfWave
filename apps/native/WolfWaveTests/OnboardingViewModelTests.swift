@@ -68,9 +68,9 @@ final class OnboardingViewModelTests: WolfWaveTestCase {
         XCTAssertEqual(viewModel.currentStep, .preferences)
     }
 
-    func testFiveNextStepsReachesAppleMusic() {
+    func testFiveNextStepsReachesPermissions() {
         for _ in 0..<5 { viewModel.goToNextStep() }
-        XCTAssertEqual(viewModel.currentStep, .appleMusicAccess)
+        XCTAssertEqual(viewModel.currentStep, .permissions)
     }
 
     func testSixNextStepsReachesMenuBarPointer() {
@@ -148,7 +148,8 @@ final class OnboardingViewModelTests: WolfWaveTestCase {
         XCTAssertEqual(viewModel.currentStep, .welcome)
 
         let order: [OnboardingViewModel.OnboardingStep] = [
-            .discordConnect, .twitchConnect, .obsWidget, .preferences, .appleMusicAccess, .menuBarPointer
+            .discordConnect, .twitchConnect, .obsWidget, .preferences,
+            .permissions, .menuBarPointer
         ]
 
         for expected in order {
