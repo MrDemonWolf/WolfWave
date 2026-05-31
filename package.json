@@ -1,6 +1,7 @@
 {
   "name": "wolfwave",
   "private": true,
+  "license": "GPL-3.0",
   "workspaces": ["apps/*", "apps/marketing/*"],
   "scripts": {
     "dev": "turbo dev",

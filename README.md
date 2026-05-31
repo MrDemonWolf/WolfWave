@@ -196,7 +196,7 @@ wolfwave/
 
 [![GitHub license](https://img.shields.io/github/license/mrdemonwolf/wolfwave.svg?style=for-the-badge&logo=github)](https://github.com/mrdemonwolf)
 
-WolfWave is released under the MIT License.
+WolfWave is released under the GNU General Public License v3.0 (GPL-3.0).
 
 ## Contact
 
