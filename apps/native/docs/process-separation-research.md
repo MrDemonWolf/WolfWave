@@ -67,11 +67,6 @@ It would be for *new* work that must outlive the app or run with a tighter sandb
 - **BGTaskScheduler / NSBackgroundActivityScheduler** — deferrable periodic work
   (e.g. a future nightly ListeningHistory rollup).
 
-A complete, tested prior implementation of the overlay-server-as-XPC split
-(SwiftPM package `WolfWaveOverlayKit`, the `.xpc` target files, an in-app facade,
-and an Xcode cutover guide) is **parked on branch `claude/overlay-xpc-parked`** if
-that path is ever revisited.
-
 ## Verdict
 
 Stay single-process. Resource savings come from in-process tuning (shipped:
