@@ -315,6 +315,16 @@ actor DiscordRPCService {
         performClearPresence()
     }
 
+    /// Shows the opt-in "Idle" activity used when nothing is playing and the
+    /// user chose to keep WolfWave visible on their profile instead of clearing
+    /// it. No track, timestamps, or buttons — just a static idle marker.
+    func showIdleStatus() {
+        guard state == .connected else { return }
+        // Idle has no track to re-send on a settings change.
+        lastPresence = nil
+        sendActivityFrame(Self.buildIdleActivity())
+    }
+
     // MARK: - Resolution Handling
 
     private func handleResolvedLinks(
@@ -408,6 +418,11 @@ actor DiscordRPCService {
             now: Date()
         )
 
+        sendActivityFrame(activity)
+    }
+
+    /// Wraps an `activity` dictionary in a `SET_ACTIVITY` frame and sends it.
+    private func sendActivityFrame(_ activity: [String: Any]) {
         let payload: [String: Any] = [
             "cmd": "SET_ACTIVITY",
             "args": [
@@ -526,6 +541,21 @@ actor DiscordRPCService {
         }
 
         return activity
+    }
+
+    /// Builds the minimal opt-in "Idle" activity payload (no track, timestamps,
+    /// or buttons). Pure function — no socket I/O, no instance state. Exposed
+    /// `internal` so unit tests can assert its shape.
+    nonisolated static func buildIdleActivity() -> [String: Any] {
+        [
+            "type": AppConstants.Discord.listeningActivityType,
+            "details": AppConstants.Discord.idleDetails,
+            "state": AppConstants.Discord.idleState,
+            "assets": [
+                "large_image": "apple_music",
+                "large_text": "WolfWave",
+            ],
+        ]
     }
 
     /// Resolves a button payload from settings + a candidate URL.

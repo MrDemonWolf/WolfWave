@@ -14,6 +14,13 @@ import SwiftUI
 /// edits, toggle changes, and state-line tweaks without waiting for the
 /// Discord client to update.
 ///
+/// The card mirrors what Discord *actually* shows. A track is only rendered in
+/// the `.playing` and `.paused` modes; when nothing is playing, Apple Music is
+/// closed, or Discord itself isn't running, the card renders a matching empty
+/// state instead of a stale song. This keeps the preview honest about the fact
+/// that the real presence is cleared (shows nothing on the profile) outside of
+/// active playback.
+///
 /// Visual styling deliberately matches the Discord desktop client (dark grey
 /// surface, muted "Listening to WolfWave" header with a green now-playing dot,
 /// gray pill buttons) rather than macOS Liquid Glass. This view represents
@@ -21,6 +28,33 @@ import SwiftUI
 struct DiscordPreviewCard: View {
 
     // MARK: - Types
+
+    /// What the card is currently representing. Drives the header, dot color,
+    /// body content, and whether buttons render.
+    enum Mode: Equatable {
+        /// A track is actively playing — full card, moving progress, buttons.
+        case playing
+        /// A track is loaded but paused — track stays, frozen bar, "Paused" badge.
+        case paused
+        /// Apple Music is open but nothing is playing. Real presence is cleared.
+        case stopped
+        /// Apple Music isn't running. Real presence is cleared.
+        case musicClosed
+        /// Discord client isn't running, so nothing can be shown on the profile.
+        case discordOffline
+        /// Opt-in idle activity: nothing playing, but WolfWave stays on the
+        /// profile as "Listening to WolfWave · Idle" instead of clearing.
+        case idleActivity
+
+        /// Whether this mode renders the track + buttons (vs. an empty state).
+        var showsTrack: Bool { self == .playing || self == .paused }
+
+        /// Whether the header reads "LISTENING TO WOLFWAVE" (an activity is on
+        /// the profile) vs. just "WOLFWAVE" (no activity).
+        var showsListeningHeader: Bool {
+            self == .playing || self == .paused || self == .idleActivity
+        }
+    }
 
     /// A single button row in the mock card.
     struct PreviewButton: Equatable {
@@ -30,6 +64,7 @@ struct DiscordPreviewCard: View {
 
     // MARK: - Properties
 
+    var mode: Mode = .playing
     let trackTitle: String
     let artist: String
     let album: String
@@ -55,8 +90,14 @@ struct DiscordPreviewCard: View {
     var body: some View {
         VStack(alignment: .leading, spacing: DSSpace.s4) {
             header
-            content
-            buttons
+            if mode.showsTrack {
+                trackContent
+                buttons
+            } else if mode == .idleActivity {
+                idleActivityContent
+            } else {
+                emptyContent
+            }
         }
         .padding(DSSpace.s5)
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -66,29 +107,51 @@ struct DiscordPreviewCard: View {
             RoundedRectangle(cornerRadius: 12, style: .continuous)
                 .stroke(Color.white.opacity(0.06), lineWidth: 1)
         )
+        .opacity(mode == .discordOffline ? 0.55 : 1)
+        .animation(.easeInOut(duration: DSMotion.Duration.base), value: mode)
         .accessibilityElement(children: .combine)
         .accessibilityLabel(accessibilitySummary)
     }
 
-    // MARK: - Subviews
+    // MARK: - Header
 
     private var header: some View {
         // Mirrors Discord's real "Listening to <app>" row: muted gray label with
-        // the app name brighter, preceded by a green now-playing dot. Discord
-        // shows the registered application name (WolfWave), not "Apple Music",
-        // and the header is never blurple/purple.
+        // the app name brighter, preceded by a status dot. Discord shows the
+        // registered application name (WolfWave), not "Apple Music", and the
+        // header is never blurple/purple.
         HStack(spacing: 6) {
             Circle()
-                .fill(Color.green)
+                .fill(dotColor)
                 .frame(width: 8, height: 8)
-            Text("LISTENING TO \(Text("WOLFWAVE").foregroundStyle(Color.white.opacity(0.9)))")
+            headerLabel
                 .foregroundStyle(Color.white.opacity(0.55))
                 .font(.system(size: DSFont.Size.sm, weight: .bold))
                 .kerning(0.6)
         }
     }
 
-    private var content: some View {
+    private var dotColor: Color {
+        switch mode {
+        case .playing:        return .green
+        case .paused:         return .orange
+        case .stopped,
+             .musicClosed,
+             .discordOffline,
+             .idleActivity:   return Color.white.opacity(0.35)
+        }
+    }
+
+    private var headerLabel: Text {
+        if mode.showsListeningHeader {
+            return Text("LISTENING TO \(Text("WOLFWAVE").foregroundStyle(Color.white.opacity(0.9)))")
+        }
+        return Text("WOLFWAVE").foregroundStyle(Color.white.opacity(0.55))
+    }
+
+    // MARK: - Track content
+
+    private var trackContent: some View {
         HStack(alignment: .top, spacing: DSSpace.s4) {
             artworkView
             VStack(alignment: .leading, spacing: 3) {
@@ -108,6 +171,8 @@ struct DiscordPreviewCard: View {
                     .padding(.top, DSSpace.s1)
             }
         }
+        // Paused playback is dimmed and desaturated to read as "on hold".
+        .opacity(mode == .paused ? 0.65 : 1)
     }
 
     private var artworkView: some View {
@@ -127,9 +192,13 @@ struct DiscordPreviewCard: View {
                 }
             }
             .frame(width: 80, height: 80)
+            .saturation(mode == .paused ? 0.4 : 1)
             .clipShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
 
-            Image(systemName: "music.note")
+            // Small corner badge mirrors Discord's `assets.small_image`. While
+            // paused the live presence swaps this to a pause glyph + "Paused"
+            // text, so the preview does the same.
+            Image(systemName: mode == .paused ? "pause.fill" : "music.note")
                 .font(.system(size: DSFont.Size.xs, weight: .bold))
                 .foregroundStyle(.white)
                 .frame(width: 22, height: 22)
@@ -146,7 +215,7 @@ struct DiscordPreviewCard: View {
                 .clipShape(Circle())
                 .overlay(Circle().stroke(cardBackground, lineWidth: 2))
                 .offset(x: 4, y: 4)
-                .help(playlistTooltip ?? "Apple Music")
+                .help(mode == .paused ? "Paused" : (playlistTooltip ?? "Apple Music"))
         }
     }
 
@@ -200,19 +269,103 @@ struct DiscordPreviewCard: View {
             .clipShape(RoundedRectangle(cornerRadius: 4, style: .continuous))
     }
 
+    // MARK: - Empty content
+
+    /// Shared empty-state layout for `.stopped`, `.musicClosed`, and
+    /// `.discordOffline`. Reuses the WolfMark artwork tile so the card keeps its
+    /// shape, then explains why nothing is showing on the profile.
+    private var emptyContent: some View {
+        HStack(alignment: .center, spacing: DSSpace.s4) {
+            artworkPlaceholder
+                .frame(width: 80, height: 80)
+                .saturation(0.35)
+                .opacity(0.7)
+                .clipShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
+            VStack(alignment: .leading, spacing: DSSpace.s1) {
+                Text(emptyHeadline)
+                    .font(.system(size: DSFont.Size.md, weight: .semibold))
+                    .foregroundStyle(Color.white.opacity(0.9))
+                    .lineLimit(1)
+                Text(emptySubtext)
+                    .font(.system(size: DSFont.Size.body))
+                    .foregroundStyle(Color.white.opacity(0.5))
+                    .lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            Spacer(minLength: 0)
+        }
+    }
+
+    private var emptyHeadline: String {
+        switch mode {
+        case .stopped:        return "Nothing playing"
+        case .musicClosed:    return "Apple Music is closed"
+        case .discordOffline: return "Discord isn't running"
+        case .playing, .paused, .idleActivity: return ""
+        }
+    }
+
+    private var emptySubtext: String {
+        switch mode {
+        case .stopped:        return "Play a song in Apple Music and it shows up here."
+        case .musicClosed:    return "Open Apple Music to share what you're listening to."
+        case .discordOffline: return "Open Discord, then your music shows on your profile."
+        case .playing, .paused, .idleActivity: return ""
+        }
+    }
+
+    // MARK: - Idle activity content
+
+    /// Opt-in idle marker — looks like a real activity ("Listening to WolfWave ·
+    /// Idle") so the preview matches what stays on the profile when the user
+    /// keeps idle status on. No track, progress, or buttons.
+    private var idleActivityContent: some View {
+        HStack(alignment: .center, spacing: DSSpace.s4) {
+            artworkPlaceholder
+                .frame(width: 80, height: 80)
+                .saturation(0.45)
+                .clipShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
+            VStack(alignment: .leading, spacing: 3) {
+                Text(AppConstants.Discord.idleDetails)
+                    .font(.system(size: DSFont.Size.md, weight: .semibold))
+                    .foregroundStyle(.white)
+                    .lineLimit(1)
+                Text(AppConstants.Discord.idleState)
+                    .font(.system(size: DSFont.Size.base))
+                    .foregroundStyle(Color.white.opacity(0.6))
+                    .lineLimit(1)
+            }
+            Spacer(minLength: 0)
+        }
+    }
+
+    // MARK: - Accessibility
+
     private var accessibilitySummary: String {
-        var parts = ["Discord preview", "Listening to WolfWave", trackTitle, artist, album]
-        if let playlistTooltip { parts.append("App icon tooltip: \(playlistTooltip)") }
-        if let b1 = button1 { parts.append("Button: \(b1.label)") }
-        if let b2 = button2 { parts.append("Button: \(b2.label)") }
-        return parts.joined(separator: ", ")
+        switch mode {
+        case .playing, .paused:
+            var parts = [
+                "Discord preview",
+                mode == .paused ? "Paused on WolfWave" : "Listening to WolfWave",
+                trackTitle, artist, album,
+            ]
+            if let playlistTooltip { parts.append("App icon tooltip: \(playlistTooltip)") }
+            if let b1 = button1 { parts.append("Button: \(b1.label)") }
+            if let b2 = button2 { parts.append("Button: \(b2.label)") }
+            return parts.joined(separator: ", ")
+        case .stopped, .musicClosed, .discordOffline:
+            return "Discord preview, \(emptyHeadline). \(emptySubtext)"
+        case .idleActivity:
+            return "Discord preview, Listening to WolfWave, \(AppConstants.Discord.idleDetails), \(AppConstants.Discord.idleState)"
+        }
     }
 }
 
 // MARK: - Preview
 
-#Preview("Both buttons") {
+#Preview("Playing") {
     DiscordPreviewCard(
+        mode: .playing,
         trackTitle: "Smooth Operator",
         artist: "Sade",
         album: "Diamond Life",
@@ -225,8 +378,9 @@ struct DiscordPreviewCard: View {
     .background(Color.black)
 }
 
-#Preview("One button") {
+#Preview("Paused") {
     DiscordPreviewCard(
+        mode: .paused,
         trackTitle: "Redbone",
         artist: "Childish Gambino",
         album: "Awaken, My Love!",
@@ -239,11 +393,57 @@ struct DiscordPreviewCard: View {
     .background(Color.black)
 }
 
-#Preview("No buttons") {
+#Preview("Stopped") {
     DiscordPreviewCard(
-        trackTitle: "Truly Madly Deeply",
-        artist: "Savage Garden",
-        album: "Savage Garden",
+        mode: .stopped,
+        trackTitle: "",
+        artist: "",
+        album: "",
+        artworkURL: nil,
+        button1: nil,
+        button2: nil
+    )
+    .padding()
+    .frame(width: 360)
+    .background(Color.black)
+}
+
+#Preview("Apple Music closed") {
+    DiscordPreviewCard(
+        mode: .musicClosed,
+        trackTitle: "",
+        artist: "",
+        album: "",
+        artworkURL: nil,
+        button1: nil,
+        button2: nil
+    )
+    .padding()
+    .frame(width: 360)
+    .background(Color.black)
+}
+
+#Preview("Idle activity") {
+    DiscordPreviewCard(
+        mode: .idleActivity,
+        trackTitle: "",
+        artist: "",
+        album: "",
+        artworkURL: nil,
+        button1: nil,
+        button2: nil
+    )
+    .padding()
+    .frame(width: 360)
+    .background(Color.black)
+}
+
+#Preview("Discord offline") {
+    DiscordPreviewCard(
+        mode: .discordOffline,
+        trackTitle: "",
+        artist: "",
+        album: "",
         artworkURL: nil,
         button1: nil,
         button2: nil

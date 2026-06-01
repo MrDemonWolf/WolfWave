@@ -6,6 +6,7 @@
 //  Copyright © 2026 MrDemonWolf, Inc. All rights reserved.
 //
 
+import AppKit
 import SwiftUI
 
 /// Settings for Discord Rich Presence integration.
@@ -38,11 +39,22 @@ struct DiscordSettingsView: View {
     @AppStorage(AppConstants.UserDefaults.discordPlaylistStyle)
     private var playlistStyle: DiscordPlaylistStyle = .default
 
+    @AppStorage(AppConstants.UserDefaults.discordShowIdleStatus)
+    private var showIdleStatus = false
+
+    @AppStorage(AppConstants.UserDefaults.discordClearWhilePaused)
+    private var clearWhilePaused = false
+
     // MARK: - State
 
     @State private var connectionState: DiscordRPCService.ConnectionState = .disconnected
     @State private var hasClientID = false
     @State private var nowPlaying: NowPlayingSnapshot = .sample
+    /// What the preview card represents, driven by live playback notifications.
+    /// Seeded from Apple Music's running state on appear, then kept in sync by
+    /// `.nowPlayingChanged` (track present / paused / nil) and the Discord
+    /// connection state.
+    @State private var playbackMode: DiscordPreviewCard.Mode = .stopped
     @State private var settingsChangedTask: Task<Void, Never>?
 
     // MARK: - Body
@@ -53,6 +65,7 @@ struct DiscordSettingsView: View {
             if presenceEnabled && hasClientID {
                 buttonsSection
                 playlistSection
+                behaviorSection
                 previewSection
             }
         }
@@ -61,7 +74,10 @@ struct DiscordSettingsView: View {
         .onAppear {
             hasClientID = DiscordRPCService.resolveClientID() != nil
             refreshConnectionState()
-            refreshNowPlaying()
+            // Seed an honest empty state immediately, then ask the active source
+            // to rebroadcast so a live/paused track populates within a poll tick.
+            playbackMode = isAppleMusicRunning() ? .stopped : .musicClosed
+            AppDelegate.shared?.refreshNowPlaying()
         }
         .onReceive(
             NotificationCenter.default.publisher(
@@ -251,16 +267,52 @@ struct DiscordSettingsView: View {
         .transition(.opacity)
     }
 
+    private var behaviorSection: some View {
+        VStack(alignment: .leading, spacing: DSSpace.s4) {
+            SectionHeaderWithStatus(
+                title: "When not playing",
+                subtitle: "Control what your profile shows when music stops or pauses.",
+                statusText: showIdleStatus ? "Idle shown" : "Cleared",
+                statusColor: showIdleStatus ? .green : .secondary
+            )
+
+            VStack(alignment: .leading, spacing: DSSpace.s6) {
+                ToggleSettingRow(
+                    title: "Show idle status",
+                    subtitle: "Keep \"Listening to WolfWave \u{00B7} Idle\" on your profile instead of clearing it",
+                    isOn: $showIdleStatus,
+                    accessibilityLabel: "Show idle status on Discord",
+                    accessibilityIdentifier: "discordIdleStatusToggle",
+                    accessibilityHint: "Toggle to keep an idle activity on your profile when nothing is playing"
+                )
+
+                Divider()
+
+                ToggleSettingRow(
+                    title: "Hide track while paused",
+                    subtitle: "Clear the track when you pause, rather than leaving it on your profile",
+                    isOn: $clearWhilePaused,
+                    accessibilityLabel: "Hide track while paused",
+                    accessibilityIdentifier: "discordClearWhilePausedToggle",
+                    accessibilityHint: "Toggle to clear your Discord profile while playback is paused"
+                )
+            }
+            .cardStyle()
+        }
+        .transition(.opacity)
+    }
+
     private var previewSection: some View {
         VStack(alignment: .leading, spacing: DSSpace.s4) {
             SectionHeaderWithStatus(
                 title: "Preview",
                 subtitle: "How your profile will look on Discord.",
-                statusText: nowPlaying.isLive ? "Live" : "Sample",
-                statusColor: nowPlaying.isLive ? .green : .secondary
+                statusText: previewStatusText,
+                statusColor: previewStatusColor
             )
 
             DiscordPreviewCard(
+                mode: previewMode,
                 trackTitle: nowPlaying.track,
                 artist: previewStateLine,
                 album: nowPlaying.album,
@@ -279,7 +331,7 @@ struct DiscordSettingsView: View {
             )
             .padding(.horizontal, DSSpace.s1)
 
-            if let tooltip = previewPlaylistTooltip {
+            if previewMode.showsTrack, let tooltip = previewPlaylistTooltip {
                 HStack(spacing: 6) {
                     Image(systemName: "info.circle")
                     Text("Hover the app icon on Discord to see: \(tooltip)")
@@ -290,6 +342,58 @@ struct DiscordSettingsView: View {
             }
         }
         .transition(.opacity)
+    }
+
+    // MARK: - Preview State
+
+    /// The mode the preview card renders. A disconnected Discord client wins
+    /// over playback state — there's no profile to show music on. Otherwise the
+    /// live playback mode is mapped through the two behavior toggles: a paused
+    /// track can be hidden, and any "no track" state can fall back to the opt-in
+    /// idle activity instead of an empty card.
+    private var previewMode: DiscordPreviewCard.Mode {
+        if connectionState == .disconnected { return .discordOffline }
+        switch playbackMode {
+        case .playing:
+            return .playing
+        case .paused:
+            return clearWhilePaused ? clearedPreviewMode(whenMusicClosed: false) : .paused
+        case .stopped:
+            return clearedPreviewMode(whenMusicClosed: false)
+        case .musicClosed:
+            return clearedPreviewMode(whenMusicClosed: true)
+        case .discordOffline, .idleActivity:
+            return playbackMode
+        }
+    }
+
+    /// What the profile shows with no track: the opt-in idle activity, or the
+    /// matching empty state.
+    private func clearedPreviewMode(whenMusicClosed: Bool) -> DiscordPreviewCard.Mode {
+        if showIdleStatus { return .idleActivity }
+        return whenMusicClosed ? .musicClosed : .stopped
+    }
+
+    private var previewStatusText: String {
+        switch previewMode {
+        case .playing:        return "Live"
+        case .paused:         return "Paused"
+        case .stopped:        return "Idle"
+        case .musicClosed:    return "Idle"
+        case .idleActivity:   return "Idle"
+        case .discordOffline: return "Offline"
+        }
+    }
+
+    private var previewStatusColor: Color {
+        switch previewMode {
+        case .playing:        return .green
+        case .paused:         return .orange
+        case .stopped,
+             .musicClosed,
+             .idleActivity,
+             .discordOffline: return .secondary
+        }
     }
 
     // MARK: - Playlist Preview Helpers
@@ -369,14 +473,16 @@ struct DiscordSettingsView: View {
         }
     }
 
-    private func refreshNowPlaying() {
-        // Best-effort: try to seed live data via the artwork cache if a track is active.
-        // The nowPlayingChanged notification takes over once a track changes.
-    }
-
     private func updateNowPlaying(from notification: Notification) {
         let payload = notification.nowPlaying
-        guard let track = payload.track, let artist = payload.artist else { return }
+        guard let track = payload.track, let artist = payload.artist else {
+            // No track in the payload: playback stopped, or Apple Music quit.
+            // Mirror the live presence, which clears the profile in both cases.
+            withAnimation(.easeInOut(duration: DSMotion.Duration.base)) {
+                playbackMode = isAppleMusicRunning() ? .stopped : .musicClosed
+            }
+            return
+        }
         let album = payload.album ?? ""
         let playlist = payload.playlist ?? ""
         let links = ArtworkService.shared.cachedTrackLinks(track: track, artist: artist)
@@ -390,6 +496,17 @@ struct DiscordSettingsView: View {
             songLinkURL: links.songLinkURL,
             isLive: true
         )
+        withAnimation(.easeInOut(duration: DSMotion.Duration.base)) {
+            playbackMode = payload.isPaused ? .paused : .playing
+        }
+    }
+
+    /// `true` when Apple Music is currently running, used to tell a stopped
+    /// track apart from a quit app for the preview's empty state.
+    private func isAppleMusicRunning() -> Bool {
+        NSWorkspace.shared.runningApplications.contains {
+            $0.bundleIdentifier == "com.apple.Music"
+        }
     }
 
     private func notifyPresenceSettingChanged(enabled: Bool) {

@@ -722,17 +722,34 @@ extension AppDelegate: PlaybackSourceDelegate {
         fetchArtworkForWidget(track: track, artist: artist)
 
         if let discordService {
-            Task {
-                await discordService.updatePresence(
-                    track: track,
-                    artist: artist,
-                    album: album,
-                    playlist: playlist,
-                    duration: duration,
-                    elapsed: elapsed,
-                    isPaused: isPaused
-                )
+            if isPaused && FeatureFlags.discordClearWhilePaused {
+                // User opted to hide the track while paused: clear (or go idle)
+                // instead of keeping the paused track on their profile.
+                applyDiscordCleared()
+            } else {
+                Task {
+                    await discordService.updatePresence(
+                        track: track,
+                        artist: artist,
+                        album: album,
+                        playlist: playlist,
+                        duration: duration,
+                        elapsed: elapsed,
+                        isPaused: isPaused
+                    )
+                }
             }
+        }
+    }
+
+    /// Applies the "no track" Discord state, honoring the idle-status
+    /// preference: shows the opt-in idle activity, or clears the profile.
+    private func applyDiscordCleared() {
+        guard let discordService else { return }
+        if FeatureFlags.discordShowIdleStatus {
+            Task { await discordService.showIdleStatus() }
+        } else {
+            Task { await discordService.clearPresence() }
         }
     }
 
@@ -814,9 +831,7 @@ extension AppDelegate: PlaybackSourceDelegate {
         postNowPlayingUpdate(song: nil, artist: nil, album: nil)
 
         if shouldClearPlayback {
-            if let discordService {
-                Task { await discordService.clearPresence() }
-            }
+            applyDiscordCleared()
             Task { [weak self] in await self?.websocketServer?.clearNowPlaying() }
         }
     }

@@ -265,6 +265,14 @@ nonisolated enum AppConstants {
         /// How the playlist is displayed in Discord presence — `DiscordPlaylistStyle` raw value (String, default: "artistLine")
         static let discordPlaylistStyle = "discordPlaylistStyle"
 
+        /// Whether WolfWave shows an "Idle" Discord activity when nothing is
+        /// playing instead of clearing the profile (Bool, default: false).
+        static let discordShowIdleStatus = "discordShowIdleStatus"
+
+        /// Whether Discord presence is cleared while playback is paused, rather
+        /// than keeping the loaded track on the profile (Bool, default: false).
+        static let discordClearWhilePaused = "discordClearWhilePaused"
+
         /// Whether the app should launch at login (Bool, default: false)
         static let launchAtLogin = "launchAtLogin"
 
@@ -704,6 +712,12 @@ nonisolated enum AppConstants {
 
         /// Activity type for "Listening" (shows "Listening to …" on profile)
         static let listeningActivityType = 2
+
+        /// Title line (line 1) for the opt-in idle activity.
+        static let idleDetails = "Idle"
+
+        /// Sub-line (line 2) for the opt-in idle activity.
+        static let idleState = "Nothing playing right now"
 
         /// Reconnect base delay in seconds (doubled on each consecutive failure)
         static let reconnectBaseDelay: TimeInterval = 5.0
