@@ -95,15 +95,6 @@ struct SettingsView: View {
             default: return nil
             }
         }
-
-        /// Brand tint applied to the template-rendered brand icon.
-        var brandColor: Color? {
-            switch self {
-            case .twitchIntegration: return AppConstants.Brand.twitch
-            case .discord: return AppConstants.Brand.discord
-            default: return nil
-            }
-        }
     }
 
     // MARK: - User Settings
@@ -291,7 +282,7 @@ struct SettingsView: View {
                     .resizable()
                     .aspectRatio(contentMode: .fit)
                     .frame(width: 16, height: 16)
-                    .foregroundStyle(section.brandColor ?? .primary)
+                    .foregroundStyle(.primary)
             } else {
                 Image(systemName: section.systemIcon)
                     .frame(width: 16, height: 16)
