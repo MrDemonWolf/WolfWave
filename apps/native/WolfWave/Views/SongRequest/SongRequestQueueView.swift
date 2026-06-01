@@ -46,7 +46,7 @@ struct SongRequestQueueView: View {
                 Spacer()
 
                 if isHeld {
-                    Label("Hold — curate then tap Resume", systemImage: "pause.circle.fill")
+                    Label("Hold. Curate, then tap Resume", systemImage: "pause.circle.fill")
                         .font(.system(size: DSFont.Size.xs, weight: .medium))
                         .foregroundStyle(.orange)
                         .padding(.horizontal, DSSpace.s2)
@@ -54,7 +54,7 @@ struct SongRequestQueueView: View {
                         .background(.orange.opacity(0.12))
                         .clipShape(Capsule())
                 } else if isMusicAppClosed {
-                    Label("Music is closed — requests are saved", systemImage: "pause.circle.fill")
+                    Label("Music is closed, requests are saved", systemImage: "pause.circle.fill")
                         .font(.system(size: DSFont.Size.xs, weight: .medium))
                         .foregroundStyle(.orange)
                         .padding(.horizontal, DSSpace.s2)
@@ -81,7 +81,7 @@ struct SongRequestQueueView: View {
             if items.isEmpty && nowPlaying == nil {
                 emptyState
             } else if items.isEmpty {
-                Text("Queue is empty — this is the last requested song.")
+                Text("Queue is empty, this is the last requested song.")
                     .font(.system(size: DSFont.Size.sm))
                     .foregroundStyle(.tertiary)
                     .frame(maxWidth: .infinity, alignment: .center)
@@ -139,7 +139,7 @@ struct SongRequestQueueView: View {
                 Text(item.title)
                     .font(.system(size: DSFont.Size.body, weight: .medium))
                     .lineLimit(1)
-                Text("\(item.artist) — requested by \(item.requesterUsername)")
+                Text("\(item.artist) · requested by \(item.requesterUsername)")
                     .font(.system(size: DSFont.Size.xs))
                     .foregroundStyle(.secondary)
                     .lineLimit(1)
@@ -169,7 +169,7 @@ struct SongRequestQueueView: View {
                         Text(item.title)
                             .font(.system(size: DSFont.Size.body))
                             .lineLimit(1)
-                        Text("\(item.artist) — requested by \(item.requesterUsername)")
+                        Text("\(item.artist) · requested by \(item.requesterUsername)")
                             .font(.system(size: DSFont.Size.xs))
                             .foregroundStyle(.secondary)
                             .lineLimit(1)

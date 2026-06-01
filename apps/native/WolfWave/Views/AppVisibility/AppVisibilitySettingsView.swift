@@ -108,7 +108,7 @@ struct AppVisibilitySettingsView: View {
                         Image(systemName: "info.circle.fill")
                             .font(.system(size: DSFont.Size.body))
                             .foregroundStyle(DSColor.info)
-                        Text("\"Dock Only\" is unavailable while Launch at Login is on — the menu bar icon must always be reachable.")
+                        Text("\"Dock Only\" is unavailable while Launch at Login is on. The menu bar icon must always be reachable.")
                             .font(.system(size: DSFont.Size.sm))
                             .foregroundStyle(.secondary)
                             .fixedSize(horizontal: false, vertical: true)

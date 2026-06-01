@@ -132,7 +132,7 @@ struct NowPlayingHeroCard: View {
 
     private var subtitleText: String? {
         switch (artist, album) {
-        case let (a?, b?): return "\(a) — \(b)"
+        case let (a?, b?): return "\(a) · \(b)"
         case let (a?, nil): return a
         case let (nil, b?): return b
         default: return nil

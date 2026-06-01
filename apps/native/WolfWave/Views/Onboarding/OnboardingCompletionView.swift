@@ -51,7 +51,7 @@ struct OnboardingCompletionView: View {
             )
 
             VStack(spacing: DSSpace.s2) {
-                Text("Howl yeah — you're set.")
+                Text("Howl yeah, you're set.")
                     .font(.system(size: DSFont.Size.x24, weight: .bold))
                     .multilineTextAlignment(.center)
 

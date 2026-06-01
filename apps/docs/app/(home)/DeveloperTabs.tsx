@@ -32,7 +32,7 @@ const SNIPPETS: Record<TabId, string> = {
   ].join("\n"),
 
   ha: [
-    `${span(DIM, "# configuration.yaml — render the now-playing card on a wall tablet.")}`,
+    `${span(DIM, "# configuration.yaml: render the now-playing card on a wall tablet.")}`,
     `sensor:`,
     `  - platform: ${span(BRAND, "rest")}`,
     `    name: ${span(BRAND, '"WolfWave Now Playing"')}`,
@@ -46,7 +46,7 @@ const SNIPPETS: Record<TabId, string> = {
   ].join("\n"),
 
   deck: [
-    `${span(DIM, "// Stream Deck plugin — flash the key when a new track lands.")}`,
+    `${span(DIM, "// Stream Deck plugin: flash the key when a new track lands.")}`,
     `${span(BRAND, "import")} WebSocket ${span(BRAND, "from")} ${span(BRAND, '"ws"')};`,
     ``,
     `${span(BRAND, "const")} ws = ${span(BRAND, "new")} WebSocket(${span(BRAND, '"ws://localhost:8080/now-playing"')});`,

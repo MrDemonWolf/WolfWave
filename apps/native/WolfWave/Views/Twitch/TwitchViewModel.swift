@@ -815,7 +815,7 @@ final class TwitchViewModel {
             guard !Task.isCancelled else { return }
             await MainActor.run {
                 if isValid {
-                    self.statusMessage = "✅ Token is valid — scopes OK"
+                    self.statusMessage = "✅ Token is valid. Scopes OK"
                     self.testAuthResult = .success
                 } else {
                     self.statusMessage = "❌ Token is invalid or expired"

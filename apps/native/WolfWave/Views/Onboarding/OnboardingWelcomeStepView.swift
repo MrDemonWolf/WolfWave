@@ -9,21 +9,26 @@
 import SwiftUI
 
 /// Pure-hero welcome step: brand-tinted wolf mark, headline, plain-language
-/// tagline, and a short privacy line. No integration chip row — the next four
+/// tagline, and a short privacy line. No integration chip row. The next four
 /// steps brand each integration on their own.
 struct OnboardingWelcomeStepView: View {
 
     // MARK: - Animation State
 
     @State private var heroVisible = false
+    @State private var titleVisible = false
     @State private var taglineVisible = false
+    @State private var privacyVisible = false
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    /// Vertical offset applied to text rows before they slide into place.
+    private static let entranceRise: CGFloat = DSSpace.s5
 
     // MARK: - Layout Constants
 
     /// Hero mark render size. Lives here instead of inlined as a literal so
-    /// `bun run ds:lint` stays clean — matches widget `tray` hero size.
+    /// `bun run ds:lint` stays clean. Matches widget `tray` hero size.
     private static let heroSize: CGFloat = DSDimension.Onboarding.brandTileSize + DSSpace.s10 + DSSpace.s2
 
     // MARK: - Body
@@ -44,17 +49,20 @@ struct OnboardingWelcomeStepView: View {
             VStack(spacing: DSSpace.s2) {
                 Text("Welcome to WolfWave")
                     .font(.system(size: DSFont.Size.x26, weight: .bold))
-                    .opacity(heroVisible ? 1 : 0)
+                    .opacity(titleVisible ? 1 : 0)
+                    .offset(y: titleVisible ? 0 : Self.entranceRise)
 
-                Text("Share what you're listening to — everywhere.")
+                Text("The new way to share your Apple Music with everyone.")
                     .font(.system(size: DSFont.Size.md))
                     .foregroundStyle(.secondary)
                     .multilineTextAlignment(.center)
                     .opacity(taglineVisible ? 1 : 0)
+                    .offset(y: taglineVisible ? 0 : Self.entranceRise)
             }
 
             privacyLine
-                .opacity(taglineVisible ? 1 : 0)
+                .opacity(privacyVisible ? 1 : 0)
+                .offset(y: privacyVisible ? 0 : Self.entranceRise)
 
             Spacer()
         }
@@ -62,15 +70,28 @@ struct OnboardingWelcomeStepView: View {
         .task {
             if reduceMotion {
                 heroVisible = true
+                titleVisible = true
                 taglineVisible = true
+                privacyVisible = true
                 return
             }
+            // Staggered entrance: hero springs in, then title, tagline, and
+            // privacy line rise + fade in sequence so the screen reads as a
+            // guided reveal rather than a single pop.
             withAnimation(DSMotion.Spring.bouncy) {
                 heroVisible = true
             }
-            try? await Task.sleep(for: .milliseconds(180))
+            try? await Task.sleep(for: .milliseconds(140))
+            withAnimation(DSMotion.Spring.gentle) {
+                titleVisible = true
+            }
+            try? await Task.sleep(for: .milliseconds(110))
             withAnimation(.easeOut(duration: DSMotion.Duration.slow)) {
                 taglineVisible = true
+            }
+            try? await Task.sleep(for: .milliseconds(110))
+            withAnimation(.easeOut(duration: DSMotion.Duration.slow)) {
+                privacyVisible = true
             }
         }
     }
@@ -89,6 +110,7 @@ struct OnboardingWelcomeStepView: View {
             if let url = URL(string: AppConstants.URLs.privacyPolicy) {
                 Link("Privacy policy", destination: url)
                     .font(.system(size: DSFont.Size.sm))
+                    .pointerCursor()
                     .accessibilityLabel("Open WolfWave privacy policy")
                     .accessibilityIdentifier("onboarding.welcome.privacyLink")
             }

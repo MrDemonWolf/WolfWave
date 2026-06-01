@@ -1846,7 +1846,7 @@ actor TwitchChatService {
 
             if userInput.isEmpty {
                 await self.sendMessage(
-                    "@\(userName) add a song name when you redeem — refunding your points.")
+                    "@\(userName) add a song name when you redeem. Refunding your points.")
                 await self.resolveRedemption(
                     credentials, rewardID: rewardID, redemptionID: redemptionID, as: .canceled)
                 return
@@ -1896,7 +1896,7 @@ actor TwitchChatService {
             guard !query.isEmpty else {
                 if boostEnabled {
                     await self.sendMessage(
-                        "@\(userName) no song of yours to boost — include a song name in your cheer to request one.")
+                        "@\(userName) no song of yours to boost. Include a song name in your cheer to request one.")
                 }
                 return
             }
@@ -1938,7 +1938,7 @@ actor TwitchChatService {
         switch result {
         case let .added(item, position):
             return (
-                "@\(username) added \"\(item.title)\" by \(item.artist) — #\(position) in queue",
+                "@\(username) added \"\(item.title)\" by \(item.artist), #\(position) in queue",
                 .fulfilled)
         case let .queueFull(max):
             return ("@\(username) the queue is full (\(max)). Points refunded.", .canceled)
@@ -1967,7 +1967,7 @@ actor TwitchChatService {
     ) -> String {
         switch result {
         case let .added(item, position):
-            return "@\(username) added \"\(item.title)\" by \(item.artist) — #\(position) in queue. Thanks for the bits!"
+            return "@\(username) added \"\(item.title)\" by \(item.artist), #\(position) in queue. Thanks for the bits!"
         case let .queueFull(max):
             return "@\(username) the queue is full (\(max)/\(max)). Try again soon!"
         case let .userLimitReached(max):

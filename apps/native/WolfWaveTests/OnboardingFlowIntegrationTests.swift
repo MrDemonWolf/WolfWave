@@ -35,7 +35,7 @@ final class OnboardingFlowIntegrationTests: WolfWaveTestCase {
     func testWalkingEveryStepReachesMenuBarPointer() {
         let expectedOrder: [OnboardingViewModel.OnboardingStep] = [
             .welcome, .discordConnect, .twitchConnect, .obsWidget,
-            .preferences, .permissions, .menuBarPointer,
+            .preferences, .permissions, .notifications, .menuBarPointer,
         ]
 
         var visited: [OnboardingViewModel.OnboardingStep] = [viewModel.currentStep]
@@ -44,7 +44,7 @@ final class OnboardingFlowIntegrationTests: WolfWaveTestCase {
             visited.append(viewModel.currentStep)
         }
 
-        XCTAssertEqual(visited, expectedOrder, "must visit all 7 steps in order")
+        XCTAssertEqual(visited, expectedOrder, "must visit all 8 steps in order")
         XCTAssertEqual(viewModel.currentStep, .menuBarPointer)
         XCTAssertTrue(viewModel.isLastStep)
     }

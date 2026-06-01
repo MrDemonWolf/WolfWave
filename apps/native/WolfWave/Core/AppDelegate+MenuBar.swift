@@ -431,7 +431,7 @@ extension AppDelegate: NSMenuDelegate {
         } else {
             if let nowPlaying {
                 let requestItem = NSMenuItem(
-                    title: "\(nowPlaying.title) — \(nowPlaying.artist)",
+                    title: "\(nowPlaying.title) · \(nowPlaying.artist)",
                     action: nil,
                     keyEquivalent: ""
                 )
@@ -462,7 +462,7 @@ extension AppDelegate: NSMenuDelegate {
         let submenu = NSMenu()
         if let nowPlaying {
             let nowItem = NSMenuItem(
-                title: "Now: \(nowPlaying.title) — \(nowPlaying.artist)",
+                title: "Now: \(nowPlaying.title) · \(nowPlaying.artist)",
                 action: nil,
                 keyEquivalent: ""
             )
@@ -884,10 +884,10 @@ extension AppDelegate {
 
 extension AppDelegate {
 
-    /// Copies the currently-playing track as `"Title — Artist"`.
+    /// Copies the currently-playing track as `"Title · Artist"`.
     @objc func copyCurrentTrack() {
         guard let song = currentSong else { return }
-        let value = currentArtist.map { "\(song) — \($0)" } ?? song
+        let value = currentArtist.map { "\(song) · \($0)" } ?? song
         NSPasteboard.general.clearContents()
         NSPasteboard.general.setString(value, forType: .string)
         Log.debug("AppDelegate: Copied current track: \(value)", category: "App")
@@ -920,7 +920,7 @@ extension AppDelegate {
     }
 
     /// Copies a recently-played track label from the submenu. The full
-    /// `"Title — Artist"` string is stashed on the menu item as
+    /// `"Title · Artist"` string is stashed on the menu item as
     /// `representedObject`.
     @objc func copyRecentTrack(_ sender: NSMenuItem) {
         guard let value = sender.representedObject as? String else { return }

@@ -15,7 +15,7 @@ const LATEST_RELEASE_URL = `${REPO_URL}/releases/latest`;
 const BREW_CMD = "brew tap mrdemonwolf/den\nbrew install --cask wolfwave";
 
 export const metadata: Metadata = {
-  title: "Download WolfWave — Free for macOS 26+ (DMG or Homebrew)",
+  title: "Download WolfWave: Free for macOS 26+ (DMG or Homebrew)",
   description:
     "Download WolfWave free for macOS 26+ on Apple Silicon. Install the signed .dmg or run `brew install --cask mrdemonwolf/den/wolfwave`. Apple Music required. Free and open source.",
   keywords: [
@@ -28,9 +28,9 @@ export const metadata: Metadata = {
   ],
   alternates: { canonical: "/download" },
   openGraph: {
-    title: "Download WolfWave — Free for macOS 26+",
+    title: "Download WolfWave: Free for macOS 26+",
     description:
-      "Free macOS app — Apple Music to Twitch chat, Discord Rich Presence, OBS overlay. DMG or Homebrew. Apple Silicon.",
+      "Free macOS app. Apple Music to Twitch chat, Discord Rich Presence, OBS overlay. DMG or Homebrew. Apple Silicon.",
   },
 };
 

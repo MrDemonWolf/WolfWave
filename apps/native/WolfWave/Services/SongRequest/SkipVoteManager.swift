@@ -178,11 +178,11 @@ actor SkipVoteManager {
         pollActive = false
         let needed = minVotes
         if skipVotes > keepVotes && skipVotes >= needed {
-            sendChatMessage?("✅ The vote passed — skipping! (\(skipVotes) skip / \(keepVotes) keep)")
+            sendChatMessage?("✅ The vote passed, skipping! (\(skipVotes) skip / \(keepVotes) keep)")
             await performSkip?()
             onVoteEvent?(.passed)
         } else {
-            sendChatMessage?("📊 Vote over — the song stays. (\(skipVotes) skip / \(keepVotes) keep)")
+            sendChatMessage?("📊 Vote over, the song stays. (\(skipVotes) skip / \(keepVotes) keep)")
         }
     }
 
@@ -283,7 +283,7 @@ actor SkipVoteManager {
         // Poll creation failed (commonly: the channel is not a Twitch Affiliate).
         // Fall back to a chat tally so the vote still works.
         pollActive = false
-        sendChatMessage?("📊 Twitch polls need Affiliate status — counting chat votes instead.")
+        sendChatMessage?("📊 Twitch polls need Affiliate status, counting chat votes instead.")
         return await recordChatVote(context: context)
     }
 
@@ -320,7 +320,7 @@ actor SkipVoteManager {
         windowTask = nil
         lastSessionEnd = Date()
         postState()
-        sendChatMessage?("⏳ Vote-skip failed — only \(count) of \(minVotes) needed. The song stays!")
+        sendChatMessage?("⏳ Vote-skip failed, only \(count) of \(minVotes) needed. The song stays!")
     }
 
     /// Posts `.voteSkipStateChanged` with the current session progress (if any).

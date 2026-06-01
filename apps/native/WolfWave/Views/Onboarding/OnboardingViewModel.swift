@@ -27,10 +27,11 @@ final class OnboardingViewModel {
         case obsWidget = 3
         case preferences = 4
         case permissions = 5
-        case menuBarPointer = 6
+        case notifications = 6
+        case menuBarPointer = 7
 
         /// Short spoken name for VoiceOver, used in the progress indicator's
-        /// accessibility value (e.g. "Step 3 of 7: Twitch").
+        /// accessibility value (e.g. "Step 3 of 8: Twitch").
         nonisolated var accessibilityTitle: String {
             switch self {
             case .welcome: return "Welcome"
@@ -39,6 +40,7 @@ final class OnboardingViewModel {
             case .obsWidget: return "OBS Widget"
             case .preferences: return "Preferences"
             case .permissions: return "Permissions"
+            case .notifications: return "Notifications"
             case .menuBarPointer: return "Menu Bar"
             }
         }

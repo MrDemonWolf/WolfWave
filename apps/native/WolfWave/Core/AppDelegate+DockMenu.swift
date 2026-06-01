@@ -36,7 +36,7 @@ extension AppDelegate {
 
     private func addDockNowPlaying(into menu: NSMenu) {
         guard let song = currentSong else { return }
-        let title = currentArtist.map { "\(song) — \($0)" } ?? song
+        let title = currentArtist.map { "\(song) · \($0)" } ?? song
         let item = NSMenuItem(title: title, action: nil, keyEquivalent: "")
         item.isEnabled = false
         menu.addItem(item)

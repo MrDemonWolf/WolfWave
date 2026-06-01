@@ -54,7 +54,7 @@ final class MyQueueCommand: AsyncBotCommand {
             return
         }
 
-        let parts = positions.map { "#\($0.position) \"\($0.item.title)\" — \($0.item.artist)" }
+        let parts = positions.map { "#\($0.position) \"\($0.item.title)\" · \($0.item.artist)" }
         reply("Your requests: \(parts.joined(separator: ", "))")
     }
 }

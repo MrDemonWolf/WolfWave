@@ -78,7 +78,7 @@ final class SongRequestCommand: AsyncBotCommand {
             let response: String
             switch result {
             case .added(let item, let position):
-                response = "Added \"\(item.title)\" by \(item.artist) — #\(position) in queue"
+                response = "Added \"\(item.title)\" by \(item.artist), #\(position) in queue"
 
             case .queueFull(let max):
                 response = "Queue is full (\(max)/\(max)). Try again later!"

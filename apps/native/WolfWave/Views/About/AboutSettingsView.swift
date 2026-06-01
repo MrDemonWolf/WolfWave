@@ -213,18 +213,18 @@ struct AboutSettingsView: View {
                 acknowledgementsSection(
                     title: "Third-party services",
                     rows: [
-                        "Twitch — EventSub WebSocket + Helix API",
-                        "Discord — local IPC Rich Presence",
-                        "Apple Music — ScriptingBridge and MusicKit",
-                        "Odesli (song.link) — cross-platform track link API",
-                        "iTunes Search API — album artwork and Apple Music URLs"
+                        "Twitch: EventSub WebSocket + Helix API",
+                        "Discord: local IPC Rich Presence",
+                        "Apple Music: ScriptingBridge and MusicKit",
+                        "Odesli (song.link): cross-platform track link API",
+                        "iTunes Search API: album artwork and Apple Music URLs"
                     ]
                 )
 
                 acknowledgementsSection(
                     title: "Open source",
                     rows: [
-                        "Sparkle — auto-update framework (MIT license)"
+                        "Sparkle: auto-update framework (MIT license)"
                     ]
                 )
 

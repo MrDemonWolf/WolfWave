@@ -21,9 +21,9 @@ struct RecentTrack: Equatable, Hashable {
     /// When the track became the now-playing track.
     let playedAt: Date
 
-    /// Display string used for the menu item title: `"Title — Artist"`.
+    /// Display string used for the menu item title: `"Title · Artist"`.
     var displayLabel: String {
-        artist.isEmpty ? title : "\(title) — \(artist)"
+        artist.isEmpty ? title : "\(title) · \(artist)"
     }
 
     /// Equality and hashing intentionally ignore `playedAt` so two entries for

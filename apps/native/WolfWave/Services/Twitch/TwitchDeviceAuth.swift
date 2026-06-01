@@ -303,7 +303,7 @@ nonisolated final class TwitchDeviceAuth {
 
             if pollAttempts % 10 == 0 {
                 // Update UI every 10 polls
-                progress("Still waiting on Twitch — check your browser tab.")
+                progress("Still waiting on Twitch. Check your browser tab.")
             } else if pollAttempts == 1 {
                 progress("Waiting for you to approve on Twitch\u{2026}")
             }

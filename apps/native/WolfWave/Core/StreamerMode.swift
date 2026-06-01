@@ -38,8 +38,8 @@ nonisolated enum StreamerMode {
     static func mask(_ value: String, style: Style, isOn: Bool) -> String {
         guard isOn, !value.isEmpty else { return value }
         switch style {
-        case .url:     return "hidden — streamer mode"
-        case .token:   return "hidden — streamer mode"
+        case .url:     return "hidden (streamer mode)"
+        case .token:   return "hidden (streamer mode)"
         case .channel: return "hidden"
         case .generic: return "hidden"
         }

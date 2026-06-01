@@ -194,7 +194,7 @@ final class ListeningHistoryService {
     func statsChatLine() -> String {
         let snap = snapshot
         guard snap.playsToday > 0 else {
-            return "🐺 No plays logged yet today — the music's just getting started!"
+            return "🐺 No plays logged yet today. The music's just getting started!"
         }
         let plays = snap.playsToday == 1 ? "1 play" : "\(snap.playsToday) plays"
         if let top = snap.topTrackToday {

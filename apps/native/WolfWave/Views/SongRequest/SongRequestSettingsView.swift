@@ -132,7 +132,7 @@ fileprivate struct SongRequestHeader: View {
                 VStack(alignment: .leading, spacing: DSSpace.s1) {
                     Text("How it works")
                         .font(.system(size: DSFont.Size.body, weight: .semibold))
-                    Text("Viewers type **!sr song name** in your Twitch chat. WolfWave finds the song on Apple Music and adds it to the queue. Songs play one by one in your Music.app — no window will pop up, it just plays quietly in the background. You stay in control: use **!skip** to jump to the next song, or **!clearqueue** to wipe the queue. Only you and your mods can skip or clear.")
+                    Text("Viewers type **!sr song name** in your Twitch chat. WolfWave finds the song on Apple Music and adds it to the queue. Songs play one by one in your Music.app. No window pops up, it just plays quietly in the background. You stay in control: use **!skip** to jump to the next song, or **!clearqueue** to wipe the queue. Only you and your mods can skip or clear.")
                         .font(.system(size: DSFont.Size.sm))
                         .foregroundStyle(.secondary)
                         .fixedSize(horizontal: false, vertical: true)
@@ -254,7 +254,7 @@ fileprivate struct VoteSkipCard: View {
 
                 ToggleSettingRow(
                     title: "Use Twitch Polls",
-                    subtitle: "Affiliate/Partner only — shows a native poll on stream instead of a chat tally",
+                    subtitle: "Affiliate/Partner only. Shows a native poll on stream instead of a chat tally",
                     isOn: $usePolls,
                     accessibilityLabel: "Use Twitch polls for vote-skip",
                     accessibilityIdentifier: "voteSkip.usePolls"

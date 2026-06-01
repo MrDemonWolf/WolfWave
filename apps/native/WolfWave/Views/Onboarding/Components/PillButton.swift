@@ -9,15 +9,14 @@
 import SwiftUI
 
 /// Pill-shaped primary CTA used in onboarding integration steps (Sign in with Twitch,
-/// Grant Apple Music Access, etc.). Renders a brand-colored fill, inner light highlight,
-/// and brand-tinted glow shadow.
+/// Grant Apple Music Access, etc.). Renders a brand-colored fill and an inner light
+/// highlight. Flat by design: no outer glow halo.
 struct PillButton<Label: View>: View {
 
     // MARK: - Properties
 
     let action: () -> Void
     let background: AnyShapeStyle
-    let glowColor: Color
     let label: Label
     var disabled: Bool = false
 
@@ -25,13 +24,11 @@ struct PillButton<Label: View>: View {
 
     init(
         background: AnyShapeStyle,
-        glowColor: Color,
         disabled: Bool = false,
         action: @escaping () -> Void,
         @ViewBuilder label: () -> Label
     ) {
         self.background = background
-        self.glowColor = glowColor
         self.disabled = disabled
         self.action = action
         self.label = label()
@@ -60,7 +57,6 @@ struct PillButton<Label: View>: View {
                             lineWidth: 0.5
                         )
                 )
-                .shadow(color: glowColor.opacity(0.40), radius: 9, x: 0, y: 6)
                 .opacity(disabled ? 0.65 : 1)
                 .contentShape(RoundedRectangle(cornerRadius: AppConstants.OnboardingUI.primaryButtonRadius, style: .continuous))
         }
@@ -75,7 +71,6 @@ struct PillButton<Label: View>: View {
 #Preview("Enabled") {
     PillButton(
         background: AnyShapeStyle(AppConstants.Brand.twitch),
-        glowColor: AppConstants.Brand.twitch,
         action: {}
     ) {
         Text("Sign in with Twitch")
@@ -87,7 +82,6 @@ struct PillButton<Label: View>: View {
 #Preview("Disabled") {
     PillButton(
         background: AnyShapeStyle(AppConstants.Brand.discord),
-        glowColor: AppConstants.Brand.discord,
         disabled: true,
         action: {}
     ) {

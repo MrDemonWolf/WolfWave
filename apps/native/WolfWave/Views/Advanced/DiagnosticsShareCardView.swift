@@ -32,7 +32,7 @@ struct DiagnosticsShareCardView: View {
                 Text("Diagnostics & Privacy")
                     .font(.system(size: DSFont.Size.base, weight: .semibold))
 
-                Text("WolfWave can collect crash and performance diagnostics using Apple's on-device MetricKit. Reports stay on your Mac — nothing is ever uploaded.")
+                Text("WolfWave can collect crash and performance diagnostics using Apple's on-device MetricKit. Reports stay on your Mac. Nothing is ever uploaded.")
                     .font(.system(size: DSFont.Size.body))
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)

@@ -66,7 +66,7 @@ final class RecentTracksBufferTests: XCTestCase {
 
     func testDisplayLabelWithArtist() {
         let track = RecentTrack(title: "Bohemian Rhapsody", artist: "Queen", playedAt: Date())
-        XCTAssertEqual(track.displayLabel, "Bohemian Rhapsody — Queen")
+        XCTAssertEqual(track.displayLabel, "Bohemian Rhapsody · Queen")
     }
 
     func testDisplayLabelWithoutArtist() {

@@ -71,10 +71,6 @@ struct OnboardingView: View {
                         .padding(.vertical, DSSpace.s6)
                         .background(.regularMaterial)
                 }
-                // macOS 26 Liquid Glass: the wizard content rides on a glass
-                // panel so it picks up the window backdrop instead of a flat
-                // fill. The windowBackgroundColor below is the opaque fallback.
-                .glassEffect(.regular, in: .rect)
             }
         }
         .frame(
@@ -134,6 +130,8 @@ struct OnboardingView: View {
                 OnboardingPreferencesStepView(launchAtLogin: $launchAtLogin)
             case .permissions:
                 OnboardingPermissionsStepView()
+            case .notifications:
+                OnboardingNotificationsStepView()
             case .menuBarPointer:
                 OnboardingMenuBarPointerStepView()
             }
@@ -232,7 +230,7 @@ struct OnboardingView: View {
     // MARK: - Helpers
 
     /// Returns `true` only for steps where Skip means something different from
-    /// "Next with the toggle off" — i.e. OAuth and system permissions.
+    /// "Next with the toggle off" (i.e. OAuth and system permissions).
     private var shouldShowSkip: Bool {
         switch viewModel.currentStep {
         case .twitchConnect:

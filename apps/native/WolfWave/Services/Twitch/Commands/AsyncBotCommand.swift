@@ -20,7 +20,7 @@ import Foundation
 /// class SongRequestCommand: AsyncBotCommand {
 ///     func execute(message: String, context: BotCommandContext, reply: @escaping (String) -> Void) {
 ///         // Search Apple Music asynchronously...
-///         reply("Added \"Bohemian Rhapsody\" by Queen — #3 in queue")
+///         reply("Added \"Bohemian Rhapsody\" by Queen, #3 in queue")
 ///     }
 /// }
 /// ```

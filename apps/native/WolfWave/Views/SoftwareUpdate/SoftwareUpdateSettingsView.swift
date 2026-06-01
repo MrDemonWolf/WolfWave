@@ -159,7 +159,7 @@ struct SoftwareUpdateSettingsView: View {
                     .font(.system(size: DSFont.Size.md))
                     .foregroundStyle(DSColor.warning)
 
-                Text("Development build — update checks use dev-appcast.xml")
+                Text("Development build. Update checks use dev-appcast.xml")
                     .font(.system(size: DSFont.Size.sm))
                     .foregroundStyle(.secondary)
             }

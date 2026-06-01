@@ -49,7 +49,7 @@ struct OnboardingPreferencesStepView: View {
                         icon: "power",
                         iconColor: .green,
                         title: "Start WolfWave at login",
-                        subtitle: "Starts in the menu bar — no Dock icon clutter.",
+                        subtitle: "Starts in the menu bar, no Dock icon clutter.",
                         isOn: Binding(
                             get: { launchAtLogin },
                             set: { newValue in

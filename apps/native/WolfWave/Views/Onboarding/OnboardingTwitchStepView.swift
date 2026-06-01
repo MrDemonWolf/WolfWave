@@ -23,7 +23,7 @@ struct OnboardingTwitchStepView: View {
     var body: some View {
         OnboardingStepScaffold(
             title: "Connect WolfWave to Twitch",
-            description: "So !song works in your chat automatically. We only listen — we never post unless you ask.",
+            description: "So !song works in your chat automatically. We only listen, we never post unless you ask.",
             icon: {
                 BrandTile(
                     background: AnyShapeStyle(AppConstants.Brand.twitch),
@@ -69,7 +69,6 @@ struct OnboardingTwitchStepView: View {
         VStack(spacing: 10) {
             PillButton(
                 background: AnyShapeStyle(AppConstants.Brand.twitch),
-                glowColor: AppConstants.Brand.twitch,
                 action: {
                     hasStartedActivation = false
                     twitchViewModel.startOAuth()

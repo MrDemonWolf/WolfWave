@@ -52,9 +52,9 @@ final class SkipCommand: ServiceBoundCommand {
 
         Task {
             if let next = await service.skip() {
-                reply("Skipped — now playing: \"\(next.title)\" by \(next.artist) (requested by \(next.requesterUsername))")
+                reply("Skipped. Now playing: \"\(next.title)\" by \(next.artist) (requested by \(next.requesterUsername))")
             } else {
-                reply("Skipped — queue is now empty.")
+                reply("Skipped. Queue is now empty.")
             }
         }
     }

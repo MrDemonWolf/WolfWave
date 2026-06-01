@@ -117,7 +117,7 @@ struct HistoryStatsSettingsView: View {
     // MARK: - Intro
 
     private var intro: some View {
-        Text("WolfWave can remember what you play — kept on this Mac, never uploaded.")
+        Text("WolfWave can remember what you play, kept on this Mac, never uploaded.")
             .font(.system(size: DSFont.Size.body))
             .foregroundStyle(.secondary)
             .fixedSize(horizontal: false, vertical: true)
@@ -130,7 +130,7 @@ struct HistoryStatsSettingsView: View {
             ToggleSettingRow(
                 title: "Listening History",
                 subtitle: musicPermission == .denied
-                    ? "Apple Music access required — see banner above."
+                    ? "Apple Music access required. See banner above."
                     : "Keep a private log of the tracks you play.",
                 isOn: $historyEnabled,
                 isDisabled: musicPermission == .denied,

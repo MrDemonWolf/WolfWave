@@ -273,7 +273,7 @@ struct MonthlyWrapCard: View {
                     Text("Nothing to wrap yet.")
                         .font(.system(size: DSFont.Size.lg, weight: .bold))
                         .foregroundStyle(.white)
-                    Text("Go rave it out — your Monthly Wrap unlocks once you've logged some plays.")
+                    Text("Go rave it out. Your Monthly Wrap unlocks once you've logged some plays.")
                         .font(.system(size: DSFont.Size.base))
                         .foregroundStyle(.white.opacity(0.85))
                 }

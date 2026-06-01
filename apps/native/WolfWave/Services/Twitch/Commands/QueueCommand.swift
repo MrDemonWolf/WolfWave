@@ -55,7 +55,7 @@ final class QueueCommand: BotCommand {
         var parts: [String] = []
 
         if let nowPlaying = queue.nowPlaying {
-            parts.append("Now playing: \"\(nowPlaying.title)\" — \(nowPlaying.artist) (\(nowPlaying.requesterUsername))")
+            parts.append("Now playing: \"\(nowPlaying.title)\" · \(nowPlaying.artist) (\(nowPlaying.requesterUsername))")
         }
 
         let items = queue.items
@@ -69,7 +69,7 @@ final class QueueCommand: BotCommand {
             let displayCount = min(items.count, 5)
             for i in 0..<displayCount {
                 let item = items[i]
-                parts.append("\(i + 1). \"\(item.title)\" — \(item.artist) (\(item.requesterUsername))")
+                parts.append("\(i + 1). \"\(item.title)\" · \(item.artist) (\(item.requesterUsername))")
             }
             if items.count > 5 {
                 parts.append("...and \(items.count - 5) more")

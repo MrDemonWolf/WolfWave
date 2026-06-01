@@ -319,7 +319,7 @@ struct MusicMonitorSettingsView: View {
         switch permissionState {
         case .granted: return nil
         case .denied: return "Turn on Automation → Music in System Settings."
-        case .unknown: return "macOS will ask once. We only read the track — never play, pause, or change your library."
+        case .unknown: return "macOS will ask once. We only read the track, never play, pause, or change your library."
         }
     }
 

@@ -72,17 +72,17 @@ final class VoteSkipCommand: AsyncBotCommand {
         case .subscriberOnly:
             return "🔒 Vote-skip is subscriber-only right now."
         case .onCooldown(let remaining):
-            return "⏳ Vote-skip is cooling down — try again in \(remaining)s."
+            return "⏳ Vote-skip is cooling down, try again in \(remaining)s."
         case .started(let count, let needed):
-            return "🗳️ Vote to skip started — \(count)/\(needed). Type !voteskip to vote!"
+            return "🗳️ Vote to skip started: \(count)/\(needed). Type !voteskip to vote!"
         case .counted(let count, let needed):
             return "🗳️ \(count)/\(needed) votes to skip this song."
         case .alreadyVoted(let count, let needed):
-            return "✅ You already voted — \(count)/\(needed) so far."
+            return "✅ You already voted: \(count)/\(needed) so far."
         case .passed(let count):
-            return "🗳️ Vote passed with \(count) votes — skipping! 🎵"
+            return "🗳️ Vote passed with \(count) votes, skipping! 🎵"
         case .pollStarted:
-            return "📊 Skip poll started — vote in the Twitch poll!"
+            return "📊 Skip poll started. Vote in the Twitch poll!"
         case .pollInProgress:
             return "📊 A skip vote is already running."
         case .pollNotAllowed:

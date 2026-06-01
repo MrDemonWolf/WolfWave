@@ -119,11 +119,11 @@ enum SongRequestPreset: String, CaseIterable, Identifiable {
     /// One-line explanation of what the preset does.
     var summary: String {
         switch self {
-        case .open: return "Anyone can request — chat, points, or bits."
+        case .open: return "Anyone can request: chat, points, or bits."
         case .subsOnly: return "!sr for subs; everyone else can pay with points or bits."
-        case .subsStrict: return "Subscribers only — points and bits off."
-        case .paidOnly: return "!sr off — requests come only from points or bits."
-        case .locked: return "Only mods can request — redemptions off."
+        case .subsStrict: return "Subscribers only. Points and bits off."
+        case .paidOnly: return "!sr off. Requests come only from points or bits."
+        case .locked: return "Only mods can request. Redemptions off."
         }
     }
 

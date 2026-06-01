@@ -41,13 +41,13 @@ final class StreamerModeTests: XCTestCase {
     func testMaskURLOn() {
         XCTAssertEqual(
             StreamerMode.mask("http://192.168.1.42:8766", style: .url, isOn: true),
-            "hidden — streamer mode"
+            "hidden (streamer mode)"
         )
     }
 
     func testMaskTokenOn() {
         let masked = StreamerMode.mask("super-secret-abcdef", style: .token, isOn: true)
-        XCTAssertEqual(masked, "hidden — streamer mode")
+        XCTAssertEqual(masked, "hidden (streamer mode)")
         XCTAssertFalse(masked.contains("super-secret"))
     }
 

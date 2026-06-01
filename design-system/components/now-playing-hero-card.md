@@ -30,7 +30,7 @@ NowPlayingHeroCard(
 - `DSDimension.Settings.cardCornerRadius` (14) — card corner radius via `.glassEffect(.regular, in: .rect(...))`
 - `DSFont.Size.sm` (11) `.semibold` `.tertiary` `.uppercase` `tracking(0.6)` — "Now playing" eyebrow label
 - `DSFont.Size.lg` (17→18) `.semibold` — track title
-- `DSFont.Size.base` (13) `.secondary` — artist — album subtitle
+- `DSFont.Size.base` (13) `.secondary` — artist · album subtitle
 - `DSFont.Size.sm` (11) monospaced — scrubber timestamps
 - `DSSpace.s6` (16) — card outer padding (rendered as 18 for hero weight)
 - `DSSpace.s6` (16) — artwork ↔ text gap
@@ -40,7 +40,7 @@ NowPlayingHeroCard(
 ## Motion
 
 - **Title swap** — `id(track ?? "")` + `.contentTransition(.opacity)` so each unique title gets its own identity and cross-fades into the next.
-- **Subtitle swap** — same `id(subtitle)` + `.contentTransition(.opacity)` pattern for `artist — album`.
+- **Subtitle swap** — same `id(subtitle)` + `.contentTransition(.opacity)` pattern for `artist · album`.
 - **Timecode** — `.contentTransition(.numericText())` on the `M:SS / M:SS` text. Digits tween instead of blink-replacing every second.
 - **Scrubber** — wrapped in `TimelineView(.animation(minimumInterval: 0.1, paused: reduceMotion))`. The `ProgressView(value:)` fraction is recomputed every 100ms inside the timeline, so the bar interpolates between the ~1s source updates instead of stepping.
 - **Outer animation** — `.animation(reduceMotion ? nil : .easeInOut(duration: DSMotion.Duration.base), value: track)` so callers don't need to wrap track mutations in `withAnimation`.

@@ -57,7 +57,7 @@ struct DiscordButtonConfigRow: View {
         if let url = resolvedURL, !url.isEmpty {
             return url
         }
-        return "(no track playing — URL fills in once a song starts)"
+        return "(no track playing, URL fills in once a song starts)"
     }
 }
 

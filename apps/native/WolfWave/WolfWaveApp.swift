@@ -269,7 +269,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         guard FeatureFlags.songCommandSongLinkEnabled,
               let url = ArtworkService.shared.cachedTrackLinks(track: track, artist: artist).songLinkURL
         else { return reply }
-        return "\(reply) — \(url)"
+        return "\(reply) · \(url)"
     }
 
     /// Returns a formatted listening-stats string for the `!stats` Twitch command.

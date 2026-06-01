@@ -50,9 +50,9 @@ final class HoldCommand: ServiceBoundCommand {
         Task {
             await service.setHold(shouldHold)
             if shouldHold {
-                reply("Song requests are on hold — requests will queue but won't play until !resume")
+                reply("Song requests are on hold. Requests will queue but won't play until !resume")
             } else {
-                reply("Song requests resumed — playing buffered requests now")
+                reply("Song requests resumed. Playing buffered requests now")
             }
         }
     }
