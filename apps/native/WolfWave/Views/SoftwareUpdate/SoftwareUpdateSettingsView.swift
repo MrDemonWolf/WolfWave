@@ -84,25 +84,11 @@ struct SoftwareUpdateSettingsView: View {
                     .foregroundStyle(.secondary)
             }
 
-            HStack(spacing: DSSpace.s3) {
-                Image(systemName: "info.circle.fill")
-                    .font(.system(size: DSFont.Size.md))
-                    .foregroundStyle(DSColor.info)
-
-                VStack(alignment: .leading, spacing: DSSpace.s1) {
-                    Text("Homebrew installation detected")
-                        .font(.system(size: DSFont.Size.body, weight: .semibold))
-                    Text("Use Homebrew to check for and install updates.")
-                        .font(.system(size: DSFont.Size.sm))
-                        .foregroundStyle(.secondary)
-                }
-
-                Spacer()
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(DSSpace.s3)
-            .background(DSColor.info.opacity(0.12))
-            .clipShape(RoundedRectangle(cornerRadius: DSRadius.sm))
+            CalloutBanner(
+                "Use Homebrew to check for and install updates.",
+                title: "Homebrew installation detected",
+                style: .info
+            )
 
             HStack(spacing: DSSpace.s2) {
                 Text("$ brew upgrade wolfwave")
@@ -154,50 +140,24 @@ struct SoftwareUpdateSettingsView: View {
             }
 
             #if DEBUG
-            HStack(spacing: DSSpace.s3) {
-                Image(systemName: "hammer.fill")
-                    .font(.system(size: DSFont.Size.md))
-                    .foregroundStyle(DSColor.warning)
-
-                Text("Development build. Update checks use dev-appcast.xml")
-                    .font(.system(size: DSFont.Size.sm))
-                    .foregroundStyle(.secondary)
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(DSSpace.s3)
-            .background(DSColor.warning.opacity(0.12))
-            .clipShape(RoundedRectangle(cornerRadius: DSRadius.sm))
+            CalloutBanner(
+                "Development build. Update checks use dev-appcast.xml",
+                style: .warning,
+                systemImage: "hammer.fill"
+            )
             #endif
 
             if updateCheckEnabled && !updateAvailable {
-                HStack(spacing: DSSpace.s3) {
-                    Image(systemName: "checkmark.circle.fill")
-                        .font(.system(size: DSFont.Size.md))
-                        .foregroundStyle(DSColor.success)
-
-                    Text("Auto-updates on. We'll notify you of new versions.")
-                        .font(.system(size: DSFont.Size.sm))
-                        .foregroundStyle(.secondary)
-                }
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(DSSpace.s3)
-                .background(DSColor.success.opacity(0.12))
-                .clipShape(RoundedRectangle(cornerRadius: DSRadius.sm))
+                CalloutBanner(
+                    "Auto-updates on. We'll notify you of new versions.",
+                    style: .success
+                )
                 .transition(.opacity)
             } else if !updateCheckEnabled && !updateAvailable {
-                HStack(spacing: DSSpace.s3) {
-                    Image(systemName: "info.circle.fill")
-                        .font(.system(size: DSFont.Size.md))
-                        .foregroundStyle(.secondary)
-
-                    Text("Automatic updates are off. Use Check Now to look for updates.")
-                        .font(.system(size: DSFont.Size.sm))
-                        .foregroundStyle(.secondary)
-                }
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(DSSpace.s3)
-                .background(Color.secondary.opacity(0.08))
-                .clipShape(RoundedRectangle(cornerRadius: DSRadius.sm))
+                CalloutBanner(
+                    "Automatic updates are off. Use Check Now to look for updates.",
+                    style: .neutral
+                )
                 .transition(.opacity)
             }
 

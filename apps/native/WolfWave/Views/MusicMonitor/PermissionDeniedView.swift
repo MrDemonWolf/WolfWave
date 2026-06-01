@@ -232,7 +232,7 @@ struct AutomationRowPreview: View {
             }
         }
         .padding(DSSpace.s4)
-        .glassEffect(.regular, in: .rect(cornerRadius: 10))
+        .cardStyleUnpadded()
     }
 
     @ViewBuilder

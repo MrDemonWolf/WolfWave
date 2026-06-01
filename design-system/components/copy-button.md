@@ -41,13 +41,13 @@ graph LR
 - `accessibilityLabel` describes the *target* of the copy ("Copy widget URL"), not the action.
 - `accessibilityHint = "Copies text to clipboard"` always.
 - `accessibilityValue` flips to `"Copied"` for `feedbackDuration` seconds — VoiceOver users get confirmation.
-- Uses `NSPasteboard.general` — the standard macOS clipboard.
+- Routes through the shared `Pasteboard.copy(_:)` helper (wraps `NSPasteboard.general`, the standard macOS clipboard).
 
 ## Do / Don't
 - ✅ Use bordered variant in forms/rows where it sits next to a `TextField` or a value display.
 - ✅ Use borderless inline with a URL or command text.
 - ✅ Pair with a short `label`/`copiedLabel` ("Copy Link" / "Copied") for important affordances.
-- ❌ Don't roll your own NSPasteboard call — use this for the visual confirmation.
+- ❌ Don't roll your own NSPasteboard call. Use this for the visual confirmation, or `Pasteboard.copy(_:)` when you only need the write.
 - ❌ Don't reduce `feedbackDuration` below 1.5s — the checkmark needs to register.
 
 ## Example

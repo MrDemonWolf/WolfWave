@@ -126,9 +126,7 @@ struct AdvancedSettingsView: View {
                 trimmed = contents
             }
 
-            let pasteboard = NSPasteboard.general
-            pasteboard.clearContents()
-            pasteboard.setString(trimmed, forType: .string)
+            Pasteboard.copy(trimmed)
 
             withAnimation { showingCopyFeedback = true }
             Task { @MainActor in
@@ -153,10 +151,7 @@ struct AdvancedSettingsView: View {
         let bytes = Log.logFileSize()
         let lines = Log.logLineCount()
 
-        let byteFormatter = ByteCountFormatter()
-        byteFormatter.allowedUnits = [.useKB, .useMB]
-        byteFormatter.countStyle = .file
-        logSizeText = byteFormatter.string(fromByteCount: bytes)
+        logSizeText = ByteFormatting.string(bytes)
 
         let numberFormatter = NumberFormatter()
         numberFormatter.numberStyle = .decimal
@@ -174,10 +169,7 @@ struct AdvancedSettingsView: View {
     /// Refreshes the displayed artwork cache entry count + disk size.
     private func refreshArtworkStats() {
         let stats = ArtworkService.shared.cacheStats()
-        let byteFormatter = ByteCountFormatter()
-        byteFormatter.allowedUnits = [.useKB, .useMB]
-        byteFormatter.countStyle = .file
-        let size = byteFormatter.string(fromByteCount: stats.diskBytes)
+        let size = ByteFormatting.string(stats.diskBytes)
         let trackWord = stats.entryCount == 1 ? "track" : "tracks"
         artworkStatsText = "\(stats.entryCount) \(trackWord) · \(size)"
     }

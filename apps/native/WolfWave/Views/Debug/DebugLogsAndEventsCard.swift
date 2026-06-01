@@ -73,7 +73,7 @@ struct DebugLogsAndEventsCard: View {
                         .lineLimit(2)
                         .truncationMode(.middle)
                         .textSelection(.enabled)
-                    Text("\(ByteCountFormatter.string(fromByteCount: logSize, countStyle: .file)) · \(logLines) lines")
+                    Text("\(ByteFormatting.string(logSize)) · \(logLines) lines")
                         .font(.system(size: DSFont.Size.sm))
                         .foregroundStyle(.secondary)
                         .redacted(reason: logStatsLoaded ? [] : .placeholder)
@@ -103,8 +103,7 @@ struct DebugLogsAndEventsCard: View {
 
                 Button {
                     if let path = logURL?.path {
-                        NSPasteboard.general.clearContents()
-                        NSPasteboard.general.setString(path, forType: .string)
+                        Pasteboard.copy(path)
                     }
                 } label: {
                     Label("Copy Path", systemImage: "doc.on.doc")

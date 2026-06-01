@@ -124,23 +124,11 @@ fileprivate struct SongRequestHeader: View {
                 subtitle: "Let your Twitch viewers request songs via chat commands."
             )
 
-            HStack(alignment: .top, spacing: DSSpace.s2) {
-                Image(systemName: "info.circle.fill")
-                    .font(.system(size: DSFont.Size.body))
-                    .foregroundStyle(.blue)
-                    .padding(.top, DSSpace.s0)
-                VStack(alignment: .leading, spacing: DSSpace.s1) {
-                    Text("How it works")
-                        .font(.system(size: DSFont.Size.body, weight: .semibold))
-                    Text("Viewers type **!sr song name** in your Twitch chat. WolfWave finds the song on Apple Music and adds it to the queue. Songs play one by one in your Music.app. No window pops up, it just plays quietly in the background. You stay in control: use **!skip** to jump to the next song, or **!clearqueue** to wipe the queue. Only you and your mods can skip or clear.")
-                        .font(.system(size: DSFont.Size.sm))
-                        .foregroundStyle(.secondary)
-                        .fixedSize(horizontal: false, vertical: true)
-                }
-            }
-            .padding(DSSpace.s3)
-            .background(.blue.opacity(0.07))
-            .clipShape(RoundedRectangle(cornerRadius: 8))
+            CalloutBanner(
+                "Viewers type **!sr song name** in your Twitch chat. WolfWave finds the song on Apple Music and adds it to the queue. Songs play one by one in your Music.app. No window pops up, it just plays quietly in the background. You stay in control: use **!skip** to jump to the next song, or **!clearqueue** to wipe the queue. Only you and your mods can skip or clear.",
+                title: "How it works",
+                style: .info
+            )
         }
         .accessibilityElement(children: .combine)
         .accessibilityLabel("Song Requests settings. Let your Twitch viewers request songs via chat commands.")
@@ -274,15 +262,7 @@ fileprivate struct VoteSkipCard: View {
                         .accessibilityLabel("Poll duration")
                     }
 
-                    HStack(alignment: .top, spacing: 6) {
-                        Image(systemName: "info.circle.fill")
-                            .font(.system(size: DSFont.Size.sm))
-                            .foregroundStyle(.secondary)
-                        Text("Turning this on may ask you to sign in to Twitch again to grant poll permission.")
-                            .font(.system(size: DSFont.Size.sm))
-                            .foregroundStyle(.secondary)
-                            .fixedSize(horizontal: false, vertical: true)
-                    }
+                    HintRow("Turning this on may ask you to sign in to Twitch again to grant poll permission.")
                 } else {
                     Divider()
 
@@ -346,7 +326,7 @@ fileprivate struct SongRequestMusicAuthCard: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: DSSpace.s4) {
-            WarningBanner(text: musicAuthStatus == .denied
+            CalloutBanner(musicAuthStatus == .denied
                 ? "Apple Music access was denied. Enable it in System Settings → Privacy & Security → Media & Apple Music."
                 : "WolfWave needs Apple Music access to search and play requested songs.")
 
@@ -372,9 +352,7 @@ fileprivate struct SongRequestMusicAuthCard: View {
                 .disabled(isRequestingMusicAuth)
             }
         }
-        .padding(AppConstants.SettingsUI.cardPadding)
-        .background(.orange.opacity(0.1))
-        .clipShape(RoundedRectangle(cornerRadius: AppConstants.SettingsUI.cardCornerRadius))
+        .cardStyle()
     }
 }
 
@@ -544,7 +522,7 @@ fileprivate struct SongRequestRedemptionsCard: View {
                 .foregroundStyle(.secondary)
 
             if let banner = redemptionStatus.bannerMessage {
-                WarningBanner(text: banner)
+                CalloutBanner(banner)
                     .accessibilityIdentifier("songRequests.redemptionBanner")
             }
 
@@ -823,14 +801,7 @@ fileprivate struct SongRequestCommandsCard: View {
             }
             .cardStyleUnpadded()
 
-            HStack(spacing: 6) {
-                Image(systemName: "info.circle.fill")
-                    .font(.system(size: DSFont.Size.sm))
-                    .foregroundStyle(.secondary)
-                Text("Cooldowns don't apply to you or your mods.")
-                    .font(.system(size: DSFont.Size.sm))
-                    .foregroundStyle(.secondary)
-            }
+            HintRow("Cooldowns don't apply to you or your mods.")
         }
     }
 }

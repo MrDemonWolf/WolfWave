@@ -110,14 +110,7 @@ struct TwitchCommandsCard: View {
             }
             .cardStyleUnpadded()
 
-            HStack(spacing: 6) {
-                Image(systemName: "info.circle.fill")
-                    .font(.system(size: DSFont.Size.sm))
-                    .foregroundStyle(.secondary)
-                Text("Cooldowns don't apply to you or your mods.")
-                    .font(.system(size: DSFont.Size.sm))
-                    .foregroundStyle(.secondary)
-            }
+            HintRow("Cooldowns don't apply to you or your mods.")
         }
     }
 

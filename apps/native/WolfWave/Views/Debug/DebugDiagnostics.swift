@@ -32,7 +32,7 @@ enum DebugDiagnostics {
 
     /// Returns a markdown blob suitable for pasting into a GitHub issue.
     static func markdown(_ snapshot: Snapshot) -> String {
-        let size = ByteCountFormatter.string(fromByteCount: snapshot.logSizeBytes, countStyle: .file)
+        let size = ByteFormatting.string(snapshot.logSizeBytes)
         return """
         ## Environment
 

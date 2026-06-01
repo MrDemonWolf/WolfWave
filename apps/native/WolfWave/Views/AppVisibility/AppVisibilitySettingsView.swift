@@ -104,21 +104,10 @@ struct AppVisibilitySettingsView: View {
                 .accessibilityIdentifier("dockVisibilityPicker")
 
                 if launchAtLogin && dockVisibility != AppConstants.DockVisibility.dockOnly {
-                    HStack(alignment: .top, spacing: DSSpace.s3) {
-                        Image(systemName: "info.circle.fill")
-                            .font(.system(size: DSFont.Size.body))
-                            .foregroundStyle(DSColor.info)
-                        Text("\"Dock Only\" is unavailable while Launch at Login is on. The menu bar icon must always be reachable.")
-                            .font(.system(size: DSFont.Size.sm))
-                            .foregroundStyle(.secondary)
-                            .fixedSize(horizontal: false, vertical: true)
-                    }
-                    .padding(DSSpace.s3)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .background(DSColor.info.opacity(0.12))
-                    .clipShape(RoundedRectangle(cornerRadius: DSRadius.sm))
-                    .accessibilityElement(children: .combine)
-                    .accessibilityLabel("Dock Only is unavailable while Launch at Login is enabled.")
+                    CalloutBanner(
+                        "\"Dock Only\" is unavailable while Launch at Login is on. The menu bar icon must always be reachable.",
+                        style: .info
+                    )
                 }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -126,21 +115,10 @@ struct AppVisibilitySettingsView: View {
 
             // Menu Bar Only Info Notice
             if dockVisibility == AppConstants.DockVisibility.menuOnly {
-                HStack(alignment: .top, spacing: DSSpace.s3) {
-                    Image(systemName: "info.circle.fill")
-                        .font(.system(size: DSFont.Size.base))
-                        .foregroundStyle(DSColor.info)
-                    Text("The app will temporarily appear in the Dock while the settings window is open.")
-                        .font(.system(size: DSFont.Size.body))
-                        .foregroundStyle(.secondary)
-                        .fixedSize(horizontal: false, vertical: true)
-                }
-                .padding(DSSpace.s4)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .background(DSColor.info.opacity(0.12))
-                .clipShape(RoundedRectangle(cornerRadius: DSRadius.md))
-                .accessibilityElement(children: .combine)
-                .accessibilityLabel("The app will temporarily appear in the Dock while the settings window is open.")
+                CalloutBanner(
+                    "The app will temporarily appear in the Dock while the settings window is open.",
+                    style: .info
+                )
             }
         }
         .onAppear {

@@ -123,8 +123,7 @@ struct DeviceCodeView: View {
     /// Copies the displayed device code to the pasteboard, animates the
     /// "Copied" affordance, and resets the visual state after ~1.3 seconds.
     private func copyDeviceCode() {
-        NSPasteboard.general.clearContents()
-        NSPasteboard.general.setString(userCode, forType: .string)
+        Pasteboard.copy(userCode)
         
         isCodeCopied = true
         onCopy()

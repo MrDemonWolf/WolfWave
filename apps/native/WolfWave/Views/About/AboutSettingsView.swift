@@ -258,9 +258,7 @@ struct AboutSettingsView: View {
 
     private func copyVersion() {
         let payload = AboutCopy.versionClipboardPayload
-        let pasteboard = NSPasteboard.general
-        pasteboard.clearContents()
-        pasteboard.setString(payload, forType: .string)
+        Pasteboard.copy(payload)
 
         withAnimation(.easeInOut(duration: DSMotion.Duration.fast)) { versionCopied = true }
         Task { @MainActor in

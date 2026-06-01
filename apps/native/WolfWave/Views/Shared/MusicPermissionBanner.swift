@@ -32,7 +32,7 @@ struct MusicPermissionBanner: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: DSSpace.s4) {
-            WarningBanner(text: message)
+            CalloutBanner(message)
 
             Button {
                 onOpenSettings()

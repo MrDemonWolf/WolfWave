@@ -851,8 +851,7 @@ extension AppDelegate {
     /// pasteboard for OBS browser-source configuration.
     @objc func copyWidgetURL() {
         let url = "http://localhost:\(resolvedWidgetPort())"
-        NSPasteboard.general.clearContents()
-        NSPasteboard.general.setString(url, forType: .string)
+        Pasteboard.copy(url)
         Log.debug("AppDelegate: Widget URL copied to clipboard: \(url)", category: "App")
     }
 }
@@ -888,8 +887,7 @@ extension AppDelegate {
     @objc func copyCurrentTrack() {
         guard let song = currentSong else { return }
         let value = currentArtist.map { "\(song) · \($0)" } ?? song
-        NSPasteboard.general.clearContents()
-        NSPasteboard.general.setString(value, forType: .string)
+        Pasteboard.copy(value)
         Log.debug("AppDelegate: Copied current track: \(value)", category: "App")
     }
 
@@ -904,8 +902,7 @@ extension AppDelegate {
             Log.debug("AppDelegate: Copy Song Link no-op — no URL cached for \(song) — \(artist)", category: "App")
             return
         }
-        NSPasteboard.general.clearContents()
-        NSPasteboard.general.setString(url, forType: .string)
+        Pasteboard.copy(url)
         Log.debug("AppDelegate: Copied song link: \(url)", category: "App")
     }
 
@@ -924,8 +921,7 @@ extension AppDelegate {
     /// `representedObject`.
     @objc func copyRecentTrack(_ sender: NSMenuItem) {
         guard let value = sender.representedObject as? String else { return }
-        NSPasteboard.general.clearContents()
-        NSPasteboard.general.setString(value, forType: .string)
+        Pasteboard.copy(value)
     }
 }
 

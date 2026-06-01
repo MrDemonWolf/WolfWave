@@ -20,7 +20,8 @@ One markdown entry per reusable view. Stubs marked `(stub)` need filling in as w
 | CopyButton | [copy-button.md](copy-button.md) | drafted |
 | SharePickerButton | [share-picker-button.md](share-picker-button.md) | drafted |
 | DSIconButton | [ds-icon-button.md](ds-icon-button.md) | drafted |
-| WarningBanner | [warning-banner.md](warning-banner.md) | drafted |
+| CalloutBanner | [callout-banner.md](callout-banner.md) | drafted |
+| HintRow | [hint-row.md](hint-row.md) | drafted |
 | LoadingRow | [loading-row.md](loading-row.md) | drafted |
 | ActionGrid | [action-grid.md](action-grid.md) | drafted |
 | UpdateBannerView | [update-banner-view.md](update-banner-view.md) | drafted |

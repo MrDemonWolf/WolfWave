@@ -83,8 +83,7 @@ struct DebugInspectorsCard: View {
             HStack {
                 Spacer()
                 Button {
-                    NSPasteboard.general.clearContents()
-                    NSPasteboard.general.setString(buildInfoJSON, forType: .string)
+                    Pasteboard.copy(buildInfoJSON)
                 } label: {
                     Label("Copy as JSON", systemImage: "doc.on.doc")
                 }

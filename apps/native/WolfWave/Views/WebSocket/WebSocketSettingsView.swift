@@ -736,19 +736,10 @@ fileprivate struct WebSocketBrowserSourceCard: View {
 
             Divider().padding(.leading, cardPadding)
 
-            HStack(alignment: .top, spacing: DSSpace.s2) {
-                Image(systemName: "info.circle.fill")
-                    .font(.system(size: DSFont.Size.body))
-                    .foregroundStyle(DSColor.info)
-                Text("In OBS, set the Width and Height to **\(AppConstants.Widget.recommendedDimensionsText)** for best results. Enable \"Shutdown source when not visible\" so the widget reconnects properly.")
-                    .font(.system(size: DSFont.Size.sm))
-                    .foregroundStyle(.secondary)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-            .padding(DSSpace.s3)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .background(DSColor.info.opacity(0.12))
-            .clipShape(RoundedRectangle(cornerRadius: DSRadius.sm))
+            CalloutBanner(
+                "In OBS, set the Width and Height to **\(AppConstants.Widget.recommendedDimensionsText)** for best results. Enable \"Shutdown source when not visible\" so the widget reconnects properly.",
+                style: .info
+            )
             .padding(.horizontal, cardPadding)
             .padding(.top, DSSpace.s4)
             .padding(.bottom, cardPadding)

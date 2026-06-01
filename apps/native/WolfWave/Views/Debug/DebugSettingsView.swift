@@ -83,8 +83,8 @@ struct DebugSettingsView: View {
     // MARK: - Warning Banner
 
     private var warningBanner: some View {
-        WarningBanner(
-            text: "These tools mutate live state. Use at your own risk.",
+        CalloutBanner(
+            "These tools mutate live state. Use at your own risk.",
             strokeVisible: true
         )
     }
@@ -117,8 +117,7 @@ struct DebugSettingsView: View {
             musicTrackingEnabled: musicTrackingEnabled
         )
         let markdown = DebugDiagnostics.markdown(snapshot)
-        NSPasteboard.general.clearContents()
-        NSPasteboard.general.setString(markdown, forType: .string)
+        Pasteboard.copy(markdown)
         Log.info("Copied diagnostics snapshot to pasteboard", category: "DevTools")
     }
 }

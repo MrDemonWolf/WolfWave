@@ -7,7 +7,6 @@
 //
 
 import SwiftUI
-import AppKit
 
 /// A reusable copy-to-clipboard button with optional visual feedback.
 /// Shows a checkmark icon briefly after copying.
@@ -30,8 +29,7 @@ struct CopyButton: View {
 
     var body: some View {
         Button {
-            NSPasteboard.general.clearContents()
-            NSPasteboard.general.setString(text, forType: .string)
+            Pasteboard.copy(text)
             copied = true
             Task { @MainActor in
                 try? await Task.sleep(for: .seconds(feedbackDuration))
