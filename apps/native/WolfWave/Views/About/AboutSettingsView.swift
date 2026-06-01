@@ -179,6 +179,12 @@ struct AboutSettingsView: View {
 
     private var footer: some View {
         VStack(spacing: 6) {
+            Text(AboutCopy.independenceNotice)
+                .font(.system(size: DSFont.Size.xs))
+                .foregroundStyle(.tertiary)
+                .multilineTextAlignment(.center)
+                .fixedSize(horizontal: false, vertical: true)
+
             Text(AboutCopy.trademarkNotice)
                 .font(.system(size: DSFont.Size.xs))
                 .foregroundStyle(.tertiary)
