@@ -409,8 +409,12 @@ struct MusicMonitorSettingsView: View {
     private func requestPermission() {
         isRequesting = true
         Task {
-            let resolved = MusicPermissionChecker.requestAccess()
+            let resolved = await MusicPermissionChecker.requestAccess()
             await MainActor.run {
+                // Refresh the process-local cache so re-entering the pane within
+                // the TTL reflects the just-granted/denied result, not a stale
+                // earlier probe.
+                MusicPermissionCache.write(resolved)
                 withAnimation(.easeInOut(duration: DSMotion.Duration.base)) {
                     permissionState = resolved
                 }

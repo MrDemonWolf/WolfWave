@@ -203,7 +203,13 @@ nonisolated enum AppConstants {
     enum UserDefaults {
         /// Whether Apple Music monitoring is enabled (Bool, default: true)
         static let trackingEnabled = "trackingEnabled"
-        
+
+        /// Last definitively-resolved Music automation permission ("granted"/"denied").
+        /// Persisted so a closed Music.app — where the Apple Events probe returns
+        /// `procNotFound` instead of the real TCC decision — falls back to the last
+        /// known grant instead of masquerading as "unknown". (String, optional)
+        static let lastResolvedMusicPermission = "lastResolvedMusicPermission"
+
         /// Dock visibility mode: "menuOnly", "dockOnly", or "both" (String, default: "both")
         static let dockVisibility = "dockVisibility"
         
@@ -480,6 +486,7 @@ nonisolated enum AppConstants {
         /// and the DEBUG-only UserDefaults inspector.
         static let allKeys: [String] = [
             trackingEnabled,
+            lastResolvedMusicPermission,
             dockVisibility,
             twitchReauthNeeded,
             twitchChannelName,

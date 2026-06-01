@@ -359,7 +359,7 @@ struct OnboardingPermissionsStepView: View {
     private func requestAccess() {
         isRequesting = true
         Task {
-            let resolved = MusicPermissionChecker.requestAccess()
+            let resolved = await MusicPermissionChecker.requestAccess()
             permissionState = resolved
             isRequesting = false
         }
