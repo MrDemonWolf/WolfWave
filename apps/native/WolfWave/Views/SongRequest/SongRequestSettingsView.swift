@@ -170,9 +170,7 @@ fileprivate struct SongRequestMasterToggleCard: View {
                 }
             )
         }
-        .padding(AppConstants.SettingsUI.cardPadding)
-        .background(.quaternary.opacity(0.5))
-        .clipShape(RoundedRectangle(cornerRadius: AppConstants.SettingsUI.cardCornerRadius))
+        .cardStyle()
     }
 }
 
@@ -336,9 +334,7 @@ fileprivate struct VoteSkipCard: View {
                 }
             }
         }
-        .padding(AppConstants.SettingsUI.cardPadding)
-        .background(.quaternary.opacity(0.5))
-        .clipShape(RoundedRectangle(cornerRadius: AppConstants.SettingsUI.cardCornerRadius))
+        .cardStyle()
     }
 }
 
@@ -420,9 +416,7 @@ fileprivate struct SongRequestQueueConfigCard: View {
                 .frame(width: 80)
             }
         }
-        .padding(AppConstants.SettingsUI.cardPadding)
-        .background(.quaternary.opacity(0.5))
-        .clipShape(RoundedRectangle(cornerRadius: AppConstants.SettingsUI.cardCornerRadius))
+        .cardStyle()
     }
 }
 
@@ -499,9 +493,7 @@ fileprivate struct SongRequestAccessCard: View {
                 .accessibilityIdentifier("songRequests.audience")
             }
         }
-        .padding(AppConstants.SettingsUI.cardPadding)
-        .background(.quaternary.opacity(0.5))
-        .clipShape(RoundedRectangle(cornerRadius: AppConstants.SettingsUI.cardCornerRadius))
+        .cardStyle()
     }
 }
 
@@ -647,9 +639,7 @@ fileprivate struct SongRequestRedemptionsCard: View {
                 )
             }
         }
-        .padding(AppConstants.SettingsUI.cardPadding)
-        .background(.quaternary.opacity(0.5))
-        .clipShape(RoundedRectangle(cornerRadius: AppConstants.SettingsUI.cardCornerRadius))
+        .cardStyle()
         .alert("Recreate Channel Point reward?", isPresented: $showRecreateAlert) {
             Button("Cancel", role: .cancel) {}
             Button("Recreate", role: .destructive) { recreateReward() }
@@ -726,9 +716,7 @@ fileprivate struct SongRequestPlaybackCard: View {
                 .fixedSize(horizontal: false, vertical: true)
             }
         }
-        .padding(AppConstants.SettingsUI.cardPadding)
-        .background(.quaternary.opacity(0.5))
-        .clipShape(RoundedRectangle(cornerRadius: AppConstants.SettingsUI.cardCornerRadius))
+        .cardStyle()
     }
 }
 
@@ -950,9 +938,7 @@ fileprivate struct SongRequestBlocklistCard: View {
                 .padding(.top, DSSpace.s1)
             }
         }
-        .padding(AppConstants.SettingsUI.cardPadding)
-        .background(.quaternary.opacity(0.5))
-        .clipShape(RoundedRectangle(cornerRadius: AppConstants.SettingsUI.cardCornerRadius))
+        .cardStyle()
         .task {
             blocklist = await blocklistProvider()?.allEntries ?? []
         }
@@ -992,7 +978,6 @@ fileprivate struct CommandToggleRow: View {
         )
         .padding(.horizontal, AppConstants.SettingsUI.cardPadding)
         .padding(.vertical, DSSpace.s4)
-        .background(Color(nsColor: .controlBackgroundColor))
         .overlay(alignment: .bottom) {
             if !isLast {
                 Divider().padding(.leading, AppConstants.SettingsUI.cardPadding)
@@ -1038,7 +1023,6 @@ fileprivate struct CooldownRow: View {
         }
         .padding(.horizontal, AppConstants.SettingsUI.cardPadding)
         .padding(.vertical, DSSpace.s2)
-        .background(Color(nsColor: .controlBackgroundColor))
         .overlay(alignment: .bottom) {
             if !isLast {
                 Divider().padding(.leading, AppConstants.SettingsUI.cardPadding)
@@ -1063,7 +1047,6 @@ fileprivate struct AliasRow: View {
         }
         .padding(.horizontal, AppConstants.SettingsUI.cardPadding)
         .padding(.vertical, DSSpace.s2)
-        .background(Color(nsColor: .controlBackgroundColor))
         .overlay(alignment: .bottom) {
             if !isLast {
                 Divider().padding(.leading, AppConstants.SettingsUI.cardPadding)

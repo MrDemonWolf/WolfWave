@@ -144,7 +144,6 @@ struct TwitchCommandsCard: View {
         )
         .padding(.horizontal, AppConstants.SettingsUI.cardPadding)
         .padding(.vertical, DSSpace.s4)
-        .background(Color(nsColor: .controlBackgroundColor))
         .overlay(alignment: .bottom) {
             if !isLast {
                 Divider()
@@ -190,7 +189,6 @@ struct TwitchCommandsCard: View {
         }
         .padding(.horizontal, AppConstants.SettingsUI.cardPadding)
         .padding(.vertical, DSSpace.s2)
-        .background(Color(nsColor: .controlBackgroundColor))
         .overlay(alignment: .bottom) {
             if !isLast {
                 Divider()
@@ -218,7 +216,6 @@ struct TwitchCommandsCard: View {
         }
         .padding(.horizontal, AppConstants.SettingsUI.cardPadding)
         .padding(.vertical, DSSpace.s2)
-        .background(Color(nsColor: .controlBackgroundColor))
         .overlay(alignment: .bottom) {
             if !isLast {
                 Divider()

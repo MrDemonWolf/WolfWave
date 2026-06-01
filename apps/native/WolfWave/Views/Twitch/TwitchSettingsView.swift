@@ -322,8 +322,7 @@ private struct SignedInView: View {
                 .padding(.leading, AppConstants.SettingsUI.cardPadding)
             actionButtonsSection
         }
-        .background(Color(nsColor: .controlBackgroundColor))
-        .clipShape(RoundedRectangle(cornerRadius: AppConstants.SettingsUI.cardCornerRadius))
+        .cardStyleUnpadded()
     }
 
     // MARK: - Sections

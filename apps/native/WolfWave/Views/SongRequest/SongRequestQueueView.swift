@@ -95,9 +95,7 @@ struct SongRequestQueueView: View {
                 actionButtons
             }
         }
-        .padding(AppConstants.SettingsUI.cardPadding)
-        .background(.quaternary.opacity(0.5))
-        .clipShape(RoundedRectangle(cornerRadius: AppConstants.SettingsUI.cardCornerRadius))
+        .cardStyle()
         .onAppear { refreshState() }
         .onReceive(NotificationCenter.default.publisher(for: .songRequestQueueChanged)) { _ in
             refreshState()
