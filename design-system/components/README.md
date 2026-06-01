@@ -18,6 +18,7 @@ One markdown entry per reusable view. Stubs marked `(stub)` need filling in as w
 | ConfigRequiredBanner | [config-required-banner.md](config-required-banner.md) | drafted |
 | MusicPermissionBanner | [music-permission-banner.md](music-permission-banner.md) | drafted |
 | CopyButton | [copy-button.md](copy-button.md) | drafted |
+| SharePickerButton | [share-picker-button.md](share-picker-button.md) | drafted |
 | DSIconButton | [ds-icon-button.md](ds-icon-button.md) | drafted |
 | WarningBanner | [warning-banner.md](warning-banner.md) | drafted |
 | LoadingRow | [loading-row.md](loading-row.md) | drafted |

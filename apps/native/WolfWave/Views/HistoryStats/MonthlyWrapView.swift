@@ -114,6 +114,12 @@ struct MonthlyWrapView: View {
 
             Spacer()
 
+            if wrap.hasData {
+                SharePickerButton(makeItems: shareItems)
+                    .fixedSize()
+                    .accessibilityLabel("Share monthly wrap")
+            }
+
             Button {
                 exportImage()
             } label: {
@@ -140,9 +146,9 @@ struct MonthlyWrapView: View {
         didExport = false
     }
 
-    /// Renders the wrap card to a PNG and prompts the user for a save location.
+    /// Renders the wrap card to PNG data at 2x scale. Returns nil on render failure.
     @MainActor
-    private func exportImage() {
+    private func renderPNG() -> Data? {
         let renderer = ImageRenderer(content:
             MonthlyWrapCard(data: wrap, hasAnyHistory: hasAnyHistory)
                 .frame(width: 380)
@@ -156,12 +162,30 @@ struct MonthlyWrapView: View {
               let bitmap = NSBitmapImageRep(data: tiff),
               let png = bitmap.representation(using: .png, properties: [:]) else {
             Log.warn("MonthlyWrapView: Failed to render wrap image", category: AppConstants.History.logCategory)
-            return
+            return nil
         }
+        return png
+    }
+
+    /// Suggested file name for a wrap card of the given month label.
+    /// Internal + static so it's unit-testable without a live service.
+    static func exportFileName(forMonthLabel monthLabel: String) -> String {
+        "WolfWave-Wrap-\(monthLabel).png"
+    }
+
+    /// Suggested file name for the current month's wrap card.
+    private var exportFileName: String {
+        Self.exportFileName(forMonthLabel: wrap.monthLabel)
+    }
+
+    /// Renders the wrap card to a PNG and prompts the user for a save location.
+    @MainActor
+    private func exportImage() {
+        guard let png = renderPNG() else { return }
 
         let panel = NSSavePanel()
         panel.allowedContentTypes = [.png]
-        panel.nameFieldStringValue = "WolfWave-Wrap-\(wrap.monthLabel).png"
+        panel.nameFieldStringValue = exportFileName
         panel.canCreateDirectories = true
 
         guard panel.runModal() == .OK, let url = panel.url else { return }
@@ -172,6 +196,22 @@ struct MonthlyWrapView: View {
         } catch {
             Log.error("MonthlyWrapView: Export failed — \(error.localizedDescription)", category: AppConstants.History.logCategory)
         }
+    }
+
+    /// Renders the wrap card to a temp PNG and returns it as the share item for
+    /// the macOS share sheet (Messages, Mail, AirDrop, etc.). Nil on failure.
+    @MainActor
+    private func shareItems() -> [Any]? {
+        guard let png = renderPNG() else { return nil }
+
+        let url = FileManager.default.temporaryDirectory.appendingPathComponent(exportFileName)
+        do {
+            try png.write(to: url)
+        } catch {
+            Log.error("MonthlyWrapView: Share render failed — \(error.localizedDescription)", category: AppConstants.History.logCategory)
+            return nil
+        }
+        return [url]
     }
 }
 
