@@ -106,6 +106,7 @@ _Developer-facing changes. Not visible to end users._
 - **Actor adoption**. `SongBlocklist` and `SkipVoteManager` converted from `final class + NSLock` to actors; `BotCommandContext` marked `nonisolated + Sendable`. Combine fully removed from the app target
 
 ### Fixed
+- **One recovery card for denied Music access**. Settings → General no longer repeats the same "Music access denied" warning in three places. A single recovery card owns the explanation and the Open System Settings action, the Sync Music card hides its duplicate permission row while denied, and the now-playing card shows a calm orange "Paused" instead of a red "Denied". "Try again" shows a spinner and a "still off" hint instead of feeling dead (#240)
 - **Twitch bot silent after relaunch**. EventSub now auto-reconnects to the saved channel on launch after token validation, so chat commands work without reopening the Twitch settings pane. Silent reconnect. No "online" chat ping unless you explicitly click Connect
 - **Keychain duplicate-item self-heal** , `upsertItem` recovers from `errSecDuplicateItem` (OSStatus -25299) when a legacy entry uses a mismatched accessibility class. Fixes the WebSocket auth token mint error after onboarding
 - **Twitch auth UI layout shifts**. The Twitch settings card no longer resizes between "Not signed in", "Authorizing", and "Error" states. Reserved minHeight + symmetric transitions; deleted the unused `TwitchReauthView` so re-auth surfaces inline in the same card

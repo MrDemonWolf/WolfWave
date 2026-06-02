@@ -19,8 +19,14 @@ struct PermissionDeniedBanner: View {
     var onTryAgain: () -> Void
     var onShowInstructions: () -> Void
 
+    /// Brief recheck feedback so "Try again" never feels like a dead button.
+    /// If access is granted the parent unmounts this whole card, so a lingering
+    /// hint only ever means "still off".
+    @State private var isRechecking = false
+    @State private var showStillDenied = false
+
     var body: some View {
-        HStack(alignment: .top, spacing: 18) {
+        HStack(alignment: .top, spacing: DSSpace.s7) {
             iconStack
 
             VStack(alignment: .leading, spacing: DSSpace.s2) {
@@ -28,7 +34,7 @@ struct PermissionDeniedBanner: View {
                     .font(.system(size: DSFont.Size.x18, weight: .bold))
                     .lineLimit(2)
 
-                Text("We need permission to read from the Music app so we can see the current track, artist, and album. We never play, pause, skip, or change your library.")
+                Text("Turn on Music access and WolfWave can show your current track on Twitch, Discord, and your overlay. We only read what's playing, never play, pause, skip, or change your library.")
                     .font(.system(size: DSFont.Size.body))
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
@@ -44,25 +50,72 @@ struct PermissionDeniedBanner: View {
                     .buttonStyle(.borderedProminent)
                     .controlSize(.regular)
 
-                    Button("Try Again", action: onTryAgain)
+                    Button("Show me how", action: onShowInstructions)
                         .buttonStyle(.bordered)
                         .controlSize(.regular)
 
-                    Button("Show Instructions", action: onShowInstructions)
-                        .buttonStyle(.borderless)
-                        .controlSize(.small)
+                    tryAgainButton
 
                     Spacer(minLength: 0)
-
-                    StatusChip(text: "Music access denied", color: .red)
                 }
                 .padding(.top, DSSpace.s1)
+
+                if showStillDenied {
+                    Label(
+                        "Still off. In Automation, turn on Music under WolfWave.",
+                        systemImage: "info.circle"
+                    )
+                    .font(.system(size: DSFont.Size.sm))
+                    .foregroundStyle(.secondary)
+                    .transition(.opacity)
+                }
             }
         }
         .padding(DSSpace.s7)
         .cardStyleUnpadded()
         .accessibilityElement(children: .combine)
         .accessibilityLabel("Music access denied. Open System Settings to grant Automation access for the Music app.")
+    }
+
+    /// "Try again" recheck with an inline spinner plus a transient "still off"
+    /// hint, so the button always acknowledges the tap even when nothing changed.
+    @ViewBuilder
+    private var tryAgainButton: some View {
+        Button {
+            guard !isRechecking else { return }
+            withAnimation(.easeInOut(duration: DSMotion.Duration.fast)) {
+                isRechecking = true
+                showStillDenied = false
+            }
+            onTryAgain()
+            Task {
+                // Give the off-main permission probe a beat to resolve. A grant
+                // unmounts this card; if we're still here afterwards it's denied.
+                try? await Task.sleep(nanoseconds: 700_000_000)
+                withAnimation(.easeInOut(duration: DSMotion.Duration.base)) {
+                    isRechecking = false
+                    showStillDenied = true
+                }
+                try? await Task.sleep(nanoseconds: 4_000_000_000)
+                withAnimation(.easeInOut(duration: DSMotion.Duration.base)) {
+                    showStillDenied = false
+                }
+            }
+        } label: {
+            HStack(spacing: DSSpace.s1) {
+                if isRechecking {
+                    ProgressView()
+                        .progressViewStyle(.circular)
+                        .controlSize(.small)
+                }
+                Text("Try again")
+            }
+        }
+        .buttonStyle(.borderless)
+        .controlSize(.small)
+        .disabled(isRechecking)
+        .accessibilityLabel("Try again")
+        .accessibilityHint("Rechecks whether Apple Music access is now on")
     }
 
     @ViewBuilder
@@ -274,27 +327,22 @@ struct PermissionPausedNowPlayingCard: View {
             ZStack {
                 RoundedRectangle(cornerRadius: 10, style: .continuous)
                     .fill(.quaternary.opacity(0.5))
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 10)
-                            .strokeBorder(style: StrokeStyle(lineWidth: 0.5, dash: [3, 3]))
-                            .foregroundStyle(.tertiary)
-                    )
-                Image(systemName: "lock.fill")
+                Image(systemName: "pause.circle.fill")
                     .font(.system(size: DSFont.Size.x2xl, weight: .semibold))
-                    .foregroundStyle(.tertiary)
+                    .foregroundStyle(.secondary)
             }
             .frame(width: 56, height: 56)
 
             VStack(alignment: .leading, spacing: DSSpace.s0) {
-                Text("Waiting for Music permission")
+                Text("Paused until Music access is on")
                     .font(.system(size: DSFont.Size.md, weight: .semibold))
-                Text("We can't see what's playing until you turn on Music in Automation.")
+                Text("Your current track lands here the moment you turn it on above.")
                     .font(.system(size: DSFont.Size.body))
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
             }
             Spacer(minLength: 8)
-            StatusChip(text: "Denied", color: .red)
+            StatusChip(text: "Paused", color: .orange)
         }
         .padding(DSSpace.s6)
         .cardStyleUnpadded()

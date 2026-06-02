@@ -77,10 +77,15 @@ struct MusicMonitorSettingsView: View {
                 )
                 .padding(AppConstants.SettingsUI.cardPadding)
 
-                Divider().padding(.horizontal, AppConstants.SettingsUI.cardPadding)
+                // When access is denied the recovery card above already owns the
+                // explanation + CTA, so hide this row to avoid repeating it.
+                // Granted/unknown keep it inline (status + in-context Allow).
+                if permissionState != .denied {
+                    Divider().padding(.horizontal, AppConstants.SettingsUI.cardPadding)
 
-                permissionStatusRow
-                    .padding(AppConstants.SettingsUI.cardPadding)
+                    permissionStatusRow
+                        .padding(AppConstants.SettingsUI.cardPadding)
+                }
             }
             .cardStyleUnpadded()
 
