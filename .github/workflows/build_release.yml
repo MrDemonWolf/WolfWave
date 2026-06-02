@@ -33,6 +33,13 @@ jobs:
       - name: Install Bun
         uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
 
+      - name: Cache bun dependencies
+        uses: actions/cache@0400d5f644dc74513175e3cd8d07132dd4860809 # v4.2.4
+        with:
+          path: ~/.bun/install/cache
+          key: ${{ runner.os }}-bun-${{ hashFiles('bun.lock') }}
+          restore-keys: ${{ runner.os }}-bun-
+
       - name: Install JS dependencies
         run: bun install --frozen-lockfile
 
@@ -49,12 +56,20 @@ jobs:
       - name: Regenerate SponsorConfig from FUNDING.yml
         run: bash scripts/generate-sponsor-config.sh
 
+      - name: Cache SwiftPM packages
+        uses: actions/cache@0400d5f644dc74513175e3cd8d07132dd4860809 # v4.2.4
+        with:
+          path: SourcePackages
+          key: ${{ runner.os }}-spm-${{ hashFiles('apps/native/WolfWave.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved') }}
+          restore-keys: ${{ runner.os }}-spm-
+
       - name: Run Tests
         run: |
           xcodebuild -project "$PROJECT" -scheme "$SCHEME" \
             -destination 'platform=macOS' \
             ARCHS="arm64" \
             -configuration Debug test \
+            -clonedSourcePackagesDirPath SourcePackages \
             CODE_SIGN_IDENTITY="-" \
             CODE_SIGNING_REQUIRED=NO \
             CODE_SIGNING_ALLOWED=NO \
@@ -83,6 +98,13 @@ jobs:
       - name: Install Bun
         uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
 
+      - name: Cache bun dependencies
+        uses: actions/cache@0400d5f644dc74513175e3cd8d07132dd4860809 # v4.2.4
+        with:
+          path: ~/.bun/install/cache
+          key: ${{ runner.os }}-bun-${{ hashFiles('bun.lock') }}
+          restore-keys: ${{ runner.os }}-bun-
+
       - name: Install JS dependencies
         run: bun install --frozen-lockfile
 
@@ -98,6 +120,13 @@ jobs:
 
       - name: Regenerate SponsorConfig from FUNDING.yml
         run: bash scripts/generate-sponsor-config.sh
+
+      - name: Cache SwiftPM packages
+        uses: actions/cache@0400d5f644dc74513175e3cd8d07132dd4860809 # v4.2.4
+        with:
+          path: SourcePackages
+          key: ${{ runner.os }}-spm-${{ hashFiles('apps/native/WolfWave.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved') }}
+          restore-keys: ${{ runner.os }}-spm-
 
       - name: Resolve version
         id: version
@@ -143,6 +172,7 @@ jobs:
             CODE_SIGN_STYLE=Manual \
             CODE_SIGN_IDENTITY="Developer ID Application" \
             PROVISIONING_PROFILE_SPECIFIER="" \
+            -clonedSourcePackagesDirPath SourcePackages \
             -derivedDataPath build build -quiet
 
       - name: Locate app bundle
