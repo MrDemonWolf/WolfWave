@@ -834,10 +834,8 @@ fileprivate struct WebSocketWidgetAppearanceCard: View {
 
             Divider().padding(.leading, cardPadding)
 
-            HStack(spacing: 0) {
-                HStack(spacing: DSSpace.s2) {
-                    Text("Theme").font(.system(size: DSFont.Size.base, weight: .medium))
-                    Spacer()
+            twoColumnRow {
+                controlCell("Theme") {
                     Picker("", selection: $widgetTheme) {
                         ForEach(AppConstants.Widget.themes, id: \.self) { theme in
                             Text(theme).tag(theme)
@@ -849,14 +847,8 @@ fileprivate struct WebSocketWidgetAppearanceCard: View {
                     .accessibilityIdentifier("widgetThemePicker")
                     .onChange(of: widgetTheme) { _, _ in broadcastWidgetConfig() }
                 }
-                .padding(.horizontal, cardPadding)
-                .frame(maxWidth: .infinity)
-
-                Divider()
-
-                HStack(spacing: DSSpace.s2) {
-                    Text("Layout").font(.system(size: DSFont.Size.base, weight: .medium))
-                    Spacer()
+            } trailing: {
+                controlCell("Layout") {
                     Picker("", selection: $widgetLayout) {
                         ForEach(AppConstants.Widget.layouts, id: \.self) { layout in
                             Text(layout).tag(layout)
@@ -868,49 +860,36 @@ fileprivate struct WebSocketWidgetAppearanceCard: View {
                     .accessibilityIdentifier("widgetLayoutPicker")
                     .onChange(of: widgetLayout) { _, _ in broadcastWidgetConfig() }
                 }
-                .padding(.horizontal, cardPadding)
-                .frame(maxWidth: .infinity)
             }
-            .padding(.vertical, DSSpace.s4)
 
-            if widgetTheme == "Default" || widgetTheme == "Glass" {
+            if showsColorControls {
                 Divider().padding(.leading, cardPadding)
 
-                HStack(spacing: 0) {
-                    HStack(spacing: DSSpace.s2) {
-                        Text("Text Color").font(.system(size: DSFont.Size.base, weight: .medium))
-                        Spacer()
+                twoColumnRow {
+                    controlCell("Text") {
                         ColorPicker("", selection: textColorBinding, supportsOpacity: false)
                             .labelsHidden()
                             .frame(width: 40)
                             .accessibilityLabel("Widget text color")
                             .accessibilityIdentifier("widgetTextColorPicker")
                     }
-                    .padding(.horizontal, cardPadding)
-                    .frame(maxWidth: .infinity)
-
-                    Divider()
-
-                    HStack(spacing: DSSpace.s2) {
-                        Text("Bg Color").font(.system(size: DSFont.Size.base, weight: .medium))
-                        Spacer()
+                } trailing: {
+                    controlCell("Background") {
                         ColorPicker("", selection: backgroundColorBinding, supportsOpacity: false)
                             .labelsHidden()
                             .frame(width: 40)
                             .accessibilityLabel("Widget background color")
                             .accessibilityIdentifier("widgetBackgroundColorPicker")
                     }
-                    .padding(.horizontal, cardPadding)
-                    .frame(maxWidth: .infinity)
                 }
-                .padding(.vertical, DSSpace.s4)
             }
 
             Divider().padding(.leading, cardPadding)
 
-            HStack(spacing: DSSpace.s4) {
-                Text("Font").font(.system(size: DSFont.Size.base, weight: .medium))
-                Spacer()
+            // Font spans the full width (the family name needs the room) but
+            // reuses `controlCell` so it reads as a deliberate row, not a
+            // leftover beneath the paired controls above.
+            controlCell("Font") {
                 Picker("", selection: $widgetFontFamily) {
                     Text("System Default").tag("System Default")
                     if !fontFamilies.isEmpty {
@@ -926,7 +905,6 @@ fileprivate struct WebSocketWidgetAppearanceCard: View {
                 .accessibilityIdentifier("widgetFontPicker")
                 .onChange(of: widgetFontFamily) { _, _ in broadcastWidgetConfig() }
             }
-            .padding(.horizontal, cardPadding)
             .padding(.vertical, DSSpace.s4)
         }
         .cardStyleUnpadded()
@@ -937,6 +915,45 @@ fileprivate struct WebSocketWidgetAppearanceCard: View {
             }.value
             fontFamilies = families
         }
+    }
+
+    // MARK: - Layout Helpers
+
+    /// Default and Glass themes expose editable text + background colors; the
+    /// preset themes (Dark, Light, Neon) ship fixed palettes, so the color row
+    /// is hidden for them.
+    private var showsColorControls: Bool {
+        widgetTheme == "Default" || widgetTheme == "Glass"
+    }
+
+    /// One label-left / control-right cell. Shared by both columns and the
+    /// full-width Font row so every appearance control aligns identically.
+    @ViewBuilder
+    private func controlCell<Control: View>(
+        _ label: String,
+        @ViewBuilder control: () -> Control
+    ) -> some View {
+        HStack(spacing: DSSpace.s2) {
+            Text(label).font(.system(size: DSFont.Size.base, weight: .medium))
+            Spacer(minLength: DSSpace.s2)
+            control()
+        }
+        .padding(.horizontal, cardPadding)
+    }
+
+    /// Two equal-width cells split by a hairline divider, matching the app's
+    /// other paired settings rows (e.g. Startup / Display Mode).
+    @ViewBuilder
+    private func twoColumnRow<Leading: View, Trailing: View>(
+        @ViewBuilder leading: () -> Leading,
+        @ViewBuilder trailing: () -> Trailing
+    ) -> some View {
+        HStack(spacing: 0) {
+            leading().frame(maxWidth: .infinity)
+            Divider()
+            trailing().frame(maxWidth: .infinity)
+        }
+        .padding(.vertical, DSSpace.s4)
     }
 
     /// Pushes the current widget theme/layout/font/color values to every
