@@ -7,7 +7,6 @@
 //
 
 import Foundation
-import Security
 
 /// Secure credential storage using the macOS Keychain.
 ///
@@ -186,147 +185,37 @@ nonisolated enum KeychainService {
         deleteItem(account: twitchChannelIDAccount)
     }
 
+    // MARK: - Backend Injection
+
+    /// Raw storage backing every credential operation.
+    ///
+    /// Defaults to `SystemKeychainBackend` (Security framework). Unit tests swap
+    /// in an in-memory double so the suite never touches the real Keychain —
+    /// ad-hoc test signing otherwise triggers an ACL prompt that blocks cold
+    /// reads and fails CI. Mutated only from serialized tests.
+    nonisolated(unsafe) static var backend: KeychainBackend = SystemKeychainBackend(service: service)
+
     // MARK: - Private Helpers
 
-    /// Tracks whether to attach `kSecUseDataProtectionKeychain` to queries.
+    /// Validates then stores a value via the active backend.
     ///
-    /// The data-protection keychain requires the binary to be signed with a
-    /// team identifier matching a declared `keychain-access-groups` entitlement.
-    /// Properly signed builds (Apple Development / Developer ID) satisfy this
-    /// and benefit from team-ID scoping that survives Xcode dev rebuilds.
-    /// Ad-hoc signed builds (CI runners with placeholder configs, "Sign to Run
-    /// Locally" without a team) trip `errSecMissingEntitlement` (-34018) — for
-    /// those we transparently fall back to the legacy file keychain.
-    ///
-    /// Probed lazily on first use and cached.
-    private static let useDataProtectionKeychain: Bool = probeDataProtectionKeychain()
-
-    /// Builds a base query dictionary for the given account.
-    ///
-    /// When the data-protection keychain is available, sets
-    /// `kSecUseDataProtectionKeychain` so items are team-ID scoped (modern
-    /// backend) rather than bound to the creating binary's code-signing
-    /// requirement (legacy file keychain). This makes Xcode dev rebuilds keep
-    /// saved tokens across runs, matching release behavior.
-    private static func queryFor(account: String) -> [String: Any] {
-        var query: [String: Any] = [
-            kSecClass as String: kSecClassGenericPassword,
-            kSecAttrService as String: service,
-            kSecAttrAccount as String: account,
-        ]
-        if useDataProtectionKeychain {
-            query[kSecUseDataProtectionKeychain as String] = true
-        }
-        return query
-    }
-
-    /// One-shot capability probe: try to add + delete a throwaway item with the
-    /// data-protection flag set. If that yields `errSecMissingEntitlement`, the
-    /// binary lacks the team-ID-bound entitlement needed for the modern backend
-    /// (typically ad-hoc signing in CI), and we fall back to the legacy keychain.
-    private static func probeDataProtectionKeychain() -> Bool {
-        let probeAccount = "__wolfwave_dp_probe__"
-        let probeData = Data("probe".utf8)
-        let addQuery: [String: Any] = [
-            kSecClass as String: kSecClassGenericPassword,
-            kSecAttrService as String: service,
-            kSecAttrAccount as String: probeAccount,
-            kSecValueData as String: probeData,
-            kSecAttrAccessible as String: kSecAttrAccessibleAfterFirstUnlock,
-            kSecUseDataProtectionKeychain as String: true,
-        ]
-        let addStatus = SecItemAdd(addQuery as CFDictionary, nil)
-
-        // Already-exists from a prior probe is fine — backend supports it.
-        let supports = addStatus == errSecSuccess || addStatus == errSecDuplicateItem
-
-        if supports {
-            let deleteQuery: [String: Any] = [
-                kSecClass as String: kSecClassGenericPassword,
-                kSecAttrService as String: service,
-                kSecAttrAccount as String: probeAccount,
-                kSecUseDataProtectionKeychain as String: true,
-            ]
-            _ = SecItemDelete(deleteQuery as CFDictionary)
-        }
-        return supports
-    }
-
-    /// Loads a string value from the Keychain for the given account.
-    private static func loadItem(account: String) -> String? {
-        var query = queryFor(account: account)
-        query[kSecReturnData as String] = true
-        query[kSecMatchLimit as String] = kSecMatchLimitOne
-
-        var item: CFTypeRef?
-        let status = SecItemCopyMatching(query as CFDictionary, &item)
-
-        guard status == errSecSuccess,
-            let data = item as? Data,
-            let value = String(data: data, encoding: .utf8)
-        else {
-            if status != errSecSuccess && status != errSecItemNotFound {
-                Log.error("KeychainService: Failed to load item '\(account)' - OSStatus \(status)", category: "Keychain")
-            }
-            return nil
-        }
-
-        return value
-    }
-
-    /// Deletes a Keychain item for the given account. Succeeds silently if not found.
-    private static func deleteItem(account: String) {
-        let query = queryFor(account: account)
-        let status = SecItemDelete(query as CFDictionary)
-        if status != errSecSuccess && status != errSecItemNotFound {
-            Log.error("KeychainService: Failed to delete item '\(account)' - OSStatus \(status)", category: "Keychain")
-        }
-    }
-
-    /// Inserts or updates a Keychain item using SecItemUpdate with SecItemAdd fallback.
-    ///
-    /// This is more efficient than delete+add: a single Keychain roundtrip for updates,
-    /// with an automatic fallback to add when the item doesn't exist yet.
+    /// Empty-value rejection lives here (not in the backend) so the rule holds
+    /// regardless of backend and stays unit-testable without the Keychain.
     private static func upsertItem(account: String, value: String) throws {
         guard !value.isEmpty else {
             Log.warn("Keychain: Attempted to save empty value for account \(account)", category: "Keychain")
             throw KeychainError.invalidData
         }
-        
-        let data = Data(value.utf8)
-        let searchQuery = queryFor(account: account)
-        let updateAttributes: [String: Any] = [
-            kSecValueData as String: data,
-            kSecAttrAccessible as String: kSecAttrAccessibleAfterFirstUnlock,
-        ]
+        try backend.save(account: account, value: value)
+    }
 
-        let updateStatus = SecItemUpdate(searchQuery as CFDictionary, updateAttributes as CFDictionary)
+    /// Loads a string value for the given account via the active backend.
+    private static func loadItem(account: String) -> String? {
+        backend.load(account: account)
+    }
 
-        if updateStatus == errSecItemNotFound {
-            // Item doesn't exist yet — add it
-            var addQuery = searchQuery
-            addQuery[kSecValueData as String] = data
-            addQuery[kSecAttrAccessible as String] = kSecAttrAccessibleAfterFirstUnlock
-            let addStatus = SecItemAdd(addQuery as CFDictionary, nil)
-
-            if addStatus == errSecDuplicateItem {
-                // Update said "not found" but Add says "duplicate" — an existing
-                // entry differs only in `kSecAttrAccessible`, which `searchQuery`
-                // doesn't include and `SecItemUpdate` evaluates as a non-match.
-                // Self-heal: delete the mismatched entry and retry once.
-                SecItemDelete(searchQuery as CFDictionary)
-                let retryStatus = SecItemAdd(addQuery as CFDictionary, nil)
-                guard retryStatus == errSecSuccess else {
-                    Log.error("Failed to save \(account) after duplicate-item recovery - OSStatus \(retryStatus)", category: "Keychain")
-                    throw KeychainError.saveFailed(retryStatus)
-                }
-            } else if addStatus != errSecSuccess {
-                Log.error("Failed to save \(account) - OSStatus \(addStatus)", category: "Keychain")
-                throw KeychainError.saveFailed(addStatus)
-            }
-        } else if updateStatus != errSecSuccess {
-            Log.error("Failed to update \(account) - OSStatus \(updateStatus)", category: "Keychain")
-            throw KeychainError.saveFailed(updateStatus)
-        }
+    /// Deletes the item for the given account via the active backend.
+    private static func deleteItem(account: String) {
+        backend.delete(account: account)
     }
 }
