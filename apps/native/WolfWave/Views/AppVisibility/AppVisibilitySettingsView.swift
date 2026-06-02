@@ -122,16 +122,19 @@ struct AppVisibilitySettingsView: View {
                     applyDockVisibility(newValue)
                 }
             )) {
+                // `.tag()` stays the outermost modifier on each row. Modifiers
+                // applied after a tag can swallow the tag preference, leaving the
+                // Picker selection unbound (radios render but never reflect state).
                 Text("Dock and Menu Bar")
-                    .tag(AppConstants.DockVisibility.default)
                     .accessibilityIdentifier("dockVisibility_both")
+                    .tag(AppConstants.DockVisibility.default)
                 Text("Menu Bar Only")
-                    .tag(AppConstants.DockVisibility.menuOnly)
                     .accessibilityIdentifier("dockVisibility_menuOnly")
+                    .tag(AppConstants.DockVisibility.menuOnly)
                 Text("Dock Only")
-                    .tag(AppConstants.DockVisibility.dockOnly)
-                    .disabled(launchAtLogin)
                     .accessibilityIdentifier("dockVisibility_dockOnly")
+                    .disabled(launchAtLogin)
+                    .tag(AppConstants.DockVisibility.dockOnly)
             }
             .pickerStyle(.radioGroup)
             .labelsHidden()
