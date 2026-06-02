@@ -303,16 +303,20 @@ struct SettingsView: View {
     // MARK: - Sidebar Helpers
 
     /// Grouped sidebar layout. Headers keep related sections together so the
-    /// list scans cleanly: setup first, then integrations, insights, and the
-    /// app-level pages. `.debug` is appended to the App group in DEBUG builds.
+    /// list scans cleanly, each group covering one concept: General first, then
+    /// linked services (Integrations), on-stream features, insights, and the
+    /// app-level pages. Within App, order runs most- to least-reached (update →
+    /// advanced → info), so the read-only About anchors the bottom. `.debug` is
+    /// appended to the App group in DEBUG builds.
     private static var sidebarGroups: [(title: String?, sections: [SettingsSection])] {
-        var app: [SettingsSection] = [.softwareUpdate, .about, .advanced]
+        var app: [SettingsSection] = [.softwareUpdate, .advanced, .about]
         #if DEBUG
         app.append(.debug)
         #endif
         return [
             (nil, [.general]),
-            ("Integrations", [.twitchIntegration, .discord, .websocket, .songRequests]),
+            ("Integrations", [.twitchIntegration, .discord]),
+            ("On Stream", [.websocket, .songRequests]),
             ("Insights", [.historyStats]),
             ("App", app),
         ]
