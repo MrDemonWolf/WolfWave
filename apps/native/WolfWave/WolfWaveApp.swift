@@ -55,9 +55,21 @@ struct WolfWaveApp: App {
                     appDelegate.checkForUpdatesFromMenu()
                 }
             }
+            // `SettingsLink` is the public macOS 14+ way to open the `Settings`
+            // scene — it sends the same `showSettingsWindow:` action that
+            // `appDelegate.openSettings()` does, just without the private
+            // selector. It only works here because `.commands` is a SwiftUI
+            // context; the tray/Dock `NSMenu` entry points can't host a SwiftUI
+            // view, so they keep routing through `appDelegate.openSettings()`.
+            //
+            // No dock-visibility handling is lost: the App menu (and its Cmd+,)
+            // is only reachable when the app is already `.regular`. An
+            // `.accessory` menu-only app shows no main menu and its command
+            // shortcuts need a key window, so openSettings()'s `.regular` switch
+            // would be a no-op on this path anyway.
             CommandGroup(replacing: .appSettings) {
-                Button("Settings\u{2026}") {
-                    appDelegate.openSettings()
+                SettingsLink {
+                    Text("Settings\u{2026}")
                 }
                 .keyboardShortcut(",", modifiers: .command)
             }
