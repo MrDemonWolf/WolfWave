@@ -55,22 +55,22 @@ struct AboutSettingsView: View {
                     .foregroundStyle(.secondary)
             }
 
-            VStack(spacing: DSSpace.s3) {
+            VStack(alignment: .leading, spacing: DSSpace.s3) {
                 hero
                 versionPill
             }
-            .frame(maxWidth: .infinity)
+            .frame(maxWidth: .infinity, alignment: .leading)
         }
         .cardStyle()
     }
 
     private var hero: some View {
-        VStack(alignment: .trailing, spacing: DSSpace.s3) {
+        VStack(alignment: .leading, spacing: DSSpace.s3) {
             Text(appName)
                 .font(.system(size: DSFont.Size.x2xl, weight: .semibold))
                 .accessibilityAddTraits(.isHeader)
         }
-        .frame(maxWidth: .infinity, alignment: .trailing)
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     private var versionPill: some View {
@@ -137,11 +137,11 @@ struct AboutSettingsView: View {
                     .foregroundStyle(.secondary)
             }
 
-            VStack(spacing: DSSpace.s3) {
+            VStack(alignment: .leading, spacing: DSSpace.s3) {
                 legalLinksRow
                 footer
             }
-            .frame(maxWidth: .infinity)
+            .frame(maxWidth: .infinity, alignment: .leading)
         }
         .cardStyle()
     }
@@ -169,29 +169,29 @@ struct AboutSettingsView: View {
             }
         }
         .font(.system(size: DSFont.Size.sm))
-        .frame(maxWidth: .infinity, alignment: .trailing)
+        .frame(maxWidth: .infinity, alignment: .leading)
         .accessibilityElement(children: .contain)
     }
 
     private var footer: some View {
-        VStack(alignment: .trailing, spacing: 6) {
+        VStack(alignment: .leading, spacing: 6) {
             Text(AboutCopy.independenceNotice)
                 .font(.system(size: DSFont.Size.xs))
                 .foregroundStyle(.tertiary)
-                .multilineTextAlignment(.trailing)
+                .multilineTextAlignment(.leading)
                 .fixedSize(horizontal: false, vertical: true)
 
             Text(AboutCopy.trademarkNotice)
                 .font(.system(size: DSFont.Size.xs))
                 .foregroundStyle(.tertiary)
-                .multilineTextAlignment(.trailing)
+                .multilineTextAlignment(.leading)
                 .fixedSize(horizontal: false, vertical: true)
 
             Text(AboutCopy.copyrightLine)
                 .font(.system(size: DSFont.Size.xs))
                 .foregroundStyle(.tertiary)
         }
-        .frame(maxWidth: .infinity, alignment: .trailing)
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     // MARK: - Acknowledgements Card
