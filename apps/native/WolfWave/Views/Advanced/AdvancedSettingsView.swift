@@ -296,37 +296,33 @@ struct AdvancedSettingsView: View {
                     .fixedSize(horizontal: false, vertical: true)
             }
 
-            Button(action: exportLogs) {
-                Label("Export Logs", systemImage: "square.and.arrow.up")
-                    .font(.system(size: DSFont.Size.base, weight: .medium))
-                    .frame(maxWidth: .infinity)
-            }
-            .buttonStyle(.bordered)
-            .controlSize(.regular)
-            .pointerCursor()
-            .accessibilityLabel("Export application logs")
-            .accessibilityHint("Save logs to a file for debugging")
-
-            HStack(spacing: DSSpace.s2) {
-                Button(action: revealLogsInFinder) {
-                    Label("Reveal in Finder", systemImage: "folder")
-                        .font(.system(size: DSFont.Size.body))
-                        .frame(maxWidth: .infinity)
+            // Uniform 2-up action grid keeps the read actions visually quiet
+            // and aligned, instead of one bright full-width bar plus two
+            // smaller ones at mixed control sizes.
+            ActionGrid(columns: 2) {
+                GridRow {
+                    ActionGridButton(
+                        title: "Export Logs",
+                        systemImage: "square.and.arrow.up",
+                        action: exportLogs,
+                        accessibilityIdentifier: "exportLogsButton"
+                    )
+                    ActionGridButton(
+                        title: "Copy to Clipboard",
+                        systemImage: "doc.on.clipboard",
+                        action: copyLogsToClipboard,
+                        accessibilityIdentifier: "copyLogsButton"
+                    )
                 }
-                .buttonStyle(.bordered)
-                .controlSize(.small)
-                .pointerCursor()
-                .accessibilityLabel("Reveal log file in Finder")
-
-                Button(action: copyLogsToClipboard) {
-                    Label("Copy to Clipboard", systemImage: "doc.on.clipboard")
-                        .font(.system(size: DSFont.Size.body))
-                        .frame(maxWidth: .infinity)
+                GridRow {
+                    ActionGridButton(
+                        title: "Reveal in Finder",
+                        systemImage: "folder",
+                        action: revealLogsInFinder,
+                        accessibilityIdentifier: "revealLogsButton"
+                    )
+                    .gridCellColumns(2)
                 }
-                .buttonStyle(.bordered)
-                .controlSize(.small)
-                .pointerCursor()
-                .accessibilityLabel("Copy log contents to clipboard")
             }
 
             if showingCopyFeedback {

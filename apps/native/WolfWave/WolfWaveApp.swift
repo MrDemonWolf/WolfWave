@@ -160,6 +160,10 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             return
         }
 
+        // Apply the stored appearance override before any UI is built so the
+        // menu bar menu, status item, and onboarding adopt it from first paint.
+        AppearanceController.applyStored()
+
         setupStatusItem()
         setupMenu()
         setupMusicMonitor()

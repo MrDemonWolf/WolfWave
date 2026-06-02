@@ -64,10 +64,18 @@ extension View {
 /// automatically. Apply glass last in the modifier chain — padding goes
 /// inside, frame/layout goes outside.
 struct CardModifier: ViewModifier {
+    @Environment(\.colorScheme) private var colorScheme
     var padded: Bool = true
 
     func body(content: Content) -> some View {
         let shape = RoundedRectangle(cornerRadius: AppConstants.SettingsUI.cardCornerRadius)
+        // Plain `.regular` glass is hard on the eyes both ways: it blooms bright
+        // on a dark window and glares near-white on a light one. A low neutral
+        // tint settles the card against the background in either mode. Deeper in
+        // dark to kill wallpaper bloom, light in light to take the white edge off.
+        let glass = Glass.regular.tint(
+            Color.black.opacity(colorScheme == .dark ? 0.22 : 0.05)
+        )
         return Group {
             if padded {
                 content
@@ -76,7 +84,7 @@ struct CardModifier: ViewModifier {
                 content
             }
         }
-        .glassEffect(.regular, in: shape)
+        .glassEffect(glass, in: shape)
     }
 }
 

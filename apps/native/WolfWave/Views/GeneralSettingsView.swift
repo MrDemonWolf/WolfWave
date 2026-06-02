@@ -32,6 +32,10 @@ struct GeneralSettingsView: View {
 
             Divider().padding(.vertical, DSSpace.s1)
 
+            AppearanceSettingsView()
+
+            Divider().padding(.vertical, DSSpace.s1)
+
             NotificationsSettingsView()
         }
     }

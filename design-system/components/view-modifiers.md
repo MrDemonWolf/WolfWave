@@ -13,9 +13,13 @@ Wraps content in a macOS 26 Liquid Glass card.
 ```swift
 content
   .padding(DSDimension.Settings.cardPadding)   // unless cardStyleUnpadded
-  .glassEffect(.regular, in: RoundedRectangle(cornerRadius: DSDimension.Settings.cardCornerRadius))
+  .glassEffect(
+    .regular.tint(Color.black.opacity(colorScheme == .dark ? 0.22 : 0.05)),
+    in: RoundedRectangle(cornerRadius: DSDimension.Settings.cardCornerRadius)
+  )
 ```
 
+- **Appearance tint:** plain `.regular` glass blooms bright on a dark window and glares near-white on a light one. `CardModifier` reads `@Environment(\.colorScheme)` and applies a low neutral-black tint — deeper in dark (`0.22`) to kill wallpaper bloom, light in light (`0.05`) to take the white edge off. Keeps cards easy on the eyes in both modes.
 - **Tokens:** `DSDimension.Settings.cardPadding` (16), `DSDimension.Settings.cardCornerRadius` (14).
 - **When to use:** any grouped settings region. Default container.
 - **When _not_:** inside another card (no nesting), or for full-bleed hero sections.

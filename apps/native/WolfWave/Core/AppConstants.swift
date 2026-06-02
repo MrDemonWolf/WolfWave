@@ -490,6 +490,10 @@ nonisolated enum AppConstants {
         /// UI-only redaction; does not change broadcast/chat/Discord output (Bool, default: false).
         static let streamerModeEnabled = "streamerModeEnabled"
 
+        /// Preferred app appearance: "system", "light", or "dark" (String, default: "system").
+        /// Overrides `NSApplication.appearance` app-wide; "system" follows the OS setting.
+        static let appearancePreference = "appearancePreference"
+
         /// Every UserDefaults key the app writes. Source of truth for reset operations
         /// and the DEBUG-only UserDefaults inspector.
         static let allKeys: [String] = [
@@ -576,9 +580,27 @@ nonisolated enum AppConstants {
             statsCommandAliases,
             historyRetentionDays,
             streamerModeEnabled,
+            appearancePreference,
         ]
     }
-    
+
+    // MARK: - Appearance
+
+    /// App appearance override modes. Map to `NSAppearance` in `AppearanceController`.
+    enum Appearance {
+        /// Follow the macOS system appearance (no override).
+        static let system = "system"
+
+        /// Force light (Aqua) regardless of system setting.
+        static let light = "light"
+
+        /// Force dark (Dark Aqua) regardless of system setting.
+        static let dark = "dark"
+
+        /// Default appearance mode.
+        static let `default` = "system"
+    }
+
     // MARK: - Dock Visibility Modes
     
     /// Application dock visibility modes.
