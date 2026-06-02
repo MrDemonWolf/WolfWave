@@ -162,7 +162,7 @@ struct SettingsView: View {
             }
             .padding(.top, DSSpace.s2)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .background(Color(nsColor: .underPageBackgroundColor))
+            .background(Color(nsColor: .windowBackgroundColor))
             .onAppear {
                 if let requestedSection = UserDefaults.standard.string(forKey: AppConstants.UserDefaults.selectedSettingsSection) {
                     if requestedSection == AppConstants.Twitch.settingsSection {
