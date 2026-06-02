@@ -31,6 +31,10 @@ struct MonthlyWrapView: View {
 
     private let calendar = Calendar.current
 
+    /// Shared width for the footer's Share and Export buttons so they match.
+    /// Sized to fit the wider "Export as Image" label.
+    private let footerButtonWidth: CGFloat = 150
+
     // MARK: - Derived
 
     private var wrap: MonthlyWrapData {
@@ -115,8 +119,8 @@ struct MonthlyWrapView: View {
             Spacer()
 
             if wrap.hasData {
-                SharePickerButton(makeItems: shareItems)
-                    .fixedSize()
+                SharePickerButton(isProminent: true, makeItems: shareItems)
+                    .frame(width: footerButtonWidth)
                     .accessibilityLabel("Share monthly wrap")
             }
 
@@ -125,7 +129,9 @@ struct MonthlyWrapView: View {
             } label: {
                 Label(didExport ? "Saved" : "Export as Image",
                       systemImage: didExport ? "checkmark" : "square.and.arrow.up")
+                    .frame(maxWidth: .infinity)
             }
+            .frame(width: footerButtonWidth)
             .buttonStyle(.borderedProminent)
             .pointerCursor()
             .disabled(!wrap.hasData)

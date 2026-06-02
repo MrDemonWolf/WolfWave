@@ -27,6 +27,10 @@ struct SharePickerButton: NSViewRepresentable {
     /// SF Symbol shown leading the title.
     var systemImage: String = "square.and.arrow.up"
 
+    /// When `true`, fills the button with the accent color and white label —
+    /// matches SwiftUI's `.borderedProminent` so it can sit beside one.
+    var isProminent: Bool = false
+
     /// Produces the items to share when the button is clicked. Runs on the main
     /// thread. Return `nil` (or an empty array) to suppress the picker — e.g.
     /// when a render step failed and there's nothing to share.
@@ -37,21 +41,34 @@ struct SharePickerButton: NSViewRepresentable {
     func makeNSView(context: Context) -> NSButton {
         let button = NSButton()
         button.bezelStyle = .rounded
-        button.title = title
-        button.image = NSImage(systemSymbolName: systemImage,
-                               accessibilityDescription: title)
         button.imagePosition = .imageLeading
         button.target = context.coordinator
         button.action = #selector(Coordinator.share(_:))
         button.setContentHuggingPriority(.required, for: .horizontal)
+        applyStyle(to: button)
         return button
     }
 
     func updateNSView(_ nsView: NSButton, context: Context) {
-        nsView.title = title
-        nsView.image = NSImage(systemSymbolName: systemImage,
-                               accessibilityDescription: title)
+        applyStyle(to: nsView)
         context.coordinator.makeItems = makeItems
+    }
+
+    /// Applies title, icon, and prominent fill so make/update stay in sync.
+    private func applyStyle(to button: NSButton) {
+        button.image = NSImage(systemSymbolName: systemImage,
+                               accessibilityDescription: title)
+        if isProminent {
+            button.bezelColor = .controlAccentColor
+            button.contentTintColor = .white
+            button.attributedTitle = NSAttributedString(
+                string: title,
+                attributes: [.foregroundColor: NSColor.white])
+        } else {
+            button.bezelColor = nil
+            button.contentTintColor = nil
+            button.title = title
+        }
     }
 
     func makeCoordinator() -> Coordinator {
