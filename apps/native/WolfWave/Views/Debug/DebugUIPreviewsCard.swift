@@ -18,13 +18,6 @@ struct DebugUIPreviewsCard: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: DSSpace.s4) {
-            HStack(spacing: 6) {
-                Image(systemName: "eye.fill")
-                    .foregroundStyle(.purple)
-                Text("UI Previews")
-                    .sectionSubHeader()
-            }
-
             Text("Trigger popups, banners, and onboarding without the usual gating.")
                 .font(.system(size: DSFont.Size.body))
                 .foregroundStyle(.secondary)

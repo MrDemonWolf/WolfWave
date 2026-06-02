@@ -33,15 +33,10 @@ struct DebugMetricsCard: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: DSSpace.s4) {
-            VStack(alignment: .leading, spacing: DSSpace.s1) {
-                Text("Performance")
-                    .font(.system(size: DSFont.Size.base, weight: .semibold))
-
-                Text("Live runtime metrics, refreshed every couple of seconds.")
-                    .font(.system(size: DSFont.Size.body))
-                    .foregroundStyle(.secondary)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
+            Text("Live runtime metrics, refreshed every couple of seconds.")
+                .font(.system(size: DSFont.Size.body))
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
 
             metricRow(
                 "Memory usage",
