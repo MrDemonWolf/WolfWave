@@ -10,9 +10,18 @@ import Testing
 import Foundation
 @testable import WolfWave
 
-/// Comprehensive test suite for logging functionality
+/// Comprehensive test suite for logging functionality.
+///
+/// Marked `.serialized` because the file-readback tests below and the
+/// `LoggerTests.ClearTests` sub-suite (declared in `LoggerClearTests.swift`)
+/// both touch the process-global `Log` file. Without serialization, Swift
+/// Testing runs them in parallel and `ClearTests` can truncate the shared log
+/// while `testLogFileContent` is reading it, evicting the unique message it
+/// just wrote. The trait propagates to the nested sub-suite, so clearing and
+/// reading never overlap. (Rotation triggered by *other* suites is still
+/// tolerated by `readLogIncludingBackup`.)
 @MainActor
-@Suite("Logger Tests")
+@Suite("Logger Tests", .serialized)
 struct LoggerTests {
     
     // MARK: - Log Level Tests
