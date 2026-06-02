@@ -32,86 +32,89 @@ struct AppVisibilitySettingsView: View {
                     .foregroundStyle(.secondary)
             }
 
-            // Launch at Login Card
-            VStack(alignment: .leading, spacing: DSSpace.s4) {
-                VStack(alignment: .leading, spacing: DSSpace.s0) {
-                    Text("Startup")
-                        .font(.system(size: DSFont.Size.base, weight: .medium))
-                    Text("Automatically start WolfWave when you log in")
-                        .font(.system(size: DSFont.Size.sm))
-                        .foregroundStyle(.tertiary)
-                }
-
-                Toggle("Launch at Login", isOn: Binding(
-                    get: { launchAtLogin },
-                    set: { newValue in
-                        // Revert toggle immediately if SMAppService fails
-                        guard LaunchAtLoginService.setEnabled(newValue) else { return }
-                        launchAtLogin = newValue
-                        // Dock Only is incompatible with launch at login —
-                        // switch to Menu Bar + Dock so the app is always reachable.
-                        if newValue && dockVisibility == AppConstants.DockVisibility.dockOnly {
-                            dockVisibility = AppConstants.DockVisibility.default
-                            applyDockVisibility(AppConstants.DockVisibility.default)
-                        }
+            // Startup + Display Mode cards, side by side
+            HStack(alignment: .top, spacing: DSSpace.s6) {
+                // Launch at Login Card
+                VStack(alignment: .leading, spacing: DSSpace.s4) {
+                    VStack(alignment: .leading, spacing: DSSpace.s0) {
+                        Text("Startup")
+                            .font(.system(size: DSFont.Size.base, weight: .medium))
+                        Text("Automatically start WolfWave when you log in")
+                            .font(.system(size: DSFont.Size.sm))
+                            .foregroundStyle(.tertiary)
                     }
-                ))
-                .toggleStyle(.checkbox)
-                .font(.system(size: DSFont.Size.base))
-                .pointerCursor()
-                .accessibilityLabel("Launch at Login")
-                .accessibilityHint("Starts WolfWave automatically when you log in to your Mac")
-                .accessibilityIdentifier("launchAtLoginToggle")
+
+                    Toggle("Launch at Login", isOn: Binding(
+                        get: { launchAtLogin },
+                        set: { newValue in
+                            // Revert toggle immediately if SMAppService fails
+                            guard LaunchAtLoginService.setEnabled(newValue) else { return }
+                            launchAtLogin = newValue
+                            // Dock Only is incompatible with launch at login,
+                            // switch to Menu Bar + Dock so the app is always reachable.
+                            if newValue && dockVisibility == AppConstants.DockVisibility.dockOnly {
+                                dockVisibility = AppConstants.DockVisibility.default
+                                applyDockVisibility(AppConstants.DockVisibility.default)
+                            }
+                        }
+                    ))
+                    .toggleStyle(.checkbox)
+                    .font(.system(size: DSFont.Size.base))
+                    .pointerCursor()
+                    .accessibilityLabel("Launch at Login")
+                    .accessibilityHint("Starts WolfWave automatically when you log in to your Mac")
+                    .accessibilityIdentifier("launchAtLoginToggle")
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .cardStyle()
+
+                // Picker Card
+                VStack(alignment: .leading, spacing: DSSpace.s4) {
+                    VStack(alignment: .leading, spacing: DSSpace.s0) {
+                        Text("Display Mode")
+                            .font(.system(size: DSFont.Size.base, weight: .medium))
+                        Text("Where should WolfWave live?")
+                            .font(.system(size: DSFont.Size.sm))
+                            .foregroundStyle(.tertiary)
+                    }
+
+                    VStack(alignment: .leading, spacing: 6) {
+                        RadioOption(
+                            label: "Dock and Menu Bar",
+                            tag: AppConstants.DockVisibility.default,
+                            selection: $dockVisibility,
+                            onChange: applyDockVisibility,
+                            accessibilityID: "dockVisibility_both"
+                        )
+                        RadioOption(
+                            label: "Menu Bar Only",
+                            tag: AppConstants.DockVisibility.menuOnly,
+                            selection: $dockVisibility,
+                            onChange: applyDockVisibility,
+                            accessibilityID: "dockVisibility_menuOnly"
+                        )
+                        RadioOption(
+                            label: "Dock Only",
+                            tag: AppConstants.DockVisibility.dockOnly,
+                            selection: $dockVisibility,
+                            onChange: applyDockVisibility,
+                            disabled: launchAtLogin,
+                            accessibilityID: "dockVisibility_dockOnly"
+                        )
+                    }
+                    .accessibilityLabel("Display Mode")
+                    .accessibilityIdentifier("dockVisibilityPicker")
+
+                    if launchAtLogin && dockVisibility != AppConstants.DockVisibility.dockOnly {
+                        CalloutBanner(
+                            "\"Dock Only\" is unavailable while Launch at Login is on. The menu bar icon must always be reachable.",
+                            style: .info
+                        )
+                    }
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .cardStyle()
             }
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .cardStyle()
-
-            // Picker Card
-            VStack(alignment: .leading, spacing: DSSpace.s4) {
-                VStack(alignment: .leading, spacing: DSSpace.s0) {
-                    Text("Display Mode")
-                        .font(.system(size: DSFont.Size.base, weight: .medium))
-                    Text("Where should WolfWave live?")
-                        .font(.system(size: DSFont.Size.sm))
-                        .foregroundStyle(.tertiary)
-                }
-
-                VStack(alignment: .leading, spacing: 6) {
-                    RadioOption(
-                        label: "Dock and Menu Bar",
-                        tag: AppConstants.DockVisibility.default,
-                        selection: $dockVisibility,
-                        onChange: applyDockVisibility,
-                        accessibilityID: "dockVisibility_both"
-                    )
-                    RadioOption(
-                        label: "Menu Bar Only",
-                        tag: AppConstants.DockVisibility.menuOnly,
-                        selection: $dockVisibility,
-                        onChange: applyDockVisibility,
-                        accessibilityID: "dockVisibility_menuOnly"
-                    )
-                    RadioOption(
-                        label: "Dock Only",
-                        tag: AppConstants.DockVisibility.dockOnly,
-                        selection: $dockVisibility,
-                        onChange: applyDockVisibility,
-                        disabled: launchAtLogin,
-                        accessibilityID: "dockVisibility_dockOnly"
-                    )
-                }
-                .accessibilityLabel("Display Mode")
-                .accessibilityIdentifier("dockVisibilityPicker")
-
-                if launchAtLogin && dockVisibility != AppConstants.DockVisibility.dockOnly {
-                    CalloutBanner(
-                        "\"Dock Only\" is unavailable while Launch at Login is on. The menu bar icon must always be reachable.",
-                        style: .info
-                    )
-                }
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .cardStyle()
 
             // Menu Bar Only Info Notice
             if dockVisibility == AppConstants.DockVisibility.menuOnly {
@@ -194,14 +197,14 @@ private struct RadioOption: View {
 
 #Preview("Dock and Menu Bar") {
     @Previewable @AppStorage(AppConstants.UserDefaults.dockVisibility) var dockVisibility = "both"
-    
+
     AppVisibilitySettingsView()
         .padding()
         .frame(width: 600)
 }
 #Preview("Menu Bar Only") {
     @Previewable @AppStorage(AppConstants.UserDefaults.dockVisibility) var dockVisibility = "menuOnly"
-    
+
     AppVisibilitySettingsView()
         .padding()
         .frame(width: 600)
@@ -209,9 +212,8 @@ private struct RadioOption: View {
 
 #Preview("Dock Only") {
     @Previewable @AppStorage(AppConstants.UserDefaults.dockVisibility) var dockVisibility = "dockOnly"
-    
+
     AppVisibilitySettingsView()
         .padding()
         .frame(width: 600)
 }
-
