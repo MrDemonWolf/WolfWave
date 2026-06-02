@@ -1,0 +1,70 @@
+---
+title: Back Up & Restore
+description: Export your WolfWave settings to a JSON file and restore them on another Mac. Accounts stay private. Reconnect Twitch on your terms.
+ogTitle: Back Up & Restore WolfWave Settings
+ogDescription: Export preferences to a file, import on another Mac. Accounts never leave the Keychain. Reconnect Twitch when you choose.
+ogEyebrow: Guide
+ogChips:
+  - Export to JSON
+  - Import anywhere
+  - No accounts
+  - Reconnect Twitch
+keywords:
+  - wolfwave backup settings
+  - export import wolfwave preferences
+  - move wolfwave to new mac
+  - wolfwave settings file
+---
+
+<span className="docs-eyebrow">Guide</span>
+
+Save your WolfWave preferences to a file, then bring them back on another Mac or after a clean reinstall. Your accounts are never in the file, so backups are safe to keep and share.
+
+## What gets backed up
+
+Your preferences. Things like:
+
+- Song Request rules (limits, cooldowns, command names, vote-skip)
+- Stream Widget look and ports (theme, layout, colors, server port)
+- Discord Rich Presence options (buttons, playlist, idle and pause behavior)
+- Notification toggles, History & Stats options, appearance, dock visibility
+
+## What does not get backed up
+
+Anything tied to an account or kept secret. None of this leaves your Mac:
+
+- Your Twitch sign-in (the OAuth token and your user and channel IDs)
+- The Stream Widgets auth token
+
+These live in the macOS Keychain and are never written to the file. A backup is just your settings, in plain JSON you can open and read.
+
+## Export
+
+1. Open **Settings → Advanced**.
+2. Under **Back Up Settings**, click **Export Settings**.
+3. Pick where to save. The file is named `wolfwave-settings-<date>.json`.
+
+## Import
+
+1. Open **Settings → Advanced**.
+2. Click **Import Settings** and choose a backup file.
+3. A review sheet shows how many preferences will be restored.
+4. If the backup had Twitch connected, you decide whether to reconnect it:
+   - **On**: WolfWave restores your channel and asks you to sign in to Twitch again (your login was never in the file).
+   - **Off**: Twitch is skipped. Everything else still imports.
+5. Click **Import**.
+
+Importing merges your preferences in. It never deletes settings that are not in the backup, and it does not touch a connection you leave switched off.
+
+## Move to a new Mac
+
+1. On the old Mac: **Export Settings**.
+2. Copy the file over (AirDrop, iCloud Drive, a USB stick, anything).
+3. On the new Mac: install WolfWave, then **Import Settings**.
+4. Turn on **Reconnect Twitch** in the review sheet and sign in once. Done.
+
+## Good to know
+
+- Reconnecting Twitch always means signing in again, because your login is never part of a backup.
+- A backup made by a newer version of WolfWave will ask you to update before it imports.
+- Listening History data and stats are your personal play log, not settings, so they are not part of a settings backup.

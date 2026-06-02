@@ -56,6 +56,24 @@ struct AdvancedSettingsView: View {
     /// Formatted artwork cache summary (e.g. "42 tracks · 18 KB").
     @State private var artworkStatsText: String = "—"
 
+    /// The decoded backup awaiting the user's import confirmation.
+    @State private var pendingBackup: SettingsBackup?
+
+    /// Whether the import review sheet is shown.
+    @State private var showingImportSheet = false
+
+    /// Message shown when an import file can't be read.
+    @State private var importErrorMessage: String?
+
+    /// Whether the import error alert is shown.
+    @State private var showingImportError = false
+
+    /// Message shown after a successful import.
+    @State private var importSuccessMessage: String?
+
+    /// Whether the import success alert is shown.
+    @State private var showingImportSuccess = false
+
     /// Opens a save panel to export the application log file.
     ///
     /// Presents the panel as a sheet on the settings window when available,
@@ -233,6 +251,9 @@ struct AdvancedSettingsView: View {
             // Diagnostics & Privacy (on-device MetricKit opt-in)
             DiagnosticsShareCardView()
 
+            // Back Up / Restore Settings Card
+            backupCard
+
             Divider()
                 .padding(.vertical, DSSpace.s1)
 
@@ -386,6 +407,182 @@ struct AdvancedSettingsView: View {
             Text("Saved album art links will be erased. They'll be fetched again as tracks play.")
         }
         .onAppear { refreshArtworkStats() }
+    }
+
+    // MARK: - Backup Card
+
+    @ViewBuilder
+    private var backupCard: some View {
+        VStack(alignment: .leading, spacing: DSSpace.s4) {
+            VStack(alignment: .leading, spacing: DSSpace.s1) {
+                Text("Back Up Settings")
+                    .font(.system(size: DSFont.Size.base, weight: .semibold))
+
+                Text("Save your preferences to a file, or restore them on another Mac. Accounts aren't included, so you'll reconnect Twitch after importing.")
+                    .font(.system(size: DSFont.Size.body))
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+
+            ActionGrid(columns: 2) {
+                GridRow {
+                    ActionGridButton(
+                        title: "Export Settings",
+                        systemImage: "square.and.arrow.up",
+                        action: exportSettings,
+                        accessibilityIdentifier: "exportSettingsButton"
+                    )
+                    ActionGridButton(
+                        title: "Import Settings",
+                        systemImage: "square.and.arrow.down",
+                        action: chooseImportFile,
+                        accessibilityIdentifier: "importSettingsButton"
+                    )
+                }
+            }
+        }
+        .cardStyle()
+        .sheet(isPresented: $showingImportSheet) {
+            if let backup = pendingBackup {
+                SettingsImportSheet(
+                    backup: backup,
+                    restorableCount: SettingsBackupService().restorableCount(backup),
+                    onConfirm: applyImport,
+                    onCancel: {
+                        showingImportSheet = false
+                        pendingBackup = nil
+                    }
+                )
+            }
+        }
+        .alert("Couldn't Import", isPresented: $showingImportError) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text(importErrorMessage ?? "That file couldn't be read.")
+        }
+        .alert("Settings Imported", isPresented: $showingImportSuccess) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text(importSuccessMessage ?? "Your settings were restored.")
+        }
+    }
+
+    // MARK: - Backup Actions
+
+    /// Exports portable settings to a user-chosen JSON file. Accounts and
+    /// secrets are excluded — see `AppConstants.UserDefaults.exportableKeys`.
+    @MainActor
+    private func exportSettings() {
+        let service = SettingsBackupService()
+        let data: Data
+        do {
+            data = try service.makeBackupData()
+        } catch {
+            Log.error("Failed to build settings backup: \(error.localizedDescription)", category: "App")
+            return
+        }
+
+        let panel = NSSavePanel()
+        panel.nameFieldStringValue = "wolfwave-settings-\(Self.fileDateStamp()).json"
+        panel.allowedContentTypes = [.json]
+        panel.canCreateDirectories = true
+
+        let completion: (NSApplication.ModalResponse) -> Void = { response in
+            guard response == .OK, let url = panel.url else { return }
+            do {
+                try data.write(to: url, options: .atomic)
+                Log.info("Settings exported to \(url.lastPathComponent)", category: "App")
+            } catch {
+                Log.error("Failed to write settings backup: \(error.localizedDescription)", category: "App")
+            }
+        }
+
+        if let window = hostWindow() {
+            panel.beginSheetModal(for: window, completionHandler: completion)
+        } else {
+            completion(panel.runModal())
+        }
+    }
+
+    /// Presents an open panel to pick a backup file, then decodes it.
+    @MainActor
+    private func chooseImportFile() {
+        let panel = NSOpenPanel()
+        panel.allowedContentTypes = [.json]
+        panel.allowsMultipleSelection = false
+        panel.canChooseDirectories = false
+
+        let completion: (NSApplication.ModalResponse) -> Void = { response in
+            guard response == .OK, let url = panel.url else { return }
+            loadImportFile(url)
+        }
+
+        if let window = hostWindow() {
+            panel.beginSheetModal(for: window, completionHandler: completion)
+        } else {
+            completion(panel.runModal())
+        }
+    }
+
+    /// Reads and validates a backup file, then opens the review sheet or shows
+    /// an error alert.
+    @MainActor
+    private func loadImportFile(_ url: URL) {
+        do {
+            let data = try Data(contentsOf: url)
+            pendingBackup = try SettingsBackupService().decode(data)
+            showingImportSheet = true
+        } catch let error as SettingsBackupCoder.BackupError {
+            importErrorMessage = Self.message(for: error)
+            showingImportError = true
+        } catch {
+            importErrorMessage = "That file couldn't be read."
+            showingImportError = true
+        }
+    }
+
+    /// Applies the reviewed backup with the user's per-account choices.
+    @MainActor
+    private func applyImport(_ choices: SettingsBackupCoder.ImportChoices) {
+        guard let backup = pendingBackup else { return }
+        let summary = SettingsBackupService().apply(backup, choices: choices)
+        showingImportSheet = false
+        pendingBackup = nil
+        importSuccessMessage = Self.successMessage(summary)
+        showingImportSuccess = true
+        Log.info(
+            "Settings imported (\(summary.restoredCount) restored, twitch=\(summary.reconnectedTwitch))",
+            category: "App"
+        )
+    }
+
+    /// `yyyy-MM-dd` stamp for the default export filename.
+    private static func fileDateStamp() -> String {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyy-MM-dd"
+        return formatter.string(from: Date())
+    }
+
+    /// Human-readable message for a backup decode error.
+    private static func message(for error: SettingsBackupCoder.BackupError) -> String {
+        switch error {
+        case .notReadable:
+            return "That file couldn't be read. It may be damaged or not a WolfWave backup."
+        case .notWolfWaveFile:
+            return "That's not a WolfWave settings file."
+        case .unsupportedNewerSchema:
+            return "This backup was made by a newer version of WolfWave. Update WolfWave, then try again."
+        }
+    }
+
+    /// Confirmation message summarizing an applied import.
+    private static func successMessage(_ summary: SettingsBackupService.ApplySummary) -> String {
+        let noun = summary.restoredCount == 1 ? "preference" : "preferences"
+        var message = "Restored \(summary.restoredCount) \(noun)."
+        if summary.reconnectedTwitch {
+            message += " Open the Twitch tab to finish signing in."
+        }
+        return message
     }
 
 }

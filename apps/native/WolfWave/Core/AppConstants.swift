@@ -510,9 +510,16 @@ nonisolated enum AppConstants {
             shareDiagnosticsEnabled,
             diagnosticsLaunchCount,
             discordPresenceEnabled,
+            discordButton1Enabled,
+            discordButton1Label,
+            discordButton2Enabled,
+            discordButton2Label,
+            discordButtonsEnabled,
             discordPlaylistEnabled,
             discordPlaylistShowName,
             discordPlaylistStyle,
+            discordShowIdleStatus,
+            discordClearWhilePaused,
             launchAtLogin,
             websocketServerPort,
             updateCheckEnabled,
@@ -581,6 +588,138 @@ nonisolated enum AppConstants {
             historyRetentionDays,
             streamerModeEnabled,
             appearancePreference,
+        ]
+
+        // MARK: Export / Import Classification
+
+        /// Keys safe to write to an exported settings backup and to restore on
+        /// import. Portable preferences only — no secrets, no account identity,
+        /// no per-install runtime state. Anything not listed here is deliberately
+        /// excluded from backups.
+        ///
+        /// Invariant: every key in `allKeys` must appear in exactly one of
+        /// `exportableKeys`, `accountLinkedKeys`, or `runtimeStateKeys`. Adding a
+        /// new UserDefaults key forces a classification choice; the
+        /// `SettingsBackupKeyCoverageTests` guard fails until it is placed.
+        static let exportableKeys: [String] = [
+            // General / appearance
+            trackingEnabled,
+            dockVisibility,
+            launchAtLogin,
+            appearancePreference,
+            streamerModeEnabled,
+            shareDiagnosticsEnabled,
+            updateCheckEnabled,
+            // Music monitor / song commands
+            currentSongCommandEnabled,
+            lastSongCommandEnabled,
+            songCommandSongLinkEnabled,
+            songCommandGlobalCooldown,
+            songCommandUserCooldown,
+            songCommandAliases,
+            lastSongCommandGlobalCooldown,
+            lastSongCommandUserCooldown,
+            lastSongCommandAliases,
+            // Discord Rich Presence (local IPC, no account/login)
+            discordPresenceEnabled,
+            discordButton1Enabled,
+            discordButton1Label,
+            discordButton2Enabled,
+            discordButton2Label,
+            discordButtonsEnabled,
+            discordPlaylistEnabled,
+            discordPlaylistShowName,
+            discordPlaylistStyle,
+            discordShowIdleStatus,
+            discordClearWhilePaused,
+            // Stream widgets / WebSocket (local server; auth token auto-regenerates)
+            websocketEnabled,
+            websocketServerPort,
+            widgetHTTPEnabled,
+            widgetPort,
+            widgetTheme,
+            widgetLayout,
+            widgetTextColor,
+            widgetBackgroundColor,
+            widgetFontFamily,
+            // Song requests
+            songRequestEnabled,
+            songRequestMaxQueueSize,
+            songRequestPerUserLimit,
+            songRequestSubscriberOnly,
+            songRequestAutoAdvance,
+            songRequestAutoplayWhenEmpty,
+            srCommandEnabled,
+            queueCommandEnabled,
+            myQueueCommandEnabled,
+            skipCommandEnabled,
+            clearQueueCommandEnabled,
+            srCommandAliases,
+            queueCommandAliases,
+            myQueueCommandAliases,
+            skipCommandAliases,
+            clearQueueCommandAliases,
+            songRequestGlobalCooldown,
+            songRequestUserCooldown,
+            songRequestFallbackPlaylist,
+            songRequestHoldEnabled,
+            songRequestChatAudience,
+            songRequestChannelPointsEnabled,
+            songRequestChannelPointsCost,
+            songRequestBitsEnabled,
+            songRequestBitsMinimum,
+            songRequestBitsBoostEnabled,
+            // Vote skip
+            voteSkipEnabled,
+            voteSkipMinVotes,
+            voteSkipWindowSeconds,
+            voteSkipSessionCooldown,
+            voteSkipSubscriberOnly,
+            voteSkipCommandEnabled,
+            voteSkipCommandAliases,
+            voteSkipUsePolls,
+            voteSkipPollDuration,
+            // Notifications
+            songChangeNotificationsEnabled,
+            skipVoteStartedNotificationsEnabled,
+            skipVotePassedNotificationsEnabled,
+            // History & stats
+            listeningHistoryEnabled,
+            statsEnabled,
+            statsCommandEnabled,
+            statsCommandGlobalCooldown,
+            statsCommandUserCooldown,
+            statsCommandAliases,
+            historyRetentionDays,
+        ]
+
+        /// Keys tied to a connected account. Restored only when the user opts to
+        /// reconnect that integration during import. The actual credentials
+        /// (Twitch OAuth token + user/channel IDs) live in Keychain and never
+        /// enter a backup file; these UserDefaults entries are account identity
+        /// and re-auth state, not secrets.
+        ///
+        /// Twitch is the only OAuth account in WolfWave. Discord Rich Presence is
+        /// a local IPC connection and the WebSocket/widget server is a local
+        /// server with an auto-regenerated token, so neither is account-linked.
+        static let accountLinkedKeys: [String] = [
+            twitchChannelName,
+            twitchReauthNeeded,
+        ]
+
+        /// Per-install runtime/UI state that must never travel in a backup:
+        /// permission caches, last-seen markers, locally-derived status, and
+        /// server-side resource IDs that belong to one specific account. These
+        /// regenerate on the target machine.
+        static let runtimeStateKeys: [String] = [
+            lastResolvedMusicPermission,
+            selectedSettingsSection,
+            hasCompletedOnboarding,
+            diagnosticsLaunchCount,
+            updateSkippedVersion,
+            lastSeenWhatsNewVersion,
+            songRequestChannelPointsRewardID,
+            songRequestRedemptionStatus,
         ]
     }
 
