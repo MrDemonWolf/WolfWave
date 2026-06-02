@@ -35,10 +35,11 @@ extension AppDelegate {
         RunLoop.main.perform {
             MainActor.assumeIsolated {
                 NSApp.activate(ignoringOtherApps: true)
-                // macOS 14+ selector for the SwiftUI `Settings` scene. Sent up
-                // the responder chain (`to: nil`); SwiftUI creates the window on
-                // first use and brings the existing one forward thereafter.
-                NSApp.sendAction(Selector(("showSettingsWindow:")), to: nil, from: nil)
+                // Open the SwiftUI `Settings` scene through SettingsLink's public
+                // action path (see SettingsSceneOpener) instead of the private
+                // `showSettingsWindow:` selector, which logs "Please use
+                // SettingsLink for opening the Settings scene" on macOS 14+.
+                SettingsSceneOpener.open()
             }
         }
     }
