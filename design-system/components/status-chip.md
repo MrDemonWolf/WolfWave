@@ -17,6 +17,7 @@ StatusChip(text: "Connected", color: .green)
 
 ## Tokens used
 - `DSFont.Size.sm` (11) / `DSFont.Weight.semibold`
+- `DSSpace.s1h` (6) for the dot-to-label gap
 - `DSSpace.s3` (10) horizontal padding, `DSSpace.s2`-ish (5) vertical
 - `DSRadius.pill` (clipped to `Capsule`)
 - `DSMotion.Duration.base` (0.22) — state-change animation, gated by `@Environment(\.accessibilityReduceMotion)`

@@ -58,12 +58,12 @@ final class TwitchChannelPointsServiceTests: WolfWaveTestCase {
 
     override func setUp() {
         super.setUp()
-        UserDefaults.standard.removeObject(forKey: storageKey)
+        resetAllSettings()
     }
 
     override func tearDown() {
         MockURLProtocol.reset()
-        UserDefaults.standard.removeObject(forKey: storageKey)
+        resetAllSettings()
         super.tearDown()
     }
 

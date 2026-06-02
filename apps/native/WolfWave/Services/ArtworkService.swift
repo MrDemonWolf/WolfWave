@@ -351,7 +351,7 @@ nonisolated final class ArtworkService: @unchecked Sendable {
     private func loadFromDisk() {
         guard let url = persistenceURL,
               let data = try? Data(contentsOf: url),
-              let snapshot = try? JSONDecoder().decode(PersistedCache.self, from: data)
+              let snapshot = try? JSONCoders.default.decode(PersistedCache.self, from: data)
         else { return }
 
         let now = Date()
@@ -383,7 +383,7 @@ nonisolated final class ArtworkService: @unchecked Sendable {
         }
         let snapshot = PersistedCache(entries: entries, order: cacheKeyOrder)
         ioQueue.async {
-            guard let data = try? JSONEncoder().encode(snapshot) else { return }
+            guard let data = try? JSONCoders.defaultEncoder.encode(snapshot) else { return }
             try? data.write(to: url, options: .atomic)
         }
     }

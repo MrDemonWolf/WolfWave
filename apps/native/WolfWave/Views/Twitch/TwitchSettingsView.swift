@@ -382,7 +382,7 @@ private struct SignedInView: View {
         case .idle:
             EmptyView()
         case .validating:
-            HStack(spacing: 6) {
+            HStack(spacing: DSSpace.s1h) {
                 ProgressView()
                     .progressViewStyle(.circular)
                     .controlSize(.mini)
@@ -537,7 +537,7 @@ private struct SignedInView: View {
                     }
                 }) {
                     if isConnecting {
-                        HStack(spacing: 6) {
+                        HStack(spacing: DSSpace.s1h) {
                             ProgressView()
                                 .progressViewStyle(.circular)
                                 .controlSize(.mini)
@@ -561,7 +561,7 @@ private struct SignedInView: View {
                         .font(.system(size: DSFont.Size.body, weight: .medium))
                     Label("Disconnect", systemImage: "xmark.circle.fill")
                         .font(.system(size: DSFont.Size.body, weight: .medium))
-                    HStack(spacing: 6) {
+                    HStack(spacing: DSSpace.s1h) {
                         ProgressView()
                             .progressViewStyle(.circular)
                             .controlSize(.mini)
@@ -586,7 +586,7 @@ private struct SignedInView: View {
                         Label("Test Login", systemImage: "antenna.radiowaves.left.and.right")
                             .font(.system(size: DSFont.Size.body, weight: .medium))
                     case .testing:
-                        HStack(spacing: 6) {
+                        HStack(spacing: DSSpace.s1h) {
                             ProgressView()
                                 .progressViewStyle(.circular)
                                 .controlSize(.mini)
@@ -607,7 +607,7 @@ private struct SignedInView: View {
                 .stableWidth {
                     Label("Test Login", systemImage: "antenna.radiowaves.left.and.right")
                         .font(.system(size: DSFont.Size.body, weight: .medium))
-                    HStack(spacing: 6) {
+                    HStack(spacing: DSSpace.s1h) {
                         ProgressView()
                             .progressViewStyle(.circular)
                             .controlSize(.mini)

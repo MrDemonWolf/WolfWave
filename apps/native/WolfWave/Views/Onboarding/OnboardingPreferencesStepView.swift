@@ -138,11 +138,11 @@ struct OnboardingPreferencesStepView: View {
         }
         .padding(DSSpace.s4)
         .background(
-            RoundedRectangle(cornerRadius: 12, style: .continuous)
+            RoundedRectangle(cornerRadius: DSRadius.lg2, style: .continuous)
                 .fill(Color(nsColor: .controlBackgroundColor))
         )
         .overlay(
-            RoundedRectangle(cornerRadius: 12, style: .continuous)
+            RoundedRectangle(cornerRadius: DSRadius.lg2, style: .continuous)
                 .stroke(Color.primary.opacity(0.06), lineWidth: 0.5)
         )
     }

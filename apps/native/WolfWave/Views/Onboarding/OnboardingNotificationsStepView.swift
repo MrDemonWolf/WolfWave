@@ -196,11 +196,11 @@ struct OnboardingNotificationsStepView: View {
         }
         .padding(DSSpace.s4)
         .background(
-            RoundedRectangle(cornerRadius: 12, style: .continuous)
+            RoundedRectangle(cornerRadius: DSRadius.lg2, style: .continuous)
                 .fill(Color(nsColor: .controlBackgroundColor))
         )
         .overlay(
-            RoundedRectangle(cornerRadius: 12, style: .continuous)
+            RoundedRectangle(cornerRadius: DSRadius.lg2, style: .continuous)
                 .stroke(Color.primary.opacity(0.06), lineWidth: 0.5)
         )
     }
@@ -231,9 +231,7 @@ struct OnboardingNotificationsStepView: View {
 
     /// Opens System Settings → Notifications. macOS 13+ deep-link.
     private func openNotificationsSettings() {
-        if let url = URL(string: "x-apple.systempreferences:com.apple.Notifications-Settings.extension") {
-            NSWorkspace.shared.open(url)
-        }
+        ExternalLink.open("x-apple.systempreferences:com.apple.Notifications-Settings.extension")
     }
 }
 

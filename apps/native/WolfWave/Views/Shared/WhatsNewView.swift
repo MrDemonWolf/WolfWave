@@ -27,6 +27,8 @@ struct WhatsNewView: View {
         ("gamecontroller.fill", .indigo, "Discord Playlist Presence", "Discord now shows the playlist you're spinning."),
         ("paintpalette.fill", .teal, "Widget Themes", "Six overlay themes and three layouts for OBS."),
         ("sparkles", .mint, "Liquid Glass Redesign", "Settings, menu bar, and onboarding rebuilt for macOS 26."),
+        ("circle.lefthalf.filled", .blue, "Appearance", "Light, Dark, or System. The menu bar follows too."),
+        ("eye.slash.fill", .gray, "Streamer Mode", "Masks your channel name, overlay URLs, and token. Camera safe."),
         ("pawprint.fill", .red, "WolfMark Branding", "New album-art placeholder and brand polish everywhere."),
         ("ladybug.fill", .yellow, "Diagnostics & Bug Reports", "Opt-in MetricKit reports plus one-click bug filing with redacted logs."),
     ]
@@ -36,7 +38,7 @@ struct WhatsNewView: View {
     var body: some View {
         VStack(spacing: DSSpace.s7) {
             // MARK: Header
-            VStack(spacing: 6) {
+            VStack(spacing: DSSpace.s1h) {
                 Text("What's New in WolfWave v\(Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0")")
                     .sectionHeader()
 

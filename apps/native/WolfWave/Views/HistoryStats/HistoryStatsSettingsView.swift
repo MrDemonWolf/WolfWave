@@ -421,7 +421,7 @@ struct HistoryStatsSettingsView: View {
 
     @ViewBuilder
     private func cardHeader(_ title: String, systemImage: String) -> some View {
-        HStack(spacing: 6) {
+        HStack(spacing: DSSpace.s1h) {
             Image(systemName: systemImage)
                 .font(.system(size: DSFont.Size.sm, weight: .semibold))
                 .foregroundStyle(.secondary)

@@ -94,6 +94,21 @@ actor SkipVoteManager {
         self.onVoteEvent = onVoteEvent
     }
 
+    // MARK: - Init
+
+    /// Optional override for the chat-tally window duration. When set, it takes
+    /// precedence over the `voteSkipWindowSeconds` preference — tests inject a
+    /// sub-100ms window so window-expiry assertions don't wait whole seconds.
+    private let windowOverride: Duration?
+
+    /// Creates a skip-vote manager.
+    ///
+    /// - Parameter windowDuration: Overrides the chat-tally window length read
+    ///   from preferences. Defaults to `nil` (use the preference).
+    init(windowDuration: Duration? = nil) {
+        self.windowOverride = windowDuration
+    }
+
     // MARK: - State
 
     private var voters: Set<String> = []
@@ -119,19 +134,17 @@ actor SkipVoteManager {
 
     /// Minimum unique voters required to skip. Clamped to at least 1.
     nonisolated var minVotes: Int {
-        let stored = defaults.integer(forKey: AppConstants.UserDefaults.voteSkipMinVotes)
-        return stored > 0 ? stored : 3
+        Preferences.int(AppConstants.UserDefaults.voteSkipMinVotes, default: 3)
     }
 
     /// How long a chat-tally session stays open, in seconds.
     nonisolated var windowSeconds: Int {
-        let stored = defaults.integer(forKey: AppConstants.UserDefaults.voteSkipWindowSeconds)
-        return stored > 0 ? stored : 60
+        Preferences.int(AppConstants.UserDefaults.voteSkipWindowSeconds, default: 60)
     }
 
     /// Cooldown between sessions, in seconds. May legitimately be `0`.
     nonisolated var sessionCooldown: TimeInterval {
-        (defaults.object(forKey: AppConstants.UserDefaults.voteSkipSessionCooldown) as? TimeInterval) ?? 30
+        Preferences.double(AppConstants.UserDefaults.voteSkipSessionCooldown, default: 30)
     }
 
     /// Whether only subscribers may vote.
@@ -146,8 +159,7 @@ actor SkipVoteManager {
 
     /// Twitch poll duration in seconds. Clamped to Twitch's 15–1800 range.
     nonisolated var pollDuration: Int {
-        let stored = defaults.integer(forKey: AppConstants.UserDefaults.voteSkipPollDuration)
-        let value = stored > 0 ? stored : 60
+        let value = Preferences.int(AppConstants.UserDefaults.voteSkipPollDuration, default: 60)
         return min(max(value, 15), 1800)
     }
 
@@ -300,10 +312,12 @@ actor SkipVoteManager {
 
     /// Spawns the window timer that fails the session if the threshold is never met.
     private func startWindowTask() {
-        let seconds = windowSeconds
+        // Tests inject a sub-second `windowOverride`; production falls back to the
+        // `voteSkipWindowSeconds` preference.
+        let duration = windowOverride ?? .seconds(windowSeconds)
         let generation = sessionGeneration
         windowTask = Task { [weak self] in
-            try? await Task.sleep(for: .seconds(seconds))
+            try? await Task.sleep(for: duration)
             guard !Task.isCancelled else { return }
             await self?.windowExpired(generation: generation)
         }

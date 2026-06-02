@@ -159,9 +159,14 @@ struct DiscordSettingsView: View {
                 .transition(.opacity)
             }
 
+            #if DEBUG
             if !hasClientID {
-                ConfigRequiredBanner(message: "Set DISCORD_CLIENT_ID in Config.xcconfig to enable this feature.")
+                CalloutBanner(
+                    "Set DISCORD_CLIENT_ID in Config.xcconfig to enable this feature.",
+                    style: .warning
+                )
             }
+            #endif
         }
     }
 
@@ -332,7 +337,7 @@ struct DiscordSettingsView: View {
             .padding(.horizontal, DSSpace.s1)
 
             if previewMode.showsTrack, let tooltip = previewPlaylistTooltip {
-                HStack(spacing: 6) {
+                HStack(spacing: DSSpace.s1h) {
                     Image(systemName: "info.circle")
                     Text("Hover the app icon on Discord to see: \(tooltip)")
                 }

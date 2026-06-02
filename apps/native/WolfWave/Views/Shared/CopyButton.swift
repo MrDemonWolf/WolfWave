@@ -22,14 +22,19 @@ struct CopyButton: View {
     var accessibilityLabel: String
     var accessibilityIdentifier: String? = nil
     var feedbackDuration: TimeInterval = 2.0
+    /// Optional side effect fired right after the text is copied (e.g. a parent
+    /// status update). The pasteboard write + checkmark feedback are handled
+    /// internally regardless.
+    var action: (() -> Void)? = nil
 
     @State private var copied = false
 
     // MARK: - Body
 
     var body: some View {
-        Button {
+        let button = Button {
             Pasteboard.copy(text)
+            action?()
             copied = true
             Task { @MainActor in
                 try? await Task.sleep(for: .seconds(feedbackDuration))
@@ -53,7 +58,12 @@ struct CopyButton: View {
         .accessibilityLabel(accessibilityLabel)
         .accessibilityHint("Copies text to clipboard")
         .accessibilityValue(copied ? "Copied" : "Not copied")
-        .accessibilityIdentifier(accessibilityIdentifier ?? "")
+
+        if let accessibilityIdentifier {
+            button.accessibilityIdentifier(accessibilityIdentifier)
+        } else {
+            button
+        }
     }
 
     // MARK: - Style

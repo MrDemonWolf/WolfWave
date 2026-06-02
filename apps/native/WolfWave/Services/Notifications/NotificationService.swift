@@ -216,9 +216,29 @@ final class NotificationService {
 
     /// Opens System Settings → Notifications. macOS 13+ deep-link.
     func openSystemNotificationSettings() {
-        if let url = URL(string: "x-apple.systempreferences:com.apple.Notifications-Settings.extension") {
-            NSWorkspace.shared.open(url)
-        }
+        ExternalLink.open("x-apple.systempreferences:com.apple.Notifications-Settings.extension")
+    }
+
+    // MARK: - Request Building
+
+    /// Wraps notification `content` and an `identifier` into an immediate
+    /// (`trigger: nil`) request.
+    ///
+    /// Pure — performs no system calls — so tests can assert that each
+    /// notification type reuses its stable identifier (the dedup contract:
+    /// a new request with the same identifier replaces the previous one rather
+    /// than stacking in Notification Center).
+    ///
+    /// - Parameters:
+    ///   - content: The notification content to deliver.
+    ///   - identifier: Request identifier — reuse a stable value per type so a
+    ///     fresh notification replaces the previous one.
+    /// - Returns: A configured, immediately-firing notification request.
+    static func makeRequest(
+        content: UNNotificationContent,
+        identifier: String
+    ) -> UNNotificationRequest {
+        UNNotificationRequest(identifier: identifier, content: content, trigger: nil)
     }
 
     // MARK: - Private Helpers
@@ -242,7 +262,7 @@ final class NotificationService {
             break
         }
 
-        let request = UNNotificationRequest(identifier: identifier, content: content, trigger: nil)
+        let request = Self.makeRequest(content: content, identifier: identifier)
         do {
             try await center.add(request)
         } catch {

@@ -27,6 +27,34 @@ nonisolated enum Preferences {
 
     private static var defaults: Foundation.UserDefaults { .standard }
 
+    // MARK: - Defaulted Primitive Reads
+
+    /// Reads an integer preference, substituting `defaultValue` when the key is
+    /// unset or stored as a non-positive sentinel (`0`).
+    ///
+    /// Centralizes the `let stored = …integer(forKey:); stored > 0 ? stored : default`
+    /// idiom that was duplicated across the queue, vote, and request services.
+    static func int(_ key: String, default defaultValue: Int) -> Int {
+        let stored = defaults.integer(forKey: key)
+        return stored > 0 ? stored : defaultValue
+    }
+
+    /// Reads a boolean preference, substituting `defaultValue` when the key has
+    /// never been written.
+    ///
+    /// Distinct from `defaults.bool(forKey:)`, which collapses "unset" to
+    /// `false`. Use this when the default is `true` or when "unset" must be
+    /// distinguished from an explicit `false`.
+    static func bool(_ key: String, default defaultValue: Bool) -> Bool {
+        defaults.object(forKey: key) as? Bool ?? defaultValue
+    }
+
+    /// Reads a double preference, substituting `defaultValue` when the key has
+    /// never been written.
+    static func double(_ key: String, default defaultValue: Double) -> Double {
+        defaults.object(forKey: key) as? Double ?? defaultValue
+    }
+
     // MARK: - Twitch
 
     /// Lower-cased Twitch channel name configured in Settings. Empty when the

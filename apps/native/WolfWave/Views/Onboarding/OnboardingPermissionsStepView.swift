@@ -93,7 +93,7 @@ struct OnboardingPermissionsStepView: View {
 
                     HStack(spacing: DSSpace.s2) {
                         Button(action: recheckTapped) {
-                            HStack(spacing: 6) {
+                            HStack(spacing: DSSpace.s1h) {
                                 if isRechecking {
                                     ProgressView()
                                         .progressViewStyle(.circular)

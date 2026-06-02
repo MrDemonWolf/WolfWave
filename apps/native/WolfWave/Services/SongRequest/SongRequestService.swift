@@ -55,9 +55,7 @@ final class SongRequestService {
     }
 
     var isAutoAdvanceEnabled: Bool {
-        let defaults = Foundation.UserDefaults.standard
-        if defaults.object(forKey: AppConstants.UserDefaults.songRequestAutoAdvance) == nil { return true }
-        return defaults.bool(forKey: AppConstants.UserDefaults.songRequestAutoAdvance)
+        Preferences.bool(AppConstants.UserDefaults.songRequestAutoAdvance, default: true)
     }
 
     var isHoldEnabled: Bool {
@@ -86,6 +84,16 @@ final class SongRequestService {
 
     private var musicAppLaunchObserver: NSObjectProtocol?
 
+    /// Interval between auto-advance polls. Injectable so tests can use a small
+    /// value instead of waiting the full production cadence.
+    private let pollInterval: Duration
+
+    /// Reentrancy guard for `playNextInQueue()`. Set and checked with no
+    /// intervening `await`, so two near-simultaneous callers (e.g. two
+    /// `processRequest` calls while Music.app is closed) can't both dequeue and
+    /// start playback for the same slot.
+    private var isStartingPlayback = false
+
     /// Whether the fallback playlist is currently playing (no active requests).
     private(set) var isPlayingFallback = false
 
@@ -106,16 +114,20 @@ final class SongRequestService {
     ///   - musicController: Apple Music controller (AppleScript-backed in prod).
     ///   - searchResolver: MusicKit/URL resolver. Defaults to one bound to
     ///     `musicController`.
+    ///   - pollInterval: Auto-advance poll cadence. Defaults to 2 seconds; tests
+    ///     pass a small value to avoid waiting the full production interval.
     init(
         queue: SongRequestQueue = SongRequestQueue(),
         blocklist: SongBlocklist = SongBlocklist(),
         musicController: any AppleMusicControlling = AppleMusicController(),
-        searchResolver: SongSearchResolver? = nil
+        searchResolver: SongSearchResolver? = nil,
+        pollInterval: Duration = .seconds(2)
     ) {
         self.queue = queue
         self.blocklist = blocklist
         self.musicController = musicController
         self.searchResolver = searchResolver ?? SongSearchResolver(musicController: musicController)
+        self.pollInterval = pollInterval
     }
 
     // MARK: - Lifecycle
@@ -145,9 +157,9 @@ final class SongRequestService {
             guard let self else { return }
 
             while !Task.isCancelled {
-                // Auto-advance polling is not time-critical — 0.4s tolerance lets
-                // macOS coalesce the wakeup.
-                try? await Task.sleep(for: .seconds(2), tolerance: .milliseconds(400))
+                // Auto-advance polling is not time-critical — a 20% tolerance lets
+                // macOS coalesce the wakeup (0.4s at the default 2s cadence).
+                try? await Task.sleep(for: self.pollInterval, tolerance: self.pollInterval / 5)
 
                 guard self.isAutoAdvanceEnabled else { continue }
                 guard !self.isHoldEnabled else { continue }
@@ -305,7 +317,20 @@ final class SongRequestService {
 
     /// Dequeues the next item and asks Music.app to play it. Re-queues at the
     /// head if Music.app is closed; advances past unplayable items otherwise.
+    ///
+    /// Guarded against reentrancy: the `isStartingPlayback` check and set happen
+    /// with no `await` between them, so two near-simultaneous callers can't both
+    /// dequeue and start playback for the same slot.
     private func playNextInQueue() async {
+        guard !isStartingPlayback else { return }
+        isStartingPlayback = true
+        defer { isStartingPlayback = false }
+        await playNextInQueueUnguarded()
+    }
+
+    /// Body of `playNextInQueue` without the reentrancy guard, so the
+    /// skip-unplayable retry can recurse without deadlocking on the guard.
+    private func playNextInQueueUnguarded() async {
         guard let item = queue.dequeue(), let song = item.song else { return }
 
         do {
@@ -319,7 +344,7 @@ final class SongRequestService {
             Log.debug("SongRequestService: Music.app closed — \"\(item.title)\" re-queued at head", category: "SongRequest")
         } catch {
             Log.debug("SongRequestService: Failed to play \"\(item.title)\": \(error)", category: "SongRequest")
-            await playNextInQueue()
+            await playNextInQueueUnguarded()
         }
     }
 

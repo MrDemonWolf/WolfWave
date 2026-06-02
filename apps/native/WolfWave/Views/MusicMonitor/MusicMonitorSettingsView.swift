@@ -234,9 +234,9 @@ struct MusicMonitorSettingsView: View {
             .accessibilityIdentifier("musicMonitor.openSystemSettingsButton")
 
         case .unknown:
-            HStack(spacing: 6) {
+            HStack(spacing: DSSpace.s1h) {
                 Button(action: requestPermission) {
-                    HStack(spacing: 6) {
+                    HStack(spacing: DSSpace.s1h) {
                         if isRequesting {
                             ProgressView()
                                 .progressViewStyle(.circular)

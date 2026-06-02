@@ -30,7 +30,7 @@ struct AppVisibilitySettingsView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: DSSpace.s6) {
             // Section Header
-            VStack(alignment: .leading, spacing: 6) {
+            VStack(alignment: .leading, spacing: DSSpace.s1h) {
                 Text("App Visibility")
                     .sectionSubHeader()
 

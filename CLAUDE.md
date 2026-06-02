@@ -39,7 +39,7 @@ bun run --filter widget build            # Rebuild OBS widget (Tailwind → inli
 ```bash
 make build          # Debug build via xcodebuild
 make clean          # Clean build artifacts
-make test           # Run unit tests (66 test files; run locally for current pass count)
+make test           # Run unit tests (86 test files; run locally for current pass count)
 make test-verbose   # Run unit tests with full xcodebuild output
 make test-ci        # Run unit tests in CI mode (writes TestResults.xcresult)
 make update-deps    # Resolve SwiftPM dependencies
@@ -174,7 +174,7 @@ Existing legacy literals are tracked in [`design-system/lint-allowlist.txt`](des
 
 ## Testing
 
-Unit tests live in `apps/native/WolfWaveTests/` and use XCTest + Swift Testing with `@testable import WolfWave`. The test target is a hosted unit test bundle (`TEST_HOST` = WolfWave.app). Current file count: 66 test files (run `ls apps/native/WolfWaveTests/*.swift | wc -l` to verify).
+Unit tests live in `apps/native/WolfWaveTests/` and use XCTest + Swift Testing with `@testable import WolfWave`. The test target is a hosted unit test bundle (`TEST_HOST` = WolfWave.app). Current file count: 86 test files (run `ls apps/native/WolfWaveTests/*.swift | wc -l` to verify).
 
 > Auto-discovery: `apps/native/WolfWaveTests/` is a `PBXFileSystemSynchronizedRootGroup` — dropping a new `*.swift` file in is enough, no Xcode project edit required.
 

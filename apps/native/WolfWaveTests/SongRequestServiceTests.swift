@@ -86,6 +86,23 @@ final class SongRequestServiceTests: WolfWaveTestCase {
         defaults.removeObject(forKey: AppConstants.UserDefaults.songRequestHoldEnabled)
     }
 
+    /// Polls `condition` until it returns true or the timeout elapses, returning
+    /// the final result. Mirrors `ArtworkServiceNetworkTests.waitUntil` so the
+    /// playback-monitor tests wait on the poll loop instead of a fixed sleep.
+    @discardableResult
+    private func waitUntil(
+        timeout: Duration = .seconds(2),
+        interval: Duration = .milliseconds(20),
+        _ condition: () -> Bool
+    ) async -> Bool {
+        let deadline = ContinuousClock.now + timeout
+        while ContinuousClock.now < deadline {
+            if condition() { return true }
+            try? await Task.sleep(for: interval)
+        }
+        return condition()
+    }
+
     override func setUp() {
         super.setUp()
         queue = SongRequestQueue()
@@ -373,6 +390,14 @@ final class SongRequestServiceTests: WolfWaveTestCase {
     }
 
     func testAutoAdvanceDoesNotFireWhenPaused() async {
+        // Inject a fast poll cadence so the monitor cycles many times within a
+        // short, bounded wait instead of the 2s production interval.
+        service = SongRequestService(
+            queue: queue,
+            musicController: mockController,
+            pollInterval: .milliseconds(20)
+        )
+
         queue.add(SongRequestItem(title: "Next Song", artist: "A", requesterUsername: "user1"))
         queue.add(SongRequestItem(title: "Current", artist: "B", requesterUsername: "user2"))
         queue.dequeue()
@@ -381,9 +406,15 @@ final class SongRequestServiceTests: WolfWaveTestCase {
         mockController.isPaused = true
 
         service.startPlaybackMonitoring()
-        try? await Task.sleep(nanoseconds: 2_500_000_000)
+        // Negative assertion: poll for the *forbidden* advance. The wait spans
+        // many poll cycles, so a false return proves the paused state never
+        // advanced (rather than just not having waited long enough).
+        let advanced = await waitUntil(timeout: .milliseconds(400)) {
+            self.mockController.playNowCalled || self.queue.nowPlaying?.title != "Next Song"
+        }
         service.stopPlaybackMonitoring()
 
+        XCTAssertFalse(advanced, "Auto-advance must not fire while Music.app is paused")
         XCTAssertEqual(queue.count, 1)
         XCTAssertEqual(queue.items.first?.title, "Current")
         XCTAssertEqual(queue.nowPlaying?.title, "Next Song")

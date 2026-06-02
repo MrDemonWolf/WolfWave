@@ -81,7 +81,7 @@ struct OnboardingStepScaffold<Icon: View, Extras: View>: View {
             )
         },
         extras: {
-            RoundedRectangle(cornerRadius: 12)
+            RoundedRectangle(cornerRadius: DSRadius.lg2)
                 .fill(Color.accentColor.opacity(0.10))
                 .frame(height: 80)
         }

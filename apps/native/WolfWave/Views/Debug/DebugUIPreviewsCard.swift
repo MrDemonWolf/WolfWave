@@ -175,7 +175,7 @@ private struct MotionGallerySection: View {
             }
             .padding(.top, DSSpace.s3)
         } label: {
-            HStack(spacing: 6) {
+            HStack(spacing: DSSpace.s1h) {
                 Image(systemName: "wand.and.rays")
                     .foregroundStyle(.purple)
                 Text("Motion Gallery")

@@ -37,7 +37,7 @@ struct NotificationsSettingsView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: DSSpace.s6) {
-            VStack(alignment: .leading, spacing: 6) {
+            VStack(alignment: .leading, spacing: DSSpace.s1h) {
                 Text("Notifications")
                     .sectionSubHeader()
 
@@ -114,7 +114,7 @@ struct NotificationsSettingsView: View {
                 .font(.system(size: DSFont.Size.body))
                 .foregroundStyle(.orange)
 
-            VStack(alignment: .leading, spacing: 6) {
+            VStack(alignment: .leading, spacing: DSSpace.s1h) {
                 Text("Notifications are turned off for WolfWave. Enable them in System Settings to get these alerts.")
                     .font(.system(size: DSFont.Size.sm))
                     .foregroundStyle(.secondary)

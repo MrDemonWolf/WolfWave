@@ -13,7 +13,9 @@ import Foundation
 /// AppDelegate owns a single PlaybackSourceManager and interacts with it instead of
 /// individual sources directly. The manager persists the chosen mode to UserDefaults
 /// and handles clean start/stop transitions when switching.
-class PlaybackSourceManager: PlaybackSourceDelegate {
+/// Runs MainActor-isolated (the app's default actor isolation). All callers already
+/// hop to the main actor before invoking it.
+final class PlaybackSourceManager: PlaybackSourceDelegate {
 
     // MARK: - Properties
 

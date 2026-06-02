@@ -11,7 +11,7 @@ import Foundation
 /// A single entry in the tray menu's "Recently Played" submenu.
 ///
 /// Captured at the moment a track change is observed by the playback source.
-struct RecentTrack: Equatable, Hashable {
+struct RecentTrack: Equatable, Hashable, Sendable {
     /// Song title.
     let title: String
 

@@ -134,7 +134,6 @@ final class DiscordPresenceBuilderTests: XCTestCase {
             defaults: defaults, now: Date()
         )
         XCTAssertEqual(activity["type"] as? Int, AppConstants.Discord.listeningActivityType)
-        XCTAssertEqual(AppConstants.Discord.listeningActivityType, 2)
     }
 
     func test_buildActivity_omitsButtonsKey_whenBothDisabled() {

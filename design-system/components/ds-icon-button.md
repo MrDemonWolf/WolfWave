@@ -37,6 +37,7 @@ graph LR
 
 ## Accessibility
 - `accessibilityLabel` is **required** at the API boundary; pass an action-describing string ("Reveal token", "Regenerate"), not the glyph name.
+- `accessibilityIdentifier` is only applied when non-nil, so the button never emits an empty-string identifier when omitted.
 - Disabled state surfaced via `.disabled(isDisabled)`.
 - Pair with `.help(...)` at the call site for hover tooltips on macOS.
 
@@ -48,7 +49,7 @@ graph LR
 
 ## Example
 ```swift
-HStack(spacing: 6) {
+HStack(spacing: DSSpace.s1h) {
     SecureField("Token", text: $tokenDraft)
         .textFieldStyle(.roundedBorder)
 

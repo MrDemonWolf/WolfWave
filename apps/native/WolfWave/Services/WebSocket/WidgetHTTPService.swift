@@ -252,9 +252,7 @@ nonisolated final class WidgetHTTPService: @unchecked Sendable {
     /// Used so browser tabs displaying the widget show a recognizable icon.
     private func serveFavicon(to connection: NWConnection) {
         guard let image = NSImage(named: "AppIcon"),
-              let tiffData = image.tiffRepresentation,
-              let bitmap = NSBitmapImageRep(data: tiffData),
-              let body = bitmap.representation(using: .png, properties: [:]) else {
+              let body = image.pngData() else {
             send404(to: connection)
             return
         }

@@ -63,6 +63,34 @@ struct MonthlyWrapTests {
         #expect(wrap.topArtist == nil)
     }
 
+    @Test("A month with exactly one play reports that single play as its top")
+    func testSinglePlayMonth() {
+        let records = [record(track: "Solo", artist: "Lonely", at: date(2026, 5, 9))]
+        let wrap = MonthlyWrap.data(from: records, month: date(2026, 5, 15), calendar: calendar)
+        #expect(wrap.hasData)
+        #expect(wrap.totalPlays == 1)
+        #expect(wrap.uniqueArtists == 1)
+        #expect(wrap.uniqueTracks == 1)
+        #expect(wrap.topArtist?.name == "Lonely")
+        #expect(wrap.topTrack?.name == "Solo")
+        #expect(wrap.topTrack?.count == 1)
+        #expect(wrap.busiestDay?.count == 1)
+    }
+
+    @Test("Plays on the first and last day of the month are both counted")
+    func testMonthBoundaryIncludesFirstAndLastDay() {
+        let records = [
+            record(track: "FirstDay", artist: "X", at: date(2026, 5, 1)),
+            record(track: "LastDay", artist: "X", at: date(2026, 5, 31)),
+            // Just outside the May window on either side (must be excluded).
+            record(track: "AprilEnd", artist: "X", at: date(2026, 4, 30)),
+            record(track: "JuneStart", artist: "X", at: date(2026, 6, 1)),
+        ]
+        let wrap = MonthlyWrap.data(from: records, month: date(2026, 5, 15), calendar: calendar)
+        #expect(wrap.totalPlays == 2)
+        #expect(wrap.uniqueTracks == 2)
+    }
+
     @Test("Top artist and track reflect the busiest entries")
     func testTopEntries() {
         let records = [

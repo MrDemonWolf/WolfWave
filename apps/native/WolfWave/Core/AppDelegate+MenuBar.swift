@@ -742,8 +742,7 @@ extension AppDelegate {
 
     /// Opens the GitHub Sponsors page in the user's default browser.
     @objc func openSponsorPage() {
-        guard let url = URL(string: AppConstants.URLs.githubSponsors) else { return }
-        NSWorkspace.shared.open(url)
+        ExternalLink.open(AppConstants.URLs.githubSponsors)
     }
 
     /// Toggles the "Sync Music" preference, mirroring the General settings
@@ -931,8 +930,7 @@ extension AppDelegate {
 
     /// Opens the local widget page in the user's default browser.
     @objc func openWidgetInBrowser() {
-        guard let url = URL(string: "http://localhost:\(resolvedWidgetPort())") else { return }
-        NSWorkspace.shared.open(url)
+        ExternalLink.open("http://localhost:\(resolvedWidgetPort())")
     }
 
     /// Force-cycles Twitch, Discord, and the websocket overlays so a streamer
@@ -1005,9 +1003,7 @@ extension AppDelegate {
     /// click is never silent.
     @objc func checkForUpdatesFromMenu() {
         if sparkleUpdater?.checkForUpdates() != true {
-            if let url = URL(string: AppConstants.URLs.githubReleases) {
-                NSWorkspace.shared.open(url)
-            }
+            ExternalLink.open(AppConstants.URLs.githubReleases)
         }
     }
 
@@ -1019,8 +1015,7 @@ extension AppDelegate {
 
     /// Opens the public documentation site.
     @objc func openDocs() {
-        guard let url = URL(string: AppConstants.URLs.docs) else { return }
-        NSWorkspace.shared.open(url)
+        ExternalLink.open(AppConstants.URLs.docs)
     }
 
     /// Opens the GitHub issue form with prefilled environment info.
@@ -1041,13 +1036,11 @@ extension AppDelegate {
 
     /// Opens the community Discord invite.
     @objc func openCommunityDiscord() {
-        guard let url = URL(string: AppConstants.URLs.communityDiscord) else { return }
-        NSWorkspace.shared.open(url)
+        ExternalLink.open(AppConstants.URLs.communityDiscord)
     }
 
     /// Opens the WolfWave GitHub repository.
     @objc func openGitHub() {
-        guard let url = URL(string: AppConstants.URLs.github) else { return }
-        NSWorkspace.shared.open(url)
+        ExternalLink.open(AppConstants.URLs.github)
     }
 }

@@ -26,7 +26,7 @@ struct StatusChip: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
-        HStack(spacing: 6) {
+        HStack(spacing: DSSpace.s1h) {
             Circle()
                 .fill(color)
                 .frame(width: 6, height: 6)

@@ -25,9 +25,7 @@ struct DeviceCodeView: View {
     let onCopy: () -> Void
     var onActivate: (() -> Void)? = nil
     
-    @State private var isCodeCopied = false
     @State private var showCopyFeedback = false
-    @State private var isHovering = false
 
     // MARK: - Body
 
@@ -52,21 +50,17 @@ struct DeviceCodeView: View {
                     .accessibilityValue(userCode)
                     .accessibilityIdentifier("deviceCodeText")
 
-                // Always-visible copy button (subtle by default, highlighted on hover or when copied)
-                Button(action: copyDeviceCode) {
-                    Image(systemName: isCodeCopied ? "checkmark.circle.fill" : "doc.on.doc")
-                        .font(.system(size: DSFont.Size.md, weight: .regular))
-                        .foregroundStyle(isCodeCopied ? .green : .secondary)
-                        .frame(width: 28, height: 28)
-                }
-                .buttonStyle(.plain)
-                .pointerCursor()
-                .help(isCodeCopied ? "Copied" : "Copy code")
-                .accessibilityLabel(isCodeCopied ? "Copied" : "Copy sign-in code")
-                .accessibilityIdentifier("copyDeviceCodeButton")
-                .transition(.opacity)
-                .opacity((isHovering || isCodeCopied) ? 1.0 : 0.9)
-                .animation(.easeInOut(duration: DSMotion.Duration.fast), value: isHovering || isCodeCopied)
+                // Always-visible copy button. CopyButton owns the checkmark
+                // confirmation + reset timer; `action` forwards onCopy.
+                CopyButton(
+                    text: userCode,
+                    buttonStyle: .borderless,
+                    accessibilityLabel: "Copy sign-in code",
+                    accessibilityIdentifier: "copyDeviceCodeButton",
+                    feedbackDuration: 1.3,
+                    action: onCopy
+                )
+                .help("Copy code")
             }
             .transition(.move(edge: .top).combined(with: .opacity))
             .padding(DSSpace.s4)
@@ -76,23 +70,14 @@ struct DeviceCodeView: View {
                     .stroke(Color.primary.opacity(0.08), lineWidth: 1)
             )
             .clipShape(RoundedRectangle(cornerRadius: 8))
-            .onHover { hovering in
-                withAnimation(.easeInOut(duration: DSMotion.Duration.fast)) {
-                    isHovering = hovering
-                }
-                if hovering {
-                    NSCursor.pointingHand.push()
-                } else {
-                    NSCursor.pop()
-                }
-            }
+            .pointerCursor()
             .onTapGesture {
                 copyDeviceCode()
             }
 
             // Primary action: open activation URL with subtler, smaller button
             Button(action: openActivationURL) {
-                HStack(spacing: 6) {
+                HStack(spacing: DSSpace.s1h) {
                     Text("Open twitch.tv/activate")
                         .font(.system(size: DSFont.Size.body, weight: .medium))
                     Image(systemName: "arrow.up.right")
@@ -120,34 +105,31 @@ struct DeviceCodeView: View {
 
     // MARK: - Helpers
 
-    /// Copies the displayed device code to the pasteboard, animates the
-    /// "Copied" affordance, and resets the visual state after ~1.3 seconds.
+    /// Tap-anywhere copy path for the code container: copies the code, forwards
+    /// `onCopy`, and shows the "Copied to clipboard" toast for ~1.3 seconds.
+    /// The explicit ``CopyButton`` provides its own checkmark feedback.
     private func copyDeviceCode() {
         Pasteboard.copy(userCode)
-        
-        isCodeCopied = true
         onCopy()
-        
+
         // Show feedback
         withAnimation(.easeInOut(duration: DSMotion.Duration.fast)) {
             showCopyFeedback = true
         }
 
-        // Auto-dismiss feedback and reset state
+        // Auto-dismiss feedback
         Task { @MainActor in
             try? await Task.sleep(for: .milliseconds(1300))
             withAnimation(.easeInOut(duration: DSMotion.Duration.fast)) {
                 showCopyFeedback = false
             }
-            isCodeCopied = false
         }
     }
 
     /// Opens the Twitch device activation URL in the user's default browser
     /// and forwards the action to the parent via `onActivate`.
     private func openActivationURL() {
-        if let url = URL(string: verificationURI) {
-            NSWorkspace.shared.open(url)
+        if ExternalLink.open(verificationURI) {
             onActivate?()
         }
     }
@@ -219,7 +201,7 @@ struct DeviceCodeView: View {
     }
     .padding()
     .background(Color(nsColor: .controlBackgroundColor))
-    .clipShape(RoundedRectangle(cornerRadius: 12))
+    .clipShape(RoundedRectangle(cornerRadius: DSRadius.lg2))
     .padding(DSSpace.s8)
     .frame(width: 400)
 }

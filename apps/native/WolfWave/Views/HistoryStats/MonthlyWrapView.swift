@@ -164,9 +164,7 @@ struct MonthlyWrapView: View {
         renderer.scale = 2
 
         guard let image = renderer.nsImage,
-              let tiff = image.tiffRepresentation,
-              let bitmap = NSBitmapImageRep(data: tiff),
-              let png = bitmap.representation(using: .png, properties: [:]) else {
+              let png = image.pngData() else {
             Log.warn("MonthlyWrapView: Failed to render wrap image", category: AppConstants.History.logCategory)
             return nil
         }

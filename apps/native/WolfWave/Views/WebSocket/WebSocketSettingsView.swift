@@ -220,7 +220,7 @@ fileprivate struct WebSocketServerCard: View {
             .opacity(websocketEnabled ? 0.5 : 1.0)
 
             if !portText.isEmpty && !isPortValid {
-                HStack(spacing: 6) {
+                HStack(spacing: DSSpace.s1h) {
                     Image(systemName: "exclamationmark.circle.fill")
                         .font(.system(size: DSFont.Size.sm))
                     Text(verbatim: "Port must be between \(AppConstants.WebSocketServer.minPort) and \(AppConstants.WebSocketServer.maxPort).")
@@ -232,7 +232,7 @@ fileprivate struct WebSocketServerCard: View {
             }
 
             if websocketEnabled {
-                HStack(spacing: 6) {
+                HStack(spacing: DSSpace.s1h) {
                     Image(systemName: "lock.fill")
                         .font(.system(size: DSFont.Size.sm))
                         .foregroundStyle(.secondary)
@@ -250,26 +250,14 @@ fileprivate struct WebSocketServerCard: View {
 
             Divider().padding(.leading, cardPadding)
 
-            HStack(spacing: DSSpace.s2) {
-                VStack(alignment: .leading, spacing: DSSpace.s0) {
-                    HStack(spacing: DSSpace.s2) {
-                        Text("Local Address")
-                            .font(.system(size: DSFont.Size.sm, weight: .medium))
-                            .foregroundStyle(.secondary)
-                        if streamerMode { StreamerModeBadge() }
-                    }
-                    Text(StreamerMode.mask(connectionURL, style: .url, isOn: streamerMode))
-                        .font(.system(size: DSFont.Size.body, design: .monospaced))
-                        .textSelection(.enabled)
-                }
-                Spacer()
-                CopyButton(
-                    text: connectionURL,
-                    isDisabled: !websocketEnabled || streamerMode,
-                    accessibilityLabel: "Copy local connection URL",
-                    accessibilityIdentifier: "copyConnectionURLButton"
-                )
-            }
+            CopyableURLRow(
+                label: "Local Address",
+                url: connectionURL,
+                isStreamerMode: streamerMode,
+                actionsDisabled: !websocketEnabled,
+                copyAccessibilityLabel: "Copy local connection URL",
+                copyAccessibilityIdentifier: "copyConnectionURLButton"
+            )
             .padding(.horizontal, cardPadding)
             .padding(.vertical, DSSpace.s4)
 
@@ -277,30 +265,15 @@ fileprivate struct WebSocketServerCard: View {
                 if let networkURL = networkConnectionURL {
                     VStack(spacing: 0) {
                         Divider().padding(.leading, cardPadding)
-                        HStack(spacing: DSSpace.s2) {
-                            VStack(alignment: .leading, spacing: DSSpace.s0) {
-                                HStack(spacing: DSSpace.s2) {
-                                    Text("Network Address")
-                                        .font(.system(size: DSFont.Size.sm, weight: .medium))
-                                        .foregroundStyle(.secondary)
-                                    if streamerMode { StreamerModeBadge() }
-                                }
-                                Text(StreamerMode.mask(networkURL, style: .url, isOn: streamerMode))
-                                    .font(.system(size: DSFont.Size.body, design: .monospaced))
-                                    .textSelection(.enabled)
-                                    .contentTransition(.opacity)
-                                Text("Use this for two-PC setups.")
-                                    .font(.system(size: DSFont.Size.xs))
-                                    .foregroundStyle(.tertiary)
-                            }
-                            Spacer()
-                            CopyButton(
-                                text: networkURL,
-                                isDisabled: !websocketEnabled || streamerMode,
-                                accessibilityLabel: "Copy network connection URL",
-                                accessibilityIdentifier: "copyNetworkConnectionURLButton"
-                            )
-                        }
+                        CopyableURLRow(
+                            label: "Network Address",
+                            url: networkURL,
+                            subtitle: "Use this for two-PC setups.",
+                            isStreamerMode: streamerMode,
+                            actionsDisabled: !websocketEnabled,
+                            copyAccessibilityLabel: "Copy network connection URL",
+                            copyAccessibilityIdentifier: "copyNetworkConnectionURLButton"
+                        )
                         .padding(.horizontal, cardPadding)
                         .padding(.vertical, DSSpace.s4)
                     }
@@ -334,7 +307,7 @@ fileprivate struct WebSocketServerCard: View {
         VStack(alignment: .leading, spacing: DSSpace.s2) {
             HStack(alignment: .firstTextBaseline, spacing: DSSpace.s2) {
                 VStack(alignment: .leading, spacing: DSSpace.s0) {
-                    HStack(spacing: 6) {
+                    HStack(spacing: DSSpace.s1h) {
                         Image(systemName: "lock.fill")
                             .font(.system(size: DSFont.Size.sm))
                             .foregroundStyle(.secondary)
@@ -348,7 +321,7 @@ fileprivate struct WebSocketServerCard: View {
                 Spacer()
             }
 
-            HStack(spacing: 6) {
+            HStack(spacing: DSSpace.s1h) {
                 Group {
                     if isTokenRevealed && !streamerMode {
                         TextField("Token", text: $tokenDraft)
@@ -387,7 +360,7 @@ fileprivate struct WebSocketServerCard: View {
             }
 
             if let tokenError {
-                HStack(spacing: 6) {
+                HStack(spacing: DSSpace.s1h) {
                     Image(systemName: "exclamationmark.circle.fill")
                         .font(.system(size: DSFont.Size.sm))
                     Text(tokenError)
@@ -439,7 +412,7 @@ fileprivate struct WebSocketServerCard: View {
             }
         }
         .padding(.horizontal, cardPadding)
-        .padding(.vertical, 12)
+        .padding(.vertical, DSSpace.s4)
     }
 
     /// Persists `tokenDraft` to Keychain, swaps the token on the live service,
@@ -553,7 +526,7 @@ fileprivate struct WebSocketBrowserSourceCard: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            VStack(alignment: .leading, spacing: 6) {
+            VStack(alignment: .leading, spacing: DSSpace.s1h) {
                 HStack(spacing: DSSpace.s2) {
                     Image(systemName: "rectangle.inset.filled.and.person.filled")
                         .font(.system(size: DSFont.Size.md))
@@ -613,7 +586,7 @@ fileprivate struct WebSocketBrowserSourceCard: View {
             .opacity(websocketEnabled && widgetHTTPEnabled ? 1.0 : 0.5)
 
             if !widgetPortText.isEmpty && !isWidgetPortValid {
-                HStack(spacing: 6) {
+                HStack(spacing: DSSpace.s1h) {
                     Image(systemName: "exclamationmark.circle.fill")
                         .font(.system(size: DSFont.Size.sm))
                     Text(verbatim: "Port must be between \(AppConstants.WebSocketServer.minPort) and \(AppConstants.WebSocketServer.maxPort).")
@@ -625,7 +598,7 @@ fileprivate struct WebSocketBrowserSourceCard: View {
             }
 
             if widgetHTTPEnabled {
-                HStack(spacing: 6) {
+                HStack(spacing: DSSpace.s1h) {
                     Image(systemName: "lock.fill")
                         .font(.system(size: DSFont.Size.sm))
                         .foregroundStyle(.secondary)
@@ -639,41 +612,23 @@ fileprivate struct WebSocketBrowserSourceCard: View {
 
             Divider().padding(.leading, cardPadding)
 
-            VStack(alignment: .leading, spacing: DSSpace.s2) {
-                if streamerMode {
-                    HStack { StreamerModeBadge(); Spacer() }
-                }
-                Text(StreamerMode.mask(widgetURL, style: .url, isOn: streamerMode))
-                    .font(.system(size: DSFont.Size.sm, design: .monospaced))
-                    .textSelection(.enabled)
-                    .lineLimit(2)
-                    .fixedSize(horizontal: false, vertical: true)
-                HStack(spacing: DSSpace.s2) {
-                    CopyButton(
-                        text: widgetURL,
-                        label: "Copy Link",
-                        copiedLabel: "Copied",
-                        isDisabled: !websocketEnabled || !widgetHTTPEnabled || streamerMode,
-                        accessibilityLabel: "Copy widget URL",
-                        accessibilityIdentifier: "copyWidgetURLButton"
-                    )
-                    Button {
-                        if let url = URL(string: widgetURL) {
-                            NSWorkspace.shared.open(url)
-                        }
-                    } label: {
-                        HStack(spacing: DSSpace.s1) {
-                            Image(systemName: "safari").font(.system(size: DSFont.Size.sm))
-                            Text("Open").font(.system(size: DSFont.Size.sm))
-                        }
-                    }
-                    .buttonStyle(.bordered)
-                    .controlSize(.small)
-                    .disabled(!websocketEnabled || !widgetHTTPEnabled || streamerMode)
-                    .accessibilityLabel("Open widget in browser")
-                    .accessibilityHint("Opens the widget in your default browser")
-                    .accessibilityIdentifier("openWidgetURLButton")
-                }
+            CopyableURLRow(
+                url: widgetURL,
+                isStreamerMode: streamerMode,
+                actionsDisabled: !websocketEnabled || !widgetHTTPEnabled,
+                urlLineLimit: 2,
+                copyLabel: "Copy Link",
+                copiedLabel: "Copied",
+                copyAccessibilityLabel: "Copy widget URL",
+                copyAccessibilityIdentifier: "copyWidgetURLButton"
+            ) {
+                OpenInBrowserButton(
+                    urlString: widgetURL,
+                    isDisabled: !websocketEnabled || !widgetHTTPEnabled || streamerMode,
+                    accessibilityLabel: "Open widget in browser",
+                    accessibilityHint: "Opens the widget in your default browser",
+                    accessibilityIdentifier: "openWidgetURLButton"
+                )
             }
             .padding(.horizontal, cardPadding)
             .padding(.vertical, DSSpace.s4)
@@ -682,48 +637,23 @@ fileprivate struct WebSocketBrowserSourceCard: View {
                 if let networkWidget = networkWidgetURL {
                     VStack(spacing: 0) {
                         Divider().padding(.leading, cardPadding)
-                        HStack(spacing: DSSpace.s2) {
-                            VStack(alignment: .leading, spacing: DSSpace.s0) {
-                                HStack(spacing: DSSpace.s2) {
-                                    Text("Network Address")
-                                        .font(.system(size: DSFont.Size.sm, weight: .medium))
-                                        .foregroundStyle(.secondary)
-                                    if streamerMode { StreamerModeBadge() }
-                                }
-                                Text(StreamerMode.mask(networkWidget, style: .url, isOn: streamerMode))
-                                    .font(.system(size: DSFont.Size.body, design: .monospaced))
-                                    .textSelection(.enabled)
-                                    .contentTransition(.opacity)
-                                Text("Use this for two-PC setups.")
-                                    .font(.system(size: DSFont.Size.xs))
-                                    .foregroundStyle(.tertiary)
-                            }
-                            Spacer()
-                            HStack(spacing: DSSpace.s2) {
-                                CopyButton(
-                                    text: networkWidget,
-                                    label: "Copy Link",
-                                    copiedLabel: "Copied",
-                                    isDisabled: !websocketEnabled || !widgetHTTPEnabled || streamerMode,
-                                    accessibilityLabel: "Copy network widget URL",
-                                    accessibilityIdentifier: "copyNetworkWidgetURLButton"
-                                )
-                                Button {
-                                    if let url = URL(string: networkWidget) {
-                                        NSWorkspace.shared.open(url)
-                                    }
-                                } label: {
-                                    HStack(spacing: DSSpace.s1) {
-                                        Image(systemName: "safari").font(.system(size: DSFont.Size.sm))
-                                        Text("Open").font(.system(size: DSFont.Size.sm))
-                                    }
-                                }
-                                .buttonStyle(.bordered)
-                                .controlSize(.small)
-                                .disabled(!websocketEnabled || !widgetHTTPEnabled || streamerMode)
-                                .accessibilityLabel("Open network widget in browser")
-                                .accessibilityIdentifier("openNetworkWidgetURLButton")
-                            }
+                        CopyableURLRow(
+                            label: "Network Address",
+                            url: networkWidget,
+                            subtitle: "Use this for two-PC setups.",
+                            isStreamerMode: streamerMode,
+                            actionsDisabled: !websocketEnabled || !widgetHTTPEnabled,
+                            copyLabel: "Copy Link",
+                            copiedLabel: "Copied",
+                            copyAccessibilityLabel: "Copy network widget URL",
+                            copyAccessibilityIdentifier: "copyNetworkWidgetURLButton"
+                        ) {
+                            OpenInBrowserButton(
+                                urlString: networkWidget,
+                                isDisabled: !websocketEnabled || !widgetHTTPEnabled || streamerMode,
+                                accessibilityLabel: "Open network widget in browser",
+                                accessibilityIdentifier: "openNetworkWidgetURLButton"
+                            )
                         }
                         .padding(.horizontal, cardPadding)
                         .padding(.vertical, DSSpace.s4)
@@ -816,7 +746,7 @@ fileprivate struct WebSocketWidgetAppearanceCard: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            VStack(alignment: .leading, spacing: 6) {
+            VStack(alignment: .leading, spacing: DSSpace.s1h) {
                 HStack(spacing: DSSpace.s2) {
                     Image(systemName: "paintbrush.fill")
                         .font(.system(size: DSFont.Size.md))

@@ -142,8 +142,6 @@ enum MusicPermissionChecker {
     /// Opens System Settings → Privacy & Security → Automation so the user
     /// can flip the WolfWave → Music toggle.
     static func openAutomationSettings() {
-        if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Automation") {
-            NSWorkspace.shared.open(url)
-        }
+        ExternalLink.open("x-apple.systempreferences:com.apple.preference.security?Privacy_Automation")
     }
 }

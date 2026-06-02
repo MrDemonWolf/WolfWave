@@ -15,9 +15,10 @@ One markdown entry per reusable view. Stubs marked `(stub)` need filling in as w
 | AlbumArtView | [album-art-view.md](album-art-view.md) | drafted |
 | IntegrationDashboardView | [integration-dashboard-view.md](integration-dashboard-view.md) | drafted |
 | ConnectionTestButton | [connection-test-button.md](connection-test-button.md) | drafted |
-| ConfigRequiredBanner | [config-required-banner.md](config-required-banner.md) | drafted |
 | MusicPermissionBanner | [music-permission-banner.md](music-permission-banner.md) | drafted |
 | CopyButton | [copy-button.md](copy-button.md) | drafted |
+| CopyableURLRow | [copyable-url-row.md](copyable-url-row.md) | drafted |
+| OpenInBrowserButton | [open-in-browser-button.md](open-in-browser-button.md) | drafted |
 | SharePickerButton | [share-picker-button.md](share-picker-button.md) | drafted |
 | DSIconButton | [ds-icon-button.md](ds-icon-button.md) | drafted |
 | CalloutBanner | [callout-banner.md](callout-banner.md) | drafted |

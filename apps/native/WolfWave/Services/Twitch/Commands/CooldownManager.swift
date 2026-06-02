@@ -15,7 +15,8 @@ import Foundation
 /// Tracks last-use timestamps per command (global) and per user+command to prevent
 /// command spam in Twitch chat. Moderators can bypass cooldowns.
 ///
-/// Thread Safety: All operations are protected by NSLock.
+/// MainActor-isolated (project default isolation). The `NSLock` is retained as a
+/// defense-in-depth guard around the timestamp dictionaries.
 final class CooldownManager {
 
     // MARK: - Properties

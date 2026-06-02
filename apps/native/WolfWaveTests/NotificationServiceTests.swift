@@ -187,6 +187,47 @@ struct NotificationServiceTests {
         #expect(ids.count == 3)
     }
 
+    // MARK: - Request Dedup (stable identifiers)
+
+    @Test("Song-change requests reuse the song-change identifier so they dedup")
+    func testSongChangeRequestReusesIdentifier() async throws {
+        let first = NotificationService.makeRequest(
+            content: NotificationService.makeSongChangeContent(
+                track: "Track One", artist: "Artist", album: "Album"),
+            identifier: AppConstants.UserNotification.songChangeIdentifier
+        )
+        let second = NotificationService.makeRequest(
+            content: NotificationService.makeSongChangeContent(
+                track: "Track Two", artist: "Artist", album: "Album"),
+            identifier: AppConstants.UserNotification.songChangeIdentifier
+        )
+
+        #expect(first.identifier == AppConstants.UserNotification.songChangeIdentifier)
+        // Two consecutive song-change requests share one identifier, so the
+        // second replaces the first in Notification Center rather than stacking.
+        #expect(first.identifier == second.identifier)
+    }
+
+    @Test("Skip-vote-started requests reuse the skip-vote-started identifier so they dedup")
+    func testSkipVoteStartedRequestReusesIdentifier() async throws {
+        let first = NotificationService.makeRequest(
+            content: NotificationService.makeSkipVoteStartedContent(
+                track: "Track", artist: "Artist", votesNeeded: 3, viaPoll: false),
+            identifier: AppConstants.UserNotification.skipVoteStartedIdentifier
+        )
+        let second = NotificationService.makeRequest(
+            content: NotificationService.makeSkipVoteStartedContent(
+                track: "Track", artist: "Artist", votesNeeded: 5, viaPoll: false),
+            identifier: AppConstants.UserNotification.skipVoteStartedIdentifier
+        )
+
+        #expect(first.identifier == AppConstants.UserNotification.skipVoteStartedIdentifier)
+        #expect(first.identifier == second.identifier)
+        // A song-change and a skip-vote-started request keep distinct
+        // identifiers, so they never replace each other.
+        #expect(first.identifier != AppConstants.UserNotification.songChangeIdentifier)
+    }
+
     // MARK: - UserDefaults Keys
 
     @Test("Notification preference keys are registered for reset")

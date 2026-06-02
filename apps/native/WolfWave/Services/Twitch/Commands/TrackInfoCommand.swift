@@ -13,9 +13,10 @@ import Foundation
 /// Used for both current song and last song commands, avoiding
 /// duplicated execute/truncation logic.
 ///
-/// Thread Safety: The `getTrackInfo` and `isEnabled` closure properties are
-/// set by BotCommandDispatcher but read by `execute()` from background threads.
-/// All access is protected by NSLock.
+/// MainActor-isolated (project default isolation). The `getTrackInfo`,
+/// `getTrackInfoAsync`, and `isEnabled` closure properties keep an `NSLock` as a
+/// defense-in-depth guard around their backing storage; the lock is retained,
+/// not relied on for cross-thread access.
 final class TrackInfoCommand: BotCommand {
 
     // MARK: - BotCommand
@@ -41,10 +42,8 @@ final class TrackInfoCommand: BotCommand {
 
     private var _getTrackInfo: (() -> String)?
 
-    /// Closure that returns the current track info string. Thread-safe (NSLock).
-    ///
-    /// - Important: Read on the EventSub message-handling thread; written by
-    ///   the dispatcher on the main thread.
+    /// Closure that returns the current track info string. Backed by a lock-
+    /// guarded property (defense-in-depth on the MainActor-isolated type).
     var getTrackInfo: (() -> String)? {
         get { lock.withLock { _getTrackInfo } }
         set { lock.withLock { _getTrackInfo = newValue } }
@@ -52,7 +51,8 @@ final class TrackInfoCommand: BotCommand {
 
     private var _isEnabled: (() -> Bool)?
 
-    /// Closure that returns whether this command is enabled. Thread-safe (NSLock).
+    /// Closure that returns whether this command is enabled. Backed by a lock-
+    /// guarded property (defense-in-depth on the MainActor-isolated type).
     var isEnabled: (() -> Bool)? {
         get { lock.withLock { _isEnabled } }
         set { lock.withLock { _isEnabled = newValue } }

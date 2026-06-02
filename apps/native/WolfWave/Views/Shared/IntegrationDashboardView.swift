@@ -65,12 +65,10 @@ struct IntegrationDashboardView: View {
                 )
                 Divider().padding(.leading, DSSpace.s11)
                 row(
-                    icon: AnyView(
-                        Image(systemName: "tv.badge.wifi")
-                            .font(.system(size: DSFont.Size.md, weight: .medium))
-                            .foregroundStyle(.secondary)
-                            .frame(width: 22)
-                    ),
+                    icon: Image(systemName: "tv.badge.wifi")
+                        .font(.system(size: DSFont.Size.md, weight: .medium))
+                        .foregroundStyle(.secondary)
+                        .frame(width: 22),
                     name: "Stream Widgets",
                     chip: widgetChip,
                     subtitle: widgetSubtitle,
@@ -78,12 +76,10 @@ struct IntegrationDashboardView: View {
                 )
                 Divider().padding(.leading, DSSpace.s11)
                 row(
-                    icon: AnyView(
-                        Image(systemName: "wifi")
-                            .font(.system(size: DSFont.Size.md, weight: .medium))
-                            .foregroundStyle(.secondary)
-                            .frame(width: 22)
-                    ),
+                    icon: Image(systemName: "wifi")
+                        .font(.system(size: DSFont.Size.md, weight: .medium))
+                        .foregroundStyle(.secondary)
+                        .frame(width: 22),
                     name: "Send to a remote site (optional)",
                     chip: remoteSendingEnabled
                         ? StatusChip(text: "On", color: .green)
@@ -105,14 +101,14 @@ struct IntegrationDashboardView: View {
     /// settings pane.
     ///
     /// - Parameters:
-    ///   - icon: Type-erased view rendering the brand or fallback icon.
+    ///   - icon: View rendering the brand or fallback icon.
     ///   - name: Human-readable integration name (Twitch, Discord, etc.).
     ///   - chip: Status chip showing connection state.
     ///   - subtitle: One-line description shown below the name.
     ///   - action: Closure invoked when the configure button is pressed.
     @ViewBuilder
-    private func row(
-        icon: AnyView,
+    private func row<Icon: View>(
+        icon: Icon,
         name: String,
         chip: StatusChip,
         subtitle: String,
@@ -173,24 +169,23 @@ struct IntegrationDashboardView: View {
     ///   - asset: Asset-catalog name to try first.
     ///   - fallback: SF Symbol used when the asset is missing.
     ///   - color: Tint applied to both the asset and the fallback.
-    private func brandIcon(_ asset: String, fallback: String, color: Color) -> AnyView {
-        AnyView(
-            Group {
-                if Self.brandIconExists(asset) {
-                    Image(asset)
-                        .renderingMode(.template)
-                        .resizable()
-                        .aspectRatio(contentMode: .fit)
-                        .frame(width: 16, height: 16)
-                        .foregroundStyle(color)
-                } else {
-                    Image(systemName: fallback)
-                        .font(.system(size: DSFont.Size.md, weight: .medium))
-                        .foregroundStyle(color)
-                }
+    @ViewBuilder
+    private func brandIcon(_ asset: String, fallback: String, color: Color) -> some View {
+        Group {
+            if Self.brandIconExists(asset) {
+                Image(asset)
+                    .renderingMode(.template)
+                    .resizable()
+                    .aspectRatio(contentMode: .fit)
+                    .frame(width: 16, height: 16)
+                    .foregroundStyle(color)
+            } else {
+                Image(systemName: fallback)
+                    .font(.system(size: DSFont.Size.md, weight: .medium))
+                    .foregroundStyle(color)
             }
-            .frame(width: 22)
-        )
+        }
+        .frame(width: 22)
     }
 
     // MARK: - Chips & subtitles

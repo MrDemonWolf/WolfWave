@@ -13,7 +13,7 @@ import MusicKit
 ///
 /// Contains the resolved track information, the Twitch viewer who requested it,
 /// and the MusicKit `Song` reference used for playback.
-struct SongRequestItem: Identifiable, Equatable {
+struct SongRequestItem: Identifiable, Equatable, Sendable {
     /// Unique identifier for this queue entry.
     let id: UUID
 

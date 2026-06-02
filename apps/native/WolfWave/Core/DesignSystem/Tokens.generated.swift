@@ -109,6 +109,7 @@ nonisolated enum DSSpace {
     static let s9: CGFloat = 28
     static let s10: CGFloat = 32
     static let s11: CGFloat = 44
+    static let s1h: CGFloat = 6
 }
 
 /// Generated radius scale.
@@ -117,6 +118,7 @@ nonisolated enum DSRadius {
     static let sm: CGFloat = 6
     static let md: CGFloat = 8
     static let lg: CGFloat = 10
+    static let lg2: CGFloat = 12
     static let xl: CGFloat = 14
     static let x2xl: CGFloat = 16
     static let pill: CGFloat = 9999

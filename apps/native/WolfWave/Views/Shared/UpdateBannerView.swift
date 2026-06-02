@@ -18,7 +18,7 @@ struct UpdateBannerView: View {
 
     @State private var isUpdateAvailable = false
     @State private var latestVersion = ""
-    @State private var releaseURL: URL?
+    @State private var releaseURLString: String?
     @State private var isDismissed = false
 
     var body: some View {
@@ -40,9 +40,9 @@ struct UpdateBannerView: View {
 
                 Spacer()
 
-                if let url = releaseURL {
+                if let releaseURLString {
                     Button("Download") {
-                        NSWorkspace.shared.open(url)
+                        ExternalLink.open(releaseURLString)
                     }
                     .buttonStyle(.bordered)
                     .tint(.white)
@@ -93,13 +93,7 @@ struct UpdateBannerView: View {
 
                 if available {
                     latestVersion = update.latestVersion
-                    if let urlString = update.releaseURL,
-                       let url = URL(string: urlString)
-                    {
-                        releaseURL = url
-                    } else {
-                        releaseURL = URL(string: AppConstants.URLs.githubReleases)
-                    }
+                    releaseURLString = update.releaseURL ?? AppConstants.URLs.githubReleases
                     isUpdateAvailable = true
                     isDismissed = false
                 } else {

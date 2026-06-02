@@ -35,7 +35,7 @@ Example entries (current release):
 ## Anatomy
 ```mermaid
 graph TB
-  Sheet[VStack spacing 20 padding 24] --> Header[VStack spacing 6]
+  Sheet[VStack spacing 20 padding 24] --> Header[VStack spacing s1h=6]
   Header --> Title[Text — version sectionHeader]
   Header --> Tagline[Text — Highlights from this release base secondary]
   Sheet --> List[ScrollView]

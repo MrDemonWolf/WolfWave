@@ -247,12 +247,12 @@ actor TwitchChatService {
 
     /// Whether the current song command is enabled (computed from UserDefaults on each access).
     nonisolated var currentSongCommandEnabled: Bool {
-        UserDefaults.standard.object(forKey: AppConstants.UserDefaults.currentSongCommandEnabled) as? Bool ?? false
+        Preferences.bool(AppConstants.UserDefaults.currentSongCommandEnabled, default: false)
     }
 
     /// Whether the last song command is enabled (computed from UserDefaults on each access).
     nonisolated var lastSongCommandEnabled: Bool {
-        UserDefaults.standard.object(forKey: AppConstants.UserDefaults.lastSongCommandEnabled) as? Bool ?? false
+        Preferences.bool(AppConstants.UserDefaults.lastSongCommandEnabled, default: false)
     }
 
     /// Whether the `!stats` command should respond — both the Stats feature and
@@ -772,7 +772,7 @@ actor TwitchChatService {
         do {
             response = try await HTTPClient.shared.get(
                 url: url,
-                headers: helixHeaders(token: token, clientID: clientID))
+                headers: HelixClient.headers(for: .init(token: token, clientID: clientID)))
         } catch {
             let mapped = mapHelixError(error)
             if case .authenticationFailed = mapped {
@@ -798,14 +798,6 @@ actor TwitchChatService {
         botUsername = displayName
 
         return BotIdentity(userID: first.id, login: first.login, displayName: displayName)
-    }
-
-    /// Bearer + Client-Id header pair shared by every Helix call.
-    private func helixHeaders(token: String, clientID: String) -> [String: String] {
-        [
-            "Authorization": "Bearer \(token)",
-            "Client-Id": clientID,
-        ]
     }
 
     /// Leaves the current channel and disconnects from EventSub.
@@ -1154,9 +1146,9 @@ actor TwitchChatService {
 
         var request = URLRequest(url: url)
         request.httpMethod = method
-        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
-        request.setValue(clientID, forHTTPHeaderField: "Client-ID")
-        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        for (key, value) in HelixClient.headers(for: .init(token: token, clientID: clientID)) {
+            request.setValue(value, forHTTPHeaderField: key)
+        }
 
         if let body {
             do {
@@ -1497,9 +1489,9 @@ actor TwitchChatService {
 
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
-        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
-        request.setValue(clientID, forHTTPHeaderField: "Client-ID")
-        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        for (key, value) in HelixClient.headers(for: .init(token: token, clientID: clientID)) {
+            request.setValue(value, forHTTPHeaderField: key)
+        }
         do {
             request.httpBody = try JSONSerialization.data(withJSONObject: body)
         } catch {
@@ -1597,45 +1589,23 @@ actor TwitchChatService {
             ],
         ]
 
-        guard let url = URL(string: apiBaseURL + "/eventsub/subscriptions") else {
-            Log.error("TwitchChatService: Invalid EventSub subscriptions URL", category: "Twitch")
-            return
-        }
-
-        var request = URLRequest(url: url)
-        request.httpMethod = "POST"
-        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
-        request.setValue(clientID, forHTTPHeaderField: "Client-ID")
-        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        do {
-            request.httpBody = try JSONSerialization.data(withJSONObject: body)
-        } catch {
-            Log.error(
-                "TwitchChatService: Failed to serialize EventSub subscription body - \(error.localizedDescription)",
-                category: "Twitch")
-            return
-        }
-
-        do {
-            let (data, http) = try await HTTPClient.shared.send(request)
-            if (200..<300).contains(http.statusCode) {
-                Log.info("TwitchChatService: Connected to chat", category: "Twitch")
-                if shouldSendConnectionMessageOnSubscribe {
-                    sendConnectionMessage()
-                }
-            } else {
-                let responseText = String(data: data, encoding: .utf8) ?? "No response"
-                Log.error(
-                    "TwitchChatService: EventSub subscription failed - HTTP \(http.statusCode) - \(responseText)",
-                    category: "Twitch")
-                setConnected(false)
-                NotificationCenter.default.postTwitchConnectionState(isConnected: false)
-                connectionStateContinuation.yield(false)
+        // Shares the EventSub POST scaffolding with every other subscription.
+        // The chat subscription is the critical one: its extra success
+        // side-effect is the connection confirmation message, and a failure
+        // tears the connection back down.
+        let subscribed = await postEventSubSubscription(
+            body: body,
+            token: token,
+            clientID: clientID,
+            label: "channel.chat.message"
+        ) {
+            Log.info("TwitchChatService: Connected to chat", category: "Twitch")
+            if shouldSendConnectionMessageOnSubscribe {
+                sendConnectionMessage()
             }
-        } catch {
-            Log.error(
-                "TwitchChatService: EventSub subscription error - \(error.localizedDescription)",
-                category: "Twitch")
+        }
+
+        if !subscribed {
             setConnected(false)
             NotificationCenter.default.postTwitchConnectionState(isConnected: false)
             connectionStateContinuation.yield(false)
@@ -1670,7 +1640,7 @@ actor TwitchChatService {
         do {
             let response: HelixStreamsResponse = try await HTTPClient.shared.get(
                 url: url,
-                headers: helixHeaders(token: token, clientID: clientID))
+                headers: HelixClient.headers(for: .init(token: token, clientID: clientID)))
             let live = !response.data.isEmpty
             streamLive = live
             Log.info("TwitchChatService: Seeded stream-live state — live=\(live)", category: "Twitch")
@@ -1768,34 +1738,47 @@ actor TwitchChatService {
 
     /// Posts an EventSub subscription request. Logs success/failure and updates
     /// redemption status on 403 (scope) / non-2xx (subscribeFailed).
+    ///
+    /// - Parameters:
+    ///   - onSuccess: Side effect run once on a 2xx response. Defaults to a
+    ///     no-op; `subscribeToChannelChatMessage` uses it to send the connection
+    ///     confirmation message.
+    /// - Returns: `true` when the subscription is in place (2xx, or 409 "already
+    ///   active"), `false` on any other failure. `subscribeToChannelChatMessage`
+    ///   branches on this to decide whether the connection is healthy.
+    @discardableResult
     private func postEventSubSubscription(
         body: [String: Any],
         token: String,
         clientID: String,
-        label: String
-    ) async {
-        guard let url = URL(string: apiBaseURL + "/eventsub/subscriptions") else { return }
+        label: String,
+        onSuccess: () -> Void = {}
+    ) async -> Bool {
+        guard let url = URL(string: apiBaseURL + "/eventsub/subscriptions") else { return false }
 
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
-        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
-        request.setValue(clientID, forHTTPHeaderField: "Client-ID")
-        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        for (key, value) in HelixClient.headers(for: .init(token: token, clientID: clientID)) {
+            request.setValue(value, forHTTPHeaderField: key)
+        }
         do {
             request.httpBody = try JSONSerialization.data(withJSONObject: body)
         } catch {
             Log.error(
                 "TwitchChatService: Failed to serialize \(label) subscription - \(error.localizedDescription)",
                 category: "Twitch")
-            return
+            return false
         }
 
         do {
             let (data, http) = try await HTTPClient.shared.send(request)
             if (200..<300).contains(http.statusCode) {
                 Log.info("TwitchChatService: Subscribed to \(label)", category: "Twitch")
+                onSuccess()
+                return true
             } else if http.statusCode == 409 {
                 Log.info("TwitchChatService: \(label) subscription already active", category: "Twitch")
+                return true
             } else {
                 let responseText = String(data: data, encoding: .utf8) ?? "No response"
                 Log.error(
@@ -1804,11 +1787,13 @@ actor TwitchChatService {
                 if label == "channel-point redemptions" || label == "bit usage" {
                     setRedemptionStatus(http.statusCode == 403 ? .scopeMissing : .subscribeFailed)
                 }
+                return false
             }
         } catch {
             Log.error(
                 "TwitchChatService: \(label) subscription error - \(error.localizedDescription)",
                 category: "Twitch")
+            return false
         }
     }
 
@@ -1999,16 +1984,12 @@ actor TwitchChatService {
 
     /// Configured channel-point cost for the managed reward (default 500).
     nonisolated private func channelPointsCostSetting() -> Int {
-        let stored = UserDefaults.standard.integer(
-            forKey: AppConstants.UserDefaults.songRequestChannelPointsCost)
-        return stored > 0 ? stored : 500
+        Preferences.int(AppConstants.UserDefaults.songRequestChannelPointsCost, default: 500)
     }
 
     /// Configured minimum bits required to trigger a request (default 100).
     nonisolated private func bitsMinimumSetting() -> Int {
-        let stored = UserDefaults.standard.integer(
-            forKey: AppConstants.UserDefaults.songRequestBitsMinimum)
-        return stored > 0 ? stored : 100
+        Preferences.int(AppConstants.UserDefaults.songRequestBitsMinimum, default: 100)
     }
 
     /// Persists the redemption integration health for the settings UI.
@@ -2035,11 +2016,16 @@ actor TwitchChatService {
         return stripLeadingCheermotes(raw)
     }
 
+    /// Cached compiled pattern for the leading-cheermote strip. Compiling it per call on the
+    /// hot chat path was wasteful. NSRegularExpression is thread-safe for matching.
+    private nonisolated static let cheermotePrefixRegex = try? NSRegularExpression(
+        pattern: "^(?:[Cc]heer[0-9]+\\s*)+")
+
     /// Removes leading `Cheer<amount>` tokens from a raw cheer message.
     nonisolated static func stripLeadingCheermotes(_ text: String) -> String {
         let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
         guard
-            let regex = try? NSRegularExpression(pattern: "^(?:[Cc]heer[0-9]+\\s*)+"),
+            let regex = cheermotePrefixRegex,
             let match = regex.firstMatch(
                 in: trimmed, range: NSRange(trimmed.startIndex..., in: trimmed)),
             let range = Range(match.range, in: trimmed)
@@ -2090,7 +2076,7 @@ actor TwitchChatService {
 
         var request = URLRequest(url: url)
         request.httpMethod = "GET"
-        for (key, value) in helixHeaders(token: token, clientID: clientID) {
+        for (key, value) in HelixClient.headers(for: .init(token: token, clientID: clientID)) {
             request.setValue(value, forHTTPHeaderField: key)
         }
         request.timeoutInterval = 15

@@ -86,13 +86,13 @@ struct OnboardingOBSWidgetStepView: View {
         )
         .padding(DSSpace.s5)
         .background(
-            RoundedRectangle(cornerRadius: 12, style: .continuous)
+            RoundedRectangle(cornerRadius: DSRadius.lg2, style: .continuous)
                 .fill(overlayEnabled
                       ? Color.accentColor.opacity(0.08)
                       : Color(nsColor: .controlBackgroundColor))
         )
         .overlay(
-            RoundedRectangle(cornerRadius: 12, style: .continuous)
+            RoundedRectangle(cornerRadius: DSRadius.lg2, style: .continuous)
                 .stroke(
                     overlayEnabled
                         ? Color.accentColor.opacity(0.40)
@@ -114,10 +114,8 @@ struct OnboardingOBSWidgetStepView: View {
         if overlayEnabled {
             VStack(alignment: .leading, spacing: 10) {
                 HStack(spacing: DSSpace.s2) {
-                    Text("BROWSER SOURCE URL")
-                        .font(.system(size: DSFont.Size.xs, weight: .semibold))
-                        .foregroundStyle(.tertiary)
-                        .tracking(0.6)
+                    Text("Browser source URL")
+                        .sectionEyebrow()
                     if streamerMode { StreamerModeBadge() }
                 }
 

@@ -13,21 +13,13 @@ import XCTest
 @MainActor
 final class VoteSkipCommandTests: WolfWaveTestCase {
 
-    private let keys: [String] = [
-        AppConstants.UserDefaults.voteSkipEnabled,
-        AppConstants.UserDefaults.voteSkipMinVotes,
-        AppConstants.UserDefaults.voteSkipSessionCooldown,
-        AppConstants.UserDefaults.voteSkipCommandEnabled,
-        AppConstants.UserDefaults.voteSkipCommandAliases,
-    ]
-
     override func setUp() {
         super.setUp()
-        keys.forEach { UserDefaults.standard.removeObject(forKey: $0) }
+        resetAllSettings()
     }
 
     override func tearDown() {
-        keys.forEach { UserDefaults.standard.removeObject(forKey: $0) }
+        resetAllSettings()
         super.tearDown()
     }
 

@@ -3,7 +3,7 @@
 **File:** [`apps/native/WolfWave/Views/Shared/CalloutBanner.swift`](../../apps/native/WolfWave/Views/Shared/CalloutBanner.swift)
 
 ## Purpose
-Inline tinted callout that flags a state (info / success / warning / error / neutral) inside a settings pane. One component for every "icon + text in a tinted rounded box" pattern, so tint, icon, and corner radius all resolve from a single place. Supersedes the old `WarningBanner`, which only covered orange/red warnings and led call sites to hand-roll info/success variants with drifting radii and tint opacities.
+Inline tinted callout that flags a state (info / success / warning / error / neutral) inside a settings pane. One component for every "icon + text in a tinted rounded box" pattern, so tint, icon, and corner radius all resolve from a single place. Supersedes the old `WarningBanner`, which only covered orange/red warnings and led call sites to hand-roll info/success variants with drifting radii and tint opacities. Also absorbs the former DEBUG-only `ConfigRequiredBanner`: use `CalloutBanner(message, style: .warning)` inside a `#if DEBUG` guard for "set X in Config.xcconfig" developer prompts.
 
 ## API
 ```swift

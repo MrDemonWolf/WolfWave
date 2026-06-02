@@ -166,7 +166,7 @@ struct PermissionInstructionSheet: View {
         VStack(alignment: .leading, spacing: 18) {
             HStack(spacing: DSSpace.s4) {
                 ZStack {
-                    RoundedRectangle(cornerRadius: 12, style: .continuous)
+                    RoundedRectangle(cornerRadius: DSRadius.lg2, style: .continuous)
                         .fill(LinearGradient(
                             colors: [
                                 AppConstants.Brand.appleMusicSurfaceEnd,

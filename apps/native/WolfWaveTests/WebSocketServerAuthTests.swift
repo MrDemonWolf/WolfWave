@@ -162,4 +162,29 @@ final class WebSocketServerAuthTests: XCTestCase {
         XCTAssertEqual(WebSocketAuthToken.redact("ab"), "…")
         XCTAssertEqual(WebSocketAuthToken.redact(""), "…")
     }
+
+    func testRedactNeverLeaksFullToken() {
+        let token = WebSocketAuthToken.generate()
+        let redacted = WebSocketAuthToken.redact(token)
+        XCTAssertFalse(redacted.contains(String(token.dropFirst(4))))
+        XCTAssertLessThanOrEqual(redacted.count, 5)
+    }
+
+    // MARK: - Generation (Keychain-free)
+    //
+    // `generate()` is exercised directly; `currentOrCreate()` / `rotate()`
+    // round-trip through KeychainService, which prompts under the ad-hoc-signed
+    // test host, so they are deliberately not covered here.
+
+    func testGenerateProduces64HexChars() {
+        let token = WebSocketAuthToken.generate()
+        XCTAssertEqual(token.count, 64, "32 random bytes → 64 hex chars")
+        XCTAssertTrue(WebSocketAuthToken.isValid(token))
+    }
+
+    func testGenerateProducesDistinctTokens() {
+        var seen = Set<String>()
+        for _ in 0..<50 { seen.insert(WebSocketAuthToken.generate()) }
+        XCTAssertEqual(seen.count, 50, "generated tokens must not repeat")
+    }
 }

@@ -35,7 +35,7 @@ struct SectionHeaderWithStatus: View {
     // MARK: - Body
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
+        VStack(alignment: .leading, spacing: DSSpace.s1h) {
             HStack(alignment: .center, spacing: DSSpace.s3) {
                 Text(title)
                     .sectionHeader()

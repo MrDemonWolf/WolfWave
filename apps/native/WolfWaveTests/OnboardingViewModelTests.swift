@@ -16,11 +16,11 @@ final class OnboardingViewModelTests: WolfWaveTestCase {
     override func setUp() {
         super.setUp()
         viewModel = OnboardingViewModel()
-        UserDefaults.standard.removeObject(forKey: AppConstants.UserDefaults.hasCompletedOnboarding)
+        resetAllSettings()
     }
 
     override func tearDown() {
-        UserDefaults.standard.removeObject(forKey: AppConstants.UserDefaults.hasCompletedOnboarding)
+        resetAllSettings()
         viewModel = nil
         super.tearDown()
     }

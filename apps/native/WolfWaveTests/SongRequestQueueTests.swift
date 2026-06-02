@@ -19,14 +19,12 @@ final class SongRequestQueueTests: WolfWaveTestCase {
         super.setUp()
         queue = SongRequestQueue()
         // Reset UserDefaults for test isolation
-        UserDefaults.standard.removeObject(forKey: AppConstants.UserDefaults.songRequestMaxQueueSize)
-        UserDefaults.standard.removeObject(forKey: AppConstants.UserDefaults.songRequestPerUserLimit)
+        resetAllSettings()
     }
 
     override func tearDown() {
         queue = nil
-        UserDefaults.standard.removeObject(forKey: AppConstants.UserDefaults.songRequestMaxQueueSize)
-        UserDefaults.standard.removeObject(forKey: AppConstants.UserDefaults.songRequestPerUserLimit)
+        resetAllSettings()
         super.tearDown()
     }
 

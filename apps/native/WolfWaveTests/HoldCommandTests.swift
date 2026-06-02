@@ -17,11 +17,11 @@ final class HoldCommandTests: WolfWaveTestCase {
 
     override func setUp() {
         super.setUp()
-        UserDefaults.standard.removeObject(forKey: AppConstants.UserDefaults.songRequestHoldEnabled)
+        resetAllSettings()
     }
 
     override func tearDown() {
-        UserDefaults.standard.removeObject(forKey: AppConstants.UserDefaults.songRequestHoldEnabled)
+        resetAllSettings()
         super.tearDown()
     }
 

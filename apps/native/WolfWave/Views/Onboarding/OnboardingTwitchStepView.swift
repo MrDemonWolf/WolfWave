@@ -141,10 +141,8 @@ struct OnboardingTwitchStepView: View {
             }
 
             VStack(alignment: .leading, spacing: 2) {
-                Text("CONNECTED")
-                    .font(.system(size: DSFont.Size.xs, weight: .semibold))
-                    .foregroundStyle(.tertiary)
-                    .tracking(0.6)
+                Text("Connected")
+                    .sectionEyebrow()
 
                 Text("@\(twitchViewModel.botUsername)")
                     .font(.system(size: DSFont.Size.x15, weight: .semibold))

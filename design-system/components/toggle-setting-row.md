@@ -46,7 +46,7 @@ graph LR
 
 ## Accessibility
 - VoiceOver reads `accessibilityLabel` + `accessibilityValue` ("Enabled" / "Disabled").
-- `accessibilityHint` describes the consequence of flipping — set it when the effect is non-obvious.
+- `accessibilityHint` describes the consequence of flipping; set it when the effect is non-obvious. It is only applied when non-nil, so omitting it emits no empty-string hint.
 - Row honours `@Environment(\.isEnabled)` — wrap in `.disabled(...)` to fade the whole group, not just the switch.
 
 ## Do / Don't

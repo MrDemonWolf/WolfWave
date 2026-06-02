@@ -15,24 +15,11 @@ final class SongRequestCommandTests: WolfWaveTestCase {
 
     override func setUp() {
         super.setUp()
-        // Reset alias and enabled keys
-        UserDefaults.standard.removeObject(forKey: AppConstants.UserDefaults.srCommandEnabled)
-        UserDefaults.standard.removeObject(forKey: AppConstants.UserDefaults.srCommandAliases)
-        UserDefaults.standard.removeObject(forKey: AppConstants.UserDefaults.queueCommandEnabled)
-        UserDefaults.standard.removeObject(forKey: AppConstants.UserDefaults.queueCommandAliases)
-        UserDefaults.standard.removeObject(forKey: AppConstants.UserDefaults.skipCommandEnabled)
-        UserDefaults.standard.removeObject(forKey: AppConstants.UserDefaults.clearQueueCommandEnabled)
-        UserDefaults.standard.removeObject(forKey: AppConstants.UserDefaults.myQueueCommandEnabled)
+        resetAllSettings()
     }
 
     override func tearDown() {
-        UserDefaults.standard.removeObject(forKey: AppConstants.UserDefaults.srCommandEnabled)
-        UserDefaults.standard.removeObject(forKey: AppConstants.UserDefaults.srCommandAliases)
-        UserDefaults.standard.removeObject(forKey: AppConstants.UserDefaults.queueCommandEnabled)
-        UserDefaults.standard.removeObject(forKey: AppConstants.UserDefaults.queueCommandAliases)
-        UserDefaults.standard.removeObject(forKey: AppConstants.UserDefaults.skipCommandEnabled)
-        UserDefaults.standard.removeObject(forKey: AppConstants.UserDefaults.clearQueueCommandEnabled)
-        UserDefaults.standard.removeObject(forKey: AppConstants.UserDefaults.myQueueCommandEnabled)
+        resetAllSettings()
         super.tearDown()
     }
 

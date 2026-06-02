@@ -67,7 +67,7 @@ struct DebugInspectorsCard: View {
     // MARK: - Bundle / Build
 
     private var bundleSection: some View {
-        VStack(alignment: .leading, spacing: 6) {
+        VStack(alignment: .leading, spacing: DSSpace.s1h) {
             Text("Bundle & build")
                 .sectionEyebrow()
 
@@ -95,7 +95,7 @@ struct DebugInspectorsCard: View {
     // MARK: - Keychain
 
     private var keychainSection: some View {
-        VStack(alignment: .leading, spacing: 6) {
+        VStack(alignment: .leading, spacing: DSSpace.s1h) {
             Text("Keychain")
                 .sectionEyebrow()
 
@@ -128,7 +128,7 @@ struct DebugInspectorsCard: View {
     // MARK: - UserDefaults
 
     private var userDefaultsSection: some View {
-        VStack(alignment: .leading, spacing: 6) {
+        VStack(alignment: .leading, spacing: DSSpace.s1h) {
             HStack {
                 Text("User defaults")
                     .sectionEyebrow()

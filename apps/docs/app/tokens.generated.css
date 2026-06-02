@@ -77,10 +77,12 @@
   --ds-space-9: 28px;
   --ds-space-10: 32px;
   --ds-space-11: 44px;
+  --ds-space-1h: 6px;
   --ds-radius-xs: 4px;
   --ds-radius-sm: 6px;
   --ds-radius-md: 8px;
   --ds-radius-lg: 10px;
+  --ds-radius-lg2: 12px;
   --ds-radius-xl: 14px;
   --ds-radius-2xl: 16px;
   --ds-radius-pill: 9999px;

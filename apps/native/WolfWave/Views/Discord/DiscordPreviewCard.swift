@@ -102,9 +102,9 @@ struct DiscordPreviewCard: View {
         .padding(DSSpace.s5)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(cardBackground)
-        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+        .clipShape(RoundedRectangle(cornerRadius: DSRadius.lg2, style: .continuous))
         .overlay(
-            RoundedRectangle(cornerRadius: 12, style: .continuous)
+            RoundedRectangle(cornerRadius: DSRadius.lg2, style: .continuous)
                 .stroke(Color.white.opacity(0.06), lineWidth: 1)
         )
         .opacity(mode == .discordOffline ? 0.55 : 1)
@@ -120,7 +120,7 @@ struct DiscordPreviewCard: View {
         // the app name brighter, preceded by a status dot. Discord shows the
         // registered application name (WolfWave), not "Apple Music", and the
         // header is never blurple/purple.
-        HStack(spacing: 6) {
+        HStack(spacing: DSSpace.s1h) {
             Circle()
                 .fill(dotColor)
                 .frame(width: 8, height: 8)
@@ -251,7 +251,7 @@ struct DiscordPreviewCard: View {
     private var buttons: some View {
         let visible = [button1, button2].compactMap { $0 }
         if !visible.isEmpty {
-            VStack(spacing: 6) {
+            VStack(spacing: DSSpace.s1h) {
                 ForEach(visible.indices, id: \.self) { i in
                     buttonPill(label: visible[i].label)
                 }

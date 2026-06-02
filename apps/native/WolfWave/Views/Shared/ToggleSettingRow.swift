@@ -47,7 +47,7 @@ struct ToggleSettingRow: View {
 
     @ViewBuilder
     private var toggle: some View {
-        Toggle("", isOn: $isOn)
+        let base = Toggle("", isOn: $isOn)
             .labelsHidden()
             .toggleStyle(.switch)
             .controlSize(controlSize)
@@ -55,11 +55,16 @@ struct ToggleSettingRow: View {
             .disabled(isDisabled)
             .accessibilityLabel(accessibilityLabel)
             .accessibilityIdentifier(accessibilityIdentifier)
-            .accessibilityHint(accessibilityHint ?? "")
             .accessibilityValue(isOn ? "Enabled" : "Disabled")
             .onChange(of: isOn) { _, newValue in
                 onChange?(newValue)
             }
+
+        if let accessibilityHint {
+            base.accessibilityHint(accessibilityHint)
+        } else {
+            base
+        }
     }
 }
 

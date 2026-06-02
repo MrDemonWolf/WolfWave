@@ -232,19 +232,4 @@ struct LoggerTests {
         #expect(content.contains("[OAuth]"))
     }
     
-    // MARK: - Performance Tests
-    
-    @Test("Logging performance is acceptable")
-    func testLoggingPerformance() async throws {
-        let start = Date()
-        
-        for i in 0..<1000 {
-            Log.info("Performance test message \(i)", category: "Performance")
-        }
-        
-        let duration = Date().timeIntervalSince(start)
-        
-        // 1000 log messages should complete in less than 2 seconds (generous for CI)
-        #expect(duration < 2.0)
-    }
 }

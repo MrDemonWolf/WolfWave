@@ -13,9 +13,10 @@ import SwiftUI
 /// In-memory song request queue with per-user limits.
 ///
 /// The queue is intentionally not persisted — each stream session starts fresh.
-/// All mutations are thread-safe via `NSLock`. Consumers (the queue settings
-/// view) poll the public state via a refresh timer rather than observing it
-/// reactively, so this type does not adopt the `@Observable` macro.
+/// MainActor-isolated (project default isolation); the `NSLock` is retained as a
+/// defense-in-depth guard around the mutation methods. Consumers (the queue
+/// settings view) poll the public state via a refresh timer rather than
+/// observing it reactively, so this type does not adopt the `@Observable` macro.
 final class SongRequestQueue {
     // MARK: - Properties
 
@@ -30,14 +31,12 @@ final class SongRequestQueue {
 
     /// Maximum number of items allowed in the queue.
     var maxQueueSize: Int {
-        let stored = Foundation.UserDefaults.standard.integer(forKey: AppConstants.UserDefaults.songRequestMaxQueueSize)
-        return stored > 0 ? stored : 10
+        Preferences.int(AppConstants.UserDefaults.songRequestMaxQueueSize, default: 10)
     }
 
     /// Maximum requests per user in the queue at one time.
     var perUserLimit: Int {
-        let stored = Foundation.UserDefaults.standard.integer(forKey: AppConstants.UserDefaults.songRequestPerUserLimit)
-        return stored > 0 ? stored : 2
+        Preferences.int(AppConstants.UserDefaults.songRequestPerUserLimit, default: 2)
     }
 
     /// Total number of items in the queue (not counting now-playing).

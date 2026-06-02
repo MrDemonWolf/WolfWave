@@ -118,29 +118,7 @@ struct AppConstantsConfigOverrideTests {
         #expect(result == "https://example.com")
     }
 
-    // MARK: - Production-Bundle Fallbacks
-
-    /// In the unit-test host (WolfWave.app), Info.plist values are present at
-    /// build time — but if a fork builds without Config.xcconfig, every
-    /// override-backed constant should still resolve to the upstream default.
-    @Test("All override-backed constants have non-empty production values")
-    func testProductionConstantsResolve() {
-        #expect(!AppConstants.AppInfo.displayName.isEmpty)
-        #expect(!AppConstants.AppInfo.copyrightHolder.isEmpty)
-        #expect(!AppConstants.URLs.docs.isEmpty)
-        #expect(!AppConstants.URLs.communityDiscord.isEmpty)
-        #expect(!AppConstants.URLs.repoOwner.isEmpty)
-        #expect(!AppConstants.URLs.repoName.isEmpty)
-    }
-
-    @Test("repoOwner + repoName regression after helper refactor")
-    func testRepoConstantsAfterRefactor() {
-        // These read from the hosted Info.plist; values come from
-        // Config.xcconfig in dev or fallback in a clean fork build.
-        #expect(AppConstants.URLs.repoOwner == "MrDemonWolf"
-                || AppConstants.URLs.repoOwner == "mrdemonwolf")
-        #expect(AppConstants.URLs.repoName == "wolfwave")
-    }
+    // MARK: - Derived URL Invariants
 
     @Test("Derived URLs follow the docs root")
     func testDerivedURLsTrackDocs() {

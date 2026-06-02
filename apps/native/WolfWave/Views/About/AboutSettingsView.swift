@@ -75,7 +75,7 @@ struct AboutSettingsView: View {
 
     private var versionPill: some View {
         Button(action: copyVersion) {
-            HStack(spacing: 6) {
+            HStack(spacing: DSSpace.s1h) {
                 Text(versionString)
                     .font(.system(size: DSFont.Size.body, weight: .medium))
                 Image(systemName: versionCopied ? "checkmark" : "doc.on.doc")
@@ -174,7 +174,7 @@ struct AboutSettingsView: View {
     }
 
     private var footer: some View {
-        VStack(alignment: .leading, spacing: 6) {
+        VStack(alignment: .leading, spacing: DSSpace.s1h) {
             Text(AboutCopy.independenceNotice)
                 .font(.system(size: DSFont.Size.xs))
                 .foregroundStyle(.tertiary)
@@ -265,18 +265,15 @@ struct AboutSettingsView: View {
     }
 
     private func openReleaseNotes() {
-        guard let url = URL(string: AppConstants.URLs.changelog) else { return }
-        NSWorkspace.shared.open(url)
+        ExternalLink.open(AppConstants.URLs.changelog)
     }
 
     private func openSponsor() {
-        guard let url = URL(string: AppConstants.URLs.githubSponsors) else { return }
-        NSWorkspace.shared.open(url)
+        ExternalLink.open(AppConstants.URLs.githubSponsors)
     }
 
     private func openWebsite() {
-        guard let url = URL(string: AppConstants.URLs.docs) else { return }
-        NSWorkspace.shared.open(url)
+        ExternalLink.open(AppConstants.URLs.docs)
     }
 
     private func sendFeedback() {

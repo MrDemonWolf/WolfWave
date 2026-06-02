@@ -25,7 +25,7 @@ struct DSIconButton: View {
     // MARK: - Body
 
     var body: some View {
-        Button(action: action) {
+        let button = Button(action: action) {
             Image(systemName: systemImage)
                 .font(.system(size: DSFont.Size.sm))
                 .frame(
@@ -37,7 +37,12 @@ struct DSIconButton: View {
         .controlSize(.small)
         .disabled(isDisabled)
         .accessibilityLabel(accessibilityLabel)
-        .accessibilityIdentifier(accessibilityIdentifier ?? "")
+
+        if let accessibilityIdentifier {
+            button.accessibilityIdentifier(accessibilityIdentifier)
+        } else {
+            button
+        }
     }
 }
 

@@ -30,7 +30,7 @@ struct SongRequestSettingsView: View {
             SongRequestHeader()
 
             if !isTwitchConnected {
-                HStack(spacing: 6) {
+                HStack(spacing: DSSpace.s1h) {
                     Image(systemName: "lock.fill")
                         .font(.system(size: DSFont.Size.sm))
                         .foregroundStyle(.secondary)
@@ -118,7 +118,7 @@ struct SongRequestSettingsView: View {
 
 fileprivate struct SongRequestHeader: View {
     var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
+        VStack(alignment: .leading, spacing: DSSpace.s1h) {
             SectionHeaderWithStatus(
                 title: "Song Requests",
                 subtitle: "Let your Twitch viewers request songs via chat commands."
@@ -194,7 +194,7 @@ fileprivate struct VoteSkipCard: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: DSSpace.s4) {
-            VStack(alignment: .leading, spacing: 6) {
+            VStack(alignment: .leading, spacing: DSSpace.s1h) {
                 HStack(spacing: DSSpace.s2) {
                     Image(systemName: "hand.thumbsup.fill")
                         .font(.system(size: DSFont.Size.x15))
@@ -339,7 +339,7 @@ fileprivate struct SongRequestMusicAuthCard: View {
                         isRequestingMusicAuth = false
                     }
                 } label: {
-                    HStack(spacing: 6) {
+                    HStack(spacing: DSSpace.s1h) {
                         if isRequestingMusicAuth {
                             ProgressView().controlSize(.small)
                         }
@@ -422,7 +422,7 @@ fileprivate struct SongRequestAccessCard: View {
                 .foregroundStyle(.secondary)
 
             // Preset buttons
-            HStack(spacing: 6) {
+            HStack(spacing: DSSpace.s1h) {
                 ForEach(SongRequestPreset.allCases) { preset in
                     Button {
                         preset.apply()
@@ -441,7 +441,7 @@ fileprivate struct SongRequestAccessCard: View {
                 }
             }
 
-            HStack(alignment: .top, spacing: 6) {
+            HStack(alignment: .top, spacing: DSSpace.s1h) {
                 Image(systemName: activePreset == nil ? "slider.horizontal.3" : "checkmark.circle.fill")
                     .font(.system(size: DSFont.Size.sm))
                     .foregroundStyle(activePreset == nil ? Color.secondary : DSColor.success)
@@ -678,7 +678,7 @@ fileprivate struct SongRequestPlaybackCard: View {
 
             Divider()
 
-            VStack(alignment: .leading, spacing: 6) {
+            VStack(alignment: .leading, spacing: DSSpace.s1h) {
                 Text("Fallback playlist")
                     .font(.system(size: DSFont.Size.body, weight: .medium))
                 TextField("e.g. Gaming Vibes", text: $fallbackPlaylist)
@@ -718,7 +718,7 @@ fileprivate struct SongRequestCommandsCard: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: DSSpace.s6) {
-            VStack(alignment: .leading, spacing: 6) {
+            VStack(alignment: .leading, spacing: DSSpace.s1h) {
                 HStack(spacing: DSSpace.s2) {
                     Image(systemName: "music.note.list")
                         .font(.system(size: DSFont.Size.x15))

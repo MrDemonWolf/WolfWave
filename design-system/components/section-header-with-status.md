@@ -25,14 +25,14 @@ SectionHeaderWithStatus(
 ## Tokens used
 - `.sectionHeader()` view modifier (defined in `ViewModifiers.swift`) — title typography
 - `DSFont.Size.base` (13) `.secondary` — subtitle
-- `DSSpace.s2`-ish (6) — title ↔ subtitle vertical spacing
+- `DSSpace.s1h` (6) — title ↔ subtitle vertical spacing
 - `DSSpace.s3` (10) — title ↔ chip horizontal spacing
 - Composes `StatusChip` — see [status-chip.md](status-chip.md)
 
 ## Anatomy
 ```mermaid
 graph TB
-  Header[VStack alignment leading spacing 6] --> TopRow[HStack alignment center spacing 10]
+  Header[VStack alignment leading spacing s1h=6] --> TopRow[HStack alignment center spacing 10]
   TopRow --> Title[Text — sectionHeader]
   TopRow --> Spacer
   TopRow --> Chip[StatusChip — optional]

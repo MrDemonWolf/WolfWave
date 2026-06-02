@@ -50,13 +50,13 @@ struct OnboardingDiscordStepView: View {
                     )
                     .padding(DSSpace.s5)
                     .background(
-                        RoundedRectangle(cornerRadius: 12, style: .continuous)
+                        RoundedRectangle(cornerRadius: DSRadius.lg2, style: .continuous)
                             .fill(presenceEnabled
                                   ? AppConstants.Brand.discord.opacity(0.10)
                                   : Color(nsColor: .controlBackgroundColor))
                     )
                     .overlay(
-                        RoundedRectangle(cornerRadius: 12, style: .continuous)
+                        RoundedRectangle(cornerRadius: DSRadius.lg2, style: .continuous)
                             .stroke(
                                 presenceEnabled
                                     ? AppConstants.Brand.discord.opacity(0.40)

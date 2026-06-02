@@ -97,15 +97,12 @@ final class KeychainServiceTests {
 
     @Test("Save and load Twitch token")
     func testTwitchToken() async throws {
-        let testToken = "twitch_oauth_\(UUID().uuidString)"
-
-        try KeychainService.saveTwitchToken(testToken)
-        let loaded = KeychainService.loadTwitchToken()
-
-        #expect(loaded == testToken)
-
-        KeychainService.deleteTwitchToken()
-        #expect(KeychainService.loadTwitchToken() == nil)
+        try assertKeychainRoundTrip(
+            "twitch_oauth_\(UUID().uuidString)",
+            save: KeychainService.saveTwitchToken,
+            load: KeychainService.loadTwitchToken,
+            delete: KeychainService.deleteTwitchToken
+        )
     }
 
     @Test("Save empty Twitch token throws error")
@@ -119,15 +116,12 @@ final class KeychainServiceTests {
 
     @Test("Save and load Twitch username")
     func testTwitchUsername() async throws {
-        let testUsername = "testbot_\(UUID().uuidString)"
-
-        try KeychainService.saveTwitchUsername(testUsername)
-        let loaded = KeychainService.loadTwitchUsername()
-
-        #expect(loaded == testUsername)
-
-        KeychainService.deleteTwitchUsername()
-        #expect(KeychainService.loadTwitchUsername() == nil)
+        try assertKeychainRoundTrip(
+            "testbot_\(UUID().uuidString)",
+            save: KeychainService.saveTwitchUsername,
+            load: KeychainService.loadTwitchUsername,
+            delete: KeychainService.deleteTwitchUsername
+        )
     }
 
     @Test("Save username only if changed")
@@ -158,30 +152,24 @@ final class KeychainServiceTests {
 
     @Test("Save and load Twitch bot user ID")
     func testTwitchBotUserID() async throws {
-        let testUserID = "12345678"
-
-        try KeychainService.saveTwitchBotUserID(testUserID)
-        let loaded = KeychainService.loadTwitchBotUserID()
-
-        #expect(loaded == testUserID)
-
-        KeychainService.deleteTwitchBotUserID()
-        #expect(KeychainService.loadTwitchBotUserID() == nil)
+        try assertKeychainRoundTrip(
+            "12345678",
+            save: KeychainService.saveTwitchBotUserID,
+            load: KeychainService.loadTwitchBotUserID,
+            delete: KeychainService.deleteTwitchBotUserID
+        )
     }
 
     // MARK: - Twitch Channel ID Tests
 
     @Test("Save and load Twitch channel ID")
     func testTwitchChannelID() async throws {
-        let testChannelID = "testchannel"
-
-        try KeychainService.saveTwitchChannelID(testChannelID)
-        let loaded = KeychainService.loadTwitchChannelID()
-
-        #expect(loaded == testChannelID)
-
-        KeychainService.deleteTwitchChannelID()
-        #expect(KeychainService.loadTwitchChannelID() == nil)
+        try assertKeychainRoundTrip(
+            "testchannel",
+            save: KeychainService.saveTwitchChannelID,
+            load: KeychainService.loadTwitchChannelID,
+            delete: KeychainService.deleteTwitchChannelID
+        )
     }
 
     // MARK: - Special Characters Tests

@@ -12,7 +12,8 @@ import Foundation
 ///
 /// Default commands (!song, !last, !lastsong) are registered automatically.
 /// Includes cooldown enforcement with moderator bypass.
-/// Thread-safe for concurrent access from any thread.
+/// MainActor-isolated (project default isolation); the `NSLock` is retained as a
+/// defense-in-depth guard around the command table.
 final class BotCommandDispatcher {
     private let lock = NSLock()
     private var commands: [BotCommand] = []

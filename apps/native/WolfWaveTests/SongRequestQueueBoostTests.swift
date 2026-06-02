@@ -25,8 +25,7 @@ final class SongRequestQueueBoostTests: WolfWaveTestCase {
 
     override func tearDown() {
         queue = nil
-        UserDefaults.standard.removeObject(forKey: AppConstants.UserDefaults.songRequestMaxQueueSize)
-        UserDefaults.standard.removeObject(forKey: AppConstants.UserDefaults.songRequestPerUserLimit)
+        resetAllSettings()
         super.tearDown()
     }
 

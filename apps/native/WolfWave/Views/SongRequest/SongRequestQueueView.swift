@@ -128,7 +128,7 @@ struct SongRequestQueueView: View {
             artworkPlaceholder
 
             VStack(alignment: .leading, spacing: DSSpace.s0) {
-                HStack(spacing: 6) {
+                HStack(spacing: DSSpace.s1h) {
                     Image(systemName: "waveform")
                         .font(.system(size: DSFont.Size.xs))
                         .foregroundStyle(.green)

@@ -60,6 +60,23 @@ final class SkipVoteManagerTests: WolfWaveTestCase {
         d.set(window, forKey: AppConstants.UserDefaults.voteSkipWindowSeconds)
     }
 
+    /// Polls an async `condition` until it returns true or the timeout elapses,
+    /// returning the final result. Mirrors `ArtworkServiceNetworkTests.waitUntil`
+    /// but awaits the (actor-isolated) condition instead of sleeping a fixed span.
+    @discardableResult
+    private func waitUntil(
+        timeout: Duration = .seconds(2),
+        interval: Duration = .milliseconds(10),
+        _ condition: () async -> Bool
+    ) async -> Bool {
+        let deadline = ContinuousClock.now + timeout
+        while ContinuousClock.now < deadline {
+            if await condition() { return true }
+            try? await Task.sleep(for: interval)
+        }
+        return await condition()
+    }
+
     // MARK: - Disabled
 
     func testDisabledWhenFeatureOff() async {
@@ -194,8 +211,10 @@ final class SkipVoteManagerTests: WolfWaveTestCase {
     // MARK: - Window Expiry
 
     func testWindowExpiryFailsSession() async throws {
-        enableFeature(minVotes: 5, window: 1)
-        let manager = SkipVoteManager()
+        enableFeature(minVotes: 5)
+        // Inject a sub-100ms window so expiry is observed in milliseconds instead
+        // of waiting out the integer-second `voteSkipWindowSeconds` minimum.
+        let manager = SkipVoteManager(windowDuration: .milliseconds(50))
         let chatMessage = Atomic<String?>(nil)
         await manager.configure(
             performSkip: nil,
@@ -207,8 +226,13 @@ final class SkipVoteManagerTests: WolfWaveTestCase {
         let preState = await manager.currentVoteState()
         XCTAssertNotNil(preState)
 
-        try await Task.sleep(for: .seconds(2))
+        // Poll until the window timer resets the session, bounded well above the
+        // 50ms window so it isn't flaky, but far shorter than the old 2s sleep.
+        let didReset = await waitUntil(timeout: .seconds(1)) {
+            await manager.currentVoteState() == nil
+        }
 
+        XCTAssertTrue(didReset, "Session should reset after the window expires")
         let postState = await manager.currentVoteState()
         XCTAssertNil(postState, "Session should reset after the window expires")
         let message = chatMessage.value
