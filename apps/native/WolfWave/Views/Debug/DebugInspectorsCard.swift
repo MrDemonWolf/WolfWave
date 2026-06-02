@@ -20,6 +20,7 @@ struct DebugInspectorsCard: View {
     /// so the card paints instantly. Each `KeychainService.load…()` call is a
     /// `SecItemCopyMatching` syscall; running 5 in `body` per render is wasteful.
     @State private var keychainPresence: [String: Bool] = [:]
+    @State private var keychainLoaded = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: DSSpace.s6) {
@@ -56,7 +57,10 @@ struct DebugInspectorsCard: View {
                     "twitchChannelID": KeychainService.loadTwitchChannelID() != nil,
                 ]
             }.value
-            await MainActor.run { keychainPresence = presence }
+            await MainActor.run {
+                keychainPresence = presence
+                keychainLoaded = true
+            }
         }
     }
 
@@ -99,20 +103,24 @@ struct DebugInspectorsCard: View {
                 .font(.system(size: DSFont.Size.sm))
                 .foregroundStyle(.secondary)
 
-            keychainRow("WebSocket Auth Token", present: keychainPresence["token"] ?? false) {
-                KeychainService.deleteToken()
-            }
-            keychainRow("Twitch OAuth Token", present: keychainPresence["twitchToken"] ?? false) {
-                KeychainService.deleteTwitchToken()
-            }
-            keychainRow("Twitch Username", present: keychainPresence["twitchUsername"] ?? false) {
-                KeychainService.deleteTwitchUsername()
-            }
-            keychainRow("Twitch Bot User ID", present: keychainPresence["twitchBotUserID"] ?? false) {
-                KeychainService.deleteTwitchBotUserID()
-            }
-            keychainRow("Twitch Channel ID", present: keychainPresence["twitchChannelID"] ?? false) {
-                KeychainService.deleteTwitchChannelID()
+            if keychainLoaded {
+                keychainRow("WebSocket Auth Token", present: keychainPresence["token"] ?? false) {
+                    KeychainService.deleteToken()
+                }
+                keychainRow("Twitch OAuth Token", present: keychainPresence["twitchToken"] ?? false) {
+                    KeychainService.deleteTwitchToken()
+                }
+                keychainRow("Twitch Username", present: keychainPresence["twitchUsername"] ?? false) {
+                    KeychainService.deleteTwitchUsername()
+                }
+                keychainRow("Twitch Bot User ID", present: keychainPresence["twitchBotUserID"] ?? false) {
+                    KeychainService.deleteTwitchBotUserID()
+                }
+                keychainRow("Twitch Channel ID", present: keychainPresence["twitchChannelID"] ?? false) {
+                    KeychainService.deleteTwitchChannelID()
+                }
+            } else {
+                LoadingRow(text: "Reading Keychain…")
             }
         }
     }

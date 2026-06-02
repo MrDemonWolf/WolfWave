@@ -39,6 +39,7 @@ struct DebugLogsAndEventsCard: View {
         }
         .cardStyle()
         .task(id: refreshTick) {
+            logStatsLoaded = false
             let stats = await Task.detached(priority: .userInitiated) {
                 (url: Log.exportLogFile(), size: Log.logFileSize(), lines: Log.logLineCount())
             }.value
@@ -59,16 +60,19 @@ struct DebugLogsAndEventsCard: View {
                 .sectionEyebrow()
 
             HStack(alignment: .top) {
-                VStack(alignment: .leading, spacing: DSSpace.s0) {
-                    Text(logURL?.path ?? "(no log file)")
-                        .font(.system(size: DSFont.Size.sm, design: .monospaced))
-                        .lineLimit(2)
-                        .truncationMode(.middle)
-                        .textSelection(.enabled)
-                    Text("\(ByteFormatting.string(logSize)) · \(logLines) lines")
-                        .font(.system(size: DSFont.Size.sm))
-                        .foregroundStyle(.secondary)
-                        .redacted(reason: logStatsLoaded ? [] : .placeholder)
+                if logStatsLoaded {
+                    VStack(alignment: .leading, spacing: DSSpace.s0) {
+                        Text(logURL?.path ?? "(no log file)")
+                            .font(.system(size: DSFont.Size.sm, design: .monospaced))
+                            .lineLimit(2)
+                            .truncationMode(.middle)
+                            .textSelection(.enabled)
+                        Text("\(ByteFormatting.string(logSize)) · \(logLines) lines")
+                            .font(.system(size: DSFont.Size.sm))
+                            .foregroundStyle(.secondary)
+                    }
+                } else {
+                    LoadingRow(text: "Reading log file…")
                 }
                 Spacer()
                 Button {

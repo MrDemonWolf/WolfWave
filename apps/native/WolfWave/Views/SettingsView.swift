@@ -151,15 +151,7 @@ struct SettingsView: View {
             }
             .navigationSplitViewColumnWidth(min: 220, ideal: 240, max: 280)
         } detail: {
-            ScrollView {
-                VStack(alignment: .leading, spacing: AppConstants.SettingsUI.sectionSpacing) {
-                    detailView(for: selectedSection)
-                }
-                .frame(maxWidth: AppConstants.SettingsUI.maxContentWidth, alignment: .topLeading)
-                .frame(maxWidth: .infinity, alignment: .center)
-                .padding(.horizontal, AppConstants.SettingsUI.contentPaddingH)
-                .padding(.vertical, AppConstants.SettingsUI.contentPaddingV)
-            }
+            detailPane
             .scrollEdgeEffectStyle(.hard, for: .top)
             .transaction(value: selectedSection) { $0.disablesAnimations = true }
             .onChange(of: selectedSection) { _, newSection in
@@ -244,6 +236,35 @@ struct SettingsView: View {
     // MARK: - Detail Views
 
     /// Returns the detail pane content for the given sidebar section.
+    /// Detail content for the selected section. Most sections render inside a
+    /// shared scrolling, width-clamped column. The DEBUG-only Debug tab opts out:
+    /// it owns its own layout (a jump-nav rail beside a scroll column) and needs
+    /// the full pane width, so it bypasses the standard wrapper.
+    @ViewBuilder
+    private var detailPane: some View {
+        #if DEBUG
+        if selectedSection == .debug {
+            DebugSettingsView()
+        } else {
+            standardDetailScroll
+        }
+        #else
+        standardDetailScroll
+        #endif
+    }
+
+    private var standardDetailScroll: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: AppConstants.SettingsUI.sectionSpacing) {
+                detailView(for: selectedSection)
+            }
+            .frame(maxWidth: AppConstants.SettingsUI.maxContentWidth, alignment: .topLeading)
+            .frame(maxWidth: .infinity, alignment: .center)
+            .padding(.horizontal, AppConstants.SettingsUI.contentPaddingH)
+            .padding(.vertical, AppConstants.SettingsUI.contentPaddingV)
+        }
+    }
+
     @ViewBuilder
     private func detailView(for section: SettingsSection) -> some View {
         switch section {
