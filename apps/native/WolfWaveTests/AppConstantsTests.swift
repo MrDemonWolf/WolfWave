@@ -193,9 +193,9 @@ struct AppConstantsTests {
         // display with the Dock visible (~626pt usable height).
         #expect(AppConstants.SettingsUI.minWidth <= 1280)
         #expect(AppConstants.SettingsUI.minHeight <= 626)
-        // Ideal size is the initial size; `createSettingsWindow()` clamps it
-        // to `NSScreen.main.visibleFrame`, so it may exceed 720p — the clamp
-        // ensures the window still opens fully on smaller displays.
+        // Ideal size is the initial size fed to `SettingsView`'s `.frame`; it
+        // may exceed 720p. SwiftUI keeps the `Settings` scene window within the
+        // visible screen, so it still opens fully on smaller displays.
     }
     
     // MARK: - Power Management Tests

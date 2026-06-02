@@ -67,10 +67,11 @@ final class AppConstantsEdgeCaseTests: XCTestCase {
     func testSettingsUIDimensionsFit720pWithDock() {
         // Min size is the floor users can drag to — it must fit a 1280x720
         // display with the Dock visible (~626pt usable height: 720 − 24pt
-        // menu bar − ~70pt Dock). Ideal size is allowed to exceed this:
-        // `AppDelegate.createSettingsWindow()` clamps the initial frame to
-        // `NSScreen.main.visibleFrame`, so the window still opens fully on
-        // smaller displays without sacrificing roominess on 1080p+.
+        // menu bar − ~70pt Dock). These feed `SettingsView`'s `.frame(minWidth:
+        // idealWidth: minHeight: idealHeight:)`, which sizes the SwiftUI
+        // `Settings` scene window. Ideal size may exceed 720p; SwiftUI keeps the
+        // window within the visible screen, so it still opens fully on smaller
+        // displays without sacrificing roominess on 1080p+.
         XCTAssertLessThanOrEqual(AppConstants.SettingsUI.minWidth, 1280)
         XCTAssertLessThanOrEqual(AppConstants.SettingsUI.minHeight, 626)
     }

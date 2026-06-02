@@ -29,11 +29,17 @@ struct WolfWaveApp: App {
         || ProcessInfo.processInfo.environment["XCTestBundlePath"] != nil
 
     var body: some Scene {
-        // Settings UI is managed by AppDelegate via a hand-rolled NSWindow
-        // (see AppDelegate+Windows.swift). The SwiftUI Settings scene is kept
-        // empty to avoid instantiating a duplicate SettingsView when Cmd+, fires.
+        // Settings lives in SwiftUI's own `Settings` scene so SwiftUI creates
+        // and drives the window's `NSToolbar`. That lets `NavigationSplitView`'s
+        // sidebar toggle, tracking separator, and overflow math animate as one
+        // unit — which is what finally kills the `>>` overflow flash that the
+        // old hand-rolled `NSWindow` + foreign `NSToolbar` produced during the
+        // sidebar collapse animation. AppDelegate still drives *when* the window
+        // opens (dock-visibility activation policy, tray/reopen entry points)
+        // via `showSettingsWindow:`; it no longer owns the window itself. See
+        // `apps/native/docs/sidebar-toggle-glitch-research.md`.
         Settings {
-            EmptyView()
+            SettingsView()
         }
         .commands {
             // Route the standard App menu's About/Settings to our AppKit
@@ -85,7 +91,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
     var statusItem: NSStatusItem?
     var playbackSourceManager: PlaybackSourceManager?
-    var settingsWindow: NSWindow?
+    // Settings is a SwiftUI `Settings` scene (see WolfWaveApp.body); SwiftUI
+    // owns that window, so AppDelegate no longer holds an `NSWindow` for it.
     var onboardingWindow: NSWindow?
     var whatsNewWindow: NSWindow?
     var twitchService: TwitchChatService?

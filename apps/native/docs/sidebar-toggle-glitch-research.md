@@ -1,10 +1,37 @@
 # Settings sidebar toggle glitch (the `>>` chevron) — research and diagnosis
 
-> Status: root-cause found + **Option B applied** (app-owned sidebar toggle in
-> `SettingsView.swift`). Debug build passes (compiles clean). The `>>` flash is a
-> 1-2 frame animation artifact and still needs an **on-device eyeball** to confirm
-> it is gone and that no floating reveal chevron regressed. Fix options ranked at
-> the bottom.
+> Status: **Option A applied** (debug build compiles clean). Settings now lives
+> in SwiftUI's own `Settings { SettingsView() }` scene, so SwiftUI creates and
+> drives the window's `NSToolbar`; the hand-rolled `NSWindow`, its empty
+> `NSToolbar` shell, and `createSettingsWindow()` are gone. `openSettings()`
+> opens the scene via `NSApp.sendAction(Selector(("showSettingsWindow:")))` and
+> still applies the menu-only → regular activation-policy switch. Close →
+> restore-menu-only now flows through the global `NSWindow.willCloseNotification`
+> observer (the settings exclusion was dropped). **Still needs an on-device
+> eyeball** to confirm the `>>` flash is gone, the sidebar toggle is single and
+> animates cleanly, and no floating reveal chevron appears.
+>
+> History: Option B (custom toggle + `.toolbar(removing: .sidebarToggle)`) was
+> tried first and reverted — it regressed into *two* toggles and never fixed the
+> flash (see "Why Option B failed" below).
+
+## Why Option B failed (the "two toggles" regression)
+
+Option B added a custom `ToolbarItem` and called `.toolbar(removing: .sidebarToggle)`
+to drop SwiftUI's automatic one. But `.toolbar(removing:)` operates on SwiftUI's
+own toolbar content model; once SwiftUI has populated a **foreign `NSToolbar`** it
+does not own (the hand-rolled one assigned in `AppDelegate+Windows`), the removal
+does not reach the already-bound automatic toggle. Net result: the automatic
+toggle stayed **and** the custom item was added — **two toggles** in the title
+bar (the automatic one near the sidebar/detail separator, the custom one at the
+leading edge). The `>>` overflow flash was unaffected because its cause (the
+tracking-separator layout race in the foreign toolbar) is independent of which
+toggle is present.
+
+Takeaway: inside a hand-rolled `NSHostingController` window you cannot reliably
+remove the automatic toggle, so the only way to guarantee exactly one toggle is
+to let the automatic one stand (empty `.toolbar { }`). Killing the flash requires
+Option A.
 
 ## Symptom
 

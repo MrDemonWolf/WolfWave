@@ -122,12 +122,10 @@ struct SettingsView: View {
     /// Currently selected settings section
     @State private var selectedSection: SettingsSection = .general
 
-    /// Sidebar column visibility, driven by the app-owned toggle below. Binding
-    /// this lets us replace SwiftUI's auto-injected title-bar toggle with a
-    /// stable, deterministic `NSToolbarItem`. The auto item was inserted into
-    /// the hand-rolled `NSToolbar` on a timeline that raced the sidebar
-    /// animation and flashed the `NSToolbar` overflow chevron (the `>>` on the
-    /// right). See `apps/native/docs/sidebar-toggle-glitch-research.md`.
+    /// Sidebar column visibility. Bound into `NavigationSplitView` so the
+    /// automatic title-bar toggle (and any future programmatic show/hide) drives
+    /// a single source of truth. See
+    /// `apps/native/docs/sidebar-toggle-glitch-research.md`.
     @State private var columnVisibility: NavigationSplitViewVisibility = .all
 
     var body: some View {
@@ -185,30 +183,15 @@ struct SettingsView: View {
             // reflects whether we are already joined (prevents missed callbacks).
             twitchViewModel.channelConnected = appDelegate?.twitchService?.isConnectedSnapshot.value ?? false
         }
-        // Replace NavigationSplitView's automatic sidebar toggle with an
-        // app-owned one. The automatic item is injected into the hand-rolled
-        // NSToolbar (assigned in AppDelegate+Windows) on a timeline that races
-        // the sidebar collapse animation, briefly tripping NSToolbar's overflow
-        // chevron (the `>>` flash on the right). An explicit, always-present
-        // ToolbarItem gives AppKit a deterministic item set. Providing toolbar
-        // content also keeps the host bound to the window's NSToolbar, so the
-        // old empty `.toolbar { }` is no longer needed. See
+        // No `.toolbar` workaround needed: this view now lives in SwiftUI's own
+        // `Settings` scene (see `WolfWaveApp.body`), so SwiftUI creates and
+        // drives the window's NSToolbar. NavigationSplitView's automatic sidebar
+        // toggle, tracking separator, and overflow math animate as one unit —
+        // which is what removed the old `>>` overflow flash. The previous
+        // hand-rolled NSWindow forced an empty `NSToolbar`/`.toolbar { }` shell
+        // and could not own the toggle, causing both a floating reveal chevron
+        // and (after a failed custom-toggle attempt) a duplicate toggle. See
         // `apps/native/docs/sidebar-toggle-glitch-research.md`.
-        .toolbar(removing: .sidebarToggle)
-        .toolbar {
-            ToolbarItem(placement: .navigation) {
-                Button {
-                    withAnimation(.easeInOut(duration: DSMotion.Duration.base)) {
-                        columnVisibility = columnVisibility == .detailOnly ? .all : .detailOnly
-                    }
-                } label: {
-                    Image(systemName: "sidebar.left")
-                }
-                .help("Toggle Sidebar")
-                .accessibilityLabel(Text("Toggle Sidebar"))
-                .accessibilityIdentifier("sidebarToggleButton")
-            }
-        }
         .frame(
             minWidth: AppConstants.SettingsUI.minWidth,
             idealWidth: AppConstants.SettingsUI.idealWidth,

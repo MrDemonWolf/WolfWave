@@ -337,8 +337,10 @@ extension AppDelegate {
                 MainActor.assumeIsolated {
                     guard let self,
                           let window = n.object as? NSWindow,
-                          window !== self.settingsWindow,
                           window !== self.onboardingWindow else { return }
+                    // Onboarding is handled by `windowWillClose`. Every other
+                    // closing window — including SwiftUI's Settings scene window
+                    // — falls through here to restore menu-only mode.
                     self.restoreMenuOnlyIfNeeded()
                 }
             }

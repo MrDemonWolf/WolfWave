@@ -15,9 +15,16 @@ extension AppDelegate {
 
     /// Opens or brings the Settings window to the front.
     ///
+    /// Settings is a SwiftUI `Settings` scene (`WolfWaveApp.body`), so SwiftUI
+    /// creates, reuses (single-instance), and tears down the window. We open it
+    /// through AppKit's standard `showSettingsWindow:` action rather than
+    /// constructing an `NSWindow` ourselves — that hand-off is what lets SwiftUI
+    /// own the `NSToolbar` and fixes the sidebar `>>` flash.
+    ///
     /// When switching from menu-only mode, the activation policy change is
-    /// asynchronous — the window show is deferred to the next run-loop tick
-    /// so macOS has time to register the app as a regular (Dock-visible) process.
+    /// asynchronous — the show is deferred to the next run-loop tick so macOS
+    /// has time to register the app as a regular (Dock-visible) process, and to
+    /// avoid "layoutSubtreeIfNeeded on a view already being laid out" warnings.
     @objc func openSettings() {
         statusItem?.menu?.cancelTracking()
 
@@ -25,20 +32,13 @@ extension AppDelegate {
             NSApp.setActivationPolicy(.regular)
         }
 
-        // Defer past the current AppKit layout / menu-tracking pass to avoid
-        // "layoutSubtreeIfNeeded on a view already being laid out" warnings.
-        RunLoop.main.perform { [weak self] in
+        RunLoop.main.perform {
             MainActor.assumeIsolated {
-                guard let self else { return }
-                if let window = self.settingsWindow {
-                    if window.isMiniaturized {
-                        window.deminiaturize(nil)
-                    }
-                    self.showWindow(window)
-                } else {
-                    self.settingsWindow = self.createSettingsWindow()
-                    self.showWindow(self.settingsWindow)
-                }
+                NSApp.activate(ignoringOtherApps: true)
+                // macOS 14+ selector for the SwiftUI `Settings` scene. Sent up
+                // the responder chain (`to: nil`); SwiftUI creates the window on
+                // first use and brings the existing one forward thereafter.
+                NSApp.sendAction(Selector(("showSettingsWindow:")), to: nil, from: nil)
             }
         }
     }
@@ -250,7 +250,10 @@ extension AppDelegate {
 
 extension AppDelegate: NSWindowDelegate {
 
-    /// Handles cleanup when any owned window closes (onboarding, settings, or whatsNew).
+    /// Handles cleanup when an AppDelegate-owned window closes (onboarding or
+    /// whatsNew). The Settings window is owned by SwiftUI's `Settings` scene, so
+    /// its close is handled by the global `NSWindow.willCloseNotification`
+    /// observer in `AppDelegate+Services`, not here.
     public func windowWillClose(_ notification: Notification) {
         guard let window = notification.object as? NSWindow else { return }
 
@@ -262,11 +265,6 @@ extension AppDelegate: NSWindowDelegate {
                 self?.onboardingWindow = nil
                 self?.restoreMenuOnlyIfNeeded()
             }
-        } else if window === settingsWindow {
-            Task { @MainActor [weak self] in
-                self?.settingsWindow = nil
-                self?.restoreMenuOnlyIfNeeded()
-            }
         } else if window === whatsNewWindow {
             Task { @MainActor [weak self] in
                 self?.whatsNewWindow = nil
@@ -276,65 +274,9 @@ extension AppDelegate: NSWindowDelegate {
     }
 }
 
-// MARK: - Settings Window
+// MARK: - Window Helpers
 
 extension AppDelegate {
-
-    /// Creates the Settings window with a transparent title bar and sidebar toolbar.
-    private func createSettingsWindow() -> NSWindow {
-        let hosting = NSHostingController(rootView: SettingsView())
-
-        // Initial size: ideal for comfortable use, clamped to the visible screen so
-        // the window never opens larger than e.g. a 720p display with Dock visible.
-        let ideal = CGSize(
-            width: AppConstants.SettingsUI.idealWidth,
-            height: AppConstants.SettingsUI.idealHeight
-        )
-        let visible = NSScreen.main?.visibleFrame.size ?? ideal
-        let initial = CGSize(
-            width: min(ideal.width, visible.width),
-            height: min(ideal.height, visible.height)
-        )
-        let frame = CGRect(origin: .zero, size: initial)
-
-        let style: NSWindow.StyleMask = [.titled, .closable, .miniaturizable, .resizable, .fullSizeContentView]
-        let window = NSWindow(contentRect: frame, styleMask: style, backing: .buffered, defer: false)
-        window.contentMinSize = NSSize(
-            width: AppConstants.SettingsUI.minWidth,
-            height: AppConstants.SettingsUI.minHeight
-        )
-        // Assigning the hosting controller makes hosting.view the window's
-        // contentView. Do NOT disable autoresizing or add identity constraints
-        // — AppKit uses the autoresizing mask to keep the hosting view filling
-        // the window. Disabling it left the view inset inside the window and
-        // broke both the unified titlebar look and List hit-testing.
-        window.contentViewController = hosting
-
-        window.title = ""
-        window.titleVisibility = .hidden
-        window.titlebarAppearsTransparent = true
-        window.collectionBehavior = [.moveToActiveSpace]
-        window.canHide = true
-        window.isReleasedWhenClosed = false
-        window.delegate = self
-        // Explicit NSToolbar gives SwiftUI's NavigationSplitView a guaranteed
-        // titlebar host for its automatic sidebar toggle. Paired with
-        // `.toolbar { }` in SettingsView so SwiftUI's toolbar host binds to
-        // this NSToolbar instead of falling back to a floating reveal chevron.
-        let toolbar = NSToolbar()
-        toolbar.displayMode = .iconOnly
-        window.toolbar = toolbar
-        window.toolbarStyle = .unified
-        if let screen = NSScreen.main {
-            let screenFrame = screen.visibleFrame
-            let x = screenFrame.midX - initial.width / 2
-            let y = screenFrame.midY - initial.height / 2
-            window.setFrameOrigin(NSPoint(x: x, y: y))
-        } else {
-            window.center()
-        }
-        return window
-    }
 
     /// Activates the app and brings the window forward.
     ///
