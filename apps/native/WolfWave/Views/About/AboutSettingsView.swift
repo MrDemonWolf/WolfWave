@@ -65,17 +65,12 @@ struct AboutSettingsView: View {
     }
 
     private var hero: some View {
-        VStack(spacing: DSSpace.s3) {
-            Image(nsImage: NSApp.applicationIconImage)
-                .resizable()
-                .aspectRatio(contentMode: .fit)
-                .frame(width: 96, height: 96)
-                .accessibilityHidden(true)
-
+        VStack(alignment: .trailing, spacing: DSSpace.s3) {
             Text(appName)
                 .font(.system(size: DSFont.Size.x2xl, weight: .semibold))
                 .accessibilityAddTraits(.isHeader)
         }
+        .frame(maxWidth: .infinity, alignment: .trailing)
     }
 
     private var versionPill: some View {
@@ -174,27 +169,29 @@ struct AboutSettingsView: View {
             }
         }
         .font(.system(size: DSFont.Size.sm))
+        .frame(maxWidth: .infinity, alignment: .trailing)
         .accessibilityElement(children: .contain)
     }
 
     private var footer: some View {
-        VStack(spacing: 6) {
+        VStack(alignment: .trailing, spacing: 6) {
             Text(AboutCopy.independenceNotice)
                 .font(.system(size: DSFont.Size.xs))
                 .foregroundStyle(.tertiary)
-                .multilineTextAlignment(.center)
+                .multilineTextAlignment(.trailing)
                 .fixedSize(horizontal: false, vertical: true)
 
             Text(AboutCopy.trademarkNotice)
                 .font(.system(size: DSFont.Size.xs))
                 .foregroundStyle(.tertiary)
-                .multilineTextAlignment(.center)
+                .multilineTextAlignment(.trailing)
                 .fixedSize(horizontal: false, vertical: true)
 
             Text(AboutCopy.copyrightLine)
                 .font(.system(size: DSFont.Size.xs))
                 .foregroundStyle(.tertiary)
         }
+        .frame(maxWidth: .infinity, alignment: .trailing)
     }
 
     // MARK: - Acknowledgements Card
