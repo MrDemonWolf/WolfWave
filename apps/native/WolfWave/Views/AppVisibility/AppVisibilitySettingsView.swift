@@ -9,6 +9,13 @@
 import SwiftUI
 
 /// App visibility settings interface for controlling dock and menu bar presence.
+///
+/// One grouped card, stacked top-to-bottom: a Launch-at-Login checkbox and a
+/// native macOS radio group for the display mode. The radio group uses
+/// `.pickerStyle(.radioGroup)` — the AppKit-native control HIG recommends for a
+/// persistent two-to-five-option choice (radios "display settings"; segmented
+/// controls "initiate an action"). This replaced an earlier hand-rolled two
+/// column card layout that cramped the radios.
 struct AppVisibilitySettingsView: View {
     // MARK: - User Settings
 
@@ -32,89 +39,16 @@ struct AppVisibilitySettingsView: View {
                     .foregroundStyle(.secondary)
             }
 
-            // Startup + Display Mode cards, side by side
-            HStack(alignment: .top, spacing: DSSpace.s6) {
-                // Launch at Login Card
-                VStack(alignment: .leading, spacing: DSSpace.s4) {
-                    VStack(alignment: .leading, spacing: DSSpace.s0) {
-                        Text("Startup")
-                            .font(.system(size: DSFont.Size.base, weight: .medium))
-                        Text("Automatically start WolfWave when you log in")
-                            .font(.system(size: DSFont.Size.sm))
-                            .foregroundStyle(.tertiary)
-                    }
+            // Startup + Display Mode, stacked in one grouped card
+            VStack(alignment: .leading, spacing: DSSpace.s4) {
+                startupGroup
 
-                    Toggle("Launch at Login", isOn: Binding(
-                        get: { launchAtLogin },
-                        set: { newValue in
-                            // Revert toggle immediately if SMAppService fails
-                            guard LaunchAtLoginService.setEnabled(newValue) else { return }
-                            launchAtLogin = newValue
-                            // Dock Only is incompatible with launch at login,
-                            // switch to Menu Bar + Dock so the app is always reachable.
-                            if newValue && dockVisibility == AppConstants.DockVisibility.dockOnly {
-                                dockVisibility = AppConstants.DockVisibility.default
-                                applyDockVisibility(AppConstants.DockVisibility.default)
-                            }
-                        }
-                    ))
-                    .toggleStyle(.checkbox)
-                    .font(.system(size: DSFont.Size.base))
-                    .pointerCursor()
-                    .accessibilityLabel("Launch at Login")
-                    .accessibilityHint("Starts WolfWave automatically when you log in to your Mac")
-                    .accessibilityIdentifier("launchAtLoginToggle")
-                }
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .cardStyle()
+                Divider()
 
-                // Picker Card
-                VStack(alignment: .leading, spacing: DSSpace.s4) {
-                    VStack(alignment: .leading, spacing: DSSpace.s0) {
-                        Text("Display Mode")
-                            .font(.system(size: DSFont.Size.base, weight: .medium))
-                        Text("Where should WolfWave live?")
-                            .font(.system(size: DSFont.Size.sm))
-                            .foregroundStyle(.tertiary)
-                    }
-
-                    VStack(alignment: .leading, spacing: 6) {
-                        RadioOption(
-                            label: "Dock and Menu Bar",
-                            tag: AppConstants.DockVisibility.default,
-                            selection: $dockVisibility,
-                            onChange: applyDockVisibility,
-                            accessibilityID: "dockVisibility_both"
-                        )
-                        RadioOption(
-                            label: "Menu Bar Only",
-                            tag: AppConstants.DockVisibility.menuOnly,
-                            selection: $dockVisibility,
-                            onChange: applyDockVisibility,
-                            accessibilityID: "dockVisibility_menuOnly"
-                        )
-                        RadioOption(
-                            label: "Dock Only",
-                            tag: AppConstants.DockVisibility.dockOnly,
-                            selection: $dockVisibility,
-                            onChange: applyDockVisibility,
-                            disabled: launchAtLogin,
-                            accessibilityID: "dockVisibility_dockOnly"
-                        )
-                    }
-                    .accessibilityLabel("Display Mode")
-                    .accessibilityIdentifier("dockVisibilityPicker")
-
-                    if launchAtLogin && dockVisibility != AppConstants.DockVisibility.dockOnly {
-                        CalloutBanner(
-                            "\"Dock Only\" is unavailable while Launch at Login is on. The menu bar icon must always be reachable.",
-                            style: .info
-                        )
-                    }
-                }
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .cardStyle()
+                displayModeGroup
             }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .cardStyle()
 
             // Menu Bar Only Info Notice
             if dockVisibility == AppConstants.DockVisibility.menuOnly {
@@ -136,6 +70,84 @@ struct AppVisibilitySettingsView: View {
         }
     }
 
+    // MARK: - Groups
+
+    /// Launch-at-Login checkbox with a one-line explanation underneath.
+    private var startupGroup: some View {
+        VStack(alignment: .leading, spacing: DSSpace.s2) {
+            Text("Startup")
+                .sectionEyebrow()
+
+            Toggle("Launch at Login", isOn: Binding(
+                get: { launchAtLogin },
+                set: { newValue in
+                    // Revert toggle immediately if SMAppService fails
+                    guard LaunchAtLoginService.setEnabled(newValue) else { return }
+                    launchAtLogin = newValue
+                    // Dock Only is incompatible with launch at login,
+                    // switch to Menu Bar + Dock so the app is always reachable.
+                    if newValue && dockVisibility == AppConstants.DockVisibility.dockOnly {
+                        dockVisibility = AppConstants.DockVisibility.default
+                        applyDockVisibility(AppConstants.DockVisibility.default)
+                    }
+                }
+            ))
+            .toggleStyle(.checkbox)
+            .font(.system(size: DSFont.Size.base))
+            .pointerCursor()
+            .accessibilityLabel("Launch at Login")
+            .accessibilityHint("Starts WolfWave automatically when you log in to your Mac")
+            .accessibilityIdentifier("launchAtLoginToggle")
+
+            Text("Automatically start WolfWave when you log in.")
+                .font(.system(size: DSFont.Size.sm))
+                .foregroundStyle(.tertiary)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+    }
+
+    /// Native radio group for where WolfWave lives. "Dock Only" disables itself
+    /// while Launch at Login is on so the app is always reachable.
+    private var displayModeGroup: some View {
+        VStack(alignment: .leading, spacing: DSSpace.s2) {
+            Text("Display mode")
+                .sectionEyebrow()
+
+            Picker("Display Mode", selection: Binding(
+                get: { dockVisibility },
+                set: { newValue in
+                    // Defensive: never land on Dock Only while Launch at Login is on.
+                    if newValue == AppConstants.DockVisibility.dockOnly && launchAtLogin { return }
+                    dockVisibility = newValue
+                    applyDockVisibility(newValue)
+                }
+            )) {
+                Text("Dock and Menu Bar")
+                    .tag(AppConstants.DockVisibility.default)
+                    .accessibilityIdentifier("dockVisibility_both")
+                Text("Menu Bar Only")
+                    .tag(AppConstants.DockVisibility.menuOnly)
+                    .accessibilityIdentifier("dockVisibility_menuOnly")
+                Text("Dock Only")
+                    .tag(AppConstants.DockVisibility.dockOnly)
+                    .disabled(launchAtLogin)
+                    .accessibilityIdentifier("dockVisibility_dockOnly")
+            }
+            .pickerStyle(.radioGroup)
+            .labelsHidden()
+            .accessibilityLabel("Display Mode")
+            .accessibilityIdentifier("dockVisibilityPicker")
+
+            if launchAtLogin && dockVisibility != AppConstants.DockVisibility.dockOnly {
+                CalloutBanner(
+                    "\"Dock Only\" is unavailable while Launch at Login is on. "
+                        + "The menu bar icon must always be reachable.",
+                    style: .info
+                )
+            }
+        }
+    }
+
     // MARK: - Helpers
 
     /// Posts a `dockVisibilityChanged` notification so `AppDelegate` updates
@@ -145,51 +157,6 @@ struct AppVisibilitySettingsView: View {
     ///   `.dockOnly`, or `.both`.
     private func applyDockVisibility(_ mode: String) {
         NotificationCenter.default.postDockVisibility(mode: mode)
-    }
-}
-
-// MARK: - Radio Option
-
-/// A single radio-button row that can be disabled with a strikethrough hint.
-private struct RadioOption: View {
-    let label: String
-    let tag: String
-    @Binding var selection: String
-    let onChange: (String) -> Void
-    var disabled: Bool = false
-    var accessibilityID: String = ""
-
-    var body: some View {
-        Button {
-            guard !disabled else { return }
-            selection = tag
-            onChange(tag)
-        } label: {
-            HStack(spacing: DSSpace.s2) {
-                Image(systemName: selection == tag ? "circle.inset.filled" : "circle")
-                    .font(.system(size: DSFont.Size.base))
-                    .foregroundStyle(disabled ? Color.secondary.opacity(0.4) : (selection == tag ? Color.accentColor : Color.secondary))
-                Text(label)
-                    .font(.system(size: DSFont.Size.base))
-                    .foregroundStyle(disabled ? .tertiary : .primary)
-                if disabled {
-                    Text("unavailable")
-                        .font(.system(size: DSFont.Size.xs, weight: .medium))
-                        .foregroundStyle(.tertiary)
-                        .padding(.horizontal, DSSpace.s2)
-                        .padding(.vertical, DSSpace.s0)
-                        .background(Color.secondary.opacity(0.12))
-                        .clipShape(Capsule())
-                }
-            }
-        }
-        .buttonStyle(.plain)
-        .pointerCursor()
-        .disabled(disabled)
-        .accessibilityLabel(label)
-        .accessibilityAddTraits(selection == tag ? .isSelected : [])
-        .accessibilityHint(disabled ? "Unavailable while Launch at Login is enabled" : "")
-        .accessibilityIdentifier(accessibilityID)
     }
 }
 
