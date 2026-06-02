@@ -3,7 +3,7 @@
 **File:** [`apps/native/WolfWave/Views/Shared/NowPlayingHeroCard.swift`](../../apps/native/WolfWave/Views/Shared/NowPlayingHeroCard.swift)
 
 ## Purpose
-The "Now Playing" hero on the General tab — 92pt album art, title/artist/album, and a scrubber. Composes `AlbumArtView` for the artwork tile and the Liquid Glass `.glassEffect()` for the card background.
+The "Now Playing" hero on the General tab — 92pt album art, title/artist/album, and a scrubber. Composes `AlbumArtView` for the artwork tile and the standard macOS card surface (`.cardStyleUnpadded()`) for the card background.
 
 ## API
 ```swift
@@ -27,7 +27,7 @@ NowPlayingHeroCard(
 | `trackingEnabled` | `Bool` | Drives the empty-state copy when `track == nil`. |
 
 ## Tokens used
-- `DSDimension.Settings.cardCornerRadius` (14) — card corner radius via `.glassEffect(.regular, in: .rect(...))`
+- `DSDimension.Settings.cardCornerRadius` (14) — card corner radius via `.cardStyleUnpadded()` (opaque `controlBackgroundColor` surface)
 - `DSFont.Size.sm` (11) `.semibold` `.tertiary` `.uppercase` `tracking(0.6)` — "Now playing" eyebrow label
 - `DSFont.Size.lg` (17→18) `.semibold` — track title
 - `DSFont.Size.base` (13) `.secondary` — artist · album subtitle
@@ -49,7 +49,7 @@ NowPlayingHeroCard(
 ## Anatomy
 ```mermaid
 graph LR
-  Card[HStack spacing 16 padding 18 .glassEffect] --> Art[AlbumArtView 92pt or fallback music.note tile]
+  Card[HStack spacing 16 padding 18 .cardStyleUnpadded] --> Art[AlbumArtView 92pt or fallback music.note tile]
   Card --> Text[VStack alignment leading spacing 4]
   Text --> Eyebrow[Text — NOW PLAYING uppercase]
   Text --> Title[Text — lg semibold .contentTransition .opacity id track]
@@ -69,7 +69,7 @@ graph LR
 - ✅ Place at the top of the General tab, single instance per pane.
 - ✅ Pass nil `track` rather than empty strings so the empty state copy renders.
 - ❌ Don't use elsewhere as a "song chip" — use a `Compact` widget layout or a custom row instead.
-- ❌ Don't override the card padding/radius — they're tuned to the Liquid Glass material.
+- ❌ Don't override the card padding/radius — they're tuned to the standard card surface.
 
 ## Example
 ```swift

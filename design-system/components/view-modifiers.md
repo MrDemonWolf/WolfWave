@@ -8,25 +8,26 @@ Bundle of cross-cutting SwiftUI view modifiers. Each is exposed as a chainable e
 
 ## `.cardStyle()` / `.cardStyleUnpadded()`
 
-Wraps content in a macOS 26 Liquid Glass card.
+Wraps content in the standard macOS card surface.
 
 ```swift
 content
   .padding(DSDimension.Settings.cardPadding)   // unless cardStyleUnpadded
-  .glassEffect(
-    .regular.tint(Color.black.opacity(colorScheme == .dark ? 0.22 : 0.05)),
+  .background(
+    Color(nsColor: .controlBackgroundColor),
     in: RoundedRectangle(cornerRadius: DSDimension.Settings.cardCornerRadius)
+  )
+  .overlay(
+    RoundedRectangle(cornerRadius: DSDimension.Settings.cardCornerRadius)
+      .strokeBorder(Color(nsColor: .separatorColor), lineWidth: 1)
   )
 ```
 
-- **Appearance tint:** plain `.regular` glass blooms bright on a dark window and glares near-white on a light one. `CardModifier` reads `@Environment(\.colorScheme)` and applies a low neutral-black tint — deeper in dark (`0.22`) to kill wallpaper bloom, light in light (`0.05`) to take the white edge off. Keeps cards easy on the eyes in both modes.
+- **Why opaque, not glass:** the previous `.glassEffect` version was translucent, so each card sampled a different backdrop by screen position. Wallpaper bloom made two identical cards render as different shades. `controlBackgroundColor` is the macOS default grouped-content surface. It is opaque (the same color everywhere) and adapts to light and dark on its own. A `separatorColor` hairline gives the native card edge.
 - **Tokens:** `DSDimension.Settings.cardPadding` (16), `DSDimension.Settings.cardCornerRadius` (14).
 - **When to use:** any grouped settings region. Default container.
 - **When _not_:** inside another card (no nesting), or for full-bleed hero sections.
-- **Legitimate hand-rolls** — only one generic site should still draw its own card chrome:
-  - `AboutSettingsView` — uses `Color(nsColor: .controlBackgroundColor)` for the standard panel surface (intentionally not glass).
-
-  Tinted sub-cards (Advanced danger red, Song Request orange / quaternary, App Visibility indigo notice, WebSocket blue info) also still hand-roll because the current modifier has no `tint:` option. Tracked as a future extension — add `CardModifier(padded:tint:)` so those sites can adopt a single chrome. Until then, reach for `.cardStyle()` / `.cardStyleUnpadded()` only for **untinted** glass cards.
+- **Real-color cards keep their color** (they do not route through this modifier): the Discord brand card, callout / status banners (semantic info / warn / error tints), icon and accent chips, and share-card exports (opaque `windowBackgroundColor` for image render). Tinted sub-cards (Advanced danger red, Song Request orange / quaternary, App Visibility indigo notice, WebSocket blue info) still hand-roll because the modifier has no `tint:` option. A future `CardModifier(padded:tint:)` could fold those in.
 
 ## `.interactiveRow(isEnabled:)`
 
@@ -85,5 +86,5 @@ Standardized section-header typography.
 
 - ✅ Reach for `cardStyle()` before drawing your own rounded rectangle.
 - ✅ Combine `pointerCursor()` with any custom `.onTapGesture` to make affordance obvious.
-- ❌ Don't manually re-implement glass surfaces — `cardStyle()` already routes through macOS 26 `.glassEffect`.
+- ❌ Don't hand-roll your own card surface. `cardStyle()` is the one neutral card chrome.
 - ❌ Don't apply `interactiveRow` to disabled controls — pass `isEnabled: false` instead so the hover state is suppressed.

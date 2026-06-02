@@ -55,27 +55,21 @@ extension View {
     }
 }
 
-// MARK: - Card Style (Liquid Glass)
+// MARK: - Card Style (macOS default surface)
 
-/// Glass card styling using macOS 26 `.glassEffect()`.
+/// Standard macOS card styling on an opaque grouped-content surface.
 ///
-/// Replaces the legacy `controlBackgroundColor` fill with a translucent
-/// glass surface that picks up wallpaper bloom and adapts to light/dark
-/// automatically. Apply glass last in the modifier chain — padding goes
-/// inside, frame/layout goes outside.
+/// Uses the system `controlBackgroundColor` (the macOS default for grouped
+/// content) with a `separatorColor` hairline border. Opaque on purpose. The
+/// translucent `.glassEffect` version sampled a different backdrop per screen
+/// position, so two identical cards rendered as different shades. A solid
+/// surface is the same color everywhere and adapts to light and dark on its
+/// own. Apply last in the chain: padding goes inside, frame/layout outside.
 struct CardModifier: ViewModifier {
-    @Environment(\.colorScheme) private var colorScheme
     var padded: Bool = true
 
     func body(content: Content) -> some View {
         let shape = RoundedRectangle(cornerRadius: AppConstants.SettingsUI.cardCornerRadius)
-        // Plain `.regular` glass is hard on the eyes both ways: it blooms bright
-        // on a dark window and glares near-white on a light one. A low neutral
-        // tint settles the card against the background in either mode. Deeper in
-        // dark to kill wallpaper bloom, light in light to take the white edge off.
-        let glass = Glass.regular.tint(
-            Color.black.opacity(colorScheme == .dark ? 0.22 : 0.05)
-        )
         return Group {
             if padded {
                 content
@@ -84,18 +78,19 @@ struct CardModifier: ViewModifier {
                 content
             }
         }
-        .glassEffect(glass, in: shape)
+        .background(Color(nsColor: .controlBackgroundColor), in: shape)
+        .overlay(shape.strokeBorder(Color(nsColor: .separatorColor), lineWidth: 1))
     }
 }
 
 extension View {
-    /// Applies standard glass card styling with padding and rounded corners.
+    /// Applies the standard macOS card surface with padding and rounded corners.
     func cardStyle() -> some View {
         modifier(CardModifier(padded: true))
     }
 
-    /// Applies glass card styling without internal padding — for rows that
-    /// own their own padding.
+    /// Applies the standard macOS card surface without internal padding, for
+    /// rows that own their own padding.
     func cardStyleUnpadded() -> some View {
         modifier(CardModifier(padded: false))
     }
@@ -107,7 +102,7 @@ extension View {
     /// need the standard rounded corner. Defaults to the settings-card radius;
     /// pass a `DSRadius.*` value for nested rows.
     ///
-    /// Prefer `cardStyle()` for the full glass-effect card shell.
+    /// Prefer `cardStyle()` for the full card shell.
     func cardClipShape(radius: CGFloat = AppConstants.SettingsUI.cardCornerRadius) -> some View {
         clipShape(RoundedRectangle(cornerRadius: radius, style: .continuous))
     }
@@ -307,7 +302,7 @@ extension Color {
         VStack(alignment: .leading, spacing: DSSpace.s2) {
             Text("Card with .cardStyle()")
                 .sectionSubHeader()
-            Text("Glass surface, internal padding, rounded corners.")
+            Text("Opaque surface, internal padding, rounded corners.")
                 .font(.system(size: DSFont.Size.body))
                 .foregroundStyle(.secondary)
         }
