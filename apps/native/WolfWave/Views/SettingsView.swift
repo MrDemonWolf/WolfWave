@@ -122,8 +122,16 @@ struct SettingsView: View {
     /// Currently selected settings section
     @State private var selectedSection: SettingsSection = .general
 
+    /// Sidebar column visibility, driven by the app-owned toggle below. Binding
+    /// this lets us replace SwiftUI's auto-injected title-bar toggle with a
+    /// stable, deterministic `NSToolbarItem`. The auto item was inserted into
+    /// the hand-rolled `NSToolbar` on a timeline that raced the sidebar
+    /// animation and flashed the `NSToolbar` overflow chevron (the `>>` on the
+    /// right). See `apps/native/docs/sidebar-toggle-glitch-research.md`.
+    @State private var columnVisibility: NavigationSplitViewVisibility = .all
+
     var body: some View {
-        NavigationSplitView {
+        NavigationSplitView(columnVisibility: $columnVisibility) {
             List(selection: $selectedSection) {
                 ForEach(Self.sidebarGroups, id: \.sections) { group in
                     if let title = group.title {
@@ -185,11 +193,30 @@ struct SettingsView: View {
             // reflects whether we are already joined (prevents missed callbacks).
             twitchViewModel.channelConnected = appDelegate?.twitchService?.isConnectedSnapshot.value ?? false
         }
-        // Empty .toolbar { } binds NavigationSplitView's automatic sidebar
-        // toggle to the window's NSToolbar (assigned in AppDelegate+Windows).
-        // Without this, the toggle falls back to a floating reveal chevron in
-        // the detail pane on macOS 26.
-        .toolbar { }
+        // Replace NavigationSplitView's automatic sidebar toggle with an
+        // app-owned one. The automatic item is injected into the hand-rolled
+        // NSToolbar (assigned in AppDelegate+Windows) on a timeline that races
+        // the sidebar collapse animation, briefly tripping NSToolbar's overflow
+        // chevron (the `>>` flash on the right). An explicit, always-present
+        // ToolbarItem gives AppKit a deterministic item set. Providing toolbar
+        // content also keeps the host bound to the window's NSToolbar, so the
+        // old empty `.toolbar { }` is no longer needed. See
+        // `apps/native/docs/sidebar-toggle-glitch-research.md`.
+        .toolbar(removing: .sidebarToggle)
+        .toolbar {
+            ToolbarItem(placement: .navigation) {
+                Button {
+                    withAnimation(.easeInOut(duration: DSMotion.Duration.base)) {
+                        columnVisibility = columnVisibility == .detailOnly ? .all : .detailOnly
+                    }
+                } label: {
+                    Image(systemName: "sidebar.left")
+                }
+                .help("Toggle Sidebar")
+                .accessibilityLabel(Text("Toggle Sidebar"))
+                .accessibilityIdentifier("sidebarToggleButton")
+            }
+        }
         .frame(
             minWidth: AppConstants.SettingsUI.minWidth,
             idealWidth: AppConstants.SettingsUI.idealWidth,
