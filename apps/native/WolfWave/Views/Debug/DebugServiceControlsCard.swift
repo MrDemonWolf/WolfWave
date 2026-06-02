@@ -27,13 +27,6 @@ struct DebugServiceControlsCard: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: DSSpace.s6) {
-            HStack(spacing: 6) {
-                Image(systemName: "slider.horizontal.3")
-                    .foregroundStyle(DSColor.success)
-                Text("Service Controls")
-                    .sectionSubHeader()
-            }
-
             Text("Drive services directly without waiting on real events.")
                 .font(.system(size: DSFont.Size.body))
                 .foregroundStyle(.secondary)

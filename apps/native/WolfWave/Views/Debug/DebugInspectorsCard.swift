@@ -23,25 +23,19 @@ struct DebugInspectorsCard: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: DSSpace.s6) {
-            VStack(alignment: .leading, spacing: DSSpace.s1) {
-                HStack(spacing: 6) {
-                    Image(systemName: "magnifyingglass")
-                        .foregroundStyle(DSColor.info)
-                    Text("State Inspectors")
-                        .sectionSubHeader()
-                    Spacer()
-                    Button {
-                        refreshTick &+= 1
-                    } label: {
-                        Image(systemName: "arrow.clockwise")
-                    }
-                    .buttonStyle(.borderless)
-                    .pointerCursor()
-                    .help("Refresh values")
-                }
+            HStack(alignment: .top, spacing: DSSpace.s2) {
                 Text("Live state from Keychain and services. Read-only.")
                     .font(.system(size: DSFont.Size.body))
                     .foregroundStyle(.secondary)
+                Spacer()
+                Button {
+                    refreshTick &+= 1
+                } label: {
+                    Image(systemName: "arrow.clockwise")
+                }
+                .buttonStyle(.borderless)
+                .pointerCursor()
+                .help("Refresh values")
             }
 
             bundleSection

@@ -29,17 +29,9 @@ struct DebugLogsAndEventsCard: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: DSSpace.s6) {
-            VStack(alignment: .leading, spacing: DSSpace.s1) {
-                HStack(spacing: 6) {
-                    Image(systemName: "doc.text.magnifyingglass")
-                        .foregroundStyle(DSColor.info)
-                    Text("Logs & Events")
-                        .sectionSubHeader()
-                }
-                Text("Log file stats, export, and notification probes.")
-                    .font(.system(size: DSFont.Size.body))
-                    .foregroundStyle(.secondary)
-            }
+            Text("Log file stats, export, and notification probes.")
+                .font(.system(size: DSFont.Size.body))
+                .foregroundStyle(.secondary)
 
             logsSection
             Divider()
