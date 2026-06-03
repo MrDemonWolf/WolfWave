@@ -51,9 +51,9 @@ export const homepageSeo = {
   ogTitle: "Apple Music, finally on your stream.",
   ogAccentWord: "on your stream.",
 
-  /** OG card supporting line. */
+  /** OG card supporting line. Kept short so it lands in ~2 lines on the card. */
   ogCardDescription:
-    "A tiny Mac menu bar app. Hit play once and your Twitch chat, Discord, and OBS overlay keep up on their own.",
+    "A tiny Mac menu bar app. Press play once. Twitch, Discord, and OBS keep up on their own.",
 
   /** OG card chips. Order matters; first chips read first when cropped. */
   ogChips: ["Twitch chat bot", "Discord Rich Presence", "OBS overlay", "Open source"],

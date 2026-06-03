@@ -135,43 +135,19 @@
   border-color: var(--hairline);
 }
 
-/* ── Liquid Glass. MacOS 26 Tahoe chrome ───────────────── */
+/* ── Frosted card. Flat: translucent frost + hairline, no bevel highlight,
+   no glassy sheen, no heavy drop shadow (kept deliberately un-3D). ─────── */
 .ww-glass {
   background-color: color-mix(in srgb, var(--bg-elev) 65%, transparent);
   -webkit-backdrop-filter: saturate(180%) blur(30px);
   backdrop-filter: saturate(180%) blur(30px);
   border: 1px solid color-mix(in srgb, var(--hairline) 80%, transparent);
   border-radius: 1.25rem;
-  box-shadow:
-    0 1px 0 0 color-mix(in srgb, #ffffff 60%, transparent) inset,
-    0 24px 60px -28px rgba(0, 0, 0, 0.25);
   position: relative;
 }
 .dark .ww-glass {
   background-color: color-mix(in srgb, var(--bg-elev) 55%, transparent);
   border-color: color-mix(in srgb, var(--hairline) 70%, transparent);
-  box-shadow:
-    0 1px 0 0 rgba(255, 255, 255, 0.06) inset,
-    0 24px 60px -20px rgba(0, 0, 0, 0.6);
-}
-.ww-glass::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  border-radius: inherit;
-  background: linear-gradient(
-    180deg,
-    color-mix(in srgb, #ffffff 8%, transparent) 0%,
-    transparent 30%
-  );
-  pointer-events: none;
-}
-.dark .ww-glass::before {
-  background: linear-gradient(
-    180deg,
-    rgba(255, 255, 255, 0.04) 0%,
-    transparent 30%
-  );
 }
 
 /* ── Hero app-icon. Squircle with soft drop-shadow ─────── */
@@ -179,7 +155,7 @@
   width: clamp(120px, 18vw, 200px);
   height: auto;
   aspect-ratio: 1;
-  border-radius: 26%;
+  border-radius: 22.37%; /* Apple iOS app-icon mask ratio */
   margin: 0 auto 2rem;
   display: block;
   filter:
@@ -262,6 +238,58 @@
   );
 }
 
+/* ── Hero cluster (concept C). Real widgets layered around the
+   now-playing card. Mobile/tablet shows only the now-playing card;
+   the peeking widgets appear at lg and up. ─────────────────── */
+.ww-hero-cluster {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 18px;
+}
+/* mobile/tablet: Discord + Twitch, centered, no overlap (OBS hidden) */
+.ww-hc-obs {
+  display: none;
+}
+.ww-hc-discord,
+.ww-hc-twitch {
+  width: 100%;
+  max-width: 360px;
+}
+@media (min-width: 1024px) {
+  /* Staggered, NON-overlapping column. Flipped: the two streaming widgets on
+     top, Discord at the bottom. align-self zig-zags them left/right and a
+     tiny rotation adds life without colliding. */
+  .ww-hero-cluster {
+    gap: 16px;
+    /* Scale the whole cluster down so the hero fits above the fold. zoom
+       (unlike transform) also shrinks the reserved layout height. */
+    zoom: 0.8;
+  }
+  .ww-hc-obs {
+    display: block;
+    order: 1;
+    width: 360px;
+    align-self: flex-end;
+    transform: rotate(-1.5deg);
+  }
+  .ww-hc-twitch {
+    order: 2;
+    width: 320px;
+    max-width: none;
+    align-self: flex-start;
+    transform: rotate(1.5deg);
+  }
+  .ww-hc-discord {
+    order: 3;
+    width: 340px;
+    max-width: none;
+    align-self: flex-end;
+    transform: rotate(-1.5deg);
+  }
+}
+
 /* ── Buttons ─────────────────────────────────────────────── */
 .ww-btn {
   display: inline-flex;
@@ -324,6 +352,203 @@
   font-weight: 500;
 }
 
+/* ── Section kicker. Numbered anchor tag, shared by every section ──
+   Gives the whole page one consistent spine: 01 · FOR STREAMERS. */
+.ww-kicker {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55rem;
+  padding: 0.32rem 0.85rem 0.32rem 0.4rem;
+  border-radius: 980px;
+  border: 1px solid var(--hairline);
+  background-color: color-mix(in srgb, var(--bg-elev) 70%, transparent);
+  font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--txt-2);
+}
+.ww-kicker-num {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.5rem;
+  height: 1.5rem;
+  padding: 0 0.4rem;
+  border-radius: 980px;
+  background-color: var(--brand-50);
+  color: var(--brand-500);
+  letter-spacing: 0;
+}
+
+/* ── Stat tile. Big fact that pops in the proof band ───────── */
+.ww-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  padding: 1.5rem 1.5rem;
+  border-radius: 1.1rem;
+  border: 1px solid var(--hairline);
+  background-color: var(--bg-elev);
+  transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+}
+.ww-stat:hover {
+  transform: translateY(-2px);
+  border-color: color-mix(in srgb, var(--brand-500) 35%, var(--hairline));
+  box-shadow: 0 16px 38px -22px rgba(10, 132, 255, 0.35);
+}
+.ww-stat-value {
+  font-family: var(--font-unbounded), -apple-system, "SF Pro Display",
+    system-ui, sans-serif;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1;
+  font-size: clamp(1.6rem, 3.2vw, 2rem);
+  color: var(--txt-1);
+}
+.ww-stat-label {
+  font-size: 0.82rem;
+  line-height: 1.4;
+  color: var(--txt-2);
+}
+
+/* ── Proof band. Brand-lit container so the trust row stops
+   reading as an orphaned badge strip. ─────────────────────── */
+.ww-proof {
+  position: relative;
+  overflow: hidden;
+  border-radius: 1.5rem;
+  border: 1px solid var(--hairline);
+  background-color: var(--bg-base);
+  padding: clamp(1.5rem, 4vw, 2.75rem);
+}
+.ww-proof::before {
+  content: "";
+  position: absolute;
+  inset: -40% -10% auto -10%;
+  height: 80%;
+  background: radial-gradient(
+    ellipse 55% 70% at 50% 0%,
+    rgba(10, 132, 255, 0.12) 0%,
+    transparent 70%
+  );
+  pointer-events: none;
+}
+.dark .ww-proof::before {
+  background: radial-gradient(
+    ellipse 55% 70% at 50% 0%,
+    rgba(10, 132, 255, 0.2) 0%,
+    transparent 70%
+  );
+}
+.ww-proof > * {
+  position: relative;
+}
+
+/* Trust chip row. Native chips (no external shields.io images). */
+.ww-badge-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 0.6rem;
+}
+
+/* Native trust chip. On-brand replacement for shields.io badges — live
+   star count and latest release are baked in at build time. */
+.ww-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.45rem 0.9rem;
+  border-radius: 980px;
+  border: 1px solid var(--hairline);
+  background-color: var(--bg-elev);
+  color: var(--txt-1);
+  font-size: 0.82rem;
+  font-weight: 500;
+  transition: border-color 0.2s ease, transform 0.15s ease, box-shadow 0.2s ease;
+}
+.ww-chip svg {
+  color: var(--brand-500);
+}
+a.ww-chip:hover {
+  border-color: color-mix(in srgb, var(--brand-500) 40%, var(--hairline));
+  transform: translateY(-1px);
+  box-shadow: 0 10px 24px -16px rgba(10, 132, 255, 0.35);
+}
+.ww-chip-strong {
+  color: var(--brand-600);
+  font-weight: 700;
+}
+.dark .ww-chip-strong {
+  color: var(--brand-500);
+}
+
+/* ── Back-to-top. Landing page only (rendered from the home page) ── */
+.ww-to-top {
+  position: fixed;
+  right: clamp(1rem, 3vw, 2rem);
+  bottom: clamp(1rem, 3vw, 2rem);
+  z-index: 50;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 980px;
+  color: #fff;
+  background-color: var(--brand-500);
+  border: 1px solid color-mix(in srgb, #ffffff 22%, transparent);
+  box-shadow: 0 6px 16px -8px rgba(10, 132, 255, 0.4);
+  opacity: 0;
+  transform: translateY(12px);
+  pointer-events: none;
+  transition: opacity 0.2s ease, transform 0.2s ease,
+    background-color 0.15s ease;
+}
+.ww-to-top.is-visible {
+  opacity: 1;
+  transform: translateY(0);
+  pointer-events: auto;
+}
+.ww-to-top:hover {
+  background-color: var(--brand-600);
+}
+@media (prefers-reduced-motion: reduce) {
+  .ww-to-top {
+    transition: opacity 0.2s ease;
+    transform: none;
+  }
+}
+
+/* ──────────────────────────────────────────────────────────
+   Apple corner geometry. Apple rounds corners with a *continuous*
+   superellipse (the "squircle"), not a plain circular arc, and masks
+   app icons at 22.37% of their width with ~60% corner smoothing.
+   CSS `corner-shape: squircle` == `superellipse(2)` matches that curve.
+   It is Chromium-only today (~67% of browsers) and degrades cleanly to
+   the existing `border-radius` everywhere else, so this is pure
+   progressive enhancement. Applied to rectangular rounded surfaces
+   (cards / tiles / code / icon); pill + capsule controls keep their
+   true-capsule ends, which is how Apple draws pills.
+   ────────────────────────────────────────────────────────── */
+@supports (corner-shape: squircle) {
+  .ww-card,
+  .ww-stat,
+  .ww-proof,
+  .ww-glass,
+  .ww-code,
+  .ww-hero-icon,
+  .ww-dev-window,
+  .fd-card,
+  a[data-card]:not(.peer),
+  div[data-card] {
+    corner-shape: squircle;
+  }
+}
+
 /* ── Now-playing mock pulse (only retained motion) ───────── */
 .ww-pulse-ring {
   animation: ww-pulse 3.6s ease-in-out infinite;
@@ -362,11 +587,36 @@
 
 /* ── Navbar ──────────────────────────────────────────────── */
 #nd-nav {
-  backdrop-filter: saturate(180%) blur(20px);
-  -webkit-backdrop-filter: saturate(180%) blur(20px);
-  background-color: color-mix(in srgb, var(--bg-base) 72%, transparent);
+  backdrop-filter: saturate(180%) blur(24px);
+  -webkit-backdrop-filter: saturate(180%) blur(24px);
+  background-color: color-mix(in srgb, var(--bg-base) 85%, transparent);
   border-bottom: 1px solid transparent;
   transition: border-color 0.2s ease, background-color 0.2s ease;
+}
+/* Dark mode needs a more opaque bar, or the bright hero headline ghosts
+   through the blur as you scroll content under the nav. */
+.dark #nd-nav {
+  background-color: color-mix(in srgb, var(--bg-base) 92%, transparent);
+}
+/* Align the navbar content to the page content column. Fumadocs caps the bar
+   at --fd-layout-width (1400px) + a px-4 row, which is wider than the 72rem
+   (max-w-6xl) content. Match it: gutter on the full-width bar (mirrors the
+   sections' px-[10%] md:px-6), cap the inner block at 72rem, drop the row
+   padding so the logo + links line up with the content edges. The border-b
+   stays on the full-width bar. */
+#nd-nav > div {
+  padding-inline: 10%;
+}
+@media (min-width: 768px) {
+  #nd-nav > div {
+    padding-inline: 1.5rem;
+  }
+}
+#nd-nav > div > div {
+  max-width: 72rem;
+}
+#nd-nav nav {
+  padding-inline: 0;
 }
 #nd-nav:not([data-transparent="true"]) {
   border-bottom-color: var(--hairline);
@@ -463,6 +713,16 @@
   outline-color: var(--brand-500);
 }
 
+/* ── Smooth anchor scrolling (# links) ───────────────────── */
+html {
+  scroll-behavior: smooth;
+}
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+}
+
 /* ── Docs prose readability ──────────────────────────────── */
 .fd-prose,
 [class*="prose"] {
@@ -476,11 +736,13 @@
 [class*="prose"] h2 {
   margin-top: 2.5rem;
   margin-bottom: 1rem;
+  scroll-margin-top: 5rem;
 }
 .fd-prose h3,
 [class*="prose"] h3 {
   margin-top: 2rem;
   margin-bottom: 0.75rem;
+  scroll-margin-top: 5rem;
 }
 .fd-prose :not(pre) > code,
 [class*="prose"] :not(pre) > code {
@@ -613,7 +875,7 @@ article:has(.docs-hero) > p:first-of-type,
 
 /* Refined Fumadocs Card. Match marketing landing ww-card aesthetic */
 .fd-card,
-a[data-card],
+a[data-card]:not(.peer),
 div[data-card] {
   border: 1px solid var(--hairline) !important;
   border-radius: 1rem !important;
@@ -622,16 +884,10 @@ div[data-card] {
     box-shadow 0.2s ease !important;
 }
 .fd-card:hover,
-a[data-card]:hover,
+a[data-card]:not(.peer):hover,
 div[data-card]:hover {
-  transform: translateY(-2px);
-  border-color: color-mix(in srgb, var(--brand-500) 35%, var(--hairline));
-  box-shadow: 0 12px 32px -16px rgba(10, 132, 255, 0.18);
-}
-.dark .fd-card:hover,
-.dark a[data-card]:hover,
-.dark div[data-card]:hover {
-  box-shadow: 0 12px 32px -12px rgba(10, 132, 255, 0.28);
+  border-color: color-mix(in srgb, var(--brand-500) 45%, var(--hairline));
+  background-color: color-mix(in srgb, var(--brand-50) 50%, var(--bg-elev)) !important;
 }
 
 /* Steps. Brand-tinted index circles */
@@ -678,7 +934,6 @@ div[data-orientation="vertical"][data-state] {
 }
 div[data-orientation="vertical"][data-state="open"] {
   border-color: color-mix(in srgb, var(--brand-500) 30%, var(--hairline)) !important;
-  box-shadow: 0 8px 24px -16px rgba(10, 132, 255, 0.18);
 }
 div[data-orientation="vertical"][data-state] > h3 {
   margin: 0 !important;

@@ -29,35 +29,38 @@ export interface SampleTrack {
   glyph: SampleGlyph;
 }
 
+// Wolf-themed sample tracks: invented song titles + albums, and the "artist"
+// on each is a real wolf species. Still no real recording artists or
+// copyrighted metadata — just on-brand flavor for the demos.
 export const SAMPLE_TRACKS: SampleTrack[] = [
   {
-    title: "Midnight Routine",
-    artist: "Local Maxima",
-    album: "Soft Landings",
+    title: "Moonlit Howl",
+    artist: "Arctic Wolf",
+    album: "Tundra Sessions",
     durationSec: 218,
     gradient: "linear-gradient(135deg, #5865F2 0%, #0A84FF 100%)",
     glyph: "vinyl",
   },
   {
-    title: "Static Bloom",
-    artist: "Carrier Wave",
-    album: "Daylight Saving",
+    title: "Lone Runner",
+    artist: "Timber Wolf",
+    album: "Northern Pines",
     durationSec: 247,
     gradient: "linear-gradient(135deg, #34C759 0%, #5AC8FA 100%)",
     glyph: "wave",
   },
   {
-    title: "Paper Lanterns",
-    artist: "Hours & Halves",
-    album: "Folded Routes",
+    title: "Silver Pelt",
+    artist: "Gray Wolf",
+    album: "Den of Echoes",
     durationSec: 191,
     gradient: "linear-gradient(135deg, #FF9F0A 0%, #FF453A 100%)",
     glyph: "cassette",
   },
   {
-    title: "Tide Maps",
-    artist: "Quiet Modem",
-    album: "Northbound",
+    title: "Pack Mentality",
+    artist: "Maned Wolf",
+    album: "Wild Frontier",
     durationSec: 263,
     gradient: "linear-gradient(135deg, #BF5AF2 0%, #FF375F 100%)",
     glyph: "broadcast",

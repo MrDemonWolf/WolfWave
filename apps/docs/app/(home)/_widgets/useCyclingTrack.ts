@@ -1,82 +1,110 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useSyncExternalStore } from "react";
 import { SAMPLE_TRACKS, type SampleTrack } from "./sample-tracks";
 
 /**
- * Demo cadence — how long each sample track is shown before swapping.
- * Real tracks are 3-4 minutes, way too slow for a marketing demo.
- * 7 seconds is short enough to feel alive without being seizure-grade.
+ * Shared cycling-track store. ONE timer drives every now-playing widget on the
+ * page (Discord card, OBS overlay, Twitch chat) so they stay in genuine
+ * lockstep — the Twitch bot's !song / !last replies always match the track the
+ * Discord card and overlay are currently showing.
+ *
+ * Demo cadence: linger ~10s per track, advance the progress bar at a slow,
+ * believable creep, and seed each track a little way in (never 0:00).
+ * Honors prefers-reduced-motion (freezes on the seeded first track).
  */
-const TRACK_DWELL_MS = 7000;
+const DWELL_MS = 10000;
+const TICK_MS = 200;
+const PLAYBACK_RATE = 1.6; // song-seconds advanced per real second
+const START_FRACTIONS = [0.31, 0.47, 0.22, 0.58];
 
-/**
- * Fake-elapsed advances faster than wall-clock so the progress bar
- * visibly fills during the dwell window. We scale so a full TRACK_DWELL_MS
- * roughly equals the full track duration.
- */
-const PROGRESS_TICK_MS = 100;
+function seededElapsed(i: number): number {
+  return Math.round(
+    SAMPLE_TRACKS[i].durationSec * START_FRACTIONS[i % START_FRACTIONS.length],
+  );
+}
+
+let index = 0;
+let elapsed = seededElapsed(0);
+let motion = true;
+let started = false;
+let dwellTimer: ReturnType<typeof setInterval> | null = null;
+let tickTimer: ReturnType<typeof setInterval> | null = null;
+
+const listeners = new Set<() => void>();
 
 export interface CyclingTrackState {
   track: SampleTrack;
-  /** Elapsed seconds for the *current* track (fake). */
+  /** The track that played immediately before the current one. */
+  lastTrack: SampleTrack;
   elapsedSec: number;
-  /** 0..1 progress fraction for the current track. */
   progress: number;
-  /** Whether motion (cycling + progress fill) is active. */
   motionEnabled: boolean;
 }
 
-/**
- * Shared timer that cycles through SAMPLE_TRACKS and emits a fake
- * elapsed-time tick. Both the Discord card and the OBS widget consume
- * this so they stay in lockstep visually.
- *
- * Honors `prefers-reduced-motion: reduce` — freezes on track 0 with no
- * progress animation.
- */
-export function useCyclingTrack(): CyclingTrackState {
-  const [index, setIndex] = useState(0);
-  const [elapsedSec, setElapsedSec] = useState(0);
-  const [motionEnabled, setMotionEnabled] = useState(true);
-
-  // Detect reduced motion preference once on mount + listen for changes.
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    const mq = window.matchMedia("(prefers-reduced-motion: reduce)");
-    const apply = () => setMotionEnabled(!mq.matches);
-    apply();
-    mq.addEventListener("change", apply);
-    return () => mq.removeEventListener("change", apply);
-  }, []);
-
-  // Cycle through tracks at the dwell interval.
-  useEffect(() => {
-    if (!motionEnabled) return;
-    const id = window.setInterval(() => {
-      setIndex((i) => (i + 1) % SAMPLE_TRACKS.length);
-      setElapsedSec(0);
-    }, TRACK_DWELL_MS);
-    return () => window.clearInterval(id);
-  }, [motionEnabled]);
-
-  // Tick the fake elapsed counter. The cycle effect above already resets
-  // elapsedSec to 0 each time it bumps the index, so no separate reset is
-  // needed — index changes nowhere else.
+function build(): CyclingTrackState {
+  const n = SAMPLE_TRACKS.length;
   const track = SAMPLE_TRACKS[index];
-  useEffect(() => {
-    if (!motionEnabled) return;
-    const increment = (track.durationSec / TRACK_DWELL_MS) * PROGRESS_TICK_MS;
-    const id = window.setInterval(() => {
-      setElapsedSec((e) => Math.min(track.durationSec, e + increment));
-    }, PROGRESS_TICK_MS);
-    return () => window.clearInterval(id);
-  }, [motionEnabled, track.durationSec]);
+  return {
+    track,
+    lastTrack: SAMPLE_TRACKS[(index - 1 + n) % n],
+    elapsedSec: elapsed,
+    progress: Math.min(1, elapsed / track.durationSec),
+    motionEnabled: motion,
+  };
+}
 
-  const progress = useMemo(
-    () => Math.min(1, elapsedSec / track.durationSec),
-    [elapsedSec, track.durationSec],
-  );
+let snapshot: CyclingTrackState = build();
 
-  return { track, elapsedSec, progress, motionEnabled };
+function emit() {
+  snapshot = build();
+  listeners.forEach((l) => l());
+}
+
+function start() {
+  if (started) return;
+  started = true;
+  if (typeof window !== "undefined") {
+    motion = !window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  }
+  if (!motion) {
+    emit();
+    return;
+  }
+  dwellTimer = setInterval(() => {
+    index = (index + 1) % SAMPLE_TRACKS.length;
+    elapsed = seededElapsed(index);
+    emit();
+  }, DWELL_MS);
+  tickTimer = setInterval(() => {
+    const dur = SAMPLE_TRACKS[index].durationSec;
+    elapsed = Math.min(dur, elapsed + PLAYBACK_RATE * (TICK_MS / 1000));
+    emit();
+  }, TICK_MS);
+}
+
+function stop() {
+  started = false;
+  if (dwellTimer) clearInterval(dwellTimer);
+  if (tickTimer) clearInterval(tickTimer);
+  dwellTimer = null;
+  tickTimer = null;
+}
+
+function subscribe(cb: () => void): () => void {
+  listeners.add(cb);
+  start();
+  return () => {
+    listeners.delete(cb);
+    if (listeners.size === 0) stop();
+  };
+}
+
+function getSnapshot(): CyclingTrackState {
+  return snapshot;
+}
+
+/** Shared now-playing state. Every consumer renders the same track. */
+export function useCyclingTrack(): CyclingTrackState {
+  return useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
 }

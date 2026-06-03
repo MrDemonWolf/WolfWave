@@ -22,6 +22,11 @@ export function baseOptions(): BaseLayoutProps {
     },
     githubUrl: "https://github.com/MrDemonWolf/WolfWave",
     links: [
+      // Landing-section anchors. On the home page these scroll; from any other
+      // page they navigate home and then jump to the section.
+      { text: "Features", url: "/#audiences" },
+      { text: "Compare", url: "/#compare" },
+      { text: "FAQ", url: "/#faq" },
       { text: "Docs", url: "/docs" },
       { text: "Download", url: "/download" },
       { text: "Support", url: "https://mrdwolf.net/discord" },

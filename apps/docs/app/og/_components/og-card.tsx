@@ -1,4 +1,5 @@
 import type { ReactElement, ReactNode } from "react";
+import { SAMPLE_TRACKS } from "../../(home)/_widgets/sample-tracks";
 
 // ── Palette (Apple-dark, brand blue) ──────────────────────────
 const BG = "#000000";
@@ -17,7 +18,7 @@ const DISCORD = "#5865F2";
 
 /** Inline SVG dot grid. Subtle Apple-keynote texture, rendered via data URI. */
 const DOT_GRID = `url("data:image/svg+xml;utf8,${encodeURIComponent(
-  `<svg xmlns='http://www.w3.org/2000/svg' width='40' height='40'><circle cx='1' cy='1' r='1' fill='%23ffffff' fill-opacity='0.04'/></svg>`,
+  `<svg xmlns='http://www.w3.org/2000/svg' width='44' height='44'><circle cx='1' cy='1' r='1' fill='%23ffffff' fill-opacity='0.03'/></svg>`,
 )}")`;
 
 /** Audio-waveform glyph. Cues the music app. */
@@ -124,7 +125,7 @@ function Frame({ tag, children }: { tag: string; children: ReactNode }): ReactEl
           display: "flex",
           alignItems: "center",
           justifyContent: "space-between",
-          padding: "56px 64px 0",
+          padding: "50px 64px 0",
         }}
       >
         <Wordmark />
@@ -145,7 +146,7 @@ function Frame({ tag, children }: { tag: string; children: ReactNode }): ReactEl
       </div>
 
       {/* Body */}
-      <div style={{ position: "relative", display: "flex", flex: 1, padding: "40px 64px 56px" }}>{children}</div>
+      <div style={{ position: "relative", display: "flex", flex: 1, padding: "34px 64px 44px" }}>{children}</div>
     </div>
   );
 }
@@ -176,14 +177,22 @@ function Eyebrow({ text }: { text: string }): ReactElement {
 }
 
 // ── Now-playing tile (right column) ───────────────────────────
-function PlatformRow({ color, label, value }: { color: string; label: string; value: string }): ReactElement {
+/** Compact destination chip. One song, three places, read at a glance. */
+function DestChip({ color, label }: { color: string; label: string }): ReactElement {
   return (
-    <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-      <div style={{ display: "flex", width: 11, height: 11, borderRadius: 999, background: color, boxShadow: `0 0 12px ${color}AA` }} />
-      <div style={{ display: "flex", flex: 1, fontSize: 19, color: TXT_2 }}>
-        <span style={{ display: "flex", color: TXT_1, fontWeight: 600 }}>{label}</span>
-        <span style={{ display: "flex", marginLeft: 8 }}>{value}</span>
-      </div>
+    <div
+      style={{
+        display: "flex",
+        alignItems: "center",
+        gap: 9,
+        padding: "9px 15px",
+        borderRadius: 999,
+        background: BG_RAISED,
+        border: `1px solid ${HAIRLINE}`,
+      }}
+    >
+      <div style={{ display: "flex", width: 9, height: 9, borderRadius: 999, background: color, boxShadow: `0 0 10px ${color}` }} />
+      <span style={{ display: "flex", fontSize: 17, fontWeight: 600, color: TXT_1 }}>{label}</span>
     </div>
   );
 }
@@ -195,9 +204,9 @@ function NowPlayingTile(): ReactElement {
         display: "flex",
         flexDirection: "column",
         width: 372,
-        gap: 22,
-        padding: 26,
-        borderRadius: 26,
+        gap: 24,
+        padding: 28,
+        borderRadius: 28,
         background: SURFACE,
         border: `1px solid ${HAIRLINE}`,
         boxShadow: "0 30px 80px -30px rgba(0,0,0,0.8)",
@@ -211,28 +220,28 @@ function NowPlayingTile(): ReactElement {
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
-            width: 86,
-            height: 86,
-            borderRadius: 18,
+            width: 92,
+            height: 92,
+            borderRadius: 20,
             background: `linear-gradient(135deg, ${BRAND} 0%, ${TWITCH} 100%)`,
-            boxShadow: `0 12px 30px -10px ${BRAND}88`,
+            boxShadow: `0 14px 32px -10px ${BRAND}88`,
           }}
         >
-          <WaveGlyph size={40} color="#FFFFFF" bars={[0.4, 0.85, 0.6, 1.0, 0.5]} />
+          <WaveGlyph size={42} color="#FFFFFF" bars={[0.4, 0.85, 0.6, 1.0, 0.5]} />
         </div>
         <div style={{ display: "flex", flexDirection: "column", flex: 1 }}>
           <div style={{ display: "flex", fontFamily: "JetBrains Mono", fontSize: 14, color: BRAND_HI, letterSpacing: 0.6 }}>
             NOW PLAYING
           </div>
-          <div style={{ display: "flex", marginTop: 6, fontSize: 26, fontWeight: 700, color: TXT_1, letterSpacing: -0.6 }}>
-            Midnight Drive
+          <div style={{ display: "flex", marginTop: 7, fontSize: 27, fontWeight: 700, color: TXT_1, letterSpacing: -0.6 }}>
+            {SAMPLE_TRACKS[0].title}
           </div>
-          <div style={{ display: "flex", marginTop: 2, fontSize: 19, color: TXT_2 }}>Neon Coast</div>
+          <div style={{ display: "flex", marginTop: 3, fontSize: 19, color: TXT_2 }}>{SAMPLE_TRACKS[0].artist}</div>
         </div>
       </div>
 
       {/* Progress */}
-      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+      <div style={{ display: "flex", flexDirection: "column", gap: 9 }}>
         <div style={{ display: "flex", height: 6, borderRadius: 999, background: SURFACE_HI }}>
           <div style={{ display: "flex", width: "44%", height: 6, borderRadius: 999, background: BRAND_HI }} />
         </div>
@@ -245,11 +254,16 @@ function NowPlayingTile(): ReactElement {
       {/* Divider */}
       <div style={{ display: "flex", height: 1, background: HAIRLINE }} />
 
-      {/* Same track, three destinations */}
-      <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-        <PlatformRow color={TWITCH} label="Twitch" value="!song in chat" />
-        <PlatformRow color={DISCORD} label="Discord" value="Rich Presence" />
-        <PlatformRow color={BRAND_HI} label="OBS" value="overlay live" />
+      {/* Same track, three destinations. One compact row instead of a stack. */}
+      <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+        <div style={{ display: "flex", fontFamily: "JetBrains Mono", fontSize: 13, color: TXT_2, letterSpacing: 0.5 }}>
+          LIVE ON
+        </div>
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 9 }}>
+          <DestChip color={TWITCH} label="Twitch" />
+          <DestChip color={DISCORD} label="Discord" />
+          <DestChip color={BRAND_HI} label="OBS" />
+        </div>
       </div>
     </div>
   );
@@ -273,52 +287,75 @@ export interface OgCardProps {
 
 export function OgCard({ title, description, eyebrow, chips, accentWord }: OgCardProps): ReactElement {
   const [before, accent, after] = splitAccent(title, accentWord);
+  // Cap the description so a long docs frontmatter line can't push the chips
+  // off the bottom of the 1200x630 frame.
+  const desc =
+    description && description.length > 120
+      ? `${description.slice(0, 116).replace(/[\s.,;:!?]+$/, "")}…`
+      : description;
 
   return (
     <Frame tag="macOS · native · open source">
-      <div style={{ display: "flex", width: "100%", justifyContent: "space-between", alignItems: "center", gap: 56 }}>
-        {/* Left column. Message */}
-        <div style={{ display: "flex", flexDirection: "column", flex: 1, justifyContent: "center" }}>
+      <div style={{ display: "flex", width: "100%", justifyContent: "space-between", alignItems: "flex-start", gap: 56 }}>
+        {/* Left column. Message. Top-aligned so a tall block never overflows
+            up into the header row (which collides with the wordmark). */}
+        <div style={{ display: "flex", flexDirection: "column", flex: 1, justifyContent: "flex-start" }}>
           {eyebrow ? <Eyebrow text={eyebrow} /> : null}
 
+          {/* Headline. Rendered one word per flex item so Satori wraps it on
+              word boundaries instead of clipping a single long flex child. */}
           <div
             style={{
               display: "flex",
               flexWrap: "wrap",
-              marginTop: eyebrow ? 30 : 0,
+              columnGap: 18,
+              rowGap: 4,
+              marginTop: eyebrow ? 26 : 0,
               fontFamily: "Inter",
-              fontSize: 72,
-              lineHeight: 1.04,
-              color: TXT_1,
+              fontSize: 58,
+              lineHeight: 1.07,
               fontWeight: 700,
               letterSpacing: -2,
-              maxWidth: 620,
+              maxWidth: 660,
             }}
           >
-            <span style={{ display: "flex" }}>{before}</span>
-            {accent ? <span style={{ display: "flex", color: BRAND_HI, fontWeight: 700 }}>{accent}</span> : null}
-            {after ? <span style={{ display: "flex" }}>{after}</span> : null}
+            {[
+              { text: before, color: TXT_1 },
+              { text: accent, color: BRAND_HI },
+              { text: after, color: TXT_1 },
+            ]
+              .filter((seg) => seg.text.trim().length > 0)
+              .flatMap((seg, si) =>
+                seg.text
+                  .trim()
+                  .split(/\s+/)
+                  .map((word, wi) => (
+                    <span key={`${si}-${wi}`} style={{ display: "flex", color: seg.color }}>
+                      {word}
+                    </span>
+                  )),
+              )}
           </div>
 
-          {description ? (
-            <div style={{ display: "flex", marginTop: 26, fontSize: 27, lineHeight: 1.35, color: TXT_2, letterSpacing: -0.3, maxWidth: 600 }}>
-              {description}
+          {desc ? (
+            <div style={{ display: "flex", marginTop: 22, fontSize: 24, lineHeight: 1.4, color: TXT_2, letterSpacing: -0.3, maxWidth: 560 }}>
+              {desc}
             </div>
           ) : null}
 
           {chips && chips.length > 0 ? (
-            <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginTop: 34, maxWidth: 620 }}>
+            <div style={{ display: "flex", gap: 9, flexWrap: "wrap", marginTop: 24, maxWidth: 600 }}>
               {chips.map((c) => (
                 <div
                   key={c}
                   style={{
                     display: "flex",
-                    padding: "8px 18px",
+                    padding: "7px 16px",
                     borderRadius: 999,
                     background: SURFACE,
                     border: `1px solid ${HAIRLINE}`,
                     color: TXT_1,
-                    fontSize: 20,
+                    fontSize: 18,
                     fontWeight: 500,
                     letterSpacing: -0.2,
                   }}

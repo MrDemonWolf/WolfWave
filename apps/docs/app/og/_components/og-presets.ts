@@ -15,8 +15,8 @@ const PRESETS: Record<string, OgPreset> = {
   architecture: { eyebrow: "Under the hood", chips: ["MVVM", "EventSub", "ScriptingBridge", "WebSocket"] },
   security: { eyebrow: "Tokens stay safe", chips: ["Keychain", "App Sandbox", "OAuth", "EdDSA"] },
   "privacy-policy": { eyebrow: "Local-first", chips: ["No Tracking", "No Servers", "Open Source"] },
-  "terms-of-service": { eyebrow: "MIT license", chips: ["Free", "Open Source", "No Warranty"] },
-  support: { eyebrow: "Support WolfWave", chips: ["GitHub Sponsors", "MIT", "Free Forever"] },
+  "terms-of-service": { eyebrow: "GPL-3.0 license", chips: ["Free", "Open Source", "No Warranty"] },
+  support: { eyebrow: "Support WolfWave", chips: ["GitHub Sponsors", "GPL-3.0", "Free Forever"] },
   "design-system": { eyebrow: "Design System", chips: ["Tokens", "Components", "Brand", "Liquid Glass"] },
 };
 

@@ -124,7 +124,7 @@ export default async function Page(props: PageProps<'/docs/[[...slug]]'>) {
     support: [
       {
         q: 'Is WolfWave free?',
-        a: 'Yes. WolfWave is free and open source under the MIT license. No accounts, no paywalls, no ads.',
+        a: 'Yes. WolfWave is free and open source under the GPL-3.0 license. No accounts, no paywalls, no ads.',
       },
       {
         q: 'Does WolfWave track me or send data to servers?',

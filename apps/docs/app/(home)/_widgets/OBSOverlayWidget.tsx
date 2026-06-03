@@ -37,9 +37,18 @@ const LAYOUTS = Object.keys(WIDGET_LAYOUTS) as LayoutName[];
  * Light) right on the marketing page — selling the widget's flexibility
  * better than any static screenshot could.
  */
-export function OBSOverlayWidget() {
+export function OBSOverlayWidget({ controls = true }: { controls?: boolean } = {}) {
   const [theme, setTheme] = useState<ThemeName>(DEFAULT_THEME);
   const [layout, setLayout] = useState<LayoutName>(DEFAULT_LAYOUT);
+
+  // Hero usage: no theme/layout switcher — render only the default overlay card.
+  if (!controls) {
+    return (
+      <div style={{ width: "100%" }}>
+        <WidgetCard theme={WIDGET_THEMES[DEFAULT_THEME]} layout={DEFAULT_LAYOUT} />
+      </div>
+    );
+  }
 
   return (
     <div style={{ width: "100%" }}>

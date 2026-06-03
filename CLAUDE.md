@@ -243,6 +243,22 @@ Sparkle uses EdDSA (Ed25519) signing for update verification. The public key is 
 
 Docs site built with Fumadocs (Next.js) at `apps/docs/`. Content in `apps/docs/content/docs/` as `.mdx` files. Sidebar defined in `apps/docs/content/docs/meta.json` with Guide/Developers sections. Deployed to GitHub Pages. Run with `bun run dev --filter docs` from root.
 
+> The site is a **static export** (GitHub Pages), served under the `/wolfwave` base path in production (empty in dev). A fresh git worktree under `.claude/worktrees/` has no `node_modules`, so run `bun install` once before `bun run dev`/`build` there. The preview launch config is named `docs` (port 3000); in dev the OG routes serve at `/opengraph-image` (no `.png`).
+
+> **Docs card styling gotcha.** Fumadocs puts `data-card=""` + `class="peer"` on every heading's permalink anchor, so a bare `a[data-card]` selector borders every docs heading too. Style real `<Cards>` with `a[data-card]:not(.peer)` (or `a[data-card="true"]`) in `global.css`.
+
+### Landing page (`app/(home)`)
+
+The marketing home is `app/(home)/page.tsx` — an **async server component** that fetches the GitHub star count + latest release tag at build time (`getRepoStats()`, graceful fallback) so the trust chips show live-at-build data without shipping third-party shields.io images.
+
+- **Section spine.** Every section is a `<section id="…">` introduced by a numbered `Kicker` (01–09) via the shared `Kicker` / `CenterHead` helpers. Order: hero → `audiences` (01) → `twitch` (02) → `discord` (03) → `overlay` (04) → `compare` (05) → `download` (06, the "Open & trusted" proof band) → `developers` (07) → `privacy` (08) → `faq` (09) → `cta`. **Keep the section `id`s stable** — the navbar links to them (`lib/layout.shared.tsx`: Features→`/#audiences`, Compare→`/#compare`, FAQ→`/#faq`) and other CTAs target `#download`. If you reorder, renumber the kickers to match.
+- **Widgets** live in `app/(home)/_widgets/`: `HeroNowPlaying`, `DiscordPresenceCard`, `OBSOverlayWidget`, `TwitchChatPreview` (recreated Twitch chat — intentionally dark in both themes), `ComparisonTable` (responsive: real table ≥`md`, stacked cards `<md`), `BackToTop` (landing-only floating button, rendered from `page.tsx`), `AlbumArt`, the shared `useCyclingTrack` demo timer, and `sample-tracks.ts`. **All demo data is invented** — sample tracks are wolf songs with wolf-species "artists"; never use real artists, song titles, or album art.
+- **Styling** uses `ww-*` utility classes in `app/global.css` (`ww-kicker`, `ww-stat`, `ww-proof`, `ww-chip`, `ww-card`, `ww-glass`, `ww-btn`, `ww-pill`, `ww-to-top`). Reuse these instead of one-off styles. Brand color tokens (`--brand-*`, `--bg-*`, `--txt-*`, `--hairline`) flip per theme.
+- **Apple corner geometry.** Rounded surfaces opt into `corner-shape: squircle` (Apple's continuous superellipse) via an `@supports` block — Chromium renders the true squircle, every other browser falls back to the existing `border-radius`. The app-icon squircle uses Apple's **22.37%** ratio. Capsule/pill controls keep true-capsule ends; do **not** squircle them.
+- **Flat by default.** Resting elements are flat — defined by a hairline border (and optional *subtle* shadow), never by bevels or float. No inset white highlights, no glassy `::before` sheen, no heavy multi-layer drop shadows. `.ww-glass` is a flat frosted card (frost + border only). Keep drop shadows shallow (e.g. `0 8-10px 24-28px -16px` at low alpha). **Hover-lifts are fine** (subtle `translateY` + brand-tinted shadow on `:hover` only). The OG image (`og-card.tsx`) is a rendered social card, not an on-page element, so it keeps real depth — don't flatten it.
+- **Mobile gutters.** Sections use `px-[10%] md:px-6` → content is ~80% width (centered) on phones/tablets, reverting to the `max-w-*` cap on desktop. Use this pattern on new sections rather than a fixed `px-6`.
+- **Mobile centering.** Section headers and short feature intros center on mobile (`text-center md:text-left`); card bodies and docs long-form stay left-aligned for readability.
+
 ### SEO & Open Graph images
 
 The docs site generates Open Graph / Twitter card images at build time. Both paths are wired so changing page copy updates the social card. Do **not** hand-edit generated PNGs.
@@ -258,6 +274,8 @@ The docs site generates Open Graph / Twitter card images at build time. Both pat
 | `keywords` | `<meta keywords>` | none |
 
 The changelog page is special-cased: its card is built from the latest `## vX.Y.Z` block in `changelog.mdx`, not from chips. The shared card visual lives in `apps/docs/app/og/_components/og-card.tsx` (`OgCard` + `ChangelogOgCard`).
+
+> `OgCard` renders its headline **one word per flex item** so Satori wraps on word boundaries instead of clipping a single long flex child — don't collapse it back to one text node. Long descriptions are truncated (~120 chars) so the chip row never falls off the 1200×630 frame, and the body is top-aligned so a tall block can't overflow up into the wordmark header.
 
 **Homepage / root card (single source of truth).** Homepage social copy lives in one constant, `homepageSeo` in `apps/docs/lib/site.ts`. It feeds `app/layout.tsx` (root meta + JSON-LD), `app/(home)/page.tsx` (homepage meta), `app/opengraph-image.tsx`, and `app/twitter-image.tsx`. Edit `homepageSeo` once and the meta tags plus both images update on the next build.
 

@@ -255,6 +255,8 @@ export function DeveloperTabs() {
         }
         .ww-dev-tabs {
           display: flex;
+          gap: 4px;
+          padding: 8px;
           overflow-x: auto;
           scrollbar-width: none;
         }
@@ -265,8 +267,8 @@ export function DeveloperTabs() {
           appearance: none;
           background: transparent;
           border: 0;
-          border-right: 1px solid var(--hairline);
-          padding: 12px 16px;
+          border-radius: 9px;
+          padding: 7px 12px;
           color: var(--txt-2);
           font-size: 12px;
           cursor: pointer;
@@ -278,24 +280,23 @@ export function DeveloperTabs() {
         }
         .ww-dev-tab:hover {
           color: var(--txt-1);
-          background-color: color-mix(in srgb, var(--bg-surface) 50%, transparent);
+          background-color: color-mix(in srgb, var(--bg-surface) 60%, transparent);
         }
         .ww-dev-tab.is-active {
-          color: var(--txt-1);
-          background: var(--bg-base);
-          box-shadow: inset 0 -2px 0 0 var(--brand-500);
+          color: var(--brand-600);
+          background: var(--brand-50);
         }
         .ww-dev-tab-lang {
           font-size: 10px;
           letter-spacing: 0.06em;
           color: var(--txt-2);
           padding: 2px 6px;
-          border-radius: 4px;
+          border-radius: 5px;
           background: var(--bg-surface);
         }
         .ww-dev-tab.is-active .ww-dev-tab-lang {
-          color: var(--brand-500);
-          background: var(--brand-50);
+          color: var(--brand-600);
+          background: color-mix(in srgb, var(--brand-500) 14%, transparent);
         }
         .ww-dev-panel {
           opacity: 0;

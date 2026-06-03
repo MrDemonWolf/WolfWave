@@ -59,8 +59,7 @@ export function DiscordPresenceCard() {
         fontFamily:
           "'gg sans', 'Inter', var(--ds-font-family-sans), system-ui, sans-serif",
         color: palette.title,
-        boxShadow:
-          "0 24px 60px -18px rgba(0,0,0,0.55), 0 0 0 1px rgba(255,255,255,0.02)",
+        boxShadow: "0 8px 24px -16px rgba(0,0,0,0.4)",
       }}
     >
       {/* Header strip — mirrors Discord's "Listening to <app>" row. */}

@@ -40,7 +40,7 @@ export default function DownloadPage() {
       {/* ═══════════════ HERO ═══════════════ */}
       <section className="relative overflow-hidden">
         <div className="ww-hero-glow" aria-hidden="true" />
-        <div className="relative z-10 px-6 pt-20 pb-12 sm:pt-28">
+        <div className="relative z-10 px-[10%] md:px-6 pt-20 pb-12 sm:pt-28">
           <div className="mx-auto max-w-3xl text-center">
             <span
               className="ww-reveal ww-reveal-1 ww-pill"
@@ -116,7 +116,7 @@ export default function DownloadPage() {
       </section>
 
       {/* ═══════════════ INSTALL METHODS ═══════════════ */}
-      <section className="ww-bg-base px-6 pb-16">
+      <section className="ww-bg-base px-[10%] md:px-6 pb-16">
         <div className="mx-auto max-w-5xl">
           <div className="grid md:grid-cols-2 gap-5 items-stretch">
             {/* DMG */}
@@ -197,7 +197,7 @@ export default function DownloadPage() {
 
           {/* ═══════════════ TRUST + REQUIREMENTS ═══════════════ */}
           <div className="mt-12 flex flex-wrap items-center justify-center gap-2">
-            {["Notarized", "Sandboxed", "Keychain", "No telemetry", "MIT"].map(
+            {["Notarized", "Sandboxed", "Keychain", "No telemetry", "GPL-3.0"].map(
               (label) => (
                 <span key={label} className="ww-pill">
                   {label}
