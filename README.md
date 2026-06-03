@@ -4,36 +4,78 @@
 
 # WolfWave - Your Music, Everywhere on Stream
 
-Stop telling chat what song is playing. WolfWave is a tiny native macOS
-menu bar app that bridges Apple Music with Twitch chat, Discord Rich
-Presence, and OBS stream overlays. Play something in Apple Music — your
-Twitch chat, your Discord profile, and your stream overlay all update on
+Stop telling chat what song is playing. WolfWave is a tiny native
+macOS menu bar app that bridges Apple Music with Twitch chat, Discord
+Rich Presence, and OBS stream overlays. Play something in Apple Music
+and your Twitch chat, Discord profile, and stream overlay all update on
 their own.
 
 Free, open source, signed and notarized by Apple. Built for streamers
 and creators on macOS.
 
+Your music plays. Everything else keeps up.
+
+## Table of Contents
+
+- [Features](#features)
+  - [Twitch](#twitch)
+  - [Discord](#discord)
+  - [Stream Overlays](#stream-overlays)
+  - [History & Stats](#history--stats)
+  - [Platform & Security](#platform--security)
+- [Getting Started](#getting-started)
+  - [DMG Installer](#dmg-installer-recommended)
+  - [Homebrew](#homebrew-for-developers)
+- [Usage](#usage)
+  - [Viewer Commands](#viewer-commands)
+  - [Mod and Broadcaster Commands](#mod-and-broadcaster-commands)
+  - [Discord Rich Presence](#discord-rich-presence)
+  - [Stream Widgets](#stream-widgets)
+- [Tech Stack](#tech-stack)
+- [Development](#development)
+  - [Prerequisites](#prerequisites)
+  - [Setup](#setup)
+  - [Development Scripts](#development-scripts)
+  - [Code Quality](#code-quality)
+- [Project Structure](#project-structure)
+- [License](#license)
+- [Contact](#contact)
+
 ## Features
 
-- **Now Playing in Twitch Chat** — Viewers type `!song`, `!currentsong`, or `!nowplaying` and instantly see the track you're spinning.
-- **Song Requests** — Viewers request songs with `!sr <track>`. Requests play through Apple Music without taking focus from OBS.
-- **Channel Points & Bits** — WolfWave-managed "Request a Song" channel-point reward, plus bit cheers that boost the cheerer's queued track to the front.
-- **Chat Vote-Skip** — Viewers vote off a song with `!voteskip` / `!vs`. Choose chat-tally mode or native Twitch Polls.
-- **Hold-Mode Queue** — Mods can hold, resume, skip, and clear the request queue from chat or the menu bar.
-- **Live Queue View** — See what's playing, what's next, and who requested each track right inside the app.
-- **Fallback Playlist** — Configure an Apple Music playlist that takes over when the queue runs dry.
-- **Listening History & Stats** — Opt-in, on-device log of what you actually play. Top artists, listening time, 7-day trend, and a listening-by-hour chart built on SwiftUI Charts.
-- **Monthly Wrap** — A personal "wrapped"-style summary for any month, exportable as a shareable PNG.
-- **`!stats` in Chat** — Viewers ask for today's top track; replies only while you're live.
-- **Discord Rich Presence** — Shows "Listening to WolfWave" on your Discord profile with Apple Music album art, the active Apple Music playlist, and clickable open-in-Apple-Music + song.link buttons.
-- **Stream Widgets** — Drop-in browser source overlay powered by a local WebSocket server with a per-install auth token, six themes (`Default`, `Dark`, `Light`, `Glass`, `Neon`, `WolfWave`), and three layouts (`Horizontal`, `Vertical`, `Compact`). Two-PC streamers can connect from a second machine on the LAN.
-- **Streamer Mode** — One-tap tray toggle that masks the connected Twitch channel name, widget URLs, and auth token across the UI so the app is safe to show on camera.
-- **Song-Change Notifications** — Opt-in macOS banner on every track change, with album art. The banner replaces in place instead of stacking.
-- **On-Device Diagnostics** — Opt-in MetricKit diagnostics card with a share helper for attaching reports to a bug filing. Reports stay on-device.
-- **macOS 26 Liquid Glass Design** — Refreshed onboarding, settings, and menu bar built for Tahoe.
-- **Secure by Default** — Credentials live in the macOS Keychain, never plain text.
-- **Automatic Updates** — Sparkle (DMG) or Homebrew (`brew upgrade --cask`).
-- **Bug Report Flow** — One-click log export and pre-filled GitHub issue from Advanced settings.
+### Twitch
+
+- **Now Playing in Chat.** Viewers type `!song`, `!currentsong`, or `!nowplaying` and instantly see the track you're spinning.
+- **Song Requests.** Viewers request songs with `!sr <track>`. Requests play through Apple Music without stealing focus from OBS.
+- **Channel Points & Bits.** A WolfWave-managed "Request a Song" channel-point reward, plus bit cheers that boost the cheerer's queued track to the front.
+- **Chat Vote-Skip.** Viewers vote off a song with `!voteskip` or `!vs`, in chat-tally mode or native Twitch Polls.
+- **Hold-Mode Queue.** Mods hold, resume, skip, and clear the request queue from chat or the menu bar.
+- **Live Queue View.** See what's playing, what's next, and who requested each track right inside the app.
+- **Fallback Playlist.** Configure an Apple Music playlist that takes over when the queue runs dry.
+
+### Discord
+
+- **Discord Rich Presence.** Shows "Listening to WolfWave" on your Discord profile with Apple Music album art, the active playlist, and clickable open-in-Apple-Music and song.link buttons.
+
+### Stream Overlays
+
+- **Stream Widgets.** Drop-in browser-source overlay powered by a local WebSocket server with a per-install auth token, six themes (`Default`, `Dark`, `Light`, `Glass`, `Neon`, `WolfWave`), and three layouts (`Horizontal`, `Vertical`, `Compact`). Two-PC streamers can connect from a second machine on the LAN.
+
+### History & Stats
+
+- **Listening History & Stats.** Opt-in, on-device log of what you actually play: top artists, listening time, 7-day trend, and a listening-by-hour chart built on SwiftUI Charts.
+- **Monthly Wrap.** A personal "wrapped"-style summary for any month, exportable as a shareable PNG.
+- **`!stats` in Chat.** Viewers ask for today's top track. Replies only while you're live.
+
+### Platform & Security
+
+- **macOS 26 Liquid Glass Design.** Refreshed onboarding, settings, and menu bar built for Tahoe.
+- **Streamer Mode.** One-tap tray toggle that masks your Twitch channel name, widget URLs, and auth token across the UI, so the app is safe to show on camera.
+- **Song-Change Notifications.** Opt-in macOS banner on every track change, with album art. The banner replaces in place instead of stacking.
+- **Secure by Default.** Credentials live in the macOS Keychain, never plain text.
+- **Automatic Updates.** Sparkle for DMG installs, or Homebrew (`brew upgrade --cask`).
+- **On-Device Diagnostics.** Opt-in MetricKit diagnostics card with a share helper for attaching reports to a bug filing. Reports stay on-device.
+- **Bug Report Flow.** One-click log export and a pre-filled GitHub issue from Advanced settings.
 
 ## Getting Started
 
@@ -52,7 +94,8 @@ brew tap mrdemonwolf/den
 brew install --cask wolfwave
 ```
 
-The app is signed and notarized by Apple — no Gatekeeper warnings.
+The app is signed and notarized by Apple, so there are no Gatekeeper
+warnings.
 
 ## Usage
 
@@ -121,20 +164,26 @@ the token from Settings to drop every active client.
 
 ### Setup
 
+1. Clone the repo:
+
 ```bash
 git clone https://github.com/MrDemonWolf/WolfWave.git
 cd WolfWave
 ```
 
+2. Copy the config template:
+
 ```bash
 cp apps/native/WolfWave/Config.xcconfig.example apps/native/WolfWave/Config.xcconfig
 ```
 
-Edit `Config.xcconfig` with your Twitch Client ID and Discord
-Application ID. Get a Twitch Client ID at
-[dev.twitch.tv/console/apps](https://dev.twitch.tv/console/apps) and a
-Discord Application ID at
-[discord.com/developers/applications](https://discord.com/developers/applications).
+3. Edit `Config.xcconfig` with your Twitch Client ID and Discord
+   Application ID. Get a Twitch Client ID at
+   [dev.twitch.tv/console/apps](https://dev.twitch.tv/console/apps) and
+   a Discord Application ID at
+   [discord.com/developers/applications](https://discord.com/developers/applications).
+
+4. Open the project:
 
 ```bash
 make open-xcode
@@ -146,30 +195,30 @@ Then build and run with `Cmd+R` in Xcode.
 
 Monorepo (bun + Turborepo):
 
-- `bun install` — Install all workspace dependencies.
-- `bun dev` — Start every dev server via Turbo.
-- `bun run dev --filter docs` — Start the docs dev server only.
-- `bun run build --filter docs` — Build the docs site.
-- `bun run dev --filter wolfwave-announcement` — Open Remotion studio for the launch announcement video.
+- `bun install` installs all workspace dependencies.
+- `bun dev` starts every dev server via Turbo.
+- `bun run dev --filter docs` starts the docs dev server only.
+- `bun run build --filter docs` builds the docs site.
+- `bun run dev --filter wolfwave-announcement` opens Remotion studio for the launch announcement video.
 
 Native app (Make):
 
-- `make build` — Debug build via `xcodebuild`.
-- `make clean` — Clean build artifacts.
-- `make test` — Run the unit test suite (see CHANGELOG.md for current counts).
-- `make update-deps` — Resolve SwiftPM dependencies.
-- `make open-xcode` — Open the Xcode project.
-- `make ci` — CI-friendly build.
-- `make prod-build` — Release build + DMG in `builds/`.
-- `make prod-install` — Release build + install to `/Applications`.
-- `make notarize` — Notarize the DMG (requires Developer ID + env vars).
+- `make build` runs a debug build via `xcodebuild`.
+- `make clean` cleans build artifacts.
+- `make test` runs the unit test suite (see CHANGELOG.md for current counts).
+- `make update-deps` resolves SwiftPM dependencies.
+- `make open-xcode` opens the Xcode project.
+- `make ci` runs a CI-friendly build.
+- `make prod-build` builds a release DMG in `builds/`.
+- `make prod-install` builds a release and installs to `/Applications`.
+- `make notarize` notarizes the DMG (requires Developer ID and env vars).
 
 ### Code Quality
 
 - Swift 5.9+ with async/await concurrency (no `DispatchQueue` for new async work).
 - MVVM with `@Observable` view models.
 - MARK sections in every file; DocC-style `///` comments on all public APIs.
-- No force unwrapping — optionals and `guard` only.
+- No force unwrapping. Optionals and `guard` only.
 - Credentials always via `KeychainService`, never `UserDefaults`.
 - Thread-safe service layer (NSLock, serial dispatch queues, MainActor isolation).
 - Unit tests auto-discovered via Xcode synchronized groups under `apps/native/WolfWaveTests/`.
