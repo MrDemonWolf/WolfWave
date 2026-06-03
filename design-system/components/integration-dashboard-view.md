@@ -38,6 +38,7 @@ IntegrationDashboardView(
 - `DSFont.Size.base` (13) `.medium` — row name
 - `DSFont.Size.sm` (11) `.secondary` — row subtitle (max 2 lines)
 - `DSFont.Size.body` (12) — "Configure" button + section subhead
+- `DSFont.Size.x15` (15) `controlAccentColor` — `antenna.radiowaves.left.and.right` glyph beside the "Integrations" sub-header (matches every other in-card sub-header)
 - `DSSpace.s3` (12) — row horizontal padding
 - `DSSpace.s4` (12) — row vertical padding
 - `DSDimension.Settings.cardCornerRadius` (14) via `.cardStyleUnpadded()`
@@ -46,7 +47,7 @@ IntegrationDashboardView(
 ## Anatomy
 ```mermaid
 graph TB
-  Dashboard[VStack alignment leading spacing 10] --> Header[HStack — Integrations title + tagline]
+  Dashboard[VStack alignment leading spacing 10] --> Header[HStack — accent antenna glyph + Integrations title + tagline]
   Dashboard --> Card[VStack spacing 0 .cardStyleUnpadded]
   Card --> Row1[Twitch row]
   Card --> Div1[Divider padding-leading 44]

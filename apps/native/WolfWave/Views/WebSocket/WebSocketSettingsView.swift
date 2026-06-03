@@ -525,25 +525,38 @@ fileprivate struct WebSocketBrowserSourceCard: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            VStack(alignment: .leading, spacing: DSSpace.s1h) {
-                HStack(spacing: DSSpace.s2) {
-                    Image(systemName: "rectangle.inset.filled.and.person.filled")
-                        .font(.system(size: DSFont.Size.md))
-                        .foregroundStyle(Color(nsColor: .controlAccentColor))
-                    Text("Widget Setup").sectionSubHeader()
-                }
-                Text("Use this link in OBS (Browser Source) or open it in any browser.")
-                    .font(.system(size: DSFont.Size.body))
-                    .foregroundStyle(.secondary)
-                    .fixedSize(horizontal: false, vertical: true)
+        VStack(alignment: .leading, spacing: DSSpace.s6) {
+            widgetSetupHeader
+            widgetSetupCard
+        }
+        .onAppear {
+            widgetPortText = String(storedWidgetPort)
+        }
+        .task {
+            let token = await Task.detached(priority: .userInitiated) {
+                WebSocketAuthToken.currentOrCreate()
+            }.value
+            await MainActor.run { currentToken = token }
+        }
+    }
+
+    private var widgetSetupHeader: some View {
+        VStack(alignment: .leading, spacing: DSSpace.s1h) {
+            HStack(spacing: DSSpace.s2) {
+                Image(systemName: "rectangle.inset.filled.and.person.filled")
+                    .font(.system(size: DSFont.Size.x15))
+                    .foregroundStyle(Color(nsColor: .controlAccentColor))
+                Text("Widget Setup").sectionSubHeader()
             }
-            .padding(.horizontal, cardPadding)
-            .padding(.top, cardPadding)
-            .padding(.bottom, DSSpace.s4)
+            Text("Use this link in OBS (Browser Source) or open it in any browser.")
+                .font(.system(size: DSFont.Size.base))
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+    }
 
-            Divider().padding(.leading, cardPadding)
-
+    private var widgetSetupCard: some View {
+        VStack(alignment: .leading, spacing: 0) {
             ToggleSettingRow(
                 title: "Enable Widget Webpage",
                 subtitle: "Hosts the page you'll add to OBS",
@@ -675,15 +688,6 @@ fileprivate struct WebSocketBrowserSourceCard: View {
             .padding(.bottom, cardPadding)
         }
         .cardStyleUnpadded()
-        .onAppear {
-            widgetPortText = String(storedWidgetPort)
-        }
-        .task {
-            let token = await Task.detached(priority: .userInitiated) {
-                WebSocketAuthToken.currentOrCreate()
-            }.value
-            await MainActor.run { currentToken = token }
-        }
     }
 
     /// Validates the widget HTTP port text field, persists the new port, and
@@ -745,25 +749,36 @@ fileprivate struct WebSocketWidgetAppearanceCard: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            VStack(alignment: .leading, spacing: DSSpace.s1h) {
-                HStack(spacing: DSSpace.s2) {
-                    Image(systemName: "paintbrush.fill")
-                        .font(.system(size: DSFont.Size.md))
-                        .foregroundStyle(Color(nsColor: .controlAccentColor))
-                    Text("Widget Appearance").sectionSubHeader()
-                }
-                Text("Tweak colors, fonts, and layout for your widget.")
-                    .font(.system(size: DSFont.Size.body))
-                    .foregroundStyle(.secondary)
-                    .fixedSize(horizontal: false, vertical: true)
+        VStack(alignment: .leading, spacing: DSSpace.s6) {
+            widgetAppearanceHeader
+            widgetAppearanceCard
+        }
+        .task {
+            guard fontFamilies.isEmpty else { return }
+            let families = await Task.detached(priority: .userInitiated) {
+                NSFontManager.shared.availableFontFamilies.sorted()
+            }.value
+            fontFamilies = families
+        }
+    }
+
+    private var widgetAppearanceHeader: some View {
+        VStack(alignment: .leading, spacing: DSSpace.s1h) {
+            HStack(spacing: DSSpace.s2) {
+                Image(systemName: "paintbrush.fill")
+                    .font(.system(size: DSFont.Size.x15))
+                    .foregroundStyle(Color(nsColor: .controlAccentColor))
+                Text("Widget Appearance").sectionSubHeader()
             }
-            .padding(.horizontal, cardPadding)
-            .padding(.top, cardPadding)
-            .padding(.bottom, DSSpace.s4)
+            Text("Tweak colors, fonts, and layout for your widget.")
+                .font(.system(size: DSFont.Size.base))
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+    }
 
-            Divider().padding(.leading, cardPadding)
-
+    private var widgetAppearanceCard: some View {
+        VStack(alignment: .leading, spacing: 0) {
             twoColumnRow {
                 controlCell("Theme") {
                     Picker("", selection: $widgetTheme) {
@@ -838,13 +853,6 @@ fileprivate struct WebSocketWidgetAppearanceCard: View {
             .padding(.vertical, DSSpace.s4)
         }
         .cardStyleUnpadded()
-        .task {
-            guard fontFamilies.isEmpty else { return }
-            let families = await Task.detached(priority: .userInitiated) {
-                NSFontManager.shared.availableFontFamilies.sorted()
-            }.value
-            fontFamilies = families
-        }
     }
 
     // MARK: - Layout Helpers

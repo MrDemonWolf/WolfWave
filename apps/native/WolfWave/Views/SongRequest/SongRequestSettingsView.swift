@@ -193,21 +193,30 @@ fileprivate struct VoteSkipCard: View {
     private var commandAliases = ""
 
     var body: some View {
-        VStack(alignment: .leading, spacing: DSSpace.s4) {
-            VStack(alignment: .leading, spacing: DSSpace.s1h) {
-                HStack(spacing: DSSpace.s2) {
-                    Image(systemName: "hand.thumbsup.fill")
-                        .font(.system(size: DSFont.Size.x15))
-                        .foregroundStyle(Color(nsColor: .controlAccentColor))
-                    Text("Chat Vote-Skip").sectionSubHeader()
-                }
+        VStack(alignment: .leading, spacing: DSSpace.s6) {
+            voteSkipHeader
+            voteSkipCard
+        }
+    }
 
-                Text("Let your Twitch chat vote to skip the current song. Skips the request queue when one is playing, otherwise it skips the current Apple Music track.")
-                    .font(.system(size: DSFont.Size.base))
-                    .foregroundStyle(.secondary)
-                    .fixedSize(horizontal: false, vertical: true)
+    private var voteSkipHeader: some View {
+        VStack(alignment: .leading, spacing: DSSpace.s1h) {
+            HStack(spacing: DSSpace.s2) {
+                Image(systemName: "hand.thumbsup.fill")
+                    .font(.system(size: DSFont.Size.x15))
+                    .foregroundStyle(Color(nsColor: .controlAccentColor))
+                Text("Chat Vote-Skip").sectionSubHeader()
             }
 
+            Text("Let your Twitch chat vote to skip the current song. Skips the request queue when one is playing, otherwise it skips the current Apple Music track.")
+                .font(.system(size: DSFont.Size.base))
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+    }
+
+    private var voteSkipCard: some View {
+        VStack(alignment: .leading, spacing: DSSpace.s4) {
             ToggleSettingRow(
                 title: "Enable Vote-Skip",
                 subtitle: "Viewers vote with !voteskip in Twitch chat",

@@ -39,8 +39,13 @@ struct IntegrationDashboardView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: DSSpace.s3) {
             HStack {
-                Text("Integrations")
-                    .sectionSubHeader()
+                HStack(spacing: DSSpace.s2) {
+                    Image(systemName: "antenna.radiowaves.left.and.right")
+                        .font(.system(size: DSFont.Size.x15))
+                        .foregroundStyle(Color(nsColor: .controlAccentColor))
+                    Text("Integrations")
+                        .sectionSubHeader()
+                }
                 Spacer()
                 Text("Where WolfWave is broadcasting right now.")
                     .font(.system(size: DSFont.Size.body))
