@@ -9,29 +9,18 @@
 import SwiftUI
 import Charts
 
-/// SwiftUI Charts visualizations for the History & Stats pane: a 7-day play
-/// trend and a listening-by-hour breakdown.
-struct StatsChartsView: View {
+// MARK: - Week Chart Card
 
-    // MARK: - Properties
+/// A standalone card showing the 7-day play trend. Split out from the old
+/// `StatsChartsView` so the History & Stats pane can pair it beside the
+/// by-hour chart in a `ResponsiveRow` (two columns when wide, stacked when not).
+struct WeekChartCard: View {
 
     let snapshot: StatsSnapshot
 
-    // MARK: - Body
-
     var body: some View {
-        VStack(alignment: .leading, spacing: AppConstants.SettingsUI.sectionSpacing) {
-            weekChart
-            hourChart
-        }
-    }
-
-    // MARK: - Last 7 Days
-
-    @ViewBuilder
-    private var weekChart: some View {
         VStack(alignment: .leading, spacing: DSSpace.s3) {
-            chartHeader("Last 7 days", systemImage: "calendar")
+            chartCardHeader("Last 7 days", systemImage: "calendar")
 
             Chart(snapshot.last7Days) { day in
                 BarMark(
@@ -49,19 +38,25 @@ struct StatsChartsView: View {
             .chartYAxis {
                 AxisMarks(position: .leading)
             }
-            .frame(height: 140)
+            .frame(height: DSDimension.HistoryStats.chartHeight)
             .accessibilityLabel("Plays per day over the last 7 days")
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
         .padding(AppConstants.SettingsUI.cardPadding)
         .cardStyleUnpadded()
     }
+}
 
-    // MARK: - By Hour
+// MARK: - Hour Chart Card
 
-    @ViewBuilder
-    private var hourChart: some View {
+/// A standalone card showing the listening-by-hour breakdown.
+struct HourChartCard: View {
+
+    let snapshot: StatsSnapshot
+
+    var body: some View {
         VStack(alignment: .leading, spacing: DSSpace.s3) {
-            chartHeader("When you listen", systemImage: "clock")
+            chartCardHeader("When you listen", systemImage: "clock")
 
             Chart(0..<24, id: \.self) { hour in
                 BarMark(
@@ -84,25 +79,12 @@ struct StatsChartsView: View {
             .chartYAxis {
                 AxisMarks(position: .leading)
             }
-            .frame(height: 120)
+            .frame(height: DSDimension.HistoryStats.chartHeight)
             .accessibilityLabel("Plays by hour of day")
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
         .padding(AppConstants.SettingsUI.cardPadding)
         .cardStyleUnpadded()
-    }
-
-    // MARK: - Helpers
-
-    @ViewBuilder
-    private func chartHeader(_ title: String, systemImage: String) -> some View {
-        HStack(spacing: DSSpace.s1h) {
-            Image(systemName: systemImage)
-                .font(.system(size: DSFont.Size.sm, weight: .semibold))
-                .foregroundStyle(.secondary)
-            Text(title)
-                .sectionEyebrow()
-        }
-        .accessibilityAddTraits(.isHeader)
     }
 
     /// Play count for a given hour, safely handling an unexpected array size.
@@ -119,6 +101,42 @@ struct StatsChartsView: View {
         default: return "\(hour - 12)p"
         }
     }
+}
+
+// MARK: - Combined View (back-compat / previews)
+
+/// SwiftUI Charts visualizations for the History & Stats pane: a 7-day play
+/// trend and a listening-by-hour breakdown, stacked vertically.
+///
+/// The History & Stats pane now places `WeekChartCard` and `HourChartCard`
+/// side by side via `ResponsiveRow`; this combined view is retained for
+/// previews and any single-column caller.
+struct StatsChartsView: View {
+
+    let snapshot: StatsSnapshot
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: AppConstants.SettingsUI.sectionSpacing) {
+            WeekChartCard(snapshot: snapshot)
+            HourChartCard(snapshot: snapshot)
+        }
+    }
+}
+
+// MARK: - Shared Header
+
+/// Eyebrow header shared by the chart cards. Mirrors the in-card header used
+/// elsewhere in the History & Stats pane (SF Symbol + sentence-case eyebrow).
+@ViewBuilder
+private func chartCardHeader(_ title: String, systemImage: String) -> some View {
+    HStack(spacing: DSSpace.s1h) {
+        Image(systemName: systemImage)
+            .font(.system(size: DSFont.Size.sm, weight: .semibold))
+            .foregroundStyle(.secondary)
+        Text(title)
+            .sectionEyebrow()
+    }
+    .accessibilityAddTraits(.isHeader)
 }
 
 // MARK: - Previews
@@ -152,9 +170,13 @@ struct StatsChartsView: View {
         recent: [],
         topTrackToday: nil
     )
-    return StatsChartsView(snapshot: snapshot)
-        .padding()
-        .frame(width: 600)
+    return ResponsiveRow {
+        WeekChartCard(snapshot: snapshot)
+    } right: {
+        HourChartCard(snapshot: snapshot)
+    }
+    .padding()
+    .frame(width: 720)
 }
 
 #Preview("Empty") {

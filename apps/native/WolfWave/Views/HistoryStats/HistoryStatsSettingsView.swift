@@ -46,6 +46,24 @@ struct HistoryStatsSettingsView: View {
     @State private var musicPermission: MusicPermissionState = MusicPermissionCache.read() ?? .unknown
     @State private var visibleRecentCount: Int = AppConstants.History.recentDisplayCount
 
+    /// Which leaderboard the "Top" card is showing. Lets one card surface
+    /// artists, tracks, and albums in the footprint that previously showed
+    /// only artists.
+    @State private var topListKind: TopListKind = .artists
+
+    /// Source list for the segmented "Top" card.
+    private enum TopListKind: String, CaseIterable, Identifiable {
+        case artists, tracks, albums
+        var id: String { rawValue }
+        var label: String {
+            switch self {
+            case .artists: return "Artists"
+            case .tracks: return "Tracks"
+            case .albums: return "Albums"
+            }
+        }
+    }
+
     /// The shared history service. Accessed as a computed property so the
     /// Observation framework tracks property reads each time `body` runs.
     private var service: ListeningHistoryService? {
@@ -74,22 +92,40 @@ struct HistoryStatsSettingsView: View {
                 )
             }
             togglesCard
-            unifiedRecentCard
-                .skeleton(isLoadingHistory)
+
+            // Dashboard band: lead with the insights, two columns when the
+            // settings window is wide enough (collapses to a stack when not).
             if historyEnabled, statsEnabled, snapshot.hasData {
-                summaryCard
-                    .skeleton(isLoadingHistory)
-                StatsChartsView(snapshot: snapshot)
-                    .skeleton(isLoadingHistory)
-                topArtistsCard
+                ResponsiveRow {
+                    summaryCard
+                } right: {
+                    todaysTopTrackCard
+                }
+                .skeleton(isLoadingHistory)
+
+                ResponsiveRow {
+                    WeekChartCard(snapshot: snapshot)
+                } right: {
+                    HourChartCard(snapshot: snapshot)
+                }
+                .skeleton(isLoadingHistory)
+
+                topListCard
                     .skeleton(isLoadingHistory)
             }
+
+            unifiedRecentCard
+                .skeleton(isLoadingHistory)
+
             if historyEnabled, statsEnabled {
                 statsCommandCard
             }
             if historyEnabled {
-                retentionCard
-                actionsRow
+                ResponsiveRow {
+                    retentionCard
+                } right: {
+                    actionsCard
+                }
             }
         }
         .onAppear {
@@ -185,25 +221,107 @@ struct HistoryStatsSettingsView: View {
         .cardStyleUnpadded()
     }
 
-    // MARK: - Top Artists
+    // MARK: - Today's Top Track
 
-    private var topArtistsCard: some View {
+    /// Highlights the single most-played track recorded today. Surfaces
+    /// `snapshot.topTrackToday`, which the pane previously computed but never
+    /// showed. Pairs beside the summary tiles in the dashboard band.
+    private var todaysTopTrackCard: some View {
         VStack(alignment: .leading, spacing: DSSpace.s3) {
-            cardHeader("Top artists", systemImage: "music.mic")
+            cardHeader("Today's top track", systemImage: "star")
 
-            ForEach(Array(snapshot.topArtists.prefix(5).enumerated()), id: \.element.id) { index, artist in
+            if let top = snapshot.topTrackToday {
                 HStack(spacing: DSSpace.s3) {
-                    Text("\(index + 1)")
-                        .font(.system(size: DSFont.Size.body, weight: .bold, design: .rounded))
+                    Image(systemName: "music.note")
+                        .font(.system(size: DSFont.Size.lg))
                         .foregroundStyle(.secondary)
-                        .frame(width: 18, alignment: .leading)
-                    Text(artist.name)
-                        .font(.system(size: DSFont.Size.base))
-                        .lineLimit(1)
+                        .frame(width: DSFont.Size.x2xl)
+                    VStack(alignment: .leading, spacing: DSSpace.s0) {
+                        Text(top.name)
+                            .font(.system(size: DSFont.Size.base, weight: .medium))
+                            .lineLimit(1)
+                        if let detail = top.detail {
+                            Text(detail)
+                                .font(.system(size: DSFont.Size.sm))
+                                .foregroundStyle(.secondary)
+                                .lineLimit(1)
+                        }
+                    }
                     Spacer()
-                    Text(HistoryFormat.playCount(artist.count))
-                        .font(.system(size: DSFont.Size.body))
+                    Text(HistoryFormat.playCount(top.count))
+                        .font(.system(size: DSFont.Size.sm))
                         .foregroundStyle(.secondary)
+                }
+            } else {
+                Text("Nothing played yet today.")
+                    .font(.system(size: DSFont.Size.sm))
+                    .foregroundStyle(.secondary)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(AppConstants.SettingsUI.cardPadding)
+        .cardStyleUnpadded()
+    }
+
+    // MARK: - Top Leaderboard
+
+    /// One card whose segmented header switches between top artists, tracks,
+    /// and albums. Replaces the old artists-only card and surfaces the
+    /// `topTracks` / `topAlbums` lists that were computed but never displayed.
+    private var topListItems: [CountedItem] {
+        switch topListKind {
+        case .artists: return snapshot.topArtists
+        case .tracks: return snapshot.topTracks
+        case .albums: return snapshot.topAlbums
+        }
+    }
+
+    private var topListCard: some View {
+        VStack(alignment: .leading, spacing: DSSpace.s3) {
+            HStack(spacing: DSSpace.s3) {
+                cardHeader("Top", systemImage: "trophy")
+                Spacer()
+                Picker("Top list", selection: $topListKind) {
+                    ForEach(TopListKind.allCases) { kind in
+                        Text(kind.label).tag(kind)
+                    }
+                }
+                .pickerStyle(.segmented)
+                .labelsHidden()
+                .fixedSize()
+                .accessibilityIdentifier("topListPicker")
+            }
+
+            let items = topListItems
+            if items.isEmpty {
+                Text("Not enough plays yet.")
+                    .font(.system(size: DSFont.Size.sm))
+                    .foregroundStyle(.secondary)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            } else {
+                ForEach(Array(items.prefix(5).enumerated()), id: \.element.id) { index, item in
+                    HStack(spacing: DSSpace.s3) {
+                        Text("\(index + 1)")
+                            .font(.system(size: DSFont.Size.body, weight: .bold, design: .rounded))
+                            .foregroundStyle(.secondary)
+                            .frame(width: 18, alignment: .leading)
+                        VStack(alignment: .leading, spacing: DSSpace.s0) {
+                            Text(item.name)
+                                .font(.system(size: DSFont.Size.base))
+                                .lineLimit(1)
+                            if let detail = item.detail {
+                                Text(detail)
+                                    .font(.system(size: DSFont.Size.sm))
+                                    .foregroundStyle(.secondary)
+                                    .lineLimit(1)
+                            }
+                        }
+                        Spacer()
+                        Text(HistoryFormat.playCount(item.count))
+                            .font(.system(size: DSFont.Size.body))
+                            .foregroundStyle(.secondary)
+                    }
                 }
             }
         }
@@ -391,30 +509,39 @@ struct HistoryStatsSettingsView: View {
 
     // MARK: - Actions
 
-    private var actionsRow: some View {
-        HStack(spacing: DSSpace.s3) {
+    /// Card pairing the Monthly Wrap and Clear History actions. A card (rather
+    /// than a bare button row) so it balances the retention card it sits beside
+    /// in the two-column tail. Buttons stack full-width so they read cleanly in
+    /// a narrow column.
+    private var actionsCard: some View {
+        VStack(alignment: .leading, spacing: DSSpace.s3) {
+            cardHeader("Manage", systemImage: "slider.horizontal.3")
+
             if statsEnabled {
                 Button {
                     showWrapSheet = true
                 } label: {
                     Label("Monthly Wrap", systemImage: "sparkles")
+                        .frame(maxWidth: .infinity)
                 }
                 .buttonStyle(.bordered)
                 .pointerCursor()
             }
 
-            Spacer()
-
             Button(role: .destructive) {
                 showClearAlert = true
             } label: {
                 Label("Clear History", systemImage: "trash")
+                    .frame(maxWidth: .infinity)
             }
             .buttonStyle(.bordered)
             .pointerCursor()
             .disabled(snapshot.totalPlays == 0)
             .accessibilityIdentifier("clearHistoryButton")
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(AppConstants.SettingsUI.cardPadding)
+        .cardStyleUnpadded()
     }
 
     // MARK: - Helpers
