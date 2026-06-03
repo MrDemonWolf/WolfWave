@@ -130,24 +130,8 @@ struct SettingsView: View {
 
     var body: some View {
         NavigationSplitView(columnVisibility: $columnVisibility) {
-            List(selection: $selectedSection) {
-                ForEach(Self.sidebarGroups, id: \.sections) { group in
-                    if let title = group.title {
-                        Section(title) {
-                            ForEach(group.sections) { section in
-                                sidebarRow(for: section)
-                            }
-                        }
-                    } else {
-                        Section {
-                            ForEach(group.sections) { section in
-                                sidebarRow(for: section)
-                            }
-                        }
-                    }
-                }
-            }
-            .navigationSplitViewColumnWidth(min: 220, ideal: 240, max: 280)
+            SettingsSidebarView(selection: $selectedSection, groups: Self.sidebarGroups)
+                .navigationSplitViewColumnWidth(min: 240, ideal: 260, max: 300)
         } detail: {
             detailPane
             .scrollEdgeEffectStyle(.hard, for: .top)
@@ -305,28 +289,6 @@ struct SettingsView: View {
         ]
     }
 
-    /// Builds a sidebar row with a brand icon (if available) or an SF Symbol fallback.
-    @ViewBuilder
-    private func sidebarRow(for section: SettingsSection) -> some View {
-        Label {
-            Text(section.rawValue)
-        } icon: {
-            if let brandIcon = section.brandIcon {
-                Image(brandIcon)
-                    .renderingMode(.template)
-                    .resizable()
-                    .aspectRatio(contentMode: .fit)
-                    .frame(width: 16, height: 16)
-                    .foregroundStyle(.primary)
-            } else {
-                Image(systemName: section.systemIcon)
-                    .frame(width: 16, height: 16)
-            }
-        }
-        .accessibilityLabel(Text(section.rawValue))
-        .accessibilityIdentifier(section.rawValue.replacingOccurrences(of: " ", with: "-").lowercased())
-    }
-    
     /// Twitch detail pane — auth settings plus the bot commands card.
     private func twitchIntegrationView() -> some View {
         VStack(alignment: .leading, spacing: AppConstants.SettingsUI.sectionSpacing) {

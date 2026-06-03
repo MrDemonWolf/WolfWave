@@ -52,6 +52,7 @@ All notable changes to this project will be documented in this file.
 
 ### Changed
 
+- **Settings sidebar redesign**. The Settings sidebar moves to a VoiceInk-style layout: a branded header (WolfWave mark, app name, version), grouped rows with circular icon chips, and a solid accent-color selection pill with a hover highlight. Keyboard navigation, click selection, and VoiceOver are unchanged, and the existing Integrations / On Stream / Insights / App grouping is kept.
 - **Music playback via AppleScript + focus preservation** — Music.app never steals focus from OBS or other streaming tools; the previously active app is restored 150 ms after each command.
 - **MusicKit used exclusively for search/resolve**, not playback — no in-app audio session.
 - **Settings views decomposed** — split the monolithic `SettingsView` into per-section files (`GeneralSettingsView`, `MusicMonitorSettingsView`, `AppVisibilitySettingsView`, `TwitchSettingsView`, `DiscordSettingsView`, `WebSocketSettingsView`, `SongRequestSettingsView`, `AdvancedSettingsView`) for sharper redraws and easier editing (#34).
