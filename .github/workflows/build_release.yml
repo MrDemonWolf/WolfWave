@@ -274,6 +274,20 @@ jobs:
           echo "SPARKLE_BIN=$SPARKLE_BIN" >> "$GITHUB_ENV"
           echo "Sparkle CLI tools at $SPARKLE_BIN"
 
+      - name: Generate release notes for Sparkle
+        env:
+          DMG_NAME: ${{ steps.version.outputs.dmg_name }}
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          # Render this version's CHANGELOG section to an HTML file named to
+          # match the DMG (WolfWave-X.Y.Z.html next to WolfWave-X.Y.Z.dmg).
+          # generate_appcast picks up the matching-name HTML and embeds it as the
+          # appcast <description>, so Sparkle's in-app update dialog shows what's
+          # new. The "Developer" section is dropped and the notes footer links to
+          # the full web changelog. See scripts/release-notes.mjs.
+          bun scripts/release-notes.mjs "$VERSION" "builds/${DMG_NAME%.dmg}.html"
+          ls -l "builds/${DMG_NAME%.dmg}.html"
+
       - name: Generate Sparkle appcast
         env:
           DMG_NAME: ${{ steps.version.outputs.dmg_name }}
@@ -288,6 +302,9 @@ jobs:
             -o builds/appcast.xml builds/
           xmllint --noout builds/appcast.xml
           grep -q 'sparkle:edSignature=' builds/appcast.xml || { echo "::error::appcast.xml missing edSignature"; exit 1; }
+          # Soft guard: the release-notes HTML should have been embedded as the
+          # item <description>. A miss usually means a DMG/HTML name mismatch.
+          grep -q '<description>' builds/appcast.xml || echo "::warning::appcast.xml has no <description>; Sparkle will show no inline release notes"
           echo "Appcast generated and validated"
 
       - name: Upload DMG artifact

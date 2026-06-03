@@ -236,6 +236,7 @@ Sparkle uses EdDSA (Ed25519) signing for update verification. The public key is 
 
 - **DEBUG builds**: Sparkle is instantiated with `startingUpdater: false` — no background checks. Manual "Check Now" works and the `SPUUpdaterDelegate.feedURLString(for:)` callback points Sparkle at the bundled `dev-appcast.xml` (dummy v99.0.0 entry), so the full Sparkle UI is exercisable without a real release.
 - **Release builds**: Sparkle checks the remote appcast at the `SUFeedURL` in Info.plist.
+- **In-app release notes**: At release time, `scripts/release-notes.mjs` renders the version's `CHANGELOG.md` section into a styled, self-contained HTML file named to match the DMG (`WolfWave-X.Y.Z.html`). `generate_appcast` embeds that matching-name HTML as the appcast item `<description>`, so Sparkle's update dialog shows what's new. The `### Developer` block is dropped from the in-app notes (it stays on the web changelog), and a footer links out to the full changelog. `dev-appcast.xml` carries a styled sample so DEBUG "Check for Updates" previews the same rendering. The workflow runs the script via `bun` before the "Generate Sparkle appcast" step in `build_release.yml`.
 - **Homebrew installs**: Sparkle is fully disabled (updates managed by Homebrew).
 - **Key management**: Run `generate_keys` from Sparkle's tools to view/export/import keys. The tool is at `SourcePackages/artifacts/sparkle/Sparkle/bin/generate_keys` in DerivedData.
 
@@ -360,8 +361,8 @@ Version is set in `MARKETING_VERSION` in `project.pbxproj` (4 occurrences). `CUR
 Run through every item before pushing the release tag.
 
 1. **`apps/native/WolfWave.xcodeproj/project.pbxproj`** — bump `MARKETING_VERSION` (4 occurrences) and `CURRENT_PROJECT_VERSION` (4 occurrences). Sparkle uses the build number as its primary comparator.
-2. **`CHANGELOG.md`** — add `## [X.Y.Z] - YYYY-MM-DD` entry in Keep-a-Changelog format.
-3. **`apps/docs/content/docs/changelog.mdx`** — add `## vX.Y.Z — Month DD, YYYY` entry in MDX format.
+2. **`CHANGELOG.md`** — add `## [X.Y.Z] - YYYY-MM-DD` entry in Keep-a-Changelog format. The release workflow renders this exact section into Sparkle's in-app update notes via `scripts/release-notes.mjs`, so write it for users first and keep developer-only items under `### Developer` (that subsection is stripped from the in-app notes).
+3. **`apps/docs/content/docs/changelog.mdx`** — add `## vX.Y.Z. Month DD, YYYY` entry in MDX format (the OG card reads the latest `## vX.Y.Z` block).
 4. **Push git tag** — `git tag vX.Y.Z && git push origin vX.Y.Z` — triggers the release workflow (builds, signs, notarizes, creates GitHub Release).
 5. **Homebrew cask** — auto-updated by `update_homebrew.yml` after the GitHub Release is created. Verify the workflow ran successfully.
 

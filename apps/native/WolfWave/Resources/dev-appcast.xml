@@ -2,12 +2,31 @@
 <rss version="2.0" xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle">
   <channel>
     <title>WolfWave Dev</title>
-    <description>Development appcast — no real updates</description>
+    <description>Development appcast. No real updates.</description>
     <item>
       <title>WolfWave 99.0.0</title>
       <sparkle:version>99.0.0</sparkle:version>
       <sparkle:shortVersionString>99.0.0</sparkle:shortVersionString>
-      <description>Dummy update for testing the Sparkle update dialog in dev builds.</description>
+      <description><![CDATA[
+        <style>
+          body { font: 13px/1.5 -apple-system, system-ui, sans-serif; padding: 12px 16px; }
+          h2 { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: #7c5cff; margin: 14px 0 6px; }
+          ul { padding-left: 18px; margin: 0; }
+          li { margin: 5px 0; }
+          .note { color: #6e6e73; font-size: 12px; }
+          @media (prefers-color-scheme: dark) {
+            body { background: #1c1c1e; color: #f5f5f7; }
+            h2 { color: #a78bff; }
+            .note { color: #9a9aa0; }
+          }
+        </style>
+        <p class="note">Dev appcast. Not a real release. This pane previews how Sparkle renders the release notes that scripts/release-notes.mjs generates from CHANGELOG.md at release time.</p>
+        <h2>Example</h2>
+        <ul>
+          <li><strong>Styled release notes</strong> now appear right inside the update dialog.</li>
+          <li>Real releases pull this content from the matching version's CHANGELOG section.</li>
+        </ul>
+      ]]></description>
       <pubDate>Thu, 01 Jan 2099 00:00:00 +0000</pubDate>
       <enclosure
         url="https://example.com/wolfwave/WolfWave-99.0.0.dmg"
