@@ -40,6 +40,7 @@ extension NSNotification.Name {
     nonisolated static let voteSkipStateChanged = NSNotification.Name(AppConstants.Notifications.voteSkipStateChanged)
     nonisolated static let musicPermissionDenied = NSNotification.Name(AppConstants.Notifications.musicPermissionDenied)
     nonisolated static let openSettingsSection = NSNotification.Name(AppConstants.Notifications.openSettingsSection)
+    nonisolated static let openSettingsRequested = NSNotification.Name(AppConstants.Notifications.openSettingsRequested)
     nonisolated static let listeningHistorySettingChanged = NSNotification.Name(AppConstants.Notifications.listeningHistorySettingChanged)
     nonisolated static let streamerModeChanged = NSNotification.Name(AppConstants.Notifications.streamerModeChanged)
 }

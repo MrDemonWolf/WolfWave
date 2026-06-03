@@ -12,14 +12,17 @@ import Foundation
 
 /// Comprehensive test suite for logging functionality.
 ///
-/// Marked `.serialized` because the file-readback tests below and the
-/// `LoggerTests.ClearTests` sub-suite (declared in `LoggerClearTests.swift`)
-/// both touch the process-global `Log` file. Without serialization, Swift
-/// Testing runs them in parallel and `ClearTests` can truncate the shared log
-/// while `testLogFileContent` is reading it, evicting the unique message it
-/// just wrote. The trait propagates to the nested sub-suite, so clearing and
-/// reading never overlap. (Rotation triggered by *other* suites is still
-/// tolerated by `readLogIncludingBackup`.)
+/// Marked `.serialized` because the file-readback tests and the log-clear tests
+/// below both touch the process-global `Log` file. Without serialization, Swift
+/// Testing runs a suite's tests in parallel and `clearLogFile()` can truncate the
+/// shared log while `testLogFileContent` is reading it, evicting the unique
+/// message it just wrote (CI saw the "Log cleared by user" header land in the
+/// readback). The clear tests live here as direct members of this one serialized
+/// suite rather than in a nested sub-suite: `.serialized` reliably serializes a
+/// suite's own tests, but it did NOT serialize a nested sub-suite against the
+/// parent's tests, so the previous `LoggerTests.ClearTests` sub-suite still raced.
+/// (Rotation triggered by *other* suites is still tolerated by
+/// `readLogIncludingBackup`.)
 @MainActor
 @Suite("Logger Tests", .serialized)
 struct LoggerTests {
@@ -231,5 +234,40 @@ struct LoggerTests {
         #expect(content.contains("[Twitch]"))
         #expect(content.contains("[OAuth]"))
     }
-    
+
+    // MARK: - Log Clearing Tests
+    //
+    // Direct members of this `.serialized` suite (not a nested sub-suite) so the
+    // truncating `clearLogFile()` never runs concurrently with the file-readback
+    // tests above. See the suite doc comment for why nesting was insufficient.
+
+    @Test("Log file size is non-negative")
+    func logFileSizeIsNonNegative() {
+        #expect(Log.logFileSize() >= 0)
+    }
+
+    @Test("Log line count is non-negative")
+    func logLineCountIsNonNegative() {
+        #expect(Log.logLineCount() >= 0)
+    }
+
+    @Test("Clearing the log truncates the file and writes a header")
+    func clearLogFileTruncatesAndWritesHeader() {
+        // Write some content first.
+        Log.info("Pre-clear marker", category: "Test")
+        Log.info("Another line", category: "Test")
+        // Drain the async file queue before measuring.
+        Log.flush()
+
+        let sizeBefore = Log.logFileSize()
+        Log.clearLogFile()
+        let sizeAfter = Log.logFileSize()
+
+        // After clear, file should be much smaller (just the header line).
+        #expect(sizeAfter < sizeBefore + 1)
+        #expect(sizeAfter > 0, "header line should be written")
+
+        // Line count after clear should be exactly 1 (the header).
+        #expect(Log.logLineCount() == 1)
+    }
 }

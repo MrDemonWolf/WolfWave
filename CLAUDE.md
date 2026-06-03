@@ -210,7 +210,7 @@ Unit tests live in `apps/native/WolfWaveTests/` and use XCTest + Swift Testing w
 - `ArtworkServiceTests.swift`, `ArtworkServiceCacheTests.swift` — iTunes Search artwork fetch + cache eviction
 - `WebSocketServerServiceTests.swift`, `WebSocketServerIntegrationTests.swift`, `WidgetHTTPServiceTests.swift` — Overlay broadcast + widget HTTP
 - `KeychainServiceTests.swift` — Save/load/delete, Unicode, concurrent access
-- `LoggerTests.swift`, `LoggerClearTests.swift`, `PowerStateMonitorTests.swift` — Core utilities (logging, log clearing, power state)
+- `LoggerTests.swift`, `PowerStateMonitorTests.swift` — Core utilities (logging incl. log clearing, power state). Log-clear tests are direct members of the `.serialized` "Logger Tests" suite so the truncating `clearLogFile()` can't race the file-readback tests.
 - `BugReportURLTests.swift` — Pre-filled GitHub issue URL construction and encoding
 - `BundleInstallMethodTests.swift` — DMG vs Homebrew (cask) install detection
 - `AppConstantsTests.swift` + `AppConstantsEdgeCaseTests.swift` — Constant values, URL validity, dimension bounds, cross-references

@@ -153,6 +153,13 @@ nonisolated enum AppConstants {
         /// section. UserInfo contains "section" String matching `SettingsView.SettingsSection.rawValue`.
         static let openSettingsSection = "OpenSettingsSection"
 
+        /// Posted by AppKit entry points (tray menu, Dock menu, Dock reopen, Twitch
+        /// re-auth) to ask the live SwiftUI scene tree (`SettingsSceneBridge`) to
+        /// open the `Settings` scene via `@Environment(\.openSettings)`. Replaces the
+        /// private `showSettingsWindow:` selector path that logged "Please use
+        /// SettingsLink for opening the Settings scene" on macOS 14+.
+        static let openSettingsRequested = "OpenSettingsRequested"
+
         /// All notification names — used by the DEBUG-only notification firehose.
         static let allNames: [String] = [
             trackingSettingChanged,
@@ -175,6 +182,7 @@ nonisolated enum AppConstants {
             musicPermissionDenied,
             streamerModeChanged,
             openSettingsSection,
+            openSettingsRequested,
         ]
     }
 

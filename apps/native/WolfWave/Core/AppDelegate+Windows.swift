@@ -16,15 +16,19 @@ extension AppDelegate {
     /// Opens or brings the Settings window to the front.
     ///
     /// Settings is a SwiftUI `Settings` scene (`WolfWaveApp.body`), so SwiftUI
-    /// creates, reuses (single-instance), and tears down the window. We open it
-    /// through AppKit's standard `showSettingsWindow:` action rather than
-    /// constructing an `NSWindow` ourselves — that hand-off is what lets SwiftUI
-    /// own the `NSToolbar` and fixes the sidebar `>>` flash.
+    /// creates, reuses (single-instance), and tears down the window. Rather than
+    /// construct an `NSWindow` ourselves (which would steal the `NSToolbar` and
+    /// reintroduce the sidebar `>>` flash), we hand off to the hidden
+    /// `SettingsSceneBridge` by posting `.openSettingsRequested`. The bridge runs
+    /// the public `openSettings` environment action, which avoids the private
+    /// `showSettingsWindow:` selector and its "Please use SettingsLink for opening
+    /// the Settings scene" warning on macOS 14+.
     ///
     /// When switching from menu-only mode, the activation policy change is
-    /// asynchronous — the show is deferred to the next run-loop tick so macOS
-    /// has time to register the app as a regular (Dock-visible) process, and to
-    /// avoid "layoutSubtreeIfNeeded on a view already being laid out" warnings.
+    /// asynchronous, so the hand-off is deferred to the next run-loop tick. That
+    /// gives macOS time to register the app as a regular (Dock-visible) process
+    /// and avoids "layoutSubtreeIfNeeded on a view already being laid out"
+    /// warnings from posting during status-item menu tracking.
     @objc func openSettings() {
         statusItem?.menu?.cancelTracking()
 
@@ -34,12 +38,11 @@ extension AppDelegate {
 
         RunLoop.main.perform {
             MainActor.assumeIsolated {
-                NSApp.activate(ignoringOtherApps: true)
-                // Open the SwiftUI `Settings` scene through SettingsLink's public
-                // action path (see SettingsSceneOpener) instead of the private
-                // `showSettingsWindow:` selector, which logs "Please use
-                // SettingsLink for opening the Settings scene" on macOS 14+.
-                SettingsSceneOpener.open()
+                // Hand off to the live SwiftUI scene tree: `SettingsSceneBridge`
+                // (hosted in the hidden helper window) reads
+                // `@Environment(\.openSettings)`, activates the app, opens the
+                // `Settings` scene via the public action, and fronts the window.
+                NotificationCenter.default.postOpenSettingsRequested()
             }
         }
     }
