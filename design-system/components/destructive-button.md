@@ -1,6 +1,6 @@
 # DestructiveButton
 
-Bordered destructive action button. Red text on transparent fill; the filled-red treatment is reserved for the primary action inside a confirm dialog.
+Neutral bordered pill with a red label (no red fill). The filled-red treatment is reserved for the primary action inside a confirm dialog.
 
 ## Purpose
 
@@ -22,7 +22,7 @@ DestructiveButton(
 | Token | Where |
 |---|---|
 | `DSFont.Size.base` (13) | title |
-| `DSColor.error` | tint + foreground |
+| `DSColor.error` | label + icon foreground (no tint; see Do/Don't) |
 | `DSSpace.s4` | preview stack spacing |
 
 ## Anatomy
@@ -30,8 +30,8 @@ DestructiveButton(
 ```mermaid
 flowchart TD
     Btn["Button(role: .destructive)"]
-    Btn --> Label["Label(title, systemImage:?) — base medium DSColor.error"]
-    Btn -. modifiers .-> Style[".buttonStyle(.bordered) .tint(DSColor.error) .controlSize(.regular)"]
+    Btn --> Label["Label(title, systemImage:?), base medium DSColor.error"]
+    Btn -. modifiers .-> Style[".buttonStyle(.bordered) .controlSize(.regular), no .tint"]
 ```
 
 ## Accessibility
@@ -44,8 +44,9 @@ flowchart TD
 
 - ✅ Use for any row-level destructive trigger (Reset, Clear, Delete).
 - ✅ Pair with a `.confirmationDialog` whose primary action is the filled-red `Button(role: .destructive)` default.
-- ❌ Don't use `.borderedProminent` + `.tint(.red)` — that's the dialog primary, not the trigger.
-- ❌ Don't wrap in a red-tinted card; the bordered red of this button reads as the warning surface on its own.
+- ❌ Don't use `.borderedProminent` + `.tint(.red)`. That's the dialog primary, not the trigger.
+- ❌ Don't add `.tint(DSColor.error)`. On macOS a tinted `.bordered` button fills red, turning a full-width trigger into a loud red bar. The red lives on the label + icon only.
+- ❌ Don't wrap in a red-tinted card; the red label reads as the warning on its own (the Danger Zone card uses the neutral `.cardStyle()` with a red heading).
 
 ## Example
 

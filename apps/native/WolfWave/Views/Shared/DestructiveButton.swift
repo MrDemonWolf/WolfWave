@@ -10,12 +10,18 @@ import SwiftUI
 
 /// Bordered destructive action button. HIG: filled-red is reserved for the
 /// primary action inside a confirm dialog; surfaces that *trigger* the
-/// confirm dialog should use `.bordered` + `role: .destructive` so the red
-/// tint reads as a warning, not a final commit.
+/// confirm dialog stay quiet: a neutral bordered pill with a red label, not
+/// a red-filled bar. The red reads as a warning on the text, not a final
+/// commit on the whole control.
+///
+/// We deliberately do *not* `.tint(DSColor.error)` here: on macOS a tinted
+/// `.bordered` button fills red, turning a full-width trigger into a loud
+/// red bar. The destructive cue lives on the label + icon (`DSColor.error`)
+/// instead; the confirm dialog keeps the filled-red `Button(role:
+/// .destructive)` default for the actual commit.
 ///
 /// Use for "Reset All Settings", "Clear Logs", "Clear History", and any
-/// other settings-row destructive trigger. The actual confirmation dialog
-/// keeps the filled-red `Button(role: .destructive)` default.
+/// other settings-row destructive trigger.
 struct DestructiveButton: View {
 
     // MARK: - Properties
@@ -36,7 +42,6 @@ struct DestructiveButton: View {
         }
         .buttonStyle(.bordered)
         .controlSize(.regular)
-        .tint(DSColor.error)
         .pointerCursor()
         .accessibilityLabel(title)
         .accessibilityIdentifier(accessibilityIdentifier ?? "destructiveButton.\(title)")

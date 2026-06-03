@@ -52,6 +52,8 @@ All notable changes to this project will be documented in this file.
 
 ### Changed
 
+- **Calmer destructive buttons.** Reset All Settings, Clear Logs, and Clear Artwork Cache no longer show up as a loud red bar. Each is a neutral button with a red label, and the Danger Zone card swaps its red wash for a clean card with a red heading. The red stays where it means something: the label, the heading, and the final confirm.
+- **Type RESET to wipe everything.** The Reset All Settings confirmation now spells out exactly what it erases and makes you type RESET before the button unlocks, so a stray click can't reset the app by accident.
 - **Redesigned Settings sidebar.** The sidebar moves to a VoiceInk-style layout: a branded header (WolfWave mark, app name, version), grouped rows with round icon chips, and a solid accent-colored selection pill with a hover highlight. Keyboard navigation, click selection, and VoiceOver work the same, and the Integrations / On Stream / Insights / App grouping is unchanged.
 - **Apple Music playback keeps your focus.** Music never steals focus from OBS or other streaming tools; the app you were in is brought back about 150 ms after each command.
 - **MusicKit is only used for search**, never for playback, so there's no in-app audio session.

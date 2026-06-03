@@ -119,6 +119,15 @@ struct SettingsView: View {
     /// Controls the display of the reset confirmation alert
     @State private var showingResetAlert = false
 
+    /// Type-to-confirm text for the reset alert. The destructive "Reset" button
+    /// stays disabled until this matches `resetConfirmWord` exactly, so wiping
+    /// everything takes a deliberate keystroke, not a stray click. Cleared on
+    /// both alert exits.
+    @State private var resetConfirmText = ""
+
+    /// The exact (case-sensitive) word the user must type to enable Reset.
+    private let resetConfirmWord = "RESET"
+
     /// Currently selected settings section
     @State private var selectedSection: SettingsSection = .general
 
@@ -204,20 +213,31 @@ struct SettingsView: View {
             idealHeight: AppConstants.SettingsUI.idealHeight
         )
         .navigationSplitViewStyle(.automatic)
-        .alert("Reset Settings?", isPresented: $showingResetAlert) {
-            Button("Cancel", role: .cancel) {}
+        .alert("Reset all settings?", isPresented: $showingResetAlert) {
+            TextField("Type \(resetConfirmWord) to confirm", text: $resetConfirmText)
+                .accessibilityLabel("Type \(resetConfirmWord) to confirm reset")
+                .accessibilityIdentifier("resetSettingsConfirmField")
+
+            Button("Cancel", role: .cancel) { resetConfirmText = "" }
             .accessibilityLabel("Cancel reset")
             .accessibilityHint("Cancels the reset and keeps current settings")
             .accessibilityIdentifier("resetSettingsCancelButton")
 
             Button("Reset", role: .destructive) {
                 resetSettings()
+                resetConfirmText = ""
             }
+            .disabled(resetConfirmText != resetConfirmWord)
             .accessibilityLabel("Confirm reset")
             .accessibilityHint("Permanently resets all settings and signs you out")
             .accessibilityIdentifier("resetSettingsConfirmButton")
         } message: {
-            Text("This resets all settings and signs you out. Can't be undone.")
+            Text("This erases every setting and signs you out of Twitch. WolfWave goes back to a fresh install, and it can't be undone.\n\nType \(resetConfirmWord) to confirm.")
+        }
+        // Clear on the source-of-truth lifecycle event so every dismissal path
+        // (Cancel, Escape, click-away) starts the next attempt with an empty field.
+        .onChange(of: showingResetAlert) { _, isPresented in
+            if !isPresented { resetConfirmText = "" }
         }
     }
     

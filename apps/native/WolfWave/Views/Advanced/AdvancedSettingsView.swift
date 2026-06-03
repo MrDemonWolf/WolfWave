@@ -278,13 +278,7 @@ struct AdvancedSettingsView: View {
                 )
                 .accessibilityHint("Permanently delete all settings and stored credentials")
             }
-            .padding(AppConstants.SettingsUI.cardPadding)
-            .background(DSColor.error.opacity(0.06))
-            .clipShape(RoundedRectangle(cornerRadius: AppConstants.SettingsUI.cardCornerRadius))
-            .overlay(
-                RoundedRectangle(cornerRadius: AppConstants.SettingsUI.cardCornerRadius)
-                    .stroke(DSColor.error.opacity(0.2), lineWidth: 1)
-            )
+            .cardStyle()
         }
     }
 
