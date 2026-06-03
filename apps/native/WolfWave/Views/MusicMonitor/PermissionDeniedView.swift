@@ -30,9 +30,16 @@ struct PermissionDeniedBanner: View {
             iconStack
 
             VStack(alignment: .leading, spacing: DSSpace.s2) {
-                Text("Let WolfWave read what's playing.")
-                    .font(.system(size: DSFont.Size.x18, weight: .bold))
-                    .lineLimit(2)
+                HStack(spacing: DSSpace.s2) {
+                    Text("Let WolfWave read what's playing.")
+                        .font(.system(size: DSFont.Size.x18, weight: .bold))
+                        .lineLimit(2)
+
+                    Image(systemName: "lock.fill")
+                        .font(.system(size: DSFont.Size.body, weight: .semibold))
+                        .foregroundStyle(DSColor.warning)
+                        .accessibilityHidden(true)
+                }
 
                 Text("Turn on Music access and WolfWave can show your current track on Twitch, Discord, and your overlay. We only read what's playing, never play, pause, skip, or change your library.")
                     .font(.system(size: DSFont.Size.body))
@@ -118,37 +125,19 @@ struct PermissionDeniedBanner: View {
         .accessibilityHint("Rechecks whether Apple Music access is now on")
     }
 
+    /// Flat tinted circle + SF Symbol, matching the macOS System Settings
+    /// Privacy pane idiom. No gradient, drop shadow, or floating badge — the
+    /// locked state is carried by the title-row glyph and the copy instead.
     @ViewBuilder
     private var iconStack: some View {
-        ZStack(alignment: .bottomTrailing) {
-            ZStack {
-                RoundedRectangle(cornerRadius: 18, style: .continuous)
-                    .fill(LinearGradient(
-                        colors: [
-                            AppConstants.Brand.appleMusicSurfaceEnd,
-                            AppConstants.Brand.appleMusicSurfaceStart
-                        ],
-                        startPoint: .topLeading, endPoint: .bottomTrailing
-                    ))
-                Image(systemName: "music.note")
-                    .font(.system(size: DSFont.Size.x36, weight: .semibold))
-                    .foregroundStyle(.white)
-            }
-            .frame(width: 80, height: 80)
-            .shadow(color: AppConstants.Brand.appleMusicSurfaceEnd.opacity(0.30), radius: 14, x: 0, y: 12)
-
+        ZStack {
             Circle()
-                .fill(DSColor.error)
-                .frame(width: 30, height: 30)
-                .overlay(
-                    Image(systemName: "lock.fill")
-                        .font(.system(size: DSFont.Size.md, weight: .bold))
-                        .foregroundStyle(.white)
-                )
-                .overlay(Circle().stroke(.background, lineWidth: 2.5))
-                .offset(x: 6, y: 6)
+                .fill(DSColor.warning.opacity(0.12))
+            Image(systemName: "music.note")
+                .font(.system(size: DSFont.Size.x24, weight: .semibold))
+                .foregroundStyle(DSColor.warning)
         }
-        .frame(width: 86, height: 86)
+        .frame(width: 52, height: 52)
     }
 }
 
