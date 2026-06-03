@@ -8,7 +8,7 @@
 
 import Foundation
 
-/// Handles `!myqueue` / `!mysongs` — shows the requester's songs in the queue.
+/// Handles `!myqueue` / `!mysongs`: shows the requester's songs in the queue.
 final class MyQueueCommand: AsyncBotCommand {
     // MARK: - BotCommand
 

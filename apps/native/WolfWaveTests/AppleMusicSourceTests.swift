@@ -91,8 +91,8 @@ final class AppleMusicSourceTests: XCTestCase {
 
     // MARK: - extractPlayerState (tolerant FourCharCode parser)
 
-    private static let kPSP: UInt32 = 1800426320  // 'kPSP' — playing
-    private static let kPSp: UInt32 = 1800426352  // 'kPSp' — paused
+    private static let kPSP: UInt32 = 1800426320  // 'kPSP': playing
+    private static let kPSp: UInt32 = 1800426352  // 'kPSp': paused
 
     func testExtractPlayerStateFromNSNumber() {
         let raw: NSNumber = NSNumber(value: Self.kPSP)
@@ -133,7 +133,7 @@ final class AppleMusicSourceTests: XCTestCase {
     // MARK: - Paused state distinct from playing
 
     /// `kPSp` (paused) and `kPSP` (playing) MUST decode to different FourCharCode
-    /// values — the paused affordance in Discord/widget/UI keys off the
+    /// values. The paused affordance in Discord/widget/UI keys off the
     /// difference. Regression guard for callers that try to collapse them.
     func testPausedAndPlayingDecodeDistinctValues() {
         let playing = AppleMusicSource.extractPlayerState("kPSP")

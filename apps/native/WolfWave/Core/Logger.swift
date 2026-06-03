@@ -101,10 +101,10 @@ enum Log {
     /// Minimum severity that reaches `os.Logger`. File writes are unaffected.
     ///
     /// Defaults:
-    /// - Under XCTest (CI / `xcodebuild test`): `.error` — keeps unit-test runs
+    /// - Under XCTest (CI / `xcodebuild test`): `.error`. Keeps unit-test runs
     ///   from flooding the captured xcodebuild output with thousands of info
     ///   lines per suite while still surfacing real failures.
-    /// - Otherwise: `.debug` — full chatter, same as historical behavior.
+    /// - Otherwise: `.debug`. Full chatter, same as historical behavior.
     ///
     /// Override with the `WOLFWAVE_LOG_LEVEL` env var (`silent` / `error` /
     /// `warn` / `info` / `debug`). `silent` suppresses every OSLog dispatch
@@ -133,7 +133,7 @@ enum Log {
 
     /// Returns a cached `os.Logger` for the given category.
     ///
-    /// Logs appear in Console.app and Instruments — filter by subsystem
+    /// Logs appear in Console.app and Instruments. Filter by subsystem
     /// `com.mrdemonwolf.wolfwave` and use the Category column to isolate
     /// specific areas (e.g. "Twitch", "Discord", "Music").
     /// Cache of per-category `os.Logger` instances keyed by category name.
@@ -307,7 +307,7 @@ enum Log {
     /// Convenience entry point for `.debug` logs.
     ///
     /// The `@autoclosure` lets callers pass a string-interpolated expression
-    /// that is only evaluated when DEBUG logging is enabled — release builds
+    /// that is only evaluated when DEBUG logging is enabled. Release builds
     /// skip the work entirely.
     nonisolated static func debug(
         _ message: @autoclosure () -> String,
@@ -421,7 +421,7 @@ enum Log {
 
     // MARK: - PII Redaction
 
-    // Compile-checked regex literals — no runtime parsing or `try!`.
+    // Compile-checked regex literals, no runtime parsing or `try!`.
     nonisolated(unsafe) private static let redactionRules: [(Regex<Substring>, String)] = [
         (#/oauth_[a-zA-Z0-9_-]+/#, "oauth_[REDACTED]"),
         (#/Bearer\s+[a-zA-Z0-9_-]+/#, "Bearer [REDACTED]"),
@@ -444,7 +444,7 @@ enum Log {
     /// to and reading back the app-wide on-disk log file. `Log` is a
     /// process-global singleton, so other suites (e.g. WebSocket integration
     /// tests that deliberately trigger bind errors) write into that same file
-    /// concurrently — a burst large enough to rotate it mid-test made the
+    /// concurrently. A burst large enough to rotate it mid-test made the
     /// file-readback assertions flaky in CI. Testing the function directly is
     /// deterministic and touches no file.
     nonisolated static func redactForTesting(_ message: String) -> String {

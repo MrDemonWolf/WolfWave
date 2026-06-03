@@ -12,7 +12,7 @@ import SwiftUI
 
 /// In-memory song request queue with per-user limits.
 ///
-/// The queue is intentionally not persisted — each stream session starts fresh.
+/// The queue is intentionally not persisted. Each stream session starts fresh.
 /// MainActor-isolated (project default isolation); the `NSLock` is retained as a
 /// defense-in-depth guard around the mutation methods. Consumers (the queue
 /// settings view) poll the public state via a refresh timer rather than
@@ -168,7 +168,7 @@ final class SongRequestQueue {
     }
 
     /// Move a user's most-recently-added pending request to the front of the
-    /// queue — used by the bit-cheer "boost" feature.
+    /// queue. Used by the bit-cheer "boost" feature.
     ///
     /// - Parameter username: Twitch username whose request should jump ahead.
     /// - Returns: The boosted item, or `nil` when the user has nothing queued.
@@ -211,7 +211,7 @@ final class SongRequestQueue {
 
     /// Re-insert an item at the front of the queue without re-running limit checks.
     ///
-    /// Used when Music.app is closed mid-play — the item is placed back so it will be
+    /// Used when Music.app is closed mid-play. The item is placed back so it will be
     /// the first to play when Music.app re-opens.
     func insertAtHead(_ item: SongRequestItem) {
         lock.withLock {

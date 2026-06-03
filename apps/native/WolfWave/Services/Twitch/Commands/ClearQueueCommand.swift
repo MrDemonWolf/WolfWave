@@ -8,7 +8,7 @@
 
 import Foundation
 
-/// Handles `!clearqueue` / `!cq` — clears all song requests (mod/broadcaster only).
+/// Handles `!clearqueue` / `!cq`. Clears all song requests (mod/broadcaster only).
 final class ClearQueueCommand: ServiceBoundCommand {
     // MARK: - BotCommand
 

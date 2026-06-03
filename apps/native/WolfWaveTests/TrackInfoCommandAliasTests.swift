@@ -2,6 +2,7 @@
 //  TrackInfoCommandAliasTests.swift
 //  WolfWave
 //
+//  Created by Nathanial Henniges on 2026-05-28.
 //  Copyright © 2026 MrDemonWolf, Inc. All rights reserved.
 //
 
@@ -71,7 +72,7 @@ final class TrackInfoCommandAliasTests: XCTestCase {
 
     func testExecute_ignoresAliasesWhenAliasesKeyMissing() {
         // Stored aliases under a *different* key should not leak into a command
-        // initialized with `aliasesKey: nil` — defends against future regressions
+        // initialized with `aliasesKey: nil`. Defends against future regressions
         // where someone wires the wrong key through TrackInfoCommand's init.
         Foundation.UserDefaults.standard.set("np, track", forKey: testKey)
         let cmd = TrackInfoCommand(

@@ -10,7 +10,7 @@ import XCTest
 
 @testable import WolfWave
 
-/// Covers `MyQueueCommand` — per-user queue lookup including the
+/// Covers `MyQueueCommand`. Per-user queue lookup including the
 /// "no requests" reply and positional formatting.
 @MainActor
 final class MyQueueCommandTests: WolfWaveTestCase {

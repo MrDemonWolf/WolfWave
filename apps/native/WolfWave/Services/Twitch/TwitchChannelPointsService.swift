@@ -13,7 +13,7 @@ import Foundation
 /// resolving redemptions (fulfilling on success, cancelling to refund points on
 /// failure).
 ///
-/// Only rewards created by WolfWave's own client ID can be managed here — that
+/// Only rewards created by WolfWave's own client ID can be managed here. That
 /// is why WolfWave owns the reward rather than listening to one the streamer
 /// created manually. All methods take credentials explicitly so the type holds
 /// no mutable state and is trivially `Sendable`.
@@ -35,9 +35,9 @@ nonisolated struct TwitchChannelPointsService: Sendable {
 
     /// How a channel-point redemption should be resolved.
     enum Resolution: String, Sendable {
-        /// The request succeeded — points are spent.
+        /// The request succeeded. Points are spent.
         case fulfilled = "FULFILLED"
-        /// The request failed — points are refunded to the viewer.
+        /// The request failed. Points are refunded to the viewer.
         case canceled = "CANCELED"
     }
 
@@ -96,7 +96,7 @@ nonisolated struct TwitchChannelPointsService: Sendable {
         self.helix = HelixClient(http: HTTPClient(session: session))
     }
 
-    /// Test seam — inject a fully-configured `HelixClient`.
+    /// Test seam. Inject a fully-configured `HelixClient`.
     init(helix: HelixClient) {
         self.helix = helix
     }
@@ -147,7 +147,7 @@ nonisolated struct TwitchChannelPointsService: Sendable {
         }
     }
 
-    /// Resolves a redemption — `fulfilled` spends the points, `canceled` refunds
+    /// Resolves a redemption. `fulfilled` spends the points, `canceled` refunds
     /// them. A failure here is non-fatal (the song may still have queued); the
     /// caller should log and continue.
     func resolveRedemption(

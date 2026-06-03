@@ -108,7 +108,7 @@ struct WolfHeroMark: View {
 
 // MARK: - WolfHeadShape
 
-/// Wolf head silhouette (ears + skull + eye sockets) — fill with even-odd
+/// Wolf head silhouette (ears + skull + eye sockets). Fill with even-odd
 /// rule so the eye sockets cut through. ViewBox: `8 2 84 94` from widget SVG.
 private struct WolfHeadShape: Shape {
 
@@ -116,7 +116,7 @@ private struct WolfHeadShape: Shape {
         let box = WolfViewBox(rect: rect)
         var path = Path()
 
-        // Skull / head body — closed outline matching widget.html.
+        // Skull / head body. Closed outline matching widget.html.
         path.move(to: box.point(50, 18))
         path.addCurve(
             to: box.point(72, 42),
@@ -148,7 +148,7 @@ private struct WolfHeadShape: Shape {
         path.addLine(to: box.point(54, 33))
         path.closeSubpath()
 
-        // Left eye socket — carved via even-odd.
+        // Left eye socket, carved via even-odd.
         path.move(to: box.point(32, 43))
         path.addCurve(
             to: box.point(46.5, 43),
@@ -162,7 +162,7 @@ private struct WolfHeadShape: Shape {
         )
         path.closeSubpath()
 
-        // Right eye socket — carved via even-odd.
+        // Right eye socket, carved via even-odd.
         path.move(to: box.point(53.5, 43))
         path.addCurve(
             to: box.point(68, 43),
@@ -278,17 +278,17 @@ nonisolated private struct WolfViewBox {
 
 // MARK: - Previews
 
-#Preview("mono — primary") {
+#Preview("mono: primary") {
     WolfHeroMark(size: 120, style: .mono(.primary))
         .padding(DSSpace.s7)
 }
 
-#Preview("brand gradient — animated") {
+#Preview("brand gradient: animated") {
     WolfHeroMark(size: 120, style: .brandGradient, animatedBars: true)
         .padding(DSSpace.s7)
 }
 
-#Preview("mono — twitch tint, small") {
+#Preview("mono: twitch tint, small") {
     WolfHeroMark(size: 44, style: .mono(AppConstants.Brand.twitch))
         .padding(DSSpace.s4)
 }

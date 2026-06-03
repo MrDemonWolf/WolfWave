@@ -12,7 +12,7 @@ import XCTest
 
 // MARK: - SongSearchResolverTests
 
-/// Covers `SongSearchResolver` routing — plain text vs. link queries — using
+/// Covers `SongSearchResolver` routing (plain text vs. link queries) using
 /// `MockAppleMusicController` (declared in `SongRequestServiceTests`) and a
 /// `MockURLProtocol`-backed `LinkResolverService`.
 ///

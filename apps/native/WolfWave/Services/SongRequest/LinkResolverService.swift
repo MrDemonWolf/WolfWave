@@ -20,7 +20,7 @@ nonisolated final class LinkResolverService {
         /// Extracted song title and artist from the link.
         case found(title: String, artist: String?)
 
-        /// The link is an Apple Music URL — resolve directly via MusicKit.
+        /// The link is an Apple Music URL. Resolve directly via MusicKit.
         case appleMusicURL(URL)
 
         /// Could not extract metadata from the link.
@@ -89,17 +89,17 @@ nonisolated final class LinkResolverService {
     /// - Parameter url: The music service URL to resolve.
     /// - Returns: The resolution result with title/artist or Apple Music URL.
     func resolve(url: String) async -> ResolveResult {
-        // Apple Music links — return directly for MusicKit resolution
+        // Apple Music links: return directly for MusicKit resolution
         if Self.isAppleMusicLink(url), let musicURL = URL(string: url) {
             return .appleMusicURL(musicURL)
         }
 
-        // Spotify links — use Spotify oEmbed
+        // Spotify links: use Spotify oEmbed
         if Self.isSpotifyLink(url) {
             return await resolveViaOEmbed(base: AppConstants.API.spotifyOEmbed, sourceURL: url, includeFormat: false)
         }
 
-        // YouTube links — use YouTube oEmbed
+        // YouTube links: use YouTube oEmbed
         if Self.isYouTubeLink(url) {
             return await resolveViaOEmbed(base: AppConstants.API.youtubeOEmbed, sourceURL: url, includeFormat: true)
         }

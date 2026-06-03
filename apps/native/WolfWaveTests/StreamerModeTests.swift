@@ -101,14 +101,14 @@ final class StreamerModeTests: XCTestCase {
     func testStreamerModeKeyRegistered() {
         XCTAssertTrue(
             AppConstants.UserDefaults.allKeys.contains(AppConstants.UserDefaults.streamerModeEnabled),
-            "streamerModeEnabled missing from AppConstants.UserDefaults.allKeys — reset operations and Debug inspector won't see it"
+            "streamerModeEnabled missing from AppConstants.UserDefaults.allKeys: reset operations and Debug inspector won't see it"
         )
     }
 
     func testStreamerModeNotificationRegistered() {
         XCTAssertTrue(
             AppConstants.Notifications.allNames.contains(AppConstants.Notifications.streamerModeChanged),
-            "streamerModeChanged missing from AppConstants.Notifications.allNames — DEBUG firehose won't surface it"
+            "streamerModeChanged missing from AppConstants.Notifications.allNames: DEBUG firehose won't surface it"
         )
     }
 }

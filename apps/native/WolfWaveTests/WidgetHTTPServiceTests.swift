@@ -66,7 +66,7 @@ final class WidgetHTTPServiceTests: XCTestCase {
     // MARK: - Port 0 Handling Tests
 
     func testPortZeroHandledGracefully() {
-        // Port 0 should be handled gracefully — NWEndpoint.Port(rawValue: 0) returns nil,
+        // Port 0 should be handled gracefully. NWEndpoint.Port(rawValue: 0) returns nil,
         // so start() will log an error and return early without crashing
         let service = WidgetHTTPService(port: 0)
         XCTAssertNotNil(service, "Service should initialize with port 0 without crashing")
@@ -134,7 +134,7 @@ final class WidgetHTTPServiceTests: XCTestCase {
         )
         XCTAssertFalse(
             body.contains("<script src=\"widget-tokens.generated.js\"></script>"),
-            "Served HTML should not still reference the external tokens JS — it should be inlined"
+            "Served HTML should not still reference the external tokens JS: it should be inlined"
         )
     }
 

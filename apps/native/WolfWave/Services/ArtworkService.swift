@@ -49,11 +49,11 @@ nonisolated final class ArtworkService: @unchecked Sendable {
     /// Timestamp of the last completed lookup per `cacheKey`, success or miss.
     /// A miss caches nothing in the URL maps, so without this a track absent from
     /// iTunes would re-hit the network on every playback tick. An entry here means
-    /// "already looked up recently" — callers within `AppConstants.API.artworkLookupTTL`
+    /// "already looked up recently", so callers within `AppConstants.API.artworkLookupTTL`
     /// short-circuit to the (possibly empty) cached value instead of re-querying.
     private var resolvedAt: [String: Date] = [:]
 
-    /// Insertion-ordered keys — used to evict the oldest entry when caches are full.
+    /// Insertion-ordered keys. Used to evict the oldest entry when caches are full.
     private var cacheKeyOrder: [String] = []
 
     /// Maximum number of entries retained across all three caches.
@@ -168,7 +168,7 @@ nonisolated final class ArtworkService: @unchecked Sendable {
             if cached.artworkURL != nil {
                 return .hit(cached)
             }
-            // Recently resolved (even to an empty result) — serve the cached value
+            // Recently resolved (even to an empty result), serve the cached value
             // without re-querying. Stops repeat lookups for tracks not on iTunes.
             if let resolved = resolvedAt[cacheKey],
                Date().timeIntervalSince(resolved) < AppConstants.API.artworkLookupTTL {
@@ -346,7 +346,7 @@ nonisolated final class ArtworkService: @unchecked Sendable {
     }
 
     /// Loads the persisted cache into memory at init, dropping entries already
-    /// past the TTL so the file self-prunes over time. Single-threaded — runs
+    /// past the TTL so the file self-prunes over time. Single-threaded, runs
     /// before the service is shared across queues.
     private func loadFromDisk() {
         guard let url = persistenceURL,

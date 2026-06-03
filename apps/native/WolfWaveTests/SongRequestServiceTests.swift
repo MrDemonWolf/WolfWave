@@ -322,7 +322,7 @@ final class SongRequestServiceTests: WolfWaveTestCase {
             query: "any song", username: "viewer", source: chatSource())
         XCTAssertFalse(
             mockController.playNowCalled,
-            "playNow threw — item should be re-queued, not marked as played")
+            "playNow threw: item should be re-queued, not marked as played")
     }
 
     // MARK: - Fallback Playlist

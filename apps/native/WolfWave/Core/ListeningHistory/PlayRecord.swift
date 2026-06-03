@@ -12,7 +12,7 @@ import Foundation
 ///
 /// One `PlayRecord` is persisted per *completed* play (a track that crossed the
 /// scrobble threshold). It is serialized as one compact JSON object per line in
-/// the append-only NDJSON play log — short keys keep each line near 120 bytes.
+/// the append-only NDJSON play log. Short keys keep each line near 120 bytes.
 nonisolated struct PlayRecord: Codable, Equatable, Hashable, Sendable {
 
     // MARK: - Properties
@@ -64,7 +64,7 @@ nonisolated struct PlayRecord: Codable, Equatable, Hashable, Sendable {
 
     // MARK: - Codable
 
-    /// Compact NDJSON keys — `timestamp` and the durations are stored as plain
+    /// Compact NDJSON keys: `timestamp` and the durations are stored as plain
     /// epoch / second numbers rather than ISO-8601 strings to keep lines small.
     private enum CodingKeys: String, CodingKey {
         case timestamp = "t"

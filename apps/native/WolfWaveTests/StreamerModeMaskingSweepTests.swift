@@ -1,7 +1,8 @@
 //
 //  StreamerModeMaskingSweepTests.swift
-//  WolfWaveTests
+//  WolfWave
 //
+//  Created by Nathanial Henniges on 2026-05-29.
 //  Copyright © 2026 MrDemonWolf, Inc. All rights reserved.
 //
 
@@ -12,7 +13,7 @@ import XCTest
 /// Locks the masking contract that the settings/onboarding views rely on when
 /// Streamer Mode is enabled. `StreamerModeTests` covers `mask(_:style:isOn:)`
 /// in isolation; this suite asserts that realistic sensitive values (the actual
-/// shapes shown on screen — Twitch account name, channel, WebSocket auth token,
+/// shapes shown on screen, Twitch account name, channel, WebSocket auth token,
 /// LAN/overlay URLs) never leak through the masked output, so a regression in a
 /// view that forwards the wrong value or style is caught.
 final class StreamerModeMaskingSweepTests: XCTestCase {

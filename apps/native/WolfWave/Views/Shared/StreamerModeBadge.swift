@@ -14,7 +14,7 @@ import SwiftUI
 /// Render next to any row whose value is masked by `StreamerMode.mask(...)` or
 /// whose button is `.disabled(streamerMode)`, so a viewer (on camera or off)
 /// can tell the empty/locked state is intentional, not a bug. Caller is
-/// responsible for the `if streamerMode { StreamerModeBadge() }` guard — the
+/// responsible for the `if streamerMode { StreamerModeBadge() }` guard. The
 /// badge does not read UserDefaults itself.
 struct StreamerModeBadge: View {
 

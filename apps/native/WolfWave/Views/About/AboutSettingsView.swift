@@ -10,7 +10,7 @@ import AppKit
 import SwiftUI
 
 /// About pane shown in the Settings sidebar. Single source of truth for app
-/// identity, quick actions, and legal links — replaces the legacy standalone
+/// identity, quick actions, and legal links. Replaces the legacy standalone
 /// About window. Uses the same section-header + `.cardStyle()` rhythm as
 /// `AdvancedSettingsView` / `GeneralSettingsView`.
 struct AboutSettingsView: View {

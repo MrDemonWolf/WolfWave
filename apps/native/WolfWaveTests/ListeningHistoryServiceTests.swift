@@ -30,8 +30,6 @@ struct ListeningHistoryServiceTests {
         )
     }
 
-    // MARK: - Scrobble Threshold
-
     // MARK: - Earliest Recorded Month
 
     @Test("earliestRecordedMonth is nil when no plays have been recorded")
@@ -72,7 +70,7 @@ struct ListeningHistoryServiceTests {
         let dir = makeTempDirectory()
         let service = makeService(enabled: true, directory: dir)
 
-        // Insert recent first, older second — earliest should still be the older one.
+        // Insert recent first, older second. Earliest should still be the older one.
         service.recordTrackChange(
             track: "Recent", artist: "A", album: "",
             duration: 200, playedSeconds: 188
@@ -82,12 +80,14 @@ struct ListeningHistoryServiceTests {
             duration: 200, playedSeconds: 188
         )
 
-        // Both fall in the current month — earliest should be start-of-current-month.
+        // Both fall in the current month. Earliest should be start-of-current-month.
         let cal = Calendar.current
         let expected = cal.dateInterval(of: .month, for: Date())?.start
         #expect(service.earliestRecordedMonth == expected)
         try? FileManager.default.removeItem(at: dir)
     }
+
+    // MARK: - Scrobble Threshold
 
     @Test("A track played past 50% qualifies")
     func testQualifiesAtHalf() {
@@ -262,7 +262,7 @@ struct ListeningHistoryServiceTests {
         let cap = AppConstants.History.maxRetainedRecords
 
         // Seed the disk log with `cap` records via replaceAll (fast), then
-        // load — service is at the cap with no trimming required.
+        // load. Service is at the cap with no trimming required.
         let store = PlayLogStore(directory: dir)
         let base = Date().addingTimeInterval(-Double(cap) * 60)
         var seeded: [PlayRecord] = []
@@ -316,7 +316,7 @@ struct ListeningHistoryServiceTests {
 
         let service = makeService(enabled: true, directory: dir)
         await service.loadFromDisk()
-        // Drive the service one record past the cap — fold + arm compaction.
+        // Drive the service one record past the cap: fold + arm compaction.
         service.recordTrackChange(
             track: "Overflow", artist: "Wolf", album: "",
             duration: 200, playedSeconds: 200

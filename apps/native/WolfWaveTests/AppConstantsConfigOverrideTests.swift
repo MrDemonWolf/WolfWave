@@ -10,7 +10,7 @@ import Testing
 import Foundation
 @testable import WolfWave
 
-/// Covers `AppConstants.infoPlistString` — the shared helper that backs every
+/// Covers `AppConstants.infoPlistString`: the shared helper that backs every
 /// fork-overridable constant (docs URL, community Discord, copyright holder,
 /// repo owner/name, display name).
 @MainActor

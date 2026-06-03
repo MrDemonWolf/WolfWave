@@ -34,7 +34,7 @@ final class AppleMusicSource: PlaybackSource, @unchecked Sendable {
             static let notPlaying = "NOT_PLAYING"
             static let errorPrefix = "ERROR:"
             /// Internal sentinel: SBApplication created but `playerState` read
-            /// returned nil while Music was running — textbook TCC Automation
+            /// returned nil while Music was running. Textbook TCC Automation
             /// denial signature. Mapped to the user-facing
             /// "Music access denied" delegate status downstream.
             static let accessDenied = "ACCESS_DENIED"
@@ -56,7 +56,7 @@ final class AppleMusicSource: PlaybackSource, @unchecked Sendable {
     weak var delegate: PlaybackSourceDelegate?
 
     // All mutable scalar state lives behind `stateLock`. Methods are
-    // `nonisolated`, so the lock is the only safety guarantee — every
+    // `nonisolated`, so the lock is the only safety guarantee. Every
     // read and write goes through `stateLock.withLock`.
     private let stateLock = NSLock()
     nonisolated(unsafe) private var currentCheckInterval: TimeInterval = Constants.checkInterval
@@ -65,7 +65,7 @@ final class AppleMusicSource: PlaybackSource, @unchecked Sendable {
     nonisolated(unsafe) private var lastTrackSeenAt: Date = .distantPast
     nonisolated(unsafe) private var lastNotificationAt: Date = .distantPast
     nonisolated(unsafe) private var isTracking = false
-    /// Dedup gate for guard-failure logs — same key won't log twice in a row.
+    /// Dedup gate for guard-failure logs. Same key won't log twice in a row.
     /// A successful track read resets this so the next failure logs again.
     nonisolated(unsafe) private var lastGuardLogged: String?
 
@@ -158,7 +158,7 @@ final class AppleMusicSource: PlaybackSource, @unchecked Sendable {
             }
             guard let stateObj = musicApp.value(forKey: "playerState") else {
                 // Music is running (checked above) but ScriptingBridge can't
-                // read its state — the canonical TCC Automation-denied
+                // read its state. The canonical TCC Automation-denied
                 // signature. Surface it as a distinct sentinel so the UI
                 // can flip its permission banner without polling.
                 return (Constants.Status.accessDenied, nil)
@@ -220,12 +220,12 @@ final class AppleMusicSource: PlaybackSource, @unchecked Sendable {
             // disambiguate genuine pause vs. partial-TCC placeholder reads.
             logGuardOnce(key: "diagnose-not-playing", message: "AppleMusicSource: diagnose-not-playing → \(diag)")
         } else if result.status != Constants.Status.notPlaying, let diag = result.diagnostic {
-            // Fallback emit path — state parse failed but currentTrack.name
+            // Fallback emit path. State parse failed but currentTrack.name
             // was non-empty so we trusted the track. Surface the unknown
             // bridge type once so we can add it to extractPlayerState natively.
             logGuardOnce(
                 key: "state-parse-fallback",
-                message: "AppleMusicSource: playerState bridge unknown — trusting currentTrack.name. \(diag)"
+                message: "AppleMusicSource: playerState bridge unknown: trusting currentTrack.name. \(diag)"
             )
         }
         handleTrackInfo(result.status)
@@ -301,14 +301,14 @@ final class AppleMusicSource: PlaybackSource, @unchecked Sendable {
 
     nonisolated private func handleTrackInfo(_ trackInfo: String) {
         if trackInfo.hasPrefix(Constants.Status.errorPrefix) {
-            logGuardOnce(key: "script-error", message: "AppleMusicSource: ScriptingBridge returned error — \(trackInfo)")
+            logGuardOnce(key: "script-error", message: "AppleMusicSource: ScriptingBridge returned error: \(trackInfo)")
             notifyDelegate(status: Constants.DelegateStatus.scriptError)
         } else if trackInfo == Constants.Status.notRunning {
             logGuardOnce(key: "not-running", message: "AppleMusicSource: Music.app not running")
             notifyDelegate(status: Constants.DelegateStatus.musicNotRunning)
         } else if trackInfo == Constants.Status.accessDenied {
-            // Music IS running but ScriptingBridge can't read state — TCC denied.
-            logGuardOnce(key: "access-denied", message: "AppleMusicSource: Music.app running but ScriptingBridge read returned nil — Automation permission likely denied")
+            // Music IS running but ScriptingBridge can't read state. TCC denied.
+            logGuardOnce(key: "access-denied", message: "AppleMusicSource: Music.app running but ScriptingBridge read returned nil: Automation permission likely denied")
             notifyDelegate(status: Constants.DelegateStatus.accessDenied)
         } else if trackInfo == Constants.Status.scriptBridgeNil {
             logGuardOnce(key: "sb-nil", message: "AppleMusicSource: SBApplication(bundleIdentifier:) returned nil")
@@ -351,7 +351,7 @@ final class AppleMusicSource: PlaybackSource, @unchecked Sendable {
             return true
         }
         guard isNew else { return }
-        Log.debug("AppleMusicSource: Now Playing → \(trackName) — \(artist) [\(album)]", category: "Music")
+        Log.debug("AppleMusicSource: Now Playing → \(trackName) by \(artist) [\(album)]", category: "Music")
     }
 
     nonisolated private func subscribeToMusicNotifications() {
@@ -365,7 +365,7 @@ final class AppleMusicSource: PlaybackSource, @unchecked Sendable {
     nonisolated private func setupFallbackTimer() {
         let interval = stateLock.withLock { currentCheckInterval }
         let newTimer = DispatchSource.makeTimerSource(queue: backgroundQueue)
-        // This is a *fallback* poll — real-time track changes arrive via the
+        // This is a *fallback* poll. Real-time track changes arrive via the
         // distributed notification. Give the timer generous leeway (20% of the
         // interval) so macOS can coalesce its wakeups with other system timers,
         // cutting idle energy use for an all-day menu bar app. The fallback

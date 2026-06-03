@@ -204,7 +204,7 @@ private struct MotionGallerySection: View {
 
     private var chipCycleDemo: some View {
         VStack(alignment: .leading, spacing: DSSpace.s2) {
-            Text("StatusChip — auto-cycles every 1.2s")
+            Text("StatusChip: auto-cycles every 1.2s")
                 .font(.system(size: DSFont.Size.sm, weight: .semibold))
                 .foregroundStyle(.secondary)
             HStack(spacing: DSSpace.s4) {
@@ -215,8 +215,8 @@ private struct MotionGallerySection: View {
                 .buttonStyle(.bordered)
                 .controlSize(.small)
             }
-            // `.periodic` keeps the demo lively without a Combine pipeline. The
-            // timeline ticks every 1.2s; we advance state on each tick.
+            // A cancelable Task loop keeps the demo lively without a Combine
+            // pipeline. It advances the chip state every 1.2s.
             .onAppear { startChipTimer() }
         }
     }
@@ -238,7 +238,7 @@ private struct MotionGallerySection: View {
 
     private var trackSwapDemo: some View {
         VStack(alignment: .leading, spacing: DSSpace.s2) {
-            Text("NowPlayingHeroCard — title contentTransition + TimelineView scrubber")
+            Text("NowPlayingHeroCard: title contentTransition + TimelineView scrubber")
                 .font(.system(size: DSFont.Size.sm, weight: .semibold))
                 .foregroundStyle(.secondary)
 
@@ -279,7 +279,7 @@ private struct MotionGallerySection: View {
 
     private var albumArtPhasedDemo: some View {
         VStack(alignment: .leading, spacing: DSSpace.s2) {
-            Text("AlbumArtView — direct image vs URL phased load")
+            Text("AlbumArtView: direct image vs URL phased load")
                 .font(.system(size: DSFont.Size.sm, weight: .semibold))
                 .foregroundStyle(.secondary)
 

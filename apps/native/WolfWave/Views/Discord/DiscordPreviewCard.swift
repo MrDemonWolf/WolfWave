@@ -32,9 +32,9 @@ struct DiscordPreviewCard: View {
     /// What the card is currently representing. Drives the header, dot color,
     /// body content, and whether buttons render.
     enum Mode: Equatable {
-        /// A track is actively playing — full card, moving progress, buttons.
+        /// A track is actively playing. Full card, moving progress, buttons.
         case playing
-        /// A track is loaded but paused — track stays, frozen bar, "Paused" badge.
+        /// A track is loaded but paused. Track stays, frozen bar, "Paused" badge.
         case paused
         /// Apple Music is open but nothing is playing. Real presence is cleared.
         case stopped
@@ -82,7 +82,7 @@ struct DiscordPreviewCard: View {
     private let cardBackground = AppConstants.Brand.discordSurface
     /// Discord button background `#4E5058`.
     private let buttonBackground = AppConstants.Brand.discordControl
-    /// Faux progress bar fill — visual placeholder only.
+    /// Faux progress bar fill, visual placeholder only.
     private let progressFraction: Double = 0.32
 
     // MARK: - Body
@@ -316,7 +316,7 @@ struct DiscordPreviewCard: View {
 
     // MARK: - Idle activity content
 
-    /// Opt-in idle marker — looks like a real activity ("Listening to WolfWave ·
+    /// Opt-in idle marker. Looks like a real activity ("Listening to WolfWave ·
     /// Idle") so the preview matches what stays on the profile when the user
     /// keeps idle status on. No track, progress, or buttons.
     private var idleActivityContent: some View {

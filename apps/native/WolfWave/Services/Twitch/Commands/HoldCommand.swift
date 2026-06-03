@@ -8,7 +8,7 @@
 
 import Foundation
 
-/// Handles `!hold` / `!resume` / `!unhold` — pauses or resumes song request auto-play (mod/broadcaster only).
+/// Handles `!hold` / `!resume` / `!unhold`: pauses or resumes song request auto-play (mod/broadcaster only).
 ///
 /// While held, new `!sr` requests continue to be accepted and buffered into the queue,
 /// but nothing plays automatically. When resumed, the first buffered request starts immediately.

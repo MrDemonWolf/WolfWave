@@ -9,7 +9,7 @@
 import SwiftUI
 
 /// Twitch connection step with branded tile, pill CTA, and reused `DeviceCodeView`
-/// for the OAuth Device Code flow. Optional — can be skipped from the nav bar.
+/// for the OAuth Device Code flow. Optional, can be skipped from the nav bar.
 struct OnboardingTwitchStepView: View {
 
     // MARK: - Properties

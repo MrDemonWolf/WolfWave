@@ -112,12 +112,11 @@ struct DeviceCodeView: View {
         Pasteboard.copy(userCode)
         onCopy()
 
-        // Show feedback
         withAnimation(.easeInOut(duration: DSMotion.Duration.fast)) {
             showCopyFeedback = true
         }
 
-        // Auto-dismiss feedback
+        // Auto-dismiss the toast after a beat.
         Task { @MainActor in
             try? await Task.sleep(for: .milliseconds(1300))
             withAnimation(.easeInOut(duration: DSMotion.Duration.fast)) {

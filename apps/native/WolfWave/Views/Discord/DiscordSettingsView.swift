@@ -11,10 +11,13 @@ import SwiftUI
 
 /// Settings for Discord Rich Presence integration.
 ///
-/// Four cards, top to bottom:
-///   1. **Connection** — enable toggle, connection status chip, test button.
-///   2. **Buttons** — per-button toggle + label override + URL preview.
-///   3. **Preview** — mock Discord activity card driven by current settings.
+/// Cards, top to bottom (everything below Connection only shows once presence
+/// is enabled and a client ID is configured):
+///   1. **Connection**: enable toggle, connection status chip, test button.
+///   2. **Buttons**: master toggle plus per-button enable + URL preview.
+///   3. **Playlist**: show the source playlist, display style, name privacy.
+///   4. **Behavior**: what the profile shows when stopped or paused.
+///   5. **Preview**: mock Discord activity card driven by current settings.
 struct DiscordSettingsView: View {
     // MARK: - User Settings
 
@@ -352,7 +355,7 @@ struct DiscordSettingsView: View {
     // MARK: - Preview State
 
     /// The mode the preview card renders. A disconnected Discord client wins
-    /// over playback state — there's no profile to show music on. Otherwise the
+    /// over playback state. There's no profile to show music on. Otherwise the
     /// live playback mode is mapped through the two behavior toggles: a paused
     /// track can be hidden, and any "no track" state can fall back to the opt-in
     /// idle activity instead of an empty card.

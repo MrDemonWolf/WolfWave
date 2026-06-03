@@ -189,7 +189,7 @@ struct AppConstantsTests {
         #expect(AppConstants.SettingsUI.minHeight > 0)
         #expect(AppConstants.SettingsUI.idealWidth >= AppConstants.SettingsUI.minWidth)
         #expect(AppConstants.SettingsUI.idealHeight >= AppConstants.SettingsUI.minHeight)
-        // Min size is the floor the user can drag to — it must fit a 720p
+        // Min size is the floor the user can drag to. It must fit a 720p
         // display with the Dock visible (~626pt usable height).
         #expect(AppConstants.SettingsUI.minWidth <= 1280)
         #expect(AppConstants.SettingsUI.minHeight <= 626)

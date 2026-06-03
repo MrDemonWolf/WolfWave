@@ -13,9 +13,10 @@ import SwiftUI
 /// of secondary actions ("Check for Updates", "Release Notes", "Website",
 /// "Send Feedback", "Sponsor").
 ///
-/// Wraps `Grid` + `GridRow` so callers list buttons sequentially and the
-/// grid auto-wraps every `columns` items. A single button can still span
-/// extra columns via `.gridCellColumns(_:)` on `ActionGridButton`.
+/// Wraps `Grid` with shared design-system spacing. Callers lay out their own
+/// `GridRow` blocks (see the preview); `columns` only sets the intended width.
+/// A single button can span extra columns via `.gridCellColumns(_:)` on
+/// `ActionGridButton`.
 struct ActionGrid<Content: View>: View {
 
     // MARK: - Properties
@@ -27,9 +28,8 @@ struct ActionGrid<Content: View>: View {
 
     var body: some View {
         Grid(horizontalSpacing: DSSpace.s2, verticalSpacing: DSSpace.s2) {
-            // Single-row Grid; callers decide layout via `GridRow` blocks when
-            // they need explicit row control. The simple path below wraps every
-            // `columns` children into successive rows.
+            // Layout comes from the caller's `GridRow` blocks; this just owns
+            // the shared spacing so every action grid lines up identically.
             content()
         }
     }

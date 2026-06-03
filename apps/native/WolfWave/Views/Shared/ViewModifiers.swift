@@ -15,7 +15,7 @@ extension View {
     /// Adds a pointing hand cursor when hovering over this view.
     ///
     /// Use for clickable elements that aren't standard buttons. Wraps SwiftUI's
-    /// `.pointerStyle(.link)` (macOS 15+) — the system manages push/pop so this
+    /// `.pointerStyle(.link)` (macOS 15+). The system manages push/pop so this
     /// never leaks like a manual `NSCursor.push`/`pop` pair would.
     func pointerCursor() -> some View {
         pointerStyle(.link)
@@ -146,7 +146,7 @@ extension View {
 
 /// Sentence-case micro-header used inside cards to label sub-sections
 /// ("Recently played", "Top artists", "Bundle & build"). Replaces the
-/// legacy ALL-CAPS + letter-spacing pattern — HIG (macOS 26) prefers
+/// legacy ALL-CAPS + letter-spacing pattern. HIG (macOS 26) prefers
 /// sentence case for in-card labels; reserve full caps for tiny eyebrow
 /// tags above hero cards only.
 struct SectionEyebrowModifier: ViewModifier {
@@ -158,7 +158,7 @@ struct SectionEyebrowModifier: ViewModifier {
 }
 
 extension View {
-    /// Applies the section eyebrow style — sentence-case, sm, semibold, secondary.
+    /// Applies the section eyebrow style: sentence-case, sm, semibold, secondary.
     ///
     /// Use for in-card sub-section labels (e.g. `Text("Recently played").sectionEyebrow()`).
     /// Pairs naturally with a leading SF Symbol via `Label(_, systemImage:)`.
@@ -175,7 +175,7 @@ extension View {
     /// the button or pill. Ghost labels render hidden in the background and
     /// are excluded from hit-testing and accessibility.
     ///
-    /// Adapts automatically to localization, dynamic type, and new states —
+    /// Adapts automatically to localization, dynamic type, and new states;
     /// no magic `minWidth` values needed.
     func stableWidth<Ghost: View>(@ViewBuilder ghosts: () -> Ghost) -> some View {
         background(
@@ -227,7 +227,7 @@ extension View {
 // MARK: - Skeleton Loading
 
 /// A view modifier that renders the content as a redacted placeholder while
-/// `isLoading` is true. Use instead of swapping in custom shimmer rows — the
+/// `isLoading` is true. Use instead of swapping in custom shimmer rows. The
 /// system handles VoiceOver suppression and respects Reduce Motion.
 struct SkeletonModifier: ViewModifier {
     let isLoading: Bool

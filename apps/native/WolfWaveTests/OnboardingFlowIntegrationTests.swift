@@ -1,7 +1,8 @@
 //
 //  OnboardingFlowIntegrationTests.swift
-//  WolfWaveTests
+//  WolfWave
 //
+//  Created by Nathanial Henniges on 2026-05-29.
 //  Copyright © 2026 MrDemonWolf, Inc. All rights reserved.
 //
 
@@ -11,10 +12,10 @@ import XCTest
 
 /// End-to-end traversal of the onboarding wizard: drives `OnboardingViewModel`
 /// through every step in order (Welcome → Discord → Twitch → OBS Widget →
-/// Preferences → Permissions → Menu Bar Pointer → Completion) and
-/// confirms the completed flag lands in UserDefaults. Per-step navigation and
-/// boundary conditions are covered by `OnboardingViewModelTests`; this suite is
-/// the full-walk integration check.
+/// Preferences → Permissions → Notifications → Menu Bar Pointer → Completion)
+/// and confirms the completed flag lands in UserDefaults. Per-step navigation
+/// and boundary conditions are covered by `OnboardingViewModelTests`; this
+/// suite is the full-walk integration check.
 @MainActor
 final class OnboardingFlowIntegrationTests: WolfWaveTestCase {
 

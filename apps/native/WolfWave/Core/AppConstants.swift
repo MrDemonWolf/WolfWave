@@ -160,7 +160,7 @@ nonisolated enum AppConstants {
         /// SettingsLink for opening the Settings scene" on macOS 14+.
         static let openSettingsRequested = "OpenSettingsRequested"
 
-        /// All notification names — used by the DEBUG-only notification firehose.
+        /// All notification names, used by the DEBUG-only notification firehose.
         static let allNames: [String] = [
             trackingSettingChanged,
             dockVisibilityChanged,
@@ -213,8 +213,8 @@ nonisolated enum AppConstants {
         static let trackingEnabled = "trackingEnabled"
 
         /// Last definitively-resolved Music automation permission ("granted"/"denied").
-        /// Persisted so a closed Music.app — where the Apple Events probe returns
-        /// `procNotFound` instead of the real TCC decision — falls back to the last
+        /// Persisted so a closed Music.app (where the Apple Events probe returns
+        /// `procNotFound` instead of the real TCC decision) falls back to the last
         /// known grant instead of masquerading as "unknown". (String, optional)
         static let lastResolvedMusicPermission = "lastResolvedMusicPermission"
 
@@ -270,7 +270,7 @@ nonisolated enum AppConstants {
         /// When false, a generic label is shown instead so the name stays private.
         static let discordPlaylistShowName = "discordPlaylistShowName"
 
-        /// How the playlist is displayed in Discord presence — `DiscordPlaylistStyle` raw value (String, default: "artistLine")
+        /// How the playlist is displayed in Discord presence: `DiscordPlaylistStyle` raw value (String, default: "artistLine")
         static let discordPlaylistStyle = "discordPlaylistStyle"
 
         /// Whether WolfWave shows an "Idle" Discord activity when nothing is
@@ -395,10 +395,10 @@ nonisolated enum AppConstants {
         /// Name of the Apple Music playlist to play when the request queue is empty (String, default: "")
         static let songRequestFallbackPlaylist = "songRequestFallbackPlaylist"
 
-        /// Whether song request auto-play is paused — requests still queue but nothing plays (Bool, default: false)
+        /// Whether song request auto-play is paused. Requests still queue but nothing plays (Bool, default: false)
         static let songRequestHoldEnabled = "songRequestHoldEnabled"
 
-        /// Who may request via the !sr chat command — a `RequestAudience` raw value
+        /// Who may request via the !sr chat command: a `RequestAudience` raw value
         /// (String, default: "everyone"). Supersedes `songRequestSubscriberOnly`.
         static let songRequestChatAudience = "songRequestChatAudience"
 
@@ -421,7 +421,7 @@ nonisolated enum AppConstants {
         /// adding a new one (Bool, default: false)
         static let songRequestBitsBoostEnabled = "songRequestBitsBoostEnabled"
 
-        /// Health of the redemption integration — a `RedemptionStatus` raw value.
+        /// Health of the redemption integration: a `RedemptionStatus` raw value.
         /// Empty/"ok" when working; other values drive the settings re-auth banner
         /// (String, default: "ok").
         static let songRequestRedemptionStatus = "songRequestRedemptionStatus"
@@ -452,13 +452,13 @@ nonisolated enum AppConstants {
         /// Whether vote-skip uses native Twitch Polls instead of a chat tally (Bool, default: false)
         static let voteSkipUsePolls = "voteSkipUsePolls"
 
-        /// Duration of a Twitch poll created for vote-skip, in seconds (Int, default: 60; Twitch allows 15–1800)
+        /// Duration of a Twitch poll created for vote-skip, in seconds (Int, default: 60; Twitch allows 15-1800)
         static let voteSkipPollDuration = "voteSkipPollDuration"
 
         /// Whether on-device MetricKit diagnostics collection is opted in (Bool, default: false)
         static let shareDiagnosticsEnabled = "shareDiagnosticsEnabled"
 
-        /// Local count of app launches — anonymous, never transmitted (Int, default: 0)
+        /// Local count of app launches: anonymous, never transmitted (Int, default: 0)
         static let diagnosticsLaunchCount = "diagnosticsLaunchCount"
 
         /// Whether a macOS notification is posted when the song changes (Bool, default: false)
@@ -472,7 +472,7 @@ nonisolated enum AppConstants {
 
         // MARK: Listening History & Stats Keys
 
-        /// Whether the on-disk listening history log is being recorded (Bool, default: false — opt-in)
+        /// Whether the on-disk listening history log is being recorded (Bool, default: false, opt-in)
         static let listeningHistoryEnabled = "listeningHistoryEnabled"
 
         /// Whether the Stats & Charts UI is enabled. Requires `listeningHistoryEnabled` (Bool, default: false)
@@ -493,7 +493,7 @@ nonisolated enum AppConstants {
         /// Days of listening history to retain. 0 = keep everything (Int, default: 0)
         static let historyRetentionDays = "historyRetentionDays"
 
-        /// Whether Streamer Mode is on — hides sensitive values (channel name, overlay URL,
+        /// Whether Streamer Mode is on: hides sensitive values (channel name, overlay URL,
         /// WebSocket URI, etc.) in the WolfWave UI so the app can be shown on stream.
         /// UI-only redaction; does not change broadcast/chat/Discord output (Bool, default: false).
         static let streamerModeEnabled = "streamerModeEnabled"
@@ -601,7 +601,7 @@ nonisolated enum AppConstants {
         // MARK: Export / Import Classification
 
         /// Keys safe to write to an exported settings backup and to restore on
-        /// import. Portable preferences only — no secrets, no account identity,
+        /// import. Portable preferences only. No secrets, no account identity,
         /// no per-install runtime state. Anything not listed here is deliberately
         /// excluded from backups.
         ///
@@ -870,7 +870,7 @@ nonisolated enum AppConstants {
         /// Settings section identifier for Discord configuration
         static let settingsSection = "discordPresence"
 
-        /// IPC socket filename prefix (append 0–9 to find active socket)
+        /// IPC socket filename prefix (append 0-9 to find active socket)
         static let ipcSocketPrefix = "discord-ipc-"
 
         /// Number of IPC socket slots to try (0 through 9)
@@ -941,7 +941,7 @@ nonisolated enum AppConstants {
 
     /// Listening History & Stats configuration.
     ///
-    /// The play log is an append-only NDJSON file in Application Support — one
+    /// The play log is an append-only NDJSON file in Application Support, one
     /// small line per recorded play. Stats are derived in memory, so they cost
     /// no extra disk writes.
     enum History {
@@ -959,7 +959,7 @@ nonisolated enum AppConstants {
         static let scrobbleFraction: Double = 0.5
 
         /// Absolute play time (seconds) that always counts as a play, regardless
-        /// of track length — mirrors Last.fm's 4-minute rule.
+        /// of track length, mirrors Last.fm's 4-minute rule.
         static let scrobbleAbsoluteSeconds: TimeInterval = 240
 
         /// Initial number of recent plays shown in the History & Stats pane.
@@ -1007,7 +1007,7 @@ nonisolated enum AppConstants {
 
         /// How long a completed artwork lookup (including a miss) is trusted before
         /// a track is re-queried. The links cache is persisted to disk, so this TTL
-        /// survives relaunches — a track is looked up roughly once a week instead of
+        /// survives relaunches, a track is looked up roughly once a week instead of
         /// once per launch. Tracks absent from iTunes (e.g. indie releases) therefore
         /// stop re-hitting the network on every playback tick.
         static let artworkLookupTTL: TimeInterval = 7 * 24 * 3600
@@ -1078,7 +1078,7 @@ nonisolated enum AppConstants {
         @MainActor
         static var githubSponsors: String { "https://github.com/sponsors/\(sponsorUser)" }
 
-        /// Community Discord invite — opened from the tray menu "Help ▸ Join Discord Community".
+        /// Community Discord invite: opened from the tray menu "Help ▸ Join Discord Community".
         /// Override via `COMMUNITY_DISCORD_URL` in `Config.xcconfig`.
         static let communityDiscord = validURL(
             infoPlistString("COMMUNITY_DISCORD_URL", fallback: "https://mrdwolf.net/discord"),
@@ -1244,37 +1244,37 @@ nonisolated enum AppConstants {
     /// Brand / partner colors. Backed by `DSColor` generated tokens.
     /// Source of truth: `design-system/tokens.json`.
     enum Brand {
-        /// Twitch purple — `#9146FF`.
+        /// Twitch purple: `#9146FF`.
         static let twitch = DSColor.partnerTwitch
 
-        /// Discord blurple — `#5865F2`.
+        /// Discord blurple: `#5865F2`.
         static let discord = DSColor.partnerDiscord
 
-        /// Discord card surface — `#2B2D31`.
+        /// Discord card surface: `#2B2D31`.
         static let discordSurface = DSColor.partnerDiscordSurface
 
-        /// Discord secondary button surface — `#4E5058`.
+        /// Discord secondary button surface: `#4E5058`.
         static let discordControl = DSColor.partnerDiscordControl
 
-        /// Apple Music gradient stops — pink-to-red.
+        /// Apple Music gradient stops: pink-to-red.
         static let appleMusicGradientStart = DSColor.partnerAppleMusicStart
         static let appleMusicGradientEnd = DSColor.partnerAppleMusicEnd
 
-        /// Apple Music permission-denied icon gradient — softer than the main
+        /// Apple Music permission-denied icon gradient: softer than the main
         /// brand gradient; used for the rounded-rect Music app icon stack.
         static let appleMusicSurfaceStart = DSColor.partnerAppleMusicSurfaceStart
         static let appleMusicSurfaceEnd = DSColor.partnerAppleMusicSurfaceEnd
 
-        /// Apple Music pulse gradient — used for the bottom-strip CTA accent
+        /// Apple Music pulse gradient: used for the bottom-strip CTA accent
         /// on the permission-denied screen.
         static let appleMusicPulseStart = DSColor.partnerAppleMusicPulseStart
         static let appleMusicPulseEnd = DSColor.partnerAppleMusicPulseEnd
 
-        /// OBS Studio gradient stops — neutral dark.
+        /// OBS Studio gradient stops: neutral dark.
         static let obsGradientStart = DSColor.partnerObsStart
         static let obsGradientEnd = DSColor.partnerObsEnd
 
-        /// WolfWave gradient stops — navy → royal blue. Used for branded share cards (Monthly Wrap export).
+        /// WolfWave gradient stops: navy → royal blue. Used for branded share cards (Monthly Wrap export).
         static let wolfwaveGradientStart = DSColor.partnerWolfwaveGradientStart
         static let wolfwaveGradientEnd = DSColor.partnerWolfwaveGradientEnd
     }

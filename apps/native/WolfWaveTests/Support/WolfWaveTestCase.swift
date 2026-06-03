@@ -1,7 +1,8 @@
 //
 //  WolfWaveTestCase.swift
-//  WolfWaveTests
+//  WolfWave
 //
+//  Created by Nathanial Henniges on 2026-05-28.
 //  Copyright © 2026 MrDemonWolf, Inc. All rights reserved.
 //
 //  Shared base class for WolfWave unit tests. Provides helper methods for
@@ -10,7 +11,7 @@
 //
 //  The base class is intentionally **not** annotated `@MainActor` and does
 //  **not** override `setUp` / `tearDown`. Tests in this project come in two
-//  flavors — nonisolated suites that invoke private static helpers from
+//  flavors: nonisolated suites that invoke private static helpers from
 //  inside `@Sendable` `MockURLProtocol` handlers, and `@MainActor`-annotated
 //  suites that touch view-model state directly. A class-level isolation here
 //  would force one flavor or the other to fight the compiler. Keeping the
@@ -25,7 +26,7 @@ import XCTest
 /// Base test case providing shared cleanup helpers.
 ///
 /// Subclasses call `resetAllSettings()` and/or `makeTempDir()` from their own
-/// `setUp` / `tearDown` overrides. Adopt incrementally — there is no harm in
+/// `setUp` / `tearDown` overrides. Adopt incrementally. There is no harm in
 /// existing tests continuing to remove individual keys explicitly.
 class WolfWaveTestCase: XCTestCase {
 

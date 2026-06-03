@@ -39,7 +39,7 @@ struct MonthlyWrapData: Sendable {
 
 // MARK: - MonthlyWrap
 
-/// Builds a `MonthlyWrapData` from raw play records. Pure — no state, no I/O.
+/// Builds a `MonthlyWrapData` from raw play records. Pure. No state, no I/O.
 enum MonthlyWrap {
 
     /// Builds the wrap for the calendar month containing `month`.

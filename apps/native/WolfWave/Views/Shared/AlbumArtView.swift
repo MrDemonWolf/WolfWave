@@ -8,8 +8,8 @@
 
 import SwiftUI
 
-/// Sized album-art tile. Falls back to the WolfWave-branded placeholder — the
-/// wolf mark on a brand-blue gradient — when no artwork is supplied.
+/// Sized album-art tile. Falls back to the WolfWave-branded placeholder (the
+/// wolf mark on a brand-blue gradient) when no artwork is supplied.
 ///
 /// Used by the now-playing hero on the General tab (`NowPlayingHeroCard`), and
 /// intended for any other album thumbnail the design adds.
@@ -56,7 +56,7 @@ struct AlbumArtView: View {
                 .stroke(.white.opacity(0.10), lineWidth: 0.5)
         )
         .shadow(color: .black.opacity(0.18), radius: 2, x: 0, y: 1)
-        // Decorative — the track/artist text alongside the artwork carries
+        // Decorative. The track/artist text alongside the artwork carries
         // the semantic content. Hiding here keeps VoiceOver from announcing
         // "image" before the song title.
         .accessibilityHidden(true)

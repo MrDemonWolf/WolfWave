@@ -11,14 +11,14 @@ import Foundation
 /// Coordinates chat vote-to-skip sessions.
 ///
 /// Two modes, selected by the `voteSkipUsePolls` preference:
-/// - **Chat tally** — each `!voteskip` is a vote. Unique voters are counted inside
+/// - **Chat tally**: each `!voteskip` is a vote. Unique voters are counted inside
 ///   a time window; once the minimum is reached the current song is skipped.
-/// - **Twitch Polls** — a moderator's `!voteskip` opens a native Twitch poll and the
+/// - **Twitch Polls**: a moderator's `!voteskip` opens a native Twitch poll and the
 ///   `channel.poll.end` result drives the skip.
 ///
 /// State is polled (settings view) or observed via `.voteSkipStateChanged`, so this
 /// type does not adopt `@Observable`. Implemented as an `actor` so mutation safety
-/// is enforced by the compiler — replaces the prior `final class + NSLock`.
+/// is enforced by the compiler. Replaces the prior `final class + NSLock`.
 actor SkipVoteManager {
 
     // MARK: - Types
@@ -26,7 +26,7 @@ actor SkipVoteManager {
     /// The result of recording a `!voteskip`. Returned as a value (not a string) so
     /// the logic stays unit-testable; `VoteSkipCommand` formats the chat reply.
     enum VoteOutcome: Equatable, Sendable {
-        /// The feature master toggle is off — the command should stay silent.
+        /// The feature master toggle is off, the command should stay silent.
         case disabled
         /// Subscriber-only voting is on and the voter is not a subscriber.
         case subscriberOnly
@@ -38,7 +38,7 @@ actor SkipVoteManager {
         case counted(count: Int, needed: Int)
         /// The voter had already voted in this session.
         case alreadyVoted(count: Int, needed: Int)
-        /// The vote reached the threshold — the song is being skipped.
+        /// The vote reached the threshold, the song is being skipped.
         case passed(count: Int)
         /// Polls mode: a Twitch poll was created.
         case pollStarted
@@ -50,14 +50,14 @@ actor SkipVoteManager {
 
     /// A lifecycle signal emitted to the optional `onVoteEvent` hook so a consumer
     /// (e.g. `AppDelegate`) can post a macOS notification. The manager stays "dumb":
-    /// it knows nothing about notifications or user preferences — it only reports
+    /// it knows nothing about notifications or user preferences. It only reports
     /// that the event happened.
     enum VoteEvent: Sendable {
         /// A chat-tally session just opened. `needed` is the vote threshold.
         case started(needed: Int)
         /// A native Twitch poll just opened.
         case pollStarted
-        /// A vote (chat tally or poll) reached the threshold — song is being skipped.
+        /// A vote (chat tally or poll) reached the threshold, song is being skipped.
         case passed
     }
 
@@ -97,7 +97,7 @@ actor SkipVoteManager {
     // MARK: - Init
 
     /// Optional override for the chat-tally window duration. When set, it takes
-    /// precedence over the `voteSkipWindowSeconds` preference — tests inject a
+    /// precedence over the `voteSkipWindowSeconds` preference. Tests inject a
     /// sub-100ms window so window-expiry assertions don't wait whole seconds.
     private let windowOverride: Duration?
 
@@ -157,7 +157,7 @@ actor SkipVoteManager {
         defaults.bool(forKey: AppConstants.UserDefaults.voteSkipUsePolls)
     }
 
-    /// Twitch poll duration in seconds. Clamped to Twitch's 15–1800 range.
+    /// Twitch poll duration in seconds. Clamped to Twitch's 15-1800 range.
     nonisolated var pollDuration: Int {
         let value = Preferences.int(AppConstants.UserDefaults.voteSkipPollDuration, default: 60)
         return min(max(value, 15), 1800)
@@ -225,7 +225,7 @@ actor SkipVoteManager {
         let decision: Decision = {
             let now = Date()
 
-            // No session running — open one (subject to the inter-session cooldown).
+            // No session running, open one (subject to the inter-session cooldown).
             guard sessionStart != nil else {
                 if let last = lastSessionEnd {
                     let elapsed = now.timeIntervalSince(last)
@@ -245,7 +245,7 @@ actor SkipVoteManager {
                 return .outcome(.started(count: voters.count, needed: needed))
             }
 
-            // Session running — add the voter unless they already voted.
+            // Session running, add the voter unless they already voted.
             if voters.contains(context.userID) {
                 return .outcome(.alreadyVoted(count: voters.count, needed: needed))
             }
@@ -325,7 +325,7 @@ actor SkipVoteManager {
 
     /// Called when a session's window elapses without reaching the threshold.
     /// Ignores the call if a different session has since opened (`generation`
-    /// mismatch) — a fast pass + zero-cooldown re-open can outrun this timer.
+    /// mismatch). A fast pass + zero-cooldown re-open can outrun this timer.
     private func windowExpired(generation: Int) {
         guard sessionStart != nil, generation == sessionGeneration else { return }
         let count = voters.count

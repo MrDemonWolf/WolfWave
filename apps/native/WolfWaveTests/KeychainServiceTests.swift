@@ -13,7 +13,7 @@ import Foundation
 /// Comprehensive test suite for KeychainService.
 ///
 /// Runs against an in-memory backend (`InMemoryKeychainBackend`) so the suite
-/// never touches the real Keychain — ad-hoc test signing otherwise triggers an
+/// never touches the real Keychain. Ad-hoc test signing otherwise triggers an
 /// ACL prompt that blocks cold reads and fails CI. The system backend is
 /// restored after each test so other suites see unchanged behavior.
 ///
@@ -237,9 +237,9 @@ final class KeychainServiceTests {
         // Validate: every read should have returned a non-nil, non-empty token
         // (since we seeded and continuously wrote valid tokens)
         for (index, result) in readResults.enumerated() {
-            #expect(result != nil, "Read at index \(index) returned nil — possible corruption")
+            #expect(result != nil, "Read at index \(index) returned nil: possible corruption")
             if let value = result {
-                #expect(!value.isEmpty, "Read at index \(index) returned empty string — possible corruption")
+                #expect(!value.isEmpty, "Read at index \(index) returned empty string: possible corruption")
             }
         }
 
@@ -283,8 +283,8 @@ final class KeychainServiceTests {
     func testSaveTokenOverwritesExistingValue() async throws {
         // Seed a stale value, then overwrite via the public API. The upsert path
         // must replace it without throwing. (The SystemKeychainBackend's
-        // duplicate-item self-heal — recovering from an errSecDuplicateItem with
-        // a mismatched kSecAttrAccessible — is Security-framework specific and is
+        // duplicate-item self-heal (recovering from an errSecDuplicateItem with
+        // a mismatched kSecAttrAccessible) is Security-framework specific and is
         // exercised only in integration, not against the in-memory backend.)
         try KeychainService.saveToken("stale_token")
         #expect(KeychainService.loadToken() == "stale_token")

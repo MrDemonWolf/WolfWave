@@ -26,7 +26,7 @@ struct CountedItem: Identifiable, Hashable, Sendable {
 
 /// Play count and listening time bucketed to a single calendar day.
 struct DailyCount: Identifiable, Hashable, Sendable {
-    /// Start-of-day date — also the identity.
+    /// Start-of-day date. Also the identity.
     let id: Date
     /// Number of plays that day.
     let count: Int
@@ -40,7 +40,7 @@ struct DailyCount: Identifiable, Hashable, Sendable {
 // MARK: - StatsSnapshot
 
 /// An immutable, fully-derived view of the listening history. Recomputed from
-/// the in-memory play log whenever it changes — it costs no disk I/O.
+/// the in-memory play log whenever it changes. It costs no disk I/O.
 struct StatsSnapshot: Sendable {
     let totalPlays: Int
     let totalListeningSeconds: TimeInterval
@@ -53,14 +53,14 @@ struct StatsSnapshot: Sendable {
     let topAlbums: [CountedItem]
     /// Exactly 7 buckets, oldest day first, ending today.
     let last7Days: [DailyCount]
-    /// 24 buckets, index = hour of day (0–23).
+    /// 24 buckets, index = hour of day (0-23).
     let playsByHour: [Int]
     /// Most recent plays, newest first.
     let recent: [PlayRecord]
     /// The most-played track recorded today, if any.
     let topTrackToday: CountedItem?
 
-    /// An empty snapshot — used before any history is loaded.
+    /// An empty snapshot. Used before any history is loaded.
     static let empty = StatsSnapshot(
         totalPlays: 0,
         totalListeningSeconds: 0,
@@ -85,7 +85,7 @@ struct StatsSnapshot: Sendable {
 
 /// Pure functions that derive a `StatsSnapshot` from raw play records.
 ///
-/// No state, no I/O — trivially testable and cheap to call (a few passes over
+/// No state, no I/O. Trivially testable and cheap to call (a few passes over
 /// the records array).
 enum StatsAggregator {
 
@@ -98,7 +98,7 @@ enum StatsAggregator {
     /// - Parameters:
     ///   - records: All recorded plays currently in memory, in any order.
     ///   - lifetime: Tally of plays previously trimmed out of `records`.
-    ///     Defaults to `.empty` — pass a non-empty tally to merge totals + top-N.
+    ///     Defaults to `.empty`. Pass a non-empty tally to merge totals + top-N.
     ///   - now: The reference "now" for today/this-week windows. Injectable for tests.
     ///   - calendar: Calendar used for day bucketing. Injectable for tests.
     /// - Returns: A fully-derived snapshot.

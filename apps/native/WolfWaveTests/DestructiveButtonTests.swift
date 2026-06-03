@@ -29,7 +29,7 @@ final class DestructiveButtonTests: XCTestCase {
     }
 
     func testActionWiringSmokeCheck() {
-        // We can't synthesize a click in unit tests without a window — verify
+        // We can't synthesize a click in unit tests without a window. Verify
         // the action closure is captured without invocation.
         var fired = 0
         let view = DestructiveButton(title: "Delete", action: { fired += 1 })

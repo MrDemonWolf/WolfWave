@@ -39,7 +39,7 @@ nonisolated enum WebSocketAuthToken {
 
     /// Mints a fresh token, replaces the stored one, and returns it.
     /// Active connections continue using the previous token until they
-    /// disconnect — caller is responsible for restarting the server when
+    /// disconnect. Caller is responsible for restarting the server when
     /// it wants to invalidate every client.
     @discardableResult
     static func rotate() -> String {
@@ -61,7 +61,7 @@ nonisolated enum WebSocketAuthToken {
     /// configured token and the subprotocols the client offered.
     ///
     /// - When `expectedToken` is `nil` (test-only legacy init), any handshake
-    ///   passes — preserves backward-compat for the lifecycle tests that
+    ///   passes. Preserves backward-compat for the lifecycle tests that
     ///   construct the service via `init(port:)`.
     /// - Otherwise the client must have offered `wolfwave.token.<expected>`
     ///   in its `Sec-WebSocket-Protocol` list.
@@ -84,7 +84,7 @@ nonisolated enum WebSocketAuthToken {
         }
     }
 
-    /// Redacts a token for safe logging — keeps the first 4 chars and an ellipsis.
+    /// Redacts a token for safe logging. Keeps the first 4 chars and an ellipsis.
     static func redact(_ token: String) -> String {
         guard token.count > 4 else { return "…" }
         return token.prefix(4) + "…"

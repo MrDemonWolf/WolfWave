@@ -2,6 +2,7 @@
 //  NotificationPayloads.swift
 //  WolfWave
 //
+//  Created by Nathanial Henniges on 2026-05-29.
 //  Copyright © 2026 MrDemonWolf, Inc. All rights reserved.
 //
 
@@ -10,7 +11,7 @@ import Foundation
 //  Typed payload helpers for NotificationCenter.
 //
 //  `AppConstants+Notifications.swift` centralizes the notification *names*.
-//  This file centralizes the *payloads* — the `userInfo` dictionaries that
+//  This file centralizes the *payloads*: the `userInfo` dictionaries that
 //  used to be hand-built (and hand-decoded) at every call site. Each notification
 //  that carries data gets a typed `post…` method on `NotificationCenter` plus a
 //  matching typed accessor on `Notification`, so the string keys and value casts
@@ -137,7 +138,7 @@ extension NotificationCenter {
         post(name: .openSettingsSection, object: nil, userInfo: [NotificationKeys.section: section])
     }
 
-    /// Posts `.openSettingsRequested` — a bare signal asking `SettingsSceneBridge`
+    /// Posts `.openSettingsRequested`: a bare signal asking `SettingsSceneBridge`
     /// (hosted in the hidden helper window) to invoke the live `openSettings`
     /// environment action. Carries no payload; section targeting is handled
     /// separately via `Preferences.setSelectedSettingsSection` / `.openSettingsSection`.

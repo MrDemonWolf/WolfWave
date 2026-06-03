@@ -8,7 +8,7 @@
 
 import Foundation
 
-/// Handles `!sr` / `!request` / `!songrequest` — searches and queues a song.
+/// Handles `!sr` / `!request` / `!songrequest`. Searches and queues a song.
 ///
 /// Accepts plain text queries, Spotify links, and YouTube links.
 /// Returns an immediate acknowledgment, then resolves asynchronously.

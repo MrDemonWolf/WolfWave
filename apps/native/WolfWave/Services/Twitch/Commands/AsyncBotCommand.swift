@@ -13,7 +13,7 @@ import Foundation
 /// Unlike `BotCommand.execute(message:)` which returns synchronously,
 /// async commands can perform network requests (e.g., searching Apple Music)
 /// and call `reply` when done. The sync `execute(message:)` returns nil
-/// for async commands — the dispatcher skips it.
+/// for async commands. The dispatcher skips it.
 ///
 /// Example:
 /// ```swift

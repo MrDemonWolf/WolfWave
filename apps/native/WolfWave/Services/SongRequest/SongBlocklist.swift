@@ -39,7 +39,7 @@ nonisolated final class UserDefaultsBlocklistStorage: BlocklistStorage, @uncheck
     func write(_ data: Data) { defaults.set(data, forKey: key) }
 }
 
-/// In-memory storage suitable for unit tests — no UserDefaults round-trip.
+/// In-memory storage suitable for unit tests, no UserDefaults round-trip.
 nonisolated final class InMemoryBlocklistStorage: BlocklistStorage, @unchecked Sendable {
     private let lock = NSLock()
     private var data: Data?
@@ -58,7 +58,7 @@ nonisolated final class InMemoryBlocklistStorage: BlocklistStorage, @unchecked S
 ///
 /// Blocked entries are stored as JSON via the injected `BlocklistStorage`.
 /// Matching is case-insensitive. Implemented as an `actor` so mutation safety
-/// is enforced by the compiler — replaces the prior `final class + NSLock`.
+/// is enforced by the compiler. Replaces the prior `final class + NSLock`.
 actor SongBlocklist {
     // MARK: - Properties
 
@@ -73,7 +73,7 @@ actor SongBlocklist {
     ///   `UserDefaultsBlocklistStorage`. Tests inject `InMemoryBlocklistStorage`.
     init(storage: BlocklistStorage = UserDefaultsBlocklistStorage()) {
         self.storage = storage
-        // Inline the load logic — calling an actor-isolated method from a
+        // Inline the load logic, calling an actor-isolated method from a
         // nonisolated init is a Swift 6 error. Mutating stored properties
         // directly during init is allowed and equivalent.
         if let data = storage.read(),

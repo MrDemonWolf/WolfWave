@@ -14,7 +14,7 @@ import Network
 
 /// Serves the bundled `widget.html` over a plain HTTP/1.1 connection.
 ///
-/// Owned and driven by `WebSocketServerService` — starts when the WS server starts,
+/// Owned and driven by `WebSocketServerService`. Starts when the WS server starts,
 /// stops when it stops. Binds to all interfaces so LAN peers (a second-PC OBS,
 /// a phone browser) can fetch the widget for two-PC streaming setups.
 ///
@@ -63,7 +63,7 @@ nonisolated final class WidgetHTTPService: @unchecked Sendable {
     ///     can reach the widget for two-PC streaming setups.
     ///   - authToken: WebSocket auth token to inject into the served HTML
     ///     **for loopback requests only**. Pass `nil` to ship the file
-    ///     untouched — only useful for tests.
+    ///     untouched. Only useful for tests.
     init(port: UInt16, authToken: String? = nil) {
         self.port = port
         self.authToken = authToken
@@ -77,7 +77,7 @@ nonisolated final class WidgetHTTPService: @unchecked Sendable {
 
     /// Brings up the HTTP listener and begins accepting connections.
     /// Binds to all interfaces; per-request loopback gating is enforced in
-    /// `serveWidget` for token injection. Idempotent — a second call while
+    /// `serveWidget` for token injection. Idempotent. A second call while
     /// already running is a no-op.
     func start() {
         guard listener == nil else { return }
@@ -205,7 +205,7 @@ nonisolated final class WidgetHTTPService: @unchecked Sendable {
             rendered = rendered.replacingOccurrences(of: Self.tokensScriptTag, with: inlined)
         } else {
             Log.warn(
-                "WidgetHTTPService: widget-tokens.generated.js not found in bundle — falling back to external <script src>",
+                "WidgetHTTPService: widget-tokens.generated.js not found in bundle, falling back to external <script src>",
                 category: "WebSocket"
             )
         }

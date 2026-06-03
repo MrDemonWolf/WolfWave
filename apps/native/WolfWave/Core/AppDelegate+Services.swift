@@ -28,7 +28,7 @@ extension AppDelegate {
             Log.error("AppDelegate: No Twitch Client ID found. Copy Config.xcconfig.example to Config.xcconfig and set your Client ID.", category: "Twitch")
         }
 
-        // Async providers — the actor hops to MainActor inside each closure
+        // Async providers. The actor hops to MainActor inside each closure
         // to read AppDelegate state. Replaces the prior Thread.isMainThread +
         // DispatchQueue.main.sync dance (G5).
         twitchService?.setCurrentSongInfoProvider { [weak self] in
@@ -95,7 +95,7 @@ extension AppDelegate {
         }
 
         // Prime the system font registry on a background thread. The Widget Appearance card's
-        // Font picker calls `NSFontManager.availableFontFamilies` (200–800+ entries on
+        // Font picker calls `NSFontManager.availableFontFamilies` (200-800+ entries on
         // design-heavy Macs). Warming here makes the first call in-view near-instant.
         Task.detached(priority: .utility) {
             _ = NSFontManager.shared.availableFontFamilies
@@ -339,8 +339,8 @@ extension AppDelegate {
                           let window = n.object as? NSWindow,
                           window !== self.onboardingWindow else { return }
                     // Onboarding is handled by `windowWillClose`. Every other
-                    // closing window — including SwiftUI's Settings scene window
-                    // — falls through here to restore menu-only mode.
+                    // closing window, including SwiftUI's Settings scene window,
+                    // falls through here to restore menu-only mode.
                     self.restoreMenuOnlyIfNeeded()
                 }
             }
@@ -522,7 +522,7 @@ extension AppDelegate {
         guard let update = notification.updateState, update.isUpdateAvailable else { return }
         let version = update.latestVersion
 
-        Log.info("AppDelegate: Update available notification received — v\(version)", category: "Update")
+        Log.info("AppDelegate: Update available notification received: v\(version)", category: "Update")
     }
 }
 
@@ -624,16 +624,16 @@ extension AppDelegate {
     /// Auto-reconnects EventSub on launch when a valid token + channel name exist.
     ///
     /// Suppresses the "I'm online" chat ping that fires on explicit user-driven
-    /// connects — auto-reconnect is silent. Called only after the token has been
+    /// connects. Auto-reconnect is silent. Called only after the token has been
     /// validated against Twitch.
     func autoReconnectTwitchIfPossible(token: String) async {
         guard let service = twitchService else { return }
         guard let clientID = TwitchChatService.resolveClientID(), !clientID.isEmpty else {
-            Log.debug("AppDelegate: Skipping Twitch auto-reconnect — no Client ID", category: "Twitch")
+            Log.debug("AppDelegate: Skipping Twitch auto-reconnect: no Client ID", category: "Twitch")
             return
         }
         guard let channel = KeychainService.loadTwitchChannelID(), !channel.isEmpty else {
-            Log.debug("AppDelegate: Skipping Twitch auto-reconnect — no stored channel name", category: "Twitch")
+            Log.debug("AppDelegate: Skipping Twitch auto-reconnect: no stored channel name", category: "Twitch")
             return
         }
 
@@ -671,7 +671,7 @@ extension AppDelegate: PlaybackSourceDelegate {
         let isSameTrack = currentSong == track
         if !isSameTrack {
             // The outgoing track's last polled playhead position (`currentElapsed`)
-            // is how far it actually played — hand it to history before we
+            // is how far it actually played. Hand it to history before we
             // overwrite the now-playing state.
             if let outgoing = currentSong, let outgoingArtist = currentArtist {
                 historyService?.recordTrackChange(
@@ -804,8 +804,8 @@ extension AppDelegate: PlaybackSourceDelegate {
     func playbackSource(didUpdateStatus status: String) {
         Log.info("AppDelegate: Playback status = \(status)", category: "Music")
 
-        // Any of these statuses mean "no track is reliably playing right now" —
-        // flush in-progress history and blank the cached snapshot so Discord
+        // Any of these statuses mean "no track is reliably playing right now".
+        // Flush in-progress history and blank the cached snapshot so Discord
         // Rich Presence and the WebSocket overlay don't keep broadcasting a
         // stale song after Music quits, permission is revoked, or SB errors out.
         let shouldClearPlayback = status == "No track playing"

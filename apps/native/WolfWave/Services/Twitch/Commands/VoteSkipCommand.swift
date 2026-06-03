@@ -8,11 +8,11 @@
 
 import Foundation
 
-/// Handles `!voteskip` / `!vs` — lets chat vote to skip the current song.
+/// Handles `!voteskip` / `!vs`. Lets chat vote to skip the current song.
 ///
 /// Every viewer can vote. The actual tallying, time window, and skip action live
 /// in `SkipVoteManager`; this command just forwards each invocation and formats
-/// the chat reply. Cooldowns are `0` on purpose — `SkipVoteManager` owns per-user
+/// the chat reply. Cooldowns are `0` on purpose. `SkipVoteManager` owns per-user
 /// deduplication and the session window, so the dispatcher's `CooldownManager`
 /// must not drop votes.
 final class VoteSkipCommand: AsyncBotCommand {
@@ -24,10 +24,10 @@ final class VoteSkipCommand: AsyncBotCommand {
     /// Human-readable description shown in the `!commands` listing.
     var description: String { "Vote to skip the current song" }
 
-    /// No global cooldown — `SkipVoteManager` governs vote pacing.
+    /// No global cooldown. `SkipVoteManager` governs vote pacing.
     var globalCooldown: TimeInterval { 0 }
 
-    /// No per-user cooldown — `SkipVoteManager` deduplicates voters per session.
+    /// No per-user cooldown. `SkipVoteManager` deduplicates voters per session.
     var userCooldown: TimeInterval { 0 }
 
     /// UserDefaults key controlling whether the command is enabled.
@@ -48,7 +48,7 @@ final class VoteSkipCommand: AsyncBotCommand {
     ///
     /// - Parameters:
     ///   - message: Raw chat message (unused).
-    ///   - context: Sender context — used for per-user vote deduplication.
+    ///   - context: Sender context, used for per-user vote deduplication.
     ///   - reply: Closure invoked with the chat response.
     func execute(message: String, context: BotCommandContext, reply: @escaping (String) -> Void) {
         guard let manager = skipVoteManager?() else { return }

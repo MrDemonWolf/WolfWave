@@ -139,7 +139,7 @@ fileprivate struct WebSocketServerCard: View {
     @State private var portText: String = ""
 
     /// Currently-persisted token. Seeded empty so struct init doesn't hit the
-    /// Keychain — populated by `.task` off-main on first appear, and re-read
+    /// Keychain. Populated by `.task` off-main on first appear, and re-read
     /// after edits/regens so the displayed URL row stays in sync.
     @State private var currentToken: String = ""
 
@@ -418,7 +418,7 @@ fileprivate struct WebSocketServerCard: View {
     /// Persists `tokenDraft` to Keychain, swaps the token on the live service,
     /// and refreshes the displayed URL row. No-op when nothing changed.
     ///
-    /// Tokens are gated through `WebSocketAuthToken.isValid` (hex-only, 16–128
+    /// Tokens are gated through `WebSocketAuthToken.isValid` (hex-only, 16-128
     /// chars) so a user-supplied string can never contain `</script>` or other
     /// characters that would break out of the JS string context when
     /// `WidgetHTTPService` substitutes the token into the served `widget.html`.
@@ -430,10 +430,10 @@ fileprivate struct WebSocketServerCard: View {
         }
         guard WebSocketAuthToken.isValid(trimmed) else {
             Log.warn(
-                "WebSocketSettings: Rejected custom token — must be hex characters (16–128).",
+                "WebSocketSettings: Rejected custom token: must be hex characters (16-128).",
                 category: "WebSocket"
             )
-            tokenError = "Use 16–128 hex chars (0–9, a–f)."
+            tokenError = "Use 16-128 hex chars (0-9, a-f)."
             return
         }
         tokenError = nil
@@ -718,7 +718,7 @@ fileprivate struct WebSocketWidgetAppearanceCard: View {
     private var widgetFontFamily = "System Default"
 
     /// Font family list loaded off-main on first appear. `availableFontFamilies` enumerates every
-    /// installed font (hundreds of entries on design-heavy Macs) and blocks ~100–400ms if invoked
+    /// installed font (hundreds of entries on design-heavy Macs) and blocks ~100-400ms if invoked
     /// inside `body`. Keep it lazy + off the main thread.
     @State private var fontFamilies: [String] = []
 

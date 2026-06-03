@@ -108,16 +108,14 @@ struct TwitchDeviceAuthTests {
 
     @Test("Request device code with valid client ID structure")
     func testRequestDeviceCodeValidStructure() async throws {
-        // We can't test actual API calls in unit tests, but we can verify
-        // the auth object is constructed correctly
+        // Construction-only check. The networked request/response paths are
+        // driven by MockURLProtocol in TwitchDeviceAuthNetworkTests.
         let clientID = "test_client_123"
         let scopes = ["user:read:chat", "user:write:chat"]
 
         let auth = TwitchDeviceAuth(clientID: clientID, scopes: scopes)
 
         #expect(auth != nil)
-
-        // Note: Actual API test would require mocking or integration test
     }
 
     // MARK: - Poll For Token Tests

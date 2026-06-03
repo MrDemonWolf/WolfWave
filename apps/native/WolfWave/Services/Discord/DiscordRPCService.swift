@@ -13,7 +13,7 @@ import Foundation
 
 /// How the current Apple Music playlist is surfaced in Discord Rich Presence.
 ///
-/// Raw values are persisted in `UserDefaults` — keep them stable across releases.
+/// Raw values are persisted in `UserDefaults`, so keep them stable across releases.
 nonisolated enum DiscordPlaylistStyle: String, CaseIterable, Sendable {
     /// Playlist joins the artist on the activity's second line (`state`).
     case artistLine
@@ -40,11 +40,11 @@ nonisolated enum DiscordPlaylistStyle: String, CaseIterable, Sendable {
 /// performs the RPC handshake, and sends SET_ACTIVITY commands to display
 /// "Listening to Apple Music" on the user's Discord profile.
 ///
-/// No bot token is required — only a Discord Application ID from the
+/// No bot token is required, only a Discord Application ID from the
 /// Developer Portal, provided via `DISCORD_CLIENT_ID` in Config.xcconfig.
 ///
 /// Thread Safety:
-/// - Implemented as an `actor` — all mutable state and socket I/O run on the
+/// - Implemented as an `actor`. All mutable state and socket I/O run on the
 ///   actor's serial executor, replacing the previous `ipcQueue` + `NSLock`
 ///   combination.
 /// - State changes and resolved artwork URLs are published as `AsyncStream`s
@@ -253,7 +253,7 @@ actor DiscordRPCService {
     ///   - duration: Total track duration in seconds (0 if unknown).
     ///   - elapsed: Elapsed time in seconds (0 if unknown).
     ///   - isPaused: `true` when the loaded track is paused. Discord has no
-    ///     native paused flag — when set we omit `timestamps` (stops the live
+    ///     native paused flag, so when set we omit `timestamps` (stops the live
     ///     ticker) and swap `small_image` to a `pause` art asset with a
     ///     `"Paused"` tooltip. Track text stays unchanged.
     func updatePresence(
@@ -282,7 +282,7 @@ actor DiscordRPCService {
         if cached.artworkURL == nil {
             ArtworkService.shared.fetchTrackLinks(track: track, artist: artist) { [weak self] links in
                 guard let self else { return }
-                // Re-send if any link resolved — buttons can appear even without artwork
+                // Re-send if any link resolved. Buttons can appear even without artwork
                 let hasNewData = links.artworkURL != nil
                     || links.trackViewURL != nil
                     || links.songLinkURL != nil
@@ -317,7 +317,7 @@ actor DiscordRPCService {
 
     /// Shows the opt-in "Idle" activity used when nothing is playing and the
     /// user chose to keep WolfWave visible on their profile instead of clearing
-    /// it. No track, timestamps, or buttons — just a static idle marker.
+    /// it. No track, timestamps, or buttons, just a static idle marker.
     func showIdleStatus() {
         guard state == .connected else { return }
         // Idle has no track to re-send on a settings change.
@@ -468,7 +468,7 @@ actor DiscordRPCService {
 
     /// Builds the Discord `activity` payload dictionary from track metadata + user settings.
     ///
-    /// Pure function — no socket I/O, no instance state. Exposed `internal` so unit
+    /// Pure function. No socket I/O, no instance state. Exposed `internal` so unit
     /// tests can drive it directly with isolated `UserDefaults` suites.
     ///
     /// - Parameters:
@@ -503,7 +503,7 @@ actor DiscordRPCService {
 
         let largeImage = artworkURL ?? "apple_music"
         // When paused: swap the small badge to the "pause" art asset (uploaded
-        // to the Discord developer portal — see discord-assets/README.md) and
+        // to the Discord developer portal, see discord-assets/README.md) and
         // override the tooltip. Source-of-truth keeps `large_image` intact so
         // album art still shows.
         let smallImageKey = isPaused ? "pause" : "apple_music"
@@ -544,7 +544,7 @@ actor DiscordRPCService {
     }
 
     /// Builds the minimal opt-in "Idle" activity payload (no track, timestamps,
-    /// or buttons). Pure function — no socket I/O, no instance state. Exposed
+    /// or buttons). Pure function. No socket I/O, no instance state. Exposed
     /// `internal` so unit tests can assert its shape.
     nonisolated static func buildIdleActivity() -> [String: Any] {
         [
@@ -616,7 +616,7 @@ actor DiscordRPCService {
     ///
     /// Returns `nil` when the playlist feature is disabled, the name is empty, a
     /// generic container (`Library` / `Music` / `Apple Music`), or identical to
-    /// the album — so the card never surfaces a non-playlist as a playlist.
+    /// the album, so the card never surfaces a non-playlist as a playlist.
     /// When `discordPlaylistShowName` is off, returns `.anonymous` so the
     /// listening context survives without leaking the playlist's name.
     nonisolated static func resolvePlaylistDisplay(
@@ -733,7 +733,7 @@ actor DiscordRPCService {
         // 1. Read the REAL TMPDIR from Discord's own process environment.
         //    sysctl(KERN_PROCARGS2) returns argv + environ for same-user processes
         //    and is NOT redirected by App Sandbox.
-        //    Result is cached for `discordTmpDirTTL` seconds — Discord's TMPDIR
+        //    Result is cached for `discordTmpDirTTL` seconds. Discord's TMPDIR
         //    doesn't change while it's running, so calling sysctl on every
         //    connect attempt is wasteful.
         let now = Date()
@@ -751,7 +751,7 @@ actor DiscordRPCService {
             candidates.append(resolved)
         }
 
-        // 2. confstr — works outside sandbox, returns container path inside sandbox.
+        // 2. confstr: works outside sandbox, returns container path inside sandbox.
         let len = confstr(_CS_DARWIN_USER_TEMP_DIR, nil, 0)
         if len > 0 {
             var buf = [CChar](repeating: 0, count: len)
@@ -859,7 +859,7 @@ actor DiscordRPCService {
     private func connectIfNeeded() {
         guard state == .disconnected else { return }
         guard !clientID.isEmpty else {
-            Log.warn("DiscordRPCService: No client ID configured — skipping connection", category: "Discord")
+            Log.warn("DiscordRPCService: No client ID configured: skipping connection", category: "Discord")
             return
         }
 
@@ -1101,7 +1101,7 @@ actor DiscordRPCService {
         let interval = currentPollInterval
         pollTask = Task { [weak self] in
             while !Task.isCancelled {
-                // Availability polling tolerates coarse timing — allow 10%
+                // Availability polling tolerates coarse timing, allow 10%
                 // tolerance so the wakeup coalesces with other timers.
                 try? await Task.sleep(for: .seconds(interval), tolerance: .seconds(interval * 0.1))
                 guard !Task.isCancelled, let self else { return }

@@ -224,7 +224,7 @@ extension AppDelegate {
 
     /// Returns the cached album art for the current song if one has been
     /// fetched. On cache miss, kicks off a background fetch via
-    /// `ArtworkService` and stores the decoded image — the next menu open
+    /// `ArtworkService` and stores the decoded image. The next menu open
     /// will pick it up. Never blocks the menu.
     fileprivate func currentAlbumArtwork() -> NSImage? {
         guard let song = currentSong, let artist = currentArtist else { return nil }
@@ -232,7 +232,7 @@ extension AppDelegate {
 
         if let cached = albumArtCache[key] { return cached }
 
-        // No image yet — request the URL (cached) and asynchronously fetch
+        // No image yet, request the URL (cached) and asynchronously fetch
         // bitmap data. Bail when nothing is known yet; ArtworkService will
         // have populated its URL cache by the time the next menu opens.
         guard let urlString = ArtworkService.shared.cachedArtworkURL(track: song, artist: artist),
@@ -341,7 +341,7 @@ extension AppDelegate: NSMenuDelegate {
     // MARK: - Playback Controls
 
     private func buildPlaybackControls(into menu: NSMenu) {
-        // Only surface playback controls when Music.app is running — the
+        // Only surface playback controls when Music.app is running. The
         // AppleScript commands silently no-op otherwise and a greyed-out
         // section is more confusing than absent.
         let musicRunning = NSWorkspace.shared.runningApplications.contains {
@@ -398,7 +398,7 @@ extension AppDelegate: NSMenuDelegate {
         let hasNowPlaying = nowPlaying != nil
         let holdEnabled = songRequestService?.isHoldEnabled ?? false
 
-        // Hold/Resume is the live-streamer button — always promoted to the
+        // Hold/Resume is the live-streamer button, always promoted to the
         // top level, even when the rest of the section is collapsed.
         let holdItem = NSMenuItem(
             title: holdEnabled ? "Resume Song Requests" : "Hold Song Requests",
@@ -763,13 +763,13 @@ extension AppDelegate {
                 Task { await service.leaveChannel() }
             }
         } else {
-            // Connecting requires channel + credentials — open Twitch settings
+            // Connecting requires channel + credentials, open Twitch settings
             Preferences.setSelectedSettingsSection(AppConstants.Twitch.settingsSection)
             openSettings()
         }
     }
 
-    /// Toggles Streamer Mode — masks sensitive values in the WolfWave UI
+    /// Toggles Streamer Mode. Masks sensitive values in the WolfWave UI
     /// (channel name, overlay URL, WebSocket URI, etc.) so the app can be
     /// safely shown on stream. UI-only; does not change broadcast payloads.
     @objc func toggleStreamerMode() {
@@ -892,13 +892,13 @@ extension AppDelegate {
 
     /// Copies a multi-platform `song.link` URL for the currently-playing track
     /// to the pasteboard, falling back to the Apple Music track URL when the
-    /// song.link sentinel hasn't resolved yet. No-op when nothing is cached —
-    /// the menu item is disabled in that state, so this guard is belt-and-suspenders.
+    /// song.link sentinel hasn't resolved yet. No-op when nothing is cached.
+    /// The menu item is disabled in that state, so this guard is belt-and-suspenders.
     @objc func copySongLink() {
         guard let song = currentSong, let artist = currentArtist else { return }
         let links = ArtworkService.shared.cachedTrackLinks(track: song, artist: artist)
         guard let url = links.songLinkURL ?? links.trackViewURL else {
-            Log.debug("AppDelegate: Copy Song Link no-op — no URL cached for \(song) — \(artist)", category: "App")
+            Log.debug("AppDelegate: Copy Song Link no-op: no URL cached for \(song) by \(artist)", category: "App")
             return
         }
         Pasteboard.copy(url)
@@ -937,7 +937,7 @@ extension AppDelegate {
     /// can recover from a network blip without poking each integration.
     ///
     /// Twitch leaves *and* rejoins (when creds + channel are available) so
-    /// the menu item lives up to its name — previously it only left, which
+    /// the menu item lives up to its name. Previously it only left, which
     /// required opening Settings to come back online.
     @objc func reconnectAllServices() {
         // Twitch: leave then rejoin when creds + channel + clientID are all present.

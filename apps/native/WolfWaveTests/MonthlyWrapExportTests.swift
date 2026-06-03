@@ -1,6 +1,6 @@
 //
 //  MonthlyWrapExportTests.swift
-//  WolfWaveTests
+//  WolfWave
 //
 //  Created by Nathanial Henniges on 2026-06-01.
 //  Copyright © 2026 MrDemonWolf, Inc. All rights reserved.

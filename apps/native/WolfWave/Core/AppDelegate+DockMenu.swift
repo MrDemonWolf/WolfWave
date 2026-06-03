@@ -14,8 +14,8 @@ extension AppDelegate {
 
     /// Builds the right-click Dock menu shown when the app is dock-visible
     /// (`DockVisibility.dockOnly` or `.both`). Surfaces the most-used tray
-    /// actions — now-playing, playback controls, song-request hold,
-    /// integration toggles, and Settings — so streamers don't have to open
+    /// actions (now-playing, playback controls, song-request hold,
+    /// integration toggles, and Settings) so streamers don't have to open
     /// the app to drive it from the Dock.
     ///
     /// All items reuse existing `@objc` selectors from

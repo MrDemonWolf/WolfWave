@@ -19,7 +19,7 @@ struct DebugLogsAndEventsCard: View {
     @State private var postStatus: String?
     @State private var refreshTick = 0
 
-    /// Log file stats — loaded off-main via `.task(id: refreshTick)` so the
+    /// Log file stats, loaded off-main via `.task(id: refreshTick)` so the
     /// card paints instantly. `logLineCount()` streams the entire log file
     /// through `fileQueue.sync` and would stall first paint on big logs.
     @State private var logURL: URL?

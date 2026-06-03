@@ -24,7 +24,7 @@ enum AppearanceController {
         case AppConstants.Appearance.dark:
             return NSAppearance(named: .darkAqua)
         default:
-            return nil // system — no override
+            return nil // system, no override
         }
     }
 

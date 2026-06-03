@@ -10,7 +10,7 @@ import SwiftUI
 
 /// First-launch onboarding wizard with progress dots, step content, and navigation.
 ///
-/// Steps: Welcome → Discord → Twitch → OBS → Preferences → Permissions → Menu bar pointer.
+/// Steps: Welcome → Discord → Twitch → OBS → Preferences → Permissions → Notifications → Menu bar pointer.
 /// Hosted in a dedicated `NSWindow` created by `AppDelegate.showOnboarding()`.
 struct OnboardingView: View {
 

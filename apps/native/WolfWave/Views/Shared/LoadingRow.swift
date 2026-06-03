@@ -10,7 +10,7 @@ import SwiftUI
 
 /// Inline row pairing a small circular `ProgressView` with a secondary label.
 ///
-/// For short-lived async waits inside settings panes — connection tests,
+/// For short-lived async waits inside settings panes: connection tests,
 /// onboarding handshake, "waiting for service" lines. Not a replacement for
 /// `.skeleton(_:)` (first-paint redaction) or in-button spinners that swap for
 /// the button label.

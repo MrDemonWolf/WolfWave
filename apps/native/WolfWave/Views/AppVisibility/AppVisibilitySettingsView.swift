@@ -12,7 +12,7 @@ import SwiftUI
 ///
 /// One grouped card, stacked top-to-bottom: a Launch-at-Login checkbox and a
 /// native macOS radio group for the display mode. The radio group uses
-/// `.pickerStyle(.radioGroup)` — the AppKit-native control HIG recommends for a
+/// `.pickerStyle(.radioGroup)`: the AppKit-native control HIG recommends for a
 /// persistent two-to-five-option choice (radios "display settings"; segmented
 /// controls "initiate an action"). This replaced an earlier hand-rolled two
 /// column card layout that cramped the radios.

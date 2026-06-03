@@ -15,7 +15,7 @@ import Security
 /// validation, error types, "save username only if changed"). It delegates the
 /// actual store/fetch/remove to a `KeychainBackend`. Production uses
 /// `SystemKeychainBackend` (Security framework); unit tests inject an in-memory
-/// double so the suite never touches the real Keychain — ad-hoc test signing
+/// double so the suite never touches the real Keychain. Ad-hoc test signing
 /// otherwise triggers an ACL prompt that blocks cold reads and fails CI.
 nonisolated protocol KeychainBackend: Sendable {
     /// Stores `value` for `account`, overwriting any existing entry.
@@ -45,7 +45,7 @@ nonisolated final class SystemKeychainBackend: KeychainBackend {
     /// Properly signed builds (Apple Development / Developer ID) satisfy this
     /// and benefit from team-ID scoping that survives Xcode dev rebuilds.
     /// Ad-hoc signed builds (CI runners with placeholder configs, "Sign to Run
-    /// Locally" without a team) trip `errSecMissingEntitlement` (-34018) — for
+    /// Locally" without a team) trip `errSecMissingEntitlement` (-34018). For
     /// those we transparently fall back to the legacy file keychain.
     ///
     /// Probed once at init and cached.
@@ -72,14 +72,14 @@ nonisolated final class SystemKeychainBackend: KeychainBackend {
         let updateStatus = SecItemUpdate(searchQuery as CFDictionary, updateAttributes as CFDictionary)
 
         if updateStatus == errSecItemNotFound {
-            // Item doesn't exist yet — add it
+            // Item doesn't exist yet, add it
             var addQuery = searchQuery
             addQuery[kSecValueData as String] = data
             addQuery[kSecAttrAccessible as String] = kSecAttrAccessibleAfterFirstUnlock
             let addStatus = SecItemAdd(addQuery as CFDictionary, nil)
 
             if addStatus == errSecDuplicateItem {
-                // Update said "not found" but Add says "duplicate" — an existing
+                // Update said "not found" but Add says "duplicate": an existing
                 // entry differs only in `kSecAttrAccessible`, which `searchQuery`
                 // doesn't include and `SecItemUpdate` evaluates as a non-match.
                 // Self-heal: delete the mismatched entry and retry once.
@@ -173,7 +173,7 @@ nonisolated final class SystemKeychainBackend: KeychainBackend {
         ]
         let addStatus = SecItemAdd(addQuery as CFDictionary, nil)
 
-        // Already-exists from a prior probe is fine — backend supports it.
+        // Already-exists from a prior probe is fine, backend supports it.
         let supports = addStatus == errSecSuccess || addStatus == errSecDuplicateItem
 
         if supports {

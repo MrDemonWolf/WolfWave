@@ -11,7 +11,7 @@ import SwiftUI
 
 // MARK: - Debug Metrics Card
 
-/// Debug-tab card showing live runtime metrics from `MetricsService` —
+/// Debug-tab card showing live runtime metrics from `MetricsService`:
 /// WebSocket overlay throughput, Twitch API rate-limit headroom, and memory use.
 struct DebugMetricsCard: View {
 
@@ -67,7 +67,7 @@ struct DebugMetricsCard: View {
         .cardStyle()
         .task {
             // Driven by structured concurrency so the loop cancels when the
-            // card disappears — no Combine subscription to clean up.
+            // card disappears, no Combine subscription to clean up.
             while !Task.isCancelled {
                 snapshot = MetricsService.shared.snapshot()
                 try? await Task.sleep(for: Self.refreshInterval)

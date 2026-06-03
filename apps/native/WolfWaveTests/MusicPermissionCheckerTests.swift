@@ -10,7 +10,7 @@ import Carbon
 import XCTest
 @testable import WolfWave
 
-/// Covers `MusicPermissionChecker.resolve` — the pure mapping from an
+/// Covers `MusicPermissionChecker.resolve`: the pure mapping from an
 /// `AEDeterminePermissionToAutomateTarget` status to a `MusicPermissionState`,
 /// including the closed-Music (`procNotFound`) fallback to the last known grant.
 final class MusicPermissionCheckerTests: XCTestCase {

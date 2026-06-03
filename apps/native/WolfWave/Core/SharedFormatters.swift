@@ -2,6 +2,7 @@
 //  SharedFormatters.swift
 //  WolfWave
 //
+//  Created by Nathanial Henniges on 2026-05-28.
 //  Copyright © 2026 MrDemonWolf, Inc. All rights reserved.
 //
 
@@ -18,14 +19,14 @@ nonisolated enum SharedFormatters {
     /// Strict ISO 8601 (`2026-05-28T12:34:56Z`).
     ///
     /// `ISO8601DateFormatter` (unlike `DateFormatter`) is not annotated `Sendable`
-    /// even though formatting calls are documented as thread-safe — hence
+    /// even though formatting calls are documented as thread-safe, hence
     /// `nonisolated(unsafe)`. Don't mutate `formatOptions` after init.
     nonisolated(unsafe) static let iso8601: ISO8601DateFormatter = {
         let formatter = ISO8601DateFormatter()
         return formatter
     }()
 
-    /// `HH:mm:ss.SSS` — used by the log writer.
+    /// `HH:mm:ss.SSS`, used by the log writer.
     static let logTimestamp: DateFormatter = {
         let formatter = DateFormatter()
         formatter.dateFormat = "HH:mm:ss.SSS"

@@ -157,17 +157,17 @@ final class SongRequestService {
             guard let self else { return }
 
             while !Task.isCancelled {
-                // Auto-advance polling is not time-critical — a 20% tolerance lets
+                // Auto-advance polling is not time-critical. A 20% tolerance lets
                 // macOS coalesce the wakeup (0.4s at the default 2s cadence).
                 try? await Task.sleep(for: self.pollInterval, tolerance: self.pollInterval / 5)
 
                 guard self.isAutoAdvanceEnabled else { continue }
                 guard !self.isHoldEnabled else { continue }
-                // Music.app closed — nothing to advance, and probing player state
+                // Music.app closed: nothing to advance, and probing player state
                 // would relaunch the app the user just quit. Buffered requests
                 // flush via the didLaunchApplication observer when Music reopens.
                 guard self.musicController.isMusicAppRunning else { continue }
-                // Don't advance when the user has paused — only when playback has stopped/finished
+                // Don't advance when the user has paused, only when playback has stopped/finished
                 guard !self.musicController.isPlaying && !self.musicController.isPaused else { continue }
 
                 if self.queue.nowPlaying != nil && !self.queue.isEmpty {
@@ -197,15 +197,15 @@ final class SongRequestService {
     /// either enqueues or starts playback as appropriate.
     ///
     /// Used by `SongRequestCommand` (`!sr`), channel-point redemptions, and
-    /// bit cheers. The `RequestAudience` gate applies only to chat commands —
-    /// redemptions are gated by their own enable toggle.
+    /// bit cheers. The `RequestAudience` gate applies only to chat commands.
+    /// Redemptions are gated by their own enable toggle.
     ///
     /// - Parameters:
     ///   - query: Search string, Apple Music link, Spotify link, or YouTube link.
     ///   - username: Twitch display name of the requester.
     ///   - source: How the request arrived (chat command, channel points, bits).
-    /// - Returns: A `RequestResult` describing the outcome — added, blocked,
-    ///   queue-full, not-found, etc.
+    /// - Returns: A `RequestResult` describing the outcome (added, blocked,
+    ///   queue-full, not-found, etc.)
     func processRequest(query: String, username: String, source: RequestSource) async -> RequestResult {
         if case .chatCommand(let context) = source {
             let audience = chatAudience
@@ -239,12 +239,12 @@ final class SongRequestService {
             case .added(let position):
                 if musicController.isMusicAppRunning && !isHoldEnabled {
                     if queue.nowPlaying == nil && (!musicController.isPlaying || isPlayingFallback) {
-                        // Nothing is playing, OR fallback playlist is filling — start the request now
+                        // Nothing is playing, OR fallback playlist is filling: start the request now
                         await playNextInQueue()
                     }
                     // else: a real request is already playing; auto-advance will pick this one up
                 }
-                // else: Music.app is closed or hold is active — request stays buffered in the queue
+                // else: Music.app is closed or hold is active, request stays buffered in the queue
                 return .added(item: item, position: position)
             case .queueFull(let max):
                 return .queueFull(max: max)
@@ -277,7 +277,7 @@ final class SongRequestService {
                 Log.debug("SongRequestService: Failed to play after skip: \(error)", category: "SongRequest")
             }
         } else {
-            // No next song — stop Music.app
+            // No next song: stop Music.app
             await musicController.clearPlayerQueue()
         }
         return next
@@ -338,10 +338,10 @@ final class SongRequestService {
             isPlayingFallback = false
             Log.debug("SongRequestService: Now playing \"\(item.title)\" by \(item.artist) (requested by \(item.requesterUsername))", category: "SongRequest")
         } catch PlaybackError.musicAppNotRunning {
-            // Music.app closed — put the item back at the front so it plays first when Music.app re-opens
+            // Music.app closed: put the item back at the front so it plays first when Music.app re-opens
             queue.insertAtHead(item)
             queue.clearNowPlaying()
-            Log.debug("SongRequestService: Music.app closed — \"\(item.title)\" re-queued at head", category: "SongRequest")
+            Log.debug("SongRequestService: Music.app closed, \"\(item.title)\" re-queued at head", category: "SongRequest")
         } catch {
             Log.debug("SongRequestService: Failed to play \"\(item.title)\": \(error)", category: "SongRequest")
             await playNextInQueueUnguarded()
@@ -367,11 +367,11 @@ final class SongRequestService {
     /// starts the fallback playlist) after a 500 ms grace period so Music.app
     /// has time to initialize its AppleScript surface.
     private func handleMusicAppLaunched() async {
-        Log.debug("SongRequestService: Music.app launched — flushing buffered requests", category: "SongRequest")
+        Log.debug("SongRequestService: Music.app launched, flushing buffered requests", category: "SongRequest")
         // Give Music.app a moment to finish launching before sending commands
         try? await Task.sleep(for: .milliseconds(500))
         guard !isHoldEnabled else {
-            Log.debug("SongRequestService: Hold enabled — skipping flush on Music.app launch", category: "SongRequest")
+            Log.debug("SongRequestService: Hold enabled, skipping flush on Music.app launch", category: "SongRequest")
             return
         }
         if queue.nowPlaying == nil && !queue.isEmpty {

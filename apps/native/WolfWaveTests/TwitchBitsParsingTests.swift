@@ -75,7 +75,7 @@ final class TwitchBitsParsingTests: XCTestCase {
     }
 
     func testStripLeadingCheermotesDoesNotStripMidString() {
-        // "U2 One" should NOT be treated as a cheermote — the strip only matches at the start.
+        // "U2 One" should NOT be treated as a cheermote. The strip only matches at the start.
         XCTAssertEqual(
             TwitchChatService.stripLeadingCheermotes("Beautiful Day by U2"), "Beautiful Day by U2")
     }

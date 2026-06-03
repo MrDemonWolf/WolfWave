@@ -30,8 +30,10 @@ final class StatTileTests: XCTestCase {
     }
 
     func testDefaultAccessibilityIdentifierUsesCaption() {
-        // Render the tile and pull the runtime accessibilityIdentifier off the
-        // hosted NSView tree. The default falls back to "statTile.\(caption)".
+        // The default identifier falls back to "statTile.\(caption)" when none
+        // is passed. SwiftUI does not expose the resolved identifier off the
+        // hosted NSView tree, so this only smoke-checks that the default-id
+        // configuration renders.
         let view = StatTile(value: "10", caption: "Today")
         let host = NSHostingView(rootView: view)
         host.setFrameSize(NSSize(width: 200, height: 80))

@@ -389,7 +389,7 @@ final class SkipVoteManagerTests: WolfWaveTestCase {
 
 // MARK: - Sendable Atomic Box for closure capture
 
-/// Thread-safe value box — used by `@Sendable` closures captured into the actor
+/// Thread-safe value box, used by `@Sendable` closures captured into the actor
 /// under test. NSLock is fine here; the test isn't measuring lock perf.
 private final class Atomic<Value>: @unchecked Sendable {
     private let lock = NSLock()

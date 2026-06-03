@@ -2,6 +2,7 @@
 //  DiscordIdlePresenceTests.swift
 //  WolfWave
 //
+//  Created by Nathanial Henniges on 2026-06-01.
 //  Copyright © 2026 MrDemonWolf, Inc. All rights reserved.
 //
 
@@ -28,7 +29,7 @@ final class DiscordIdlePresenceTests: XCTestCase {
 
     func test_idleActivity_hasNoButtonsOrTimestamps() {
         let activity = DiscordRPCService.buildIdleActivity()
-        // Idle is a static marker — no clickable buttons and no live ticker.
+        // Idle is a static marker. No clickable buttons and no live ticker.
         XCTAssertNil(activity["buttons"])
         XCTAssertNil(activity["timestamps"])
     }

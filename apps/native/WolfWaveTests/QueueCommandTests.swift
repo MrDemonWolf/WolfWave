@@ -10,7 +10,7 @@ import XCTest
 
 @testable import WolfWave
 
-/// Covers `QueueCommand` — empty-queue reply, queue summary, the 5-item cap,
+/// Covers `QueueCommand`: empty-queue reply, queue summary, the 5-item cap,
 /// and the "...and N more" suffix.
 @MainActor
 final class QueueCommandTests: WolfWaveTestCase {

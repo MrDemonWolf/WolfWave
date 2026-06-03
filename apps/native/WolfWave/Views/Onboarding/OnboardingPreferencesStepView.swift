@@ -9,7 +9,7 @@
 import AppKit
 import SwiftUI
 
-/// Preferences step — wire up the Mac-level conveniences (launch at login,
+/// Preferences step. Wire up the Mac-level conveniences (launch at login,
 /// listening history) so the user doesn't have to hunt for them in Settings
 /// later. Permissions (Apple Music, notifications) live in the next step.
 struct OnboardingPreferencesStepView: View {

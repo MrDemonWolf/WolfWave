@@ -106,7 +106,7 @@ extension AppDelegate {
         }
 
         if !hasVisibleWindows {
-            // Defer past the current AppKit layout pass — calling
+            // Defer past the current AppKit layout pass: calling
             // setActivationPolicy(.accessory) inline during a window-close
             // animation triggers "layoutSubtreeIfNeeded on a view already
             // being laid out" warnings. RunLoop.main.perform schedules this
@@ -191,8 +191,8 @@ extension AppDelegate {
             defer: false
         )
         // Assigning the hosting controller makes hosting.view the window's
-        // contentView. Do NOT disable autoresizing or add identity constraints
-        // — AppKit uses the autoresizing mask to keep the hosting view filling
+        // contentView. Do NOT disable autoresizing or add identity constraints.
+        // AppKit uses the autoresizing mask to keep the hosting view filling
         // the window. Disabling it left the view inset inside the window and
         // broke both the unified titlebar look and List hit-testing.
         window.contentViewController = hosting
@@ -263,7 +263,7 @@ extension AppDelegate: NSWindowDelegate {
 
         if window === onboardingWindow {
             if OnboardingViewModel.hasCompletedOnboarding == false {
-                Log.info("AppDelegate: Onboarding window closed before completion — will show again on next launch", category: "App")
+                Log.info("AppDelegate: Onboarding window closed before completion, will show again on next launch", category: "App")
             }
             Task { @MainActor [weak self] in
                 self?.onboardingWindow = nil
@@ -286,7 +286,7 @@ extension AppDelegate {
     ///
     /// - Important: Callers invoked from `NSStatusItem` menu tracking or any other
     ///   AppKit layout pass must defer to the next runloop tick (e.g. via
-    ///   `RunLoop.main.perform`) before calling this — otherwise AppKit logs
+    ///   `RunLoop.main.perform`) before calling this, otherwise AppKit logs
     ///   "layoutSubtreeIfNeeded on a view already being laid out".
     func showWindow(_ window: NSWindow?) {
         window?.level = .normal

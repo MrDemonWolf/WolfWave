@@ -12,7 +12,7 @@ import Foundation
 
 /// The user's chosen music source mode.
 ///
-/// Stored verbatim in UserDefaults — the raw value must remain stable across
+/// Stored verbatim in UserDefaults, so the raw value must remain stable across
 /// releases to preserve user settings.
 enum PlaybackSourceMode: String {
     /// Apple Music app on macOS, observed via ScriptingBridge + distributed notifications.
@@ -37,7 +37,7 @@ protocol PlaybackSourceDelegate: AnyObject {
     ///   - duration: Total track duration in seconds.
     ///   - elapsed: Current playhead position in seconds.
     ///   - isPaused: `true` when the source reports the loaded track as paused
-    ///     (Music.app `kPSp`). The track stays "loaded" — Discord, the widget,
+    ///     (Music.app `kPSp`). The track stays "loaded": Discord, the widget,
     ///     and the now-playing UI keep showing it but render a paused affordance.
     func playbackSource(
         didUpdateTrack track: String,
@@ -62,7 +62,7 @@ protocol PlaybackSourceDelegate: AnyObject {
 /// Sources push updates through `delegate` rather than exposing pull-based
 /// state. This lets the manager subscribe once and remain source-agnostic.
 protocol PlaybackSource: AnyObject {
-    /// Receives track and status updates. Strongly retained by the source —
+    /// Receives track and status updates. Strongly retained by the source, so
     /// callers must clear the reference (or break the cycle) on teardown.
     var delegate: PlaybackSourceDelegate? { get set }
 

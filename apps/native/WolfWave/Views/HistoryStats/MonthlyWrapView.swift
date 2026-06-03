@@ -198,7 +198,7 @@ struct MonthlyWrapView: View {
             withAnimation { didExport = true }
             Log.info("MonthlyWrapView: Exported monthly wrap image", category: AppConstants.History.logCategory)
         } catch {
-            Log.error("MonthlyWrapView: Export failed — \(error.localizedDescription)", category: AppConstants.History.logCategory)
+            Log.error("MonthlyWrapView: Export failed: \(error.localizedDescription)", category: AppConstants.History.logCategory)
         }
     }
 
@@ -212,7 +212,7 @@ struct MonthlyWrapView: View {
         do {
             try png.write(to: url)
         } catch {
-            Log.error("MonthlyWrapView: Share render failed — \(error.localizedDescription)", category: AppConstants.History.logCategory)
+            Log.error("MonthlyWrapView: Share render failed: \(error.localizedDescription)", category: AppConstants.History.logCategory)
             return nil
         }
         return [url]
@@ -221,11 +221,11 @@ struct MonthlyWrapView: View {
 
 // MARK: - MonthlyWrapCard
 
-/// The shareable wrap card — displayed in the sheet and rendered to a PNG.
+/// The shareable wrap card, displayed in the sheet and rendered to a PNG.
 struct MonthlyWrapCard: View {
 
     let data: MonthlyWrapData
-    /// `false` when no plays have ever been recorded — switches the empty branch
+    /// `false` when no plays have ever been recorded. Switches the empty branch
     /// from a per-month "no plays" message to a punchy onboarding CTA.
     var hasAnyHistory: Bool = true
 

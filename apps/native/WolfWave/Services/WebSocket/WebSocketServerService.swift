@@ -22,11 +22,11 @@ import Network
 ///
 /// - The listener binds to all interfaces so LAN peers (a second-PC OBS, a phone
 ///   browser) can reach the widget. Two-PC setups would otherwise be impossible.
-/// - Every accepted connection — loopback or LAN — must present the
+/// - Every accepted connection (loopback or LAN) must present the
 ///   `wolfwave.token.<hex>` WebSocket subprotocol (`Sec-WebSocket-Protocol`)
 ///   on the handshake. The token is minted on first launch by
 ///   `WebSocketAuthToken.currentOrCreate()`, persisted in the macOS Keychain
-///   via `KeychainService.saveToken(_:)`, and never logged in full — redacted
+///   via `KeychainService.saveToken(_:)`, and never logged in full. Redacted
 ///   log lines only carry the first 4 characters.
 /// - Local widgets get the token for free: `WidgetHTTPService` injects it into
 ///   the served `widget.html` so same-Mac OBS Browser Sources "just work".
@@ -89,7 +89,7 @@ actor WebSocketServerService {
 
     private var port: UInt16
     /// Token a client must echo back as the `wolfwave.token.<hex>` subprotocol on
-    /// the WebSocket handshake. `nil` disables auth — used only by lifecycle tests
+    /// the WebSocket handshake. `nil` disables auth, used only by lifecycle tests
     /// that construct the service via `init(port:)`.
     private var authToken: String?
     private var listener: NWListener?
@@ -128,7 +128,7 @@ actor WebSocketServerService {
         self.stateContinuation = continuation
     }
 
-    /// Production initializer — enforces the supplied token on every handshake.
+    /// Production initializer. Enforces the supplied token on every handshake.
     init(port: UInt16, authToken: String) {
         self.port = port
         self.authToken = authToken
@@ -266,7 +266,7 @@ actor WebSocketServerService {
     /// Marks playback as fully stopped and broadcasts the state change.
     ///
     /// Called when Music.app quits, permission is revoked, or the source
-    /// errors — never on a plain pause (that path keeps the track and goes
+    /// errors, never on a plain pause (that path keeps the track and goes
     /// through `updateNowPlaying`). Clears the cached track so a stale song
     /// can't leak into a later `now_playing` re-broadcast, and so overlay
     /// clients hide the card instead of lingering on the last track.
@@ -443,7 +443,7 @@ actor WebSocketServerService {
     private func handleConnectionState(_ connection: NWConnection, state: NWConnection.State) {
         switch state {
         case .ready:
-            // Ignore a late .ready that lands after stopServer() — re-adding would
+            // Ignore a late .ready that lands after stopServer(); re-adding would
             // inflate the count. `state` the param is NWConnection.State; qualify
             // with self to read the server's lifecycle state.
             guard self.state == .listening else { connection.cancel(); return }
@@ -477,7 +477,7 @@ actor WebSocketServerService {
     }
 
     /// Keeps the connection alive by continuously consuming inbound messages.
-    /// Nonisolated — does not touch actor state.
+    /// Nonisolated. Does not touch actor state.
     private static func receiveMessage(from connection: NWConnection) {
         connection.receiveMessage { _, _, _, error in
             if error != nil { return }
@@ -624,7 +624,7 @@ actor WebSocketServerService {
     // MARK: - JSON Helpers
 
     /// Serializes `dict` to JSON and sends it as a single WebSocket text frame.
-    /// Nonisolated — does not touch actor state.
+    /// Nonisolated. Does not touch actor state.
     private static func sendJSON(_ dict: [String: Any], to connection: NWConnection) {
         guard let jsonData = try? JSONSerialization.data(withJSONObject: dict),
               let jsonString = String(data: jsonData, encoding: .utf8) else { return }

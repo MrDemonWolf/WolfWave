@@ -211,7 +211,7 @@ final class DiscordPresenceBuilderTests: XCTestCase {
             isPaused: true,
             defaults: defaults, now: Date()
         )
-        // Discord has no paused flag — we stop the live ticker by dropping
+        // Discord has no paused flag. We stop the live ticker by dropping
         // `timestamps` entirely while paused.
         XCTAssertNil(activity["timestamps"])
     }

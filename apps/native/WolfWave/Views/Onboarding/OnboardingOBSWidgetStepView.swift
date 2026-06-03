@@ -30,7 +30,7 @@ struct OnboardingOBSWidgetStepView: View {
         "http://localhost:\(String(storedWidgetPort))/"
     }
 
-    /// Combined state — the step treats the two servers as one user-facing feature.
+    /// Combined state. The step treats the two servers as one user-facing feature.
     private var overlayEnabled: Bool {
         websocketEnabled && widgetHTTPEnabled
     }

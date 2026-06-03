@@ -294,7 +294,7 @@ final class TwitchViewModel {
 
         // Idempotent: only register observers once across repeated calls.
         // Notifications already arrive on `.main` (queue: .main), so we can mutate
-        // @MainActor state directly via `MainActor.assumeIsolated` — no Task hop.
+        // @MainActor state directly via `MainActor.assumeIsolated`, no Task hop.
         if reauthObserver == nil {
             reauthObserver = NotificationCenter.default.addObserver(
                 forName: Notification.Name.twitchReauthNeededChanged,

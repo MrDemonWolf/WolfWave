@@ -15,7 +15,7 @@ struct BlocklistItem: Identifiable, Codable, Equatable, Hashable {
     /// Unique identifier for this blocklist entry.
     let id: UUID
 
-    /// The blocked value — either a song title or artist name.
+    /// The blocked value, either a song title or artist name.
     let value: String
 
     /// Whether this entry blocks a specific song title or an entire artist.

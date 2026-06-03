@@ -145,7 +145,7 @@ final class ArtworkServiceNetworkTests: XCTestCase {
         let wrote = await waitUntil { FileManager.default.fileExists(atPath: url.path) }
         XCTAssertTrue(wrote, "Cache file should be written within the timeout")
 
-        // Second instance loads from the same file — no network.
+        // Second instance loads from the same file, no network.
         let second = ArtworkService(session: MockURLProtocol.makeSession(), persistenceURL: url)
         let cached = second.cachedTrackLinks(track: "Persisted", artist: "Artist")
         XCTAssertEqual(cached.artworkURL, "https://cdn.example/512x512.jpg")
@@ -182,7 +182,7 @@ final class ArtworkServiceNetworkTests: XCTestCase {
         }
         _ = await fetchLinks(track: "Track", artist: "Artist")
 
-        // Any further network call now fails — a cache hit must avoid it.
+        // Any further network call now fails. A cache hit must avoid it.
         MockURLProtocol.requestHandler = { _ in throw URLError(.notConnectedToInternet) }
         let links = await fetchLinks(track: "Track", artist: "Artist")
 

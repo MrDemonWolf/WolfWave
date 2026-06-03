@@ -60,8 +60,8 @@ final class SongSearchResolver {
 
     // MARK: - Private Helpers
 
-    /// Resolves a chat message that contains a URL — Apple Music, Spotify, or
-    /// YouTube — into a catalog track via `LinkResolverService` + MusicKit.
+    /// Resolves a chat message that contains a URL (Apple Music, Spotify, or
+    /// YouTube) into a catalog track via `LinkResolverService` + MusicKit.
     ///
     /// - Parameter text: Raw chat text. The first URL-shaped substring is used.
     /// - Returns: `.found`, `.linkNotFound`, or `.error`.
@@ -88,7 +88,7 @@ final class SongSearchResolver {
             }
 
         case .found(let title, let artist):
-            // oEmbed gave us title/artist — search MusicKit
+            // oEmbed gave us title/artist, search MusicKit
             let searchQuery = artist.map { "\(title) \($0)" } ?? title
             Log.debug("SongSearchResolver: oEmbed resolved to: \(searchQuery)", category: "SongRequest")
             return await resolveText(searchQuery)

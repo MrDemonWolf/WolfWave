@@ -12,12 +12,12 @@ import Foundation
 ///
 /// Each recorded play is one JSON line appended to a single file. A long-lived
 /// `FileHandle` is kept open so appends are a `seekToEnd` + `write` with no
-/// per-write `open`/`close` and no `fsync` — the gentlest possible profile on
+/// per-write `open`/`close` and no `fsync`. The gentlest possible profile on
 /// SSD. The whole log is only ever rewritten by `replaceAll(with:)` (compaction
 /// / retention), which is rare.
 ///
 /// Thread Safety: all file state (`fileHandle`) is touched exclusively on the
-/// serial `ioQueue`, so the store is safe to use from any thread — hence the
+/// serial `ioQueue`, so the store is safe to use from any thread. Hence the
 /// `nonisolated` declaration and `@unchecked Sendable` conformance. Mirrors the
 /// `Logger` file-I/O pattern.
 nonisolated final class PlayLogStore: @unchecked Sendable {
@@ -35,7 +35,7 @@ nonisolated final class PlayLogStore: @unchecked Sendable {
     /// Open write handle, positioned at end of file. Only touched on `ioQueue`.
     private var fileHandle: FileHandle?
 
-    /// Shared default coders — `PlayRecord` has explicit `CodingKeys` and
+    /// Shared default coders. `PlayRecord` has explicit `CodingKeys` and
     /// its `Date` properties use the default `deferredToDate` strategy, so the
     /// strategy-free `JSONCoders.default` / `.defaultEncoder` match the
     /// on-disk format exactly.
@@ -70,7 +70,7 @@ nonisolated final class PlayLogStore: @unchecked Sendable {
 
     // MARK: - Public API
 
-    /// Appends a single record as one NDJSON line. Returns immediately — the
+    /// Appends a single record as one NDJSON line. Returns immediately. The
     /// write happens asynchronously on `ioQueue`.
     ///
     /// - Parameter record: The play to persist.
@@ -91,7 +91,7 @@ nonisolated final class PlayLogStore: @unchecked Sendable {
     }
 
     /// Rewrites the log so it contains exactly `records`. Used for compaction
-    /// and retention trimming — the only operation that rewrites the file.
+    /// and retention trimming. The only operation that rewrites the file.
     ///
     /// - Parameter records: The records the log should contain afterwards.
     func replaceAll(with records: [PlayRecord]) {
@@ -128,7 +128,7 @@ nonisolated final class PlayLogStore: @unchecked Sendable {
 
     deinit { try? fileHandle?.close() }
 
-    // MARK: - Private — must run on ioQueue
+    // MARK: - Private (must run on ioQueue)
 
     /// Encodes one record and appends it as a single line. Runs on `ioQueue`.
     private func appendSync(_ record: PlayRecord) {
@@ -143,7 +143,7 @@ nonisolated final class PlayLogStore: @unchecked Sendable {
             try handle.seekToEnd()
             handle.write(data)
         } catch {
-            Log.error("PlayLogStore: Append failed — \(error.localizedDescription)", category: AppConstants.History.logCategory)
+            Log.error("PlayLogStore: Append failed: \(error.localizedDescription)", category: AppConstants.History.logCategory)
         }
     }
 
@@ -174,7 +174,7 @@ nonisolated final class PlayLogStore: @unchecked Sendable {
         do {
             try contents.data(using: .utf8)?.write(to: fileURL, options: .atomic)
         } catch {
-            Log.error("PlayLogStore: Rewrite failed — \(error.localizedDescription)", category: AppConstants.History.logCategory)
+            Log.error("PlayLogStore: Rewrite failed: \(error.localizedDescription)", category: AppConstants.History.logCategory)
         }
     }
 

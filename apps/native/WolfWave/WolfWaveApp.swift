@@ -6,7 +6,7 @@
 //  Copyright © 2026 MrDemonWolf, Inc. All rights reserved.
 //
 
-/// WolfWave — macOS menu bar app bridging Apple Music to Twitch, Discord, and stream widgets.
+/// WolfWave: macOS menu bar app bridging Apple Music to Twitch, Discord, and stream widgets.
 
 import AppKit
 import SwiftUI
@@ -114,9 +114,9 @@ struct WolfWaveApp: App {
 /// Orchestrates the menu bar, services, and window lifecycle.
 ///
 /// Behavior is split across focused extension files:
-/// - `AppDelegate+MenuBar.swift` — status item, menu construction, toggle actions
-/// - `AppDelegate+Windows.swift` — settings/onboarding/whatsNew/about windows, dock visibility
-/// - `AppDelegate+Services.swift` — service setup, notification observers, playback delegate
+/// - `AppDelegate+MenuBar.swift`: status item, menu construction, toggle actions
+/// - `AppDelegate+Windows.swift`: settings/onboarding/whatsNew/about windows, dock visibility
+/// - `AppDelegate+Services.swift`: service setup, notification observers, playback delegate
 class AppDelegate: NSObject, NSApplicationDelegate {
     static weak var shared: AppDelegate?
 
@@ -196,7 +196,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         // Skip full app setup when running unit tests to prevent windows from
         // appearing and services (WebSocket, Discord) from starting.
         if WolfWaveApp.isRunningTests {
-            Log.debug("AppDelegate: Running under XCTest — skipping service setup", category: "App")
+            Log.debug("AppDelegate: Running under XCTest, skipping service setup", category: "App")
             return
         }
 
@@ -300,7 +300,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
     /// Returns a formatted string with the current track for Twitch bot commands.
     ///
-    /// Reflects pause state — a paused track is still "loaded" per the
+    /// Reflects pause state: a paused track is still "loaded" per the
     /// `AppleMusicSource` playerState rules, so chat sees `⏸️ Paused:` instead
     /// of the silent fallback that confused viewers in earlier builds.
     func getCurrentSongInfo() -> String {

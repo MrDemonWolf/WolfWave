@@ -10,23 +10,16 @@ import AppKit
 import SwiftUI
 import UniformTypeIdentifiers
 
-/// Advanced settings interface providing diagnostics and dangerous operations.
+/// Advanced settings: diagnostics and the destructive reset operations.
 ///
-/// Provides controls for:
-/// - Resetting the onboarding wizard so it shows again on next launch
-/// - Exporting / clearing diagnostic logs
-/// - Resetting all application settings to defaults
-/// - Clearing stored authentication tokens from Keychain
-/// - Disconnecting from Twitch
+/// Cards, top to bottom: rerun the setup wizard, log diagnostics (export /
+/// copy / reveal / clear), artwork cache (size + clear), opt-in MetricKit
+/// diagnostics share card, settings backup (export / import), and the Danger
+/// Zone full reset.
 ///
-/// State:
-/// - Uses @Binding for showingResetAlert (passed from parent SettingsView)
-/// - Shares context with AppDelegate via NSApplication.shared.delegate
-///
-/// Actions:
-/// - Reset Onboarding clears the onboarding flag so the wizard runs on next launch
-/// - Reset All button shows confirmation dialog before proceeding
-/// - Actual full reset is performed by SettingsView.resetSettings()
+/// `showingResetAlert` is a @Binding from the parent `SettingsView` because the
+/// actual reset is performed by `SettingsView.resetSettings()` after the alert
+/// confirms. Everything else uses local @State.
 struct AdvancedSettingsView: View {
     // MARK: - State
 
@@ -42,10 +35,10 @@ struct AdvancedSettingsView: View {
     @State private var showingClearLogsAlert = false
 
     /// Formatted log file size (e.g. "248 KB"). Refreshed on appear and after diagnostics actions.
-    @State private var logSizeText: String = "—"
+    @State private var logSizeText: String = "N/A"
 
     /// Formatted log line count (e.g. "4,512 lines").
-    @State private var logLineCountText: String = "—"
+    @State private var logLineCountText: String = "N/A"
 
     /// Whether the "Copied!" feedback row is shown after copying logs.
     @State private var showingCopyFeedback = false
@@ -54,7 +47,7 @@ struct AdvancedSettingsView: View {
     @State private var showingClearArtworkAlert = false
 
     /// Formatted artwork cache summary (e.g. "42 tracks · 18 KB").
-    @State private var artworkStatsText: String = "—"
+    @State private var artworkStatsText: String = "N/A"
 
     /// The decoded backup awaiting the user's import confirmation.
     @State private var pendingBackup: SettingsBackup?
@@ -470,7 +463,7 @@ struct AdvancedSettingsView: View {
     // MARK: - Backup Actions
 
     /// Exports portable settings to a user-chosen JSON file. Accounts and
-    /// secrets are excluded — see `AppConstants.UserDefaults.exportableKeys`.
+    /// secrets are excluded. See `AppConstants.UserDefaults.exportableKeys`.
     @MainActor
     private func exportSettings() {
         let service = SettingsBackupService()

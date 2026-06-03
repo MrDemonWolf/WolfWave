@@ -8,7 +8,7 @@
 
 import Foundation
 
-/// Handles `!skip` / `!next` — skips the current song request.
+/// Handles `!skip` / `!next`. Skips the current song request.
 ///
 /// Restricted to moderators and the broadcaster. Replies with the next track
 /// or a queue-empty notice.

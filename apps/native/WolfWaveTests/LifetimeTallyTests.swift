@@ -76,7 +76,7 @@ struct LifetimeTallyTests {
         tally.fold(record(track: "T3", artist: "GammaArtist"), keyCap: 3)
         #expect(tally.artistCounts.count == 3)
 
-        // A fourth, brand-new artist arrives — Gamma (lowest) should be evicted.
+        // A fourth, brand-new artist arrives. Gamma (lowest) should be evicted.
         tally.fold(record(track: "T4", artist: "DeltaArtist"), keyCap: 3)
         #expect(tally.artistCounts.count == 3)
         #expect(tally.artistCounts["gammaartist"] == nil)

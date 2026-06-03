@@ -46,7 +46,7 @@ nonisolated enum JSONCoders {
         return decoder
     }()
 
-    /// Decoder with no key or date strategy applied — matches Swift's default
+    /// Decoder with no key or date strategy applied. Matches Swift's default
     /// `JSONDecoder()` behavior.
     ///
     /// Use for on-disk formats whose schema is owned by us (explicit
@@ -60,7 +60,7 @@ nonisolated enum JSONCoders {
 
     // MARK: - Encoders
 
-    /// Encoder with no key or date strategy applied — matches Swift's default
+    /// Encoder with no key or date strategy applied. Matches Swift's default
     /// `JSONEncoder()` behavior.
     ///
     /// Pair with `JSONCoders.default` for on-disk persistence whose format is

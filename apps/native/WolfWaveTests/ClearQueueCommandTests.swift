@@ -10,7 +10,7 @@ import XCTest
 
 @testable import WolfWave
 
-/// Covers `ClearQueueCommand` — moderator/broadcaster gate, empty-queue reply,
+/// Covers `ClearQueueCommand`: moderator/broadcaster gate, empty-queue reply,
 /// and the count/pluralization in the "cleared" message.
 @MainActor
 final class ClearQueueCommandTests: WolfWaveTestCase {

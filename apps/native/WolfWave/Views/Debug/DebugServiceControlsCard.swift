@@ -9,7 +9,7 @@
 #if DEBUG
 import SwiftUI
 
-/// DEBUG-only card for poking live services — force reconnects, fake track events,
+/// DEBUG-only card for poking live services: force reconnects, fake track events,
 /// queue injection, and Sparkle / WebSocket broadcasts.
 struct DebugServiceControlsCard: View {
     @State private var fakeTitle: String = "Test Track"
@@ -50,7 +50,7 @@ struct DebugServiceControlsCard: View {
 
     private var playbackSection: some View {
         VStack(alignment: .leading, spacing: DSSpace.s2) {
-            sectionLabel("Apple Music — Inject Track")
+            sectionLabel("Apple Music: Inject Track")
             TextField("Title", text: $fakeTitle).textFieldStyle(.roundedBorder)
             TextField("Artist", text: $fakeArtist).textFieldStyle(.roundedBorder)
             TextField("Album", text: $fakeAlbum).textFieldStyle(.roundedBorder)
@@ -115,7 +115,7 @@ struct DebugServiceControlsCard: View {
 
                 Button {
                     if let service = appDelegate?.twitchService {
-                        Task { await service.sendMessage("WolfWave debug ping — \(Date())") }
+                        Task { await service.sendMessage("WolfWave debug ping: \(Date())") }
                     }
                 } label: {
                     Label("Send Test Chat", systemImage: "paperplane")

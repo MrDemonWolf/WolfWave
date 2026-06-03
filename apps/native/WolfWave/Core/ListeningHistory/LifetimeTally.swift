@@ -14,7 +14,7 @@ import Foundation
 /// `PlayRecord` window so that lifetime stats (`totalPlays`, top artists, etc.)
 /// remain correct after old records are dropped.
 ///
-/// The tally only accounts for the records no longer in memory — the live
+/// The tally only accounts for the records no longer in memory. The live
 /// `records` array contributes separately when `StatsAggregator` merges them.
 ///
 /// Per-dimension dictionaries are capped at
@@ -28,7 +28,7 @@ nonisolated struct LifetimeTally: Codable, Equatable, Sendable {
     nonisolated struct TallyEntry: Codable, Equatable, Sendable {
         /// Display name (preserves casing from the most recent fold).
         var name: String
-        /// Optional secondary line — used as the artist for tracks and albums.
+        /// Optional secondary line, used as the artist for tracks and albums.
         var detail: String?
         /// Number of folded plays attributed to this key.
         var count: Int
@@ -55,7 +55,7 @@ nonisolated struct LifetimeTally: Codable, Equatable, Sendable {
 
     // MARK: - Convenience
 
-    /// The empty tally — used before any record has been folded.
+    /// The empty tally, used before any record has been folded.
     static let empty = LifetimeTally()
 
     /// Whether the tally contains anything.
@@ -208,7 +208,7 @@ nonisolated final class LifetimeTallyStore: @unchecked Sendable {
                 try data.write(to: fileURL, options: .atomic)
             } catch {
                 Log.error(
-                    "LifetimeTallyStore: Save failed — \(error.localizedDescription)",
+                    "LifetimeTallyStore: Save failed: \(error.localizedDescription)",
                     category: AppConstants.History.logCategory
                 )
             }

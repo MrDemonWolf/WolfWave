@@ -90,7 +90,7 @@ final class DiscordRPCServiceTests: XCTestCase {
 
     func testStateChangesStreamIsAvailable() {
         let service = DiscordRPCService(clientID: "")
-        // Streams are nonisolated `let` — accessible without await and never nil.
+        // Streams are nonisolated `let`, accessible without await and never nil.
         _ = service.stateChanges
         _ = service.artworkResolutions
     }

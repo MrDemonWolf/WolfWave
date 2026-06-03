@@ -10,8 +10,8 @@ import Foundation
 
 /// Routes chat messages to appropriate bot command handlers.
 ///
-/// Default commands (!song, !last, !lastsong) are registered automatically.
-/// Includes cooldown enforcement with moderator bypass.
+/// The full built-in command suite is registered automatically at init (see
+/// `registerDefaultCommands`). Includes cooldown enforcement with moderator bypass.
 /// MainActor-isolated (project default isolation); the `NSLock` is retained as a
 /// defense-in-depth guard around the command table.
 final class BotCommandDispatcher {
@@ -75,7 +75,7 @@ final class BotCommandDispatcher {
     /// Adds a `BotCommand` to the dispatch table. Thread-safe.
     ///
     /// - Parameter command: Command instance. Duplicate triggers are not
-    ///   detected — last-registered wins.
+    ///   detected. Last-registered wins.
     func register(_ command: BotCommand) {
         lock.withLock {
             commands.append(command)
@@ -129,8 +129,8 @@ final class BotCommandDispatcher {
 
     // MARK: - Async Provider Wiring (Production Path)
 
-    /// Wires the async `!song` provider. Preferred by `processMessageAsync`
-    /// — bridges MainActor-isolated AppDelegate state without the deprecated
+    /// Wires the async `!song` provider. Preferred by `processMessageAsync`,
+    /// bridges MainActor-isolated AppDelegate state without the deprecated
     /// `runSync` semaphore that previously deadlocked MainActor.
     func setCurrentSongInfoAsync(callback: @Sendable @escaping () async -> String) {
         lock.withLock {
@@ -264,7 +264,7 @@ final class BotCommandDispatcher {
                             userCooldown: userCD
                         )
                         Log.debug(
-                            "BotCommandDispatcher: Command '\(trigger)' (group: \(canonical)) on cooldown for user \(userID) — global: \(String(format: "%.1f", remaining.global))s remaining, per-user: \(String(format: "%.1f", remaining.perUser))s remaining",
+                            "BotCommandDispatcher: Command '\(trigger)' (group: \(canonical)) on cooldown for user \(userID), global: \(String(format: "%.1f", remaining.global))s remaining, per-user: \(String(format: "%.1f", remaining.perUser))s remaining",
                             category: "Twitch")
                         return nil
                     }
@@ -283,7 +283,7 @@ final class BotCommandDispatcher {
                     if let response = command.execute(message: trimmedMessage) {
                         cooldownManager.recordUse(trigger: canonical, userID: userID)
                         Log.debug(
-                            "BotCommandDispatcher: Command '\(trigger)' (group: \(canonical)) executed — cooldown set: global=\(String(format: "%.1f", globalCD))s, per-user=\(String(format: "%.1f", userCD))s",
+                            "BotCommandDispatcher: Command '\(trigger)' (group: \(canonical)) executed, cooldown set: global=\(String(format: "%.1f", globalCD))s, per-user=\(String(format: "%.1f", userCD))s",
                             category: "Twitch")
                         return response
                     }
@@ -312,12 +312,12 @@ final class BotCommandDispatcher {
         let trimmedMessage = message.trimmingCharacters(in: .whitespaces)
 
         guard !trimmedMessage.isEmpty, trimmedMessage.count <= AppConstants.Twitch.maxMessageLength else {
-            Log.debug("BotCommandDispatcher: processMessageAsync — empty/too-long, bail", category: "Twitch")
+            Log.debug("BotCommandDispatcher: processMessageAsync: empty/too-long, bail", category: "Twitch")
             return nil
         }
 
         let lowered = trimmedMessage.lowercased()
-        // First-token equality (see processMessage) — avoids alias/prefix collisions.
+        // First-token equality (see processMessage), avoids alias/prefix collisions.
         let commandToken = lowered.split(whereSeparator: \.isWhitespace).first.map(String.init) ?? lowered
 
         let snapshot = lock.withLock { commands }
@@ -349,7 +349,7 @@ final class BotCommandDispatcher {
                             userCooldown: userCD
                         )
                         Log.debug(
-                            "BotCommandDispatcher: Command '\(trigger)' (group: \(canonical)) on cooldown for user \(userID) — global: \(String(format: "%.1f", remaining.global))s remaining, per-user: \(String(format: "%.1f", remaining.perUser))s remaining",
+                            "BotCommandDispatcher: Command '\(trigger)' (group: \(canonical)) on cooldown for user \(userID), global: \(String(format: "%.1f", remaining.global))s remaining, per-user: \(String(format: "%.1f", remaining.perUser))s remaining",
                             category: "Twitch")
                         return nil
                     }
@@ -375,7 +375,7 @@ final class BotCommandDispatcher {
                     if let response {
                         cooldownManager.recordUse(trigger: canonical, userID: userID)
                         Log.debug(
-                            "BotCommandDispatcher: Command '\(trigger)' (group: \(canonical)) executed — cooldown set: global=\(String(format: "%.1f", globalCD))s, per-user=\(String(format: "%.1f", userCD))s",
+                            "BotCommandDispatcher: Command '\(trigger)' (group: \(canonical)) executed, cooldown set: global=\(String(format: "%.1f", globalCD))s, per-user=\(String(format: "%.1f", userCD))s",
                             category: "Twitch")
                         return response
                     }

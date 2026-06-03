@@ -12,8 +12,8 @@ import XCTest
 
 // MARK: - TwitchDeviceAuthNetworkTests
 
-/// Covers `TwitchDeviceAuth` OAuth Device Code networking — device-code
-/// requests and single-shot token polls — driven by `MockURLProtocol`.
+/// Covers `TwitchDeviceAuth` OAuth Device Code networking: device-code
+/// requests and single-shot token polls, driven by `MockURLProtocol`.
 ///
 /// Multi-iteration polling (`authorization_pending` → success) is not covered
 /// here: it sleeps for the poll interval between attempts. Only paths that

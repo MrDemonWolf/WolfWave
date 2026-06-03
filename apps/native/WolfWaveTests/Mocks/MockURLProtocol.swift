@@ -11,7 +11,7 @@ import Foundation
 // MARK: - Mock URL Protocol
 
 /// A `URLProtocol` subclass that intercepts every request made on a session it
-/// is registered with and answers it from a test-supplied handler — no real
+/// is registered with and answers it from a test-supplied handler. No real
 /// network traffic.
 ///
 /// Use it to drive networking services (`HTTPClient`, `ArtworkService`,

@@ -10,7 +10,7 @@
 import Foundation
 
 /// DEBUG-only diagnostics snapshot + markdown formatter for the "Copy Diagnostics"
-/// button in the Debug tab. Pure value type — no UI, no pasteboard. Mirrors the
+/// button in the Debug tab. Pure value type, no UI, no pasteboard. Mirrors the
 /// environment block built by `BugReportURL.make(…)` but routes to the pasteboard
 /// for quick pasting into a GitHub issue.
 enum DebugDiagnostics {

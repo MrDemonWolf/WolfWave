@@ -8,7 +8,7 @@
 
 import SwiftUI
 
-/// Final orientation step — points the user up at the menu bar so they know where
+/// Final orientation step. Points the user up at the menu bar so they know where
 /// WolfWave lives after the wizard closes. Animated arrow + sample menu-bar strip
 /// with the TrayIcon highlighted.
 struct OnboardingMenuBarPointerStepView: View {

@@ -11,7 +11,7 @@ import Testing
 
 @testable import WolfWave
 
-/// Covers `AppleMusicController.sanitizeForAppleScript(_:)` — the pure helper
+/// Covers `AppleMusicController.sanitizeForAppleScript(_:)`: the pure helper
 /// used to escape user-supplied strings before they are embedded in an
 /// AppleScript double-quoted literal. Playback paths (`playNow`, `playPause`,
 /// …) dispatch through `NSAppleScript` and are not exercised here.
@@ -114,7 +114,7 @@ struct AppleMusicControllerTests {
         #expect(makeController().sanitizeForAppleScript(input) == "abcd")
     }
 
-    @Test("Space (U+0020) preserved — boundary of control-char filter")
+    @Test("Space (U+0020) preserved: boundary of control-char filter")
     func spacePreserved() {
         #expect(makeController().sanitizeForAppleScript("a b") == "a b")
     }

@@ -45,7 +45,7 @@ nonisolated struct BotCommandContext: Sendable {
 
     // MARK: - Computed
 
-    /// Whether this sender has elevated privileges — moderator or broadcaster.
+    /// Whether this sender has elevated privileges: moderator or broadcaster.
     ///
     /// Used by commands like `!skip` and `!clearqueue` that gate on mod status.
     var isPrivileged: Bool {

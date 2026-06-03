@@ -12,8 +12,8 @@ import Foundation
 /// services to throttle non-essential work when the Mac is under resource pressure.
 ///
 /// Monitors two system signals:
-/// - `NSProcessInfoPowerStateDidChange` — Low Power Mode toggle
-/// - `ProcessInfo.thermalStateDidChangeNotification` — thermal throttling state
+/// - `NSProcessInfoPowerStateDidChange`: Low Power Mode toggle
+/// - `ProcessInfo.thermalStateDidChangeNotification`: thermal throttling state
 ///
 /// When either condition indicates resource pressure, `isReducedMode` becomes `true`
 /// and a `powerStateChanged` notification is posted so services can widen their
@@ -35,7 +35,7 @@ final class PowerStateMonitor {
 
     // MARK: - Lifecycle
 
-    // Process-lifetime singleton — deinit included for completeness
+    // Process-lifetime singleton. Deinit included for completeness
     deinit {
         NotificationCenter.default.removeObserver(self)
     }
@@ -60,13 +60,13 @@ final class PowerStateMonitor {
     // MARK: - Private Helpers
 
     /// Selector entry point for `NotificationCenter` observers. Forwards to
-    /// `updateState()` so the same logic services launch and change events.
+    /// `updateState()` so launch and change events share the same logic.
     @objc private func handleChange() {
         updateState()
     }
 
     /// Re-evaluates Low Power Mode + thermal state, posts a notification when
-    /// the reduced-power flag flips, and updates `isInReducedPowerMode`.
+    /// the reduced-power flag flips, and updates `isReducedMode`.
     private func updateState() {
         let info = ProcessInfo.processInfo
         let newValue = info.isLowPowerModeEnabled

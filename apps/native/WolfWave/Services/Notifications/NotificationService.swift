@@ -51,7 +51,7 @@ final class NotificationService {
 
     /// Builds the notification content for a song change.
     ///
-    /// Pure — performs no system calls — so it can be unit-tested directly.
+    /// Pure, performs no system calls, so it can be unit-tested directly.
     ///
     /// - Parameters:
     ///   - track: Song title.
@@ -82,7 +82,7 @@ final class NotificationService {
             content.body = "\(trimmedArtist) · \(trimmedAlbum)"
         }
 
-        // Silent banner — song changes are frequent, so a sound would be noise.
+        // Silent banner. Song changes are frequent, so a sound would be noise.
         content.sound = nil
         return content
     }
@@ -91,7 +91,7 @@ final class NotificationService {
 
     /// Posts a notification when a chat skip-vote starts.
     ///
-    /// Silent (like song-change) — the start is informational, not urgent.
+    /// Silent (like song-change). The start is informational, not urgent.
     /// Reuses a stable identifier so a fresh vote-start replaces the previous
     /// one. Attaches current-track artwork when available. No-op without
     /// notification authorization.
@@ -119,7 +119,7 @@ final class NotificationService {
 
     /// Posts a notification when a chat skip-vote passes.
     ///
-    /// Plays the default system sound — passing is a rare, worth-a-chime event.
+    /// Plays the default system sound. Passing is a rare, worth-a-chime event.
     /// Attaches current-track artwork when available. No-op without
     /// notification authorization.
     ///
@@ -138,7 +138,7 @@ final class NotificationService {
 
     /// Builds the notification content for a skip-vote start.
     ///
-    /// Pure — performs no system calls — so it can be unit-tested directly.
+    /// Pure, performs no system calls, so it can be unit-tested directly.
     ///
     /// - Parameters:
     ///   - track: Currently-playing song title (may be empty).
@@ -160,14 +160,14 @@ final class NotificationService {
             ? "A Twitch poll is open. Viewers vote in the poll widget."
             : "Chat is voting to skip. \(max(votesNeeded, 1)) votes needed."
 
-        // Silent — the start is informational. The "passed" banner gets the chime.
+        // Silent. The start is informational. The "passed" banner gets the chime.
         content.sound = nil
         return content
     }
 
     /// Builds the notification content for a passed skip-vote.
     ///
-    /// Pure — performs no system calls — so it can be unit-tested directly.
+    /// Pure, performs no system calls, so it can be unit-tested directly.
     ///
     /// - Parameters:
     ///   - track: The skipped song's title (may be empty).
@@ -184,12 +184,12 @@ final class NotificationService {
         content.subtitle = line.isEmpty ? "" : "Skipping \(line)"
         content.body = "Chat voted to skip the current song."
 
-        // Rare, celebratory event — a chime is warranted.
+        // Rare, celebratory event. A chime is warranted.
         content.sound = .default
         return content
     }
 
-    /// Formats a `track — artist` line, tolerating either field being empty.
+    /// Formats a `track · artist` line, tolerating either field being empty.
     private static func trackLine(track: String, artist: String) -> String {
         let trimmedTrack = track.trimmingCharacters(in: .whitespacesAndNewlines)
         let trimmedArtist = artist.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -224,14 +224,14 @@ final class NotificationService {
     /// Wraps notification `content` and an `identifier` into an immediate
     /// (`trigger: nil`) request.
     ///
-    /// Pure — performs no system calls — so tests can assert that each
+    /// Pure, performs no system calls, so tests can assert that each
     /// notification type reuses its stable identifier (the dedup contract:
     /// a new request with the same identifier replaces the previous one rather
     /// than stacking in Notification Center).
     ///
     /// - Parameters:
     ///   - content: The notification content to deliver.
-    ///   - identifier: Request identifier — reuse a stable value per type so a
+    ///   - identifier: Request identifier. Reuse a stable value per type so a
     ///     fresh notification replaces the previous one.
     /// - Returns: A configured, immediately-firing notification request.
     static func makeRequest(
@@ -248,7 +248,7 @@ final class NotificationService {
     ///
     /// - Parameters:
     ///   - content: The notification content to deliver.
-    ///   - identifier: Request identifier — reuse a stable value to replace an
+    ///   - identifier: Request identifier. Reuse a stable value to replace an
     ///     existing notification rather than stacking a new one.
     private func post(content: UNNotificationContent, identifier: String) async {
         let center = UNUserNotificationCenter.current()

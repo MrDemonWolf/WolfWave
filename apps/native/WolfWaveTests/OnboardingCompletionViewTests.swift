@@ -17,7 +17,7 @@ final class OnboardingCompletionViewTests: XCTestCase {
 
     func testCompletionViewBuildsWithoutCrash() {
         let view = OnboardingCompletionView(onDismiss: {})
-        // Pull the body — if the view tree fails to construct, this asserts.
+        // Pull the body. If the view tree fails to construct, this asserts.
         XCTAssertNotNil(view.body)
     }
 

@@ -10,7 +10,7 @@ import XCTest
 
 @testable import WolfWave
 
-/// Covers `SkipCommand` — moderator/broadcaster gate, queue-empty reply, and
+/// Covers `SkipCommand`: moderator/broadcaster gate, queue-empty reply, and
 /// the "now playing" handoff after a skip.
 @MainActor
 final class SkipCommandTests: WolfWaveTestCase {

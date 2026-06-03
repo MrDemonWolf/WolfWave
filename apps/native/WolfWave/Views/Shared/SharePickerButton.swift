@@ -12,7 +12,7 @@ import AppKit
 // MARK: - SharePickerButton
 
 /// AppKit-backed button that presents the macOS share sheet
-/// (`NSSharingServicePicker` — Messages, Mail, AirDrop, Notes, etc.).
+/// (`NSSharingServicePicker`: Messages, Mail, AirDrop, Notes, etc.).
 ///
 /// `NSSharingServicePicker.show(relativeTo:of:preferredEdge:)` must anchor to a
 /// real `NSView`, which a SwiftUI `Button` can't hand back, so this wraps an
@@ -27,12 +27,12 @@ struct SharePickerButton: NSViewRepresentable {
     /// SF Symbol shown leading the title.
     var systemImage: String = "square.and.arrow.up"
 
-    /// When `true`, fills the button with the accent color and white label —
-    /// matches SwiftUI's `.borderedProminent` so it can sit beside one.
+    /// When `true`, fills the button with the accent color and white label.
+    /// Matches SwiftUI's `.borderedProminent` so it can sit beside one.
     var isProminent: Bool = false
 
     /// Produces the items to share when the button is clicked. Runs on the main
-    /// thread. Return `nil` (or an empty array) to suppress the picker — e.g.
+    /// thread. Return `nil` (or an empty array) to suppress the picker. e.g.
     /// when a render step failed and there's nothing to share.
     let makeItems: () -> [Any]?
 

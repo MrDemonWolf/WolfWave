@@ -28,7 +28,7 @@ final class WebSocketServerAuthTests: XCTestCase {
         )
     }
 
-    // MARK: - shouldAccept — auth disabled (legacy init)
+    // MARK: - shouldAccept, auth disabled (legacy init)
 
     func testShouldAcceptIsTrueWhenTokenIsNil() {
         XCTAssertTrue(
@@ -40,7 +40,7 @@ final class WebSocketServerAuthTests: XCTestCase {
         )
     }
 
-    // MARK: - shouldAccept — token configured
+    // MARK: - shouldAccept, token configured
 
     func testRejectsWhenNoSubprotocolOffered() {
         XCTAssertFalse(
@@ -100,7 +100,7 @@ final class WebSocketServerAuthTests: XCTestCase {
     }
 
     func testCaseSensitiveTokenMatching() {
-        // Hex tokens are produced lowercase. A case-mangled offer must not pass —
+        // Hex tokens are produced lowercase. A case-mangled offer must not pass,
         // otherwise an attacker that knew the entropy could attempt mixed-case bypass.
         XCTAssertFalse(
             WebSocketAuthToken.shouldAccept(

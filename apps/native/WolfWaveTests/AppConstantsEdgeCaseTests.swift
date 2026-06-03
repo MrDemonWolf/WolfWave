@@ -65,7 +65,7 @@ final class AppConstantsEdgeCaseTests: XCTestCase {
     }
 
     func testSettingsUIDimensionsFit720pWithDock() {
-        // Min size is the floor users can drag to — it must fit a 1280x720
+        // Min size is the floor users can drag to. It must fit a 1280x720
         // display with the Dock visible (~626pt usable height: 720 − 24pt
         // menu bar − ~70pt Dock). These feed `SettingsView`'s `.frame(minWidth:
         // idealWidth: minHeight: idealHeight:)`, which sizes the SwiftUI

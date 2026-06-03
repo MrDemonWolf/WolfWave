@@ -132,10 +132,10 @@ struct StatsChartsView: View {
         return DailyCount(id: day, count: counts[offset], seconds: TimeInterval(counts[offset] * 210))
     }
     let hours: [Int] = [
-        0, 0, 0, 0, 0, 0,       //  0–5: overnight
-        2, 5, 9, 14, 18, 12,    //  6–11: morning
-        20, 24, 22, 19, 16, 17, // 12–17: afternoon
-        21, 18, 12, 6, 3, 1,    // 18–23: evening
+        0, 0, 0, 0, 0, 0,       //  0-5: overnight
+        2, 5, 9, 14, 18, 12,    //  6-11: morning
+        20, 24, 22, 19, 16, 17, // 12-17: afternoon
+        21, 18, 12, 6, 3, 1,    // 18-23: evening
     ]
     let snapshot = StatsSnapshot(
         totalPlays: 129,

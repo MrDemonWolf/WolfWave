@@ -145,7 +145,7 @@ struct IntegrationDashboardView: View {
 
     // MARK: - Brand icon helper
 
-    /// Cached per-asset existence check. `NSImage(named:)` allocates and decodes — caching the
+    /// Cached per-asset existence check. `NSImage(named:)` allocates and decodes. Caching the
     /// boolean lookup keeps row rendering free of asset-catalog work on every redraw.
     nonisolated(unsafe) private static var brandIconExistsCache: [String: Bool] = [:]
     private static let brandIconCacheLock = NSLock()

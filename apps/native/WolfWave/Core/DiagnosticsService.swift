@@ -15,7 +15,7 @@ import MetricKit
 ///
 /// When the user opts in, this service subscribes to `MXMetricManager` and
 /// persists crash, hang, and performance payloads as JSON under Application
-/// Support. **No data ever leaves the device** — there is no network code
+/// Support. **No data ever leaves the device.** There is no network code
 /// here. It also keeps a local, anonymous app-launch counter.
 ///
 /// Use `DiagnosticsService.shared`. The initializer is internal so tests can

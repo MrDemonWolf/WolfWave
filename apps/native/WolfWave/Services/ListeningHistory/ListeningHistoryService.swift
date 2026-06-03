@@ -30,7 +30,7 @@ final class ListeningHistoryService {
     /// appended to live as tracks change.
     private(set) var records: [PlayRecord] = []
 
-    /// Derived statistics — recomputed whenever `records` changes.
+    /// Derived statistics, recomputed whenever `records` changes.
     private(set) var snapshot: StatsSnapshot = .empty
 
     /// Whether the initial disk load has completed.
@@ -91,14 +91,14 @@ final class ListeningHistoryService {
         Log.info("ListeningHistoryService: Listening History disabled", category: AppConstants.History.logCategory)
     }
 
-    /// Flushes buffered writes — call before the app terminates.
+    /// Flushes buffered writes. Call before the app terminates.
     ///
     /// If the in-memory window has overflowed during this session, the play
     /// log is compacted to the live records here so the next launch starts
     /// from a normalized file. The lifetime tally is also persisted.
     ///
     /// Both writes run **synchronously** so they're guaranteed to complete
-    /// before `applicationWillTerminate` returns and the process exits — a
+    /// before `applicationWillTerminate` returns and the process exits, a
     /// detached `Task` would be racing termination.
     func shutdown() {
         if needsCompaction {
@@ -157,7 +157,7 @@ final class ListeningHistoryService {
 
         rebuildSnapshot()
         Log.debug(
-            "ListeningHistoryService: Recorded play — \(trimmedTrack) (\(Int(playedSeconds))s)",
+            "ListeningHistoryService: Recorded play: \(trimmedTrack) (\(Int(playedSeconds))s)",
             category: AppConstants.History.logCategory
         )
     }
@@ -249,7 +249,7 @@ final class ListeningHistoryService {
             var all = store.loadAll()
             var rewrote = false
 
-            // 1. Day-based retention (existing behavior — these records are
+            // 1. Day-based retention (existing behavior. These records are
             //    *expired* by the user's setting, so they're dropped, NOT
             //    folded into the lifetime tally).
             if retentionDays > 0 {
@@ -261,7 +261,7 @@ final class ListeningHistoryService {
                 }
             }
 
-            // 2. Rolling-window cap — fold the oldest overflow into the tally.
+            // 2. Rolling-window cap. Fold the oldest overflow into the tally.
             var trimmedCount = 0
             if all.count > cap {
                 let overflow = all.count - cap

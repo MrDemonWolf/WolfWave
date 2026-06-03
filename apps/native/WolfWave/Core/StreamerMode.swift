@@ -14,10 +14,10 @@ import Foundation
 /// (channel name, overlay URL, WebSocket URI, auth-adjacent identifiers) are
 /// swapped for opaque placeholders so the WolfWave UI is safe to show on
 /// camera. It does **not** alter what is sent over the WebSocket, to Discord,
-/// or to Twitch chat — those payloads are out-of-band of the user's screen.
+/// or to Twitch chat. Those payloads are out-of-band of the user's screen.
 nonisolated enum StreamerMode {
 
-    /// Placeholder style — chosen so the redacted glyph hints at the value
+    /// Placeholder style, chosen so the redacted glyph hints at the value
     /// shape it replaces.
     enum Style {
         case url

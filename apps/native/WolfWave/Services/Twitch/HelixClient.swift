@@ -163,7 +163,7 @@ nonisolated struct HelixClient: Sendable {
 
     // MARK: - Private Helpers
 
-    /// Standard Helix headers — auth + client id + JSON content type.
+    /// Standard Helix headers: auth + client id + JSON content type.
     static func headers(for credentials: Credentials) -> [String: String] {
         [
             "Authorization": "Bearer \(credentials.token)",

@@ -13,8 +13,8 @@ import SwiftUI
 /// Currently covers Apple Events automation permission (`MusicPermissionChecker`),
 /// which is what `AppleMusicSource` relies on to read the currently-playing
 /// track. The MusicKit `MusicAuthorization` flow used by Song Requests is
-/// rendered by a separate fileprivate card in `SongRequestSettingsView` —
-/// migrating that to this banner is tracked as future cleanup.
+/// rendered by a separate fileprivate card in `SongRequestSettingsView`.
+/// Migrating that to this banner is tracked as future cleanup.
 ///
 /// Render conditionally: the banner does not self-gate, so callers should
 /// only place it when `state == .denied`.

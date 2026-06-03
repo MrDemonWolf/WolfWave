@@ -10,7 +10,7 @@ import AppKit
 import Foundation
 
 /// Shared identity, version, and legal copy used by every surface that shows
-/// "About" — the system standard About panel (opened from the menu bar) and
+/// "About". The system standard About panel (opened from the menu bar) and
 /// the rich `AboutSettingsView` (Settings sidebar tab). Keeps both entry
 /// points in sync so trademark + copyright strings don't drift.
 enum AboutCopy {
@@ -24,11 +24,11 @@ enum AboutCopy {
     }
 
     static var version: String {
-        Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "—"
+        Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "N/A"
     }
 
     static var build: String {
-        Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "—"
+        Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "N/A"
     }
 
     /// User-facing version label, e.g. `Version 1.2.3 (45)`.

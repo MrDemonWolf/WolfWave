@@ -9,7 +9,7 @@
 import SwiftUI
 import AppKit
 
-/// Music Sync (General tab) — hero now-playing card + integration dashboard.
+/// Music Sync (General tab). Hero now-playing card + integration dashboard.
 ///
 /// This is the home tab of the redesigned Settings (Screen B in the
 /// `WolfWave Redesign.html` design bundle). When Apple Events automation has
@@ -133,7 +133,7 @@ struct MusicMonitorSettingsView: View {
         .task {
             // Yield so the first frame paints before we read services / system state.
             await Task.yield()
-            // Permission check is the costliest read — reuse the session cache when fresh.
+            // Permission check is the costliest read, reuse the session cache when fresh.
             if let cached = MusicPermissionCache.read() {
                 permissionState = cached
             } else {
@@ -181,7 +181,7 @@ struct MusicMonitorSettingsView: View {
         }
         .onReceive(notif(AppConstants.Notifications.musicPermissionDenied)) { _ in
             // The data path detected that Music.app is running but ScriptingBridge
-            // reads return nil — the canonical TCC Automation denial. Flip the
+            // reads return nil, the canonical TCC Automation denial. Flip the
             // banner immediately and persist so other tabs see it too.
             MusicPermissionCache.write(.denied)
             withAnimation(.easeInOut(duration: DSMotion.Duration.base)) {
@@ -355,7 +355,7 @@ struct MusicMonitorSettingsView: View {
         }
         Task {
             let start = Date()
-            // Apple Events probe can take tens of milliseconds — dispatch off
+            // Apple Events probe can take tens of milliseconds, dispatch off
             // the main actor so the spinner can actually animate while we wait.
             let next = await Task.detached(priority: .userInitiated) {
                 MusicPermissionChecker.currentState()
@@ -389,7 +389,7 @@ struct MusicMonitorSettingsView: View {
 
     /// Re-queries Apple Music automation permission off the main actor, caches
     /// the result, and reloads the current track if permission is now granted.
-    /// The Apple Events probe can take tens of milliseconds — keep it off main.
+    /// The Apple Events probe can take tens of milliseconds, keep it off main.
     private func refreshPermission() {
         Task.detached(priority: .userInitiated) {
             let next = MusicPermissionChecker.currentState()
@@ -489,7 +489,7 @@ struct MusicMonitorSettingsView: View {
 /// Process-lifetime cache for the Music automation permission result.
 ///
 /// `MusicPermissionChecker.currentState()` issues an Apple Events probe that can take tens of
-/// milliseconds — measurable when switching back to the General settings pane. Cache the result
+/// milliseconds, measurable when switching back to the General settings pane. Cache the result
 /// for a short window so re-entering the pane within the same session is instant. The cache is
 /// invalidated by `NSApplication.didBecomeActiveNotification` and by explicit refresh calls.
 enum MusicPermissionCache {
@@ -521,7 +521,7 @@ private extension UInt16 {
 
 // MARK: - Preview
 
-#Preview("Granted — playing") {
+#Preview("Granted, playing") {
     MusicMonitorSettingsView()
         .padding()
         .frame(width: 720)

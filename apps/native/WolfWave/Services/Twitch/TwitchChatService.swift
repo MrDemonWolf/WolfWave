@@ -76,8 +76,10 @@ nonisolated private func mapHelixError(_ error: Error) -> TwitchChatService.Conn
 /// - Token validation and user identity resolution
 ///
 /// Concurrency:
-/// - `actor`-isolated. All mutable state lives inside the actor's isolation
-///   domain; no locks, no `nonisolated(unsafe)` properties.
+/// - `actor`-isolated. The actor's own mutable state lives inside its isolation
+///   domain with no locks. The only locks are in two tiny `@unchecked Sendable`
+///   mirror classes (`ProviderRegistry`, `AtomicBool`) that exist so the sync
+///   dispatcher bridge can read state without re-entering the actor.
 /// - Side-effect "callbacks" (chat messages, connection state, vote-skip poll
 ///   results) are surfaced as `AsyncStream`s on the `nonisolated` interface.
 /// - Track-info providers (`!song`, `!last`, `!stats`) are async closures;
@@ -239,7 +241,7 @@ actor TwitchChatService {
 
     /// Providers live in a nonisolated lock-protected registry so the sync
     /// dispatcher bridge (`runSync`) can read them without re-entering the
-    /// actor's mailbox — re-entering while the actor's executor is blocked on
+    /// actor's mailbox. Re-entering while the actor's executor is blocked on
     /// `runSync`'s semaphore would deadlock.
     nonisolated private let providers = ProviderRegistry()
 
@@ -255,7 +257,7 @@ actor TwitchChatService {
         Preferences.bool(AppConstants.UserDefaults.lastSongCommandEnabled, default: false)
     }
 
-    /// Whether the `!stats` command should respond — both the Stats feature and
+    /// Whether the `!stats` command should respond. Both the Stats feature and
     /// the command itself must be enabled (computed from UserDefaults).
     nonisolated var statsCommandActive: Bool {
         let stats = UserDefaults.standard.bool(forKey: AppConstants.UserDefaults.statsEnabled)
@@ -356,7 +358,7 @@ actor TwitchChatService {
     }
 
     deinit {
-        // Synchronous cleanup only — actor isolation forbids awaits in deinit.
+        // Synchronous cleanup only. Actor isolation forbids awaits in deinit.
         sessionWelcomeTask?.cancel()
         reconnectTask?.cancel()
         receiveTask?.cancel()
@@ -564,7 +566,7 @@ actor TwitchChatService {
 
         reconnectTask?.cancel()
         reconnectTask = Task { [weak self] in
-            // Backoff timing tolerates 10% jitter — lets the wakeup coalesce.
+            // Backoff timing tolerates 10% jitter, lets the wakeup coalesce.
             try? await Task.sleep(for: .seconds(delaySeconds), tolerance: .seconds(delaySeconds * 0.1))
             if Task.isCancelled { return }
             await self?.attemptReconnect(channelName: channelName, token: token, clientID: clientID)
@@ -626,7 +628,7 @@ actor TwitchChatService {
 
         // Wire dispatcher providers. The dispatcher is `@MainActor`, so wiring
         // hops to MainActor. Track-info providers are wired as async closures
-        // and consumed via `processMessageAsync` — that avoids the deadlock
+        // and consumed via `processMessageAsync`. That avoids the deadlock
         // the previous `runSync` semaphore bridge introduced when an AppDelegate
         // provider hopped back to MainActor while MainActor was blocked on the
         // semaphore.
@@ -647,7 +649,7 @@ actor TwitchChatService {
             commandDispatcher.setCurrentSongInfoAsync {
                 Log.debug("Twitch provider: current song closure invoked", category: "Twitch")
                 guard let provider = providers.current() else {
-                    Log.debug("Twitch provider: current song — no provider, default", category: "Twitch")
+                    Log.debug("Twitch provider: current song: no provider, default", category: "Twitch")
                     return "No track currently playing"
                 }
                 let result = await provider()
@@ -1015,7 +1017,7 @@ actor TwitchChatService {
         if isProcessingDisconnect { return }
 
         guard let event = json["event"] as? [String: Any] else {
-            Log.debug("TwitchChatService: handleEventSubMessage — payload has no event, bail", category: "Twitch")
+            Log.debug("TwitchChatService: handleEventSubMessage: payload has no event, bail", category: "Twitch")
             return
         }
 
@@ -1454,7 +1456,7 @@ actor TwitchChatService {
         }
 
         Log.info(
-            "TwitchChatService: Vote-skip poll ended — \(skipVotes) skip / \(keepVotes) keep",
+            "TwitchChatService: Vote-skip poll ended: \(skipVotes) skip / \(keepVotes) keep",
             category: "Twitch")
         skipPollResultsContinuation.yield(SkipPollResult(skipVotes: skipVotes, keepVotes: keepVotes))
     }
@@ -1463,14 +1465,14 @@ actor TwitchChatService {
 
     /// Creates a native Twitch poll asking chat to vote on skipping the current song.
     ///
-    /// Requires the `channel:manage:polls` scope and Affiliate/Partner status —
-    /// missing either causes Twitch to reject the request, in which case this
+    /// Requires the `channel:manage:polls` scope and Affiliate/Partner status.
+    /// Missing either causes Twitch to reject the request, in which case this
     /// returns `false` and `SkipVoteManager` falls back to a chat tally.
     func createSkipPoll(title: String, durationSeconds: Int) async -> Bool {
         guard let broadcasterID,
               let token = oauthToken,
               let clientID else {
-            Log.warn("TwitchChatService: Cannot create poll — missing credentials", category: "Twitch")
+            Log.warn("TwitchChatService: Cannot create poll: missing credentials", category: "Twitch")
             return false
         }
 
@@ -1509,7 +1511,7 @@ actor TwitchChatService {
             }
             let text = String(data: data, encoding: .utf8) ?? "No response"
             Log.warn(
-                "TwitchChatService: Poll creation failed — HTTP \(http.statusCode) — \(text)",
+                "TwitchChatService: Poll creation failed: HTTP \(http.statusCode): \(text)",
                 category: "Twitch")
             return false
         } catch {
@@ -1643,7 +1645,7 @@ actor TwitchChatService {
                 headers: HelixClient.headers(for: .init(token: token, clientID: clientID)))
             let live = !response.data.isEmpty
             streamLive = live
-            Log.info("TwitchChatService: Seeded stream-live state — live=\(live)", category: "Twitch")
+            Log.info("TwitchChatService: Seeded stream-live state: live=\(live)", category: "Twitch")
         } catch {
             Log.debug(
                 "TwitchChatService: Stream-live seed request failed - \(error.localizedDescription)",
@@ -1655,7 +1657,7 @@ actor TwitchChatService {
 
     /// Subscribes to channel-point and/or bit EventSub events when the matching
     /// song-request features are enabled. Channel-point and bit subscriptions
-    /// require the signed-in account to be the broadcaster — when a separate bot
+    /// require the signed-in account to be the broadcaster. When a separate bot
     /// account is in use they are skipped and the UI is notified.
     private func subscribeToRedemptionsIfEnabled() async {
         let defaults = UserDefaults.standard
@@ -1671,7 +1673,7 @@ actor TwitchChatService {
         // Channel-point and bit EventSub require the broadcaster's own token.
         guard let broadcasterID, let botID, broadcasterID == botID else {
             Log.warn(
-                "TwitchChatService: Redemption events need the broadcaster account — skipping",
+                "TwitchChatService: Redemption events need the broadcaster account, skipping",
                 category: "Twitch")
             setRedemptionStatus(.botAccount)
             return
@@ -2114,8 +2116,8 @@ actor TwitchChatService {
     /// Lock-protected registry for the three async track-info providers.
     ///
     /// Lives outside actor isolation so the sync dispatcher bridge can read
-    /// providers without re-entering the actor. Tiny surface, single lock —
-    /// does not reintroduce the lock-sprawl the actor conversion removed.
+    /// providers without re-entering the actor. Tiny surface, single lock.
+    /// Does not reintroduce the lock-sprawl the actor conversion removed.
     final class ProviderRegistry: @unchecked Sendable {
         private let lock = NSLock()
         private var _current: (@Sendable () async -> String)?

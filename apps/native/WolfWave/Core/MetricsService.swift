@@ -42,7 +42,7 @@ nonisolated struct TwitchRateLimitMetric: Sendable, Identifiable {
 
 // MARK: - Metrics Service
 
-/// Collects lightweight runtime performance metrics — WebSocket throughput,
+/// Collects lightweight runtime performance metrics: WebSocket throughput,
 /// Twitch API rate-limit headroom, and process memory.
 ///
 /// Thread-safe: `record…` methods may be called from any queue (they only
@@ -68,7 +68,7 @@ nonisolated final class MetricsService: @unchecked Sendable {
     private var wsMessagesSent = 0
     private var wsBytesSent = 0
 
-    /// Message count + timestamp at the previous `snapshot()` — used to derive
+    /// Message count + timestamp at the previous `snapshot()`, used to derive
     /// the per-second rate.
     private var lastSnapshotMessageCount = 0
     private var lastSnapshotTime = Date()

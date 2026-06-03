@@ -8,7 +8,7 @@
 
 import SwiftUI
 
-/// General application settings interface — Music Sync (hero now-playing +
+/// General application settings interface: Music Sync (hero now-playing +
 /// integrations dashboard) and App Visibility.
 struct GeneralSettingsView: View {
 

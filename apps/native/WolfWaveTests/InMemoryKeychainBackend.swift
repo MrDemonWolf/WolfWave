@@ -1,6 +1,6 @@
 //
 //  InMemoryKeychainBackend.swift
-//  WolfWaveTests
+//  WolfWave
 //
 //  Created by Nathanial Henniges on 2026-06-02.
 //  Copyright © 2026 MrDemonWolf, Inc. All rights reserved.
@@ -14,7 +14,7 @@ import Foundation
 /// Exercises `KeychainService`'s credential logic (account routing, overwrite,
 /// delete semantics) without touching the real Keychain. The real Keychain
 /// prompts for an ACL grant under ad-hoc test signing, which blocks cold reads
-/// and fails CI — so the suite injects this instead.
+/// and fails CI, so the suite injects this instead.
 ///
 /// Thread-safe so the concurrent-access stress test exercises real contention.
 final class InMemoryKeychainBackend: KeychainBackend, @unchecked Sendable {

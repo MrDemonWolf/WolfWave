@@ -9,7 +9,10 @@
 import SwiftUI
 import UserNotifications
 
-/// Notification preferences — controls the macOS song-change notification.
+/// Notification preferences: toggles for the macOS song-change banner plus the
+/// skip-vote-started / skip-vote-passed banners (the latter two are gated on the
+/// master vote-to-skip setting). Requests system authorization on first enable
+/// and surfaces a notice if banners are denied at the system level.
 struct NotificationsSettingsView: View {
 
     // MARK: - User Settings
@@ -23,7 +26,7 @@ struct NotificationsSettingsView: View {
     @AppStorage(AppConstants.UserDefaults.skipVotePassedNotificationsEnabled)
     private var skipVotePassedNotificationsEnabled = false
 
-    /// Master vote-skip toggle — the skip-vote notification rows do nothing
+    /// Master vote-skip toggle: the skip-vote notification rows do nothing
     /// without it, so they're disabled (with a hint) when it's off.
     @AppStorage(AppConstants.UserDefaults.voteSkipEnabled)
     private var voteSkipEnabled = false

@@ -15,7 +15,7 @@ import Foundation
 /// boilerplate at every call site.
 ///
 /// - Note: For WebSocket connections (`URLSessionWebSocketTask`), continue to
-///   use a dedicated `URLSession` configured per service — this client targets
+///   use a dedicated `URLSession` configured per service. This client targets
 ///   request/response HTTP only.
 ///
 /// Example:
@@ -133,14 +133,14 @@ nonisolated struct HTTPClient: Sendable {
     /// validating the status code.
     ///
     /// Use when the caller needs to inspect the HTTP status, headers, or
-    /// raw body — for example, sites that branch on 401 / 403 / 409 or
+    /// raw body, for example sites that branch on 401 / 403 / 409 or
     /// capture rate-limit headers from the response.
     ///
     /// - Parameter request: Fully-constructed request to perform.
     /// - Returns: Tuple of `(Data, HTTPURLResponse)`.
     /// - Throws: `HTTPError.invalidResponse` if the response isn't HTTP, or
     ///   `HTTPError.transport` on session failure. Non-2xx statuses are
-    ///   **not** thrown — the caller decides.
+    ///   **not** thrown. The caller decides.
     func send(_ request: URLRequest) async throws -> (Data, HTTPURLResponse) {
         let (data, response) = try await transport(request)
         guard let http = response as? HTTPURLResponse else {

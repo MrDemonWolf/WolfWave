@@ -99,7 +99,7 @@ final class CommandIntegrationTests: XCTestCase, @unchecked Sendable {
         let enabled = dispatcher.processMessage("!song", userID: "user1")
         XCTAssertNotNil(enabled)
 
-        // Now disable — reset cooldowns first so cooldown doesn't interfere
+        // Now disable. Reset cooldowns first so cooldown doesn't interfere
         dispatcher.resetCooldowns()
         dispatcher.setCurrentSongCommandEnabled { false }
 

@@ -295,11 +295,9 @@ struct SongRequestQueueView: View {
 
     // MARK: - Refresh
 
-    /// Snapshots the live queue + now-playing into the view's `@State`. Skips
-    /// the assignment when the values are unchanged so a periodic refresh
-    /// tick does not force a full SwiftUI diff.
+    /// Snapshots the live queue + now-playing into the view's `@State`.
     private func refreshState() {
-        // Only mutate @State when the value actually changes — assigning the same
+        // Only mutate @State when the value actually changes. Assigning the same
         // value still invalidates the view, so a 2-second tick would force a full
         // ForEach diff every cycle even when nothing changed.
         let newItems = queue?.items ?? []

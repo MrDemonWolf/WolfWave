@@ -8,7 +8,7 @@
 
 import Foundation
 
-/// Handles `!queue` / `!songlist` / `!requests` — shows the current song request queue.
+/// Handles `!queue` / `!songlist` / `!requests`: shows the current song request queue.
 ///
 /// Displays the next 3-5 songs in queue with position, title, artist, and requester.
 final class QueueCommand: BotCommand {

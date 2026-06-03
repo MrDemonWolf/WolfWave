@@ -12,7 +12,7 @@ import Foundation
 
 /// Who is allowed to request a song through the `!sr` chat command.
 ///
-/// Moderators and the broadcaster always bypass these restrictions — the
+/// Moderators and the broadcaster always bypass these restrictions. The
 /// audience only constrains regular viewers. Persisted as a raw `String` so it
 /// can back an `@AppStorage` property.
 enum RequestAudience: String, CaseIterable, Identifiable {
@@ -79,7 +79,7 @@ enum RequestAudience: String, CaseIterable, Identifiable {
 ///
 /// Determines how the request is gated and how the outcome is acknowledged.
 enum RequestSource {
-    /// Requested via the `!sr` chat command — gated by `RequestAudience`.
+    /// Requested via the `!sr` chat command, gated by `RequestAudience`.
     case chatCommand(BotCommandContext)
     /// Redeemed with channel points via a WolfWave-managed custom reward.
     case channelPoints(redemptionID: String, rewardID: String)
@@ -190,7 +190,7 @@ enum SongRequestPreset: String, CaseIterable, Identifiable {
 enum RedemptionStatus: String {
     /// Redemptions are working (or not in use).
     case ok
-    /// The signed-in token is missing the redemption OAuth scopes — re-auth needed.
+    /// The signed-in token is missing the redemption OAuth scopes. Re-auth needed.
     case scopeMissing
     /// The signed-in account is not the broadcaster, so it cannot read redemptions.
     case botAccount

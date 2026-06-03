@@ -190,8 +190,8 @@ nonisolated enum KeychainService {
     /// Raw storage backing every credential operation.
     ///
     /// Defaults to `SystemKeychainBackend` (Security framework). Unit tests swap
-    /// in an in-memory double so the suite never touches the real Keychain —
-    /// ad-hoc test signing otherwise triggers an ACL prompt that blocks cold
+    /// in an in-memory double so the suite never touches the real Keychain.
+    /// Ad-hoc test signing otherwise triggers an ACL prompt that blocks cold
     /// reads and fails CI. Mutated only from serialized tests.
     nonisolated(unsafe) static var backend: KeychainBackend = SystemKeychainBackend(service: service)
 

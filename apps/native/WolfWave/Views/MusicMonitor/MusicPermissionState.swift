@@ -11,7 +11,7 @@ import Foundation
 
 /// Apple Events automation permission state for the Music app.
 ///
-/// `MusicPlaybackMonitor` infers this on first track query — when the system
+/// `MusicPlaybackMonitor` infers this on first track query. When the system
 /// returns `errAEEventNotPermitted` the user has denied automation, and we
 /// surface a banner + instruction sheet via `PermissionDeniedView`.
 enum MusicPermissionState: String, Sendable {
@@ -42,13 +42,13 @@ enum MusicPermissionChecker {
     }
 
     /// Maps an `AEDeterminePermissionToAutomateTarget` status into a permission
-    /// state. Pure (no Apple Events I/O) so the mapping — including the closed-
-    /// Music fallback — is unit-testable.
+    /// state. Pure (no Apple Events I/O) so the mapping (including the closed-
+    /// Music fallback) is unit-testable.
     ///
     /// When Music.app isn't running, the probe returns `procNotFound` rather than
     /// the real TCC decision. The automation grant persists independent of whether
     /// Music is open, so we fall back to `lastKnown` instead of reporting
-    /// `.unknown` — otherwise a closed Music app blanks the now-playing UI and
+    /// `.unknown`. Otherwise a closed Music app blanks the now-playing UI and
     /// re-shows the "Allow Music access" prompt for an already-granted user.
     nonisolated static func resolve(
         status: OSStatus,

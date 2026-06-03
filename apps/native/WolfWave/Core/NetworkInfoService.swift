@@ -28,7 +28,7 @@ actor NetworkInfoService {
     // MARK: - Shared path monitor
 
     /// One process-lifetime `NWPathMonitor`. Views consume `pathUpdates` instead of allocating
-    /// their own monitor each appear — switching settings panes no longer pays the
+    /// their own monitor each appear. Switching settings panes no longer pays the
     /// `NWPathMonitor.start` cost.
     private static let pathMonitor: NWPathMonitor = {
         let monitor = NWPathMonitor()

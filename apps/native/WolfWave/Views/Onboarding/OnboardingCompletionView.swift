@@ -9,7 +9,7 @@
 import SwiftUI
 
 /// Celebration screen shown after onboarding completes. The animated
-/// howl-wave bars on the `WolfHeroMark` are the celebration cue — no
+/// howl-wave bars on the `WolfHeroMark` are the celebration cue. No
 /// separate checkmark.
 struct OnboardingCompletionView: View {
 

@@ -15,7 +15,7 @@ import ServiceManagement
 ///
 /// Wraps `SMAppService.mainApp` to register or unregister the app as a
 /// macOS login item (visible in System Settings → General → Login Items).
-/// No helper bundle is required — the main app bundle is registered directly.
+/// No helper bundle is required. The main app bundle is registered directly.
 ///
 /// This requires macOS 13+, which WolfWave already mandates (macOS 26).
 enum LaunchAtLoginService {

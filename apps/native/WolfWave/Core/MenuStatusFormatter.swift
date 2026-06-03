@@ -15,9 +15,9 @@ import Foundation
 /// tested without spinning up AppKit / NSStatusItem.
 enum MenuStatusFormatter {
 
-    // MARK: - Sync Music
+    // MARK: - Apple Music
 
-    /// Status string for the "Sync Music" tray item.
+    /// Status string for the "Apple Music" tray item.
     /// - Parameter trackingEnabled: Whether music tracking is currently on.
     static func musicStatus(trackingEnabled: Bool) -> String {
         trackingEnabled ? "Tracking" : "Paused"
@@ -25,7 +25,7 @@ enum MenuStatusFormatter {
 
     // MARK: - Twitch
 
-    /// Status string for the "Twitch Chat" tray item.
+    /// Status string for the "Twitch" tray item.
     /// - Parameters:
     ///   - isConnected: Whether the bot is connected to the broadcaster's channel.
     ///   - channelName: Persisted channel name, or `nil` if none is saved.
@@ -48,7 +48,7 @@ enum MenuStatusFormatter {
         case disconnected
     }
 
-    /// Status string for the "Discord Status" tray item.
+    /// Status string for the "Discord" tray item.
     /// - Parameters:
     ///   - enabled: Whether Discord Rich Presence is enabled in settings.
     ///   - state: Current IPC connection state.
@@ -61,9 +61,9 @@ enum MenuStatusFormatter {
         }
     }
 
-    // MARK: - Stream Widgets
+    // MARK: - OBS Overlay
 
-    /// Status string for the "Stream Widgets" tray item.
+    /// Status string for the "OBS Overlay" tray item.
     /// - Parameters:
     ///   - enabled: Whether the websocket / widget HTTP servers are on.
     ///   - widgetPort: Port the widget HTTP server is listening on.

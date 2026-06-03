@@ -24,7 +24,7 @@ final class SectionEyebrowTests: XCTestCase {
 
     func testModifierComposable() {
         // Eyebrow modifier composes with other modifiers without breaking
-        // layout — used in cardHeader helpers across History & Stats / Debug.
+        // layout. Used in cardHeader helpers across History & Stats / Debug.
         let view = HStack(spacing: 6) {
             Image(systemName: "clock")
             Text("Top artists").sectionEyebrow()

@@ -2,6 +2,7 @@
 //  SettingsBackup.swift
 //  WolfWave
 //
+//  Created by Nathanial Henniges on 2026-06-02.
 //  Copyright © 2026 MrDemonWolf, Inc. All rights reserved.
 //
 
@@ -65,7 +66,7 @@ nonisolated struct SettingsBackup: Codable, Equatable {
 /// UserDefaults is untyped and bridges `Bool`/`Int`/`Double` through `NSNumber`,
 /// which makes a bare JSON scalar ambiguous on the way back in (a stored `1.0`
 /// can decode as `Int`). Tagging the type keeps an export → import round trip
-/// lossless. `BackupValue.make(from:)` does the one tricky job — telling a
+/// lossless. `BackupValue.make(from:)` does the one tricky job, telling a
 /// boolean `NSNumber` apart from a numeric one.
 nonisolated enum BackupValue: Codable, Equatable {
     case bool(Bool)

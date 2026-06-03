@@ -1,7 +1,8 @@
 //
 //  TestSupport.swift
-//  WolfWaveTests
+//  WolfWave
 //
+//  Created by Nathanial Henniges on 2026-05-28.
 //  Copyright © 2026 MrDemonWolf, Inc. All rights reserved.
 //
 //  Free helpers used by both XCTest and Swift Testing suites.
@@ -12,7 +13,7 @@ import Testing
 
 /// Creates a fresh, unique temp directory and ensures it exists. Returns the URL.
 ///
-/// Swift Testing suites don't have tearDown — callers are responsible for cleanup
+/// Swift Testing suites don't have tearDown. Callers are responsible for cleanup
 /// (or rely on the OS reclaiming `tmp`). Prefer `WolfWaveTestCase.makeTempDir()`
 /// for XCTest-based suites, which auto-cleans on tearDown.
 func makeIsolatedTempDirectory(prefix: String = "wolfwave-test") -> URL {

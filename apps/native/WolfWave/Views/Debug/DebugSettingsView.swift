@@ -13,7 +13,7 @@ import SwiftUI
 /// Root detail pane for the DEBUG-only "Debug" settings tab.
 ///
 /// Lays out developer tooling as a two-column page: a fixed jump-nav rail on the
-/// left and an always-visible, scrollable column of section cards on the right —
+/// left and an always-visible, scrollable column of section cards on the right:
 /// state inspectors, performance metrics, logs/events, UI previews, and service
 /// controls. Sections no longer collapse; the rail lets you jump straight to any
 /// one because the full page is long. Clicking a rail row scrolls its section to
@@ -22,7 +22,7 @@ import SwiftUI
 /// Because every section is mounted at once, the `DebugMetricsCard` polling loop
 /// runs the whole time the Debug tab is on-screen (it cancels on tab switch via
 /// structured concurrency). That's an accepted cost for a DEBUG-only tab that
-/// ships zero footprint in release — the entire view compiles out under
+/// ships zero footprint in release. The entire view compiles out under
 /// `#if DEBUG`.
 struct DebugSettingsView: View {
     @AppStorage(AppConstants.UserDefaults.trackingEnabled) private var musicTrackingEnabled = true
@@ -179,8 +179,8 @@ struct DebugSettingsView: View {
 
     private func copyDiagnostics() {
         let snapshot = DebugDiagnostics.Snapshot(
-            appVersion: Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "—",
-            build: Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "—",
+            appVersion: Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "N/A",
+            build: Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "N/A",
             osVersion: ProcessInfo.processInfo.operatingSystemVersionString,
             arch: BugReportURL.currentArch(),
             installMethod: Bundle.main.isHomebrewInstall ? "Homebrew" : "DMG",
@@ -232,7 +232,7 @@ private enum DebugSection: String, CaseIterable, Identifiable {
 }
 
 private extension DebugSettingsView {
-    /// Rail grouping — mirrors the two content groups so the rail reads the same
+    /// Rail grouping. Mirrors the two content groups so the rail reads the same
     /// top-to-bottom order as the page.
     static var navGroups: [(title: String, sections: [DebugSection])] {
         [

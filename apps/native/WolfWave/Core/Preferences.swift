@@ -14,7 +14,7 @@ import Foundation
 /// Sibling to ``FeatureFlags`` (which covers booleans). Centralizes the
 /// repeated `UserDefaults.standard.string(forKey:)` /
 /// `UserDefaults.standard.integer(forKey:)` pattern so default semantics and
-/// fallbacks live in one place — adding a new pref means one property here
+/// fallbacks live in one place. Adding a new pref means one property here
 /// rather than hunting for the matching read/write across `AppDelegate+*`,
 /// `WolfWaveApp`, and the settings views.
 ///
@@ -76,13 +76,13 @@ nonisolated enum Preferences {
     // MARK: - WebSocket / Widget
 
     /// Port the embedded WebSocket server should listen on. `0` means "use the
-    /// default" — callers are expected to substitute `AppConstants.WebSocket.defaultPort`.
+    /// default": callers substitute `AppConstants.WebSocketServer.defaultPort`.
     static var websocketServerPort: Int {
         defaults.integer(forKey: AppConstants.UserDefaults.websocketServerPort)
     }
 
     /// Port the embedded widget HTTP server should listen on. `0` means "use
-    /// the default" — callers substitute `AppConstants.WebSocket.defaultWidgetPort`.
+    /// the default": callers substitute `AppConstants.WebSocketServer.widgetDefaultPort`.
     static var widgetPort: Int {
         defaults.integer(forKey: AppConstants.UserDefaults.widgetPort)
     }

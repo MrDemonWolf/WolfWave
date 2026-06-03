@@ -11,7 +11,7 @@ import XCTest
 
 /// LaunchAtLoginService is a thin SMAppService wrapper. We can't safely register
 /// the unit-test host as a real login item, so these tests only assert read-back
-/// shape and surface stability — actual register/unregister is exercised in
+/// shape and surface stability. Actual register/unregister is exercised in
 /// release smoke tests.
 @MainActor
 final class LaunchAtLoginServiceTests: XCTestCase {
@@ -19,7 +19,7 @@ final class LaunchAtLoginServiceTests: XCTestCase {
     func testIsEnabledReturnsBoolWithoutCrashing() {
         // Calling SMAppService.mainApp.status from a unit-test host should never
         // crash, regardless of whether the host bundle is actually registered.
-        // We just want a boolean answer — true or false is acceptable.
+        // We just want a boolean answer: true or false is acceptable.
         let value: Bool = LaunchAtLoginService.isEnabled
         XCTAssert(value == true || value == false)
     }
