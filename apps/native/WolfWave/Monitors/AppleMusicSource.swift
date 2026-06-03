@@ -85,6 +85,13 @@ final class AppleMusicSource: PlaybackSource, @unchecked Sendable {
         setupFallbackTimer()
     }
 
+    /// Stops playback tracking and drains any in-flight timer work.
+    ///
+    /// - Important: Must **not** be called from `backgroundQueue`. The trailing
+    ///   `backgroundQueue.sync {}` is a drain barrier that waits for the current
+    ///   timer event handler to finish; calling this from within a
+    ///   `backgroundQueue` block (e.g. the timer handler itself) would deadlock
+    ///   the queue against itself. All current callers run on the main actor.
     nonisolated func stopTracking() {
         let wasTracking = stateLock.withLock { () -> Bool in
             guard isTracking else { return false }
@@ -99,6 +106,7 @@ final class AppleMusicSource: PlaybackSource, @unchecked Sendable {
             return existing
         }
         pendingTimer?.cancel()
+        // Drain barrier — see the threading note above. Safe only off `backgroundQueue`.
         backgroundQueue.sync {}
     }
 

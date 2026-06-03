@@ -478,9 +478,21 @@ actor WebSocketServerService {
 
     /// Keeps the connection alive by continuously consuming inbound messages.
     /// Nonisolated. Does not touch actor state.
+    ///
+    /// Stops re-arming (and cancels the connection) on a WebSocket close frame
+    /// or a transport error. A graceful close arrives as a `.close` opcode with
+    /// `error == nil`, so keying only on `error` would re-arm `receiveMessage`
+    /// forever and keep the dead `NWConnection` retained by the loop.
     private static func receiveMessage(from connection: NWConnection) {
-        connection.receiveMessage { _, _, _, error in
+        connection.receiveMessage { _, context, _, error in
             if error != nil { return }
+
+            if let metadata = context?.protocolMetadata(definition: NWProtocolWebSocket.definition)
+                as? NWProtocolWebSocket.Metadata, metadata.opcode == .close {
+                connection.cancel()
+                return
+            }
+
             receiveMessage(from: connection)
         }
     }

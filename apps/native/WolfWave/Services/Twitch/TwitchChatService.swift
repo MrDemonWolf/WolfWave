@@ -1190,6 +1190,11 @@ actor TwitchChatService {
             return
         }
 
+        // Defensively cancel any pre-existing task before reassigning. Call
+        // paths currently route through `disconnectFromEventSub()` first, but a
+        // direct double-connect would otherwise orphan a live task.
+        webSocketTask?.cancel(with: .goingAway, reason: nil)
+
         let task = urlSession.webSocketTask(with: url)
         webSocketTask = task
 

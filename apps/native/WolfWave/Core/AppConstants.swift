@@ -897,6 +897,11 @@ nonisolated enum AppConstants {
         /// Interval in seconds for polling Discord availability when not connected
         static let availabilityPollInterval: TimeInterval = 15.0
 
+        /// Send/receive timeout (seconds) on the IPC socket. A stalled Discord
+        /// peer can't block the service's actor executor longer than this — a
+        /// timed-out blocking read/write fails fast into reconnect handling.
+        static let socketTimeoutSeconds = 5
+
         /// Default label for the first presence button (links to Apple Music track page).
         static let defaultButton1Label = "Listen on Apple Music"
 

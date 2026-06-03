@@ -835,9 +835,12 @@ actor DiscordRPCService {
             }
         }
 
-        // strings[0] = exec path, strings[1..argc] = argv, rest = environment
+        // strings[0] = exec path, strings[1..argc] = argv, rest = environment.
+        // `argc >= 0` guards the `strings[i]` subscript below — a malformed
+        // negative argc would otherwise produce a negative lower bound.
+        guard argc >= 0 else { return nil }
         let envStart = 1 + Int(argc)
-        guard envStart < strings.count else { return nil }
+        guard envStart >= 0, envStart < strings.count else { return nil }
 
         for i in envStart..<strings.count {
             if strings[i].hasPrefix("TMPDIR=") {
@@ -910,6 +913,7 @@ actor DiscordRPCService {
 
                 if result == 0 {
                     socketFD = fd
+                    setSocketTimeouts(fd)
 
                     if performHandshake() {
                         state = .connected
@@ -972,6 +976,72 @@ actor DiscordRPCService {
 
     // MARK: - Frame I/O
 
+    /// Applies send/receive timeouts to the IPC socket.
+    ///
+    /// The frame I/O uses blocking `Darwin.read`/`Darwin.write` on the service's
+    /// actor executor. Without a timeout, a Discord peer that stalls mid-frame
+    /// (or stops draining its receive buffer) would block the executor forever,
+    /// freezing every other call into the service. `SO_RCVTIMEO`/`SO_SNDTIMEO`
+    /// make a stalled read/write fail with `EAGAIN`, which the frame I/O treats
+    /// as a lost connection.
+    private func setSocketTimeouts(_ fd: Int32) {
+        var tv = timeval(tv_sec: AppConstants.Discord.socketTimeoutSeconds, tv_usec: 0)
+        let size = socklen_t(MemoryLayout<timeval>.size)
+        _ = setsockopt(fd, SOL_SOCKET, SO_RCVTIMEO, &tv, size)
+        _ = setsockopt(fd, SOL_SOCKET, SO_SNDTIMEO, &tv, size)
+    }
+
+    /// Writes all of `data` to the socket, looping over partial writes.
+    ///
+    /// A stream socket may accept fewer bytes than requested per `write`, so a
+    /// single call can't be assumed to flush the whole frame. Returns false if
+    /// the socket errors or times out before everything is written.
+    private func writeFully(_ data: Data) -> Bool {
+        guard !data.isEmpty else { return true }
+        return data.withUnsafeBytes { raw -> Bool in
+            guard let base = raw.baseAddress else { return false }
+            var total = 0
+            while total < data.count {
+                let n = Darwin.write(socketFD, base + total, data.count - total)
+                if n > 0 {
+                    total += n
+                } else if n < 0 && errno == EINTR {
+                    continue
+                } else {
+                    return false
+                }
+            }
+            return true
+        }
+    }
+
+    /// Reads exactly `count` bytes from the socket, looping over partial reads.
+    ///
+    /// A stream socket may return fewer bytes than requested per `read`, so a
+    /// single call can't be assumed to fill the buffer. Returns nil if the peer
+    /// closes (`read` returns 0) or the socket errors/times out before `count`
+    /// bytes arrive.
+    private func readFully(_ count: Int) -> Data? {
+        guard count > 0 else { return Data() }
+        var buffer = Data(count: count)
+        let ok = buffer.withUnsafeMutableBytes { raw -> Bool in
+            guard let base = raw.baseAddress else { return false }
+            var total = 0
+            while total < count {
+                let n = Darwin.read(socketFD, base + total, count - total)
+                if n > 0 {
+                    total += n
+                } else if n < 0 && errno == EINTR {
+                    continue
+                } else {
+                    return false // peer closed (0) or error/timeout (-1)
+                }
+            }
+            return true
+        }
+        return ok ? buffer : nil
+    }
+
     /// Sends a framed message to Discord.
     ///
     /// Frame format: `[opcode: UInt32 LE][length: UInt32 LE][JSON payload]`
@@ -995,22 +1065,8 @@ actor DiscordRPCService {
             buf.storeBytes(of: UInt32(jsonData.count).littleEndian, toByteOffset: 4, as: UInt32.self)
         }
 
-        let frameData = header + jsonData
-
-        let written = frameData.withUnsafeBytes { buf -> Int in
-            guard let baseAddress = buf.baseAddress else {
-                Log.error("DiscordRPCService: sendFrame buffer baseAddress is nil", category: "Discord")
-                return -1
-            }
-            return Darwin.write(socketFD, baseAddress, frameData.count)
-        }
-
-        if written != frameData.count {
-            if written < 0 {
-                Log.error("DiscordRPCService: Write failed with errno \(errno) (\(String(cString: strerror(errno))))", category: "Discord")
-            } else {
-                Log.error("DiscordRPCService: Partial write (wrote \(written)/\(frameData.count))", category: "Discord")
-            }
+        guard writeFully(header + jsonData) else {
+            Log.error("DiscordRPCService: Write failed/timed out with errno \(errno) (\(String(cString: strerror(errno))))", category: "Discord")
             handleConnectionLost()
             return false
         }
@@ -1024,18 +1080,8 @@ actor DiscordRPCService {
     private func readFrame() -> (UInt32, [String: Any]?)? {
         guard socketFD >= 0 else { return nil }
 
-        var headerBuf = Data(count: 8)
-        let headerRead = headerBuf.withUnsafeMutableBytes { buf -> Int in
-            guard let baseAddress = buf.baseAddress else {
-                Log.error("DiscordRPCService:readFrame header buffer baseAddress is nil", category: "Discord")
-                return -1
-            }
-            return Darwin.read(socketFD, baseAddress, 8)
-        }
-        if headerRead != 8 {
-            if headerRead < 0 {
-                Log.error("DiscordRPCService: Header read failed with errno \(errno) (\(String(cString: strerror(errno))))", category: "Discord")
-            }
+        guard let headerBuf = readFully(8) else {
+            Log.error("DiscordRPCService: Header read failed/timed out with errno \(errno) (\(String(cString: strerror(errno))))", category: "Discord")
             return nil
         }
 
@@ -1048,18 +1094,8 @@ actor DiscordRPCService {
 
         guard length > 0, length < 65536 else { return (opcode, nil) }
 
-        var bodyBuf = Data(count: Int(length))
-        let bodyRead = bodyBuf.withUnsafeMutableBytes { buf -> Int in
-            guard let baseAddress = buf.baseAddress else {
-                Log.error("DiscordRPCService:readFrame body buffer baseAddress is nil", category: "Discord")
-                return -1
-            }
-            return Darwin.read(socketFD, baseAddress, Int(length))
-        }
-        if bodyRead != Int(length) {
-            if bodyRead < 0 {
-                Log.error("DiscordRPCService: Body read failed with errno \(errno) (\(String(cString: strerror(errno))))", category: "Discord")
-            }
+        guard let bodyBuf = readFully(Int(length)) else {
+            Log.error("DiscordRPCService: Body read failed/timed out with errno \(errno) (\(String(cString: strerror(errno))))", category: "Discord")
             return nil
         }
 

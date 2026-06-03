@@ -122,7 +122,12 @@ final class SongRequestCommand: AsyncBotCommand {
         for trigger in allTriggers {
             let triggerLowered = trigger.lowercased()
             if lowered.hasPrefix(triggerLowered) {
-                let startIndex = message.index(message.startIndex, offsetBy: trigger.count)
+                // `limitedBy` so the offset can't trap: lowercasing can change a
+                // string's Character count for some scripts, so `trigger.count`
+                // isn't guaranteed ≤ `message.count` even after `hasPrefix`.
+                let startIndex = message.index(
+                    message.startIndex, offsetBy: trigger.count, limitedBy: message.endIndex
+                ) ?? message.endIndex
                 return String(message[startIndex...]).trimmingCharacters(in: .whitespaces)
             }
         }

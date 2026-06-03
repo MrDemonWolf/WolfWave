@@ -382,8 +382,26 @@ final class AppleMusicController: AppleMusicControlling {
     }
 
     /// Run an AppleScript and return the string result.
+    ///
+    /// `NSAppleScript` is **not** thread-safe and must execute on the main
+    /// thread — running it off-main can crash (a libdispatch queue assertion)
+    /// or return a spurious nil. Most callers are already on the main actor,
+    /// but `isPlaying`/`isPaused` are synchronous and can be read from the
+    /// `SongRequestService` background poll loop, so bounce to main when the
+    /// current thread isn't already it. The `Thread.isMainThread` guard avoids
+    /// a `DispatchQueue.main.sync` deadlock when we're already on main.
     @discardableResult
     private func runAppleScript(_ source: String) -> String? {
+        if Thread.isMainThread {
+            return Self.executeAppleScript(source)
+        }
+        return DispatchQueue.main.sync { Self.executeAppleScript(source) }
+    }
+
+    /// Executes an `NSAppleScript` and returns its string result.
+    ///
+    /// Must be called on the main thread — see `runAppleScript`.
+    private nonisolated static func executeAppleScript(_ source: String) -> String? {
         var error: NSDictionary?
         let script = NSAppleScript(source: source)
         let result = script?.executeAndReturnError(&error)
