@@ -55,20 +55,29 @@ struct AboutSettingsView: View {
                     .foregroundStyle(.secondary)
             }
 
-            VStack(alignment: .leading, spacing: DSSpace.s3) {
-                hero
-                versionPill
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
+            hero
         }
         .cardStyle()
     }
 
+    /// Identity hero: app icon on the leading edge, name + version pill stacked
+    /// on the trailing side. Mirrors the system standard About panel's
+    /// icon-left / text-right layout.
     private var hero: some View {
-        VStack(alignment: .leading, spacing: DSSpace.s3) {
-            Text(appName)
-                .font(.system(size: DSFont.Size.x2xl, weight: .semibold))
-                .accessibilityAddTraits(.isHeader)
+        HStack(alignment: .center, spacing: DSSpace.s5) {
+            Image(nsImage: NSApp.applicationIconImage)
+                .resizable()
+                .aspectRatio(contentMode: .fit)
+                .frame(width: 72, height: 72)
+                .accessibilityHidden(true)
+
+            VStack(alignment: .leading, spacing: DSSpace.s2) {
+                Text(appName)
+                    .font(.system(size: DSFont.Size.x2xl, weight: .semibold))
+                    .accessibilityAddTraits(.isHeader)
+                versionPill
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
     }
