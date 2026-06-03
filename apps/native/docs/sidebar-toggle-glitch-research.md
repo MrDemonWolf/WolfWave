@@ -1,19 +1,75 @@
 # Settings sidebar toggle glitch (the `>>` chevron) — research and diagnosis
 
-> Status: **Option A applied** (debug build compiles clean). Settings now lives
-> in SwiftUI's own `Settings { SettingsView() }` scene, so SwiftUI creates and
-> drives the window's `NSToolbar`; the hand-rolled `NSWindow`, its empty
-> `NSToolbar` shell, and `createSettingsWindow()` are gone. `openSettings()`
-> opens the scene via `NSApp.sendAction(Selector(("showSettingsWindow:")))` and
-> still applies the menu-only → regular activation-policy switch. Close →
-> restore-menu-only now flows through the global `NSWindow.willCloseNotification`
-> observer (the settings exclusion was dropped). **Still needs an on-device
-> eyeball** to confirm the `>>` flash is gone, the sidebar toggle is single and
-> animates cleanly, and no floating reveal chevron appears.
+> ## RESOLVED — final solution (verified on-device)
 >
-> History: Option B (custom toggle + `.toolbar(removing: .sidebarToggle)`) was
-> tried first and reverted — it regressed into *two* toggles and never fixed the
-> flash (see "Why Option B failed" below).
+> Two changes together fixed both the `>>` flash and the bad layout:
+>
+> 1. **Settings UI moved into a dedicated SwiftUI `Window` scene** (NOT a
+>    `Settings` scene). A real window scene is the only host where SwiftUI fully
+>    owns the window chrome like Apple's Landmarks sample: a true full-height
+>    sidebar, the toggle tucked by the traffic lights, and no reserved dead
+>    title-bar band. `Window(_:id:)` is single-instance, so reopening just fronts
+>    it. `.restorationBehavior(.disabled)` stops the menu-bar app auto-restoring
+>    Settings at launch. AppKit still drives *when* it opens (dock-visibility
+>    activation policy) by posting `.openSettingsRequested` to
+>    `SettingsSceneBridge`, which now runs `@Environment(\.openWindow)`'s
+>    `openWindow(id:)` (the old bridge used `openSettings()`). `SettingsLink` in
+>    `.commands` was replaced with a plain `Button` calling
+>    `appDelegate.openSettings()`, since `SettingsLink` only opens a `Settings`
+>    scene.
+>
+> 2. **The sidebar toggle was moved off the sidebar toolbar segment onto the
+>    DETAIL toolbar.** This is the actual root cause of the `>>` (see below): the
+>    automatic toggle lives in the *leading (sidebar)* toolbar segment, and while
+>    the column animates to zero width that segment cannot fit the ~40pt toggle
+>    for a frame or two, so AppKit paints that segment's overflow `>>` chevron at
+>    the divider. Removing the automatic toggle (`.toolbar(removing: .sidebarToggle)`
+>    applied **on the sidebar column view** — applying it on the outer split
+>    chain leaves it in place and you get *two* toggles) and hosting our own
+>    `ToolbarItem(placement: .navigation)` on the detail content leaves the
+>    collapsing sidebar segment with no item to overflow. Bonus: the detail's
+>    leading edge is exactly where the native reference shows the toggle.
+>
+> `SettingsWindowConfigurator` (a tiny `NSViewRepresentable` reaching `view.window`)
+> hides the window title and makes the title bar transparent for the clean
+> no-title full-height look.
+>
+> Implementation: `WolfWaveApp.swift` (Window scene + Cmd+, button),
+> `SettingsSceneBridge.swift` (`openWindow`), `SettingsView.swift` (detail toggle
+> + `.toolbar(removing:)` on the sidebar column + configurator),
+> `SettingsSidebarView.swift` (native `List`/`Label` rows).
+>
+> ---
+>
+> ### Earlier attempts (kept for the record — none fully worked)
+>
+> - **Option A** (move into SwiftUI's `Settings { SettingsView() }` scene so
+>   SwiftUI owns the `NSToolbar`): killed the floating reveal chevron and the
+>   duplicate-toggle regression, but the `>>` flash **survived** — proving the
+>   flash is not about which host owns the toolbar.
+> - **Option B v1** (custom toggle at `.navigation` on the outer split chain +
+>   `.toolbar(removing: .sidebarToggle)`): still flashed, because `.navigation`
+>   on the split routes to the *sidebar* segment — the same segment that
+>   overflows. Also produced the awkward floating-toggle gap.
+> - **Instant collapse** (`Transaction.disablesAnimations`): did not help; AppKit
+>   animates the split divider regardless.
+> - **Hidden title for slack**: improved the look but did not fix the flash.
+>
+> The breakthrough was realizing the overflow is *per-segment*: it is the
+> collapsing **sidebar** segment that can't fit its toggle, so the cure is to put
+> the toggle in the **detail** segment instead.
+
+---
+
+> ⚠️ **Everything below this line is HISTORICAL CONTEXT from the investigation,
+> superseded by the RESOLVED section above.** It documents the app *as it was*
+> mid-investigation — a hand-rolled AppKit `NSWindow`/`NSHostingController` Settings
+> window with an empty `NSToolbar` shell, and a ranked list of fix *options* that
+> were still being weighed. None of that describes the shipped code. The app now
+> uses a dedicated SwiftUI `Window` scene (`WolfWaveApp.body`), a native
+> `NavigationSplitView` sidebar, `.toolbar(removing: .sidebarToggle)` on the
+> sidebar column, and a custom toggle on the detail toolbar. Read the section
+> below only for the diagnostic reasoning, not for the current architecture.
 
 ## Why Option B failed (the "two toggles" regression)
 

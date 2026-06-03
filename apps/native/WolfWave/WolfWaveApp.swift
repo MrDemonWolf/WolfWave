@@ -13,10 +13,14 @@ import SwiftUI
 
 // MARK: - App Entry Point
 
-/// SwiftUI entry point. Runs as a menu bar app with a Settings scene.
+/// SwiftUI entry point. Runs as a menu bar app with a dedicated Settings `Window` scene.
 @main
 struct WolfWaveApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
+
+    /// Identifier for the Settings `Window` scene. Shared with
+    /// `SettingsSceneBridge`, which opens it via `@Environment(\.openWindow)`.
+    static let settingsWindowID = "wolfwave-settings"
 
     /// True when the app is launched as a test host by xcodebuild.
     ///
@@ -30,17 +34,17 @@ struct WolfWaveApp: App {
 
     var body: some Scene {
         // Hidden helper window that hosts `SettingsSceneBridge`, declared BEFORE
-        // the `Settings` scene. Scene order is load-bearing: a helper window
-        // placed after `Settings` leaves the bridge's `openSettings` action a
-        // silent no-op. It gives the AppKit entry points (tray menu, Dock menu,
-        // Dock reopen, Twitch re-auth) a live SwiftUI scene tree to drive, so
-        // they open Settings via the public `openSettings` environment action
-        // rather than the private `showSettingsWindow:` selector (which logs
-        // "Please use SettingsLink for opening the Settings scene" on macOS 14+).
-        // `BridgeWindowNeutralizer` keeps this window offscreen and invisible, so
-        // it never appears and never trips `applyDockVisibility`'s probe. The app
-        // stays alive when this window orders out via
-        // `applicationShouldTerminateAfterLastWindowClosed` returning `false`.
+        // the Settings `Window` scene. Scene order is load-bearing: a helper
+        // window placed after the Settings scene leaves the bridge's
+        // `openWindow(id:)` action a silent no-op. It gives the AppKit entry
+        // points (tray menu, Dock menu, Dock reopen, Twitch re-auth) a live
+        // SwiftUI scene tree to drive, so they open Settings via the public
+        // `openWindow(id:)` environment action rather than the private
+        // `showSettingsWindow:` selector. `BridgeWindowNeutralizer` keeps this
+        // window offscreen and invisible, so it never appears and never trips
+        // `applyDockVisibility`'s probe. The app stays alive when this window
+        // orders out via `applicationShouldTerminateAfterLastWindowClosed`
+        // returning `false`.
         Window("WolfWave Settings Bridge", id: SettingsSceneBridge.windowID) {
             SettingsSceneBridge()
         }
@@ -48,19 +52,37 @@ struct WolfWaveApp: App {
         .defaultSize(width: 1, height: 1)
         .commandsRemoved()
 
-        // Settings lives in SwiftUI's own `Settings` scene so SwiftUI creates
-        // and drives the window's `NSToolbar`. That lets `NavigationSplitView`'s
-        // sidebar toggle, tracking separator, and overflow math animate as one
-        // unit, which is what finally kills the `>>` overflow flash that the
-        // old hand-rolled `NSWindow` + foreign `NSToolbar` produced during the
-        // sidebar collapse animation. AppDelegate still drives *when* the window
-        // opens (dock-visibility activation policy, tray/reopen entry points) by
-        // posting `.openSettingsRequested` to `SettingsSceneBridge`; it no longer
-        // owns the window itself nor uses the private `showSettingsWindow:`
-        // selector. See `apps/native/docs/sidebar-toggle-glitch-research.md`.
-        Settings {
+        // Settings lives in a dedicated SwiftUI `Window` scene (NOT a `Settings`
+        // scene). A real window scene is the only host where SwiftUI fully owns
+        // the window chrome the way the Landmarks sample does: the
+        // `NavigationSplitView` renders a true full-height sidebar, the toggle
+        // tucks beside the traffic lights, the sidebar tracking separator and
+        // toggle animate as one unit, and there is no reserved dead title-bar
+        // band. The old `Settings`-scene host (like an `NSHostingController`)
+        // only half-owns the toolbar, which produced the dead band, the off
+        // toggle placement, and the `>>` overflow flash during sidebar
+        // animation. `Window(_:id:)` is single-instance by construction, so
+        // reopening just fronts the existing window. `.restorationBehavior(.disabled)`
+        // keeps a menu-bar app from auto-restoring Settings at launch.
+        //
+        // AppDelegate still drives *when* the window opens (dock-visibility
+        // activation policy, tray/reopen entry points) by posting
+        // `.openSettingsRequested` to `SettingsSceneBridge`, which now runs the
+        // public `openWindow(id:)` action. See
+        // `apps/native/docs/sidebar-toggle-glitch-research.md`.
+        Window("WolfWave Settings", id: WolfWaveApp.settingsWindowID) {
             SettingsView()
         }
+        .windowResizability(.contentSize)
+        .windowToolbarStyle(.unified)
+        .restorationBehavior(.disabled)
+        // Suppress the scene's default macOS commands — a `Window(_:id:)` scene
+        // otherwise injects a "WolfWave Settings" entry into the Window menu that
+        // duplicates Cmd+, and reads oddly for a menu-bar app. `openWindow(id:)`
+        // (used by `SettingsSceneBridge`) is an environment action, not a menu
+        // command, so it keeps working. Our explicit `.commands` below are added
+        // on top and are unaffected.
+        .commandsRemoved()
         .commands {
             // Route the standard App menu's About/Settings to our AppKit
             // windows so the system main menu matches the tray when the app
@@ -75,22 +97,20 @@ struct WolfWaveApp: App {
                     appDelegate.checkForUpdatesFromMenu()
                 }
             }
-            // `SettingsLink` is the public macOS 14+ way to open the `Settings`
-            // scene. It runs the same scene-open action that
-            // `appDelegate.openSettings()` now routes through `SettingsSceneBridge`,
-            // just without the private selector. It only works here because
-            // `.commands` is a SwiftUI context; the tray/Dock `NSMenu` entry
-            // points can't host a SwiftUI view, so they keep routing through
-            // `appDelegate.openSettings()`.
+            // Cmd+, routes through `appDelegate.openSettings()`, the same path
+            // the tray/Dock/Twitch-reauth entry points use, so there is exactly
+            // one way the Settings window opens (post `.openSettingsRequested` →
+            // `SettingsSceneBridge` runs `openWindow(id:)`). `SettingsLink` is not
+            // usable here because it only opens a `Settings` scene, which this app
+            // no longer declares.
             //
             // No dock-visibility handling is lost: the App menu (and its Cmd+,)
             // is only reachable when the app is already `.regular`. An
-            // `.accessory` menu-only app shows no main menu and its command
-            // shortcuts need a key window, so openSettings()'s `.regular` switch
-            // would be a no-op on this path anyway.
+            // `.accessory` menu-only app shows no main menu, so openSettings()'s
+            // `.regular` switch would be a no-op on this path anyway.
             CommandGroup(replacing: .appSettings) {
-                SettingsLink {
-                    Text("Settings\u{2026}")
+                Button("Settings\u{2026}") {
+                    appDelegate.openSettings()
                 }
                 .keyboardShortcut(",", modifiers: .command)
             }
@@ -124,8 +144,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
     var statusItem: NSStatusItem?
     var playbackSourceManager: PlaybackSourceManager?
-    // Settings is a SwiftUI `Settings` scene (see WolfWaveApp.body); SwiftUI
-    // owns that window, so AppDelegate no longer holds an `NSWindow` for it.
+    // Settings is a dedicated SwiftUI `Window` scene (see WolfWaveApp.body);
+    // SwiftUI owns that window, so AppDelegate no longer holds an `NSWindow` for it.
     var onboardingWindow: NSWindow?
     var whatsNewWindow: NSWindow?
     var twitchService: TwitchChatService?

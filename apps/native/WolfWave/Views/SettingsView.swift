@@ -131,7 +131,12 @@ struct SettingsView: View {
     var body: some View {
         NavigationSplitView(columnVisibility: $columnVisibility) {
             SettingsSidebarView(selection: $selectedSection, groups: Self.sidebarGroups)
-                .navigationSplitViewColumnWidth(min: 240, ideal: 260, max: 300)
+                .navigationSplitViewColumnWidth(min: 200, ideal: 230, max: 280)
+                // Remove SwiftUI's automatic sidebar toggle here, on the sidebar
+                // column it belongs to. Removing it from the outer split chain
+                // left it in place (two toggles); our detail-toolbar toggle is
+                // the only one we want.
+                .toolbar(removing: .sidebarToggle)
         } detail: {
             detailPane
             .scrollEdgeEffectStyle(.hard, for: .top)
@@ -158,6 +163,25 @@ struct SettingsView: View {
                       let section = SettingsSection(rawValue: raw) else { return }
                 selectedSection = section
             }
+            // The sidebar toggle lives on the DETAIL toolbar, not the sidebar's.
+            // SwiftUI's automatic toggle sits in the leading (sidebar) toolbar
+            // segment; while the column animates to zero width that segment can't
+            // fit the toggle for a frame or two, so AppKit paints the segment's
+            // overflow `>>` chevron at the divider. Hosting our own toggle in the
+            // detail segment (right of the sidebar tracking separator) leaves the
+            // collapsing sidebar segment with no item to overflow — and matches
+            // the native reference, which shows the toggle at the detail's leading
+            // edge. See `apps/native/docs/sidebar-toggle-glitch-research.md`.
+            .toolbar {
+                ToolbarItem(placement: .navigation) {
+                    Button(action: toggleSidebar) {
+                        Image(systemName: "sidebar.leading")
+                    }
+                    .help("Toggle Sidebar")
+                    .accessibilityLabel("Toggle Sidebar")
+                    .accessibilityIdentifier("sidebarToggleButton")
+                }
+            }
         }
         .onAppear {
             // Link the view model to the app delegate's service (without reconnecting)
@@ -167,15 +191,12 @@ struct SettingsView: View {
             // reflects whether we are already joined (prevents missed callbacks).
             twitchViewModel.channelConnected = appDelegate?.twitchService?.isConnectedSnapshot.value ?? false
         }
-        // No `.toolbar` workaround needed: this view now lives in SwiftUI's own
-        // `Settings` scene (see `WolfWaveApp.body`), so SwiftUI creates and
-        // drives the window's NSToolbar. NavigationSplitView's automatic sidebar
-        // toggle, tracking separator, and overflow math animate as one unit,
-        // which is what removed the old `>>` overflow flash. The previous
-        // hand-rolled NSWindow forced an empty `NSToolbar`/`.toolbar { }` shell
-        // and could not own the toggle, causing both a floating reveal chevron
-        // and (after a failed custom-toggle attempt) a duplicate toggle. See
+        // `SettingsWindowConfigurator` hides the window title and makes the title
+        // bar transparent for the clean full-height-sidebar look. The automatic
+        // sidebar toggle is removed on the sidebar column itself (above); our
+        // detail-toolbar toggle replaces it. See
         // `apps/native/docs/sidebar-toggle-glitch-research.md`.
+        .background(SettingsWindowConfigurator())
         .frame(
             minWidth: AppConstants.SettingsUI.minWidth,
             idealWidth: AppConstants.SettingsUI.idealWidth,
@@ -303,6 +324,15 @@ struct SettingsView: View {
 
     // MARK: - Helpers
 
+    /// Toggles the sidebar column between visible (`.all`) and hidden
+    /// (`.detailOnly`), animated. Drives the detail-toolbar toggle button that
+    /// replaces SwiftUI's automatic sidebar-segment toggle (see `body`).
+    private func toggleSidebar() {
+        withAnimation(DSMotion.Spring.snappy) {
+            columnVisibility = columnVisibility == .detailOnly ? .all : .detailOnly
+        }
+    }
+
     /// Posts a notification when music tracking is toggled on or off.
     private func notifyTrackingSettingChanged(enabled: Bool) {
         NotificationCenter.default.postEnabled(.trackingSettingChanged, enabled: enabled)
@@ -340,6 +370,40 @@ struct SettingsView: View {
 
         // Notify tracking re-enabled
         notifyTrackingSettingChanged(enabled: true)
+    }
+}
+
+// MARK: - Window Configurator
+
+/// Reaches the SwiftUI `Settings` window via `view.window` and applies the
+/// clean full-height-sidebar chrome: hidden title text and a transparent title
+/// bar. This matches the native reference look (no centered "WolfWave Settings"
+/// label) and frees title-bar width, so `NavigationSplitView`'s sidebar toggle
+/// and tracking separator stop overflowing into AppKit's `>>` clip chevron while
+/// the sidebar animates. See `apps/native/docs/sidebar-toggle-glitch-research.md`.
+///
+/// Only cosmetic window properties are touched; `styleMask` is left to SwiftUI,
+/// so `SettingsSceneBridge.settingsWindow()`'s titled / non-fullSizeContentView
+/// detection and the dock-visibility probe keep working.
+private struct SettingsWindowConfigurator: NSViewRepresentable {
+    func makeNSView(context: Context) -> NSView {
+        let view = NSView(frame: .zero)
+        // The host window isn't attached yet during `makeNSView`; defer one
+        // runloop tick until `view.window` is populated.
+        DispatchQueue.main.async { configure(view.window) }
+        return view
+    }
+
+    func updateNSView(_ nsView: NSView, context: Context) {
+        // Re-assert in case SwiftUI re-realizes or re-themes the window.
+        configure(nsView.window)
+    }
+
+    @MainActor
+    private func configure(_ window: NSWindow?) {
+        guard let window else { return }
+        window.titleVisibility = .hidden
+        window.titlebarAppearsTransparent = true
     }
 }
 
