@@ -16,11 +16,6 @@ const TXT_2 = "#A1A1A6";
 const TWITCH = "#9146FF";
 const DISCORD = "#5865F2";
 
-/** Inline SVG dot grid. Subtle Apple-keynote texture, rendered via data URI. */
-const DOT_GRID = `url("data:image/svg+xml;utf8,${encodeURIComponent(
-  `<svg xmlns='http://www.w3.org/2000/svg' width='44' height='44'><circle cx='1' cy='1' r='1' fill='%23ffffff' fill-opacity='0.03'/></svg>`,
-)}")`;
-
 /** Audio-waveform glyph. Cues the music app. */
 function WaveGlyph({ size = 30, color = BRAND_HI, bars = [0.35, 0.7, 1.0, 0.55, 0.85, 0.4] }: { size?: number; color?: string; bars?: number[] }): ReactElement {
   const barW = size / (bars.length * 2 - 1);
@@ -89,29 +84,16 @@ function Frame({ tag, children }: { tag: string; children: ReactNode }): ReactEl
           display: "flex",
         }}
       />
-      {/* Dot-grid texture */}
-      <div style={{ position: "absolute", inset: 0, backgroundImage: DOT_GRID, backgroundRepeat: "repeat", display: "flex" }} />
-      {/* Brand glow, top-left */}
+      {/* One soft brand glow, top-left. Single light source reads cleaner
+          than competing glows plus a texture. */}
       <div
         style={{
           position: "absolute",
-          top: -320,
-          left: -280,
-          width: 920,
-          height: 920,
-          background: `radial-gradient(circle, ${BRAND}5C 0%, ${BRAND}00 55%)`,
-          display: "flex",
-        }}
-      />
-      {/* Highlight glow, bottom-right */}
-      <div
-        style={{
-          position: "absolute",
-          bottom: -360,
-          right: -220,
-          width: 860,
-          height: 860,
-          background: `radial-gradient(circle, ${BRAND_HI}33 0%, ${BRAND_HI}00 58%)`,
+          top: -360,
+          left: -300,
+          width: 1000,
+          height: 1000,
+          background: `radial-gradient(circle, ${BRAND}40 0%, ${BRAND}00 58%)`,
           display: "flex",
         }}
       />
@@ -177,22 +159,13 @@ function Eyebrow({ text }: { text: string }): ReactElement {
 }
 
 // ── Now-playing tile (right column) ───────────────────────────
-/** Compact destination chip. One song, three places, read at a glance. */
+/** Destination marker. Borderless dot + label so the three sit on one
+    clean row instead of wrapping into bordered pills. */
 function DestChip({ color, label }: { color: string; label: string }): ReactElement {
   return (
-    <div
-      style={{
-        display: "flex",
-        alignItems: "center",
-        gap: 9,
-        padding: "9px 15px",
-        borderRadius: 999,
-        background: BG_RAISED,
-        border: `1px solid ${HAIRLINE}`,
-      }}
-    >
-      <div style={{ display: "flex", width: 9, height: 9, borderRadius: 999, background: color, boxShadow: `0 0 10px ${color}` }} />
-      <span style={{ display: "flex", fontSize: 17, fontWeight: 600, color: TXT_1 }}>{label}</span>
+    <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+      <div style={{ display: "flex", width: 10, height: 10, borderRadius: 999, background: color, boxShadow: `0 0 12px ${color}` }} />
+      <span style={{ display: "flex", fontSize: 18, fontWeight: 600, color: TXT_1 }}>{label}</span>
     </div>
   );
 }
@@ -254,12 +227,12 @@ function NowPlayingTile(): ReactElement {
       {/* Divider */}
       <div style={{ display: "flex", height: 1, background: HAIRLINE }} />
 
-      {/* Same track, three destinations. One compact row instead of a stack. */}
-      <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+      {/* Same track, three destinations, on one clean row. */}
+      <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
         <div style={{ display: "flex", fontFamily: "JetBrains Mono", fontSize: 13, color: TXT_2, letterSpacing: 0.5 }}>
           LIVE ON
         </div>
-        <div style={{ display: "flex", flexWrap: "wrap", gap: 9 }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
           <DestChip color={TWITCH} label="Twitch" />
           <DestChip color={DISCORD} label="Discord" />
           <DestChip color={BRAND_HI} label="OBS" />
@@ -291,7 +264,10 @@ export function OgCard({ title, description, eyebrow, chips, accentWord }: OgCar
   // off the bottom of the 1200x630 frame.
   const desc =
     description && description.length > 120
-      ? `${description.slice(0, 116).replace(/[\s.,;:!?]+$/, "")}…`
+      ? `${description
+          .slice(0, 116)
+          .replace(/\s+\S*$/, "")
+          .replace(/[\s.,;:!?]+$/, "")}…`
       : description;
 
   return (
@@ -312,11 +288,11 @@ export function OgCard({ title, description, eyebrow, chips, accentWord }: OgCar
               rowGap: 4,
               marginTop: eyebrow ? 26 : 0,
               fontFamily: "Inter",
-              fontSize: 58,
-              lineHeight: 1.07,
+              fontSize: 54,
+              lineHeight: 1.1,
               fontWeight: 700,
-              letterSpacing: -2,
-              maxWidth: 660,
+              letterSpacing: -1.8,
+              maxWidth: 540,
             }}
           >
             {[

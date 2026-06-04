@@ -7,8 +7,8 @@ import { useCyclingTrack } from "./useCyclingTrack";
 
 /**
  * Live recreation of a Twitch "Stream Chat" popout. Messages stream in over
- * time — viewers praise the app, ask pricing, request songs, and run
- * !song / !last / !wolfwave — and the WolfWave bot replies with the CURRENT / LAST track
+ * time (viewers praise the app, ask pricing, request songs, and run
+ * !song / !last / !wolfwave) and the WolfWave bot replies with the CURRENT / LAST track
  * pulled from the shared cycling store, so its answers always match what the
  * Discord card and OBS overlay are showing. Dark in both site themes (Twitch
  * chat always is). All usernames/messages invented; song names come from the
@@ -50,7 +50,7 @@ function bot(body: ReactNode): Line {
 function nowPlaying(t: SampleTrack): ReactNode {
   return (
     <>
-      Now playing: <b style={{ color: TW.text }}>{t.title}</b> — {t.artist} 🎵
+      Now playing: <b style={{ color: TW.text }}>{t.title}</b> · {t.artist} 🎵
     </>
   );
 }
@@ -65,7 +65,7 @@ const SCRIPT: ((c: Ctx) => Line[])[] = [
   ({ cur }) => [v("nightowl", "#c08bff", "!song"), bot(nowPlaying(cur))],
   () => [v("emote_lord", "#2fd6c3", "the song bot just works, no setup??")],
   () => [v("curious_kate", "#5ac8fa", "wait is wolfwave free?")],
-  () => [bot("Yep — free & open source. No account, no paywall. 🐺")],
+  () => [bot("Yep, free & open source. No paywall. 🐺")],
   ({}) => {
     const title = REQUESTS[reqI++ % REQUESTS.length];
     const n = ++queueN;
@@ -83,7 +83,7 @@ const SCRIPT: ((c: Ctx) => Line[])[] = [
     v("retro_raccoon", "#ff6abf", "!last"),
     bot(
       <>
-        Last played: <b style={{ color: TW.text }}>{last.title}</b> — {last.artist}
+        Last played: <b style={{ color: TW.text }}>{last.title}</b> · {last.artist}
       </>,
     ),
   ],
@@ -243,7 +243,7 @@ export function TwitchChatPreview({
         <ChevronRight size={14} color={TW.muted} aria-hidden="true" />
       </div>
 
-      {/* Live message viewport — bottom-anchored, fixed height, scrolls itself */}
+      {/* Live message viewport: bottom-anchored, fixed height, scrolls itself */}
       <div
         style={{
           height: viewportHeight,

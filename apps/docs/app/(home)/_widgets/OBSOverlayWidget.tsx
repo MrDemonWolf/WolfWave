@@ -34,14 +34,14 @@ const LAYOUTS = Object.keys(WIDGET_LAYOUTS) as LayoutName[];
  * `apps/native/WolfWave/Resources/widget.html` +
  * `widget-tokens.generated.js`. Visitor can switch layouts (Horizontal /
  * Vertical / Compact) and themes (WolfWave / Glass / Neon / Dark /
- * Light) right on the marketing page — selling the widget's flexibility
+ * Light) right on the marketing page, selling the widget's flexibility
  * better than any static screenshot could.
  */
 export function OBSOverlayWidget({ controls = true }: { controls?: boolean } = {}) {
   const [theme, setTheme] = useState<ThemeName>(DEFAULT_THEME);
   const [layout, setLayout] = useState<LayoutName>(DEFAULT_LAYOUT);
 
-  // Hero usage: no theme/layout switcher — render only the default overlay card.
+  // Hero usage: no theme/layout switcher, render only the default overlay card.
   if (!controls) {
     return (
       <div style={{ width: "100%" }}>

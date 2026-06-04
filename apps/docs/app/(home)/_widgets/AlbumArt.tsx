@@ -15,7 +15,7 @@ interface AlbumArtProps {
 /**
  * Stand-in for an album cover. CSS gradient background with a centered
  * generic glyph (vinyl, cassette, wave, broadcast tower). Never displays
- * real artwork — keeps the marketing site clear of third-party imagery.
+ * real artwork, keeping the marketing site clear of third-party imagery.
  */
 export function AlbumArt({
   gradient,

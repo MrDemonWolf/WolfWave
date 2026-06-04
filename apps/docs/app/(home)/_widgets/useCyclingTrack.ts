@@ -6,7 +6,7 @@ import { SAMPLE_TRACKS, type SampleTrack } from "./sample-tracks";
 /**
  * Shared cycling-track store. ONE timer drives every now-playing widget on the
  * page (Discord card, OBS overlay, Twitch chat) so they stay in genuine
- * lockstep — the Twitch bot's !song / !last replies always match the track the
+ * lockstep, so the Twitch bot's !song / !last replies always match the track the
  * Discord card and overlay are currently showing.
  *
  * Demo cadence: linger ~10s per track, advance the progress bar at a slow,

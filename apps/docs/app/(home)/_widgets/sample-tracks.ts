@@ -1,7 +1,7 @@
 /**
  * Sample tracks for the live widget demos on the landing page.
  *
- * IMPORTANT — all titles and artist names are invented. No real
+ * IMPORTANT: all titles and artist names are invented. No real
  * recording-artist names, song titles, or album art appear on the
  * marketing site. Album art is rendered as a CSS gradient with a
  * generic SVG glyph so we never display third-party copyrighted
@@ -31,7 +31,7 @@ export interface SampleTrack {
 
 // Wolf-themed sample tracks: invented song titles + albums, and the "artist"
 // on each is a real wolf species. Still no real recording artists or
-// copyrighted metadata — just on-brand flavor for the demos.
+// copyrighted metadata, just on-brand flavor for the demos.
 export const SAMPLE_TRACKS: SampleTrack[] = [
   {
     title: "Moonlit Howl",

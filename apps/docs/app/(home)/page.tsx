@@ -18,7 +18,6 @@ import {
   Star,
   Terminal,
   Twitch,
-  UserX,
   X as XIcon,
 } from "lucide-react";
 import { DeveloperTabs } from "./DeveloperTabs";
@@ -193,8 +192,7 @@ export default async function HomePage() {
               </h1>
               <p className="ww-reveal ww-reveal-2 ww-text-2 text-lg sm:text-xl mt-6 max-w-xl mx-auto lg:mx-0 leading-relaxed">
                 A free Mac menu bar app. Press play once and your song shows up
-                in your Twitch chat, your Discord profile, and your OBS overlay —
-                automatically, no setup.
+                in your Twitch chat, your Discord profile, and your OBS overlay.
               </p>
               <div className="ww-reveal ww-reveal-3 mt-8 flex flex-col sm:flex-row items-center justify-center lg:justify-start gap-3">
                 <Link href="/download" className="ww-btn ww-btn-primary">
@@ -209,7 +207,7 @@ export default async function HomePage() {
               {/* Pre-click reassurance, right under the button. */}
               <p className="ww-reveal ww-reveal-3 mt-4 text-sm ww-text-2">
                 <span className="ww-text-1 font-semibold">Free</span> · Open
-                source · No account needed
+                source
               </p>
 
               {/* Secondary trust + platform facts. */}
@@ -228,7 +226,7 @@ export default async function HomePage() {
               </div>
             </div>
 
-            {/* Product cluster — real widgets in a staggered, non-overlapping
+            {/* Product cluster: real widgets in a staggered, non-overlapping
                 column. Decorative duplicates of the section widgets below, so
                 aria-hidden. Mobile shows the Discord + Twitch cards, centered. */}
             <div className="ww-reveal ww-reveal-2 ww-hero-cluster">
@@ -488,12 +486,12 @@ export default async function HomePage() {
             index="06"
             kicker="Open & trusted"
             title={<>Free, open, and yours to fork.</>}
-            sub="No paywall, no account, no telemetry. Read every line on GitHub, audit the security model, or ship your own build."
+            sub="No paywall, no telemetry. Read every line on GitHub, audit the security model, or ship your own build."
           />
 
           <div className="ww-proof mt-12">
             <div className="grid gap-5 sm:gap-6 lg:grid-cols-[1.05fr_1fr] lg:items-stretch">
-              {/* Download card — the primary action, with platform facts and
+              {/* Download card: the primary action, with platform facts and
                   the live star count baked in from getRepoStats at build time. */}
               <div className="ww-download-card">
                 <div>
@@ -546,7 +544,7 @@ export default async function HomePage() {
                 </div>
               </div>
 
-              {/* Proof grid — the trust facts, 2x2. */}
+              {/* Proof grid: the trust facts, 2x2. */}
               <div className="grid grid-cols-2 gap-3 sm:gap-4">
                 {[
                   {
@@ -565,9 +563,9 @@ export default async function HomePage() {
                     label: "Trackers, servers, or telemetry.",
                   },
                   {
-                    Icon: UserX,
-                    value: "No account",
-                    label: "Nothing to sign up for.",
+                    Icon: Shield,
+                    value: "Signed",
+                    label: "Notarized by Apple.",
                   },
                 ].map(({ Icon, value, label }) => (
                   <div key={label} className="ww-stat">
@@ -621,7 +619,7 @@ export default async function HomePage() {
               <a
                 key={step.id}
                 href={`#${step.id}`}
-                className="ww-mono inline-flex items-center gap-2 px-3 py-1.5 text-xs rounded-full transition-colors"
+                className="ww-mono inline-flex items-center gap-2 px-3 py-1.5 text-xs rounded-lg transition-colors"
                 style={{
                   border: "1px solid var(--hairline)",
                   color: "var(--txt-2)",
@@ -691,10 +689,10 @@ export default async function HomePage() {
                 <p className="ww-mono text-xs ww-text-2 mb-3">THE OLD WAY</p>
                 <ul className="space-y-2.5 text-sm ww-text-2">
                   {[
-                    "Fake an Apple Music feed by scraping Spotify's web player.",
-                    "Overlays that flicker or freeze every time the song changes.",
-                    "A DIY bot you have to restart when it crashes mid-stream.",
-                    "No way to show Apple Music on your Discord profile.",
+                    "Bolt on a third-party app or paid web service just to get your song on screen.",
+                    "Switch your whole stream to Spotify or YouTube because nothing reads Apple Music.",
+                    "Overlays that flicker or freeze every time the track changes.",
+                    "No clean way to put Apple Music on your Discord profile.",
                   ].map((item) => (
                     <li key={item} className="flex gap-2.5">
                       <XIcon

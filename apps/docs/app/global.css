@@ -53,6 +53,9 @@
 :root {
   --shiki-light: #1d1d1f;
   --shiki-light-bg: #f5f5f7;
+  /* macOS-style slight control radius. Replaces the old 980px capsules
+     on pills, chips, kickers, buttons, and nav items. */
+  --ww-radius-control: 8px;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -297,7 +300,7 @@
   justify-content: center;
   gap: 0.5rem;
   padding: 0.85rem 1.4rem;
-  border-radius: 980px;
+  border-radius: var(--ww-radius-control);
   font-size: 0.95rem;
   font-weight: 500;
   letter-spacing: -0.01em;
@@ -345,7 +348,7 @@
   align-items: center;
   gap: 0.4rem;
   padding: 0.4rem 0.9rem;
-  border-radius: 980px;
+  border-radius: var(--ww-radius-control);
   background-color: var(--bg-surface);
   color: var(--txt-2);
   font-size: 0.8rem;
@@ -359,7 +362,7 @@
   align-items: center;
   gap: 0.55rem;
   padding: 0.32rem 0.85rem 0.32rem 0.4rem;
-  border-radius: 980px;
+  border-radius: var(--ww-radius-control);
   border: 1px solid var(--hairline);
   background-color: color-mix(in srgb, var(--bg-elev) 70%, transparent);
   font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
@@ -376,7 +379,7 @@
   min-width: 1.5rem;
   height: 1.5rem;
   padding: 0 0.4rem;
-  border-radius: 980px;
+  border-radius: var(--ww-radius-control);
   background-color: var(--brand-50);
   color: var(--brand-500);
   letter-spacing: 0;
@@ -459,14 +462,14 @@
   gap: 0.6rem;
 }
 
-/* Native trust chip. On-brand replacement for shields.io badges — live
+/* Native trust chip. On-brand replacement for shields.io badges. Live
    star count and latest release are baked in at build time. */
 .ww-chip {
   display: inline-flex;
   align-items: center;
   gap: 0.45rem;
   padding: 0.45rem 0.9rem;
-  border-radius: 980px;
+  border-radius: var(--ww-radius-control);
   border: 1px solid var(--hairline);
   background-color: var(--bg-elev);
   color: var(--txt-1);
@@ -490,7 +493,7 @@ a.ww-chip:hover {
   color: var(--brand-500);
 }
 
-/* ── Download card. Primary action in the proof band — brand-tinted
+/* ── Download card. Primary action in the proof band, brand-tinted
    so it reads as the focal point next to the flat trust grid. ───── */
 .ww-download-card {
   display: flex;
@@ -556,7 +559,7 @@ a.ww-chip:hover {
   justify-content: center;
   width: 44px;
   height: 44px;
-  border-radius: 980px;
+  border-radius: 50%;
   color: #fff;
   background-color: var(--brand-500);
   border: 1px solid color-mix(in srgb, #ffffff 22%, transparent);
@@ -696,7 +699,7 @@ a.ww-chip:hover {
   letter-spacing: -0.005em;
   color: var(--txt-2);
   padding: 0.4rem 0.85rem;
-  border-radius: 980px;
+  border-radius: var(--ww-radius-control);
   transition: background-color 0.15s ease, color 0.15s ease;
 }
 #nd-nav a[href]:not(:has([data-ww-brand])):not([aria-label]):hover {
@@ -706,7 +709,7 @@ a.ww-chip:hover {
 
 /* GitHub icon. Pill ghost */
 #nd-nav a[aria-label] {
-  border-radius: 980px;
+  border-radius: var(--ww-radius-control);
   transition: background-color 0.15s ease;
 }
 #nd-nav a[aria-label]:hover {
@@ -732,7 +735,7 @@ a.ww-chip:hover {
 #nd-nav [data-search-full] {
   background-color: var(--bg-surface);
   border-color: var(--hairline);
-  border-radius: 980px;
+  border-radius: var(--ww-radius-control);
 }
 
 /* Mobile sheet. Match hairline language */
@@ -749,7 +752,7 @@ a.ww-chip:hover {
   padding: 0.75rem 1.25rem;
   background-color: var(--brand-600);
   color: #fff;
-  border-radius: 980px;
+  border-radius: var(--ww-radius-control);
   font-weight: 600;
   font-size: 0.9rem;
   text-decoration: none;
@@ -793,14 +796,14 @@ html {
 }
 .fd-prose h2,
 [class*="prose"] h2 {
-  margin-top: 2.5rem;
-  margin-bottom: 1rem;
+  margin-top: 1.75rem;
+  margin-bottom: 0.85rem;
   scroll-margin-top: 5rem;
 }
 .fd-prose h3,
 [class*="prose"] h3 {
-  margin-top: 2rem;
-  margin-bottom: 0.75rem;
+  margin-top: 1.35rem;
+  margin-bottom: 0.7rem;
   scroll-margin-top: 5rem;
 }
 .fd-prose :not(pre) > code,
@@ -817,6 +820,100 @@ html {
   color: var(--brand-500);
 }
 
+/* ── Docs redesign. Carry the landing aesthetic into MDX ──────
+   Display-font page title, refined heading rhythm, real link
+   styling, editorial blockquotes, branded list markers. ───── */
+
+/* Page title: the Unbounded display face, same as the landing hero. */
+[class*="prose"] h1:not(.docs-hero-title),
+.fd-prose h1:not(.docs-hero-title) {
+  font-family: var(--font-unbounded), -apple-system, BlinkMacSystemFont,
+    "SF Pro Display", "Inter", system-ui, sans-serif;
+  font-weight: 700;
+  letter-spacing: -0.025em;
+  line-height: 1.08;
+  font-size: clamp(2rem, 4vw, 2.6rem);
+  color: var(--txt-1);
+}
+
+/* Section headings: tighter, heavier, brand-led h3. */
+[class*="prose"] h2,
+.fd-prose h2 {
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  font-size: 1.55rem;
+  color: var(--txt-1);
+}
+[class*="prose"] h3,
+.fd-prose h3 {
+  font-weight: 650;
+  letter-spacing: -0.012em;
+  font-size: 1.15rem;
+  color: var(--txt-1);
+}
+[class*="prose"] strong,
+.fd-prose strong {
+  font-weight: 650;
+  color: var(--txt-1);
+}
+
+/* Content links: brand, underlined, offset. Skip heading-anchor
+   permalinks (.peer) and Card links ([data-card]). */
+[class*="prose"] a:not(.peer):not([data-card]),
+.fd-prose a:not(.peer):not([data-card]) {
+  color: var(--brand-500) !important;
+  text-decoration: underline;
+  text-decoration-color: color-mix(in srgb, var(--brand-500) 40%, transparent);
+  text-underline-offset: 3px;
+  text-decoration-thickness: 1px;
+  transition: text-decoration-color 0.15s ease, color 0.15s ease;
+}
+[class*="prose"] a:not(.peer):not([data-card]):hover,
+.fd-prose a:not(.peer):not([data-card]):hover {
+  color: var(--brand-600) !important;
+  text-decoration-color: var(--brand-500);
+}
+
+/* Lists: branded markers, comfortable spacing. */
+[class*="prose"] ul > li::marker {
+  color: color-mix(in srgb, var(--brand-500) 70%, var(--txt-2));
+}
+[class*="prose"] ol > li::marker {
+  color: var(--txt-2);
+  font-weight: 600;
+}
+[class*="prose"] li {
+  margin-block: 0.3rem;
+}
+
+/* Blockquotes: editorial brand rule on a flat surface. */
+[class*="prose"] blockquote,
+.fd-prose blockquote {
+  border-left: 2px solid var(--brand-500);
+  background-color: color-mix(in srgb, var(--bg-surface) 55%, transparent);
+  border-radius: 0 10px 10px 0;
+  padding: 0.75rem 1rem;
+  margin: 1.25rem 0;
+  color: var(--txt-2);
+  font-style: normal;
+}
+[class*="prose"] blockquote p:last-child {
+  margin-bottom: 0;
+}
+
+/* Horizontal rules: a calm hairline with breathing room. */
+[class*="prose"] hr,
+.fd-prose hr {
+  border: 0;
+  border-top: 1px solid var(--hairline);
+  margin: 2rem 0;
+}
+
+/* Active sidebar item: a touch more weight so the brand tint reads. */
+#nd-sidebar a[data-active="true"] {
+  font-weight: 600;
+}
+
 /* ── Reduced motion ──────────────────────────────────────── */
 @media (prefers-reduced-motion: reduce) {
   .ww-pulse-ring,
@@ -828,17 +925,10 @@ html {
 }
 
 /* ── Docs sidebar spacing ────────────────────────────────── */
-#nav-sidebar nav > div > a,
-#nav-sidebar nav > div > div > a {
-  margin-block: 2px;
-}
-
-#nav-sidebar nav > div > p {
-  margin-top: 1rem;
-}
-
-#nav-sidebar nav > div > p:first-child {
-  margin-top: 0;
+/* Breathing room between nav items so adjacent active highlights
+   don't butt against each other. (#nd-sidebar is Fumadocs' id.) */
+#nd-sidebar a {
+  margin-block: 5px;
 }
 
 /* ──────────────────────────────────────────────────────────
@@ -959,50 +1049,107 @@ div[data-card]:hover {
   font-weight: 600;
 }
 
-/* Tabs. Pill segmented control matching the navbar theme toggle */
-[role="tablist"] {
-  background-color: var(--bg-surface) !important;
-  border: 1px solid var(--hairline) !important;
-  border-radius: 980px !important;
-  padding: 4px !important;
-  gap: 2px;
+/* Docs Tabs. Flat tab row mirroring the home DeveloperTabs window:
+   a hairline divider under the tabs (no pill, no gray strip) and a
+   subtle rounded highlight on the active tab. Scoped to docs prose so
+   it never reaches the home DeveloperTabs, which carries its own CSS. */
+[class*="prose"] *:has(> [role="tablist"]) {
+  background-color: var(--bg-base) !important;
+  border-color: var(--hairline) !important;
 }
-[role="tab"] {
-  border-radius: 980px !important;
-  padding: 0.4rem 1rem !important;
-  font-size: 0.85rem !important;
+[class*="prose"] [role="tablist"] {
+  background-color: transparent !important;
+  border: 0 !important;
+  border-bottom: 1px solid var(--hairline) !important;
+  border-radius: 0 !important;
+  padding: 0.5rem !important;
+  gap: 0.25rem !important;
+  margin: 0 !important;
+}
+[class*="prose"] [role="tab"] {
+  border-radius: 9px !important;
+  padding: 0.45rem 0.8rem !important;
+  font-size: 0.82rem !important;
   font-weight: 500;
   color: var(--txt-2) !important;
+  background-color: transparent !important;
   transition: background-color 0.15s ease, color 0.15s ease;
 }
-[role="tab"][data-state="active"],
-[role="tab"][aria-selected="true"] {
+[class*="prose"] [role="tab"]:hover {
+  color: var(--txt-1) !important;
+  background-color: color-mix(in srgb, var(--bg-surface) 60%, transparent) !important;
+}
+[class*="prose"] [role="tab"][data-state="active"],
+[class*="prose"] [role="tab"][aria-selected="true"] {
   background-color: var(--brand-50) !important;
-  color: var(--brand-500) !important;
+  color: var(--brand-600) !important;
+}
+[class*="prose"] [role="tabpanel"] {
+  padding-top: 0.85rem !important;
+}
+
+/* Docs tables. Flat hairline grid, centered status cells, and a sticky
+   first column so wide comparison tables stay readable while scrolling.
+   border-collapse:separate keeps the sticky column working; single
+   hairlines come from per-cell right/bottom borders. */
+[class*="prose"] table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  font-size: 0.8rem;
+  border-top: 1px solid var(--hairline);
+  border-left: 1px solid var(--hairline);
+}
+[class*="prose"] table th,
+[class*="prose"] table td {
+  border-right: 1px solid var(--hairline);
+  border-bottom: 1px solid var(--hairline);
+  padding: 0.5rem 0.7rem;
+  text-align: center;
+  vertical-align: middle;
+  white-space: nowrap;
+}
+[class*="prose"] table thead th {
+  background-color: var(--bg-surface);
+  color: var(--txt-1);
+  font-weight: 600;
+  white-space: normal;
+}
+[class*="prose"] table tbody tr:nth-child(even) td {
+  background-color: color-mix(in srgb, var(--bg-surface) 35%, transparent);
+}
+/* First column: labels. Left-aligned and emphasized. */
+[class*="prose"] table th:first-child,
+[class*="prose"] table td:first-child {
+  text-align: left;
+  white-space: normal;
+  font-weight: 600;
+  color: var(--txt-1);
 }
 
 /* Accordion. Match marketing landing FaqRow aesthetic.
    Fumadocs renders each item as <div data-state data-orientation>. */
 div[data-orientation="vertical"][data-state] {
   border: 1px solid var(--hairline) !important;
-  border-radius: 1rem !important;
+  border-radius: 12px !important;
   background-color: var(--bg-elev) !important;
-  margin-bottom: 0.6rem !important;
+  margin-bottom: 0.5rem !important;
   overflow: hidden;
-  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  transition: border-color 0.2s ease, background-color 0.2s ease;
 }
 div[data-orientation="vertical"][data-state="open"] {
   border-color: color-mix(in srgb, var(--brand-500) 30%, var(--hairline)) !important;
+  background-color: color-mix(in srgb, var(--brand-50) 35%, var(--bg-elev)) !important;
 }
 div[data-orientation="vertical"][data-state] > h3 {
   margin: 0 !important;
 }
 div[data-orientation="vertical"][data-state] > h3 > button {
   width: 100%;
-  padding: 1rem 1.25rem !important;
+  padding: 0.85rem 1.1rem !important;
   font-weight: 600 !important;
   color: var(--txt-1) !important;
-  font-size: 1rem !important;
+  font-size: 0.95rem !important;
 }
 div[data-orientation="vertical"][data-state] > h3 > button:hover {
   background-color: color-mix(in srgb, var(--brand-50) 60%, transparent) !important;

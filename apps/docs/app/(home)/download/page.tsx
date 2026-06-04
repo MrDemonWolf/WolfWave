@@ -80,7 +80,7 @@ export default function DownloadPage() {
               </a>
             </div>
 
-            {/* Now-playing flourish — product identity in the hero */}
+            {/* Now-playing flourish: product identity in the hero */}
             <div
               className="ww-reveal ww-reveal-3 mt-10 inline-flex items-center gap-3 ww-pulse-ring"
               style={{

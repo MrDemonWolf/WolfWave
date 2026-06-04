@@ -61,7 +61,7 @@ export default async function Page(props: PageProps<'/docs/[[...slug]]'>) {
           '@type': 'HowTo',
           name: 'Install WolfWave on macOS',
           description:
-            'Install WolfWave — the free Apple Music to Twitch, Discord, and OBS bridge — on macOS in under two minutes.',
+            'Install WolfWave, the free Apple Music to Twitch, Discord, and OBS bridge, on macOS in under two minutes.',
           totalTime: 'PT2M',
           supply: [
             { '@type': 'HowToSupply', name: 'Mac running macOS 26.0 or later' },
@@ -106,7 +106,7 @@ export default async function Page(props: PageProps<'/docs/[[...slug]]'>) {
       },
       {
         q: 'Do I need a Spotify account or premium?',
-        a: 'No. WolfWave reads directly from Apple Music on macOS — no Spotify, no premium, no extra subscription.',
+        a: 'No. WolfWave reads directly from Apple Music on macOS, with no Spotify, no premium, no extra subscription.',
       },
       {
         q: 'How do Twitch song requests work?',
@@ -124,7 +124,7 @@ export default async function Page(props: PageProps<'/docs/[[...slug]]'>) {
     support: [
       {
         q: 'Is WolfWave free?',
-        a: 'Yes. WolfWave is free and open source under the GPL-3.0 license. No accounts, no paywalls, no ads.',
+        a: 'Yes. WolfWave is free and open source under the GPL-3.0 license. No paywalls, no ads.',
       },
       {
         q: 'Does WolfWave track me or send data to servers?',
@@ -223,7 +223,7 @@ export async function generateMetadata(props: PageProps<'/docs/[[...slug]]'>): P
   const ogImage = getPageImage(page).url;
   const ogTitle = page.data.ogTitle ?? page.data.title;
   const ogDescription = page.data.ogDescription ?? page.data.description;
-  const alt = `${ogTitle} — WolfWave for Apple Music on macOS (Twitch, Discord, OBS)`;
+  const alt = `${ogTitle}. WolfWave for Apple Music on macOS (Twitch, Discord, OBS)`;
   const pageKeywords = page.data.keywords ?? [];
 
   return {

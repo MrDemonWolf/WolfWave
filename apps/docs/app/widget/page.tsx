@@ -184,7 +184,7 @@ function Widget() {
         setVisible(false);
         setNowPlaying(null);
         stopProgressLoop();
-        console.log("[WolfWave Widget] Disconnected — retrying in 5s");
+        console.log("[WolfWave Widget] Disconnected, retrying in 5s");
         wsRef.current = null;
         reconnectRef.current = setTimeout(connect, 5000);
       };
@@ -414,7 +414,7 @@ function Widget() {
           }}
         >
           {nowPlaying!.track}
-          <span style={{ color: theme.textMuted }}> — </span>
+          <span style={{ color: theme.textMuted }}> · </span>
           <span style={{ color: theme.textSecondary }}>
             {nowPlaying!.artist}
           </span>

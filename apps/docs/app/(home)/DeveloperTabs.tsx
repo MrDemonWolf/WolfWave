@@ -197,7 +197,7 @@ export function DeveloperTabs() {
           color: var(--txt-2);
           background: var(--bg-surface);
           border: 1px solid var(--hairline);
-          border-radius: 999px;
+          border-radius: var(--ww-radius-control);
         }
         .ww-dev-dot {
           width: 7px;

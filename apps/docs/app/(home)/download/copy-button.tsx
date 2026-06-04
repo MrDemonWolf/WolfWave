@@ -12,7 +12,7 @@ export function CopyButton({ value, label = "Copy" }: { value: string; label?: s
       setCopied(true);
       setTimeout(() => setCopied(false), 1600);
     } catch {
-      // clipboard blocked — no-op
+      // clipboard blocked, no-op
     }
   }
 

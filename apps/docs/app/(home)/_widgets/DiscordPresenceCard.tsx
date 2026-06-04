@@ -62,7 +62,7 @@ export function DiscordPresenceCard() {
         boxShadow: "0 8px 24px -16px rgba(0,0,0,0.4)",
       }}
     >
-      {/* Header strip — mirrors Discord's "Listening to <app>" row. */}
+      {/* Header strip, mirrors Discord's "Listening to <app>" row. */}
       <div
         style={{
           backgroundColor: palette.headerBg,
@@ -290,7 +290,7 @@ function DiscordButton({
   return (
     <button
       type="button"
-      // Demo-only — clicking does nothing. Disabled for screen readers
+      // Demo-only, clicking does nothing. Disabled for screen readers
       // so they don't announce an actionable control we can't honor.
       aria-disabled="true"
       tabIndex={-1}

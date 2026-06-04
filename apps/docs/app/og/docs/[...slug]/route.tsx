@@ -24,7 +24,7 @@ function parseLatestChangelog(): ChangelogInfo | null {
   try {
     const filePath = path.join(process.cwd(), 'content/docs/changelog.mdx');
     const raw = readFileSync(filePath, 'utf-8');
-    const versionMatch = raw.match(/^##\s+v(\d[\d.]*)\s*[—–-]\s*(.+)$/m);
+    const versionMatch = raw.match(/^##\s+v(\d[\d.]*)\s*[–-]\s*(.+)$/m);
     if (!versionMatch) return null;
     const version = versionMatch[1];
     const date = versionMatch[2].trim();

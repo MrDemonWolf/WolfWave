@@ -128,7 +128,7 @@ const jsonLd = {
     "Discord Rich Presence, Listening to WolfWave with Apple Music album art",
     "OBS browser-source overlay with 6 themes and 3 layouts",
     "Vote-to-skip via chat or Twitch Polls",
-    "macOS menu bar app, no account required",
+    "macOS menu bar app",
   ],
   license: "https://github.com/mrdemonwolf/wolfwave/blob/main/LICENSE",
 };
