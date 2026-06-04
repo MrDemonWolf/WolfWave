@@ -45,7 +45,6 @@ struct DebugInspectorsCard: View {
             Divider()
             userDefaultsSection
         }
-        .id(refreshTick)
         .cardStyle()
         .task(id: refreshTick) {
             let presence = await Task.detached(priority: .userInitiated) {
@@ -61,6 +60,12 @@ struct DebugInspectorsCard: View {
                 keychainPresence = presence
                 keychainLoaded = true
             }
+        }
+        // Twitch login writes its token + IDs to the Keychain on a background
+        // path; without this the card keeps showing the pre-login presence until
+        // the user hits refresh. Bumping the tick re-runs `.task(id:)` above.
+        .onReceive(NotificationCenter.default.publisher(for: Notification.Name.twitchConnectionStateChanged)) { _ in
+            refreshTick &+= 1
         }
     }
 
