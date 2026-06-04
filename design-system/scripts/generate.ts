@@ -43,6 +43,40 @@ function swiftColor(hex: string): string {
   return `Color(red: ${f(r)}, green: ${f(g)}, blue: ${f(b)}, opacity: ${f(a)})`;
 }
 
+/**
+ * Parse a CSS color string into a Swift `Color` literal, or `null` when the
+ * value is `transparent` / `none` / empty (the native preview renders those as
+ * a `nil` optional and skips the layer). Supports `#hex`, `rgb()/rgba()`, and
+ * `linear-gradient(...)` (the native preview is a flat approximation, so the
+ * gradient's first color stop stands in for the whole fill).
+ */
+function cssColorToSwift(css: string): string | null {
+  const v = (css || "").trim();
+  if (v === "" || v === "transparent" || v === "none") return null;
+  if (v.startsWith("#")) return swiftColor(v);
+
+  const rgb = v.match(/rgba?\(\s*([\d.]+)\s*,\s*([\d.]+)\s*,\s*([\d.]+)\s*(?:,\s*([\d.]+)\s*)?\)/);
+  if (rgb) {
+    const f = (n: number) => n.toFixed(3);
+    const r = Number(rgb[1]) / 255;
+    const g = Number(rgb[2]) / 255;
+    const b = Number(rgb[3]) / 255;
+    const a = rgb[4] === undefined ? 1 : Number(rgb[4]);
+    if (a >= 0.999) return `Color(red: ${f(r)}, green: ${f(g)}, blue: ${f(b)})`;
+    return `Color(red: ${f(r)}, green: ${f(g)}, blue: ${f(b)}, opacity: ${f(a)})`;
+  }
+
+  // Gradients / shorthand (e.g. "1px solid #00FFAA"): use the first color stop.
+  const first = v.match(/#[0-9a-fA-F]{3,8}|rgba?\([^)]+\)/);
+  if (first) return cssColorToSwift(first[0]);
+  return null;
+}
+
+/** Emit a Swift `Color?` literal — `cssColorToSwift` result or `nil`. */
+function swiftOptionalColor(css: string): string {
+  return cssColorToSwift(css) ?? "nil";
+}
+
 function write(path: string, content: string) {
   const full = resolve(ROOT, path);
   mkdirSync(dirname(full), { recursive: true });
@@ -181,6 +215,100 @@ function generateSwift(): string {
     lines.push(`        static let ${k}: CGFloat = ${v}`);
   }
   lines.push("    }", "}", "");
+
+  // ── Widget theme palettes (mirrors `widget.html` so the native Settings
+  //    preview matches what overlays render). Color strings are parsed to
+  //    SwiftUI `Color`; `transparent`/`none`/gradients degrade gracefully. ──
+  const widgetThemes = (tokens.widget?.themes ?? {}) as Record<
+    string,
+    Record<string, string | boolean>
+  >;
+  const widgetLayouts = (tokens.widget?.layouts ?? {}) as Record<
+    string,
+    { maxWidth: number; height: number }
+  >;
+  const customizable = new Set(["Default", "Glass"]);
+
+  lines.push(
+    "/// Generated widget theme palette. Mirrors `widget.html` so the in-app",
+    "/// appearance preview matches what overlays render. `nil` color = the",
+    "/// widget draws nothing for that layer (transparent background, no border).",
+    "nonisolated struct DSWidgetTheme {",
+    "    let containerBg: Color?",
+    "    let borderColor: Color?",
+    "    let cornerRadius: CGFloat",
+    "    let overlayBg: Color?",
+    "    let textPrimary: Color",
+    "    let textSecondary: Color",
+    "    let textMuted: Color",
+    "    let progressTrack: Color",
+    "    let progressFill: Color",
+    "    let showArtworkBlur: Bool",
+    "    /// `true` for themes whose text + background colors the user can override",
+    "    /// (Default, Glass). Preset themes ship fixed palettes.",
+    "    let userCustomizable: Bool",
+    "}",
+    ""
+  );
+
+  const themeLiteral = (t: Record<string, string | boolean>, name: string): string => {
+    const radius = parseFloat(String(t.containerRadius ?? "12")) || 12;
+    return [
+      "DSWidgetTheme(",
+      `        containerBg: ${swiftOptionalColor(String(t.containerBg ?? ""))},`,
+      `        borderColor: ${swiftOptionalColor(String(t.containerBorder ?? ""))},`,
+      `        cornerRadius: ${radius},`,
+      `        overlayBg: ${swiftOptionalColor(String(t.overlayBg ?? ""))},`,
+      `        textPrimary: ${cssColorToSwift(String(t.textPrimary ?? "#FFFFFF")) ?? "Color.white"},`,
+      `        textSecondary: ${cssColorToSwift(String(t.textSecondary ?? "#FFFFFF")) ?? "Color.white"},`,
+      `        textMuted: ${cssColorToSwift(String(t.textMuted ?? "#FFFFFF")) ?? "Color.white"},`,
+      `        progressTrack: ${cssColorToSwift(String(t.progressTrackBg ?? "#FFFFFF")) ?? "Color.white"},`,
+      `        progressFill: ${cssColorToSwift(String(t.progressFillBg ?? "#FFFFFF")) ?? "Color.white"},`,
+      `        showArtworkBlur: ${t.showArtworkBlur === true},`,
+      `        userCustomizable: ${customizable.has(name)}`,
+      "    )",
+    ].join("\n    ");
+  };
+
+  const visibleThemes = Object.entries(widgetThemes).filter(([, v]) => v.hidden !== true);
+  const fallbackEntry = widgetThemes["Default"] ?? Object.values(widgetThemes)[0] ?? {};
+
+  lines.push(
+    "/// Generated widget theme + layout lookup for the appearance preview.",
+    "nonisolated enum DSWidgetThemes {",
+    `    /// Picker order, excluding \`hidden\` themes.`,
+    `    static let order: [String] = [${visibleThemes.map(([k]) => `"${k}"`).join(", ")}]`,
+    ""
+  );
+  lines.push("    static let all: [String: DSWidgetTheme] = [");
+  for (const [name, t] of Object.entries(widgetThemes)) {
+    lines.push(`        "${name}": ${themeLiteral(t, name)},`);
+  }
+  lines.push("    ]", "");
+  lines.push(`    static let fallback = ${themeLiteral(fallbackEntry as Record<string, string | boolean>, "Default")}`);
+  lines.push(
+    "",
+    "    /// Theme palette by name, falling back to Default for unknown names.",
+    "    static func resolve(_ name: String) -> DSWidgetTheme { all[name] ?? fallback }",
+    "}",
+    ""
+  );
+
+  const fallbackLayout = widgetLayouts["Horizontal"] ?? { maxWidth: 500, height: 100 };
+  lines.push(
+    "/// Generated widget layout dimensions (points) used to size the preview.",
+    "nonisolated enum DSWidgetLayouts {",
+    "    static let sizes: [String: CGSize] = ["
+  );
+  for (const [name, dims] of Object.entries(widgetLayouts)) {
+    lines.push(`        "${name}": CGSize(width: ${dims.maxWidth}, height: ${dims.height}),`);
+  }
+  lines.push("    ]", "");
+  lines.push(
+    `    static func size(_ name: String) -> CGSize { sizes[name] ?? CGSize(width: ${fallbackLayout.maxWidth}, height: ${fallbackLayout.height}) }`,
+    "}",
+    ""
+  );
 
   return lines.join("\n") + "\n";
 }

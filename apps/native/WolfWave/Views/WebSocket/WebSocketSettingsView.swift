@@ -767,6 +767,7 @@ fileprivate struct WebSocketWidgetAppearanceCard: View {
         VStack(alignment: .leading, spacing: DSSpace.s6) {
             widgetAppearanceHeader
             widgetAppearanceCard
+            WidgetAppearancePreview()
         }
         .task {
             guard fontFamilies.isEmpty else { return }

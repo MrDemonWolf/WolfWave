@@ -196,3 +196,137 @@ nonisolated enum DSDimension {
     }
 }
 
+/// Generated widget theme palette. Mirrors `widget.html` so the in-app
+/// appearance preview matches what overlays render. `nil` color = the
+/// widget draws nothing for that layer (transparent background, no border).
+nonisolated struct DSWidgetTheme {
+    let containerBg: Color?
+    let borderColor: Color?
+    let cornerRadius: CGFloat
+    let overlayBg: Color?
+    let textPrimary: Color
+    let textSecondary: Color
+    let textMuted: Color
+    let progressTrack: Color
+    let progressFill: Color
+    let showArtworkBlur: Bool
+    /// `true` for themes whose text + background colors the user can override
+    /// (Default, Glass). Preset themes ship fixed palettes.
+    let userCustomizable: Bool
+}
+
+/// Generated widget theme + layout lookup for the appearance preview.
+nonisolated enum DSWidgetThemes {
+    /// Picker order, excluding `hidden` themes.
+    static let order: [String] = ["Default", "Dark", "Light", "Glass", "Neon"]
+
+    static let all: [String: DSWidgetTheme] = [
+        "Default": DSWidgetTheme(
+            containerBg: nil,
+            borderColor: nil,
+            cornerRadius: 12,
+            overlayBg: Color(red: 0.000, green: 0.000, blue: 0.000, opacity: 0.500),
+            textPrimary: Color(red: 1.000, green: 1.000, blue: 1.000),
+            textSecondary: Color(red: 1.000, green: 1.000, blue: 1.000, opacity: 0.900),
+            textMuted: Color(red: 1.000, green: 1.000, blue: 1.000, opacity: 0.700),
+            progressTrack: Color(red: 1.000, green: 1.000, blue: 1.000, opacity: 0.200),
+            progressFill: Color(red: 1.000, green: 1.000, blue: 1.000),
+            showArtworkBlur: true,
+            userCustomizable: true
+        ),
+        "Dark": DSWidgetTheme(
+            containerBg: Color(red: 0.051, green: 0.051, blue: 0.051),
+            borderColor: Color(red: 1.000, green: 1.000, blue: 1.000, opacity: 0.080),
+            cornerRadius: 12,
+            overlayBg: nil,
+            textPrimary: Color(red: 0.894, green: 0.894, blue: 0.906),
+            textSecondary: Color(red: 0.631, green: 0.631, blue: 0.667),
+            textMuted: Color(red: 0.443, green: 0.443, blue: 0.478),
+            progressTrack: Color(red: 1.000, green: 1.000, blue: 1.000, opacity: 0.080),
+            progressFill: Color(red: 0.655, green: 0.545, blue: 0.980),
+            showArtworkBlur: false,
+            userCustomizable: false
+        ),
+        "Light": DSWidgetTheme(
+            containerBg: Color(red: 1.000, green: 1.000, blue: 1.000, opacity: 0.920),
+            borderColor: Color(red: 0.000, green: 0.000, blue: 0.000, opacity: 0.080),
+            cornerRadius: 12,
+            overlayBg: nil,
+            textPrimary: Color(red: 0.094, green: 0.094, blue: 0.106),
+            textSecondary: Color(red: 0.247, green: 0.247, blue: 0.275),
+            textMuted: Color(red: 0.443, green: 0.443, blue: 0.478),
+            progressTrack: Color(red: 0.000, green: 0.000, blue: 0.000, opacity: 0.080),
+            progressFill: Color(red: 0.231, green: 0.510, blue: 0.965),
+            showArtworkBlur: false,
+            userCustomizable: false
+        ),
+        "Glass": DSWidgetTheme(
+            containerBg: Color(red: 0.000, green: 0.000, blue: 0.000, opacity: 0.300),
+            borderColor: Color(red: 1.000, green: 1.000, blue: 1.000, opacity: 0.100),
+            cornerRadius: 16,
+            overlayBg: nil,
+            textPrimary: Color(red: 0.961, green: 0.961, blue: 0.969),
+            textSecondary: Color(red: 0.961, green: 0.961, blue: 0.969, opacity: 0.800),
+            textMuted: Color(red: 0.961, green: 0.961, blue: 0.969, opacity: 0.500),
+            progressTrack: Color(red: 1.000, green: 1.000, blue: 1.000, opacity: 0.100),
+            progressFill: Color(red: 0.000, green: 0.478, blue: 1.000),
+            showArtworkBlur: false,
+            userCustomizable: true
+        ),
+        "Neon": DSWidgetTheme(
+            containerBg: Color(red: 0.039, green: 0.039, blue: 0.118, opacity: 0.850),
+            borderColor: Color(red: 0.000, green: 1.000, blue: 0.667),
+            cornerRadius: 12,
+            overlayBg: nil,
+            textPrimary: Color(red: 0.000, green: 1.000, blue: 0.667),
+            textSecondary: Color(red: 0.000, green: 0.898, blue: 1.000),
+            textMuted: Color(red: 0.000, green: 1.000, blue: 0.667, opacity: 0.500),
+            progressTrack: Color(red: 0.000, green: 1.000, blue: 0.667, opacity: 0.150),
+            progressFill: Color(red: 0.000, green: 1.000, blue: 0.667),
+            showArtworkBlur: false,
+            userCustomizable: false
+        ),
+        "WolfWave": DSWidgetTheme(
+            containerBg: Color(red: 0.110, green: 0.110, blue: 0.118, opacity: 0.920),
+            borderColor: Color(red: 0.039, green: 0.518, blue: 1.000, opacity: 0.400),
+            cornerRadius: 14,
+            overlayBg: nil,
+            textPrimary: Color(red: 0.961, green: 0.961, blue: 0.969),
+            textSecondary: Color(red: 0.631, green: 0.631, blue: 0.651),
+            textMuted: Color(red: 0.431, green: 0.431, blue: 0.451),
+            progressTrack: Color(red: 0.039, green: 0.518, blue: 1.000, opacity: 0.150),
+            progressFill: Color(red: 0.039, green: 0.518, blue: 1.000),
+            showArtworkBlur: true,
+            userCustomizable: false
+        ),
+    ]
+
+    static let fallback = DSWidgetTheme(
+            containerBg: nil,
+            borderColor: nil,
+            cornerRadius: 12,
+            overlayBg: Color(red: 0.000, green: 0.000, blue: 0.000, opacity: 0.500),
+            textPrimary: Color(red: 1.000, green: 1.000, blue: 1.000),
+            textSecondary: Color(red: 1.000, green: 1.000, blue: 1.000, opacity: 0.900),
+            textMuted: Color(red: 1.000, green: 1.000, blue: 1.000, opacity: 0.700),
+            progressTrack: Color(red: 1.000, green: 1.000, blue: 1.000, opacity: 0.200),
+            progressFill: Color(red: 1.000, green: 1.000, blue: 1.000),
+            showArtworkBlur: true,
+            userCustomizable: true
+        )
+
+    /// Theme palette by name, falling back to Default for unknown names.
+    static func resolve(_ name: String) -> DSWidgetTheme { all[name] ?? fallback }
+}
+
+/// Generated widget layout dimensions (points) used to size the preview.
+nonisolated enum DSWidgetLayouts {
+    static let sizes: [String: CGSize] = [
+        "Horizontal": CGSize(width: 500, height: 100),
+        "Vertical": CGSize(width: 220, height: 280),
+        "Compact": CGSize(width: 350, height: 56),
+    ]
+
+    static func size(_ name: String) -> CGSize { sizes[name] ?? CGSize(width: 500, height: 100) }
+}
+
