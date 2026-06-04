@@ -32,6 +32,7 @@ One markdown entry per reusable view. Stubs marked `(stub)` need filling in as w
 | ViewModifiers (cardStyle, interactiveRow, …) | [view-modifiers.md](view-modifiers.md) | drafted |
 | StreamerModeBadge | [streamer-mode-badge.md](streamer-mode-badge.md) | drafted |
 | ResponsiveRow | [responsive-row.md](responsive-row.md) | drafted |
+| SettingsNavRail | [settings-nav-rail.md](settings-nav-rail.md) | drafted |
 
 ## History (`apps/native/WolfWave/Views/HistoryStats/`)
 

@@ -21,17 +21,37 @@ struct SongRequestSettingsView: View {
     @State private var musicAuthStatus: MusicAuthorization.Status = MusicAuthorization.currentStatus
     @State private var isRequestingMusicAuth = false
 
-    @State private var selectedTab: RequestTab = .overview
+    @State private var selected: RequestSection = .overview
 
-    /// In-pane sections, surfaced as a segmented control so the long
-    /// configuration splits into focused groups instead of one long scroll.
-    private enum RequestTab: String, CaseIterable, Identifiable {
-        case overview = "Overview"
-        case access = "Access"
-        case queue = "Queue"
-        case commands = "Commands"
-        case points = "Points"
-        var id: String { rawValue }
+    /// In-pane sections, surfaced as a jump-nav rail (shared ``SettingsNavRail``)
+    /// so the long configuration reads as one scroll with focused groups instead
+    /// of swapping content. Matches the General and Debug panes.
+    private enum RequestSection: String, CaseIterable, SettingsRailSection {
+        case overview
+        case access
+        case queue
+        case commands
+        case points
+
+        var title: String {
+            switch self {
+            case .overview: return "Overview"
+            case .access: return "Access"
+            case .queue: return "Queue"
+            case .commands: return "Commands"
+            case .points: return "Points"
+            }
+        }
+
+        var icon: String {
+            switch self {
+            case .overview: return "music.note.list"
+            case .access: return "person.2"
+            case .queue: return "list.number"
+            case .commands: return "text.bubble"
+            case .points: return "star.circle"
+            }
+        }
     }
 
     private var appDelegate: AppDelegate? { AppDelegate.shared }
@@ -39,30 +59,11 @@ struct SongRequestSettingsView: View {
     // MARK: - Body
 
     var body: some View {
-        VStack(alignment: .leading, spacing: DSSpace.s8) {
-            SongRequestHeader()
-
-            if !isTwitchConnected {
-                CalloutBanner(
-                    "Connect with Twitch to enable song requests.",
-                    style: .info,
-                    systemImage: "lock.fill"
-                )
-            }
-
-            SongRequestMasterToggleCard(isTwitchConnected: isTwitchConnected)
-
+        Group {
             if songRequestEnabled {
-                Picker("Section", selection: $selectedTab) {
-                    ForEach(RequestTab.allCases) { tab in
-                        Text(tab.rawValue).tag(tab)
-                    }
-                }
-                .pickerStyle(.segmented)
-                .labelsHidden()
-                .accessibilityIdentifier("songRequestTabPicker")
-
-                tabContent
+                enabledLayout
+            } else {
+                disabledLayout
             }
         }
         .onAppear {
@@ -76,12 +77,37 @@ struct SongRequestSettingsView: View {
         }
     }
 
-    /// The card stack for the selected tab. Each card is the same component the
-    /// page used before; only their grouping into tabs is new.
-    @ViewBuilder
-    private var tabContent: some View {
-        switch selectedTab {
-        case .overview:
+    /// Feature off: a single centered, width-clamped column with just the
+    /// explainer + master toggle. The pane owns its own scroll (it bypasses the
+    /// shell's `standardDetailScroll`), so this mirrors that wrapper's geometry.
+    private var disabledLayout: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: DSSpace.s8) {
+                SongRequestHeader()
+                twitchNotice
+                SongRequestMasterToggleCard(isTwitchConnected: isTwitchConnected)
+            }
+            .frame(maxWidth: AppConstants.SettingsUI.maxContentWidth, alignment: .topLeading)
+            .frame(maxWidth: .infinity, alignment: .center)
+            .padding(.horizontal, AppConstants.SettingsUI.contentPaddingH)
+            .padding(.vertical, AppConstants.SettingsUI.contentPaddingV)
+        }
+    }
+
+    /// Feature on: the shared jump-nav rail with one always-mounted scroll column.
+    /// Each section's first view carries the `.railSection(_:)` scroll anchor; the
+    /// Overview anchor rides the page header so jumping to it scrolls to the top.
+    private var enabledLayout: some View {
+        SettingsNavRail(
+            selection: $selected,
+            groups: [SettingsRailGroup(sections: RequestSection.allCases)],
+            accessibilityIDPrefix: "songRequestNav"
+        ) {
+            // Overview
+            SongRequestHeader()
+                .railSection(RequestSection.overview)
+            twitchNotice
+            SongRequestMasterToggleCard(isTwitchConnected: isTwitchConnected)
             if musicAuthStatus != .authorized {
                 SongRequestMusicAuthCard(
                     musicAuthStatus: $musicAuthStatus,
@@ -89,17 +115,38 @@ struct SongRequestSettingsView: View {
                 )
             }
             SongRequestQueueView()
-        case .access:
+
+            // Access
             SongRequestAccessCard()
+                .railSection(RequestSection.access)
             VoteSkipCard()
-        case .queue:
+
+            // Queue
             SongRequestQueueConfigCard()
+                .railSection(RequestSection.queue)
             SongRequestPlaybackCard()
             SongRequestBlocklistCard(blocklistProvider: { appDelegate?.songRequestService?.blocklist })
-        case .commands:
+
+            // Commands
             SongRequestCommandsCard()
-        case .points:
+                .railSection(RequestSection.commands)
+
+            // Points
             SongRequestRedemptionsCard()
+                .railSection(RequestSection.points)
+        }
+    }
+
+    /// Shown when Twitch isn't connected. Hidden once connected (and the master
+    /// toggle stays disabled until then via `SongRequestMasterToggleCard`).
+    @ViewBuilder
+    private var twitchNotice: some View {
+        if !isTwitchConnected {
+            CalloutBanner(
+                "Connect with Twitch to enable song requests.",
+                style: .info,
+                systemImage: "lock.fill"
+            )
         }
     }
 
