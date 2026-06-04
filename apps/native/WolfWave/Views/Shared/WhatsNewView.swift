@@ -21,6 +21,7 @@ struct WhatsNewView: View {
     private let features: [(icon: String, iconColor: Color, title: String, description: String)] = [
         ("music.mic", .pink, "Song Requests", "Viewers add tracks with !sr. No focus-steal."),
         ("hand.raised.fill", .cyan, "Chat Vote-Skip", "!vs lets chat vote out a song. Chat tally or Twitch Polls."),
+        ("megaphone.fill", .brown, "!wolfwave Command", "A one-tap chat shoutout for the app. Four reply styles."),
         ("chart.bar.fill", .green, "Listening History & Stats", "Top artists, weekly trend, hourly pattern. On-device only."),
         ("calendar", .purple, "Monthly Wrap", "Personal Wrapped for any month. Export as PNG."),
         ("bell.badge.fill", .orange, "Song Notifications", "Optional macOS notification on every track change."),

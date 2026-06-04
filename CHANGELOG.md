@@ -19,6 +19,7 @@ All notable changes to this project will be documented in this file.
 - **Stats and Charts.** Top artists, listening time, a 7-day play trend, and a listening-by-hour breakdown in the new History & Stats section, drawn with SwiftUI Charts. Needs Listening History turned on. Laid out as a two-column dashboard that drops to one column on a narrow window: the summary tiles sit beside a today's-top-track highlight, the two charts sit side by side, and one Top card switches between artists, tracks, and albums.
 - **Monthly Wrap.** A personal "wrapped"-style summary for any month. Save the card as a PNG, or send it straight to Messages, Mail, AirDrop, and more through the macOS share sheet.
 - **`!stats` command.** Viewers can ask for today's top track in Twitch chat. It only replies while your stream is live (via `stream.online` / `stream.offline` events).
+- **`!wolfwave` command.** A one-tap chat shoutout for the app. Viewers run `!wolfwave` and the bot replies with what WolfWave is, who makes it, and where to get it. Off by default. Pick from four reply styles (credit + maker, viewer how-to, open-source pitch, or short) in Settings → Twitch → Bot Commands, with the same cooldowns, mod bypass, and custom aliases as `!song`.
 - **Song Requests.** Viewers can request songs in Twitch chat with `!sr <song>`. Requests play through Apple Music without stealing focus from your stream.
 - **`!queue` / `!myqueue`.** Show the whole request queue, or just a viewer's own requests, in chat.
 - **`!skip` / `!next`.** Mods and the broadcaster can skip the current request.

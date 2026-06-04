@@ -11,11 +11,14 @@ import {
   Shield,
   Music,
   Code2,
+  DollarSign,
+  EyeOff,
+  Scale,
   Headphones,
   Star,
-  Tag,
   Terminal,
   Twitch,
+  UserX,
   X as XIcon,
 } from "lucide-react";
 import { DeveloperTabs } from "./DeveloperTabs";
@@ -222,18 +225,6 @@ export default async function HomePage() {
                 </a>
                 <span className="ww-pill">macOS 26+ · Apple Silicon</span>
                 <span className="ww-pill">Under 30 MB</span>
-                <span className="ww-pill">
-                  <Shield className="w-3 h-3" /> Signed &amp; notarized by Apple
-                </span>
-                <a
-                  href={DISCORD_URL}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="ww-pill"
-                  aria-label="Join the Discord community"
-                >
-                  <Radio className="w-3 h-3" /> Discord community
-                </a>
               </div>
             </div>
 
@@ -501,86 +492,91 @@ export default async function HomePage() {
           />
 
           <div className="ww-proof mt-12">
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-              {[
-                { value: "$0", label: "Free forever. No tiers, no upsell." },
-                { value: "GPL-3.0", label: "Open source. Fork it freely." },
-                { value: "0", label: "Trackers, servers, or telemetry." },
-                {
-                  value: "macOS 26+",
-                  label: "Apple Silicon. Notarized by Apple.",
-                },
-              ].map((stat) => (
-                <div key={stat.label} className="ww-stat">
-                  <span className="ww-stat-value">{stat.value}</span>
-                  <span className="ww-stat-label">{stat.label}</span>
+            <div className="grid gap-5 sm:gap-6 lg:grid-cols-[1.05fr_1fr] lg:items-stretch">
+              {/* Download card — the primary action, with platform facts and
+                  the live star count baked in from getRepoStats at build time. */}
+              <div className="ww-download-card">
+                <div>
+                  <p className="ww-download-eyebrow">Get WolfWave</p>
+                  <p className="ww-download-headline">Free for macOS.</p>
                 </div>
-              ))}
-            </div>
+                <div className="ww-download-actions">
+                  <Link
+                    href="/download"
+                    className="ww-btn ww-btn-primary ww-btn-lg"
+                  >
+                    <Download className="w-4 h-4" />
+                    Download for Mac
+                  </Link>
+                  <p className="ww-download-meta">
+                    <span>
+                      latest{" "}
+                      <b className="ww-chip-strong">{latest ?? "release"}</b>
+                    </span>
+                    <span className="ww-download-sep" aria-hidden="true">
+                      ·
+                    </span>
+                    <span>Under 30 MB</span>
+                    <span className="ww-download-sep" aria-hidden="true">
+                      ·
+                    </span>
+                    <span>macOS 26+ · Apple Silicon</span>
+                  </p>
+                  <a
+                    href={REPO_URL}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="ww-btn ww-btn-ghost"
+                    aria-label={
+                      stars != null
+                        ? `Star WolfWave on GitHub, ${stars} stars`
+                        : "Star WolfWave on GitHub"
+                    }
+                  >
+                    <Star className="w-4 h-4" />
+                    {stars != null ? (
+                      <>
+                        <b className="ww-chip-strong">{fmtStars(stars)}</b> · Star
+                        on GitHub
+                      </>
+                    ) : (
+                      "Star on GitHub"
+                    )}
+                  </a>
+                </div>
+              </div>
 
-            {/* Native trust chips. Star count + latest release are baked in
-                from the GitHub API at build time (see getRepoStats). */}
-            <div className="mt-6 ww-badge-bar">
-              <a
-                href={REPO_URL}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="ww-chip"
-                aria-label={
-                  stars != null
-                    ? `WolfWave on GitHub, ${stars} stars`
-                    : "Star WolfWave on GitHub"
-                }
-              >
-                <Github className="w-3.5 h-3.5" />
-                {stars != null ? (
-                  <>
-                    <b className="ww-chip-strong">{fmtStars(stars)}</b> stars
-                  </>
-                ) : (
-                  "Star on GitHub"
-                )}
-              </a>
-              <a
-                href={`${REPO_URL}/releases/latest`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="ww-chip"
-                aria-label="Latest release on GitHub"
-              >
-                <Tag className="w-3.5 h-3.5" />
-                latest <b className="ww-chip-strong">{latest ?? "release"}</b>
-              </a>
-              <a
-                href={DISCORD_URL}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="ww-chip"
-                aria-label="Discord community"
-              >
-                <Radio className="w-3.5 h-3.5" />
-                Discord community
-              </a>
-              <span className="ww-chip">
-                <Shield className="w-3.5 h-3.5" />
-                Signed by Apple
-              </span>
-            </div>
-
-            <div className="mt-7 flex flex-col sm:flex-row items-center justify-center gap-3">
-              <Link href="/download" className="ww-btn ww-btn-primary">
-                <Download className="w-4 h-4" />
-                Download for Mac
-              </Link>
-              <a
-                href={REPO_URL}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="ww-btn ww-btn-ghost"
-              >
-                <Star className="w-4 h-4" />
-                Star on GitHub
-              </a>
+              {/* Proof grid — the trust facts, 2x2. */}
+              <div className="grid grid-cols-2 gap-3 sm:gap-4">
+                {[
+                  {
+                    Icon: DollarSign,
+                    value: "$0",
+                    label: "Free forever. No tiers, no upsell.",
+                  },
+                  {
+                    Icon: Scale,
+                    value: "GPL-3.0",
+                    label: "Open source. Fork it freely.",
+                  },
+                  {
+                    Icon: EyeOff,
+                    value: "0",
+                    label: "Trackers, servers, or telemetry.",
+                  },
+                  {
+                    Icon: UserX,
+                    value: "No account",
+                    label: "Nothing to sign up for.",
+                  },
+                ].map(({ Icon, value, label }) => (
+                  <div key={label} className="ww-stat">
+                    <Icon className="ww-stat-icon w-5 h-5" aria-hidden="true" />
+                    <span className="ww-stat-value">{value}</span>
+                    <span className="ww-stat-label">{label}</span>
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
         </div>

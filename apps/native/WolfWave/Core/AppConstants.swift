@@ -321,6 +321,24 @@ nonisolated enum AppConstants {
         /// Custom aliases for !last command (String, comma-separated)
         static let lastSongCommandAliases = "lastSongCommandAliases"
 
+        // MARK: WolfWave Command Keys
+
+        /// Whether the !wolfwave info command is enabled (Bool, default: false)
+        static let wolfwaveCommandEnabled = "wolfwaveCommandEnabled"
+
+        /// Global cooldown for the !wolfwave command in seconds (Double, default: 15.0)
+        static let wolfwaveCommandGlobalCooldown = "wolfwaveCommandGlobalCooldown"
+
+        /// Per-user cooldown for the !wolfwave command in seconds (Double, default: 15.0)
+        static let wolfwaveCommandUserCooldown = "wolfwaveCommandUserCooldown"
+
+        /// Custom aliases for the !wolfwave command (String, comma-separated)
+        static let wolfwaveCommandAliases = "wolfwaveCommandAliases"
+
+        /// Selected !wolfwave reply style raw value (String, default: "credit").
+        /// Maps to `WolfWaveReplyStyle`.
+        static let wolfwaveCommandReplyStyle = "wolfwaveCommandReplyStyle"
+
         /// Widget theme name (String, default: "Default")
         static let widgetTheme = "widgetTheme"
 
@@ -546,6 +564,11 @@ nonisolated enum AppConstants {
             lastSongCommandUserCooldown,
             songCommandAliases,
             lastSongCommandAliases,
+            wolfwaveCommandEnabled,
+            wolfwaveCommandGlobalCooldown,
+            wolfwaveCommandUserCooldown,
+            wolfwaveCommandAliases,
+            wolfwaveCommandReplyStyle,
             songCommandSongLinkEnabled,
             widgetTheme,
             widgetLayout,
@@ -635,6 +658,12 @@ nonisolated enum AppConstants {
             lastSongCommandGlobalCooldown,
             lastSongCommandUserCooldown,
             lastSongCommandAliases,
+            // WolfWave info command
+            wolfwaveCommandEnabled,
+            wolfwaveCommandGlobalCooldown,
+            wolfwaveCommandUserCooldown,
+            wolfwaveCommandAliases,
+            wolfwaveCommandReplyStyle,
             // Discord Rich Presence (local IPC, no account/login)
             discordPresenceEnabled,
             discordButton1Enabled,

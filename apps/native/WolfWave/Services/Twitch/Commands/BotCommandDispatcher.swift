@@ -41,6 +41,15 @@ final class BotCommandDispatcher {
         userCooldownKey: AppConstants.UserDefaults.statsCommandUserCooldown,
         aliasesKey: AppConstants.UserDefaults.statsCommandAliases
     )
+    private let wolfwaveCommand = InfoCommand(
+        triggers: ["!wolfwave"],
+        description: "Shows what WolfWave is and where to get it",
+        enabledDefaultsKey: AppConstants.UserDefaults.wolfwaveCommandEnabled,
+        globalCooldownKey: AppConstants.UserDefaults.wolfwaveCommandGlobalCooldown,
+        userCooldownKey: AppConstants.UserDefaults.wolfwaveCommandUserCooldown,
+        aliasesKey: AppConstants.UserDefaults.wolfwaveCommandAliases,
+        messageProvider: { WolfWaveReplyStyle.current().message }
+    )
     private let cooldownManager = CooldownManager()
 
     // Song request commands
@@ -57,12 +66,14 @@ final class BotCommandDispatcher {
         registerDefaultCommands()
     }
 
-    /// Registers the built-in command suite (`!song`, `!last`, `!sr`, `!queue`,
-    /// `!myqueue`, `!skip`, `!clearqueue`, `!hold`, `!voteskip`). Called once from `init`.
+    /// Registers the built-in command suite (`!song`, `!last`, `!stats`,
+    /// `!wolfwave`, `!sr`, `!queue`, `!myqueue`, `!skip`, `!clearqueue`,
+    /// `!hold`, `!voteskip`). Called once from `init`.
     private func registerDefaultCommands() {
         register(songCommand)
         register(lastSongCommand)
         register(statsCommand)
+        register(wolfwaveCommand)
         register(srCommand)
         register(queueCommand)
         register(myQueueCommand)

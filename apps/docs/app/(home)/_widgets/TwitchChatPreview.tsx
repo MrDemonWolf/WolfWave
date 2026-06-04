@@ -8,7 +8,7 @@ import { useCyclingTrack } from "./useCyclingTrack";
 /**
  * Live recreation of a Twitch "Stream Chat" popout. Messages stream in over
  * time — viewers praise the app, ask pricing, request songs, and run
- * !song / !last — and the WolfWave bot replies with the CURRENT / LAST track
+ * !song / !last / !wolfwave — and the WolfWave bot replies with the CURRENT / LAST track
  * pulled from the shared cycling store, so its answers always match what the
  * Discord card and OBS overlay are showing. Dark in both site themes (Twitch
  * chat always is). All usernames/messages invented; song names come from the
@@ -88,6 +88,15 @@ const SCRIPT: ((c: Ctx) => Line[])[] = [
     ),
   ],
   () => [v("synthwave_sam", "#2fd6c3", "what mac app is this, i need it")],
+  () => [
+    v("pixel_paws", "#c08bff", "!wolfwave"),
+    bot(
+      <>
+        🐺 <b style={{ color: TW.text }}>WolfWave</b> by MrDemonWolf. Free macOS app
+        that puts Apple Music in chat, Discord, and the overlay.
+      </>,
+    ),
+  ],
   ({ cur }) => [v("howler_99", "#ff8c5a", "!song"), bot(nowPlaying(cur))],
 ];
 

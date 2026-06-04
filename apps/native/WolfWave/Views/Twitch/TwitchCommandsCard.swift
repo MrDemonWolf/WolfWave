@@ -39,6 +39,22 @@ struct TwitchCommandsCard: View {
     @AppStorage(AppConstants.UserDefaults.lastSongCommandAliases)
     private var lastSongCommandAliases = ""
 
+    @AppStorage(AppConstants.UserDefaults.wolfwaveCommandEnabled)
+    private var wolfwaveCommandEnabled = false
+    @AppStorage(AppConstants.UserDefaults.wolfwaveCommandGlobalCooldown)
+    private var wolfwaveGlobalCooldown: Double = 15.0
+    @AppStorage(AppConstants.UserDefaults.wolfwaveCommandUserCooldown)
+    private var wolfwaveUserCooldown: Double = 15.0
+    @AppStorage(AppConstants.UserDefaults.wolfwaveCommandAliases)
+    private var wolfwaveCommandAliases = ""
+    @AppStorage(AppConstants.UserDefaults.wolfwaveCommandReplyStyle)
+    private var wolfwaveReplyStyle = WolfWaveReplyStyle.default.rawValue
+
+    /// Resolved reply text for the selected style, shown as a live preview.
+    private var selectedWolfwaveMessage: String {
+        (WolfWaveReplyStyle(rawValue: wolfwaveReplyStyle) ?? .default).message
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: DSSpace.s6) {
             VStack(alignment: .leading, spacing: DSSpace.s1h) {
@@ -82,8 +98,7 @@ struct TwitchCommandsCard: View {
                     subtitle: "!last  ·  !lastsong  ·  !prevsong",
                     isOn: $lastSongCommandEnabled,
                     accessibilityLabel: "Enable Last Played Song command",
-                    accessibilityIdentifier: "lastSongCommandToggle",
-                    isLast: !lastSongCommandEnabled && !currentSongCommandEnabled
+                    accessibilityIdentifier: "lastSongCommandToggle"
                 ) { enabled in
                     Log.debug("TwitchCommandsCard: !last \(enabled ? "enabled" : "disabled")", category: "Twitch")
                 }
@@ -104,9 +119,31 @@ struct TwitchCommandsCard: View {
                         subtitle: "Appends a cross-platform link to !song and !last replies",
                         isOn: $songCommandSongLinkEnabled,
                         accessibilityLabel: "Include song.link URL in song command reply",
-                        accessibilityIdentifier: "songCommandSongLinkToggle",
-                        isLast: true
+                        accessibilityIdentifier: "songCommandSongLinkToggle"
                     ) { _ in }
+                }
+
+                commandToggleRow(
+                    title: "!wolfwave Command",
+                    subtitle: "!wolfwave  ·  what WolfWave is + where to get it",
+                    isOn: $wolfwaveCommandEnabled,
+                    accessibilityLabel: "Enable WolfWave info command",
+                    accessibilityIdentifier: "wolfwaveCommandToggle",
+                    isLast: !wolfwaveCommandEnabled
+                ) { enabled in
+                    Log.debug("TwitchCommandsCard: !wolfwave \(enabled ? "enabled" : "disabled")", category: "Twitch")
+                }
+
+                if wolfwaveCommandEnabled {
+                    wolfwaveReplyRow(selection: $wolfwaveReplyStyle)
+                    cooldownRow(
+                        label: "!wolfwave cooldowns",
+                        globalCooldown: $wolfwaveGlobalCooldown,
+                        userCooldown: $wolfwaveUserCooldown
+                    )
+                    commandAliasRow(aliases: $wolfwaveCommandAliases,
+                                    accessibilityIdentifier: "wolfwaveCommandAliases",
+                                    isLast: true)
                 }
             }
             .cardStyleUnpadded()
@@ -215,6 +252,42 @@ struct TwitchCommandsCard: View {
                 Divider()
                     .padding(.leading, AppConstants.SettingsUI.cardPadding)
             }
+        }
+    }
+
+    @ViewBuilder
+    private func wolfwaveReplyRow(selection: Binding<String>) -> some View {
+        VStack(alignment: .leading, spacing: DSSpace.s2) {
+            HStack(spacing: DSSpace.s2) {
+                Text("Reply")
+                    .sectionEyebrow()
+                Spacer()
+                Picker("Reply style", selection: selection) {
+                    ForEach(WolfWaveReplyStyle.allCases) { style in
+                        Text(style.label).tag(style.rawValue)
+                    }
+                }
+                .labelsHidden()
+                .pickerStyle(.menu)
+                .controlSize(.small)
+                .frame(maxWidth: 200)
+                .accessibilityLabel("WolfWave reply style")
+                .accessibilityIdentifier("wolfwaveReplyStyle")
+            }
+
+            // Live preview of exactly what viewers will see in chat.
+            Text(selectedWolfwaveMessage)
+                .font(.system(size: DSFont.Size.sm))
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .accessibilityLabel("Reply preview")
+        }
+        .padding(.horizontal, AppConstants.SettingsUI.cardPadding)
+        .padding(.vertical, DSSpace.s2)
+        .overlay(alignment: .bottom) {
+            Divider()
+                .padding(.leading, AppConstants.SettingsUI.cardPadding)
         }
     }
 }
