@@ -243,20 +243,39 @@ struct SettingsView: View {
 
     /// Returns the detail pane content for the given sidebar section.
     /// Detail content for the selected section. Most sections render inside a
-    /// shared scrolling, width-clamped column. The DEBUG-only Debug tab opts out:
-    /// it owns its own layout (a jump-nav rail beside a scroll column) and needs
-    /// the full pane width, so it bypasses the standard wrapper.
+    /// shared scrolling, width-clamped column. Two sections opt out because they
+    /// own a jump-nav rail beside their own scroll column and need the full pane
+    /// width: General, and the DEBUG-only Debug tab.
     @ViewBuilder
     private var detailPane: some View {
-        #if DEBUG
-        if selectedSection == .debug {
-            DebugSettingsView()
+        if selectedSection == .general {
+            generalDetail
         } else {
+            #if DEBUG
+            if selectedSection == .debug {
+                DebugSettingsView()
+            } else {
+                standardDetailScroll
+            }
+            #else
             standardDetailScroll
+            #endif
         }
-        #else
-        standardDetailScroll
-        #endif
+    }
+
+    /// General pane. Owns its own rail + scroll layout (see `GeneralSettingsView`),
+    /// so it bypasses `standardDetailScroll` and fills the full detail width like
+    /// the Debug tab. `configure` routes the integration "Configure" rows to the
+    /// matching sidebar section.
+    private var generalDetail: some View {
+        GeneralSettingsView(configure: { target in
+            switch target {
+            case .twitch: selectedSection = .twitchIntegration
+            case .discord: selectedSection = .discord
+            case .obs: selectedSection = .websocket
+            case .advanced: selectedSection = .advanced
+            }
+        })
     }
 
     private var standardDetailScroll: some View {
@@ -275,14 +294,10 @@ struct SettingsView: View {
     private func detailView(for section: SettingsSection) -> some View {
         switch section {
         case .general:
-            GeneralSettingsView(configure: { target in
-                switch target {
-                case .twitch: selectedSection = .twitchIntegration
-                case .discord: selectedSection = .discord
-                case .obs: selectedSection = .websocket
-                case .advanced: selectedSection = .advanced
-                }
-            })
+            // General owns a full-width rail layout and is routed via
+            // `generalDetail` in `detailPane`, bypassing this shared scroll
+            // wrapper. Kept here only to satisfy switch exhaustiveness.
+            EmptyView()
         case .songRequests:
             SongRequestSettingsView()
         case .websocket:
