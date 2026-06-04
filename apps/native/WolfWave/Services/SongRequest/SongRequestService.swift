@@ -59,7 +59,7 @@ final class SongRequestService {
     }
 
     var isHoldEnabled: Bool {
-        Foundation.UserDefaults.standard.bool(forKey: AppConstants.UserDefaults.songRequestHoldEnabled)
+        FeatureFlags.songRequestHoldEnabled
     }
 
     /// Toggle hold mode. When enabled, new requests buffer without playing and

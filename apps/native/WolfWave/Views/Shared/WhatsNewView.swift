@@ -30,6 +30,7 @@ struct WhatsNewView: View {
         ("sparkles", .mint, "Liquid Glass Redesign", "Settings, menu bar, and onboarding rebuilt for macOS 26."),
         ("circle.lefthalf.filled", .blue, "Appearance", "Light, Dark, or System. The menu bar follows too."),
         ("eye.slash.fill", .gray, "Streamer Mode", "Masks your channel name, overlay URLs, and token. Camera safe."),
+        ("tray.and.arrow.down.fill", .blue, "Backup & Restore", "Export settings to JSON, restore on any Mac. Secrets stay in Keychain."),
         ("pawprint.fill", .red, "WolfMark Branding", "New album-art placeholder and brand polish everywhere."),
         ("ladybug.fill", .yellow, "Diagnostics & Bug Reports", "Opt-in MetricKit reports plus one-click bug filing with redacted logs."),
     ]

@@ -70,7 +70,9 @@ Your music plays. Everything else keeps up.
 ### Platform & Security
 
 - **macOS 26 Liquid Glass Design.** Refreshed onboarding, settings, and menu bar built for Tahoe.
+- **Light, Dark, or System.** Pick an appearance in Settings > General. System follows macOS; Light and Dark override it for the whole app, menu bar included.
 - **Streamer Mode.** One-tap tray toggle that masks your Twitch channel name, widget URLs, and auth token across the UI, so the app is safe to show on camera.
+- **Backup & Restore.** Export your settings to a portable JSON file from Settings > Advanced and bring them back on another Mac or after a reinstall. Accounts and secrets stay in the Keychain, never in the file.
 - **Song-Change Notifications.** Opt-in macOS banner on every track change, with album art. The banner replaces in place instead of stacking.
 - **Secure by Default.** Credentials live in the macOS Keychain, never plain text.
 - **Automatic Updates.** Sparkle for DMG installs, or Homebrew (`brew upgrade --cask`).
@@ -110,6 +112,7 @@ warnings.
 | `!myqueue` | Shows just your own requests |
 | `!voteskip` `!vs` | Casts a vote to skip the current song |
 | `!stats` | Shows today's top track (live only) |
+| `!wolfwave` | Tells chat what WolfWave is (off by default, four reply styles) |
 
 ### Mod and Broadcaster Commands
 

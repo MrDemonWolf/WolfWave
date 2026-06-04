@@ -1,0 +1,61 @@
+---
+title: Listening History & Stats
+description: WolfWave can keep an opt-in, on-device log of what you play, with top artists, listening time, a weekly trend, a Monthly Wrap, and the !stats chat command.
+ogTitle: WolfWave Listening History & Stats
+ogDescription: Opt-in on-device play log. Top artists, listening time, weekly trend, Monthly Wrap, and a live !stats command. Nothing leaves your Mac.
+ogEyebrow: Guide
+ogChips:
+  - On-device only
+  - Top artists
+  - Monthly Wrap
+  - "!stats command"
+keywords:
+  - wolfwave listening history
+  - wolfwave stats apple music
+  - apple music monthly wrap mac
+  - twitch now playing stats command
+---
+
+<span className="docs-eyebrow">Guide</span>
+
+WolfWave can keep a private log of the tracks you play and turn it into stats. It is off by default, lives only on your Mac, and is never uploaded.
+
+## Turn it on
+
+History is opt-in. Flip it on in **Settings → History & Stats**, or during the first-launch onboarding wizard. Until you do, nothing is recorded.
+
+When it is off, no play log exists. When you turn it off later, you can clear what was saved.
+
+## What counts as a play
+
+A track only counts once it has played past its halfway point, or past four minutes, whichever comes first. So skipping through songs to find one does not pollute your history. A song you actually listen to gets logged once.
+
+The log is an on-device append-only file. It is your data, not a setting, so it is not part of a [settings backup](/docs/backup).
+
+## Stats and charts
+
+With history on, **Settings → History & Stats** shows a dashboard built on SwiftUI Charts:
+
+- **Top artists** by play count.
+- **Listening time**, total and recent.
+- **A 7-day trend** of how much you have played.
+- **A listening-by-hour** breakdown of when you listen.
+- **A Top card** that switches between artists, tracks, and albums.
+
+The dashboard is two columns on a wide window and collapses to one on a narrow one.
+
+## Monthly Wrap
+
+Pick any month for a personal, Wrapped-style summary. Save the card as a PNG, or send it straight to Messages, Mail, AirDrop, and anywhere else through the macOS share sheet.
+
+## Retention
+
+Choose how long to keep your history in **Settings → History & Stats**: Forever, or 7, 30, 90, 180, or 365 days. Older entries are cleared at the next launch.
+
+## The !stats chat command
+
+Viewers can ask for today's top track in Twitch chat with `!stats`. It only replies while your stream is live, so it stays quiet off-air. Give it custom aliases and a cooldown in **Settings → History & Stats**. See [Bot Commands](/docs/bot-commands) for the full command list.
+
+## Privacy
+
+Everything here stays on your Mac. There is no account, no sync, and no upload. Deleting your history or turning the feature off removes the log.

@@ -77,9 +77,9 @@ nonisolated private func mapHelixError(_ error: Error) -> TwitchChatService.Conn
 ///
 /// Concurrency:
 /// - `actor`-isolated. The actor's own mutable state lives inside its isolation
-///   domain with no locks. The only locks are in two tiny `@unchecked Sendable`
-///   mirror classes (`ProviderRegistry`, `AtomicBool`) that exist so the sync
-///   dispatcher bridge can read state without re-entering the actor.
+///   domain with no locks. The only locks are in the `ProviderRegistry` mirror
+///   class and the shared `Atomic` boxes that exist so the sync dispatcher
+///   bridge can read state without re-entering the actor.
 /// - Side-effect "callbacks" (chat messages, connection state, vote-skip poll
 ///   results) are surfaced as `AsyncStream`s on the `nonisolated` interface.
 /// - Track-info providers (`!song`, `!last`, `!stats`) are async closures;
@@ -277,11 +277,11 @@ actor TwitchChatService {
 
     /// Nonisolated mirror of `_connected` so MainActor UI code (status chips,
     /// menu bar enable state) can read it without `await`.
-    nonisolated let isConnectedSnapshot = AtomicBool()
+    nonisolated let isConnectedSnapshot = Atomic(false)
 
     /// Nonisolated mirror of `streamLive` so the synchronous dispatcher bridge
     /// (`!stats` enable check) can read it without re-entering the actor.
-    nonisolated private let streamLiveSnapshot = AtomicBool()
+    nonisolated private let streamLiveSnapshot = Atomic(false)
 
     var isConnected: Bool { _connected }
 
@@ -1941,7 +1941,7 @@ actor TwitchChatService {
         case .blocked:
             return ("@\(username) that song is on the blocklist. Points refunded.", .canceled)
         case let .notFound(query):
-            let truncated = query.count > 30 ? String(query.prefix(30)) + "..." : query
+            let truncated = StringFormatting.truncatedWithEllipsis(query)
             return ("@\(username) no results for \"\(truncated)\". Points refunded.", .canceled)
         case .linkNotFound:
             return ("@\(username) couldn't find that on Apple Music. Points refunded.", .canceled)
@@ -1969,7 +1969,7 @@ actor TwitchChatService {
         case .blocked:
             return "@\(username) sorry, that song/artist is on the blocklist."
         case let .notFound(query):
-            let truncated = query.count > 30 ? String(query.prefix(30)) + "..." : query
+            let truncated = StringFormatting.truncatedWithEllipsis(query)
             return "@\(username) no results for \"\(truncated)\"."
         case .linkNotFound:
             return "@\(username) couldn't find that on Apple Music."
@@ -2143,15 +2143,5 @@ actor TwitchChatService {
         func stats() -> (@Sendable () async -> String)? { lock.withLock { _stats } }
     }
 
-    /// Lock-protected boolean mirror of an actor-isolated flag.
-    ///
-    /// Used by the sync dispatcher bridge (`!stats` gating) to read state
-    /// without re-entering the actor.
-    final class AtomicBool: @unchecked Sendable {
-        private let lock = NSLock()
-        private var _value = false
-        var value: Bool { lock.withLock { _value } }
-        func set(_ newValue: Bool) { lock.withLock { _value = newValue } }
-    }
 }
 

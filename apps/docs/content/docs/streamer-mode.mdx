@@ -1,0 +1,54 @@
+---
+title: Streamer Mode
+description: Streamer Mode masks WolfWave's sensitive values like your Twitch channel, overlay URLs, and access token, so the app is safe to show on camera. It only changes the screen.
+ogTitle: WolfWave Streamer Mode
+ogDescription: One toggle masks your channel name, overlay and widget URLs, and access token across the UI. Safe to show on stream. Your feeds keep working.
+ogEyebrow: Guide
+ogChips:
+  - Camera safe
+  - Masks URLs & token
+  - UI only
+  - One toggle
+keywords:
+  - wolfwave streamer mode
+  - hide stream key on camera
+  - mask overlay url obs
+  - safe to screen share music app
+---
+
+<span className="docs-eyebrow">Guide</span>
+
+Streamer Mode hides anything you would not want a viewer to read off your screen. Turn it on before you share your screen or show Settings on camera.
+
+## What it masks
+
+With Streamer Mode on, these are replaced with a `••••••` mask everywhere they appear, in Settings and in the menu bar:
+
+- Your connected Twitch channel name
+- The overlay and widget URLs
+- The WebSocket server address
+- The Stream Widgets access token
+
+The **Copy** and **Open** buttons next to a masked value are switched off too, so a stray click cannot leak it into your clipboard or a browser.
+
+## What it does not change
+
+Streamer Mode only changes what is on screen. It does not touch how WolfWave works:
+
+- Your overlay keeps receiving now-playing data.
+- Discord Rich Presence keeps updating.
+- Twitch chat output is unchanged.
+
+So you can leave it on during a whole stream with no downside.
+
+## Turn it on
+
+Streamer Mode is a tray-menu toggle. Open the WolfWave menu bar icon and flip **Streamer Quick Actions → Streamer Mode**. It is a one-tap switch, on or off, and the setting is remembered.
+
+## When to use it
+
+- Screen-sharing your whole desktop.
+- Walking through Settings on camera.
+- Recording a tutorial or a bug report screenshot.
+
+Pair it with [Back Up & Restore](/docs/backup) and [Stream Widgets](/docs/features) for a setup that is safe to show and easy to move between machines.

@@ -70,9 +70,10 @@ All notable changes to this project will be documented in this file.
 - **OBS branding in settings** uses the `tv.badge.wifi` SF Symbol so the chip tints correctly (#46).
 - **Advanced settings** uses the shared `cardStyle()` helper for consistent materials and corners (#52).
 - **Tighter wording** across onboarding, settings, and the menu bar: fewer words, clearer verbs (#47).
-- **Test suite tidied up.** Merged `SongCommandTests` and `LastSongCommandTests` into one `TrackInfoCommandTests`, and renamed `MusicPlaybackMonitorTests` to `AppleMusicSourceTests`. The suite is now more than 880 tests across 86 files.
+- **Test suite tidied up.** Merged `SongCommandTests` and `LastSongCommandTests` into one `TrackInfoCommandTests`, and renamed `MusicPlaybackMonitorTests` to `AppleMusicSourceTests`. The suite is now more than 2,200 tests across 90 files.
 - **Design tokens everywhere.** Settings views now read sizes and spacing from `DSFont` and `DSSpace` instead of hardcoded numbers, for consistent typography and spacing across every tab. Added the missing tokens to `design-system/tokens.json`.
 - **Concurrency cleanup.** Replaced leftover `DispatchQueue.main.async` calls in `AppDelegate+MenuBar`, `DiscordSettingsView`, and `AppleMusicController` with structured `Task { @MainActor }`, matching the project's async/await rule.
+- **Steadier under stress.** A process-wide safety net now catches the rare hard crash. If WolfWave does go down, it shows a one-time "Recovered from a crash" notice in Advanced with a one-click bug report. A misbehaving service at launch degrades on its own instead of taking the whole app down with it (#255, #264).
 - **Logger regex literals.** `Logger.swift`'s redaction patterns use compile-checked `#/.../#` literals instead of `try! Regex(...)`, clearing the SwiftLint force-unwrap warnings.
 - **Liquid Glass onboarding surface.** The wizard panel now renders on a `.glassEffect(.regular)` material, matching the settings cards and now-playing card (#198).
 - **Streamer Mode hides your Twitch account name** in Settings too, matching the channel-ID rows and the menu bar (#198).
@@ -104,6 +105,8 @@ All notable changes to this project will be documented in this file.
 - **Preferences typed accessor.** `Core/Preferences.swift` centralizes UserDefaults reads and writes for non-bool keys across AppDelegate and WolfWaveApp (#197).
 - **Actor adoption.** `SongBlocklist` and `SkipVoteManager` move from `final class + NSLock` to actors; `BotCommandContext` is marked `nonisolated + Sendable`. Combine is fully removed from the app target, with the last publisher replaced by a `.task` loop (#197).
 - **Sparkle release notes.** The release pipeline now turns each version's CHANGELOG section into styled HTML (`scripts/release-notes.mjs`) and embeds it in the appcast, so the in-app update dialog shows what's new with a link out to the full changelog.
+- **Crash safety net.** `CrashReporter` installs an uncaught-exception handler plus `sigaction` for SIGABRT/ILL/SEGV/FPE/BUS/TRAP (async-signal-safe write path), records a breadcrumb, flushes the log, and chains the previous handler so the OS crash report and MetricKit diagnostics still fire. `guardedStart()` isolates a synchronous service-setup failure, the three `JSONSerialization.data(withJSONObject:)` sites are fronted by `isValidJSONObject`, and a blocking `swiftlint-crash-safety` CI gate runs force-unwrap/try/cast at error severity across production source (#255, #264).
+- **Shared helpers, less copy-paste.** Extracted `StringFormatting.truncatedWithEllipsis` (chat-reply truncation), a generic `Atomic<Value>` box in `ThreadSafeStorage.swift` that replaces the hand-rolled `AtomicBool` and Discord state-snapshot locks, `FeatureFlags.songRequestHoldEnabled`, and a Discord button-key resolver, so the duplicated logic lives in one tested place.
 
 ### Fixed
 

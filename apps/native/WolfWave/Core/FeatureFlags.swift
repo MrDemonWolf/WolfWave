@@ -65,6 +65,12 @@ nonisolated enum FeatureFlags {
         defaults.bool(forKey: AppConstants.UserDefaults.songRequestEnabled)
     }
 
+    /// Whether the request queue is held: new requests buffer without
+    /// auto-playing. Default false (queue plays through).
+    static var songRequestHoldEnabled: Bool {
+        defaults.bool(forKey: AppConstants.UserDefaults.songRequestHoldEnabled)
+    }
+
     static var songCommandSongLinkEnabled: Bool {
         defaults.bool(forKey: AppConstants.UserDefaults.songCommandSongLinkEnabled)
     }

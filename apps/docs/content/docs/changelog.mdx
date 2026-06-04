@@ -77,9 +77,10 @@ All notable changes to WolfWave are documented here. When an update is ready, th
 - **Menu bar preview icon** renders crisply at every screen density.
 - **Settings window** sized to fit cleanly on 720p and 1080p displays.
 - **Music permission row is actionable.** Tap it to re-request access or jump into System Settings.
-- **Test suite tidied up and grown** to more than 880 tests across 86 files.
+- **Test suite tidied up and grown** to more than 2,200 tests across 90 files.
 - **Design tokens everywhere.** Settings, onboarding, and shared views now read sizes and spacing from the generated design tokens instead of hardcoded numbers, for consistent typography and spacing across every tab.
 - **Concurrency cleanup.** Leftover `DispatchQueue.main.async` calls in menu-bar, song-request, and Discord settings now use structured `Task { @MainActor }` for Swift 6 cleanliness.
+- **Steadier under stress.** A process-wide safety net catches the rare hard crash. If WolfWave does go down, it shows a one-time "Recovered from a crash" notice in Advanced with a one-click bug report, and a misbehaving service at launch degrades on its own instead of taking the whole app down.
 - **Logger redaction literals** moved to compile-checked `#/.../#` patterns; no more `try! Regex(...)` warnings.
 - **Liquid Glass onboarding surface.** The wizard panel now renders on a `.glassEffect(.regular)` material, matching the settings cards and now-playing card.
 - **Streamer Mode hides your Twitch account name** in Settings too, matching the channel-ID rows and the menu bar.

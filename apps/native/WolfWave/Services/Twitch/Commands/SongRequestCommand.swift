@@ -93,7 +93,7 @@ final class SongRequestCommand: AsyncBotCommand {
                 response = "Sorry, that song/artist is on the blocklist."
 
             case .notFound(let query):
-                let truncated = query.count > 30 ? String(query.prefix(30)) + "..." : query
+                let truncated = StringFormatting.truncatedWithEllipsis(query)
                 response = "No results for \"\(truncated)\". Try a different search!"
 
             case .linkNotFound:

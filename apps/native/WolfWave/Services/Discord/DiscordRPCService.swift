@@ -97,14 +97,13 @@ actor DiscordRPCService {
 
     // MARK: - Properties
 
-    /// Lock guarding the nonisolated state snapshot.
-    private nonisolated let stateSnapshotLock = NSLock()
-    nonisolated(unsafe) private var _stateSnapshot: ConnectionState = .disconnected
+    /// Lock-guarded mirror of ``state`` for nonisolated reads.
+    private nonisolated let _stateSnapshot = Atomic<ConnectionState>(.disconnected)
 
     /// Latest connection state, safe to read synchronously from any thread.
     /// Mirrors ``state``; updated whenever the actor mutates `state`.
     nonisolated var stateSnapshot: ConnectionState {
-        stateSnapshotLock.withLock { _stateSnapshot }
+        _stateSnapshot.value
     }
 
     /// Current connection state. Publishes to ``stateChanges`` on each transition
@@ -112,7 +111,7 @@ actor DiscordRPCService {
     private(set) var state: ConnectionState = .disconnected {
         didSet {
             guard oldValue != state else { return }
-            stateSnapshotLock.withLock { _stateSnapshot = state }
+            _stateSnapshot.set(state)
             stateContinuation.yield(state)
         }
     }
@@ -572,34 +571,42 @@ actor DiscordRPCService {
         defaults: UserDefaults
     ) -> [String: String]? {
         guard let url, !url.isEmpty else { return nil }
-
-        let enabledKey: String
-        let labelKey: String
-        let defaultLabel: String
-        switch index {
-        case 1:
-            enabledKey = AppConstants.UserDefaults.discordButton1Enabled
-            labelKey = AppConstants.UserDefaults.discordButton1Label
-            defaultLabel = AppConstants.Discord.defaultButton1Label
-        case 2:
-            enabledKey = AppConstants.UserDefaults.discordButton2Enabled
-            labelKey = AppConstants.UserDefaults.discordButton2Label
-            defaultLabel = AppConstants.Discord.defaultButton2Label
-        default:
-            return nil
-        }
+        guard let keys = buttonKeys(for: index) else { return nil }
 
         // Missing key defaults to enabled (true).
-        let enabled = (defaults.object(forKey: enabledKey) as? Bool) ?? true
+        let enabled = (defaults.object(forKey: keys.enabled) as? Bool) ?? true
         guard enabled else { return nil }
 
-        let stored = (defaults.string(forKey: labelKey) ?? "")
+        let stored = (defaults.string(forKey: keys.label) ?? "")
             .trimmingCharacters(in: .whitespacesAndNewlines)
-        let resolved = stored.isEmpty ? defaultLabel : stored
+        let resolved = stored.isEmpty ? keys.defaultLabel : stored
         let truncated = String(resolved.prefix(AppConstants.Discord.buttonLabelMaxLength))
         guard !truncated.isEmpty else { return nil }
 
         return ["label": truncated, "url": url]
+    }
+
+    /// Maps a button index to its enabled/label `UserDefaults` keys and default
+    /// label. Returns nil for any index other than 1 or 2.
+    private nonisolated static func buttonKeys(
+        for index: Int
+    ) -> (enabled: String, label: String, defaultLabel: String)? {
+        switch index {
+        case 1:
+            return (
+                AppConstants.UserDefaults.discordButton1Enabled,
+                AppConstants.UserDefaults.discordButton1Label,
+                AppConstants.Discord.defaultButton1Label
+            )
+        case 2:
+            return (
+                AppConstants.UserDefaults.discordButton2Enabled,
+                AppConstants.UserDefaults.discordButton2Label,
+                AppConstants.Discord.defaultButton2Label
+            )
+        default:
+            return nil
+        }
     }
 
     // MARK: - Playlist Resolution
