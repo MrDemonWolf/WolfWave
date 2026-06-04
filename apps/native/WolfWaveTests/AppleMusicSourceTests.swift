@@ -170,4 +170,31 @@ final class AppleMusicSourceTests: XCTestCase {
         )
         XCTAssertEqual(cap.lastIsPaused, true)
     }
+
+    // MARK: - Stopped-notification short-circuit (no Apple event = no relaunch)
+
+    /// Music posts a "Stopped" `playerInfo` payload on an explicit stop and as
+    /// its final gasp while quitting. Recognising it lets us resolve state from
+    /// the payload instead of round-tripping an Apple event — which is what
+    /// relaunched Music.app after the user closed it.
+    func testIsStoppedNotificationTrueForStoppedState() {
+        XCTAssertTrue(AppleMusicSource.isStoppedNotification(["Player State": "Stopped"]))
+    }
+
+    func testIsStoppedNotificationFalseForPlaying() {
+        XCTAssertFalse(AppleMusicSource.isStoppedNotification(["Player State": "Playing"]))
+    }
+
+    /// Paused must round-trip so the loaded track keeps showing while paused.
+    func testIsStoppedNotificationFalseForPaused() {
+        XCTAssertFalse(AppleMusicSource.isStoppedNotification(["Player State": "Paused"]))
+    }
+
+    func testIsStoppedNotificationFalseForNilUserInfo() {
+        XCTAssertFalse(AppleMusicSource.isStoppedNotification(nil))
+    }
+
+    func testIsStoppedNotificationFalseWhenStateKeyMissing() {
+        XCTAssertFalse(AppleMusicSource.isStoppedNotification(["Name": "Some Song"]))
+    }
 }

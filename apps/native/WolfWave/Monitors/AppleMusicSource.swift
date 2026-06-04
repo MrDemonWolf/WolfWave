@@ -29,6 +29,13 @@ final class AppleMusicSource: PlaybackSource, @unchecked Sendable {
         static let playerStateRewinding:   UInt32 = 1800426322  // 'kPSR'
         static let playerStateStopped:     UInt32 = 1800426067  // 'kPSS'
 
+        // `com.apple.Music.playerInfo` distributed-notification payload keys.
+        // Music posts the player state as a plain string here, so we can read
+        // "Stopped" (including the final notification it fires while quitting)
+        // without round-tripping an Apple event that would relaunch the app.
+        static let playerStateUserInfoKey = "Player State"
+        static let playerStateStoppedString = "Stopped"
+
         enum Status {
             static let notRunning = "NOT_RUNNING"
             static let notPlaying = "NOT_PLAYING"
@@ -68,8 +75,21 @@ final class AppleMusicSource: PlaybackSource, @unchecked Sendable {
     /// Dedup gate for guard-failure logs. Same key won't log twice in a row.
     /// A successful track read resets this so the next failure logs again.
     nonisolated(unsafe) private var lastGuardLogged: String?
+    /// Token for the `NSWorkspace` "Music.app terminated" observer. Lets us
+    /// flip to NOT_RUNNING the instant the user quits Music, rather than
+    /// waiting for the next fallback poll.
+    nonisolated(unsafe) private var musicTerminateObserver: NSObjectProtocol?
 
     private let backgroundQueue = DispatchQueue(label: Constants.queueLabel, qos: .utility)
+
+    /// Whether Music.app is genuinely running. Filters out instances that have
+    /// already terminated, so the quit window (still listed, not yet gone)
+    /// reads as not-running. Reading this never launches Music.app.
+    nonisolated private var musicIsRunning: Bool {
+        NSRunningApplication
+            .runningApplications(withBundleIdentifier: Constants.musicBundleIdentifier)
+            .contains { !$0.isTerminated }
+    }
 
     // MARK: - Protocol Conformance
 
@@ -100,6 +120,14 @@ final class AppleMusicSource: PlaybackSource, @unchecked Sendable {
         }
         guard wasTracking else { return }
         DistributedNotificationCenter.default().removeObserver(self)
+        let workspaceToken = stateLock.withLock { () -> NSObjectProtocol? in
+            let existing = musicTerminateObserver
+            musicTerminateObserver = nil
+            return existing
+        }
+        if let workspaceToken {
+            NSWorkspace.shared.notificationCenter.removeObserver(workspaceToken)
+        }
         let pendingTimer = stateLock.withLock { () -> DispatchSourceTimer? in
             let existing = timer
             timer = nil
@@ -142,8 +170,32 @@ final class AppleMusicSource: PlaybackSource, @unchecked Sendable {
             return true
         }
         guard shouldSchedule else { return }
+
+        // Music fires a final "Stopped" `playerInfo` notification as it quits.
+        // Round-tripping an Apple event back to a quitting app is exactly what
+        // makes ScriptingBridge relaunch Music after the user closes it.
+        // Resolve "Stopped" straight from the notification payload instead —
+        // no Apple event, no relaunch. A genuine stop while Music stays open
+        // resolves to "not playing"; a stop that coincides with quit resolves
+        // to "not running" (and the terminate observer confirms it).
+        if AppleMusicSource.isStoppedNotification(notification.userInfo) {
+            // Cancel any idle-grace recheck — a recheck would send the very
+            // Apple event we are avoiding. We already know nothing is playing.
+            stateLock.withLock { lastTrackSeenAt = .distantPast }
+            handleTrackInfo(musicIsRunning ? Constants.Status.notPlaying : Constants.Status.notRunning)
+            return
+        }
+
         Log.debug("AppleMusicSource: Music notification received", category: "Music")
         scheduleTrackCheck(reason: "notification")
+    }
+
+    /// `true` when a `com.apple.Music.playerInfo` payload reports the player as
+    /// stopped. Music sends this both on an explicit stop and as its last gasp
+    /// while quitting, so a stopped payload is the signal to skip the Apple
+    /// event round-trip that would otherwise relaunch the app.
+    nonisolated static func isStoppedNotification(_ userInfo: [AnyHashable: Any]?) -> Bool {
+        (userInfo?[Constants.playerStateUserInfoKey] as? String) == Constants.playerStateStoppedString
     }
 
     /// Fetches the currently-playing track via ScriptingBridge.
@@ -152,15 +204,16 @@ final class AppleMusicSource: PlaybackSource, @unchecked Sendable {
     /// requires main-thread access. We hop to `@MainActor` for the SB calls
     /// and back out for the cheap string/delegate work.
     nonisolated private func checkCurrentTrack() async {
-        let isRunning = NSRunningApplication.runningApplications(
-            withBundleIdentifier: Constants.musicBundleIdentifier
-        ).first != nil
-        guard isRunning else {
+        guard musicIsRunning else {
             handleTrackInfo(Constants.Status.notRunning)
             return
         }
 
         let result: (status: String, diagnostic: String?) = await MainActor.run {
+            // Re-check on the main actor immediately before the first Apple
+            // event. Music may have finished quitting between the guard above
+            // and this hop; sending now would relaunch it.
+            guard self.musicIsRunning else { return (Constants.Status.notRunning, nil) }
             guard let musicApp = SBApplication(bundleIdentifier: Constants.musicBundleIdentifier) else {
                 return (Constants.Status.scriptBridgeNil, nil)
             }
@@ -364,6 +417,31 @@ final class AppleMusicSource: PlaybackSource, @unchecked Sendable {
 
     nonisolated private func subscribeToMusicNotifications() {
         DistributedNotificationCenter.default().addObserver(self, selector: #selector(musicPlayerInfoChanged), name: NSNotification.Name(Constants.notificationName), object: nil)
+
+        // Flip to NOT_RUNNING the moment Music.app quits, instead of waiting
+        // for the next fallback poll. This is observation only — it never
+        // sends an Apple event, so it cannot relaunch the app.
+        let token = NSWorkspace.shared.notificationCenter.addObserver(
+            forName: NSWorkspace.didTerminateApplicationNotification,
+            object: nil,
+            queue: .main
+        ) { [weak self] note in
+            guard let self else { return }
+            let bundleID = (note.userInfo?[NSWorkspace.applicationUserInfoKey] as? NSRunningApplication)?.bundleIdentifier
+            guard bundleID == Constants.musicBundleIdentifier else { return }
+            self.handleMusicTerminated()
+        }
+        stateLock.withLock { musicTerminateObserver = token }
+    }
+
+    nonisolated private func handleMusicTerminated() {
+        // Clear the "recently seen a track" gate so the idle-grace path can't
+        // hold a stale track on screen after Music is gone.
+        stateLock.withLock {
+            lastTrackSeenAt = .distantPast
+            lastNotificationAt = .distantPast
+        }
+        handleTrackInfo(Constants.Status.notRunning)
     }
 
     nonisolated private func performInitialTrackCheck() {

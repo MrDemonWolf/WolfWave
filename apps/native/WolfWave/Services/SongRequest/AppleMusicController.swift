@@ -117,7 +117,7 @@ final class AppleMusicController: AppleMusicControlling {
     /// song requests are buffered in WolfWave's queue until it re-opens.
     var isMusicAppRunning: Bool {
         NSWorkspace.shared.runningApplications.contains {
-            $0.bundleIdentifier == AppConstants.Music.bundleIdentifier
+            $0.bundleIdentifier == AppConstants.Music.bundleIdentifier && !$0.isTerminated
         }
     }
 
@@ -284,7 +284,11 @@ final class AppleMusicController: AppleMusicControlling {
     }
 
     /// Skip the current song in Music.app via AppleScript.
+    ///
+    /// No-op when Music.app is closed. A bare `tell application "Music"` would
+    /// relaunch the app the user just quit.
     func skipToNext() async throws {
+        guard isMusicAppRunning else { return }
         runAppleScript("""
         tell application "Music"
             next track
@@ -296,7 +300,11 @@ final class AppleMusicController: AppleMusicControlling {
     ///
     /// Uses `previous track` (not `back track`) so Music.app moves to the
     /// prior queue entry rather than restarting the current track.
+    ///
+    /// No-op when Music.app is closed. A bare `tell application "Music"` would
+    /// relaunch the app the user just quit.
     func previousTrack() async throws {
+        guard isMusicAppRunning else { return }
         runAppleScript("""
         tell application "Music"
             previous track
@@ -307,7 +315,11 @@ final class AppleMusicController: AppleMusicControlling {
     /// Toggle Music.app's play/pause state. Routes through the focus-
     /// preserving runner so calling from the tray does not steal focus from
     /// the frontmost app.
+    ///
+    /// No-op when Music.app is closed. A bare `tell application "Music"` would
+    /// relaunch the app the user just quit.
     func playPause() async throws {
+        guard isMusicAppRunning else { return }
         runAppleScriptPreservingFocus("""
         tell application "Music"
             playpause
