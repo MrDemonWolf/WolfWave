@@ -43,14 +43,11 @@ struct SongRequestSettingsView: View {
             SongRequestHeader()
 
             if !isTwitchConnected {
-                HStack(spacing: DSSpace.s1h) {
-                    Image(systemName: "lock.fill")
-                        .font(.system(size: DSFont.Size.sm))
-                        .foregroundStyle(.secondary)
-                    Text("Connect with Twitch to enable song requests.")
-                        .font(.system(size: DSFont.Size.sm))
-                        .foregroundStyle(.secondary)
-                }
+                CalloutBanner(
+                    "Connect with Twitch to enable song requests.",
+                    style: .info,
+                    systemImage: "lock.fill"
+                )
             }
 
             SongRequestMasterToggleCard(isTwitchConnected: isTwitchConnected)

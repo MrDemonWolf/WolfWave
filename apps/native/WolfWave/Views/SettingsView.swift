@@ -351,7 +351,7 @@ struct SettingsView: View {
             Divider()
                 .padding(.vertical, DSSpace.s1)
 
-            TwitchCommandsCard()
+            TwitchCommandsCard(viewModel: twitchViewModel)
         }
     }
 

@@ -6,6 +6,7 @@
 //  Copyright © 2026 MrDemonWolf, Inc. All rights reserved.
 //
 
+import AppKit
 import SwiftUI
 
 /// Bot Commands card for the Twitch settings pane.
@@ -15,6 +16,42 @@ import SwiftUI
 /// `SettingsView` so toggling any of its `@AppStorage` keys does not invalidate
 /// the parent settings shell on each tap.
 struct TwitchCommandsCard: View {
+
+    /// Shared Twitch state, read to gate the card on a live, authorized connection.
+    /// Stored as a plain `let`: the Observation framework tracks property reads in
+    /// `body` regardless, and this card never writes back, so `@Bindable` isn't needed.
+    let viewModel: TwitchViewModel
+
+    /// Commands can only fire when chat is connected and the sign-in hasn't expired.
+    /// When false, every control is disabled and a lock banner explains why.
+    private var twitchReady: Bool {
+        viewModel.channelConnected && !viewModel.reauthNeeded
+    }
+
+    /// Lock-banner copy: distinguishes an expired sign-in from never connecting.
+    /// Both point "above" at the Twitch auth card in the same pane rather than
+    /// duplicating its connect/reconnect button.
+    private var lockMessage: String {
+        viewModel.reauthNeeded
+            ? "Your Twitch sign-in expired. Reconnect above to keep chat commands working."
+            : "Connect with Twitch above to let people use these chat commands."
+    }
+
+    /// Apple Events automation grant for Music.app. `!song` / `!last` read the
+    /// now-playing track through it, so a denial means those two commands return
+    /// nothing even with Twitch connected. Seeded from the cheap cache, then
+    /// refreshed with a live probe on appear / app reactivation.
+    @State private var musicPermission: MusicPermissionState = MusicPermissionCache.read() ?? .unknown
+
+    /// Surfaces the Apple Music access callout only when it's actionable: Twitch
+    /// is fine (so the card isn't already blocked), automation is denied, and at
+    /// least one now-playing command that depends on it is enabled. `!wolfwave`
+    /// needs no Music access, so an all-`!wolfwave` setup never nags.
+    private var needsMusicAccess: Bool {
+        twitchReady
+            && musicPermission == .denied
+            && (currentSongCommandEnabled || lastSongCommandEnabled)
+    }
 
     @AppStorage(AppConstants.UserDefaults.currentSongCommandEnabled)
     private var currentSongCommandEnabled = false
@@ -64,6 +101,20 @@ struct TwitchCommandsCard: View {
                 Text("Choose which commands people can use in chat.")
                     .font(.system(size: DSFont.Size.base))
                     .foregroundStyle(.secondary)
+            }
+
+            if !twitchReady {
+                CalloutBanner(
+                    lockMessage,
+                    style: viewModel.reauthNeeded ? .warning : .info,
+                    systemImage: viewModel.reauthNeeded ? nil : "lock.fill"
+                )
+            }
+
+            if needsMusicAccess {
+                MusicPermissionBanner(
+                    message: "WolfWave needs Apple Music automation access to read your now-playing track for !song and !last. Enable it in System Settings → Privacy & Security → Automation."
+                )
             }
 
             VStack(spacing: 1) {
@@ -142,8 +193,27 @@ struct TwitchCommandsCard: View {
                 }
             }
             .cardStyleUnpadded()
+            .disabled(!twitchReady)
 
             HintRow("Cooldowns don't apply to you or your mods.")
+        }
+        .onAppear { probeMusicPermission() }
+        .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
+            probeMusicPermission()
+        }
+    }
+
+    // MARK: - Music Permission
+
+    /// Refreshes ``musicPermission`` with a live Apple Events probe. The probe is
+    /// the documented tens-of-millisecond call, so it runs detached to keep the
+    /// main thread free; the result is applied back on the main actor.
+    private func probeMusicPermission() {
+        Task {
+            let state = await Task.detached(priority: .userInitiated) {
+                MusicPermissionChecker.currentState()
+            }.value
+            musicPermission = state
         }
     }
 
@@ -290,7 +360,23 @@ struct TwitchCommandsCard: View {
 // MARK: - Preview
 
 #Preview("Twitch Commands") {
-    TwitchCommandsCard()
+    let connected = TwitchViewModel()
+    connected.channelConnected = true
+    return TwitchCommandsCard(viewModel: connected)
+        .padding()
+        .frame(width: 700)
+}
+
+#Preview("Twitch Commands — Not Connected") {
+    TwitchCommandsCard(viewModel: TwitchViewModel())
+        .padding()
+        .frame(width: 700)
+}
+
+#Preview("Twitch Commands — Sign-in Expired") {
+    let expired = TwitchViewModel()
+    expired.reauthNeeded = true
+    return TwitchCommandsCard(viewModel: expired)
         .padding()
         .frame(width: 700)
 }
