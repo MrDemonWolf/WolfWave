@@ -608,13 +608,7 @@ struct HistoryStatsSettingsView: View {
             .disabled(snapshot.totalPlays == 0)
             .accessibilityHint("Permanently deletes every recorded play")
         }
-        .padding(AppConstants.SettingsUI.cardPadding)
-        .background(DSColor.error.opacity(0.06))
-        .clipShape(RoundedRectangle(cornerRadius: AppConstants.SettingsUI.cardCornerRadius))
-        .overlay(
-            RoundedRectangle(cornerRadius: AppConstants.SettingsUI.cardCornerRadius)
-                .stroke(DSColor.error.opacity(0.2), lineWidth: 1)
-        )
+        .cardStyle()
     }
 
     // MARK: - Helpers
