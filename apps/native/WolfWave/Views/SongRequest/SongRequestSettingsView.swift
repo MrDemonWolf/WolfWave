@@ -21,6 +21,19 @@ struct SongRequestSettingsView: View {
     @State private var musicAuthStatus: MusicAuthorization.Status = MusicAuthorization.currentStatus
     @State private var isRequestingMusicAuth = false
 
+    @State private var selectedTab: RequestTab = .overview
+
+    /// In-pane sections, surfaced as a segmented control so the long
+    /// configuration splits into focused groups instead of one long scroll.
+    private enum RequestTab: String, CaseIterable, Identifiable {
+        case overview = "Overview"
+        case access = "Access"
+        case queue = "Queue"
+        case commands = "Commands"
+        case points = "Points"
+        var id: String { rawValue }
+    }
+
     private var appDelegate: AppDelegate? { AppDelegate.shared }
 
     // MARK: - Body
@@ -42,44 +55,17 @@ struct SongRequestSettingsView: View {
 
             SongRequestMasterToggleCard(isTwitchConnected: isTwitchConnected)
 
-            if isTwitchConnected {
-                Divider().padding(.vertical, DSSpace.s1)
-                VoteSkipCard()
-            }
-
             if songRequestEnabled {
-                if musicAuthStatus != .authorized {
-                    SongRequestMusicAuthCard(
-                        musicAuthStatus: $musicAuthStatus,
-                        isRequestingMusicAuth: $isRequestingMusicAuth
-                    )
+                Picker("Section", selection: $selectedTab) {
+                    ForEach(RequestTab.allCases) { tab in
+                        Text(tab.rawValue).tag(tab)
+                    }
                 }
+                .pickerStyle(.segmented)
+                .labelsHidden()
+                .accessibilityIdentifier("songRequestTabPicker")
 
-                SongRequestQueueView()
-
-                Divider().padding(.vertical, DSSpace.s1)
-
-                SongRequestQueueConfigCard()
-
-                Divider().padding(.vertical, DSSpace.s1)
-
-                SongRequestAccessCard()
-
-                Divider().padding(.vertical, DSSpace.s1)
-
-                SongRequestRedemptionsCard()
-
-                Divider().padding(.vertical, DSSpace.s1)
-
-                SongRequestPlaybackCard()
-
-                Divider().padding(.vertical, DSSpace.s1)
-
-                SongRequestCommandsCard()
-
-                Divider().padding(.vertical, DSSpace.s1)
-
-                SongRequestBlocklistCard(blocklistProvider: { appDelegate?.songRequestService?.blocklist })
+                tabContent
             }
         }
         .onAppear {
@@ -90,6 +76,33 @@ struct SongRequestSettingsView: View {
             if let connected = notification.isConnectedFlag {
                 updateTwitchState(connected)
             }
+        }
+    }
+
+    /// The card stack for the selected tab. Each card is the same component the
+    /// page used before; only their grouping into tabs is new.
+    @ViewBuilder
+    private var tabContent: some View {
+        switch selectedTab {
+        case .overview:
+            if musicAuthStatus != .authorized {
+                SongRequestMusicAuthCard(
+                    musicAuthStatus: $musicAuthStatus,
+                    isRequestingMusicAuth: $isRequestingMusicAuth
+                )
+            }
+            SongRequestQueueView()
+        case .access:
+            SongRequestAccessCard()
+            VoteSkipCard()
+        case .queue:
+            SongRequestQueueConfigCard()
+            SongRequestPlaybackCard()
+            SongRequestBlocklistCard(blocklistProvider: { appDelegate?.songRequestService?.blocklist })
+        case .commands:
+            SongRequestCommandsCard()
+        case .points:
+            SongRequestRedemptionsCard()
         }
     }
 

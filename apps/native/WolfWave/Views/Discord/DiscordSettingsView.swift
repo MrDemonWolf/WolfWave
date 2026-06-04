@@ -66,10 +66,17 @@ struct DiscordSettingsView: View {
         VStack(alignment: .leading, spacing: DSSpace.s6) {
             connectionSection
             if presenceEnabled && hasClientID {
-                buttonsSection
-                playlistSection
-                behaviorSection
-                previewSection
+                // Controls on the left, live preview on the right. ResponsiveRow
+                // collapses to a single stacked column on narrow windows.
+                ResponsiveRow {
+                    VStack(alignment: .leading, spacing: DSSpace.s6) {
+                        buttonsSection
+                        playlistSection
+                        behaviorSection
+                    }
+                } right: {
+                    previewSection
+                }
             }
         }
         .animation(.easeInOut(duration: DSMotion.Duration.base), value: presenceEnabled)
@@ -117,7 +124,7 @@ struct DiscordSettingsView: View {
     private var connectionSection: some View {
         VStack(alignment: .leading, spacing: DSSpace.s6) {
             SectionHeaderWithStatus(
-                title: "Discord Status",
+                title: "Discord",
                 subtitle: "Show your music on your Discord profile.",
                 statusText: statusChipText,
                 statusColor: statusChipColor
@@ -162,25 +169,19 @@ struct DiscordSettingsView: View {
                 .transition(.opacity)
             }
 
-            #if DEBUG
             if !hasClientID {
                 CalloutBanner(
-                    "Set DISCORD_CLIENT_ID in Config.xcconfig to enable this feature.",
+                    "Discord Rich Presence isn't set up in this build. Add DISCORD_CLIENT_ID to Config.xcconfig, or grab a build from the website where it's already wired.",
+                    title: "Not configured",
                     style: .warning
                 )
             }
-            #endif
         }
     }
 
     private var buttonsSection: some View {
         VStack(alignment: .leading, spacing: DSSpace.s4) {
-            SectionHeaderWithStatus(
-                title: "Profile Buttons",
-                subtitle: "Up to two buttons appear under your song on Discord.",
-                statusText: buttonCountText,
-                statusColor: .secondary
-            )
+            cardTitle("Profile Buttons", "Up to two buttons appear under your song on Discord.")
 
             VStack(alignment: .leading, spacing: DSSpace.s6) {
                 ToggleSettingRow(
@@ -219,12 +220,7 @@ struct DiscordSettingsView: View {
 
     private var playlistSection: some View {
         VStack(alignment: .leading, spacing: DSSpace.s4) {
-            SectionHeaderWithStatus(
-                title: "Playlist",
-                subtitle: "Show the Apple Music playlist you're listening from.",
-                statusText: playlistEnabled ? "On" : "Off",
-                statusColor: playlistEnabled ? .green : .secondary
-            )
+            cardTitle("Playlist", "Show the Apple Music playlist you're listening from.")
 
             VStack(alignment: .leading, spacing: DSSpace.s6) {
                 ToggleSettingRow(
@@ -277,12 +273,7 @@ struct DiscordSettingsView: View {
 
     private var behaviorSection: some View {
         VStack(alignment: .leading, spacing: DSSpace.s4) {
-            SectionHeaderWithStatus(
-                title: "When not playing",
-                subtitle: "Control what your profile shows when music stops or pauses.",
-                statusText: showIdleStatus ? "Idle shown" : "Cleared",
-                statusColor: showIdleStatus ? .green : .secondary
-            )
+            cardTitle("When not playing", "Control what your profile shows when music stops or pauses.")
 
             VStack(alignment: .leading, spacing: DSSpace.s6) {
                 ToggleSettingRow(
@@ -439,6 +430,20 @@ struct DiscordSettingsView: View {
     }
 
     // MARK: - Helpers
+
+    /// Compact title used by the grouped control cards in the two-column layout,
+    /// where the single page header carries the one status chip.
+    @ViewBuilder
+    private func cardTitle(_ title: String, _ subtitle: String) -> some View {
+        VStack(alignment: .leading, spacing: DSSpace.s0) {
+            Text(title)
+                .font(.system(size: DSFont.Size.base, weight: .semibold))
+            Text(subtitle)
+                .font(.system(size: DSFont.Size.sm))
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+    }
 
     private var statusChipText: String {
         switch connectionState {

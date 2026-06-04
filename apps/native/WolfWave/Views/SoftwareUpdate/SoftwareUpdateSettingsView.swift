@@ -37,13 +37,33 @@ struct SoftwareUpdateSettingsView: View {
         Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "Unknown"
     }
 
+    /// Header chip text derived from live update state.
+    private var statusText: String {
+        if isHomebrewInstall { return "Homebrew" }
+        if isCheckingForUpdates { return "Checking…" }
+        if updateAvailable, let latestVersion { return "v\(latestVersion) ready" }
+        if latestVersion != nil { return "Up to date" }
+        return updateCheckEnabled ? "Auto on" : "Auto off"
+    }
+
+    /// Header chip color matching `statusText`.
+    private var statusColor: Color {
+        if isHomebrewInstall { return .gray }
+        if isCheckingForUpdates { return .orange }
+        if updateAvailable { return .accentColor }
+        if latestVersion != nil { return .green }
+        return updateCheckEnabled ? .green : .gray
+    }
+
     // MARK: - Body
 
     var body: some View {
         VStack(alignment: .leading, spacing: DSSpace.s6) {
             SectionHeaderWithStatus(
                 title: "Software Update",
-                subtitle: "Check for new versions and manage automatic updates."
+                subtitle: "Check for new versions and manage automatic updates.",
+                statusText: statusText,
+                statusColor: statusColor
             )
 
             softwareUpdateCard
@@ -75,14 +95,8 @@ struct SoftwareUpdateSettingsView: View {
     @ViewBuilder
     private var homebrewUpdateCard: some View {
         VStack(alignment: .leading, spacing: DSSpace.s4) {
-            VStack(alignment: .leading, spacing: DSSpace.s1) {
-                Text("Software Update")
-                    .font(.system(size: DSFont.Size.base, weight: .semibold))
-
-                Text("Current version: \(currentVersion)")
-                    .font(.system(size: DSFont.Size.body))
-                    .foregroundStyle(.secondary)
-            }
+            Text("Version \(currentVersion)")
+                .font(.system(size: DSFont.Size.base, weight: .semibold))
 
             CalloutBanner(
                 "Use Homebrew to check for and install updates.",
@@ -114,28 +128,14 @@ struct SoftwareUpdateSettingsView: View {
     @ViewBuilder
     private var sparkleUpdateCard: some View {
         VStack(alignment: .leading, spacing: DSSpace.s4) {
-            HStack {
-                VStack(alignment: .leading, spacing: DSSpace.s1) {
-                    Text("Software Update")
-                        .font(.system(size: DSFont.Size.base, weight: .semibold))
-
-                    Text("Current version: \(currentVersion)")
-                        .font(.system(size: DSFont.Size.body))
-                        .foregroundStyle(.secondary)
-                }
-
-                Spacer()
+            VStack(alignment: .leading, spacing: DSSpace.s1) {
+                Text("Version \(currentVersion)")
+                    .font(.system(size: DSFont.Size.base, weight: .semibold))
 
                 if updateAvailable, let version = latestVersion {
-                    Text("v\(version) available")
-                        .font(.system(size: DSFont.Size.sm, weight: .semibold))
-                        .foregroundStyle(.white)
-                        .padding(.horizontal, DSSpace.s2)
-                        .padding(.vertical, DSSpace.s1)
-                        .background(Color.accentColor)
-                        .clipShape(Capsule())
-                        .transition(.opacity)
-                        .accessibilityLabel("Version \(version) available for update")
+                    Text("Version \(version) is ready to install.")
+                        .font(.system(size: DSFont.Size.body))
+                        .foregroundStyle(.secondary)
                 }
             }
 
@@ -170,7 +170,8 @@ struct SoftwareUpdateSettingsView: View {
                         appDelegate?.sparkleUpdater?.automaticCheckEnabled = newValue
                     }
                 ))
-                .toggleStyle(.checkbox)
+                .toggleStyle(.switch)
+                .controlSize(.small)
                 .font(.system(size: DSFont.Size.body))
                 .accessibilityLabel("Check for updates automatically")
                 .accessibilityHint("Enables periodic background checks for new versions")

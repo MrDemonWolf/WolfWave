@@ -93,6 +93,10 @@ struct HistoryStatsSettingsView: View {
             }
             togglesCard
 
+            if !historyEnabled {
+                firstRunExplainer
+            }
+
             // Dashboard band: lead with the insights, two columns when the
             // settings window is wide enough (collapses to a stack when not).
             if historyEnabled, statsEnabled, snapshot.hasData {
@@ -121,11 +125,17 @@ struct HistoryStatsSettingsView: View {
                 statsCommandCard
             }
             if historyEnabled {
-                ResponsiveRow {
+                if statsEnabled {
+                    ResponsiveRow {
+                        retentionCard
+                    } right: {
+                        actionsCard
+                    }
+                } else {
                     retentionCard
-                } right: {
-                    actionsCard
                 }
+
+                dangerCard
             }
         }
         .onAppear {
@@ -431,9 +441,15 @@ struct HistoryStatsSettingsView: View {
 
     private var statsCommandCard: some View {
         VStack(alignment: .leading, spacing: DSSpace.s4) {
+            HStack(spacing: DSSpace.s3) {
+                cardHeader("Chat command", systemImage: "text.bubble")
+                Spacer()
+                StatusChip(text: "Twitch", color: .purple)
+            }
+
             ToggleSettingRow(
-                title: "!stats Twitch command",
-                subtitle: "Lets chat ask for today's top track. Replies only while your stream is live.",
+                title: "!stats command",
+                subtitle: "Lets chat pull up today's top track. Replies only while your stream is live.",
                 isOn: $statsCommandEnabled,
                 accessibilityLabel: "Toggle the stats Twitch command",
                 accessibilityIdentifier: "statsCommandToggle"
@@ -509,39 +525,96 @@ struct HistoryStatsSettingsView: View {
 
     // MARK: - Actions
 
-    /// Card pairing the Monthly Wrap and Clear History actions. A card (rather
-    /// than a bare button row) so it balances the retention card it sits beside
-    /// in the two-column tail. Buttons stack full-width so they read cleanly in
-    /// a narrow column.
+    /// Monthly Wrap action card. Sits beside the retention card in the
+    /// two-column tail when Stats is on. The destructive Clear History action
+    /// lives in the danger zone below, not here.
     private var actionsCard: some View {
         VStack(alignment: .leading, spacing: DSSpace.s3) {
             cardHeader("Manage", systemImage: "slider.horizontal.3")
 
-            if statsEnabled {
-                Button {
-                    showWrapSheet = true
-                } label: {
-                    Label("Monthly Wrap", systemImage: "sparkles")
-                        .frame(maxWidth: .infinity)
-                }
-                .buttonStyle(.bordered)
-                .pointerCursor()
-            }
-
-            Button(role: .destructive) {
-                showClearAlert = true
+            Button {
+                showWrapSheet = true
             } label: {
-                Label("Clear History", systemImage: "trash")
+                Label("Monthly Wrap", systemImage: "sparkles")
                     .frame(maxWidth: .infinity)
             }
             .buttonStyle(.bordered)
             .pointerCursor()
-            .disabled(snapshot.totalPlays == 0)
-            .accessibilityIdentifier("clearHistoryButton")
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(AppConstants.SettingsUI.cardPadding)
         .cardStyleUnpadded()
+    }
+
+    /// First-run explainer shown when Listening History is off, so the default
+    /// state teaches what the feature does and offers a one-tap enable instead
+    /// of looking blank.
+    private var firstRunExplainer: some View {
+        VStack(alignment: .leading, spacing: DSSpace.s3) {
+            cardHeader("What you'll get", systemImage: "sparkles")
+
+            Text("Stats & Charts add a weekly view, your top artists, listening by hour, and a monthly wrap. Everything is computed on this Mac.")
+                .font(.system(size: DSFont.Size.body))
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+
+            Button {
+                guard musicPermission != .denied else { return }
+                historyEnabled = true
+                handleHistoryChange(true)
+            } label: {
+                Label("Turn on history", systemImage: "checkmark.circle.fill")
+            }
+            .buttonStyle(.borderedProminent)
+            .controlSize(.regular)
+            .pointerCursor()
+            .disabled(musicPermission == .denied)
+            .accessibilityIdentifier("turnOnHistoryButton")
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(AppConstants.SettingsUI.cardPadding)
+        .cardStyleUnpadded()
+    }
+
+    /// Red danger zone holding the irreversible Clear History action, matching
+    /// the Advanced pane's danger-zone treatment so destructive actions read
+    /// the same everywhere.
+    private var dangerCard: some View {
+        VStack(alignment: .leading, spacing: DSSpace.s6) {
+            VStack(alignment: .leading, spacing: DSSpace.s2) {
+                HStack(spacing: DSSpace.s2) {
+                    Image(systemName: "exclamationmark.triangle.fill")
+                        .font(.system(size: DSFont.Size.md))
+                        .foregroundStyle(DSColor.error)
+                    Text("Danger Zone")
+                        .font(.system(size: DSFont.Size.md, weight: .semibold))
+                        .foregroundStyle(DSColor.error)
+                }
+                .accessibilityElement(children: .combine)
+                .accessibilityLabel("Danger Zone")
+
+                Text("Permanently deletes every recorded play. Can't be undone.")
+                    .font(.system(size: DSFont.Size.body))
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+
+            DestructiveButton(
+                title: "Clear History",
+                systemImage: "trash",
+                accessibilityIdentifier: "clearHistoryButton",
+                action: { showClearAlert = true }
+            )
+            .disabled(snapshot.totalPlays == 0)
+            .accessibilityHint("Permanently deletes every recorded play")
+        }
+        .padding(AppConstants.SettingsUI.cardPadding)
+        .background(DSColor.error.opacity(0.06))
+        .clipShape(RoundedRectangle(cornerRadius: AppConstants.SettingsUI.cardCornerRadius))
+        .overlay(
+            RoundedRectangle(cornerRadius: AppConstants.SettingsUI.cardCornerRadius)
+                .stroke(DSColor.error.opacity(0.2), lineWidth: 1)
+        )
     }
 
     // MARK: - Helpers

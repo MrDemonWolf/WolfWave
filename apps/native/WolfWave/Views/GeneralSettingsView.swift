@@ -14,28 +14,55 @@ struct GeneralSettingsView: View {
 
     var configure: (IntegrationDashboardView.Section) -> Void = { _ in }
 
+    @AppStorage(AppConstants.UserDefaults.trackingEnabled)
+    private var trackingEnabled = true
+
+    @State private var selectedTab: GeneralTab = .music
+
+    /// In-pane sections, surfaced as a segmented control so Music, app
+    /// appearance, and notifications each get a focused tab instead of one long
+    /// stacked scroll.
+    private enum GeneralTab: String, CaseIterable, Identifiable {
+        case music = "Music"
+        case lookDock = "Look & Dock"
+        case notifications = "Notifications"
+        var id: String { rawValue }
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: DSSpace.s8) {
             SectionHeaderWithStatus(
                 title: "General",
                 subtitle: "Manage how WolfWave tracks your music and where it shows up.",
-                statusText: "All systems live",
-                statusColor: .green
+                statusText: trackingEnabled ? "Music on" : "Music off",
+                statusColor: trackingEnabled ? .green : .gray
             )
             .accessibilityIdentifier("generalSettings.header")
 
+            Picker("Section", selection: $selectedTab) {
+                ForEach(GeneralTab.allCases) { tab in
+                    Text(tab.rawValue).tag(tab)
+                }
+            }
+            .pickerStyle(.segmented)
+            .labelsHidden()
+            .accessibilityIdentifier("generalTabPicker")
+
+            tabContent
+        }
+    }
+
+    /// The settings shown for the selected tab. Each is the same sub-view the
+    /// page rendered before; only their grouping into tabs is new.
+    @ViewBuilder
+    private var tabContent: some View {
+        switch selectedTab {
+        case .music:
             MusicMonitorSettingsView(configure: configure)
-
-            Divider().padding(.vertical, DSSpace.s1)
-
+        case .lookDock:
             AppVisibilitySettingsView()
-
-            Divider().padding(.vertical, DSSpace.s1)
-
             AppearanceSettingsView()
-
-            Divider().padding(.vertical, DSSpace.s1)
-
+        case .notifications:
             NotificationsSettingsView()
         }
     }

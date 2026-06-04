@@ -154,6 +154,10 @@ fileprivate struct WebSocketServerCard: View {
     /// port-field error pattern. `nil` when the draft is valid or unchanged.
     @State private var tokenError: String? = nil
 
+    /// Confirmation gate for regenerating the auth token, which disconnects
+    /// every live overlay until the new URL is re-copied into OBS.
+    @State private var showingRegenerateConfirm = false
+
     let serverState: WebSocketServerService.ServerState
     let localNetworkIP: String?
 
@@ -371,8 +375,8 @@ fileprivate struct WebSocketServerCard: View {
             }
 
             HStack(spacing: DSSpace.s2) {
-                Button {
-                    regenerateToken()
+                Button(role: .destructive) {
+                    showingRegenerateConfirm = true
                 } label: {
                     HStack(spacing: DSSpace.s1) {
                         Image(systemName: "arrow.clockwise").font(.system(size: DSFont.Size.sm))
@@ -380,6 +384,7 @@ fileprivate struct WebSocketServerCard: View {
                     }
                 }
                 .buttonStyle(.bordered)
+                .tint(.red)
                 .controlSize(.small)
                 .disabled(streamerMode)
                 .help(streamerMode
@@ -413,6 +418,16 @@ fileprivate struct WebSocketServerCard: View {
         }
         .padding(.horizontal, cardPadding)
         .padding(.vertical, DSSpace.s4)
+        .confirmationDialog(
+            "Regenerate auth token?",
+            isPresented: $showingRegenerateConfirm,
+            titleVisibility: .visible
+        ) {
+            Button("Regenerate", role: .destructive) { regenerateToken() }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("Every connected overlay disconnects until you copy the new URL back into OBS.")
+        }
     }
 
     /// Persists `tokenDraft` to Keychain, swaps the token on the live service,

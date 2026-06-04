@@ -319,6 +319,9 @@ private struct SignedInView: View {
             Divider()
                 .padding(.leading, AppConstants.SettingsUI.cardPadding)
             actionButtonsSection
+            Divider()
+                .padding(.leading, AppConstants.SettingsUI.cardPadding)
+            logOutSection
         }
         .cardStyleUnpadded()
     }
@@ -633,17 +636,6 @@ private struct SignedInView: View {
             }
 
             Spacer()
-
-            Button("Log Out", action: onClearCredentials)
-                .font(.system(size: DSFont.Size.body))
-                .buttonStyle(.bordered)
-                .tint(.red)
-                .controlSize(.small)
-                .frame(height: Self.actionButtonHeight)
-                .pointerCursor()
-                .accessibilityLabel("Clear saved Twitch credentials")
-                .accessibilityHint("Signs out of your Twitch account")
-                .accessibilityIdentifier("twitchClearCredentialsButton")
         }
         .padding(.horizontal, AppConstants.SettingsUI.cardPadding)
         .padding(.vertical, DSSpace.s4)
@@ -658,6 +650,37 @@ private struct SignedInView: View {
         } message: {
             Text("This will disconnect the bot from the current channel but keep you logged in.")
         }
+    }
+
+    /// Quiet sign-out row, kept on its own line below the everyday Join/Test
+    /// actions so the destructive Log Out never shares a row with the reversible
+    /// channel and test controls.
+    private var logOutSection: some View {
+        HStack(alignment: .center, spacing: DSSpace.s4) {
+            VStack(alignment: .leading, spacing: DSSpace.s0) {
+                Text("Sign out")
+                    .font(.system(size: DSFont.Size.sm, weight: .medium))
+                    .foregroundStyle(.secondary)
+                Text("Removes chat commands until you reconnect.")
+                    .font(.system(size: DSFont.Size.sm))
+                    .foregroundStyle(.tertiary)
+            }
+
+            Spacer()
+
+            Button("Log Out", action: onClearCredentials)
+                .font(.system(size: DSFont.Size.body))
+                .buttonStyle(.bordered)
+                .tint(.red)
+                .controlSize(.small)
+                .frame(height: Self.actionButtonHeight)
+                .pointerCursor()
+                .accessibilityLabel("Clear saved Twitch credentials")
+                .accessibilityHint("Signs out of your Twitch account")
+                .accessibilityIdentifier("twitchClearCredentialsButton")
+        }
+        .padding(.horizontal, AppConstants.SettingsUI.cardPadding)
+        .padding(.vertical, DSSpace.s4)
     }
 
     /// Tint color for the Test Login button based on its result state.
