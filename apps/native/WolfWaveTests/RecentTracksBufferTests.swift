@@ -78,4 +78,30 @@ final class RecentTracksBufferTests: XCTestCase {
         let buffer = RecentTracksBuffer()
         XCTAssertEqual(buffer.maxEntries, AppConstants.RecentlyPlayed.maxEntries)
     }
+
+    // MARK: - Capacity clamp (regression lock)
+    //
+    // Before the clamp, `init` had `precondition(maxEntries > 0)` — a hard trap
+    // that crashed a shipped build on a non-positive capacity. These cases prove
+    // the clamp floors at 1 instead of trapping. (If the trap ever comes back,
+    // constructing with 0 here aborts the whole test host.)
+
+    func testZeroMaxEntriesClampsToOne() {
+        let buffer = RecentTracksBuffer(maxEntries: 0)
+        XCTAssertEqual(buffer.maxEntries, 1)
+    }
+
+    func testNegativeMaxEntriesClampsToOne() {
+        let buffer = RecentTracksBuffer(maxEntries: -5)
+        XCTAssertEqual(buffer.maxEntries, 1)
+    }
+
+    func testClampedBufferKeepsNewestAndStillDedupsHead() {
+        var buffer = RecentTracksBuffer(maxEntries: 0) // clamps to 1
+        buffer.push(makeTrack("A"))
+        buffer.push(makeTrack("B"))
+        XCTAssertEqual(buffer.entries.map(\.title), ["B"]) // tail-trim keeps newest
+        buffer.push(makeTrack("B"))                        // head dup ignored, no growth
+        XCTAssertEqual(buffer.count, 1)
+    }
 }

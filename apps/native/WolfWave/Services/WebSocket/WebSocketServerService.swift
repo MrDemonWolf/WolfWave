@@ -638,7 +638,10 @@ actor WebSocketServerService {
     /// Serializes `dict` to JSON and sends it as a single WebSocket text frame.
     /// Nonisolated. Does not touch actor state.
     private static func sendJSON(_ dict: [String: Any], to connection: NWConnection) {
-        guard let jsonData = try? JSONSerialization.data(withJSONObject: dict),
+        // `isValidJSONObject` guard keeps a malformed leaf from raising an ObjC
+        // exception inside `data(withJSONObject:)` (uncatchable by `try?`).
+        guard JSONSerialization.isValidJSONObject(dict),
+              let jsonData = try? JSONSerialization.data(withJSONObject: dict),
               let jsonString = String(data: jsonData, encoding: .utf8) else { return }
 
         MetricsService.shared.recordWebSocketMessage(byteCount: jsonData.count)

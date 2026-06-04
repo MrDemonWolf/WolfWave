@@ -146,4 +146,37 @@ final class DiscordRPCServiceTests: XCTestCase {
             }
         }
     }
+
+    // MARK: - Frame payload decode (pure, no live socket)
+    //
+    // `decodeFramePayload` is the seam behind `readFrame`. A hostile or garbled
+    // Discord peer must never crash the IPC read loop, so malformed bytes have
+    // to decode to nil, not trap.
+
+    func testDecodeFramePayloadParsesValidObject() {
+        let data = Data(#"{"cmd":"DISPATCH","evt":"READY"}"#.utf8)
+        let json = DiscordRPCService.decodeFramePayload(data)
+        XCTAssertEqual(json?["cmd"] as? String, "DISPATCH")
+    }
+
+    func testDecodeFramePayloadReturnsNilForGarbage() {
+        XCTAssertNil(DiscordRPCService.decodeFramePayload(Data("not json".utf8)))
+    }
+
+    func testDecodeFramePayloadReturnsNilForTruncatedJSON() {
+        XCTAssertNil(DiscordRPCService.decodeFramePayload(Data("{".utf8)))
+    }
+
+    func testDecodeFramePayloadReturnsNilForJSONArray() {
+        // Valid JSON, but a top-level array is not a frame payload object.
+        XCTAssertNil(DiscordRPCService.decodeFramePayload(Data("[1,2,3]".utf8)))
+    }
+
+    func testDecodeFramePayloadReturnsNilForEmptyData() {
+        XCTAssertNil(DiscordRPCService.decodeFramePayload(Data()))
+    }
+
+    func testMaxIPCFrameBytesCapIsBounded() {
+        XCTAssertEqual(AppConstants.Discord.maxIPCFrameBytes, 65536)
+    }
 }

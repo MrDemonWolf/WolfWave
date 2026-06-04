@@ -14,6 +14,22 @@ import UserNotifications
 
 extension AppDelegate {
 
+    /// Runs one service-setup closure, isolating a *synchronous* construction
+    /// failure so a single bad service degrades instead of aborting the whole
+    /// launch sequence. The setups' async bodies (`Task { … }`) still handle
+    /// their own errors; a truly unforeseen ObjC exception is caught
+    /// process-wide by `CrashReporter`. `name` labels the service in the log.
+    func guardedStart(_ name: String, _ body: () throws -> Void) {
+        do {
+            try body()
+        } catch {
+            Log.error(
+                "AppDelegate: service \(name) failed to start: \(error.localizedDescription)",
+                category: "App"
+            )
+        }
+    }
+
     /// Creates the playback source manager and sets this as delegate.
     func setupMusicMonitor() {
         playbackSourceManager = PlaybackSourceManager()

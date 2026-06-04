@@ -1054,7 +1054,11 @@ actor DiscordRPCService {
     private func sendFrame(opcode: Opcode, payload: [String: Any]) -> Bool {
         guard socketFD >= 0 else { return false }
 
-        guard let jsonData = try? JSONSerialization.data(withJSONObject: payload) else {
+        // `isValidJSONObject` short-circuits before `data(withJSONObject:)`, so a
+        // non-JSON leaf (NaN/Inf Double, non-String key) returns false instead of
+        // raising an ObjC `NSInvalidArgumentException` that `try?` cannot catch.
+        guard JSONSerialization.isValidJSONObject(payload),
+              let jsonData = try? JSONSerialization.data(withJSONObject: payload) else {
             Log.error("DiscordRPCService: Failed to serialize payload", category: "Discord")
             return false
         }
@@ -1092,15 +1096,23 @@ actor DiscordRPCService {
             UInt32(littleEndian: buf.load(fromByteOffset: 4, as: UInt32.self))
         }
 
-        guard length > 0, length < 65536 else { return (opcode, nil) }
+        guard length > 0, length < AppConstants.Discord.maxIPCFrameBytes else { return (opcode, nil) }
 
         guard let bodyBuf = readFully(Int(length)) else {
             Log.error("DiscordRPCService: Body read failed/timed out with errno \(errno) (\(String(cString: strerror(errno))))", category: "Discord")
             return nil
         }
 
-        let json = try? JSONSerialization.jsonObject(with: bodyBuf) as? [String: Any]
+        let json = Self.decodeFramePayload(bodyBuf)
         return (opcode, json)
+    }
+
+    /// Decodes a Discord IPC frame body into a JSON object, or nil if the bytes
+    /// aren't a JSON object. Pure and static so it's unit-testable without a live
+    /// socket. `JSONSerialization.jsonObject(with:)` throws (caught by `try?`) on
+    /// malformed input and never raises, so a hostile or garbled frame can't crash.
+    static func decodeFramePayload(_ data: Data) -> [String: Any]? {
+        (try? JSONSerialization.jsonObject(with: data)) as? [String: Any]
     }
 
     // MARK: - Reconnection

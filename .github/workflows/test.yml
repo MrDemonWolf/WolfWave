@@ -233,6 +233,33 @@ jobs:
           docker run --rm -v "$PWD:/work" -w /work ghcr.io/realm/swiftlint:latest \
             swiftlint lint --config .swiftlint.yml --reporter github-actions-logging
 
+  lint-crash-safety:
+    name: SwiftLint (crash-safety, blocking)
+    # BLOCKING gate for the three crash-class rules (force unwrap / try! / as!)
+    # on production source. Unlike the lenient `lint` job above, this has no
+    # `continue-on-error` and runs with `--strict`, so a regression fails the PR.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          fetch-depth: 2
+          persist-credentials: false
+
+      - name: Detect native changes
+        id: filter
+        uses: dorny/paths-filter@fbd0ab8f3e69293af611ebaee6363fc25e6d187d # v4.0.1
+        with:
+          filters: |
+            native:
+              - 'apps/native/**'
+              - '.swiftlint-crash-safety.yml'
+
+      - name: Run crash-safety SwiftLint
+        if: steps.filter.outputs.native == 'true'
+        run: |
+          docker run --rm -v "$PWD:/work" -w /work ghcr.io/realm/swiftlint:latest \
+            swiftlint lint --strict --config .swiftlint-crash-safety.yml --reporter github-actions-logging
+
   ds-lint:
     name: Design-system lint
     runs-on: ubuntu-latest

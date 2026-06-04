@@ -94,6 +94,19 @@ The current decision flow MUST be preserved:
 
 If a future SDK introduces a new bridge type, **add a branch to `extractPlayerState`** — don't simplify the parser. Coverage is locked in by `AppleMusicSourceTests.testExtractPlayerState*` (7 cases).
 
+### CrashReporter safety net: do NOT regress
+
+`Core/CrashReporter.swift` installs the process-wide last-gasp crash handlers (`NSSetUncaughtExceptionHandler` plus `sigaction` for SIGABRT/ILL/SEGV/FPE/BUS/TRAP). It exists so a hard crash leaves a breadcrumb at `…/Application Support/WolfWave/State/last-crash.marker` before the process dies; the next launch reads it and the Advanced pane shows a one-time "Recovered from a crash" callout. `applicationWillFinishLaunching` installs it (gated off under XCTest). Keep these invariants:
+
+| Rule | Why |
+|---|---|
+| The **signal handler** stays async-signal-safe (`man 7 signal-safety`): only `open`/`write`/`close`/`strlen`/`signal`/`raise` over the pre-baked malloc'd C path and the C label table. No Swift `String`/`Array` growth, no Foundation, no `Log`. | A signal can fire on any thread mid-allocation. Calling `malloc`, locks, or Foundation there deadlocks or double-faults. Rich work (backtrace, reason, `Log.flush()`) belongs only in the NSException handler, which runs in a normal runtime. |
+| **SIGPIPE stays `SIG_IGN`**, never trapped or re-raised. | The app holds long-lived sockets (Discord IPC, WebSocket). A peer dropping mid-write raises SIGPIPE, and the socket code already handles `errno == EPIPE`. A re-raising handler would turn that handled case into a crash. |
+| Both handlers **chain**: the exception path calls the previous handler; the signal path captures each prior `sigaction` at install and restores it (falling back to `SIG_DFL` only when none was set) before `raise`. Never `_exit` or swallow. | The OS crash report and MetricKit `MXCrashDiagnostic` (consumed by `DiagnosticsService`) only fire if the crash reaches the default disposition, and the debugger / Swift runtime backtracer install their own signal handlers that a bare `SIG_DFL` reset would drop. |
+| The handler funcs and their file-scope globals stay `nonisolated` / `nonisolated(unsafe)`. | The module defaults to `MainActor` isolation, and a `@convention(c)` function cannot be actor-isolated. Marking them `MainActor` breaks the C-function-pointer conversion and won't compile. |
+
+The crash-class lint gate is **blocking** on production source: `.swiftlint-crash-safety.yml` runs `force_unwrapping` / `force_try` / `force_cast` at error severity with `--strict` and no `continue-on-error` (CI job `lint-crash-safety`, local `make lint-crash-safety`). Do **not** add new force-unwraps, `try!`, or `as!` to `apps/native/WolfWave/`. The marker lifecycle is covered by `CrashReporterTests`; never raise a real signal or `NSException` in a test (it kills the xctest host).
+
 ## Architecture
 
 **Pattern**: MVVM + Service-Oriented, with an NSApplicationDelegateAdaptor-based lifecycle.

@@ -51,8 +51,12 @@ struct RecentTracksBuffer: Equatable {
     private(set) var entries: [RecentTrack] = []
 
     init(maxEntries: Int = AppConstants.RecentlyPlayed.maxEntries) {
-        precondition(maxEntries > 0, "RecentTracksBuffer requires maxEntries > 0")
-        self.maxEntries = maxEntries
+        // Clamp instead of trapping: a non-positive capacity is a programming
+        // error, but a hard `precondition` would crash a shipped build over a
+        // cosmetic menu list. Floor at 1 so `push()`'s tail-trim always keeps at
+        // least the newest track. (No DEBUG `assert` here: it would trap the
+        // unit test that locks in this clamp, which is the whole point.)
+        self.maxEntries = max(1, maxEntries)
     }
 
     /// Pushes a track onto the front.

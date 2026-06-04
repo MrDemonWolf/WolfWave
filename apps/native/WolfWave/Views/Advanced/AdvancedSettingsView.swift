@@ -28,6 +28,15 @@ struct AdvancedSettingsView: View {
     /// Passed as binding from parent to control alert visibility.
     @Binding var showingResetAlert: Bool
 
+    /// True when the previous run left a crash breadcrumb (set at launch in
+    /// `applicationDidFinishLaunching`). Drives the "Recovered from a crash"
+    /// callout at the top of this pane.
+    @AppStorage(AppConstants.UserDefaults.lastLaunchCrashed) private var lastLaunchCrashed = false
+
+    /// Mirrors the opt-in MetricKit diagnostics toggle so the crash callout can
+    /// point the user at it without enabling anything on their behalf.
+    @AppStorage(AppConstants.UserDefaults.shareDiagnosticsEnabled) private var shareDiagnosticsEnabled = false
+
     /// Whether the onboarding reset confirmation alert is shown.
     @State private var showingOnboardingResetAlert = false
 
@@ -192,6 +201,34 @@ struct AdvancedSettingsView: View {
         return NSApp.windows.first { $0.isVisible && !$0.className.contains("NSStatusBar") }
     }
 
+    /// "Recovered from a crash" callout shown at the top of the pane after the
+    /// previous run crashed. The breadcrumb that drives it is written by
+    /// `CrashReporter`; reporting a bug or dismissing clears the flag.
+    @ViewBuilder
+    private var crashRecoveryCallout: some View {
+        VStack(alignment: .leading, spacing: DSSpace.s2) {
+            CalloutBanner(
+                shareDiagnosticsEnabled
+                    ? "WolfWave closed unexpectedly last time. If it keeps happening, send a bug report so we can dig in."
+                    : "WolfWave closed unexpectedly last time. If it keeps happening, send a bug report. You can also turn on the private, on-device diagnostics below. Nothing leaves your Mac.",
+                title: "Recovered from a crash",
+                style: .warning
+            )
+
+            HStack(spacing: DSSpace.s2) {
+                Button("Report a Bug\u{2026}") {
+                    AppDelegate.shared?.reportBug()
+                    lastLaunchCrashed = false
+                }
+                Spacer()
+                Button("Dismiss") { lastLaunchCrashed = false }
+                    .buttonStyle(.plain)
+                    .foregroundStyle(.secondary)
+            }
+            .font(.system(size: DSFont.Size.sm))
+        }
+    }
+
     /// Main view body with setup wizard, diagnostics, and danger zone sections.
     var body: some View {
         VStack(alignment: .leading, spacing: DSSpace.s6) {
@@ -199,6 +236,10 @@ struct AdvancedSettingsView: View {
                 title: "Advanced",
                 subtitle: "Diagnostics and reset options."
             )
+
+            if lastLaunchCrashed {
+                crashRecoveryCallout
+            }
 
             // Onboarding Card
             VStack(alignment: .leading, spacing: DSSpace.s4) {

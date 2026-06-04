@@ -218,6 +218,12 @@ nonisolated enum AppConstants {
         /// known grant instead of masquerading as "unknown". (String, optional)
         static let lastResolvedMusicPermission = "lastResolvedMusicPermission"
 
+        /// Set true at launch when `CrashReporter` finds a breadcrumb from the
+        /// previous run, so the Advanced pane can surface a quiet "recovered from
+        /// a crash" callout. Cleared when the user dismisses it or files a bug.
+        /// Per-install runtime state, never exported. (Bool, default: false)
+        static let lastLaunchCrashed = "lastLaunchCrashed"
+
         /// Dock visibility mode: "menuOnly", "dockOnly", or "both" (String, default: "both")
         static let dockVisibility = "dockVisibility"
         
@@ -507,6 +513,7 @@ nonisolated enum AppConstants {
         static let allKeys: [String] = [
             trackingEnabled,
             lastResolvedMusicPermission,
+            lastLaunchCrashed,
             dockVisibility,
             twitchReauthNeeded,
             twitchChannelName,
@@ -721,6 +728,7 @@ nonisolated enum AppConstants {
         /// regenerate on the target machine.
         static let runtimeStateKeys: [String] = [
             lastResolvedMusicPermission,
+            lastLaunchCrashed,
             selectedSettingsSection,
             hasCompletedOnboarding,
             diagnosticsLaunchCount,
@@ -901,6 +909,11 @@ nonisolated enum AppConstants {
         /// peer can't block the service's actor executor longer than this — a
         /// timed-out blocking read/write fails fast into reconnect handling.
         static let socketTimeoutSeconds = 5
+
+        /// Upper bound (exclusive) on an inbound IPC frame body, in bytes. A frame
+        /// claiming a length at or above this is treated as malformed and dropped
+        /// rather than allocated, bounding a hostile or garbled peer.
+        static let maxIPCFrameBytes: UInt32 = 65536
 
         /// Default label for the first presence button (links to Apple Music track page).
         static let defaultButton1Label = "Listen on Apple Music"

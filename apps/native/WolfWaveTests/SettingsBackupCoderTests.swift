@@ -198,4 +198,41 @@ struct SettingsBackupCoderTests {
         backup.settings["unknownKey"] = .bool(true)
         #expect(coder.restorableCount(backup: backup, exportableKeys: exportable) == 2)
     }
+
+    // MARK: - Decode rejects malformed input (surfaces an error, never crashes)
+
+    @Test func decodeRejectsGarbageBytesAsNotReadable() {
+        #expect(throws: SettingsBackupCoder.BackupError.notReadable) {
+            try coder.decode(Data("not a backup at all".utf8))
+        }
+    }
+
+    @Test func decodeRejectsWrongFormatAsNotWolfWaveFile() {
+        let json = #"{"format":"com.example.other","schemaVersion":1}"#
+        #expect(throws: SettingsBackupCoder.BackupError.notWolfWaveFile) {
+            try coder.decode(Data(json.utf8))
+        }
+    }
+
+    @Test func decodeRejectsNewerSchemaAsUnsupported() {
+        let newer = SettingsBackup.currentSchemaVersion + 1
+        let json = """
+        {"format":"\(SettingsBackup.currentFormat)","schemaVersion":\(newer)}
+        """
+        #expect(throws: SettingsBackupCoder.BackupError.unsupportedNewerSchema(newer)) {
+            try coder.decode(Data(json.utf8))
+        }
+    }
+
+    @Test func decodeRejectsValidHeaderButTruncatedBody() {
+        // Correct format + supported schema, but the required backup fields
+        // (appVersion, settings, integrations, …) are missing: the full decode
+        // fails and surfaces as `.notReadable` instead of crashing.
+        let json = """
+        {"format":"\(SettingsBackup.currentFormat)","schemaVersion":\(SettingsBackup.currentSchemaVersion)}
+        """
+        #expect(throws: SettingsBackupCoder.BackupError.notReadable) {
+            try coder.decode(Data(json.utf8))
+        }
+    }
 }

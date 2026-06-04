@@ -209,6 +209,15 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
     // MARK: - Lifecycle
 
+    /// Installs the crash safety net before any UI or service starts, so even an
+    /// early-launch crash leaves a breadcrumb. Skipped under XCTest so the test
+    /// host keeps its own crash reporting (and never gets process-wide signal
+    /// handlers). Runs before `applicationDidFinishLaunching`.
+    func applicationWillFinishLaunching(_ notification: Notification) {
+        guard !WolfWaveApp.isRunningTests else { return }
+        CrashReporter.install()
+    }
+
     /// Initializes all services, registers observers, and shows onboarding or validates tokens.
     func applicationDidFinishLaunching(_ notification: Notification) {
         AppDelegate.shared = self
@@ -224,19 +233,32 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         // menu bar menu, status item, and onboarding adopt it from first paint.
         AppearanceController.applyStored()
 
-        setupStatusItem()
-        setupMenu()
-        setupMusicMonitor()
-        setupTwitchService()
-        setupDiscordService()
-        setupWebSocketServer()
-        setupPowerStateMonitor()
-        setupSparkleUpdater()
-        setupSongRequestService()
-        setupHistoryService()
-        setupDiagnostics()
-        setupNotificationObservers()
-        initializeTrackingState()
+        // Each setup is wrapped so a synchronous failure in one service logs and
+        // degrades instead of aborting the rest of launch. Order is preserved.
+        guardedStart("StatusItem") { self.setupStatusItem() }
+        guardedStart("Menu") { self.setupMenu() }
+        guardedStart("MusicMonitor") { self.setupMusicMonitor() }
+        guardedStart("Twitch") { self.setupTwitchService() }
+        guardedStart("Discord") { self.setupDiscordService() }
+        guardedStart("WebSocket") { self.setupWebSocketServer() }
+        guardedStart("PowerState") { self.setupPowerStateMonitor() }
+        guardedStart("Sparkle") { self.setupSparkleUpdater() }
+        guardedStart("SongRequest") { self.setupSongRequestService() }
+        guardedStart("History") { self.setupHistoryService() }
+        guardedStart("Diagnostics") { self.setupDiagnostics() }
+
+        // Record whether the previous run left a crash breadcrumb, mirror it to a
+        // UserDefaults flag the Advanced pane reads, then clear the marker so the
+        // callout shows exactly once (next clean launch is silent).
+        let crashedLastLaunch = CrashReporter.didCrashLastLaunch()
+        Foundation.UserDefaults.standard.set(crashedLastLaunch, forKey: AppConstants.UserDefaults.lastLaunchCrashed)
+        if crashedLastLaunch {
+            Log.warn("AppDelegate: previous launch ended in a crash (breadcrumb found)", category: "App")
+        }
+        CrashReporter.clearMarker()
+
+        guardedStart("Observers") { self.setupNotificationObservers() }
+        guardedStart("TrackingState") { self.initializeTrackingState() }
         applyInitialDockVisibility()
 
         // Pre-warm the Apple Music permission probe off-main so the first open

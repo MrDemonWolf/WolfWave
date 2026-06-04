@@ -238,7 +238,10 @@ struct DebugInspectorsCard: View {
             "locale": Locale.current.identifier,
             "configuration": configurationString,
         ]
-        guard let data = try? JSONSerialization.data(withJSONObject: dict, options: [.prettyPrinted, .sortedKeys]),
+        // A `[String: String]` is always a valid JSON object; the guard is here
+        // for symmetry with the other call sites so the pattern reads the same.
+        guard JSONSerialization.isValidJSONObject(dict),
+              let data = try? JSONSerialization.data(withJSONObject: dict, options: [.prettyPrinted, .sortedKeys]),
               let string = String(data: data, encoding: .utf8) else {
             return ""
         }
