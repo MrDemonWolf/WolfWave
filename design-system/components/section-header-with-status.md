@@ -49,6 +49,7 @@ graph TB
 - ✅ Pass nil `statusText` for sections without a connection (General, Music Monitor).
 - ❌ Don't put a `StatusChip` standalone next to a header — use this component so the layout stays consistent.
 - ❌ Don't put body content inside the header — render it separately below.
+- ❌ **No leading SF Symbol icon on a section or sub-section header.** Section/sub-section headers (`.sectionHeader()` / `.sectionSubHeader()`) stay text-only — that is the macOS Settings convention (icons live in the sidebar, not on inline headers) and keeps the panes flat and consistent. Six sub-headers (Integrations, Bot Commands, Widget Setup, Widget Appearance, Chat Vote-Skip, Song Request Commands) once carried a blue `.controlAccentColor` glyph; they were removed 2026-06-04. The gray card-eyebrow (`cardHeader`, History & Stats) and the red Danger Zone warning are a separate, semantic tier and may keep their icon.
 
 ## Example
 ```swift

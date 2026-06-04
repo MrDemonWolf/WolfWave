@@ -58,13 +58,8 @@ struct TwitchCommandsCard: View {
     var body: some View {
         VStack(alignment: .leading, spacing: DSSpace.s6) {
             VStack(alignment: .leading, spacing: DSSpace.s1h) {
-                HStack(spacing: DSSpace.s2) {
-                    Image(systemName: "bubble.left.fill")
-                        .font(.system(size: DSFont.Size.x15))
-                        .foregroundStyle(Color(nsColor: .controlAccentColor))
-                    Text("Bot Commands")
-                        .sectionSubHeader()
-                }
+                Text("Bot Commands")
+                    .sectionSubHeader()
 
                 Text("Choose which commands people can use in chat.")
                     .font(.system(size: DSFont.Size.base))

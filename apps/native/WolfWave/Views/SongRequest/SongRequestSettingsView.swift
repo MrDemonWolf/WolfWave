@@ -214,12 +214,7 @@ fileprivate struct VoteSkipCard: View {
 
     private var voteSkipHeader: some View {
         VStack(alignment: .leading, spacing: DSSpace.s1h) {
-            HStack(spacing: DSSpace.s2) {
-                Image(systemName: "hand.thumbsup.fill")
-                    .font(.system(size: DSFont.Size.x15))
-                    .foregroundStyle(Color(nsColor: .controlAccentColor))
-                Text("Chat Vote-Skip").sectionSubHeader()
-            }
+            Text("Chat Vote-Skip").sectionSubHeader()
 
             Text("Let your Twitch chat vote to skip the current song. Skips the request queue when one is playing, otherwise it skips the current Apple Music track.")
                 .font(.system(size: DSFont.Size.base))
@@ -741,12 +736,7 @@ fileprivate struct SongRequestCommandsCard: View {
     var body: some View {
         VStack(alignment: .leading, spacing: DSSpace.s6) {
             VStack(alignment: .leading, spacing: DSSpace.s1h) {
-                HStack(spacing: DSSpace.s2) {
-                    Image(systemName: "music.note.list")
-                        .font(.system(size: DSFont.Size.x15))
-                        .foregroundStyle(Color(nsColor: .controlAccentColor))
-                    Text("Song Request Commands").sectionSubHeader()
-                }
+                Text("Song Request Commands").sectionSubHeader()
 
                 Text("Toggle commands on/off and add custom aliases (comma-separated, without !).")
                     .font(.system(size: DSFont.Size.base))
