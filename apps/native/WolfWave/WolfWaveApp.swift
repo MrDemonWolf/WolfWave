@@ -68,8 +68,7 @@ struct WolfWaveApp: App {
         // AppDelegate still drives *when* the window opens (dock-visibility
         // activation policy, tray/reopen entry points) by posting
         // `.openSettingsRequested` to `SettingsSceneBridge`, which now runs the
-        // public `openWindow(id:)` action. See
-        // `apps/native/docs/sidebar-toggle-glitch-research.md`.
+        // public `openWindow(id:)` action.
         Window("WolfWave Settings", id: WolfWaveApp.settingsWindowID) {
             SettingsView()
         }

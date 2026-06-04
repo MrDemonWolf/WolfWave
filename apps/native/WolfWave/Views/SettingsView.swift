@@ -133,8 +133,7 @@ struct SettingsView: View {
 
     /// Sidebar column visibility. Bound into `NavigationSplitView` so the
     /// automatic title-bar toggle (and any future programmatic show/hide) drives
-    /// a single source of truth. See
-    /// `apps/native/docs/sidebar-toggle-glitch-research.md`.
+    /// a single source of truth.
     @State private var columnVisibility: NavigationSplitViewVisibility = .all
 
     var body: some View {
@@ -180,7 +179,7 @@ struct SettingsView: View {
             // detail segment (right of the sidebar tracking separator) leaves the
             // collapsing sidebar segment with no item to overflow — and matches
             // the native reference, which shows the toggle at the detail's leading
-            // edge. See `apps/native/docs/sidebar-toggle-glitch-research.md`.
+            // edge.
             .toolbar {
                 ToolbarItem(placement: .navigation) {
                     Button(action: toggleSidebar) {
@@ -203,8 +202,7 @@ struct SettingsView: View {
         // `SettingsWindowConfigurator` hides the window title and makes the title
         // bar transparent for the clean full-height-sidebar look. The automatic
         // sidebar toggle is removed on the sidebar column itself (above); our
-        // detail-toolbar toggle replaces it. See
-        // `apps/native/docs/sidebar-toggle-glitch-research.md`.
+        // detail-toolbar toggle replaces it.
         .background(SettingsWindowConfigurator())
         .frame(
             minWidth: AppConstants.SettingsUI.minWidth,
@@ -400,7 +398,7 @@ struct SettingsView: View {
 /// bar. This matches the native reference look (no centered "WolfWave Settings"
 /// label) and frees title-bar width, so `NavigationSplitView`'s sidebar toggle
 /// and tracking separator stop overflowing into AppKit's `>>` clip chevron while
-/// the sidebar animates. See `apps/native/docs/sidebar-toggle-glitch-research.md`.
+/// the sidebar animates.
 ///
 /// Only cosmetic window properties are touched; `styleMask` is left to SwiftUI,
 /// so `SettingsSceneBridge.settingsWindow()`'s titled / non-fullSizeContentView

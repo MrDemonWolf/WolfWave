@@ -17,8 +17,7 @@ import SwiftUI
 /// secondary section headers, tints icons on selection, and handles keyboard
 /// arrow navigation and VoiceOver semantics. The result matches Apple's own
 /// sidebars (Finder, Notes, the Landmarks sample): the native look, with the
-/// `NavigationSplitView` sidebar toggle owned by the title bar (see
-/// `apps/native/docs/sidebar-toggle-glitch-research.md`).
+/// `NavigationSplitView` sidebar toggle owned by the title bar.
 ///
 /// Anything that overrides `listRowBackground` here will suppress the native
 /// selection highlight — leave the rows stock.
