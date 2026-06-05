@@ -20,20 +20,16 @@ import SwiftUI
 /// transparent themes (Default) read as transparent. All track data is invented
 /// demo content — never real artists, songs, or artwork.
 struct WidgetAppearancePreview: View {
-    @AppStorage(AppConstants.UserDefaults.widgetTheme)
-    private var widgetTheme = "Default"
+    /// The appearance values to render. The settings card passes its live
+    /// *draft* here, so the preview tracks every edit instantly even though
+    /// those edits don't reach the real overlay until the user taps Apply.
+    let config: WidgetAppearanceConfig
 
-    @AppStorage(AppConstants.UserDefaults.widgetLayout)
-    private var widgetLayout = "Horizontal"
-
-    @AppStorage(AppConstants.UserDefaults.widgetTextColor)
-    private var widgetTextColor = "#FFFFFF"
-
-    @AppStorage(AppConstants.UserDefaults.widgetBackgroundColor)
-    private var widgetBackgroundColor = "#1A1A2E"
-
-    @AppStorage(AppConstants.UserDefaults.widgetFontFamily)
-    private var widgetFontFamily = "System Default"
+    private var widgetTheme: String { config.theme }
+    private var widgetLayout: String { config.layout }
+    private var widgetTextColor: String { config.textColor }
+    private var widgetBackgroundColor: String { config.backgroundColor }
+    private var widgetFontFamily: String { config.fontFamily }
 
     // Invented demo track (wolf song + wolf-species "artist"); never real media.
     private let demoTrack = "Midnight Howl"
@@ -60,7 +56,7 @@ struct WidgetAppearancePreview: View {
                     .foregroundStyle(Color(nsColor: .controlAccentColor))
                 Text("Live Preview").sectionEyebrow()
             }
-            Text("Sample of how your overlay looks. Changes apply as you tweak.")
+            Text("Sample of how your overlay looks. Tap Apply to push changes live.")
                 .fieldSubtitle()
         }
     }
@@ -93,9 +89,12 @@ struct WidgetAppearancePreview: View {
         .accessibilityLabel("Widget preview, \(widgetTheme) theme, \(widgetLayout) layout")
     }
 
-    /// Tall enough to fit each layout's native height with room to breathe.
+    /// Fixed to the tallest layout (Vertical) so switching layouts never resizes
+    /// the stage. A growing/shrinking preview shifts everything below it and
+    /// makes the settings pane scroll-jump, so the height stays constant and the
+    /// widget just scales within it.
     private var stageHeight: CGFloat {
-        DSWidgetLayouts.size(widgetLayout).height + DSSpace.s11
+        (DSWidgetLayouts.sizes.values.map(\.height).max() ?? 280) + DSSpace.s11
     }
 
     // MARK: - Widget Body
@@ -259,6 +258,38 @@ struct WidgetAppearancePreview: View {
     }
 }
 
+// MARK: - Appearance Config
+
+/// The five user-tunable widget appearance values as one `Equatable` value.
+///
+/// The settings card edits a *draft* copy of this so changes only reach the live
+/// overlay (and `UserDefaults`, which `WebSocketServerService.broadcastWidgetConfig()`
+/// reads) when the user taps Apply. The preview renders whatever draft it's handed.
+struct WidgetAppearanceConfig: Equatable {
+    var theme: String
+    var layout: String
+    var textColor: String
+    var backgroundColor: String
+    var fontFamily: String
+
+    /// Snapshot the currently-applied values from `UserDefaults`.
+    static func loadApplied(_ defaults: UserDefaults = .standard) -> WidgetAppearanceConfig {
+        WidgetAppearanceConfig(
+            theme: defaults.string(forKey: AppConstants.UserDefaults.widgetTheme) ?? "Default",
+            layout: defaults.string(forKey: AppConstants.UserDefaults.widgetLayout) ?? "Horizontal",
+            textColor: defaults.string(forKey: AppConstants.UserDefaults.widgetTextColor) ?? "#FFFFFF",
+            backgroundColor: defaults.string(forKey: AppConstants.UserDefaults.widgetBackgroundColor) ?? "#1A1A2E",
+            fontFamily: defaults.string(forKey: AppConstants.UserDefaults.widgetFontFamily) ?? "System Default"
+        )
+    }
+
+    /// Whether the chosen theme exposes editable text/background colors. Preset
+    /// themes (Dark, Light, Neon) ship fixed palettes.
+    var themeCustomizable: Bool {
+        DSWidgetThemes.resolve(theme).userCustomizable
+    }
+}
+
 // MARK: - Resolved Theme
 
 /// Runtime-resolved widget palette (generated base + user overrides applied).
@@ -386,7 +417,7 @@ private struct CheckerboardBackground: View {
 
 #Preview("Widget Appearance Preview") {
     ScrollView {
-        WidgetAppearancePreview()
+        WidgetAppearancePreview(config: .loadApplied())
             .padding()
             .frame(width: 560)
     }

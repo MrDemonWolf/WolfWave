@@ -714,6 +714,9 @@ fileprivate struct WebSocketBrowserSourceCard: View {
 // MARK: - Widget Appearance Card
 
 fileprivate struct WebSocketWidgetAppearanceCard: View {
+    // Applied (persisted) values. These are the source of truth the overlay
+    // reads via `WebSocketServerService.broadcastWidgetConfig()`. The card never
+    // writes them on every keystroke, only when the user taps Apply.
     @AppStorage(AppConstants.UserDefaults.widgetTheme)
     private var widgetTheme = "Default"
 
@@ -729,6 +732,11 @@ fileprivate struct WebSocketWidgetAppearanceCard: View {
     @AppStorage(AppConstants.UserDefaults.widgetFontFamily)
     private var widgetFontFamily = "System Default"
 
+    /// Live edits. Every control binds here and the preview renders this, so
+    /// tweaks show instantly without touching the live overlay. `Apply` copies
+    /// this into the `@AppStorage` values above and broadcasts; `Revert` drops it.
+    @State private var draft: WidgetAppearanceConfig
+
     /// Font family list loaded off-main on first appear. `availableFontFamilies` enumerates every
     /// installed font (hundreds of entries on design-heavy Macs) and blocks ~100-400ms if invoked
     /// inside `body`. Keep it lazy + off the main thread.
@@ -736,22 +744,41 @@ fileprivate struct WebSocketWidgetAppearanceCard: View {
 
     private let cardPadding = AppConstants.SettingsUI.cardPadding
 
+    init() {
+        // Seed the draft from whatever's currently applied. The `@AppStorage`
+        // wrappers initialize from their declared defaults; only the draft is
+        // overridden here.
+        _draft = State(initialValue: WidgetAppearanceConfig.loadApplied())
+    }
+
+    /// The currently-applied config, rebuilt from `@AppStorage` so it tracks any
+    /// external change. `draft` is compared against this to detect edits.
+    private var applied: WidgetAppearanceConfig {
+        WidgetAppearanceConfig(
+            theme: widgetTheme,
+            layout: widgetLayout,
+            textColor: widgetTextColor,
+            backgroundColor: widgetBackgroundColor,
+            fontFamily: widgetFontFamily
+        )
+    }
+
+    private var isDirty: Bool { draft != applied }
+
     private var textColorBinding: Binding<Color> {
         Binding(
-            get: { Color(hex: widgetTextColor) ?? .white },
+            get: { Color(hex: draft.textColor) ?? .white },
             set: { newColor in
-                if let hex = newColor.toHex() { widgetTextColor = hex }
-                broadcastWidgetConfig()
+                if let hex = newColor.toHex() { draft.textColor = hex }
             }
         )
     }
 
     private var backgroundColorBinding: Binding<Color> {
         Binding(
-            get: { Color(hex: widgetBackgroundColor) ?? .black },
+            get: { Color(hex: draft.backgroundColor) ?? .black },
             set: { newColor in
-                if let hex = newColor.toHex() { widgetBackgroundColor = hex }
-                broadcastWidgetConfig()
+                if let hex = newColor.toHex() { draft.backgroundColor = hex }
             }
         )
     }
@@ -760,8 +787,10 @@ fileprivate struct WebSocketWidgetAppearanceCard: View {
         VStack(alignment: .leading, spacing: DSSpace.s6) {
             widgetAppearanceHeader
             widgetAppearanceCard
-            WidgetAppearancePreview()
+            applyBar
+            WidgetAppearancePreview(config: draft)
         }
+        .animation(.easeInOut(duration: DSMotion.Duration.fast), value: isDirty)
         .task {
             guard fontFamilies.isEmpty else { return }
             let families = await Task.detached(priority: .userInitiated) {
@@ -783,7 +812,7 @@ fileprivate struct WebSocketWidgetAppearanceCard: View {
         VStack(alignment: .leading, spacing: 0) {
             twoColumnRow {
                 controlCell("Theme") {
-                    Picker("", selection: $widgetTheme) {
+                    Picker("", selection: $draft.theme) {
                         ForEach(AppConstants.Widget.themes, id: \.self) { theme in
                             Text(theme).tag(theme)
                         }
@@ -792,11 +821,10 @@ fileprivate struct WebSocketWidgetAppearanceCard: View {
                     .fixedSize()
                     .accessibilityLabel("Widget theme")
                     .accessibilityIdentifier("widgetThemePicker")
-                    .onChange(of: widgetTheme) { _, _ in broadcastWidgetConfig() }
                 }
             } trailing: {
                 controlCell("Layout") {
-                    Picker("", selection: $widgetLayout) {
+                    Picker("", selection: $draft.layout) {
                         ForEach(AppConstants.Widget.layouts, id: \.self) { layout in
                             Text(layout).tag(layout)
                         }
@@ -805,31 +833,42 @@ fileprivate struct WebSocketWidgetAppearanceCard: View {
                     .fixedSize()
                     .accessibilityLabel("Widget layout")
                     .accessibilityIdentifier("widgetLayoutPicker")
-                    .onChange(of: widgetLayout) { _, _ in broadcastWidgetConfig() }
                 }
             }
 
-            if showsColorControls {
-                Divider().padding(.leading, cardPadding)
+            Divider().padding(.leading, cardPadding)
 
-                twoColumnRow {
-                    controlCell("Text") {
-                        ColorPicker("", selection: textColorBinding, supportsOpacity: false)
-                            .labelsHidden()
-                            .frame(width: 40)
-                            .accessibilityLabel("Widget text color")
-                            .accessibilityIdentifier("widgetTextColorPicker")
-                    }
-                } trailing: {
-                    controlCell("Background") {
-                        ColorPicker("", selection: backgroundColorBinding, supportsOpacity: false)
-                            .labelsHidden()
-                            .frame(width: 40)
-                            .accessibilityLabel("Widget background color")
-                            .accessibilityIdentifier("widgetBackgroundColorPicker")
-                    }
+            // The color row is *always* present (just disabled for preset
+            // themes) so switching themes never adds or removes a row. A
+            // changing card height shifts everything below it and makes the
+            // settings pane scroll-jump.
+            twoColumnRow {
+                controlCell("Text") {
+                    ColorPicker("", selection: textColorBinding, supportsOpacity: false)
+                        .labelsHidden()
+                        .frame(width: 40)
+                        .accessibilityLabel("Widget text color")
+                        .accessibilityIdentifier("widgetTextColorPicker")
+                }
+            } trailing: {
+                controlCell("Background") {
+                    ColorPicker("", selection: backgroundColorBinding, supportsOpacity: false)
+                        .labelsHidden()
+                        .frame(width: 40)
+                        .accessibilityLabel("Widget background color")
+                        .accessibilityIdentifier("widgetBackgroundColorPicker")
                 }
             }
+            .disabled(!draft.themeCustomizable)
+            .opacity(draft.themeCustomizable ? 1 : 0.45)
+
+            Text(draft.themeCustomizable
+                 ? "Default, Glass, and WolfWave let you pick custom colors."
+                 : "\(draft.theme) is a preset. Its colors are fixed.")
+                .captionText()
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.horizontal, cardPadding)
+                .padding(.bottom, DSSpace.s4)
 
             Divider().padding(.leading, cardPadding)
 
@@ -837,7 +876,7 @@ fileprivate struct WebSocketWidgetAppearanceCard: View {
             // reuses `controlCell` so it reads as a deliberate row, not a
             // leftover beneath the paired controls above.
             controlCell("Font") {
-                Picker("", selection: $widgetFontFamily) {
+                Picker("", selection: $draft.fontFamily) {
                     Text("System Default").tag("System Default")
                     if !fontFamilies.isEmpty {
                         Divider()
@@ -850,21 +889,50 @@ fileprivate struct WebSocketWidgetAppearanceCard: View {
                 .fixedSize()
                 .accessibilityLabel("Widget font")
                 .accessibilityIdentifier("widgetFontPicker")
-                .onChange(of: widgetFontFamily) { _, _ in broadcastWidgetConfig() }
             }
             .padding(.vertical, DSSpace.s4)
         }
         .cardStyleUnpadded()
     }
 
-    // MARK: - Layout Helpers
+    // MARK: - Apply Bar
 
-    /// Default and Glass themes expose editable text + background colors; the
-    /// preset themes (Dark, Light, Neon) ship fixed palettes, so the color row
-    /// is hidden for them.
-    private var showsColorControls: Bool {
-        widgetTheme == "Default" || widgetTheme == "Glass"
+    /// Pending-changes footer: an unsaved hint plus Revert / Apply. Everything
+    /// above edits `draft`; nothing reaches the live overlay until Apply.
+    private var applyBar: some View {
+        HStack(spacing: DSSpace.s3) {
+            if isDirty {
+                Circle()
+                    .fill(Color(nsColor: .controlAccentColor))
+                    .frame(width: DSSpace.s2, height: DSSpace.s2)
+                Text("Unsaved changes").fieldSubtitle()
+            } else {
+                Text("Overlay is up to date.").fieldSubtitle()
+            }
+            Spacer(minLength: DSSpace.s2)
+            Button("Revert") { draft = applied }
+                .disabled(!isDirty)
+                .accessibilityIdentifier("widgetAppearanceRevertButton")
+            Button("Apply", action: applyChanges)
+                .buttonStyle(.borderedProminent)
+                .keyboardShortcut("s", modifiers: .command)
+                .disabled(!isDirty)
+                .accessibilityIdentifier("widgetAppearanceApplyButton")
+        }
     }
+
+    /// Commit the draft: copy it into the persisted `@AppStorage` values, then
+    /// push the new config to every connected overlay.
+    private func applyChanges() {
+        widgetTheme = draft.theme
+        widgetLayout = draft.layout
+        widgetTextColor = draft.textColor
+        widgetBackgroundColor = draft.backgroundColor
+        widgetFontFamily = draft.fontFamily
+        broadcastWidgetConfig()
+    }
+
+    // MARK: - Layout Helpers
 
     /// One label-left / control-right cell. Shared by both columns and the
     /// full-width Font row so every appearance control aligns identically.
