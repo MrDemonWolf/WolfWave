@@ -108,7 +108,13 @@ struct SettingsNavRail<Section: SettingsRailSection, Content: View>: View {
                 Divider()
 
                 ScrollView {
-                    LazyVStack(alignment: .leading, spacing: AppConstants.SettingsUI.sectionSpacing) {
+                    // Plain VStack, not Lazy: every section must stay mounted so
+                    // `proxy.scrollTo(section)` lands on off-screen anchors and the
+                    // scroll-sync highlight reads every section's offset. A
+                    // LazyVStack defers off-screen children, so jumping to a
+                    // section below the fold (e.g. Appearance under a tall Music
+                    // section) silently no-ops. Matches the "always-mounted" intent.
+                    VStack(alignment: .leading, spacing: AppConstants.SettingsUI.sectionSpacing) {
                         content()
                     }
                     .frame(maxWidth: AppConstants.SettingsUI.maxContentWidth, alignment: .topLeading)
