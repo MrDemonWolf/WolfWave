@@ -136,6 +136,7 @@ struct TwitchCommandsCard: View {
                         userCooldown: $songUserCooldown
                     )
                     commandAliasRow(aliases: $songCommandAliases,
+                                    placeholder: "e.g. np, track",
                                     accessibilityIdentifier: "songCommandAliases")
                 }
 
@@ -156,6 +157,7 @@ struct TwitchCommandsCard: View {
                         userCooldown: $lastSongUserCooldown
                     )
                     commandAliasRow(aliases: $lastSongCommandAliases,
+                                    placeholder: "e.g. ll, lp",
                                     accessibilityIdentifier: "lastSongCommandAliases")
                 }
 
@@ -188,6 +190,7 @@ struct TwitchCommandsCard: View {
                         userCooldown: $wolfwaveUserCooldown
                     )
                     commandAliasRow(aliases: $wolfwaveCommandAliases,
+                                    placeholder: "e.g. ww, app",
                                     accessibilityIdentifier: "wolfwaveCommandAliases",
                                     isLast: true)
                 }
@@ -296,6 +299,7 @@ struct TwitchCommandsCard: View {
     @ViewBuilder
     private func commandAliasRow(
         aliases: Binding<String>,
+        placeholder: String,
         accessibilityIdentifier: String,
         isLast: Bool = false
     ) -> some View {
@@ -303,7 +307,7 @@ struct TwitchCommandsCard: View {
             Text("Custom aliases:")
                 .font(.system(size: DSFont.Size.sm))
                 .foregroundStyle(.tertiary)
-            TextField("e.g. np, track", text: aliases)
+            TextField(placeholder, text: aliases)
                 .textFieldStyle(.roundedBorder)
                 .font(.system(size: DSFont.Size.sm))
                 .frame(maxWidth: 200)
