@@ -25,10 +25,24 @@ import SwiftUI
 /// ```
 struct SectionHeaderWithStatus: View {
 
+    // MARK: - Prominence
+
+    /// Which heading level this header renders at.
+    ///
+    /// `.pane` is the H1 at the top of a settings pane (22pt via `.paneTitle()`).
+    /// `.section` is an H2 for a sub-section inside a pane (17pt via
+    /// `.sectionHeader()`), so a pane that hosts both a title and sub-sections
+    /// keeps a clear two-step hierarchy instead of two near-identical headings.
+    enum Prominence {
+        case pane
+        case section
+    }
+
     // MARK: - Properties
 
     let title: String
     let subtitle: String
+    var prominence: Prominence = .pane
     var statusText: String? = nil
     var statusColor: Color? = nil
 
@@ -37,8 +51,7 @@ struct SectionHeaderWithStatus: View {
     var body: some View {
         VStack(alignment: .leading, spacing: DSSpace.s1h) {
             HStack(alignment: .center, spacing: DSSpace.s3) {
-                Text(title)
-                    .sectionHeader()
+                titleText
 
                 if let statusText, let statusColor {
                     Spacer()
@@ -50,11 +63,21 @@ struct SectionHeaderWithStatus: View {
             }
 
             Text(subtitle)
-                .font(.system(size: DSFont.Size.base))
-                .foregroundStyle(.secondary)
-                .fixedSize(horizontal: false, vertical: true)
+                .fieldSubtitle()
         }
         .accessibilityElement(children: .combine)
+    }
+
+    // MARK: - Title
+
+    @ViewBuilder
+    private var titleText: some View {
+        switch prominence {
+        case .pane:
+            Text(title).paneTitle()
+        case .section:
+            Text(title).sectionHeader()
+        }
     }
 }
 

@@ -306,6 +306,7 @@ struct DiscordSettingsView: View {
             SectionHeaderWithStatus(
                 title: "Preview",
                 subtitle: "How your profile will look on Discord.",
+                prominence: .section,
                 statusText: previewStatusText,
                 statusColor: previewStatusColor
             )

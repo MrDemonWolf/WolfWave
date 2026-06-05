@@ -52,11 +52,11 @@ struct OnboardingCompletionView: View {
 
             VStack(spacing: DSSpace.s2) {
                 Text("Howl yeah, you're set.")
-                    .font(.system(size: DSFont.Size.x24, weight: .bold))
+                    .font(.system(size: DSFont.Size.x3xl, weight: .bold))
                     .multilineTextAlignment(.center)
 
                 Text("WolfWave's in your menu bar. Click the wolf any time.")
-                    .font(.system(size: DSFont.Size.x15))
+                    .font(.system(size: DSFont.Size.base))
                     .foregroundStyle(.secondary)
                     .multilineTextAlignment(.center)
             }

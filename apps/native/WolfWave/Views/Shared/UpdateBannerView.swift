@@ -25,7 +25,7 @@ struct UpdateBannerView: View {
         if isUpdateAvailable && !isDismissed {
             HStack(spacing: DSSpace.s3) {
                 Image(systemName: "arrow.down.circle.fill")
-                    .font(.system(size: DSFont.Size.x16))
+                    .font(.system(size: DSFont.Size.lg))
                     .foregroundStyle(.white)
                     .symbolEffect(.bounce, value: latestVersion)
 

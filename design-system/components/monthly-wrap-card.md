@@ -19,7 +19,7 @@ Card width is owner-controlled — production callers use `380`. Height grows to
 
 ## Tokens used
 - Background gradient: `AppConstants.Brand.wolfwaveGradientStart` → `wolfwaveGradientEnd` (`DSColor.partnerWolfwaveGradientStart` / `End`, `#0A2540` → `#2563EB`)
-- Type: `DSFont.Size.x9` (eyebrow + row caption), `DSFont.Size.x15` (row value), `DSFont.Size.x24` (month label), `DSFont.Size.x28` (stat values), `DSFont.Size.sm` (stat subtitle), `DSFont.Size.base` (empty state), `DSFont.Size.xs` (footer)
+- Type: `DSFont.Size.xs` (eyebrow + row caption + footer), `DSFont.Size.md` (row value), `DSFont.Size.x2xl` (month label), `DSFont.Size.x3xl` (stat values), `DSFont.Size.sm` (stat subtitle), `DSFont.Size.base` (empty state). This is the one share-card surface sanctioned to use the `x3xl` (26) display rung — it renders to an exported image, not settings chrome.
 - Spacing: `DSSpace.s0` (lockup), `DSSpace.s2` (mark gap + footer top), `DSSpace.s4` (empty state vertical pad), `DSSpace.s5` (outer stack), `DSSpace.s7` (card padding), `DSSpace.s8` (stat blocks)
 - Wolf mark dimension: `DSSpace.s6` (16) — `TrayIcon` rendered as `.template` over white
 - Foreground: pure white at `1.0` (primary), `0.7` (eyebrow + stat subtitle), `0.6` (row caption), `0.55` (footer), `0.25` (divider)
@@ -30,7 +30,7 @@ Card width is owner-controlled — production callers use `380`. Height grows to
 graph TD
   Card[Card — WolfWave gradient + 16pt continuous radius] --> Header
   Header[Header VStack] --> Lockup[HStack — wolf mark + WOLFWAVE · MONTHLY WRAP]
-  Header --> Month[Month label — x24 bold]
+  Header --> Month[Month label — x2xl bold]
   Card --> Stats[HStack — plays + listened]
   Card --> Rule[Divider — white 0.25]
   Card --> Rows[Top Artist + Top Track rows]
@@ -42,7 +42,7 @@ When `!data.hasData`, the Stats / Rule / Rows / Diversity nodes collapse to a si
 
 ## Accessibility
 - Decorative-only graphic — text content carries every datum (counts, top artist, top track) so a screen reader synthesizing the card by reading children gets the full summary.
-- Foreground/background contrast: white text on `#0A2540` start stop measures ≥ 12:1 (AAA). At the brightest `#2563EB` end stop it measures ≥ 4.7:1 (AA Large for the `x24` month label and `x28` stat values; AA Normal for the `sm` subtitles). Avoid lowering the gradient end stop's luminance — it's at the contrast floor for the smaller `xs` footer text already softened to `opacity 0.55`.
+- Foreground/background contrast: white text on `#0A2540` start stop measures ≥ 12:1 (AAA). At the brightest `#2563EB` end stop it measures ≥ 4.7:1 (AA Large for the `x2xl` month label and `x3xl` stat values; AA Normal for the `sm` subtitles). Avoid lowering the gradient end stop's luminance — it's at the contrast floor for the smaller `xs` footer text already softened to `opacity 0.55`.
 - Wolf mark rendered with `renderingMode(.template)` — inherits the white foreground; no color-only semantics.
 
 ## Do / Don't

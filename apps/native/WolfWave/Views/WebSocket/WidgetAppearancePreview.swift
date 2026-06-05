@@ -56,14 +56,12 @@ struct WidgetAppearancePreview: View {
         VStack(alignment: .leading, spacing: DSSpace.s1h) {
             HStack(spacing: DSSpace.s2) {
                 Image(systemName: "eye.fill")
-                    .font(.system(size: DSFont.Size.x15))
+                    .font(.system(size: DSFont.Size.sm, weight: .semibold))
                     .foregroundStyle(Color(nsColor: .controlAccentColor))
-                Text("Live Preview").sectionSubHeader()
+                Text("Live Preview").sectionEyebrow()
             }
             Text("Sample of how your overlay looks. Changes apply as you tweak.")
-                .font(.system(size: DSFont.Size.base))
-                .foregroundStyle(.secondary)
-                .fixedSize(horizontal: false, vertical: true)
+                .fieldSubtitle()
         }
     }
 

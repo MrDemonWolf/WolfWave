@@ -179,7 +179,7 @@ private struct MotionGallerySection: View {
                 Image(systemName: "wand.and.rays")
                     .foregroundStyle(.purple)
                 Text("Motion Gallery")
-                    .sectionSubHeader()
+                    .sectionHeader()
                 Spacer()
             }
         }

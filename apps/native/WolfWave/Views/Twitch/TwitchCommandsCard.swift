@@ -96,11 +96,10 @@ struct TwitchCommandsCard: View {
         VStack(alignment: .leading, spacing: DSSpace.s6) {
             VStack(alignment: .leading, spacing: DSSpace.s1h) {
                 Text("Bot Commands")
-                    .sectionSubHeader()
+                    .sectionHeader()
 
                 Text("Choose which commands people can use in chat.")
-                    .font(.system(size: DSFont.Size.base))
-                    .foregroundStyle(.secondary)
+                    .fieldSubtitle()
             }
 
             if !twitchReady {

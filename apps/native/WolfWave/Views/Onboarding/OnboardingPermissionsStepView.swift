@@ -38,7 +38,7 @@ struct OnboardingPermissionsStepView: View {
                     glowColor: Color.accentColor,
                     glyph:
                         Image(systemName: "lock.shield.fill")
-                            .font(.system(size: DSFont.Size.x26, weight: .semibold))
+                            .font(.system(size: DSFont.Size.x3xl, weight: .semibold))
                             .foregroundStyle(.white)
                 )
             },
@@ -60,7 +60,7 @@ struct OnboardingPermissionsStepView: View {
             case .granted:
                 HStack(spacing: DSSpace.s3) {
                     Image(systemName: "checkmark.circle.fill")
-                        .font(.system(size: DSFont.Size.x18))
+                        .font(.system(size: DSFont.Size.lg))
                         .foregroundStyle(.green)
                     Text("Access granted. Sync Music is on.")
                         .font(.system(size: DSFont.Size.base))

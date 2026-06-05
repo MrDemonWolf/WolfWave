@@ -41,7 +41,7 @@ struct DeviceCodeView: View {
             // Code container - monospaced, larger and calm
             HStack(spacing: DSSpace.s2) {
                 Text(userCode)
-                    .font(.system(size: DSFont.Size.x28, weight: .medium, design: .monospaced))
+                    .font(.system(size: DSFont.Size.x2xl, weight: .medium, design: .monospaced))
                     .foregroundStyle(.primary)
                     .lineLimit(1)
                     .minimumScaleFactor(0.6)

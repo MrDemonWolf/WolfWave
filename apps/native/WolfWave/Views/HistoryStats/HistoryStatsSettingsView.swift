@@ -488,7 +488,7 @@ struct HistoryStatsSettingsView: View {
     private func emptyStateContent(title: String, subtitle: String) -> some View {
         VStack(spacing: DSSpace.s2) {
             Image(systemName: "chart.bar.xaxis")
-                .font(.system(size: DSFont.Size.x28, weight: .light))
+                .font(.system(size: DSFont.Size.xl, weight: .light))
                 .foregroundStyle(.tertiary)
             Text(title)
                 .font(.system(size: DSFont.Size.base, weight: .medium))
@@ -517,7 +517,7 @@ struct HistoryStatsSettingsView: View {
                     Image(systemName: "music.note")
                         .font(.system(size: DSFont.Size.sm))
                         .foregroundStyle(.secondary)
-                        .frame(width: DSFont.Size.x16)
+                        .frame(width: DSSpace.s6)
                     VStack(alignment: .leading, spacing: 1) {
                         Text(play.track)
                             .font(.system(size: DSFont.Size.base))

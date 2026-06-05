@@ -39,7 +39,7 @@ struct OnboardingPreferencesStepView: View {
                     glowColor: Color.accentColor,
                     glyph:
                         Image(systemName: "gearshape.fill")
-                            .font(.system(size: DSFont.Size.x26, weight: .semibold))
+                            .font(.system(size: DSFont.Size.x3xl, weight: .semibold))
                             .foregroundStyle(.white)
                 )
             },

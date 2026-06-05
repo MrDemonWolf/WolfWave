@@ -54,7 +54,7 @@ struct BrandTile<Background: ShapeStyle, Glyph: View>: View {
             background: AnyShapeStyle(AppConstants.Brand.twitch),
             glowColor: AppConstants.Brand.twitch,
             glyph: Image(systemName: "bolt.fill")
-                .font(.system(size: DSFont.Size.x24, weight: .bold))
+                .font(.system(size: DSFont.Size.x2xl, weight: .bold))
                 .foregroundStyle(.white)
         )
 
@@ -79,7 +79,7 @@ struct BrandTile<Background: ShapeStyle, Glyph: View>: View {
             ),
             glowColor: AppConstants.Brand.appleMusicGradientEnd,
             glyph: Image(systemName: "music.note")
-                .font(.system(size: DSFont.Size.x24, weight: .bold))
+                .font(.system(size: DSFont.Size.x2xl, weight: .bold))
                 .foregroundStyle(.white)
         )
     }

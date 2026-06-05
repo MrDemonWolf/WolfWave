@@ -32,11 +32,10 @@ struct AppVisibilitySettingsView: View {
             // Section Header
             VStack(alignment: .leading, spacing: DSSpace.s1h) {
                 Text("App Visibility")
-                    .sectionSubHeader()
+                    .sectionHeader()
 
                 Text("Control how WolfWave appears in your Dock and menu bar.")
-                    .font(.system(size: DSFont.Size.base))
-                    .foregroundStyle(.secondary)
+                    .fieldSubtitle()
             }
 
             // Startup + Display Mode, stacked in one grouped card

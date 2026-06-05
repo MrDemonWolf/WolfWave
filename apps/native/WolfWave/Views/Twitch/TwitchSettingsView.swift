@@ -132,11 +132,11 @@ struct TwitchSettingsView: View {
                 // card never collapses its top section mid-transition.
                 VStack(alignment: .leading, spacing: DSSpace.s0) {
                     Text(authCardHeaderTitle)
-                        .font(.system(size: DSFont.Size.sm, weight: .medium))
-                        .foregroundStyle(.secondary)
+                        .font(.system(size: DSFont.Size.base, weight: .semibold))
+                        .accessibilityAddTraits(.isHeader)
 
                     Text(authCardHeaderSubtitle)
-                        .font(.system(size: DSFont.Size.body, weight: .regular))
+                        .font(.system(size: DSFont.Size.sm))
                         .foregroundStyle(.secondary)
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)

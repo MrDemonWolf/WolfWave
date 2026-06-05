@@ -38,7 +38,7 @@ IntegrationDashboardView(
 - `DSFont.Size.base` (13) `.medium` — row name
 - `DSFont.Size.sm` (11) `.secondary` — row subtitle (max 2 lines)
 - `DSFont.Size.body` (12) — "Configure" button + section subhead
-- `.sectionSubHeader()` — text-only "Integrations" header (no leading icon; see [section-header-with-status.md](section-header-with-status.md) for the no-icon-on-headers rule)
+- `.sectionHeader()` (17 semibold, `.isHeader`) — text-only "Integrations" header (no leading icon; see [section-header-with-status.md](section-header-with-status.md) for the no-icon-on-headers rule)
 - `DSSpace.s3` (12) — row horizontal padding
 - `DSSpace.s4` (12) — row vertical padding
 - `DSDimension.Settings.cardCornerRadius` (14) via `.cardStyleUnpadded()`

@@ -45,7 +45,7 @@ struct NowPlayingHeroCard: View {
                 }
 
                 Text(track ?? (trackingEnabled ? "Nothing playing right now" : "Sync Music is off"))
-                    .font(.system(size: DSFont.Size.x18, weight: .semibold))
+                    .font(.system(size: DSFont.Size.lg, weight: .semibold))
                     .lineLimit(1)
                     .foregroundStyle(track == nil ? .secondary : .primary)
                     .contentTransition(.opacity)
@@ -89,7 +89,7 @@ struct NowPlayingHeroCard: View {
 
                 if isPaused {
                     Image(systemName: "pause.circle.fill")
-                        .font(.system(size: DSFont.Size.x26, weight: .semibold))
+                        .font(.system(size: DSFont.Size.x3xl, weight: .semibold))
                         .symbolRenderingMode(.palette)
                         .foregroundStyle(.white, .black.opacity(0.55))
                         .shadow(color: .black.opacity(0.35), radius: 6, y: 2)
@@ -102,7 +102,7 @@ struct NowPlayingHeroCard: View {
                 RoundedRectangle(cornerRadius: 10, style: .continuous)
                     .fill(.quaternary.opacity(0.6))
                 Image(systemName: "music.note")
-                    .font(.system(size: DSFont.Size.x26, weight: .medium))
+                    .font(.system(size: DSFont.Size.x3xl, weight: .medium))
                     .foregroundStyle(.tertiary)
             }
             .frame(width: 92, height: 92)

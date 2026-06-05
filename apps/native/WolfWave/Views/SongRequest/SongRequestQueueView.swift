@@ -203,7 +203,7 @@ struct SongRequestQueueView: View {
     private var emptyState: some View {
         VStack(spacing: DSSpace.s2) {
             Image(systemName: "music.note.list")
-                .font(.system(size: DSFont.Size.x24))
+                .font(.system(size: DSFont.Size.x2xl))
                 .foregroundStyle(.tertiary)
             Text("No song requests yet")
                 .font(.system(size: DSFont.Size.body))
@@ -277,7 +277,7 @@ struct SongRequestQueueView: View {
             .frame(width: 40, height: 40)
             .overlay {
                 Image(systemName: "music.note")
-                    .font(.system(size: DSFont.Size.x16))
+                    .font(.system(size: DSFont.Size.lg))
                     .foregroundStyle(.tertiary)
             }
     }

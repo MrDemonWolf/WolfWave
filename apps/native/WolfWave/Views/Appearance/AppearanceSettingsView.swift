@@ -25,11 +25,10 @@ struct AppearanceSettingsView: View {
         VStack(alignment: .leading, spacing: DSSpace.s6) {
             VStack(alignment: .leading, spacing: DSSpace.s2) {
                 Text("Appearance")
-                    .sectionSubHeader()
+                    .sectionHeader()
 
                 Text("Pick a look, or follow your system setting.")
-                    .font(.system(size: DSFont.Size.base))
-                    .foregroundStyle(.secondary)
+                    .fieldSubtitle()
             }
 
             VStack(alignment: .leading, spacing: DSSpace.s4) {

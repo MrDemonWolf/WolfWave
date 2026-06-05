@@ -92,7 +92,7 @@ struct MonthlyWrapView: View {
             Spacer()
 
             Text(wrap.monthLabel)
-                .font(.system(size: DSFont.Size.x15, weight: .semibold))
+                .font(.system(size: DSFont.Size.md, weight: .semibold))
 
             Spacer()
 
@@ -242,12 +242,12 @@ struct MonthlyWrapCard: View {
                             .foregroundStyle(.white)
                     }
                     Text("WOLFWAVE · MONTHLY WRAP")
-                        .font(.system(size: DSFont.Size.x9, weight: .bold))
+                        .font(.system(size: DSFont.Size.xs, weight: .bold))
                         .tracking(1.4)
                         .foregroundStyle(.white.opacity(0.7))
                 }
                 Text(data.monthLabel)
-                    .font(.system(size: DSFont.Size.x24, weight: .bold))
+                    .font(.system(size: DSFont.Size.x2xl, weight: .bold))
                     .foregroundStyle(.white)
             }
 
@@ -320,7 +320,7 @@ struct MonthlyWrapCard: View {
     private func statBlock(value: String, label: String) -> some View {
         VStack(alignment: .leading, spacing: 0) {
             Text(value)
-                .font(.system(size: DSFont.Size.x28, weight: .bold))
+                .font(.system(size: DSFont.Size.x3xl, weight: .bold))
                 .foregroundStyle(.white)
             Text(label)
                 .font(.system(size: DSFont.Size.sm, weight: .medium))
@@ -332,11 +332,11 @@ struct MonthlyWrapCard: View {
     private func wrapRow(caption: String, value: String) -> some View {
         VStack(alignment: .leading, spacing: 1) {
             Text(caption)
-                .font(.system(size: DSFont.Size.x9, weight: .bold))
+                .font(.system(size: DSFont.Size.xs, weight: .bold))
                 .tracking(1.0)
                 .foregroundStyle(.white.opacity(0.6))
             Text(value)
-                .font(.system(size: DSFont.Size.x15, weight: .semibold))
+                .font(.system(size: DSFont.Size.md, weight: .semibold))
                 .foregroundStyle(.white)
                 .lineLimit(2)
         }

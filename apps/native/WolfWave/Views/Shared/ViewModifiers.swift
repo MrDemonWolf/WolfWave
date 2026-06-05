@@ -108,37 +108,55 @@ extension View {
     }
 }
 
-// MARK: - Section Header Style
+// MARK: - Pane Title Style (H1)
 
-/// Standard section header styling.
+/// Top-level pane title styling: the single biggest heading on a settings pane.
+///
+/// This is the H1 of the type ramp. It sits two clear steps above the section
+/// header (`.sectionHeader()`, 17pt) so the eye reads "pane → section → label"
+/// without ambiguity. Per NN/g visual-hierarchy guidance, the most important
+/// element is the biggest, and adjacent levels need a perceptible size step
+/// (here 22 → 17 → 11) rather than the old 2pt 17 → 15 collision.
+///
+/// Carries the `.isHeader` accessibility trait so VoiceOver's heading rotor can
+/// jump straight to each pane title. Use exactly once per pane, on the title.
+struct PaneTitleModifier: ViewModifier {
+    func body(content: Content) -> some View {
+        content
+            .font(.system(size: DSFont.Size.x2xl, weight: .bold))
+            .accessibilityAddTraits(.isHeader)
+    }
+}
+
+extension View {
+    /// Applies the pane title style: 22pt bold, tagged as an accessibility header.
+    ///
+    /// H1 of the ramp. One per pane. For section titles inside a pane use
+    /// `.sectionHeader()`; for in-card labels use `.sectionEyebrow()`.
+    func paneTitle() -> some View {
+        modifier(PaneTitleModifier())
+    }
+}
+
+// MARK: - Section Header Style (H2)
+
+/// Section header styling: the title of a section inside a pane.
+///
+/// H2 of the ramp (17pt semibold), one clear step below `.paneTitle()` (22pt)
+/// and well above `.sectionEyebrow()` (11pt). Tagged as an accessibility header
+/// so the VoiceOver heading rotor lands on every section.
 struct SectionHeaderModifier: ViewModifier {
     func body(content: Content) -> some View {
         content
             .font(.system(size: DSFont.Size.lg, weight: .semibold))
+            .accessibilityAddTraits(.isHeader)
     }
 }
 
 extension View {
-    /// Applies standard section header styling.
+    /// Applies section header styling (17pt semibold, accessibility header).
     func sectionHeader() -> some View {
         modifier(SectionHeaderModifier())
-    }
-}
-
-// MARK: - Section Sub-Header Style
-
-/// Sub-section header styling (H2 level).
-struct SectionSubHeaderModifier: ViewModifier {
-    func body(content: Content) -> some View {
-        content
-            .font(.system(size: DSFont.Size.x15, weight: .semibold))
-    }
-}
-
-extension View {
-    /// Applies sub-section header styling (15pt semibold).
-    func sectionSubHeader() -> some View {
-        modifier(SectionSubHeaderModifier())
     }
 }
 
@@ -164,6 +182,44 @@ extension View {
     /// Pairs naturally with a leading SF Symbol via `Label(_, systemImage:)`.
     func sectionEyebrow() -> some View {
         modifier(SectionEyebrowModifier())
+    }
+}
+
+// MARK: - Body Subtitle / Caption (secondary text levels)
+
+/// Secondary body text that sits under a `.paneTitle()` or `.sectionHeader()`:
+/// the one-line "what this does" subtitle, and inline helper copy.
+///
+/// One source of truth for the `base` (13pt) secondary text that had been
+/// hand-rolled as `.font(.system(size: DSFont.Size.base)).foregroundStyle(.secondary)`
+/// across most panes. Keeps the ramp at three heading sizes + one body size.
+struct FieldSubtitleModifier: ViewModifier {
+    func body(content: Content) -> some View {
+        content
+            .font(.system(size: DSFont.Size.base))
+            .foregroundStyle(.secondary)
+            .fixedSize(horizontal: false, vertical: true)
+    }
+}
+
+/// Smallest text level: footnotes, legal lines, timestamps. 10pt secondary.
+struct CaptionTextModifier: ViewModifier {
+    func body(content: Content) -> some View {
+        content
+            .font(.system(size: DSFont.Size.xs))
+            .foregroundStyle(.secondary)
+    }
+}
+
+extension View {
+    /// Secondary subtitle/helper text (13pt secondary). Pairs with a heading.
+    func fieldSubtitle() -> some View {
+        modifier(FieldSubtitleModifier())
+    }
+
+    /// Caption/footnote text (10pt secondary). The bottom of the type ramp.
+    func captionText() -> some View {
+        modifier(CaptionTextModifier())
     }
 }
 
@@ -295,18 +351,23 @@ extension Color {
 
 #Preview("Modifier samples") {
     VStack(alignment: .leading, spacing: DSSpace.s5) {
-        Text("Section Header")
+        // The type ramp, top to bottom: 22 → 17 → 11 headings + body + caption.
+        Text("Pane Title (H1)")
+            .paneTitle()
+
+        Text("Section Header (H2)")
             .sectionHeader()
 
-        Text("Sub-section header")
-            .sectionSubHeader()
+        Text("In-card eyebrow (H3)")
+            .sectionEyebrow()
 
         VStack(alignment: .leading, spacing: DSSpace.s2) {
             Text("Card with .cardStyle()")
-                .sectionSubHeader()
+                .sectionHeader()
             Text("Opaque surface, internal padding, rounded corners.")
-                .font(.system(size: DSFont.Size.body))
-                .foregroundStyle(.secondary)
+                .fieldSubtitle()
+            Text("Caption / footnote level.")
+                .captionText()
         }
         .cardStyle()
 

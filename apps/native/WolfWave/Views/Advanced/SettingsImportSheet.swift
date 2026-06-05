@@ -61,7 +61,7 @@ struct SettingsImportSheet: View {
     private var header: some View {
         VStack(alignment: .leading, spacing: DSSpace.s1) {
             Text("Import Settings")
-                .font(.system(size: DSFont.Size.lg, weight: .semibold))
+                .sectionHeader()
             Text(sourceLine)
                 .font(.system(size: DSFont.Size.body))
                 .foregroundStyle(.secondary)
@@ -74,12 +74,11 @@ struct SettingsImportSheet: View {
         if let twitch = backup.integrations.twitch {
             VStack(alignment: .leading, spacing: DSSpace.s2) {
                 Text("Accounts")
-                    .font(.system(size: DSFont.Size.sm, weight: .semibold))
-                    .foregroundStyle(.secondary)
+                    .sectionEyebrow()
 
                 ToggleSettingRow(
                     title: "Reconnect Twitch",
-                    subtitle: "This backup was connected to \(channelDisplay(twitch.channelName)). Turn on to restore it and sign in again. Your login is not part of the backup.",
+                    subtitle: "Was connected to \(channelDisplay(twitch.channelName)). Turn on to sign in again after import. Your login isn't in the backup.",
                     isOn: $reconnectTwitch,
                     accessibilityLabel: "Reconnect Twitch",
                     accessibilityIdentifier: "importReconnectTwitchToggle"

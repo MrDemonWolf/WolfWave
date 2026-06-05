@@ -66,7 +66,7 @@ struct DebugSettingsView: View {
     ) -> some View {
         VStack(alignment: .leading, spacing: DSSpace.s3) {
             Text(section.title)
-                .sectionSubHeader()
+                .sectionHeader()
             content()
         }
         .railSection(section)

@@ -557,11 +557,9 @@ fileprivate struct WebSocketBrowserSourceCard: View {
 
     private var widgetSetupHeader: some View {
         VStack(alignment: .leading, spacing: DSSpace.s1h) {
-            Text("Widget Setup").sectionSubHeader()
+            Text("Widget Setup").sectionHeader()
             Text("Use this link in OBS (Browser Source) or open it in any browser.")
-                .font(.system(size: DSFont.Size.base))
-                .foregroundStyle(.secondary)
-                .fixedSize(horizontal: false, vertical: true)
+                .fieldSubtitle()
         }
     }
 
@@ -775,11 +773,9 @@ fileprivate struct WebSocketWidgetAppearanceCard: View {
 
     private var widgetAppearanceHeader: some View {
         VStack(alignment: .leading, spacing: DSSpace.s1h) {
-            Text("Widget Appearance").sectionSubHeader()
+            Text("Widget Appearance").sectionHeader()
             Text("Tweak colors, fonts, and layout for your widget.")
-                .font(.system(size: DSFont.Size.base))
-                .foregroundStyle(.secondary)
-                .fixedSize(horizontal: false, vertical: true)
+                .fieldSubtitle()
         }
     }
 

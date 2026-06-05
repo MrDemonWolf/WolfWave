@@ -40,7 +40,7 @@ struct IntegrationDashboardView: View {
         VStack(alignment: .leading, spacing: DSSpace.s3) {
             HStack {
                 Text("Integrations")
-                    .sectionSubHeader()
+                    .sectionHeader()
                 Spacer()
                 Text("Where WolfWave is broadcasting right now.")
                     .font(.system(size: DSFont.Size.body))

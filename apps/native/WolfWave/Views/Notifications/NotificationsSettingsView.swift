@@ -42,11 +42,10 @@ struct NotificationsSettingsView: View {
         VStack(alignment: .leading, spacing: DSSpace.s6) {
             VStack(alignment: .leading, spacing: DSSpace.s1h) {
                 Text("Notifications")
-                    .sectionSubHeader()
+                    .sectionHeader()
 
                 Text("Get a heads-up in Notification Center as your music plays.")
-                    .font(.system(size: DSFont.Size.base))
-                    .foregroundStyle(.secondary)
+                    .fieldSubtitle()
             }
 
             VStack(alignment: .leading, spacing: DSSpace.s4) {

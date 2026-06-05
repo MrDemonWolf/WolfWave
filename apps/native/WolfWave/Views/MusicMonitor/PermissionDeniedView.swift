@@ -32,7 +32,7 @@ struct PermissionDeniedBanner: View {
             VStack(alignment: .leading, spacing: DSSpace.s2) {
                 HStack(spacing: DSSpace.s2) {
                     Text("Let WolfWave read what's playing.")
-                        .font(.system(size: DSFont.Size.x18, weight: .bold))
+                        .font(.system(size: DSFont.Size.lg, weight: .bold))
                         .lineLimit(2)
 
                     Image(systemName: "lock.fill")
@@ -134,7 +134,7 @@ struct PermissionDeniedBanner: View {
             Circle()
                 .fill(DSColor.warning.opacity(0.12))
             Image(systemName: "music.note")
-                .font(.system(size: DSFont.Size.x24, weight: .semibold))
+                .font(.system(size: DSFont.Size.x2xl, weight: .semibold))
                 .foregroundStyle(DSColor.warning)
         }
         .frame(width: 52, height: 52)

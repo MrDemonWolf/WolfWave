@@ -54,6 +54,7 @@ All notable changes to this project will be documented in this file.
 
 ### Changed
 
+- **Clearer settings headings.** Every settings pane now has one big title, with section titles a clear step below it, so the page reads top to bottom at a glance. Pane titles, section titles, and card labels are now distinct sizes (they used to sit almost on top of each other), and VoiceOver can jump between them by heading. The Twitch sign-in card no longer showed its title smaller than its own subtitle. Onboarding and the now-playing card pick up the same tidied-up text sizes.
 - **Calmer destructive buttons.** Reset All Settings, Clear Logs, and Clear Artwork Cache no longer show up as a loud red bar. Each is a neutral button with a red label, and the Danger Zone card swaps its red wash for a clean card with a red heading. The red stays where it means something: the label, the heading, and the final confirm.
 - **Type RESET to wipe everything.** The Reset All Settings confirmation now spells out exactly what it erases and makes you type RESET before the button unlocks, so a stray click can't reset the app by accident.
 - **Redesigned Settings sidebar.** The sidebar moves to a VoiceInk-style layout: a branded header (WolfWave mark, app name, version), grouped rows with round icon chips, and a solid accent-colored selection pill with a hover highlight. Keyboard navigation, click selection, and VoiceOver work the same, and the Integrations / On Stream / Insights / App grouping is unchanged.

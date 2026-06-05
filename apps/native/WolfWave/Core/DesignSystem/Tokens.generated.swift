@@ -69,14 +69,6 @@ nonisolated enum DSColor {
 /// Generated typography sizes. CGFloat literals match prior hand-coded sizes.
 nonisolated enum DSFont {
     enum Size {
-        static let x9: CGFloat = 9
-        static let x15: CGFloat = 15
-        static let x16: CGFloat = 16
-        static let x18: CGFloat = 18
-        static let x24: CGFloat = 24
-        static let x26: CGFloat = 26
-        static let x28: CGFloat = 28
-        static let x36: CGFloat = 36
         static let xs: CGFloat = 10
         static let sm: CGFloat = 11
         static let body: CGFloat = 12
@@ -85,6 +77,7 @@ nonisolated enum DSFont {
         static let lg: CGFloat = 17
         static let xl: CGFloat = 20
         static let x2xl: CGFloat = 22
+        static let x3xl: CGFloat = 26
     }
 
     enum Weight {

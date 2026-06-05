@@ -136,7 +136,7 @@ struct OnboardingTwitchStepView: View {
                     .shadow(color: DSColor.success.opacity(0.40), radius: 8, x: 0, y: 4)
 
                 Image(systemName: "checkmark")
-                    .font(.system(size: DSFont.Size.x16, weight: .bold))
+                    .font(.system(size: DSFont.Size.lg, weight: .bold))
                     .foregroundStyle(.white)
             }
 
@@ -145,7 +145,7 @@ struct OnboardingTwitchStepView: View {
                     .sectionEyebrow()
 
                 Text("@\(twitchViewModel.botUsername)")
-                    .font(.system(size: DSFont.Size.x15, weight: .semibold))
+                    .font(.system(size: DSFont.Size.md, weight: .semibold))
             }
 
             Spacer()

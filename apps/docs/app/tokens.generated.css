@@ -45,14 +45,6 @@
   --ds-font-family-serif: "Instrument Serif", ui-serif, Georgia, serif;
   --ds-font-family-mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace;
   --ds-font-family-system-apple-display: -apple-system, BlinkMacSystemFont, "SF Pro Display", system-ui, sans-serif;
-  --ds-font-size-9: 9px;
-  --ds-font-size-15: 15px;
-  --ds-font-size-16: 16px;
-  --ds-font-size-18: 18px;
-  --ds-font-size-24: 24px;
-  --ds-font-size-26: 26px;
-  --ds-font-size-28: 28px;
-  --ds-font-size-36: 36px;
   --ds-font-size-xs: 10px;
   --ds-font-size-sm: 11px;
   --ds-font-size-body: 12px;
@@ -61,6 +53,7 @@
   --ds-font-size-lg: 17px;
   --ds-font-size-xl: 20px;
   --ds-font-size-2xl: 22px;
+  --ds-font-size-3xl: 26px;
   --ds-font-weight-regular: 400;
   --ds-font-weight-medium: 500;
   --ds-font-weight-semibold: 600;

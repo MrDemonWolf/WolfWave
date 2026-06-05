@@ -49,7 +49,7 @@ struct OnboardingNotificationsStepView: View {
                     glowColor: Color.red,
                     glyph:
                         Image(systemName: "bell.badge.fill")
-                            .font(.system(size: DSFont.Size.x26, weight: .semibold))
+                            .font(.system(size: DSFont.Size.x3xl, weight: .semibold))
                             .foregroundStyle(.white)
                 )
             },

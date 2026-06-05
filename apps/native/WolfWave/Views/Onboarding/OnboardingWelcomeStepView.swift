@@ -48,7 +48,7 @@ struct OnboardingWelcomeStepView: View {
 
             VStack(spacing: DSSpace.s2) {
                 Text("Welcome to WolfWave")
-                    .font(.system(size: DSFont.Size.x26, weight: .bold))
+                    .font(.system(size: DSFont.Size.x3xl, weight: .bold))
                     .opacity(titleVisible ? 1 : 0)
                     .offset(y: titleVisible ? 0 : Self.entranceRise)
 
