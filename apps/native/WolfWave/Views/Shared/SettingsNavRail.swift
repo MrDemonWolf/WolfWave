@@ -15,9 +15,9 @@ import SwiftUI
 ///
 /// Conformers are `String`-raw enums: the raw value seeds the accessibility
 /// identifier and the `ScrollViewReader` anchor, while `title` labels the row and
-/// `icon` is its leading SF Symbol. `GeneralSection`, `DebugSection`, and
-/// `RequestSection` conform with no extra members because they already expose
-/// `title` + `icon`.
+/// `icon` is its leading SF Symbol. `GeneralSection`, `DebugSection`,
+/// `RequestSection`, and `HistorySection` conform with no extra members because
+/// they already expose `title` + `icon`.
 protocol SettingsRailSection: Hashable, RawRepresentable where RawValue == String {
     /// Row label. Also used as the rail tooltip ("Jump to <title>").
     var title: String { get }
@@ -86,8 +86,8 @@ extension View {
 /// Two-column settings layout: a fixed jump-nav rail on the left and one
 /// always-mounted, scrollable content column on the right. Tapping a rail row
 /// scrolls its section to the top; scrolling manually moves the highlight to
-/// whatever section you land on. Shared by General, Debug, and Song Requests so
-/// the rail reads and behaves identically across panes.
+/// whatever section you land on. Shared by General, Debug, Song Requests, and
+/// History & Stats so the rail reads and behaves identically across panes.
 ///
 /// Callers supply the stacked section views in `content` and tag each one with
 /// ``SwiftUICore/View/railSection(_:)`` to wire up the scroll anchor + highlight.

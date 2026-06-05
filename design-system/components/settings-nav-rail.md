@@ -8,7 +8,7 @@ the left and one always-mounted, scrollable content column on the right. Tapping
 rail row scrolls its section to the top; scrolling manually moves the highlight to
 whatever section you land on. Replaces in-pane segmented tabs (which swapped
 content) so a pane reads as one scroll with focused groups. Used by General, Debug,
-and Song Requests.
+Song Requests, and History & Stats.
 
 ## API
 ```swift
@@ -58,7 +58,7 @@ graph LR
   H --> Col[Content ScrollView]
   Rail --> Group[group eyebrow .sectionEyebrow when title != nil]
   Rail --> Row[navRow Button.plain: icon + title, DSColor.info pill when selected]
-  Col --> LV[LazyVStack content sectionSpacing]
+  Col --> LV[VStack content sectionSpacing]
   LV --> Sec[.railSection: .id + offset anchor]
   Col -. SectionOffsetPreferenceKey .-> Sync[syncSelection → selection]
   Row -. scrollTo + set selection .-> LV
