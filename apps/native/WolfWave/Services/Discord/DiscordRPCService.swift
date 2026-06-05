@@ -502,7 +502,7 @@ actor DiscordRPCService {
 
         let largeImage = artworkURL ?? "apple_music"
         // When paused: swap the small badge to the "pause" art asset (uploaded
-        // to the Discord developer portal, see discord-assets/README.md) and
+        // to the Discord developer portal under Rich Presence > Art Assets) and
         // override the tooltip. Source-of-truth keeps `large_image` intact so
         // album art still shows.
         let smallImageKey = isPaused ? "pause" : "apple_music"

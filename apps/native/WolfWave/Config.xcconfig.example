@@ -1,53 +1,78 @@
 // ============================================================================
 // WolfWave Build Configuration (Example)
 // ============================================================================
-// SETUP INSTRUCTIONS:
-// 1. Copy this file to Config.xcconfig
-// 2. Replace placeholder values with your actual API keys
-// 3. DO NOT commit Config.xcconfig to source control (it's in .gitignore)
 //
-// All values are expanded into Info.plist at build time.
+// Copy this file to Config.xcconfig (same folder) and fill in your keys.
+// Config.xcconfig is gitignored and never committed. Every value here is
+// expanded into Info.plist at build time.
+//
+// ----------------------------------------------------------------------------
+// FIRST-TIME SETUP CHECKLIST
+// ----------------------------------------------------------------------------
+//  [ ] 1. Copy this file:  cp Config.xcconfig.example Config.xcconfig
+//  [ ] 2. Twitch:   create an app, paste its Client ID into TWITCH_CLIENT_ID
+//                   https://dev.twitch.tv/console/apps
+//  [ ] 3. Discord:  create an application, paste its Application ID into
+//                   DISCORD_CLIENT_ID
+//                   https://discord.com/developers/applications
+//  [ ] 4. Discord art assets (REQUIRED for Rich Presence icons):
+//                   in your Discord app, open Rich Presence > Art Assets and
+//                   upload BOTH of these with the exact lowercase names:
+//                     - "apple_music"  (512x512 PNG, the Apple Music mark)
+//                     - "pause"        (512x512 PNG, white pause glyph)
+//                   Source PNGs live in the discord-assets/ folder.
+//                   CDN takes ~10 min to propagate after upload.
+//  [ ] 5. Build the app (make build, or Cmd+R in Xcode).
+//
+// Anything marked OPTIONAL below already has a sensible upstream default and
+// can be left as-is.
 // ============================================================================
 
+
 // ----------------------------------------------------------------------------
-// TWITCH CONFIGURATION
+// TWITCH  (required)
 // ----------------------------------------------------------------------------
-// Your Twitch Client ID for bot authentication
-// Get one at: https://dev.twitch.tv/console/apps
+// Client ID for the bot's EventSub + Helix auth.
+// Create an app: https://dev.twitch.tv/console/apps
 TWITCH_CLIENT_ID = your_twitch_client_id_here
 
-// ----------------------------------------------------------------------------
-// DISCORD RICH PRESENCE
-// ----------------------------------------------------------------------------
-// Your Discord Application ID for Rich Presence integration
-// Get one at: https://discord.com/developers/applications
-// Shows "Listening to Apple Music" on your Discord profile
-DISCORD_CLIENT_ID = your_discord_application_id_here
 
 // ----------------------------------------------------------------------------
-// AUTO-UPDATE CONFIGURATION
+// DISCORD RICH PRESENCE  (required)
 // ----------------------------------------------------------------------------
-// GitHub repository information for Sparkle automatic updates
-// The app checks: https://api.github.com/repos/{owner}/{repo}/releases/latest
-// See SPARKLE_SETUP.md for complete setup instructions
+// Application ID for Rich Presence. Drives the "Listening to WolfWave" status
+// on your Discord profile.
+// Create an app: https://discord.com/developers/applications
+//
+// Reminder: the ID alone is not enough. You must also upload the "apple_music"
+// and "pause" art assets to that same Discord app (step 4 above), or the
+// presence icons render broken. The PNGs are in the discord-assets/ folder.
+DISCORD_CLIENT_ID = your_discord_application_id_here
+
+
+// ----------------------------------------------------------------------------
+// AUTO-UPDATE / SPARKLE  (optional for local dev, required for releases)
+// ----------------------------------------------------------------------------
+// Repo the updater checks for new releases:
+//   https://api.github.com/repos/{owner}/{repo}/releases/latest
+// Leave the defaults if you are not cutting your own signed releases.
 GITHUB_REPO_OWNER = your_github_username
 GITHUB_REPO_NAME = wolfwave
 
-// ----------------------------------------------------------------------------
-// FORK BRANDING (optional)
-// ----------------------------------------------------------------------------
-// Overrides for forks/whitelabels. Defaults match the upstream MrDemonWolf
-// build — change these to point at your own docs site, community, and legal
-// entity. Each value falls back to the upstream default if left blank.
-//
-// To rename the app itself, edit CFBundleDisplayName in Info.plist (or set
-// PRODUCT_NAME in an xcconfig overlay — see Config.Debug.xcconfig).
-// ----------------------------------------------------------------------------
 
-// Documentation site root. Privacy/terms/changelog pages derive from this.
-// NOTE: xcconfig treats "//" as a comment, which would silently truncate a URL
-// to "https:". The "$()" expands to nothing and breaks up the "//" token so the
-// full URL survives. Keep this escape on any value that contains "//".
+// ----------------------------------------------------------------------------
+// FORK BRANDING  (optional)
+// ----------------------------------------------------------------------------
+// Overrides for forks / whitelabels. Defaults match the upstream MrDemonWolf
+// build. Each value falls back to the upstream default if left blank.
+// To rename the app itself, edit CFBundleDisplayName in Info.plist (or set
+// PRODUCT_NAME in an xcconfig overlay, see Config.Debug.xcconfig).
+//
+// URL GOTCHA: xcconfig treats a bare "//" as a comment and silently truncates
+// the value to "https:". The "$()" expands to nothing and breaks up the "//"
+// token so the full URL survives. Keep that escape on ANY value with "//".
+
+// Docs site root. Privacy / terms / changelog pages derive from this.
 DOCS_URL = https:/$()/mrdemonwolf.github.io/wolfwave
 
 // Community Discord invite, opened from tray menu "Help > Join Discord Community".
@@ -56,10 +81,10 @@ COMMUNITY_DISCORD_URL = https:/$()/mrdwolf.net/discord
 // Legal entity shown in About + Monthly Wrap footers.
 COPYRIGHT_HOLDER = MrDemonWolf, Inc.
 
+
 // ----------------------------------------------------------------------------
-// ADVANCED: PER-ENVIRONMENT OVERRIDES
+// ADVANCED: PER-ENVIRONMENT OVERRIDES  (optional)
 // ----------------------------------------------------------------------------
 // Create Config.Debug.xcconfig or Config.Release.xcconfig to override values
-// for specific build configurations. Assign in Project → Info → Configurations
+// for a specific build configuration. Assign in Project > Info > Configurations.
 // ----------------------------------------------------------------------------
-
