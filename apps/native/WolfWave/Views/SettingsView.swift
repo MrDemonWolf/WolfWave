@@ -244,8 +244,8 @@ struct SettingsView: View {
     /// Returns the detail pane content for the given sidebar section.
     /// Detail content for the selected section. Most sections render inside a
     /// shared scrolling, width-clamped column. A few opt out because they own
-    /// their own scroll layout: General (plain scroll), Song Requests and
-    /// History & Stats (jump-nav rail), and the DEBUG-only Debug tab.
+    /// their own scroll layout: General and Song Requests (jump-nav rail),
+    /// History & Stats (plain scroll), and the DEBUG-only Debug tab.
     @ViewBuilder
     private var detailPane: some View {
         if selectedSection == .general {
@@ -310,9 +310,9 @@ struct SettingsView: View {
         case .websocket:
             WebSocketSettingsView()
         case .historyStats:
-            // History & Stats owns a full-width rail layout (when both toggles are
-            // on) and is routed via `detailPane`, bypassing this shared scroll
-            // wrapper. Kept here only to satisfy switch exhaustiveness.
+            // History & Stats owns a full-width scroll layout and is routed via
+            // `detailPane`, bypassing this shared scroll wrapper. Kept here only
+            // to satisfy switch exhaustiveness.
             EmptyView()
         case .twitchIntegration:
             twitchIntegrationView()

@@ -46,9 +46,6 @@ struct HistoryStatsSettingsView: View {
     @State private var musicPermission: MusicPermissionState = MusicPermissionCache.read() ?? .unknown
     @State private var visibleRecentCount: Int = AppConstants.History.recentDisplayCount
 
-    /// Rail selection + scroll target for the dashboard layout's jump-nav rail.
-    @State private var selectedSection: HistorySection = .overview
-
     /// Which leaderboard the "Top" card is showing. Lets one card surface
     /// artists, tracks, and albums in the footprint that previously showed
     /// only artists.
@@ -87,13 +84,7 @@ struct HistoryStatsSettingsView: View {
     // MARK: - Body
 
     var body: some View {
-        Group {
-            if showsDashboardRail {
-                dashboardLayout
-            } else {
-                plainLayout
-            }
-        }
+        unifiedLayout
         .onAppear {
             musicPermission = MusicPermissionChecker.currentState()
         }
@@ -116,100 +107,14 @@ struct HistoryStatsSettingsView: View {
         }
     }
 
-    /// True once both toggles are on: the pane has a rich dashboard worth a
-    /// jump-nav rail. Mirrors Song Requests, which only rails its enabled layout;
-    /// the off / partial states stay a short single column.
-    private var showsDashboardRail: Bool {
-        historyEnabled && statsEnabled
-    }
+    // MARK: - Layout
 
-    // MARK: - Dashboard Layout (rail)
-
-    /// Rail sections in display order. Stats / Charts / Top join once there's data
-    /// to anchor them (or while history is still loading, matching the dashboard
-    /// band's skeleton), so a rail row never points at a hidden card. Recent,
-    /// Command, and Manage are always present in this layout.
-    private var railGroups: [SettingsRailGroup<HistorySection>] {
-        var sections: [HistorySection] = [.overview]
-        if snapshot.hasData || isLoadingHistory {
-            sections += [.stats, .charts, .top]
-        }
-        sections += [.recent, .command, .manage]
-        return [SettingsRailGroup(sections: sections)]
-    }
-
-    /// Both features on: the shared jump-nav rail with one always-mounted scroll
-    /// column. The Overview anchor rides the intro so jumping to it scrolls to the
-    /// very top, matching General and Song Requests.
-    private var dashboardLayout: some View {
-        SettingsNavRail(
-            selection: $selectedSection,
-            groups: railGroups,
-            accessibilityIDPrefix: "historyNav"
-        ) {
-            intro
-                .railSection(HistorySection.overview)
-            permissionBanner
-
-            togglesCard
-
-            // Dashboard band: lead with the insights, two columns when the
-            // settings window is wide enough (collapses to a stack when not).
-            // Render while the service is still loading too, so the skeleton
-            // placeholders hold the band's footprint instead of popping in and
-            // resizing the pane the moment disk load finishes (#281).
-            if snapshot.hasData || isLoadingHistory {
-                ResponsiveRow {
-                    summaryCard
-                } right: {
-                    todaysTopTrackCard
-                }
-                .skeleton(isLoadingHistory)
-                .railSection(HistorySection.stats)
-
-                ResponsiveRow {
-                    WeekChartCard(snapshot: snapshot)
-                } right: {
-                    HourChartCard(snapshot: snapshot)
-                }
-                .skeleton(isLoadingHistory)
-                .railSection(HistorySection.charts)
-
-                topListCard
-                    .skeleton(isLoadingHistory)
-                    .railSection(HistorySection.top)
-            }
-
-            unifiedRecentCard
-                .skeleton(isLoadingHistory)
-                .railSection(HistorySection.recent)
-
-            statsCommandCard
-                .railSection(HistorySection.command)
-
-            manageBlock
-                .railSection(HistorySection.manage)
-
-            dangerCard
-        }
-    }
-
-    /// Retention + Monthly Wrap, side by side. Both features are on in the
-    /// dashboard layout, so the actions column is always valid here.
-    private var manageBlock: some View {
-        ResponsiveRow {
-            retentionCard
-        } right: {
-            actionsCard
-        }
-    }
-
-    // MARK: - Plain Layout (no rail)
-
-    /// Either feature off: a single centered, width-clamped column that mirrors
-    /// the shell's `standardDetailScroll` geometry (the pane bypasses it to own
-    /// the full detail width). Short enough that it needs no jump-nav rail.
-    private var plainLayout: some View {
+    /// One centered, width-clamped scroll column for every state. Mirrors the
+    /// shell's `standardDetailScroll` geometry (the pane bypasses it to own the
+    /// full detail width). The dashboard band (summary / charts / top), the
+    /// `!stats` command, and the Monthly Wrap action surface inline once both
+    /// features are on, so the pane reads top-to-bottom without a jump-nav rail.
+    private var unifiedLayout: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: AppConstants.SettingsUI.sectionSpacing) {
                 intro
@@ -220,11 +125,39 @@ struct HistoryStatsSettingsView: View {
                     firstRunExplainer
                 }
 
+                // Dashboard band: lead with the insights, two columns when the
+                // settings window is wide enough (collapses to a stack when not).
+                // Render while the service is still loading too, so the skeleton
+                // placeholders hold the band's footprint instead of popping in and
+                // resizing the pane the moment disk load finishes (#281).
+                if historyEnabled, statsEnabled, snapshot.hasData || isLoadingHistory {
+                    ResponsiveRow {
+                        summaryCard
+                    } right: {
+                        todaysTopTrackCard
+                    }
+                    .skeleton(isLoadingHistory)
+
+                    ResponsiveRow {
+                        WeekChartCard(snapshot: snapshot)
+                    } right: {
+                        HourChartCard(snapshot: snapshot)
+                    }
+                    .skeleton(isLoadingHistory)
+
+                    topListCard
+                        .skeleton(isLoadingHistory)
+                }
+
                 unifiedRecentCard
                     .skeleton(isLoadingHistory)
 
+                if historyEnabled, statsEnabled {
+                    statsCommandCard
+                }
+
                 if historyEnabled {
-                    retentionCard
+                    manageBlock
                     dangerCard
                 }
             }
@@ -232,6 +165,22 @@ struct HistoryStatsSettingsView: View {
             .frame(maxWidth: .infinity, alignment: .center)
             .padding(.horizontal, AppConstants.SettingsUI.contentPaddingH)
             .padding(.vertical, AppConstants.SettingsUI.contentPaddingV)
+        }
+    }
+
+    /// Retention card, plus the Monthly Wrap action when Stats is on. Retention
+    /// stands alone (single column) when only History is on; the actions column
+    /// joins once Stats unlocks the wrap.
+    @ViewBuilder
+    private var manageBlock: some View {
+        if statsEnabled {
+            ResponsiveRow {
+                retentionCard
+            } right: {
+                actionsCard
+            }
+        } else {
+            retentionCard
         }
     }
 
@@ -738,47 +687,6 @@ struct HistoryStatsSettingsView: View {
     private func handleStatsChange(_ enabled: Bool) {
         if !enabled {
             statsCommandEnabled = false
-        }
-    }
-}
-
-// MARK: - History Section
-
-/// The History & Stats pane's jump-nav sections, in display order. `title` labels
-/// the rail row; the case doubles as the `ScrollViewReader` anchor attached via
-/// `.railSection(_:)`. The Overview anchor rides the intro so jumping to it scrolls
-/// to the top. Built into `railGroups` on demand, so Stats / Charts / Top drop out
-/// until there's recorded data to anchor them.
-private enum HistorySection: String, SettingsRailSection {
-    case overview
-    case stats
-    case charts
-    case top
-    case recent
-    case command
-    case manage
-
-    var title: String {
-        switch self {
-        case .overview: return "Overview"
-        case .stats: return "Stats"
-        case .charts: return "Charts"
-        case .top: return "Top"
-        case .recent: return "Recent"
-        case .command: return "Command"
-        case .manage: return "Manage"
-        }
-    }
-
-    var icon: String {
-        switch self {
-        case .overview: return "switch.2"
-        case .stats: return "chart.bar.fill"
-        case .charts: return "chart.xyaxis.line"
-        case .top: return "trophy"
-        case .recent: return "clock.arrow.circlepath"
-        case .command: return "text.bubble"
-        case .manage: return "slider.horizontal.3"
         }
     }
 }

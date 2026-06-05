@@ -8,7 +8,7 @@ the left and one always-mounted, scrollable content column on the right. Tapping
 rail row scrolls its section to the top; scrolling manually moves the highlight to
 whatever section you land on. Replaces in-pane segmented tabs (which swapped
 content) so a pane reads as one scroll with focused groups. Used by General, Debug,
-Song Requests, and History & Stats.
+and Song Requests.
 
 ## API
 ```swift
