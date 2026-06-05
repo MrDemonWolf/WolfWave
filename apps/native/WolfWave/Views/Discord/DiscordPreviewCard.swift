@@ -43,7 +43,7 @@ struct DiscordPreviewCard: View {
         /// Discord client isn't running, so nothing can be shown on the profile.
         case discordOffline
         /// Opt-in idle activity: nothing playing, but WolfWave stays on the
-        /// profile as "Listening to WolfWave · Idle" instead of clearing.
+        /// profile as "Listening to WolfWave" · idle instead of clearing.
         case idleActivity
 
         /// Whether this mode renders the track + buttons (vs. an empty state).

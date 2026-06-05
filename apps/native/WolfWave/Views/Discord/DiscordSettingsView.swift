@@ -278,7 +278,7 @@ struct DiscordSettingsView: View {
             VStack(alignment: .leading, spacing: DSSpace.s6) {
                 ToggleSettingRow(
                     title: "Show idle status",
-                    subtitle: "Keep \"Listening to WolfWave \u{00B7} Idle\" on your profile instead of clearing it",
+                    subtitle: "Keep an idle \"Listening to WolfWave\" status on your profile instead of clearing it",
                     isOn: $showIdleStatus,
                     accessibilityLabel: "Show idle status on Discord",
                     accessibilityIdentifier: "discordIdleStatusToggle",
