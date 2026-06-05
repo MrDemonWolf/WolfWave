@@ -201,25 +201,35 @@ struct DiscordPreviewCard: View {
             // Small corner badge mirrors Discord's `assets.small_image`. While
             // paused the live presence swaps this to a pause glyph + "Paused"
             // text, so the preview does the same.
-            Image(systemName: mode == .paused ? "pause.fill" : "music.note")
-                .font(.system(size: DSFont.Size.xs, weight: .bold))
-                .foregroundStyle(.white)
-                .frame(width: 22, height: 22)
-                .background(
-                    LinearGradient(
-                        colors: [
-                            AppConstants.Brand.appleMusicGradientStart,
-                            AppConstants.Brand.appleMusicGradientEnd,
-                        ],
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing
-                    )
-                )
-                .clipShape(Circle())
-                .overlay(Circle().stroke(cardBackground, lineWidth: 2))
-                .offset(x: 4, y: 4)
-                .help(mode == .paused ? "Paused" : (playlistTooltip ?? "Apple Music"))
+            cornerBadge(
+                paused: mode == .paused,
+                tooltip: mode == .paused ? "Paused" : (playlistTooltip ?? "Apple Music")
+            )
         }
+    }
+
+    /// Apple Music source badge mirroring Discord's `assets.small_image`.
+    /// `paused` swaps the glyph to a pause symbol. Shared by the playing,
+    /// paused, and idle tiles so the small badge stays visually identical.
+    private func cornerBadge(paused: Bool, tooltip: String) -> some View {
+        Image(systemName: paused ? "pause.fill" : "music.note")
+            .font(.system(size: DSFont.Size.xs, weight: .bold))
+            .foregroundStyle(.white)
+            .frame(width: 22, height: 22)
+            .background(
+                LinearGradient(
+                    colors: [
+                        AppConstants.Brand.appleMusicGradientStart,
+                        AppConstants.Brand.appleMusicGradientEnd,
+                    ],
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
+                )
+            )
+            .clipShape(Circle())
+            .overlay(Circle().stroke(cardBackground, lineWidth: 2))
+            .offset(x: 4, y: 4)
+            .help(tooltip)
     }
 
     private var artworkPlaceholder: some View {
@@ -343,14 +353,20 @@ struct DiscordPreviewCard: View {
     // MARK: - Idle activity content
 
     /// Opt-in idle marker. Looks like a real activity ("Listening to WolfWave ·
-    /// Idle") so the preview matches what stays on the profile when the user
-    /// keeps idle status on. No track, progress, or buttons.
+    /// Apple Music is idle") so the preview matches what stays on the profile
+    /// when the user keeps idle status on. The large tile is the WolfWave logo
+    /// with an Apple Music corner badge, mirroring the real payload's
+    /// `large_image: wolfwave` + `small_image: apple_music`. No track,
+    /// progress, or buttons.
     private var idleActivityContent: some View {
         HStack(alignment: .center, spacing: DSSpace.s4) {
-            appleMusicTile
-                .frame(width: 80, height: 80)
-                .clipShape(RoundedRectangle(cornerRadius: DSRadius.sm, style: .continuous))
-                .help("WolfWave")
+            ZStack(alignment: .bottomTrailing) {
+                artworkPlaceholder
+                    .frame(width: 80, height: 80)
+                    .saturation(0.45)
+                    .clipShape(RoundedRectangle(cornerRadius: DSRadius.sm, style: .continuous))
+                cornerBadge(paused: false, tooltip: "Apple Music")
+            }
             VStack(alignment: .leading, spacing: 3) {
                 Text(AppConstants.Discord.idleDetails)
                     .font(.system(size: DSFont.Size.md, weight: .semibold))

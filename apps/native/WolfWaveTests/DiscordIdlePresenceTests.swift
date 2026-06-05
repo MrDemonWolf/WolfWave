@@ -34,11 +34,15 @@ final class DiscordIdlePresenceTests: XCTestCase {
         XCTAssertNil(activity["timestamps"])
     }
 
-    func test_idleActivity_keepsWolfWaveArtwork() {
+    func test_idleActivity_usesWolfWaveLogoWithAppleMusicBadge() {
         let activity = DiscordRPCService.buildIdleActivity()
         let assets = activity["assets"] as? [String: String]
-        XCTAssertEqual(assets?["large_image"], "apple_music")
+        // Idle: WolfWave logo as the large image, Apple Music demoted to the
+        // small source badge, so idle reads distinctly from active playback.
+        XCTAssertEqual(assets?["large_image"], "wolfwave")
         XCTAssertEqual(assets?["large_text"], "WolfWave")
+        XCTAssertEqual(assets?["small_image"], "apple_music")
+        XCTAssertEqual(assets?["small_text"], "Apple Music")
     }
 
     // MARK: - Mode helpers

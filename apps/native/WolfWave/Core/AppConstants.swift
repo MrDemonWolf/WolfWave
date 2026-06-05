@@ -920,10 +920,29 @@ nonisolated enum AppConstants {
         static let listeningActivityType = 2
 
         /// Title line (line 1) for the opt-in idle activity.
-        static let idleDetails = "Idle"
+        static let idleDetails = "Apple Music is idle"
 
         /// Sub-line (line 2) for the opt-in idle activity.
         static let idleState = "Nothing playing right now"
+
+        // MARK: Rich Presence art-asset keys
+        //
+        // Each value is a key that MUST be uploaded to the Discord developer
+        // portal (Rich Presence > Art Assets) under this exact name, otherwise
+        // Discord renders no image. Source PNGs live in `discord-assets/`.
+
+        /// WolfWave logo. Large image on the idle activity so idle reads as a
+        /// WolfWave state, visually distinct from active Apple Music playback.
+        static let artAssetWolfWave = "wolfwave"
+
+        /// Apple Music mark. Large image fallback + small source badge.
+        static let artAssetAppleMusic = "apple_music"
+
+        /// Pause badge swapped onto `small_image` while playback is paused.
+        static let artAssetPause = "pause"
+
+        /// Small-badge tooltip (`small_text`) shown on the idle activity.
+        static let idleSmallText = "Apple Music"
 
         /// Reconnect base delay in seconds (doubled on each consecutive failure)
         static let reconnectBaseDelay: TimeInterval = 5.0

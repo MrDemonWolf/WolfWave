@@ -500,12 +500,12 @@ actor DiscordRPCService {
             "state": stateLine(artist: artist, playlist: playlistDisplay, style: style),
         ]
 
-        let largeImage = artworkURL ?? "apple_music"
+        let largeImage = artworkURL ?? AppConstants.Discord.artAssetAppleMusic
         // When paused: swap the small badge to the "pause" art asset (uploaded
         // to the Discord developer portal under Rich Presence > Art Assets) and
         // override the tooltip. Source-of-truth keeps `large_image` intact so
         // album art still shows.
-        let smallImageKey = isPaused ? "pause" : "apple_music"
+        let smallImageKey = isPaused ? AppConstants.Discord.artAssetPause : AppConstants.Discord.artAssetAppleMusic
         let smallTextValue = isPaused ? "Paused" : smallText(playlist: playlistDisplay, style: style)
         activity["assets"] = [
             "large_image": largeImage,
@@ -546,13 +546,19 @@ actor DiscordRPCService {
     /// or buttons). Pure function. No socket I/O, no instance state. Exposed
     /// `internal` so unit tests can assert its shape.
     nonisolated static func buildIdleActivity() -> [String: Any] {
+        // Large image is the WolfWave logo (not the Apple Music note) so the
+        // idle marker is visually distinct from active playback, with Apple
+        // Music demoted to the small source badge. Requires the `wolfwave` art
+        // asset to be uploaded to the Discord portal.
         [
             "type": AppConstants.Discord.listeningActivityType,
             "details": AppConstants.Discord.idleDetails,
             "state": AppConstants.Discord.idleState,
             "assets": [
-                "large_image": "apple_music",
+                "large_image": AppConstants.Discord.artAssetWolfWave,
                 "large_text": "WolfWave",
+                "small_image": AppConstants.Discord.artAssetAppleMusic,
+                "small_text": AppConstants.Discord.idleSmallText,
             ],
         ]
     }
