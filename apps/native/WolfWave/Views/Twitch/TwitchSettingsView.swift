@@ -118,13 +118,18 @@ struct TwitchSettingsView: View {
     /// Shows one of: sign-in button, device-code flow, connected controls, or error retry.
     @ViewBuilder
     private var authCard: some View {
-        VStack(spacing: DSSpace.s5) {
-            // Card header is always present for non-connected states so the
-            // card never collapses its top section mid-transition. Connected
-            // state hides it because `SignedInView` carries its own header rows.
-            if case .connected = viewModel.integrationState {
-                EmptyView()
-            } else {
+        switch viewModel.integrationState {
+        case .connected:
+            // `SignedInView` is already a full card (own header rows + single
+            // border). Wrapping it in the outer `.cardStyle()` shell would draw
+            // a second outline around it, so the connected state stands alone
+            // with one outline, matching the Bot Commands cards below.
+            connectedContent
+                .animation(.easeInOut(duration: DSMotion.Duration.base), value: viewModel.integrationState)
+        default:
+            VStack(spacing: DSSpace.s5) {
+                // Card header is always present for non-connected states so the
+                // card never collapses its top section mid-transition.
                 VStack(alignment: .leading, spacing: DSSpace.s0) {
                     Text(authCardHeaderTitle)
                         .font(.system(size: DSFont.Size.sm, weight: .medium))
@@ -136,27 +141,27 @@ struct TwitchSettingsView: View {
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .transition(.opacity)
-            }
 
-            // Main content switches by integration state. Card sizes to fit
-            // each state. The outer `.animation` interpolates height when the
-            // device-code panel drops in or back out.
-            Group {
-                switch viewModel.integrationState {
-                case .notConnected:
-                    notConnectedContent
-                case .authorizing:
-                    authorizingContent
-                case .connected:
-                    connectedContent
-                case .error(let message):
-                    errorContent(message: message)
+                // Main content switches by integration state. Card sizes to fit
+                // each state. The outer `.animation` interpolates height when the
+                // device-code panel drops in or back out.
+                Group {
+                    switch viewModel.integrationState {
+                    case .notConnected:
+                        notConnectedContent
+                    case .authorizing:
+                        authorizingContent
+                    case .error(let message):
+                        errorContent(message: message)
+                    case .connected:
+                        EmptyView()  // Handled by the standalone branch above.
+                    }
                 }
+                .frame(maxWidth: .infinity, alignment: .top)
             }
-            .frame(maxWidth: .infinity, alignment: .top)
+            .cardStyle()
+            .animation(.easeInOut(duration: DSMotion.Duration.base), value: viewModel.integrationState)
         }
-        .cardStyle()
-        .animation(.easeInOut(duration: DSMotion.Duration.base), value: viewModel.integrationState)
     }
 
     // MARK: - State Content Subviews
