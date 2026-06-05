@@ -8,6 +8,7 @@
 
 #if DEBUG
 import AppKit
+import Combine
 import SwiftUI
 
 /// DEBUG-only card for inspecting persistent state: UserDefaults values, Keychain
@@ -21,6 +22,20 @@ struct DebugInspectorsCard: View {
     /// `SecItemCopyMatching` syscall; running 5 in `body` per render is wasteful.
     @State private var keychainPresence: [String: Bool] = [:]
     @State private var keychainLoaded = false
+
+    /// Backstop poll interval. UserDefaults edits surface instantly via
+    /// `didChangeNotification`, but the Keychain has no change notification,
+    /// so a low-frequency tick keeps presence flags honest after an out-of-app
+    /// login/logout or a token rotation the Twitch notification didn't cover.
+    private static let pollInterval: Duration = .seconds(2)
+
+    /// Any UserDefaults write across the app fires `didChangeNotification` on
+    /// the writing thread, and playback state can write it rapidly. Throttle to
+    /// the main run loop so each burst yields at most one `@State` bump (kept on
+    /// main, so the Keychain reload it triggers can't fire faster than ~2.5/s).
+    private let defaultsChanged = NotificationCenter.default
+        .publisher(for: UserDefaults.didChangeNotification)
+        .throttle(for: .milliseconds(400), scheduler: RunLoop.main, latest: true)
 
     var body: some View {
         VStack(alignment: .leading, spacing: DSSpace.s6) {
@@ -66,6 +81,22 @@ struct DebugInspectorsCard: View {
         // the user hits refresh. Bumping the tick re-runs `.task(id:)` above.
         .onReceive(NotificationCenter.default.publisher(for: Notification.Name.twitchConnectionStateChanged)) { _ in
             refreshTick &+= 1
+        }
+        // A UserDefaults write anywhere in the app (toggles in other panes,
+        // service state) bumps the tick, so the defaults rows reflect edits live
+        // without waiting on the poll. Throttled + main-delivered above.
+        .onReceive(defaultsChanged) { _ in
+            refreshTick &+= 1
+        }
+        // Backstop poll for state with no change notification (Keychain).
+        // Structured concurrency cancels the loop when the card disappears,
+        // matching DebugMetricsCard — no subscription to tear down.
+        .task {
+            while !Task.isCancelled {
+                try? await Task.sleep(for: Self.pollInterval)
+                guard !Task.isCancelled else { break }
+                refreshTick &+= 1
+            }
         }
     }
 
