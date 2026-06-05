@@ -118,82 +118,61 @@ struct TwitchCommandsCard: View {
             }
 
             VStack(spacing: 1) {
-                commandToggleRow(
+                CommandSettingRow(
                     title: "!song Command",
-                    subtitle: "!song  ·  !currentsong  ·  !nowplaying",
+                    triggers: "!song  ·  !currentsong  ·  !nowplaying",
                     isOn: $currentSongCommandEnabled,
                     accessibilityLabel: "Enable Current Playing Song command",
                     accessibilityIdentifier: "currentSongCommandToggle",
-                    isFirst: true
-                ) { enabled in
-                    Log.debug("TwitchCommandsCard: !song \(enabled ? "enabled" : "disabled")", category: "Twitch")
-                }
+                    cooldown: .init(global: $songGlobalCooldown, user: $songUserCooldown),
+                    aliases: $songCommandAliases,
+                    aliasAccessibilityIdentifier: "songCommandAliases",
+                    onChange: { enabled in
+                        Log.debug("TwitchCommandsCard: !song \(enabled ? "enabled" : "disabled")", category: "Twitch")
+                    }
+                )
 
-                if currentSongCommandEnabled {
-                    cooldownRow(
-                        label: "!song cooldowns",
-                        globalCooldown: $songGlobalCooldown,
-                        userCooldown: $songUserCooldown
-                    )
-                    commandAliasRow(aliases: $songCommandAliases,
-                                    placeholder: "e.g. np, track",
-                                    accessibilityIdentifier: "songCommandAliases")
-                }
-
-                commandToggleRow(
+                CommandSettingRow(
                     title: "!last Command",
-                    subtitle: "!last  ·  !lastsong  ·  !prevsong",
+                    triggers: "!last  ·  !lastsong  ·  !prevsong",
                     isOn: $lastSongCommandEnabled,
                     accessibilityLabel: "Enable Last Played Song command",
-                    accessibilityIdentifier: "lastSongCommandToggle"
-                ) { enabled in
-                    Log.debug("TwitchCommandsCard: !last \(enabled ? "enabled" : "disabled")", category: "Twitch")
-                }
-
-                if lastSongCommandEnabled {
-                    cooldownRow(
-                        label: "!last cooldowns",
-                        globalCooldown: $lastSongGlobalCooldown,
-                        userCooldown: $lastSongUserCooldown
-                    )
-                    commandAliasRow(aliases: $lastSongCommandAliases,
-                                    placeholder: "e.g. ll, lp",
-                                    accessibilityIdentifier: "lastSongCommandAliases")
-                }
+                    accessibilityIdentifier: "lastSongCommandToggle",
+                    cooldown: .init(global: $lastSongGlobalCooldown, user: $lastSongUserCooldown),
+                    aliases: $lastSongCommandAliases,
+                    aliasPlaceholder: "e.g. ll, lp",
+                    aliasAccessibilityIdentifier: "lastSongCommandAliases",
+                    onChange: { enabled in
+                        Log.debug("TwitchCommandsCard: !last \(enabled ? "enabled" : "disabled")", category: "Twitch")
+                    }
+                )
 
                 if currentSongCommandEnabled || lastSongCommandEnabled {
-                    commandToggleRow(
+                    CommandSettingRow(
                         title: "Include song.link",
-                        subtitle: "Appends a cross-platform link to !song and !last replies",
+                        triggers: "Appends a cross-platform link to !song and !last replies",
                         isOn: $songCommandSongLinkEnabled,
                         accessibilityLabel: "Include song.link URL in song command reply",
                         accessibilityIdentifier: "songCommandSongLinkToggle"
-                    ) { _ in }
+                    )
                 }
 
-                commandToggleRow(
+                CommandSettingRow(
                     title: "!wolfwave Command",
-                    subtitle: "!wolfwave  ·  what WolfWave is + where to get it",
+                    triggers: "!wolfwave  ·  what WolfWave is + where to get it",
                     isOn: $wolfwaveCommandEnabled,
                     accessibilityLabel: "Enable WolfWave info command",
                     accessibilityIdentifier: "wolfwaveCommandToggle",
-                    isLast: !wolfwaveCommandEnabled
-                ) { enabled in
-                    Log.debug("TwitchCommandsCard: !wolfwave \(enabled ? "enabled" : "disabled")", category: "Twitch")
-                }
-
-                if wolfwaveCommandEnabled {
-                    wolfwaveReplyRow(selection: $wolfwaveReplyStyle)
-                    cooldownRow(
-                        label: "!wolfwave cooldowns",
-                        globalCooldown: $wolfwaveGlobalCooldown,
-                        userCooldown: $wolfwaveUserCooldown
-                    )
-                    commandAliasRow(aliases: $wolfwaveCommandAliases,
-                                    placeholder: "e.g. ww, app",
-                                    accessibilityIdentifier: "wolfwaveCommandAliases",
-                                    isLast: true)
-                }
+                    cooldown: .init(global: $wolfwaveGlobalCooldown, user: $wolfwaveUserCooldown),
+                    aliases: $wolfwaveCommandAliases,
+                    aliasPlaceholder: "e.g. ww, app",
+                    aliasAccessibilityIdentifier: "wolfwaveCommandAliases",
+                    isLast: true,
+                    onChange: { enabled in
+                        Log.debug("TwitchCommandsCard: !wolfwave \(enabled ? "enabled" : "disabled")", category: "Twitch")
+                    },
+                    extra: { wolfwaveReply }
+                )
             }
             .cardStyleUnpadded()
             .disabled(!twitchReady)
@@ -220,118 +199,19 @@ struct TwitchCommandsCard: View {
         }
     }
 
-    // MARK: - Rows
+    // MARK: - WolfWave Reply
 
+    /// The `!wolfwave` reply-style picker plus a live preview of the exact chat
+    /// message. Rendered in the command row's `extra` slot when the command is
+    /// on; the surrounding ``CommandSettingRow`` owns the padding and divider.
     @ViewBuilder
-    private func commandToggleRow(
-        title: String,
-        subtitle: String,
-        isOn: Binding<Bool>,
-        accessibilityLabel: String,
-        accessibilityIdentifier: String,
-        isFirst: Bool = false,
-        isLast: Bool = false,
-        onChange: @escaping (Bool) -> Void
-    ) -> some View {
-        ToggleSettingRow(
-            title: title,
-            subtitle: subtitle,
-            isOn: isOn,
-            accessibilityLabel: accessibilityLabel,
-            accessibilityIdentifier: accessibilityIdentifier,
-            onChange: onChange
-        )
-        .padding(.horizontal, AppConstants.SettingsUI.cardPadding)
-        .padding(.vertical, DSSpace.s4)
-        .overlay(alignment: .bottom) {
-            if !isLast {
-                Divider()
-                    .padding(.leading, AppConstants.SettingsUI.cardPadding)
-            }
-        }
-    }
-
-    @ViewBuilder
-    private func cooldownRow(
-        label: String,
-        globalCooldown: Binding<Double>,
-        userCooldown: Binding<Double>,
-        isLast: Bool = false
-    ) -> some View {
-        VStack(alignment: .leading, spacing: DSSpace.s2) {
-            Text(label)
-                .sectionEyebrow()
-
-            HStack(spacing: DSSpace.s4) {
-                VStack(alignment: .leading, spacing: DSSpace.s0) {
-                    Text("Everyone: \(Int(globalCooldown.wrappedValue))s")
-                        .font(.system(size: DSFont.Size.sm))
-                        .foregroundStyle(.secondary)
-                    Slider(value: globalCooldown, in: 0...30, step: 5)
-                        .controlSize(.small)
-                        .accessibilityLabel("\(label) global cooldown")
-                        .accessibilityValue("\(Int(globalCooldown.wrappedValue)) seconds")
-                        .accessibilityHint("Adjusts the global cooldown between 0 and 30 seconds")
-                }
-
-                VStack(alignment: .leading, spacing: DSSpace.s0) {
-                    Text("Per person: \(Int(userCooldown.wrappedValue))s")
-                        .font(.system(size: DSFont.Size.sm))
-                        .foregroundStyle(.secondary)
-                    Slider(value: userCooldown, in: 0...60, step: 5)
-                        .controlSize(.small)
-                        .accessibilityLabel("\(label) per-user cooldown")
-                        .accessibilityValue("\(Int(userCooldown.wrappedValue)) seconds")
-                        .accessibilityHint("Adjusts the per-user cooldown between 0 and 60 seconds")
-                }
-            }
-        }
-        .padding(.horizontal, AppConstants.SettingsUI.cardPadding)
-        .padding(.vertical, DSSpace.s2)
-        .overlay(alignment: .bottom) {
-            if !isLast {
-                Divider()
-                    .padding(.leading, AppConstants.SettingsUI.cardPadding)
-            }
-        }
-    }
-
-    @ViewBuilder
-    private func commandAliasRow(
-        aliases: Binding<String>,
-        placeholder: String,
-        accessibilityIdentifier: String,
-        isLast: Bool = false
-    ) -> some View {
-        HStack(spacing: DSSpace.s2) {
-            Text("Custom aliases:")
-                .font(.system(size: DSFont.Size.sm))
-                .foregroundStyle(.tertiary)
-            TextField(placeholder, text: aliases)
-                .textFieldStyle(.roundedBorder)
-                .font(.system(size: DSFont.Size.sm))
-                .frame(maxWidth: 200)
-                .accessibilityLabel("Custom aliases")
-                .accessibilityIdentifier(accessibilityIdentifier)
-        }
-        .padding(.horizontal, AppConstants.SettingsUI.cardPadding)
-        .padding(.vertical, DSSpace.s2)
-        .overlay(alignment: .bottom) {
-            if !isLast {
-                Divider()
-                    .padding(.leading, AppConstants.SettingsUI.cardPadding)
-            }
-        }
-    }
-
-    @ViewBuilder
-    private func wolfwaveReplyRow(selection: Binding<String>) -> some View {
+    private var wolfwaveReply: some View {
         VStack(alignment: .leading, spacing: DSSpace.s2) {
             HStack(spacing: DSSpace.s2) {
                 Text("Reply")
                     .sectionEyebrow()
                 Spacer()
-                Picker("Reply style", selection: selection) {
+                Picker("Reply style", selection: $wolfwaveReplyStyle) {
                     ForEach(WolfWaveReplyStyle.allCases) { style in
                         Text(style.label).tag(style.rawValue)
                     }
@@ -339,7 +219,7 @@ struct TwitchCommandsCard: View {
                 .labelsHidden()
                 .pickerStyle(.menu)
                 .controlSize(.small)
-                .frame(maxWidth: 200)
+                .frame(maxWidth: AppConstants.SettingsUI.inlineFieldMaxWidth)
                 .accessibilityLabel("WolfWave reply style")
                 .accessibilityIdentifier("wolfwaveReplyStyle")
             }
@@ -351,12 +231,6 @@ struct TwitchCommandsCard: View {
                 .fixedSize(horizontal: false, vertical: true)
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .accessibilityLabel("Reply preview")
-        }
-        .padding(.horizontal, AppConstants.SettingsUI.cardPadding)
-        .padding(.vertical, DSSpace.s2)
-        .overlay(alignment: .bottom) {
-            Divider()
-                .padding(.leading, AppConstants.SettingsUI.cardPadding)
         }
     }
 }

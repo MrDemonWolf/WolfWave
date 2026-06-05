@@ -9,6 +9,9 @@ One markdown entry per reusable view. Stubs marked `(stub)` need filling in as w
 | StatusChip | [status-chip.md](status-chip.md) | drafted |
 | InfoRow | [info-row.md](info-row.md) | drafted |
 | ToggleSettingRow | [toggle-setting-row.md](toggle-setting-row.md) | drafted |
+| CommandSettingRow | [command-setting-row.md](command-setting-row.md) | drafted |
+| CommandAliasField | [command-alias-field.md](command-alias-field.md) | drafted |
+| LabeledSlider | [labeled-slider.md](labeled-slider.md) | drafted |
 | SuccessFeedbackRow | [success-feedback-row.md](success-feedback-row.md) | drafted |
 | SectionHeaderWithStatus | [section-header-with-status.md](section-header-with-status.md) | drafted |
 | NowPlayingHeroCard | [now-playing-hero-card.md](now-playing-hero-card.md) | drafted |

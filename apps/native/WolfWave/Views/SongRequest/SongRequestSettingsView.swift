@@ -362,16 +362,12 @@ fileprivate struct VoteSkipCard: View {
                 )
 
                 if commandEnabled {
-                    HStack(spacing: DSSpace.s2) {
-                        Text("Custom aliases:")
-                            .font(.system(size: DSFont.Size.sm))
-                            .foregroundStyle(.tertiary)
-                        TextField("e.g. skipvote, sv", text: $commandAliases)
-                            .textFieldStyle(.roundedBorder)
-                            .font(.system(size: DSFont.Size.sm))
-                            .frame(maxWidth: 200)
-                            .accessibilityLabel("Vote-skip command aliases")
-                    }
+                    CommandAliasField(
+                        aliases: $commandAliases,
+                        placeholder: "e.g. skipvote, sv",
+                        accessibilityLabel: "Vote-skip command aliases",
+                        accessibilityIdentifier: "voteSkip.commandAliases"
+                    )
                 }
             }
         }
@@ -788,72 +784,62 @@ fileprivate struct SongRequestCommandsCard: View {
             }
 
             VStack(spacing: 1) {
-                CommandToggleRow(
+                CommandSettingRow(
                     title: "!sr Command",
-                    subtitle: "!sr  ·  !request  ·  !songrequest",
+                    triggers: "!sr  ·  !request  ·  !songrequest",
                     isOn: $srCommandEnabled,
                     accessibilityLabel: "Enable song request command",
                     accessibilityIdentifier: "srCommandToggle",
-                    isFirst: true
+                    cooldown: .init(global: $globalCooldown, user: $userCooldown),
+                    aliases: $srAliases,
+                    aliasPlaceholder: "e.g. play, add",
+                    aliasAccessibilityIdentifier: "srCommandAliases"
                 )
 
-                if srCommandEnabled {
-                    CooldownRow(
-                        label: "!sr cooldowns",
-                        globalCooldown: $globalCooldown,
-                        userCooldown: $userCooldown
-                    )
-                    AliasRow(aliases: $srAliases)
-                }
-
-                CommandToggleRow(
+                CommandSettingRow(
                     title: "!queue Command",
-                    subtitle: "!queue  ·  !songlist  ·  !requests",
+                    triggers: "!queue  ·  !songlist  ·  !requests",
                     isOn: $queueCommandEnabled,
                     accessibilityLabel: "Enable queue command",
-                    accessibilityIdentifier: "queueCommandToggle"
+                    accessibilityIdentifier: "queueCommandToggle",
+                    aliases: $queueAliases,
+                    aliasPlaceholder: "e.g. play, add",
+                    aliasAccessibilityIdentifier: "queueCommandAliases"
                 )
 
-                if queueCommandEnabled {
-                    AliasRow(aliases: $queueAliases)
-                }
-
-                CommandToggleRow(
+                CommandSettingRow(
                     title: "!myqueue Command",
-                    subtitle: "!myqueue  ·  !mysongs",
+                    triggers: "!myqueue  ·  !mysongs",
                     isOn: $myQueueCommandEnabled,
                     accessibilityLabel: "Enable my queue command",
-                    accessibilityIdentifier: "myQueueCommandToggle"
+                    accessibilityIdentifier: "myQueueCommandToggle",
+                    aliases: $myQueueAliases,
+                    aliasPlaceholder: "e.g. play, add",
+                    aliasAccessibilityIdentifier: "myQueueCommandAliases"
                 )
 
-                if myQueueCommandEnabled {
-                    AliasRow(aliases: $myQueueAliases)
-                }
-
-                CommandToggleRow(
+                CommandSettingRow(
                     title: "!skip Command",
-                    subtitle: "!skip  ·  !next  (mod only)",
+                    triggers: "!skip  ·  !next  (mod only)",
                     isOn: $skipCommandEnabled,
                     accessibilityLabel: "Enable skip command",
-                    accessibilityIdentifier: "skipCommandToggle"
+                    accessibilityIdentifier: "skipCommandToggle",
+                    aliases: $skipAliases,
+                    aliasPlaceholder: "e.g. play, add",
+                    aliasAccessibilityIdentifier: "skipCommandAliases"
                 )
 
-                if skipCommandEnabled {
-                    AliasRow(aliases: $skipAliases)
-                }
-
-                CommandToggleRow(
+                CommandSettingRow(
                     title: "!clearqueue Command",
-                    subtitle: "!clearqueue  ·  !cq  (mod only)",
+                    triggers: "!clearqueue  ·  !cq  (mod only)",
                     isOn: $clearQueueCommandEnabled,
                     accessibilityLabel: "Enable clear queue command",
                     accessibilityIdentifier: "clearQueueCommandToggle",
+                    aliases: $clearQueueAliases,
+                    aliasPlaceholder: "e.g. play, add",
+                    aliasAccessibilityIdentifier: "clearQueueCommandAliases",
                     isLast: true
                 )
-
-                if clearQueueCommandEnabled {
-                    AliasRow(aliases: $clearQueueAliases, isLast: true)
-                }
             }
             .cardStyleUnpadded()
 
@@ -980,104 +966,6 @@ fileprivate struct SongRequestBlocklistCard: View {
             }
         } message: {
             Text("This removes every entry from your song-request blocklist. This cannot be undone.")
-        }
-    }
-}
-
-// MARK: - Reusable rows
-
-fileprivate struct CommandToggleRow: View {
-    let title: String
-    let subtitle: String
-    @Binding var isOn: Bool
-    let accessibilityLabel: String
-    let accessibilityIdentifier: String
-    var isFirst: Bool = false
-    var isLast: Bool = false
-
-    var body: some View {
-        ToggleSettingRow(
-            title: title,
-            subtitle: subtitle,
-            isOn: $isOn,
-            accessibilityLabel: accessibilityLabel,
-            accessibilityIdentifier: accessibilityIdentifier
-        )
-        .padding(.horizontal, AppConstants.SettingsUI.cardPadding)
-        .padding(.vertical, DSSpace.s4)
-        .overlay(alignment: .bottom) {
-            if !isLast {
-                Divider().padding(.leading, AppConstants.SettingsUI.cardPadding)
-            }
-        }
-    }
-}
-
-fileprivate struct CooldownRow: View {
-    let label: String
-    @Binding var globalCooldown: Double
-    @Binding var userCooldown: Double
-    var isLast: Bool = false
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: DSSpace.s2) {
-            Text(label)
-                .sectionEyebrow()
-
-            HStack(spacing: DSSpace.s4) {
-                VStack(alignment: .leading, spacing: DSSpace.s0) {
-                    Text("Everyone: \(Int(globalCooldown))s")
-                        .font(.system(size: DSFont.Size.sm))
-                        .foregroundStyle(.secondary)
-                    Slider(value: $globalCooldown, in: 0...30, step: 5)
-                        .controlSize(.small)
-                        .accessibilityLabel("\(label) global cooldown")
-                        .accessibilityValue("\(Int(globalCooldown)) seconds")
-                        .accessibilityHint("Adjusts the global cooldown between 0 and 30 seconds")
-                }
-
-                VStack(alignment: .leading, spacing: DSSpace.s0) {
-                    Text("Per person: \(Int(userCooldown))s")
-                        .font(.system(size: DSFont.Size.sm))
-                        .foregroundStyle(.secondary)
-                    Slider(value: $userCooldown, in: 0...60, step: 5)
-                        .controlSize(.small)
-                        .accessibilityLabel("\(label) per-user cooldown")
-                        .accessibilityValue("\(Int(userCooldown)) seconds")
-                        .accessibilityHint("Adjusts the per-user cooldown between 0 and 60 seconds")
-                }
-            }
-        }
-        .padding(.horizontal, AppConstants.SettingsUI.cardPadding)
-        .padding(.vertical, DSSpace.s2)
-        .overlay(alignment: .bottom) {
-            if !isLast {
-                Divider().padding(.leading, AppConstants.SettingsUI.cardPadding)
-            }
-        }
-    }
-}
-
-fileprivate struct AliasRow: View {
-    @Binding var aliases: String
-    var isLast: Bool = false
-
-    var body: some View {
-        HStack(spacing: DSSpace.s2) {
-            Text("Custom aliases:")
-                .font(.system(size: DSFont.Size.sm))
-                .foregroundStyle(.tertiary)
-            TextField("e.g. play, add", text: $aliases)
-                .textFieldStyle(.roundedBorder)
-                .font(.system(size: DSFont.Size.sm))
-                .frame(maxWidth: 200)
-        }
-        .padding(.horizontal, AppConstants.SettingsUI.cardPadding)
-        .padding(.vertical, DSSpace.s2)
-        .overlay(alignment: .bottom) {
-            if !isLast {
-                Divider().padding(.leading, AppConstants.SettingsUI.cardPadding)
-            }
         }
     }
 }

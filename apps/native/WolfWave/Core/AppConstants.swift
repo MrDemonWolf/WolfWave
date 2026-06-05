@@ -1233,6 +1233,12 @@ nonisolated enum AppConstants {
 
         /// Standard card corner radius (matches macOS 26 Liquid Glass card radius).
         static let cardCornerRadius: CGFloat = DSDimension.Settings.cardCornerRadius
+
+        /// Max width for short inline trailing fields inside a settings row
+        /// (e.g. the command "Custom aliases" text field and the !wolfwave reply
+        /// picker). Keeps these compact so they sit at the trailing edge instead
+        /// of stretching the full card width.
+        static let inlineFieldMaxWidth: CGFloat = 200
     }
 
     // MARK: - Power Management

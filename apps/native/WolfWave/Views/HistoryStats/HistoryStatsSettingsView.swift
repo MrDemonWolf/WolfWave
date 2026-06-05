@@ -488,17 +488,12 @@ struct HistoryStatsSettingsView: View {
                 cooldownRow(title: "Global cooldown", value: $statsGlobalCooldown)
                 cooldownRow(title: "Per-user cooldown", value: $statsUserCooldown)
 
-                HStack(spacing: DSSpace.s2) {
-                    Text("Custom aliases:")
-                        .font(.system(size: DSFont.Size.sm))
-                        .foregroundStyle(.tertiary)
-                    TextField("e.g. nowstats, mystats", text: $statsCommandAliases)
-                        .textFieldStyle(.roundedBorder)
-                        .font(.system(size: DSFont.Size.sm))
-                        .frame(maxWidth: 200)
-                        .accessibilityLabel("Stats command aliases")
-                        .accessibilityIdentifier("statsCommandAliases")
-                }
+                CommandAliasField(
+                    aliases: $statsCommandAliases,
+                    placeholder: "e.g. nowstats, mystats",
+                    accessibilityLabel: "Stats command aliases",
+                    accessibilityIdentifier: "statsCommandAliases"
+                )
             }
         }
         .padding(AppConstants.SettingsUI.cardPadding)
