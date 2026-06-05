@@ -184,11 +184,14 @@ struct DiscordPreviewCard: View {
                         case .success(let image):
                             image.resizable().scaledToFill()
                         default:
-                            artworkPlaceholder
+                            // Matches the real presence fallback: `large_image`
+                            // is `artworkURL ?? "apple_music"`, so no art = the
+                            // Apple Music tile, not the WolfMark.
+                            appleMusicTile
                         }
                     }
                 } else {
-                    artworkPlaceholder
+                    appleMusicTile
                 }
             }
             .frame(width: 80, height: 80)
@@ -227,6 +230,29 @@ struct DiscordPreviewCard: View {
         )
         .overlay(
             Image("WolfMark")
+                .resizable()
+                .aspectRatio(contentMode: .fit)
+                .frame(width: 42, height: 42)
+                .foregroundStyle(.white)
+        )
+    }
+
+    /// Mirrors Discord's `assets.large_image: "apple_music"` art asset: the Apple
+    /// Music app icon (white note on the Apple Music gradient). The real idle
+    /// presence ships this as its large image, so the idle card renders it too
+    /// instead of the WolfMark placeholder, keeping the preview honest.
+    private var appleMusicTile: some View {
+        LinearGradient(
+            colors: [
+                AppConstants.Brand.appleMusicGradientStart,
+                AppConstants.Brand.appleMusicGradientEnd,
+            ],
+            startPoint: .topLeading,
+            endPoint: .bottomTrailing
+        )
+        .overlay(
+            Image("AppleMusicLogo")
+                .renderingMode(.template)
                 .resizable()
                 .aspectRatio(contentMode: .fit)
                 .frame(width: 42, height: 42)
@@ -321,10 +347,10 @@ struct DiscordPreviewCard: View {
     /// keeps idle status on. No track, progress, or buttons.
     private var idleActivityContent: some View {
         HStack(alignment: .center, spacing: DSSpace.s4) {
-            artworkPlaceholder
+            appleMusicTile
                 .frame(width: 80, height: 80)
-                .saturation(0.45)
                 .clipShape(RoundedRectangle(cornerRadius: DSRadius.sm, style: .continuous))
+                .help("WolfWave")
             VStack(alignment: .leading, spacing: 3) {
                 Text(AppConstants.Discord.idleDetails)
                     .font(.system(size: DSFont.Size.md, weight: .semibold))
