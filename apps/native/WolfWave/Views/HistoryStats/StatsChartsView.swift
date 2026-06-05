@@ -36,7 +36,7 @@ struct WeekChartCard: View {
                 }
             }
             .chartYAxis {
-                AxisMarks(position: .leading)
+                stableLeadingYAxis()
             }
             .frame(height: DSDimension.HistoryStats.chartHeight)
             .accessibilityLabel("Plays per day over the last 7 days")
@@ -77,7 +77,7 @@ struct HourChartCard: View {
                 }
             }
             .chartYAxis {
-                AxisMarks(position: .leading)
+                stableLeadingYAxis()
             }
             .frame(height: DSDimension.HistoryStats.chartHeight)
             .accessibilityLabel("Plays by hour of day")
@@ -137,6 +137,34 @@ private func chartCardHeader(_ title: String, systemImage: String) -> some View 
             .sectionEyebrow()
     }
     .accessibilityAddTraits(.isHeader)
+}
+
+// MARK: - Stable Y Axis
+
+/// Leading Y axis whose value labels sit in a fixed-width gutter so the plot
+/// area (and therefore every bar's width) stays put as the largest value grows
+/// across digit counts.
+///
+/// The default `AxisMarks(position: .leading)` sizes the gutter to the widest
+/// label, so a live count crossing 9 → 10 → 100 would widen the axis and shove
+/// the plot, visibly resizing the bars. Pinning the label width plus
+/// `monospacedDigit()` keeps the gutter constant regardless of magnitude.
+@AxisContentBuilder
+private func stableLeadingYAxis() -> some AxisContent {
+    AxisMarks(position: .leading) { value in
+        AxisGridLine()
+        AxisTick()
+        AxisValueLabel {
+            if let count = value.as(Int.self) {
+                Text("\(count)")
+                    .monospacedDigit()
+                    .frame(
+                        width: DSDimension.HistoryStats.chartYAxisGutter,
+                        alignment: .trailing
+                    )
+            }
+        }
+    }
 }
 
 // MARK: - Previews

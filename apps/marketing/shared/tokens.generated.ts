@@ -216,7 +216,10 @@ export const tokens = {
     "historyStats": {
       "recentCardMinHeight": 160,
       "chartHeight": 150,
-      "twoColumnFloor": 624
+      "twoColumnFloor": 580,
+      "topListMinHeight": 190,
+      "topTrackMinHeight": 44,
+      "chartYAxisGutter": 28
     }
   },
   "widget": {

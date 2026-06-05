@@ -16,7 +16,7 @@ ResponsiveRow {
 
 | Param | Type | Notes |
 |---|---|---|
-| `floor` | `CGFloat` | Minimum container width that justifies two columns. Defaults to `DSDimension.HistoryStats.twoColumnFloor` (624). |
+| `floor` | `CGFloat` | Minimum container width that justifies two columns. Defaults to `DSDimension.HistoryStats.twoColumnFloor` (580). |
 | `spacing` | `CGFloat` | Column gap (wide) / stack gap (narrow). Defaults to `AppConstants.SettingsUI.sectionSpacing` (24). |
 | `left` | `@ViewBuilder () -> Left` | Leading view (first column / top of stack). |
 | `right` | `@ViewBuilder () -> Right` | Trailing view (second column / bottom of stack). |
@@ -25,7 +25,7 @@ ResponsiveRow {
 `ViewThatFits(in: .horizontal)` offers a two-column `HStack` candidate first and a `VStack` fallback. The `HStack` candidate carries `.frame(minWidth: floor)`, so `ViewThatFits` only selects it when the pane is at least `floor` wide. Without that floor, flexible `maxWidth: .infinity` children report as "fitting" at any width and the layout would never collapse. In the wide layout both children also take `maxHeight: .infinity`, so paired cards stretch to equal height and read as one band.
 
 ## Tokens used
-- `DSDimension.HistoryStats.twoColumnFloor` (624) — default collapse threshold
+- `DSDimension.HistoryStats.twoColumnFloor` (580) — default collapse threshold
 - `AppConstants.SettingsUI.sectionSpacing` (24) — default gap
 
 ## Anatomy

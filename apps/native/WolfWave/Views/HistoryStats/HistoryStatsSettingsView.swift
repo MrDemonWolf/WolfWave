@@ -99,7 +99,10 @@ struct HistoryStatsSettingsView: View {
 
             // Dashboard band: lead with the insights, two columns when the
             // settings window is wide enough (collapses to a stack when not).
-            if historyEnabled, statsEnabled, snapshot.hasData {
+            // Render while the service is still loading too, so the skeleton
+            // placeholders hold the band's footprint instead of the cards
+            // popping in (and resizing the pane) the moment disk load finishes.
+            if historyEnabled, statsEnabled, snapshot.hasData || isLoadingHistory {
                 ResponsiveRow {
                     summaryCard
                 } right: {
@@ -240,34 +243,44 @@ struct HistoryStatsSettingsView: View {
         VStack(alignment: .leading, spacing: DSSpace.s3) {
             cardHeader("Today's top track", systemImage: "star")
 
-            if let top = snapshot.topTrackToday {
-                HStack(spacing: DSSpace.s3) {
-                    Image(systemName: "music.note")
-                        .font(.system(size: DSFont.Size.lg))
-                        .foregroundStyle(.secondary)
-                        .frame(width: DSFont.Size.x2xl)
-                    VStack(alignment: .leading, spacing: DSSpace.s0) {
-                        Text(top.name)
-                            .font(.system(size: DSFont.Size.base, weight: .medium))
-                            .lineLimit(1)
-                        if let detail = top.detail {
-                            Text(detail)
-                                .font(.system(size: DSFont.Size.sm))
-                                .foregroundStyle(.secondary)
+            // Reserve a steady height so the card doesn't grow/shrink when the
+            // single-line "nothing yet" copy is replaced by the two-line track
+            // row (matters in the stacked single-column layout).
+            Group {
+                if let top = snapshot.topTrackToday {
+                    HStack(spacing: DSSpace.s3) {
+                        Image(systemName: "music.note")
+                            .font(.system(size: DSFont.Size.lg))
+                            .foregroundStyle(.secondary)
+                            .frame(width: DSFont.Size.x2xl)
+                        VStack(alignment: .leading, spacing: DSSpace.s0) {
+                            Text(top.name)
+                                .font(.system(size: DSFont.Size.base, weight: .medium))
                                 .lineLimit(1)
+                            if let detail = top.detail {
+                                Text(detail)
+                                    .font(.system(size: DSFont.Size.sm))
+                                    .foregroundStyle(.secondary)
+                                    .lineLimit(1)
+                            }
                         }
+                        Spacer()
+                        Text(HistoryFormat.playCount(top.count))
+                            .font(.system(size: DSFont.Size.sm))
+                            .foregroundStyle(.secondary)
                     }
-                    Spacer()
-                    Text(HistoryFormat.playCount(top.count))
+                } else {
+                    Text("Nothing played yet today.")
                         .font(.system(size: DSFont.Size.sm))
                         .foregroundStyle(.secondary)
+                        .frame(maxWidth: .infinity, alignment: .leading)
                 }
-            } else {
-                Text("Nothing played yet today.")
-                    .font(.system(size: DSFont.Size.sm))
-                    .foregroundStyle(.secondary)
-                    .frame(maxWidth: .infinity, alignment: .leading)
             }
+            .frame(
+                maxWidth: .infinity,
+                minHeight: DSDimension.HistoryStats.topTrackMinHeight,
+                alignment: .leading
+            )
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(AppConstants.SettingsUI.cardPadding)
@@ -303,13 +316,30 @@ struct HistoryStatsSettingsView: View {
                 .accessibilityIdentifier("topListPicker")
             }
 
-            let items = topListItems
-            if items.isEmpty {
-                Text("Not enough plays yet.")
-                    .font(.system(size: DSFont.Size.sm))
-                    .foregroundStyle(.secondary)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-            } else {
+            // Reserve a full five-row height so flipping the segmented control
+            // between Artists / Tracks / Albums (each a different length) or
+            // filling in after load never resizes the card.
+            topListContent
+                .frame(
+                    maxWidth: .infinity,
+                    minHeight: DSDimension.HistoryStats.topListMinHeight,
+                    alignment: .top
+                )
+        }
+        .padding(AppConstants.SettingsUI.cardPadding)
+        .cardStyleUnpadded()
+    }
+
+    @ViewBuilder
+    private var topListContent: some View {
+        let items = topListItems
+        if items.isEmpty {
+            Text("Not enough plays yet.")
+                .font(.system(size: DSFont.Size.sm))
+                .foregroundStyle(.secondary)
+                .frame(maxWidth: .infinity, alignment: .leading)
+        } else {
+            VStack(alignment: .leading, spacing: DSSpace.s3) {
                 ForEach(Array(items.prefix(5).enumerated()), id: \.element.id) { index, item in
                     HStack(spacing: DSSpace.s3) {
                         Text("\(index + 1)")
@@ -335,8 +365,6 @@ struct HistoryStatsSettingsView: View {
                 }
             }
         }
-        .padding(AppConstants.SettingsUI.cardPadding)
-        .cardStyleUnpadded()
     }
 
     // MARK: - Recent

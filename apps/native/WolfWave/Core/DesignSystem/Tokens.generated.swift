@@ -192,7 +192,10 @@ nonisolated enum DSDimension {
     enum HistoryStats {
         static let recentCardMinHeight: CGFloat = 160
         static let chartHeight: CGFloat = 150
-        static let twoColumnFloor: CGFloat = 624
+        static let twoColumnFloor: CGFloat = 580
+        static let topListMinHeight: CGFloat = 190
+        static let topTrackMinHeight: CGFloat = 44
+        static let chartYAxisGutter: CGFloat = 28
     }
 }
 
