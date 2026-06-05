@@ -41,23 +41,37 @@ struct DiscordButtonConfigRow: View {
                 accessibilityIdentifier: "\(accessibilityPrefix)Toggle"
             )
 
-            Text(urlPreviewText)
-                .font(.system(size: DSFont.Size.xs, design: .monospaced))
-                .foregroundStyle(.tertiary)
-                .lineLimit(1)
-                .truncationMode(.middle)
-                .help(resolvedURL ?? "")
-                .opacity(isEnabled ? 1.0 : 0.5)
+            urlPreview
         }
     }
 
     // MARK: - Helpers
 
-    private var urlPreviewText: String {
-        if let url = resolvedURL, !url.isEmpty {
-            return url
+    /// The URL line under the toggle. When a real URL is resolved it renders as a
+    /// clickable ``Link`` so the user can open and preview it; otherwise it falls
+    /// back to a plain placeholder string.
+    @ViewBuilder
+    private var urlPreview: some View {
+        if let url = resolvedURL, !url.isEmpty, let destination = URL(string: url) {
+            Link(destination: destination) {
+                urlText(url)
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("Open \(title): \(url)")
+            .accessibilityIdentifier("\(accessibilityPrefix)Link")
+        } else {
+            urlText("(no track playing, URL fills in once a song starts)")
         }
-        return "(no track playing, URL fills in once a song starts)"
+    }
+
+    private func urlText(_ text: String) -> some View {
+        Text(text)
+            .font(.system(size: DSFont.Size.xs, design: .monospaced))
+            .foregroundStyle(.tertiary)
+            .lineLimit(1)
+            .truncationMode(.middle)
+            .help(resolvedURL ?? "")
+            .opacity(isEnabled ? 1.0 : 0.5)
     }
 }
 

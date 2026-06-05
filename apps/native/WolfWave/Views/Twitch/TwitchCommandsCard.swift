@@ -224,13 +224,20 @@ struct TwitchCommandsCard: View {
                 .accessibilityIdentifier("wolfwaveReplyStyle")
             }
 
-            // Live preview of exactly what viewers will see in chat.
-            Text(selectedWolfwaveMessage)
-                .font(.system(size: DSFont.Size.sm))
-                .foregroundStyle(.secondary)
-                .fixedSize(horizontal: false, vertical: true)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .accessibilityLabel("Reply preview")
+            // Live preview of exactly what viewers will see in chat. Labelled so
+            // it reads as a sample, not an editable field.
+            VStack(alignment: .leading, spacing: DSSpace.s1) {
+                Text("Example reply")
+                    .sectionEyebrow()
+
+                Text(selectedWolfwaveMessage)
+                    .font(.system(size: DSFont.Size.sm))
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
+            .accessibilityElement(children: .combine)
+            .accessibilityLabel("Example reply preview")
         }
     }
 }

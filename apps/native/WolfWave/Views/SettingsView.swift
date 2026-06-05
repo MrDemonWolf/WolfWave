@@ -243,9 +243,9 @@ struct SettingsView: View {
 
     /// Returns the detail pane content for the given sidebar section.
     /// Detail content for the selected section. Most sections render inside a
-    /// shared scrolling, width-clamped column. A few opt out because they own a
-    /// jump-nav rail beside their own scroll column and need the full pane width:
-    /// General, Song Requests, History & Stats, and the DEBUG-only Debug tab.
+    /// shared scrolling, width-clamped column. A few opt out because they own
+    /// their own scroll layout: General (plain scroll), Song Requests and
+    /// History & Stats (jump-nav rail), and the DEBUG-only Debug tab.
     @ViewBuilder
     private var detailPane: some View {
         if selectedSection == .general {
