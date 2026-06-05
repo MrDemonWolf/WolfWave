@@ -283,9 +283,9 @@ struct AutomationRowPreview: View {
             Image("AppIcon")
                 .resizable()
                 .frame(width: 20, height: 20)
-                .clipShape(RoundedRectangle(cornerRadius: 4))
+                .clipShape(RoundedRectangle(cornerRadius: DSRadius.xs))
         } else {
-            RoundedRectangle(cornerRadius: 4)
+            RoundedRectangle(cornerRadius: DSRadius.xs)
                 .fill(LinearGradient(colors: [.cyan, .blue], startPoint: .topLeading, endPoint: .bottomTrailing))
                 .frame(width: 20, height: 20)
         }
@@ -293,7 +293,7 @@ struct AutomationRowPreview: View {
 
     @ViewBuilder
     private var appleMusicMark: some View {
-        RoundedRectangle(cornerRadius: 4)
+        RoundedRectangle(cornerRadius: DSRadius.xs)
             .fill(LinearGradient(
                 colors: [AppConstants.Brand.appleMusicPulseStart, AppConstants.Brand.appleMusicPulseEnd],
                 startPoint: .top, endPoint: .bottom
@@ -314,7 +314,7 @@ struct PermissionPausedNowPlayingCard: View {
     var body: some View {
         HStack(spacing: DSSpace.s5) {
             ZStack {
-                RoundedRectangle(cornerRadius: 10, style: .continuous)
+                RoundedRectangle(cornerRadius: DSRadius.lg, style: .continuous)
                     .fill(.quaternary.opacity(0.5))
                 Image(systemName: "pause.circle.fill")
                     .font(.system(size: DSFont.Size.x2xl, weight: .semibold))

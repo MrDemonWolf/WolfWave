@@ -149,7 +149,7 @@ struct SongRequestQueueView: View {
         }
         .padding(DSSpace.s2)
         .background(.green.opacity(0.1))
-        .clipShape(RoundedRectangle(cornerRadius: 8))
+        .clipShape(RoundedRectangle(cornerRadius: DSRadius.md))
     }
 
     // MARK: - Queue List
@@ -272,7 +272,7 @@ struct SongRequestQueueView: View {
     // MARK: - Artwork Placeholders
 
     private var artworkPlaceholder: some View {
-        RoundedRectangle(cornerRadius: 6)
+        RoundedRectangle(cornerRadius: DSRadius.sm)
             .fill(.quaternary)
             .frame(width: 40, height: 40)
             .overlay {
@@ -283,7 +283,7 @@ struct SongRequestQueueView: View {
     }
 
     private var smallArtworkPlaceholder: some View {
-        RoundedRectangle(cornerRadius: 4)
+        RoundedRectangle(cornerRadius: DSRadius.xs)
             .fill(.quaternary)
             .frame(width: 30, height: 30)
             .overlay {

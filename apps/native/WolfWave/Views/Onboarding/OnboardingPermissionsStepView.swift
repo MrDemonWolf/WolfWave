@@ -184,13 +184,7 @@ struct OnboardingPermissionsStepView: View {
             isRechecking = true
         }
         Task {
-            let start = Date()
-            let next = MusicPermissionChecker.currentState()
-            let elapsed = Date().timeIntervalSince(start)
-            let minSpin: TimeInterval = 0.25
-            if elapsed < minSpin {
-                try? await Task.sleep(nanoseconds: UInt64((minSpin - elapsed) * 1_000_000_000))
-            }
+            let next = await MusicPermissionChecker.recheck()
             await MainActor.run {
                 withAnimation(.easeInOut(duration: DSMotion.Duration.base)) {
                     permissionState = next

@@ -41,6 +41,24 @@ enum MusicPermissionChecker {
         return state
     }
 
+    /// Re-probes ``currentState()`` off the main actor while guaranteeing the
+    /// call takes at least `minimumVisible` seconds, so a recheck spinner doesn't
+    /// blink invisibly on a fast probe.
+    ///
+    /// - Parameter minimumVisible: Floor on elapsed time before returning.
+    /// - Returns: The freshly resolved permission state.
+    nonisolated static func recheck(minimumVisible: TimeInterval = 0.25) async -> MusicPermissionState {
+        let start = Date()
+        let next = await Task.detached(priority: .userInitiated) {
+            currentState()
+        }.value
+        let elapsed = Date().timeIntervalSince(start)
+        if elapsed < minimumVisible {
+            try? await Task.sleep(nanoseconds: UInt64((minimumVisible - elapsed) * 1_000_000_000))
+        }
+        return next
+    }
+
     /// Maps an `AEDeterminePermissionToAutomateTarget` status into a permission
     /// state. Pure (no Apple Events I/O) so the mapping (including the closed-
     /// Music fallback) is unit-testable.

@@ -36,6 +36,7 @@ One markdown entry per reusable view. Stubs marked `(stub)` need filling in as w
 | StreamerModeBadge | [streamer-mode-badge.md](streamer-mode-badge.md) | drafted |
 | ResponsiveRow | [responsive-row.md](responsive-row.md) | drafted |
 | SettingsNavRail | [settings-nav-rail.md](settings-nav-rail.md) | drafted |
+| CardEyebrowHeader | [card-eyebrow-header.md](card-eyebrow-header.md) | drafted |
 
 ## History (`apps/native/WolfWave/Views/HistoryStats/`)
 
@@ -50,6 +51,7 @@ One markdown entry per reusable view. Stubs marked `(stub)` need filling in as w
 | PillButton | [pill-button.md](pill-button.md) | drafted |
 | BrandTile | [brand-tile.md](brand-tile.md) | drafted |
 | WolfHeroMark | [wolf-hero-mark.md](wolf-hero-mark.md) | drafted |
+| OnboardingToggleCard | [onboarding-toggle-card.md](onboarding-toggle-card.md) | drafted |
 
 ## Catalog entry template
 

@@ -66,10 +66,10 @@ struct DeviceCodeView: View {
             .padding(DSSpace.s4)
             .background(Color(nsColor: .controlBackgroundColor))
             .overlay(
-                RoundedRectangle(cornerRadius: 8)
+                RoundedRectangle(cornerRadius: DSRadius.md)
                     .stroke(Color.primary.opacity(0.08), lineWidth: 1)
             )
-            .clipShape(RoundedRectangle(cornerRadius: 8))
+            .clipShape(RoundedRectangle(cornerRadius: DSRadius.md))
             .pointerCursor()
             .onTapGesture {
                 copyDeviceCode()
@@ -149,7 +149,7 @@ struct DeviceCodeView: View {
             .background(
                 Color(nsColor: .windowBackgroundColor).opacity(0.98)
             )
-            .cornerRadius(8)
+            .clipShape(RoundedRectangle(cornerRadius: DSRadius.md, style: .continuous))
             .shadow(color: Color.black.opacity(0.12), radius: 6, x: 0, y: 2)
             .transition(.opacity.combined(with: .move(edge: .top)))
         }

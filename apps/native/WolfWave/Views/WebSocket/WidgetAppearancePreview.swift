@@ -156,9 +156,7 @@ struct WidgetAppearancePreview: View {
     private func compactLayout(theme: ResolvedWidgetTheme) -> some View {
         HStack(spacing: DSSpace.s2) {
             artwork(size: 46, corner: DSRadius.xs)
-            (Text(demoTrack).foregroundColor(theme.textPrimary)
-                + Text(verbatim: "  —  ").foregroundColor(theme.textMuted)
-                + Text(demoArtist).foregroundColor(theme.textSecondary))
+            Text(compactTitle(theme: theme))
                 .font(widgetFont(size: DSFont.Size.base, weight: .medium))
                 .lineLimit(1)
                 .truncationMode(.tail)
@@ -166,6 +164,20 @@ struct WidgetAppearancePreview: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
         }
         .padding(.horizontal, DSSpace.s2)
+    }
+
+    /// Track, separator, and artist as one styled run.
+    ///
+    /// Built as an `AttributedString` so the compact layout stays a single
+    /// `Text`. macOS 26 deprecated `Text + Text` concatenation.
+    private func compactTitle(theme: ResolvedWidgetTheme) -> AttributedString {
+        var track = AttributedString(demoTrack)
+        track.foregroundColor = theme.textPrimary
+        var separator = AttributedString("  —  ")
+        separator.foregroundColor = theme.textMuted
+        var artist = AttributedString(demoArtist)
+        artist.foregroundColor = theme.textSecondary
+        return track + separator + artist
     }
 
     // MARK: - Pieces
@@ -181,7 +193,7 @@ struct WidgetAppearancePreview: View {
         let font = widgetFont(size: size, weight: weight)
         return Text(text)
             .font(italic ? font.italic() : font)
-            .foregroundColor(color)
+            .foregroundStyle(color)
             .lineLimit(1)
             .truncationMode(.tail)
             .modifier(WidgetTextShadow(theme: theme))
@@ -200,12 +212,12 @@ struct WidgetAppearancePreview: View {
             .frame(height: DSSpace.s1)
 
             HStack {
-                Text(Self.timeString(demoElapsed))
+                Text(HistoryFormat.clock(Double(demoElapsed)))
                 Spacer()
-                Text(verbatim: "-\(Self.timeString(demoTotal - demoElapsed))")
+                Text(verbatim: "-\(HistoryFormat.clock(Double(demoTotal - demoElapsed)))")
             }
             .font(widgetFont(size: DSFont.Size.xs, weight: .regular))
-            .foregroundColor(theme.textMuted)
+            .foregroundStyle(theme.textMuted)
         }
     }
 
@@ -246,12 +258,6 @@ struct WidgetAppearancePreview: View {
             return .system(size: size, weight: weight)
         }
         return .custom(widgetFontFamily, size: size).weight(weight)
-    }
-
-    private static func timeString(_ seconds: Int) -> String {
-        let mins = seconds / 60
-        let secs = seconds % 60
-        return String(format: "%d:%02d", mins, secs)
     }
 }
 

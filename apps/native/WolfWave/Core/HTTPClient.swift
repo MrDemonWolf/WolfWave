@@ -116,17 +116,38 @@ nonisolated struct HTTPClient: Sendable {
         var combinedHeaders = headers
         combinedHeaders["Content-Type"] = "application/x-www-form-urlencoded"
 
-        let body = form
+        let body = Self.formURLEncodedBody(form)
+        let request = makeRequest(url: url, method: "POST", headers: combinedHeaders, body: body)
+        return try await perform(request)
+    }
+
+    // MARK: - Form Encoding
+
+    /// RFC 3986 unreserved characters. The only bytes left un-escaped in a form
+    /// body, so reserved bytes like `+ & = ?` in a value can't corrupt it.
+    private static let formURLAllowed: CharacterSet = {
+        var allowed = CharacterSet.alphanumerics
+        allowed.insert(charactersIn: "-._~")
+        return allowed
+    }()
+
+    /// Percent-encodes `form` as an `application/x-www-form-urlencoded` body.
+    ///
+    /// Shared by ``postForm(url:form:headers:)`` and OAuth flows that build the
+    /// request by hand (e.g. device-code polling), so the escaping rule lives in
+    /// one place instead of drifting per call site.
+    ///
+    /// - Parameter form: Key/value pairs to encode.
+    /// - Returns: The UTF-8 encoded body.
+    static func formURLEncodedBody(_ form: [String: String]) -> Data {
+        form
             .map { key, value in
-                let k = key.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? key
-                let v = value.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? value
+                let k = key.addingPercentEncoding(withAllowedCharacters: formURLAllowed) ?? key
+                let v = value.addingPercentEncoding(withAllowedCharacters: formURLAllowed) ?? value
                 return "\(k)=\(v)"
             }
             .joined(separator: "&")
-            .data(using: .utf8)
-
-        let request = makeRequest(url: url, method: "POST", headers: combinedHeaders, body: body)
-        return try await perform(request)
+            .data(using: .utf8) ?? Data()
     }
 
     /// Performs an arbitrary request and returns the raw response without

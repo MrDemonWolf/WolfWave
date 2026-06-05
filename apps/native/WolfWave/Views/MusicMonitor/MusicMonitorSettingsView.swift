@@ -274,17 +274,9 @@ struct MusicMonitorSettingsView: View {
                 .accessibilityLabel("Rechecking Apple Music access")
                 .accessibilityIdentifier("musicMonitor.recheckSpinner")
         } else if recheckConfirmed {
-            HStack(spacing: DSSpace.s1) {
-                Image(systemName: "checkmark.circle.fill")
-                    .font(.system(size: DSFont.Size.md, weight: .semibold))
-                    .foregroundStyle(.green)
-                Text("Checked")
-                    .font(.system(size: DSFont.Size.sm))
-                    .foregroundStyle(.secondary)
-            }
-            .transition(.opacity)
-            .accessibilityLabel("Recheck complete")
-            .accessibilityIdentifier("musicMonitor.recheckConfirmation")
+            SuccessFeedbackRow(text: "Checked")
+                .transition(.opacity)
+                .accessibilityIdentifier("musicMonitor.recheckConfirmation")
         } else {
             Button("Recheck", action: recheckTapped)
                 .buttonStyle(.borderless)
@@ -354,18 +346,8 @@ struct MusicMonitorSettingsView: View {
             recheckConfirmed = false
         }
         Task {
-            let start = Date()
-            // Apple Events probe can take tens of milliseconds, dispatch off
-            // the main actor so the spinner can actually animate while we wait.
-            let next = await Task.detached(priority: .userInitiated) {
-                MusicPermissionChecker.currentState()
-            }.value
-            // Minimum visible spinner duration so the probe doesn't blink invisibly.
-            let elapsed = Date().timeIntervalSince(start)
-            let minSpin: TimeInterval = 0.25
-            if elapsed < minSpin {
-                try? await Task.sleep(nanoseconds: UInt64((minSpin - elapsed) * 1_000_000_000))
-            }
+            // Off-main probe with a minimum visible spinner so it can't blink invisibly.
+            let next = await MusicPermissionChecker.recheck()
             await MainActor.run {
                 MusicPermissionCache.write(next)
                 withAnimation(.easeInOut(duration: DSMotion.Duration.base)) {
@@ -463,7 +445,7 @@ struct MusicMonitorSettingsView: View {
         if let appDelegate = AppDelegate.shared {
             twitchConnected = appDelegate.twitchService?.isConnectedSnapshot.value ?? false
             // Reads the persisted channel name (set during sign-in).
-            twitchChannel = UserDefaults.standard.string(forKey: "twitchChannelName")
+            twitchChannel = UserDefaults.standard.string(forKey: AppConstants.UserDefaults.twitchChannelName)
             widgetRunning = appDelegate.websocketServer?.state == .listening
             if let discordService = appDelegate.discordService {
                 Task { @MainActor in

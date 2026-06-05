@@ -120,7 +120,7 @@ struct NowPlayingHeroCard: View {
                     .frame(height: 3)
             }
 
-            Text("\(timeString(elapsed)) / \(timeString(duration))")
+            Text("\(HistoryFormat.clock(elapsed)) / \(HistoryFormat.clock(duration))")
                 .font(.system(size: DSFont.Size.sm, design: .monospaced))
                 .foregroundStyle(.secondary)
                 .monospacedDigit()
@@ -137,15 +137,6 @@ struct NowPlayingHeroCard: View {
         case let (nil, b?): return b
         default: return nil
         }
-    }
-
-    /// Formats a playback position as a colon-separated `M:SS` timestamp.
-    ///
-    /// - Parameter seconds: Position in seconds. Rounded to the nearest second.
-    /// - Returns: A `M:SS` string (e.g. `"3:07"`).
-    private func timeString(_ seconds: TimeInterval) -> String {
-        let total = Int(seconds.rounded())
-        return String(format: "%d:%02d", total / 60, total % 60)
     }
 
     private var accessibilityLabel: String {

@@ -1146,21 +1146,16 @@ actor TwitchChatService {
             throw ConnectionError.networkError("Invalid URL")
         }
 
-        var request = URLRequest(url: url)
-        request.httpMethod = method
-        for (key, value) in HelixClient.headers(for: .init(token: token, clientID: clientID)) {
-            request.setValue(value, forHTTPHeaderField: key)
-        }
-
-        if let body {
-            do {
-                request.httpBody = try JSONSerialization.data(withJSONObject: body)
-            } catch {
-                Log.error(
-                    "TwitchChatService: Failed to serialize request body - \(error.localizedDescription)",
-                    category: "Twitch")
-                throw ConnectionError.networkError("Failed to serialize request body")
-            }
+        let request: URLRequest
+        do {
+            request = try HelixClient.buildRequest(
+                url: url, method: method,
+                credentials: .init(token: token, clientID: clientID), body: body)
+        } catch {
+            Log.error(
+                "TwitchChatService: Failed to serialize request body - \(error.localizedDescription)",
+                category: "Twitch")
+            throw ConnectionError.networkError("Failed to serialize request body")
         }
 
         let (data, http) = try await HTTPClient.shared.send(request)
@@ -1494,13 +1489,11 @@ actor TwitchChatService {
             "duration": duration,
         ]
 
-        var request = URLRequest(url: url)
-        request.httpMethod = "POST"
-        for (key, value) in HelixClient.headers(for: .init(token: token, clientID: clientID)) {
-            request.setValue(value, forHTTPHeaderField: key)
-        }
+        let request: URLRequest
         do {
-            request.httpBody = try JSONSerialization.data(withJSONObject: body)
+            request = try HelixClient.buildRequest(
+                url: url, method: "POST",
+                credentials: .init(token: token, clientID: clientID), body: body)
         } catch {
             Log.error(
                 "TwitchChatService: Failed to serialize poll body - \(error.localizedDescription)",
@@ -1763,13 +1756,11 @@ actor TwitchChatService {
     ) async -> Bool {
         guard let url = URL(string: apiBaseURL + "/eventsub/subscriptions") else { return false }
 
-        var request = URLRequest(url: url)
-        request.httpMethod = "POST"
-        for (key, value) in HelixClient.headers(for: .init(token: token, clientID: clientID)) {
-            request.setValue(value, forHTTPHeaderField: key)
-        }
+        let request: URLRequest
         do {
-            request.httpBody = try JSONSerialization.data(withJSONObject: body)
+            request = try HelixClient.buildRequest(
+                url: url, method: "POST",
+                credentials: .init(token: token, clientID: clientID), body: body)
         } catch {
             Log.error(
                 "TwitchChatService: Failed to serialize \(label) subscription - \(error.localizedDescription)",
@@ -2081,11 +2072,9 @@ actor TwitchChatService {
             throw ConnectionError.networkError("Invalid users endpoint")
         }
 
-        var request = URLRequest(url: url)
-        request.httpMethod = "GET"
-        for (key, value) in HelixClient.headers(for: .init(token: token, clientID: clientID)) {
-            request.setValue(value, forHTTPHeaderField: key)
-        }
+        var request = try HelixClient.buildRequest(
+            url: url, method: "GET",
+            credentials: .init(token: token, clientID: clientID))
         request.timeoutInterval = 15
 
         do {

@@ -416,28 +416,14 @@ nonisolated final class TwitchDeviceAuth: Sendable {
 
     // MARK: - Private Helpers
 
-    /// Characters allowed without percent-encoding in form URL encoding (RFC 3986 unreserved).
-    private static let urlEncodingAllowed: CharacterSet = {
-        var allowed = CharacterSet.alphanumerics
-        allowed.insert(charactersIn: "-._~")
-        return allowed
-    }()
-
     /// Encodes parameters as application/x-www-form-urlencoded for HTTP requests.
+    ///
+    /// Delegates to ``HTTPClient/formURLEncodedBody(_:)`` so the percent-encoding
+    /// rule is shared with the rest of the app instead of redefined here.
     ///
     /// - Parameter params: Dictionary of key-value pairs to encode.
     /// - Returns: URL-encoded data ready for HTTP body.
     private func formURLEncoded(params: [String: String]) -> Data {
-        let allowed = Self.urlEncodingAllowed
-        let body =
-            params
-            .map { key, value in
-                let encodedKey = key.addingPercentEncoding(withAllowedCharacters: allowed) ?? key
-                let encodedValue =
-                    value.addingPercentEncoding(withAllowedCharacters: allowed) ?? value
-                return "\(encodedKey)=\(encodedValue)"
-            }
-            .joined(separator: "&")
-        return body.data(using: .utf8) ?? Data()
+        HTTPClient.formURLEncodedBody(params)
     }
 }

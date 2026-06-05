@@ -20,7 +20,7 @@ struct WeekChartCard: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: DSSpace.s3) {
-            chartCardHeader("Last 7 days", systemImage: "calendar")
+            CardEyebrowHeader("Last 7 days", systemImage: "calendar")
 
             Chart(snapshot.last7Days) { day in
                 BarMark(
@@ -56,7 +56,7 @@ struct HourChartCard: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: DSSpace.s3) {
-            chartCardHeader("When you listen", systemImage: "clock")
+            CardEyebrowHeader("When you listen", systemImage: "clock")
 
             Chart(0..<24, id: \.self) { hour in
                 BarMark(
@@ -121,22 +121,6 @@ struct StatsChartsView: View {
             HourChartCard(snapshot: snapshot)
         }
     }
-}
-
-// MARK: - Shared Header
-
-/// Eyebrow header shared by the chart cards. Mirrors the in-card header used
-/// elsewhere in the History & Stats pane (SF Symbol + sentence-case eyebrow).
-@ViewBuilder
-private func chartCardHeader(_ title: String, systemImage: String) -> some View {
-    HStack(spacing: DSSpace.s1h) {
-        Image(systemName: systemImage)
-            .font(.system(size: DSFont.Size.sm, weight: .semibold))
-            .foregroundStyle(.secondary)
-        Text(title)
-            .sectionEyebrow()
-    }
-    .accessibilityAddTraits(.isHeader)
 }
 
 // MARK: - Stable Y Axis

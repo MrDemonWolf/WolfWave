@@ -71,6 +71,35 @@ final class HistoryFormattingTests: XCTestCase {
         XCTAssertEqual(HistoryFormat.playCount(1000), "1000 plays")
     }
 
+    // MARK: - clock
+
+    func testClockZero() {
+        XCTAssertEqual(HistoryFormat.clock(0), "0:00")
+    }
+
+    func testClockUnderOneMinutePadsSeconds() {
+        XCTAssertEqual(HistoryFormat.clock(7), "0:07")
+        XCTAssertEqual(HistoryFormat.clock(59), "0:59")
+    }
+
+    func testClockMinutesAndSeconds() {
+        XCTAssertEqual(HistoryFormat.clock(67), "1:07")
+        XCTAssertEqual(HistoryFormat.clock(187), "3:07")
+    }
+
+    func testClockMinutesExceedSixty() {
+        XCTAssertEqual(HistoryFormat.clock(3725), "62:05")
+    }
+
+    func testClockNegativeClampsToZero() {
+        XCTAssertEqual(HistoryFormat.clock(-5), "0:00")
+    }
+
+    func testClockFractionalRoundsToNearest() {
+        XCTAssertEqual(HistoryFormat.clock(7.4), "0:07")
+        XCTAssertEqual(HistoryFormat.clock(7.6), "0:08")
+    }
+
     // MARK: - relative
 
     func testRelativeJustNow() {

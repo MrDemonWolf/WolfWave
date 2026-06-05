@@ -313,7 +313,7 @@ struct MonthlyWrapCard: View {
                 endPoint: .bottomTrailing
             )
         )
-        .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+        .clipShape(RoundedRectangle(cornerRadius: DSRadius.x2xl, style: .continuous))
     }
 
     @ViewBuilder

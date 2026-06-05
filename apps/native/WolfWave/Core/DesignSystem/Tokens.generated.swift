@@ -170,6 +170,8 @@ nonisolated enum DSDimension {
         static let brandTileSize: CGFloat = 56
         static let brandTileRadius: CGFloat = 14
         static let primaryButtonRadius: CGFloat = 8
+        static let iconTileSize: CGFloat = 28
+        static let iconTileRadius: CGFloat = 7
     }
 
     enum About {

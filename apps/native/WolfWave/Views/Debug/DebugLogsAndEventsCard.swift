@@ -167,7 +167,7 @@ struct DebugLogsAndEventsCard: View {
                 .font(.system(size: DSFont.Size.sm, design: .monospaced))
                 .frame(minHeight: 60, maxHeight: 100)
                 .overlay(
-                    RoundedRectangle(cornerRadius: 6)
+                    RoundedRectangle(cornerRadius: DSRadius.sm)
                         .stroke(Color.secondary.opacity(0.3), lineWidth: 1)
                 )
 

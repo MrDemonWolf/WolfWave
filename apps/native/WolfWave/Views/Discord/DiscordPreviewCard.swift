@@ -193,7 +193,7 @@ struct DiscordPreviewCard: View {
             }
             .frame(width: 80, height: 80)
             .saturation(mode == .paused ? 0.4 : 1)
-            .clipShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
+            .clipShape(RoundedRectangle(cornerRadius: DSRadius.sm, style: .continuous))
 
             // Small corner badge mirrors Discord's `assets.small_image`. While
             // paused the live presence swaps this to a pause glyph + "Paused"
@@ -266,7 +266,7 @@ struct DiscordPreviewCard: View {
             .frame(maxWidth: .infinity)
             .frame(height: 32)
             .background(buttonBackground)
-            .clipShape(RoundedRectangle(cornerRadius: 4, style: .continuous))
+            .clipShape(RoundedRectangle(cornerRadius: DSRadius.xs, style: .continuous))
     }
 
     // MARK: - Empty content
@@ -280,7 +280,7 @@ struct DiscordPreviewCard: View {
                 .frame(width: 80, height: 80)
                 .saturation(0.35)
                 .opacity(0.7)
-                .clipShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
+                .clipShape(RoundedRectangle(cornerRadius: DSRadius.sm, style: .continuous))
             VStack(alignment: .leading, spacing: DSSpace.s1) {
                 Text(emptyHeadline)
                     .font(.system(size: DSFont.Size.md, weight: .semibold))
@@ -324,7 +324,7 @@ struct DiscordPreviewCard: View {
             artworkPlaceholder
                 .frame(width: 80, height: 80)
                 .saturation(0.45)
-                .clipShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
+                .clipShape(RoundedRectangle(cornerRadius: DSRadius.sm, style: .continuous))
             VStack(alignment: .leading, spacing: 3) {
                 Text(AppConstants.Discord.idleDetails)
                     .font(.system(size: DSFont.Size.md, weight: .semibold))

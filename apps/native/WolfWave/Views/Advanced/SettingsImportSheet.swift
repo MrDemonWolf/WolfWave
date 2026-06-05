@@ -118,10 +118,7 @@ struct SettingsImportSheet: View {
     }
 
     private var sourceLine: String {
-        let formatter = DateFormatter()
-        formatter.dateStyle = .medium
-        formatter.timeStyle = .short
-        let date = formatter.string(from: backup.exportedAt)
+        let date = backup.exportedAt.formatted(date: .abbreviated, time: .shortened)
         return "From a backup made \(date), WolfWave \(backup.appVersion) (\(backup.appBuild))."
     }
 

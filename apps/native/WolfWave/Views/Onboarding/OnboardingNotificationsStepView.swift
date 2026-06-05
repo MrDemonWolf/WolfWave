@@ -164,44 +164,14 @@ struct OnboardingNotificationsStepView: View {
         accessibilityLabel: String,
         accessibilityIdentifier: String
     ) -> some View {
-        HStack(spacing: DSSpace.s4) {
-            ZStack {
-                RoundedRectangle(cornerRadius: 7, style: .continuous)
-                    .fill(iconColor.opacity(0.15))
-                    .frame(width: 28, height: 28)
-
-                Image(systemName: icon)
-                    .font(.system(size: DSFont.Size.base, weight: .semibold))
-                    .foregroundStyle(iconColor)
-            }
-
-            VStack(alignment: .leading, spacing: 2) {
-                Text(title)
-                    .font(.system(size: DSFont.Size.base, weight: .semibold))
-
-                Text(subtitle)
-                    .font(.system(size: DSFont.Size.sm))
-                    .foregroundStyle(.secondary)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-
-            Spacer()
-
-            Toggle("", isOn: isOn)
-                .toggleStyle(.switch)
-                .labelsHidden()
-                .pointerCursor()
-                .accessibilityLabel(accessibilityLabel)
-                .accessibilityIdentifier(accessibilityIdentifier)
-        }
-        .padding(DSSpace.s4)
-        .background(
-            RoundedRectangle(cornerRadius: DSRadius.lg2, style: .continuous)
-                .fill(Color(nsColor: .controlBackgroundColor))
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: DSRadius.lg2, style: .continuous)
-                .stroke(Color.primary.opacity(0.06), lineWidth: 0.5)
+        OnboardingToggleCard(
+            icon: icon,
+            iconColor: iconColor,
+            title: title,
+            subtitle: subtitle,
+            isOn: isOn,
+            accessibilityLabel: accessibilityLabel,
+            accessibilityIdentifier: accessibilityIdentifier
         )
     }
 

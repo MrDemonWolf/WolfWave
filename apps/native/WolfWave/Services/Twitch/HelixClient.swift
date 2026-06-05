@@ -172,15 +172,23 @@ nonisolated struct HelixClient: Sendable {
         ]
     }
 
-    private func makeRequest(
+    /// Builds a Helix `URLRequest`: auth + client-id + JSON content-type headers
+    /// plus a JSON-serialized body.
+    ///
+    /// Exposed `static` so call sites that need a custom send path (rate-limit
+    /// header capture, bespoke status branching) reuse the exact same request
+    /// construction instead of rebuilding the header loop and body serialization.
+    ///
+    /// - Throws: ``HelixError/encodingFailed(message:)`` when `body` isn't valid JSON.
+    static func buildRequest(
         url: URL,
         method: String,
         credentials: Credentials,
-        body: [String: Any]?
+        body: [String: Any]? = nil
     ) throws -> URLRequest {
         var request = URLRequest(url: url)
         request.httpMethod = method
-        for (key, value) in Self.headers(for: credentials) {
+        for (key, value) in headers(for: credentials) {
             request.setValue(value, forHTTPHeaderField: key)
         }
         if let body {
@@ -191,6 +199,15 @@ nonisolated struct HelixClient: Sendable {
             }
         }
         return request
+    }
+
+    private func makeRequest(
+        url: URL,
+        method: String,
+        credentials: Credentials,
+        body: [String: Any]?
+    ) throws -> URLRequest {
+        try Self.buildRequest(url: url, method: method, credentials: credentials, body: body)
     }
 
     private func send(_ request: URLRequest) async throws -> (Data, HTTPURLResponse) {

@@ -112,31 +112,20 @@ struct NotificationsSettingsView: View {
 
     /// Shown when notifications are enabled in WolfWave but denied at the system level.
     private var permissionDeniedNotice: some View {
-        HStack(alignment: .top, spacing: DSSpace.s3) {
-            Image(systemName: "exclamationmark.triangle.fill")
-                .font(.system(size: DSFont.Size.body))
-                .foregroundStyle(.orange)
+        VStack(alignment: .leading, spacing: DSSpace.s2) {
+            CalloutBanner(
+                "Notifications are turned off for WolfWave. Enable them in System Settings to get these alerts.",
+                style: .warning
+            )
 
-            VStack(alignment: .leading, spacing: DSSpace.s1h) {
-                Text("Notifications are turned off for WolfWave. Enable them in System Settings to get these alerts.")
-                    .font(.system(size: DSFont.Size.sm))
-                    .foregroundStyle(.secondary)
-                    .fixedSize(horizontal: false, vertical: true)
-
-                Button("Open System Settings") {
-                    NotificationService.shared.openSystemNotificationSettings()
-                }
-                .font(.system(size: DSFont.Size.sm))
-                .pointerCursor()
-                .accessibilityIdentifier("openNotificationSettingsButton")
+            Button("Open System Settings") {
+                NotificationService.shared.openSystemNotificationSettings()
             }
+            .font(.system(size: DSFont.Size.sm))
+            .pointerCursor()
+            .accessibilityIdentifier("openNotificationSettingsButton")
         }
-        .padding(DSSpace.s3)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(DSColor.warning.opacity(0.12))
-        .clipShape(RoundedRectangle(cornerRadius: DSRadius.sm))
-        .accessibilityElement(children: .combine)
-        .accessibilityLabel("Notifications are turned off for WolfWave. Open System Settings to enable them.")
     }
 
     // MARK: - Helpers

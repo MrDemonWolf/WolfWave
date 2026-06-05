@@ -33,6 +33,18 @@ enum HistoryFormat {
         count == 1 ? "1 play" : "\(count) plays"
     }
 
+    /// Formats a playback position as a clock string, e.g. `3:07`, `12:45`.
+    ///
+    /// Used for now-playing position and remaining time. Distinct from
+    /// ``listeningTime(_:)``, which is a compact `6h 12m` duration summary.
+    ///
+    /// - Parameter seconds: Position in seconds. Negative values clamp to `0`.
+    /// - Returns: A `M:SS` string.
+    static func clock(_ seconds: TimeInterval) -> String {
+        let total = max(0, Int(seconds.rounded()))
+        return String(format: "%d:%02d", total / 60, total % 60)
+    }
+
     /// Shared relative-time formatter ("2 min ago").
     private static let relativeFormatter: RelativeDateTimeFormatter = {
         let formatter = RelativeDateTimeFormatter()

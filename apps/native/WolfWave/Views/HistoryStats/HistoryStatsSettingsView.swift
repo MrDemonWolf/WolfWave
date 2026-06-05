@@ -324,7 +324,7 @@ struct HistoryStatsSettingsView: View {
     /// showed. Pairs beside the summary tiles in the dashboard band.
     private var todaysTopTrackCard: some View {
         VStack(alignment: .leading, spacing: DSSpace.s3) {
-            cardHeader("Today's top track", systemImage: "star")
+            CardEyebrowHeader("Today's top track", systemImage: "star")
 
             // Reserve a steady height so the card doesn't grow/shrink when the
             // single-line "nothing yet" copy is replaced by the two-line track
@@ -386,7 +386,7 @@ struct HistoryStatsSettingsView: View {
     private var topListCard: some View {
         VStack(alignment: .leading, spacing: DSSpace.s3) {
             HStack(spacing: DSSpace.s3) {
-                cardHeader("Top", systemImage: "trophy")
+                CardEyebrowHeader("Top", systemImage: "trophy")
                 Spacer()
                 Picker("Top list", selection: $topListKind) {
                     ForEach(TopListKind.allCases) { kind in
@@ -457,7 +457,7 @@ struct HistoryStatsSettingsView: View {
     /// from resizing when the user flips Listening History on or off.
     private var unifiedRecentCard: some View {
         VStack(alignment: .leading, spacing: DSSpace.s3) {
-            cardHeader("Recently played", systemImage: "clock.arrow.circlepath")
+            CardEyebrowHeader("Recently played", systemImage: "clock.arrow.circlepath")
 
             Group {
                 if !historyEnabled {
@@ -553,7 +553,7 @@ struct HistoryStatsSettingsView: View {
     private var statsCommandCard: some View {
         VStack(alignment: .leading, spacing: DSSpace.s4) {
             HStack(spacing: DSSpace.s3) {
-                cardHeader("Chat command", systemImage: "text.bubble")
+                CardEyebrowHeader("Chat command", systemImage: "text.bubble")
                 Spacer()
                 StatusChip(text: "Twitch", color: .purple)
             }
@@ -589,7 +589,7 @@ struct HistoryStatsSettingsView: View {
     /// keeps on disk before pruning. `0` means keep forever.
     private var retentionCard: some View {
         VStack(alignment: .leading, spacing: DSSpace.s3) {
-            cardHeader("History retention", systemImage: "calendar")
+            CardEyebrowHeader("History retention", systemImage: "calendar")
 
             HStack {
                 Text("Keep history for")
@@ -636,7 +636,7 @@ struct HistoryStatsSettingsView: View {
     /// lives in the danger zone below, not here.
     private var actionsCard: some View {
         VStack(alignment: .leading, spacing: DSSpace.s3) {
-            cardHeader("Manage", systemImage: "slider.horizontal.3")
+            CardEyebrowHeader("Manage", systemImage: "slider.horizontal.3")
 
             Button {
                 showWrapSheet = true
@@ -657,7 +657,7 @@ struct HistoryStatsSettingsView: View {
     /// of looking blank.
     private var firstRunExplainer: some View {
         VStack(alignment: .leading, spacing: DSSpace.s3) {
-            cardHeader("What you'll get", systemImage: "sparkles")
+            CardEyebrowHeader("What you'll get", systemImage: "sparkles")
 
             Text("Stats & Charts add a weekly view, your top artists, listening by hour, and a monthly wrap. Everything is computed on this Mac.")
                 .font(.system(size: DSFont.Size.body))
@@ -718,18 +718,6 @@ struct HistoryStatsSettingsView: View {
     }
 
     // MARK: - Helpers
-
-    @ViewBuilder
-    private func cardHeader(_ title: String, systemImage: String) -> some View {
-        HStack(spacing: DSSpace.s1h) {
-            Image(systemName: systemImage)
-                .font(.system(size: DSFont.Size.sm, weight: .semibold))
-                .foregroundStyle(.secondary)
-            Text(title)
-                .sectionEyebrow()
-        }
-        .accessibilityAddTraits(.isHeader)
-    }
 
     /// Cascades Stats off when History is turned off, then notifies the app
     /// delegate so recording starts or stops.

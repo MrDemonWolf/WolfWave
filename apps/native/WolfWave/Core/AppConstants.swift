@@ -1290,6 +1290,12 @@ nonisolated enum AppConstants {
 
         /// Corner radius for primary CTA buttons (continuous rounded rect, macOS-standard for 36pt height).
         static let primaryButtonRadius: CGFloat = DSDimension.Onboarding.primaryButtonRadius
+
+        /// Side length of the small tinted SF Symbol tile in onboarding toggle rows.
+        static let iconTileSize: CGFloat = DSDimension.Onboarding.iconTileSize
+
+        /// Corner radius of the small icon tile (matches the brand tile's 25% ratio).
+        static let iconTileRadius: CGFloat = DSDimension.Onboarding.iconTileRadius
     }
 
     // MARK: - Brand Colors
