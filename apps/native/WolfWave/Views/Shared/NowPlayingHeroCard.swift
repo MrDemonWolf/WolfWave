@@ -152,11 +152,11 @@ struct NowPlayingHeroCard: View {
 
 #Preview("Playing") {
     NowPlayingHeroCard(
-        track: "Anti-Hero",
-        artist: "Taylor Swift",
-        album: "Midnights",
-        elapsed: 68,
-        duration: 201
+        track: "Moonlit Howl",
+        artist: "Arctic Wolf",
+        album: "Tundra Sessions",
+        elapsed: 72,
+        duration: 218
     )
     .padding()
     .frame(width: 720)
@@ -165,11 +165,11 @@ struct NowPlayingHeroCard: View {
 
 #Preview("Paused") {
     NowPlayingHeroCard(
-        track: "Anti-Hero",
-        artist: "Taylor Swift",
-        album: "Midnights",
-        elapsed: 68,
-        duration: 201,
+        track: "Moonlit Howl",
+        artist: "Arctic Wolf",
+        album: "Tundra Sessions",
+        elapsed: 72,
+        duration: 218,
         isPaused: true
     )
     .padding()

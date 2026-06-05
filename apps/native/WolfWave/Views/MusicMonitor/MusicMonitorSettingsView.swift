@@ -509,9 +509,9 @@ private extension UInt16 {
         .frame(width: 720)
         .onAppear {
             NotificationCenter.default.postNowPlaying(
-                track: "Anti-Hero",
-                artist: "Taylor Swift",
-                album: "Midnights"
+                track: "Moonlit Howl",
+                artist: "Arctic Wolf",
+                album: "Tundra Sessions"
             )
         }
 }

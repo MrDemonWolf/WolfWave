@@ -357,21 +357,21 @@ struct MonthlyWrapCard: View {
         uniqueArtists: 58,
         uniqueTracks: 184,
         topArtist: CountedItem(
-            id: "taylor swift",
-            name: "Taylor Swift",
+            id: "arctic wolf",
+            name: "Arctic Wolf",
             detail: nil,
             count: 47
         ),
         topTrack: CountedItem(
-            id: "anti-hero|taylor swift",
-            name: "Anti-Hero",
-            detail: "Taylor Swift",
+            id: "moonlit howl|arctic wolf",
+            name: "Moonlit Howl",
+            detail: "Arctic Wolf",
             count: 22
         ),
         topAlbum: CountedItem(
-            id: "midnights",
-            name: "Midnights",
-            detail: "Taylor Swift",
+            id: "tundra sessions",
+            name: "Tundra Sessions",
+            detail: "Arctic Wolf",
             count: 81
         ),
         busiestDay: nil

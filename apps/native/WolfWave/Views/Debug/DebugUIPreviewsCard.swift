@@ -112,7 +112,9 @@ private struct MotionGallerySection: View {
     @State private var chipState: ChipDemoState = .off
     @State private var trackIndex: Int = 0
     @State private var elapsed: TimeInterval = 0
-    @State private var artURL: URL? = URL(string: "https://is1-ssl.mzstatic.com/image/thumb/Music112/v4/8a/4f/f6/8a4ff6a6-2bcb-fbf9-4cdb-3f8c1c4e6e3e/source/512x512bb.jpg")
+    // Neutral placeholder image (not real album art) so the AsyncImage phased
+    // load is exercisable without shipping a third-party music artwork URL.
+    @State private var artURL: URL? = URL(string: "https://picsum.photos/seed/wolfwave/512")
     @State private var cacheBuster: Int = 0
     @State private var isExpanded: Bool = false
 
@@ -151,11 +153,15 @@ private struct MotionGallerySection: View {
         let duration: TimeInterval
     }
 
+    // Invented demo tracks: made-up titles/albums with real wolf species as the
+    // "artist". Mirrors the marketing house style in
+    // `apps/docs/app/(home)/_widgets/sample-tracks.ts` so no real recording
+    // artist, song, or album ever ships in a preview.
     private static let demoTracks: [DemoTrack] = [
-        DemoTrack(title: "Anti-Hero",      artist: "Taylor Swift",  album: "Midnights",      duration: 201),
-        DemoTrack(title: "Bad Habit",       artist: "Steve Lacy",    album: "Gemini Rights",  duration: 232),
-        DemoTrack(title: "As It Was",       artist: "Harry Styles",  album: "Harry's House",  duration: 167),
-        DemoTrack(title: "About Damn Time", artist: "Lizzo",         album: "Special",        duration: 191)
+        DemoTrack(title: "Moonlit Howl",   artist: "Arctic Wolf",  album: "Tundra Sessions", duration: 218),
+        DemoTrack(title: "Lone Runner",     artist: "Timber Wolf",  album: "Northern Pines",  duration: 247),
+        DemoTrack(title: "Silver Pelt",     artist: "Gray Wolf",    album: "Den of Echoes",   duration: 191),
+        DemoTrack(title: "Pack Mentality",  artist: "Maned Wolf",   album: "Wild Frontier",   duration: 263)
     ]
 
     private var currentTrack: DemoTrack {
