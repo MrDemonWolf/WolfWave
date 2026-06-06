@@ -52,7 +52,7 @@ struct SettingsSceneBridge: View {
     /// window if it is already open), then front the realized window.
     @MainActor
     private func handleOpenRequest() {
-        NSApp.activate(ignoringOtherApps: true)
+        NSApp.activate()
         openWindow(id: WolfWaveApp.settingsWindowID)
 
         // SwiftUI creates/reuses the Settings window during `openSettings()`, so

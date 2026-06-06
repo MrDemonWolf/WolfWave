@@ -105,10 +105,7 @@ enum CrashReporter {
         if let override = markerDirectoryOverride {
             return override.appending(path: markerFileName, directoryHint: .notDirectory)
         }
-        let base = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first
-            ?? FileManager.default.temporaryDirectory
-        return base
-            .appending(path: "WolfWave/State", directoryHint: .isDirectory)
+        return AppContainer.directory("State")
             .appending(path: markerFileName, directoryHint: .notDirectory)
     }
 

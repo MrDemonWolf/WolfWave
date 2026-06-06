@@ -36,4 +36,25 @@ enum ByteFormatting {
     static func string(_ byteCount: Int) -> String {
         string(Int64(byteCount))
     }
+
+    /// Reused formatter for the memory-style readout (MB, `.memory` count
+    /// style). Distinct from the file-size formatter above so each call site
+    /// keeps its intended units without reconfiguring a shared instance.
+    private static let memoryFormatter: ByteCountFormatter = {
+        let formatter = ByteCountFormatter()
+        formatter.allowedUnits = [.useMB]
+        formatter.countStyle = .memory
+        return formatter
+    }()
+
+    /// Formats a byte count using the memory style in MB (e.g. "128 MB").
+    /// Used by the Debug metrics card for resident-memory readout.
+    static func memory(_ byteCount: Int64) -> String {
+        memoryFormatter.string(fromByteCount: byteCount)
+    }
+
+    /// Formats an `Int` byte count using the memory style in MB.
+    static func memory(_ byteCount: Int) -> String {
+        memory(Int64(byteCount))
+    }
 }

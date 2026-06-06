@@ -97,9 +97,7 @@ final class DiagnosticsService: NSObject, MXMetricManagerSubscriber, @unchecked 
 
     /// On-device directory where MetricKit payloads are persisted.
     var payloadDirectory: URL {
-        let base = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first
-            ?? FileManager.default.temporaryDirectory
-        return base.appending(path: "WolfWave/Diagnostics", directoryHint: .isDirectory)
+        AppContainer.directory("Diagnostics")
     }
 
     // MARK: - MXMetricManagerSubscriber

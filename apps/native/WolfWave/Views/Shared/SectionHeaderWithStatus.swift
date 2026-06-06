@@ -45,6 +45,9 @@ struct SectionHeaderWithStatus: View {
     var prominence: Prominence = .pane
     var statusText: String? = nil
     var statusColor: Color? = nil
+    /// Optional leading SF Symbol for the status chip, so state is not conveyed
+    /// by color alone. Passed straight through to `StatusChip`.
+    var statusSymbol: String? = nil
 
     // MARK: - Body
 
@@ -56,9 +59,8 @@ struct SectionHeaderWithStatus: View {
                 if let statusText, let statusColor {
                     Spacer()
 
-                    StatusChip(text: statusText, color: statusColor)
+                    StatusChip(text: statusText, color: statusColor, systemImage: statusSymbol)
                         .accessibilityLabel("\(title) status: \(statusText)")
-                        .animation(.easeInOut(duration: DSMotion.Duration.base), value: statusText)
                 }
             }
 

@@ -104,10 +104,12 @@ nonisolated final class ArtworkService: @unchecked Sendable {
     /// Default links-cache file under `Application Support/WolfWave/Cache`.
     /// Returns nil only if the Application Support directory can't be resolved.
     private static func defaultPersistenceURL() -> URL? {
-        guard let appSupport = FileManager.default.urls(
+        // Keep the nil-on-failure contract: only persist when Application
+        // Support resolves. AppContainer owns the `WolfWave/Cache` layout.
+        guard FileManager.default.urls(
             for: .applicationSupportDirectory, in: .userDomainMask
-        ).first else { return nil }
-        let cacheDir = appSupport.appending(path: "WolfWave/Cache", directoryHint: .isDirectory)
+        ).first != nil else { return nil }
+        let cacheDir = AppContainer.directory("Cache")
         try? FileManager.default.createDirectory(at: cacheDir, withIntermediateDirectories: true)
         return cacheDir.appending(path: "artwork-links.json")
     }

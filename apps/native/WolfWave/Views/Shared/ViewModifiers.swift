@@ -121,9 +121,13 @@ extension View {
 /// Carries the `.isHeader` accessibility trait so VoiceOver's heading rotor can
 /// jump straight to each pane title. Use exactly once per pane, on the title.
 struct PaneTitleModifier: ViewModifier {
+    /// Scales the 22pt token relative to the `.title` text style so the H1
+    /// tracks the user's Dynamic Type setting while keeping its default size.
+    @ScaledMetric(relativeTo: .title) private var size = DSFont.Size.x2xl
+
     func body(content: Content) -> some View {
         content
-            .font(.system(size: DSFont.Size.x2xl, weight: .bold))
+            .font(.system(size: size, weight: .bold))
             .accessibilityAddTraits(.isHeader)
     }
 }
@@ -146,9 +150,12 @@ extension View {
 /// and well above `.sectionEyebrow()` (11pt). Tagged as an accessibility header
 /// so the VoiceOver heading rotor lands on every section.
 struct SectionHeaderModifier: ViewModifier {
+    /// Scales the 17pt token relative to the `.title3` text style.
+    @ScaledMetric(relativeTo: .title3) private var size = DSFont.Size.lg
+
     func body(content: Content) -> some View {
         content
-            .font(.system(size: DSFont.Size.lg, weight: .semibold))
+            .font(.system(size: size, weight: .semibold))
             .accessibilityAddTraits(.isHeader)
     }
 }
@@ -168,9 +175,12 @@ extension View {
 /// sentence case for in-card labels; reserve full caps for tiny eyebrow
 /// tags above hero cards only.
 struct SectionEyebrowModifier: ViewModifier {
+    /// Scales the 11pt token relative to the `.caption` text style.
+    @ScaledMetric(relativeTo: .caption) private var size = DSFont.Size.sm
+
     func body(content: Content) -> some View {
         content
-            .font(.system(size: DSFont.Size.sm, weight: .semibold))
+            .font(.system(size: size, weight: .semibold))
             .foregroundStyle(.secondary)
     }
 }
@@ -194,9 +204,12 @@ extension View {
 /// hand-rolled as `.font(.system(size: DSFont.Size.base)).foregroundStyle(.secondary)`
 /// across most panes. Keeps the ramp at three heading sizes + one body size.
 struct FieldSubtitleModifier: ViewModifier {
+    /// Scales the 13pt token relative to the `.callout` text style.
+    @ScaledMetric(relativeTo: .callout) private var size = DSFont.Size.base
+
     func body(content: Content) -> some View {
         content
-            .font(.system(size: DSFont.Size.base))
+            .font(.system(size: size))
             .foregroundStyle(.secondary)
             .fixedSize(horizontal: false, vertical: true)
     }
@@ -204,9 +217,12 @@ struct FieldSubtitleModifier: ViewModifier {
 
 /// Smallest text level: footnotes, legal lines, timestamps. 10pt secondary.
 struct CaptionTextModifier: ViewModifier {
+    /// Scales the 10pt token relative to the `.caption2` text style.
+    @ScaledMetric(relativeTo: .caption2) private var size = DSFont.Size.xs
+
     func body(content: Content) -> some View {
         content
-            .font(.system(size: DSFont.Size.xs))
+            .font(.system(size: size))
             .foregroundStyle(.secondary)
     }
 }

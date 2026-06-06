@@ -114,14 +114,16 @@ final class WidgetHTTPServiceTests: XCTestCase {
         return body
     }
 
-    func testServedWidgetInlinesTokensJS() {
+    func testServedWidgetInlinesTokensJS() async {
         let port: UInt16 = 59997
         let service = WidgetHTTPService(port: port)
         service.start()
         defer { service.stop() }
 
-        // Give the listener a beat to bind.
-        Thread.sleep(forTimeInterval: 0.2)
+        // Await the listener actually binding the port instead of sleeping.
+        // A failed/stopped bind throws rather than hanging; the fetch guard below
+        // turns any such case into a clear XCTFail.
+        try? await service.ready()
 
         guard let body = fetchServedWidget(port: port) else {
             XCTFail("Failed to fetch served widget.html")
@@ -138,13 +140,13 @@ final class WidgetHTTPServiceTests: XCTestCase {
         )
     }
 
-    func testServedWidgetContainsPlaceholder() {
+    func testServedWidgetContainsPlaceholder() async {
         let port: UInt16 = 59996
         let service = WidgetHTTPService(port: port)
         service.start()
         defer { service.stop() }
 
-        Thread.sleep(forTimeInterval: 0.2)
+        try? await service.ready()
 
         guard let body = fetchServedWidget(port: port) else {
             XCTFail("Failed to fetch served widget.html")

@@ -230,7 +230,7 @@ extension AppDelegate {
         guard let song = currentSong, let artist = currentArtist else { return nil }
         let key = "\(artist)|\(song)"
 
-        if let cached = albumArtCache[key] { return cached }
+        if let cached = albumArtCache.object(forKey: key as NSString) { return cached }
 
         // No image yet, request the URL (cached) and asynchronously fetch
         // bitmap data. Bail when nothing is known yet; ArtworkService will
@@ -244,7 +244,7 @@ extension AppDelegate {
             guard let data = try? await HTTPClient.shared.data(url: url),
                   let image = NSImage(data: data) else { return }
             await MainActor.run { [weak self] in
-                self?.albumArtCache[key] = image
+                self?.albumArtCache.setObject(image, forKey: key as NSString)
             }
         }
 

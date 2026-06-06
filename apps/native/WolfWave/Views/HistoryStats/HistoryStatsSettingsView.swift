@@ -461,7 +461,7 @@ struct HistoryStatsSettingsView: View {
         let visible = Array(all.prefix(visibleRecentCount))
         let hasMore = visible.count < all.count
         return VStack(alignment: .leading, spacing: DSSpace.s3) {
-            ForEach(Array(visible.enumerated()), id: \.offset) { _, play in
+            ForEach(visible, id: \.self) { play in
                 HStack(spacing: DSSpace.s3) {
                     Image(systemName: "music.note")
                         .font(.system(size: DSFont.Size.sm))

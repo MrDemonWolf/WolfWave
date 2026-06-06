@@ -228,13 +228,7 @@ final class AppleMusicSource: PlaybackSource, @unchecked Sendable {
             let stateRaw = AppleMusicSource.extractPlayerState(stateObj)
             let stateTypeDesc = String(describing: type(of: stateObj))
             let stateRawDesc = stateRaw.map(String.init) ?? "unparsed(\(stateObj))"
-            let isTrackLoaded: Bool = {
-                guard let state = stateRaw else { return false }
-                return state == Constants.playerStatePlaying
-                    || state == Constants.playerStatePaused
-                    || state == Constants.playerStateFastForward
-                    || state == Constants.playerStateRewinding
-            }()
+            let isTrackLoaded = AppleMusicSource.isTrackLoaded(stateRaw)
 
             let trackObj = musicApp.value(forKey: "currentTrack") as? SBObject
             let trackName = (trackObj?.value(forKey: "name") as? String) ?? ""
@@ -321,6 +315,23 @@ final class AppleMusicSource: PlaybackSource, @unchecked Sendable {
             return packed
         }
         return nil
+    }
+
+    /// The `playerState` values that mean a track is loaded and should be
+    /// emitted to the now-playing UI, Discord Rich Presence, and the overlay.
+    ///
+    /// Playing (`kPSP`), paused (`kPSp`), fast-forward (`kPSF`), and rewind
+    /// (`kPSR`) all count as "loaded": pausing must NOT blank the UI. Stopped
+    /// (`kPSS`) and an unparsed/`nil` state are not track-loaded. This decision
+    /// set is a locked invariant covered by `AppleMusicSourceTests`; do not
+    /// narrow it (dropping ffwd/rewind, or treating pause as not-loaded, would
+    /// silently blank the card while Music is active).
+    static func isTrackLoaded(_ state: UInt32?) -> Bool {
+        guard let state else { return false }
+        return state == Constants.playerStatePlaying
+            || state == Constants.playerStatePaused
+            || state == Constants.playerStateFastForward
+            || state == Constants.playerStateRewinding
     }
 
     // MARK: - Private Helpers
@@ -465,7 +476,15 @@ final class AppleMusicSource: PlaybackSource, @unchecked Sendable {
             guard let self, self.stateLock.withLock({ self.isTracking }) else { return }
             self.scheduleTrackCheck(reason: "timer")
         }
-        stateLock.withLock { timer = newTimer }
+        // Swap the timer reference and cancel any prior one in a single
+        // critical section so a future off-main caller cannot orphan a live
+        // DispatchSourceTimer between the read and the assignment.
+        let previousTimer = stateLock.withLock { () -> DispatchSourceTimer? in
+            let existing = timer
+            timer = newTimer
+            return existing
+        }
+        previousTimer?.cancel()
         newTimer.activate()
     }
 

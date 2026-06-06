@@ -201,7 +201,7 @@ struct OnboardingNotificationsStepView: View {
 
     /// Opens System Settings → Notifications. macOS 13+ deep-link.
     private func openNotificationsSettings() {
-        ExternalLink.open("x-apple.systempreferences:com.apple.Notifications-Settings.extension")
+        ExternalLink.open(AppConstants.URLs.systemNotificationSettings)
     }
 }
 

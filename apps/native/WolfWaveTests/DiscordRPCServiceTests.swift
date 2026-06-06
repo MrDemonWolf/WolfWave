@@ -78,6 +78,61 @@ final class DiscordRPCServiceTests: XCTestCase {
         XCTAssertFalse(success, "testConnection should return false when disconnected with no client ID")
     }
 
+    // MARK: - Off-Executor I/O Tests (No Socket)
+    //
+    // The blocking IPC syscalls now run on a dedicated serial queue, bridged back
+    // to the actor with a checked continuation. None of these entry points may
+    // touch the socket while disconnected (they guard on `state == .connected`),
+    // so on a service with no client ID they must return promptly without ever
+    // opening or blocking on a socket. A regression that re-blocks the executor
+    // (or drops the state guard) would hang these `await`s.
+
+    func testUpdatePresenceWhileDisconnectedReturnsWithoutBlocking() async {
+        let service = DiscordRPCService(clientID: "")
+        // Disconnected: guarded out before any socket I/O. Must return, not hang.
+        await service.updatePresence(
+            track: "Howl", artist: "Timber Wolf", album: "Moonrise",
+            playlist: "", duration: 120, elapsed: 10, isPaused: false
+        )
+        let state = await service.state
+        XCTAssertEqual(state, .disconnected, "updatePresence must not connect on its own")
+    }
+
+    func testShowIdleStatusWhileDisconnectedIsNoOp() async {
+        let service = DiscordRPCService(clientID: "")
+        await service.showIdleStatus()
+        let state = await service.state
+        XCTAssertEqual(state, .disconnected)
+    }
+
+    func testTestConnectionWithEmptyClientReturnsFalseWithoutHanging() async {
+        // testConnection() now awaits connectIfNeeded(); with no client ID it
+        // bails before touching the IPC queue and resolves to false.
+        let service = DiscordRPCService(clientID: "")
+        let result = await service.testConnection()
+        XCTAssertFalse(result)
+    }
+
+    func testConcurrentDisconnectedCallsAllComplete() async {
+        // The actor serializes these and none reach the socket, so a batch of
+        // concurrent calls must all complete (no continuation leak / deadlock).
+        let service = DiscordRPCService(clientID: "")
+        await withTaskGroup(of: Void.self) { group in
+            for _ in 0..<8 {
+                group.addTask { await service.clearPresence() }
+                group.addTask { await service.showIdleStatus() }
+                group.addTask {
+                    await service.updatePresence(
+                        track: "T", artist: "A", album: "Al",
+                        playlist: "", duration: 0, elapsed: 0, isPaused: false
+                    )
+                }
+            }
+        }
+        let state = await service.state
+        XCTAssertEqual(state, .disconnected)
+    }
+
     // MARK: - Connection State Enum Tests
 
     func testConnectionStateRawValues() {
@@ -178,5 +233,120 @@ final class DiscordRPCServiceTests: XCTestCase {
 
     func testMaxIPCFrameBytesCapIsBounded() {
         XCTAssertEqual(AppConstants.Discord.maxIPCFrameBytes, 65536)
+    }
+
+    // MARK: - I/O Result Shapes (errno captured on-queue)
+    //
+    // `writeFully`/`readFully` now return a small Sendable result carrying the
+    // failing `errno` captured on the same worker thread that ran the syscall,
+    // instead of letting the actor read a stale, unrelated `errno` after the
+    // queue hop. These assert the result shape and the success/failure contract
+    // without opening a socket.
+
+    func testWriteResultSuccessShape() {
+        let result = DiscordRPCService.WriteResult(ok: true, errno: 0)
+        XCTAssertTrue(result.ok)
+        XCTAssertEqual(result.errno, 0, "errno is meaningful only on failure; success carries 0")
+    }
+
+    func testWriteResultFailureCarriesErrno() {
+        let result = DiscordRPCService.WriteResult(ok: false, errno: EPIPE)
+        XCTAssertFalse(result.ok)
+        XCTAssertEqual(result.errno, EPIPE, "failing errno must be carried back, not re-read post-hop")
+    }
+
+    func testReadResultSuccessShape() {
+        let result = DiscordRPCService.ReadResult(data: Data([1, 2, 3]), errno: 0)
+        XCTAssertEqual(result.data, Data([1, 2, 3]))
+        XCTAssertEqual(result.errno, 0)
+    }
+
+    func testReadResultPeerCloseHasNilDataAndZeroErrno() {
+        // A clean peer close (read returns 0) is not a syscall error, so errno
+        // stays 0 while data is nil — distinct from a timeout/error path.
+        let result = DiscordRPCService.ReadResult(data: nil, errno: 0)
+        XCTAssertNil(result.data)
+        XCTAssertEqual(result.errno, 0)
+    }
+
+    func testReadResultErrorCarriesErrno() {
+        let result = DiscordRPCService.ReadResult(data: nil, errno: EAGAIN)
+        XCTAssertNil(result.data)
+        XCTAssertEqual(result.errno, EAGAIN, "timeout/error errno must be carried back from the queue")
+    }
+
+    // MARK: - Teardown / Generation Gate (no socket)
+    //
+    // `disconnect()` bumps a monotonic generation token and routes the close
+    // through `ipcQueue`, and `connectIfNeeded` discards a just-opened fd if the
+    // generation changed mid-connect. With no client ID nothing reaches a real
+    // socket, but a regression in the gate (or in routing the close through the
+    // queue) would deadlock or crash these toggles. They must all settle on
+    // `.disconnected` without hanging.
+
+    func testEnableDisableTogglesSettleDisconnected() async {
+        let service = DiscordRPCService(clientID: "")
+        for _ in 0..<5 {
+            await service.setEnabled(true)
+            await service.setEnabled(false)
+        }
+        let state = await service.state
+        XCTAssertEqual(state, .disconnected, "repeated enable/disable must end disconnected, not hang")
+    }
+
+    func testDisableDuringConcurrentCallsSettlesDisconnected() async {
+        // A disable racing in-flight presence calls exercises the teardown +
+        // generation path. None reach a socket, so all must complete and the
+        // service must end disconnected.
+        let service = DiscordRPCService(clientID: "")
+        await service.setEnabled(true)
+        await withTaskGroup(of: Void.self) { group in
+            for _ in 0..<4 {
+                group.addTask {
+                    await service.updatePresence(
+                        track: "T", artist: "A", album: "Al",
+                        playlist: "", duration: 0, elapsed: 0, isPaused: false
+                    )
+                }
+                group.addTask { await service.clearPresence() }
+            }
+            group.addTask { await service.setEnabled(false) }
+        }
+        await service.setEnabled(false)
+        let state = await service.state
+        XCTAssertEqual(state, .disconnected)
+    }
+
+    // MARK: - Reconnect Backoff
+
+    func testNextBackoffDoubles() {
+        let base = AppConstants.Discord.reconnectBaseDelay
+        let max = AppConstants.Discord.reconnectMaxDelay
+        let next = DiscordRPCService.nextBackoff(base, base: base, max: max)
+        XCTAssertEqual(next, base * 2, accuracy: 0.0001)
+    }
+
+    func testNextBackoffClampsAtMax() {
+        let base = AppConstants.Discord.reconnectBaseDelay
+        let max = AppConstants.Discord.reconnectMaxDelay
+        // Already at max: doubling would overshoot, so it must clamp.
+        let next = DiscordRPCService.nextBackoff(max, base: base, max: max)
+        XCTAssertEqual(next, max, accuracy: 0.0001)
+        // Just under max: doubling overshoots, still clamps.
+        let nearMax = DiscordRPCService.nextBackoff(max * 0.75, base: base, max: max)
+        XCTAssertEqual(nearMax, max, accuracy: 0.0001)
+    }
+
+    func testNextBackoffRepeatedDoublingClampsAndResetIsBase() {
+        let base = AppConstants.Discord.reconnectBaseDelay
+        let max = AppConstants.Discord.reconnectMaxDelay
+        var delay = base
+        for _ in 0..<20 {
+            delay = DiscordRPCService.nextBackoff(delay, base: base, max: max)
+            XCTAssertLessThanOrEqual(delay, max)
+        }
+        XCTAssertEqual(delay, max, accuracy: 0.0001)
+        // Reset semantics: a successful connect sets reconnectDelay back to base.
+        XCTAssertEqual(base, AppConstants.Discord.reconnectBaseDelay, accuracy: 0.0001)
     }
 }

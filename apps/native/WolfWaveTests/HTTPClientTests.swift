@@ -122,4 +122,58 @@ final class HTTPClientTests: XCTestCase {
 
         XCTAssertEqual(result, Payload(name: "ok", count: 1))
     }
+
+    // MARK: - User-Agent
+
+    func testDefaultUserAgentMatchesExpectedFormat() {
+        let ua = HTTPClient.defaultUserAgent
+        XCTAssertTrue(ua.hasPrefix("WolfWave/"), "UA should start with WolfWave/, got \(ua)")
+        XCTAssertTrue(
+            ua.contains("(+https://github.com/MrDemonWolf/WolfWave; macOS)"),
+            "UA should carry the repo URL and platform, got \(ua)")
+    }
+
+    func testWithDefaultUserAgentAddsHeaderWhenAbsent() {
+        let merged = HTTPClient.withDefaultUserAgent(["Authorization": "Bearer x"])
+        XCTAssertEqual(merged["User-Agent"], HTTPClient.defaultUserAgent)
+        XCTAssertEqual(merged["Authorization"], "Bearer x")
+    }
+
+    func testWithDefaultUserAgentRespectsCallerOverride() {
+        let merged = HTTPClient.withDefaultUserAgent(["User-Agent": "Custom/1.0"])
+        XCTAssertEqual(merged["User-Agent"], "Custom/1.0")
+    }
+
+    func testWithDefaultUserAgentOverrideIsCaseInsensitive() {
+        // A differently-cased caller key must still win and not duplicate.
+        let merged = HTTPClient.withDefaultUserAgent(["user-agent": "Custom/2.0"])
+        XCTAssertEqual(merged["user-agent"], "Custom/2.0")
+        XCTAssertNil(merged["User-Agent"])
+    }
+
+    func testDefaultUserAgentPresentOnOutboundGetRequest() async throws {
+        MockURLProtocol.requestHandler = { request in
+            XCTAssertEqual(
+                request.value(forHTTPHeaderField: "User-Agent"),
+                HTTPClient.defaultUserAgent
+            )
+            return (MockURLProtocol.httpResponse(for: request, status: 200),
+                    Data(#"{"name":"ok","count":1}"#.utf8))
+        }
+
+        let _: Payload = try await client.get(url: url())
+    }
+
+    func testCallerUserAgentOverrideReachesOutboundRequest() async throws {
+        MockURLProtocol.requestHandler = { request in
+            XCTAssertEqual(
+                request.value(forHTTPHeaderField: "User-Agent"),
+                "Caller/9.9"
+            )
+            return (MockURLProtocol.httpResponse(for: request, status: 200),
+                    Data(#"{"name":"ok","count":1}"#.utf8))
+        }
+
+        let _: Payload = try await client.get(url: url(), headers: ["User-Agent": "Caller/9.9"])
+    }
 }

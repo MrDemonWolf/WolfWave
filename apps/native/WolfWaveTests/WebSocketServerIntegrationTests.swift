@@ -9,7 +9,11 @@
 import XCTest
 @testable import WolfWave
 
-// Integration tests using fixed ports (59001-59008) for WebSocket server lifecycle
+// Integration tests for the WebSocket server lifecycle. Each test binds its own
+// high-numbered port in the 59001-59010 range; conflicts are unlikely but the
+// tests gate on observed `ServerState` transitions rather than fixed sleeps, so
+// they stay deterministic regardless of how quickly the OS binds or releases a
+// port.
 final class WebSocketServerIntegrationTests: XCTestCase, @unchecked Sendable {
 
     // MARK: - Helpers
@@ -59,8 +63,8 @@ final class WebSocketServerIntegrationTests: XCTestCase, @unchecked Sendable {
         wait(for: [listeningExpectation], timeout: 10)
         listenObs.cancel()
 
-        Thread.sleep(forTimeInterval: 0.5)
-
+        // No fixed sleep here: the `.stopped` observer below is wired before the
+        // disable is requested, so the transition is observed deterministically.
         let stopObs = observe(service, fulfilling: stoppedExpectation) { state, _ in state == .stopped }
         Task { await service.setEnabled(false) }
         wait(for: [stoppedExpectation], timeout: 10)

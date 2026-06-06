@@ -168,15 +168,7 @@ nonisolated final class LifetimeTallyStore: @unchecked Sendable {
     }
 
     private static func defaultDirectory() -> URL {
-        guard let appSupport = FileManager.default.urls(
-            for: .applicationSupportDirectory, in: .userDomainMask
-        ).first else {
-            return FileManager.default.temporaryDirectory
-                .appending(path: AppConstants.History.directoryName, directoryHint: .isDirectory)
-        }
-        return appSupport.appendingPathComponent(
-            AppConstants.History.directoryName, isDirectory: true
-        )
+        AppContainer.directory(AppConstants.History.directoryName)
     }
 
     // MARK: - Public API

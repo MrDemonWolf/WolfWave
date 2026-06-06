@@ -235,4 +235,14 @@ struct SettingsBackupCoderTests {
             try coder.decode(Data(json.utf8))
         }
     }
+
+    // MARK: - Preference noun pluralization
+
+    @MainActor
+    @Test func preferenceNounPluralizesByCount() {
+        #expect(SettingsBackupService.ApplySummary.preferenceNoun(0) == "preferences")
+        #expect(SettingsBackupService.ApplySummary.preferenceNoun(1) == "preference")
+        #expect(SettingsBackupService.ApplySummary.preferenceNoun(2) == "preferences")
+        #expect(SettingsBackupService.ApplySummary.preferenceNoun(42) == "preferences")
+    }
 }

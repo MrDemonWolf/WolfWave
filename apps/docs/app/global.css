@@ -309,16 +309,16 @@
 .ww-btn:active { transform: scale(0.98); }
 
 .ww-btn-primary {
-  background-color: var(--brand-500);
+  background-color: var(--brand-600);
   color: #fff;
 }
 .ww-btn-primary:hover {
-  background-color: var(--brand-600);
+  background-color: var(--brand-700);
 }
 
 .ww-btn-secondary {
   background-color: transparent;
-  color: var(--brand-500);
+  color: var(--brand-600);
 }
 .ww-btn-secondary:hover {
   text-decoration: underline;
@@ -511,7 +511,7 @@ a.ww-chip:hover {
   font-weight: 600;
   letter-spacing: 0.12em;
   text-transform: uppercase;
-  color: var(--brand-500);
+  color: var(--brand-600);
 }
 .ww-download-headline {
   margin-top: 0.5rem;

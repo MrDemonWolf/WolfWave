@@ -23,6 +23,7 @@ SectionHeaderWithStatus(
 | `prominence` | `Prominence` | `.pane` (default) for the H1 at the top of a pane; `.section` for an H2 sub-section inside a pane (e.g. Discord "Preview"). Keeps a clear 22 → 17 step instead of two near-identical headings. |
 | `statusText` | `String?` | Drives the trailing chip. Nil → no chip rendered. |
 | `statusColor` | `Color?` | Required when `statusText` is non-nil. Use semantic tokens. |
+| `statusSymbol` | `String?` | Optional leading SF Symbol for the chip, passed straight through to `StatusChip(systemImage:)` so state isn't conveyed by color alone. Use a `StatusChip.StateGlyph.*` value. Applies to the **chip**, not the header title (headers stay text-only — see Do / Don't). |
 
 ## Tokens used
 - `.paneTitle()` (22 bold) / `.sectionHeader()` (17 semibold) view modifiers (defined in `ViewModifiers.swift`) — title typography by `prominence`. Both carry the `.isHeader` accessibility trait.
@@ -44,7 +45,8 @@ graph TB
 ## Accessibility
 - `accessibilityElement(children: .combine)` so VoiceOver speaks the header as a single unit. The title modifier's `.isHeader` trait merges into the combined element, so the VoiceOver heading rotor lands on every pane/section title.
 - Chip's own label is overridden to `"<title> status: <statusText>"` so context is preserved.
-- Chip animates with `.easeInOut(duration: 0.2)` on `statusText` change — avoid rapid status thrash.
+- Pass `statusSymbol` so the chip's state reads through shape as well as color (WCAG 1.4.1); the symbol is decorative (hidden from VoiceOver) and the text still carries the status.
+- The chip owns its own reduce-motion-aware state animation (`StatusChip` gates `value: text` / `value: color` on `accessibilityReduceMotion`). The previously-redundant outer `.animation(value: statusText)` on the chip was dropped 2026-06-06 so motion is gated in exactly one place.
 
 ## Do / Don't
 - ✅ One `.pane` header per pane, at the very top; use `.section` for sub-sections within that pane.
@@ -61,6 +63,7 @@ SectionHeaderWithStatus(
     title: "Twitch Chat",
     subtitle: "Connect once. !song works for your viewers.",
     statusText: viewModel.isConnected ? "Connected" : nil,
-    statusColor: viewModel.isConnected ? DSColor.success : nil
+    statusColor: viewModel.isConnected ? DSColor.success : nil,
+    statusSymbol: viewModel.isConnected ? StatusChip.StateGlyph.on : nil
 )
 ```

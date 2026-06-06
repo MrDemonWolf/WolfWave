@@ -12,17 +12,25 @@ import Foundation
 
 /// Comprehensive test suite for logging functionality.
 ///
-/// Marked `.serialized` because the file-readback tests and the log-clear tests
-/// below both touch the process-global `Log` file. Without serialization, Swift
-/// Testing runs a suite's tests in parallel and `clearLogFile()` can truncate the
-/// shared log while `testLogFileContent` is reading it, evicting the unique
-/// message it just wrote (CI saw the "Log cleared by user" header land in the
-/// readback). The clear tests live here as direct members of this one serialized
-/// suite rather than in a nested sub-suite: `.serialized` reliably serializes a
-/// suite's own tests, but it did NOT serialize a nested sub-suite against the
-/// parent's tests, so the previous `LoggerTests.ClearTests` sub-suite still raced.
-/// (Rotation triggered by *other* suites is still tolerated by
-/// `readLogIncludingBackup`.)
+/// Marked `.serialized` because every test in this suite reads and writes the
+/// one process-global `Log` instance (there is no per-test log file). Swift
+/// Testing runs a suite's tests in parallel by default, so without serialization
+/// the log-clear tests and the file-readback tests inside *this* suite would
+/// interleave: `clearLogFile()` can truncate the shared file while
+/// `testLogFileContent` is mid-readback, evicting the unique message it just
+/// wrote (CI saw the "Log cleared by user" header land in the readback).
+/// `.serialized` orders this suite's own tests, so they no longer race each other.
+///
+/// The clear tests are direct members of this serialized suite rather than a
+/// nested sub-suite on purpose: `.serialized` orders a suite's own tests but did
+/// NOT serialize a nested sub-suite against the parent's tests, so the previous
+/// `LoggerTests.ClearTests` sub-suite still raced the parent.
+///
+/// `.serialized` cannot fix the *cross-suite* case: tests in OTHER suites share
+/// the same global `Log` and may rotate or append to the file concurrently with
+/// this suite. That residual interleaving is tolerated by `readLogIncludingBackup`,
+/// which also checks the rotated backup, so a rotation triggered elsewhere does
+/// not drop the message under test.
 @MainActor
 @Suite("Logger Tests", .serialized)
 struct LoggerTests {

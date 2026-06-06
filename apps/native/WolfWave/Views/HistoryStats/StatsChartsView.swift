@@ -29,6 +29,8 @@ struct WeekChartCard: View {
                 )
                 .foregroundStyle(AppConstants.Brand.appleMusicGradientEnd.gradient)
                 .cornerRadius(4)
+                .accessibilityLabel(Self.dayAxisLabel(day.day))
+                .accessibilityValue(Self.playsValueLabel(day.count))
             }
             .chartXAxis {
                 AxisMarks(values: .stride(by: .day)) { _ in
@@ -44,6 +46,18 @@ struct WeekChartCard: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(AppConstants.SettingsUI.cardPadding)
         .cardStyleUnpadded()
+    }
+
+    // MARK: - VoiceOver Labels
+
+    /// Spoken weekday name for a bar's date, e.g. "Monday".
+    private static func dayAxisLabel(_ date: Date) -> String {
+        date.formatted(.dateTime.weekday(.wide))
+    }
+
+    /// Spoken play count for a bar, pluralized, e.g. "1 play" / "12 plays".
+    private static func playsValueLabel(_ count: Int) -> String {
+        "\(count) \(count == 1 ? "play" : "plays")"
     }
 }
 
@@ -61,12 +75,15 @@ struct HourChartCard: View {
             Chart(0..<24, id: \.self) { hour in
                 BarMark(
                     x: .value("Hour", hour),
-                    y: .value("Plays", playsAtHour(hour))
+                    y: .value("Plays", playsAtHour(hour)),
+                    width: .ratio(0.9)
                 )
                 .foregroundStyle(Color.accentColor.gradient)
                 .cornerRadius(2)
+                .accessibilityLabel(spokenHourLabel(hour))
+                .accessibilityValue(playsValueLabel(playsAtHour(hour)))
             }
-            .chartXScale(domain: 0...23)
+            .chartXScale(domain: -0.5...23.5)
             .chartXAxis {
                 AxisMarks(values: [0, 6, 12, 18, 23]) { value in
                     AxisValueLabel {
@@ -100,6 +117,21 @@ struct HourChartCard: View {
         case let h where h < 12: return "\(h)a"
         default: return "\(hour - 12)p"
         }
+    }
+
+    /// Spoken hour-of-day label for VoiceOver, e.g. "Midnight", "6 AM", "Noon".
+    private func spokenHourLabel(_ hour: Int) -> String {
+        switch hour {
+        case 0: return "Midnight"
+        case 12: return "Noon"
+        case let h where h < 12: return "\(h) AM"
+        default: return "\(hour - 12) PM"
+        }
+    }
+
+    /// Spoken play count for a bar, pluralized, e.g. "1 play" / "12 plays".
+    private func playsValueLabel(_ count: Int) -> String {
+        "\(count) \(count == 1 ? "play" : "plays")"
     }
 }
 

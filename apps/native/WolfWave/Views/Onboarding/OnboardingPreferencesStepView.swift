@@ -53,7 +53,9 @@ struct OnboardingPreferencesStepView: View {
                         isOn: Binding(
                             get: { launchAtLogin },
                             set: { newValue in
-                                guard LaunchAtLoginService.setEnabled(newValue) else { return }
+                                // `.requiresApproval` still counts as opted-in; only a
+                                // hard `.failure` leaves the toggle where it was.
+                                guard LaunchAtLoginService.setEnabled(newValue) != .failure else { return }
                                 launchAtLogin = newValue
                             }
                         ),

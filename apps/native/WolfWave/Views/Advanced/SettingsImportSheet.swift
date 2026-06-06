@@ -112,7 +112,7 @@ struct SettingsImportSheet: View {
     // MARK: - Copy Helpers
 
     private var summaryLine: String {
-        let noun = restorableCount == 1 ? "preference" : "preferences"
+        let noun = SettingsBackupService.ApplySummary.preferenceNoun(restorableCount)
         return "\(restorableCount) \(noun) will be restored. Existing settings not in the backup are left as they are."
     }
 

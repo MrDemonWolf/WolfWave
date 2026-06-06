@@ -45,7 +45,7 @@ nonisolated private struct HelixStreamsResponse: Decodable {
 /// Maps an `HTTPClient.HTTPError` to the matching `TwitchChatService.ConnectionError`.
 /// Preserves the existing 401 → `authenticationFailed` mapping; everything else
 /// becomes `.networkError(...)` with the underlying description.
-nonisolated private func mapHelixError(_ error: Error) -> TwitchChatService.ConnectionError {
+nonisolated func mapHelixError(_ error: Error) -> TwitchChatService.ConnectionError {
     if let httpError = error as? HTTPClient.HTTPError {
         switch httpError {
         case .unexpectedStatus(401, _):
@@ -164,6 +164,98 @@ actor TwitchChatService {
         let keepVotes: Int
     }
 
+    /// How a `revocation` EventSub message should be handled.
+    ///
+    /// Twitch revokes a subscription when the user de-authorizes the app
+    /// (`authorization_revoked`), removes their account (`user_removed`), or the
+    /// subscription version is retired (`version_removed`). Only the first means
+    /// the token is dead; the others are recoverable by re-subscribing.
+    enum RevocationDisposition: Sendable, Equatable {
+        /// Token is no longer valid; surface the re-auth banner and stop reconnecting.
+        case reauth
+        /// Subscription was dropped but the token is fine; re-subscribe.
+        case resubscribe
+        /// Unrecognized status; do nothing (log only).
+        case ignore
+    }
+
+    // MARK: - EventSub Decision Helpers (nonisolated, pure, testable)
+
+    /// Extracts a session reconnect URL from a `session_reconnect` message.
+    ///
+    /// Reads `payload.session.reconnect_url`. Returns the trimmed string only when
+    /// it is a non-empty, well-formed absolute URL; otherwise `nil` so the caller
+    /// falls back to the proven fresh-connect path.
+    nonisolated static func reconnectURL(from json: [String: Any]) -> String? {
+        guard let payload = json["payload"] as? [String: Any],
+              let session = payload["session"] as? [String: Any],
+              let raw = session["reconnect_url"] as? String else {
+            return nil
+        }
+        let trimmed = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty,
+              let url = URL(string: trimmed),
+              let scheme = url.scheme?.lowercased(),
+              scheme == "wss" || scheme == "ws",
+              url.host != nil else {
+            return nil
+        }
+        return trimmed
+    }
+
+    /// Reads `payload.session.keepalive_timeout_seconds` from a `session_welcome`
+    /// message. Returns `nil` when the field is missing or non-positive so the
+    /// caller can substitute a safe default.
+    nonisolated static func keepaliveTimeoutSeconds(from json: [String: Any]) -> TimeInterval? {
+        guard let payload = json["payload"] as? [String: Any],
+              let session = payload["session"] as? [String: Any] else {
+            return nil
+        }
+        // Twitch sends an integer, but tolerate a numeric string too.
+        if let intValue = session["keepalive_timeout_seconds"] as? Int, intValue > 0 {
+            return TimeInterval(intValue)
+        }
+        if let doubleValue = session["keepalive_timeout_seconds"] as? Double, doubleValue > 0 {
+            return doubleValue
+        }
+        if let stringValue = session["keepalive_timeout_seconds"] as? String,
+           let parsed = TimeInterval(stringValue), parsed > 0 {
+            return parsed
+        }
+        return nil
+    }
+
+    /// Computes the keepalive watchdog deadline: the advertised timeout plus a
+    /// grace period. Clamped to a small positive minimum so a degenerate input
+    /// can never produce a zero-or-negative deadline that fires immediately.
+    nonisolated static func keepaliveDeadline(
+        timeoutSeconds: TimeInterval,
+        grace: TimeInterval
+    ) -> TimeInterval {
+        let safeTimeout = max(0, timeoutSeconds)
+        let safeGrace = max(0, grace)
+        return max(1, safeTimeout + safeGrace)
+    }
+
+    /// Maps a `revocation` subscription `(type, status)` to a disposition.
+    ///
+    /// `status` drives the decision; `type` is accepted for future per-type
+    /// granularity and logging. `authorization_revoked` is fatal (re-auth);
+    /// `user_removed` / `version_removed` are recoverable (re-subscribe).
+    nonisolated static func revocationDisposition(
+        type: String,
+        status: String
+    ) -> RevocationDisposition {
+        switch status {
+        case "authorization_revoked":
+            return .reauth
+        case "user_removed", "version_removed":
+            return .resubscribe
+        default:
+            return .ignore
+        }
+    }
+
     /// Rate-limit bucket state for one Helix endpoint.
     struct RateLimitState: Sendable {
         var remaining: Int = 0
@@ -218,6 +310,22 @@ actor TwitchChatService {
     private var webSocketTask: URLSessionWebSocketTask?
     private var sessionID: String?
     private var receiveTask: Task<Void, Never>?
+
+    /// Keepalive watchdog. Armed after `session_welcome` from the advertised
+    /// `keepalive_timeout_seconds` (+ grace) and reset on every inbound frame.
+    /// Firing means Twitch went quiet past the deadline, so we tear down and
+    /// reconnect via the proven fresh-connect path.
+    private var keepaliveWatchdogTask: Task<Void, Never>?
+
+    /// Current keepalive deadline (seconds) used when the watchdog re-arms on
+    /// each inbound frame. Set from the `session_welcome` payload.
+    private var keepaliveDeadlineSeconds: TimeInterval = AppConstants.Twitch.keepaliveDefaultTimeoutSeconds
+
+    /// True while a `session_reconnect` migration is in flight. The resulting
+    /// `session_welcome` then only re-arms the watchdog and flips connected,
+    /// skipping the `subscribeTo*` calls because subscriptions migrate with the
+    /// reconnect_url session.
+    private var isMigratingSession = false
 
     // MARK: - Credentials
 
@@ -344,9 +452,15 @@ actor TwitchChatService {
     /// project default isolation) can be constructed at init time. AppDelegate
     /// runs on MainActor; tests call from MainActor (Swift Testing) or wrap.
     @MainActor init() {
-        let chat = AsyncStream.makeStream(of: ChatMessage.self, bufferingPolicy: .unbounded)
-        let connection = AsyncStream.makeStream(of: Bool.self, bufferingPolicy: .unbounded)
-        let skip = AsyncStream.makeStream(of: SkipPollResult.self, bufferingPolicy: .unbounded)
+        let chat = AsyncStream.makeStream(
+            of: ChatMessage.self,
+            bufferingPolicy: .bufferingNewest(AppConstants.Twitch.chatMessageStreamBuffer))
+        let connection = AsyncStream.makeStream(
+            of: Bool.self,
+            bufferingPolicy: .bufferingNewest(AppConstants.Twitch.controlStreamBuffer))
+        let skip = AsyncStream.makeStream(
+            of: SkipPollResult.self,
+            bufferingPolicy: .bufferingNewest(AppConstants.Twitch.controlStreamBuffer))
 
         self.chatMessages = chat.stream
         self.chatMessagesContinuation = chat.continuation
@@ -362,6 +476,7 @@ actor TwitchChatService {
         sessionWelcomeTask?.cancel()
         reconnectTask?.cancel()
         receiveTask?.cancel()
+        keepaliveWatchdogTask?.cancel()
         connectionMessageTask?.cancel()
         pendingRetryTask?.cancel()
         networkPathMonitor?.cancel()
@@ -450,6 +565,53 @@ actor TwitchChatService {
             while let wait = waitTimeIfRateLimited(endpoint: endpoint) {
                 try? await Task.sleep(for: .seconds(wait))
             }
+        }
+
+        /// Records a hard 429 backoff: marks `endpoint` saturated until
+        /// `resetEpoch` (seconds since 1970) so ``awaitCapacity(endpoint:)``
+        /// sleeps until the bucket is allowed to refill. Used by the reactive
+        /// 429 retry path after parsing `Ratelimit-Reset` / `Retry-After`.
+        func noteRateLimited(endpoint: String, untilEpoch resetEpoch: TimeInterval) {
+            var state = states[endpoint] ?? RateLimitState()
+            state.remaining = 0
+            state.resetTime = resetEpoch
+            states[endpoint] = state
+        }
+
+        /// Parses the seconds to wait after a `429 Too Many Requests` response.
+        ///
+        /// Prefers a `Retry-After` delta (seconds from now); falls back to
+        /// `Ratelimit-Reset` (epoch seconds). Returns `nil` when neither header
+        /// is present or parseable. The result is clamped to be non-negative.
+        ///
+        /// `nonisolated` + `static` so it is unit-testable without the actor or a
+        /// live socket.
+        nonisolated static func retryWaitSeconds(
+            from headers: [AnyHashable: Any],
+            now: TimeInterval
+        ) -> TimeInterval? {
+            func headerValue(_ name: String) -> String? {
+                if let direct = headers[name] as? String { return direct }
+                // Header lookups are case-insensitive in practice; scan keys.
+                for (key, value) in headers {
+                    if let keyString = key as? String,
+                       keyString.caseInsensitiveCompare(name) == .orderedSame,
+                       let stringValue = value as? String {
+                        return stringValue
+                    }
+                }
+                return nil
+            }
+
+            if let retryAfter = headerValue("Retry-After"),
+               let seconds = TimeInterval(retryAfter.trimmingCharacters(in: .whitespaces)) {
+                return max(0, seconds)
+            }
+            if let reset = headerValue("Ratelimit-Reset"),
+               let resetEpoch = TimeInterval(reset.trimmingCharacters(in: .whitespaces)) {
+                return max(0, resetEpoch - now)
+            }
+            return nil
         }
 
         /// Records Twitch's `Ratelimit-*` headers after a Helix response.
@@ -578,6 +740,16 @@ actor TwitchChatService {
             try await connectToChannel(channelName: channelName, token: token, clientID: clientID)
             reconnectionAttempts = 0
             Log.info("TwitchChatService: Reconnection successful", category: "Twitch")
+        } catch ConnectionError.authenticationFailed {
+            // A 401 means the stored token is dead. Retrying with the same token
+            // only burns `maxReconnectionAttempts` and never succeeds, so stop the
+            // loop and surface the re-auth banner. Try one reactive token refresh
+            // first; only fall back to interactive re-auth when that fails.
+            Log.error(
+                "TwitchChatService: Reconnect failed with 401; token is invalid or expired",
+                category: "Twitch")
+            await handleAuthenticationFailureDuringReconnect(
+                channelName: channelName, clientID: clientID)
         } catch {
             reconnectionAttempts += 1
             Log.warn(
@@ -591,6 +763,35 @@ actor TwitchChatService {
                     category: "Twitch")
             }
         }
+    }
+
+    /// Handles a 401 during reconnect. Attempts exactly ONE reactive token
+    /// refresh (no loop); on success it reconnects with the fresh token, and on
+    /// any failure it signals interactive re-auth and stops the reconnect loop.
+    private func handleAuthenticationFailureDuringReconnect(
+        channelName: String, clientID: String
+    ) async {
+        if let refreshed = await TwitchTokenRefresher.attemptReactiveRefresh(clientID: clientID) {
+            Log.info(
+                "TwitchChatService: Reactive token refresh succeeded; reconnecting",
+                category: "Twitch")
+            reconnectToken = refreshed
+            reconnectionAttempts = 0
+            do {
+                try await connectToChannel(
+                    channelName: channelName, token: refreshed, clientID: clientID)
+                Log.info(
+                    "TwitchChatService: Reconnection successful after token refresh",
+                    category: "Twitch")
+                return
+            } catch {
+                Log.warn(
+                    "TwitchChatService: Reconnect after refresh failed - \(error.localizedDescription)",
+                    category: "Twitch")
+            }
+        }
+        // Refresh unavailable or failed: stop looping and ask the user to re-auth.
+        signalReauthNeededAndStop()
     }
 
     // MARK: - Public Methods
@@ -852,8 +1053,10 @@ actor TwitchChatService {
 
         var request = URLRequest(url: url)
         request.httpMethod = "GET"
+        request.timeoutInterval = 15
         // Per Twitch docs, use "OAuth <token>" for the validate endpoint
         request.setValue("OAuth \(token)", forHTTPHeaderField: "Authorization")
+        request.setValue(HTTPClient.defaultUserAgent, forHTTPHeaderField: "User-Agent")
 
         do {
             let (data, http) = try await HTTPClient.shared.send(request)
@@ -924,18 +1127,41 @@ actor TwitchChatService {
     }
 
     /// Sends a message that replies to another message.
+    ///
+    /// This is the public entry point used by command handlers. It delegates to
+    /// `sendMessageOnce(_:replyTo:)` and, on failure, queues a fresh retry at
+    /// `attempts: 0`. The drain loop does NOT call this method — it calls
+    /// `sendMessageOnce` directly so the per-message attempt count is preserved
+    /// across retries instead of being reset to 0.
     func sendMessage(_ message: String, replyTo parentMessageID: String?) async {
+        let sent = await sendMessageOnce(message, replyTo: parentMessageID)
+        if !sent {
+            queueMessageForRetry(message: message, parentMessageID: parentMessageID, attempts: 0)
+        }
+    }
+
+    /// Performs a single send attempt and reports success/failure WITHOUT
+    /// touching the retry queue.
+    ///
+    /// Returns `true` when the Helix request completed (the message reached
+    /// Twitch, regardless of whether Twitch later flagged it dropped), and
+    /// `false` when credentials are missing or the request threw. The drain loop
+    /// uses the boolean to decide whether to requeue with an incremented attempt
+    /// count, so this primitive must never enqueue on its own.
+    ///
+    /// An empty/whitespace-only message is treated as success (nothing to send,
+    /// no point retrying).
+    func sendMessageOnce(_ message: String, replyTo parentMessageID: String?) async -> Bool {
         guard let broadcasterID,
               let botID,
               let token = oauthToken,
               let clientID else {
-            Log.warn("TwitchChatService: Not connected, queuing message for retry", category: "Twitch")
-            queueMessageForRetry(message: message, parentMessageID: parentMessageID, attempts: 0)
-            return
+            Log.warn("TwitchChatService: Not connected, send attempt failed", category: "Twitch")
+            return false
         }
 
         let trimmed = message.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmed.isEmpty else { return }
+        guard !trimmed.isEmpty else { return true }
 
         let finalMessage = trimmed.truncatedForChat()
 
@@ -959,7 +1185,7 @@ actor TwitchChatService {
                 let parsed = try JSONCoders.snakeCase.decode(HelixSendMessageResponse.self, from: data)
                 guard let first = parsed.data.first else {
                     Log.warn("TwitchChatService: Could not parse send-message response", category: "Twitch")
-                    return
+                    return true
                 }
                 if !first.isSent {
                     Log.warn("TwitchChatService: Message dropped by Twitch", category: "Twitch")
@@ -969,15 +1195,47 @@ actor TwitchChatService {
                     "TwitchChatService: Failed to decode send-message response - \(error.localizedDescription)",
                     category: "Twitch")
             }
+            return true
         } catch {
             Log.error(
                 "TwitchChatService: Failed to send message - \(error.localizedDescription)",
                 category: "Twitch")
-            queueMessageForRetry(message: message, parentMessageID: parentMessageID, attempts: 0)
+            return false
         }
     }
 
+    /// Applies the drop-oldest cap to a pending-message queue.
+    ///
+    /// Pure and `nonisolated` so it is unit-testable without spinning up the
+    /// actor. Appends `pending` then trims the front until the queue is at most
+    /// `cap` entries, returning the number of dropped (oldest) messages so the
+    /// caller can log. With `cap <= 0` everything but nothing is kept (the new
+    /// message itself is still appended, then trimmed to the cap).
+    nonisolated static func appendCapped<Element>(
+        _ pending: Element, to queue: inout [Element], cap: Int
+    ) -> Int {
+        queue.append(pending)
+        guard queue.count > cap else { return 0 }
+        let overflow = queue.count - max(cap, 0)
+        queue.removeFirst(overflow)
+        return overflow
+    }
+
+    /// Pure decision for whether a just-failed send attempt should be requeued.
+    ///
+    /// `attempts` is the attempt number that just failed (1-based). The message
+    /// is requeued only while `attempts < maxRetries`; once the count reaches the
+    /// limit the message is dropped. `nonisolated` so the bounded-retry contract
+    /// is unit-testable without the actor or the network.
+    nonisolated static func shouldRequeueAfterFailure(attempts: Int, maxRetries: Int) -> Bool {
+        attempts < maxRetries
+    }
+
     /// Queues a message for retry with exponential backoff.
+    ///
+    /// The queue is bounded by `AppConstants.Twitch.maxPendingMessages`
+    /// (drop-oldest). A single long-lived drain loop (`pendingRetryTask`) walks
+    /// the queue instead of one detached Task per retry.
     private func queueMessageForRetry(message: String, parentMessageID: String?, attempts: Int) {
         guard attempts < maxMessageRetries else {
             Log.error(
@@ -988,35 +1246,64 @@ actor TwitchChatService {
 
         let pending = PendingMessage(
             message: message, parentMessageID: parentMessageID, attempts: attempts + 1)
-        pendingMessages.append(pending)
+        let dropped = Self.appendCapped(
+            pending, to: &pendingMessages, cap: AppConstants.Twitch.maxPendingMessages)
+        if dropped > 0 {
+            Log.warn(
+                "TwitchChatService: Retry queue full, dropped \(dropped) oldest message(s)",
+                category: "Twitch")
+        }
 
-        let delay = pow(2.0, Double(attempts))
         Log.debug(
-            "TwitchChatService: Scheduling message retry \(attempts + 1)/\(maxMessageRetries) in \(delay)s",
+            "TwitchChatService: Queued message retry \(attempts + 1)/\(maxMessageRetries) "
+                + "(\(pendingMessages.count) pending)",
             category: "Twitch")
 
-        Task { [weak self] in
-            // Retry backoff tolerates 10% jitter for wakeup coalescing.
-            try? await Task.sleep(for: .seconds(delay), tolerance: .seconds(delay * 0.1))
-            await self?.retryPendingMessages()
+        startRetryDrainLoopIfNeeded()
+    }
+
+    /// Starts the single long-lived drain loop if one is not already running.
+    private func startRetryDrainLoopIfNeeded() {
+        guard pendingRetryTask == nil else { return }
+        pendingRetryTask = Task { [weak self] in
+            await self?.drainPendingMessages()
         }
     }
 
-    /// Retries pending messages from the queue.
-    private func retryPendingMessages() async {
-        guard !pendingMessages.isEmpty else { return }
-        let message = pendingMessages.removeFirst()
+    /// Single long-lived drain loop. Walks the pending queue, sleeping per
+    /// message according to that message's exponential backoff, until the queue
+    /// drains. Exits (clearing `pendingRetryTask`) when empty so a future
+    /// enqueue restarts it. Per-message attempt limits are preserved: the loop
+    /// sends via `sendMessageOnce` (which never touches the queue) and, on
+    /// failure, requeues with `attempts: pending.attempts + 1`, dropping the
+    /// message once it reaches `maxMessageRetries`. It must NOT call
+    /// `sendMessage`, whose failure path requeues at `attempts: 0` and would
+    /// reset the count, allowing unbounded retries.
+    private func drainPendingMessages() async {
+        defer { pendingRetryTask = nil }
 
-        // Check if we have valid credentials now
-        guard broadcasterID != nil, botID != nil, oauthToken != nil, clientID != nil else {
-            queueMessageForRetry(
-                message: message.message,
-                parentMessageID: message.parentMessageID,
-                attempts: message.attempts)
-            return
+        while !Task.isCancelled, !pendingMessages.isEmpty {
+            let pending = pendingMessages.removeFirst()
+
+            // Backoff is keyed off the prior attempt count. `attempts` here is
+            // the next attempt number (1-based), so the delay matches the old
+            // `pow(2, attempts)` schedule (attempt 1 -> 2^0 = 1s).
+            let delay = pow(2.0, Double(pending.attempts - 1))
+            try? await Task.sleep(for: .seconds(delay), tolerance: .seconds(delay * 0.1))
+            if Task.isCancelled { return }
+
+            // Send without auto-queueing. On failure (missing credentials or a
+            // failed request) requeue with the attempt count incremented, so a
+            // persistently failing message stops at `maxMessageRetries` instead
+            // of looping forever.
+            let sent = await sendMessageOnce(pending.message, replyTo: pending.parentMessageID)
+            if !sent {
+                queueMessageForRetry(
+                    message: pending.message,
+                    parentMessageID: pending.parentMessageID,
+                    attempts: pending.attempts)
+            }
         }
-
-        await sendMessage(message.message, replyTo: message.parentMessageID)
     }
 
     // MARK: - Message Parsing
@@ -1168,10 +1455,33 @@ actor TwitchChatService {
             throw ConnectionError.networkError("Failed to serialize request body")
         }
 
-        let (data, http) = try await HTTPClient.shared.send(request)
+        var (data, http) = try await HTTPClient.shared.send(request)
 
         await rateLimiter.updateRateLimitState(
             endpoint: endpoint, from: http.allHeaderFields)
+
+        // Reactive 429: honor the server's reset, wait for capacity, then do
+        // exactly ONE bounded retry. Never loop, so a persistent 429 can't spin.
+        if http.statusCode == 429 {
+            let wait = RateLimiter.retryWaitSeconds(
+                from: http.allHeaderFields, now: Date().timeIntervalSince1970)
+            if let wait {
+                Log.info(
+                    "TwitchChatService: API \(endpoint) hit 429; waiting \(String(format: "%.1f", wait))s before one retry",
+                    category: "Twitch")
+                await rateLimiter.noteRateLimited(
+                    endpoint: endpoint, untilEpoch: Date().timeIntervalSince1970 + wait)
+                await rateLimiter.awaitCapacity(endpoint: endpoint)
+            } else {
+                Log.info(
+                    "TwitchChatService: API \(endpoint) hit 429 without a reset header; one immediate retry",
+                    category: "Twitch")
+            }
+
+            (data, http) = try await HTTPClient.shared.send(request)
+            await rateLimiter.updateRateLimitState(
+                endpoint: endpoint, from: http.allHeaderFields)
+        }
 
         if !(200..<300).contains(http.statusCode) {
             let responseText = String(data: data, encoding: .utf8) ?? "No response body"
@@ -1185,9 +1495,16 @@ actor TwitchChatService {
 
     // MARK: - WebSocket Management
 
-    /// Connects to the Twitch EventSub WebSocket endpoint.
-    private func connectToEventSub() {
-        guard let url = URL(string: "wss://eventsub.wss.twitch.tv/ws") else {
+    /// Default Twitch EventSub WebSocket endpoint.
+    private static let defaultEventSubURL = "wss://eventsub.wss.twitch.tv/ws"
+
+    /// Connects to a Twitch EventSub WebSocket endpoint.
+    ///
+    /// - Parameter urlString: Endpoint to connect to. Defaults to the standard
+    ///   EventSub URL; a `session_reconnect` migration passes the server-provided
+    ///   `reconnect_url` instead so subscriptions carry over to the new session.
+    private func connectToEventSub(urlString: String = TwitchChatService.defaultEventSubURL) {
+        guard let url = URL(string: urlString) else {
             Log.error("TwitchChatService: Invalid EventSub URL", category: "Twitch")
             setConnected(false)
             NotificationCenter.default.postTwitchConnectionState(isConnected: false)
@@ -1226,9 +1543,66 @@ actor TwitchChatService {
         sessionWelcomeTask = nil
     }
 
+    // MARK: - Keepalive Watchdog
+
+    /// Arms (or re-arms) the keepalive watchdog for `deadlineSeconds`. Cancels any
+    /// existing watchdog first so there is never more than one pending. On expiry
+    /// it reuses the proven transport-error teardown: `disconnectFromEventSub()`
+    /// then `scheduleReconnect()`.
+    private func armKeepaliveWatchdog(deadlineSeconds: TimeInterval) {
+        keepaliveDeadlineSeconds = deadlineSeconds
+        keepaliveWatchdogTask?.cancel()
+        keepaliveWatchdogTask = Task { [weak self] in
+            try? await Task.sleep(for: .seconds(deadlineSeconds))
+            if Task.isCancelled { return }
+            await self?.handleKeepaliveExpiry()
+        }
+    }
+
+    /// Resets the keepalive watchdog to a full deadline. Called on every inbound
+    /// frame. No-op until the watchdog has been armed by `session_welcome`.
+    private func resetKeepaliveWatchdog() {
+        guard keepaliveWatchdogTask != nil else { return }
+        armKeepaliveWatchdog(deadlineSeconds: keepaliveDeadlineSeconds)
+    }
+
+    /// Cancels the keepalive watchdog.
+    private func cancelKeepaliveWatchdog() {
+        keepaliveWatchdogTask?.cancel()
+        keepaliveWatchdogTask = nil
+    }
+
+    /// Called when no frame arrived before the keepalive deadline. Treated like a
+    /// transport error: tear down and reconnect fresh (which re-subscribes).
+    private func handleKeepaliveExpiry() async {
+        Log.warn(
+            "TwitchChatService: Keepalive watchdog fired (no frame within \(Int(keepaliveDeadlineSeconds))s); reconnecting",
+            category: "Twitch")
+        setConnected(false)
+        NotificationCenter.default.postTwitchConnectionState(isConnected: false)
+        connectionStateContinuation.yield(false)
+
+        disconnectFromEventSub()
+
+        if let channelName = reconnectChannelName,
+           let token = reconnectToken,
+           let clientID = reconnectClientID,
+           !channelName.isEmpty, !token.isEmpty, !clientID.isEmpty,
+           isNetworkReachable {
+            scheduleReconnect()
+        }
+    }
+
     /// Called when session_welcome timeout expires.
     private func handleSessionWelcomeTimeout() async {
         guard sessionID == nil else { return } // If we already got a welcome, ignore
+
+        // A welcome that never arrived means the (possibly migration) socket is
+        // dead and we fall back to a fresh reconnect. Clear the migration flag so
+        // the next fresh `session_welcome` re-subscribes normally. (disconnectFromEventSub
+        // below also clears it, but reset here too so the contract is explicit and
+        // independent of teardown ordering.)
+        isMigratingSession = false
 
         Log.error(
             "TwitchChatService: Session welcome timeout - WebSocket may not be responding",
@@ -1263,6 +1637,9 @@ actor TwitchChatService {
         sessionWelcomeTask = nil
         receiveTask?.cancel()
         receiveTask = nil
+        keepaliveWatchdogTask?.cancel()
+        keepaliveWatchdogTask = nil
+        isMigratingSession = false
 
         Log.debug("TwitchChatService: EventSub WebSocket disconnected", category: "Twitch")
     }
@@ -1300,6 +1677,12 @@ actor TwitchChatService {
 
     /// Handles a WebSocket receive error: logs, updates state, and attempts reconnect.
     private func handleReceiveError(_ error: Error) async {
+        // A receive error on a migration socket leads to a fresh `scheduleReconnect`
+        // below, NOT a reconnect_url migration. Clear the migration flag so the
+        // resulting fresh `session_welcome` runs the normal `subscribeTo*` path
+        // instead of being mistaken for a carried-over migrated session.
+        isMigratingSession = false
+
         let nsError = error as NSError
         let errorCode = nsError.code
         let errorDomain = nsError.domain
@@ -1331,6 +1714,11 @@ actor TwitchChatService {
 
     /// Handles a received WebSocket message.
     private func handleWebSocketMessage(_ text: String) async {
+        // Any inbound frame is proof the connection is alive: reset the keepalive
+        // watchdog before doing anything else, even if the frame later fails to
+        // parse. A no-op until the watchdog has been armed by `session_welcome`.
+        resetKeepaliveWatchdog()
+
         guard let data = text.data(using: .utf8) else {
             Log.warn("TwitchChatService: WebSocket message is not valid UTF-8", category: "Twitch")
             return
@@ -1387,9 +1775,104 @@ actor TwitchChatService {
             await handleNotification(json)
         case "session_keepalive":
             break
+        case "session_reconnect":
+            await handleSessionReconnect(json)
+        case "revocation":
+            await handleRevocation(json)
         default:
             break
         }
+    }
+
+    /// Handles a `session_reconnect` message by migrating to the server-provided
+    /// `reconnect_url`. The migrated session keeps its existing subscriptions, so
+    /// the resulting `session_welcome` must NOT re-run the `subscribeTo*` calls.
+    ///
+    /// Safety: if the URL is missing/invalid OR anything goes wrong, fall back to
+    /// the proven fresh-connect path (`disconnectFromEventSub()` +
+    /// `scheduleReconnect()`), which re-subscribes. A brief event gap during the
+    /// migration is acceptable; correctness beats zero-gap.
+    private func handleSessionReconnect(_ json: [String: Any]) async {
+        guard let url = TwitchChatService.reconnectURL(from: json) else {
+            Log.warn(
+                "TwitchChatService: session_reconnect missing a valid reconnect_url; reconnecting fresh",
+                category: "Twitch")
+            disconnectFromEventSub()
+            scheduleReconnect()
+            return
+        }
+
+        Log.info("TwitchChatService: Migrating EventSub session to reconnect_url", category: "Twitch")
+
+        // Tear down only the old socket/receive loop; keep credentials and the
+        // armed-deadline value. Mark migration so the next welcome skips re-subscribe.
+        let oldTask = webSocketTask
+        webSocketTask = nil
+        sessionID = nil
+        receiveTask?.cancel()
+        receiveTask = nil
+        keepaliveWatchdogTask?.cancel()
+        keepaliveWatchdogTask = nil
+        sessionWelcomeTask?.cancel()
+        sessionWelcomeTask = nil
+
+        isMigratingSession = true
+        connectToEventSub(urlString: url)
+
+        // Close the old socket only after the new connect was initiated, so the
+        // new welcome can arrive without us re-entering the fresh path on close.
+        oldTask?.cancel(with: .goingAway, reason: nil)
+    }
+
+    /// Handles a `revocation` message. Routes `authorization_revoked` to the
+    /// shared re-auth signal and stops reconnecting; routes `user_removed` /
+    /// `version_removed` to a safe full re-subscribe.
+    private func handleRevocation(_ json: [String: Any]) async {
+        guard let payload = json["payload"] as? [String: Any],
+              let subscription = payload["subscription"] as? [String: Any] else {
+            Log.warn("TwitchChatService: revocation missing subscription payload", category: "Twitch")
+            return
+        }
+        let type = (subscription["type"] as? String) ?? ""
+        let status = (subscription["status"] as? String) ?? ""
+
+        switch TwitchChatService.revocationDisposition(type: type, status: status) {
+        case .reauth:
+            Log.error(
+                "TwitchChatService: EventSub authorization revoked (\(type)); signaling re-auth",
+                category: "Twitch")
+            signalReauthNeededAndStop()
+        case .resubscribe:
+            Log.warn(
+                "TwitchChatService: EventSub subscription revoked (\(type)/\(status)); re-subscribing",
+                category: "Twitch")
+            guard sessionID != nil else { return }
+            await subscribeToChannelChatMessage()
+            await subscribeToPollEvents()
+            await subscribeToStreamEvents()
+            await seedStreamLiveState()
+            await subscribeToRedemptionsIfEnabled()
+        case .ignore:
+            Log.debug(
+                "TwitchChatService: Ignoring revocation status \(status) for \(type)",
+                category: "Twitch")
+        }
+    }
+
+    /// Signals that interactive Twitch re-auth is required and stops the reconnect
+    /// loop. Reuses the existing re-auth banner path (`Preferences` flag plus the
+    /// `.twitchReauthNeededChanged` notification observed by `TwitchViewModel`).
+    private func signalReauthNeededAndStop() {
+        // Stop any pending/active reconnect so we don't burn attempts on a dead token.
+        reconnectTask?.cancel()
+        reconnectTask = nil
+        reconnectionAttempts = 0
+
+        disconnectFromEventSub()
+
+        // Preferences is a `nonisolated enum`, safe to call from the actor.
+        Preferences.setTwitchReauthNeeded(true)
+        NotificationCenter.default.post(name: Notification.Name.twitchReauthNeededChanged, object: nil)
     }
 
     /// Handles the session_welcome message from EventSub.
@@ -1407,9 +1890,26 @@ actor TwitchChatService {
             "TwitchChatService: EventSub session established with ID: \(sessionID)",
             category: "Twitch")
 
+        // Arm the keepalive watchdog from the advertised timeout (+ grace).
+        let timeout = TwitchChatService.keepaliveTimeoutSeconds(from: json)
+            ?? AppConstants.Twitch.keepaliveDefaultTimeoutSeconds
+        let deadline = TwitchChatService.keepaliveDeadline(
+            timeoutSeconds: timeout, grace: AppConstants.Twitch.keepaliveGraceSeconds)
+        armKeepaliveWatchdog(deadlineSeconds: deadline)
+
         setConnected(true)
         NotificationCenter.default.postTwitchConnectionState(isConnected: true)
         connectionStateContinuation.yield(true)
+
+        // A `session_reconnect` migration carries its subscriptions to the new
+        // session, so skip re-subscribing. Only fresh connects subscribe.
+        if isMigratingSession {
+            isMigratingSession = false
+            Log.info(
+                "TwitchChatService: Session migration complete; subscriptions carried over",
+                category: "Twitch")
+            return
+        }
 
         await subscribeToChannelChatMessage()
         await subscribeToPollEvents()
@@ -1603,22 +2103,36 @@ actor TwitchChatService {
         // The chat subscription is the critical one: its extra success
         // side-effect is the connection confirmation message, and a failure
         // tears the connection back down.
+        var sawAuthFailure = false
         let subscribed = await postEventSubSubscription(
             body: body,
             token: token,
             clientID: clientID,
-            label: "channel.chat.message"
-        ) {
-            Log.info("TwitchChatService: Connected to chat", category: "Twitch")
-            if shouldSendConnectionMessageOnSubscribe {
-                sendConnectionMessage()
+            label: "channel.chat.message",
+            onSuccess: {
+                Log.info("TwitchChatService: Connected to chat", category: "Twitch")
+                if shouldSendConnectionMessageOnSubscribe {
+                    sendConnectionMessage()
+                }
+            },
+            onFailureStatus: { status in
+                // A 401 on the critical chat subscription means the token is dead.
+                // The subscription runs async after `session_welcome`, so it can't
+                // throw back into `attemptReconnect`; surface it as a re-auth signal.
+                if status == 401 { sawAuthFailure = true }
             }
-        }
+        )
 
         if !subscribed {
             setConnected(false)
             NotificationCenter.default.postTwitchConnectionState(isConnected: false)
             connectionStateContinuation.yield(false)
+            if sawAuthFailure {
+                Log.error(
+                    "TwitchChatService: Chat subscription returned 401; signaling re-auth",
+                    category: "Twitch")
+                signalReauthNeededAndStop()
+            }
         }
     }
 
@@ -1645,7 +2159,9 @@ actor TwitchChatService {
         guard let broadcasterID,
               let token = oauthToken,
               let clientID,
-              let url = URL(string: apiBaseURL + "/streams?user_id=\(broadcasterID)") else { return }
+              var components = URLComponents(string: apiBaseURL + "/streams") else { return }
+        components.queryItems = [URLQueryItem(name: "user_id", value: broadcasterID)]
+        guard let url = components.url else { return }
 
         do {
             let response: HelixStreamsResponse = try await HTTPClient.shared.get(
@@ -1762,7 +2278,8 @@ actor TwitchChatService {
         token: String,
         clientID: String,
         label: String,
-        onSuccess: () -> Void = {}
+        onSuccess: () -> Void = {},
+        onFailureStatus: (Int) -> Void = { _ in }
     ) async -> Bool {
         guard let url = URL(string: apiBaseURL + "/eventsub/subscriptions") else { return false }
 
@@ -1795,6 +2312,7 @@ actor TwitchChatService {
                 if label == "channel-point redemptions" || label == "bit usage" {
                     setRedemptionStatus(http.statusCode == 403 ? .scopeMissing : .subscribeFailed)
                 }
+                onFailureStatus(http.statusCode)
                 return false
             }
         } catch {

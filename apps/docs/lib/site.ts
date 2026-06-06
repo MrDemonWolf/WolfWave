@@ -1,5 +1,13 @@
 export const siteUrl = "https://mrdemonwolf.github.io/wolfwave";
 
+/**
+ * Canonical GitHub URLs. Single source of truth so the homepage links and the
+ * JSON-LD `url` fields never drift on casing. GitHub redirects on casing, but
+ * structured-data consumers compare strings literally, so keep one spelling.
+ */
+export const orgUrl = "https://github.com/MrDemonWolf";
+export const repoUrl = "https://github.com/MrDemonWolf/WolfWave";
+
 export const basePath = (() => {
   const envValue = process.env.NEXT_PUBLIC_BASE_PATH;
   if (envValue === undefined) return "/wolfwave";
@@ -16,6 +24,29 @@ export const basePath = (() => {
 export function absoluteUrl(path: string): string {
   const clean = path.startsWith("/") ? path : `/${path}`;
   return `${siteUrl}${clean === "/" ? "" : clean}`;
+}
+
+/**
+ * Build-time fetch of the latest GitHub release tag, normalized to a bare
+ * SemVer string (e.g. `2.0.0`). Returns `null` on any failure (rate limit,
+ * offline, no releases) so callers can drop the field rather than ship a
+ * stale hardcoded version. The static export bakes the result in per deploy.
+ */
+export async function getLatestVersion(): Promise<string | null> {
+  try {
+    const res = await fetch(`${repoUrl.replace("https://github.com", "https://api.github.com/repos")}/releases/latest`, {
+      headers: {
+        Accept: "application/vnd.github+json",
+        "User-Agent": "wolfwave-docs",
+      },
+    });
+    if (!res.ok) return null;
+    const rel = await res.json();
+    if (typeof rel?.tag_name !== "string") return null;
+    return rel.tag_name.replace(/^v/, "") || null;
+  } catch {
+    return null;
+  }
 }
 
 /**

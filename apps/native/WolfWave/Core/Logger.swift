@@ -175,15 +175,7 @@ enum Log {
     nonisolated private static var logFileURL: URL {
         if let url = _logFileURL { return url }
 
-        guard let appSupport = FileManager.default.urls(
-            for: .applicationSupportDirectory, in: .userDomainMask
-        ).first else {
-            let fallback = FileManager.default.temporaryDirectory
-                .appending(path: "wolfwave.log")
-            _logFileURL = fallback
-            return fallback
-        }
-        let logsDir = appSupport.appending(path: "WolfWave/Logs", directoryHint: .isDirectory)
+        let logsDir = AppContainer.directory("Logs")
 
         try? FileManager.default.createDirectory(at: logsDir, withIntermediateDirectories: true)
 

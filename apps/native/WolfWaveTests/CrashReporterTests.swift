@@ -19,15 +19,13 @@ import XCTest
 ///   host. The handlers' marker-writing path is exercised indirectly via
 ///   `writeMarker`, which the NSException handler also uses.
 @MainActor
-final class CrashReporterTests: XCTestCase {
+final class CrashReporterTests: WolfWaveTestCase {
 
     private var tempDir: URL!
 
     override func setUpWithError() throws {
         try super.setUpWithError()
-        tempDir = FileManager.default.temporaryDirectory
-            .appending(path: "CrashReporterTests-\(UUID().uuidString)", directoryHint: .isDirectory)
-        try FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
+        tempDir = makeTempDir()
         CrashReporter.markerDirectoryOverride = tempDir
         CrashReporter.clearMarker()
     }
@@ -35,7 +33,7 @@ final class CrashReporterTests: XCTestCase {
     override func tearDownWithError() throws {
         CrashReporter.clearMarker()
         CrashReporter.markerDirectoryOverride = nil
-        if let tempDir { try? FileManager.default.removeItem(at: tempDir) }
+        cleanupTrackedTempDirs()
         tempDir = nil
         try super.tearDownWithError()
     }

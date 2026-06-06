@@ -163,13 +163,14 @@ nonisolated struct HelixClient: Sendable {
 
     // MARK: - Private Helpers
 
-    /// Standard Helix headers: auth + client id + JSON content type.
+    /// Standard Helix headers: auth + client id + JSON content type + the
+    /// shared default `User-Agent` (honest app identification).
     static func headers(for credentials: Credentials) -> [String: String] {
-        [
+        HTTPClient.withDefaultUserAgent([
             "Authorization": "Bearer \(credentials.token)",
             "Client-Id": credentials.clientID,
             "Content-Type": "application/json",
-        ]
+        ])
     }
 
     /// Builds a Helix `URLRequest`: auth + client-id + JSON content-type headers

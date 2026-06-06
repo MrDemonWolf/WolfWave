@@ -34,7 +34,8 @@ struct WebSocketSettingsView: View {
                 title: "Stream Widgets",
                 subtitle: "Stream your current song to overlays and widgets.",
                 statusText: serverStatusText,
-                statusColor: serverStatusColor
+                statusColor: serverStatusColor,
+                statusSymbol: serverStatusSymbol
             )
 
             WebSocketServerCard(serverState: serverState, localNetworkIP: localNetworkIP)
@@ -90,6 +91,16 @@ struct WebSocketSettingsView: View {
         case .starting:  return .orange
         case .error:     return .red
         case .stopped:   return .gray
+        }
+    }
+
+    /// Leading chip glyph so server state reads through shape as well as color.
+    private var serverStatusSymbol: String {
+        switch serverState {
+        case .listening: return StatusChip.StateGlyph.on
+        case .starting:  return StatusChip.StateGlyph.starting
+        case .error:     return StatusChip.StateGlyph.error
+        case .stopped:   return StatusChip.StateGlyph.off
         }
     }
 
@@ -661,7 +672,7 @@ fileprivate struct WebSocketBrowserSourceCard: View {
                         CopyableURLRow(
                             label: "Network Address",
                             url: networkWidget,
-                            subtitle: "Use this for two-PC setups.",
+                            subtitle: "Use this for two-PC setups. The localhost link above is safer. This one sends your token over the network unencrypted, so only share it on a network you trust.",
                             isStreamerMode: streamerMode,
                             actionsDisabled: !websocketEnabled || !widgetHTTPEnabled,
                             copyLabel: "Copy Link",

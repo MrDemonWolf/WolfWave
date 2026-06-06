@@ -60,7 +60,7 @@ extension AppDelegate {
 
         RunLoop.main.perform {
             MainActor.assumeIsolated {
-                NSApp.activate(ignoringOtherApps: true)
+                NSApp.activate()
                 NSApp.orderFrontStandardAboutPanel(options: AboutCopy.standardAboutPanelOptions())
             }
         }
@@ -155,7 +155,7 @@ extension AppDelegate {
         window.delegate = self
         window.center()
         window.makeKeyAndOrderFront(nil)
-        NSApp.activate(ignoringOtherApps: true)
+        NSApp.activate()
         whatsNewWindow = window
         Preferences.setLastSeenWhatsNewVersion(version)
     }
@@ -169,7 +169,7 @@ extension AppDelegate {
     func showOnboarding() {
         if let existing = onboardingWindow, existing.isVisible {
             existing.makeKeyAndOrderFront(nil)
-            NSApp.activate(ignoringOtherApps: true)
+            NSApp.activate()
             return
         }
 
@@ -290,7 +290,7 @@ extension AppDelegate {
     ///   "layoutSubtreeIfNeeded on a view already being laid out".
     func showWindow(_ window: NSWindow?) {
         window?.level = .normal
-        NSApp.activate(ignoringOtherApps: true)
+        NSApp.activate()
         window?.makeKeyAndOrderFront(nil)
     }
 }

@@ -82,8 +82,8 @@ struct IntegrationDashboardView: View {
                         .frame(width: 22),
                     name: "Send to a remote site (optional)",
                     chip: remoteSendingEnabled
-                        ? StatusChip(text: "On", color: .green)
-                        : StatusChip(text: "Off", color: .secondary),
+                        ? StatusChip(text: "On", color: .green, systemImage: StatusChip.StateGlyph.on)
+                        : StatusChip(text: "Off", color: .secondary, systemImage: StatusChip.StateGlyph.off),
                     subtitle: remoteSendingEnabled
                         ? "Sending now-playing to your remote URL."
                         : "Only turn this on if your overlay lives somewhere else.",
@@ -191,10 +191,12 @@ struct IntegrationDashboardView: View {
     // MARK: - Chips & subtitles
 
     private var twitchChip: StatusChip {
-        if permissionPaused { return StatusChip(text: "Paused", color: .orange) }
+        if permissionPaused {
+            return StatusChip(text: "Paused", color: .orange, systemImage: StatusChip.StateGlyph.paused)
+        }
         return twitchConnected
-            ? StatusChip(text: "Live", color: .green)
-            : StatusChip(text: "Off", color: .secondary)
+            ? StatusChip(text: "Live", color: .green, systemImage: StatusChip.StateGlyph.on)
+            : StatusChip(text: "Off", color: .secondary, systemImage: StatusChip.StateGlyph.off)
     }
 
     private var twitchSubtitle: String {
@@ -213,10 +215,12 @@ struct IntegrationDashboardView: View {
     }
 
     private var discordChip: StatusChip {
-        if permissionPaused { return StatusChip(text: "Paused", color: .orange) }
+        if permissionPaused {
+            return StatusChip(text: "Paused", color: .orange, systemImage: StatusChip.StateGlyph.paused)
+        }
         return discordConnected
-            ? StatusChip(text: "Showing now", color: .green)
-            : StatusChip(text: "Off", color: .secondary)
+            ? StatusChip(text: "Showing now", color: .green, systemImage: StatusChip.StateGlyph.on)
+            : StatusChip(text: "Off", color: .secondary, systemImage: StatusChip.StateGlyph.off)
     }
 
     private var discordSubtitle: String {
@@ -227,10 +231,12 @@ struct IntegrationDashboardView: View {
     }
 
     private var widgetChip: StatusChip {
-        if permissionPaused { return StatusChip(text: "Paused", color: .orange) }
+        if permissionPaused {
+            return StatusChip(text: "Paused", color: .orange, systemImage: StatusChip.StateGlyph.paused)
+        }
         return widgetRunning
-            ? StatusChip(text: "Ready for OBS", color: .green)
-            : StatusChip(text: "Off", color: .secondary)
+            ? StatusChip(text: "Ready for OBS", color: .green, systemImage: StatusChip.StateGlyph.on)
+            : StatusChip(text: "Off", color: .secondary, systemImage: StatusChip.StateGlyph.off)
     }
 
     private var widgetSubtitle: String {

@@ -75,6 +75,25 @@ nonisolated enum AppConstants {
             "COPYRIGHT_HOLDER",
             fallback: "MrDemonWolf, Inc."
         )
+
+        /// Marketing version string (`CFBundleShortVersionString`) with a safe
+        /// fallback for contexts where the Info.plist key is absent (e.g. unit
+        /// test hosts or a stripped bundle).
+        static let shortVersion = infoPlistString(
+            "CFBundleShortVersionString",
+            fallback: "0.0.0"
+        )
+
+        /// Canonical public source repository URL. Casing matches the docs
+        /// `repoUrl` constant (`apps/docs/lib/site.ts`).
+        static let repositoryURL = "https://github.com/MrDemonWolf/WolfWave"
+
+        /// Default outbound `User-Agent` for HTTP requests, honestly identifying
+        /// the app and version: `WolfWave/<version> (+<repo URL>; macOS)`.
+        ///
+        /// Computed once from the bundle so every request carries the same
+        /// string. Callers may still override `User-Agent` per request.
+        static let userAgent = "WolfWave/\(shortVersion) (+\(repositoryURL); macOS)"
     }
     
     // MARK: - Notifications
@@ -816,6 +835,9 @@ nonisolated enum AppConstants {
     enum Keychain {
         /// Primary keychain service for storing Twitch tokens and credentials
         static let service = "com.mrdemonwolf.wolfwave"
+
+        /// Account identifier for the Twitch OAuth refresh token.
+        static let twitchBotAccountRefreshToken = "twitchBotAccountRefreshToken"
     }
     
     // MARK: - Music App Integration
@@ -839,6 +861,18 @@ nonisolated enum AppConstants {
         /// Timeout in seconds for receiving the session_welcome WebSocket message
         static let sessionWelcomeTimeout: TimeInterval = 10.0
 
+        /// Grace period added to Twitch's advertised `keepalive_timeout_seconds`
+        /// before the keepalive watchdog fires. Twitch sends a `session_keepalive`
+        /// (or any other frame) within the advertised window when the connection
+        /// is healthy; the grace absorbs scheduling and network jitter so a single
+        /// late frame doesn't trip a needless reconnect.
+        static let keepaliveGraceSeconds: TimeInterval = 10.0
+
+        /// Fallback keepalive timeout (seconds) used when the `session_welcome`
+        /// payload omits or malforms `keepalive_timeout_seconds`. Twitch's default
+        /// is 10s; this mirrors it so the watchdog still arms safely.
+        static let keepaliveDefaultTimeoutSeconds: TimeInterval = 10.0
+
         /// Maximum length for bot chat messages (Twitch limit)
         static let maxMessageLength = 500
 
@@ -859,6 +893,18 @@ nonisolated enum AppConstants {
 
         /// Maximum retry attempts for failed message sends
         static let maxMessageRetries = 3
+
+        /// Maximum buffered messages in the per-message retry queue. Past this
+        /// cap the oldest pending message is dropped (drop-oldest backpressure).
+        static let maxPendingMessages = 64
+
+        /// Bounded buffer for the `chatMessages` AsyncStream (drop-oldest). Chat
+        /// can burst, so this is sized larger than the control streams.
+        static let chatMessageStreamBuffer = 256
+
+        /// Bounded buffer for the control AsyncStreams
+        /// (`connectionStateChanges`, `skipPollResults`) using drop-oldest.
+        static let controlStreamBuffer = 16
 
         /// Delay before sending connection message after subscribing (seconds)
         static let connectionMessageDelay: TimeInterval = 1.5
@@ -1019,8 +1065,9 @@ nonisolated enum AppConstants {
     /// small line per recorded play. Stats are derived in memory, so they cost
     /// no extra disk writes.
     enum History {
-        /// Subdirectory of Application Support holding the play log.
-        static let directoryName = "WolfWave/History"
+        /// Leaf subdirectory under the `WolfWave/` Application Support container
+        /// holding the play log. Resolved via ``AppContainer/directory(_:)``.
+        static let directoryName = "History"
 
         /// Append-only NDJSON play log filename.
         static let logFileName = "plays.ndjson"
@@ -1158,6 +1205,17 @@ nonisolated enum AppConstants {
             infoPlistString("COMMUNITY_DISCORD_URL", fallback: "https://mrdwolf.net/discord"),
             fallback: "https://mrdwolf.net/discord"
         )
+
+        /// System Settings deep link to Notifications (macOS 13+).
+        /// Opened from onboarding and `NotificationService` so users can grant
+        /// the notification permission outside the app.
+        static let systemNotificationSettings =
+            "x-apple.systempreferences:com.apple.Notifications-Settings.extension"
+
+        /// System Settings deep link to Privacy & Security ▸ Automation (macOS 13+).
+        /// Opened from the Apple Music permission flow.
+        static let systemAutomationSettings =
+            "x-apple.systempreferences:com.apple.preference.security?Privacy_Automation"
 
         /// Returns `value` when it parses as an absolute URL with a scheme and
         /// host, otherwise `fallback`. Catches xcconfig `//`-truncated values

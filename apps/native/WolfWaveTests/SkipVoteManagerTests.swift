@@ -107,7 +107,7 @@ final class SkipVoteManagerTests: WolfWaveTestCase {
     func testThresholdReachedSkipsAndPasses() async {
         enableFeature(minVotes: 3)
         let manager = SkipVoteManager()
-        let skipCount = Atomic(0)
+        let skipCount = TestValueBox(0)
         await manager.configure(
             performSkip: { skipCount.mutate { $0 += 1 } },
             sendChatMessage: nil,
@@ -127,7 +127,7 @@ final class SkipVoteManagerTests: WolfWaveTestCase {
     func testMinVotesOnePassesImmediately() async {
         enableFeature(minVotes: 1)
         let manager = SkipVoteManager()
-        let skipped = Atomic(false)
+        let skipped = TestValueBox(false)
         await manager.configure(
             performSkip: { skipped.set(true) },
             sendChatMessage: nil,
@@ -152,7 +152,7 @@ final class SkipVoteManagerTests: WolfWaveTestCase {
     func testDuplicateVoteDoesNotCrossThreshold() async {
         enableFeature(minVotes: 2)
         let manager = SkipVoteManager()
-        let skipCount = Atomic(0)
+        let skipCount = TestValueBox(0)
         await manager.configure(
             performSkip: { skipCount.mutate { $0 += 1 } },
             sendChatMessage: nil,
@@ -215,7 +215,7 @@ final class SkipVoteManagerTests: WolfWaveTestCase {
         // Inject a sub-100ms window so expiry is observed in milliseconds instead
         // of waiting out the integer-second `voteSkipWindowSeconds` minimum.
         let manager = SkipVoteManager(windowDuration: .milliseconds(50))
-        let chatMessage = Atomic<String?>(nil)
+        let chatMessage = TestValueBox<String?>(nil)
         await manager.configure(
             performSkip: nil,
             sendChatMessage: { chatMessage.set($0) },
@@ -290,7 +290,7 @@ final class SkipVoteManagerTests: WolfWaveTestCase {
     func testPollEndedSkipsWhenSkipWins() async {
         enableFeature(minVotes: 3)
         let manager = SkipVoteManager()
-        let skipped = Atomic(false)
+        let skipped = TestValueBox(false)
         await manager.configure(
             performSkip: { skipped.set(true) },
             sendChatMessage: nil,
@@ -303,7 +303,7 @@ final class SkipVoteManagerTests: WolfWaveTestCase {
     func testPollEndedDoesNotSkipBelowMinimum() async {
         enableFeature(minVotes: 10)
         let manager = SkipVoteManager()
-        let skipped = Atomic(false)
+        let skipped = TestValueBox(false)
         await manager.configure(
             performSkip: { skipped.set(true) },
             sendChatMessage: nil,
@@ -316,7 +316,7 @@ final class SkipVoteManagerTests: WolfWaveTestCase {
     func testPollEndedDoesNotSkipWhenKeepWins() async {
         enableFeature(minVotes: 1)
         let manager = SkipVoteManager()
-        let skipped = Atomic(false)
+        let skipped = TestValueBox(false)
         await manager.configure(
             performSkip: { skipped.set(true) },
             sendChatMessage: nil,
@@ -331,7 +331,7 @@ final class SkipVoteManagerTests: WolfWaveTestCase {
     func testOnVoteEventFiresStartedWhenSessionOpens() async {
         enableFeature(minVotes: 3)
         let manager = SkipVoteManager()
-        let events = Atomic<[String]>([])
+        let events = TestValueBox<[String]>([])
         await manager.configure(
             performSkip: nil,
             sendChatMessage: nil,
@@ -350,7 +350,7 @@ final class SkipVoteManagerTests: WolfWaveTestCase {
     func testOnVoteEventFiresPassedOnThreshold() async {
         enableFeature(minVotes: 2)
         let manager = SkipVoteManager()
-        let events = Atomic<[String]>([])
+        let events = TestValueBox<[String]>([])
         await manager.configure(
             performSkip: nil,
             sendChatMessage: nil,
@@ -372,7 +372,7 @@ final class SkipVoteManagerTests: WolfWaveTestCase {
     func testOnVoteEventFiresPassedFromPollResult() async {
         enableFeature(minVotes: 3)
         let manager = SkipVoteManager()
-        let events = Atomic<[String]>([])
+        let events = TestValueBox<[String]>([])
         await manager.configure(
             performSkip: nil,
             sendChatMessage: nil,
@@ -387,11 +387,15 @@ final class SkipVoteManagerTests: WolfWaveTestCase {
     }
 }
 
-// MARK: - Sendable Atomic Box for closure capture
+// MARK: - Sendable value box for closure capture
 
 /// Thread-safe value box, used by `@Sendable` closures captured into the actor
 /// under test. NSLock is fine here; the test isn't measuring lock perf.
-private final class Atomic<Value>: @unchecked Sendable {
+///
+/// Deliberately named `TestValueBox` (not `Atomic`) so it does not shadow the
+/// production `Atomic` in `Core/ThreadSafeStorage.swift`. The production type is
+/// exercised directly by `AtomicTests`.
+private final class TestValueBox<Value>: @unchecked Sendable {
     private let lock = NSLock()
     private var stored: Value
 

@@ -9,10 +9,12 @@
 import MusicKit
 import SwiftUI
 
-/// Displays the song request queue with drag-to-reorder and remove actions.
+/// Displays the song request queue with per-row remove actions.
 ///
 /// Shows the currently playing request (if any) and the upcoming queue.
-/// Provides skip and clear actions for the streamer.
+/// Provides skip, hold/resume, and clear-queue actions for the streamer.
+/// Rows are not reorderable; ordering follows request arrival (with bit-cheer
+/// boosts handled upstream in `SongRequestQueue`).
 struct SongRequestQueueView: View {
     // MARK: - Properties
 
@@ -150,6 +152,10 @@ struct SongRequestQueueView: View {
         .padding(DSSpace.s2)
         .background(.green.opacity(0.1))
         .clipShape(RoundedRectangle(cornerRadius: DSRadius.md))
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(
+            "Now playing: \(item.title), \(item.artist), requested by \(item.requesterUsername)"
+        )
     }
 
     // MARK: - Queue List
@@ -158,24 +164,30 @@ struct SongRequestQueueView: View {
         VStack(spacing: DSSpace.s1) {
             ForEach(Array(items.enumerated()), id: \.element.id) { index, item in
                 HStack(spacing: DSSpace.s3) {
-                    Text("\(index + 1)")
-                        .font(.system(size: DSFont.Size.sm, design: .monospaced))
-                        .foregroundStyle(.tertiary)
-                        .frame(width: 20)
+                    HStack(spacing: DSSpace.s3) {
+                        Text("\(index + 1)")
+                            .font(.system(size: DSFont.Size.sm, design: .monospaced))
+                            .foregroundStyle(.tertiary)
+                            .frame(width: 20)
 
-                    smallArtworkPlaceholder
+                        smallArtworkPlaceholder
 
-                    VStack(alignment: .leading, spacing: 1) {
-                        Text(item.title)
-                            .font(.system(size: DSFont.Size.body))
-                            .lineLimit(1)
-                        Text("\(item.artist) · requested by \(item.requesterUsername)")
-                            .font(.system(size: DSFont.Size.xs))
-                            .foregroundStyle(.secondary)
-                            .lineLimit(1)
+                        VStack(alignment: .leading, spacing: 1) {
+                            Text(item.title)
+                                .font(.system(size: DSFont.Size.body))
+                                .lineLimit(1)
+                            Text("\(item.artist) · requested by \(item.requesterUsername)")
+                                .font(.system(size: DSFont.Size.xs))
+                                .foregroundStyle(.secondary)
+                                .lineLimit(1)
+                        }
+
+                        Spacer()
                     }
-
-                    Spacer()
+                    .accessibilityElement(children: .ignore)
+                    .accessibilityLabel(
+                        "Number \(index + 1): \(item.title), \(item.artist), requested by \(item.requesterUsername)"
+                    )
 
                     Button {
                         queue?.remove(id: item.id)
@@ -280,6 +292,7 @@ struct SongRequestQueueView: View {
                     .font(.system(size: DSFont.Size.lg))
                     .foregroundStyle(.tertiary)
             }
+            .accessibilityHidden(true)
     }
 
     private var smallArtworkPlaceholder: some View {
@@ -291,6 +304,7 @@ struct SongRequestQueueView: View {
                     .font(.system(size: DSFont.Size.body))
                     .foregroundStyle(.tertiary)
             }
+            .accessibilityHidden(true)
     }
 
     // MARK: - Refresh

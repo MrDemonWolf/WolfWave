@@ -238,48 +238,122 @@ function formatTime(secs: number): string {
 
 /**
  * HTML-escape user-supplied strings (track/artist/album come from Music.app
- * metadata, which is effectively untrusted). Replaces `& < > "` with entities.
- * NOT a full sanitizer — only safe inside text nodes, not URLs or attributes
- * outside the four covered chars.
+ * metadata, which is effectively untrusted). Replaces `& < > " '` with
+ * entities. NOT a full sanitizer — only safe inside text nodes and quoted
+ * attribute values, not in URLs or unquoted attribute contexts.
  */
 function escapeHtml(str: string): string {
   return String(str)
     .replace(/&/g, "&amp;")
     .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;");
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
+/**
+ * Allowlist of CSS color keywords the config may use besides the regex forms.
+ * Anything outside this set plus the hex/rgb/hsl regex below is rejected so a
+ * malicious `widget_config` cannot inject a value that breaks out of the
+ * inline `style="…"` attributes we concatenate at render time.
+ */
+const NAMED_COLORS = new Set([
+  "transparent",
+  "currentcolor",
+  "inherit",
+  "black",
+  "white",
+  "red",
+  "green",
+  "blue",
+  "yellow",
+  "orange",
+  "purple",
+  "pink",
+  "gray",
+  "grey",
+  "cyan",
+  "magenta",
+  "none",
+]);
+
+// Strict CSS color shapes: #rgb / #rgba / #rrggbb / #rrggbbaa, rgb()/rgba(),
+// hsl()/hsla(). No url(), no semicolons, no quotes — those can't appear here.
+const COLOR_RE =
+  /^#(?:[0-9a-f]{3,4}|[0-9a-f]{6}|[0-9a-f]{8})$|^rgba?\(\s*[\d.,%\s/]+\)$|^hsla?\(\s*[\d.,%\s/deg]+\)$/i;
+
+/**
+ * Validate a config-supplied color against the allowlist. Returns the trimmed
+ * value when safe, otherwise `null` so the caller falls back to the preset.
+ */
+function safeColor(value: string | undefined): string | null {
+  if (!value) return null;
+  const v = value.trim();
+  if (v.length === 0 || v.length > 64) return null;
+  if (NAMED_COLORS.has(v.toLowerCase())) return v;
+  if (COLOR_RE.test(v)) return v;
+  return null;
 }
 
 function resolveFontFamily(name: string | undefined): string {
   if (!name || name === "System Default" || name === "System") {
     return '-apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif';
   }
-  return '"' + name + '", sans-serif';
+  // Strip double-quotes (and any chars that could break out of the quoted
+  // family name or the inline style attribute) before wrapping in quotes.
+  const cleaned = name.replace(/["';{}<>]/g, "").trim();
+  if (cleaned.length === 0) {
+    return '-apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif';
+  }
+  return '"' + cleaned + '", sans-serif';
 }
 
 /* ╔════════════════════════════════════════════════════════════════════════╗
  * ║  THEME + LAYOUT                                                        ║
  * ╚════════════════════════════════════════════════════════════════════════╝
  *
- *  resolveTheme() merges a preset with user overrides (only Default/Glass
- *  themes accept overrides — the others are author-curated and stay opaque).
+ *  resolveTheme() merges a preset with user overrides. Only the themes whose
+ *  native settings UI exposes the color pickers accept overrides. The others
+ *  are author-curated and stay opaque.
  */
+
+// Themes whose text/background colors the user can override. Mirrors the
+// `customizable` set in `design-system/scripts/generate.ts` (which drives the
+// native `userCustomizable` flag that enables/disables the color pickers). Keep
+// these in sync. (The native "Default, Glass, and WolfWave …" picker caption is
+// stale; the actual gate excludes WolfWave, so the widget excludes it too.)
+const THEMES_ALLOWING_OVERRIDE = new Set(["Default", "Glass"]);
 
 function resolveTheme(config: WidgetConfig): ThemePreset {
   const preset = themePresets[config.theme] || themePresets["Default"];
   const resolved: ThemePreset = { ...preset };
-  resolved.fontFamily = resolveFontFamily(config.fontFamily);
-  if (config.theme === "Default" || config.theme === "Glass") {
-    if (config.textColor && config.textColor !== defaultConfig.textColor) {
-      resolved.textPrimary = config.textColor;
-      resolved.textSecondary = config.textColor;
-      resolved.progressFillBg = config.textColor;
+  // The font stack contains double quotes (e.g. `"Segoe UI"`); buildWidget
+  // splices `theme.fontFamily` straight into double-quoted `style="…"`
+  // attributes via innerHTML, so escape it here. The browser unescapes the
+  // entities when it parses the attribute, so the rendered font is unchanged.
+  resolved.fontFamily = escapeHtml(resolveFontFamily(config.fontFamily));
+  if (THEMES_ALLOWING_OVERRIDE.has(config.theme)) {
+    // NOTE: the `widget_config` wire format carries no presence info. The
+    // native server (`WebSocketServerService.swift`) always sends `textColor`
+    // and `backgroundColor`, defaulting to `defaultConfig` values when the user
+    // hasn't picked one, and `handleMessage` back-fills any missing field from
+    // `defaultConfig`. So "did the user actually choose this color?" can't be
+    // answered here without a contract change (a separate "color was set" flag,
+    // or sending the field only when chosen). Until that lands we keep the
+    // default-equality heuristic: a value equal to the default is treated as
+    // "unset" and falls back to the preset. This means a deliberate selection
+    // that equals the default (e.g. white text on Glass) is not applied (a
+    // known limitation). Dropping the check instead would regress Default's
+    // overlay to opaque `#1A1A2E` for every uncustomized user, which is worse.
+    const textColor = safeColor(config.textColor);
+    if (textColor && textColor !== defaultConfig.textColor) {
+      resolved.textPrimary = textColor;
+      resolved.textSecondary = textColor;
+      resolved.progressFillBg = textColor;
     }
-    if (
-      config.backgroundColor &&
-      config.backgroundColor !== defaultConfig.backgroundColor
-    ) {
-      resolved.overlayBg = config.backgroundColor;
+    const bgColor = safeColor(config.backgroundColor);
+    if (bgColor && bgColor !== defaultConfig.backgroundColor) {
+      resolved.overlayBg = bgColor;
     }
   }
   return resolved;
@@ -530,9 +604,10 @@ function buildWidget(): void {
     // Encode the URL once. Music.app artwork is iTunes CDN, but a malicious
     // mock server could theoretically send a quote in the URL — encode it.
     const safeURL = encodeURI(artURL).replace(/'/g, "%27").replace(/"/g, "%22");
+    const altText = escapeHtml(nowPlaying!.album || nowPlaying!.track || "Album artwork");
     return (
       wrapOpen +
-      '<img class="artwork" src="' + safeURL + '" crossorigin="anonymous" ' +
+      '<img class="artwork" src="' + safeURL + '" alt="' + altText + '" crossorigin="anonymous" ' +
       'style="width:' + w + "px;height:" + h + "px;border-radius:" + radius + ";object-fit:cover;box-shadow:0 2px 8px rgba(0,0,0,0.3);\">" +
       wrapClose
     );

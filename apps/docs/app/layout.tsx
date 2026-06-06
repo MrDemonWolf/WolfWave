@@ -1,7 +1,7 @@
 import { Unbounded, Instrument_Sans, Instrument_Serif, JetBrains_Mono } from "next/font/google";
 import type { Metadata } from "next";
 import { Provider } from "@/components/provider";
-import { siteUrl, basePath, absoluteUrl, homepageSeo } from "@/lib/site";
+import { siteUrl, basePath, absoluteUrl, homepageSeo, repoUrl, orgUrl, getLatestVersion } from "@/lib/site";
 import "./global.css";
 
 const unbounded = Unbounded({
@@ -92,48 +92,53 @@ export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
 };
 
-const jsonLd = {
-  "@context": "https://schema.org",
-  "@type": "SoftwareApplication",
-  name: "WolfWave",
-  description: homepageSeo.description,
-  operatingSystem: "macOS 26.0",
-  applicationCategory: "MultimediaApplication",
-  applicationSubCategory: "Streaming",
-  processorRequirements: "Apple Silicon",
-  offers: {
-    "@type": "Offer",
-    price: "0",
-    priceCurrency: "USD",
-  },
-  author: {
-    "@type": "Organization",
-    name: "MrDemonWolf, Inc.",
-    url: "https://github.com/mrdemonwolf",
-  },
-  publisher: {
-    "@type": "Organization",
-    name: "MrDemonWolf, Inc.",
-    url: "https://github.com/mrdemonwolf",
-  },
-  url: siteUrl,
-  downloadUrl: "https://github.com/mrdemonwolf/wolfwave/releases/latest",
-  installUrl: `${siteUrl}/download/`,
-  softwareVersion: "2.0.0",
-  releaseNotes: `${siteUrl}/docs/changelog/`,
-  screenshot: `${siteUrl}/opengraph-image`,
-  featureList: [
-    "Apple Music now-playing to Twitch chat (!song, !last)",
-    "Twitch song requests for Apple Music (!sr) with channel points and bits",
-    "Discord Rich Presence, Listening to WolfWave with Apple Music album art",
-    "OBS browser-source overlay with 6 themes and 3 layouts",
-    "Vote-to-skip via chat or Twitch Polls",
-    "macOS menu bar app",
-  ],
-  license: "https://github.com/mrdemonwolf/wolfwave/blob/main/LICENSE",
-};
+function buildJsonLd(softwareVersion: string | null) {
+  return {
+    "@context": "https://schema.org",
+    "@type": "SoftwareApplication",
+    name: "WolfWave",
+    description: homepageSeo.description,
+    operatingSystem: "macOS 26.0",
+    applicationCategory: "MultimediaApplication",
+    applicationSubCategory: "Streaming",
+    processorRequirements: "Apple Silicon",
+    offers: {
+      "@type": "Offer",
+      price: "0",
+      priceCurrency: "USD",
+    },
+    author: {
+      "@type": "Organization",
+      name: "MrDemonWolf, Inc.",
+      url: orgUrl,
+    },
+    publisher: {
+      "@type": "Organization",
+      name: "MrDemonWolf, Inc.",
+      url: orgUrl,
+    },
+    url: siteUrl,
+    downloadUrl: `${repoUrl}/releases/latest`,
+    installUrl: `${siteUrl}/download/`,
+    // Derived from the latest GitHub release at build time; omitted entirely
+    // when the fetch fails so we never ship a stale hardcoded version.
+    ...(softwareVersion ? { softwareVersion } : {}),
+    releaseNotes: `${siteUrl}/docs/changelog/`,
+    screenshot: `${siteUrl}/opengraph-image`,
+    featureList: [
+      "Apple Music now-playing to Twitch chat (!song, !last)",
+      "Twitch song requests for Apple Music (!sr) with channel points and bits",
+      "Discord Rich Presence, Listening to WolfWave with Apple Music album art",
+      "OBS browser-source overlay with 6 themes and 3 layouts",
+      "Vote-to-skip via chat or Twitch Polls",
+      "macOS menu bar app",
+    ],
+    license: `${repoUrl}/blob/main/LICENSE`,
+  };
+}
 
-export default function Layout({ children }: LayoutProps<"/">) {
+export default async function Layout({ children }: LayoutProps<"/">) {
+  const jsonLd = buildJsonLd(await getLatestVersion());
   return (
     <html lang="en" className={`${unbounded.variable} ${instrumentSans.variable} ${instrumentSerif.variable} ${jetbrainsMono.variable}`} suppressHydrationWarning>
       <body className="flex flex-col min-h-screen">

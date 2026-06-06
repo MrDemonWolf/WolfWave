@@ -28,6 +28,13 @@ struct SettingsBackupService {
         var twitchChannel: String?
         /// Backup keys ignored because they are not exportable.
         var ignoredCount: Int
+
+        /// The correctly pluralized noun for a preference count
+        /// (`preference` for 1, `preferences` otherwise). Shared by the import
+        /// preview summary and the post-import confirmation message.
+        static func preferenceNoun(_ count: Int) -> String {
+            count == 1 ? "preference" : "preferences"
+        }
     }
 
     private let defaults: Foundation.UserDefaults

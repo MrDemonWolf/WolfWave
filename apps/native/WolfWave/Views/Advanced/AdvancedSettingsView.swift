@@ -608,7 +608,7 @@ struct AdvancedSettingsView: View {
 
     /// Confirmation message summarizing an applied import.
     private static func successMessage(_ summary: SettingsBackupService.ApplySummary) -> String {
-        let noun = summary.restoredCount == 1 ? "preference" : "preferences"
+        let noun = SettingsBackupService.ApplySummary.preferenceNoun(summary.restoredCount)
         var message = "Restored \(summary.restoredCount) \(noun)."
         if summary.reconnectedTwitch {
             message += " Open the Twitch tab to finish signing in."

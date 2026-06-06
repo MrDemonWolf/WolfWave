@@ -188,8 +188,14 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
     /// Decoded album-art images keyed by `"artist|track"`. Populated lazily
     /// by the tray menu when an artwork URL is in `ArtworkService` but the
-    /// bitmap hasn't been decoded yet. Bounded by track turnover.
-    var albumArtCache: [String: NSImage] = [:]
+    /// bitmap hasn't been decoded yet. Backed by `NSCache` so it has a hard
+    /// upper bound and evicts under memory pressure, instead of growing without
+    /// limit for the lifetime of the process.
+    let albumArtCache: NSCache<NSString, NSImage> = {
+        let cache = NSCache<NSString, NSImage>()
+        cache.countLimit = 64
+        return cache
+    }()
 
     /// Whether a track has been seen since launch. The first track represents
     /// music that was already playing, so its song-change notification is
@@ -215,6 +221,17 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationWillFinishLaunching(_ notification: Notification) {
         guard !WolfWaveApp.isRunningTests else { return }
         CrashReporter.install()
+
+        // If the user runs menu-only, claim `.accessory` here — before AppKit's
+        // first Dock paint in `applicationDidFinishLaunching`. The Info.plist keeps
+        // the app a regular (Dock-visible) process by default, so a menu-only user
+        // would otherwise see the Dock icon flash on every launch until
+        // `applyInitialDockVisibility()` later flips it to `.accessory`. Setting it
+        // this early suppresses that flash without blanket `LSUIElement = YES`,
+        // which would break Dock-Only / Dock-and-Menu-Bar users.
+        if currentDockVisibilityMode == AppConstants.DockVisibility.menuOnly {
+            NSApp.setActivationPolicy(.accessory)
+        }
     }
 
     /// Initializes all services, registers observers, and shows onboarding or validates tokens.
@@ -296,7 +313,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
         if let onboarding = onboardingWindow, onboarding.isVisible {
             onboarding.makeKeyAndOrderFront(nil)
-            NSApp.activate(ignoringOtherApps: true)
+            NSApp.activate()
         } else {
             openSettings()
         }

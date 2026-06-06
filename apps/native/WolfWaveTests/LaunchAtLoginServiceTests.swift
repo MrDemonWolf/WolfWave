@@ -37,4 +37,28 @@ final class LaunchAtLoginServiceTests: XCTestCase {
         // discussion about thread-safety + lifecycle.
         let _ = LaunchAtLoginService.isEnabled
     }
+
+    func testRequiresApprovalReturnsBoolWithoutCrashing() {
+        // Reading the requires-approval state from a unit-test host should never
+        // crash; we only need a boolean answer.
+        let value: Bool = LaunchAtLoginService.requiresApproval
+        XCTAssert(value == true || value == false)
+    }
+
+    func testRequiresApprovalImpliesEnabled() {
+        // A login item that is pending approval is still considered opted-in, so
+        // `isEnabled` must report true whenever `requiresApproval` is true. This
+        // is the contract that keeps the settings toggle from silently reverting.
+        if LaunchAtLoginService.requiresApproval {
+            XCTAssertTrue(LaunchAtLoginService.isEnabled)
+        }
+    }
+
+    func testRegistrationOutcomeCasesAreDistinct() {
+        // Compile-time + value guard on the outcome enum the settings/onboarding
+        // toggles switch over. `.requiresApproval` and `.success` keep the toggle
+        // on; only `.failure` reverts it.
+        let all: Set<LaunchAtLoginService.RegistrationOutcome> = [.success, .requiresApproval, .failure]
+        XCTAssertEqual(all.count, 3)
+    }
 }

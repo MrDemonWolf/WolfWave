@@ -196,7 +196,7 @@ final class ListeningHistoryService {
         guard snap.playsToday > 0 else {
             return "🐺 No plays logged yet today. The music's just getting started!"
         }
-        let plays = snap.playsToday == 1 ? "1 play" : "\(snap.playsToday) plays"
+        let plays = HistoryFormat.playCount(snap.playsToday)
         if let top = snap.topTrackToday {
             let times = top.count == 1 ? "1×" : "\(top.count)×"
             let by = top.detail.map { " by \($0)" } ?? ""

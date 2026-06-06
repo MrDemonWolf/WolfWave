@@ -62,6 +62,7 @@ graph LR
 ## Accessibility
 - `accessibilityElement(children: .combine)` — VoiceOver reads the whole card.
 - Compound label: `"Now playing: <track>, by <artist>, on <album>"` — falls back to permission-state copy when no track.
+- When `duration > 0` the label appends the scrubber clock: `"…, <elapsed> elapsed, <remaining> remaining"` (formatted via `HistoryFormat.clock`), so VoiceOver announces playback position that the visual scrubber otherwise conveys only graphically.
 - `monospacedDigit()` keeps timestamps stable as the seconds tick.
 - Reduce Motion: scrubber timeline pauses (the static fraction still renders), title/subtitle contentTransitions degrade to step swaps, outer animation drops to `nil`.
 

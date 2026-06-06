@@ -146,6 +146,10 @@ struct NowPlayingHeroCard: View {
         var label = isPaused ? "Paused: \(track)" : "Now playing: \(track)"
         if let artist { label += ", by \(artist)" }
         if let album { label += ", on \(album)" }
+        if duration > 0 {
+            let remaining = max(duration - elapsed, 0)
+            label += ", \(HistoryFormat.clock(elapsed)) elapsed, \(HistoryFormat.clock(remaining)) remaining"
+        }
         return label
     }
 }

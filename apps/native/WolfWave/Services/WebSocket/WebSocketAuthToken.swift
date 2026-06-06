@@ -16,6 +16,11 @@ import Foundation
 /// presented by clients on the WebSocket handshake as the
 /// `wolfwave.token.<hex>` subprotocol. Only the first 4 characters are ever
 /// logged so the full credential never ends up in a diagnostics export.
+///
+/// Persistence routes through `KeychainService`, which carries its own
+/// injectable `KeychainBackend` seam (`KeychainService.backend`). Tests swap in
+/// an in-memory backend there so `currentOrCreate()` / `rotate()` can be covered
+/// without touching the real Keychain (which prompts under ad-hoc test signing).
 nonisolated enum WebSocketAuthToken {
 
     /// Subprotocol prefix advertised by the widget on `new WebSocket(url, [...])`
@@ -67,7 +72,42 @@ nonisolated enum WebSocketAuthToken {
     ///   in its `Sec-WebSocket-Protocol` list.
     static func shouldAccept(expectedToken: String?, offeredSubprotocols: [String]) -> Bool {
         guard let expected = expectedToken else { return true }
-        return offeredSubprotocols.contains(expectedSubprotocol(for: expected))
+        let want = expectedSubprotocol(for: expected)
+        // Walk every offered subprotocol and OR in each constant-time match so the
+        // work done (and therefore the timing) doesn't short-circuit on the first
+        // hit. The decision (accept iff one offer equals `want`) is identical to
+        // the previous `.contains`; only the timing characteristic changes.
+        var matched = false
+        for offered in offeredSubprotocols where constantTimeEquals(offered, want) {
+            matched = true
+        }
+        return matched
+    }
+
+    /// Compares two strings for equality without leaking how many leading bytes
+    /// matched through timing.
+    ///
+    /// The two strings are compared as their UTF-8 byte buffers. Every byte of
+    /// the longer buffer is XOR-accumulated into a single accumulator (out-of-range
+    /// bytes on the shorter side fold in a non-zero sentinel), and a length mismatch
+    /// also folds in a non-zero value. The function returns `true` only when the
+    /// accumulator is zero AND the lengths match. A length mismatch is detectable in
+    /// constant time relative to the inputs, which is acceptable for this threat
+    /// model: the secret is a fixed 64-hex-char token, so its length is not itself a
+    /// secret. The accept/reject decision is identical to `lhs == rhs`.
+    static func constantTimeEquals(_ lhs: String, _ rhs: String) -> Bool {
+        let a = Array(lhs.utf8)
+        let b = Array(rhs.utf8)
+        let count = max(a.count, b.count)
+        var diff: UInt8 = a.count == b.count ? 0 : 1
+        var index = 0
+        while index < count {
+            let lhsByte: UInt8 = index < a.count ? a[index] : 0
+            let rhsByte: UInt8 = index < b.count ? b[index] : 0
+            diff |= lhsByte ^ rhsByte
+            index += 1
+        }
+        return diff == 0
     }
 
     /// Returns `true` when `candidate` is a non-empty hex string (`[0-9a-fA-F]+`)

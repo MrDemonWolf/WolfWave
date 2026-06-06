@@ -184,6 +184,30 @@ nonisolated struct HTTPClient: Sendable {
         return data
     }
 
+    // MARK: - User-Agent
+
+    /// Default `User-Agent` applied to every outbound request that doesn't
+    /// already set one. Honest identification of the app + version + repo,
+    /// centralized here so `HelixClient.headers` and the hand-built
+    /// `TwitchDeviceAuth` requests share the exact same string.
+    ///
+    /// Caller-supplied `User-Agent` headers always win.
+    static let defaultUserAgent = AppConstants.AppInfo.userAgent
+
+    /// Returns `headers` with the default `User-Agent` added only when the
+    /// caller has not already provided one (case-insensitively). The caller's
+    /// override therefore always wins.
+    ///
+    /// Pure and `static` so it can be reused by call sites that build their own
+    /// requests, and unit-tested without a live session.
+    static func withDefaultUserAgent(_ headers: [String: String]) -> [String: String] {
+        let hasUserAgent = headers.keys.contains { $0.caseInsensitiveCompare("User-Agent") == .orderedSame }
+        guard !hasUserAgent else { return headers }
+        var merged = headers
+        merged["User-Agent"] = defaultUserAgent
+        return merged
+    }
+
     // MARK: - Private Helpers
 
     private func makeRequest(
@@ -195,7 +219,7 @@ nonisolated struct HTTPClient: Sendable {
         var request = URLRequest(url: url)
         request.httpMethod = method
         request.httpBody = body
-        for (key, value) in headers {
+        for (key, value) in Self.withDefaultUserAgent(headers) {
             request.setValue(value, forHTTPHeaderField: key)
         }
         return request

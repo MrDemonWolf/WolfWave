@@ -44,14 +44,20 @@ nonisolated enum DiscordPlaylistStyle: String, CaseIterable, Sendable {
 /// Developer Portal, provided via `DISCORD_CLIENT_ID` in Config.xcconfig.
 ///
 /// Thread Safety:
-/// - Implemented as an `actor`. All mutable state and socket I/O run on the
-///   actor's serial executor, replacing the previous `ipcQueue` + `NSLock`
-///   combination.
+/// - Implemented as an `actor`. All mutable state runs on the actor's serial
+///   executor.
+/// - The *blocking* socket syscalls (`connect`, `read`, `write`, `setsockopt`)
+///   do **not** run on the actor executor. They are dispatched onto a dedicated
+///   serial `ipcQueue` and bridged back with `withCheckedContinuation`, so the
+///   actor `await`s the result without parking its executor. A stalled handshake
+///   or slow peer can no longer delay `updatePresence` or any other
+///   actor-isolated call. The serial queue keeps the connection lifecycle
+///   single-threaded (one connect / handshake / frame at a time), exactly as the
+///   actor-serialized version did. The blocking primitives are pure functions of
+///   an explicit `fd` parameter and never touch actor state.
 /// - State changes and resolved artwork URLs are published as `AsyncStream`s
 ///   on `stateChanges` and `artworkResolutions`. The streams are `nonisolated`
 ///   so consumers can iterate without an extra actor hop.
-/// - Socket reads/writes are short, local Unix-domain calls (typically
-///   sub-millisecond), so running them on the actor executor is safe.
 ///
 /// Reconnection:
 /// - Automatically reconnects with exponential backoff when Discord restarts.
@@ -122,6 +128,24 @@ actor DiscordRPCService {
     /// File descriptor for the connected Unix domain socket, or -1.
     private var socketFD: Int32 = -1
 
+    /// Monotonic token bumped on every disconnect/teardown.
+    ///
+    /// `connectIfNeeded` captures this before awaiting the off-actor
+    /// `openIPCSocket` hop. If a `setEnabled(false)` (or any other teardown)
+    /// lands during that await, the generation changes; the connect then closes
+    /// the just-opened fd on ``ipcQueue`` and bails without committing
+    /// `socketFD`/`state`, so an in-flight connect can never win after a disable.
+    private var connectionGeneration: UInt64 = 0
+
+    /// Dedicated serial queue for the blocking socket syscalls.
+    ///
+    /// `connect`, `read`, `write`, and `setsockopt` block the calling thread.
+    /// Running them here (instead of on the actor's serial executor) keeps a
+    /// stalled handshake or slow peer from parking the actor. The queue is
+    /// serial, so the connection lifecycle stays single-threaded — there is
+    /// never concurrent access to `socketFD` from two IPC operations at once.
+    private nonisolated let ipcQueue = DispatchQueue(label: "com.mrdemonwolf.wolfwave.discord-ipc")
+
     /// Current reconnect delay (doubles on each failure, capped).
     private var reconnectDelay: TimeInterval = AppConstants.Discord.reconnectBaseDelay
 
@@ -184,10 +208,13 @@ actor DiscordRPCService {
         self.artworkContinuation = artCont
 
         // Re-send presence when display settings change so users see button-label
-        // edits and similar tweaks immediately.
+        // edits and similar tweaks immediately. Delivery is pinned to the main
+        // queue so the block never fires on an arbitrary thread while `init` is
+        // still completing (the closure captures `self`); the block only hops
+        // into a detached Task, so main-queue delivery adds no real work.
         let name = Notification.Name.discordPresenceSettingsChanged
         self.settingsObserver = NotificationCenter.default.addObserver(
-            forName: name, object: nil, queue: nil
+            forName: name, object: nil, queue: .main
         ) { [weak self] _ in
             guard let self else { return }
             Task { await self.resendLastPresence() }
@@ -200,8 +227,14 @@ actor DiscordRPCService {
         }
         pollTask?.cancel()
         reconnectTask?.cancel()
-        if socketFD >= 0 {
-            Darwin.close(socketFD)
+        // `deinit` is nonisolated and cannot `await`, so dispatch the close onto
+        // `ipcQueue` (capturing the fd value, never `self`) so it still
+        // serializes after any queued read/write that holds the same descriptor.
+        // A bare `Darwin.close(socketFD)` here could double-close or close a
+        // recycled fd that a still-queued I/O block is mid-syscall on.
+        let fd = socketFD
+        if fd >= 0 {
+            ipcQueue.async { Darwin.close(fd) }
         }
         stateContinuation.finish()
         artworkContinuation.finish()
@@ -213,18 +246,18 @@ actor DiscordRPCService {
     ///
     /// When enabled, immediately attempts to connect to Discord.
     /// When disabled, disconnects and stops polling.
-    func setEnabled(_ enabled: Bool) {
+    func setEnabled(_ enabled: Bool) async {
         isEnabled = enabled
 
         if enabled {
-            connectIfNeeded()
+            await connectIfNeeded()
             startPolling()
         } else {
             stopPolling()
             reconnectTask?.cancel()
             reconnectTask = nil
-            performClearPresence()
-            disconnect()
+            await performClearPresence()
+            await disconnect()
         }
     }
 
@@ -232,9 +265,9 @@ actor DiscordRPCService {
     ///
     /// If already connected, returns immediately with `true`. Otherwise triggers
     /// a connection attempt and returns whether it succeeded.
-    func testConnection() -> Bool {
+    func testConnection() async -> Bool {
         if state == .connected { return true }
-        connectIfNeeded()
+        await connectIfNeeded()
         return state == .connected
     }
 
@@ -263,12 +296,12 @@ actor DiscordRPCService {
         duration: TimeInterval = 0,
         elapsed: TimeInterval = 0,
         isPaused: Bool = false
-    ) {
+    ) async {
         guard state == .connected else { return }
 
         // Check shared cache for immediate use (artwork + track links)
         let cached = ArtworkService.shared.cachedTrackLinks(track: track, artist: artist)
-        sendPresenceActivity(
+        await sendPresenceActivity(
             track: track, artist: artist, album: album, playlist: playlist,
             artworkURL: cached.artworkURL,
             duration: duration, elapsed: elapsed,
@@ -310,18 +343,18 @@ actor DiscordRPCService {
     }
 
     /// Clears the Rich Presence (e.g., when playback stops).
-    func clearPresence() {
-        performClearPresence()
+    func clearPresence() async {
+        await performClearPresence()
     }
 
     /// Shows the opt-in "Idle" activity used when nothing is playing and the
     /// user chose to keep WolfWave visible on their profile instead of clearing
     /// it. No track, timestamps, or buttons, just a static idle marker.
-    func showIdleStatus() {
+    func showIdleStatus() async {
         guard state == .connected else { return }
         // Idle has no track to re-send on a settings change.
         lastPresence = nil
-        sendActivityFrame(Self.buildIdleActivity())
+        await sendActivityFrame(Self.buildIdleActivity())
     }
 
     // MARK: - Resolution Handling
@@ -335,9 +368,9 @@ actor DiscordRPCService {
         duration: TimeInterval,
         elapsed: TimeInterval,
         isPaused: Bool
-    ) {
+    ) async {
         if state == .connected {
-            sendPresenceActivity(
+            await sendPresenceActivity(
                 track: track, artist: artist, album: album, playlist: playlist,
                 artworkURL: links.artworkURL,
                 duration: duration, elapsed: elapsed,
@@ -356,7 +389,7 @@ actor DiscordRPCService {
 
     // MARK: - Presence Helpers
 
-    private func performClearPresence() {
+    private func performClearPresence() async {
         lastPresence = nil
         guard state == .connected else { return }
 
@@ -368,7 +401,7 @@ actor DiscordRPCService {
             "nonce": UUID().uuidString,
         ]
 
-        sendFrame(opcode: .frame, payload: payload)
+        await sendFrame(opcode: .frame, payload: payload)
     }
 
     /// Builds and sends a SET_ACTIVITY frame with the given track metadata.
@@ -393,7 +426,7 @@ actor DiscordRPCService {
         appleMusicURL: String? = nil,
         songLinkURL: String? = nil,
         isPaused: Bool = false
-    ) {
+    ) async {
         // Cache so settings changes can trigger a re-send without waiting for the next track.
         lastPresence = LastPresence(
             track: track, artist: artist, album: album, playlist: playlist,
@@ -417,11 +450,11 @@ actor DiscordRPCService {
             now: Date()
         )
 
-        sendActivityFrame(activity)
+        await sendActivityFrame(activity)
     }
 
     /// Wraps an `activity` dictionary in a `SET_ACTIVITY` frame and sends it.
-    private func sendActivityFrame(_ activity: [String: Any]) {
+    private func sendActivityFrame(_ activity: [String: Any]) async {
         let payload: [String: Any] = [
             "cmd": "SET_ACTIVITY",
             "args": [
@@ -431,7 +464,7 @@ actor DiscordRPCService {
             "nonce": UUID().uuidString,
         ]
 
-        sendFrame(opcode: .frame, payload: payload)
+        await sendFrame(opcode: .frame, payload: payload)
     }
 
     /// Re-sends the most recent presence with current settings applied.
@@ -439,7 +472,7 @@ actor DiscordRPCService {
     /// Called when `discordPresenceSettingsChanged` fires (e.g. user toggled a button
     /// in settings). Re-uses cached `TrackLinks` via `ArtworkService.shared` so no
     /// network round-trip is required.
-    private func resendLastPresence() {
+    private func resendLastPresence() async {
         guard state == .connected, let snap = lastPresence else { return }
 
         // Recompute elapsed from the captured timestamp so the progress bar stays accurate.
@@ -449,7 +482,7 @@ actor DiscordRPCService {
             : snap.elapsed
 
         let cached = ArtworkService.shared.cachedTrackLinks(track: snap.track, artist: snap.artist)
-        sendPresenceActivity(
+        await sendPresenceActivity(
             track: snap.track,
             artist: snap.artist,
             album: snap.album,
@@ -872,7 +905,7 @@ actor DiscordRPCService {
     ///
     /// Tries each candidate temp directory, and within each, tries sockets 0 through 9.
     /// Keeps the first successful connection.
-    private func connectIfNeeded() {
+    private func connectIfNeeded() async {
         guard state == .disconnected else { return }
         guard !clientID.isEmpty else {
             Log.warn("DiscordRPCService: No client ID configured: skipping connection", category: "Discord")
@@ -896,51 +929,35 @@ actor DiscordRPCService {
                     .appending(path: "\(AppConstants.Discord.ipcSocketPrefix)\(slot)")
                     .path(percentEncoded: false)
 
-                let fd = socket(AF_UNIX, SOCK_STREAM, 0)
+                // The blocking `connect()` (plus the socket setup and timeout
+                // opts it gates) runs off the actor executor on `ipcQueue`. On
+                // success it returns the ready fd with timeouts applied; on
+                // failure it returns -1 after closing any partial fd. The actor
+                // only records the result and runs the handshake.
+                //
+                // Capture the generation BEFORE the await. If a disconnect /
+                // teardown bumps it (or the service is disabled) while the open
+                // is in flight, close the just-opened fd on `ipcQueue` and bail
+                // without committing `socketFD`/`state`, so a stale connect can
+                // never overwrite a fresh teardown.
+                let generation = connectionGeneration
+                let fd = await runOnIPCQueue { Self.openIPCSocket(at: socketPath, slot: slot) }
                 guard fd >= 0 else { continue }
 
-                var addr = sockaddr_un()
-                addr.sun_family = sa_family_t(AF_UNIX)
-
-                let pathBytes = socketPath.utf8CString
-                guard pathBytes.count <= MemoryLayout.size(ofValue: addr.sun_path) else {
-                    Darwin.close(fd)
-                    continue
+                guard isEnabled, connectionGeneration == generation, state == .connecting else {
+                    await runOnIPCQueue { Self.closeFD(fd) }
+                    return
                 }
 
-                withUnsafeMutablePointer(to: &addr.sun_path) { sunPathPtr in
-                    sunPathPtr.withMemoryRebound(to: CChar.self, capacity: pathBytes.count) { dest in
-                        pathBytes.withUnsafeBufferPointer { src in
-                            guard let srcBase = src.baseAddress else { return }
-                            _ = memcpy(dest, srcBase, pathBytes.count)
-                        }
-                    }
-                }
-
-                let addrLen = socklen_t(MemoryLayout<sockaddr_un>.size)
-                let result = withUnsafePointer(to: &addr) { addrPtr in
-                    addrPtr.withMemoryRebound(to: sockaddr.self, capacity: 1) { sockaddrPtr in
-                        Darwin.connect(fd, sockaddrPtr, addrLen)
-                    }
-                }
-
-                if result == 0 {
-                    socketFD = fd
-                    setSocketTimeouts(fd)
-
-                    if performHandshake() {
-                        state = .connected
-                        reconnectDelay = AppConstants.Discord.reconnectBaseDelay
-                        return
-                    } else {
-                        Log.warn("DiscordRPCService: Handshake failed on slot \(slot)", category: "Discord")
-                        Darwin.close(fd)
-                        socketFD = -1
-                    }
+                socketFD = fd
+                if await performHandshake() {
+                    state = .connected
+                    reconnectDelay = AppConstants.Discord.reconnectBaseDelay
+                    return
                 } else {
-                    let err = errno
-                    Log.debug("DiscordRPCService: connect() failed on slot \(slot): errno \(err) (\(String(cString: strerror(err))))", category: "Discord")
-                    Darwin.close(fd)
+                    Log.warn("DiscordRPCService: Handshake failed on slot \(slot)", category: "Discord")
+                    await runOnIPCQueue { Self.closeFD(fd) }
+                    socketFD = -1
                 }
             }
         }
@@ -949,21 +966,66 @@ actor DiscordRPCService {
         state = .disconnected
     }
 
+    /// Opens, connects, and applies timeouts to a Unix-domain socket at
+    /// `socketPath`. Pure of actor state so it can run on ``ipcQueue`` (where the
+    /// blocking `connect()` belongs). Returns the connected fd with send/receive
+    /// timeouts applied, or -1 on any failure (closing any partial fd first).
+    /// `slot` is used only for logging.
+    private nonisolated static func openIPCSocket(at socketPath: String, slot: Int) -> Int32 {
+        let fd = socket(AF_UNIX, SOCK_STREAM, 0)
+        guard fd >= 0 else { return -1 }
+
+        var addr = sockaddr_un()
+        addr.sun_family = sa_family_t(AF_UNIX)
+
+        let pathBytes = socketPath.utf8CString
+        guard pathBytes.count <= MemoryLayout.size(ofValue: addr.sun_path) else {
+            Darwin.close(fd)
+            return -1
+        }
+
+        withUnsafeMutablePointer(to: &addr.sun_path) { sunPathPtr in
+            sunPathPtr.withMemoryRebound(to: CChar.self, capacity: pathBytes.count) { dest in
+                pathBytes.withUnsafeBufferPointer { src in
+                    guard let srcBase = src.baseAddress else { return }
+                    _ = memcpy(dest, srcBase, pathBytes.count)
+                }
+            }
+        }
+
+        let addrLen = socklen_t(MemoryLayout<sockaddr_un>.size)
+        let result = withUnsafePointer(to: &addr) { addrPtr in
+            addrPtr.withMemoryRebound(to: sockaddr.self, capacity: 1) { sockaddrPtr in
+                Darwin.connect(fd, sockaddrPtr, addrLen)
+            }
+        }
+
+        guard result == 0 else {
+            let err = errno
+            Log.debug("DiscordRPCService: connect() failed on slot \(slot): errno \(err) (\(String(cString: strerror(err))))", category: "Discord")
+            Darwin.close(fd)
+            return -1
+        }
+
+        setSocketTimeouts(fd)
+        return fd
+    }
+
     /// Sends the RPC handshake (opcode 0) with the client ID.
     ///
     /// - Returns: True if handshake was sent and a response was received.
-    private func performHandshake() -> Bool {
+    private func performHandshake() async -> Bool {
         let handshake: [String: Any] = [
             "v": AppConstants.Discord.rpcVersion,
             "client_id": clientID,
         ]
 
-        guard sendFrame(opcode: .handshake, payload: handshake) else {
+        guard await sendFrame(opcode: .handshake, payload: handshake) else {
             return false
         }
 
         // Read the READY response
-        guard let (opcode, _) = readFrame() else {
+        guard let (opcode, _) = await readFrame() else {
             Log.warn("DiscordRPCService: No handshake response", category: "Discord")
             return false
         }
@@ -977,82 +1039,146 @@ actor DiscordRPCService {
     }
 
     /// Disconnects from the IPC socket.
-    private func disconnect() {
+    ///
+    /// Bumps ``connectionGeneration`` so any in-flight connect that resumes after
+    /// this teardown discards its fd instead of committing it. The close runs on
+    /// ``ipcQueue`` so it serializes after any queued read/write still holding the
+    /// captured fd, never racing them or closing a recycled descriptor.
+    private func disconnect() async {
+        connectionGeneration &+= 1
+
         guard socketFD >= 0 else {
             if state != .disconnected { state = .disconnected }
             return
         }
-        Darwin.close(socketFD)
+        let fd = socketFD
         socketFD = -1
         state = .disconnected
+        await runOnIPCQueue { Self.closeFD(fd) }
     }
 
     // MARK: - Frame I/O
 
+    /// Suspends the actor and runs `work` on ``ipcQueue``, resuming with its result.
+    ///
+    /// This is the bridge that keeps the blocking socket syscalls off the actor's
+    /// serial executor. `work` runs on the dedicated serial `ipcQueue`; the actor
+    /// `await`s the continuation, so a stalled `read`/`write`/`connect` parks only
+    /// the queue's worker thread, never the actor. Because `ipcQueue` is serial,
+    /// only one such block runs at a time, preserving single-threaded socket
+    /// access. `work` must be self-contained — it takes only `Sendable` inputs and
+    /// touches no actor state — so the hop is safe.
+    private nonisolated func runOnIPCQueue<T: Sendable>(
+        _ work: @escaping @Sendable () -> T
+    ) async -> T {
+        await withCheckedContinuation { continuation in
+            ipcQueue.async {
+                continuation.resume(returning: work())
+            }
+        }
+    }
+
     /// Applies send/receive timeouts to the IPC socket.
     ///
-    /// The frame I/O uses blocking `Darwin.read`/`Darwin.write` on the service's
-    /// actor executor. Without a timeout, a Discord peer that stalls mid-frame
-    /// (or stops draining its receive buffer) would block the executor forever,
-    /// freezing every other call into the service. `SO_RCVTIMEO`/`SO_SNDTIMEO`
-    /// make a stalled read/write fail with `EAGAIN`, which the frame I/O treats
-    /// as a lost connection.
-    private func setSocketTimeouts(_ fd: Int32) {
+    /// The frame I/O uses blocking `Darwin.read`/`Darwin.write` on ``ipcQueue``.
+    /// Without a timeout, a Discord peer that stalls mid-frame (or stops draining
+    /// its receive buffer) would block the queue's worker thread forever.
+    /// `SO_RCVTIMEO`/`SO_SNDTIMEO` make a stalled read/write fail with `EAGAIN`,
+    /// which the frame I/O treats as a lost connection. Pure: no actor state.
+    private nonisolated static func setSocketTimeouts(_ fd: Int32) {
         var tv = timeval(tv_sec: AppConstants.Discord.socketTimeoutSeconds, tv_usec: 0)
         let size = socklen_t(MemoryLayout<timeval>.size)
         _ = setsockopt(fd, SOL_SOCKET, SO_RCVTIMEO, &tv, size)
         _ = setsockopt(fd, SOL_SOCKET, SO_SNDTIMEO, &tv, size)
     }
 
-    /// Writes all of `data` to the socket, looping over partial writes.
+    /// Result of a blocking write, carrying the failing `errno` captured on the
+    /// same `ipcQueue` worker thread that ran the syscall.
+    ///
+    /// `errno` is thread-local, so it must be read inside the queue closure (right
+    /// after the failing syscall) rather than back on the actor executor where it
+    /// reflects unrelated work. `errno` is meaningful only when `ok == false`.
+    struct WriteResult: Sendable {
+        let ok: Bool
+        let errno: Int32
+    }
+
+    /// Result of a blocking read, carrying the bytes (nil on failure) plus the
+    /// failing `errno` captured on the `ipcQueue` worker thread. `errno` is
+    /// meaningful only when `data == nil`.
+    struct ReadResult: Sendable {
+        let data: Data?
+        let errno: Int32
+    }
+
+    /// Writes all of `data` to socket `fd`, looping over partial writes.
     ///
     /// A stream socket may accept fewer bytes than requested per `write`, so a
-    /// single call can't be assumed to flush the whole frame. Returns false if
-    /// the socket errors or times out before everything is written.
-    private func writeFully(_ data: Data) -> Bool {
-        guard !data.isEmpty else { return true }
-        return data.withUnsafeBytes { raw -> Bool in
-            guard let base = raw.baseAddress else { return false }
+    /// single call can't be assumed to flush the whole frame. Returns `ok: false`
+    /// (with the captured `errno`) if the socket errors or times out before
+    /// everything is written. The `errno` is read on this worker thread so it
+    /// reflects the actual failure, not later actor-executor work. Pure of actor
+    /// state (takes `fd` explicitly) so it can run on ``ipcQueue``.
+    private nonisolated static func writeFully(_ data: Data, fd: Int32) -> WriteResult {
+        guard !data.isEmpty else { return WriteResult(ok: true, errno: 0) }
+        return data.withUnsafeBytes { raw -> WriteResult in
+            guard let base = raw.baseAddress else { return WriteResult(ok: false, errno: 0) }
             var total = 0
             while total < data.count {
-                let n = Darwin.write(socketFD, base + total, data.count - total)
+                let n = Darwin.write(fd, base + total, data.count - total)
                 if n > 0 {
                     total += n
                 } else if n < 0 && errno == EINTR {
                     continue
                 } else {
+                    return WriteResult(ok: false, errno: errno)
+                }
+            }
+            return WriteResult(ok: true, errno: 0)
+        }
+    }
+
+    /// Reads exactly `count` bytes from socket `fd`, looping over partial reads.
+    ///
+    /// A stream socket may return fewer bytes than requested per `read`, so a
+    /// single call can't be assumed to fill the buffer. Returns `data: nil` (with
+    /// the captured `errno`) if the peer closes (`read` returns 0) or the socket
+    /// errors/times out before `count` bytes arrive. The `errno` is read on this
+    /// worker thread so it reflects the actual failure, not later actor-executor
+    /// work. A clean peer close (`read` returns 0) leaves `errno == 0`. Pure of
+    /// actor state (takes `fd` explicitly) so it can run on ``ipcQueue``.
+    private nonisolated static func readFully(_ count: Int, fd: Int32) -> ReadResult {
+        guard count > 0 else { return ReadResult(data: Data(), errno: 0) }
+        var buffer = Data(count: count)
+        var failErrno: Int32 = 0
+        let ok = buffer.withUnsafeMutableBytes { raw -> Bool in
+            guard let base = raw.baseAddress else { return false }
+            var total = 0
+            while total < count {
+                let n = Darwin.read(fd, base + total, count - total)
+                if n > 0 {
+                    total += n
+                } else if n < 0 && errno == EINTR {
+                    continue
+                } else {
+                    // peer closed (n == 0, errno stays 0) or error/timeout (n < 0)
+                    failErrno = n < 0 ? errno : 0
                     return false
                 }
             }
             return true
         }
+        return ok ? ReadResult(data: buffer, errno: 0) : ReadResult(data: nil, errno: failErrno)
     }
 
-    /// Reads exactly `count` bytes from the socket, looping over partial reads.
-    ///
-    /// A stream socket may return fewer bytes than requested per `read`, so a
-    /// single call can't be assumed to fill the buffer. Returns nil if the peer
-    /// closes (`read` returns 0) or the socket errors/times out before `count`
-    /// bytes arrive.
-    private func readFully(_ count: Int) -> Data? {
-        guard count > 0 else { return Data() }
-        var buffer = Data(count: count)
-        let ok = buffer.withUnsafeMutableBytes { raw -> Bool in
-            guard let base = raw.baseAddress else { return false }
-            var total = 0
-            while total < count {
-                let n = Darwin.read(socketFD, base + total, count - total)
-                if n > 0 {
-                    total += n
-                } else if n < 0 && errno == EINTR {
-                    continue
-                } else {
-                    return false // peer closed (0) or error/timeout (-1)
-                }
-            }
-            return true
-        }
-        return ok ? buffer : nil
+    /// Closes `fd` on ``ipcQueue`` so the close serializes after any queued
+    /// read/write on the same descriptor. Pure of actor state. A no-op for a
+    /// negative `fd`. Closing on the queue (never on the actor executor) prevents
+    /// a double-close or closing a recycled descriptor while an in-flight
+    /// `readFully`/`writeFully` still holds the captured fd value.
+    private nonisolated static func closeFD(_ fd: Int32) {
+        guard fd >= 0 else { return }
+        Darwin.close(fd)
     }
 
     /// Sends a framed message to Discord.
@@ -1064,8 +1190,9 @@ actor DiscordRPCService {
     ///   - payload: Dictionary to serialize as JSON.
     /// - Returns: True if the write succeeded.
     @discardableResult
-    private func sendFrame(opcode: Opcode, payload: [String: Any]) -> Bool {
-        guard socketFD >= 0 else { return false }
+    private func sendFrame(opcode: Opcode, payload: [String: Any]) async -> Bool {
+        let fd = socketFD
+        guard fd >= 0 else { return false }
 
         // `isValidJSONObject` short-circuits before `data(withJSONObject:)`, so a
         // non-JSON leaf (NaN/Inf Double, non-String key) returns false instead of
@@ -1082,9 +1209,16 @@ actor DiscordRPCService {
             buf.storeBytes(of: UInt32(jsonData.count).littleEndian, toByteOffset: 4, as: UInt32.self)
         }
 
-        guard writeFully(header + jsonData) else {
-            Log.error("DiscordRPCService: Write failed/timed out with errno \(errno) (\(String(cString: strerror(errno))))", category: "Discord")
-            handleConnectionLost()
+        // Blocking write runs off the actor executor on `ipcQueue`. The frame is
+        // fully built here, so the closure only flushes bytes to `fd`. The
+        // `errno` is captured inside the closure (on the worker thread) so it
+        // reflects the actual write failure, not unrelated actor-executor work.
+        let frame = header + jsonData
+        let result = await runOnIPCQueue { Self.writeFully(frame, fd: fd) }
+        guard result.ok else {
+            let err = result.errno
+            Log.error("DiscordRPCService: Write failed/timed out with errno \(err) (\(String(cString: strerror(err))))", category: "Discord")
+            await handleConnectionLost()
             return false
         }
 
@@ -1094,11 +1228,19 @@ actor DiscordRPCService {
     /// Reads a single framed message from Discord.
     ///
     /// - Returns: Tuple of (opcode, JSON payload) or nil on failure.
-    private func readFrame() -> (UInt32, [String: Any]?)? {
-        guard socketFD >= 0 else { return nil }
+    private func readFrame() async -> (UInt32, [String: Any]?)? {
+        let fd = socketFD
+        guard fd >= 0 else { return nil }
 
-        guard let headerBuf = readFully(8) else {
-            Log.error("DiscordRPCService: Header read failed/timed out with errno \(errno) (\(String(cString: strerror(errno))))", category: "Discord")
+        // Blocking reads run off the actor executor on `ipcQueue`. The queue is
+        // serial, so the header read always completes before the body read, and
+        // no other IPC operation interleaves on `fd`. The `errno` is captured
+        // inside the closure (on the worker thread) so it reflects the actual
+        // read failure, not unrelated actor-executor work.
+        let headerResult = await runOnIPCQueue { Self.readFully(8, fd: fd) }
+        guard let headerBuf = headerResult.data else {
+            let err = headerResult.errno
+            Log.error("DiscordRPCService: Header read failed/timed out with errno \(err) (\(String(cString: strerror(err))))", category: "Discord")
             return nil
         }
 
@@ -1111,8 +1253,11 @@ actor DiscordRPCService {
 
         guard length > 0, length < AppConstants.Discord.maxIPCFrameBytes else { return (opcode, nil) }
 
-        guard let bodyBuf = readFully(Int(length)) else {
-            Log.error("DiscordRPCService: Body read failed/timed out with errno \(errno) (\(String(cString: strerror(errno))))", category: "Discord")
+        let bodyLength = Int(length)
+        let bodyResult = await runOnIPCQueue { Self.readFully(bodyLength, fd: fd) }
+        guard let bodyBuf = bodyResult.data else {
+            let err = bodyResult.errno
+            Log.error("DiscordRPCService: Body read failed/timed out with errno \(err) (\(String(cString: strerror(err))))", category: "Discord")
             return nil
         }
 
@@ -1130,9 +1275,18 @@ actor DiscordRPCService {
 
     // MARK: - Reconnection
 
+    /// Computes the next exponential-backoff delay: doubles `current` and clamps
+    /// to `max`. Pure and `nonisolated` so the backoff math is unit-testable
+    /// without the actor. Reset is just `base` (see `reconnectBaseDelay`).
+    nonisolated static func nextBackoff(
+        _ current: TimeInterval, base: TimeInterval, max: TimeInterval
+    ) -> TimeInterval {
+        Swift.min(current * 2, max)
+    }
+
     /// Handles a lost connection by disconnecting and scheduling reconnect.
-    private func handleConnectionLost() {
-        disconnect()
+    private func handleConnectionLost() async {
+        await disconnect()
 
         guard isEnabled else { return }
 
@@ -1145,12 +1299,15 @@ actor DiscordRPCService {
             await self.attemptReconnect()
         }
 
-        reconnectDelay = min(reconnectDelay * 2, AppConstants.Discord.reconnectMaxDelay)
+        reconnectDelay = Self.nextBackoff(
+            reconnectDelay,
+            base: AppConstants.Discord.reconnectBaseDelay,
+            max: AppConstants.Discord.reconnectMaxDelay)
     }
 
-    private func attemptReconnect() {
+    private func attemptReconnect() async {
         guard isEnabled else { return }
-        connectIfNeeded()
+        await connectIfNeeded()
     }
 
     // MARK: - Polling
@@ -1171,9 +1328,9 @@ actor DiscordRPCService {
         }
     }
 
-    private func pollTick() {
+    private func pollTick() async {
         guard isEnabled, state == .disconnected else { return }
-        connectIfNeeded()
+        await connectIfNeeded()
     }
 
     /// Stops the availability poll timer.

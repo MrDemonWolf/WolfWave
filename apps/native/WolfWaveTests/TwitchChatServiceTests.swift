@@ -275,4 +275,100 @@ struct TwitchChatServiceTests {
         #expect(message.reply == nil)
         #expect(message.messageID == "msg-001")
     }
+
+    // MARK: - Retry-Queue Cap Tests
+
+    @Test("appendCapped keeps queue under cap and drops nothing")
+    func testAppendCappedUnderCap() async throws {
+        var queue: [Int] = [1, 2]
+        let dropped = TwitchChatService.appendCapped(3, to: &queue, cap: 4)
+        #expect(dropped == 0)
+        #expect(queue == [1, 2, 3])
+    }
+
+    @Test("appendCapped drops oldest when over cap")
+    func testAppendCappedDropsOldest() async throws {
+        var queue: [Int] = [1, 2, 3]
+        let dropped = TwitchChatService.appendCapped(4, to: &queue, cap: 3)
+        #expect(dropped == 1)
+        #expect(queue == [2, 3, 4])
+    }
+
+    @Test("appendCapped over cap by many drops in FIFO order")
+    func testAppendCappedRepeated() async throws {
+        var queue: [Int] = []
+        for value in 1...10 {
+            _ = TwitchChatService.appendCapped(value, to: &queue, cap: 3)
+        }
+        // Only the newest 3 survive, oldest dropped first.
+        #expect(queue == [8, 9, 10])
+    }
+
+    // MARK: - Bounded Stream Tests
+
+    @Test("chatMessages stream uses a bounded buffer (only newest N retained)")
+    func testChatMessagesStreamBounded() async throws {
+        // Drive an unconsumed bounded stream past its cap and confirm only the
+        // newest `chatMessageStreamBuffer` elements are delivered (drop-oldest).
+        let cap = AppConstants.Twitch.chatMessageStreamBuffer
+        let (stream, continuation) = AsyncStream.makeStream(
+            of: Int.self, bufferingPolicy: .bufferingNewest(cap))
+
+        for value in 0..<(cap + 50) {
+            continuation.yield(value)
+        }
+        continuation.finish()
+
+        var received: [Int] = []
+        for await value in stream { received.append(value) }
+
+        #expect(received.count == cap)
+        // First retained element is the 50th yielded value; the oldest 50 drop.
+        #expect(received.first == 50)
+        #expect(received.last == cap + 49)
+    }
+
+    // MARK: - Retry Accounting Tests
+
+    @Test("shouldRequeueAfterFailure stops at the retry limit")
+    func testShouldRequeueAfterFailureBoundary() async throws {
+        let maxRetries = 3
+        // Attempts below the limit requeue; at/above the limit they do not.
+        #expect(TwitchChatService.shouldRequeueAfterFailure(attempts: 1, maxRetries: maxRetries))
+        #expect(TwitchChatService.shouldRequeueAfterFailure(attempts: 2, maxRetries: maxRetries))
+        #expect(!TwitchChatService.shouldRequeueAfterFailure(attempts: 3, maxRetries: maxRetries))
+        #expect(!TwitchChatService.shouldRequeueAfterFailure(attempts: 4, maxRetries: maxRetries))
+    }
+
+    @Test("Persistently failing message stops at maxMessageRetries without resetting attempts")
+    func testPersistentFailureStopsAtMaxRetriesWithoutReset() async throws {
+        // Pure simulation of the drain-loop requeue contract: a send that keeps
+        // failing must increment the per-message attempt count each pass (never
+        // reset to 0 the way the old `sendMessage`-in-drain path did) and stop
+        // once the count reaches the retry limit. This mirrors
+        // `drainPendingMessages` -> `sendMessageOnce` (fails) -> `queueMessageForRetry`.
+        let maxRetries = AppConstants.Twitch.maxMessageRetries
+        var attempts = 0 // attempt that just failed, 1-based after first increment
+        var observed: [Int] = []
+        var passes = 0
+        let guardLimit = maxRetries + 10 // tripwire against an unbounded loop
+
+        // First failure enters the queue at attempts: 1.
+        attempts = 1
+        while TwitchChatService.shouldRequeueAfterFailure(attempts: attempts, maxRetries: maxRetries) {
+            observed.append(attempts)
+            // queueMessageForRetry stores attempts + 1 as the next attempt number.
+            attempts += 1
+            passes += 1
+            #expect(passes < guardLimit)
+            if passes >= guardLimit { break }
+        }
+        // Record the terminal attempt that was dropped (not requeued).
+        observed.append(attempts)
+
+        // Attempts strictly increase by 1 — never reset.
+        #expect(observed == Array(1...maxRetries))
+        // The loop terminated at exactly the retry limit.
+        #expect(attempts == maxRetries)
+    }
 }

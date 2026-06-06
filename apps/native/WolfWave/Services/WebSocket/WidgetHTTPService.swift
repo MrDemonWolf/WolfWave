@@ -32,6 +32,19 @@ import Network
 /// - All other requests → `404 Not Found`
 nonisolated final class WidgetHTTPService: @unchecked Sendable {
 
+    // MARK: - Errors
+
+    /// Thrown from `ready()` when the listener will never reach `.ready` for the
+    /// current `start()` cycle: either the bind failed or the service was stopped
+    /// before binding. Lets a caller distinguish "bound" from "shut down" instead
+    /// of hanging forever.
+    enum ReadyError: Error {
+        /// The `NWListener` transitioned to `.failed` before becoming ready.
+        case listenerFailed
+        /// `stop()` ran before the listener became ready.
+        case stopped
+    }
+
     // MARK: - Properties
 
     private let port: UInt16
@@ -44,6 +57,14 @@ nonisolated final class WidgetHTTPService: @unchecked Sendable {
         label: "com.mrdemonwolf.wolfwave.widget-http",
         qos: .utility
     )
+
+    /// Readiness latch, fulfilled once on the first `NWListener.State.ready`.
+    /// Lets callers (notably tests) await the listener actually binding the
+    /// port instead of sleeping a fixed interval. Guarded by `readyLock` so the
+    /// `networkQueue` state callback and an awaiting caller can race safely.
+    private let readyLock = NSLock()
+    private var isReady = false
+    private var readyWaiters: [CheckedContinuation<Void, Error>] = []
 
     /// Sentinel string in the bundled `widget.html` that we replace with the
     /// live auth token before sending the response.
@@ -101,9 +122,11 @@ nonisolated final class WidgetHTTPService: @unchecked Sendable {
             switch state {
             case .ready:
                 Log.info("WidgetHTTPService: Listening on port \(self.port)", category: "WebSocket")
+                self.markReady()
             case .failed(let error):
                 Log.error("WidgetHTTPService: Listener failed: \(error)", category: "WebSocket")
                 self.listener = nil
+                self.failReadyWaiters(with: .listenerFailed)
             default:
                 break
             }
@@ -121,19 +144,111 @@ nonisolated final class WidgetHTTPService: @unchecked Sendable {
     func stop() {
         listener?.cancel()
         listener = nil
+        readyLock.withLock { isReady = false }
+        // Wake any caller still awaiting `ready()` so a stop-before-bind doesn't
+        // leave them suspended forever.
+        failReadyWaiters(with: .stopped)
         Log.info("WidgetHTTPService: Server stopped", category: "WebSocket")
+    }
+
+    /// Suspends until the listener reaches `NWListener.State.ready` (the port
+    /// is bound and accepting connections). Returns immediately if the service
+    /// is already ready. Use this instead of a fixed `Thread.sleep` so callers
+    /// (and tests) wait exactly as long as the bind takes and no longer.
+    ///
+    /// - Throws: `ReadyError.listenerFailed` if the bind fails, or
+    ///   `ReadyError.stopped` if `stop()` runs before the listener binds. This
+    ///   guarantees the call always resolves instead of hanging on a listener
+    ///   that will never reach `.ready`.
+    func ready() async throws {
+        try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
+            let alreadyReady: Bool = readyLock.withLock {
+                if isReady { return true }
+                readyWaiters.append(continuation)
+                return false
+            }
+            if alreadyReady {
+                continuation.resume()
+            }
+        }
+    }
+
+    /// Latches readiness and resumes any callers awaiting `ready()`. Invoked
+    /// once on the first `.ready` listener transition (on `queue`).
+    private func markReady() {
+        let waiters: [CheckedContinuation<Void, Error>] = readyLock.withLock {
+            guard !isReady else { return [] }
+            isReady = true
+            let pending = readyWaiters
+            readyWaiters.removeAll()
+            return pending
+        }
+        for waiter in waiters {
+            waiter.resume()
+        }
+    }
+
+    /// Resumes any pending `ready()` waiters with the given failure, then clears
+    /// the queue. Invoked when the listener fails to bind or when `stop()` tears
+    /// the service down before it ever reaches `.ready`.
+    private func failReadyWaiters(with error: ReadyError) {
+        let waiters: [CheckedContinuation<Void, Error>] = readyLock.withLock {
+            let pending = readyWaiters
+            readyWaiters.removeAll()
+            return pending
+        }
+        for waiter in waiters {
+            waiter.resume(throwing: error)
+        }
     }
 
     // MARK: - Connection Handling
 
-    /// Accepts an inbound TCP connection and reads up to 8 KiB of the request
-    /// before dispatching to `serveResponse`.
+    /// Largest request-header block we will buffer before giving up. Bounds the
+    /// reassembly below so a slow or hostile peer can't make us hold an unbounded
+    /// buffer while we wait for `\r\n\r\n`.
+    private static let maxHeaderBytes = 8192
+
+    /// HTTP header terminator: a blank line (CRLF CRLF) ends the request headers.
+    private static let headerTerminator = Data([0x0D, 0x0A, 0x0D, 0x0A])
+
+    /// Accepts an inbound TCP connection and reads the request headers, then
+    /// dispatches to `serveResponse`.
     private func handleConnection(_ connection: NWConnection) {
         connection.start(queue: queue)
-        connection.receive(minimumIncompleteLength: 1, maximumLength: 8192) { [weak self] data, _, _, error in
+        readRequestHeaders(from: connection, accumulated: Data())
+    }
+
+    /// Reads from `connection` until the `\r\n\r\n` header terminator is seen or
+    /// the `maxHeaderBytes` cap is hit, reassembling across fragmented reads so a
+    /// split first packet can't produce a false 404. The request line is always in
+    /// the first chunk we hand to `serveResponse`, so once the headers are complete
+    /// (or the cap is reached) we parse and stop reading. No security change: the
+    /// auth gate still lives in the WebSocket handshake, not here.
+    private func readRequestHeaders(from connection: NWConnection, accumulated: Data) {
+        connection.receive(minimumIncompleteLength: 1, maximumLength: 8192) { [weak self] data, _, isComplete, error in
             guard let self else { connection.cancel(); return }
-            guard let data, !data.isEmpty, error == nil else { connection.cancel(); return }
-            self.serveResponse(to: connection, requestData: data)
+            guard error == nil else { connection.cancel(); return }
+
+            var buffer = accumulated
+            if let data { buffer.append(data) }
+
+            if buffer.isEmpty {
+                // Peer closed without sending anything.
+                connection.cancel()
+                return
+            }
+
+            // Headers complete, cap reached, or peer finished sending: parse now.
+            if buffer.range(of: Self.headerTerminator) != nil
+                || buffer.count >= Self.maxHeaderBytes
+                || isComplete {
+                self.serveResponse(to: connection, requestData: buffer)
+                return
+            }
+
+            // Need more bytes to complete the header block.
+            self.readRequestHeaders(from: connection, accumulated: buffer)
         }
     }
 

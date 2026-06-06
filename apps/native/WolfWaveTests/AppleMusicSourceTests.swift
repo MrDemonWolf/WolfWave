@@ -130,6 +130,36 @@ final class AppleMusicSourceTests: XCTestCase {
         XCTAssertNil(AppleMusicSource.extractPlayerState([1, 2, 3]))
     }
 
+    // MARK: - isTrackLoaded (locked decision set)
+
+    private static let kPSF: UInt32 = 1800426310  // 'kPSF': fast-forward
+    private static let kPSR: UInt32 = 1800426322  // 'kPSR': rewind
+    private static let kPSS: UInt32 = 1800426067  // 'kPSS': stopped
+
+    /// Playing, paused, fast-forward, and rewind all mean "a track is loaded"
+    /// and must emit. Pausing deliberately keeps the UI / Discord / overlay
+    /// showing the loaded track. Locked invariant: do not narrow this set.
+    func testIsTrackLoadedTrueForPlayingPausedFastForwardRewind() {
+        XCTAssertTrue(AppleMusicSource.isTrackLoaded(Self.kPSP))
+        XCTAssertTrue(AppleMusicSource.isTrackLoaded(Self.kPSp))
+        XCTAssertTrue(AppleMusicSource.isTrackLoaded(Self.kPSF))
+        XCTAssertTrue(AppleMusicSource.isTrackLoaded(Self.kPSR))
+    }
+
+    /// Stopped (`kPSS`) and an unparsed/`nil` state are the only not-loaded
+    /// cases. Dropping a true case or adding `kPSS` here must fail this test.
+    func testIsTrackLoadedFalseForStoppedAndNil() {
+        XCTAssertFalse(AppleMusicSource.isTrackLoaded(Self.kPSS))
+        XCTAssertFalse(AppleMusicSource.isTrackLoaded(nil))
+    }
+
+    /// An unknown FourCharCode is not track-loaded; the unknown-bridge fallback
+    /// path keys off `currentTrack.name` instead, not this decision.
+    func testIsTrackLoadedFalseForUnknownState() {
+        XCTAssertFalse(AppleMusicSource.isTrackLoaded(0))
+        XCTAssertFalse(AppleMusicSource.isTrackLoaded(42))
+    }
+
     // MARK: - Paused state distinct from playing
 
     /// `kPSp` (paused) and `kPSP` (playing) MUST decode to different FourCharCode

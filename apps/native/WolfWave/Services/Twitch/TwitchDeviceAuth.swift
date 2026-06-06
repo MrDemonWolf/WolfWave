@@ -31,6 +31,22 @@ nonisolated struct TwitchDeviceCodeResponse: Sendable {
     let interval: Int
 }
 
+// MARK: - Token Response
+
+/// Parsed fields from a Twitch OAuth token response (device-code grant or
+/// refresh-token grant). `refreshToken` and `expiresIn` are optional because
+/// some grant variants omit them.
+nonisolated struct TwitchTokenResponse: Sendable, Equatable {
+    /// The OAuth access token.
+    let accessToken: String
+
+    /// The refresh token, when the response includes one.
+    let refreshToken: String?
+
+    /// Access-token lifetime in seconds, when present.
+    let expiresIn: Int?
+}
+
 // MARK: - Device Auth Errors
 
 /// Errors that can occur during the OAuth Device Code flow.
@@ -190,6 +206,7 @@ nonisolated final class TwitchDeviceAuth: Sendable {
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.setValue("application/x-www-form-urlencoded", forHTTPHeaderField: "Content-Type")
+        request.setValue(HTTPClient.defaultUserAgent, forHTTPHeaderField: "User-Agent")
         request.httpBody = body
         request.timeoutInterval = 15
 
@@ -319,6 +336,7 @@ nonisolated final class TwitchDeviceAuth: Sendable {
             request.httpMethod = "POST"
             request.setValue(
                 "application/x-www-form-urlencoded", forHTTPHeaderField: "Content-Type")
+            request.setValue(HTTPClient.defaultUserAgent, forHTTPHeaderField: "User-Agent")
             request.httpBody = body
             request.timeoutInterval = 15
 
@@ -329,16 +347,24 @@ nonisolated final class TwitchDeviceAuth: Sendable {
                 }
 
                 if (200..<300).contains(http.statusCode) {
-                    guard let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-                        let accessToken = json["access_token"] as? String,
-                        !accessToken.isEmpty
-                    else {
+                    guard let parsed = TwitchDeviceAuth.parseTokenResponse(data) else {
                         Log.error(
                             "TwitchDeviceAuth: Failed to parse access token from response", category: "Twitch")
                         throw TwitchDeviceAuthError.invalidResponse
                     }
+                    // Persist the refresh token so a future 401 can attempt one
+                    // reactive refresh before forcing interactive re-auth.
+                    if let refreshToken = parsed.refreshToken {
+                        do {
+                            try KeychainService.saveTwitchRefreshToken(refreshToken)
+                        } catch {
+                            Log.warn(
+                                "TwitchDeviceAuth: Could not persist refresh token - \(error.localizedDescription)",
+                                category: "Twitch")
+                        }
+                    }
                     Log.info("TwitchDeviceAuth: Device code token obtained successfully", category: "Twitch")
-                    return accessToken
+                    return parsed.accessToken
                 }
 
                 // Check if we've exceeded max polling attempts
@@ -414,6 +440,79 @@ nonisolated final class TwitchDeviceAuth: Sendable {
         }
     }
 
+    // MARK: - Token Parsing (nonisolated, pure, testable)
+
+    /// Parses a Twitch OAuth token response body into a `TwitchTokenResponse`.
+    ///
+    /// Returns `nil` when the body is not a JSON object or lacks a non-empty
+    /// `access_token`. `refresh_token` and `expires_in` are optional.
+    nonisolated static func parseTokenResponse(_ data: Data) -> TwitchTokenResponse? {
+        guard let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let accessToken = json["access_token"] as? String,
+              !accessToken.isEmpty else {
+            return nil
+        }
+        let refreshToken = (json["refresh_token"] as? String).flatMap { $0.isEmpty ? nil : $0 }
+        let expiresIn = json["expires_in"] as? Int
+        return TwitchTokenResponse(
+            accessToken: accessToken, refreshToken: refreshToken, expiresIn: expiresIn)
+    }
+
+    // MARK: - Refresh Token Grant
+
+    /// Exchanges a refresh token for a fresh access token via
+    /// `grant_type=refresh_token`. Used for one reactive refresh before falling
+    /// back to interactive re-auth. Performs a single request; never loops.
+    ///
+    /// - Parameter refreshToken: The stored OAuth refresh token.
+    /// - Returns: A parsed `TwitchTokenResponse` (the new `refreshToken` may
+    ///   differ; persist it if present).
+    /// - Throws: `TwitchDeviceAuthError` on a non-2xx status, malformed body, or
+    ///   transport failure.
+    func refreshAccessToken(refreshToken: String) async throws -> TwitchTokenResponse {
+        guard !clientID.isEmpty else { throw TwitchDeviceAuthError.invalidClient }
+        guard !refreshToken.isEmpty else { throw TwitchDeviceAuthError.invalidResponse }
+        guard let tokenURL = URL(string: AppConstants.API.twitchOAuthToken) else {
+            throw TwitchDeviceAuthError.invalidResponse
+        }
+
+        let params: [String: String] = [
+            "client_id": clientID,
+            "grant_type": "refresh_token",
+            "refresh_token": refreshToken,
+        ]
+        var request = URLRequest(url: tokenURL)
+        request.httpMethod = "POST"
+        request.setValue("application/x-www-form-urlencoded", forHTTPHeaderField: "Content-Type")
+        request.setValue(HTTPClient.defaultUserAgent, forHTTPHeaderField: "User-Agent")
+        request.httpBody = formURLEncoded(params: params)
+        request.timeoutInterval = 15
+
+        do {
+            let (data, response) = try await session.data(for: request)
+            guard let http = response as? HTTPURLResponse else {
+                throw TwitchDeviceAuthError.invalidResponse
+            }
+            guard (200..<300).contains(http.statusCode) else {
+                if http.statusCode == 401 || http.statusCode == 400 {
+                    // Refresh token is invalid/expired: caller falls back to re-auth.
+                    throw TwitchDeviceAuthError.invalidClient
+                }
+                let message = String(data: data, encoding: .utf8) ?? "HTTP \(http.statusCode)"
+                throw TwitchDeviceAuthError.unknown(message)
+            }
+            guard let parsed = TwitchDeviceAuth.parseTokenResponse(data) else {
+                throw TwitchDeviceAuthError.invalidResponse
+            }
+            return parsed
+        } catch let error as TwitchDeviceAuthError {
+            throw error
+        } catch {
+            if (error as? CancellationError) != nil { throw error }
+            throw TwitchDeviceAuthError.unknown(error.localizedDescription)
+        }
+    }
+
     // MARK: - Private Helpers
 
     /// Encodes parameters as application/x-www-form-urlencoded for HTTP requests.
@@ -425,5 +524,55 @@ nonisolated final class TwitchDeviceAuth: Sendable {
     /// - Returns: URL-encoded data ready for HTTP body.
     private func formURLEncoded(params: [String: String]) -> Data {
         HTTPClient.formURLEncodedBody(params)
+    }
+}
+
+// MARK: - Reactive Token Refresh
+
+/// Coordinates one reactive OAuth token refresh from the live Twitch service.
+///
+/// On a live 401, `TwitchChatService` calls `attemptReactiveRefresh` exactly
+/// once (never in a loop). It reads the stored refresh token, exchanges it for a
+/// fresh access token, persists both, and returns the new access token. Any
+/// failure (no refresh token, transport error, dead refresh token) returns
+/// `nil`, and the caller falls back to interactive re-auth.
+nonisolated enum TwitchTokenRefresher {
+
+    /// Attempts a single refresh-token exchange.
+    ///
+    /// - Parameter clientID: The Twitch application client ID.
+    /// - Returns: The fresh access token, or `nil` if a refresh is impossible.
+    static func attemptReactiveRefresh(clientID: String) async -> String? {
+        guard !clientID.isEmpty else { return nil }
+        guard let refreshToken = KeychainService.loadTwitchRefreshToken(),
+              !refreshToken.isEmpty else {
+            Log.info(
+                "TwitchTokenRefresher: No stored refresh token; cannot refresh",
+                category: "Twitch")
+            return nil
+        }
+
+        let auth = TwitchDeviceAuth(
+            clientID: clientID, scopes: AppConstants.Twitch.chatScopes)
+        do {
+            let response = try await auth.refreshAccessToken(refreshToken: refreshToken)
+            do {
+                try KeychainService.saveTwitchToken(response.accessToken)
+                if let newRefresh = response.refreshToken {
+                    try KeychainService.saveTwitchRefreshToken(newRefresh)
+                }
+            } catch {
+                Log.warn(
+                    "TwitchTokenRefresher: Refreshed but could not persist - \(error.localizedDescription)",
+                    category: "Twitch")
+                // Still usable for this reconnect even if persistence failed.
+            }
+            return response.accessToken
+        } catch {
+            Log.warn(
+                "TwitchTokenRefresher: Refresh failed - \(error.localizedDescription)",
+                category: "Twitch")
+            return nil
+        }
     }
 }

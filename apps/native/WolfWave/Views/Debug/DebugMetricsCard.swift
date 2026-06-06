@@ -22,13 +22,6 @@ struct DebugMetricsCard: View {
     /// Interval between metric snapshots while the card is on-screen.
     private static let refreshInterval: Duration = .seconds(2)
 
-    private static let byteFormatter: ByteCountFormatter = {
-        let formatter = ByteCountFormatter()
-        formatter.allowedUnits = [.useMB]
-        formatter.countStyle = .memory
-        return formatter
-    }()
-
     // MARK: - Body
 
     var body: some View {
@@ -40,7 +33,7 @@ struct DebugMetricsCard: View {
 
             metricRow(
                 "Memory usage",
-                Self.byteFormatter.string(fromByteCount: Int64(snapshot.residentMemoryBytes))
+                ByteFormatting.memory(Int64(snapshot.residentMemoryBytes))
             )
             metricRow("Overlay clients", "\(snapshot.webSocketClients)")
             metricRow("Overlay messages sent", "\(snapshot.webSocketMessagesSent)")

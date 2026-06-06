@@ -54,18 +54,11 @@ nonisolated final class PlayLogStore: @unchecked Sendable {
         fileURL = dir.appending(path: AppConstants.History.logFileName)
     }
 
-    /// Resolves the default play-log directory under Application Support,
-    /// falling back to the temporary directory if unavailable.
+    /// Resolves the default play-log directory under the `WolfWave/`
+    /// Application Support container, falling back to the temporary directory
+    /// if unavailable.
     private static func defaultDirectory() -> URL {
-        guard let appSupport = FileManager.default.urls(
-            for: .applicationSupportDirectory, in: .userDomainMask
-        ).first else {
-            return FileManager.default.temporaryDirectory
-                .appending(path: AppConstants.History.directoryName, directoryHint: .isDirectory)
-        }
-        return appSupport.appendingPathComponent(
-            AppConstants.History.directoryName, isDirectory: true
-        )
+        AppContainer.directory(AppConstants.History.directoryName)
     }
 
     // MARK: - Public API

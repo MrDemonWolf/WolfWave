@@ -63,6 +63,9 @@ nonisolated enum KeychainService {
     /// Account identifier for Twitch OAuth token.
     private static let twitchBotAccountOauthToken = "twitchBotAccountOauthToken"
 
+    /// Account identifier for the Twitch OAuth refresh token.
+    private static let twitchBotAccountRefreshToken = AppConstants.Keychain.twitchBotAccountRefreshToken
+
     /// Account identifier for Twitch bot username.
     private static let twitchBotAccountUsername = "twitchBotAccountUsername"
 
@@ -141,6 +144,28 @@ nonisolated enum KeychainService {
 
     static func deleteTwitchToken() {
         deleteItem(account: twitchBotAccountOauthToken)
+    }
+
+    // MARK: - Public Methods - Twitch Refresh Token
+
+    /// Saves the Twitch OAuth refresh token to Keychain.
+    ///
+    /// Used by the reactive token refresh flow: when a live API call returns 401,
+    /// WolfWave POSTs `grant_type=refresh_token` once before falling back to
+    /// interactive re-auth.
+    ///
+    /// - Parameter token: The refresh token from the OAuth token response.
+    /// - Throws: `KeychainError.saveFailed(status)` if the Keychain operation fails.
+    static func saveTwitchRefreshToken(_ token: String) throws {
+        try upsertItem(account: twitchBotAccountRefreshToken, value: token)
+    }
+
+    static func loadTwitchRefreshToken() -> String? {
+        loadItem(account: twitchBotAccountRefreshToken)
+    }
+
+    static func deleteTwitchRefreshToken() {
+        deleteItem(account: twitchBotAccountRefreshToken)
     }
 
     // MARK: - Twitch Username Methods

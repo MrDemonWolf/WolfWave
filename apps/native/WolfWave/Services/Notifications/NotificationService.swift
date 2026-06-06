@@ -216,7 +216,7 @@ final class NotificationService {
 
     /// Opens System Settings → Notifications. macOS 13+ deep-link.
     func openSystemNotificationSettings() {
-        ExternalLink.open("x-apple.systempreferences:com.apple.Notifications-Settings.extension")
+        ExternalLink.open(AppConstants.URLs.systemNotificationSettings)
     }
 
     // MARK: - Request Building
@@ -243,8 +243,14 @@ final class NotificationService {
 
     // MARK: - Private Helpers
 
-    /// Adds a notification request, requesting authorization first when the
-    /// status is undetermined. No-op when authorization is denied.
+    /// Adds a notification request. No-op unless authorization has already been
+    /// granted.
+    ///
+    /// `.notDetermined` is treated exactly like `.denied`: a background delivery
+    /// must never trigger the system authorization prompt out of nowhere. The user
+    /// only grants permission through the deliberate, primed button paths
+    /// (`requestAuthorization()` from onboarding / settings), so an un-asked
+    /// install simply drops the notification.
     ///
     /// - Parameters:
     ///   - content: The notification content to deliver.
@@ -254,9 +260,9 @@ final class NotificationService {
         let center = UNUserNotificationCenter.current()
 
         switch await center.notificationSettings().authorizationStatus {
-        case .notDetermined:
-            guard await requestAuthorization() else { return }
-        case .denied:
+        case .notDetermined, .denied:
+            // No prompt, no delivery. Authorization happens only via the primed
+            // button paths, never as a side effect of a notification firing.
             return
         default:
             break
