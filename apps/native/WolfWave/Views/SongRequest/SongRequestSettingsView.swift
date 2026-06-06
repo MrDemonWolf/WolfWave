@@ -18,6 +18,10 @@ struct SongRequestSettingsView: View {
     private var songRequestEnabled = false
 
     @State private var isTwitchConnected = false
+    /// Mirrors the Twitch pane's reauth flag so this pane can surface the same
+    /// "sign-in expired" warning instead of the calmer "connect" info note.
+    @State private var twitchReauthNeeded = UserDefaults.standard.bool(
+        forKey: AppConstants.UserDefaults.twitchReauthNeeded)
     @State private var musicAuthStatus: MusicAuthorization.Status = MusicAuthorization.currentStatus
     @State private var isRequestingMusicAuth = false
 
@@ -69,11 +73,15 @@ struct SongRequestSettingsView: View {
         .onAppear {
             musicAuthStatus = MusicAuthorization.currentStatus
             refreshTwitchState()
+            refreshReauthState()
         }
         .onReceive(NotificationCenter.default.publisher(for: Notification.Name.twitchConnectionStateChanged)) { notification in
             if let connected = notification.isConnectedFlag {
                 updateTwitchState(connected)
             }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: Notification.Name.twitchReauthNeededChanged)) { _ in
+            refreshReauthState()
         }
     }
 
@@ -137,17 +145,25 @@ struct SongRequestSettingsView: View {
         }
     }
 
-    /// Shown when Twitch isn't connected. Hidden once connected (and the master
-    /// toggle stays disabled until then via `SongRequestMasterToggleCard`).
-    @ViewBuilder
+    /// Shown when Twitch isn't ready. An expired sign-in gets the orange warning
+    /// (matching the Twitch pane); a never-connected state gets the calm info
+    /// note. Hidden once connected (the master toggle stays disabled until then
+    /// via `SongRequestMasterToggleCard`).
     private var twitchNotice: some View {
-        if !isTwitchConnected {
-            CalloutBanner(
-                "Connect with Twitch to enable song requests.",
-                style: .info,
-                systemImage: "lock.fill"
-            )
-        }
+        TwitchConnectionNotice(
+            isConnected: isTwitchConnected,
+            reauthNeeded: twitchReauthNeeded,
+            expiredMessage: "Your Twitch sign-in expired. Reconnect in Twitch settings to keep song requests working.",
+            disconnectedMessage: "Connect with Twitch to enable song requests."
+        )
+    }
+
+    /// Reloads the reauth flag from the shared `UserDefaults` key the Twitch view
+    /// model writes, so the notice flips to the warning style the moment the
+    /// token expires (or back once it's renewed).
+    private func refreshReauthState() {
+        twitchReauthNeeded = UserDefaults.standard.bool(
+            forKey: AppConstants.UserDefaults.twitchReauthNeeded)
     }
 
     /// Refreshes the Twitch-connected flag from the live service so the

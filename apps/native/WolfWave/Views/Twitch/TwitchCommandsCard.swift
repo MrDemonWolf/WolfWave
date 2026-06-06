@@ -28,14 +28,13 @@ struct TwitchCommandsCard: View {
         viewModel.channelConnected && !viewModel.reauthNeeded
     }
 
-    /// Lock-banner copy: distinguishes an expired sign-in from never connecting.
-    /// Both point "above" at the Twitch auth card in the same pane rather than
-    /// duplicating its connect/reconnect button.
-    private var lockMessage: String {
-        viewModel.reauthNeeded
-            ? "Your Twitch sign-in expired. Reconnect above to keep chat commands working."
-            : "Connect with Twitch above to let people use these chat commands."
-    }
+    /// Lock-banner copy. Both lines point "above" at the Twitch auth card in the
+    /// same pane rather than duplicating its connect/reconnect button. The
+    /// expired-vs-disconnected split is rendered by ``TwitchConnectionNotice``.
+    private let expiredMessage =
+        "Your Twitch sign-in expired. Reconnect above to keep chat commands working."
+    private let disconnectedMessage =
+        "Connect with Twitch above to let people use these chat commands."
 
     /// Apple Events automation grant for Music.app. `!song` / `!last` read the
     /// now-playing track through it, so a denial means those two commands return
@@ -102,13 +101,12 @@ struct TwitchCommandsCard: View {
                     .fieldSubtitle()
             }
 
-            if !twitchReady {
-                CalloutBanner(
-                    lockMessage,
-                    style: viewModel.reauthNeeded ? .warning : .info,
-                    systemImage: viewModel.reauthNeeded ? nil : "lock.fill"
-                )
-            }
+            TwitchConnectionNotice(
+                isConnected: viewModel.channelConnected,
+                reauthNeeded: viewModel.reauthNeeded,
+                expiredMessage: expiredMessage,
+                disconnectedMessage: disconnectedMessage
+            )
 
             if needsMusicAccess {
                 MusicPermissionBanner(
