@@ -212,20 +212,14 @@ struct DiscordPreviewCard: View {
     /// `paused` swaps the glyph to a pause symbol. Shared by the playing,
     /// paused, and idle tiles so the small badge stays visually identical.
     private func cornerBadge(paused: Bool, tooltip: String) -> some View {
-        Image(systemName: paused ? "pause.fill" : "music.note")
-            .font(.system(size: DSFont.Size.xs, weight: .bold))
-            .foregroundStyle(.white)
+        // Renders the real Discord `assets.small_image` art (`apple_music.png` /
+        // `pause.png` uploaded to the Discord portal) clipped to a circle, which
+        // is exactly how the live client draws the small badge. Previously a
+        // hand-built SF Symbol on a gradient stood in for it.
+        Image(paused ? "DiscordArtPause" : "DiscordArtAppleMusic")
+            .resizable()
+            .scaledToFill()
             .frame(width: 22, height: 22)
-            .background(
-                LinearGradient(
-                    colors: [
-                        AppConstants.Brand.appleMusicGradientStart,
-                        AppConstants.Brand.appleMusicGradientEnd,
-                    ],
-                    startPoint: .topLeading,
-                    endPoint: .bottomTrailing
-                )
-            )
             .clipShape(Circle())
             .overlay(Circle().stroke(cardBackground, lineWidth: 2))
             .offset(x: 4, y: 4)
@@ -252,22 +246,31 @@ struct DiscordPreviewCard: View {
     /// presence ships this as its large image, so the idle card renders it too
     /// instead of the WolfMark placeholder, keeping the preview honest.
     private var appleMusicTile: some View {
-        LinearGradient(
-            colors: [
-                AppConstants.Brand.appleMusicGradientStart,
-                AppConstants.Brand.appleMusicGradientEnd,
-            ],
-            startPoint: .topLeading,
-            endPoint: .bottomTrailing
-        )
-        .overlay(
-            Image("AppleMusicLogo")
-                .renderingMode(.template)
-                .resizable()
-                .aspectRatio(contentMode: .fit)
-                .frame(width: 42, height: 42)
-                .foregroundStyle(.white)
-        )
+        // Mirrors Discord's `assets.large_image: "apple_music"` art exactly: the
+        // same `apple_music.png` uploaded to the Discord portal, not a rebuilt
+        // logo-on-gradient. Rendered on black so the asset's transparent corners
+        // read like the live client.
+        Color.black
+            .overlay(
+                Image("DiscordArtAppleMusic")
+                    .resizable()
+                    .scaledToFill()
+            )
+    }
+
+    /// Mirrors Discord's `assets.large_image: "wolfwave"` art exactly: the same
+    /// WolfWave app-icon PNG (`discord-assets/wolfwave.png`) that's uploaded to
+    /// the Discord developer portal as the `wolfwave` Rich Presence asset. Used
+    /// for the idle tile so the preview shows the real registered art instead of
+    /// a hand-built `WolfMark`-on-gradient stand-in. Rendered on the Discord card
+    /// surface so the asset's transparent edges read like the live client.
+    private var wolfWaveArtTile: some View {
+        Color.black
+            .overlay(
+                Image("DiscordArtWolfWave")
+                    .resizable()
+                    .scaledToFill()
+            )
     }
 
     private var progressBar: some View {
@@ -361,9 +364,8 @@ struct DiscordPreviewCard: View {
     private var idleActivityContent: some View {
         HStack(alignment: .center, spacing: DSSpace.s4) {
             ZStack(alignment: .bottomTrailing) {
-                artworkPlaceholder
+                wolfWaveArtTile
                     .frame(width: 80, height: 80)
-                    .saturation(0.45)
                     .clipShape(RoundedRectangle(cornerRadius: DSRadius.sm, style: .continuous))
                 cornerBadge(paused: false, tooltip: "Apple Music")
             }
