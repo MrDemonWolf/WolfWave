@@ -17,6 +17,12 @@ import Foundation
 final class BotCommandDispatcher {
     private let lock = NSLock()
     private var commands: [BotCommand] = []
+
+    /// Global pre-flight gate evaluated before any command runs. Returns `true`
+    /// when commands are allowed to respond. Wired by `TwitchChatService` to the
+    /// "commands only while live" setting folded with stream-live state. Default
+    /// `{ true }` so a bare dispatcher (and unit tests) respond unconditionally.
+    private var globalGate: () -> Bool = { true }
     private let songCommand = TrackInfoCommand(
         triggers: ["!song", "!currentsong", "!nowplaying"],
         description: "Displays the currently playing track",
@@ -204,6 +210,17 @@ final class BotCommandDispatcher {
         }
     }
 
+    /// Wires the global pre-flight gate (the "commands only while live" switch).
+    ///
+    /// - Parameter callback: Closure returning `true` when commands may respond.
+    ///   Evaluated once per message before trigger matching, so toggling the
+    ///   setting or going live/offline takes effect on the next message.
+    func setGlobalGate(callback: @escaping () -> Bool) {
+        lock.withLock {
+            globalGate = callback
+        }
+    }
+
     /// Processes a chat message and returns a command response if matched.
     ///
     /// - Parameters:
@@ -234,6 +251,13 @@ final class BotCommandDispatcher {
         let trimmedMessage = message.trimmingCharacters(in: .whitespaces)
 
         guard !trimmedMessage.isEmpty, trimmedMessage.count <= AppConstants.Twitch.maxMessageLength else {
+            return nil
+        }
+
+        // Global pre-flight gate ("commands only while live"). Closed → every
+        // command stays silent regardless of its own enable state.
+        let gate = lock.withLock { globalGate }
+        guard gate() else {
             return nil
         }
 
@@ -324,6 +348,14 @@ final class BotCommandDispatcher {
 
         guard !trimmedMessage.isEmpty, trimmedMessage.count <= AppConstants.Twitch.maxMessageLength else {
             Log.debug("BotCommandDispatcher: processMessageAsync: empty/too-long, bail", category: "Twitch")
+            return nil
+        }
+
+        // Global pre-flight gate ("commands only while live"). Closed → every
+        // command stays silent regardless of its own enable state.
+        let gate = lock.withLock { globalGate }
+        guard gate() else {
+            Log.debug("BotCommandDispatcher: global gate closed (live-only, stream offline), bail", category: "Twitch")
             return nil
         }
 

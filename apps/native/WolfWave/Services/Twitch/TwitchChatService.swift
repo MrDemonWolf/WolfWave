@@ -640,9 +640,18 @@ actor TwitchChatService {
         let lastSongCommandEnabled: @Sendable () -> Bool = { [weak self] in
             self?.lastSongCommandEnabled ?? false
         }
-        let statsCommandActiveAndLive: @Sendable () -> Bool = { [weak self] in
-            guard let self else { return false }
-            guard self.statsCommandActive else { return false }
+        // `!stats` now follows the same global gate as every other command;
+        // its own enable state is just feature-on + command-on.
+        let statsCommandActive: @Sendable () -> Bool = { [weak self] in
+            self?.statsCommandActive ?? false
+        }
+        // Global "commands only while live" gate. Off → commands reply anytime.
+        // On → every command (incl. !stats) waits for stream.online. Read per
+        // message so toggling the setting or going live takes effect at once.
+        let commandsGlobalGate: @Sendable () -> Bool = {
+            guard UserDefaults.standard.bool(forKey: AppConstants.UserDefaults.commandsLiveOnly) else {
+                return true
+            }
             return streamLiveSnapshot.value
         }
         await MainActor.run {
@@ -666,7 +675,8 @@ actor TwitchChatService {
             }
             commandDispatcher.setCurrentSongCommandEnabled(callback: currentSongCommandEnabled)
             commandDispatcher.setLastSongCommandEnabled(callback: lastSongCommandEnabled)
-            commandDispatcher.setStatsCommandEnabled(callback: statsCommandActiveAndLive)
+            commandDispatcher.setStatsCommandEnabled(callback: statsCommandActive)
+            commandDispatcher.setGlobalGate(callback: commandsGlobalGate)
         }
 
         // Don't set connected state here - wait for EventSub session_welcome

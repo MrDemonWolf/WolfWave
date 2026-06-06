@@ -21,6 +21,9 @@ struct TwitchSettingsView: View {
     @State private var hasStartedActivation = false
     /// Whether the one-time keychain + service wiring has run for this view model instance.
     @State private var didLoadCredentials = false
+    /// Global "commands only while live" switch. Applies to every chat command.
+    @AppStorage(AppConstants.UserDefaults.commandsLiveOnly)
+    private var commandsLiveOnly = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: DSSpace.s6) {
@@ -32,6 +35,8 @@ struct TwitchSettingsView: View {
                     DSMotion.Spring.snappy,
                     value: (viewModel.credentialsSaved || viewModel.channelConnected
                         || viewModel.authState.isInProgress))
+
+            chatCommandsCard
         }
         .onAppear {
             // Keychain reads + AppDelegate wiring run once per view model instance.
@@ -85,6 +90,30 @@ struct TwitchSettingsView: View {
             statusText: viewModel.statusChipText,
             statusColor: viewModel.statusChipColor
         )
+    }
+
+    /// Global "commands only while live" switch. Applies to every chat command
+    /// (`!song`, `!last`, `!stats`, `!sr`, `!queue`, …) in one place.
+    private var chatCommandsCard: some View {
+        VStack(alignment: .leading, spacing: DSSpace.s4) {
+            HStack(spacing: DSSpace.s3) {
+                CardEyebrowHeader("Chat commands", systemImage: "bubble.left.and.bubble.right")
+                Spacer()
+                StatusChip(text: "Twitch", color: .purple)
+            }
+
+            ToggleSettingRow(
+                title: "Only reply while live",
+                subtitle: commandsLiveOnly
+                    ? "Every chat command stays quiet until you go live."
+                    : "Chat commands reply anytime, live or not.",
+                isOn: $commandsLiveOnly,
+                accessibilityLabel: "Toggle replying to chat commands only while live",
+                accessibilityIdentifier: "commandsLiveOnlyToggle"
+            )
+        }
+        .padding(AppConstants.SettingsUI.cardPadding)
+        .cardStyleUnpadded()
     }
 
     /// Title text for the auth card header, adapts to reauth/signed-in/signed-out states.

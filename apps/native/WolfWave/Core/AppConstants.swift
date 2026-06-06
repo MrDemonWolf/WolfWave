@@ -245,6 +245,12 @@ nonisolated enum AppConstants {
         /// Whether "last song" bot command is enabled (Bool, default: false)
         static let lastSongCommandEnabled = "lastSongCommandEnabled"
 
+        /// Whether ALL chat commands reply only while the stream is live.
+        /// When `true`, every bot command (incl. `!stats`) stays silent until a
+        /// `stream.online` EventSub event (or Helix seed) marks the stream live.
+        /// When `false`, commands respond regardless of live state (Bool, default: false).
+        static let commandsLiveOnly = "commandsLiveOnly"
+
         /// Whether !song / !last replies include a song.link URL (Bool, default: false)
         static let songCommandSongLinkEnabled = "songCommandSongLinkEnabled"
 
@@ -539,6 +545,7 @@ nonisolated enum AppConstants {
             websocketEnabled,
             currentSongCommandEnabled,
             lastSongCommandEnabled,
+            commandsLiveOnly,
             hasCompletedOnboarding,
             shareDiagnosticsEnabled,
             diagnosticsLaunchCount,
@@ -651,6 +658,7 @@ nonisolated enum AppConstants {
             // Music monitor / song commands
             currentSongCommandEnabled,
             lastSongCommandEnabled,
+            commandsLiveOnly,
             songCommandSongLinkEnabled,
             songCommandGlobalCooldown,
             songCommandUserCooldown,
