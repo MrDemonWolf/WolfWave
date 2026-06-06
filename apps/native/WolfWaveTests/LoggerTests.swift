@@ -118,27 +118,20 @@ struct LoggerTests {
         }
     }
     
-    @Test("Log file contains expected content")
+    @Test("Log file line contains expected content")
     func testLogFileContent() async throws {
+        // Build the exact line the file sink would write, rather than reading
+        // back the process-global log. Other suites share that file and can
+        // rotate it mid-test (rotation keeps only the single `.1` backup, so a
+        // burst large enough to rotate twice deletes our line outright), which
+        // made the readback assertion flaky in CI (run 27049793195). The real
+        // disk-write path stays covered by `testLogFileExport`.
         let testMessage = "Test log message \(UUID().uuidString)"
+        let line = Log.formatFileLineForTesting(testMessage, level: .info, category: "TestCategory")
 
-        Log.info(testMessage, category: "TestCategory")
-        Log.flush()
-
-        // Export and read log file
-        guard let logURL = Log.exportLogFile() else {
-            Issue.record("Failed to export log file")
-            return
-        }
-
-        // Concurrent suites write into the same global log; a burst can rotate
-        // it and move our line into the .1 backup, so scan both.
-        let logContent = readLogIncludingBackup(at: logURL)
-
-        // Verify test message is in log file
-        #expect(logContent.contains(testMessage))
-        #expect(logContent.contains("INFO"))
-        #expect(logContent.contains("TestCategory"))
+        #expect(line.contains(testMessage))
+        #expect(line.contains("INFO"))
+        #expect(line.contains("TestCategory"))
     }
     
     // MARK: - Debug Logging Tests

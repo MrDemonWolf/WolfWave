@@ -282,11 +282,10 @@ enum Log {
         line: UInt = #line
     ) {
         let redactedMessage = redactSensitiveInfo(message)
-        let timestamp = formatter.string(from: Date())
         let location = sourceLocation(file: file, line: line)
 
         // File log keeps emoji + timestamp + location for human grep-ing.
-        let fileLine = "\(level.rawValue)  [\(category)] \(timestamp)  \(location)  \(redactedMessage)"
+        let fileLine = formatFileLine(redactedMessage, level: level, category: category, location: location)
         writeToFile(fileLine)
 
         // OSLog → Xcode console + Console.app + Instruments.
@@ -405,6 +404,19 @@ enum Log {
         flush()
     }
 
+    /// Builds the exact line written to the on-disk log file:
+    /// `<level emoji> <LEVEL>  [<category>] <timestamp>  <location>  <message>`.
+    /// Message is assumed already redacted by the caller.
+    nonisolated private static func formatFileLine(
+        _ redactedMessage: String,
+        level: LogLevel,
+        category: String,
+        location: String
+    ) -> String {
+        let timestamp = formatter.string(from: Date())
+        return "\(level.rawValue)  [\(category)] \(timestamp)  \(location)  \(redactedMessage)"
+    }
+
     /// Formats `#fileID` + `#line` as `Module/File.swift:42` (just `File.swift:42` if no module prefix).
     nonisolated private static func sourceLocation(file: StaticString, line: UInt) -> String {
         let full = "\(file)"
@@ -449,6 +461,29 @@ enum Log {
     /// deterministic and touches no file.
     nonisolated static func redactForTesting(_ message: String) -> String {
         redactSensitiveInfo(message)
+    }
+
+    /// Test-only hook exposing the on-disk log line builder.
+    ///
+    /// Verifies the exact format written to the log file (redaction + level +
+    /// category + message) without reading back the app-wide on-disk log. `Log`
+    /// is a process-global singleton; other suites write into the same file and
+    /// can rotate it mid-test, deleting the line we just wrote (rotation keeps
+    /// only the single `.1` backup, so a burst large enough to rotate twice
+    /// evicts our message entirely). Building the line directly is deterministic
+    /// and touches no shared file. The real disk-write path stays covered by
+    /// `testLogFileExport`.
+    nonisolated static func formatFileLineForTesting(
+        _ message: String,
+        level: LogLevel = .info,
+        category: String = "App"
+    ) -> String {
+        formatFileLine(
+            redactSensitiveInfo(message),
+            level: level,
+            category: category,
+            location: "Test.swift:0"
+        )
     }
     #endif
 
