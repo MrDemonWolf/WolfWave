@@ -394,12 +394,16 @@ private struct WidgetTextShadow: ViewModifier {
 /// A light/dark checkerboard, the universal "this layer is transparent" cue.
 /// Lets the Default (transparent) theme read correctly in the preview.
 private struct CheckerboardBackground: View {
+    @Environment(\.colorScheme) private var colorScheme
     private let tile: CGFloat = 11
 
     var body: some View {
-        Canvas { context, size in
-            let light = Color(white: 0.22)
-            let dark = Color(white: 0.16)
+        // Light mode shows pale grays, dark mode shows charcoal grays, so the
+        // "transparent" cue reads on both appearances instead of staying dark.
+        let isDark = colorScheme == .dark
+        let light = Color(white: isDark ? 0.22 : 0.90)
+        let dark = Color(white: isDark ? 0.16 : 0.82)
+        return Canvas { context, size in
             context.fill(Path(CGRect(origin: .zero, size: size)), with: .color(dark))
             let cols = Int((size.width / tile).rounded(.up))
             let rows = Int((size.height / tile).rounded(.up))
