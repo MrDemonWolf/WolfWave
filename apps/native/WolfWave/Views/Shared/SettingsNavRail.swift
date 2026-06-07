@@ -122,6 +122,13 @@ struct SettingsNavRail<Section: SettingsRailSection, Content: View>: View {
                     .padding(.horizontal, AppConstants.SettingsUI.contentPaddingH)
                     .padding(.vertical, AppConstants.SettingsUI.contentPaddingV)
                 }
+                // Claim the full proposed height explicitly, matching `navRail`.
+                // Without this the content ScrollView, as a greedy view inside an
+                // `HStack(alignment: .top)` sized by an ancestor frame, can resolve
+                // to its natural content height instead of the viewport height —
+                // so a long pane (e.g. Debug) overflows the window with no scroll
+                // and `proxy.scrollTo` lands on an anchor that never moves.
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .coordinateSpace(name: settingsRailSpace)
                 .onPreferenceChange(SectionOffsetPreferenceKey<Section>.self) { offsets in
                     syncSelection(from: offsets)
