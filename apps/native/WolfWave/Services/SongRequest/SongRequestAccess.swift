@@ -140,33 +140,42 @@ enum SongRequestPreset: String, CaseIterable, Identifiable {
     /// One-line explanation of what the preset does.
     var summary: String {
         switch self {
-        case .open: return "Anyone can request with !sr. Bits bump a song to the front."
-        case .subsOnly: return "!sr is for subscribers only."
+        case .open: return "Anyone can request: !sr, channel points, or bits. Bits bump a song to the front."
+        case .subsOnly: return "Only subscribers can request. Channel points and bits are off."
         case .channelPointsOnly: return "!sr is off. Viewers redeem the channel-point reward to request."
         case .custom: return "Fine-tune exactly who can use !sr below."
         }
     }
 
-    /// Writes this preset's configuration into `UserDefaults`.
+    /// Writes this preset's full configuration (chat command, audience, and the
+    /// channel-point / bit redemption toggles) into `UserDefaults`.
     ///
-    /// Always records the active mode. `.open`/`.subsOnly` set the chat command
-    /// and audience; `.channelPointsOnly` turns `!sr` off and the reward on;
-    /// `.custom` records the mode only and leaves the existing audience intact so
-    /// the streamer can edit it.
+    /// Always records the active mode. `.custom` records the mode only and leaves
+    /// every other setting intact so the streamer can fine-tune by hand.
+    ///
+    /// Toggling the redemption flags only changes preferences; the caller is
+    /// responsible for re-running `refreshRedemptionSubscriptions()` so the
+    /// managed Twitch reward is actually created or torn down. The settings
+    /// Access card does this after every `apply(_:)`.
     func apply(to defaults: Foundation.UserDefaults = .standard) {
         defaults.set(rawValue, forKey: AppConstants.UserDefaults.songRequestPolicyMode)
         switch self {
         case .open:
             defaults.set(true, forKey: AppConstants.UserDefaults.srCommandEnabled)
             defaults.set(RequestAudience.everyone.rawValue, forKey: AppConstants.UserDefaults.songRequestChatAudience)
-            // Bits, when enabled, bump the cheerer's queued song to the front.
+            defaults.set(true, forKey: AppConstants.UserDefaults.songRequestChannelPointsEnabled)
+            defaults.set(true, forKey: AppConstants.UserDefaults.songRequestBitsEnabled)
+            // Bits bump the cheerer's queued song to the front under Open.
             defaults.set(true, forKey: AppConstants.UserDefaults.songRequestBitsBoostEnabled)
         case .subsOnly:
             defaults.set(true, forKey: AppConstants.UserDefaults.srCommandEnabled)
             defaults.set(RequestAudience.subscribers.rawValue, forKey: AppConstants.UserDefaults.songRequestChatAudience)
+            defaults.set(false, forKey: AppConstants.UserDefaults.songRequestChannelPointsEnabled)
+            defaults.set(false, forKey: AppConstants.UserDefaults.songRequestBitsEnabled)
         case .channelPointsOnly:
             defaults.set(false, forKey: AppConstants.UserDefaults.srCommandEnabled)
             defaults.set(true, forKey: AppConstants.UserDefaults.songRequestChannelPointsEnabled)
+            defaults.set(false, forKey: AppConstants.UserDefaults.songRequestBitsEnabled)
         case .custom:
             break
         }

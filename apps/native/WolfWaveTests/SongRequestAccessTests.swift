@@ -115,23 +115,42 @@ final class SongRequestPresetTests: XCTestCase {
         XCTAssertEqual(
             defaults.string(forKey: AppConstants.UserDefaults.songRequestChatAudience),
             RequestAudience.everyone.rawValue)
-        // Open opts bits into "boost the cheerer's song" behavior.
+        // Open opens every path: chat, channel points, and bits.
+        XCTAssertTrue(defaults.bool(forKey: AppConstants.UserDefaults.songRequestChannelPointsEnabled))
+        XCTAssertTrue(defaults.bool(forKey: AppConstants.UserDefaults.songRequestBitsEnabled))
+        // ...and bits boost the cheerer's queued song to the front.
         XCTAssertTrue(defaults.bool(forKey: AppConstants.UserDefaults.songRequestBitsBoostEnabled))
     }
 
-    func testApplySubOnlyTargetsSubscribers() {
+    func testApplySubOnlyTargetsSubscribersAndDisablesRedemptions() {
         SongRequestPreset.subsOnly.apply(to: defaults)
         XCTAssertTrue(defaults.bool(forKey: AppConstants.UserDefaults.srCommandEnabled))
         XCTAssertEqual(
             defaults.string(forKey: AppConstants.UserDefaults.songRequestChatAudience),
             RequestAudience.subscribers.rawValue)
+        XCTAssertFalse(
+            defaults.bool(forKey: AppConstants.UserDefaults.songRequestChannelPointsEnabled))
+        XCTAssertFalse(defaults.bool(forKey: AppConstants.UserDefaults.songRequestBitsEnabled))
     }
 
-    func testApplyChannelPointsOnlyDisablesChatEnablesReward() {
+    func testApplyChannelPointsOnlyDisablesChatAndBitsEnablesReward() {
         SongRequestPreset.channelPointsOnly.apply(to: defaults)
         XCTAssertFalse(defaults.bool(forKey: AppConstants.UserDefaults.srCommandEnabled))
         XCTAssertTrue(
             defaults.bool(forKey: AppConstants.UserDefaults.songRequestChannelPointsEnabled))
+        XCTAssertFalse(defaults.bool(forKey: AppConstants.UserDefaults.songRequestBitsEnabled))
+    }
+
+    func testApplyCustomLeavesRedemptionTogglesUntouched() {
+        // Pre-set a non-default redemption state, then apply Custom.
+        defaults.set(true, forKey: AppConstants.UserDefaults.songRequestChannelPointsEnabled)
+        defaults.set(true, forKey: AppConstants.UserDefaults.songRequestBitsEnabled)
+        SongRequestPreset.custom.apply(to: defaults)
+        XCTAssertEqual(
+            defaults.string(forKey: AppConstants.UserDefaults.songRequestPolicyMode),
+            SongRequestPreset.custom.rawValue)
+        XCTAssertTrue(defaults.bool(forKey: AppConstants.UserDefaults.songRequestChannelPointsEnabled))
+        XCTAssertTrue(defaults.bool(forKey: AppConstants.UserDefaults.songRequestBitsEnabled))
     }
 
     func testCurrentDefaultsToOpenWhenUnset() {
