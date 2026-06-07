@@ -250,11 +250,17 @@ struct DiscordPreviewCard: View {
         // same `apple_music.png` uploaded to the Discord portal, not a rebuilt
         // logo-on-gradient. Rendered on black so the asset's transparent corners
         // read like the live client.
+        //
+        // The asset's own corner radius is rounder than the tile's `DSRadius.sm`
+        // clip, so at 1:1 the black backing peeked through the tile corners. Scale
+        // the art up so its rounded corners overshoot the clip and the tile's
+        // corner radius defines clean, fully-filled edges.
         Color.black
             .overlay(
                 Image("DiscordArtAppleMusic")
                     .resizable()
                     .scaledToFill()
+                    .scaleEffect(1.22)
             )
     }
 

@@ -26,10 +26,15 @@ nonisolated enum FeatureFlags {
         defaults.bool(forKey: AppConstants.UserDefaults.websocketEnabled)
     }
 
-    /// Opt-in: show an "Idle" Discord activity when nothing is playing instead
-    /// of clearing the profile. Default false.
+    /// Show an "Idle" Discord activity when nothing is playing instead of
+    /// clearing the profile. Defaults to `true` on first launch; once
+    /// `discordShowIdleStatus` has been explicitly written it returns the
+    /// stored value.
     static var discordShowIdleStatus: Bool {
-        defaults.bool(forKey: AppConstants.UserDefaults.discordShowIdleStatus)
+        if defaults.object(forKey: AppConstants.UserDefaults.discordShowIdleStatus) == nil {
+            return true
+        }
+        return defaults.bool(forKey: AppConstants.UserDefaults.discordShowIdleStatus)
     }
 
     /// Opt-in: clear Discord presence while paused rather than keeping the

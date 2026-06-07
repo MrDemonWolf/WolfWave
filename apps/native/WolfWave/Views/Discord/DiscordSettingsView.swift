@@ -43,7 +43,7 @@ struct DiscordSettingsView: View {
     private var playlistStyle: DiscordPlaylistStyle = .default
 
     @AppStorage(AppConstants.UserDefaults.discordShowIdleStatus)
-    private var showIdleStatus = false
+    private var showIdleStatus = true
 
     @AppStorage(AppConstants.UserDefaults.discordClearWhilePaused)
     private var clearWhilePaused = false
