@@ -116,7 +116,44 @@ struct TwitchChatServiceTests {
         #expect(message.badges[0].setID == "moderator")
         #expect(message.reply?.parentMessageID == "parent-123")
     }
-    
+
+    /// Builds a `ChatMessage` carrying only the named badge sets.
+    private func message(withBadgeSets sets: [String]) -> TwitchChatService.ChatMessage {
+        TwitchChatService.ChatMessage(
+            messageID: "m", username: "u", userID: "1", message: "!sr x",
+            channel: "c",
+            badges: sets.map { .init(setID: $0, id: "1", info: "") },
+            reply: nil
+        )
+    }
+
+    @Test("Founder badge counts as subscriber for the request gate")
+    func testFounderBadgeIsSubscriber() async throws {
+        let roles = message(withBadgeSets: ["founder"]).roles
+        #expect(roles.isSubscriber)
+        #expect(!roles.isModerator)
+        #expect(!roles.isBroadcaster)
+        #expect(!roles.isVIP)
+    }
+
+    @Test("Subscriber badge counts as subscriber")
+    func testSubscriberBadgeIsSubscriber() async throws {
+        #expect(message(withBadgeSets: ["subscriber"]).roles.isSubscriber)
+    }
+
+    @Test("Each badge set maps to its own role")
+    func testRolesMapEachBadge() async throws {
+        #expect(message(withBadgeSets: ["moderator"]).roles.isModerator)
+        #expect(message(withBadgeSets: ["broadcaster"]).roles.isBroadcaster)
+        #expect(message(withBadgeSets: ["vip"]).roles.isVIP)
+    }
+
+    @Test("No badges means no roles")
+    func testNoBadgesNoRoles() async throws {
+        let roles = message(withBadgeSets: []).roles
+        #expect(!roles.isModerator && !roles.isBroadcaster && !roles.isSubscriber && !roles.isVIP)
+    }
+
     // MARK: - Channel Validation Tests
     
     @Test("ChannelValidationResult enum works correctly")

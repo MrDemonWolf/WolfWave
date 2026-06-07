@@ -116,6 +116,31 @@ actor TwitchChatService {
             let info: String
         }
 
+        /// Twitch chat roles derived from a sender's badges.
+        ///
+        /// Pure and testable so the song-request permission gate can't silently
+        /// regress (e.g. dropping the `founder` synonym for `subscriber`).
+        struct Roles: Sendable {
+            let isModerator: Bool
+            let isBroadcaster: Bool
+            let isSubscriber: Bool
+            let isVIP: Bool
+        }
+
+        /// Derives chat roles from the message's badge set.
+        ///
+        /// - Note: `founder` is the badge Twitch gives a channel's earliest
+        ///   subscribers in place of `subscriber`; both count as a subscriber so
+        ///   the subscriber-only request gate doesn't wrongly deny founders.
+        var roles: Roles {
+            Roles(
+                isModerator: badges.contains { $0.setID == "moderator" },
+                isBroadcaster: badges.contains { $0.setID == "broadcaster" },
+                isSubscriber: badges.contains { $0.setID == "subscriber" || $0.setID == "founder" },
+                isVIP: badges.contains { $0.setID == "vip" }
+            )
+        }
+
         struct Reply: Sendable {
             let parentMessageID: String
             let parentMessageBody: String
@@ -1388,19 +1413,16 @@ actor TwitchChatService {
         )
 
         if commandsEnabled {
-            let isModerator = badges.contains { $0.setID == "moderator" }
-            let isBroadcaster = badges.contains { $0.setID == "broadcaster" }
-            let isSubscriber = badges.contains { $0.setID == "subscriber" }
-            let isVIP = badges.contains { $0.setID == "vip" }
-            let bypassCooldown = isModerator || isBroadcaster
+            let roles = chatMessage.roles
+            let bypassCooldown = roles.isModerator || roles.isBroadcaster
 
             let context = BotCommandContext(
                 userID: userID,
                 username: username,
-                isModerator: isModerator,
-                isBroadcaster: isBroadcaster,
-                isSubscriber: isSubscriber,
-                isVIP: isVIP,
+                isModerator: roles.isModerator,
+                isBroadcaster: roles.isBroadcaster,
+                isSubscriber: roles.isSubscriber,
+                isVIP: roles.isVIP,
                 messageID: messageID
             )
 
