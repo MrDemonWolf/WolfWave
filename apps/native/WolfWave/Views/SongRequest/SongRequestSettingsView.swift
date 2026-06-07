@@ -153,6 +153,11 @@ fileprivate struct SongRequestMasterToggleCard: View {
     @AppStorage(AppConstants.UserDefaults.songRequestEnabled)
     private var songRequestEnabled = false
 
+    // Lives here, not in the commands card, so it stays reachable when the
+    // feature is off — which is exactly when it takes effect.
+    @AppStorage(AppConstants.UserDefaults.songRequestDisabledReplyEnabled)
+    private var disabledReplyEnabled = false
+
     let isTwitchConnected: Bool
 
     var body: some View {
@@ -167,6 +172,16 @@ fileprivate struct SongRequestMasterToggleCard: View {
                 onChange: { enabled in
                     NotificationCenter.default.postEnabled(.songRequestSettingChanged, enabled: enabled)
                 }
+            )
+
+            Divider()
+
+            ToggleSettingRow(
+                title: "Reply When Off",
+                subtitle: "Tell chat \u{201C}Song requests are off right now.\u{201D} when someone uses !sr while the feature is off. Default: stay silent.",
+                isOn: $disabledReplyEnabled,
+                accessibilityLabel: "Reply when song requests are off",
+                accessibilityIdentifier: "songRequests.disabledReply"
             )
         }
         .cardStyle()
@@ -868,9 +883,6 @@ fileprivate struct SongRequestCommandsCard: View {
     @AppStorage(AppConstants.UserDefaults.songRequestGlobalCooldown) private var globalCooldown: Double = 5.0
     @AppStorage(AppConstants.UserDefaults.songRequestUserCooldown) private var userCooldown: Double = 30.0
 
-    @AppStorage(AppConstants.UserDefaults.songRequestDisabledReplyEnabled)
-    private var disabledReplyEnabled = false
-
     var body: some View {
         VStack(alignment: .leading, spacing: DSSpace.s6) {
             VStack(alignment: .leading, spacing: DSSpace.s1h) {
@@ -939,17 +951,6 @@ fileprivate struct SongRequestCommandsCard: View {
                 )
             }
             .cardStyleUnpadded()
-
-            VStack(alignment: .leading, spacing: DSSpace.s4) {
-                ToggleSettingRow(
-                    title: "Reply When Off",
-                    subtitle: "Tell chat \u{201C}Song requests are off right now.\u{201D} when someone uses !sr while the feature is off. Default: stay silent.",
-                    isOn: $disabledReplyEnabled,
-                    accessibilityLabel: "Reply when song requests are off",
-                    accessibilityIdentifier: "songRequests.disabledReply"
-                )
-            }
-            .cardStyle()
 
             HintRow("Cooldowns don't apply to you or your mods.")
         }

@@ -124,6 +124,9 @@ final class SongRequestPresetTests: XCTestCase {
 
     func testApplySubOnlyTargetsSubscribersAndDisablesRedemptions() {
         SongRequestPreset.subsOnly.apply(to: defaults)
+        XCTAssertEqual(
+            defaults.string(forKey: AppConstants.UserDefaults.songRequestPolicyMode),
+            SongRequestPreset.subsOnly.rawValue)
         XCTAssertTrue(defaults.bool(forKey: AppConstants.UserDefaults.srCommandEnabled))
         XCTAssertEqual(
             defaults.string(forKey: AppConstants.UserDefaults.songRequestChatAudience),
@@ -135,6 +138,9 @@ final class SongRequestPresetTests: XCTestCase {
 
     func testApplyChannelPointsOnlyDisablesChatAndBitsEnablesReward() {
         SongRequestPreset.channelPointsOnly.apply(to: defaults)
+        XCTAssertEqual(
+            defaults.string(forKey: AppConstants.UserDefaults.songRequestPolicyMode),
+            SongRequestPreset.channelPointsOnly.rawValue)
         XCTAssertFalse(defaults.bool(forKey: AppConstants.UserDefaults.srCommandEnabled))
         XCTAssertTrue(
             defaults.bool(forKey: AppConstants.UserDefaults.songRequestChannelPointsEnabled))
