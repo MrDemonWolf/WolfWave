@@ -7,43 +7,33 @@
 //
 
 import SwiftUI
+import WebKit
 
 /// Live, in-app preview of the now-playing overlay widget.
 ///
-/// Mirrors the rendering in `apps/widget/src/widget.ts` (theme palette, the
-/// three layouts, and the Default/Glass custom-color overrides) using the
-/// generated `DSWidgetThemes` / `DSWidgetLayouts` tables so this preview and the
-/// real overlay stay in lockstep with `design-system/tokens.json`.
+/// This is the **real** overlay, not a SwiftUI re-creation of it. It loads the
+/// bundled `widget.html` (the exact file OBS renders) in a `WKWebView` running
+/// in preview mode, so the preview is pixel-identical to what goes live — every
+/// theme gradient, backdrop blur, noise layer, and glow renders through the same
+/// code path. A previous version hand-rolled the card in SwiftUI and drifted out
+/// of sync with the web renderer on every theme change; this can't.
 ///
-/// The widget is drawn at its native layout size, then scaled down to fit the
-/// settings card (never upscaled), and centered on a checkerboard "stage" so
-/// transparent themes (Default) read as transparent. All track data is invented
-/// demo content — never real artists, songs, or artwork.
+/// Preview mode (see `setupPreview` in `apps/widget/src/widget.ts`) swaps the
+/// WebSocket feed for a direct bridge: we inject an invented demo track once,
+/// then push the live appearance *draft* on every edit via `window.WWPreview`.
+/// Nothing reaches the real overlay until the user taps Apply. The page paints a
+/// checkerboard behind the card so the transparent Default theme reads correctly.
 struct WidgetAppearancePreview: View {
     /// The appearance values to render. The settings card passes its live
     /// *draft* here, so the preview tracks every edit instantly even though
     /// those edits don't reach the real overlay until the user taps Apply.
     let config: WidgetAppearanceConfig
 
-    private var widgetTheme: String { config.theme }
-    private var widgetLayout: String { config.layout }
-    private var widgetTextColor: String { config.textColor }
-    private var widgetBackgroundColor: String { config.backgroundColor }
-    private var widgetFontFamily: String { config.fontFamily }
-
-    // Invented demo track (wolf song + wolf-species "artist"); never real media.
-    private let demoTrack = "Midnight Howl"
-    private let demoArtist = "Timber Wolf"
-    private let demoElapsed = 78
-    private let demoTotal = 192
-
     var body: some View {
         VStack(alignment: .leading, spacing: DSSpace.s6) {
             header
             stage
         }
-        .animation(.easeInOut(duration: DSMotion.Duration.base), value: widgetTheme)
-        .animation(.easeInOut(duration: DSMotion.Duration.base), value: widgetLayout)
     }
 
     // MARK: - Header
@@ -56,7 +46,7 @@ struct WidgetAppearancePreview: View {
                     .foregroundStyle(Color(nsColor: .controlAccentColor))
                 Text("Live Preview").sectionEyebrow()
             }
-            Text("Sample of how your overlay looks. Tap Apply to push changes live.")
+            Text("Exactly how your overlay looks. Tap Apply to push changes live.")
                 .fieldSubtitle()
         }
     }
@@ -64,197 +54,116 @@ struct WidgetAppearancePreview: View {
     // MARK: - Stage
 
     private var stage: some View {
-        let native = DSWidgetLayouts.size(widgetLayout)
-        return GeometryReader { geo in
-            // Leave a small margin so the scaled widget never kisses the edges.
-            let available = max(geo.size.width - DSSpace.s10, 1)
-            let scale = min(1, available / native.width)
-
-            ZStack {
-                CheckerboardBackground()
-                widgetView(theme: resolvedTheme)
-                    .frame(width: native.width, height: native.height)
-                    .scaleEffect(scale, anchor: .center)
-                    .frame(width: native.width * scale, height: native.height * scale)
-            }
-            .frame(width: geo.size.width, height: stageHeight)
+        WidgetPreviewWebView(config: config)
+            .frame(height: stageHeight)
             .clipShape(RoundedRectangle(cornerRadius: DSRadius.lg, style: .continuous))
             .overlay(
                 RoundedRectangle(cornerRadius: DSRadius.lg, style: .continuous)
                     .strokeBorder(Color.primary.opacity(0.08), lineWidth: 1)
             )
-        }
-        .frame(height: stageHeight)
-        .accessibilityElement(children: .ignore)
-        .accessibilityLabel("Widget preview, \(widgetTheme) theme, \(widgetLayout) layout")
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel("Widget preview, \(config.theme) theme, \(config.layout) layout")
     }
 
     /// Fixed to the tallest layout (Vertical) so switching layouts never resizes
     /// the stage. A growing/shrinking preview shifts everything below it and
     /// makes the settings pane scroll-jump, so the height stays constant and the
-    /// widget just scales within it.
+    /// web-rendered card sizes itself within it (the page caps each layout's
+    /// width, exactly as OBS does).
     private var stageHeight: CGFloat {
         (DSWidgetLayouts.sizes.values.map(\.height).max() ?? 280) + DSSpace.s11
     }
+}
 
-    // MARK: - Widget Body
+// MARK: - Web Preview Host
 
-    @ViewBuilder
-    private func widgetView(theme: ResolvedWidgetTheme) -> some View {
-        ZStack {
-            if let bg = theme.containerBg { bg }
-            if let overlay = theme.overlayBg { overlay }
-            layoutContent(theme: theme)
-        }
-        .clipShape(RoundedRectangle(cornerRadius: theme.cornerRadius, style: .continuous))
-        .overlay(
-            RoundedRectangle(cornerRadius: theme.cornerRadius, style: .continuous)
-                .strokeBorder(theme.borderColor ?? .clear, lineWidth: theme.borderColor == nil ? 0 : 1)
-        )
-        .shadow(color: theme.glow ? theme.progressFill.opacity(0.45) : .clear,
-                radius: theme.glow ? DSSpace.s3 : 0)
-    }
+/// Hosts the bundled `widget.html` in a `WKWebView` and drives it through the
+/// `window.WWPreview` bridge. The view is created once; appearance edits arrive
+/// via `updateNSView` and are pushed to the already-loaded page with a tiny
+/// `evaluateJavaScript` call, so changing theme/layout/font is instant.
+private struct WidgetPreviewWebView: NSViewRepresentable {
+    let config: WidgetAppearanceConfig
 
-    @ViewBuilder
-    private func layoutContent(theme: ResolvedWidgetTheme) -> some View {
-        switch widgetLayout {
-        case "Vertical":  verticalLayout(theme: theme)
-        case "Compact":   compactLayout(theme: theme)
-        default:          horizontalLayout(theme: theme)
-        }
-    }
+    func makeCoordinator() -> Coordinator { Coordinator() }
 
-    private func horizontalLayout(theme: ResolvedWidgetTheme) -> some View {
-        HStack(spacing: DSSpace.s4) {
-            artwork(size: 90, corner: DSRadius.sm)
-            VStack(alignment: .leading, spacing: DSSpace.s1) {
-                trackText(demoTrack, size: DSFont.Size.lg, weight: .bold, color: theme.textPrimary, theme: theme)
-                trackText(demoArtist, size: DSFont.Size.base, weight: .light, color: theme.textSecondary, theme: theme, italic: true)
-                Spacer(minLength: 0)
-                progressBar(theme: theme)
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
-        }
-        .padding(DSSpace.s3)
-    }
-
-    private func verticalLayout(theme: ResolvedWidgetTheme) -> some View {
-        VStack(spacing: DSSpace.s2) {
-            artwork(size: 150, corner: DSRadius.sm)
-            trackText(demoTrack, size: DSFont.Size.base, weight: .bold, color: theme.textPrimary, theme: theme)
-            trackText(demoArtist, size: DSFont.Size.sm, weight: .light, color: theme.textSecondary, theme: theme, italic: true)
-            Spacer(minLength: 0)
-            progressBar(theme: theme)
-        }
-        .multilineTextAlignment(.center)
-        .padding(DSSpace.s4)
-    }
-
-    private func compactLayout(theme: ResolvedWidgetTheme) -> some View {
-        HStack(spacing: DSSpace.s2) {
-            artwork(size: 46, corner: DSRadius.xs)
-            Text(compactTitle(theme: theme))
-                .font(widgetFont(size: DSFont.Size.base, weight: .medium))
-                .lineLimit(1)
-                .truncationMode(.tail)
-                .modifier(WidgetTextShadow(theme: theme))
-                .frame(maxWidth: .infinity, alignment: .leading)
-        }
-        .padding(.horizontal, DSSpace.s2)
-    }
-
-    /// Track, separator, and artist as one styled run.
-    ///
-    /// Built as an `AttributedString` so the compact layout stays a single
-    /// `Text`. macOS 26 deprecated `Text + Text` concatenation.
-    private func compactTitle(theme: ResolvedWidgetTheme) -> AttributedString {
-        var track = AttributedString(demoTrack)
-        track.foregroundColor = theme.textPrimary
-        var separator = AttributedString("  —  ")
-        separator.foregroundColor = theme.textMuted
-        var artist = AttributedString(demoArtist)
-        artist.foregroundColor = theme.textSecondary
-        return track + separator + artist
-    }
-
-    // MARK: - Pieces
-
-    private func trackText(
-        _ text: String,
-        size: CGFloat,
-        weight: Font.Weight,
-        color: Color,
-        theme: ResolvedWidgetTheme,
-        italic: Bool = false
-    ) -> some View {
-        let font = widgetFont(size: size, weight: weight)
-        return Text(text)
-            .font(italic ? font.italic() : font)
-            .foregroundStyle(color)
-            .lineLimit(1)
-            .truncationMode(.tail)
-            .modifier(WidgetTextShadow(theme: theme))
-    }
-
-    private func progressBar(theme: ResolvedWidgetTheme) -> some View {
-        let fraction = demoTotal > 0 ? CGFloat(demoElapsed) / CGFloat(demoTotal) : 0
-        return VStack(spacing: DSSpace.s0) {
-            GeometryReader { geo in
-                ZStack(alignment: .leading) {
-                    Capsule().fill(theme.progressTrack)
-                    Capsule().fill(theme.progressFill)
-                        .frame(width: geo.size.width * fraction)
-                }
-            }
-            .frame(height: DSSpace.s1)
-
-            HStack {
-                Text(HistoryFormat.clock(Double(demoElapsed)))
-                Spacer()
-                Text(verbatim: "-\(HistoryFormat.clock(Double(demoTotal - demoElapsed)))")
-            }
-            .font(widgetFont(size: DSFont.Size.xs, weight: .regular))
-            .foregroundStyle(theme.textMuted)
-        }
-    }
-
-    /// Placeholder album art. A flat brand-tinted gradient with a music glyph —
-    /// stands in for real artwork without shipping any third-party media.
-    private func artwork(size: CGFloat, corner: CGFloat) -> some View {
-        RoundedRectangle(cornerRadius: corner, style: .continuous)
-            .fill(
-                LinearGradient(
-                    colors: [Color(red: 0.16, green: 0.16, blue: 0.30),
-                             Color(red: 0.04, green: 0.52, blue: 1.0)],
-                    startPoint: .topLeading,
-                    endPoint: .bottomTrailing
-                )
+    func makeNSView(context: Context) -> WKWebView {
+        let controller = WKUserContentController()
+        // Flip the bundle into preview mode *before* its scripts run, so boot
+        // takes the preview path (no WebSocket) instead of trying to connect.
+        controller.addUserScript(
+            WKUserScript(
+                source: "window.__WW_PREVIEW__ = true;",
+                injectionTime: .atDocumentStart,
+                forMainFrameOnly: true
             )
-            .overlay(
-                Image(systemName: "music.note")
-                    .font(.system(size: size * 0.4, weight: .medium))
-                    .foregroundStyle(.white.opacity(0.85))
-            )
-            .frame(width: size, height: size)
-    }
-
-    // MARK: - Theme resolution
-
-    private var resolvedTheme: ResolvedWidgetTheme {
-        ResolvedWidgetTheme.resolve(
-            themeName: widgetTheme,
-            textColorHex: widgetTextColor,
-            backgroundColorHex: widgetBackgroundColor
         )
+
+        let configuration = WKWebViewConfiguration()
+        configuration.userContentController = controller
+
+        let webView = WKWebView(frame: .zero, configuration: configuration)
+        webView.navigationDelegate = context.coordinator
+        // The page paints its own checkerboard stage; keep the web view opaque
+        // and let that show through (no private-API transparency needed).
+        webView.allowsMagnification = false
+        webView.setContentHuggingPriority(.defaultLow, for: .horizontal)
+        context.coordinator.pendingConfig = config
+
+        if let url = Bundle.main.url(forResource: "widget", withExtension: "html") {
+            webView.loadFileURL(url, allowingReadAccessTo: url.deletingLastPathComponent())
+        } else {
+            Log.error("WidgetAppearancePreview: widget.html not found in bundle", category: "WebSocket")
+        }
+        return webView
     }
 
-    // MARK: - Helpers
-
-    private func widgetFont(size: CGFloat, weight: Font.Weight) -> Font {
-        if widgetFontFamily == "System Default" {
-            return .system(size: size, weight: weight)
+    func updateNSView(_ webView: WKWebView, context: Context) {
+        context.coordinator.pendingConfig = config
+        if context.coordinator.isLoaded {
+            context.coordinator.applyConfig(config, to: webView)
         }
-        return .custom(widgetFontFamily, size: size).weight(weight)
+    }
+
+    // MARK: - Coordinator
+
+    final class Coordinator: NSObject, WKNavigationDelegate {
+        var isLoaded = false
+        var pendingConfig: WidgetAppearanceConfig?
+
+        func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
+            isLoaded = true
+            injectDemoTrack(into: webView)
+            if let config = pendingConfig {
+                applyConfig(config, to: webView)
+            }
+        }
+
+        /// Seed the card with an invented demo track (wolf song + wolf-species
+        /// "artist", no artwork URL so the page draws its WolfWave wolf-mark
+        /// fallback). Never real artists, songs, or third-party album art.
+        private func injectDemoTrack(into webView: WKWebView) {
+            let js = """
+            if (window.WWPreview) {
+              window.WWPreview.track({
+                track: "Midnight Howl",
+                artist: "Timber Wolf",
+                album: "Howls & Echoes",
+                duration: 192,
+                elapsed: 78,
+                isPlaying: true
+              });
+            }
+            """
+            webView.evaluateJavaScript(js)
+        }
+
+        /// Push the draft appearance to the page. The config is serialized via
+        /// `JSONSerialization`, so a font family containing quotes can't break
+        /// out of the injected JS string.
+        func applyConfig(_ config: WidgetAppearanceConfig, to webView: WKWebView) {
+            guard let json = config.previewJSON else { return }
+            webView.evaluateJavaScript("if (window.WWPreview) { window.WWPreview.config(\(json)); }")
+        }
     }
 }
 
@@ -284,136 +193,30 @@ struct WidgetAppearanceConfig: Equatable {
     }
 
     /// Whether the chosen theme exposes editable text/background colors. Preset
-    /// themes (Dark, Light, Neon) ship fixed palettes.
-    var themeCustomizable: Bool {
+    /// themes (Dark, Light, Neon) ship fixed palettes. `nonisolated` so the pure
+    /// lookup is usable off the main actor (and from test autoclosures).
+    nonisolated var themeCustomizable: Bool {
         DSWidgetThemes.resolve(theme).userCustomizable
     }
-}
 
-// MARK: - Resolved Theme
-
-/// Runtime-resolved widget palette (generated base + user overrides applied).
-/// `nonisolated` so the pure resolution logic is usable (and testable) off the
-/// main actor, matching the generated `DSWidgetTheme` value type.
-nonisolated struct ResolvedWidgetTheme {
-    let containerBg: Color?
-    let borderColor: Color?
-    let cornerRadius: CGFloat
-    let overlayBg: Color?
-    let textPrimary: Color
-    let textSecondary: Color
-    let textMuted: Color
-    let progressTrack: Color
-    let progressFill: Color
-    /// Apply an outer glow (Neon theme).
-    let glow: Bool
-    /// Apply a subtle drop shadow behind text for legibility (Default, Neon).
-    let hasTextShadow: Bool
-
-    /// Default config text color (`widget.ts` `defaultConfig.textColor`). When the
-    /// stored color still equals this, no override is applied.
-    static let defaultTextHex = "#FFFFFF"
-    /// Default config background color (`widget.ts` `defaultConfig.backgroundColor`).
-    static let defaultBackgroundHex = "#1A1A2E"
-
-    /// `true` when a user-customizable theme has a text color that differs from
-    /// the default and so should override the theme's text palette. Pure helper,
-    /// extracted so the override rule is unit-testable without SwiftUI.
-    static func shouldOverrideText(themeName: String, textColorHex: String) -> Bool {
-        DSWidgetThemes.resolve(themeName).userCustomizable
-            && textColorHex.uppercased() != defaultTextHex
-    }
-
-    /// `true` when a user-customizable theme has a background color that differs
-    /// from the default and so should override the overlay.
-    static func shouldOverrideBackground(themeName: String, backgroundColorHex: String) -> Bool {
-        DSWidgetThemes.resolve(themeName).userCustomizable
-            && backgroundColorHex.uppercased() != defaultBackgroundHex
-    }
-
-    /// Resolve the generated base palette and apply Default/Glass user overrides.
-    /// Mirrors `resolveTheme` in `apps/widget/src/widget.ts`.
-    static func resolve(
-        themeName: String,
-        textColorHex: String,
-        backgroundColorHex: String
-    ) -> ResolvedWidgetTheme {
-        let base = DSWidgetThemes.resolve(themeName)
-        var textPrimary = base.textPrimary
-        var textSecondary = base.textSecondary
-        var progressFill = base.progressFill
-        var overlayBg = base.overlayBg
-
-        if shouldOverrideText(themeName: themeName, textColorHex: textColorHex),
-           let custom = Color(hex: textColorHex) {
-            textPrimary = custom
-            textSecondary = custom
-            progressFill = custom
+    /// The five fields as a `widget_config`-shaped JSON object string, ready to
+    /// splice into a `window.WWPreview.config(...)` call. Built with
+    /// `JSONSerialization` so user-chosen values (e.g. a font name with a quote)
+    /// are escaped and can't break out of the injected JS. `nonisolated` so the
+    /// pure serialization is usable off the main actor (and from test autoclosures).
+    nonisolated var previewJSON: String? {
+        let payload: [String: String] = [
+            "theme": theme,
+            "layout": layout,
+            "textColor": textColor,
+            "backgroundColor": backgroundColor,
+            "fontFamily": fontFamily,
+        ]
+        guard let data = try? JSONSerialization.data(withJSONObject: payload),
+              let string = String(data: data, encoding: .utf8) else {
+            return nil
         }
-        if shouldOverrideBackground(themeName: themeName, backgroundColorHex: backgroundColorHex),
-           let custom = Color(hex: backgroundColorHex) {
-            overlayBg = custom
-        }
-
-        return ResolvedWidgetTheme(
-            containerBg: base.containerBg,
-            borderColor: base.borderColor,
-            cornerRadius: base.cornerRadius,
-            overlayBg: overlayBg,
-            textPrimary: textPrimary,
-            textSecondary: textSecondary,
-            textMuted: base.textMuted,
-            progressTrack: base.progressTrack,
-            progressFill: progressFill,
-            // Themes that ship a CSS text-shadow / glow: Default (legibility on
-            // stream) and Neon (signature glow).
-            glow: themeName == "Neon",
-            hasTextShadow: themeName == "Default" || themeName == "Neon"
-        )
-    }
-}
-
-// MARK: - Text Shadow
-
-/// Subtle drop shadow behind widget text, matching themes that ship a CSS
-/// `text-shadow` (Default sits over live video; Neon glows).
-private struct WidgetTextShadow: ViewModifier {
-    let theme: ResolvedWidgetTheme
-
-    func body(content: Content) -> some View {
-        if theme.hasTextShadow {
-            content.shadow(color: .black.opacity(0.55), radius: 1, x: 1, y: 1)
-        } else {
-            content
-        }
-    }
-}
-
-// MARK: - Checkerboard
-
-/// A light/dark checkerboard, the universal "this layer is transparent" cue.
-/// Lets the Default (transparent) theme read correctly in the preview.
-private struct CheckerboardBackground: View {
-    @Environment(\.colorScheme) private var colorScheme
-    private let tile: CGFloat = 11
-
-    var body: some View {
-        // Light mode shows pale grays, dark mode shows charcoal grays, so the
-        // "transparent" cue reads on both appearances instead of staying dark.
-        let isDark = colorScheme == .dark
-        let light = Color(white: isDark ? 0.22 : 0.90)
-        let dark = Color(white: isDark ? 0.16 : 0.82)
-        return Canvas { context, size in
-            context.fill(Path(CGRect(origin: .zero, size: size)), with: .color(dark))
-            let cols = Int((size.width / tile).rounded(.up))
-            let rows = Int((size.height / tile).rounded(.up))
-            for row in 0..<max(rows, 0) {
-                for col in 0..<max(cols, 0) where (row + col).isMultiple(of: 2) {
-                    let rect = CGRect(x: CGFloat(col) * tile, y: CGFloat(row) * tile, width: tile, height: tile)
-                    context.fill(Path(rect), with: .color(light))
-                }
-            }
-        }
+        return string
     }
 }
 

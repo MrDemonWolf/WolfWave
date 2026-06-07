@@ -11,8 +11,11 @@ import CoreGraphics
 @testable import WolfWave
 
 /// Pure-logic coverage for the in-app widget appearance preview: the generated
-/// theme/layout tables and the Default/Glass custom-color override rules that
-/// mirror `apps/widget/src/widget.ts`. No SwiftUI, Keychain, or network.
+/// theme/layout tables that back the picker and the preview's stage sizing. The
+/// preview itself now renders the real `widget.html` in a `WKWebView`, so the
+/// theme/layout/color *rendering* is exercised by that one shared code path
+/// (`apps/widget/src/widget.ts`) rather than a parallel Swift resolver. No
+/// SwiftUI, Keychain, or network.
 final class WidgetAppearancePreviewTests: XCTestCase {
 
     // MARK: - Generated theme table
@@ -77,51 +80,54 @@ final class WidgetAppearancePreviewTests: XCTestCase {
         XCTAssertEqual(keys, Set(AppConstants.Widget.layouts))
     }
 
-    // MARK: - Custom-color override rules
+    // MARK: - Appearance config → preview JSON
 
-    func testCustomTextOverrideOnlyForCustomizableThemes() {
-        // Default/Glass: a non-default text color overrides.
-        XCTAssertTrue(ResolvedWidgetTheme.shouldOverrideText(themeName: "Default", textColorHex: "#FF0000"))
-        XCTAssertTrue(ResolvedWidgetTheme.shouldOverrideText(themeName: "Glass", textColorHex: "#00FF00"))
-        // Preset themes never take a text override.
-        XCTAssertFalse(ResolvedWidgetTheme.shouldOverrideText(themeName: "Dark", textColorHex: "#FF0000"))
-        XCTAssertFalse(ResolvedWidgetTheme.shouldOverrideText(themeName: "Neon", textColorHex: "#FF0000"))
-    }
-
-    func testDefaultTextColorIsNotAnOverride() {
-        XCTAssertFalse(ResolvedWidgetTheme.shouldOverrideText(themeName: "Default", textColorHex: "#FFFFFF"))
-        // Case-insensitive: the ColorPicker can emit either case.
-        XCTAssertFalse(ResolvedWidgetTheme.shouldOverrideText(themeName: "Default", textColorHex: "#ffffff"))
-    }
-
-    func testBackgroundOverrideRules() {
-        XCTAssertTrue(ResolvedWidgetTheme.shouldOverrideBackground(themeName: "Default", backgroundColorHex: "#000000"))
-        XCTAssertFalse(ResolvedWidgetTheme.shouldOverrideBackground(themeName: "Default", backgroundColorHex: "#1A1A2E"))
-        XCTAssertFalse(ResolvedWidgetTheme.shouldOverrideBackground(themeName: "Default", backgroundColorHex: "#1a1a2e"))
-        XCTAssertFalse(ResolvedWidgetTheme.shouldOverrideBackground(themeName: "Dark", backgroundColorHex: "#000000"))
-    }
-
-    func testResolvePreservesPassthroughFields() {
-        // Custom colors must not disturb the non-overridable parts of the palette.
-        let base = DSWidgetThemes.resolve("Default")
-        let resolved = ResolvedWidgetTheme.resolve(
-            themeName: "Default",
-            textColorHex: "#FF0000",
-            backgroundColorHex: "#1A1A2E"
+    func testPreviewJSONCarriesAllFields() throws {
+        let config = WidgetAppearanceConfig(
+            theme: "Glass",
+            layout: "Vertical",
+            textColor: "#FF0000",
+            backgroundColor: "#1A1A2E",
+            fontFamily: "Helvetica Neue"
         )
-        XCTAssertEqual(resolved.cornerRadius, base.cornerRadius)
-        XCTAssertNil(resolved.containerBg)
-        XCTAssertTrue(resolved.hasTextShadow, "Default keeps its text shadow")
-        XCTAssertFalse(resolved.glow)
+        let json = try XCTUnwrap(config.previewJSON)
+        let data = try XCTUnwrap(json.data(using: .utf8))
+        let parsed = try XCTUnwrap(
+            JSONSerialization.jsonObject(with: data) as? [String: String]
+        )
+        XCTAssertEqual(parsed["theme"], "Glass")
+        XCTAssertEqual(parsed["layout"], "Vertical")
+        XCTAssertEqual(parsed["textColor"], "#FF0000")
+        XCTAssertEqual(parsed["backgroundColor"], "#1A1A2E")
+        XCTAssertEqual(parsed["fontFamily"], "Helvetica Neue")
     }
 
-    func testNeonResolvesWithGlow() {
-        let resolved = ResolvedWidgetTheme.resolve(
-            themeName: "Neon",
-            textColorHex: "#FFFFFF",
-            backgroundColorHex: "#1A1A2E"
+    func testPreviewJSONEscapesUnsafeFontName() throws {
+        // A font family with a quote must not break out of the injected JS — the
+        // value survives a round-trip intact (escaping handled by JSONSerialization).
+        let config = WidgetAppearanceConfig(
+            theme: "Default",
+            layout: "Horizontal",
+            textColor: "#FFFFFF",
+            backgroundColor: "#1A1A2E",
+            fontFamily: "Evil\"); alert('x'); //"
         )
-        XCTAssertTrue(resolved.glow)
-        XCTAssertTrue(resolved.hasTextShadow)
+        let json = try XCTUnwrap(config.previewJSON)
+        let data = try XCTUnwrap(json.data(using: .utf8))
+        let parsed = try XCTUnwrap(
+            JSONSerialization.jsonObject(with: data) as? [String: String]
+        )
+        XCTAssertEqual(parsed["fontFamily"], "Evil\"); alert('x'); //")
+    }
+
+    func testThemeCustomizableMatchesGeneratedTable() {
+        XCTAssertTrue(WidgetAppearanceConfig(
+            theme: "Default", layout: "Horizontal",
+            textColor: "#FFFFFF", backgroundColor: "#1A1A2E", fontFamily: "System Default"
+        ).themeCustomizable)
+        XCTAssertFalse(WidgetAppearanceConfig(
+            theme: "Dark", layout: "Horizontal",
+            textColor: "#FFFFFF", backgroundColor: "#1A1A2E", fontFamily: "System Default"
+        ).themeCustomizable)
     }
 }

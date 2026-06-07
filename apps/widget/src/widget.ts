@@ -62,6 +62,17 @@
 declare global {
   interface Window {
     WW_TOKENS?: WWTokens;
+    // In-app Settings preview bridge. Defined only in preview mode (see
+    // `setupPreview`). The native `WidgetAppearancePreview` (WKWebView) drives
+    // the real renderer through this hook instead of a WebSocket feed, so the
+    // settings preview is pixel-identical to the live overlay.
+    WWPreview?: {
+      config(cfg: Partial<WidgetConfig>): void;
+      track(t: Partial<NowPlaying>): void;
+    };
+    // Set to `true` by the native preview host via a document-start user script,
+    // before this bundle runs. Switches the boot path from WebSocket to preview.
+    __WW_PREVIEW__?: boolean;
   }
 }
 
@@ -829,6 +840,70 @@ function handleMessage(msg: WSMessage): void {
 }
 
 /* ╔════════════════════════════════════════════════════════════════════════╗
+ * ║  PREVIEW BRIDGE                                                        ║
+ * ╚════════════════════════════════════════════════════════════════════════╝
+ *
+ *  In-app Settings preview. The native `WidgetAppearancePreview` loads this
+ *  exact file in a WKWebView so the preview and the live OBS overlay are the
+ *  same renderer (no parallel SwiftUI mock to drift out of sync). There is no
+ *  WebSocket in preview mode — the host drives the card directly:
+ *
+ *    window.WWPreview.track(sampleTrack)   // once, after load
+ *    window.WWPreview.config(draftConfig)  // on every appearance edit
+ *
+ *  Differences from the live path, all deliberate:
+ *    • No `connect()` — no socket, no reconnect backoff noise.
+ *    • The progress loop never starts, so the card holds a single static frame
+ *      instead of advancing/elapsing while the user tweaks settings.
+ *    • `#root` gets a checkerboard via the `ww-preview` body class so the
+ *      transparent Default theme reads as transparent (matches the stage the
+ *      old SwiftUI mock drew).
+ */
+
+function isPreview(): boolean {
+  return (
+    params.has("preview") ||
+    (typeof window !== "undefined" && window.__WW_PREVIEW__ === true)
+  );
+}
+
+function setupPreview(): void {
+  document.body.classList.add("ww-preview");
+
+  const el = document.getElementById("widget");
+  if (el) {
+    // Drop the "Waiting for music…" placeholder and start hidden so the first
+    // `track()` plays the entrance once (config edits afterward don't re-bounce).
+    el.classList.remove("placeholder");
+    el.classList.add("widget-hidden");
+  }
+
+  window.WWPreview = {
+    config(cfg: Partial<WidgetConfig>): void {
+      widgetConfig = { ...defaultConfig, ...cfg };
+      if (nowPlaying) buildWidget();
+    },
+    track(t: Partial<NowPlaying>): void {
+      nowPlaying = {
+        track: t.track || "",
+        artist: t.artist || "",
+        album: t.album || "",
+        duration: t.duration || 0,
+        elapsed: t.elapsed || 0,
+        // Keep `isPlaying` truthy so the paused affordance (dimmed art + glyph)
+        // never shows in a preview; we just don't run the progress loop.
+        isPlaying: t.isPlaying !== false,
+        artworkURL: t.artworkURL || null,
+      };
+      elapsed = nowPlaying.elapsed;
+      elapsedRef = { value: elapsed, timestamp: 0, isPlaying: false };
+      buildWidget();
+      if (!visible) enterWidget();
+    },
+  };
+}
+
+/* ╔════════════════════════════════════════════════════════════════════════╗
  * ║  BOOT                                                                  ║
  * ╚════════════════════════════════════════════════════════════════════════╝ */
 
@@ -838,6 +913,10 @@ function handleMessage(msg: WSMessage): void {
   const el = document.getElementById("widget");
   if (el && !el.classList.contains("placeholder")) {
     el.classList.add("widget-hidden");
+  }
+  if (isPreview()) {
+    setupPreview();
+    return;
   }
   connect();
 })();
