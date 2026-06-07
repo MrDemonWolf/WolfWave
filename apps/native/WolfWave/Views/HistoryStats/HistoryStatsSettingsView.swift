@@ -16,6 +16,14 @@ import AppKit
 /// enabled until History is on, and turning History off cascades Stats off.
 struct HistoryStatsSettingsView: View {
 
+    // MARK: - Navigation
+
+    /// Jumps the settings shell to the Twitch pane. Wired by `SettingsView`. The
+    /// `!stats` command gate uses it because this pane has no Twitch auth card of
+    /// its own to point "above" at. A `var` with a default keeps the `#Preview`
+    /// (and any param-less call site) compiling.
+    var openTwitchSettings: () -> Void = {}
+
     // MARK: - User Settings
 
     @AppStorage(AppConstants.UserDefaults.listeningHistoryEnabled)
@@ -46,6 +54,17 @@ struct HistoryStatsSettingsView: View {
     @State private var musicPermission: MusicPermissionState = MusicPermissionCache.read() ?? .unknown
     @State private var visibleRecentCount: Int = AppConstants.History.recentDisplayCount
 
+    /// Live Twitch connection state, mirrored from the shared service so the
+    /// `!stats` command card can gate itself the same way the Twitch and Song
+    /// Requests panes do.
+    @State private var isTwitchConnected = false
+
+    /// Whether the stored Twitch token expired. Seeded from the same `UserDefaults`
+    /// key the Twitch view model writes, so the gate flips to the orange "reconnect"
+    /// warning the moment the sign-in ages out.
+    @State private var twitchReauthNeeded = UserDefaults.standard.bool(
+        forKey: AppConstants.UserDefaults.twitchReauthNeeded)
+
     /// Which leaderboard the "Top" card is showing. Lets one card surface
     /// artists, tracks, and albums in the footprint that previously showed
     /// only artists.
@@ -70,6 +89,14 @@ struct HistoryStatsSettingsView: View {
         AppDelegate.shared?.historyService
     }
 
+    private var appDelegate: AppDelegate? { AppDelegate.shared }
+
+    /// `!stats` only fires when chat is connected and the sign-in hasn't expired.
+    /// Drives the gate banner + "Open Twitch settings" button on the command card.
+    private var twitchReady: Bool {
+        isTwitchConnected && !twitchReauthNeeded
+    }
+
     private var snapshot: StatsSnapshot {
         service?.snapshot ?? .empty
     }
@@ -87,9 +114,19 @@ struct HistoryStatsSettingsView: View {
         unifiedLayout
         .onAppear {
             musicPermission = MusicPermissionChecker.currentState()
+            refreshTwitchState()
+            refreshReauthState()
         }
         .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
             musicPermission = MusicPermissionChecker.currentState()
+        }
+        .onReceive(NotificationCenter.default.publisher(for: Notification.Name.twitchConnectionStateChanged)) { notification in
+            if let connected = notification.isConnectedFlag {
+                isTwitchConnected = connected
+            }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: Notification.Name.twitchReauthNeededChanged)) { _ in
+            refreshReauthState()
         }
         .sheet(isPresented: $showWrapSheet) {
             if let service {
@@ -497,6 +534,19 @@ struct HistoryStatsSettingsView: View {
         }
     }
 
+    // MARK: - Twitch State
+
+    /// Pulls the current connection flag from the live Twitch service.
+    private func refreshTwitchState() {
+        isTwitchConnected = appDelegate?.twitchService?.isConnectedSnapshot.value ?? false
+    }
+
+    /// Re-reads the reauth flag the Twitch view model persists.
+    private func refreshReauthState() {
+        twitchReauthNeeded = UserDefaults.standard.bool(
+            forKey: AppConstants.UserDefaults.twitchReauthNeeded)
+    }
+
     // MARK: - !stats Command
 
     private var statsCommandCard: some View {
@@ -514,6 +564,24 @@ struct HistoryStatsSettingsView: View {
                 accessibilityLabel: "Toggle the stats Twitch command",
                 accessibilityIdentifier: "statsCommandToggle"
             )
+
+            if !twitchReady {
+                TwitchConnectionNotice(
+                    isConnected: isTwitchConnected,
+                    reauthNeeded: twitchReauthNeeded,
+                    expiredMessage:
+                        "Your Twitch sign-in expired. Reconnect in Twitch settings to keep the !stats command working.",
+                    disconnectedMessage:
+                        "Connect with Twitch to let chat use the !stats command."
+                )
+
+                Button(action: openTwitchSettings) {
+                    Label("Open Twitch settings", systemImage: "arrow.up.forward.app")
+                        .font(.system(size: DSFont.Size.body))
+                }
+                .buttonStyle(.borderless)
+                .accessibilityIdentifier("statsOpenTwitchSettingsButton")
+            }
 
             if statsCommandEnabled {
                 Divider()

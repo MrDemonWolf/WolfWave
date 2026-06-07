@@ -253,7 +253,7 @@ struct SettingsView: View {
         } else if selectedSection == .songRequests {
             SongRequestSettingsView()
         } else if selectedSection == .historyStats {
-            HistoryStatsSettingsView()
+            HistoryStatsSettingsView(openTwitchSettings: { selectedSection = .twitchIntegration })
         } else {
             #if DEBUG
             if selectedSection == .debug {
