@@ -55,16 +55,30 @@ struct SharePickerButton: NSViewRepresentable {
     }
 
     /// Applies title, icon, and prominent fill so make/update stay in sync.
+    ///
+    /// The icon color is baked into the symbol image via `SymbolConfiguration`
+    /// rather than `contentTintColor`: a rounded bezel button with an explicit
+    /// `bezelColor` ignores `contentTintColor` for its image, which left the
+    /// prominent share glyph rendering in the default `labelColor` (dark on the
+    /// accent fill, and flipping per light/dark appearance) while the title was
+    /// forced white. Baking the color keeps glyph and label in sync.
     private func applyStyle(to button: NSButton) {
-        button.image = NSImage(systemSymbolName: systemImage,
-                               accessibilityDescription: title)
+        let symbol = NSImage(systemSymbolName: systemImage,
+                             accessibilityDescription: title)
+
         if isProminent {
+            // Bake white into the glyph; the accent fill is colored in both
+            // appearances, so white reads correctly without flipping.
+            button.image = symbol?.withSymbolConfiguration(.init(paletteColors: [.white]))
             button.bezelColor = .controlAccentColor
             button.contentTintColor = .white
             button.attributedTitle = NSAttributedString(
                 string: title,
                 attributes: [.foregroundColor: NSColor.white])
         } else {
+            // Plain template image tints with the button's label color and
+            // adapts to light/dark on its own.
+            button.image = symbol
             button.bezelColor = nil
             button.contentTintColor = nil
             button.title = title

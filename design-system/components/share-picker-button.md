@@ -14,6 +14,7 @@ SharePickerButton(makeItems: { [fileURL] })
 |---|---|---|
 | `title` | `String` | Visible label. Default `"Share"`. |
 | `systemImage` | `String` | SF Symbol leading the title. Default `"square.and.arrow.up"`. |
+| `isProminent` | `Bool` | Fills the bezel with `controlAccentColor` and whitens label + glyph so it sits beside a SwiftUI `.borderedProminent` button. Default `false`. |
 | `makeItems` | `() -> [Any]?` | Builds the share items on click (main thread). Return `nil`/empty to suppress the picker — e.g. a render failed. Typically returns a temp file `URL`. |
 
 ## Tokens used
@@ -41,6 +42,7 @@ graph LR
 - ✅ Wrap with `.fixedSize()` so it sizes to its content.
 - ❌ Don't try to present `NSSharingServicePicker` from a SwiftUI `Button` — it has no `NSView` to anchor to.
 - ❌ Don't do heavy rendering off the main thread inside `makeItems` — it runs on the main thread on click.
+- ❌ Don't rely on `contentTintColor` to whiten the glyph in `isProminent` mode. A rounded bezel with an explicit `bezelColor` ignores it for the image, leaving the glyph in `labelColor` (dark on the accent fill, flipping per appearance). The color is baked into the symbol via `SymbolConfiguration(paletteColors:)` instead.
 
 ## Example
 ```swift
