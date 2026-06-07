@@ -165,7 +165,14 @@ struct DebugLogsAndEventsCard: View {
 
             TextEditor(text: $userInfoJSON)
                 .font(.system(size: DSFont.Size.sm, design: .monospaced))
-                .frame(minHeight: 60, maxHeight: 100)
+                .scrollContentBackground(.hidden)
+                .padding(DSSpace.s2)
+                .frame(minHeight: 96, maxHeight: 160)
+                .background(
+                    RoundedRectangle(cornerRadius: DSRadius.sm)
+                        .fill(Color(nsColor: .textBackgroundColor))
+                )
+                .clipShape(RoundedRectangle(cornerRadius: DSRadius.sm))
                 .overlay(
                     RoundedRectangle(cornerRadius: DSRadius.sm)
                         .stroke(Color.secondary.opacity(0.3), lineWidth: 1)
