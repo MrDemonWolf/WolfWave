@@ -52,7 +52,6 @@ struct SongRequestSettingsView: View {
                             isRequestingMusicAuth: $isRequestingMusicAuth
                         )
                     }
-                    SongRequestQueueView()
                     SongRequestAccessCard()
                     SongRequestQueueConfigCard()
                     SongRequestPlaybackCard()
@@ -60,6 +59,9 @@ struct SongRequestSettingsView: View {
                     SongRequestRedemptionsCard()
                     SongRequestBlocklistCard(
                         blocklistProvider: { appDelegate?.songRequestService?.blocklist })
+                    // The live queue sits at the bottom: configuration first, then
+                    // the running list of what's actually queued.
+                    SongRequestQueueView()
                 }
             }
             .frame(maxWidth: AppConstants.SettingsUI.maxContentWidth, alignment: .topLeading)
@@ -370,8 +372,39 @@ fileprivate struct SongRequestQueueConfigCard: View {
     @AppStorage(AppConstants.UserDefaults.songRequestMaxQueueSize)
     private var maxQueueSize = 10
 
+    // Per-role limits. "Everyone" reuses the original per-user-limit key so
+    // existing setups keep their value.
     @AppStorage(AppConstants.UserDefaults.songRequestPerUserLimit)
-    private var perUserLimit = 2
+    private var everyoneLimit = 2
+    @AppStorage(AppConstants.UserDefaults.songRequestLimitSubscriber)
+    private var subLimit = 2
+    @AppStorage(AppConstants.UserDefaults.songRequestLimitVIP)
+    private var vipLimit = 2
+    @AppStorage(AppConstants.UserDefaults.songRequestLimitModerator)
+    private var modLimit = 2
+
+    @AppStorage(AppConstants.UserDefaults.songRequestLimitStackMode)
+    private var stackMode: QueueLimitMode = .highest
+
+    private let limitOptions = [1, 2, 3, 5, 10, 15, 20]
+
+    /// One labelled per-role limit stepper row.
+    @ViewBuilder
+    private func limitRow(_ title: String, selection: Binding<Int>, id: String) -> some View {
+        HStack {
+            Text(title).font(.system(size: DSFont.Size.body))
+            Spacer()
+            Picker("", selection: selection) {
+                ForEach(limitOptions, id: \.self) { limit in
+                    Text("\(limit)").tag(limit)
+                }
+            }
+            .pickerStyle(.menu)
+            .frame(width: 80)
+            .accessibilityLabel("\(title) queue limit")
+            .accessibilityIdentifier("songRequests.limit.\(id)")
+        }
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: DSSpace.s4) {
@@ -391,17 +424,43 @@ fileprivate struct SongRequestQueueConfigCard: View {
                 .accessibilityLabel("Max queue size")
             }
 
+            Divider()
+
+            VStack(alignment: .leading, spacing: DSSpace.s1h) {
+                Text("Per-user limits")
+                    .font(.system(size: DSFont.Size.body, weight: .medium))
+                Text("How many songs each viewer can have queued at once, by role.")
+                    .font(.system(size: DSFont.Size.xs))
+                    .foregroundStyle(.tertiary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+
+            limitRow("Everyone", selection: $everyoneLimit, id: "everyone")
+            limitRow("Subscribers", selection: $subLimit, id: "subscriber")
+            limitRow("VIPs", selection: $vipLimit, id: "vip")
+            limitRow("Moderators", selection: $modLimit, id: "moderator")
+
+            Divider()
+
             HStack {
-                Text("Per-user limit").font(.system(size: DSFont.Size.body))
+                VStack(alignment: .leading, spacing: DSSpace.s0) {
+                    Text("When a viewer has more than one role")
+                        .font(.system(size: DSFont.Size.body))
+                    Text(stackMode.summary)
+                        .font(.system(size: DSFont.Size.xs))
+                        .foregroundStyle(.tertiary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
                 Spacer()
-                Picker("", selection: $perUserLimit) {
-                    ForEach([1, 2, 3, 5, 10], id: \.self) { limit in
-                        Text("\(limit)").tag(limit)
+                Picker("", selection: $stackMode) {
+                    ForEach(QueueLimitMode.allCases) { mode in
+                        Text(mode.displayName).tag(mode)
                     }
                 }
                 .pickerStyle(.menu)
-                .frame(width: 80)
-                .accessibilityLabel("Per-user limit")
+                .frame(width: 130)
+                .accessibilityLabel("How role limits combine")
+                .accessibilityIdentifier("songRequests.limitStackMode")
             }
         }
         .cardStyle()
@@ -414,16 +473,15 @@ fileprivate struct SongRequestAccessCard: View {
     @AppStorage(AppConstants.UserDefaults.songRequestChatAudience)
     private var audience: RequestAudience = .everyone
 
-    // Observed so the active-preset highlight refreshes when any of these change.
-    @AppStorage(AppConstants.UserDefaults.srCommandEnabled) private var srEnabled = true
-    @AppStorage(AppConstants.UserDefaults.songRequestChannelPointsEnabled)
-    private var channelPointsEnabled = false
-    @AppStorage(AppConstants.UserDefaults.songRequestBitsEnabled) private var bitsEnabled = false
+    // The active chip is stored explicitly, so observing the mode key is enough
+    // to refresh the highlight (and to show/hide the audience dropdown).
+    @AppStorage(AppConstants.UserDefaults.songRequestPolicyMode)
+    private var policyMode: SongRequestPreset = .open
 
-    private var activePreset: SongRequestPreset? { SongRequestPreset.current() }
+    private var activePreset: SongRequestPreset { SongRequestPreset.current() }
 
-    /// Applies a preset and re-evaluates redemption subscriptions (a preset can
-    /// flip the channel-point / bit toggles).
+    /// Applies a preset and re-evaluates redemption subscriptions (Channel Point
+    /// Only flips the reward on).
     private func apply(_ preset: SongRequestPreset) {
         preset.apply()
         if let service = AppDelegate.shared?.twitchService {
@@ -431,13 +489,14 @@ fileprivate struct SongRequestAccessCard: View {
         }
     }
 
-    /// One preset chip. Filled when it's the active policy, outlined otherwise,
-    /// so which audience requests are open to is obvious at a glance.
+    /// One preset chip. Filled when it's the active policy, outlined otherwise.
     @ViewBuilder
     private func presetButton(_ preset: SongRequestPreset) -> some View {
         let isActive = activePreset == preset
         let label = Text(preset.displayName)
             .font(.system(size: DSFont.Size.sm, weight: isActive ? .semibold : .medium))
+            .lineLimit(1)
+            .minimumScaleFactor(0.8)
             .frame(maxWidth: .infinity)
 
         Group {
@@ -459,11 +518,11 @@ fileprivate struct SongRequestAccessCard: View {
             Text("Who Can Request")
                 .font(.system(size: DSFont.Size.base, weight: .semibold))
 
-            Text("Pick a preset, or fine-tune who can use the !sr command below.")
+            Text("Pick a preset, or choose Custom to fine-tune who can use the !sr command.")
                 .font(.system(size: DSFont.Size.sm))
                 .foregroundStyle(.secondary)
 
-            // Preset buttons. The active one is filled (borderedProminent) so the
+            // Preset chips. The active one is filled (borderedProminent) so the
             // current request policy reads at a glance; the rest stay outlined.
             HStack(spacing: DSSpace.s1h) {
                 ForEach(SongRequestPreset.allCases) { preset in
@@ -472,41 +531,39 @@ fileprivate struct SongRequestAccessCard: View {
             }
 
             HStack(alignment: .top, spacing: DSSpace.s1h) {
-                Image(systemName: activePreset == nil ? "slider.horizontal.3" : "checkmark.circle.fill")
+                Image(systemName: activePreset == .custom ? "slider.horizontal.3" : "checkmark.circle.fill")
                     .font(.system(size: DSFont.Size.sm))
-                    .foregroundStyle(activePreset == nil ? Color.secondary : DSColor.success)
-                Group {
-                    if let active = activePreset {
-                        // Markdown bolds the active preset name (a plain string
-                        // literal is a LocalizedStringKey, so ** renders).
-                        Text("**\(active.displayName):** \(active.summary)")
-                    } else {
-                        Text("Custom configuration.")
-                    }
-                }
-                .font(.system(size: DSFont.Size.sm))
-                .foregroundStyle(.secondary)
-                .fixedSize(horizontal: false, vertical: true)
+                    .foregroundStyle(activePreset == .custom ? Color.secondary : DSColor.success)
+                // Markdown bolds the active preset name (a plain string literal is
+                // a LocalizedStringKey, so ** renders).
+                Text("**\(activePreset.displayName):** \(activePreset.summary)")
+                    .font(.system(size: DSFont.Size.sm))
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
             }
 
-            Divider()
+            // The audience dropdown is the fine-tune control, so it only appears
+            // under the Custom preset. The other presets set the audience for you.
+            if activePreset == .custom {
+                Divider()
 
-            HStack {
-                VStack(alignment: .leading, spacing: DSSpace.s0) {
-                    Text("!sr command audience").font(.system(size: DSFont.Size.body))
-                    Text("Mods and you can always request.")
-                        .font(.system(size: DSFont.Size.xs))
-                        .foregroundStyle(.tertiary)
-                }
-                Spacer()
-                Picker("", selection: $audience) {
-                    ForEach(RequestAudience.allCases) { option in
-                        Text(option.displayName).tag(option)
+                HStack {
+                    VStack(alignment: .leading, spacing: DSSpace.s0) {
+                        Text("!sr command audience").font(.system(size: DSFont.Size.body))
+                        Text("Mods and you can always request.")
+                            .font(.system(size: DSFont.Size.xs))
+                            .foregroundStyle(.tertiary)
                     }
+                    Spacer()
+                    Picker("", selection: $audience) {
+                        ForEach(RequestAudience.allCases) { option in
+                            Text(option.displayName).tag(option)
+                        }
+                    }
+                    .pickerStyle(.menu)
+                    .frame(width: 170)
+                    .accessibilityIdentifier("songRequests.audience")
                 }
-                .pickerStyle(.menu)
-                .frame(width: 170)
-                .accessibilityIdentifier("songRequests.audience")
             }
         }
         .cardStyle()
@@ -754,6 +811,9 @@ fileprivate struct SongRequestCommandsCard: View {
     @AppStorage(AppConstants.UserDefaults.songRequestGlobalCooldown) private var globalCooldown: Double = 5.0
     @AppStorage(AppConstants.UserDefaults.songRequestUserCooldown) private var userCooldown: Double = 30.0
 
+    @AppStorage(AppConstants.UserDefaults.songRequestDisabledReplyEnabled)
+    private var disabledReplyEnabled = false
+
     var body: some View {
         VStack(alignment: .leading, spacing: DSSpace.s6) {
             VStack(alignment: .leading, spacing: DSSpace.s1h) {
@@ -822,6 +882,17 @@ fileprivate struct SongRequestCommandsCard: View {
                 )
             }
             .cardStyleUnpadded()
+
+            VStack(alignment: .leading, spacing: DSSpace.s4) {
+                ToggleSettingRow(
+                    title: "Reply When Off",
+                    subtitle: "Tell chat \u{201C}Song requests are off right now.\u{201D} when someone uses !sr while the feature is off. Default: stay silent.",
+                    isOn: $disabledReplyEnabled,
+                    accessibilityLabel: "Reply when song requests are off",
+                    accessibilityIdentifier: "songRequests.disabledReply"
+                )
+            }
+            .cardStyle()
 
             HintRow("Cooldowns don't apply to you or your mods.")
         }
