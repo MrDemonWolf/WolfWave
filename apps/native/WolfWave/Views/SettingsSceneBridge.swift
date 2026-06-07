@@ -123,6 +123,11 @@ private struct BridgeWindowNeutralizer: NSViewRepresentable {
         window.ignoresMouseEvents = true
         window.isExcludedFromWindowsMenu = true
         window.collectionBehavior = [.stationary, .ignoresCycle, .fullScreenNone]
+        // The bridge is a degenerate 1×1 offscreen host. Opt it out of window
+        // state restoration so macOS never persists/restores its frame. A saved
+        // degenerate frame restores as garbage and logs "window frame from string
+        // '… 0 1 …' failed" on the next launch.
+        window.isRestorable = false
         window.setFrame(NSRect(x: -10_000, y: -10_000, width: 1, height: 1), display: false)
         window.orderOut(nil)
     }

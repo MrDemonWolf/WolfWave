@@ -128,7 +128,12 @@ extension AppDelegate {
             container.widthAnchor.constraint(equalToConstant: totalWidth),
         ])
 
-        container.layout()
+        // Read `fittingSize` to size the menu item from its constraints. Do NOT
+        // call `container.layout()` here: this runs inside `menuNeedsUpdate`
+        // while a layout pass is already in flight, and a manual `layout()`
+        // (which forces `layoutSubtreeIfNeeded`) trips `_NSDetectedLayoutRecursion`
+        // ("not legal to call -layoutSubtreeIfNeeded on a view already being laid
+        // out"). `fittingSize` solves Auto Layout on its own without recursing.
         let fittingSize = container.fittingSize
         container.frame = NSRect(origin: .zero, size: fittingSize)
 

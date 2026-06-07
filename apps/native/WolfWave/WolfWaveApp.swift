@@ -51,6 +51,9 @@ struct WolfWaveApp: App {
         .windowResizability(.contentSize)
         .defaultSize(width: 1, height: 1)
         .commandsRemoved()
+        // Hidden 1×1 host: never persist/restore its frame (avoids the
+        // "window frame from string '… 0 1 …' failed" restore log).
+        .restorationBehavior(.disabled)
 
         // Settings lives in a dedicated SwiftUI `Window` scene (NOT a `Settings`
         // scene). A real window scene is the only host where SwiftUI fully owns
