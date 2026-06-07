@@ -334,13 +334,7 @@ final class SongRequestService {
 
         if case .chatCommand(let context) = source {
             let audience = chatAudience
-            let permitted = audience.permits(
-                isSubscriber: context.isSubscriber,
-                isVIP: context.isVIP,
-                isModerator: context.isModerator,
-                isBroadcaster: context.isBroadcaster
-            )
-            if !permitted {
+            if !audience.permits(context) {
                 return .error(audience.denialMessage)
             }
         }
@@ -358,7 +352,21 @@ final class SongRequestService {
             }
 
             let item = SongRequestItem(song: song, requesterUsername: username)
-            let addResult = queue.add(item)
+            // Resolve the requester's per-user limit from their roles. Chat
+            // requests use the sender's badges; channel-point / bit requests have
+            // no chat badges, so they fall back to the everyone tier.
+            let effectiveUserLimit: Int
+            if case .chatCommand(let context) = source {
+                effectiveUserLimit = SongRequestLimits.effectiveLimit(
+                    isSubscriber: context.isSubscriber,
+                    isVIP: context.isVIP,
+                    isModerator: context.isModerator,
+                    isBroadcaster: context.isBroadcaster
+                )
+            } else {
+                effectiveUserLimit = SongRequestLimits.nonChatLimit()
+            }
+            let addResult = queue.add(item, perUserLimit: effectiveUserLimit)
 
             switch addResult {
             case .added(let position):

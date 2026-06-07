@@ -72,8 +72,12 @@ final class SongRequestQueue {
     ///
     /// - Parameters:
     ///   - item: The song request to add.
+    ///   - perUserLimitOverride: The effective per-user limit for this requester,
+    ///     resolved from their roles by `SongRequestLimits`. When `nil`, the
+    ///     global `perUserLimit` is used (legacy callers and tests).
     /// - Returns: The result indicating success or the reason for rejection.
-    func add(_ item: SongRequestItem) -> AddResult {
+    func add(_ item: SongRequestItem, perUserLimit perUserLimitOverride: Int? = nil) -> AddResult {
+        let effectiveUserLimit = perUserLimitOverride ?? perUserLimit
         let result: AddResult = lock.withLock {
             // Check queue capacity
             guard items.count < maxQueueSize else {
@@ -82,8 +86,8 @@ final class SongRequestQueue {
 
             // Check per-user limit
             let userCount = items.filter { $0.requesterUsername.lowercased() == item.requesterUsername.lowercased() }.count
-            guard userCount < perUserLimit else {
-                return .userLimitReached(max: perUserLimit)
+            guard userCount < effectiveUserLimit else {
+                return .userLimitReached(max: effectiveUserLimit)
             }
 
             // Check for duplicate (same song by same user)
