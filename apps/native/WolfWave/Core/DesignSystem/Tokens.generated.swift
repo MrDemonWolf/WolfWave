@@ -78,6 +78,7 @@ nonisolated enum DSFont {
         static let xl: CGFloat = 20
         static let x2xl: CGFloat = 22
         static let x3xl: CGFloat = 26
+        static let display: CGFloat = 52
     }
 
     enum Weight {

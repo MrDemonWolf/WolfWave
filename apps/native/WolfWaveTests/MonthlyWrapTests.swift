@@ -124,4 +124,96 @@ struct MonthlyWrapTests {
         let renderer = ImageRenderer(content: MonthlyWrapCard(data: data).frame(width: 380))
         #expect(renderer.nsImage != nil)
     }
+
+    // MARK: - Framing line
+
+    @Test("Framing line is nil for an empty month")
+    func testFramingEmpty() {
+        #expect(MonthlyWrap.framingLine(plays: 0, seconds: 0, activeDays: 0) == nil)
+    }
+
+    @Test("Twenty-plus listening hours frame as almost a full day")
+    func testFramingFullDay() {
+        let line = MonthlyWrap.framingLine(plays: 300, seconds: 21 * 3600, activeDays: 20)
+        #expect(line == "Almost a full day lost in the music.")
+    }
+
+    @Test("A high per-day play rate frames as tracks a day")
+    func testFramingPerDay() {
+        // 120 plays over 6 active days = 20/day; only ~2h listening so the
+        // hour-based branches don't fire first.
+        let line = MonthlyWrap.framingLine(plays: 120, seconds: 2 * 3600, activeDays: 6)
+        #expect(line == "About 20 tracks a day. You barely hit pause.")
+    }
+
+    @Test("A hundred-plus plays without other triggers frames as still counting")
+    func testFramingHundred() {
+        // 100 plays spread thin: 2/day, 1h listening.
+        let line = MonthlyWrap.framingLine(plays: 100, seconds: 3600, activeDays: 50)
+        #expect(line == "100 plays and still counting.")
+    }
+
+    @Test("A quiet month still gets a friendly framing line")
+    func testFramingQuiet() {
+        let line = MonthlyWrap.framingLine(plays: 12, seconds: 1800, activeDays: 9)
+        #expect(line == "Every play logged, start to finish.")
+    }
+
+    @Test("data() attaches a framing line to a month with plays")
+    func testFramingWiredIntoData() {
+        let records = [record(track: "A", artist: "X", at: date(2026, 5, 1))]
+        let wrap = MonthlyWrap.data(from: records, month: date(2026, 5, 15), calendar: calendar)
+        #expect(wrap.framingLine != nil)
+    }
+
+    // MARK: - Milestones
+
+    @Test("Milestone is nil with only one month of recorded data")
+    func testMilestoneSingleMonth() {
+        let records = [
+            record(track: "A", artist: "X", at: date(2026, 5, 1)),
+            record(track: "B", artist: "X", at: date(2026, 5, 2)),
+        ]
+        let wrap = MonthlyWrap.data(from: records, month: date(2026, 5, 15), calendar: calendar)
+        #expect(wrap.milestone == nil)
+    }
+
+    @Test("Best month yet when the viewed month has the most plays")
+    func testMilestoneBestMonth() {
+        let records = [
+            record(track: "Apr", artist: "X", at: date(2026, 4, 10)),   // April: 1 play
+            record(track: "A", artist: "X", at: date(2026, 5, 1)),      // May: 3 plays
+            record(track: "B", artist: "X", at: date(2026, 5, 2)),
+            record(track: "C", artist: "X", at: date(2026, 5, 3)),
+        ]
+        let wrap = MonthlyWrap.data(from: records, month: date(2026, 5, 15), calendar: calendar)
+        #expect(wrap.milestone == .bestMonthYet)
+    }
+
+    @Test("A quieter month earns no milestone")
+    func testMilestoneNotBest() {
+        let records = [
+            record(track: "Apr", artist: "X", at: date(2026, 4, 10)),   // April: 1 play, fewer seconds
+            record(track: "A", artist: "X", at: date(2026, 5, 1)),      // May: 3 plays
+            record(track: "B", artist: "X", at: date(2026, 5, 2)),
+            record(track: "C", artist: "X", at: date(2026, 5, 3)),
+        ]
+        let wrap = MonthlyWrap.data(from: records, month: date(2026, 4, 15), calendar: calendar)
+        #expect(wrap.milestone == nil)
+    }
+
+    @Test("Most listening yet when plays trail but time leads")
+    func testMilestoneMostListening() {
+        // April: two short plays. May: one long play (fewer plays, more seconds).
+        let records = [
+            PlayRecord(timestamp: date(2026, 4, 1), track: "a", artist: "X", album: "Al",
+                       duration: 200, playedSeconds: 60),
+            PlayRecord(timestamp: date(2026, 4, 2), track: "b", artist: "X", album: "Al",
+                       duration: 200, playedSeconds: 60),
+            PlayRecord(timestamp: date(2026, 5, 1), track: "c", artist: "X", album: "Al",
+                       duration: 600, playedSeconds: 600),
+        ]
+        let wrap = MonthlyWrap.data(from: records, month: date(2026, 5, 15), calendar: calendar)
+        #expect(wrap.milestone == .mostListeningYet)
+    }
 }

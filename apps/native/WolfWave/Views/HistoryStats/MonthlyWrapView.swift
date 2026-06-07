@@ -27,6 +27,11 @@ struct MonthlyWrapView: View {
     /// Set briefly after a successful export to confirm to the user.
     @State private var didExport = false
 
+    /// Color sampled from the top track's album art, blended into the card
+    /// gradient. `nil` until artwork loads (or when there's no top track), in
+    /// which case the card shows the plain WolfWave brand gradient.
+    @State private var tint: Color?
+
     @Environment(\.dismiss) private var dismiss
 
     private let calendar = Calendar.current
@@ -65,7 +70,7 @@ struct MonthlyWrapView: View {
                 header
             }
 
-            MonthlyWrapCard(data: wrap, hasAnyHistory: hasAnyHistory)
+            MonthlyWrapCard(data: wrap, hasAnyHistory: hasAnyHistory, tint: tint)
                 .frame(width: 380)
 
             footer
@@ -73,6 +78,7 @@ struct MonthlyWrapView: View {
         .padding(DSSpace.s7)
         .frame(width: 440)
         .background(Color(nsColor: .windowBackgroundColor))
+        .task(id: month) { await loadTint() }
     }
 
     // MARK: - Header
@@ -141,6 +147,29 @@ struct MonthlyWrapView: View {
 
     // MARK: - Actions
 
+    /// Samples a tint color from the top track's album art and stores it for the
+    /// card gradient. Re-runs whenever the shown month changes (via `.task(id:)`),
+    /// which also cancels any in-flight fetch. No-op when the month has no top
+    /// track; failures leave the plain brand gradient in place.
+    @MainActor
+    private func loadTint() async {
+        tint = nil
+        guard let track = wrap.topTrack else { return }
+        let artist = track.detail ?? ""
+
+        let urlString = await withCheckedContinuation { (continuation: CheckedContinuation<String?, Never>) in
+            ArtworkService.shared.fetchArtworkURL(track: track.name, artist: artist) { url in
+                continuation.resume(returning: url)
+            }
+        }
+
+        guard let urlString, let url = URL(string: urlString) else { return }
+        guard let (data, _) = try? await URLSession.shared.data(from: url) else { return }
+        guard let image = NSImage(data: data),
+              let color = ArtworkTint.dominantColor(from: image) else { return }
+        tint = Color(nsColor: color)
+    }
+
     /// Moves the shown month, clamped between the earliest recorded month and the current month.
     private func shiftMonth(by delta: Int) {
         guard let next = calendar.date(byAdding: .month, value: delta, to: month) else { return }
@@ -156,7 +185,7 @@ struct MonthlyWrapView: View {
     @MainActor
     private func renderPNG() -> Data? {
         let renderer = ImageRenderer(content:
-            MonthlyWrapCard(data: wrap, hasAnyHistory: hasAnyHistory)
+            MonthlyWrapCard(data: wrap, hasAnyHistory: hasAnyHistory, tint: tint)
                 .frame(width: 380)
                 .padding(DSSpace.s7)
                 .background(Color(nsColor: .windowBackgroundColor))
@@ -228,6 +257,9 @@ struct MonthlyWrapCard: View {
     /// `false` when no plays have ever been recorded. Switches the empty branch
     /// from a per-month "no plays" message to a punchy onboarding CTA.
     var hasAnyHistory: Bool = true
+    /// Color sampled from the top track's album art, blended as a corner accent
+    /// over the brand gradient. `nil` shows the plain WolfWave gradient.
+    var tint: Color?
 
     var body: some View {
         VStack(alignment: .leading, spacing: DSSpace.s5) {
@@ -252,12 +284,42 @@ struct MonthlyWrapCard: View {
             }
 
             if data.hasData {
-                HStack(spacing: DSSpace.s8) {
-                    statBlock(value: "\(data.totalPlays)", label: "plays")
-                    statBlock(value: HistoryFormat.listeningTime(data.totalListeningSeconds), label: "listened")
+                if let milestone = data.milestone {
+                    milestoneBadge(milestone)
+                }
+
+                // Hero: one big headline number, framed emotionally.
+                VStack(alignment: .leading, spacing: DSSpace.s1) {
+                    Text("TRACKS PLAYED")
+                        .font(.system(size: DSFont.Size.xs, weight: .bold))
+                        .tracking(1.4)
+                        .foregroundStyle(.white.opacity(0.65))
+                    Text("\(data.totalPlays)")
+                        .font(.system(size: DSFont.Size.display, weight: .bold))
+                        .foregroundStyle(
+                            LinearGradient(
+                                colors: [.white, .white.opacity(0.78)],
+                                startPoint: .top,
+                                endPoint: .bottom
+                            )
+                        )
+                        .monospacedDigit()
+                    if let framing = data.framingLine {
+                        Text(framing)
+                            .font(.system(size: DSFont.Size.base))
+                            .foregroundStyle(.white.opacity(0.85))
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
                 }
 
                 Divider().overlay(.white.opacity(0.25))
+
+                // Supporting stats, demoted below the hero.
+                HStack(alignment: .top, spacing: DSSpace.s7) {
+                    miniStat(value: HistoryFormat.listeningTime(data.totalListeningSeconds), label: "listened")
+                    miniStat(value: "\(data.uniqueArtists)", label: "artists")
+                    miniStat(value: "\(data.uniqueTracks)", label: "tracks")
+                }
 
                 if let artist = data.topArtist {
                     wrapRow(caption: "TOP ARTIST", value: artist.name)
@@ -268,10 +330,6 @@ struct MonthlyWrapCard: View {
                         value: track.detail.map { "\(track.name) · \($0)" } ?? track.name
                     )
                 }
-
-                Text("\(data.uniqueArtists) artists · \(data.uniqueTracks) tracks")
-                    .font(.system(size: DSFont.Size.sm, weight: .medium))
-                    .foregroundStyle(.white.opacity(0.7))
             } else if !hasAnyHistory {
                 VStack(alignment: .leading, spacing: DSSpace.s2) {
                     Text("Nothing to wrap yet.")
@@ -303,7 +361,14 @@ struct MonthlyWrapCard: View {
         }
         .padding(DSSpace.s7)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(
+        .background(cardBackground)
+        .clipShape(RoundedRectangle(cornerRadius: DSRadius.x2xl, style: .continuous))
+    }
+
+    /// The brand gradient, with an album-art-tinted radial accent layered into
+    /// the top-trailing corner when a `tint` is available.
+    private var cardBackground: some View {
+        ZStack {
             LinearGradient(
                 colors: [
                     AppConstants.Brand.wolfwaveGradientStart,
@@ -312,15 +377,49 @@ struct MonthlyWrapCard: View {
                 startPoint: .topLeading,
                 endPoint: .bottomTrailing
             )
-        )
-        .clipShape(RoundedRectangle(cornerRadius: DSRadius.x2xl, style: .continuous))
+            if let tint {
+                RadialGradient(
+                    gradient: Gradient(colors: [tint.opacity(0.6), .clear]),
+                    center: .topTrailing,
+                    startRadius: 0,
+                    endRadius: 360
+                )
+                .blendMode(.screen)
+            }
+        }
     }
 
+    /// A small bragging-rights pill shown above the hero number.
     @ViewBuilder
-    private func statBlock(value: String, label: String) -> some View {
+    private func milestoneBadge(_ milestone: MonthlyMilestone) -> some View {
+        HStack(spacing: DSSpace.s1) {
+            Image(systemName: milestone == .bestMonthYet ? "star.fill" : "clock.fill")
+            Text(milestone.label.uppercased())
+        }
+        .font(.system(size: DSFont.Size.xs, weight: .semibold))
+        .tracking(0.8)
+        .foregroundStyle(.black.opacity(0.82))
+        .padding(.horizontal, DSSpace.s3)
+        .padding(.vertical, DSSpace.s1)
+        .background(
+            Capsule().fill(
+                LinearGradient(
+                    colors: milestone == .bestMonthYet
+                        ? [Color(red: 1.0, green: 0.84, blue: 0.42), Color(red: 1.0, green: 0.62, blue: 0.04)]
+                        : [Color(red: 0.49, green: 1.0, blue: 0.70), Color(red: 0.0, green: 0.90, blue: 1.0)],
+                    startPoint: .leading,
+                    endPoint: .trailing
+                )
+            )
+        )
+    }
+
+    /// A demoted supporting stat (listened / artists / tracks) under the hero.
+    @ViewBuilder
+    private func miniStat(value: String, label: String) -> some View {
         VStack(alignment: .leading, spacing: 0) {
             Text(value)
-                .font(.system(size: DSFont.Size.x3xl, weight: .bold))
+                .font(.system(size: DSFont.Size.lg, weight: .bold))
                 .foregroundStyle(.white)
             Text(label)
                 .font(.system(size: DSFont.Size.sm, weight: .medium))
@@ -374,9 +473,11 @@ struct MonthlyWrapCard: View {
             detail: "Arctic Wolf",
             count: 81
         ),
-        busiestDay: nil
+        busiestDay: nil,
+        framingLine: "Almost a full day lost in the music.",
+        milestone: .bestMonthYet
     )
-    return MonthlyWrapCard(data: data)
+    return MonthlyWrapCard(data: data, tint: Color(red: 0.43, green: 0.29, blue: 1.0))
         .frame(width: 380)
         .padding()
 }

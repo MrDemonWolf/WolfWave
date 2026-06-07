@@ -87,7 +87,8 @@ window.WW_TOKENS = {
       "lg": 17,
       "xl": 20,
       "2xl": 22,
-      "3xl": 26
+      "3xl": 26,
+      "display": 52
     },
     "weight": {
       "regular": 400,
