@@ -71,6 +71,22 @@ enum RequestAudience: String, CaseIterable, Identifiable {
         case .modsOnly: return false
         }
     }
+
+    /// Convenience overload that reads roles straight off a `BotCommandContext`.
+    ///
+    /// This is the single permission chokepoint reused everywhere a chat sender's
+    /// request must be gated, so the badge-to-policy mapping lives in one place.
+    ///
+    /// - Parameter context: The chat sender's context (badges + identity).
+    /// - Returns: `true` when the sender may request under this audience.
+    func permits(_ context: BotCommandContext) -> Bool {
+        permits(
+            isSubscriber: context.isSubscriber,
+            isVIP: context.isVIP,
+            isModerator: context.isModerator,
+            isBroadcaster: context.isBroadcaster
+        )
+    }
 }
 
 // MARK: - RequestSource
@@ -89,96 +105,174 @@ enum RequestSource {
 
 // MARK: - SongRequestPreset
 
-/// One-tap configurations that set the chat audience and redemption toggles
-/// together, so a streamer can switch the channel's request policy quickly.
+/// One-tap request-policy presets shown as chips in settings.
+///
+/// The active preset is stored explicitly (`songRequestPolicyMode`) rather than
+/// inferred from the individual toggles, so the highlighted chip is always
+/// deterministic and `.custom` can be selected on purpose to reveal the
+/// fine-grained audience dropdown. Presets only drive the **chat** side of
+/// requests (whether `!sr` is on and who it's for); channel-point and bit
+/// toggles stay under the streamer's manual control in the Redemptions card,
+/// except `.channelPointsOnly`, whose whole purpose is to flip to the points
+/// path.
 enum SongRequestPreset: String, CaseIterable, Identifiable {
-    /// `!sr` open to everyone, channel points and bits on.
+    /// `!sr` open to everyone. Bits boost the cheerer's queued song.
     case open
-    /// `!sr` for subscribers, channel points and bits still on (paid path for non-subs).
+    /// `!sr` for subscribers only.
     case subsOnly
-    /// `!sr` for subscribers only, channel points and bits off.
-    case subsStrict
-    /// `!sr` disabled, channel points and bits on.
-    case paidOnly
-    /// `!sr` for mods only, channel points and bits off.
-    case locked
+    /// `!sr` off; requests come from the channel-point reward.
+    case channelPointsOnly
+    /// Manual configuration; reveals the audience dropdown.
+    case custom
 
     var id: String { rawValue }
 
-    /// Short label for the preset button.
+    /// Short label for the preset chip.
     var displayName: String {
         switch self {
         case .open: return "Open"
-        case .subsOnly: return "Subs Only"
-        case .subsStrict: return "Subs Strict"
-        case .paidOnly: return "Paid Only"
-        case .locked: return "Locked"
+        case .subsOnly: return "Sub Only"
+        case .channelPointsOnly: return "Channel Point Only"
+        case .custom: return "Custom"
         }
     }
 
     /// One-line explanation of what the preset does.
     var summary: String {
         switch self {
-        case .open: return "Anyone can request: chat, points, or bits."
-        case .subsOnly: return "!sr for subs; everyone else can pay with points or bits."
-        case .subsStrict: return "Subscribers only. Points and bits off."
-        case .paidOnly: return "!sr off. Requests come only from points or bits."
-        case .locked: return "Only mods can request. Redemptions off."
+        case .open: return "Anyone can request with !sr. Bits bump a song to the front."
+        case .subsOnly: return "!sr is for subscribers only."
+        case .channelPointsOnly: return "!sr is off. Viewers redeem the channel-point reward to request."
+        case .custom: return "Fine-tune exactly who can use !sr below."
         }
     }
-
-    /// Whether the `!sr` chat command is enabled under this preset.
-    var chatCommandEnabled: Bool {
-        switch self {
-        case .open, .subsOnly, .subsStrict, .locked: return true
-        case .paidOnly: return false
-        }
-    }
-
-    /// The chat-command audience under this preset.
-    var audience: RequestAudience {
-        switch self {
-        case .open, .paidOnly: return .everyone
-        case .subsOnly, .subsStrict: return .subscribers
-        case .locked: return .modsOnly
-        }
-    }
-
-    /// Whether channel-point requests are enabled under this preset.
-    var channelPointsEnabled: Bool {
-        switch self {
-        case .open, .subsOnly, .paidOnly: return true
-        case .subsStrict, .locked: return false
-        }
-    }
-
-    /// Whether bit-cheer requests are enabled under this preset.
-    var bitsEnabled: Bool { channelPointsEnabled }
 
     /// Writes this preset's configuration into `UserDefaults`.
+    ///
+    /// Always records the active mode. `.open`/`.subsOnly` set the chat command
+    /// and audience; `.channelPointsOnly` turns `!sr` off and the reward on;
+    /// `.custom` records the mode only and leaves the existing audience intact so
+    /// the streamer can edit it.
     func apply(to defaults: Foundation.UserDefaults = .standard) {
-        defaults.set(chatCommandEnabled, forKey: AppConstants.UserDefaults.srCommandEnabled)
-        defaults.set(audience.rawValue, forKey: AppConstants.UserDefaults.songRequestChatAudience)
-        defaults.set(channelPointsEnabled, forKey: AppConstants.UserDefaults.songRequestChannelPointsEnabled)
-        defaults.set(bitsEnabled, forKey: AppConstants.UserDefaults.songRequestBitsEnabled)
+        defaults.set(rawValue, forKey: AppConstants.UserDefaults.songRequestPolicyMode)
+        switch self {
+        case .open:
+            defaults.set(true, forKey: AppConstants.UserDefaults.srCommandEnabled)
+            defaults.set(RequestAudience.everyone.rawValue, forKey: AppConstants.UserDefaults.songRequestChatAudience)
+            // Bits, when enabled, bump the cheerer's queued song to the front.
+            defaults.set(true, forKey: AppConstants.UserDefaults.songRequestBitsBoostEnabled)
+        case .subsOnly:
+            defaults.set(true, forKey: AppConstants.UserDefaults.srCommandEnabled)
+            defaults.set(RequestAudience.subscribers.rawValue, forKey: AppConstants.UserDefaults.songRequestChatAudience)
+        case .channelPointsOnly:
+            defaults.set(false, forKey: AppConstants.UserDefaults.srCommandEnabled)
+            defaults.set(true, forKey: AppConstants.UserDefaults.songRequestChannelPointsEnabled)
+        case .custom:
+            break
+        }
     }
 
-    /// Returns the preset that matches the current `UserDefaults` state, or
-    /// `nil` when the settings don't match any preset ("Custom").
-    static func current(in defaults: Foundation.UserDefaults = .standard) -> SongRequestPreset? {
+    /// The active preset, read from the stored mode.
+    ///
+    /// On a fresh install or a pre-mode upgrade (no stored value) the chat
+    /// settings are inferred so an existing config maps to a sensible chip;
+    /// a brand-new install lands on `.open`.
+    static func current(in defaults: Foundation.UserDefaults = .standard) -> SongRequestPreset {
+        if let raw = defaults.string(forKey: AppConstants.UserDefaults.songRequestPolicyMode),
+           let stored = SongRequestPreset(rawValue: raw) {
+            return stored
+        }
+
         let srEnabled = defaults.object(forKey: AppConstants.UserDefaults.srCommandEnabled) as? Bool ?? true
         let audience = RequestAudience(
             rawValue: defaults.string(forKey: AppConstants.UserDefaults.songRequestChatAudience) ?? ""
         ) ?? .everyone
         let channelPoints = defaults.bool(forKey: AppConstants.UserDefaults.songRequestChannelPointsEnabled)
-        let bits = defaults.bool(forKey: AppConstants.UserDefaults.songRequestBitsEnabled)
 
-        return allCases.first { preset in
-            preset.chatCommandEnabled == srEnabled
-                && preset.audience == audience
-                && preset.channelPointsEnabled == channelPoints
-                && preset.bitsEnabled == bits
+        if !srEnabled { return channelPoints ? .channelPointsOnly : .custom }
+        switch audience {
+        case .everyone: return .open
+        case .subscribers: return .subsOnly
+        case .vipsAndSubs, .modsOnly: return .custom
         }
+    }
+}
+
+// MARK: - QueueLimitMode
+
+/// How the per-role queue limits combine for a viewer who holds more than one
+/// role. Persisted as a raw `String` so it can back an `@AppStorage` property.
+enum QueueLimitMode: String, CaseIterable, Identifiable {
+    /// The viewer gets the largest single limit among the roles they hold.
+    case highest
+    /// The viewer gets the sum of the limits for every role they hold.
+    case stacked
+
+    var id: String { rawValue }
+
+    var displayName: String {
+        switch self {
+        case .highest: return "Highest tier"
+        case .stacked: return "Stacked"
+        }
+    }
+
+    var summary: String {
+        switch self {
+        case .highest: return "A viewer gets the limit of their best role."
+        case .stacked: return "Limits add up across every role a viewer holds."
+        }
+    }
+}
+
+// MARK: - SongRequestLimits
+
+/// Resolves a requester's effective per-user queue limit from the configured
+/// per-role limits and the combine mode. Shared so the chat command, channel
+/// points, and bits all compute the same cap.
+enum SongRequestLimits {
+
+    /// The configured combine mode (defaults to `.highest`).
+    static func mode(in defaults: Foundation.UserDefaults = .standard) -> QueueLimitMode {
+        QueueLimitMode(rawValue: defaults.string(forKey: AppConstants.UserDefaults.songRequestLimitStackMode) ?? "")
+            ?? .highest
+    }
+
+    /// The effective number of simultaneous queued requests allowed for a viewer
+    /// with the given roles.
+    ///
+    /// The "everyone" tier always applies; subscriber/VIP/mod tiers add to the
+    /// pool when the viewer holds that badge (the broadcaster counts as a mod).
+    /// In `.highest` mode the largest applicable tier wins; in `.stacked` mode
+    /// the applicable tiers are summed.
+    static func effectiveLimit(
+        isSubscriber: Bool,
+        isVIP: Bool,
+        isModerator: Bool,
+        isBroadcaster: Bool,
+        in defaults: Foundation.UserDefaults = .standard
+    ) -> Int {
+        let everyone = defaults.object(forKey: AppConstants.UserDefaults.songRequestPerUserLimit) as? Int ?? 2
+        let sub = defaults.object(forKey: AppConstants.UserDefaults.songRequestLimitSubscriber) as? Int ?? 2
+        let vip = defaults.object(forKey: AppConstants.UserDefaults.songRequestLimitVIP) as? Int ?? 2
+        let mod = defaults.object(forKey: AppConstants.UserDefaults.songRequestLimitModerator) as? Int ?? 2
+
+        var applicable = [everyone]
+        if isSubscriber { applicable.append(sub) }
+        if isVIP { applicable.append(vip) }
+        if isModerator || isBroadcaster { applicable.append(mod) }
+
+        switch mode(in: defaults) {
+        case .highest: return applicable.max() ?? everyone
+        case .stacked: return applicable.reduce(0, +)
+        }
+    }
+
+    /// Effective limit for a requester arriving via a non-chat source (channel
+    /// points / bits), where no chat badges are available. Uses the everyone tier.
+    static func nonChatLimit(in defaults: Foundation.UserDefaults = .standard) -> Int {
+        effectiveLimit(
+            isSubscriber: false, isVIP: false, isModerator: false, isBroadcaster: false, in: defaults)
     }
 }
 

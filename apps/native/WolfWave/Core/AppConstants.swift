@@ -475,6 +475,31 @@ nonisolated enum AppConstants {
         /// (String, default: "ok").
         static let songRequestRedemptionStatus = "songRequestRedemptionStatus"
 
+        /// Whether `!sr` replies "Song requests are off right now." when used while
+        /// the feature is disabled. Off = stay silent (Bool, default: false).
+        static let songRequestDisabledReplyEnabled = "songRequestDisabledReplyEnabled"
+
+        /// Active request-policy preset: a `SongRequestPreset` raw value
+        /// ("open", "subsOnly", "channelPointsOnly", "custom"). Drives the
+        /// highlighted chip and whether the audience dropdown is revealed
+        /// (String, default: "open").
+        static let songRequestPolicyMode = "songRequestPolicyMode"
+
+        /// How per-role queue limits combine: a `QueueLimitMode` raw value
+        /// ("highest" = best tier the user holds; "stacked" = sum of all tiers
+        /// they hold) (String, default: "highest").
+        static let songRequestLimitStackMode = "songRequestLimitStackMode"
+
+        /// Per-user queue limit contribution for subscribers (Int, default: 2).
+        static let songRequestLimitSubscriber = "songRequestLimitSubscriber"
+
+        /// Per-user queue limit contribution for VIPs (Int, default: 2).
+        static let songRequestLimitVIP = "songRequestLimitVIP"
+
+        /// Per-user queue limit contribution for moderators and the broadcaster
+        /// (Int, default: 2).
+        static let songRequestLimitModerator = "songRequestLimitModerator"
+
         // MARK: Chat Vote-Skip Keys
 
         /// Whether the chat vote-to-skip feature is enabled (Bool, default: false)
@@ -631,6 +656,12 @@ nonisolated enum AppConstants {
             songRequestBitsMinimum,
             songRequestBitsBoostEnabled,
             songRequestRedemptionStatus,
+            songRequestDisabledReplyEnabled,
+            songRequestPolicyMode,
+            songRequestLimitStackMode,
+            songRequestLimitSubscriber,
+            songRequestLimitVIP,
+            songRequestLimitModerator,
             voteSkipEnabled,
             voteSkipMinVotes,
             voteSkipWindowSeconds,
@@ -740,6 +771,12 @@ nonisolated enum AppConstants {
             songRequestBitsEnabled,
             songRequestBitsMinimum,
             songRequestBitsBoostEnabled,
+            songRequestDisabledReplyEnabled,
+            songRequestPolicyMode,
+            songRequestLimitStackMode,
+            songRequestLimitSubscriber,
+            songRequestLimitVIP,
+            songRequestLimitModerator,
             // Vote skip
             voteSkipEnabled,
             voteSkipMinVotes,
