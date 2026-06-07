@@ -478,12 +478,28 @@ fileprivate struct SongRequestAccessCard: View {
     @AppStorage(AppConstants.UserDefaults.songRequestPolicyMode)
     private var policyMode: SongRequestPreset = .open
 
+    // Redemption toggles, surfaced inline under Open / Custom. These bind to the
+    // same keys as the Channel Points & Bits card, so the two stay in sync; that
+    // card keeps the detailed settings (cost, minimum bits, reward ID).
+    @AppStorage(AppConstants.UserDefaults.songRequestChannelPointsEnabled)
+    private var channelPointsEnabled = false
+    @AppStorage(AppConstants.UserDefaults.songRequestBitsEnabled)
+    private var bitsEnabled = false
+    @AppStorage(AppConstants.UserDefaults.songRequestBitsBoostEnabled)
+    private var bitsBoostEnabled = false
+
     private var activePreset: SongRequestPreset { SongRequestPreset.current() }
 
-    /// Applies a preset and re-evaluates redemption subscriptions (Channel Point
-    /// Only flips the reward on).
+    /// Applies a preset and re-evaluates redemption subscriptions (presets flip
+    /// the channel-point / bit toggles, so the managed reward must be reconciled).
     private func apply(_ preset: SongRequestPreset) {
         preset.apply()
+        refreshRedemptions()
+    }
+
+    /// Reconciles the managed Twitch reward / EventSub subscriptions after a
+    /// channel-point or bit toggle changes.
+    private func refreshRedemptions() {
         if let service = AppDelegate.shared?.twitchService {
             Task { await service.refreshRedemptionSubscriptions() }
         }
@@ -542,27 +558,68 @@ fileprivate struct SongRequestAccessCard: View {
                     .fixedSize(horizontal: false, vertical: true)
             }
 
-            // The audience dropdown is the fine-tune control, so it only appears
-            // under the Custom preset. The other presets set the audience for you.
-            if activePreset == .custom {
+            // Open and Custom expose the request-path options inline. Sub Only and
+            // Channel Point Only are fixed policies, so they show no extra controls.
+            if activePreset == .open || activePreset == .custom {
                 Divider()
 
-                HStack {
-                    VStack(alignment: .leading, spacing: DSSpace.s0) {
-                        Text("!sr command audience").font(.system(size: DSFont.Size.body))
-                        Text("Mods and you can always request.")
-                            .font(.system(size: DSFont.Size.xs))
-                            .foregroundStyle(.tertiary)
-                    }
-                    Spacer()
-                    Picker("", selection: $audience) {
-                        ForEach(RequestAudience.allCases) { option in
-                            Text(option.displayName).tag(option)
+                // The audience dropdown is the fine-tune control, so it only
+                // appears under Custom. Open is always "everyone".
+                if activePreset == .custom {
+                    HStack {
+                        VStack(alignment: .leading, spacing: DSSpace.s0) {
+                            Text("!sr command audience").font(.system(size: DSFont.Size.body))
+                            Text("Mods and you can always request.")
+                                .font(.system(size: DSFont.Size.xs))
+                                .foregroundStyle(.tertiary)
                         }
+                        Spacer()
+                        Picker("", selection: $audience) {
+                            ForEach(RequestAudience.allCases) { option in
+                                Text(option.displayName).tag(option)
+                            }
+                        }
+                        .pickerStyle(.menu)
+                        .frame(width: 170)
+                        .accessibilityIdentifier("songRequests.audience")
                     }
-                    .pickerStyle(.menu)
-                    .frame(width: 170)
-                    .accessibilityIdentifier("songRequests.audience")
+
+                    Divider()
+                }
+
+                ToggleSettingRow(
+                    title: "Channel Point Requests",
+                    subtitle: "Viewers redeem the \u{201C}Request a Song\u{201D} reward",
+                    isOn: $channelPointsEnabled,
+                    accessibilityLabel: "Enable channel point song requests",
+                    accessibilityIdentifier: "songRequests.access.channelPoints",
+                    onChange: { _ in refreshRedemptions() }
+                )
+
+                ToggleSettingRow(
+                    title: "Bit Requests",
+                    subtitle: "Viewers cheer with a song name to request it",
+                    isOn: $bitsEnabled,
+                    accessibilityLabel: "Enable bit song requests",
+                    accessibilityIdentifier: "songRequests.access.bits",
+                    onChange: { _ in refreshRedemptions() }
+                )
+
+                if bitsEnabled {
+                    ToggleSettingRow(
+                        title: "Boost With Bits",
+                        subtitle: "A cheer bumps the cheerer's queued song to the front instead of adding a new one",
+                        isOn: $bitsBoostEnabled,
+                        accessibilityLabel: "Boost queued song with bits",
+                        accessibilityIdentifier: "songRequests.access.bitsBoost"
+                    )
+                }
+
+                if channelPointsEnabled || bitsEnabled {
+                    Text("Set the reward cost and minimum bits in Channel Points & Bits below.")
+                        .font(.system(size: DSFont.Size.xs))
+                        .foregroundStyle(.tertiary)
+                        .fixedSize(horizontal: false, vertical: true)
                 }
             }
         }
