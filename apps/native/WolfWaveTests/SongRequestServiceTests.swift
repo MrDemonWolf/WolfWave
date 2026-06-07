@@ -512,6 +512,45 @@ final class SongRequestServiceTests: WolfWaveTestCase {
         XCTAssertTrue(tookOver, "Request should take over once the current track ends")
     }
 
+    func testSkipInsideMusicAppAdvancesRequestQueue() async {
+        // A request is playing. The streamer hits skip inside Music.app (or the
+        // track ends and Music autoplays the next one): Music never reports
+        // "stopped", it just loads a different track. The queue must hand off to
+        // the next queued request instead of stalling on the gone track.
+        service = SongRequestService(
+            queue: queue,
+            musicController: mockController,
+            pollInterval: .milliseconds(20)
+        )
+
+        queue.add(SongRequestItem(title: "Current", artist: "A", requesterUsername: "user1"))
+        queue.add(SongRequestItem(title: "Next", artist: "B", requesterUsername: "user2"))
+        queue.dequeue()  // nowPlaying = "Current", "Next" still queued
+
+        mockController.isMusicAppRunning = true
+        mockController.isPlaying = true
+        mockController.isPaused = false
+        mockController.currentTrackID = "request-track-current"
+
+        service.startPlaybackMonitoring()
+
+        // While Music.app stays on the request's own track, no advance.
+        let advancedEarly = await waitUntil(timeout: .milliseconds(150)) {
+            self.queue.nowPlaying?.title != "Current"
+        }
+        XCTAssertFalse(advancedEarly, "Request must not advance while its own track is still loaded")
+
+        // Streamer skips inside Music.app → a different track loads, still playing.
+        mockController.currentTrackID = "some-autoplay-track"
+        let advanced = await waitUntil(timeout: .seconds(1)) {
+            self.queue.nowPlaying?.title == "Next"
+        }
+        service.stopPlaybackMonitoring()
+
+        XCTAssertTrue(advanced, "Skipping inside Music.app should advance to the next queued request")
+        XCTAssertTrue(mockController.playNowCalled, "The next request should be played")
+    }
+
     func testAutoAdvanceDoesNotFireWhenPaused() async {
         // Inject a fast poll cadence so the monitor cycles many times within a
         // short, bounded wait instead of the 2s production interval.

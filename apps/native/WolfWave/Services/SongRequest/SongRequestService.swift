@@ -126,6 +126,15 @@ final class SongRequestService {
     /// spurious skip mid-track.
     private var stoppedPollStreak = 0
 
+    /// Persistent track ID Music.app loaded for the request that is currently
+    /// playing. Established on the first poll tick after a request starts, then
+    /// compared against Music.app's live current track. If they diverge while
+    /// playback continues, the request either finished (Music autoplayed the next
+    /// track) or the streamer hit skip inside Music.app. Either way the request is
+    /// done, so the next queued request takes over instead of leaving a
+    /// non-request track parked on the now-playing slot forever.
+    private var playingRequestTrackID: String?
+
     /// Whether the fallback playlist is currently playing (no active requests).
     private(set) var isPlayingFallback = false
 
@@ -214,22 +223,50 @@ final class SongRequestService {
                 let confirmedStopped = self.stoppedPollStreak >= 2
 
                 if self.queue.nowPlaying != nil {
-                    // A request is playing. Advance only once playback has clearly
-                    // stopped (two reads), never while playing or merely paused.
-                    guard confirmedStopped else {
-                        self.takeoverBaselineTrackID = nil
+                    self.takeoverBaselineTrackID = nil
+
+                    // Playback clearly stopped (two reads): advance, or drain.
+                    if confirmedStopped {
+                        if !self.queue.isEmpty {
+                            await self.advanceQueue()
+                        } else {
+                            await self.handleQueueEmptied()
+                        }
+                        self.playingRequestTrackID = nil
                         continue
                     }
-                    if !self.queue.isEmpty {
-                        await self.advanceQueue()
-                    } else {
-                        await self.handleQueueEmptied()
+
+                    // Still playing: detect when Music.app has moved off the
+                    // request's own track. That happens when the request ends and
+                    // Music autoplays the next (related) track, or when the
+                    // streamer hits skip inside Music.app. Music never reports
+                    // "stopped" in either case, so without this the queue stalls
+                    // and a non-request track keeps playing. Hand off to the next
+                    // queued request the moment the loaded track diverges.
+                    if isPlaying {
+                        let currentID = self.musicController.currentTrackID
+                        if let baseline = self.playingRequestTrackID {
+                            if let currentID, currentID != baseline {
+                                self.playingRequestTrackID = nil
+                                if !self.queue.isEmpty {
+                                    await self.advanceQueue()
+                                } else {
+                                    await self.handleQueueEmptied()
+                                }
+                            }
+                        } else {
+                            // First playing tick for this request: establish the
+                            // divergence baseline from whatever Music.app loaded.
+                            self.playingRequestTrackID = currentID
+                        }
                     }
-                    self.takeoverBaselineTrackID = nil
                     continue
                 }
 
-                // No request is playing. Nothing to do unless requests wait.
+                // No request is playing.
+                self.playingRequestTrackID = nil
+
+                // Nothing to do unless requests wait.
                 guard !self.queue.isEmpty else {
                     self.takeoverBaselineTrackID = nil
                     continue
@@ -364,6 +401,9 @@ final class SongRequestService {
         isStartingPlayback = true
         defer { isStartingPlayback = false }
         takeoverBaselineTrackID = nil
+        // Drop the divergence baseline so the poll re-establishes it for the
+        // track Music.app loads next, instead of instantly re-skipping it.
+        playingRequestTrackID = nil
 
         let next = queue.skip()
         if let next {
@@ -411,6 +451,8 @@ final class SongRequestService {
     /// - Returns: Number of items that were in the queue before clearing.
     func clearQueue() async -> Int {
         let count = queue.clear()
+        takeoverBaselineTrackID = nil
+        playingRequestTrackID = nil
         await musicController.clearPlayerQueue()
         return count
     }
