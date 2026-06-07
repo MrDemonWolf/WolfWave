@@ -47,15 +47,15 @@ final class SongRequestQueueBoostTests: WolfWaveTestCase {
         XCTAssertEqual(queue.items.map(\.title), ["C", "A", "B"])
     }
 
-    func testBoostPicksMostRecentItemForUserWithMultiple() {
-        queue.add(SongRequestItem(title: "A", artist: "X", requesterUsername: "viewer"))
+    func testBoostPicksEarliestItemForUserWithMultiple() {
         queue.add(SongRequestItem(title: "Other", artist: "X", requesterUsername: "other"))
+        queue.add(SongRequestItem(title: "A", artist: "X", requesterUsername: "viewer"))
         queue.add(SongRequestItem(title: "B", artist: "X", requesterUsername: "viewer"))
 
         let boosted = queue.boost(username: "viewer")
 
-        XCTAssertEqual(boosted?.title, "B", "Boost should pick the user's most-recent item")
-        XCTAssertEqual(queue.items.map(\.title), ["B", "A", "Other"])
+        XCTAssertEqual(boosted?.title, "A", "Boost should pick the user's earliest (longest-waiting) item")
+        XCTAssertEqual(queue.items.map(\.title), ["A", "Other", "B"])
     }
 
     func testBoostIsCaseInsensitive() {

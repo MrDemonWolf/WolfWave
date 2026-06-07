@@ -25,50 +25,47 @@ struct SongRequestSettingsView: View {
     @State private var musicAuthStatus: MusicAuthorization.Status = MusicAuthorization.currentStatus
     @State private var isRequestingMusicAuth = false
 
-    @State private var selected: RequestSection = .overview
-
-    /// In-pane sections, surfaced as a jump-nav rail (shared ``SettingsNavRail``)
-    /// so the long configuration reads as one scroll with focused groups instead
-    /// of swapping content. Matches the General and Debug panes.
-    private enum RequestSection: String, CaseIterable, SettingsRailSection {
-        case overview
-        case access
-        case queue
-        case commands
-        case points
-
-        var title: String {
-            switch self {
-            case .overview: return "Overview"
-            case .access: return "Access"
-            case .queue: return "Queue"
-            case .commands: return "Commands"
-            case .points: return "Points"
-            }
-        }
-
-        var icon: String {
-            switch self {
-            case .overview: return "music.note.list"
-            case .access: return "person.2"
-            case .queue: return "list.number"
-            case .commands: return "text.bubble"
-            case .points: return "star.circle"
-            }
-        }
-    }
-
     private var appDelegate: AppDelegate? { AppDelegate.shared }
 
     // MARK: - Body
 
+    /// One plain scrollable column, matching the Twitch/Discord/Notifications
+    /// panes. The explainer + master toggle always show; the rest of the
+    /// configuration unfolds below only once the feature is on. (There used to be
+    /// a second in-pane side-nav rail here, which read as a confusing nested
+    /// sidebar next to the main settings sidebar.)
     var body: some View {
-        Group {
-            if songRequestEnabled {
-                enabledLayout
-            } else {
-                disabledLayout
+        ScrollView {
+            VStack(alignment: .leading, spacing: DSSpace.s8) {
+                SongRequestHeader()
+                twitchNotice
+                SongRequestMasterToggleCard(isTwitchConnected: isTwitchConnected)
+
+                // Vote-skip skips the live Apple Music track even with no request
+                // queue, so it stays reachable whether or not song requests are on.
+                VoteSkipCard()
+
+                if songRequestEnabled {
+                    if musicAuthStatus != .authorized {
+                        SongRequestMusicAuthCard(
+                            musicAuthStatus: $musicAuthStatus,
+                            isRequestingMusicAuth: $isRequestingMusicAuth
+                        )
+                    }
+                    SongRequestQueueView()
+                    SongRequestAccessCard()
+                    SongRequestQueueConfigCard()
+                    SongRequestPlaybackCard()
+                    SongRequestCommandsCard()
+                    SongRequestRedemptionsCard()
+                    SongRequestBlocklistCard(
+                        blocklistProvider: { appDelegate?.songRequestService?.blocklist })
+                }
             }
+            .frame(maxWidth: AppConstants.SettingsUI.maxContentWidth, alignment: .topLeading)
+            .frame(maxWidth: .infinity, alignment: .center)
+            .padding(.horizontal, AppConstants.SettingsUI.contentPaddingH)
+            .padding(.vertical, AppConstants.SettingsUI.contentPaddingV)
         }
         .onAppear {
             musicAuthStatus = MusicAuthorization.currentStatus
@@ -82,66 +79,6 @@ struct SongRequestSettingsView: View {
         }
         .onReceive(NotificationCenter.default.publisher(for: Notification.Name.twitchReauthNeededChanged)) { _ in
             refreshReauthState()
-        }
-    }
-
-    /// Feature off: a single centered, width-clamped column with just the
-    /// explainer + master toggle. The pane owns its own scroll (it bypasses the
-    /// shell's `standardDetailScroll`), so this mirrors that wrapper's geometry.
-    private var disabledLayout: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: DSSpace.s8) {
-                SongRequestHeader()
-                twitchNotice
-                SongRequestMasterToggleCard(isTwitchConnected: isTwitchConnected)
-            }
-            .frame(maxWidth: AppConstants.SettingsUI.maxContentWidth, alignment: .topLeading)
-            .frame(maxWidth: .infinity, alignment: .center)
-            .padding(.horizontal, AppConstants.SettingsUI.contentPaddingH)
-            .padding(.vertical, AppConstants.SettingsUI.contentPaddingV)
-        }
-    }
-
-    /// Feature on: the shared jump-nav rail with one always-mounted scroll column.
-    /// Each section's first view carries the `.railSection(_:)` scroll anchor; the
-    /// Overview anchor rides the page header so jumping to it scrolls to the top.
-    private var enabledLayout: some View {
-        SettingsNavRail(
-            selection: $selected,
-            groups: [SettingsRailGroup(sections: RequestSection.allCases)],
-            accessibilityIDPrefix: "songRequestNav"
-        ) {
-            // Overview
-            SongRequestHeader()
-                .railSection(RequestSection.overview)
-            twitchNotice
-            SongRequestMasterToggleCard(isTwitchConnected: isTwitchConnected)
-            if musicAuthStatus != .authorized {
-                SongRequestMusicAuthCard(
-                    musicAuthStatus: $musicAuthStatus,
-                    isRequestingMusicAuth: $isRequestingMusicAuth
-                )
-            }
-            SongRequestQueueView()
-
-            // Access
-            SongRequestAccessCard()
-                .railSection(RequestSection.access)
-            VoteSkipCard()
-
-            // Queue
-            SongRequestQueueConfigCard()
-                .railSection(RequestSection.queue)
-            SongRequestPlaybackCard()
-            SongRequestBlocklistCard(blocklistProvider: { appDelegate?.songRequestService?.blocklist })
-
-            // Commands
-            SongRequestCommandsCard()
-                .railSection(RequestSection.commands)
-
-            // Points
-            SongRequestRedemptionsCard()
-                .railSection(RequestSection.points)
         }
     }
 
@@ -172,18 +109,17 @@ struct SongRequestSettingsView: View {
         updateTwitchState(appDelegate?.twitchService?.isConnectedSnapshot.value ?? false)
     }
 
-    /// Updates `isTwitchConnected` and, if Twitch just disconnected while
-    /// requests are still enabled, switches the feature off and notifies
-    /// listeners. Keeps the UI from showing "Requests enabled" without a
-    /// chat connection that can deliver them.
+    /// Updates `isTwitchConnected`. Deliberately does NOT flip the persisted
+    /// `songRequestEnabled` setting on disconnect: a transient drop (network
+    /// blip, the service's own reconnect cycle) used to permanently turn the
+    /// feature off, forcing the streamer to re-enable it by hand after every
+    /// hiccup. The `twitchNotice` warning plus the master toggle's disabled
+    /// state already communicate that requests can't flow while disconnected,
+    /// and the feature resumes on its own once Twitch reconnects.
     ///
     /// - Parameter connected: New Twitch connection state.
     private func updateTwitchState(_ connected: Bool) {
         isTwitchConnected = connected
-        if !connected && songRequestEnabled {
-            songRequestEnabled = false
-            NotificationCenter.default.postEnabled(.songRequestSettingChanged, enabled: false)
-        }
     }
 }
 
@@ -452,6 +388,7 @@ fileprivate struct SongRequestQueueConfigCard: View {
                 }
                 .pickerStyle(.menu)
                 .frame(width: 80)
+                .accessibilityLabel("Max queue size")
             }
 
             HStack {
@@ -464,6 +401,7 @@ fileprivate struct SongRequestQueueConfigCard: View {
                 }
                 .pickerStyle(.menu)
                 .frame(width: 80)
+                .accessibilityLabel("Per-user limit")
             }
         }
         .cardStyle()
@@ -484,6 +422,38 @@ fileprivate struct SongRequestAccessCard: View {
 
     private var activePreset: SongRequestPreset? { SongRequestPreset.current() }
 
+    /// Applies a preset and re-evaluates redemption subscriptions (a preset can
+    /// flip the channel-point / bit toggles).
+    private func apply(_ preset: SongRequestPreset) {
+        preset.apply()
+        if let service = AppDelegate.shared?.twitchService {
+            Task { await service.refreshRedemptionSubscriptions() }
+        }
+    }
+
+    /// One preset chip. Filled when it's the active policy, outlined otherwise,
+    /// so which audience requests are open to is obvious at a glance.
+    @ViewBuilder
+    private func presetButton(_ preset: SongRequestPreset) -> some View {
+        let isActive = activePreset == preset
+        let label = Text(preset.displayName)
+            .font(.system(size: DSFont.Size.sm, weight: isActive ? .semibold : .medium))
+            .frame(maxWidth: .infinity)
+
+        Group {
+            if isActive {
+                Button { apply(preset) } label: { label }
+                    .buttonStyle(.borderedProminent)
+            } else {
+                Button { apply(preset) } label: { label }
+                    .buttonStyle(.bordered)
+            }
+        }
+        .controlSize(.small)
+        .accessibilityIdentifier("songRequests.preset.\(preset.rawValue)")
+        .accessibilityAddTraits(isActive ? [.isSelected] : [])
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: DSSpace.s4) {
             Text("Who Can Request")
@@ -493,23 +463,11 @@ fileprivate struct SongRequestAccessCard: View {
                 .font(.system(size: DSFont.Size.sm))
                 .foregroundStyle(.secondary)
 
-            // Preset buttons
+            // Preset buttons. The active one is filled (borderedProminent) so the
+            // current request policy reads at a glance; the rest stay outlined.
             HStack(spacing: DSSpace.s1h) {
                 ForEach(SongRequestPreset.allCases) { preset in
-                    Button {
-                        preset.apply()
-                        if let service = AppDelegate.shared?.twitchService {
-                            Task { await service.refreshRedemptionSubscriptions() }
-                        }
-                    } label: {
-                        Text(preset.displayName)
-                            .font(.system(size: DSFont.Size.sm, weight: .medium))
-                            .frame(maxWidth: .infinity)
-                    }
-                    .buttonStyle(.bordered)
-                    .controlSize(.small)
-                    .tint(activePreset == preset ? Color(nsColor: .controlAccentColor) : nil)
-                    .accessibilityIdentifier("songRequests.preset.\(preset.rawValue)")
+                    presetButton(preset)
                 }
             }
 
@@ -517,10 +475,18 @@ fileprivate struct SongRequestAccessCard: View {
                 Image(systemName: activePreset == nil ? "slider.horizontal.3" : "checkmark.circle.fill")
                     .font(.system(size: DSFont.Size.sm))
                     .foregroundStyle(activePreset == nil ? Color.secondary : DSColor.success)
-                Text(activePreset?.summary ?? "Custom configuration.")
-                    .font(.system(size: DSFont.Size.sm))
-                    .foregroundStyle(.secondary)
-                    .fixedSize(horizontal: false, vertical: true)
+                Group {
+                    if let active = activePreset {
+                        // Markdown bolds the active preset name (a plain string
+                        // literal is a LocalizedStringKey, so ** renders).
+                        Text("**\(active.displayName):** \(active.summary)")
+                    } else {
+                        Text("Custom configuration.")
+                    }
+                }
+                .font(.system(size: DSFont.Size.sm))
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
             }
 
             Divider()
@@ -900,6 +866,7 @@ fileprivate struct SongRequestBlocklistCard: View {
                     Text("Song").tag(BlocklistItem.BlockType.song)
                     Text("Artist").tag(BlocklistItem.BlockType.artist)
                 }
+                .accessibilityLabel("Blocklist entry type")
                 .pickerStyle(.segmented)
                 .frame(width: 120)
 

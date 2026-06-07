@@ -102,6 +102,9 @@ final class SongRequestCommand: AsyncBotCommand {
             case .notAuthorized:
                 response = "Song requests aren't available right now."
 
+            case .featureDisabled:
+                response = "Song requests are off right now."
+
             case .error(let message):
                 response = message
             }

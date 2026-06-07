@@ -552,8 +552,10 @@ nonisolated enum TwitchTokenRefresher {
             return nil
         }
 
+        // Mirror the sign-in scope set so a refreshed token keeps the full grant
+        // (chat + redemptions + bits + polls), never silently narrowing to chat.
         let auth = TwitchDeviceAuth(
-            clientID: clientID, scopes: AppConstants.Twitch.chatScopes)
+            clientID: clientID, scopes: AppConstants.Twitch.allScopes)
         do {
             let response = try await auth.refreshAccessToken(refreshToken: refreshToken)
             do {

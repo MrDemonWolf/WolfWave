@@ -29,6 +29,9 @@ final class SongRequestService {
         case notFound(query: String)
         case linkNotFound
         case notAuthorized
+        /// The song-request feature's master toggle is off. No request of any
+        /// kind (chat, channel points, bits) is accepted.
+        case featureDisabled
         case error(String)
     }
 
@@ -54,8 +57,23 @@ final class SongRequestService {
         defaults.set(audience.rawValue, forKey: AppConstants.UserDefaults.songRequestChatAudience)
     }
 
+    /// Whether the song-request feature's master toggle is on. Every request
+    /// path (chat `!sr`, channel points, bits) is rejected when this is off, so
+    /// the per-command and per-redemption toggles can't accept requests on their
+    /// own while the feature as a whole is disabled.
+    var isFeatureEnabled: Bool {
+        Foundation.UserDefaults.standard.bool(forKey: AppConstants.UserDefaults.songRequestEnabled)
+    }
+
     var isAutoAdvanceEnabled: Bool {
         Preferences.bool(AppConstants.UserDefaults.songRequestAutoAdvance, default: true)
+    }
+
+    /// Whether Apple Music's own autoplay should keep going once the request
+    /// queue empties (when no fallback playlist is configured). Off means the
+    /// stream goes silent on an empty queue.
+    var isAutoplayWhenEmptyEnabled: Bool {
+        Preferences.bool(AppConstants.UserDefaults.songRequestAutoplayWhenEmpty, default: true)
     }
 
     var isHoldEnabled: Bool {
@@ -93,6 +111,20 @@ final class SongRequestService {
     /// `processRequest` calls while Music.app is closed) can't both dequeue and
     /// start playback for the same slot.
     private var isStartingPlayback = false
+
+    /// Track identifier of the streamer's own song that a queued request is
+    /// waiting to follow. Set the first time the poll notices a pending request
+    /// while the streamer's own (non-request, non-fallback) track is playing,
+    /// then cleared once that track changes so the request takes over. This is
+    /// what implements the "play when the current song ends" takeover policy
+    /// instead of interrupting a track mid-play.
+    private var takeoverBaselineTrackID: String?
+
+    /// Consecutive poll ticks that have read Music.app as stopped. The poll
+    /// requires two in a row before advancing or taking over, so a single flaky
+    /// AppleScript read (which returns "stopped" on error) can't trigger a
+    /// spurious skip mid-track.
+    private var stoppedPollStreak = 0
 
     /// Whether the fallback playlist is currently playing (no active requests).
     private(set) var isPlayingFallback = false
@@ -167,14 +199,64 @@ final class SongRequestService {
                 // would relaunch the app the user just quit. Buffered requests
                 // flush via the didLaunchApplication observer when Music reopens.
                 guard self.musicController.isMusicAppRunning else { continue }
-                // Don't advance when the user has paused, only when playback has stopped/finished
-                guard !self.musicController.isPlaying && !self.musicController.isPaused else { continue }
 
-                if self.queue.nowPlaying != nil && !self.queue.isEmpty {
+                let isPlaying = self.musicController.isPlaying
+                let isPaused = self.musicController.isPaused
+
+                // Debounce stopped detection: a flaky AppleScript read returns
+                // "stopped" on error, so require two consecutive stopped polls
+                // before advancing/taking over to avoid a spurious mid-track skip.
+                if !isPlaying && !isPaused {
+                    self.stoppedPollStreak += 1
+                } else {
+                    self.stoppedPollStreak = 0
+                }
+                let confirmedStopped = self.stoppedPollStreak >= 2
+
+                if self.queue.nowPlaying != nil {
+                    // A request is playing. Advance only once playback has clearly
+                    // stopped (two reads), never while playing or merely paused.
+                    guard confirmedStopped else {
+                        self.takeoverBaselineTrackID = nil
+                        continue
+                    }
+                    if !self.queue.isEmpty {
+                        await self.advanceQueue()
+                    } else {
+                        await self.handleQueueEmptied()
+                    }
+                    self.takeoverBaselineTrackID = nil
+                    continue
+                }
+
+                // No request is playing. Nothing to do unless requests wait.
+                guard !self.queue.isEmpty else {
+                    self.takeoverBaselineTrackID = nil
+                    continue
+                }
+
+                if confirmedStopped || self.isPlayingFallback {
+                    // Silence, or the fallback playlist is filling: start the
+                    // first queued request immediately.
+                    self.takeoverBaselineTrackID = nil
                     await self.advanceQueue()
-                } else if self.queue.nowPlaying != nil && self.queue.isEmpty {
-                    self.queue.clearNowPlaying()
-                    Log.debug("SongRequestService: Queue empty, Apple Music continues normally", category: "SongRequest")
+                } else if isPlaying {
+                    // The streamer's own track is playing. Honor "play when the
+                    // current song ends": remember the track that's playing, then
+                    // take over the moment it changes (finishes or gets skipped),
+                    // rather than cutting it off mid-song.
+                    let currentID = self.musicController.currentTrackID
+                    if let baseline = self.takeoverBaselineTrackID {
+                        if currentID == nil || currentID != baseline {
+                            self.takeoverBaselineTrackID = nil
+                            await self.advanceQueue()
+                        }
+                    } else {
+                        self.takeoverBaselineTrackID = currentID
+                    }
+                } else {
+                    // Paused, or a single unconfirmed stopped read: wait.
+                    continue
                 }
             }
         }
@@ -207,6 +289,12 @@ final class SongRequestService {
     /// - Returns: A `RequestResult` describing the outcome (added, blocked,
     ///   queue-full, not-found, etc.)
     func processRequest(query: String, username: String, source: RequestSource) async -> RequestResult {
+        // Master gate. The settings UI hides itself when this is off, but the
+        // `!sr` command, channel-point reward, and bit handler can each still
+        // fire from their own independent toggles, so the only safe place to
+        // enforce "feature off = no requests" is this shared chokepoint.
+        guard isFeatureEnabled else { return .featureDisabled }
+
         if case .chatCommand(let context) = source {
             let audience = chatAudience
             let permitted = audience.permits(
@@ -264,23 +352,37 @@ final class SongRequestService {
     }
 
     /// Skips the now-playing track and immediately starts the next queued
-    /// request. Stops Music.app playback if the queue is empty.
+    /// request. Falls back to the drain policy (fallback playlist / autoplay /
+    /// silence) when the queue empties.
     ///
     /// - Returns: The newly-playing item, or `nil` when the queue empties.
     func skip() async -> SongRequestItem? {
+        // Take the playback-transition guard so the auto-advance poll can't
+        // interleave a second dequeue across the `playNow` await and consume two
+        // tracks for one skip.
+        guard !isStartingPlayback else { return nil }
+        isStartingPlayback = true
+        defer { isStartingPlayback = false }
+        takeoverBaselineTrackID = nil
+
         let next = queue.skip()
-        if let next, let song = next.song {
-            do {
-                try await musicController.playNow(song: song)
-                Log.debug("SongRequestService: Skipped to \"\(next.title)\"", category: "SongRequest")
-            } catch {
-                Log.debug("SongRequestService: Failed to play after skip: \(error)", category: "SongRequest")
+        if let next {
+            // There's a next request: it's already `nowPlaying`; start it.
+            if let song = next.song {
+                do {
+                    try await musicController.playNow(song: song)
+                    Log.debug("SongRequestService: Skipped to \"\(next.title)\"", category: "SongRequest")
+                } catch {
+                    Log.debug("SongRequestService: Failed to play after skip: \(error)", category: "SongRequest")
+                }
             }
-        } else {
-            // No next song: stop Music.app
-            await musicController.clearPlayerQueue()
+            isPlayingFallback = false
+            return next
         }
-        return next
+        // Queue emptied by the skip: honor the drain policy (fallback / autoplay /
+        // silence) instead of an unconditional stop.
+        await handleQueueEmptied()
+        return nil
     }
 
     /// Skips whatever is currently playing, used by the chat vote-skip feature.
@@ -311,6 +413,24 @@ final class SongRequestService {
         let count = queue.clear()
         await musicController.clearPlayerQueue()
         return count
+    }
+
+    /// Bit-cheer boost: moves the cheerer's most-recent queued request to the
+    /// front, then starts it immediately when nothing from the request queue is
+    /// playing (idle player or the fallback playlist is filling). Without this
+    /// kick, a boost over a fallback playlist would silently sit until the
+    /// fallback track happened to end. Returns the boosted item, or `nil` when
+    /// the user has nothing queued or the feature is off.
+    @discardableResult
+    func boost(username: String) async -> SongRequestItem? {
+        guard isFeatureEnabled else { return nil }
+        guard let boosted = queue.boost(username: username) else { return nil }
+        if musicController.isMusicAppRunning, !isHoldEnabled,
+           queue.nowPlaying == nil, (!musicController.isPlaying || isPlayingFallback) {
+            takeoverBaselineTrackID = nil
+            await playNextInQueue()
+        }
+        return boosted
     }
 
     // MARK: - Private Helpers
@@ -352,14 +472,37 @@ final class SongRequestService {
     /// or kicks off the fallback playlist if the queue has run dry.
     private func advanceQueue() async {
         guard !queue.isEmpty else {
-            queue.clearNowPlaying()
-            await startFallbackIfConfigured()
+            await handleQueueEmptied()
             return
         }
         isPlayingFallback = false
         await playNextInQueue()
         if let nowPlaying = queue.nowPlaying {
             sendChatMessage?("Now playing: \"\(nowPlaying.title)\" by \(nowPlaying.artist) (requested by \(nowPlaying.requesterUsername))")
+        }
+    }
+
+    /// Decides what happens once the request queue runs dry. Previously the poll
+    /// just cleared now-playing and let Music.app do whatever, so the fallback
+    /// playlist never started on a normal drain and "Resume Autoplay When Empty"
+    /// did nothing. Now: play the configured fallback playlist if set; otherwise
+    /// either leave Apple Music autoplaying (toggle on) or stop for silence
+    /// (toggle off). Honors hold mode and never relaunches a closed Music.app.
+    private func handleQueueEmptied() async {
+        queue.clearNowPlaying()
+        guard !isHoldEnabled, musicController.isMusicAppRunning else { return }
+
+        let fallback = Foundation.UserDefaults.standard
+            .string(forKey: AppConstants.UserDefaults.songRequestFallbackPlaylist) ?? ""
+        if !fallback.isEmpty {
+            await startFallbackIfConfigured()
+        } else if isAutoplayWhenEmptyEnabled {
+            isPlayingFallback = false
+            Log.debug("SongRequestService: Queue empty, Apple Music continues normally", category: "SongRequest")
+        } else {
+            await musicController.clearPlayerQueue()
+            isPlayingFallback = false
+            Log.debug("SongRequestService: Queue empty, autoplay off, stopping playback", category: "SongRequest")
         }
     }
 

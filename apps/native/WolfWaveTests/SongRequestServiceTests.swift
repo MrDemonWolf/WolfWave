@@ -18,6 +18,7 @@ final class MockAppleMusicController: AppleMusicControlling {
     var isPaused = false
     var isAuthorized = true
     var isMusicAppRunning = true
+    var currentTrackID: String?
     var authStatus: AppleMusicController.AuthStatus = .authorized
 
     var playNowCalled = false
@@ -84,6 +85,9 @@ final class SongRequestServiceTests: WolfWaveTestCase {
         defaults.removeObject(forKey: AppConstants.UserDefaults.songRequestMaxQueueSize)
         defaults.removeObject(forKey: AppConstants.UserDefaults.songRequestPerUserLimit)
         defaults.removeObject(forKey: AppConstants.UserDefaults.songRequestHoldEnabled)
+        defaults.removeObject(forKey: AppConstants.UserDefaults.songRequestEnabled)
+        defaults.removeObject(forKey: AppConstants.UserDefaults.songRequestAutoplayWhenEmpty)
+        defaults.removeObject(forKey: AppConstants.UserDefaults.songRequestFallbackPlaylist)
     }
 
     /// Polls `condition` until it returns true or the timeout elapses, returning
@@ -112,6 +116,10 @@ final class SongRequestServiceTests: WolfWaveTestCase {
             musicController: mockController
         )
         clearAccessDefaults()
+        // The master toggle defaults off (feature hidden until a streamer turns
+        // it on). These tests exercise the request pipeline, so turn it on after
+        // clearing defaults; the feature-disabled gate is covered explicitly.
+        UserDefaults.standard.set(true, forKey: AppConstants.UserDefaults.songRequestEnabled)
     }
 
     override func tearDown() {
@@ -121,6 +129,56 @@ final class SongRequestServiceTests: WolfWaveTestCase {
         queue = nil
         clearAccessDefaults()
         super.tearDown()
+    }
+
+    // MARK: - Bit Boost
+
+    func testBoostMovesUsersEarliestItemToFront() async {
+        queue.add(SongRequestItem(title: "B", artist: "y", requesterUsername: "bob"))
+        queue.add(SongRequestItem(title: "A", artist: "x", requesterUsername: "alice"))
+        queue.add(SongRequestItem(title: "C", artist: "z", requesterUsername: "alice"))
+        // Streamer's own track is playing, so boost only reorders (no takeover).
+        mockController.isMusicAppRunning = true
+        mockController.isPlaying = true
+
+        let boosted = await service.boost(username: "alice")
+
+        // Alice's *earliest* queued request (A) jumps the line, not her newest (C).
+        XCTAssertEqual(boosted?.title, "A")
+        XCTAssertEqual(queue.items.first?.title, "A", "Boosted item should jump to the front")
+    }
+
+    func testBoostRejectedWhenFeatureDisabled() async {
+        UserDefaults.standard.set(false, forKey: AppConstants.UserDefaults.songRequestEnabled)
+        queue.add(SongRequestItem(title: "A", artist: "x", requesterUsername: "alice"))
+
+        let boosted = await service.boost(username: "alice")
+        XCTAssertNil(boosted, "Boost must be rejected while the feature is off")
+    }
+
+    // MARK: - Fallback On Natural Drain
+
+    func testFallbackPlaylistStartsWhenLastRequestEnds() async {
+        service = SongRequestService(
+            queue: queue, musicController: mockController, pollInterval: .milliseconds(20))
+        UserDefaults.standard.set(
+            "Gaming Vibes", forKey: AppConstants.UserDefaults.songRequestFallbackPlaylist)
+
+        mockController.isMusicAppRunning = true
+        mockController.isPlaying = false
+        mockController.isPaused = false
+
+        queue.add(SongRequestItem(title: "Last", artist: "a", requesterUsername: "u"))
+        queue.dequeue() // nowPlaying = Last, queue now empty
+
+        service.startPlaybackMonitoring()
+        let started = await waitUntil(timeout: .seconds(1)) { self.mockController.playFallbackCalled }
+        service.stopPlaybackMonitoring()
+
+        XCTAssertTrue(started, "Fallback playlist should start when the queue drains during playback")
+
+        UserDefaults.standard.removeObject(
+            forKey: AppConstants.UserDefaults.songRequestFallbackPlaylist)
     }
 
     // MARK: - Audience Gate
@@ -213,6 +271,33 @@ final class SongRequestServiceTests: WolfWaveTestCase {
         }
     }
 
+    // MARK: - Feature Master Gate
+
+    func testProcessRequestRejectedWhenFeatureDisabled() async {
+        UserDefaults.standard.set(false, forKey: AppConstants.UserDefaults.songRequestEnabled)
+
+        let result = await service.processRequest(
+            query: "any song", username: "viewer", source: chatSource(username: "viewer"))
+        guard case .featureDisabled = result else {
+            XCTFail("Expected .featureDisabled when master toggle is off, got \(result)")
+            return
+        }
+        XCTAssertFalse(mockController.playNowCalled, "Disabled feature must not play anything")
+        XCTAssertTrue(queue.isEmpty, "Disabled feature must not queue anything")
+    }
+
+    func testRedemptionRejectedWhenFeatureDisabled() async {
+        UserDefaults.standard.set(false, forKey: AppConstants.UserDefaults.songRequestEnabled)
+
+        let result = await service.processRequest(
+            query: "any song", username: "viewer",
+            source: .channelPoints(redemptionID: "r", rewardID: "rw"))
+        guard case .featureDisabled = result else {
+            XCTFail("Expected .featureDisabled for a redemption while off, got \(result)")
+            return
+        }
+    }
+
     // MARK: - Access Migration
 
     func testMigrateAccessSettingsConvertsLegacySubscriberOnly() {
@@ -271,11 +356,15 @@ final class SongRequestServiceTests: WolfWaveTestCase {
     }
 
     func testSkipCallsNativeSkip() async {
+        // No fallback + autoplay-off → draining the queue via skip stops Music.app.
+        UserDefaults.standard.set(false, forKey: AppConstants.UserDefaults.songRequestAutoplayWhenEmpty)
         queue.add(SongRequestItem(title: "Song A", artist: "Artist", requesterUsername: "user1"))
         queue.dequeue()
 
         _ = await service.skip()
         XCTAssertTrue(mockController.clearCalled)
+
+        UserDefaults.standard.removeObject(forKey: AppConstants.UserDefaults.songRequestAutoplayWhenEmpty)
     }
 
     // MARK: - ClearQueue
@@ -387,6 +476,40 @@ final class SongRequestServiceTests: WolfWaveTestCase {
 
         UserDefaults.standard.removeObject(
             forKey: AppConstants.UserDefaults.songRequestFallbackPlaylist)
+    }
+
+    func testRequestWaitsForStreamersOwnTrackToEnd() async {
+        // A request is queued while the streamer's own track is playing. Policy:
+        // don't cut it off mid-song; take over the moment that track changes.
+        service = SongRequestService(
+            queue: queue,
+            musicController: mockController,
+            pollInterval: .milliseconds(20)
+        )
+
+        mockController.isMusicAppRunning = true
+        mockController.isPlaying = true
+        mockController.isPaused = false
+        mockController.currentTrackID = "streamer-track-A"
+
+        queue.add(SongRequestItem(title: "Requested", artist: "A", requesterUsername: "viewer"))
+
+        service.startPlaybackMonitoring()
+
+        // While the streamer's track is unchanged, the request must not take over.
+        let tookOverEarly = await waitUntil(timeout: .milliseconds(150)) {
+            self.queue.nowPlaying != nil
+        }
+        XCTAssertFalse(tookOverEarly, "Request must not interrupt the streamer's own track mid-song")
+
+        // The streamer's track ends and Music advances → request takes over.
+        mockController.currentTrackID = "streamer-track-B"
+        let tookOver = await waitUntil(timeout: .seconds(1)) {
+            self.queue.nowPlaying?.title == "Requested"
+        }
+        service.stopPlaybackMonitoring()
+
+        XCTAssertTrue(tookOver, "Request should take over once the current track ends")
     }
 
     func testAutoAdvanceDoesNotFireWhenPaused() async {

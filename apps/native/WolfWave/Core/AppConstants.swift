@@ -934,6 +934,14 @@ nonisolated enum AppConstants {
         /// OAuth scope for managing Twitch Polls (used by chat vote-skip in Polls mode).
         static let pollsScope = "channel:manage:polls"
 
+        /// Every scope WolfWave ever needs, requested together at sign-in.
+        ///
+        /// Channel-point, bit, and poll features are off by default, but asking
+        /// for their scopes up front means a streamer who turns one on later
+        /// never has to disconnect and re-authorize. Twitch only prompts for the
+        /// extra scopes once, at the initial grant.
+        static let allScopes = chatScopes + [channelPointsScope, bitsScope, pollsScope]
+
         /// Title of the WolfWave-managed custom channel-point reward.
         static let songRequestRewardTitle = "Request a Song"
     }

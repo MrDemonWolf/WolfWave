@@ -1080,9 +1080,21 @@ actor TwitchChatService {
                 // the user has actually enabled Polls mode, so existing users are
                 // not forced to re-authorize unless they opt in.
                 var effectiveScopes = requiredScopes
-                if UserDefaults.standard.bool(forKey: AppConstants.UserDefaults.voteSkipUsePolls),
-                   !effectiveScopes.contains("channel:manage:polls") {
-                    effectiveScopes.append("channel:manage:polls")
+                let defaults = UserDefaults.standard
+                if defaults.bool(forKey: AppConstants.UserDefaults.voteSkipUsePolls),
+                   !effectiveScopes.contains(AppConstants.Twitch.pollsScope) {
+                    effectiveScopes.append(AppConstants.Twitch.pollsScope)
+                }
+                // Flag re-auth proactively when a redemption feature is on but its
+                // scope is missing (an old token from before these features), so
+                // the failure surfaces at connect instead of as a later 403.
+                if defaults.bool(forKey: AppConstants.UserDefaults.songRequestChannelPointsEnabled),
+                   !effectiveScopes.contains(AppConstants.Twitch.channelPointsScope) {
+                    effectiveScopes.append(AppConstants.Twitch.channelPointsScope)
+                }
+                if defaults.bool(forKey: AppConstants.UserDefaults.songRequestBitsEnabled),
+                   !effectiveScopes.contains(AppConstants.Twitch.bitsScope) {
+                    effectiveScopes.append(AppConstants.Twitch.bitsScope)
                 }
                 let missing = effectiveScopes.filter { !scopes.contains($0) }
                 if !missing.isEmpty {
@@ -2185,9 +2197,25 @@ actor TwitchChatService {
     /// account is in use they are skipped and the UI is notified.
     private func subscribeToRedemptionsIfEnabled() async {
         let defaults = UserDefaults.standard
+
+        // Channel-point and bit toggles are independent of the master switch, so
+        // skip every redemption subscription while the feature as a whole is off.
+        // Pause the managed reward first so it can't be redeemed at the source.
+        guard defaults.bool(forKey: AppConstants.UserDefaults.songRequestEnabled) else {
+            await pauseManagedRewardIfPossible()
+            setRedemptionStatus(.ok)
+            return
+        }
+
         let channelPointsEnabled = defaults.bool(
             forKey: AppConstants.UserDefaults.songRequestChannelPointsEnabled)
         let bitsEnabled = defaults.bool(forKey: AppConstants.UserDefaults.songRequestBitsEnabled)
+
+        // Channel points off but a reward may still exist on the channel: pause it
+        // so viewers can't spend points on a request WolfWave would only refund.
+        if !channelPointsEnabled {
+            await pauseManagedRewardIfPossible()
+        }
 
         guard channelPointsEnabled || bitsEnabled else {
             setRedemptionStatus(.ok)
@@ -2228,8 +2256,20 @@ actor TwitchChatService {
         do {
             let rewardID = try await channelPointsService.ensureReward(
                 credentials: credentials, cost: cost)
-            try? await channelPointsService.updateRewardCost(
-                credentials: credentials, rewardID: rewardID, cost: cost)
+            // Make sure a previously-paused reward is live again now that the
+            // feature is on.
+            try? await channelPointsService.setRewardPaused(
+                credentials: credentials, rewardID: rewardID, paused: false)
+            // Cost sync is non-fatal (the reward still works at its old cost),
+            // but don't swallow the failure silently — surface it in the log.
+            do {
+                try await channelPointsService.updateRewardCost(
+                    credentials: credentials, rewardID: rewardID, cost: cost)
+            } catch {
+                Log.warn(
+                    "TwitchChatService: Couldn't sync channel-point reward cost; the reward still works at its current cost - \(error.localizedDescription)",
+                    category: "Twitch")
+            }
             await subscribeToChannelPointsRedemption()
             setRedemptionStatus(.ok)
         } catch {
@@ -2237,6 +2277,24 @@ actor TwitchChatService {
                 "TwitchChatService: Failed to set up channel-point reward - \(error.localizedDescription)",
                 category: "Twitch")
             setRedemptionStatus(.subscribeFailed)
+        }
+    }
+
+    /// Pauses the WolfWave-managed channel-point reward so it can't be redeemed
+    /// while channel-point requests are off. No-op when no reward was ever
+    /// created or broadcaster credentials are unavailable.
+    private func pauseManagedRewardIfPossible() async {
+        let storedID = UserDefaults.standard.string(
+            forKey: AppConstants.UserDefaults.songRequestChannelPointsRewardID) ?? ""
+        guard !storedID.isEmpty, let credentials = currentChannelPointCredentials() else { return }
+        do {
+            try await channelPointsService.setRewardPaused(
+                credentials: credentials, rewardID: storedID, paused: true)
+            Log.info("TwitchChatService: Paused channel-point reward (requests off)", category: "Twitch")
+        } catch {
+            Log.error(
+                "TwitchChatService: Failed to pause channel-point reward - \(error.localizedDescription)",
+                category: "Twitch")
         }
     }
 
@@ -2330,11 +2388,10 @@ actor TwitchChatService {
     /// into the song-request pipeline, then fulfils the redemption on success
     /// or cancels it (refunding the points) on failure.
     private func handleChannelPointsRedemption(_ payload: [String: Any]) {
-        guard
-            UserDefaults.standard.bool(
-                forKey: AppConstants.UserDefaults.songRequestChannelPointsEnabled),
-            let event = payload["event"] as? [String: Any]
-        else { return }
+        // Note: the enabled check happens inside the Task below (after we confirm
+        // this is our reward), so a redemption that arrives while the feature is
+        // off is refunded rather than silently swallowed.
+        guard let event = payload["event"] as? [String: Any] else { return }
 
         let rewardID = ((event["reward"] as? [String: Any])?["id"] as? String) ?? ""
         let storedRewardID = UserDefaults.standard.string(
@@ -2353,7 +2410,24 @@ actor TwitchChatService {
 
         Task { [weak self] in
             guard let self else { return }
-            guard let service = songRequestService else { return }
+            guard let service = songRequestService else {
+                // Service not wired up: the points were already spent, so refund
+                // rather than strand the redemption in the pending state forever.
+                await self.resolveRedemption(
+                    credentials, rewardID: rewardID, redemptionID: redemptionID, as: .canceled)
+                return
+            }
+
+            // Channel-point requests off (toggle flipped between subscribe and
+            // redemption, or the reward wasn't paused in time): refund.
+            guard UserDefaults.standard.bool(
+                forKey: AppConstants.UserDefaults.songRequestChannelPointsEnabled) else {
+                await self.sendMessage(
+                    "@\(userName) channel-point song requests are off right now. Refunding your points.")
+                await self.resolveRedemption(
+                    credentials, rewardID: rewardID, redemptionID: redemptionID, as: .canceled)
+                return
+            }
 
             if userInput.isEmpty {
                 await self.sendMessage(
@@ -2398,7 +2472,7 @@ actor TwitchChatService {
             guard let self else { return }
             guard let service = songRequestService else { return }
 
-            if boostEnabled, let boosted = await service.queue.boost(username: userName) {
+            if boostEnabled, let boosted = await service.boost(username: userName) {
                 await self.sendMessage(
                     "@\(userName) boosted \"\(boosted.title)\" to the front of the queue! (\(bits) bits)")
                 return
@@ -2466,6 +2540,8 @@ actor TwitchChatService {
             return ("@\(username) couldn't find that on Apple Music. Points refunded.", .canceled)
         case .notAuthorized:
             return ("@\(username) song requests aren't available right now. Points refunded.", .canceled)
+        case .featureDisabled:
+            return ("@\(username) song requests are off right now. Points refunded.", .canceled)
         case let .error(message):
             return ("@\(username) \(message) Points refunded.", .canceled)
         }
@@ -2494,6 +2570,8 @@ actor TwitchChatService {
             return "@\(username) couldn't find that on Apple Music."
         case .notAuthorized:
             return "@\(username) song requests aren't available right now."
+        case .featureDisabled:
+            return "@\(username) song requests are off right now."
         case let .error(message):
             return "@\(username) \(message)"
         }

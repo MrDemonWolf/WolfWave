@@ -128,6 +128,30 @@ nonisolated struct TwitchChannelPointsService: Sendable {
         return newID
     }
 
+    /// Pauses or unpauses the managed reward via Helix (`is_paused`).
+    ///
+    /// A paused reward stays on the channel but can't be redeemed, so this is how
+    /// WolfWave stops channel-point song requests at the source when the feature
+    /// is turned off, without deleting and recreating the reward (which would
+    /// reset its ID and any viewer-facing customization).
+    func setRewardPaused(credentials: Credentials, rewardID: String, paused: Bool) async throws {
+        var components = URLComponents(string: baseURL + "/channel_points/custom_rewards")
+        components?.queryItems = [
+            URLQueryItem(name: "broadcaster_id", value: credentials.broadcasterID),
+            URLQueryItem(name: "id", value: rewardID),
+        ]
+        guard let url = components?.url else { throw RewardError.malformedResponse }
+
+        do {
+            _ = try await helix.sendJSON(
+                url: url, method: "PATCH",
+                credentials: credentials.helix,
+                body: ["is_paused": paused])
+        } catch let error as HelixClient.HelixError {
+            throw RewardError.from(error)
+        }
+    }
+
     /// Updates the cost of the managed reward.
     func updateRewardCost(credentials: Credentials, rewardID: String, cost: Int) async throws {
         var components = URLComponents(string: baseURL + "/channel_points/custom_rewards")
@@ -221,6 +245,15 @@ nonisolated struct TwitchChannelPointsService: Sendable {
                 url: url, method: "POST",
                 credentials: credentials.helix,
                 body: body)
+        } catch let HelixClient.HelixError.http(status, errorBody) where status == 400 {
+            // A 400 here is almost always a duplicate-title reward left over from
+            // a previous install or client-ID change. Adopt the existing managed
+            // reward instead of failing and leaving the streamer with none.
+            if let existing = try await findManagedRewardByTitle(
+                credentials: credentials, title: AppConstants.Twitch.songRequestRewardTitle) {
+                return existing
+            }
+            throw RewardError.http(status: status, body: errorBody)
         } catch let error as HelixClient.HelixError {
             throw RewardError.from(error)
         }
@@ -230,5 +263,28 @@ nonisolated struct TwitchChannelPointsService: Sendable {
             throw RewardError.malformedResponse
         }
         return id
+    }
+
+    /// Finds an existing WolfWave-manageable reward by title, used to adopt a
+    /// duplicate left over from a prior install rather than failing to create.
+    private func findManagedRewardByTitle(
+        credentials: Credentials, title: String
+    ) async throws -> String? {
+        var components = URLComponents(string: baseURL + "/channel_points/custom_rewards")
+        components?.queryItems = [
+            URLQueryItem(name: "broadcaster_id", value: credentials.broadcasterID),
+            URLQueryItem(name: "only_manageable_rewards", value: "true"),
+        ]
+        guard let url = components?.url else { return nil }
+
+        do {
+            let json = try await helix.sendJSON(
+                url: url, method: "GET",
+                credentials: credentials.helix)
+            let data = json?["data"] as? [[String: Any]] ?? []
+            return data.first(where: { ($0["title"] as? String) == title })?["id"] as? String
+        } catch let error as HelixClient.HelixError {
+            throw RewardError.from(error)
+        }
     }
 }

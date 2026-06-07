@@ -167,8 +167,10 @@ final class SongRequestQueue {
         postQueueChanged()
     }
 
-    /// Move a user's most-recently-added pending request to the front of the
-    /// queue. Used by the bit-cheer "boost" feature.
+    /// Move a user's earliest pending request to the front of the queue. Used by
+    /// the bit-cheer "boost" feature. Boosting the user's *oldest* queued request
+    /// (the one they've waited on longest) matches "move me up" intuition better
+    /// than jumping their newest addition ahead of it.
     ///
     /// - Parameter username: Twitch username whose request should jump ahead.
     /// - Returns: The boosted item, or `nil` when the user has nothing queued.
@@ -176,7 +178,7 @@ final class SongRequestQueue {
     func boost(username: String) -> SongRequestItem? {
         let boosted: SongRequestItem? = lock.withLock {
             let lowered = username.lowercased()
-            guard let index = items.lastIndex(where: {
+            guard let index = items.firstIndex(where: {
                 $0.requesterUsername.lowercased() == lowered
             }) else {
                 return nil

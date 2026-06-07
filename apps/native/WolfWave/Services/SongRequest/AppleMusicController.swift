@@ -25,6 +25,12 @@ protocol AppleMusicControlling {
     /// `true` while Music.app is paused (a track is loaded but not advancing).
     var isPaused: Bool { get }
 
+    /// Stable identifier of the track Music.app currently has loaded, or `nil`
+    /// when nothing is loaded or Music.app is closed. Used to detect when the
+    /// streamer's own track changes so a queued request can take over at the
+    /// boundary instead of cutting a song off mid-play.
+    var currentTrackID: String? { get }
+
     /// `true` once the user has granted MusicKit catalog access.
     var isAuthorized: Bool { get }
 
@@ -158,6 +164,27 @@ final class AppleMusicController: AppleMusicControlling {
             end if
         end tell
         """) == "true"
+    }
+
+    /// Stable identifier of the track Music.app currently has loaded.
+    ///
+    /// Returns `nil` without scripting when Music.app is closed (see `isPlaying`
+    /// for why probing a closed app must be avoided), and `nil` when no track is
+    /// loaded. Wrapped in an AppleScript `try` because reading `current track`
+    /// with nothing loaded raises an error rather than returning empty.
+    var currentTrackID: String? {
+        guard isMusicAppRunning else { return nil }
+        let result = runAppleScript("""
+        tell application "Music"
+            try
+                return persistent ID of current track
+            on error
+                return ""
+            end try
+        end tell
+        """)
+        guard let result, !result.isEmpty else { return nil }
+        return result
     }
 
     // MARK: - Authorization

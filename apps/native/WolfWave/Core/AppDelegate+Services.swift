@@ -519,6 +519,10 @@ extension AppDelegate {
         } else {
             songRequestService?.stopPlaybackMonitoring()
         }
+        // Channel-point / bit subscriptions are gated on the master toggle too,
+        // so re-evaluate them whenever it flips (subscribe on enable, drop the
+        // managed reward setup on disable).
+        Task { [weak self] in await self?.twitchService?.refreshRedemptionSubscriptions() }
     }
 
     /// Enables or disables listening-history recording when the toggle changes.

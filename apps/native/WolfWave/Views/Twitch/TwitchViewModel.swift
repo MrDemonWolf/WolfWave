@@ -439,17 +439,13 @@ final class TwitchViewModel {
             return
         }
 
-        // `channel:manage:polls` powers vote-skip Polls mode (and authorizes the
-        // channel.poll.* EventSub topics). Requesting it up front means users who
-        // later enable Polls mode don't need a second authorization round-trip.
+        // Request every scope WolfWave can use up front (chat, channel-point
+        // redemptions, bits, and polls). Channel points / bits / Polls mode are
+        // off by default, but granting their scopes at sign-in means turning one
+        // on later never forces a second authorization round-trip.
         let helper = TwitchDeviceAuth(
             clientID: clientID,
-            scopes: AppConstants.Twitch.chatScopes
-                + [
-                    AppConstants.Twitch.channelPointsScope,
-                    AppConstants.Twitch.bitsScope,
-                    AppConstants.Twitch.pollsScope,
-                ]
+            scopes: AppConstants.Twitch.allScopes
         )
 
         // Track the overall OAuth flow so it can be cancelled cleanly
