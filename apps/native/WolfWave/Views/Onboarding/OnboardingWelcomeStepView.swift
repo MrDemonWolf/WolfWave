@@ -53,7 +53,7 @@ struct OnboardingWelcomeStepView: View {
                     .offset(y: titleVisible ? 0 : Self.entranceRise)
 
                 Text("The new way to share your Apple Music with everyone.")
-                    .font(.system(size: DSFont.Size.md))
+                    .font(.system(size: DSFont.Size.base))
                     .foregroundStyle(.secondary)
                     .multilineTextAlignment(.center)
                     .opacity(taglineVisible ? 1 : 0)

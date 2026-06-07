@@ -38,7 +38,7 @@ struct OnboardingPermissionsStepView: View {
                     glowColor: Color.accentColor,
                     glyph:
                         Image(systemName: "lock.shield.fill")
-                            .font(.system(size: DSFont.Size.x3xl, weight: .semibold))
+                            .font(BrandTileGlyph.font)
                             .foregroundStyle(.white)
                 )
             },
@@ -54,7 +54,8 @@ struct OnboardingPermissionsStepView: View {
     @ViewBuilder
     private var appleMusicSection: some View {
         VStack(alignment: .leading, spacing: DSSpace.s3) {
-            sectionLabel(icon: "music.note", title: "Apple Music access")
+            Label("Apple Music access", systemImage: "music.note")
+                .sectionEyebrow()
 
             switch permissionState {
             case .granted:
@@ -76,18 +77,18 @@ struct OnboardingPermissionsStepView: View {
                         Image(systemName: "exclamationmark.triangle.fill")
                             .foregroundStyle(.orange)
                         Text("Access was denied. Enable in **System Settings → Privacy & Security → Automation → WolfWave → Music**.")
-                            .font(.system(size: DSFont.Size.body))
+                            .font(.system(size: DSFont.Size.base))
                             .foregroundStyle(.primary)
                             .fixedSize(horizontal: false, vertical: true)
                     }
                     .padding(DSSpace.s4)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .background(
-                        RoundedRectangle(cornerRadius: 10, style: .continuous)
+                        RoundedRectangle(cornerRadius: DSRadius.lg, style: .continuous)
                             .fill(DSColor.warning.opacity(0.10))
                     )
                     .overlay(
-                        RoundedRectangle(cornerRadius: 10, style: .continuous)
+                        RoundedRectangle(cornerRadius: DSRadius.lg, style: .continuous)
                             .stroke(DSColor.warning.opacity(0.40), lineWidth: 0.5)
                     )
 
@@ -156,21 +157,6 @@ struct OnboardingPermissionsStepView: View {
                         .multilineTextAlignment(.center)
                 }
             }
-        }
-    }
-
-    // MARK: - Section Label
-
-    private func sectionLabel(icon: String, title: String) -> some View {
-        HStack(spacing: DSSpace.s2) {
-            Image(systemName: icon)
-                .font(.system(size: DSFont.Size.sm, weight: .semibold))
-                .foregroundStyle(.secondary)
-            Text(title)
-                .font(.system(size: DSFont.Size.sm, weight: .semibold))
-                .foregroundStyle(.secondary)
-                .textCase(.uppercase)
-            Spacer()
         }
     }
 

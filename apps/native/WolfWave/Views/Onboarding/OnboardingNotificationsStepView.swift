@@ -49,7 +49,7 @@ struct OnboardingNotificationsStepView: View {
                     glowColor: Color.red,
                     glyph:
                         Image(systemName: "bell.badge.fill")
-                            .font(.system(size: DSFont.Size.x3xl, weight: .semibold))
+                            .font(BrandTileGlyph.font)
                             .foregroundStyle(.white)
                 )
             },
@@ -73,7 +73,8 @@ struct OnboardingNotificationsStepView: View {
         let isAuthorized = notificationsStatus == .authorized || notificationsStatus == .provisional
 
         VStack(alignment: .leading, spacing: DSSpace.s3) {
-            sectionLabel(icon: "bell.badge.fill", title: "Notifications")
+            Label("Notifications", systemImage: "bell.badge.fill")
+                .sectionEyebrow()
 
             preferenceRow(
                 icon: "bell.badge.fill",
@@ -133,21 +134,6 @@ struct OnboardingNotificationsStepView: View {
             .disabled(!isAuthorized)
         }
         .animation(.easeInOut(duration: DSMotion.Duration.base), value: notificationsStatus)
-    }
-
-    // MARK: - Section Label
-
-    private func sectionLabel(icon: String, title: String) -> some View {
-        HStack(spacing: DSSpace.s2) {
-            Image(systemName: icon)
-                .font(.system(size: DSFont.Size.sm, weight: .semibold))
-                .foregroundStyle(.secondary)
-            Text(title)
-                .font(.system(size: DSFont.Size.sm, weight: .semibold))
-                .foregroundStyle(.secondary)
-                .textCase(.uppercase)
-            Spacer()
-        }
     }
 
     // MARK: - Row

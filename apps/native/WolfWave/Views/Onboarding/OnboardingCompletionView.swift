@@ -23,6 +23,9 @@ struct OnboardingCompletionView: View {
     @State private var showHero = false
     @State private var showText = false
 
+    /// Guards `onDismiss` so the auto-timer and a manual tap can't both fire it.
+    @State private var didDismiss = false
+
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     // MARK: - Layout Constants
@@ -80,15 +83,20 @@ struct OnboardingCompletionView: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(Color(nsColor: .windowBackgroundColor))
+        // Tap anywhere to dismiss early instead of waiting out the timer.
+        .contentShape(Rectangle())
+        .onTapGesture { dismissOnce() }
         .accessibilityElement(children: .combine)
         .accessibilityLabel("Setup complete. WolfWave is in your menu bar.")
+        .accessibilityHint("Tap to close")
+        .accessibilityAddTraits(.isButton)
         .task {
             if reduceMotion {
                 showHero = true
                 showText = true
                 try? await Task.sleep(for: .milliseconds(1200))
                 guard !Task.isCancelled else { return }
-                onDismiss()
+                dismissOnce()
             } else {
                 showHero = true
                 try? await Task.sleep(for: .milliseconds(280))
@@ -96,9 +104,19 @@ struct OnboardingCompletionView: View {
                 showText = true
                 try? await Task.sleep(for: .milliseconds(1500))
                 guard !Task.isCancelled else { return }
-                onDismiss()
+                dismissOnce()
             }
         }
+    }
+
+    // MARK: - Dismiss
+
+    /// Fires `onDismiss` at most once, whether triggered by the auto-timer or a
+    /// manual tap.
+    private func dismissOnce() {
+        guard !didDismiss else { return }
+        didDismiss = true
+        onDismiss()
     }
 
     // MARK: - Copyright

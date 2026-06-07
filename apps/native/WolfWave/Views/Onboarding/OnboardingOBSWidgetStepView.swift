@@ -56,7 +56,7 @@ struct OnboardingOBSWidgetStepView: View {
                             .renderingMode(.template)
                             .resizable()
                             .aspectRatio(contentMode: .fit)
-                            .frame(width: 30, height: 30)
+                            .frame(width: BrandTileGlyph.assetSize, height: BrandTileGlyph.assetSize)
                             .foregroundStyle(.white)
                 )
             },

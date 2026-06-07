@@ -33,7 +33,7 @@ struct OnboardingTwitchStepView: View {
                             .renderingMode(.template)
                             .resizable()
                             .aspectRatio(contentMode: .fit)
-                            .frame(width: 28, height: 28)
+                            .frame(width: BrandTileGlyph.assetSize, height: BrandTileGlyph.assetSize)
                             .foregroundStyle(.white)
                 )
             },
@@ -145,7 +145,7 @@ struct OnboardingTwitchStepView: View {
                     .sectionEyebrow()
 
                 Text("@\(twitchViewModel.botUsername)")
-                    .font(.system(size: DSFont.Size.md, weight: .semibold))
+                    .font(.system(size: DSFont.Size.base, weight: .semibold))
             }
 
             Spacer()

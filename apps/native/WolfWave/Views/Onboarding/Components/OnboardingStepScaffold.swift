@@ -39,7 +39,11 @@ struct OnboardingStepScaffold<Icon: View, Extras: View>: View {
 
                 VStack(spacing: DSSpace.s1) {
                     Text(title)
-                        .font(.system(size: DSFont.Size.xl, weight: .bold))
+                        // 22pt = the app's `.paneTitle()` H1 size. Matches the
+                        // bespoke Menu Bar Pointer step so every interior step
+                        // title is one size; Welcome/Completion stay at 26pt as
+                        // the deliberate hero bookends.
+                        .font(.system(size: DSFont.Size.x2xl, weight: .bold))
                         .multilineTextAlignment(.center)
                         .fixedSize(horizontal: false, vertical: true)
 

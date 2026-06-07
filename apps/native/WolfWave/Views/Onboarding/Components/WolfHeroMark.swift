@@ -26,9 +26,14 @@ struct WolfHeroMark: View {
 
     /// Fill treatment for the silhouette + bars.
     enum Style: Equatable {
-        /// Flat tint applied to silhouette and bars.
+        /// Flat tint applied to silhouette and bars. Pass `.primary` for the
+        /// theme-adaptive black/white treatment that matches the menu-bar
+        /// template icon — use this for small or inline marks.
         case mono(Color)
-        /// Brand-color gradient masked over silhouette + bars.
+        /// WolfWave brand gradient (navy → royal blue) masked over the
+        /// silhouette + bars. The stops adapt to the color scheme so the mark
+        /// stays vivid in both Light and Dark (the navy light-stop would
+        /// otherwise sink into a black background). Reserve for hero surfaces.
         case brandGradient
     }
 
@@ -47,6 +52,8 @@ struct WolfHeroMark: View {
     // MARK: - Animation State
 
     @State private var barsAtFinalOpacity: Bool = false
+
+    @Environment(\.colorScheme) private var colorScheme
 
     // MARK: - Body
 
@@ -93,13 +100,19 @@ struct WolfHeroMark: View {
         }
     }
 
+    /// WolfWave's own brand gradient, theme-adaptive.
+    ///
+    /// - Light: navy → royal blue (the canonical brand stops). High contrast
+    ///   on a white background.
+    /// - Dark: royal blue → sky blue. The navy light-stop is near-black
+    ///   (`#0A2540`) and would vanish on a dark background, so the dark variant
+    ///   shifts up the brand ramp to stay vivid.
     private var brandGradient: LinearGradient {
-        LinearGradient(
-            colors: [
-                AppConstants.Brand.twitch,
-                AppConstants.Brand.discord,
-                AppConstants.Brand.appleMusicGradientEnd
-            ],
+        let stops: [Color] = colorScheme == .dark
+            ? [AppConstants.Brand.wolfwaveGradientEnd, DSColor.brand300]
+            : [AppConstants.Brand.wolfwaveGradientStart, AppConstants.Brand.wolfwaveGradientEnd]
+        return LinearGradient(
+            colors: stops,
             startPoint: .topLeading,
             endPoint: .bottomTrailing
         )
@@ -286,6 +299,13 @@ nonisolated private struct WolfViewBox {
 #Preview("brand gradient: animated") {
     WolfHeroMark(size: 120, style: .brandGradient, animatedBars: true)
         .padding(DSSpace.s7)
+}
+
+#Preview("brand gradient: dark") {
+    WolfHeroMark(size: 120, style: .brandGradient, animatedBars: true)
+        .padding(DSSpace.s7)
+        .background(Color(nsColor: .windowBackgroundColor))
+        .preferredColorScheme(.dark)
 }
 
 #Preview("mono: twitch tint, small") {
