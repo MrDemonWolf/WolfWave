@@ -55,6 +55,18 @@ final class SongRequestCommand: AsyncBotCommand {
     ///   - context: Sender context; `username` is recorded with the queued item.
     ///   - reply: Closure invoked with the chat response.
     func execute(message: String, context: BotCommandContext, reply: @escaping (String) -> Void) {
+        // Master feature gate. When song requests are off, the empty-query
+        // "Usage:" hint below would otherwise leak even though requests can't
+        // flow, so bail here first. Default is silence; the streamer can opt into
+        // a "requests are off" reply.
+        let defaults = Foundation.UserDefaults.standard
+        guard defaults.bool(forKey: AppConstants.UserDefaults.songRequestEnabled) else {
+            if defaults.bool(forKey: AppConstants.UserDefaults.songRequestDisabledReplyEnabled) {
+                reply("Song requests are off right now.")
+            }
+            return
+        }
+
         // Extract the query (everything after the trigger)
         let query = extractQuery(from: message)
 
