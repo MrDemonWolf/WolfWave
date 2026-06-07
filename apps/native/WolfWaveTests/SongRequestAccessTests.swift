@@ -108,47 +108,135 @@ final class SongRequestPresetTests: XCTestCase {
     func testApplyOpenPresetWritesExpectedKeys() {
         SongRequestPreset.open.apply(to: defaults)
 
+        XCTAssertEqual(
+            defaults.string(forKey: AppConstants.UserDefaults.songRequestPolicyMode),
+            SongRequestPreset.open.rawValue)
         XCTAssertEqual(defaults.bool(forKey: AppConstants.UserDefaults.srCommandEnabled), true)
         XCTAssertEqual(
             defaults.string(forKey: AppConstants.UserDefaults.songRequestChatAudience),
             RequestAudience.everyone.rawValue)
-        XCTAssertTrue(
-            defaults.bool(forKey: AppConstants.UserDefaults.songRequestChannelPointsEnabled))
-        XCTAssertTrue(defaults.bool(forKey: AppConstants.UserDefaults.songRequestBitsEnabled))
+        // Open opts bits into "boost the cheerer's song" behavior.
+        XCTAssertTrue(defaults.bool(forKey: AppConstants.UserDefaults.songRequestBitsBoostEnabled))
     }
 
-    func testApplyPaidOnlyDisablesChatCommand() {
-        SongRequestPreset.paidOnly.apply(to: defaults)
+    func testApplySubOnlyTargetsSubscribers() {
+        SongRequestPreset.subsOnly.apply(to: defaults)
+        XCTAssertTrue(defaults.bool(forKey: AppConstants.UserDefaults.srCommandEnabled))
+        XCTAssertEqual(
+            defaults.string(forKey: AppConstants.UserDefaults.songRequestChatAudience),
+            RequestAudience.subscribers.rawValue)
+    }
+
+    func testApplyChannelPointsOnlyDisablesChatEnablesReward() {
+        SongRequestPreset.channelPointsOnly.apply(to: defaults)
         XCTAssertFalse(defaults.bool(forKey: AppConstants.UserDefaults.srCommandEnabled))
         XCTAssertTrue(
             defaults.bool(forKey: AppConstants.UserDefaults.songRequestChannelPointsEnabled))
     }
 
-    func testApplySubsStrictDisablesRedemptions() {
-        SongRequestPreset.subsStrict.apply(to: defaults)
-        XCTAssertEqual(
-            defaults.string(forKey: AppConstants.UserDefaults.songRequestChatAudience),
-            RequestAudience.subscribers.rawValue)
-        XCTAssertFalse(
-            defaults.bool(forKey: AppConstants.UserDefaults.songRequestChannelPointsEnabled))
-        XCTAssertFalse(defaults.bool(forKey: AppConstants.UserDefaults.songRequestBitsEnabled))
+    func testCurrentDefaultsToOpenWhenUnset() {
+        XCTAssertEqual(SongRequestPreset.current(in: defaults), .open)
     }
 
-    func testCurrentDetectsAppliedPreset() {
+    func testCurrentReadsStoredModeForEveryPreset() {
         for preset in SongRequestPreset.allCases {
             preset.apply(to: defaults)
             XCTAssertEqual(
                 SongRequestPreset.current(in: defaults), preset,
-                "current() should detect \(preset.rawValue) after apply()")
+                "current() should read back \(preset.rawValue) after apply()")
         }
     }
 
-    func testCurrentReturnsNilForCustomConfiguration() {
-        SongRequestPreset.open.apply(to: defaults)
-        // Diverge from every preset: open audience but redemptions off.
-        defaults.set(false, forKey: AppConstants.UserDefaults.songRequestChannelPointsEnabled)
-        defaults.set(false, forKey: AppConstants.UserDefaults.songRequestBitsEnabled)
-        XCTAssertNil(SongRequestPreset.current(in: defaults))
+    func testCurrentInfersCustomForElevatedAudienceWithoutStoredMode() {
+        // No stored policy mode (pre-upgrade), but an audience only reachable via
+        // Custom: current() should resolve to .custom.
+        defaults.set(true, forKey: AppConstants.UserDefaults.srCommandEnabled)
+        defaults.set(
+            RequestAudience.modsOnly.rawValue,
+            forKey: AppConstants.UserDefaults.songRequestChatAudience)
+        XCTAssertEqual(SongRequestPreset.current(in: defaults), .custom)
+    }
+}
+
+// MARK: - SongRequestLimits
+
+@MainActor
+final class SongRequestLimitsTests: XCTestCase {
+
+    private var defaults: UserDefaults!
+
+    override func setUp() {
+        super.setUp()
+        defaults = UserDefaults(suiteName: "SongRequestLimitsTests")
+        defaults.removePersistentDomain(forName: "SongRequestLimitsTests")
+    }
+
+    override func tearDown() {
+        defaults.removePersistentDomain(forName: "SongRequestLimitsTests")
+        defaults = nil
+        super.tearDown()
+    }
+
+    private func setLimits(everyone: Int, sub: Int, vip: Int, mod: Int) {
+        defaults.set(everyone, forKey: AppConstants.UserDefaults.songRequestPerUserLimit)
+        defaults.set(sub, forKey: AppConstants.UserDefaults.songRequestLimitSubscriber)
+        defaults.set(vip, forKey: AppConstants.UserDefaults.songRequestLimitVIP)
+        defaults.set(mod, forKey: AppConstants.UserDefaults.songRequestLimitModerator)
+    }
+
+    func testDefaultsToHighestMode() {
+        XCTAssertEqual(SongRequestLimits.mode(in: defaults), .highest)
+    }
+
+    func testHighestModeTakesBestTier() {
+        defaults.set(QueueLimitMode.highest.rawValue, forKey: AppConstants.UserDefaults.songRequestLimitStackMode)
+        setLimits(everyone: 2, sub: 3, vip: 5, mod: 10)
+
+        // A plain viewer only gets the everyone tier.
+        XCTAssertEqual(
+            SongRequestLimits.effectiveLimit(
+                isSubscriber: false, isVIP: false, isModerator: false, isBroadcaster: false, in: defaults),
+            2)
+        // A subscriber gets the larger of everyone/sub.
+        XCTAssertEqual(
+            SongRequestLimits.effectiveLimit(
+                isSubscriber: true, isVIP: false, isModerator: false, isBroadcaster: false, in: defaults),
+            3)
+        // A sub + VIP gets the best single tier, not the sum.
+        XCTAssertEqual(
+            SongRequestLimits.effectiveLimit(
+                isSubscriber: true, isVIP: true, isModerator: false, isBroadcaster: false, in: defaults),
+            5)
+        // The broadcaster counts as a moderator.
+        XCTAssertEqual(
+            SongRequestLimits.effectiveLimit(
+                isSubscriber: false, isVIP: false, isModerator: false, isBroadcaster: true, in: defaults),
+            10)
+    }
+
+    func testStackedModeSumsApplicableTiers() {
+        defaults.set(QueueLimitMode.stacked.rawValue, forKey: AppConstants.UserDefaults.songRequestLimitStackMode)
+        setLimits(everyone: 2, sub: 3, vip: 5, mod: 10)
+
+        XCTAssertEqual(
+            SongRequestLimits.effectiveLimit(
+                isSubscriber: false, isVIP: false, isModerator: false, isBroadcaster: false, in: defaults),
+            2)
+        // everyone + sub
+        XCTAssertEqual(
+            SongRequestLimits.effectiveLimit(
+                isSubscriber: true, isVIP: false, isModerator: false, isBroadcaster: false, in: defaults),
+            5)
+        // everyone + sub + vip + mod
+        XCTAssertEqual(
+            SongRequestLimits.effectiveLimit(
+                isSubscriber: true, isVIP: true, isModerator: true, isBroadcaster: false, in: defaults),
+            20)
+    }
+
+    func testNonChatLimitUsesEveryoneTier() {
+        setLimits(everyone: 4, sub: 9, vip: 9, mod: 9)
+        XCTAssertEqual(SongRequestLimits.nonChatLimit(in: defaults), 4)
     }
 }
 
