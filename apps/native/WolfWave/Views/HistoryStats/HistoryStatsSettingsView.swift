@@ -562,6 +562,7 @@ struct HistoryStatsSettingsView: View {
                 .font(.system(size: DSFont.Size.xs))
                 .foregroundStyle(.tertiary)
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .padding(AppConstants.SettingsUI.cardPadding)
         .cardStyleUnpadded()
     }
@@ -596,7 +597,7 @@ struct HistoryStatsSettingsView: View {
             .buttonStyle(.bordered)
             .pointerCursor()
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .padding(AppConstants.SettingsUI.cardPadding)
         .cardStyleUnpadded()
     }
