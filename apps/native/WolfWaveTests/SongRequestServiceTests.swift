@@ -547,8 +547,11 @@ final class SongRequestServiceTests: WolfWaveTestCase {
         }
         service.stopPlaybackMonitoring()
 
+        // Advancing now-playing to the next queued item is the proof the
+        // divergence handoff fired. (The fixture carries no MusicKit `Song`, so
+        // `playNow` is intentionally skipped — same as the takeover test above.)
         XCTAssertTrue(advanced, "Skipping inside Music.app should advance to the next queued request")
-        XCTAssertTrue(mockController.playNowCalled, "The next request should be played")
+        XCTAssertEqual(queue.nowPlaying?.title, "Next")
     }
 
     func testAutoAdvanceDoesNotFireWhenPaused() async {
