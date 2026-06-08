@@ -145,8 +145,15 @@ extension AppDelegate {
 
     /// Builds the "Copy Song Link" menu item. Shows a `song.link` multi-platform
     /// URL when resolved; falls back to the Apple Music track URL while the
-    /// song.link sentinel is still warming. Disabled (with a "Resolving…"
-    /// hint) when neither URL is cached yet, so the row's position is stable.
+    /// song.link sentinel is still warming. When no URL is cached the row is
+    /// disabled with a trailing hint: "Resolving…" while a lookup is still
+    /// pending, or "No link found" once a lookup has finished without a match
+    /// (so the row stays put rather than lying "Resolving…" for the lookup TTL).
+    ///
+    /// On a cache miss the menu drives resolution itself (mirroring
+    /// `currentAlbumArtwork()`), so a track whose links were never fetched. or
+    /// were lost to a launch/relaunch race. resolves on the next menu open,
+    /// independent of play/pause state.
     ///
     /// Mirrors the same `ArtworkService.cachedTrackLinks` source the Discord
     /// RPC button row uses, so what the streamer pastes matches what their
@@ -162,33 +169,39 @@ extension AppDelegate {
             accessibilityDescription: "Copy Song Link"
         )
 
-        let hasLink: Bool
+        let links = artist.map { ArtworkService.shared.cachedTrackLinks(track: song, artist: $0) }
+        let hasLink = (links?.songLinkURL != nil) || (links?.trackViewURL != nil)
+        if hasLink { return item }
+
+        // No URL cached. Decide between "Resolving…" and "No link found", and
+        // drive a lookup ourselves on the first miss so it resolves on the next
+        // menu open whether Music is playing or paused.
+        let attempted: Bool
         if let artist {
-            let links = ArtworkService.shared.cachedTrackLinks(track: song, artist: artist)
-            hasLink = (links.songLinkURL != nil) || (links.trackViewURL != nil)
+            attempted = ArtworkService.shared.hasAttemptedTrackLinks(track: song, artist: artist)
+            if !attempted {
+                ArtworkService.shared.fetchTrackLinks(track: song, artist: artist) { _ in }
+            }
         } else {
-            hasLink = false
+            attempted = true // No artist to search on: nothing will resolve.
         }
 
-        if !hasLink {
-            item.isEnabled = false
-            let attributed = NSMutableAttributedString(
-                string: "Copy Song Link",
-                attributes: [
-                    .font: NSFont.menuFont(ofSize: 0),
-                    .foregroundColor: NSColor.labelColor,
-                ]
-            )
-            attributed.append(NSAttributedString(
-                string: "  Resolving\u{2026}",
-                attributes: [
-                    .font: NSFont.menuFont(ofSize: NSFont.systemFontSize(for: .small)),
-                    .foregroundColor: NSColor.secondaryLabelColor,
-                ]
-            ))
-            item.attributedTitle = attributed
-        }
-
+        item.isEnabled = false
+        let attributed = NSMutableAttributedString(
+            string: "Copy Song Link",
+            attributes: [
+                .font: NSFont.menuFont(ofSize: 0),
+                .foregroundColor: NSColor.labelColor,
+            ]
+        )
+        attributed.append(NSAttributedString(
+            string: attempted ? "  No link found" : "  Resolving\u{2026}",
+            attributes: [
+                .font: NSFont.menuFont(ofSize: NSFont.systemFontSize(for: .small)),
+                .foregroundColor: NSColor.secondaryLabelColor,
+            ]
+        ))
+        item.attributedTitle = attributed
         return item
     }
 

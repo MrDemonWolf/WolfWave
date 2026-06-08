@@ -293,6 +293,23 @@ nonisolated final class ArtworkService: @unchecked Sendable {
         }
     }
 
+    /// Whether a links lookup has already completed for a track (success or
+    /// miss) within the TTL window. Lets callers tell "still resolving" apart
+    /// from "resolved, but iTunes had no match" so the UI can stop showing a
+    /// perpetual "Resolving…" hint for tracks that will never resolve.
+    ///
+    /// - Returns: `true` once a lookup has finished, regardless of outcome.
+    func hasAttemptedTrackLinks(track: String, artist: String) -> Bool {
+        let cacheKey = "\(artist)|\(track)"
+        return cacheQueue.sync {
+            // Mirror `fetchTrackLinks`' TTL check: an expired miss is treated as
+            // not-yet-attempted so callers re-drive resolution instead of
+            // showing "No link found" forever past the lookup TTL.
+            guard let resolved = resolvedAt[cacheKey] else { return false }
+            return Date().timeIntervalSince(resolved) < AppConstants.API.artworkLookupTTL
+        }
+    }
+
     // MARK: - Cache Management
 
     /// Snapshot of cache size for display in settings.

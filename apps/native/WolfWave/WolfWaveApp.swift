@@ -382,11 +382,21 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
     /// Appends a song.link URL to `reply` when the toggle is on and ArtworkService has a cached URL.
     /// Shared by `getCurrentSongInfo` and `getLastSongInfo` to avoid duplicate logic.
+    ///
+    /// When the link can't be found, chat gets a plain "No link found" instead of
+    /// a silently dropped link, so viewers know nothing's coming rather than
+    /// wondering. While a lookup is still pending the link is omitted (and a
+    /// fetch kicked off) so a quick re-run of the command picks up the real URL.
     private func appendSongLink(to reply: String, track: String, artist: String) -> String {
-        guard FeatureFlags.songCommandSongLinkEnabled,
-              let url = ArtworkService.shared.cachedTrackLinks(track: track, artist: artist).songLinkURL
-        else { return reply }
-        return "\(reply) · \(url)"
+        guard FeatureFlags.songCommandSongLinkEnabled else { return reply }
+        if let url = ArtworkService.shared.cachedTrackLinks(track: track, artist: artist).songLinkURL {
+            return "\(reply) · \(url)"
+        }
+        if ArtworkService.shared.hasAttemptedTrackLinks(track: track, artist: artist) {
+            return "\(reply) · No link found"
+        }
+        ArtworkService.shared.fetchTrackLinks(track: track, artist: artist) { _ in }
+        return reply
     }
 
     /// Returns a formatted listening-stats string for the `!stats` Twitch command.
