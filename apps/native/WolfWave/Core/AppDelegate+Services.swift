@@ -157,6 +157,7 @@ extension AppDelegate {
     /// Creates the song request service and wires up playback monitoring + chat replies.
     func setupSongRequestService() {
         SongRequestService.migrateAccessSettings()
+        SongRequestService.migrateSetupState()
 
         let queue = SongRequestQueue()
         let blocklist = SongBlocklist()
@@ -195,6 +196,13 @@ extension AppDelegate {
         let enabled = FeatureFlags.songRequestEnabled
         if enabled {
             songRequestService?.startPlaybackMonitoring()
+        }
+
+        // Verify the requests playlist is still set up and shared. Catches a
+        // playlist deleted or un-shared between launches and surfaces the "needs
+        // setup again" banner; no-op until the guided setup has been finished.
+        Task { [weak self] in
+            await self?.songRequestService?.runSetupHealthCheck()
         }
 
         setupSkipVoteManager()

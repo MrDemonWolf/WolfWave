@@ -70,6 +70,12 @@ nonisolated enum FeatureFlags {
         defaults.bool(forKey: AppConstants.UserDefaults.songRequestEnabled)
     }
 
+    /// Whether the guided Song Requests setup has been completed. Gates the
+    /// master toggle in settings. Default false.
+    static var songRequestSetupComplete: Bool {
+        defaults.bool(forKey: AppConstants.UserDefaults.songRequestSetupComplete)
+    }
+
     /// Whether the request queue is held: new requests buffer without
     /// auto-playing. Default false (queue plays through).
     static var songRequestHoldEnabled: Bool {

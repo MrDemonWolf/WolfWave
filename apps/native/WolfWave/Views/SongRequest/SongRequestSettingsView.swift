@@ -17,13 +17,25 @@ struct SongRequestSettingsView: View {
     @AppStorage(AppConstants.UserDefaults.songRequestEnabled)
     private var songRequestEnabled = false
 
+    /// The setup gate. Until this is true the master toggle is replaced by a
+    /// "Set up Song Requests" call to action that launches the guided sheet.
+    @AppStorage(AppConstants.UserDefaults.songRequestSetupComplete)
+    private var setupComplete = false
+
+    /// Playlist health. Anything other than `.ok` shows the top-of-pane banner.
+    @AppStorage(AppConstants.UserDefaults.songRequestPlaylistStatus)
+    private var playlistStatus: PlaylistSetupStatus = .ok
+
     @State private var isTwitchConnected = false
     /// Mirrors the Twitch pane's reauth flag so this pane can surface the same
     /// "sign-in expired" warning instead of the calmer "connect" info note.
     @State private var twitchReauthNeeded = UserDefaults.standard.bool(
         forKey: AppConstants.UserDefaults.twitchReauthNeeded)
-    @State private var musicAuthStatus: MusicAuthorization.Status = MusicAuthorization.currentStatus
-    @State private var isRequestingMusicAuth = false
+
+    /// Drives the guided setup sheet. `setupStartStep` lets the broken-playlist
+    /// banner jump straight to the right step (re-share vs full redo).
+    @State private var showSetupSheet = false
+    @State private var setupStartStep: SongRequestSetupViewModel.Step = .intro
 
     private var appDelegate: AppDelegate? { AppDelegate.shared }
 
@@ -37,21 +49,31 @@ struct SongRequestSettingsView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: DSSpace.s8) {
+                // Broken-playlist banner sits above everything so a "needs setup
+                // again" state is the first thing the streamer sees.
+                if playlistStatus != .ok {
+                    SongRequestHealthBanner(
+                        status: playlistStatus,
+                        onAction: { handleHealthAction(playlistStatus) }
+                    )
+                }
+
                 SongRequestHeader()
                 twitchNotice
-                SongRequestMasterToggleCard(isTwitchConnected: isTwitchConnected)
+                SongRequestMasterToggleCard(
+                    isTwitchConnected: isTwitchConnected,
+                    setupComplete: setupComplete,
+                    onSetUp: { openSetup(at: .intro) }
+                )
 
                 // Vote-skip skips the live Apple Music track even with no request
                 // queue, so it stays reachable whether or not song requests are on.
                 VoteSkipCard()
 
-                if songRequestEnabled {
-                    if musicAuthStatus != .authorized {
-                        SongRequestMusicAuthCard(
-                            musicAuthStatus: $musicAuthStatus,
-                            isRequestingMusicAuth: $isRequestingMusicAuth
-                        )
-                    }
+                // The configuration cards only appear once setup is finished and
+                // the feature is on. Apple Music access is handled inside the
+                // setup sheet, so there's no inline auth card here anymore.
+                if songRequestEnabled && setupComplete {
                     // The live queue sits up top: it's the thing you check and act
                     // on mid-stream (skip/hold/clear), so it leads. The set-once
                     // configuration cards follow below.
@@ -59,7 +81,7 @@ struct SongRequestSettingsView: View {
                     SongRequestAccessCard()
                     SongRequestQueueConfigCard()
                     SongRequestPlaybackCard()
-                    SongRequestCommandsCard()
+                    SongRequestCommandsCard(onManageLink: { openSetup(at: .shareLink) })
                     SongRequestRedemptionsCard()
                     SongRequestBlocklistCard(
                         blocklistProvider: { appDelegate?.songRequestService?.blocklist })
@@ -71,9 +93,13 @@ struct SongRequestSettingsView: View {
             .padding(.vertical, AppConstants.SettingsUI.contentPaddingV)
         }
         .onAppear {
-            musicAuthStatus = MusicAuthorization.currentStatus
             refreshTwitchState()
             refreshReauthState()
+        }
+        .task {
+            // Verify the playlist is still present and shared when the pane opens
+            // so the banner reflects reality (deleted / un-shared between visits).
+            await runHealthCheck()
         }
         .onReceive(NotificationCenter.default.publisher(for: Notification.Name.twitchConnectionStateChanged)) { notification in
             if let connected = notification.isConnectedFlag {
@@ -82,6 +108,9 @@ struct SongRequestSettingsView: View {
         }
         .onReceive(NotificationCenter.default.publisher(for: Notification.Name.twitchReauthNeededChanged)) { _ in
             refreshReauthState()
+        }
+        .sheet(isPresented: $showSetupSheet, onDismiss: { Task { await runHealthCheck() } }) {
+            SongRequestSetupView(startAt: setupStartStep)
         }
     }
 
@@ -124,6 +153,61 @@ struct SongRequestSettingsView: View {
     private func updateTwitchState(_ connected: Bool) {
         isTwitchConnected = connected
     }
+
+    /// Opens the guided setup sheet at the given step.
+    private func openSetup(at step: SongRequestSetupViewModel.Step) {
+        setupStartStep = step
+        showSetupSheet = true
+    }
+
+    /// Re-checks playlist health via the live service so the banner stays honest.
+    private func runHealthCheck() async {
+        await appDelegate?.songRequestService?.runSetupHealthCheck()
+    }
+
+    /// Routes the health banner's primary action to the right fix: re-grant
+    /// Apple Music access inline, re-open the share step, or redo full setup.
+    private func handleHealthAction(_ status: PlaylistSetupStatus) {
+        switch status {
+        case .ok:
+            break
+        case .musicAccessLost:
+            Task {
+                _ = await MusicAuthorization.request()
+                await runHealthCheck()
+            }
+        case .playlistMissing:
+            openSetup(at: .intro)
+        case .linkUnshared:
+            openSetup(at: .shareLink)
+        }
+    }
+}
+
+// MARK: - Health Banner
+
+/// Top-of-pane banner shown when the requests playlist is broken. Pairs the
+/// `PlaylistSetupStatus` message with a primary action button (CalloutBanner is
+/// text-only), so the streamer can jump straight to the fix.
+fileprivate struct SongRequestHealthBanner: View {
+    let status: PlaylistSetupStatus
+    let onAction: () -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: DSSpace.s2) {
+            CalloutBanner(
+                status.bannerMessage ?? "",
+                style: status.isError ? .error : .warning
+            )
+            if let label = status.actionLabel {
+                Button(label) { onAction() }
+                    .buttonStyle(.borderedProminent)
+                    .controlSize(.small)
+                    .accessibilityIdentifier("songRequests.healthBanner.action")
+            }
+        }
+        .accessibilityIdentifier("songRequests.healthBanner")
+    }
 }
 
 // MARK: - Header
@@ -162,20 +246,62 @@ fileprivate struct SongRequestMasterToggleCard: View {
     private var disabledReplyEnabled = false
 
     let isTwitchConnected: Bool
+    /// When false, the enable toggle is replaced by a "Set up" call to action.
+    let setupComplete: Bool
+    /// Launches the guided setup sheet.
+    let onSetUp: () -> Void
 
     var body: some View {
         VStack(alignment: .leading, spacing: DSSpace.s4) {
-            ToggleSettingRow(
-                title: "Enable Song Requests",
-                subtitle: "Viewers can request songs with !sr in Twitch chat",
-                isOn: $songRequestEnabled,
-                isDisabled: !isTwitchConnected,
-                accessibilityLabel: "Enable song requests",
-                accessibilityIdentifier: "songRequests.enableToggle",
-                onChange: { enabled in
-                    NotificationCenter.default.postEnabled(.songRequestSettingChanged, enabled: enabled)
+            if setupComplete {
+                ToggleSettingRow(
+                    title: "Enable Song Requests",
+                    subtitle: "Viewers can request songs with !sr in Twitch chat",
+                    isOn: $songRequestEnabled,
+                    isDisabled: !isTwitchConnected,
+                    accessibilityLabel: "Enable song requests",
+                    accessibilityIdentifier: "songRequests.enableToggle",
+                    onChange: { enabled in
+                        NotificationCenter.default.postEnabled(.songRequestSettingChanged, enabled: enabled)
+                    }
+                )
+
+                Button("Re-run setup") { onSetUp() }
+                    .buttonStyle(.plain)
+                    .font(.system(size: DSFont.Size.sm))
+                    .foregroundStyle(.secondary)
+                    .pointerCursor()
+                    .accessibilityIdentifier("songRequests.rerunSetup")
+            } else {
+                VStack(alignment: .leading, spacing: DSSpace.s3) {
+                    HStack(spacing: DSSpace.s3) {
+                        Image(systemName: "music.note.list")
+                            .font(.system(size: DSFont.Size.x2xl))
+                            .foregroundStyle(.tint)
+                            .accessibilityHidden(true)
+                        VStack(alignment: .leading, spacing: DSSpace.s0) {
+                            Text("Set up Song Requests")
+                                .font(.system(size: DSFont.Size.base, weight: .semibold))
+                            Text("A quick guided setup. About a minute.")
+                                .font(.system(size: DSFont.Size.sm))
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+
+                    VStack(alignment: .leading, spacing: DSSpace.s1) {
+                        setupChecklistItem("Connect Twitch")
+                        setupChecklistItem("Allow Apple Music access")
+                        setupChecklistItem("Create your requests playlist")
+                    }
+
+                    Button("Set Up Song Requests") { onSetUp() }
+                        .buttonStyle(.borderedProminent)
+                        .controlSize(.regular)
+                        .disabled(!isTwitchConnected)
+                        .pointerCursor()
+                        .accessibilityIdentifier("songRequests.setUp")
                 }
-            )
+            }
 
             Divider()
 
@@ -188,6 +314,20 @@ fileprivate struct SongRequestMasterToggleCard: View {
             )
         }
         .cardStyle()
+    }
+
+    /// One "what you'll set up" bullet in the pre-setup call to action.
+    @ViewBuilder
+    private func setupChecklistItem(_ text: String) -> some View {
+        HStack(spacing: DSSpace.s2) {
+            Image(systemName: "circle.dashed")
+                .font(.system(size: DSFont.Size.sm))
+                .foregroundStyle(.secondary)
+                .accessibilityHidden(true)
+            Text(text)
+                .font(.system(size: DSFont.Size.sm))
+                .foregroundStyle(.secondary)
+        }
     }
 }
 
@@ -340,44 +480,6 @@ fileprivate struct VoteSkipCard: View {
                         accessibilityIdentifier: "voteSkip.commandAliases"
                     )
                 }
-            }
-        }
-        .cardStyle()
-    }
-}
-
-// MARK: - Music Auth
-
-fileprivate struct SongRequestMusicAuthCard: View {
-    @Binding var musicAuthStatus: MusicAuthorization.Status
-    @Binding var isRequestingMusicAuth: Bool
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: DSSpace.s4) {
-            CalloutBanner(musicAuthStatus == .denied
-                ? "Apple Music access was denied. Enable it in System Settings → Privacy & Security → Media & Apple Music."
-                : "WolfWave needs Apple Music access to search and play requested songs.")
-
-            if musicAuthStatus != .denied {
-                Button {
-                    isRequestingMusicAuth = true
-                    Task {
-                        _ = await MusicAuthorization.request()
-                        musicAuthStatus = MusicAuthorization.currentStatus
-                        isRequestingMusicAuth = false
-                    }
-                } label: {
-                    HStack(spacing: DSSpace.s1h) {
-                        if isRequestingMusicAuth {
-                            ProgressView().controlSize(.small)
-                        }
-                        Text("Grant Apple Music Access")
-                    }
-                }
-                .buttonStyle(.borderedProminent)
-                .controlSize(.small)
-                .tint(.pink)
-                .disabled(isRequestingMusicAuth)
             }
         }
         .cardStyle()
@@ -890,10 +992,9 @@ fileprivate struct SongRequestCommandsCard: View {
     @AppStorage(AppConstants.UserDefaults.songListCommandAliases) private var songListAliases = ""
     @AppStorage(AppConstants.UserDefaults.songRequestSongListURL) private var songListURL = ""
 
-    @State private var libraryService = AppleMusicLibraryService()
-    @State private var musicController = AppleMusicController()
-    @State private var fetchingLink = false
-    @State private var fetchStatus: String?
+    /// Opens the setup sheet's share step so the streamer can (re)configure the
+    /// public !playlist link without leaving the pane.
+    let onManageLink: () -> Void
 
     var body: some View {
         VStack(alignment: .leading, spacing: DSSpace.s6) {
@@ -974,7 +1075,10 @@ fileprivate struct SongRequestCommandsCard: View {
             }
             .cardStyleUnpadded()
 
-            VStack(alignment: .leading, spacing: DSSpace.s4) {
+            // Slim song-list link status. The full guided flow (open in Music,
+            // share, fetch the link) now lives in the setup sheet; this row just
+            // shows whether a link is set and offers a way back into that step.
+            VStack(alignment: .leading, spacing: DSSpace.s2) {
                 HStack {
                     Text("Song list link")
                         .font(.system(size: DSFont.Size.body, weight: .medium))
@@ -986,113 +1090,20 @@ fileprivate struct SongRequestCommandsCard: View {
                             ? StatusChip.StateGlyph.off
                             : StatusChip.StateGlyph.on
                     )
-                }
-
-                Text("!playlist drops a link to your requests playlist in chat. Three quick steps:")
-                    .fieldSubtitle()
-
-                VStack(alignment: .leading, spacing: DSSpace.s3) {
-                    setupStep(1, "Open your requests playlist") {
-                        Button("Open in Music") {
-                            Task { await openPlaylistInMusic() }
-                        }
+                    Button("Manage") { onManageLink() }
                         .buttonStyle(.bordered)
                         .controlSize(.small)
-                        .accessibilityIdentifier("songRequests.openPlaylistInMusic")
-                    }
-
-                    setupStep(2, "In Music, tap Share, then Show on Profile") {
-                        EmptyView()
-                    }
-
-                    setupStep(3, "Grab the link") {
-                        Button {
-                            Task { await fetchSongListLink() }
-                        } label: {
-                            if fetchingLink {
-                                ProgressView().controlSize(.small)
-                            } else {
-                                Text("Fetch link")
-                            }
-                        }
-                        .buttonStyle(.borderedProminent)
-                        .controlSize(.small)
-                        .disabled(fetchingLink)
-                        .accessibilityIdentifier("songRequests.fetchSongList")
-                    }
+                        .accessibilityIdentifier("songRequests.manageSongList")
                 }
 
-                if let fetchStatus {
-                    Text(fetchStatus)
-                        .font(.system(size: DSFont.Size.xs))
-                        .foregroundStyle(.secondary)
-                        .fixedSize(horizontal: false, vertical: true)
-                }
-
-                TextField("Link shows up here, or paste your own", text: $songListURL)
-                    .textFieldStyle(.roundedBorder)
-                    .font(.system(size: DSFont.Size.body))
-                    .accessibilityIdentifier("songRequests.songListURL")
-
-                Text("Leave blank and !playlist stays quiet.")
+                Text("!playlist drops a link to your requests playlist in chat. Set it up in the guided steps.")
                     .font(.system(size: DSFont.Size.xs))
                     .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
             }
 
             HintRow("Cooldowns don't apply to you or your mods.")
         }
-    }
-
-    /// One numbered step in the `!playlist` setup flow: a glyph, a short
-    /// instruction, and an optional trailing action button. Keeps the setup
-    /// scannable so it's quick to follow.
-    @ViewBuilder
-    private func setupStep<Trailing: View>(
-        _ number: Int,
-        _ text: String,
-        @ViewBuilder trailing: () -> Trailing
-    ) -> some View {
-        HStack(spacing: DSSpace.s3) {
-            Image(systemName: "\(number).circle.fill")
-                .font(.system(size: DSFont.Size.lg))
-                .foregroundStyle(.tint)
-                .accessibilityHidden(true)
-            Text(text)
-                .font(.system(size: DSFont.Size.body))
-                .fixedSize(horizontal: false, vertical: true)
-            Spacer(minLength: DSSpace.s2)
-            trailing()
-        }
-    }
-
-    /// Resolves the WolfWave Requests playlist's public share link, fills the
-    /// field, and turns `!playlist` on. The playlist must be public first (macOS
-    /// can't publish it), so a not-yet-public playlist resolves to a clear
-    /// "do steps 1 and 2 first" message.
-    @MainActor
-    private func fetchSongListLink() async {
-        fetchingLink = true
-        fetchStatus = nil
-        defer { fetchingLink = false }
-        do {
-            if let url = try await libraryService.resolveRequestsPlaylistShareURL() {
-                songListURL = url
-                songListCommandEnabled = true
-                fetchStatus = "Got it. !playlist is on and shares this link."
-            } else {
-                fetchStatus = "Not public yet. Do steps 1 and 2, then Fetch again."
-            }
-        } catch {
-            fetchStatus = "Couldn't fetch. Make sure you're signed in to Apple Music."
-        }
-    }
-
-    /// Ensures the WolfWave Requests playlist exists, then reveals it in Music so
-    /// the streamer can Share it (the one manual step macOS can't automate).
-    @MainActor
-    private func openPlaylistInMusic() async {
-        _ = try? await libraryService.ensureRequestsPlaylist()
-        musicController.revealRequestsPlaylist()
     }
 }
 

@@ -127,6 +127,82 @@ final class AppleMusicLibraryService {
         return nil
     }
 
+    // MARK: - Health Probe
+
+    /// The current state of the WolfWave Requests playlist, used by the setup
+    /// health check to decide whether the song-request feature is healthy, the
+    /// `!playlist` link has gone dead, or the playlist needs rebuilding.
+    enum PlaylistProbe: Equatable {
+        /// Playlist exists. `shareURL` is non-nil when it is public.
+        case ok(shareURL: String?)
+        /// Playlist is no longer in the library (deleted by the user).
+        case missing
+        /// Playlist exists but is not public, so it has no shareable link.
+        case notPublic
+        /// The Apple Music API could not be reached, so health is unknown. The
+        /// caller must treat this as "no change" and never flip a banner on it.
+        case unreachable
+    }
+
+    /// Probes the WolfWave Requests playlist **without creating it**, so the setup
+    /// health check can tell a deleted/un-shared playlist apart from a transient
+    /// network failure.
+    ///
+    /// Unlike `resolveRequestsPlaylistShareURL()`, this never calls
+    /// `ensureRequestsPlaylist()` (which would silently recreate a deleted
+    /// playlist and mask the very state we are trying to detect). A throwing
+    /// library read maps to `.unreachable`; a successful read with no match maps
+    /// to `.missing`. Assumes MusicKit is already authorized (the service checks
+    /// auth first and reports `.musicAccessLost` before probing).
+    func probeRequestsPlaylist() async -> PlaylistProbe {
+        let playlistID: String?
+        do {
+            playlistID = try await findRequestsPlaylist()
+        } catch {
+            return .unreachable
+        }
+        guard let playlistID else { return .missing }
+        let shareURL = await resolveShareURL(forPlaylistID: playlistID)
+        return Self.classifyProbe(foundPlaylistID: playlistID, resolvedShareURL: shareURL)
+    }
+
+    /// Resolves the public share URL for an already-known library playlist id,
+    /// or `nil` when it is not public (or a catalog GET fails). Mirrors the
+    /// resolution order in `resolveRequestsPlaylistShareURL()` but takes the id
+    /// directly so the probe never creates a playlist.
+    private func resolveShareURL(forPlaylistID playlistID: String) async -> String? {
+        if let data = await get("/me/library/playlists/\(playlistID)/catalog"),
+           let url = Self.parseShareURL(fromCatalogData: data) {
+            return url
+        }
+        if let libraryData = await get("/me/library/playlists/\(playlistID)"),
+           let globalID = Self.parseGlobalID(fromLibraryData: libraryData),
+           let storefrontData = await get("/me/storefront"),
+           let storefront = Self.parseStorefront(fromData: storefrontData),
+           let catalogData = await get("/catalog/\(storefront)/playlists/\(globalID)"),
+           let url = Self.parseShareURL(fromCatalogData: catalogData) {
+            return url
+        }
+        return nil
+    }
+
+    /// Pure classification of a probe from the library-list outcome and the
+    /// resolved share URL. Separated from the network calls so the
+    /// missing / notPublic / ok decision is unit-testable. `.unreachable` is the
+    /// `probeRequestsPlaylist()` catch path and is not represented here.
+    static func classifyProbe(foundPlaylistID: String?, resolvedShareURL: String?) -> PlaylistProbe {
+        guard foundPlaylistID != nil else { return .missing }
+        if let url = resolvedShareURL { return .ok(shareURL: url) }
+        return .notPublic
+    }
+
+    /// Clears the cached playlist id so the next `ensureRequestsPlaylist()` call
+    /// re-finds or recreates it. Used by the health check after it detects the
+    /// playlist was deleted.
+    func resetCachedPlaylistID() {
+        cachedPlaylistID = nil
+    }
+
     /// GETs `path` and returns the raw response body, or `nil` on any failure
     /// (network error, non-2xx, missing catalog). Resolution degrades to `nil`
     /// rather than throwing so a not-yet-public playlist reads as "no link".
@@ -209,13 +285,16 @@ final class AppleMusicLibraryService {
         )
     }
 
-    /// JSON body for creating the requests playlist.
+    /// JSON body for creating the requests playlist. Sets `authorDisplayName` so
+    /// Music shows "WolfWave" as the creator (the only API-supported branding;
+    /// playlist artwork is auto-built from the songs and can't be set here).
     static func createPlaylistBody() throws -> Data {
         try JSONCoders.defaultEncoder.encode(
             CreatePlaylistRequest(
                 attributes: CreatePlaylistRequest.Attributes(
                     name: AppConstants.Music.requestsPlaylistName,
-                    description: AppConstants.Music.requestsPlaylistDescription
+                    description: AppConstants.Music.requestsPlaylistDescription,
+                    authorDisplayName: AppConstants.Music.requestsPlaylistAuthor
                 )
             )
         )
@@ -299,6 +378,8 @@ private struct CreatePlaylistRequest: Encodable {
     struct Attributes: Encodable {
         let name: String
         let description: String?
+        /// Shows as the playlist's creator in Music (e.g. "WolfWave").
+        var authorDisplayName: String?
     }
 }
 

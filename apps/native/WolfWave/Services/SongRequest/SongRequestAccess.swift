@@ -314,3 +314,72 @@ enum RedemptionStatus: String {
         }
     }
 }
+
+// MARK: - PlaylistSetupStatus
+
+/// Health of the song-request playlist setup. Drives the top-of-pane "needs
+/// setup again" banner and the fallback policy when the streamer's playlist
+/// gets deleted or un-shared. Persisted as a raw `String` so it can back an
+/// `@AppStorage` property. Same shape as `RedemptionStatus`.
+///
+/// Two failure tiers, on purpose:
+/// - **Essential** (`playlistMissing`, `musicAccessLost`): nothing can play, so
+///   the live feature is held and the banner walks the streamer back through
+///   setup.
+/// - **Cosmetic** (`linkUnshared`): only the `!playlist` link is dead, so just
+///   that command is turned off. `!sr`, channel points, and bits keep working,
+///   never killing a live stream over a broken link.
+enum PlaylistSetupStatus: String {
+    /// Working, or setup not started yet. No banner.
+    case ok
+    /// The WolfWave Requests playlist is gone and couldn't be rebuilt.
+    case playlistMissing
+    /// A song-list link was set but the playlist is no longer public.
+    case linkUnshared
+    /// Apple Music access (or an active subscription) is no longer available.
+    case musicAccessLost
+
+    /// Banner message shown at the top of the pane, or `nil` when healthy.
+    var bannerMessage: String? {
+        switch self {
+        case .ok:
+            return nil
+        case .playlistMissing:
+            return "Your WolfWave Requests playlist is gone. Set up song requests again to rebuild it."
+        case .linkUnshared:
+            return "Your song list link stopped working. Re-share your requests playlist so !playlist works again."
+        case .musicAccessLost:
+            return "WolfWave lost access to Apple Music. Grant access again to keep song requests playing."
+        }
+    }
+
+    /// Whether the break stops the whole feature (essential) rather than just the
+    /// `!playlist` link (cosmetic). Essential breaks hold the live feature and
+    /// re-engage the setup gate; cosmetic breaks leave requests flowing.
+    var isEssential: Bool {
+        switch self {
+        case .ok, .linkUnshared:
+            return false
+        case .playlistMissing, .musicAccessLost:
+            return true
+        }
+    }
+
+    /// Primary-action label for the banner button, or `nil` when healthy.
+    var actionLabel: String? {
+        switch self {
+        case .ok:
+            return nil
+        case .playlistMissing:
+            return "Set Up Again"
+        case .linkUnshared:
+            return "Re-share Playlist"
+        case .musicAccessLost:
+            return "Grant Access"
+        }
+    }
+
+    /// Banner tint. Essential breaks read as errors; the cosmetic link break is a
+    /// softer warning.
+    var isError: Bool { isEssential }
+}

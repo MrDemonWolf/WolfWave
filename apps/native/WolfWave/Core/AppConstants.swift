@@ -487,6 +487,18 @@ nonisolated enum AppConstants {
         /// (String, default: "ok").
         static let songRequestRedemptionStatus = "songRequestRedemptionStatus"
 
+        /// Whether the streamer has finished the guided Song Requests setup. The
+        /// master toggle stays locked behind a "Set up" call to action until this
+        /// is true; the setup sheet sets it on finish, and a one-time migration
+        /// grandfathers anyone who already had the feature on (Bool, default: false).
+        static let songRequestSetupComplete = "songRequestSetupComplete"
+
+        /// Health of the song-request playlist: a `PlaylistSetupStatus` raw value
+        /// ("ok", "playlistMissing", "linkUnshared", "musicAccessLost"). Drives the
+        /// top-of-pane "needs setup again" banner and the fallback policy
+        /// (String, default: "ok").
+        static let songRequestPlaylistStatus = "songRequestPlaylistStatus"
+
         /// Whether `!sr` replies "Song requests are off right now." when used while
         /// the feature is disabled. Off = stay silent (Bool, default: false).
         static let songRequestDisabledReplyEnabled = "songRequestDisabledReplyEnabled"
@@ -679,6 +691,8 @@ nonisolated enum AppConstants {
             songRequestBitsMinimum,
             songRequestBitsBoostEnabled,
             songRequestRedemptionStatus,
+            songRequestSetupComplete,
+            songRequestPlaylistStatus,
             songRequestDisabledReplyEnabled,
             songRequestPolicyMode,
             songRequestLimitStackMode,
@@ -859,6 +873,8 @@ nonisolated enum AppConstants {
             lastSeenWhatsNewVersion,
             songRequestChannelPointsRewardID,
             songRequestRedemptionStatus,
+            songRequestSetupComplete,
+            songRequestPlaylistStatus,
         ]
     }
 
@@ -931,8 +947,19 @@ nonisolated enum AppConstants {
         static let requestsPlaylistName = "WolfWave Requests"
 
         /// Description set on the WolfWave Requests playlist when it is created.
+        /// Branded and explanatory so the playlist reads as WolfWave's, not a
+        /// stray user playlist. (Apple builds the cover art from the songs;
+        /// custom playlist artwork can't be set through the Apple Music API or
+        /// Music's AppleScript, so the author name and description carry the
+        /// branding instead.)
         static let requestsPlaylistDescription =
-            "Songs your viewers requested through WolfWave. Safe to clear anytime."
+            "Live song requests from your Twitch chat, collected by WolfWave. Viewers add tracks with !sr and they play from here. Safe to clear anytime."
+
+        /// Author shown on the WolfWave Requests playlist. The Apple Music API's
+        /// create-playlist call accepts `authorDisplayName`, so the playlist's
+        /// creator reads as "WolfWave" in Music. This is the one piece of real,
+        /// API-supported branding available for the playlist.
+        static let requestsPlaylistAuthor = "WolfWave"
     }
     
     // MARK: - Twitch Integration
