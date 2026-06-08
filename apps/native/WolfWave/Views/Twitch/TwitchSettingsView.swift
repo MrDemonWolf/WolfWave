@@ -96,11 +96,7 @@ struct TwitchSettingsView: View {
     /// (`!song`, `!last`, `!stats`, `!sr`, `!queue`, …) in one place.
     private var chatCommandsCard: some View {
         VStack(alignment: .leading, spacing: DSSpace.s4) {
-            HStack(spacing: DSSpace.s3) {
-                CardEyebrowHeader("Chat commands", systemImage: "bubble.left.and.bubble.right")
-                Spacer()
-                StatusChip(text: "Twitch", color: .purple)
-            }
+            CardEyebrowHeader("Chat commands", systemImage: "bubble.left.and.bubble.right")
 
             ToggleSettingRow(
                 title: "Only reply while live",
@@ -286,7 +282,7 @@ struct TwitchSettingsView: View {
             credentialsSaved: viewModel.credentialsSaved,
             channelValidationState: viewModel.channelValidationState,
             testAuthResult: viewModel.testAuthResult,
-            onReauth: { viewModel.clearCredentials(); viewModel.startOAuth() },
+            onReauth: { viewModel.clearAuthOnly(); viewModel.startOAuth() },
             onClearCredentials: { viewModel.clearCredentials() },
             onJoinChannel: { viewModel.joinChannel() },
             onLeaveChannel: { viewModel.leaveChannel() },

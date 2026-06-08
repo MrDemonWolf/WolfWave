@@ -132,7 +132,9 @@ fileprivate struct SongRequestHeader: View {
         VStack(alignment: .leading, spacing: DSSpace.s1h) {
             SectionHeaderWithStatus(
                 title: "Song Requests",
-                subtitle: "Let your Twitch viewers request songs via chat commands."
+                subtitle: "Let your Twitch viewers request songs via chat commands.",
+                statusText: "Twitch",
+                statusColor: .purple
             )
 
             CalloutBanner(
