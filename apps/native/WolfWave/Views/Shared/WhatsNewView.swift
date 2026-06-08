@@ -19,20 +19,13 @@ struct WhatsNewView: View {
     // MARK: - Feature Data
 
     private let features: [(icon: String, iconColor: Color, title: String, description: String)] = [
-        ("music.mic", .pink, "Song Requests", "Viewers add tracks with !sr. No focus-steal."),
-        ("hand.raised.fill", .cyan, "Chat Vote-Skip", "!vs lets chat vote out a song. Chat tally or Twitch Polls."),
-        ("megaphone.fill", .brown, "!wolfwave Command", "A one-tap chat shoutout for the app. Four reply styles."),
-        ("chart.bar.fill", .green, "Listening History & Stats", "Top artists, weekly trend, hourly pattern. On-device only."),
-        ("calendar", .purple, "Monthly Wrap", "Personal Wrapped for any month. Export as PNG."),
-        ("bell.badge.fill", .orange, "Song Notifications", "Optional macOS notification on every track change."),
-        ("gamecontroller.fill", .indigo, "Discord Playlist Presence", "Discord now shows the playlist you're spinning."),
+        ("music.mic", .pink, "Song Requests", "Chat adds tracks with !sr. No focus-steal."),
+        ("hand.raised.fill", .cyan, "Chat Vote-Skip", "!vs lets chat vote out a song."),
+        ("chart.bar.fill", .green, "History & Stats", "Top artists, weekly trend, hourly pattern. On-device only."),
+        ("calendar", .purple, "Monthly Wrap", "Your Wrapped for any month. Save as a PNG."),
         ("paintpalette.fill", .teal, "Widget Themes", "Six overlay themes and three layouts for OBS."),
-        ("sparkles", .mint, "Liquid Glass Redesign", "Settings, menu bar, and onboarding rebuilt for macOS 26."),
-        ("circle.lefthalf.filled", .blue, "Appearance", "Light, Dark, or System. The menu bar follows too."),
-        ("eye.slash.fill", .gray, "Streamer Mode", "Masks your channel name, overlay URLs, and token. Camera safe."),
-        ("tray.and.arrow.down.fill", .blue, "Backup & Restore", "Export settings to JSON, restore on any Mac. Secrets stay in Keychain."),
-        ("pawprint.fill", .red, "WolfMark Branding", "New album-art placeholder and brand polish everywhere."),
-        ("ladybug.fill", .yellow, "Diagnostics & Bug Reports", "Opt-in MetricKit reports plus one-click bug filing with redacted logs."),
+        ("circle.lefthalf.filled", .blue, "Light & Dark", "Pick Light, Dark, or System. The menu bar follows too."),
+        ("tray.and.arrow.down.fill", .indigo, "Backup & Restore", "Export settings to JSON, restore on any Mac."),
     ]
 
     // MARK: - Body
@@ -44,7 +37,7 @@ struct WhatsNewView: View {
                 Text("What's New in WolfWave v\(Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0")")
                     .sectionHeader()
 
-                Text("Highlights from this release.")
+                Text("The big ones. There's more in the full changelog.")
                     .font(.system(size: DSFont.Size.base))
                     .foregroundStyle(.secondary)
             }
@@ -59,15 +52,26 @@ struct WhatsNewView: View {
                 }
             }
 
-            // MARK: Dismiss Button
-            Button("Get Started") {
-                dismiss()
+            // MARK: Actions
+            VStack(spacing: DSSpace.s3) {
+                Button("Get Started") {
+                    dismiss()
+                }
+                .buttonStyle(.borderedProminent)
+                .controlSize(.large)
+                .accessibilityLabel("Get Started")
+                .accessibilityHint("Dismisses the what's new screen")
+                .accessibilityIdentifier("whatsNew.getStarted")
+
+                Button("See all changes") {
+                    ExternalLink.open(AppConstants.URLs.changelog)
+                }
+                .buttonStyle(.link)
+                .font(.system(size: DSFont.Size.body))
+                .accessibilityLabel("See all changes")
+                .accessibilityHint("Opens the full changelog in your browser")
+                .accessibilityIdentifier("whatsNew.seeAllChanges")
             }
-            .buttonStyle(.borderedProminent)
-            .controlSize(.large)
-            .accessibilityLabel("Get Started")
-            .accessibilityHint("Dismisses the what's new screen")
-            .accessibilityIdentifier("whatsNew.getStarted")
         }
         .padding(DSSpace.s8)
         .frame(

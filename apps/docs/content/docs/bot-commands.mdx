@@ -21,7 +21,7 @@ ogEyebrow: For Apple Music
 
 <span className="docs-eyebrow">For Apple Music</span>
 
-Once you've connected your Twitch account, these commands are ready to go.
+Connect your Twitch account and these commands are ready to go.
 
 <Callout type="info">
   Most commands are **off by default**. Flip the ones you want on in **Settings → Twitch → Bot Commands**.
@@ -80,21 +80,21 @@ Everyone can add tracks to your queue. Mods get extra controls.
 ## Vote-Skip
 **TL;DR: Chat votes a song off.**
 
-Let your community skip a track together. No mod needed.
+Your community skips a track together. No mod needed.
 
 | Command       | Who      | What it does                          |
 | ------------- | -------- | ------------------------------------- |
 | `!voteskip`   | Everyone | Cast a vote to skip the current song  |
 | `!vs`         | Everyone | Short alias for `!voteskip`           |
 
-When enough viewers vote within the time window, the song is skipped. The
-queued request if one is playing, otherwise the current Apple Music track. If
-the window runs out first, the song stays.
+Enough votes within the time window and the song is skipped. That's the queued
+request if one is playing, otherwise the current Apple Music track. If the
+window runs out first, the song stays.
 
 Two ways to run a vote, set in **Settings → Song Requests → Chat Vote-Skip**:
 
-- **Chat tally** , `!voteskip` votes are counted until the minimum is reached.
-- **Twitch Polls**. A mod's `!voteskip` opens a native Twitch poll (Affiliate/Partner only).
+- **Chat tally.** `!voteskip` votes are counted until the minimum is reached.
+- **Twitch Polls.** A mod's `!voteskip` opens a native Twitch poll (Affiliate/Partner only).
 
 <Callout type="info">
   Set the minimum votes, vote window, cooldown, and subscriber-only voting in
@@ -106,7 +106,7 @@ Two ways to run a vote, set in **Settings → Song Requests → Chat Vote-Skip**
 ## Live Stats
 **TL;DR: Your listening stats, on demand.**
 
-Viewers can pull up your listening stats. Requires the opt-in Listening History (Settings → History & Stats), where you also pick the window and what to show.
+Viewers ask for your listening stats. Needs the opt-in Listening History on (Settings → History & Stats), where you also pick the window and which facts to show.
 
 | Command   | Who      | What it does                                                                                  |
 | --------- | -------- | --------------------------------------------------------------------------------------------- |
@@ -131,10 +131,10 @@ A one-tap shoutout for the app. Off by default. Turn it on, then pick the reply 
 
 Four ready-made replies to choose from, each crediting MrDemonWolf and linking to the site:
 
-- **Credit + maker** , names the app, the maker, and what it does.
-- **Viewer how-to** , points viewers at `!song`, `!last`, and `!sr`.
-- **Open-source pitch** , leads with free + open source for other streamers.
-- **Short & friendly** , a one-liner plus the link.
+- **Credit + maker.** Names the app, the maker, and what it does.
+- **Viewer how-to.** Points viewers at `!song`, `!last`, and `!sr`.
+- **Open-source pitch.** Leads with free and open source for other streamers.
+- **Short & friendly.** A one-liner plus the link.
 
 <Callout type="info">
   Enable it and pick a reply in **Settings → Twitch → Bot Commands → !wolfwave Command**. Set cooldowns and add your own aliases there too.
@@ -147,9 +147,9 @@ Four ready-made replies to choose from, each crediting MrDemonWolf and linking t
 
 Two extra ways for viewers to add a track. Both feed the same queue, blocklist, and audience rules as `!sr`.
 
-- **Channel Points reward**. WolfWave creates and manages a "Request a Song" custom reward on your channel. Redeeming it acts like a `!sr` from that viewer. Fulfilment and cancellation are reconciled automatically.
-- **Bit Boost**. When a viewer cheers bits, their most-recent queued request jumps to the front of the queue.
-- **Recreate Reward**. If you ever delete the reward manually on Twitch, click **Recreate Reward** in the Channel Points & Bits card to mint a fresh one. The managed reward ID is shown below the cost picker (masked under Streamer Mode).
+- **Channel Points reward.** WolfWave creates and manages a "Request a Song" reward on your channel. Redeeming it acts like a `!sr` from that viewer. Fulfilment and cancellation are kept in sync for you.
+- **Bit Boost.** When a viewer cheers bits, their most-recent queued request jumps to the front.
+- **Recreate Reward.** Deleted the reward by hand on Twitch? Click **Recreate Reward** in the Channel Points & Bits card to make a fresh one. The reward ID shows below the cost picker (masked under Streamer Mode).
 
 <Callout type="info">
   Enable from **Settings → Song Requests → Channel Points & Bits**. Requires Twitch Affiliate or Partner to create the reward.
@@ -160,7 +160,7 @@ Two extra ways for viewers to add a track. Both feed the same queue, blocklist, 
 ## Custom Aliases
 **TL;DR: Type your own command names.**
 
-Supported commands can use comma-separated aliases. Add `np, track` to `!song` and viewers can use `!np` or `!track` instead.
+Supported commands take comma-separated aliases. Add `np, track` to `!song` and viewers can use `!np` or `!track` too.
 
 | Command     | Where to set                                      |
 | ----------- | ------------------------------------------------- |

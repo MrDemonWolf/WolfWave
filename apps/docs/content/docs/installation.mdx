@@ -23,9 +23,9 @@ ogEyebrow: Install in 2 minutes
 
 ## What you need
 
-- **macOS 26.0+** (Tahoe)
-- **Apple Silicon** (M1 or later). Intel Macs are not supported
-- **Apple Music app**. WolfWave only reads from Apple Music (built into macOS). Spotify and other players are not supported.
+- **macOS 26.0+ (Tahoe).** Older versions won't run it.
+- **Apple Silicon (M1 or later).** Intel Macs aren't supported.
+- **The Apple Music app.** WolfWave reads only from Apple Music, which is built into macOS. Spotify and other players don't work.
 
 ## Get WolfWave
 
@@ -33,7 +33,7 @@ ogEyebrow: Install in 2 minutes
 
 <Tab value="DMG (recommended)">
 
-The standard installer. Signed and notarized, no Gatekeeper warnings.
+**Pick this if you're not sure.** It's the normal installer, signed and notarized, so no security warnings.
 
 <Cards>
   <Card
@@ -43,21 +43,21 @@ The standard installer. Signed and notarized, no Gatekeeper warnings.
   />
 </Cards>
 
-1. Open the `.dmg`.
-2. Drag **WolfWave** into **Applications**.
-3. Launch from Spotlight or Launchpad.
+1. **Open the `.dmg`** you just downloaded.
+2. **Drag WolfWave into Applications.**
+3. **Launch it** from Spotlight or Launchpad.
 
 </Tab>
 
 <Tab value="Homebrew">
 
-Best for developers who want one-command installs and `brew upgrade` parity.
+**For developers** who want one-command installs and `brew upgrade`.
 
 ```bash
 brew install --cask mrdemonwolf/den/wolfwave
 ```
 
-Updates come through Homebrew. Sparkle's in-app updater is disabled in this install mode.
+Updates come through Homebrew. The in-app Sparkle updater is off in this mode.
 
 ```bash
 brew upgrade --cask wolfwave
@@ -68,12 +68,12 @@ brew upgrade --cask wolfwave
 </Tabs>
 
 <Callout type="info">
-  WolfWave is signed and notarized by Apple. No Gatekeeper warnings, no right-click "Open Anyway" dance.
+  WolfWave is signed and notarized by Apple. No security warnings, no right-click "Open Anyway" dance.
 </Callout>
 
 ## First launch
 
-WolfWave opens an 8-step setup wizard the first time you launch. Skip any optional step and come back later from **Settings**.
+**A setup wizard runs the first time you open WolfWave.** It's 8 short steps. Skip any optional one and finish it later from **Settings**.
 
 <Steps>
 
@@ -81,7 +81,7 @@ WolfWave opens an 8-step setup wizard the first time you launch. Skip any option
 
 ### Welcome
 
-Quick intro to what WolfWave does and what's about to be set up.
+**A quick intro.** What WolfWave does and what you're about to set up.
 
 </Step>
 
@@ -89,7 +89,7 @@ Quick intro to what WolfWave does and what's about to be set up.
 
 ### Discord *(optional)*
 
-Sign in to your Discord desktop app. WolfWave talks to it over local IPC. No bot token, no server.
+**Sign in to your Discord desktop app.** WolfWave talks to it locally. No bot token, no server to run.
 
 </Step>
 
@@ -97,7 +97,7 @@ Sign in to your Discord desktop app. WolfWave talks to it over local IPC. No bot
 
 ### Twitch *(optional)*
 
-OAuth Device Code flow. You're sent to twitch.tv to approve; tokens land in your macOS Keychain.
+**Connect your Twitch account.** You're sent to twitch.tv to approve. Your login is stored safely in your Mac's Keychain.
 
 </Step>
 
@@ -105,7 +105,7 @@ OAuth Device Code flow. You're sent to twitch.tv to approve; tokens land in your
 
 ### OBS Widget *(optional)*
 
-Turn on the local widget server, copy the URL (your per-install auth token is baked in), and drop it into OBS as a Browser Source.
+**Add a now-playing overlay to OBS.** Turn on the widget, copy the URL, and paste it into OBS as a Browser Source. The URL already includes your private access token.
 
 </Step>
 
@@ -113,7 +113,7 @@ Turn on the local widget server, copy the URL (your per-install auth token is ba
 
 ### Preferences
 
-Launch at login, song-change notifications, and other quality-of-life toggles.
+**Tweak the small stuff.** Launch at login, song-change notifications, and other handy toggles.
 
 </Step>
 
@@ -121,7 +121,7 @@ Launch at login, song-change notifications, and other quality-of-life toggles.
 
 ### Apple Music Access
 
-Click *OK* when macOS asks WolfWave to control Apple Music. Required. This is how WolfWave reads the now-playing track.
+**Click OK when macOS asks.** This is required. It's how WolfWave reads the song that's playing.
 
 </Step>
 
@@ -129,7 +129,7 @@ Click *OK* when macOS asks WolfWave to control Apple Music. Required. This is ho
 
 ### Menu Bar Pointer
 
-A friendly arrow shows where the wolf icon lives. Top-right of your screen.
+**Find the wolf icon.** An arrow points to it, top-right of your screen.
 
 </Step>
 
@@ -137,7 +137,7 @@ A friendly arrow shows where the wolf icon lives. Top-right of your screen.
 
 ### Done
 
-WolfWave is running. Click the wolf icon any time to see what's playing or open **Settings**.
+**You're set.** Click the wolf icon any time to see what's playing or open **Settings**.
 
 </Step>
 

@@ -19,32 +19,34 @@ ogEyebrow: Build from source
 
 <span className="docs-eyebrow">Build from source</span>
 
-This guide is for developers who want to build WolfWave from source. If you just want to use WolfWave, see the [Installation](./installation) guide.
+This is for developers building WolfWave from source. Just want to use the app? Grab the [Installation](./installation) guide instead.
 
-## Prerequisites
+## Before you start
 
-- macOS 26.0+ (Tahoe)
-- Apple Silicon (M1 or later)
-- Xcode 16.0+
-- Swift 5.9+
-- Command Line Tools: `xcode-select --install`
+You'll need:
 
-## Clone the Repository
+- **macOS 26.0+** (Tahoe)
+- **Apple Silicon** (M1 or later)
+- **Xcode 16.0+**
+- **Swift 5.9+**
+- **Command Line Tools.** Run `xcode-select --install` if you haven't.
+
+## Clone the repo
 
 ```bash
 git clone https://github.com/MrDemonWolf/WolfWave.git
 cd WolfWave
 ```
 
-## Configure API Keys
+## Configure API keys
 
-Copy the example configuration file:
+**Copy the example config:**
 
 ```bash
 cp apps/native/WolfWave/Config.xcconfig.example apps/native/WolfWave/Config.xcconfig
 ```
 
-Open `apps/native/WolfWave/Config.xcconfig` and set your keys:
+**Open `apps/native/WolfWave/Config.xcconfig`** and set your keys:
 
 ```
 TWITCH_CLIENT_ID = your_twitch_client_id_here
@@ -75,7 +77,7 @@ COPYRIGHT_HOLDER = MrDemonWolf, Inc.
   `PRODUCT_NAME` in an xcconfig overlay).
 </Callout>
 
-## Open the Project
+## Open the project
 
 ```bash
 make open-xcode
@@ -83,21 +85,21 @@ make open-xcode
 open apps/native/WolfWave.xcodeproj
 ```
 
-## Build and Run
+## Build and run
 
-Build and run from Xcode using ⌘R.
+**Hit ⌘R in Xcode.** That's it.
 
-## Production Build
+## Production build
 
-For a release build with DMG output:
+**For a release build with a DMG:**
 
 ```bash
 make prod-build
 ```
 
-The DMG will be created at `builds/WolfWave-{version}-arm64.dmg`. If a Developer ID Application certificate is found in your Keychain, the app will be re-signed for distribution automatically.
+The DMG lands at `builds/WolfWave-{version}-arm64.dmg`. Have a Developer ID Application certificate in your Keychain? The app gets re-signed for distribution as part of the build.
 
-To build and install directly to `/Applications`:
+**To build and drop straight into `/Applications`:**
 
 ```bash
 make prod-install
@@ -105,7 +107,7 @@ make prod-install
 
 ## Notarization
 
-After building the DMG, notarize it for Gatekeeper-trusted distribution:
+**Notarize the DMG** so Gatekeeper trusts it:
 
 ```bash
 APPLE_ID=you@example.com \
@@ -122,16 +124,18 @@ make notarize
 
 ## CI/CD
 
-Pushing a version tag triggers the GitHub Actions release workflow, which creates a draft GitHub Release:
+**Push a version tag** to kick off the GitHub Actions release workflow. It creates a draft GitHub Release:
 
 ```bash
 git tag v2.0.0
 git push origin v2.0.0
 ```
 
-After the workflow completes, build and notarize locally with `make prod-build && make notarize`, upload the DMG to the draft release, and publish it. Required secrets (`TWITCH_CLIENT_ID`, `DISCORD_CLIENT_ID`) must be configured in your repository's Actions secrets. See the [Development Guide](./development) and [PUBLISH.md](https://github.com/MrDemonWolf/WolfWave/blob/main/PUBLISH.md) for the full release checklist.
+**Then finish it off locally.** Build and notarize with `make prod-build && make notarize`, upload the DMG to the draft release, and publish.
 
-## Next Steps
+Heads up: the `TWITCH_CLIENT_ID` and `DISCORD_CLIENT_ID` secrets must be set in your repo's Actions secrets. The full release checklist lives in the [Development Guide](./development) and [PUBLISH.md](https://github.com/MrDemonWolf/WolfWave/blob/main/PUBLISH.md).
+
+## Next steps
 
 <Cards>
   <Card title="Development Guide" href="/docs/development" />
@@ -142,6 +146,6 @@ After the workflow completes, build and notarize locally with `make prod-build &
 
 ## Support development
 
-WolfWave is built and maintained by one person. If you find the project valuable, please consider sponsoring. It directly funds development time and Apple Developer Program fees.
+WolfWave is built and maintained by one person. If it's useful to you, a sponsorship goes a long way. It pays for development time and Apple Developer Program fees.
 
 [**Sponsor on GitHub →**](https://github.com/sponsors/nathanialhenniges)

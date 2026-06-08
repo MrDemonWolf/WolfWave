@@ -19,13 +19,13 @@ ogEyebrow: Developers
 
 <span className="docs-eyebrow">Developers</span>
 
-The WolfWave OBS overlay is a single self-contained HTML file that lives in
-`apps/native/WolfWave/Resources/widget.html`. It's the file the native app
-bundles and `WidgetHTTPService` serves to OBS Browser Source clients.
+**The OBS overlay is one self-contained HTML file** at
+`apps/native/WolfWave/Resources/widget.html`. The native app bundles it, and
+`WidgetHTTPService` serves it to OBS Browser Source clients.
 
-But you don't edit it directly. The widget's actual source is a Tailwind +
-TypeScript workspace at `apps/widget/`, and the bundled HTML is a generated
-artifact produced at build time.
+**Don't edit that file directly.** The real source is a Tailwind + TypeScript
+workspace at `apps/widget/`. The bundled HTML is a generated artifact, produced
+at build time.
 
 ## Architecture
 
@@ -42,10 +42,10 @@ flowchart TD
     I --> J[WidgetHTTPService → OBS]
 ```
 
-Everything lands in one HTML file with `<style>`, the tokens `<script>`,
-and the runtime `<script>` all inlined. No `<link>`, no `<script src>`,
-no extra HTTP round-trips. Works in OBS Browser Source, works from `file://`,
-works copied off the machine.
+Everything lands in one HTML file: `<style>`, the tokens `<script>`, and the
+runtime `<script>` all inlined. No `<link>`, no `<script src>`, no extra HTTP
+round-trips. Works in OBS Browser Source, from `file://`, and copied off the
+machine.
 
 ## Message contract
 
@@ -80,28 +80,33 @@ context visible so chat knows the integration is still healthy.
 
 ## Themes and layouts
 
-Themes and layouts live in `design-system/tokens.json` under `widget.themes`
-and `widget.layouts`. Six themes (Default, Dark, Light, Glass, Neon, WolfWave)
-and three layouts (Horizontal, Vertical, Compact) ship in the box.
+**Six themes, three layouts, ready to go.** They live in
+`design-system/tokens.json` under `widget.themes` and `widget.layouts`:
 
-Themes are **not** compiled into utility variants. They stay as runtime CSS
-custom properties, so an OBS user can swap themes via the `?theme=` URL
-parameter without rebuilding anything. Tailwind utility classes resolve to
+| Themes | Layouts |
+|---|---|
+| Default, Dark, Light, Glass, Neon, WolfWave | Horizontal, Vertical, Compact |
+
+**Swap themes without rebuilding.** Themes aren't compiled into utility
+variants. They stay as runtime CSS custom properties, so an OBS user changes
+them with the `?theme=` URL parameter. Tailwind utility classes resolve to
 those CSS variables.
 
-The **Stream Widgets** settings pane (Widget Appearance) shows a live preview
-right under the controls. Pick a theme, layout, font, or color and the preview
-updates instantly, so you can dial in the look before you copy the URL into OBS.
-The Default and Glass themes expose the Text and Background color pickers;
-the other themes ship fixed palettes.
+**Preview before you commit.** The **Stream Widgets** settings pane (Widget
+Appearance) shows a live preview right under the controls. Change a theme,
+layout, font, or color and the preview updates as you go, so you can dial in the
+look before copying the URL into OBS. Default and Glass expose the Text and
+Background color pickers; the other themes ship fixed palettes.
 
-URL parameters:
+**URL parameters:**
 
-- `?theme=Glass`. Pick one of the six theme names
-- `?layout=Vertical`. Pick one of the three layout names
-- `?token=<hex>`. Auth token (auto-injected for loopback peers)
-- `?duration=8`. Auto-hide after N seconds (0 = never)
-- `?hideAlbumArt`. Render without the artwork tile
+| Parameter | What it does |
+|---|---|
+| `?theme=Glass` | Pick one of the six theme names |
+| `?layout=Vertical` | Pick one of the three layout names |
+| `?token=<hex>` | Auth token (auto-injected for loopback peers) |
+| `?duration=8` | Auto-hide after N seconds (0 = never) |
+| `?hideAlbumArt` | Render without the artwork tile |
 
 ## Transitions
 
@@ -152,35 +157,35 @@ bun run tokens
 bun run --filter widget build
 ```
 
-The output is written to `apps/native/WolfWave/Resources/widget.html`. Open
-that file directly in a browser to spot-check, or run the native app and
-point your browser at `http://localhost:<widgetHTTPPort>/`.
+Output lands at `apps/native/WolfWave/Resources/widget.html`. To spot-check,
+open that file directly in a browser, or run the native app and point your
+browser at `http://localhost:<widgetHTTPPort>/`.
 
-### Automatic rebuilds
+### Rebuilds happen for you
 
-You don't usually need to run the command manually:
+**You rarely run the build by hand:**
 
-- **Xcode**. A pre-build Run Script phase (`Build OBS Widget (Tailwind → inline)`)
-  runs `bun run --filter widget build` whenever any input file changes. If
-  `bun` isn't on PATH the script exits 0 with a warning, so a fresh clone
-  without the JS toolchain still builds. It just bundles whatever
-  `widget.html` is committed.
-- **CI**. Both [`test.yml`](https://github.com/MrDemonWolf/wolfwave/blob/main/.github/workflows/test.yml)
+- **Xcode.** A pre-build Run Script phase (`Build OBS Widget (Tailwind → inline)`)
+  runs `bun run --filter widget build` whenever an input file changes. No `bun`
+  on PATH? The script exits 0 with a warning, so a fresh clone without the JS
+  toolchain still builds. It just bundles whatever `widget.html` is committed.
+- **CI.** Both [`test.yml`](https://github.com/MrDemonWolf/wolfwave/blob/main/.github/workflows/test.yml)
   and [`build_release.yml`](https://github.com/MrDemonWolf/wolfwave/blob/main/.github/workflows/build_release.yml)
-  set up Bun and rebuild the widget before invoking `xcodebuild`, so every
-  shipped DMG carries a freshly-built widget.
+  set up Bun and rebuild the widget before `xcodebuild`, so every shipped DMG
+  carries a freshly-built widget.
 
 ## Security
 
-The token is enforced as a WebSocket subprotocol, not a query parameter. The
-native server (`WebSocketServerAuthTests`) rejects any client that doesn't
-present `Sec-WebSocket-Protocol: wolfwave.token.<hex>` matching the
-per-install token stored in the macOS Keychain.
+**The token is a WebSocket subprotocol, not a query parameter.** The native
+server (`WebSocketServerAuthTests`) rejects any client that doesn't present
+`Sec-WebSocket-Protocol: wolfwave.token.<hex>` matching the per-install token
+stored in the macOS Keychain.
 
-For loopback peers, `WidgetHTTPService` substitutes the live token into the
-served `widget.html` automatically. For LAN peers (two-PC streamers, phones),
-the token must be appended manually to the URL. Settings → Stream Widgets
-exposes the URL with the token baked in.
+- **Loopback peers:** `WidgetHTTPService` injects the live token into the served
+  `widget.html` for you.
+- **LAN peers** (two-PC streamers, phones): append the token to the URL
+  yourself. Settings → Stream Widgets exposes the URL with the token already
+  baked in.
 
 ## See also
 

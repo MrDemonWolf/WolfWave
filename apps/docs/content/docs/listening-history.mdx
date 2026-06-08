@@ -18,43 +18,49 @@ keywords:
 
 <span className="docs-eyebrow">Guide</span>
 
-WolfWave can keep a private log of the tracks you play and turn it into stats. It is off by default, lives only on your Mac, and is never uploaded.
+**Your private play log.** WolfWave can track what you play and turn it into stats. It's off by default, stays only on your Mac, and never gets uploaded.
 
 ## Turn it on
 
-History is opt-in. Flip it on in **Settings → History & Stats**, or during the first-launch onboarding wizard. Until you do, nothing is recorded.
+**Opt-in, always.** Flip it on in **Settings → History & Stats**, or during the first-launch setup. Until you do, nothing is recorded.
 
-When it is off, no play log exists. When you turn it off later, you can clear what was saved.
+- **Off** means no play log exists.
+- **Turn it off later** and you can clear what was saved.
 
 ## What counts as a play
 
-A track only counts once it has played past its halfway point, or past four minutes, whichever comes first. So skipping through songs to find one does not pollute your history. A song you actually listen to gets logged once.
+**Skipping doesn't count.** A track logs only after it plays past its halfway point or past four minutes, whichever comes first. Hunting through songs won't junk up your history. A song you actually listen to gets logged once.
 
-The log is an on-device append-only file. It is your data, not a setting, so it is not part of a [settings backup](/docs/backup).
+The log is an on-device, append-only file. It's your data, not a setting, so it's not part of a [settings backup](/docs/backup).
 
 ## Stats and charts
 
-With history on, **Settings → History & Stats** shows a dashboard built on SwiftUI Charts:
+Turn history on and **Settings → History & Stats** shows a dashboard (built on SwiftUI Charts):
 
 - **Top artists** by play count.
 - **Listening time**, total and recent.
-- **A 7-day trend** of how much you have played.
-- **A listening-by-hour** breakdown of when you listen.
-- **A Top card** that switches between artists, tracks, and albums.
+- **7-day trend** of how much you've played.
+- **Listening by hour**, so you can see when you listen.
+- **Top card** that flips between artists, tracks, and albums.
 
-The dashboard is two columns on a wide window and collapses to one on a narrow one.
+Two columns on a wide window, one on a narrow one.
 
 ## Monthly Wrap
 
-Pick any month for a personal, Wrapped-style summary. Save the card as a PNG, or send it straight to Messages, Mail, AirDrop, and anywhere else through the macOS share sheet.
+**Your month, wrapped.** Pick any month for a personal, Wrapped-style summary. Save it as a PNG, or send it to Messages, Mail, AirDrop, and anywhere else through the macOS share sheet.
 
 ## Retention
 
-Choose how long to keep your history in **Settings → History & Stats**: Forever, or 7, 30, 90, 180, or 365 days. Older entries are cleared at the next launch.
+**You pick how long to keep it** in **Settings → History & Stats**. Older entries clear at the next launch.
+
+| Keep for | |
+|---|---|
+| Forever | Nothing is auto-cleared. |
+| 7 / 30 / 90 / 180 / 365 days | Entries older than your pick clear at next launch. |
 
 ## The !stats chat command
 
-Viewers can pull up your listening stats in Twitch chat with `!stats`. It only replies while your stream is live, so it stays quiet off-air.
+**Viewers can pull up your listening stats** in Twitch chat with `!stats`. It only replies while you're live, so it stays quiet off-air.
 
 In **Settings → History & Stats** you control what it says:
 
@@ -66,4 +72,4 @@ See [Bot Commands](/docs/bot-commands) for the full command list.
 
 ## Privacy
 
-Everything here stays on your Mac. There is no account, no sync, and no upload. Deleting your history or turning the feature off removes the log.
+**Nothing leaves your Mac.** No account, no sync, no upload. Delete your history or turn the feature off and the log is gone.

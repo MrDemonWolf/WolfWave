@@ -389,9 +389,8 @@ export default async function HomePage() {
               A now-playing card for OBS in 30 seconds.
             </h2>
             <p className="ww-text-2 text-lg mt-5 leading-relaxed">
-              Drop a browser source on your Mac&apos;s local server, pick a
-              theme or build your own, and every track change lands on stream in
-              real time over WebSocket.
+              Add one browser source in OBS, pick a theme or build your own, and
+              every track change shows up on stream the instant it happens.
             </p>
             <Link
               href="/docs/usage"
