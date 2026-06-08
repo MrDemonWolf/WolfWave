@@ -1129,10 +1129,12 @@ nonisolated enum AppConstants {
         static let scrobbleAbsoluteSeconds: TimeInterval = 240
 
         /// Initial number of recent plays shown in the History & Stats pane.
-        static let recentDisplayCount = 10
+        /// The list lives in a fixed-height scroll box, so this is the count
+        /// revealed before the first *Load more* tap, not a row cap.
+        static let recentDisplayCount = 5
 
         /// How many additional plays the *Load more* button reveals per tap.
-        static let recentPageStep = 10
+        static let recentPageStep = 5
 
         /// Maximum number of `PlayRecord`s retained on disk and in memory.
         /// Older plays are folded into the lifetime tally and dropped.

@@ -497,41 +497,47 @@ struct HistoryStatsSettingsView: View {
         let all = recentPlaysSorted
         let visible = Array(all.prefix(visibleRecentCount))
         let hasMore = visible.count < all.count
-        return VStack(alignment: .leading, spacing: DSSpace.s3) {
-            ForEach(visible, id: \.self) { play in
-                HStack(spacing: DSSpace.s3) {
-                    Image(systemName: "music.note")
-                        .font(.system(size: DSFont.Size.sm))
-                        .foregroundStyle(.secondary)
-                        .frame(width: DSSpace.s6)
-                    VStack(alignment: .leading, spacing: 1) {
-                        Text(play.track)
-                            .font(.system(size: DSFont.Size.base))
-                            .lineLimit(1)
-                        Text(play.artist)
+        // Fixed-height scroll box so the card never grows with the list. Newest
+        // plays sit at the top; *Load more* appends below and the user scrolls.
+        return ScrollView {
+            VStack(alignment: .leading, spacing: DSSpace.s3) {
+                ForEach(visible, id: \.self) { play in
+                    HStack(spacing: DSSpace.s3) {
+                        Image(systemName: "music.note")
                             .font(.system(size: DSFont.Size.sm))
                             .foregroundStyle(.secondary)
-                            .lineLimit(1)
+                            .frame(width: DSSpace.s6)
+                        VStack(alignment: .leading, spacing: 1) {
+                            Text(play.track)
+                                .font(.system(size: DSFont.Size.base))
+                                .lineLimit(1)
+                            Text(play.artist)
+                                .font(.system(size: DSFont.Size.sm))
+                                .foregroundStyle(.secondary)
+                                .lineLimit(1)
+                        }
+                        Spacer()
+                        Text(HistoryFormat.relative(play.timestamp))
+                            .font(.system(size: DSFont.Size.sm))
+                            .foregroundStyle(.tertiary)
                     }
-                    Spacer()
-                    Text(HistoryFormat.relative(play.timestamp))
-                        .font(.system(size: DSFont.Size.sm))
-                        .foregroundStyle(.tertiary)
+                }
+                if hasMore {
+                    Button {
+                        visibleRecentCount += AppConstants.History.recentPageStep
+                    } label: {
+                        Label("Load \(AppConstants.History.recentPageStep) more", systemImage: "arrow.down.circle")
+                            .font(.system(size: DSFont.Size.sm))
+                    }
+                    .buttonStyle(.borderless)
+                    .accessibilityLabel("Load \(AppConstants.History.recentPageStep) more plays")
+                    .accessibilityIdentifier("loadMoreHistoryButton")
+                    .padding(.top, DSSpace.s1)
                 }
             }
-            if hasMore {
-                Button {
-                    visibleRecentCount += AppConstants.History.recentPageStep
-                } label: {
-                    Label("Load \(AppConstants.History.recentPageStep) more", systemImage: "arrow.down.circle")
-                        .font(.system(size: DSFont.Size.sm))
-                }
-                .buttonStyle(.borderless)
-                .accessibilityLabel("Load \(AppConstants.History.recentPageStep) more plays")
-                .accessibilityIdentifier("loadMoreHistoryButton")
-                .padding(.top, DSSpace.s1)
-            }
+            .padding(.trailing, DSSpace.s2)
         }
+        .frame(height: DSDimension.HistoryStats.recentCardMinHeight)
     }
 
     // MARK: - Twitch State
