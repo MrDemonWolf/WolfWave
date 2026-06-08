@@ -52,6 +52,10 @@ struct SongRequestSettingsView: View {
                             isRequestingMusicAuth: $isRequestingMusicAuth
                         )
                     }
+                    // The live queue sits up top: it's the thing you check and act
+                    // on mid-stream (skip/hold/clear), so it leads. The set-once
+                    // configuration cards follow below.
+                    SongRequestQueueView()
                     SongRequestAccessCard()
                     SongRequestQueueConfigCard()
                     SongRequestPlaybackCard()
@@ -59,9 +63,6 @@ struct SongRequestSettingsView: View {
                     SongRequestRedemptionsCard()
                     SongRequestBlocklistCard(
                         blocklistProvider: { appDelegate?.songRequestService?.blocklist })
-                    // The live queue sits at the bottom: configuration first, then
-                    // the running list of what's actually queued.
-                    SongRequestQueueView()
                 }
             }
             .frame(maxWidth: AppConstants.SettingsUI.maxContentWidth, alignment: .topLeading)
