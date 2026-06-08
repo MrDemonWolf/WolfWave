@@ -449,7 +449,7 @@ struct AdvancedSettingsView: View {
                 Text("Back Up Settings")
                     .font(.system(size: DSFont.Size.base, weight: .semibold))
 
-                Text("Save your preferences to a file, or restore them on another Mac. Accounts aren't included, so you'll reconnect Twitch after importing.")
+                Text("Save your preferences to a file, or restore them on another Mac. Accounts and permissions aren't included, so after importing you'll reconnect Twitch and re-grant access like Apple Music control.")
                     .font(.system(size: DSFont.Size.body))
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)

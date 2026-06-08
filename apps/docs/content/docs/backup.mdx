@@ -35,8 +35,9 @@ Anything tied to an account or kept secret. None of this leaves your Mac:
 
 - Your Twitch sign-in (the OAuth token and your user and channel IDs)
 - The Stream Widgets auth token
+- System permissions, like Apple Music control and notifications
 
-These live in the macOS Keychain and are never written to the file. A backup is just your settings, in plain JSON you can open and read.
+These live in the macOS Keychain or are granted by macOS itself, so they are never written to the file. A backup is just your settings, in plain JSON you can open and read. After importing on a new Mac, you may need to re-grant access like Apple Music control the first time WolfWave asks.
 
 ## Export
 
@@ -66,5 +67,6 @@ Importing merges your preferences in. It never deletes settings that are not in 
 ## Good to know
 
 - Reconnecting Twitch always means signing in again, because your login is never part of a backup.
+- Permissions don't carry over. macOS grants them per Mac, so re-grant access like Apple Music control after importing.
 - A backup made by a newer version of WolfWave will ask you to update before it imports.
 - Listening History data and stats are your personal play log, not settings, so they are not part of a settings backup.

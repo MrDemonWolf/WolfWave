@@ -48,6 +48,11 @@ struct SettingsImportSheet: View {
 
             accountsSection
 
+            Text("Permissions don't carry over either. You may need to re-grant access like Apple Music control after importing.")
+                .font(.system(size: DSFont.Size.body))
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+
             Spacer(minLength: 0)
 
             buttons
