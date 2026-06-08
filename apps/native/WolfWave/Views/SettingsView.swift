@@ -193,8 +193,10 @@ struct SettingsView: View {
         // `SettingsWindowConfigurator` hides the window title and makes the title
         // bar transparent for the clean full-height-sidebar look. The automatic
         // sidebar toggle is removed on the sidebar column itself (above); our
-        // detail-toolbar toggle replaces it.
-        .background(SettingsWindowConfigurator())
+        // detail-toolbar toggle replaces it. `columnVisibility` is threaded in so
+        // every sidebar toggle re-asserts the chrome (the toggle re-themes the
+        // title bar back to the default visible-title / opaque look otherwise).
+        .background(SettingsWindowConfigurator(columnVisibility: columnVisibility))
         .frame(
             minWidth: AppConstants.SettingsUI.minWidth,
             idealWidth: AppConstants.SettingsUI.idealWidth,
@@ -450,6 +452,11 @@ struct SettingsView: View {
 /// so `SettingsSceneBridge.settingsWindow()`'s titled / non-fullSizeContentView
 /// detection and the dock-visibility probe keep working.
 private struct SettingsWindowConfigurator: NSViewRepresentable {
+    /// Bound to the split view's column visibility so `updateNSView` fires on
+    /// every sidebar toggle. The value itself isn't read; it exists to make the
+    /// dependency explicit and guarantee the re-assert below runs.
+    let columnVisibility: NavigationSplitViewVisibility
+
     func makeNSView(context: Context) -> NSView {
         let view = NSView(frame: .zero)
         // The host window isn't attached yet during `makeNSView`; defer one
@@ -459,8 +466,12 @@ private struct SettingsWindowConfigurator: NSViewRepresentable {
     }
 
     func updateNSView(_ nsView: NSView, context: Context) {
-        // Re-assert in case SwiftUI re-realizes or re-themes the window.
-        configure(nsView.window)
+        // Re-assert in case SwiftUI re-realizes or re-themes the window. Toggling
+        // the sidebar re-themes the title bar (restoring the default visible title
+        // and opaque bar) on this same runloop pass, so a synchronous re-assert
+        // here loses the race. Defer one tick so our chrome wins after the toggle's
+        // re-theme commits.
+        DispatchQueue.main.async { configure(nsView.window) }
     }
 
     @MainActor
