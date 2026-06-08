@@ -73,9 +73,8 @@ struct OnboardingNotificationsStepView: View {
         let isAuthorized = notificationsStatus == .authorized || notificationsStatus == .provisional
 
         VStack(alignment: .leading, spacing: DSSpace.s3) {
-            Label("Notifications", systemImage: "bell.badge.fill")
-                .sectionEyebrow()
-
+            // The gate. Grants permission; the alert group below stays locked
+            // until it's on.
             preferenceRow(
                 icon: "bell.badge.fill",
                 iconColor: .red,
@@ -98,42 +97,70 @@ struct OnboardingNotificationsStepView: View {
             )
             .disabled(isAuthorized)
 
-            // Per-alert toggles. Disabled until notifications are authorized
-            // above. They do nothing without permission.
-            VStack(spacing: DSSpace.s2) {
-                preferenceRow(
-                    icon: "music.note",
-                    iconColor: .pink,
-                    title: "Song changes",
-                    subtitle: "A banner with album art each time the track changes.",
-                    isOn: $songChangeNotificationsEnabled,
-                    accessibilityLabel: "Song change notifications",
-                    accessibilityIdentifier: "onboardingSongChangeNotificationsToggle"
-                )
-
-                preferenceRow(
-                    icon: "hand.raised.fill",
-                    iconColor: .orange,
-                    title: "Skip vote started",
-                    subtitle: "When chat opens a vote to skip the current song.",
-                    isOn: $skipVoteStartedNotificationsEnabled,
-                    accessibilityLabel: "Skip vote started notifications",
-                    accessibilityIdentifier: "onboardingSkipVoteStartedNotificationsToggle"
-                )
-
-                preferenceRow(
-                    icon: "checkmark.seal.fill",
-                    iconColor: .green,
-                    title: "Skip vote passed",
-                    subtitle: "When a chat skip-vote wins and the song is skipped.",
-                    isOn: $skipVotePassedNotificationsEnabled,
-                    accessibilityLabel: "Skip vote passed notifications",
-                    accessibilityIdentifier: "onboardingSkipVotePassedNotificationsToggle"
-                )
-            }
-            .disabled(!isAuthorized)
+            // The three alerts share one bordered container so they read as a
+            // single group sitting under the gate above. Disabled until
+            // notifications are authorized. They do nothing without permission.
+            alertGroup
+                .disabled(!isAuthorized)
+                .opacity(isAuthorized ? 1 : 0.5)
         }
         .animation(.easeInOut(duration: DSMotion.Duration.base), value: notificationsStatus)
+    }
+
+    /// The per-alert toggles, rendered as chrome-free rows stacked inside one
+    /// bordered card with text-aligned dividers between them.
+    @ViewBuilder
+    private var alertGroup: some View {
+        VStack(spacing: 0) {
+            groupedRow(
+                icon: "music.note",
+                iconColor: .pink,
+                title: "Song changes",
+                subtitle: "A banner with album art each time the track changes.",
+                isOn: $songChangeNotificationsEnabled,
+                accessibilityLabel: "Song change notifications",
+                accessibilityIdentifier: "onboardingSongChangeNotificationsToggle"
+            )
+
+            rowDivider
+
+            groupedRow(
+                icon: "hand.raised.fill",
+                iconColor: .orange,
+                title: "Skip vote started",
+                subtitle: "When chat opens a vote to skip the current song.",
+                isOn: $skipVoteStartedNotificationsEnabled,
+                accessibilityLabel: "Skip vote started notifications",
+                accessibilityIdentifier: "onboardingSkipVoteStartedNotificationsToggle"
+            )
+
+            rowDivider
+
+            groupedRow(
+                icon: "checkmark.seal.fill",
+                iconColor: .green,
+                title: "Skip vote passed",
+                subtitle: "When a chat skip-vote wins and the song is skipped.",
+                isOn: $skipVotePassedNotificationsEnabled,
+                accessibilityLabel: "Skip vote passed notifications",
+                accessibilityIdentifier: "onboardingSkipVotePassedNotificationsToggle"
+            )
+        }
+        .background(
+            RoundedRectangle(cornerRadius: DSRadius.lg2, style: .continuous)
+                .fill(Color(nsColor: .controlBackgroundColor))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: DSRadius.lg2, style: .continuous)
+                .stroke(Color.primary.opacity(0.06), lineWidth: 0.5)
+        )
+    }
+
+    /// Hairline between grouped rows, inset to start under the row title so it
+    /// clears the icon tile (the standard grouped-list look).
+    private var rowDivider: some View {
+        Divider()
+            .padding(.leading, AppConstants.OnboardingUI.iconTileSize + DSSpace.s4 * 2)
     }
 
     // MARK: - Row
@@ -158,6 +185,30 @@ struct OnboardingNotificationsStepView: View {
             isOn: isOn,
             accessibilityLabel: accessibilityLabel,
             accessibilityIdentifier: accessibilityIdentifier
+        )
+    }
+
+    /// Same row, minus its own card chrome, for stacking inside `alertGroup`'s
+    /// shared border.
+    @ViewBuilder
+    private func groupedRow(
+        icon: String,
+        iconColor: Color,
+        title: String,
+        subtitle: String,
+        isOn: Binding<Bool>,
+        accessibilityLabel: String,
+        accessibilityIdentifier: String
+    ) -> some View {
+        OnboardingToggleCard(
+            icon: icon,
+            iconColor: iconColor,
+            title: title,
+            subtitle: subtitle,
+            isOn: isOn,
+            accessibilityLabel: accessibilityLabel,
+            accessibilityIdentifier: accessibilityIdentifier,
+            showsCardBackground: false
         )
     }
 

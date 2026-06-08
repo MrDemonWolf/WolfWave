@@ -27,6 +27,11 @@ struct OnboardingToggleCard: View {
     let accessibilityLabel: String
     let accessibilityIdentifier: String
 
+    /// When `true` (default) the row draws its own bordered card. Set `false`
+    /// to render a chrome-free row meant to live inside a shared grouped
+    /// container (the Notifications step stacks three of these under one border).
+    var showsCardBackground: Bool = true
+
     // MARK: - Body
 
     var body: some View {
@@ -64,14 +69,18 @@ struct OnboardingToggleCard: View {
                 .accessibilityIdentifier(accessibilityIdentifier)
         }
         .padding(DSSpace.s4)
-        .background(
-            RoundedRectangle(cornerRadius: DSRadius.lg2, style: .continuous)
-                .fill(Color(nsColor: .controlBackgroundColor))
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: DSRadius.lg2, style: .continuous)
-                .stroke(Color.primary.opacity(0.06), lineWidth: 0.5)
-        )
+        .background {
+            if showsCardBackground {
+                RoundedRectangle(cornerRadius: DSRadius.lg2, style: .continuous)
+                    .fill(Color(nsColor: .controlBackgroundColor))
+            }
+        }
+        .overlay {
+            if showsCardBackground {
+                RoundedRectangle(cornerRadius: DSRadius.lg2, style: .continuous)
+                    .stroke(Color.primary.opacity(0.06), lineWidth: 0.5)
+            }
+        }
     }
 }
 
