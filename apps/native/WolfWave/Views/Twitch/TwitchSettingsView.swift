@@ -78,6 +78,16 @@ struct TwitchSettingsView: View {
                 }
             }
         }
+        .task {
+            // Re-check the saved Twitch token on a cadence so the status chip
+            // flips to "Sign-in expired" on its own when a token silently dies.
+            // Replaces the manual "Test Login" button. Auto-cancels when the
+            // pane goes away.
+            while !Task.isCancelled {
+                await viewModel.refreshAuthStatus()
+                try? await Task.sleep(for: .seconds(60))
+            }
+        }
     }
 
     // MARK: - Subviews
@@ -281,13 +291,11 @@ struct TwitchSettingsView: View {
             reauthNeeded: viewModel.reauthNeeded,
             credentialsSaved: viewModel.credentialsSaved,
             channelValidationState: viewModel.channelValidationState,
-            testAuthResult: viewModel.testAuthResult,
             onReauth: { viewModel.clearAuthOnly(); viewModel.startOAuth() },
             onClearCredentials: { viewModel.clearCredentials() },
             onJoinChannel: { viewModel.joinChannel() },
             onLeaveChannel: { viewModel.leaveChannel() },
-            onChannelIDChanged: { viewModel.saveChannelID() },
-            onTestConnection: { viewModel.testConnection() }
+            onChannelIDChanged: { viewModel.saveChannelID() }
         )
         .transition(.opacity)
     }
@@ -325,17 +333,15 @@ private struct SignedInView: View {
     let reauthNeeded: Bool
     let credentialsSaved: Bool
     let channelValidationState: TwitchViewModel.ChannelValidationState
-    let testAuthResult: TwitchViewModel.TestAuthResult
     var onReauth: () -> Void
     var onClearCredentials: () -> Void
     var onJoinChannel: () -> Void
     var onLeaveChannel: () -> Void
     var onChannelIDChanged: () -> Void
-    var onTestConnection: () -> Void
     @State private var showingDisconnectConfirmation = false
 
     /// Shared height for every button in the action row. Pinning all of them to
-    /// one value keeps Join/Leave, Test Login, and Log Out visually aligned.
+    /// one value keeps Join/Leave and Log Out visually aligned.
     /// without it, the taller `checkmark.circle.fill` glyph makes the connect
     /// button a hair taller than its neighbors.
     private static let actionButtonHeight: CGFloat = 22
@@ -543,7 +549,7 @@ private struct SignedInView: View {
         }
     }
 
-    /// Bottom row with Connect/Disconnect, Test Login, and Log Out buttons.
+    /// Bottom row with Connect/Disconnect and Log Out buttons.
     private var actionButtonsSection: some View {
         HStack(spacing: DSSpace.s3) {
             if reauthNeeded {
@@ -611,59 +617,6 @@ private struct SignedInView: View {
                 )
                 .accessibilityValue(isChannelConnected ? "Connected" : "Disconnected")
                 .accessibilityIdentifier("twitchConnectButton")
-
-                Button(action: onTestConnection) {
-                    switch testAuthResult {
-                    case .idle:
-                        Label("Test Login", systemImage: "antenna.radiowaves.left.and.right")
-                            .font(.system(size: DSFont.Size.body, weight: .medium))
-                    case .testing:
-                        HStack(spacing: DSSpace.s1h) {
-                            ProgressView()
-                                .progressViewStyle(.circular)
-                                .controlSize(.mini)
-                            Text("Testing...")
-                                .font(.system(size: DSFont.Size.body))
-                        }
-                    case .success:
-                        Label("Passed", systemImage: "checkmark.circle.fill")
-                            .font(.system(size: DSFont.Size.body, weight: .medium))
-                    case .failure:
-                        Label("Failed", systemImage: "xmark.circle.fill")
-                            .font(.system(size: DSFont.Size.body, weight: .medium))
-                    }
-                }
-                .buttonStyle(.bordered)
-                .tint(testAuthButtonTint)
-                .controlSize(.small)
-                .stableWidth {
-                    Label("Test Login", systemImage: "antenna.radiowaves.left.and.right")
-                        .font(.system(size: DSFont.Size.body, weight: .medium))
-                    HStack(spacing: DSSpace.s1h) {
-                        ProgressView()
-                            .progressViewStyle(.circular)
-                            .controlSize(.mini)
-                        Text("Testing...")
-                            .font(.system(size: DSFont.Size.body))
-                    }
-                    Label("Passed", systemImage: "checkmark.circle.fill")
-                        .font(.system(size: DSFont.Size.body, weight: .medium))
-                    Label("Failed", systemImage: "xmark.circle.fill")
-                        .font(.system(size: DSFont.Size.body, weight: .medium))
-                }
-                .disabled(testAuthResult == .testing)
-                .frame(height: Self.actionButtonHeight)
-                .pointerCursor()
-                .animation(.easeInOut(duration: DSMotion.Duration.base), value: testAuthResult)
-                .help("Checks if your Twitch sign-in is working")
-                .accessibilityLabel("Test Twitch sign-in")
-                .accessibilityHint("Checks if your Twitch sign-in is working")
-                .accessibilityValue(
-                    testAuthResult == .success ? "Passed" :
-                    testAuthResult == .failure ? "Failed" :
-                    testAuthResult == .testing ? "Testing" : "Not tested"
-                )
-                .accessibilityIdentifier("twitchTestConnectionButton")
             }
 
             Spacer()
@@ -683,9 +636,9 @@ private struct SignedInView: View {
         }
     }
 
-    /// Quiet sign-out row, kept on its own line below the everyday Join/Test
-    /// actions so the destructive Log Out never shares a row with the reversible
-    /// channel and test controls.
+    /// Quiet sign-out row, kept on its own line below the everyday Join/Leave
+    /// action so the destructive Log Out never shares a row with the reversible
+    /// channel controls.
     private var logOutSection: some View {
         HStack(alignment: .center, spacing: DSSpace.s4) {
             VStack(alignment: .leading, spacing: DSSpace.s0) {
@@ -712,15 +665,6 @@ private struct SignedInView: View {
         }
         .padding(.horizontal, AppConstants.SettingsUI.cardPadding)
         .padding(.vertical, DSSpace.s4)
-    }
-
-    /// Tint color for the Test Login button based on its result state.
-    private var testAuthButtonTint: Color? {
-        switch testAuthResult {
-        case .idle, .testing: return nil
-        case .success: return .green
-        case .failure: return .red
-        }
     }
 
     /// Whether the Connect button should be grayed out (missing channel name or still connecting).

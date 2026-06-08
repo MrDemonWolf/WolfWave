@@ -826,6 +826,30 @@ final class TwitchViewModel {
         }
     }
 
+    /// Silently re-validates the saved OAuth token so the status chip flips to
+    /// "Sign-in expired" on its own when a token dies, without the user pressing
+    /// a button. Called on a cadence by the settings pane while it's open.
+    ///
+    /// No-ops when there's nothing to check (no saved credentials) or when reauth
+    /// is already flagged. Unlike `testConnection()`, this never touches
+    /// `testAuthResult` or `statusMessage` so it stays invisible until something
+    /// actually changes.
+    func refreshAuthStatus() async {
+        guard credentialsSaved, !reauthNeeded else { return }
+        guard let token = KeychainService.loadTwitchToken(), !token.isEmpty,
+              let service = twitchService else { return }
+
+        let isValid = await service.validateToken(token)
+        guard !isValid else { return }
+
+        reauthNeeded = true
+        UserDefaults.standard.set(true, forKey: AppConstants.UserDefaults.twitchReauthNeeded)
+        NotificationCenter.default.post(
+            name: Notification.Name.twitchReauthNeededChanged,
+            object: nil
+        )
+    }
+
     /// Resets `testAuthResult` back to `.idle` after 3 seconds.
     private func scheduleTestAuthReset() {
         pendingAuthResetTask?.cancel()

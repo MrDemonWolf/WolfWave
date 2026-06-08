@@ -18,7 +18,6 @@ One markdown entry per reusable view. Stubs marked `(stub)` need filling in as w
 | NowPlayingHeroCard | [now-playing-hero-card.md](now-playing-hero-card.md) | drafted |
 | AlbumArtView | [album-art-view.md](album-art-view.md) | drafted |
 | IntegrationDashboardView | [integration-dashboard-view.md](integration-dashboard-view.md) | drafted |
-| ConnectionTestButton | [connection-test-button.md](connection-test-button.md) | drafted |
 | MusicPermissionBanner | [music-permission-banner.md](music-permission-banner.md) | drafted |
 | CopyButton | [copy-button.md](copy-button.md) | drafted |
 | CopyableURLRow | [copyable-url-row.md](copyable-url-row.md) | drafted |

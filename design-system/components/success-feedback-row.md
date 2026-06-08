@@ -42,7 +42,7 @@ graph LR
 ## Do / Don't
 - ✅ Use after the action settles (toggle flipped, OAuth completed, copy succeeded).
 - ✅ Keep the text positive and past-tense.
-- ❌ Don't use for in-progress states — use `ProgressView` or `ConnectionTestButton` instead.
+- ❌ Don't use for in-progress states. Use `ProgressView` instead.
 - ❌ Don't reuse for errors — there's no "FailureFeedbackRow" because failures need actionable copy.
 
 ## Example

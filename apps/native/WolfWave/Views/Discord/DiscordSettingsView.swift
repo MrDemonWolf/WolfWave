@@ -89,6 +89,16 @@ struct DiscordSettingsView: View {
             playbackMode = isAppleMusicRunning() ? .stopped : .musicClosed
             AppDelegate.shared?.refreshNowPlaying()
         }
+        .task {
+            // Re-read the live Discord connection on a cadence so the status chip
+            // stays honest on its own (catches a missed state notification or a
+            // drop while the pane sits open). Replaces the manual "Check Discord"
+            // button. Auto-cancels when the pane goes away.
+            while !Task.isCancelled {
+                refreshConnectionState()
+                try? await Task.sleep(for: .seconds(10))
+            }
+        }
         .onReceive(
             NotificationCenter.default.publisher(
                 for: Notification.Name.discordStateChanged
@@ -143,31 +153,6 @@ struct DiscordSettingsView: View {
                 }
             )
             .cardStyle()
-
-            if presenceEnabled && hasClientID {
-                HStack(spacing: DSSpace.s3) {
-                    ConnectionTestButton(
-                        label: "Check Discord",
-                        icon: "antenna.radiowaves.left.and.right"
-                    ) { completion in
-                        guard let service = AppDelegate.shared?.discordService else {
-                            completion(false)
-                            return
-                        }
-                        Task { @MainActor in
-                            let success = await service.testConnection()
-                            completion(success)
-                        }
-                    }
-                    .help("Checks if Discord is open and ready.")
-                    .accessibilityLabel("Test Discord connection")
-                    .accessibilityHint("Checks if Discord is open and ready to receive status updates")
-                    .accessibilityIdentifier("discordTestConnectionButton")
-
-                    Spacer()
-                }
-                .transition(.opacity)
-            }
 
             if !hasClientID {
                 CalloutBanner(
