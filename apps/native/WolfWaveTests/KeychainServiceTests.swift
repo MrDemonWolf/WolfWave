@@ -295,4 +295,32 @@ final class KeychainServiceTests {
 
         KeychainService.deleteToken()
     }
+
+    // MARK: - Factory Reset
+
+    @Test("deleteAll removes every stored credential")
+    func testDeleteAllRemovesEveryCredential() async throws {
+        // Seed one of each credential the factory reset must wipe.
+        try KeychainService.saveToken("ws_token")
+        try KeychainService.saveTwitchToken("twitch_oauth")
+        try KeychainService.saveTwitchRefreshToken("twitch_refresh")
+        try KeychainService.saveTwitchUsername("wolf")
+        try KeychainService.saveTwitchBotUserID("12345")
+        try KeychainService.saveTwitchChannelID("67890")
+
+        KeychainService.deleteAll()
+
+        #expect(KeychainService.loadToken() == nil)
+        #expect(KeychainService.loadTwitchToken() == nil)
+        #expect(KeychainService.loadTwitchRefreshToken() == nil)
+        #expect(KeychainService.loadTwitchUsername() == nil)
+        #expect(KeychainService.loadTwitchBotUserID() == nil)
+        #expect(KeychainService.loadTwitchChannelID() == nil)
+    }
+
+    @Test("deleteAll on an empty store succeeds silently")
+    func testDeleteAllWhenEmpty() async throws {
+        KeychainService.deleteAll()
+        #expect(KeychainService.loadToken() == nil)
+    }
 }

@@ -210,6 +210,18 @@ nonisolated enum KeychainService {
         deleteItem(account: twitchChannelIDAccount)
     }
 
+    // MARK: - Public Methods - Factory Reset
+
+    /// Deletes every WolfWave credential from the Keychain in one sweep.
+    ///
+    /// Wipes the entire generic-password class for the app's service, so it
+    /// covers the WebSocket auth token, all Twitch tokens, and any credential
+    /// added later without needing a per-account call. Used by the factory
+    /// reset. Succeeds silently if nothing is stored.
+    static func deleteAll() {
+        backend.deleteAll()
+    }
+
     // MARK: - Backend Injection
 
     /// Raw storage backing every credential operation.

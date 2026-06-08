@@ -41,4 +41,11 @@ final class InMemoryKeychainBackend: KeychainBackend, @unchecked Sendable {
         defer { lock.unlock() }
         store[account] = nil
     }
+
+    /// Removes every stored entry. Succeeds silently if empty.
+    func deleteAll() {
+        lock.lock()
+        defer { lock.unlock() }
+        store.removeAll()
+    }
 }

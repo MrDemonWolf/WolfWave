@@ -27,6 +27,10 @@ nonisolated protocol KeychainBackend: Sendable {
 
     /// Removes the entry for `account`. Succeeds silently if absent.
     func delete(account: String)
+
+    /// Removes every entry for the backend's service in one sweep.
+    /// Succeeds silently if nothing is stored. Used by the factory reset.
+    func deleteAll()
 }
 
 /// `KeychainBackend` backed by the macOS Security framework (generic passwords).
@@ -132,6 +136,22 @@ nonisolated final class SystemKeychainBackend: KeychainBackend {
         let status = SecItemDelete(query as CFDictionary)
         if status != errSecSuccess && status != errSecItemNotFound {
             Log.error("KeychainService: Failed to delete item '\(account)' - OSStatus \(status)", category: "Keychain")
+        }
+    }
+
+    /// Removes every generic-password item for this service via a single
+    /// account-less `SecItemDelete`. Treats "nothing matched" as success.
+    func deleteAll() {
+        var query: [String: Any] = [
+            kSecClass as String: kSecClassGenericPassword,
+            kSecAttrService as String: service,
+        ]
+        if useDataProtectionKeychain {
+            query[kSecUseDataProtectionKeychain as String] = true
+        }
+        let status = SecItemDelete(query as CFDictionary)
+        if status != errSecSuccess && status != errSecItemNotFound {
+            Log.error("KeychainService: Failed to delete all items - OSStatus \(status)", category: "Keychain")
         }
     }
 

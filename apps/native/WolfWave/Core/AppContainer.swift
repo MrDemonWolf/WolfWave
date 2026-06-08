@@ -32,12 +32,38 @@ enum AppContainer {
     ///   `"History"`, `"State"`, `"Diagnostics"`, `"Cache"`.
     /// - Returns: The composed directory URL.
     nonisolated static func directory(_ sub: String) -> URL {
+        return root.appending(path: sub, directoryHint: .isDirectory)
+    }
+
+    /// The container root: `Application Support/WolfWave/` (or the temporary
+    /// fallback). Composes the path only. Does not create the directory.
+    nonisolated static var root: URL {
         let base = FileManager.default.urls(
             for: .applicationSupportDirectory, in: .userDomainMask
         ).first ?? FileManager.default.temporaryDirectory
 
-        return base
-            .appending(path: containerName, directoryHint: .isDirectory)
-            .appending(path: sub, directoryHint: .isDirectory)
+        return base.appending(path: containerName, directoryHint: .isDirectory)
+    }
+
+    /// Deletes the entire on-disk container (logs, listening history, artwork
+    /// cache, crash markers, diagnostics) for a factory reset. Succeeds
+    /// silently when the container doesn't exist.
+    ///
+    /// - Returns: `true` if the container is gone afterward, `false` if removal
+    ///   failed.
+    @discardableResult
+    nonisolated static func wipe() -> Bool {
+        let url = root
+        guard FileManager.default.fileExists(atPath: url.path) else { return true }
+        do {
+            try FileManager.default.removeItem(at: url)
+            return true
+        } catch {
+            Log.error(
+                "AppContainer: failed to wipe container - \(error.localizedDescription)",
+                category: "Reset"
+            )
+            return false
+        }
     }
 }
