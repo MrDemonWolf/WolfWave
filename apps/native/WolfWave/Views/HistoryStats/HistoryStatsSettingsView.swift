@@ -44,6 +44,12 @@ struct HistoryStatsSettingsView: View {
     @AppStorage(AppConstants.UserDefaults.statsCommandAliases)
     private var statsCommandAliases = ""
 
+    @AppStorage(AppConstants.UserDefaults.statsCommandWindow)
+    private var statsCommandWindow = StatsWindow.default.rawValue
+
+    @AppStorage(AppConstants.UserDefaults.statsCommandParts)
+    private var statsCommandParts = StatsPart.encode(StatsPart.defaults)
+
     @AppStorage(AppConstants.UserDefaults.historyRetentionDays)
     private var historyRetentionDays = 0
 
@@ -565,7 +571,7 @@ struct HistoryStatsSettingsView: View {
 
             ToggleSettingRow(
                 title: "!stats command",
-                subtitle: "Lets chat pull up today's top track. Set live-only for all commands in Twitch settings.",
+                subtitle: "Lets chat pull up your listening stats. Pick the window and what to show below. Set live-only for all commands in Twitch settings.",
                 isOn: $statsCommandEnabled,
                 accessibilityLabel: "Toggle the stats Twitch command",
                 accessibilityIdentifier: "statsCommandToggle"
@@ -610,10 +616,103 @@ struct HistoryStatsSettingsView: View {
                     accessibilityLabel: "Stats command aliases",
                     accessibilityIdentifier: "statsCommandAliases"
                 )
+
+                Divider()
+                statsWindowRow
+                statsPartsRow
+                statsPreviewRow
             }
         }
         .padding(AppConstants.SettingsUI.cardPadding)
         .cardStyleUnpadded()
+    }
+
+    /// Picks the time window the `!stats` reply covers.
+    private var statsWindowRow: some View {
+        HStack(spacing: DSSpace.s2) {
+            Text("Window")
+                .sectionEyebrow()
+            Spacer()
+            Picker("Stats window", selection: $statsCommandWindow) {
+                ForEach(StatsWindow.allCases) { window in
+                    Text(window.pickerLabel).tag(window.rawValue)
+                }
+            }
+            .labelsHidden()
+            .pickerStyle(.menu)
+            .controlSize(.small)
+            .frame(maxWidth: AppConstants.SettingsUI.inlineFieldMaxWidth)
+            .accessibilityLabel("Stats command window")
+            .accessibilityIdentifier("statsCommandWindow")
+        }
+    }
+
+    /// Toggle chips choosing which facts the `!stats` reply includes. At least one
+    /// stays selected so the command never replies empty.
+    private var statsPartsRow: some View {
+        VStack(alignment: .leading, spacing: DSSpace.s2) {
+            Text("Include")
+                .sectionEyebrow()
+            HStack(spacing: DSSpace.s2) {
+                ForEach(StatsPart.allCases) { part in
+                    Toggle(part.label, isOn: partBinding(for: part))
+                        .toggleStyle(.button)
+                        .controlSize(.small)
+                        .accessibilityIdentifier("statsPart.\(part.rawValue)")
+                }
+            }
+        }
+    }
+
+    /// A live preview of the exact chat line, built from the real history so the
+    /// streamer sees what viewers will get for the current window + facts.
+    private var statsPreviewRow: some View {
+        VStack(alignment: .leading, spacing: DSSpace.s1) {
+            Text("Example reply")
+                .sectionEyebrow()
+            Text(statsPreview)
+                .font(.system(size: DSFont.Size.body))
+                .foregroundStyle(.secondary)
+                .textSelection(.enabled)
+                .fixedSize(horizontal: false, vertical: true)
+                .accessibilityIdentifier("statsCommandPreview")
+        }
+    }
+
+    // MARK: - !stats Command Helpers
+
+    /// The currently-selected facts, parsed from the stored comma list.
+    private var selectedParts: [StatsPart] {
+        StatsPart.decode(statsCommandParts)
+    }
+
+    /// A bool binding for one fact chip. Refuses to clear the last selected fact
+    /// so the reply can't become empty.
+    private func partBinding(for part: StatsPart) -> Binding<Bool> {
+        Binding(
+            get: { selectedParts.contains(part) },
+            set: { isOn in
+                var parts = Set(selectedParts)
+                if isOn {
+                    parts.insert(part)
+                } else {
+                    guard parts.count > 1 else { return }
+                    parts.remove(part)
+                }
+                statsCommandParts = StatsPart.encode(Array(parts))
+            }
+        )
+    }
+
+    /// Builds the live preview from the real listening history.
+    private var statsPreview: String {
+        let window = StatsWindow(rawValue: statsCommandWindow) ?? .default
+        let sessionStart = appDelegate?.twitchService?.currentStreamLiveSince
+        return service?.statsChatLine(
+            window: window,
+            parts: selectedParts,
+            sessionStart: sessionStart
+        ) ?? "🐺 Listening stats aren't turned on right now"
     }
 
     // MARK: - Retention

@@ -189,20 +189,45 @@ final class ListeningHistoryService {
 
     /// A chat-ready one-liner for the `!stats` command.
     ///
-    /// Reports today's play count and top track, falling back to a friendly
-    /// message when nothing has played yet today.
-    func statsChatLine() -> String {
-        let snap = snapshot
-        guard snap.playsToday > 0 else {
-            return "🐺 No plays logged yet today. The music's just getting started!"
+    /// Reports the selected `parts` over the selected `window`, falling back to a
+    /// friendly message when nothing played in that window. The streamer
+    /// configures `window` and `parts` in **Settings → History & Stats**.
+    ///
+    /// - Parameters:
+    ///   - window: The time slice to report over. Defaults to ``StatsWindow/today``.
+    ///   - parts: The facts to include, in any order (rendered in canonical order).
+    ///     Defaults to ``StatsPart/defaults``.
+    ///   - sessionStart: When the current stream went live. Used by
+    ///     ``StatsWindow/session``; when `nil` that window falls back to today.
+    ///   - now: Reference "now" for window bounds. Injectable for tests.
+    ///   - calendar: Calendar for day bucketing. Injectable for tests.
+    /// - Returns: The chat line, prefixed with the 🐺 mark.
+    func statsChatLine(
+        window: StatsWindow = .default,
+        parts: [StatsPart] = StatsPart.defaults,
+        sessionStart: Date? = nil,
+        now: Date = Date(),
+        calendar: Calendar = .current
+    ) -> String {
+        // "This stream" needs a live anchor; without one, behave like "today".
+        let effectiveWindow: StatsWindow = (window == .session && sessionStart == nil) ? .today : window
+        let label = effectiveWindow.chatLabel
+
+        let since: Date?
+        switch effectiveWindow {
+        case .today:
+            since = calendar.startOfDay(for: now)
+        case .session:
+            since = sessionStart
+        case .week:
+            let startOfToday = calendar.startOfDay(for: now)
+            since = calendar.date(byAdding: .day, value: -6, to: startOfToday) ?? startOfToday
+        case .allTime:
+            since = nil
         }
-        let plays = HistoryFormat.playCount(snap.playsToday)
-        if let top = snap.topTrackToday {
-            let times = top.count == 1 ? "1×" : "\(top.count)×"
-            let by = top.detail.map { " by \($0)" } ?? ""
-            return "🐺 Today: \(plays) · top track \(top.name)\(by) (\(times))"
-        }
-        return "🐺 Today: \(plays) of music so far"
+
+        let summary = StatsAggregator.windowSummary(from: records, since: since, lifetime: lifetime)
+        return StatsChatLine.render(label: label, summary: summary, parts: parts)
     }
 
     // MARK: - Scrobble Rule

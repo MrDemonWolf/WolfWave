@@ -81,6 +81,30 @@ struct StatsSnapshot: Sendable {
     var hasData: Bool { totalPlays > 0 }
 }
 
+// MARK: - WindowSummary
+
+/// A small, window-scoped rollup powering the `!stats` chat command.
+///
+/// Unlike ``StatsSnapshot`` (which exposes only fixed today / this-week / all-time
+/// slices), this is computed for an arbitrary lower time bound, so it can back
+/// any `StatsWindow` including "this stream" (since the broadcast went live).
+struct WindowSummary: Sendable {
+    /// Tracks played in the window.
+    let plays: Int
+    /// Total listening time in the window, in seconds.
+    let listeningSeconds: TimeInterval
+    /// The most-played track in the window, if any.
+    let topTrack: CountedItem?
+    /// The most-played artist in the window, if any.
+    let topArtist: CountedItem?
+
+    /// Whether anything played in the window.
+    var hasData: Bool { plays > 0 }
+
+    /// An empty summary.
+    static let empty = WindowSummary(plays: 0, listeningSeconds: 0, topTrack: nil, topArtist: nil)
+}
+
 // MARK: - StatsAggregator
 
 /// Pure functions that derive a `StatsSnapshot` from raw play records.
@@ -167,6 +191,47 @@ enum StatsAggregator {
             topTrackToday: topItems(
                 todayRecords, key: \.trackKey, name: \.track, detail: \.artist,
                 merging: [:]
+            ).first
+        )
+    }
+
+    /// Builds a window-scoped summary for the `!stats` command.
+    ///
+    /// Records are filtered to `since...` (inclusive). When `since` is `nil` the
+    /// window is unbounded ("all time") and the persisted `lifetime` tally is
+    /// folded into the counts and top-N; bounded windows ignore the tally because
+    /// trimmed history carries no timestamps to filter by.
+    ///
+    /// - Parameters:
+    ///   - records: All recorded plays currently in memory, in any order.
+    ///   - since: Inclusive lower time bound, or `nil` for all time.
+    ///   - lifetime: Tally of plays previously trimmed out of `records`. Folded
+    ///     only when `since` is `nil`. Defaults to `.empty`.
+    /// - Returns: A window-scoped summary.
+    static func windowSummary(
+        from records: [PlayRecord],
+        since: Date?,
+        lifetime: LifetimeTally = .empty
+    ) -> WindowSummary {
+        let foldLifetime = (since == nil)
+        let scoped = since.map { bound in records.filter { $0.timestamp >= bound } } ?? records
+
+        guard !scoped.isEmpty || (foldLifetime && !lifetime.isEmpty) else { return .empty }
+
+        let seconds = scoped.reduce(0) { $0 + $1.playedSeconds }
+        let trackTally = foldLifetime ? lifetime.trackCounts : [:]
+        let artistTally = foldLifetime ? lifetime.artistCounts : [:]
+
+        return WindowSummary(
+            plays: scoped.count + (foldLifetime ? lifetime.trimmedPlayCount : 0),
+            listeningSeconds: seconds + (foldLifetime ? lifetime.trimmedListeningSeconds : 0),
+            topTrack: topItems(
+                scoped, key: \.trackKey, name: \.track, detail: \.artist,
+                merging: trackTally
+            ).first,
+            topArtist: topItems(
+                scoped, key: \.artistKey, name: \.artist, detail: nil,
+                merging: artistTally
             ).first
         )
     }

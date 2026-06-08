@@ -104,13 +104,15 @@ Two ways to run a vote, set in **Settings → Song Requests → Chat Vote-Skip**
 ---
 
 ## Live Stats
-**TL;DR: Today's top track, on demand.**
+**TL;DR: Your listening stats, on demand.**
 
-Viewers can ask for the track you've played the most today. Requires the opt-in Listening History (Settings → History & Stats).
+Viewers can pull up your listening stats. Requires the opt-in Listening History (Settings → History & Stats), where you also pick the window and what to show.
 
-| Command   | Who      | What it does                                |
-| --------- | -------- | ------------------------------------------- |
-| `!stats`  | Everyone | Replies with today's top track + play count |
+| Command   | Who      | What it does                                                                                  |
+| --------- | -------- | --------------------------------------------------------------------------------------------- |
+| `!stats`  | Everyone | Replies with your listening stats. Choose the window and which facts to include in Settings   |
+
+The window can be **Today**, **This stream** (since you went live), **Last 7 days**, or **All time**. Pick any mix of play count, listening time, top track, and top artist; a live preview in Settings shows the exact reply.
 
 <Callout type="info">
   Live-gated: replies only fire while your stream is online. WolfWave subscribes to `stream.online` / `stream.offline` EventSub events to track live state, so the command stays quiet when you're offline.

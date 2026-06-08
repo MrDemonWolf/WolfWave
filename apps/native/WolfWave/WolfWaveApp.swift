@@ -400,8 +400,19 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     /// Returns a formatted listening-stats string for the `!stats` Twitch command.
+    ///
+    /// Reads the streamer's configured window + facts from UserDefaults and the
+    /// live stream's start time (for the "This stream" window) from the Twitch
+    /// service, then asks the history service to assemble the chat line.
     func getStatsInfo() -> String {
-        historyService?.statsChatLine() ?? "🐺 Listening stats aren't turned on right now"
+        guard let historyService else {
+            return "🐺 Listening stats aren't turned on right now"
+        }
+        return historyService.statsChatLine(
+            window: StatsWindow.current(),
+            parts: StatsPart.current(),
+            sessionStart: twitchService?.currentStreamLiveSince
+        )
     }
 
     /// Records the currently-playing track to history if it crossed the

@@ -564,6 +564,14 @@ nonisolated enum AppConstants {
         /// Custom aliases for the !stats command (String, comma-separated)
         static let statsCommandAliases = "statsCommandAliases"
 
+        /// Which time window the `!stats` command reports. Maps to `StatsWindow`
+        /// (String, default: "today")
+        static let statsCommandWindow = "statsCommandWindow"
+
+        /// Which facts the `!stats` command includes, comma-separated `StatsPart`
+        /// raw values (String, default: "plays,topTrack")
+        static let statsCommandParts = "statsCommandParts"
+
         /// Days of listening history to retain. 0 = keep everything (Int, default: 0)
         static let historyRetentionDays = "historyRetentionDays"
 
@@ -680,6 +688,8 @@ nonisolated enum AppConstants {
             statsCommandGlobalCooldown,
             statsCommandUserCooldown,
             statsCommandAliases,
+            statsCommandWindow,
+            statsCommandParts,
             historyRetentionDays,
             streamerModeEnabled,
             appearancePreference,
@@ -798,6 +808,8 @@ nonisolated enum AppConstants {
             statsCommandGlobalCooldown,
             statsCommandUserCooldown,
             statsCommandAliases,
+            statsCommandWindow,
+            statsCommandParts,
             historyRetentionDays,
         ]
 

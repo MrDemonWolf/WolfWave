@@ -38,6 +38,9 @@ nonisolated private struct HelixSendMessageResponse: Decodable {
 nonisolated private struct HelixStreamsResponse: Decodable {
     struct Stream: Decodable {
         let id: String
+        /// ISO-8601 stream start time, e.g. `2026-06-08T18:04:21Z`. Anchors the
+        /// `!stats` "This stream" window when seeding mid-broadcast.
+        let started_at: String?
     }
     let data: [Stream]
 }
@@ -408,6 +411,13 @@ actor TwitchChatService {
         didSet { streamLiveSnapshot.set(streamLive) }
     }
 
+    /// When the current stream went live, or `nil` when offline. Anchors the
+    /// `!stats` command's "This stream" window. Seeded from Helix `started_at` on
+    /// connect and updated by the `stream.online` / `stream.offline` events.
+    private var streamLiveSince: Date? {
+        didSet { streamSinceSnapshot.set(streamLiveSince) }
+    }
+
     /// Nonisolated mirror of `_connected` so MainActor UI code (status chips,
     /// menu bar enable state) can read it without `await`.
     nonisolated let isConnectedSnapshot = Atomic(false)
@@ -415,6 +425,14 @@ actor TwitchChatService {
     /// Nonisolated mirror of `streamLive` so the synchronous dispatcher bridge
     /// (`!stats` enable check) can read it without re-entering the actor.
     nonisolated private let streamLiveSnapshot = Atomic(false)
+
+    /// Nonisolated mirror of `streamLiveSince` so the synchronous `!stats`
+    /// provider (MainActor) can read the stream's start time without `await`.
+    nonisolated private let streamSinceSnapshot = Atomic<Date?>(nil)
+
+    /// When the current stream went live, or `nil` when offline. Readable from any
+    /// isolation (mirrors the actor-isolated `streamLiveSince`).
+    nonisolated var currentStreamLiveSince: Date? { streamSinceSnapshot.value }
 
     var isConnected: Bool { _connected }
 
@@ -2093,9 +2111,13 @@ actor TwitchChatService {
         switch type {
         case "stream.online":
             streamLive = true
+            // Anchor the "This stream" stats window. The event payload carries no
+            // start time here, so the moment we're notified is close enough.
+            streamLiveSince = Date()
             Log.info("TwitchChatService: Stream went live", category: "Twitch")
         case "stream.offline":
             streamLive = false
+            streamLiveSince = nil
             Log.info("TwitchChatService: Stream went offline", category: "Twitch")
         default:
             Log.debug("TwitchChatService: Ignoring unexpected EventSub type: \(type)", category: "Twitch")
@@ -2203,6 +2225,14 @@ actor TwitchChatService {
                 headers: HelixClient.headers(for: .init(token: token, clientID: clientID)))
             let live = !response.data.isEmpty
             streamLive = live
+            // Anchor "This stream" to the real start time when available, else now.
+            if live {
+                let startedAt = response.data.first?.started_at
+                    .flatMap { ISO8601DateFormatter().date(from: $0) }
+                streamLiveSince = startedAt ?? Date()
+            } else {
+                streamLiveSince = nil
+            }
             Log.info("TwitchChatService: Seeded stream-live state: live=\(live)", category: "Twitch")
         } catch {
             Log.debug(
