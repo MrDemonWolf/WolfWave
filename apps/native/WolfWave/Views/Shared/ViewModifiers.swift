@@ -339,7 +339,7 @@ extension NotificationCenter {
 
 extension Color {
     /// Creates a Color from a hex string (e.g. "#FF0000" or "FF0000").
-    /// `nonisolated` — a pure parser with no main-actor state, so non-UI code
+    /// `nonisolated`: a pure parser with no main-actor state, so non-UI code
     /// (e.g. the widget theme resolver) can call it off the main actor.
     nonisolated init?(hex: String) {
         var hexString = hex.trimmingCharacters(in: .whitespacesAndNewlines)

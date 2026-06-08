@@ -142,7 +142,7 @@ actor DiscordRPCService {
     /// `connect`, `read`, `write`, and `setsockopt` block the calling thread.
     /// Running them here (instead of on the actor's serial executor) keeps a
     /// stalled handshake or slow peer from parking the actor. The queue is
-    /// serial, so the connection lifecycle stays single-threaded — there is
+    /// serial, so the connection lifecycle stays single-threaded. There is
     /// never concurrent access to `socketFD` from two IPC operations at once.
     private nonisolated let ipcQueue = DispatchQueue(label: "com.mrdemonwolf.wolfwave.discord-ipc")
 
@@ -256,6 +256,7 @@ actor DiscordRPCService {
             stopPolling()
             reconnectTask?.cancel()
             reconnectTask = nil
+            reconnectDelay = AppConstants.Discord.reconnectBaseDelay
             await performClearPresence()
             await disconnect()
         }
@@ -882,7 +883,7 @@ actor DiscordRPCService {
         }
 
         // strings[0] = exec path, strings[1..argc] = argv, rest = environment.
-        // `argc >= 0` guards the `strings[i]` subscript below — a malformed
+        // `argc >= 0` guards the `strings[i]` subscript below: a malformed
         // negative argc would otherwise produce a negative lower bound.
         guard argc >= 0 else { return nil }
         let envStart = 1 + Int(argc)
@@ -956,8 +957,15 @@ actor DiscordRPCService {
                     return
                 } else {
                     Log.warn("DiscordRPCService: Handshake failed on slot \(slot)", category: "Discord")
-                    await runOnIPCQueue { Self.closeFD(fd) }
-                    socketFD = -1
+                    // performHandshake may have already torn down via
+                    // handleConnectionLost -> disconnect(), which closes the fd
+                    // and resets socketFD to -1. Only close here if the fd is
+                    // still ours; otherwise we'd double-close (EBADF, and a
+                    // recycled fd could be hit in edge cases).
+                    if socketFD == fd {
+                        await runOnIPCQueue { Self.closeFD(fd) }
+                        socketFD = -1
+                    }
                 }
             }
         }
@@ -1066,8 +1074,8 @@ actor DiscordRPCService {
     /// `await`s the continuation, so a stalled `read`/`write`/`connect` parks only
     /// the queue's worker thread, never the actor. Because `ipcQueue` is serial,
     /// only one such block runs at a time, preserving single-threaded socket
-    /// access. `work` must be self-contained — it takes only `Sendable` inputs and
-    /// touches no actor state — so the hop is safe.
+    /// access. `work` must be self-contained: it takes only `Sendable` inputs and
+    /// touches no actor state, so the hop is safe.
     private nonisolated func runOnIPCQueue<T: Sendable>(
         _ work: @escaping @Sendable () -> T
     ) async -> T {
@@ -1251,7 +1259,11 @@ actor DiscordRPCService {
             UInt32(littleEndian: buf.load(fromByteOffset: 4, as: UInt32.self))
         }
 
-        guard length > 0, length < AppConstants.Discord.maxIPCFrameBytes else { return (opcode, nil) }
+        guard length > 0 else { return (opcode, nil) }
+        guard length < AppConstants.Discord.maxIPCFrameBytes else {
+            Log.warn("DiscordRPCService: Oversized IPC frame (\(length) bytes); disconnecting", category: "Discord")
+            return nil
+        }
 
         let bodyLength = Int(length)
         let bodyResult = await runOnIPCQueue { Self.readFully(bodyLength, fd: fd) }

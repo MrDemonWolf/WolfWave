@@ -23,10 +23,10 @@ Open <http://localhost:3000>.
 | Path | What it is |
 | --- | --- |
 | `app/(home)` | Landing page and download page. |
-| `app/docs` | Documentation layout — Fumadocs renders the MDX from `content/docs/`. |
+| `app/docs` | Documentation layout. Fumadocs renders the MDX from `content/docs/`. |
 | `app/api/search/route.ts` | Static search index. |
 | `content/docs/` | All MDX content. Sidebar order is in `content/docs/meta.json`. |
-| `app/global.css` + `app/tokens.generated.css` | Token-driven styling. Generated CSS comes from `design-system/tokens.json` — do not edit by hand. |
+| `app/global.css` + `app/tokens.generated.css` | Token-driven styling. Generated CSS comes from `design-system/tokens.json`; do not edit by hand. |
 
 ## Build
 

@@ -298,7 +298,7 @@ const TwitchChat: React.FC<{ frame: number; fps: number }> = ({
     {
       user: 'wolfbot',
       color: brand.cyan,
-      text: '🎵 Kbps Plz — DevBowser • 1:37 elapsed',
+      text: '🎵 Kbps Plz - DevBowser • 1:37 elapsed',
       isBot: true,
     },
   ];
@@ -392,7 +392,7 @@ const TwitchChat: React.FC<{ frame: number; fps: number }> = ({
           </div>
         </div>
 
-        {/* Chat messages — stagger 12 frames apart */}
+        {/* Chat messages, stagger 12 frames apart */}
         {messages.map((msg, i) => {
           const msgDelay = i * 12;
           const msgOpacity = interpolate(frame - msgDelay, [0, 8], [0, 1], {
@@ -756,7 +756,7 @@ export const FeaturesShowcaseScene: React.FC = () => {
         }}
       />
 
-      {/* Header — color-cycling */}
+      {/* Header, color-cycling */}
       <div
         style={{
           position: 'absolute',

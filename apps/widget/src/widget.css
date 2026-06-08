@@ -1,15 +1,15 @@
 /* ═══════════════════════════════════════════════════════════════════════════
- * WolfWave OBS Widget — Source CSS
+ * WolfWave OBS Widget: Source CSS
  *
  * This file is processed by Tailwind CLI at build time. The output is then
  * inlined into the final widget.html (see ../build.ts). Anything you write
  * here ends up in a single <style> block in the generated file.
  *
  * Sections:
- *   1. Tailwind layers  — base / components / utilities
- *   2. Custom base      — reset, body transparent
- *   3. State classes    — widget-hidden / widget-entering / widget-visible / widget-exiting
- *   4. Inner transitions — track-swap (artwork + meta crossfade)
+ *   1. Tailwind layers  - base / components / utilities
+ *   2. Custom base      - reset, body transparent
+ *   3. State classes    - widget-hidden / widget-entering / widget-visible / widget-exiting
+ *   4. Inner transitions - track-swap (artwork + meta crossfade)
  *   5. Progress + decorative layers (blur, overlay, noise)
  *
  * Why hand-written transition classes instead of pure Tailwind utilities?
@@ -50,20 +50,20 @@ body {
  * Four states live on `#widget`, swapped by `transitions.ts` helpers in the
  * order: hidden → entering → visible → exiting → hidden.
  *
- *   widget-hidden    — invisible, off-screen, no pointer events. Safe to mount.
- *   widget-entering  — start frame of the enter animation (same as hidden).
+ *   widget-hidden    - invisible, off-screen, no pointer events. Safe to mount.
+ *   widget-entering  - start frame of the enter animation (same as hidden).
  *                       Class is removed in next RAF so transition fires.
- *   widget-visible   — fully shown. The "resting" state.
- *   widget-exiting   — visible → about to be hidden. Different easing/blur.
+ *   widget-visible   - fully shown. The "resting" state.
+ *   widget-exiting   - visible, about to be hidden. Different easing/blur.
  *
  * Why a state machine and not just `.visible` + `.hidden`? We need different
  * easings for arrive vs. leave (bouncy arrival, calm exit) and different
  * durations. Toggling between two classes can't express that.
  *
  * Easings chosen deliberately:
- *   enter — cubic-bezier(0.34, 1.56, 0.64, 1) overshoots slightly. Feels
+ *   enter - cubic-bezier(0.34, 1.56, 0.64, 1) overshoots slightly. Feels
  *           energetic, like the card landed on the stream.
- *   exit  — cubic-bezier(0.4, 0, 0.2, 1) is Material Standard. Calm fade out.
+ *   exit  - cubic-bezier(0.4, 0, 0.2, 1) is Material Standard. Calm fade out.
  * ──────────────────────────────────────────────────────────────────────── */
 
 #widget {
@@ -120,14 +120,14 @@ body {
 /* ─── 4. Inner track-swap transition ──────────────────────────────────────
  *
  * When a new track arrives WHILE the widget is already visible, we don't
- * want the whole container to re-enter — that re-triggers the bouncy
+ * want the whole container to re-enter, as that re-triggers the bouncy
  * animation on every skip, which is jarring during a stream. Instead we
  * crossfade the inner `.track-meta` + `.artwork` only.
  *
  * Flow (per swap):
- *   1. element gets `.swap-out`   — fades + slides 4px right, 140ms
+ *   1. element gets `.swap-out`   - fades + slides 4px right, 140ms
  *   2. after 140ms, DOM updates with new content
- *   3. element gets `.swap-in`    — slides in from 4px left, 140ms
+ *   3. element gets `.swap-in`    - slides in from 4px left, 140ms
  *   4. class is cleared
  * ──────────────────────────────────────────────────────────────────────── */
 
@@ -183,7 +183,7 @@ body {
   margin-top: 2px;
 }
 
-/* Background blur of the artwork — gives every theme an album-aware tint. */
+/* Background blur of the artwork: gives every theme an album-aware tint. */
 .blur-layer {
   position: absolute;
   inset: 0;
@@ -194,7 +194,7 @@ body {
   background-position: center;
 }
 
-/* SVG noise overlay — kills the banding artifact that giant blurs create. */
+/* SVG noise overlay: kills the banding artifact that giant blurs create. */
 .noise-layer {
   position: absolute;
   inset: 0;
@@ -215,7 +215,7 @@ body {
 /* ─── 6. Paused state ──────────────────────────────────────────────────────
  *
  * Set on `#widget` by `buildWidget()` when the server reports `isPlaying:false`
- * on a still-loaded track. The card stays on stream — we just dim the
+ * on a still-loaded track. The card stays on stream: we just dim the
  * artwork, desaturate it slightly, and overlay a pause glyph. The progress
  * bar freezes naturally because `startProgressLoop` is suspended.
  *
@@ -252,7 +252,7 @@ body {
  * native `WidgetAppearancePreview` loads this file in a WKWebView. The live
  * OBS overlay never sets this class, so production rendering is untouched.
  *
- * The checkerboard is the universal "this layer is transparent" cue — it lets
+ * The checkerboard is the universal "this layer is transparent" cue: it lets
  * the transparent Default theme read correctly behind the card. Tones match the
  * SwiftUI stage it replaces (light ≈ white 0.90/0.82, dark ≈ 0.22/0.16) with an
  * 11px tile, so the preview looks identical across the light/dark redesign.

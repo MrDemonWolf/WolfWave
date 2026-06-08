@@ -12,7 +12,7 @@ import SwiftUI
 ///
 /// Renders a flat brand-colored fill (`Color` or `LinearGradient`) with a soft
 /// brand-tinted shadow glow, and centers an arbitrary glyph (typically `Image`
-/// at white tint). No inner-highlight bevel — flat by default per brand rules.
+/// at white tint). No inner-highlight bevel; flat by default per brand rules.
 // MARK: - BrandTileGlyph
 
 /// Glyph sizing standards for `BrandTile`. Lives in a non-generic enum because
@@ -45,7 +45,7 @@ struct BrandTile<Background: ShapeStyle, Glyph: View>: View {
     var body: some View {
         // Flat by default: a colored fill defined by a shallow brand-tinted
         // shadow, no glassy white inner-highlight bevel. (See the flat-surface
-        // brand rule — no inset white highlights.)
+        // brand rule: no inset white highlights.)
         RoundedRectangle(cornerRadius: AppConstants.OnboardingUI.brandTileRadius, style: .continuous)
             .fill(background)
             .frame(

@@ -20,7 +20,7 @@ const tokens = JSON.parse(
 );
 
 const BANNER_LINES = [
-  "WolfWave Design System — GENERATED FILE. Do not edit by hand.",
+  "WolfWave Design System. GENERATED FILE. Do not edit by hand.",
   "Source: design-system/tokens.json",
   "Run `bun run tokens` to regenerate.",
 ];
@@ -72,7 +72,7 @@ function cssColorToSwift(css: string): string | null {
   return null;
 }
 
-/** Emit a Swift `Color?` literal — `cssColorToSwift` result or `nil`. */
+/** Emit a Swift `Color?` literal: `cssColorToSwift` result or `nil`. */
 function swiftOptionalColor(css: string): string {
   return cssColorToSwift(css) ?? "nil";
 }

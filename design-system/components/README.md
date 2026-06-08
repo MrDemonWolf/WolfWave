@@ -38,6 +38,10 @@ One markdown entry per reusable view. Stubs marked `(stub)` need filling in as w
 | ResponsiveRow | [responsive-row.md](responsive-row.md) | drafted |
 | SettingsNavRail | [settings-nav-rail.md](settings-nav-rail.md) | drafted |
 | CardEyebrowHeader | [card-eyebrow-header.md](card-eyebrow-header.md) | drafted |
+| DestructiveButton | [destructive-button.md](destructive-button.md) | drafted |
+| SectionEyebrow | [section-eyebrow.md](section-eyebrow.md) | drafted |
+| StatTile | [stat-tile.md](stat-tile.md) | drafted |
+| QRCodeImage | [qr-code-image.md](qr-code-image.md) | drafted |
 
 ## History (`apps/native/WolfWave/Views/HistoryStats/`)
 
@@ -62,7 +66,7 @@ One markdown entry per reusable view. Stubs marked `(stub)` need filling in as w
 **File:** `apps/native/WolfWave/Views/Shared/<ComponentName>.swift`
 
 ## Purpose
-One sentence — what problem it solves.
+One sentence: what problem it solves.
 
 ## API
 ```swift

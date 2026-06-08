@@ -7,7 +7,7 @@ import { fileURLToPath } from "url";
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const root = join(__dirname, "..");
 
-// Load a font — use system Inter or download one
+// Load a font; use system Inter or download one
 const fontPath = join(root, "node_modules", "satori", "vendor", "noto-sans-v27-latin-regular.ttf");
 let fontData;
 try {
@@ -82,7 +82,7 @@ const svg = await satori(
               fontWeight: 600,
               marginBottom: "24px",
             },
-            children: "v1.2.0 — Free & Open Source",
+            children: "v1.2.0 - Free & Open Source",
           },
         },
         // Title container
@@ -138,7 +138,7 @@ const svg = await satori(
               display: "flex",
             },
             children:
-              "macOS menu bar app for Apple Music — Twitch, Discord, and stream overlays update automatically.",
+              "macOS menu bar app for Apple Music. Twitch, Discord, and stream overlays update automatically.",
           },
         },
         // Bottom bar

@@ -112,7 +112,7 @@ Yes. WolfWave uses Twitch's OAuth Device Code flow (no password ever enters the 
 
 <Accordion title="Does WolfWave send any of my data to a server?">
 
-No. There is no WolfWave server. The only outbound network traffic is to services you turn on yourself: Twitch (when chat is connected), Discord IPC (a local Unix socket on your Mac), and the iTunes Search API for album artwork. There's no telemetry, no analytics, no crash reporting.
+No. There is no WolfWave server. Outbound traffic goes only to services you turn on (Twitch, Discord IPC, iTunes artwork). There is no telemetry or analytics. WolfWave does include an optional, off-by-default diagnostics feature (Settings, Advanced) that uses Apple's MetricKit to capture crash and hang reports locally on your Mac. Those reports are never uploaded to WolfWave servers. See the Privacy Policy for details.
 
 </Accordion>
 

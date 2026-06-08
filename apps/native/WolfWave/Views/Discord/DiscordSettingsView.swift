@@ -50,6 +50,8 @@ struct DiscordSettingsView: View {
 
     // MARK: - State
 
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
     @State private var connectionState: DiscordRPCService.ConnectionState = .disconnected
     @State private var hasClientID = false
     @State private var nowPlaying: NowPlayingSnapshot = .sample
@@ -79,8 +81,8 @@ struct DiscordSettingsView: View {
                 }
             }
         }
-        .animation(.easeInOut(duration: DSMotion.Duration.base), value: presenceEnabled)
-        .animation(.easeInOut(duration: DSMotion.Duration.base), value: playlistEnabled)
+        .animation(reduceMotion ? nil : .easeInOut(duration: DSMotion.Duration.base), value: presenceEnabled)
+        .animation(reduceMotion ? nil : .easeInOut(duration: DSMotion.Duration.base), value: playlistEnabled)
         .onAppear {
             hasClientID = DiscordRPCService.resolveClientID() != nil
             refreshConnectionState()
@@ -105,7 +107,7 @@ struct DiscordSettingsView: View {
             )
         ) { notification in
             if let rawValue = notification.stateString {
-                withAnimation(.easeInOut(duration: DSMotion.Duration.base)) {
+                withAnimation(reduceMotion ? nil : .easeInOut(duration: DSMotion.Duration.base)) {
                     switch rawValue {
                     case "connected":   connectionState = .connected
                     case "connecting":  connectionState = .connecting
@@ -198,7 +200,7 @@ struct DiscordSettingsView: View {
                 }
             }
             .cardStyle()
-            .animation(.easeInOut(duration: DSMotion.Duration.base), value: buttonsEnabled)
+            .animation(reduceMotion ? nil : .easeInOut(duration: DSMotion.Duration.base), value: buttonsEnabled)
         }
         .transition(.opacity)
     }
@@ -477,7 +479,7 @@ struct DiscordSettingsView: View {
         guard let track = payload.track, let artist = payload.artist else {
             // No track in the payload: playback stopped, or Apple Music quit.
             // Mirror the live presence, which clears the profile in both cases.
-            withAnimation(.easeInOut(duration: DSMotion.Duration.base)) {
+            withAnimation(reduceMotion ? nil : .easeInOut(duration: DSMotion.Duration.base)) {
                 playbackMode = isAppleMusicRunning() ? .stopped : .musicClosed
             }
             return
@@ -495,7 +497,7 @@ struct DiscordSettingsView: View {
             songLinkURL: links.songLinkURL,
             isLive: true
         )
-        withAnimation(.easeInOut(duration: DSMotion.Duration.base)) {
+        withAnimation(reduceMotion ? nil : .easeInOut(duration: DSMotion.Duration.base)) {
             playbackMode = payload.isPaused ? .paused : .playing
         }
     }

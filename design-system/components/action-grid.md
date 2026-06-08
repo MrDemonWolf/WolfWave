@@ -32,17 +32,17 @@ A single button can span extra columns via `.gridCellColumns(_:)`.
 
 ## Tokens used
 - `DSFont.Size.body` (13) / `.medium`
-- `DSSpace.s0` (2) — button vertical padding
-- `DSSpace.s2` (8) — grid horizontal + vertical spacing
+- `DSSpace.s0` (2): button vertical padding
+- `DSSpace.s2` (8): grid horizontal + vertical spacing
 
 ## Anatomy
 ```mermaid
 graph TD
-  Grid[Grid — h/v spacing s2] --> Row1[GridRow]
+  Grid[Grid, h/v spacing s2] --> Row1[GridRow]
   Grid --> Row2[GridRow]
-  Row1 --> Btn1[ActionGridButton — Label, bordered, maxWidth ∞]
+  Row1 --> Btn1[ActionGridButton, Label, bordered, maxWidth ∞]
   Row1 --> Btn2[ActionGridButton]
-  Row2 --> Btn3[ActionGridButton — gridCellColumns 2]
+  Row2 --> Btn3[ActionGridButton, gridCellColumns 2]
 ```
 
 ## Accessibility
@@ -54,9 +54,9 @@ graph TD
 ## Do / Don't
 - ✅ Use for secondary actions in About-style panels (≤ 5 buttons total).
 - ✅ Use `.gridCellColumns(2)` for a single emphasized button (e.g. "Sponsor on GitHub").
-- ❌ Don't use as the primary CTA — primary actions belong outside the grid as `.borderedProminent`.
-- ❌ Don't put more than ~6 buttons in one grid — the visual rhythm collapses.
-- ❌ Don't hand-roll a `Grid { GridRow { Button { Label … } … } }` chain — use this component so future style updates land once.
+- ❌ Don't use as the primary CTA; primary actions belong outside the grid as `.borderedProminent`.
+- ❌ Don't put more than ~6 buttons in one grid; the visual rhythm collapses.
+- ❌ Don't hand-roll a `Grid { GridRow { Button { Label … } … } }` chain; use this component so future style updates land once.
 
 ## Example
 ```swift

@@ -6,7 +6,7 @@ Single source of truth for WolfWave's visual language across the native app, the
 
 ```
 design-system/
-  tokens.json          # canonical token source — edit this
+  tokens.json          # canonical token source; edit this
   tokens.schema.json   # (optional) JSON schema for editor validation
   scripts/generate.ts  # bun script that emits per-platform outputs
   README.md            # this file
@@ -15,7 +15,7 @@ design-system/
 
 ## Generated outputs
 
-`bun run tokens` regenerates four files. All are committed so consumers don't need to run the generator.
+`bun run tokens` regenerates five files. All are committed so consumers don't need to run the generator.
 
 | Platform | Output | Consumed by |
 |---|---|---|
@@ -23,6 +23,7 @@ design-system/
 | Docs site | `apps/docs/app/tokens.generated.css` | CSS custom properties (`--ds-*`) imported by `global.css` |
 | Widget overlay | `apps/native/WolfWave/Resources/widget-tokens.generated.js` | `window.WW_TOKENS` global in `widget.html` |
 | Marketing | `apps/marketing/shared/tokens.generated.ts` | Typed `tokens` export for Remotion projects |
+| Docs widget themes | `apps/docs/app/(home)/_widgets/widget-themes.generated.ts` | `USER_THEMES`, `WIDGET_THEMES`, `WIDGET_LAYOUTS`, `DEFAULT_THEME`, `DEFAULT_LAYOUT` for the landing-page OBS overlay preview |
 
 ## Token namespaces
 
@@ -49,12 +50,12 @@ design-system/
 
 1. Edit `design-system/tokens.json`.
 2. Run `bun run tokens` from repo root.
-3. Commit `tokens.json` **and** all four generated files in the same commit. CI verifies they are in sync (`bun run tokens && git diff --exit-code`).
+3. Commit `tokens.json` **and** all five generated files in the same commit. CI verifies they are in sync (`bun run tokens && git diff --exit-code`).
 4. If the change is breaking (rename, removed key, value drift), bump `meta.version` in `tokens.json` and call it out in the PR description.
 
 ## Brand primary
 
-WolfWave's primary brand color is **Apple System Blue `#0A84FF`** (matches macOS native accent). The docs site already uses this color; v1 of the design system promotes it system-wide. Partner colors (Twitch purple, Discord blurple, Apple Music gradient, OBS dark) live under `color.partner.*` — these are partner identities, not WolfWave brand.
+WolfWave's primary brand color is **Apple System Blue `#0A84FF`** (matches macOS native accent). The docs site already uses this color; v1 of the design system promotes it system-wide. Partner colors (Twitch purple, Discord blurple, Apple Music gradient, OBS dark) live under `color.partner.*`. These are partner identities, not WolfWave brand.
 
 ## Component catalog
 
@@ -62,6 +63,6 @@ Every reusable SwiftUI view under `apps/native/WolfWave/Views/Shared/` and `apps
 
 ## Out of scope (for now)
 
-- Figma library mirror — can be derived from `tokens.json` later.
+- Figma library mirror (can be derived from `tokens.json` later).
 - Widget overlay light mode (current themes assume OBS-style dark canvas).
-- Full Fumadocs theme replacement — we layer on top of the `ocean` preset.
+- Full Fumadocs theme replacement (we layer on top of the `ocean` preset).

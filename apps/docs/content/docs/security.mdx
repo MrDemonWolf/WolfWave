@@ -131,12 +131,13 @@ WolfWave runs inside the macOS App Sandbox with the minimum required entitlement
 
 | Entitlement | Purpose |
 |-------------|---------|
-| `app-sandbox` | Required for notarization |
-| `network.client` | Twitch API, WebSocket, iTunes artwork API |
-| `automation.apple-events` | ScriptingBridge to Apple Music |
-| `scripting-targets` | Scoped to Music.app only |
+| `app-sandbox` | Required for Mac App Store and adopted here for defense-in-depth; notarization requires Hardened Runtime, not App Sandbox. |
 | `keychain-access-groups` | Secure credential storage |
-| `temporary-exception.sbpl` | Discord IPC socket access (narrowed to specific socket path in v1.0.1) |
+| `files.user-selected.read-write` | Settings export/import and log-export file pickers (NSSavePanel / NSOpenPanel). |
+| `automation.apple-events` | ScriptingBridge to Apple Music (Music is driven by Apple Events, not MusicKit) |
+| `temporary-exception.apple-events` | Belt-and-suspenders grant scoped to `com.apple.Music` for pre-existing TCC entries |
+| `temporary-exception.sbpl` | Discord IPC socket access, narrowed to the `discord-ipc-N` socket path pattern |
+| `temporary-exception.files.absolute-path.read-write` | Read-write access to `/private/var/folders/` where Discord exposes its IPC sockets |
 
 ## WebSocket Server Security
 

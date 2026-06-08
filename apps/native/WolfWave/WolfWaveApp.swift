@@ -78,7 +78,7 @@ struct WolfWaveApp: App {
         .windowResizability(.contentSize)
         .windowToolbarStyle(.unified)
         .restorationBehavior(.disabled)
-        // Suppress the scene's default macOS commands — a `Window(_:id:)` scene
+        // Suppress the scene's default macOS commands. A `Window(_:id:)` scene
         // otherwise injects a "WolfWave Settings" entry into the Window menu that
         // duplicates Cmd+, and reads oddly for a menu-bar app. `openWindow(id:)`
         // (used by `SettingsSceneBridge`) is an environment action, not a menu
@@ -167,10 +167,6 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     /// teardown / re-setup of the skip-vote manager.
     var skipPollObserverTask: Task<Void, Never>?
 
-    /// Most-recent Discord connection state seen from the actor's stream.
-    /// Used by the synchronous menu builder; updated by `discordStateConsumer`.
-    var discordCachedState: DiscordRPCService.ConnectionState = .disconnected
-
     var currentSong: String?
     var currentArtist: String?
     var currentAlbum: String?
@@ -225,7 +221,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         guard !WolfWaveApp.isRunningTests else { return }
         CrashReporter.install()
 
-        // If the user runs menu-only, claim `.accessory` here — before AppKit's
+        // If the user runs menu-only, claim `.accessory` here, before AppKit's
         // first Dock paint in `applicationDidFinishLaunching`. The Info.plist keeps
         // the app a regular (Dock-visible) process by default, so a menu-only user
         // would otherwise see the Dock icon flash on every launch until

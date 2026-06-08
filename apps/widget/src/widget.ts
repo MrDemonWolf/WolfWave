@@ -1,5 +1,5 @@
 /* ═══════════════════════════════════════════════════════════════════════════
- *  WolfWave OBS Widget — Runtime
+ *  WolfWave OBS Widget - Runtime
  * ═══════════════════════════════════════════════════════════════════════════
  *
  *  Goal of this file:
@@ -11,7 +11,7 @@
  *    • Boot fast and never appear blank (we show a placeholder while
  *      waiting for the first frame).
  *    • Be resilient to disconnects (auto-reconnect with exponential backoff).
- *    • Never re-trigger the bouncy entrance on every track skip — instead
+ *    • Never re-trigger the bouncy entrance on every track skip - instead
  *      crossfade the inner content only.
  *    • Smoothly drain progress to zero when playback stops.
  *
@@ -82,7 +82,7 @@ declare global {
  *
  *  URL-derived config + the design-system fallback shim. The shim only kicks
  *  in if `widget-tokens.generated.js` failed to load (file:// or stale build),
- *  so the widget never throws — it falls back to the Default theme/layout.
+ *  so the widget never throws - it falls back to the Default theme/layout.
  */
 
 const params = new URLSearchParams(location.search);
@@ -153,7 +153,7 @@ const defaultConfig: WidgetConfig = {
  * ╚════════════════════════════════════════════════════════════════════════╝
  *
  *  All mutable state lives here in module scope. Kept flat (not a class) on
- *  purpose — this file ships as a tiny IIFE inside one HTML page.
+ *  purpose - this file ships as a tiny IIFE inside one HTML page.
  *
  *  Vital invariants:
  *    • `nowPlaying` is null until the first now_playing arrives.
@@ -250,7 +250,7 @@ function formatTime(secs: number): string {
 /**
  * HTML-escape user-supplied strings (track/artist/album come from Music.app
  * metadata, which is effectively untrusted). Replaces `& < > " '` with
- * entities. NOT a full sanitizer — only safe inside text nodes and quoted
+ * entities. NOT a full sanitizer - only safe inside text nodes and quoted
  * attribute values, not in URLs or unquoted attribute contexts.
  */
 function escapeHtml(str: string): string {
@@ -289,7 +289,7 @@ const NAMED_COLORS = new Set([
 ]);
 
 // Strict CSS color shapes: #rgb / #rgba / #rrggbb / #rrggbbaa, rgb()/rgba(),
-// hsl()/hsla(). No url(), no semicolons, no quotes — those can't appear here.
+// hsl()/hsla(). No url(), no semicolons, no quotes - those can't appear here.
 const COLOR_RE =
   /^#(?:[0-9a-f]{3,4}|[0-9a-f]{6}|[0-9a-f]{8})$|^rgba?\(\s*[\d.,%\s/]+\)$|^hsla?\(\s*[\d.,%\s/deg]+\)$/i;
 
@@ -474,7 +474,7 @@ function exitWidget(): void {
 
 /**
  * Crossfade .track-meta + .artwork between two renders. Runs only when
- * a new track arrives while the container is already visible — keeps the
+ * a new track arrives while the container is already visible - keeps the
  * stream calm during rapid skips.
  */
 function swapInner(rebuild: () => void): void {
@@ -492,7 +492,7 @@ function swapInner(rebuild: () => void): void {
 
   setTimeout(() => {
     rebuild();
-    // The DOM is fresh after rebuild — re-query.
+    // The DOM is fresh after rebuild - re-query.
     const newMeta = document.querySelector(".track-meta") as HTMLElement | null;
     const newArt = document.querySelector(".artwork") as HTMLElement | null;
     newMeta?.classList.add("swap-in");
@@ -510,8 +510,8 @@ function swapInner(rebuild: () => void): void {
  * ║  RENDER                                                                ║
  * ╚════════════════════════════════════════════════════════════════════════╝
  *
- *  updateProgress() — runs every RAF frame; touches text + width only.
- *  buildWidget()    — full innerHTML rebuild on track change OR config change.
+ *  updateProgress() - runs every RAF frame; touches text + width only.
+ *  buildWidget()    - full innerHTML rebuild on track change OR config change.
  *
  *  Why innerHTML? The widget is small and themes can change everything
  *  (layout, colors, decorative layers). A diffing renderer would cost more
@@ -560,7 +560,7 @@ function buildWidget(): void {
   el.style.backdropFilter = theme.backdropFilter;
 
   /**
-   * Render the artwork — either the iTunes Search URL or a WolfWave-branded
+   * Render the artwork - either the iTunes Search URL or a WolfWave-branded
    * SVG fallback (wolf mark on brand-blue gradient). Keep the SVG in sync
    * with Assets.xcassets/WolfMark.imageset/WolfMark.svg.
    */
@@ -613,7 +613,7 @@ function buildWidget(): void {
       );
     }
     // Encode the URL once. Music.app artwork is iTunes CDN, but a malicious
-    // mock server could theoretically send a quote in the URL — encode it.
+    // mock server could theoretically send a quote in the URL - encode it.
     const safeURL = encodeURI(artURL).replace(/'/g, "%27").replace(/"/g, "%22");
     const altText = escapeHtml(nowPlaying!.album || nowPlaying!.track || "Album artwork");
     return (
@@ -675,7 +675,7 @@ function buildWidget(): void {
   } else if (layout === "Vertical") {
     const art = hideAlbumArt ? "" : '<div class="shrink-0">' + artImg(200, 200, "10px") + "</div>";
     layoutHTML =
-      '<div class="flex-col h-full items-center" style="padding:8px;">' +
+      '<div class="flex flex-col h-full items-center" style="padding:8px;">' +
       art +
       '<div class="track-meta" style="display:flex;flex-direction:column;flex:1;min-width:0;width:100%;align-items:center;justify-content:center;margin-top:4px;">' +
       '<p style="font-size:13px;font-weight:700;text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%;color:' + theme.textPrimary + ";text-shadow:" + theme.textShadow + ";font-family:" + theme.fontFamily + ';">' + escapeHtml(nowPlaying.track) + "</p>" +
@@ -693,7 +693,7 @@ function buildWidget(): void {
       '<div class="track-meta" style="flex:1;min-width:0;padding:0 8px;">' +
       '<p style="font-size:13px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:' + theme.textPrimary + ";text-shadow:" + theme.textShadow + ";font-family:" + theme.fontFamily + ';">' +
       escapeHtml(nowPlaying.track) +
-      '<span style="color:' + theme.textMuted + ';"> — </span>' +
+      '<span style="color:' + theme.textMuted + ';"> · </span>' +
       '<span style="color:' + theme.textSecondary + ';">' + escapeHtml(nowPlaying.artist) + "</span>" +
       "</p>" +
       "</div>" +
@@ -745,7 +745,7 @@ function connect(): void {
       RECONNECT_BASE_MS * Math.pow(2, reconnectAttempts - 1),
       RECONNECT_MAX_MS,
     );
-    console.log("[WolfWave Widget] Disconnected — reconnect in " + delay + "ms (attempt " + reconnectAttempts + ")");
+    console.log("[WolfWave Widget] Disconnected - reconnect in " + delay + "ms (attempt " + reconnectAttempts + ")");
     if (reconnectTimer !== null) clearTimeout(reconnectTimer);
     reconnectTimer = window.setTimeout(connect, delay);
   };
@@ -759,7 +759,7 @@ function connect(): void {
  * ║  MESSAGE HANDLERS                                                      ║
  * ╚════════════════════════════════════════════════════════════════════════╝
  *
- *  One case per server message type. Schemas locked by Swift tests — adding
+ *  One case per server message type. Schemas locked by Swift tests - adding
  *  fields server-side is safe; renaming fields requires a server-coordinated
  *  change. See `WebSocketServerService.swift` lines 522–563.
  */
@@ -780,13 +780,13 @@ function handleMessage(msg: WSMessage): void {
       hasReceivedTrack = true;
 
       if (visible && !sameTrack) {
-        // New track while card is on stream — crossfade inner only.
+        // New track while card is on stream - crossfade inner only.
         swapInner(buildWidget);
       } else {
         buildWidget();
       }
 
-      // Show the card whether the track is playing OR paused — paused tracks
+      // Show the card whether the track is playing OR paused - paused tracks
       // still belong on stream with a paused affordance. `exitWidget` only
       // fires from the server-driven "track cleared" path.
       if (!visible) enterWidget();
@@ -807,7 +807,7 @@ function handleMessage(msg: WSMessage): void {
       const data = msg.data;
       if (!data.isPlaying) {
         // The server only emits `playback_state { isPlaying: false }` when
-        // playback has fully stopped — Music.app quit, permission revoked, or
+        // playback has fully stopped - Music.app quit, permission revoked, or
         // the source errored (`WebSocketServerService.clearNowPlaying`). A
         // *pause* arrives as a `now_playing` message with `isPlaying: false`
         // instead, so this branch always means "nothing is playing" and the
@@ -846,13 +846,13 @@ function handleMessage(msg: WSMessage): void {
  *  In-app Settings preview. The native `WidgetAppearancePreview` loads this
  *  exact file in a WKWebView so the preview and the live OBS overlay are the
  *  same renderer (no parallel SwiftUI mock to drift out of sync). There is no
- *  WebSocket in preview mode — the host drives the card directly:
+ *  WebSocket in preview mode - the host drives the card directly:
  *
  *    window.WWPreview.track(sampleTrack)   // once, after load
  *    window.WWPreview.config(draftConfig)  // on every appearance edit
  *
  *  Differences from the live path, all deliberate:
- *    • No `connect()` — no socket, no reconnect backoff noise.
+ *    • No `connect()` - no socket, no reconnect backoff noise.
  *    • The progress loop never starts, so the card holds a single static frame
  *      instead of advancing/elapsing while the user tweaks settings.
  *    • `#root` gets a checkerboard via the `ww-preview` body class so the

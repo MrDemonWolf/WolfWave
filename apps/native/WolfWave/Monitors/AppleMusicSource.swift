@@ -19,7 +19,13 @@ final class AppleMusicSource: PlaybackSource, @unchecked Sendable {
         static let notificationName = "com.apple.Music.playerInfo"
         static let queueLabel = "com.mrdemonwolf.wolfwave.musicplaybackmonitor"
         static let checkInterval: TimeInterval = 5.0
-        static let trackSeparator = " | "
+        // ASCII Unit Separator (U+001F). Internal-only field delimiter for the
+        // packed track string built and parsed in this file. Must be a byte
+        // that can never appear in real track metadata: a printable separator
+        // like " | " collides with track/artist/album names that contain it
+        // (e.g. "Song | Remix"), shifting every field and corrupting the
+        // now-playing data sent to Twitch, Discord, and the overlay.
+        static let trackSeparator = "\u{1F}"
         static let notificationDedupWindow: TimeInterval = 0.75
         static let idleGraceWindow: TimeInterval = 2.0
         // Music.app FourCharCode player states ('kPSP', 'kPSp', etc.).
@@ -27,7 +33,7 @@ final class AppleMusicSource: PlaybackSource, @unchecked Sendable {
         static let playerStatePaused:      UInt32 = 1800426352  // 'kPSp'
         static let playerStateFastForward: UInt32 = 1800426310  // 'kPSF'
         static let playerStateRewinding:   UInt32 = 1800426322  // 'kPSR'
-        static let playerStateStopped:     UInt32 = 1800426067  // 'kPSS'
+        static let playerStateStopped:     UInt32 = 1800426323  // 'kPSS'
 
         // `com.apple.Music.playerInfo` distributed-notification payload keys.
         // Music posts the player state as a plain string here, so we can read
@@ -134,7 +140,7 @@ final class AppleMusicSource: PlaybackSource, @unchecked Sendable {
             return existing
         }
         pendingTimer?.cancel()
-        // Drain barrier — see the threading note above. Safe only off `backgroundQueue`.
+        // Drain barrier (see the threading note above). Safe only off `backgroundQueue`.
         backgroundQueue.sync {}
     }
 
@@ -174,12 +180,12 @@ final class AppleMusicSource: PlaybackSource, @unchecked Sendable {
         // Music fires a final "Stopped" `playerInfo` notification as it quits.
         // Round-tripping an Apple event back to a quitting app is exactly what
         // makes ScriptingBridge relaunch Music after the user closes it.
-        // Resolve "Stopped" straight from the notification payload instead —
+        // Resolve "Stopped" straight from the notification payload instead,
         // no Apple event, no relaunch. A genuine stop while Music stays open
         // resolves to "not playing"; a stop that coincides with quit resolves
         // to "not running" (and the terminate observer confirms it).
         if AppleMusicSource.isStoppedNotification(notification.userInfo) {
-            // Cancel any idle-grace recheck — a recheck would send the very
+            // Cancel any idle-grace recheck: a recheck would send the very
             // Apple event we are avoiding. We already know nothing is playing.
             stateLock.withLock { lastTrackSeenAt = .distantPast }
             handleTrackInfo(musicIsRunning ? Constants.Status.notPlaying : Constants.Status.notRunning)
@@ -204,6 +210,10 @@ final class AppleMusicSource: PlaybackSource, @unchecked Sendable {
     /// requires main-thread access. We hop to `@MainActor` for the SB calls
     /// and back out for the cheap string/delegate work.
     nonisolated private func checkCurrentTrack() async {
+        // Bail if tracking was stopped after this Task was scheduled. Keeps
+        // in-flight checks from outliving stopTracking() and emitting stale
+        // state. Mirrors the guard in forceRefresh and the timer handler.
+        guard stateLock.withLock({ isTracking }) else { return }
         guard musicIsRunning else {
             handleTrackInfo(Constants.Status.notRunning)
             return
@@ -430,7 +440,7 @@ final class AppleMusicSource: PlaybackSource, @unchecked Sendable {
         DistributedNotificationCenter.default().addObserver(self, selector: #selector(musicPlayerInfoChanged), name: NSNotification.Name(Constants.notificationName), object: nil)
 
         // Flip to NOT_RUNNING the moment Music.app quits, instead of waiting
-        // for the next fallback poll. This is observation only — it never
+        // for the next fallback poll. This is observation only; it never
         // sends an Apple event, so it cannot relaunch the app.
         let token = NSWorkspace.shared.notificationCenter.addObserver(
             forName: NSWorkspace.didTerminateApplicationNotification,

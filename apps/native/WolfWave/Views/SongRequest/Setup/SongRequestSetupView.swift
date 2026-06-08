@@ -149,7 +149,7 @@ struct SongRequestSetupView: View {
         )
     }
 
-    // MARK: Step 1 — Intro
+    // MARK: Step 1 - Intro
 
     private var introStep: some View {
         OnboardingStepScaffold(
@@ -180,7 +180,7 @@ struct SongRequestSetupView: View {
         )
     }
 
-    // MARK: Step 2 — Apple Music access
+    // MARK: Step 2 - Apple Music access
 
     private var appleMusicStep: some View {
         OnboardingStepScaffold(
@@ -220,7 +220,7 @@ struct SongRequestSetupView: View {
         )
     }
 
-    // MARK: Step 3 — Requests playlist
+    // MARK: Step 3 - Requests playlist
 
     private var playlistStep: some View {
         OnboardingStepScaffold(
@@ -256,7 +256,7 @@ struct SongRequestSetupView: View {
         )
     }
 
-    // MARK: Step 4 — Optional share link
+    // MARK: Step 4 - Optional share link
 
     private var shareLinkStep: some View {
         OnboardingStepScaffold(
@@ -321,7 +321,7 @@ struct SongRequestSetupView: View {
         )
     }
 
-    // MARK: Step 5 — Done
+    // MARK: Step 5 - Done
 
     private var doneStep: some View {
         OnboardingStepScaffold(

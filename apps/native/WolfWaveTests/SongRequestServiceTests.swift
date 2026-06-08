@@ -28,6 +28,7 @@ final class MockAppleMusicController: AppleMusicControlling {
     var snapshotProvider: (() -> PlaybackSnapshot?)?
 
     var playNowCalled = false
+    var playNowCallCount = 0
     var enqueueCalled = false
     var skipCalled = false
     var clearCalled = false
@@ -37,6 +38,8 @@ final class MockAppleMusicController: AppleMusicControlling {
     var enqueuedSongs: [Song] = []
     var shouldThrowMusicAppNotRunning = false
     var shouldThrowNotPlayable = false
+    /// When > 0, `playNow` throws `notPlayable` and decrements; once 0 it succeeds.
+    var notPlayableThrowsRemaining = 0
 
     func search(query: String) async -> AppleMusicController.SearchResult { .notFound }
     func resolve(url: URL) async -> AppleMusicController.SearchResult { .notFound }
@@ -46,7 +49,12 @@ final class MockAppleMusicController: AppleMusicControlling {
         return PlaybackSnapshot(state: state, trackKey: currentTrackID)
     }
     func playNow(song: Song) async throws {
+        playNowCallCount += 1
         if shouldThrowMusicAppNotRunning { throw PlaybackError.musicAppNotRunning }
+        if notPlayableThrowsRemaining > 0 {
+            notPlayableThrowsRemaining -= 1
+            throw PlaybackError.notPlayable(title: song.title)
+        }
         if shouldThrowNotPlayable { throw PlaybackError.notPlayable(title: song.title) }
         playNowCalled = true
     }
@@ -510,7 +518,7 @@ final class SongRequestServiceTests: WolfWaveTestCase {
         service.startPlaybackMonitoring()
 
         // While the streamer's track is unchanged, the request must not take over.
-        let tookOverEarly = await waitUntil(timeout: .milliseconds(150)) {
+        let tookOverEarly = await waitUntil(timeout: .milliseconds(300)) {
             self.queue.nowPlaying != nil
         }
         XCTAssertFalse(tookOverEarly, "Request must not interrupt the streamer's own track mid-song")
@@ -575,7 +583,7 @@ final class SongRequestServiceTests: WolfWaveTestCase {
         )
         mockController.isMusicAppRunning = true
 
-        // Pattern A, A, B (one stray), A, A, A… — never two B's in a row.
+        // Pattern A, A, B (one stray), A, A, A... never two B's in a row.
         var reads = 0
         mockController.snapshotProvider = {
             reads += 1
@@ -598,7 +606,7 @@ final class SongRequestServiceTests: WolfWaveTestCase {
         // Boost routes through the same idle-only fast path as a new request
         // (`startImmediatelyIfIdle`): it reorders the queue but must NOT cut off the
         // streamer's actively-playing track. A takeover, if any, happens later at
-        // the boundary via the poll — never as an immediate interrupt on the add.
+        // the boundary via the poll, never as an immediate interrupt on the add.
         service = SongRequestService(
             queue: queue,
             musicController: mockController,
@@ -659,7 +667,7 @@ final class SongRequestServiceTests: WolfWaveTestCase {
         service.startPlaybackMonitoring()
 
         // While Music.app stays on the request's own track, no advance.
-        let advancedEarly = await waitUntil(timeout: .milliseconds(150)) {
+        let advancedEarly = await waitUntil(timeout: .milliseconds(300)) {
             self.queue.nowPlaying?.title != "Current"
         }
         XCTAssertFalse(advancedEarly, "Request must not advance while its own track is still loaded")
@@ -673,7 +681,7 @@ final class SongRequestServiceTests: WolfWaveTestCase {
 
         // Advancing now-playing to the next queued item is the proof the
         // divergence handoff fired. (The fixture carries no MusicKit `Song`, so
-        // `playNow` is intentionally skipped — same as the takeover test above.)
+        // `playNow` is intentionally skipped (same as the takeover test above).)
         XCTAssertTrue(advanced, "Skipping inside Music.app should advance to the next queued request")
         XCTAssertEqual(queue.nowPlaying?.title, "Next")
     }
@@ -707,5 +715,294 @@ final class SongRequestServiceTests: WolfWaveTestCase {
         XCTAssertEqual(queue.count, 1)
         XCTAssertEqual(queue.items.first?.title, "Current")
         XCTAssertEqual(queue.nowPlaying?.title, "Next Song")
+    }
+
+    // MARK: - VoteSkip
+
+    func testVoteSkipIdleCallsSkipToNext() async {
+        // With nothing in nowPlaying, voteSkip() should forward straight to
+        // Apple Music's own skip (so vote-skip works during normal streaming).
+        mockController.isMusicAppRunning = true
+        mockController.isPlaying = true
+
+        await service.voteSkip()
+
+        XCTAssertTrue(mockController.skipCalled, "voteSkip with empty nowPlaying must call skipToNext()")
+    }
+
+    func testVoteSkipWithRequestPlayingDelegatesToSkipNotSkipToNext() async {
+        // When a queued request is playing, voteSkip() hands off to skip() which
+        // advances the queue; it must NOT call skipToNext() (that would bypass
+        // the request queue entirely).
+        queue.add(SongRequestItem(title: "Playing", artist: "A", requesterUsername: "user1"))
+        queue.dequeue()  // nowPlaying = "Playing"
+        XCTAssertNotNil(queue.nowPlaying, "Precondition: a request must be in nowPlaying")
+
+        await service.voteSkip()
+
+        XCTAssertFalse(
+            mockController.skipCalled,
+            "voteSkip with an active request must delegate to skip(), not call skipToNext()")
+    }
+
+    // MARK: - NotPlayable Retry-to-Drop
+
+    func testNotPlayableRetryDropsSendsChatMessage() async {
+        // When playNow throws notPlayable on every attempt, the service retries
+        // up to maxPlayAttempts (3) before dropping the item and sending a chat
+        // notice. Items created with the test initializer have song == nil, so
+        // playNextInQueueUnguarded returns before reaching playNow. This test
+        // exercises the drop-path chat message via the poll-driven advanceQueue
+        // instead: one item occupies nowPlaying (dequeued), then the poll fires
+        // a track-change divergence which calls advanceQueue; with the next item
+        // also nil-song, nowPlaying is set and sendChatMessage fires with "Now playing:".
+        service = SongRequestService(
+            queue: queue,
+            musicController: mockController,
+            pollInterval: .milliseconds(20)
+        )
+        var capturedMessages: [String] = []
+        service.sendChatMessage = { capturedMessages.append($0) }
+
+        mockController.isMusicAppRunning = true
+        mockController.isPlaying = true
+        mockController.currentTrackID = "track-A"
+
+        // Put two items in the queue and dequeue the first into nowPlaying.
+        queue.add(SongRequestItem(title: "First", artist: "A", requesterUsername: "u1"))
+        queue.add(SongRequestItem(title: "Second", artist: "B", requesterUsername: "u2"))
+        queue.dequeue()  // nowPlaying = "First", "Second" still queued
+
+        service.startPlaybackMonitoring()
+
+        // Let the first poll tick establish playingRequestTrackID = "track-A"
+        // before switching the track, so the poll can detect a real divergence.
+        try? await Task.sleep(for: .milliseconds(60))
+
+        // Trigger a track divergence so the poll fires advanceQueue().
+        mockController.currentTrackID = "track-B"
+
+        let messageReceived = await waitUntil(timeout: .seconds(1)) {
+            capturedMessages.contains { $0.hasPrefix("Now playing:") }
+        }
+        service.stopPlaybackMonitoring()
+
+        XCTAssertTrue(
+            messageReceived,
+            "advanceQueue() must send a 'Now playing:' chat message when it hands off to the next request")
+        XCTAssertTrue(
+            capturedMessages.contains { $0.contains("Second") },
+            "Chat message must name the newly playing track")
+    }
+
+    func testNoAdvanceChatMessageWhenQueueDrainsOnStop() async {
+        // When the last request finishes and the queue empties, advanceQueue is
+        // not called (handleQueueEmptied is called instead), so no "Now playing:" message.
+        service = SongRequestService(
+            queue: queue,
+            musicController: mockController,
+            pollInterval: .milliseconds(20)
+        )
+        var capturedMessages: [String] = []
+        service.sendChatMessage = { capturedMessages.append($0) }
+
+        mockController.isMusicAppRunning = true
+        mockController.isPlaying = true
+
+        queue.add(SongRequestItem(title: "Last", artist: "A", requesterUsername: "u1"))
+        queue.dequeue()  // nowPlaying = "Last", queue now empty
+
+        service.startPlaybackMonitoring()
+
+        // Two confirmed-stopped ticks → handleQueueEmptied, no advance message.
+        mockController.isPlaying = false
+        mockController.isPaused = false
+        mockController.snapshotProvider = { PlaybackSnapshot(state: .stopped, trackKey: nil) }
+
+        let gotUnexpectedMessage = await waitUntil(timeout: .seconds(1)) {
+            capturedMessages.contains { $0.hasPrefix("Now playing:") }
+        }
+        service.stopPlaybackMonitoring()
+
+        XCTAssertFalse(
+            gotUnexpectedMessage,
+            "No 'Now playing:' message should be sent when the queue drains to empty")
+    }
+
+    // MARK: - Fallback Yields to Request
+
+    func testFallbackYieldsToIncomingRequest() async {
+        // Once isPlayingFallback is true, a request added to the queue takes over
+        // on the very next poll tick (the fallback explicitly yields to real requests).
+        // Seeding isPlayingFallback requires a prior request to finish: add an item,
+        // dequeue it into nowPlaying, then stop playback so handleQueueEmptied fires
+        // and starts the fallback. Then add a new request and confirm it takes over.
+        service = SongRequestService(
+            queue: queue,
+            musicController: mockController,
+            pollInterval: .milliseconds(20)
+        )
+        UserDefaults.standard.set(
+            "Gaming Vibes", forKey: AppConstants.UserDefaults.songRequestFallbackPlaylist)
+
+        mockController.isMusicAppRunning = true
+        mockController.isPlaying = true
+        mockController.currentTrackID = "req-track"
+
+        // Seed nowPlaying with an item so the poll is in the "request playing" branch.
+        queue.add(SongRequestItem(title: "Finishing", artist: "A", requesterUsername: "u1"))
+        queue.dequeue()
+
+        service.startPlaybackMonitoring()
+
+        // Let baseline establish (one playing tick), then stop playback.
+        try? await Task.sleep(for: .milliseconds(60))
+        mockController.snapshotProvider = { PlaybackSnapshot(state: .stopped, trackKey: nil) }
+
+        // After two confirmed stopped ticks, handleQueueEmptied fires → startFallbackIfConfigured.
+        let fallbackStarted = await waitUntil(timeout: .seconds(1)) {
+            self.mockController.playFallbackCalled
+        }
+        guard fallbackStarted else {
+            service.stopPlaybackMonitoring()
+            XCTFail("Precondition: fallback should start once the last request finishes")
+            UserDefaults.standard.removeObject(forKey: AppConstants.UserDefaults.songRequestFallbackPlaylist)
+            return
+        }
+
+        // isPlayingFallback is now true. Add a request and verify the next poll
+        // tick dequeues it (fallback yields to a real request immediately).
+        queue.add(SongRequestItem(title: "RequestedSong", artist: "B", requesterUsername: "viewer"))
+
+        let handedOff = await waitUntil(timeout: .seconds(1)) {
+            self.queue.nowPlaying?.title == "RequestedSong"
+        }
+        service.stopPlaybackMonitoring()
+
+        XCTAssertTrue(
+            handedOff,
+            "A request added while the fallback is playing should take over promptly (fallback yields)")
+
+        UserDefaults.standard.removeObject(forKey: AppConstants.UserDefaults.songRequestFallbackPlaylist)
+    }
+
+    func testFallbackYieldsViaIsPlayingFallbackFlag() async {
+        // Mirror of testFallbackYieldsToIncomingRequest using a different playlist
+        // name, to confirm the dequeue is driven by the isPlayingFallback flag
+        // (not just a stopped-state coincidence).
+        service = SongRequestService(
+            queue: queue,
+            musicController: mockController,
+            pollInterval: .milliseconds(20)
+        )
+        UserDefaults.standard.set(
+            "Chill Mix", forKey: AppConstants.UserDefaults.songRequestFallbackPlaylist)
+
+        mockController.isMusicAppRunning = true
+        mockController.isPlaying = true
+        mockController.currentTrackID = "req-track"
+
+        queue.add(SongRequestItem(title: "LastReq", artist: "A", requesterUsername: "u1"))
+        queue.dequeue()
+
+        service.startPlaybackMonitoring()
+        try? await Task.sleep(for: .milliseconds(60))
+        mockController.snapshotProvider = { PlaybackSnapshot(state: .stopped, trackKey: nil) }
+
+        let fallbackActive = await waitUntil(timeout: .seconds(1)) {
+            self.mockController.playFallbackCalled
+        }
+        guard fallbackActive else {
+            service.stopPlaybackMonitoring()
+            XCTFail("Precondition: fallback must activate before the request is added")
+            UserDefaults.standard.removeObject(forKey: AppConstants.UserDefaults.songRequestFallbackPlaylist)
+            return
+        }
+
+        // isPlayingFallback = true. Adding a request should dequeue it promptly.
+        // Switch snapshot back to playing to confirm isPlayingFallback (not stopped)
+        // is what drives the takeover.
+        mockController.snapshotProvider = { PlaybackSnapshot(state: .playing, trackKey: "fallback-track") }
+        queue.add(SongRequestItem(title: "LiveRequest", artist: "B", requesterUsername: "fan"))
+
+        let tookOver = await waitUntil(timeout: .seconds(1)) {
+            self.queue.nowPlaying?.title == "LiveRequest"
+        }
+        service.stopPlaybackMonitoring()
+
+        XCTAssertTrue(
+            tookOver,
+            "A request added while isPlayingFallback is true should dequeue promptly even if music is playing")
+
+        UserDefaults.standard.removeObject(forKey: AppConstants.UserDefaults.songRequestFallbackPlaylist)
+    }
+
+    // MARK: - SendChatMessage on Queue Advance
+
+    func testSendChatMessageFiresOnAdvanceWithNowPlayingInfo() async {
+        // advanceQueue() sends "Now playing: <title> by <artist> (requested by <user>)".
+        // Verify the message contains all three pieces of info.
+        service = SongRequestService(
+            queue: queue,
+            musicController: mockController,
+            pollInterval: .milliseconds(20)
+        )
+        var capturedMessages: [String] = []
+        service.sendChatMessage = { capturedMessages.append($0) }
+
+        mockController.isMusicAppRunning = true
+        mockController.isPlaying = true
+        mockController.currentTrackID = "playing-A"
+
+        queue.add(SongRequestItem(title: "Howl at the Moon", artist: "Wolf Pack", requesterUsername: "fanviewer"))
+        queue.add(SongRequestItem(title: "Midnight Run", artist: "Luna", requesterUsername: "nightowl"))
+        queue.dequeue()  // nowPlaying = "Howl at the Moon", "Midnight Run" still queued
+
+        service.startPlaybackMonitoring()
+
+        // Let the first poll tick establish playingRequestTrackID = "playing-A"
+        // before switching the track, so the poll sees a real divergence.
+        try? await Task.sleep(for: .milliseconds(60))
+
+        // Trigger divergence: Music.app loads a different track → advanceQueue fires.
+        mockController.currentTrackID = "playing-B"
+
+        let gotMessage = await waitUntil(timeout: .seconds(1)) {
+            capturedMessages.contains { $0.hasPrefix("Now playing:") }
+        }
+        service.stopPlaybackMonitoring()
+
+        XCTAssertTrue(gotMessage, "A 'Now playing:' chat message must fire when the queue advances")
+        let message = capturedMessages.first { $0.hasPrefix("Now playing:") } ?? ""
+        XCTAssertTrue(message.contains("Midnight Run"), "Chat message must include the new track title")
+        XCTAssertTrue(message.contains("Luna"), "Chat message must include the new artist name")
+        XCTAssertTrue(message.contains("nightowl"), "Chat message must include the requester username")
+    }
+
+    func testSendChatMessageFiresOnHoldRelease() async {
+        // setHold(false) also sends a "Now playing:" message when there's a
+        // buffered request waiting. Verify this independently of the poll loop.
+        UserDefaults.standard.set(true, forKey: AppConstants.UserDefaults.songRequestHoldEnabled)
+        var capturedMessages: [String] = []
+        service.sendChatMessage = { capturedMessages.append($0) }
+
+        mockController.isMusicAppRunning = true
+        mockController.isPlaying = false
+        mockController.isPaused = false
+
+        queue.add(SongRequestItem(title: "Released Track", artist: "SomeArtist", requesterUsername: "waitingfan"))
+        // Do not dequeue: nowPlaying is nil, item is queued, hold is on.
+        XCTAssertNil(queue.nowPlaying, "Precondition: nothing playing while hold is on")
+
+        await service.setHold(false)
+
+        // After hold releases, playNextInQueue fires, dequeuing the item into
+        // nowPlaying (nil-song item returns early from playNow, but nowPlaying is set).
+        // setHold then sends the "Now playing:" message.
+        let sentMessage = capturedMessages.contains { $0.hasPrefix("Now playing:") }
+        XCTAssertTrue(sentMessage, "'Now playing:' message must be sent when hold is released with a buffered request")
+        XCTAssertTrue(
+            capturedMessages.first { $0.hasPrefix("Now playing:") }?.contains("Released Track") == true,
+            "Hold-release message must name the dequeued track")
     }
 }

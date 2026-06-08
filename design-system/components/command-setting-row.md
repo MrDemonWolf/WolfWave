@@ -3,7 +3,7 @@
 **File:** [`apps/native/WolfWave/Views/Shared/CommandSettingRow.swift`](../../apps/native/WolfWave/Views/Shared/CommandSettingRow.swift)
 
 ## Purpose
-One chat-command row for the "list inside a card" settings pattern: a toggle (command name + trigger list + switch) that, when on, reveals a single compact details block — Everyone/Per-person cooldown sliders, a "Custom aliases" field, and any caller-supplied `extra` content. Replaces the per-pane copies that previously lived in the Twitch and Song Request settings.
+One chat-command row for the "list inside a card" settings pattern: a toggle (command name + trigger list + switch) that, when on, reveals a single compact details block (Everyone/Per-person cooldown sliders, a "Custom aliases" field, and any caller-supplied `extra` content). Replaces the per-pane copies that previously lived in the Twitch and Song Request settings.
 
 ## API
 ```swift
@@ -33,9 +33,9 @@ CommandCooldown(global: Binding<Double>, user: Binding<Double>,
 | Param | Type | Notes |
 |---|---|---|
 | `title` | `String` | Command name, e.g. `"!song Command"`. |
-| `triggers` | `String` | Subtitle line — the trigger list, or a one-line explanation for a non-command toggle. |
+| `triggers` | `String` | Subtitle line: the trigger list, or a one-line explanation for a non-command toggle. |
 | `isOn` | `Binding<Bool>` | Enable state; drives whether the details block shows. |
-| `accessibilityLabel` / `accessibilityIdentifier` | `String` | Required — for the toggle. Cooldown sliders derive `"\(id).everyoneCooldown"` / `.perUserCooldown`. |
+| `accessibilityLabel` / `accessibilityIdentifier` | `String` | Required. For the toggle; cooldown sliders derive `"\(id).everyoneCooldown"` / `.perUserCooldown`. |
 | `cooldown` | `CommandCooldown?` | `nil` → no sliders. Renders the Everyone / Per-person pair two-up via [`CooldownSliderPair`](cooldown-slider-pair.md). |
 | `aliases` | `Binding<String>?` | `nil` → no alias field. Renders [`CommandAliasField`](command-alias-field.md). |
 | `aliasPlaceholder` / `aliasAccessibilityLabel` / `aliasAccessibilityIdentifier` | `String` / `String?` | Forwarded to `CommandAliasField`. |
@@ -44,8 +44,8 @@ CommandCooldown(global: Binding<Double>, user: Binding<Double>,
 | `extra` | `@ViewBuilder () -> Extra` | Trailing details content; defaults to `EmptyView` via the no-`extra` init. |
 
 ## Tokens used
-- `DSSpace.s4` — toggle vertical padding (and details bottom); `s2` — toggle bottom when expanded + details inter-row spacing
-- `AppConstants.SettingsUI.cardPadding` (16) — horizontal insets + divider leading inset
+- `DSSpace.s4`: toggle vertical padding (and details bottom); `s2`: toggle bottom when expanded + details inter-row spacing
+- `AppConstants.SettingsUI.cardPadding` (16): horizontal insets + divider leading inset
 - Inherits `DSFont`/`DSSpace` from the composed `ToggleSettingRow`, `LabeledSlider`, `CommandAliasField`
 
 ## Anatomy
@@ -53,23 +53,23 @@ CommandCooldown(global: Binding<Double>, user: Binding<Double>,
 flowchart TD
   Row[VStack spacing 0] --> Toggle[ToggleSettingRow: title + triggers + switch]
   Row -->|isOn && hasContent| Details[VStack spacing s2]
-  Details --> CD["CooldownSliderPair — Everyone | Per person, two-up (if cooldown)"]
+  Details --> CD["CooldownSliderPair, Everyone | Per person, two-up (if cooldown)"]
   Details --> Alias["CommandAliasField (if aliases)"]
-  Details --> Extra["extra() — e.g. reply picker"]
+  Details --> Extra["extra() - e.g. reply picker"]
   Row --> Divider["Divider (bottom, unless isLast)"]
 ```
 
 ## Accessibility
 - Toggle keeps the caller's `accessibilityLabel` / `accessibilityIdentifier` / `accessibilityValue`.
 - Cooldown sliders auto-derive identifiers from the toggle id; alias field forwards its own.
-- A toggle-only row (no cooldown / aliases / `extra`, `Extra == EmptyView`) renders just the switch — the details block and its padding are skipped, so VoiceOver hears no empty group.
+- A toggle-only row (no cooldown / aliases / `extra`, `Extra == EmptyView`) renders just the switch; the details block and its padding are skipped, so VoiceOver hears no empty group.
 
 ## Do / Don't
 - ✅ Stack rows in `VStack(spacing: 1) { … }.cardStyleUnpadded()` so hairlines align.
 - ✅ Mark the final row `isLast: true`.
 - ✅ Pass per-command pane-specific cooldown ranges via `CommandCooldown`.
-- ❌ Don't add manual padding/dividers around it — the row owns both.
-- ❌ Don't reintroduce a per-pane copy of the toggle/cooldown/alias rows; extend this instead.
+- ❌ Don't add manual padding/dividers around it; the row owns both.
+- ❌ Don't reintroduce a per-pane copy of the toggle/cooldown/alias rows. Extend this instead.
 
 ## Example
 ```swift

@@ -10,7 +10,7 @@ import Testing
 import Foundation
 @testable import WolfWave
 
-/// Tests for `StatsAggregator.windowSummary` — the window-scoped rollup that
+/// Tests for `StatsAggregator.windowSummary`: the window-scoped rollup that
 /// backs the `!stats` command across today / this-stream / 7-day / all-time.
 @MainActor
 @Suite("Stats Window Summary Tests")

@@ -13,7 +13,7 @@ import SwiftUI
 ///
 /// A single scrollable column of sections, top to bottom. Each sub-view supplies
 /// its own section header, so no extra headings are layered on top. (This pane
-/// has no jump-nav rail — it is short enough to scroll directly.)
+/// has no jump-nav rail; it is short enough to scroll directly.)
 struct GeneralSettingsView: View {
 
     var configure: (IntegrationDashboardView.Section) -> Void = { _ in }

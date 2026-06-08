@@ -126,7 +126,14 @@ struct NotificationServiceTests {
     func testSkipVoteStartedClampsThreshold() async throws {
         let content = NotificationService.makeSkipVoteStartedContent(
             track: "T", artist: "A", votesNeeded: 0, viaPoll: false)
-        #expect(content.body == "Chat is voting to skip. 1 votes needed.")
+        #expect(content.body == "Chat is voting to skip. 1 vote needed.")
+    }
+
+    @Test("Skip vote started pluralizes the vote count above 1")
+    func testSkipVoteStartedPluralizes() async throws {
+        let content = NotificationService.makeSkipVoteStartedContent(
+            track: "T", artist: "A", votesNeeded: 3, viaPoll: false)
+        #expect(content.body == "Chat is voting to skip. 3 votes needed.")
     }
 
     @Test("Skip vote started is silent")

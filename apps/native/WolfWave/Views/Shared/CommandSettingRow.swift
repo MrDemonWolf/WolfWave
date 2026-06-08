@@ -117,7 +117,7 @@ struct CommandSettingRow<Extra: View>: View {
 
     /// Whether the caller supplied trailing `extra` content. A toggle-only row
     /// (no cooldown, no aliases, `Extra == EmptyView`) renders just the switch,
-    /// so the details block — and its padding — is skipped entirely.
+    /// so the details block (and its padding) is skipped entirely.
     private var hasExtra: Bool { Extra.self != EmptyView.self }
 
     /// The expandable details block only appears when the command is on *and*

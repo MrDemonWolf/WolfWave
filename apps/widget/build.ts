@@ -1,5 +1,5 @@
 /**
- * WolfWave OBS Widget — Build script.
+ * WolfWave OBS Widget: Build script.
  *
  * Pipeline:
  *   1. Compile src/widget.ts → dist/widget.js (esbuild via Bun.build, IIFE, minified).
@@ -30,7 +30,7 @@ const OUT_HTML = resolve(ROOT, "apps/native/WolfWave/Resources/widget.html");
 const TOKENS_JS = resolve(ROOT, "apps/native/WolfWave/Resources/widget-tokens.generated.js");
 
 function log(step: string, detail = ""): void {
-  console.log(`[widget:build] ${step}${detail ? " — " + detail : ""}`);
+  console.log(`[widget:build] ${step}${detail ? ": " + detail : ""}`);
 }
 
 function run(cmd: string, args: string[]): Promise<void> {
@@ -66,7 +66,7 @@ async function buildJS(): Promise<string> {
 /**
  * Resolve the locally-installed tailwindcss binary.
  *
- * Do NOT shell out to `bunx tailwindcss` — when the package isn't installed
+ * Do NOT shell out to `bunx tailwindcss`. When the package isn't installed
  * locally (fresh worktree, CI cache miss) bunx silently fetches the latest
  * remote, which is Tailwind v4. v4 moved the CLI into a separate
  * `@tailwindcss/cli` package, so the bare `tailwindcss` package has no bin and
@@ -84,7 +84,7 @@ function resolveTailwindBin(): string {
   const bin = candidates.find((p) => existsSync(p));
   if (!bin) {
     throw new Error(
-      "tailwindcss CLI not found — run `bun install` first " +
+      "tailwindcss CLI not found. Run `bun install` first " +
         `(looked in: ${candidates.join(", ")})`,
     );
   }
@@ -110,7 +110,7 @@ async function readTokens(): Promise<string> {
   if (!existsSync(TOKENS_JS)) {
     log(
       "tokens missing",
-      "widget-tokens.generated.js not found — run `bun run tokens` first",
+      "widget-tokens.generated.js not found. Run `bun run tokens` first",
     );
     throw new Error("tokens not generated");
   }
@@ -125,7 +125,7 @@ async function emit(): Promise<void> {
   ]);
   const template = await readFile(resolve(SRC, "widget.html"), "utf8");
 
-  const banner = "<!-- GENERATED — edit apps/widget/src/widget.html — run `bun run --filter widget build` to rebuild. -->\n";
+  const banner = "<!-- GENERATED: edit apps/widget/src/widget.html and run `bun run --filter widget build` to rebuild. -->\n";
 
   // String.replace would interpret $ sequences in the replacement (e.g. $1).
   // Splitting + joining is safer for arbitrary CSS/JS payloads.

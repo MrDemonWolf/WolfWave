@@ -49,6 +49,16 @@ final class ListeningHistoryService {
     /// NDJSON file has not yet been compacted. Drives `shutdown()` rewrite.
     private var needsCompaction = false
 
+    /// `true` while `loadFromDisk()` is awaiting its background read. Plays that
+    /// arrive in this window are buffered (see `deferredDuringLoad`) instead of
+    /// written, because the load overwrites `records` and a concurrent
+    /// `replaceAll` could clobber the disk append.
+    private var isLoading = false
+
+    /// Plays recorded while a disk load was in flight. Flushed in order once
+    /// `loadFromDisk()` finishes so a track played mid-load isn't dropped.
+    private var deferredDuringLoad: [PlayRecord] = []
+
     // MARK: - Init
 
     /// Creates the service.
@@ -139,12 +149,26 @@ final class ListeningHistoryService {
             duration: duration,
             playedSeconds: playedSeconds
         )
+
+        // A disk load is awaiting its background read. Buffer the play; it would
+        // otherwise be overwritten when loadFromDisk assigns `records`, and a
+        // concurrent replaceAll could drop the disk append too. Flushed in order
+        // by loadFromDisk once the load completes.
+        guard !isLoading else {
+            deferredDuringLoad.append(record)
+            return
+        }
+
+        appendRecord(record)
+    }
+
+    /// Appends one already-validated play to disk + the in-memory window and
+    /// enforces the rolling-window cap. The hot path stays append-only; NDJSON
+    /// compaction is deferred to `shutdown()`.
+    private func appendRecord(_ record: PlayRecord) {
         store.append(record)
         records.append(record)
 
-        // Enforce the rolling window: fold the oldest record into the lifetime
-        // tally before dropping it. NDJSON compaction is deferred to shutdown
-        // so the hot path stays append-only.
         let cap = AppConstants.History.maxRetainedRecords
         if records.count > cap {
             let overflow = records.count - cap
@@ -157,7 +181,7 @@ final class ListeningHistoryService {
 
         rebuildSnapshot()
         Log.debug(
-            "ListeningHistoryService: Recorded play: \(trimmedTrack) (\(Int(playedSeconds))s)",
+            "ListeningHistoryService: Recorded play: \(record.track) (\(Int(record.playedSeconds))s)",
             category: AppConstants.History.logCategory
         )
     }
@@ -256,6 +280,9 @@ final class ListeningHistoryService {
     ///
     /// Internal rather than private so tests can await it directly.
     func loadFromDisk() async {
+        // Set synchronously before the first await so any play recorded during
+        // the background read is buffered, not lost to the `records` assignment.
+        isLoading = true
         let store = self.store
         let tallyStore = self.tallyStore
         let retentionDays = Foundation.UserDefaults.standard.integer(
@@ -308,6 +335,15 @@ final class ListeningHistoryService {
         lifetime = result.tally
         isLoaded = true
         needsCompaction = false
+
+        // Flush plays recorded while the load was in flight, in arrival order.
+        // No await separates this from the assignment above, so recordTrackChange
+        // cannot interleave between them.
+        isLoading = false
+        let buffered = deferredDuringLoad
+        deferredDuringLoad = []
+        for record in buffered { appendRecord(record) }
+
         rebuildSnapshot()
         if result.trimmedCount > 0 {
             Log.info(

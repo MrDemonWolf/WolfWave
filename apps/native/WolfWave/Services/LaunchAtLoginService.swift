@@ -28,7 +28,7 @@ enum LaunchAtLoginService {
     /// `.requiresApproval` means the registration succeeded but macOS is holding
     /// it pending the user's approval in System Settings → General → Login Items.
     /// The toggle should stay ON in that case (the request was accepted), with an
-    /// "Approve in Login Items" affordance shown alongside it — silently reverting
+    /// "Approve in Login Items" affordance shown alongside it; silently reverting
     /// the toggle would hide a half-completed registration from the user.
     enum RegistrationOutcome: Hashable {
         /// Registered (or unregistered) and active.

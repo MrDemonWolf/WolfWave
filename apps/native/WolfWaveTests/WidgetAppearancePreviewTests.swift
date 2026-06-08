@@ -22,8 +22,8 @@ final class WidgetAppearancePreviewTests: XCTestCase {
 
     func testKnownThemesResolve() {
         for name in ["Default", "Dark", "Light", "Glass", "Neon"] {
-            // Resolve returns a real palette (not the fallback by accident) —
-            // smoke check that every picker theme exists in the generated table.
+            // Resolve returns a real palette (not the fallback by accident).
+            // Smoke check: every picker theme exists in the generated table.
             XCTAssertNotNil(DSWidgetThemes.all[name], "missing generated theme: \(name)")
         }
     }
@@ -103,7 +103,7 @@ final class WidgetAppearancePreviewTests: XCTestCase {
     }
 
     func testPreviewJSONEscapesUnsafeFontName() throws {
-        // A font family with a quote must not break out of the injected JS — the
+        // A font family with a quote must not break out of the injected JS; the
         // value survives a round-trip intact (escaping handled by JSONSerialization).
         let config = WidgetAppearanceConfig(
             theme: "Default",

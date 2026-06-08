@@ -351,7 +351,6 @@ export default async function HomePage() {
           <figure
             className="order-2 md:order-1 mx-auto"
             style={{ width: "100%", maxWidth: 437 }}
-            aria-label="Discord Rich Presence. Listening to WolfWave"
           >
             <DiscordPresenceCard />
           </figure>
@@ -582,10 +581,8 @@ export default async function HomePage() {
       {/* ═══════════════ 07 · DEVELOPERS ═══════════════ */}
       <section
         id="developers"
-        className="ww-bg-base px-[10%] md:px-6 py-16 sm:py-24 lg:py-28 scroll-mt-20 relative overflow-hidden"
+        className="ww-bg-base ww-dev-dot-grid px-[10%] md:px-6 py-16 sm:py-24 lg:py-28 scroll-mt-20 relative overflow-hidden"
         style={{
-          backgroundImage:
-            "radial-gradient(color-mix(in srgb, var(--hairline) 70%, transparent) 1px, transparent 1px)",
           backgroundSize: "32px 32px",
           backgroundPosition: "0 0",
         }}

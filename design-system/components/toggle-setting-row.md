@@ -23,23 +23,23 @@ ToggleSettingRow(
 | `isOn` | `Binding<Bool>` | Two-way state binding. |
 | `controlSize` | `ControlSize` | Default `.small`. Use `.regular` only for high-emphasis toggles. |
 | `isDisabled` | `Bool` | Greys out and locks the toggle; row dims to 50% opacity. |
-| `accessibilityLabel` | `String` | Required — VoiceOver reads this in lieu of the visual label. |
-| `accessibilityIdentifier` | `String` | Required — for UI tests. |
-| `accessibilityHint` | `String?` | Optional — explains the consequence ("Reconnects Twitch chat."). |
+| `accessibilityLabel` | `String` | Required. VoiceOver reads this in lieu of the visual label. |
+| `accessibilityIdentifier` | `String` | Required. For UI tests. |
+| `accessibilityHint` | `String?` | Optional. Explains the consequence ("Reconnects Twitch chat."). |
 | `onChange` | `((Bool) -> Void)?` | Side-effect on toggle (e.g. start/stop a service). Binding still updates. |
 
 ## Tokens used
-- `DSFont.Size.base` (13) / `DSFont.Weight.medium` — title
-- `DSFont.Size.sm` (11) — subtitle (`.tertiary` foreground)
-- `DSSpace.s4` (12) — `HStack` horizontal spacing
-- Standard macOS `.switch` toggle style — no custom color
+- `DSFont.Size.base` (13) / `DSFont.Weight.medium`: title
+- `DSFont.Size.sm` (11): subtitle (`.tertiary` foreground)
+- `DSSpace.s4` (12): `HStack` horizontal spacing
+- Standard macOS `.switch` toggle style (no custom color)
 
 ## Anatomy
 ```mermaid
 graph LR
   Row[HStack spacing 12] --> TextStack[VStack spacing 2]
-  TextStack --> Title[Text — base medium]
-  TextStack --> Subtitle[Text — sm tertiary]
+  TextStack --> Title[Text, base medium]
+  TextStack --> Subtitle[Text, sm tertiary]
   Row --> Spacer
   Row --> Toggle[Toggle .switch labelsHidden]
 ```
@@ -47,13 +47,13 @@ graph LR
 ## Accessibility
 - VoiceOver reads `accessibilityLabel` + `accessibilityValue` ("Enabled" / "Disabled").
 - `accessibilityHint` describes the consequence of flipping; set it when the effect is non-obvious. It is only applied when non-nil, so omitting it emits no empty-string hint.
-- Row honours `@Environment(\.isEnabled)` — wrap in `.disabled(...)` to fade the whole group, not just the switch.
+- Row honours `@Environment(\.isEnabled)`; wrap in `.disabled(...)` to fade the whole group, not just the switch.
 
 ## Do / Don't
 - ✅ Wrap in `.cardStyle()` so multiple rows stack inside a card with proper padding.
 - ✅ Use `onChange` for service start/stop side-effects; keep the binding pure UI state.
-- ❌ Don't put two toggles in one row — split into two `ToggleSettingRow`s.
-- ❌ Don't pass subtitle text longer than ~80 chars — it wraps and breaks alignment with the switch.
+- ❌ Don't put two toggles in one row. Split into two `ToggleSettingRow`s.
+- ❌ Don't pass subtitle text longer than ~80 chars; it wraps and breaks alignment with the switch.
 
 ## Example
 ```swift

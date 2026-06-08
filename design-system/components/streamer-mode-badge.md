@@ -10,11 +10,11 @@ Inline pill that announces a row's value or control is hidden/locked because **S
 if streamerMode { StreamerModeBadge() }
 ```
 
-No parameters. Caller owns the streamer-mode read (typically `@AppStorage(AppConstants.UserDefaults.streamerModeEnabled)`) and the `if` guard — the badge does not read UserDefaults itself, keeping it preview-safe and side-effect free.
+No parameters. Caller owns the streamer-mode read (typically `@AppStorage(AppConstants.UserDefaults.streamerModeEnabled)`) and the `if` guard; the badge does not read UserDefaults itself, keeping it preview-safe and side-effect free.
 
 ## Tokens used
-- `DSFont.Size.xs` (10) — both glyph and label
-- `DSSpace.s1` (4) — glyph-to-label spacing
+- `DSFont.Size.xs` (10): both glyph and label
+- `DSSpace.s1` (4): glyph-to-label spacing
 - `DSSpace.s2` (8) horizontal padding, `DSSpace.s0` (2) vertical
 - Foreground: `.secondary` (system role color)
 - Background: `Color.secondary.opacity(0.12)` clipped to `Capsule()`
@@ -23,21 +23,21 @@ No parameters. Caller owns the streamer-mode read (typically `@AppStorage(AppCon
 ## Anatomy
 ```mermaid
 graph LR
-  Pill[Capsule background — secondary × 0.12] --> Icon[eye.slash.fill — xs secondary]
-  Pill --> Label[Text 'Streamer Mode' — xs medium secondary]
+  Pill[Capsule background, secondary × 0.12] --> Icon[eye.slash.fill, xs secondary]
+  Pill --> Label[Text 'Streamer Mode', xs medium secondary]
 ```
 
 ## Accessibility
 - Combined element; VoiceOver reads **"Streamer Mode is on"** via `accessibilityLabel`.
 - `accessibilityIdentifier: "streamerModeBadge"` for UI tests.
-- Decorative use is **not allowed** — the badge is the *only* affordance explaining why a neighboring value is masked, so it must remain in the a11y tree.
+- Decorative use is **not allowed**; the badge is the *only* affordance explaining why a neighboring value is masked, so it must remain in the a11y tree.
 
 ## Do / Don't
 - ✅ Place next to or below the section title of a masked row (`Local Address`, `Auth Token`, `BROWSER SOURCE URL`, …).
-- ✅ Render only when streamer mode is on — calling site guards with `if streamerMode { … }`.
-- ❌ Don't stack multiple badges in one card — one badge per masked region is enough.
-- ❌ Don't replace the masked text with the badge — keep both (text reads "hidden — streamer mode", badge explains *why*).
-- ❌ Don't add it next to values that are not actually masked or controls that are not actually disabled — that's misleading.
+- ✅ Render only when streamer mode is on; calling site guards with `if streamerMode { … }`.
+- ❌ Don't stack multiple badges in one card. One badge per masked region is enough.
+- ❌ Don't replace the masked text with the badge. Keep both (text reads "hidden, streamer mode"; badge explains *why*).
+- ❌ Don't add it next to values that are not actually masked or controls that are not actually disabled; that's misleading.
 
 ## Example
 ```swift

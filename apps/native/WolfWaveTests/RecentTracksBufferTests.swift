@@ -81,7 +81,7 @@ final class RecentTracksBufferTests: XCTestCase {
 
     // MARK: - Capacity clamp (regression lock)
     //
-    // Before the clamp, `init` had `precondition(maxEntries > 0)` — a hard trap
+    // Before the clamp, `init` had `precondition(maxEntries > 0)`: a hard trap
     // that crashed a shipped build on a non-positive capacity. These cases prove
     // the clamp floors at 1 instead of trapping. (If the trap ever comes back,
     // constructing with 0 here aborts the whole test host.)

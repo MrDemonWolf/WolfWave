@@ -29,8 +29,8 @@ CooldownSliderField(label: String, value: Binding<Double>,
 
 | Param | Type | Notes |
 |---|---|---|
-| `everyone` | `CooldownSliderField` | Left column — the global cooldown. |
-| `perPerson` | `CooldownSliderField` | Right column — the per-user cooldown. |
+| `everyone` | `CooldownSliderField` | Left column (the global cooldown). |
+| `perPerson` | `CooldownSliderField` | Right column (the per-user cooldown). |
 
 ## Tokens used
 | Token | Where |
@@ -42,8 +42,8 @@ CooldownSliderField(label: String, value: Binding<Double>,
 ```mermaid
 flowchart LR
     Row[HStack spacing: DSSpace.s7]
-    Row --> Left["LabeledSlider — Everyone (maxWidth ∞)"]
-    Row --> Right["LabeledSlider — Per person (maxWidth ∞)"]
+    Row --> Left["LabeledSlider, Everyone (maxWidth ∞)"]
+    Row --> Right["LabeledSlider, Per person (maxWidth ∞)"]
 ```
 
 ## Accessibility
@@ -53,7 +53,7 @@ flowchart LR
 ## Do / Don't
 - ✅ Use for the Everyone / Per-person cooldown pair inside a command card.
 - ✅ Pass pane-specific ranges via each `CooldownSliderField`.
-- ❌ Don't stack the two sliders vertically again — that's the layout this replaces.
+- ❌ Don't stack the two sliders vertically again; that's the layout this replaces.
 - ❌ Don't drop into a pane narrower than ~300pt; the two columns need the width.
 
 ## Example

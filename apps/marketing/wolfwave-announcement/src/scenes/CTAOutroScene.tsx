@@ -36,7 +36,7 @@ export const CTAOutroScene: React.FC = () => {
     extrapolateRight: 'clamp',
   });
 
-  // Pulsing glow opacities — two glows alternating
+  // Pulsing glow opacities, two glows alternating
   const cyanGlowOpacity = 0.15 + 0.1 * Math.sin(frame * 0.15);
   const magentaGlowOpacity = 0.15 + 0.1 * Math.sin(frame * 0.15 + Math.PI);
 
@@ -51,7 +51,7 @@ export const CTAOutroScene: React.FC = () => {
 
   return (
     <AbsoluteFill style={{ backgroundColor: brand.navy }}>
-      {/* Cyan ambient glow — pulsing */}
+      {/* Cyan ambient glow, pulsing */}
       <div
         style={{
           position: 'absolute',
@@ -66,7 +66,7 @@ export const CTAOutroScene: React.FC = () => {
         }}
       />
 
-      {/* Magenta ambient glow — pulsing opposite */}
+      {/* Magenta ambient glow, pulsing opposite */}
       <div
         style={{
           position: 'absolute',
@@ -81,7 +81,7 @@ export const CTAOutroScene: React.FC = () => {
         }}
       />
 
-      {/* Logo — big and centered, offset upward to clear text */}
+      {/* Logo, big and centered, offset upward to clear text */}
       <div
         style={{
           position: 'absolute',
@@ -101,7 +101,7 @@ export const CTAOutroScene: React.FC = () => {
         />
       </div>
 
-      {/* CTA text — positioned below logo independently */}
+      {/* CTA text, positioned below logo independently */}
       <div
         style={{
           position: 'absolute',

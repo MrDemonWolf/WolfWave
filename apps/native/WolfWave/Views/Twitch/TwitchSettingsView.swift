@@ -25,6 +25,8 @@ struct TwitchSettingsView: View {
     @AppStorage(AppConstants.UserDefaults.commandsLiveOnly)
     private var commandsLiveOnly = false
 
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
     var body: some View {
         VStack(alignment: .leading, spacing: DSSpace.s6) {
             headerView
@@ -32,7 +34,7 @@ struct TwitchSettingsView: View {
             authCard
                 .transition(.opacity.combined(with: .move(edge: .bottom)))
                 .animation(
-                    DSMotion.Spring.snappy,
+                    reduceMotion ? nil : DSMotion.Spring.snappy,
                     value: (viewModel.credentialsSaved || viewModel.channelConnected
                         || viewModel.authState.isInProgress))
 
@@ -160,7 +162,7 @@ struct TwitchSettingsView: View {
             // a second outline around it, so the connected state stands alone
             // with one outline, matching the Bot Commands cards below.
             connectedContent
-                .animation(.easeInOut(duration: DSMotion.Duration.base), value: viewModel.integrationState)
+                .animation(reduceMotion ? nil : .easeInOut(duration: DSMotion.Duration.base), value: viewModel.integrationState)
         default:
             VStack(spacing: DSSpace.s5) {
                 // Card header is always present for non-connected states so the
@@ -195,7 +197,7 @@ struct TwitchSettingsView: View {
                 .frame(maxWidth: .infinity, alignment: .top)
             }
             .cardStyle()
-            .animation(.easeInOut(duration: DSMotion.Duration.base), value: viewModel.integrationState)
+            .animation(reduceMotion ? nil : .easeInOut(duration: DSMotion.Duration.base), value: viewModel.integrationState)
         }
     }
 
@@ -226,7 +228,7 @@ struct TwitchSettingsView: View {
             .pointerCursor()
             .scaleEffect(viewModel.authState.isInProgress ? 0.995 : 1.0)
             .animation(
-                .easeInOut(duration: DSMotion.Duration.fast),
+                reduceMotion ? nil : .easeInOut(duration: DSMotion.Duration.fast),
                 value: viewModel.authState.isInProgress
             )
             .accessibilityLabel("Connect with Twitch")
@@ -252,7 +254,7 @@ struct TwitchSettingsView: View {
                 // Symmetric transition (same shape in and out) so the card
                 // doesn't snap on dismissal.
                 .transition(.opacity.combined(with: .move(edge: .top)))
-                .animation(DSMotion.Spring.snappy, value: viewModel.authState.userCode)
+                .animation(reduceMotion ? nil : DSMotion.Spring.snappy, value: viewModel.authState.userCode)
             }
 
             // Always-visible spinner + cancel row once device code is shown
@@ -323,6 +325,7 @@ struct TwitchSettingsView: View {
 
 /// View displayed when the user is signed in, showing bot info and channel controls.
 private struct SignedInView: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @AppStorage(AppConstants.UserDefaults.streamerModeEnabled)
     private var streamerMode = false
 
@@ -406,7 +409,7 @@ private struct SignedInView: View {
             }
 
             channelValidationIndicator
-                .animation(.easeInOut(duration: DSMotion.Duration.base), value: channelValidationState)
+                .animation(reduceMotion ? nil : .easeInOut(duration: DSMotion.Duration.base), value: channelValidationState)
         }
         .padding(.horizontal, AppConstants.SettingsUI.cardPadding)
         .padding(.vertical, DSSpace.s4)

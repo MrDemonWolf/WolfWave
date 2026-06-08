@@ -409,7 +409,7 @@ final class SongRequestService {
                     }
 
                     // Still playing: hand off to the next request the moment the
-                    // request's own track is replaced — the request ended and Music
+                    // request's own track is replaced: the request ended and Music
                     // autoplayed the next track, or the streamer skipped inside
                     // Music.app. Music never reports "stopped" in either case.
                     if snapshot.state == .playing {
@@ -439,7 +439,7 @@ final class SongRequestService {
                 } else if snapshot.state == .playing {
                     // The streamer's own track is playing. Honor "play when the
                     // current song ends": remember the loaded track, then take over
-                    // only once it changes to a different, confirmed track — never on
+                    // only once it changes to a different, confirmed track, never on
                     // a single transient read that would cut the song off mid-play.
                     await self.handleStreamerTrackTakeover(currentKey: snapshot.trackKey)
                 }
@@ -526,7 +526,7 @@ final class SongRequestService {
                     await startImmediatelyIfIdle()
                 }
                 // else: a request is already playing, Music.app is closed, or hold is
-                // active — the request stays buffered for the poll / launch flush.
+                // active; the request stays buffered for the poll / launch flush.
                 return .added(item: item, position: position)
             case .queueFull(let max):
                 return .queueFull(max: max)
@@ -644,8 +644,8 @@ final class SongRequestService {
     ///
     /// Starts now when the fallback playlist is filling (explicit filler that
     /// yields to a real request) or when nothing is actively playing (silent or
-    /// paused). When the streamer's own track is actively playing — or the
-    /// playback read is inconclusive (`nil`) — this does nothing, and the
+    /// paused). When the streamer's own track is actively playing, or the
+    /// playback read is inconclusive (`nil`), this does nothing, and the
     /// auto-advance poll starts the request at the next confirmed track boundary.
     /// That is the "wait until the current song ends" rule, applied at the entry
     /// point so a request never interrupts a live read that happened to flake.
@@ -664,8 +664,8 @@ final class SongRequestService {
     /// Boundary detection for the takeover poll: starts the first queued request
     /// once the streamer's own track changes.
     ///
-    /// Ignores an unknown (`nil`) track key — a failed metadata read is "no
-    /// information", never a boundary — and requires the new track to be seen on
+    /// Ignores an unknown (`nil`) track key: a failed metadata read is "no
+    /// information", never a boundary, and requires the new track to be seen on
     /// `pollConfirmations` reads in a row, so a single transient read can't be
     /// mistaken for a song change and cut the streamer's track off mid-play.
     private func handleStreamerTrackTakeover(currentKey: String?) async {
@@ -749,8 +749,8 @@ final class SongRequestService {
             queue.clearNowPlaying()
             Log.debug("SongRequestService: Music.app closed, \"\(item.title)\" re-queued at head", category: "SongRequest")
         } catch PlaybackError.notPlayable(let title) {
-            // The song was added to the library but isn't playable yet — usually
-            // still syncing down from iCloud right after the add. Keep it queued
+            // The song was added to the library but isn't playable yet (usually
+            // still syncing down from iCloud right after the add). Keep it queued
             // at the head and let the poll retry, but cap attempts so a genuinely
             // unavailable track (no subscription) is eventually dropped instead of
             // looping forever.

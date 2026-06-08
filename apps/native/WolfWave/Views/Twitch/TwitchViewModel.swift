@@ -368,7 +368,7 @@ final class TwitchViewModel {
     // isolation, so the runtime hops to main before deinit if the last
     // reference is dropped off-main. The old `MainActor.assumeIsolated` body
     // would instead TRAP (libdispatch queue assertion) on an off-main release.
-    // Isolation is also required here — the non-Sendable `NSObjectProtocol`
+    // Isolation is also required here: the non-Sendable `NSObjectProtocol`
     // observer tokens can't be touched from a nonisolated deinit under Swift 6.
     isolated deinit {
         devicePollingTask?.cancel()

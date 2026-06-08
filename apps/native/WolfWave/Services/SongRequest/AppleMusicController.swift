@@ -34,7 +34,7 @@ enum PlaybackError: Error {
 /// instead of a false state transition.
 struct PlaybackSnapshot: Equatable {
     /// Coarse player state. `fast forwarding` / `rewinding` collapse to
-    /// `.playing` — a track is loaded and advancing in both.
+    /// `.playing`: a track is loaded and advancing in both.
     enum State {
         case playing
         case paused
@@ -123,7 +123,7 @@ protocol AppleMusicControlling {
 ///
 /// Note: macOS has no public API to insert songs into Music.app's native Up Next
 /// queue (the AppleScript dictionary has no queue command, and the MusicKit
-/// players that can — `ApplicationMusicPlayer` / `SystemMusicPlayer` — are not
+/// players that can (`ApplicationMusicPlayer` / `SystemMusicPlayer`) are not
 /// available on macOS). WolfWave manages playback sequence internally. To play a
 /// requested song it adds the song to the library via `AppleMusicLibraryService`
 /// (required on macOS 26, where AppleScript can no longer play catalog songs that
@@ -395,7 +395,7 @@ final class AppleMusicController: AppleMusicControlling {
         }
 
         // Add to the library once per song (retries re-enter here). A failure
-        // here — e.g. no active subscription — means we can't play it, so surface
+        // here (e.g. no active subscription) means we can't play it, so surface
         // notPlayable and let the caller keep the request queued.
         let songID = song.id.rawValue
         if !addedSongIDs.contains(songID) {
@@ -411,6 +411,11 @@ final class AppleMusicController: AppleMusicControlling {
         // A freshly added track takes a moment to sync down before AppleScript
         // can see it, so the play is retried over a few seconds.
         guard await playFromRequestsPlaylist(song: song) else {
+            // The playlist may have been deleted and rebuilt mid-session.
+            // Drop the stale cache so the next attempt re-adds the song to the
+            // fresh playlist rather than skipping the add step.
+            addedSongIDs.remove(songID)
+            libraryService.resetCachedPlaylistID()
             throw PlaybackError.notPlayable(title: song.title)
         }
         Log.debug("AppleMusicController: Now playing \"\(song.title)\" by \(song.artistName) from \(AppConstants.Music.requestsPlaylistName)", category: "SongRequest")
@@ -599,7 +604,7 @@ final class AppleMusicController: AppleMusicControlling {
     /// Run an AppleScript and return the string result.
     ///
     /// `NSAppleScript` is **not** thread-safe and must execute on the main
-    /// thread — running it off-main can crash (a libdispatch queue assertion)
+    /// thread (running it off-main can crash with a libdispatch queue assertion)
     /// or return a spurious nil. Most callers are already on the main actor,
     /// but `isPlaying`/`isPaused` are synchronous and can be read from the
     /// `SongRequestService` background poll loop, so bounce to main when the
@@ -615,7 +620,7 @@ final class AppleMusicController: AppleMusicControlling {
 
     /// Executes an `NSAppleScript` and returns its string result.
     ///
-    /// Must be called on the main thread — see `runAppleScript`.
+    /// Must be called on the main thread. See `runAppleScript`.
     private nonisolated static func executeAppleScript(_ source: String) -> String? {
         var error: NSDictionary?
         let script = NSAppleScript(source: source)

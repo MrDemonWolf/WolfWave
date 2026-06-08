@@ -134,7 +134,7 @@ final class AppleMusicSourceTests: XCTestCase {
 
     private static let kPSF: UInt32 = 1800426310  // 'kPSF': fast-forward
     private static let kPSR: UInt32 = 1800426322  // 'kPSR': rewind
-    private static let kPSS: UInt32 = 1800426067  // 'kPSS': stopped
+    private static let kPSS: UInt32 = 1800426323  // 'kPSS': stopped
 
     /// Playing, paused, fast-forward, and rewind all mean "a track is loaded"
     /// and must emit. Pausing deliberately keeps the UI / Discord / overlay
@@ -151,6 +151,13 @@ final class AppleMusicSourceTests: XCTestCase {
     func testIsTrackLoadedFalseForStoppedAndNil() {
         XCTAssertFalse(AppleMusicSource.isTrackLoaded(Self.kPSS))
         XCTAssertFalse(AppleMusicSource.isTrackLoaded(nil))
+    }
+
+    /// Locks the numeric `kPSS` constant to the actual FourCharCode: the
+    /// byte-packed string "kPSS" must decode to the same value. A wrong
+    /// constant (e.g. the old 'kPRS' typo) fails here.
+    func testStoppedConstantRoundTripsToKPSS() {
+        XCTAssertEqual(AppleMusicSource.extractPlayerState("kPSS"), Self.kPSS)
     }
 
     /// An unknown FourCharCode is not track-loaded; the unknown-bridge fallback
@@ -205,7 +212,7 @@ final class AppleMusicSourceTests: XCTestCase {
 
     /// Music posts a "Stopped" `playerInfo` payload on an explicit stop and as
     /// its final gasp while quitting. Recognising it lets us resolve state from
-    /// the payload instead of round-tripping an Apple event — which is what
+    /// the payload instead of round-tripping an Apple event, which is what
     /// relaunched Music.app after the user closed it.
     func testIsStoppedNotificationTrueForStoppedState() {
         XCTAssertTrue(AppleMusicSource.isStoppedNotification(["Player State": "Stopped"]))

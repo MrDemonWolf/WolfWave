@@ -36,8 +36,8 @@ flowchart LR
 
 - ✅ Use sentence-case ("Recently played", "Top artists", "Bundle & build").
 - ✅ Pair with a leading SF Symbol via `Label(_, systemImage:)`.
-- ❌ Don't combine with `.textCase(.uppercase)` or `.tracking(...)` — defeats the purpose.
-- ❌ Don't use for the Discord Preview card's `LISTENING TO APPLE MUSIC` label — that's an intentional mirror of Discord's UI.
+- ❌ Don't combine with `.textCase(.uppercase)` or `.tracking(...)`; it defeats the purpose.
+- ❌ Don't use for the Discord Preview card's `LISTENING TO APPLE MUSIC` label; that's an intentional mirror of Discord's UI.
 
 ## Example
 

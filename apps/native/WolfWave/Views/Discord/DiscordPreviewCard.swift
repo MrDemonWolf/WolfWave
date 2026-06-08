@@ -62,6 +62,10 @@ struct DiscordPreviewCard: View {
         let url: String
     }
 
+    // MARK: - Environment
+
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
     // MARK: - Properties
 
     var mode: Mode = .playing
@@ -108,7 +112,7 @@ struct DiscordPreviewCard: View {
                 .stroke(Color.white.opacity(0.06), lineWidth: 1)
         )
         .opacity(mode == .discordOffline ? 0.55 : 1)
-        .animation(.easeInOut(duration: DSMotion.Duration.base), value: mode)
+        .animation(reduceMotion ? nil : .easeInOut(duration: DSMotion.Duration.base), value: mode)
         .accessibilityElement(children: .combine)
         .accessibilityLabel(accessibilitySummary)
     }
@@ -154,7 +158,7 @@ struct DiscordPreviewCard: View {
     private var trackContent: some View {
         HStack(alignment: .top, spacing: DSSpace.s4) {
             artworkView
-            VStack(alignment: .leading, spacing: 3) {
+            VStack(alignment: .leading, spacing: DSSpace.s1) {
                 Text(trackTitle)
                     .font(.system(size: DSFont.Size.md, weight: .semibold))
                     .foregroundStyle(.white)
@@ -375,7 +379,7 @@ struct DiscordPreviewCard: View {
                     .clipShape(RoundedRectangle(cornerRadius: DSRadius.sm, style: .continuous))
                 cornerBadge(paused: false, tooltip: "Apple Music")
             }
-            VStack(alignment: .leading, spacing: 3) {
+            VStack(alignment: .leading, spacing: DSSpace.s1) {
                 Text(AppConstants.Discord.idleDetails)
                     .font(.system(size: DSFont.Size.md, weight: .semibold))
                     .foregroundStyle(.white)

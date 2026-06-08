@@ -29,7 +29,7 @@ struct BotCommandGlobalGateTests {
         return dispatcher
     }
 
-    @Test("Default gate is open — commands reply")
+    @Test("Default gate is open: commands reply")
     func testDefaultGateOpen() {
         let dispatcher = makeDispatcher()
         #expect(dispatcher.processMessage("!song", userID: "u1") == "🐺 Now: Howl")

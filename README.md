@@ -208,13 +208,14 @@ Native app (Make):
 
 - `make build` runs a debug build via `xcodebuild`.
 - `make clean` cleans build artifacts.
-- `make test` runs the unit test suite (see CHANGELOG.md for current counts).
+- `make test` runs the unit test suite (run `make test` for the current pass count).
 - `make update-deps` resolves SwiftPM dependencies.
 - `make open-xcode` opens the Xcode project.
 - `make ci` runs a CI-friendly build.
 - `make prod-build` builds a release DMG in `builds/`.
 - `make prod-install` builds a release and installs to `/Applications`.
 - `make notarize` notarizes the DMG (requires Developer ID and env vars).
+- `make widget` rebuilds the OBS overlay widget (`apps/widget/` to `Resources/widget.html`); required after editing `apps/widget/` sources.
 
 ### Code Quality
 
@@ -246,7 +247,7 @@ wolfwave/
 
 ## License
 
-[![GitHub license](https://img.shields.io/github/license/mrdemonwolf/wolfwave.svg?style=for-the-badge&logo=github)](https://github.com/mrdemonwolf)
+[![GitHub license](https://img.shields.io/github/license/mrdemonwolf/wolfwave.svg?style=for-the-badge&logo=github)](https://github.com/MrDemonWolf/WolfWave/blob/main/LICENSE)
 
 WolfWave is released under the GNU General Public License v3.0 (GPL-3.0).
 

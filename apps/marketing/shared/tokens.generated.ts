@@ -1,5 +1,5 @@
 /*
- * WolfWave Design System — GENERATED FILE. Do not edit by hand.
+ * WolfWave Design System. GENERATED FILE. Do not edit by hand.
  * Source: design-system/tokens.json
  * Run `bun run tokens` to regenerate.
  */
@@ -9,7 +9,7 @@ export const tokens = {
   "meta": {
     "name": "WolfWave Design System",
     "version": "1.0.0",
-    "description": "Canonical design tokens for WolfWave. Source of truth — do not edit generated files."
+    "description": "Canonical design tokens for WolfWave. Source of truth; do not edit generated files."
   },
   "color": {
     "brand": {

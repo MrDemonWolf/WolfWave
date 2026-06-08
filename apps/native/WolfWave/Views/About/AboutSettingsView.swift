@@ -15,6 +15,10 @@ import SwiftUI
 /// `AdvancedSettingsView` / `GeneralSettingsView`.
 struct AboutSettingsView: View {
 
+    // MARK: - Environment
+
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
     // MARK: - State
 
     @State private var versionCopied = false
@@ -266,10 +270,10 @@ struct AboutSettingsView: View {
         let payload = AboutCopy.versionClipboardPayload
         Pasteboard.copy(payload)
 
-        withAnimation(.easeInOut(duration: DSMotion.Duration.fast)) { versionCopied = true }
+        withAnimation(reduceMotion ? nil : .easeInOut(duration: DSMotion.Duration.fast)) { versionCopied = true }
         Task { @MainActor in
             try? await Task.sleep(for: .milliseconds(1500))
-            withAnimation(.easeInOut(duration: DSMotion.Duration.base)) { versionCopied = false }
+            withAnimation(reduceMotion ? nil : .easeInOut(duration: DSMotion.Duration.base)) { versionCopied = false }
         }
     }
 

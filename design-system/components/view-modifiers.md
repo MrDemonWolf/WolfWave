@@ -35,15 +35,15 @@ Adds hover background + pointer cursor for list rows that act as buttons.
 
 - **Tokens:** `DSRadius.sm` (6), `Color.primary.opacity(0.04)`, `DSMotion.Duration.fast` (0.15) for the hover-fade.
 - **When to use:** rows in custom selection lists that aren't `Button` / `List` rows.
-- **When _not_:** for `Toggle`/`Picker` controls — they have native affordance.
-- **Cursor:** uses SwiftUI `.pointerStyle(isEnabled ? .link : nil)` — the system handles push/pop. No manual `NSCursor` calls.
+- **When _not_:** for `Toggle`/`Picker` controls; they have native affordance.
+- **Cursor:** uses SwiftUI `.pointerStyle(isEnabled ? .link : nil)`; the system handles push/pop. No manual `NSCursor` calls.
 
 ## `.pointerCursor()`
 
 Pointing-hand cursor on hover for clickable non-Button views (`Image`, `Text` with `.onTapGesture`, etc.).
 
-- Wraps SwiftUI `.pointerStyle(.link)` (macOS 15+) — never leaks like a manual `NSCursor.push/pop` pair would.
-- (`.disabledCursor(_:)` was removed — was unused. If you need a not-allowed cursor, gate the parent `Button` with `.disabled(true)` and let the system pick.)
+- Wraps SwiftUI `.pointerStyle(.link)` (macOS 15+); never leaks like a manual `NSCursor.push/pop` pair would.
+- (`.disabledCursor(_:)` was removed; it was unused. If you need a not-allowed cursor, gate the parent `Button` with `.disabled(true)` and let the system pick.)
 
 ## `Animation.reducedMotion(_:reduceMotion:)`
 
@@ -60,7 +60,7 @@ Returns the supplied animation, or `nil` when the user has Reduce Motion enabled
 
 ## `.reduceMotionAware(_:reduceMotion:value:)`
 
-Sugar for the above — applies an animation that respects Reduce Motion. Pulls the value via `@Environment(\.accessibilityReduceMotion)` at the call site.
+Sugar for the above. Applies an animation that respects Reduce Motion. Pulls the value via `@Environment(\.accessibilityReduceMotion)` at the call site.
 
 ## `.skeleton(_:)`
 
@@ -72,13 +72,13 @@ QueueRow(item: placeholder).skeleton(isLoading)
 
 - Wraps `.redacted(reason: isLoading ? .placeholder : [])` with `.accessibilityHidden(isLoading)` + `.allowsHitTesting(!isLoading)`.
 - **When to use:** first-paint loading states with content shape (lists, grids, stat cards).
-- **When _not_:** for short, indeterminate spinners — `ProgressView()` is the right tool there.
+- **When _not_:** for short, indeterminate spinners; `ProgressView()` is the right tool there.
 
 ## `.sectionHeader()` / sub-header
 
 Standardized section-header typography.
 
-- **Tokens:** `DSFont.Size.lg` (17) / `.semibold` for primary; `.md` (14) / `.semibold` reserved for sub-headers (currently `.system(size: 15, weight: .semibold)` — pending alignment to 14 in next migration pass).
+- **Tokens:** `DSFont.Size.lg` (17) / `.semibold` for primary; `.md` (14) / `.semibold` reserved for sub-headers (currently `.system(size: 15, weight: .semibold)`, pending alignment to 14 in next migration pass).
 
 ---
 
@@ -87,4 +87,4 @@ Standardized section-header typography.
 - ✅ Reach for `cardStyle()` before drawing your own rounded rectangle.
 - ✅ Combine `pointerCursor()` with any custom `.onTapGesture` to make affordance obvious.
 - ❌ Don't hand-roll your own card surface. `cardStyle()` is the one neutral card chrome.
-- ❌ Don't apply `interactiveRow` to disabled controls — pass `isEnabled: false` instead so the hover state is suppressed.
+- ❌ Don't apply `interactiveRow` to disabled controls. Pass `isEnabled: false` instead so the hover state is suppressed.

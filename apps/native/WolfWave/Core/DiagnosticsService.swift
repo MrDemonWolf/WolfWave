@@ -79,7 +79,10 @@ final class DiagnosticsService: NSObject, MXMetricManagerSubscriber, @unchecked 
     // MARK: - Anonymous Usage
 
     /// Increments the local app-launch counter. The count never leaves the device.
+    ///
+    /// Only counts when the user has opted in to diagnostics.
     func recordAppLaunch() {
+        guard isEnabled else { return }
         let next = defaults.integer(forKey: AppConstants.UserDefaults.diagnosticsLaunchCount) + 1
         defaults.set(next, forKey: AppConstants.UserDefaults.diagnosticsLaunchCount)
     }

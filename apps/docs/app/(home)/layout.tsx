@@ -11,7 +11,7 @@ export default function Layout({ children }: LayoutProps<"/">) {
         className="ww-font ww-bg-base"
         style={{ borderTop: "1px solid var(--hairline)" }}
       >
-        <div className="mx-auto max-w-6xl px-6 py-10 flex flex-col sm:flex-row items-center justify-between gap-4">
+        <div className="mx-auto max-w-6xl px-[10%] md:px-6 py-10 flex flex-col sm:flex-row items-center justify-between gap-4">
           <p className="text-sm ww-text-2">
             &copy; {currentYear} WolfWave by{" "}
             <a

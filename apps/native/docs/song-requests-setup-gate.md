@@ -36,9 +36,9 @@ silently posted a dead link.
 
 Two `UserDefaults` keys (both `runtimeStateKeys`, machine-local, never exported):
 
-- `songRequestSetupComplete` (Bool) — the gate. Set by the wizard, or by a
+- `songRequestSetupComplete` (Bool): the gate. Set by the wizard, or by a
   one-time migration that grandfathers anyone who already had the feature on.
-- `songRequestPlaylistStatus` (String) — raw value of `PlaylistSetupStatus`
+- `songRequestPlaylistStatus` (String): raw value of `PlaylistSetupStatus`
   (`ok` / `playlistMissing` / `linkUnshared` / `musicAccessLost`). Drives the
   banner. Mirrors `songRequestRedemptionStatus`.
 
@@ -67,17 +67,17 @@ flips a toggle.
 
 ## Key files
 
-- `Core/AppConstants.swift` — the two keys + `allKeys`/`runtimeStateKeys`.
-- `Core/FeatureFlags.swift` — `songRequestSetupComplete` accessor.
-- `Services/SongRequest/SongRequestAccess.swift` — `PlaylistSetupStatus`.
-- `Services/SongRequest/AppleMusicLibraryService.swift` — `PlaylistProbe`,
+- `Core/AppConstants.swift`: the two keys + `allKeys`/`runtimeStateKeys`.
+- `Core/FeatureFlags.swift`: `songRequestSetupComplete` accessor.
+- `Services/SongRequest/SongRequestAccess.swift`: `PlaylistSetupStatus`.
+- `Services/SongRequest/AppleMusicLibraryService.swift`: `PlaylistProbe`,
   `probeRequestsPlaylist`, `classifyProbe`, `resetCachedPlaylistID`.
-- `Services/SongRequest/SongRequestService.swift` — `migrateSetupState`,
+- `Services/SongRequest/SongRequestService.swift`: `migrateSetupState`,
   `resolveHealth`, `runSetupHealthCheck`, `applyHealth`, `HealthOutcome`.
-- `Core/AppDelegate+Services.swift` — migration + startup health-check wiring.
-- `Views/SongRequest/Setup/SongRequestSetupViewModel.swift` + `SongRequestSetupView.swift`
-  — the wizard (steps: intro → appleMusic → playlist → shareLink → done).
-- `Views/SongRequest/SongRequestSettingsView.swift` — health banner, Setup CTA
+- `Core/AppDelegate+Services.swift`: migration + startup health-check wiring.
+- `Views/SongRequest/Setup/SongRequestSetupViewModel.swift` + `SongRequestSetupView.swift`:
+  the wizard (steps: intro → appleMusic → playlist → shareLink → done).
+- `Views/SongRequest/SongRequestSettingsView.swift`: health banner, Setup CTA
   gate on the master toggle, slimmed Commands card (Manage button), `.sheet` host.
 
 ## Tests

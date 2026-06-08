@@ -1,7 +1,7 @@
-# `apps/widget` — OBS Overlay Source
+# `apps/widget`: OBS Overlay Source
 
 The OBS Browser Source widget that renders the now-playing card. Source of
-truth for `apps/native/WolfWave/Resources/widget.html` — the file the native
+truth for `apps/native/WolfWave/Resources/widget.html`, the file the native
 app bundles and `WidgetHTTPService` serves.
 
 ## Architecture
@@ -40,7 +40,7 @@ app bundles and `WidgetHTTPService` serves.
 ## Message contract
 
 Frozen by the Swift tests `WebSocketServerServiceTests` /
-`WidgetHTTPServiceTests` — adding fields server-side is safe; renaming
+`WidgetHTTPServiceTests`. Adding fields server-side is safe; renaming
 existing fields requires a coordinated change.
 
 | Type | Payload | Cadence |
@@ -73,7 +73,7 @@ bun run --filter widget build
 ```
 
 The generated `apps/native/WolfWave/Resources/widget.html` is committed to the
-repo and shipped by the native app as-is — Xcode no longer rebuilds it. Commit
+repo and shipped by the native app as-is; Xcode no longer rebuilds it. Commit
 the regenerated `widget.html` alongside any change under `apps/widget/`; CI
 runs the build and fails the PR on drift.
 
@@ -98,8 +98,8 @@ The container moves between four states (full machine documented in
 | skip (same playing state) | inner crossfade only | 280ms total |
 | stop | progress bar drains to 0% | 400ms ease-out |
 
-The container animation does **not** re-trigger on track skip — that's
-deliberate, otherwise rapid skips strobe the stream.
+The container animation does **not** re-trigger on track skip. That's
+deliberate; otherwise rapid skips strobe the stream.
 
 ## Code map
 
@@ -107,6 +107,6 @@ deliberate, otherwise rapid skips strobe the stream.
 |------|---------|
 | `src/widget.html` | HTML shell with `%%TAILWIND_CSS%%` / `%%TOKENS_JS%%` / `%%WIDGET_JS%%` placeholders |
 | `src/widget.css` | Tailwind directives + custom state classes (transitions, progress, decorative layers) |
-| `src/widget.ts` | All runtime — state, transitions, WS, message dispatch, render |
+| `src/widget.ts` | All runtime: state, transitions, WS, message dispatch, render |
 | `tailwind.config.ts` | Token-driven theme extension; preflight + container disabled |
 | `build.ts` | Bundles JS, runs Tailwind, inlines into the template, writes the output file |

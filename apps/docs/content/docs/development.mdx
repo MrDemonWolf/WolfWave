@@ -171,7 +171,7 @@ The track text, large image, and buttons stay unchanged so chat can still read w
 - **Multi-client Support**: Multiple browser sources or tools can connect simultaneously.
 - **Progress Broadcasting**: 1-second interval timer broadcasts elapsed time during playback.
 - **Auto-retry**: Reconnects the listener after failures with configurable delay.
-- **Loopback-only**: Binds to `127.0.0.1`. Never reachable from the network.
+- **LAN-reachable**: Binds to all interfaces on port `8765`. Every connection (loopback or LAN) must present the `Sec-WebSocket-Protocol: wolfwave.token.<hex>` subprotocol or it is rejected. Loopback peers (OBS on the same machine) get the token auto-injected by `WidgetHTTPService`; remote peers must supply `?token=<hex>` in the URL.
 
 ### Usage
 
@@ -184,7 +184,7 @@ The track text, large image, and buttons stay unchanged so chat can still read w
 
 `WidgetHTTPService` is a tiny companion HTTP server that serves the bundled `widget.html` to OBS.
 
-- **Loopback-only**: Binds to `127.0.0.1:8766`. Never exposed to the network.
+- **LAN-reachable**: Binds to all interfaces on port `8766`. Every connection must present the `Sec-WebSocket-Protocol: wolfwave.token.<hex>` subprotocol or it is rejected. Loopback peers get the token auto-injected from the served `widget.html`; remote peers must supply `?token=<hex>` in the URL.
 - **`GET /`** → `200 OK` with `widget.html` bytes from the app bundle.
 - **All other requests** → `404 Not Found`.
 - **Lifecycle**: Owned by `WebSocketServerService`; starts/stops with the WS server.
@@ -288,7 +288,7 @@ git push origin v2.0.0
 
 This triggers the release workflow, which builds, signs, notarizes, and uploads the DMG to a draft GitHub Release. Once the workflow completes, review the draft and publish it.
 
-For a complete step-by-step release checklist, see [PUBLISH.md](https://github.com/MrDemonWolf/WolfWave/blob/main/PUBLISH.md) in the repository root.
+For a complete step-by-step release checklist, see the [Release Checklist](https://github.com/MrDemonWolf/WolfWave/blob/main/CLAUDE.md#release-checklist) in the repository root.
 
 ---
 

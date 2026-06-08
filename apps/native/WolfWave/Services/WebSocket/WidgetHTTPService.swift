@@ -52,7 +52,15 @@ nonisolated final class WidgetHTTPService: @unchecked Sendable {
     /// WebSocket with a valid `wolfwave.token.<hex>` subprotocol without the user
     /// pasting a query string. `nil` ships the file un-substituted (test-only).
     private let authToken: String?
-    private var listener: NWListener?
+    /// Guards all reads and writes of `listener` so the state-callback queue and
+    /// `stop()` callers cannot race on the reference.
+    private let listenerLock = NSLock()
+    private var _listener: NWListener?
+    /// Thread-safe accessor for the underlying `NWListener`.
+    private var listener: NWListener? {
+        get { listenerLock.withLock { _listener } }
+        set { listenerLock.withLock { _listener = newValue } }
+    }
     private let queue = DispatchQueue(
         label: "com.mrdemonwolf.wolfwave.widget-http",
         qos: .utility
@@ -400,8 +408,11 @@ nonisolated final class WidgetHTTPService: @unchecked Sendable {
                 return addr.isLoopback
             case .ipv6(let addr):
                 return addr.isLoopback
-            case .name(let name, _):
-                return name == "localhost"
+            case .name:
+                // The widget always connects to ws://localhost which resolves to
+                // an IP endpoint; an unresolved .name is never a genuine loopback
+                // peer, so return false rather than trusting a hostname string.
+                return false
             @unknown default:
                 return false
             }

@@ -21,6 +21,8 @@ struct MonthlyWrapView: View {
     /// The history service supplying records. Observed for live updates.
     let service: ListeningHistoryService
 
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
     /// Any date inside the month currently being shown.
     @State private var month: Date = Date()
 
@@ -224,7 +226,7 @@ struct MonthlyWrapView: View {
         guard panel.runModal() == .OK, let url = panel.url else { return }
         do {
             try png.write(to: url)
-            withAnimation { didExport = true }
+            withAnimation(reduceMotion ? nil : .default) { didExport = true }
             Log.info("MonthlyWrapView: Exported monthly wrap image", category: AppConstants.History.logCategory)
         } catch {
             Log.error("MonthlyWrapView: Export failed: \(error.localizedDescription)", category: AppConstants.History.logCategory)

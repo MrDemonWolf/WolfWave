@@ -19,6 +19,8 @@ struct PermissionDeniedBanner: View {
     var onTryAgain: () -> Void
     var onShowInstructions: () -> Void
 
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
     /// Brief recheck feedback so "Try again" never feels like a dead button.
     /// If access is granted the parent unmounts this whole card, so a lingering
     /// hint only ever means "still off".
@@ -90,7 +92,7 @@ struct PermissionDeniedBanner: View {
     private var tryAgainButton: some View {
         Button {
             guard !isRechecking else { return }
-            withAnimation(.easeInOut(duration: DSMotion.Duration.fast)) {
+            withAnimation(reduceMotion ? nil : .easeInOut(duration: DSMotion.Duration.fast)) {
                 isRechecking = true
                 showStillDenied = false
             }
@@ -99,12 +101,12 @@ struct PermissionDeniedBanner: View {
                 // Give the off-main permission probe a beat to resolve. A grant
                 // unmounts this card; if we're still here afterwards it's denied.
                 try? await Task.sleep(nanoseconds: 700_000_000)
-                withAnimation(.easeInOut(duration: DSMotion.Duration.base)) {
+                withAnimation(reduceMotion ? nil : .easeInOut(duration: DSMotion.Duration.base)) {
                     isRechecking = false
                     showStillDenied = true
                 }
                 try? await Task.sleep(nanoseconds: 4_000_000_000)
-                withAnimation(.easeInOut(duration: DSMotion.Duration.base)) {
+                withAnimation(reduceMotion ? nil : .easeInOut(duration: DSMotion.Duration.base)) {
                     showStillDenied = false
                 }
             }
@@ -152,7 +154,7 @@ struct PermissionInstructionSheet: View {
     var onTryAgain: () -> Void
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 18) {
+        VStack(alignment: .leading, spacing: DSSpace.s7) {
             HStack(spacing: DSSpace.s4) {
                 ZStack {
                     RoundedRectangle(cornerRadius: DSRadius.lg2, style: .continuous)

@@ -14,7 +14,7 @@ export default defineConfig({
 
   formats: ['svg'],
 
-  // Standard tier ladder — adjust as you create real sponsor tiers in GitHub.
+  // Standard tier ladder; adjust as you create real sponsor tiers in GitHub.
   tiers: [
     {
       title: 'Past Sponsors',

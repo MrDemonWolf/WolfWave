@@ -42,7 +42,7 @@ build: sponsor-config
 		-destination '$(DESTINATION)' -configuration Debug build -quiet
 
 # Regenerate apps/native/WolfWave/Core/SponsorConfig.generated.swift from
-# .github/FUNDING.yml. Idempotent — safe to run as a build prerequisite.
+# .github/FUNDING.yml. Idempotent; safe to run as a build prerequisite.
 sponsor-config:
 	@bash scripts/generate-sponsor-config.sh
 
@@ -116,11 +116,11 @@ prod-build: sponsor-config
 	echo "✅ Release build: $$APP_PATH"; \
 	if security find-identity -v -p codesigning 2>/dev/null | grep -q "Developer ID Application"; then \
 		echo "🔏 Re-signing with Developer ID..."; \
-		codesign --deep --force --options runtime \
+		codesign --deep --force --options runtime --timestamp \
 			--sign "Developer ID Application" "$$APP_PATH"; \
 		echo "✅ Signed with Developer ID"; \
 	else \
-		echo "⚠️  No Developer ID cert found — DMG will be development-signed"; \
+		echo "⚠️  No Developer ID cert found. DMG will be development-signed"; \
 	fi; \
 	$(MAKE) _create-dmg APP_PATH="$$APP_PATH"
 
@@ -159,7 +159,7 @@ notarize:
 		echo "   Usage: APPLE_ID=... APPLE_TEAM_ID=... APPLE_APP_PASSWORD=... make notarize"; \
 		exit 1; fi
 	@echo "🔏 Signing DMG..."
-	codesign --force --sign "Developer ID Application" $(BUILDS_DIR)/$(DMG_NAME)
+	codesign --force --timestamp --sign "Developer ID Application" $(BUILDS_DIR)/$(DMG_NAME)
 	@echo "📤 Submitting to Apple notary service (this may take a few minutes)..."
 	xcrun notarytool submit $(BUILDS_DIR)/$(DMG_NAME) \
 		--apple-id "$(APPLE_ID)" \

@@ -84,8 +84,12 @@ final class SongRequestQueue {
                 return .queueFull(max: maxQueueSize)
             }
 
-            // Check per-user limit
-            let userCount = items.filter { $0.requesterUsername.lowercased() == item.requesterUsername.lowercased() }.count
+            // Check per-user limit. Include the now-playing slot when it belongs
+            // to the same requester so the total in-flight count stays at most
+            // `effectiveUserLimit` rather than `effectiveUserLimit + 1`.
+            let lowered = item.requesterUsername.lowercased()
+            let nowPlayingCount = (nowPlaying?.requesterUsername.lowercased() == lowered) ? 1 : 0
+            let userCount = items.filter { $0.requesterUsername.lowercased() == lowered }.count + nowPlayingCount
             guard userCount < effectiveUserLimit else {
                 return .userLimitReached(max: effectiveUserLimit)
             }

@@ -23,17 +23,17 @@ CopyButton(text: "ws://localhost:9090", accessibilityLabel: "Copy URL")
 | `action` | `(() -> Void)?` | Optional side effect fired right after the copy (e.g. a parent status update). Pasteboard write + checkmark still happen regardless. |
 
 ## Tokens used
-- `DSFont.Size.sm` (11) — icon + label
-- `.bordered` style + `.controlSize(.small)` — matches inline form controls
-- `.borderless` style + `.pointerCursor()` — for inline trailing-edge use in URL rows
-- Icons: `doc.on.doc` (idle) → `checkmark` (copied) — semantic state swap
+- `DSFont.Size.sm` (11): icon + label
+- `.bordered` style + `.controlSize(.small)`: matches inline form controls
+- `.borderless` style + `.pointerCursor()`: for inline trailing-edge use in URL rows
+- Icons: `doc.on.doc` (idle) → `checkmark` (copied): semantic state swap
 
 ## Anatomy
 ```mermaid
 graph LR
   Button --> Either{label provided?}
-  Either -->|yes| Labelled[HStack — Image + Text — sm]
-  Either -->|no| IconOnly[Image — sm]
+  Either -->|yes| Labelled[HStack, Image + Text, sm]
+  Either -->|no| IconOnly[Image, sm]
   Labelled -.copied.-> SwapText[copiedLabel + checkmark]
   IconOnly -.copied.-> SwapIcon[checkmark glyph]
 ```
@@ -41,7 +41,7 @@ graph LR
 ## Accessibility
 - `accessibilityLabel` describes the *target* of the copy ("Copy widget URL"), not the action.
 - `accessibilityHint = "Copies text to clipboard"` always.
-- `accessibilityValue` flips to `"Copied"` for `feedbackDuration` seconds — VoiceOver users get confirmation.
+- `accessibilityValue` flips to `"Copied"` for `feedbackDuration` seconds; VoiceOver users get confirmation.
 - `accessibilityIdentifier` is only applied when non-nil, so no empty-string identifier is emitted when omitted.
 - Routes through the shared `Pasteboard.copy(_:)` helper (wraps `NSPasteboard.general`, the standard macOS clipboard).
 
@@ -51,7 +51,7 @@ graph LR
 - ✅ Pair with a short `label`/`copiedLabel` ("Copy Link" / "Copied") for important affordances.
 - ✅ Use `action:` to fire a parent side effect on copy (e.g. a "Code copied" status) instead of hand-rolling a bespoke copy button.
 - ❌ Don't roll your own NSPasteboard call. Use this for the visual confirmation, or `Pasteboard.copy(_:)` when you only need the write.
-- ❌ Don't reduce `feedbackDuration` below 1.5s — the checkmark needs to register.
+- ❌ Don't reduce `feedbackDuration` below 1.5s; the checkmark needs to register.
 
 ## Example
 ```swift

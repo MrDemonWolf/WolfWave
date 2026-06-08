@@ -1,5 +1,5 @@
 /*
- * WolfWave Design System — GENERATED FILE. Do not edit by hand.
+ * WolfWave Design System. GENERATED FILE. Do not edit by hand.
  * Source: design-system/tokens.json
  * Run `bun run tokens` to regenerate.
  */

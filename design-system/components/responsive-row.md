@@ -25,8 +25,8 @@ ResponsiveRow {
 `ViewThatFits(in: .horizontal)` offers a two-column `HStack` candidate first and a `VStack` fallback. The `HStack` candidate carries `.frame(minWidth: floor)`, so `ViewThatFits` only selects it when the pane is at least `floor` wide. Without that floor, flexible `maxWidth: .infinity` children report as "fitting" at any width and the layout would never collapse. In the wide layout both children also take `maxHeight: .infinity`, so paired cards stretch to equal height and read as one band.
 
 ## Tokens used
-- `DSDimension.HistoryStats.twoColumnFloor` (580) — default collapse threshold
-- `AppConstants.SettingsUI.sectionSpacing` (24) — default gap
+- `DSDimension.HistoryStats.twoColumnFloor` (580): default collapse threshold
+- `AppConstants.SettingsUI.sectionSpacing` (24): default gap
 
 ## Anatomy
 ```mermaid
@@ -46,7 +46,7 @@ graph TD
 ## Do / Don't
 - ✅ Use for two peer cards that benefit from sitting side by side but must stack when space is tight.
 - ✅ Let the children own their card surface (`cardStyleUnpadded()`); `ResponsiveRow` only handles placement.
-- ❌ Don't put a card that grows/expands on interaction (e.g. the `!stats` card) inside it — the row will jiggle on toggle. Keep those full width.
+- ❌ Don't put a card that grows/expands on interaction (e.g. the `!stats` card) inside it; the row will jiggle on toggle. Keep those full width.
 - ❌ Don't nest more than two columns; for a true grid of many tiles use `LazyVGrid`.
 
 ## Example

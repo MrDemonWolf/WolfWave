@@ -1,4 +1,4 @@
 # Design-system lint allowlist.
-# Legacy spacing literals — migrate file-by-file in follow-up PRs.
+# Legacy spacing literals. Migrate file-by-file in follow-up PRs.
 # Format: path:line  # optional reason
 #

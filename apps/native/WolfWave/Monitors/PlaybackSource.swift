@@ -62,8 +62,9 @@ protocol PlaybackSourceDelegate: AnyObject {
 /// Sources push updates through `delegate` rather than exposing pull-based
 /// state. This lets the manager subscribe once and remain source-agnostic.
 protocol PlaybackSource: AnyObject {
-    /// Receives track and status updates. Strongly retained by the source, so
-    /// callers must clear the reference (or break the cycle) on teardown.
+    /// Receives track and status updates. Weakly retained by the source.
+    /// Concrete implementations must declare `weak var delegate` so a released
+    /// manager does not keep the source alive through a retain cycle.
     var delegate: PlaybackSourceDelegate? { get set }
 
     /// Begins observing playback. Idempotent; calling twice is a no-op.

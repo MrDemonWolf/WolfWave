@@ -21,6 +21,11 @@ final class CooldownManager {
 
     // MARK: - Properties
 
+    /// Maximum number of per-user cooldown entries kept at any one time.
+    /// Exceeding this causes the oldest half to be evicted, capping memory use
+    /// even in long streams with many unique chatters.
+    private let maxUserCooldownEntries = 2000
+
     /// Global cooldowns: key = command trigger, value = last use timestamp.
     private var globalCooldowns: [String: Date] = [:]
 
@@ -93,17 +98,27 @@ final class CooldownManager {
 
     // MARK: - Private Helpers
 
-    /// Prunes expired per-user cooldown entries to prevent unbounded memory growth.
+    /// Prunes per-user cooldown entries to prevent unbounded memory growth.
     ///
-    /// Only runs when the dictionary exceeds 100 entries. Removes entries older
-    /// than the maximum cooldown duration (5 minutes).
-    /// Must be called while holding `lock`.
+    /// Two-pass strategy (must be called while holding `lock`):
+    /// 1. Remove entries older than 5 minutes (the maximum cooldown window).
+    /// 2. If the dictionary still exceeds `maxUserCooldownEntries` after the
+    ///    time-based pass (i.e. many chatters are still within their cooldown
+    ///    window), evict the oldest half so the dictionary cannot grow without
+    ///    bound over a long stream.
     private func pruneExpiredCooldownsIfNeeded() {
         guard userCooldowns.count > 100 else { return }
         let maxAge: TimeInterval = 300  // 5 minutes
         let cutoff = Date().addingTimeInterval(-maxAge)
         userCooldowns = userCooldowns.filter { $0.value > cutoff }
         globalCooldowns = globalCooldowns.filter { $0.value > cutoff }
+
+        // Hard cap: evict the oldest half when fresh entries alone exceed the limit.
+        if userCooldowns.count > maxUserCooldownEntries {
+            let sorted = userCooldowns.sorted { $0.value < $1.value }
+            let keepFrom = sorted.count / 2
+            userCooldowns = Dictionary(uniqueKeysWithValues: sorted[keepFrom...].map { ($0.key, $0.value) })
+        }
     }
 
     /// Returns remaining cooldown times for debug logging.

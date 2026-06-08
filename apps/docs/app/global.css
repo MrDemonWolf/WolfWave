@@ -313,12 +313,13 @@
   color: #fff;
 }
 .ww-btn-primary:hover {
-  background-color: var(--brand-700);
+  background-color: color-mix(in srgb, var(--brand-600) 80%, #000);
 }
 
 .ww-btn-secondary {
   background-color: transparent;
   color: var(--brand-600);
+  border: 1px solid color-mix(in srgb, var(--brand-600) 50%, var(--hairline));
 }
 .ww-btn-secondary:hover {
   text-decoration: underline;
@@ -381,7 +382,7 @@
   padding: 0 0.4rem;
   border-radius: var(--ww-radius-control);
   background-color: var(--brand-50);
-  color: var(--brand-500);
+  color: var(--brand-600);
   letter-spacing: 0;
 }
 
@@ -974,6 +975,16 @@ article:has(.docs-hero) > p:first-of-type,
 .docs-hero > * {
   position: relative;
   z-index: 1;
+}
+
+/* Developers section dot-grid: rgba fallback for browsers without color-mix() */
+.ww-dev-dot-grid {
+  background-image: radial-gradient(rgba(210, 210, 215, 0.7) 1px, transparent 1px);
+  background-image: radial-gradient(color-mix(in srgb, var(--hairline) 70%, transparent) 1px, transparent 1px);
+}
+.dark .ww-dev-dot-grid {
+  background-image: radial-gradient(rgba(44, 44, 46, 0.7) 1px, transparent 1px);
+  background-image: radial-gradient(color-mix(in srgb, var(--hairline) 70%, transparent) 1px, transparent 1px);
 }
 
 .docs-eyebrow {

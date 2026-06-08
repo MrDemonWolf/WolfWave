@@ -140,6 +140,17 @@ actor WebSocketServerService {
     }
 
     deinit {
+        // Cancel the NWListener and all open NWConnections before the actor is
+        // deallocated. Not calling these would leave the OS-level socket open
+        // until the next GC pass, and active NWConnections would retain their
+        // send/receive closures (keeping the object graph alive longer than
+        // expected). `stateContinuation.finish()` must come last so any
+        // consumer still iterating `stateChanges` sees the stream end.
+        retryTask?.cancel()
+        progressTask?.cancel()
+        listener?.cancel()
+        for conn in connections { conn.cancel() }
+        widgetHTTP?.stop()
         stateContinuation.finish()
     }
 
@@ -185,15 +196,21 @@ actor WebSocketServerService {
         startServer()
     }
 
-    /// Changes the listening port. Restarts the server if it was already running.
+    /// Changes the listening port. Restarts the server if it was already running
+    /// or still starting (a port change during `.starting` would otherwise bind
+    /// the old port and silently ignore the new value).
     func updatePort(_ newPort: UInt16) {
         guard newPort >= AppConstants.WebSocketServer.minPort,
               newPort <= AppConstants.WebSocketServer.maxPort else { return }
 
-        let wasListening = state == .listening
+        let needsRestart = listener != nil
         port = newPort
 
-        if wasListening {
+        if needsRestart {
+            Log.info(
+                "WebSocketServerService: Port changed to \(newPort) while listener active, restarting",
+                category: "WebSocket"
+            )
             stopServer()
             startServer()
         }

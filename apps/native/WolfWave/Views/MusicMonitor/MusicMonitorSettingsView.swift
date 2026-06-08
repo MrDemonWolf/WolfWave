@@ -18,6 +18,10 @@ import AppKit
 /// settings pane.
 struct MusicMonitorSettingsView: View {
 
+    // MARK: - Environment
+
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
     // MARK: - User Settings
 
     @AppStorage(AppConstants.UserDefaults.trackingEnabled)
@@ -146,7 +150,7 @@ struct MusicMonitorSettingsView: View {
             loadIntegrationStatuses()
         }
         .onReceive(notif(AppConstants.Notifications.nowPlayingChanged)) { notification in
-            withAnimation(.easeInOut(duration: DSMotion.Duration.base)) {
+            withAnimation(reduceMotion ? nil : .easeInOut(duration: DSMotion.Duration.base)) {
                 let payload = notification.nowPlaying
                 currentTrack = payload.track
                 currentArtist = payload.artist
@@ -162,17 +166,17 @@ struct MusicMonitorSettingsView: View {
             fetchArtwork()
         }
         .onReceive(notif(AppConstants.Notifications.twitchConnectionStateChanged)) { notification in
-            withAnimation(.easeInOut(duration: DSMotion.Duration.base)) {
+            withAnimation(reduceMotion ? nil : .easeInOut(duration: DSMotion.Duration.base)) {
                 twitchConnected = notification.isConnectedFlag ?? false
             }
         }
         .onReceive(notif(AppConstants.Notifications.discordStateChanged)) { notification in
-            withAnimation(.easeInOut(duration: DSMotion.Duration.base)) {
+            withAnimation(reduceMotion ? nil : .easeInOut(duration: DSMotion.Duration.base)) {
                 discordActive = (notification.stateString ?? "") == "connected"
             }
         }
         .onReceive(notif(AppConstants.Notifications.websocketServerStateChanged)) { notification in
-            withAnimation(.easeInOut(duration: DSMotion.Duration.base)) {
+            withAnimation(reduceMotion ? nil : .easeInOut(duration: DSMotion.Duration.base)) {
                 widgetRunning = (notification.stateString ?? "") == "listening"
             }
         }
@@ -184,7 +188,7 @@ struct MusicMonitorSettingsView: View {
             // reads return nil, the canonical TCC Automation denial. Flip the
             // banner immediately and persist so other tabs see it too.
             MusicPermissionCache.write(.denied)
-            withAnimation(.easeInOut(duration: DSMotion.Duration.base)) {
+            withAnimation(reduceMotion ? nil : .easeInOut(duration: DSMotion.Duration.base)) {
                 permissionState = .denied
             }
         }
@@ -211,7 +215,7 @@ struct MusicMonitorSettingsView: View {
                 }
             }
 
-            Spacer(minLength: 8)
+            Spacer(minLength: DSSpace.s2)
 
             permissionTrailingControl
         }
@@ -341,7 +345,7 @@ struct MusicMonitorSettingsView: View {
     /// permission state doesn't change (the common already-granted case).
     private func recheckTapped() {
         guard !isRechecking else { return }
-        withAnimation(.easeInOut(duration: DSMotion.Duration.fast)) {
+        withAnimation(reduceMotion ? nil : .easeInOut(duration: DSMotion.Duration.fast)) {
             isRechecking = true
             recheckConfirmed = false
         }
@@ -350,7 +354,7 @@ struct MusicMonitorSettingsView: View {
             let next = await MusicPermissionChecker.recheck()
             await MainActor.run {
                 MusicPermissionCache.write(next)
-                withAnimation(.easeInOut(duration: DSMotion.Duration.base)) {
+                withAnimation(reduceMotion ? nil : .easeInOut(duration: DSMotion.Duration.base)) {
                     permissionState = next
                     isRechecking = false
                     recheckConfirmed = (next == .granted)
@@ -362,7 +366,7 @@ struct MusicMonitorSettingsView: View {
             }
             try? await Task.sleep(nanoseconds: 1_200_000_000)
             await MainActor.run {
-                withAnimation(.easeInOut(duration: DSMotion.Duration.base)) {
+                withAnimation(reduceMotion ? nil : .easeInOut(duration: DSMotion.Duration.base)) {
                     recheckConfirmed = false
                 }
             }
@@ -377,7 +381,7 @@ struct MusicMonitorSettingsView: View {
             let next = MusicPermissionChecker.currentState()
             await MainActor.run {
                 MusicPermissionCache.write(next)
-                withAnimation(.easeInOut(duration: DSMotion.Duration.base)) {
+                withAnimation(reduceMotion ? nil : .easeInOut(duration: DSMotion.Duration.base)) {
                     permissionState = next
                 }
                 // If we're now granted, try to get the current track again.
@@ -402,7 +406,7 @@ struct MusicMonitorSettingsView: View {
                 // the TTL reflects the just-granted/denied result, not a stale
                 // earlier probe.
                 MusicPermissionCache.write(resolved)
-                withAnimation(.easeInOut(duration: DSMotion.Duration.base)) {
+                withAnimation(reduceMotion ? nil : .easeInOut(duration: DSMotion.Duration.base)) {
                     permissionState = resolved
                 }
                 isRequesting = false
@@ -433,7 +437,7 @@ struct MusicMonitorSettingsView: View {
             return
         }
         ArtworkService.shared.fetchTrackLinks(track: track, artist: artist) { links in
-            DispatchQueue.main.async {
+            Task { @MainActor in
                 currentArtworkURL = links.artworkURL.flatMap(URL.init(string:))
             }
         }

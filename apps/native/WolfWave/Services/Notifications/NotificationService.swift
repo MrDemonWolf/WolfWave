@@ -156,9 +156,10 @@ final class NotificationService {
 
         content.title = "Skip Vote Started"
         content.subtitle = Self.trackLine(track: track, artist: artist)
+        let needed = max(votesNeeded, 1)
         content.body = viaPoll
             ? "A Twitch poll is open. Viewers vote in the poll widget."
-            : "Chat is voting to skip. \(max(votesNeeded, 1)) votes needed."
+            : "Chat is voting to skip. \(needed) \(needed == 1 ? "vote" : "votes") needed."
 
         // Silent. The start is informational. The "passed" banner gets the chime.
         content.sound = nil

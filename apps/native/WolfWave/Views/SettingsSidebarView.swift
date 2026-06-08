@@ -11,7 +11,7 @@ import SwiftUI
 /// Native macOS settings sidebar: a plain `List(selection:)` of `Label` rows
 /// grouped into `Section`s, rendered with `.listStyle(.sidebar)`.
 ///
-/// This is deliberately stock SwiftUI — no custom row backgrounds, hover fills,
+/// This is deliberately stock SwiftUI. No custom row backgrounds, hover fills,
 /// selection pills, or brand header. The system draws the standard sidebar
 /// selection highlight (the rounded accent capsule), supplies the uppercase
 /// secondary section headers, tints icons on selection, and handles keyboard
@@ -20,7 +20,7 @@ import SwiftUI
 /// `NavigationSplitView` sidebar toggle owned by the title bar.
 ///
 /// Anything that overrides `listRowBackground` here will suppress the native
-/// selection highlight — leave the rows stock.
+/// selection highlight; leave the rows stock.
 struct SettingsSidebarView: View {
     // MARK: - Properties
 
@@ -63,7 +63,7 @@ struct SettingsSidebarView: View {
 
 /// One navigation row: a native `Label` pairing the section title with an icon.
 /// SF Symbol sections use the symbol directly; brand sections (Twitch / Discord)
-/// supply a template image so the system tints it like a symbol — monochrome at
+/// supply a template image so the system tints it like a symbol: monochrome at
 /// rest, white on the selection capsule.
 private struct SettingsSidebarRow: View {
     let section: SettingsView.SettingsSection

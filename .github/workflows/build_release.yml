@@ -163,7 +163,7 @@ jobs:
           rm -f "$CERT_PATH"
           echo "Developer ID certificate imported"
 
-      - name: Build Release (Universal)
+      - name: Build Release (arm64)
         run: |
           xcodebuild -project "$PROJECT" -scheme "$SCHEME" \
             -configuration "$CONFIGURATION" \

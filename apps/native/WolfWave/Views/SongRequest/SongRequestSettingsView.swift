@@ -241,7 +241,7 @@ fileprivate struct SongRequestMasterToggleCard: View {
     private var songRequestEnabled = false
 
     // Lives here, not in the commands card, so it stays reachable when the
-    // feature is off — which is exactly when it takes effect.
+    // feature is off, which is exactly when it takes effect.
     @AppStorage(AppConstants.UserDefaults.songRequestDisabledReplyEnabled)
     private var disabledReplyEnabled = false
 
@@ -835,7 +835,7 @@ fileprivate struct SongRequestRedemptionsCard: View {
                             .foregroundStyle(.tertiary)
                         Text(rewardID.isEmpty
                             ? "Not created yet"
-                            : (streamerMode ? "\u{2022}\u{2022}\u{2022}\u{2022}\u{2022}\u{2022}" : rewardID))
+                            : StreamerMode.mask(rewardID, style: .channel, isOn: streamerMode))
                             .font(.system(size: DSFont.Size.xs, design: .monospaced))
                             .foregroundStyle(.secondary)
                             .lineLimit(1)

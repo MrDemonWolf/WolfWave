@@ -30,9 +30,9 @@ StatTile(
 ```mermaid
 flowchart TD
     Root[VStack spacing: DSSpace.s0]
-    Root --> Value["Text(value) — x2xl bold .primary"]
-    Root --> Secondary["Text(secondary?) — sm .secondary"]
-    Root --> Caption["Text(caption) — sm medium .secondary (sentence case)"]
+    Root --> Value["Text(value), x2xl bold .primary"]
+    Root --> Secondary["Text(secondary?), sm .secondary"]
+    Root --> Caption["Text(caption), sm medium .secondary (sentence case)"]
 ```
 
 ## Accessibility
@@ -46,8 +46,8 @@ flowchart TD
 
 - ✅ Use sentence-case captions ("This week", "Top hour", "All time").
 - ✅ Pair three tiles with `Divider().frame(height: 40)` between them inside a `.cardStyleUnpadded()` row.
-- ❌ Don't pass ALL-CAPS captions — the component renders sentence case deliberately.
-- ❌ Don't wrap each tile in its own card — they're row segments.
+- ❌ Don't pass ALL-CAPS captions; the component renders sentence case deliberately.
+- ❌ Don't wrap each tile in its own card; they're row segments.
 
 ## Example
 

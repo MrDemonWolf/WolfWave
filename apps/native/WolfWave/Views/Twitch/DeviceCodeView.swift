@@ -24,7 +24,9 @@ struct DeviceCodeView: View {
     let verificationURI: String
     let onCopy: () -> Void
     var onActivate: (() -> Void)? = nil
-    
+
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
     @State private var showCopyFeedback = false
 
     // MARK: - Body
@@ -100,7 +102,7 @@ struct DeviceCodeView: View {
                 .offset(x: -8, y: -8),
             alignment: .topTrailing
         )
-        .animation(DSMotion.Spring.snappy, value: userCode)
+        .animation(reduceMotion ? nil : DSMotion.Spring.snappy, value: userCode)
     }
 
     // MARK: - Helpers
@@ -112,14 +114,14 @@ struct DeviceCodeView: View {
         Pasteboard.copy(userCode)
         onCopy()
 
-        withAnimation(.easeInOut(duration: DSMotion.Duration.fast)) {
+        withAnimation(reduceMotion ? nil : .easeInOut(duration: DSMotion.Duration.fast)) {
             showCopyFeedback = true
         }
 
         // Auto-dismiss the toast after a beat.
         Task { @MainActor in
             try? await Task.sleep(for: .milliseconds(1300))
-            withAnimation(.easeInOut(duration: DSMotion.Duration.fast)) {
+            withAnimation(reduceMotion ? nil : .easeInOut(duration: DSMotion.Duration.fast)) {
                 showCopyFeedback = false
             }
         }

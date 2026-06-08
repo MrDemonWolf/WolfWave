@@ -403,7 +403,7 @@ struct TwitchChatServiceTests {
         // Record the terminal attempt that was dropped (not requeued).
         observed.append(attempts)
 
-        // Attempts strictly increase by 1 — never reset.
+        // Attempts strictly increase by 1; never reset.
         #expect(observed == Array(1...maxRetries))
         // The loop terminated at exactly the retry limit.
         #expect(attempts == maxRetries)

@@ -168,7 +168,7 @@ struct SettingsView: View {
             // fit the toggle for a frame or two, so AppKit paints the segment's
             // overflow `>>` chevron at the divider. Hosting our own toggle in the
             // detail segment (right of the sidebar tracking separator) leaves the
-            // collapsing sidebar segment with no item to overflow — and matches
+            // collapsing sidebar segment with no item to overflow, and matches
             // the native reference, which shows the toggle at the detail's leading
             // edge.
             .toolbar {
@@ -397,7 +397,7 @@ struct SettingsView: View {
         }
 
         // On-disk data: logs, listening history, artwork cache, crash
-        // markers, diagnostics — the whole Application Support container.
+        // markers, diagnostics: the whole Application Support container.
         AppContainer.wipe()
 
         // Relaunch into a clean, fresh-install state.
@@ -406,7 +406,7 @@ struct SettingsView: View {
 
     /// Relaunches WolfWave in a new process, then quits the current instance.
     ///
-    /// Uses `NSWorkspace.openApplication`, which is sandbox-safe — spawning
+    /// Uses `NSWorkspace.openApplication`, which is sandbox-safe. Spawning
     /// `/usr/bin/open` or a raw `Process` is blocked under the App Sandbox.
     /// `createsNewApplicationInstance` lets the new copy start while this one
     /// is still terminating.

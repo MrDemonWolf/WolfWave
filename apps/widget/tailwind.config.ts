@@ -4,11 +4,11 @@
  * Why a workspace, not a one-off CSS file:
  *   The widget is a single .html file served by `WidgetHTTPService` (Swift) and
  *   also droppable directly into OBS as a Browser Source. We want utility-class
- *   styling without shipping the full Tailwind dev runtime — so we run the
+ *   styling without shipping the full Tailwind dev runtime, so we run the
  *   Tailwind CLI at build time over `src/widget.html` + `src/widget.ts`, then
  *   inline the minified CSS into the final output HTML (see `build.ts`).
  *
- * Themes are NOT compiled into utility variants — they stay as runtime CSS
+ * Themes are NOT compiled into utility variants. They stay as runtime CSS
  * custom properties (`--ww-*`) so the OBS user can flip themes via URL
  * params without rebuilding the bundle. Tailwind utilities resolve to those
  * CSS variables via `theme.extend` below.

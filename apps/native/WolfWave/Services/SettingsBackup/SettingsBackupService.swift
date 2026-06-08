@@ -108,6 +108,15 @@ struct SettingsBackupService {
             defaults.set(value.userDefaultsValue, forKey: key)
         }
 
+        // If the backup turned Song Requests on but this machine has never
+        // completed setup, force it back off so the feature doesn't start in a
+        // broken state. The user can run setup from the Song Requests pane.
+        let keys = AppConstants.UserDefaults.self
+        if defaults.bool(forKey: keys.songRequestEnabled),
+           !defaults.bool(forKey: keys.songRequestSetupComplete) {
+            defaults.set(false, forKey: keys.songRequestEnabled)
+        }
+
         if plan.reconnectTwitch, let channel = plan.twitchChannelName {
             // Restore the public channel name and mark re-auth needed. The token
             // is not in the backup, so TwitchViewModel surfaces a sign-in CTA.

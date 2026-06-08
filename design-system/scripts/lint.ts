@@ -5,16 +5,16 @@
  * Greps Swift sources for raw literals that bypass the design-token system.
  * Exits non-zero with a file:line:col report on violation.
  *
- * Scope: apps/native/WolfWave/Views/ — excluding Onboarding/ (separate design
- * language) and *.generated.swift. Tests are also skipped.
+ * Scope: apps/native/WolfWave/Views/ (excluding Onboarding/ (separate design
+ * language) and *.generated.swift). Tests are also skipped.
  *
- * Allowlist: design-system/lint-allowlist.txt — one `path:line` per line,
+ * Allowlist: design-system/lint-allowlist.txt; one `path:line` per line,
  * `#` starts a comment. Use sparingly; prefer fixing the source.
  *
  * Rules:
  *  - font(.system(size: N))     → use DSFont.Size.*
- *  - spacing: N) / .padding(N)  → use DSSpace.* (with carve-outs for 0/1/6/etc.
- *                                  values that have no DSSpace equivalent)
+ *  - spacing: N) / .padding(N)  → use DSSpace.* (with carve-outs for 0/1/etc.
+ *                                  values that have no DSSpace equivalent; 6 = DSSpace.s1h)
  *  - Hand-rolled bordered icon buttons → use DSIconButton
  *  - Animation literal durations (.easeInOut(duration: N), .spring(response: N),
  *    .easeOut(duration: N), .easeIn(duration: N), .linear(duration: N))
@@ -44,12 +44,12 @@ const RULES: Array<{ name: string; pattern: RegExp; appliesToOnboarding: boolean
   {
     name: "raw-spacing",
     // matches `spacing: N)` or `spacing: N,` where N is a tokenized value
-    pattern: /\bspacing:\s*(2|4|8|10|12|14|16|20|24|28|32|44)(?=[,)\s])/,
+    pattern: /\bspacing:\s*(2|4|6|8|10|12|14|16|20|24|28|32|44)(?=[,)\s])/,
     appliesToOnboarding: false,
   },
   {
     name: "raw-padding",
-    pattern: /\.padding\(\s*(2|4|8|10|12|14|16|20|24|28|32|44)\s*\)/,
+    pattern: /\.padding\(\s*(2|4|6|8|10|12|14|16|20|24|28|32|44)\s*\)/,
     appliesToOnboarding: false,
   },
   {
@@ -57,7 +57,7 @@ const RULES: Array<{ name: string; pattern: RegExp; appliesToOnboarding: boolean
     // matches `.easeInOut(duration: 0.2)`, `.spring(response: 0.35, …)`,
     // `.easeOut(duration: 0.4)`, `.linear(duration: 0.2)`, `Animation(…duration: 0.2)`.
     // Token-only mode: any numeric literal in duration:/response: is flagged.
-    // Onboarding is opted in — its visual rhythm differs but motion tokens unify.
+    // Onboarding is opted in; its visual rhythm differs but motion tokens unify.
     pattern:
       /\.(easeInOut|easeIn|easeOut|linear|spring|interpolatingSpring|interactiveSpring)\([^)]*\b(duration|response):\s*\d+\.?\d*/,
     appliesToOnboarding: true,

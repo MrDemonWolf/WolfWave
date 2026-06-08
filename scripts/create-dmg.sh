@@ -1,5 +1,5 @@
 #!/bin/bash
-# create-dmg.sh — Create a styled WolfWave DMG installer
+# create-dmg.sh: Create a styled WolfWave DMG installer
 # Usage: ./scripts/create-dmg.sh <app-path> <dmg-name> <builds-dir>
 set -euo pipefail
 

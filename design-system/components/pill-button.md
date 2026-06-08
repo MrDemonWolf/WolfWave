@@ -42,8 +42,8 @@ graph TB
 ```
 
 ## Accessibility
-- Inherits label from the supplied `@ViewBuilder` content — pass meaningful `Text` so VoiceOver gets the verb.
-- `.pointerCursor()` — flips to the system pointing cursor on hover.
+- Inherits label from the supplied `@ViewBuilder` content; pass meaningful `Text` so VoiceOver gets the verb.
+- `.pointerCursor()`: flips to the system pointing cursor on hover.
 - Disabled state dims visually *and* sets `.disabled(true)` so VoiceOver announces it.
 
 ## Do / Don't

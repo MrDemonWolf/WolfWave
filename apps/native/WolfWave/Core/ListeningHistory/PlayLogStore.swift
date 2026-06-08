@@ -134,7 +134,7 @@ nonisolated final class PlayLogStore: @unchecked Sendable {
         guard let data = (line + "\n").data(using: .utf8) else { return }
         do {
             try handle.seekToEnd()
-            handle.write(data)
+            try handle.write(contentsOf: data)
         } catch {
             Log.error("PlayLogStore: Append failed: \(error.localizedDescription)", category: AppConstants.History.logCategory)
         }

@@ -34,8 +34,8 @@ CommandAliasField(
 ```mermaid
 flowchart LR
   Row[HStack spacing: DSSpace.s2]
-  Row --> Label["Text(label) — sm .tertiary"]
-  Row --> Field["TextField(placeholder) — roundedBorder, sm, maxWidth inlineFieldMaxWidth"]
+  Row --> Label["Text(label), sm .tertiary"]
+  Row --> Field["TextField(placeholder), roundedBorder, sm, maxWidth inlineFieldMaxWidth"]
 ```
 
 ## Accessibility
@@ -45,7 +45,7 @@ flowchart LR
 ## Do / Don't
 - ✅ Use inside a [`CommandSettingRow`](command-setting-row.md) details block, or standalone in a command card (e.g. vote-skip, `!stats`).
 - ✅ Give each instance a unique `accessibilityIdentifier` when more than one alias field shares a pane.
-- ❌ Don't re-roll the label+field inline — use this so every alias input matches.
+- ❌ Don't re-roll the label+field inline. Use this so every alias input matches.
 - ❌ Don't widen past `inlineFieldMaxWidth`.
 
 ## Example

@@ -16,6 +16,10 @@ import SwiftUI
 /// card for Homebrew installs (Sparkle disabled) and to the Sparkle-flavored
 /// card for DMG installs.
 struct SoftwareUpdateSettingsView: View {
+    // MARK: - Environment
+
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
     // MARK: - State
 
     @State private var updateAvailable = false
@@ -214,8 +218,8 @@ struct SoftwareUpdateSettingsView: View {
             }
         }
         .cardStyle()
-        .animation(.easeInOut(duration: DSMotion.Duration.base), value: updateAvailable)
-        .animation(.easeInOut(duration: DSMotion.Duration.base), value: updateCheckEnabled)
+        .animation(reduceMotion ? nil : .easeInOut(duration: DSMotion.Duration.base), value: updateAvailable)
+        .animation(reduceMotion ? nil : .easeInOut(duration: DSMotion.Duration.base), value: updateCheckEnabled)
     }
 }
 

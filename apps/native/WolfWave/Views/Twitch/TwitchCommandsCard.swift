@@ -249,13 +249,13 @@ struct TwitchCommandsCard: View {
         .frame(width: 700)
 }
 
-#Preview("Twitch Commands — Not Connected") {
+#Preview("Twitch Commands - Not Connected") {
     TwitchCommandsCard(viewModel: TwitchViewModel())
         .padding()
         .frame(width: 700)
 }
 
-#Preview("Twitch Commands — Sign-in Expired") {
+#Preview("Twitch Commands - Sign-in Expired") {
     let expired = TwitchViewModel()
     expired.reauthNeeded = true
     return TwitchCommandsCard(viewModel: expired)

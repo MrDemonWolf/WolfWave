@@ -185,6 +185,7 @@ nonisolated enum AppConstants {
             dockVisibilityChanged,
             twitchReauthNeededChanged,
             discordPresenceChanged,
+            discordPresenceSettingsChanged,
             discordStateChanged,
             nowPlayingChanged,
             updateStateChanged,
@@ -220,6 +221,11 @@ nonisolated enum AppConstants {
 
         /// Stable identifier for the skip-vote-passed notification.
         static let skipVotePassedIdentifier = "com.mrdemonwolf.wolfwave.notification.skipVotePassed"
+
+        /// Stable identifier for the "Twitch authentication expired" banner.
+        /// Reused so a second re-auth prompt in the same session replaces the
+        /// first rather than stacking a duplicate in Notification Center.
+        static let twitchReauthIdentifier = "com.mrdemonwolf.wolfwave.notification.twitchReauth"
     }
 
     // MARK: - UserDefaults Keys
@@ -1130,7 +1136,7 @@ nonisolated enum AppConstants {
         static let availabilityPollInterval: TimeInterval = 15.0
 
         /// Send/receive timeout (seconds) on the IPC socket. A stalled Discord
-        /// peer can't block the service's actor executor longer than this — a
+        /// peer can't block the service's actor executor longer than this: a
         /// timed-out blocking read/write fails fast into reconnect handling.
         static let socketTimeoutSeconds = 5
 

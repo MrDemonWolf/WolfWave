@@ -3,7 +3,7 @@
  *
  * Re-exports generated design tokens plus high-level brand helpers for use
  * inside Remotion compositions. Edits to `tokens.generated.ts` are overwritten
- * by `bun run tokens` — change `design-system/tokens.json` upstream instead.
+ * by `bun run tokens`; change `design-system/tokens.json` upstream instead.
  */
 
 export { tokens, type Tokens } from "./tokens.generated";

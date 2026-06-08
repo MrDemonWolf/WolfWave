@@ -273,6 +273,12 @@ enum Log {
         file: StaticString = #fileID,
         line: UInt = #line
     ) {
+        // Suppress .debug writes in release builds regardless of call-site entry
+        // path. Log.debug() has its own @autoclosure guard, but a direct call to
+        // Log.log(..., level: .debug) would otherwise bypass that suppression and
+        // write to disk in a release build.
+        if level == .debug && !isDebugLoggingEnabled { return }
+
         let redactedMessage = redactSensitiveInfo(message)
         let location = sourceLocation(file: file, line: line)
 
@@ -429,9 +435,9 @@ enum Log {
     nonisolated(unsafe) private static let redactionRules: [(Regex<Substring>, String)] = [
         (#/oauth_[a-zA-Z0-9_-]+/#, "oauth_[REDACTED]"),
         (#/Bearer\s+[a-zA-Z0-9_-]+/#, "Bearer [REDACTED]"),
-        (#/\b[a-zA-Z0-9]{30,}\b/#, "[TOKEN_REDACTED]"),
+        (#/\b[a-zA-Z0-9_-]{30,}\b/#, "[TOKEN_REDACTED]"),
         (#/Client-ID[:\s]+[a-zA-Z0-9]+/#, "Client-ID: [REDACTED]"),
-        (#/\b\d{8,}\b/#, "[USER_ID_REDACTED]"),
+        (#/\b\d{6,}\b/#, "[USER_ID_REDACTED]"),
     ]
 
     /// Redacts sensitive information from log messages
@@ -439,6 +445,15 @@ enum Log {
         redactionRules.reduce(message) { current, rule in
             current.replacing(rule.0, with: rule.1)
         }
+    }
+
+    /// Runs the PII redaction pipeline on an arbitrary string.
+    ///
+    /// Exposed at internal visibility so non-log code paths (e.g. ``CrashReporter``'s
+    /// NSException handler) can redact user-supplied strings before writing them to
+    /// disk, without duplicating the redaction rules.
+    nonisolated static func redact(_ message: String) -> String {
+        redactSensitiveInfo(message)
     }
 
     #if DEBUG

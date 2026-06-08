@@ -39,7 +39,7 @@ func generateBackground(scale: Int, outputPath: String) {
         exit(1)
     }
 
-    // 1. Flat dark base gradient — charcoal, matches brand dark surface (#1D1D1F).
+    // 1. Flat dark base gradient: charcoal, matches brand dark surface (#1D1D1F).
     let base = CGGradient(
         colorsSpace: colorSpace,
         colors: [
@@ -55,7 +55,7 @@ func generateBackground(scale: Int, outputPath: String) {
         options: []
     )
 
-    // 2. Soft brand glow behind the drop target (right side) — the only color.
+    // 2. Soft brand glow behind the drop target (right side). The only color.
     let glow = CGGradient(
         colorsSpace: colorSpace,
         colors: [

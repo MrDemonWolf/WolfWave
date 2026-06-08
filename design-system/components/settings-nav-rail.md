@@ -27,7 +27,7 @@ SettingsNavRail(
 `Section` conforms to **`SettingsRailSection`** (`Hashable, RawRepresentable where
 RawValue == String`) supplying `title` (row label) + `icon` (SF Symbol). Tag the
 top view of each section with `.railSection(_:)`; **pass the explicit enum case**
-(`MySection.second`, not `.second`) — the modifier is generic and can't infer the
+(`MySection.second`, not `.second`); the modifier is generic and can't infer the
 type from a leading-dot member. Grouped rails pass several `SettingsRailGroup`s with
 titles (e.g. Debug's "State & Diagnostics" / "Active Controls"); flat rails pass one
 group with a `nil` title.
@@ -40,12 +40,12 @@ group with a `nil` title.
 | `content` | `() -> Content` | `@ViewBuilder`; stacked sections, each top view tagged `.railSection(_:)`. |
 
 ## Tokens used
-- `DSColor.info` — selected row text + 14%-opacity highlight fill
-- `DSRadius.sm` (6) — highlight pill corner
-- `DSFont.Size.body` (12) — row label (`.semibold` when selected)
-- `DSSpace.s1`/`s2`/`s3`/`s4`/`s6` — rail row + container padding, icon frame
-- `DSMotion.Duration.base` (0.22) — tap scroll animation
-- `AppConstants.SettingsUI.{maxContentWidth, contentPaddingH, contentPaddingV, sectionSpacing}` — content column geometry
+- `DSColor.info`: selected row text + 14%-opacity highlight fill
+- `DSRadius.sm` (6): highlight pill corner
+- `DSFont.Size.body` (12): row label (`.semibold` when selected)
+- `DSSpace.s1`/`s2`/`s3`/`s4`/`s6`: rail row + container padding, icon frame
+- `DSMotion.Duration.base` (0.22): tap scroll animation
+- `AppConstants.SettingsUI.{maxContentWidth, contentPaddingH, contentPaddingV, sectionSpacing}`: content column geometry
 - rail width: `184` (fixed)
 
 ## Anatomy
@@ -67,7 +67,7 @@ graph LR
 ## Accessibility
 - Each rail row is a `Button` with `.help("Jump to <title>")` and
   `.accessibilityIdentifier("<prefix>.<rawValue>")` for UI tests.
-- `.pointerCursor()` — flips to the pointing-hand cursor on hover.
+- `.pointerCursor()`: flips to the pointing-hand cursor on hover.
 - Selection follows both taps and manual scrolling, so the highlighted row always
   reflects the visible section.
 - The content column clamps to `AppConstants.SettingsUI.maxContentWidth` for
@@ -76,13 +76,13 @@ graph LR
 ## Do / Don't
 - ✅ Use for long settings panes that bypass the shell's `standardDetailScroll` and
   own the full detail width (wire the bypass in `SettingsView.detailPane`).
-- ✅ Tag exactly one view per section with `.railSection(_:)` — the one that should
+- ✅ Tag exactly one view per section with `.railSection(_:)`, the one that should
   sit at the top when its row is tapped (usually the section's first card or the
   page header for the top section).
 - ✅ Pass the explicit enum case to `.railSection(MySection.case)`.
-- ❌ Don't wrap the whole component in another `ScrollView` — it owns its scroll;
+- ❌ Don't wrap the whole component in another `ScrollView`; it owns its scroll, and
   double-wrapping breaks the rail's full-height layout.
-- ❌ Don't tag a transparent `Group` with `.railSection` — `.id` on a Group doesn't
+- ❌ Don't tag a transparent `Group` with `.railSection`; `.id` on a Group doesn't
   give `ScrollViewReader` a single target. Tag a concrete view.
 
 ## Example

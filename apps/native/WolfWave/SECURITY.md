@@ -1,6 +1,6 @@
-# 🔒 Security & Configuration Guide
+# Security & Configuration Guide
 
-## ⚠️ CRITICAL: API Key Management
+## CRITICAL: API Key Management
 
 ### First-Time Setup
 
@@ -20,13 +20,13 @@
    # Should output: Config.xcconfig
    ```
 
-### ⚠️ What NOT to Do
+### What NOT to Do
 
 ❌ **NEVER commit `Config.xcconfig` with real API keys**
 ❌ **NEVER share your Client IDs publicly** (GitHub, Discord, forums)
 ❌ **NEVER hardcode API keys** in source files
 
-### ✅ What TO Do
+### What TO Do
 
 ✅ **Use `Config.xcconfig.example`** as a template for contributors
 ✅ **Store real keys** only in your local `Config.xcconfig` (gitignored)
@@ -35,7 +35,7 @@
 
 ---
 
-## 🔐 Keychain Security
+## Keychain Security
 
 WolfWave stores OAuth tokens securely in the macOS Keychain:
 
@@ -56,13 +56,19 @@ security delete-generic-password -s "com.mrdemonwolf.wolfwave" -a "YOUR_TWITCH_U
 
 ---
 
-## 🛡️ App Sandbox
+## App Sandbox
 
-WolfWave runs in the **macOS App Sandbox** with these entitlements:
+WolfWave runs in the **macOS App Sandbox**. The actual entitlements in
+`WolfWave.entitlements` are:
 
-- ✅ **Network (Client)**: Required for Twitch/Discord/API calls
-- ✅ **User Selected Files (Read/Write)**: For log export
-- ✅ **Apple Music Access**: Via MusicKit entitlement
+- ✅ **Keychain Access Groups** (`keychain-access-groups`): OAuth token storage.
+- ✅ **User Selected Files, Read/Write** (`files.user-selected.read-write`): settings export/import and log export file pickers.
+- ✅ **Apple Events Automation** (`automation.apple-events` + `temporary-exception.apple-events` → `com.apple.Music`): drives Music.app via ScriptingBridge. There is **no** MusicKit entitlement; now-playing is read over Apple Events, not MusicKit.
+- ✅ **Scripting Targets** (`scripting-targets` → `com.apple.Music`): present for completeness; the access-group name is not a real Music sdef group, so this is effectively a no-op kept alongside the apple-events grants.
+- ✅ **Discord IPC exceptions** (`temporary-exception.sbpl` + `temporary-exception.files.absolute-path.read-write` → `/private/var/folders/`): reach the per-user `discord-ipc-N` Unix domain socket for Rich Presence.
+
+Network client access is granted implicitly by `ENABLE_APP_SANDBOX = YES` in the
+Xcode project (no explicit key in the entitlements file).
 
 ### Why Sandbox Matters
 
@@ -75,7 +81,7 @@ This protects you even if a dependency is compromised.
 
 ---
 
-## 🔑 API Key Rotation
+## API Key Rotation
 
 ### If You Accidentally Commit Keys
 
@@ -112,7 +118,7 @@ This protects you even if a dependency is compromised.
 
 ---
 
-## 🔍 Security Audit Checklist
+## Security Audit Checklist
 
 ### Before Every Commit
 
@@ -138,18 +144,18 @@ This protects you even if a dependency is compromised.
 
 ---
 
-## 🚨 Reporting Security Issues
+## Reporting Security Issues
 
 **Do NOT open a public GitHub issue for security vulnerabilities.**
 
 Instead:
-1. Email security concerns to: [your-email@domain.com]
+1. Email security concerns to: security@mrdemonwolf.com
 2. Use GitHub's private security advisories feature
 3. Allow 90 days for responsible disclosure
 
 ---
 
-## 📚 Additional Resources
+## Additional Resources
 
 - [OWASP API Security](https://owasp.org/www-project-api-security/)
 - [Apple Security Best Practices](https://developer.apple.com/documentation/security)

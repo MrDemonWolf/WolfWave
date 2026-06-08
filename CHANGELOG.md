@@ -2,7 +2,7 @@
 
 All notable changes to this project will be documented in this file.
 
-## [2.0.0] - Unreleased
+## [2.0.0] - 2026-06-08
 
 ### Security
 
@@ -87,7 +87,7 @@ All notable changes to this project will be documented in this file.
 - **Sparkle delegate hardening.** Implemented `allowedSystemProfileKeys(for:)` returning an empty array, opting WolfWave out of Sparkle's system-profile telemetry (OS version, CPU arch, and bundle metadata never leave the user's machine on update checks). Documented why `automaticallyDownloadsUpdates = false`: explicit consent is required before bytes touch the disk.
 - **WebSocket security-model docs.** Added a `## Security model` block to `WebSocketServerService.swift` describing the loopback-only contract.
 - **New unit tests.** `SongBlocklistTests`, `HistoryFormattingTests`, and `LaunchAtLoginServiceTests` cover three previously-untested services.
-- **OBS widget build pipeline.** The overlay source moved out of the hand-edited `apps/native/WolfWave/Resources/widget.html` into a new `apps/widget/` Tailwind + TypeScript workspace. The bundled HTML is now a generated, fully inlined artifact (compiled CSS, design tokens, and JS runtime in one file, no external `<link>` or `<script src>`). Xcode rebuilds it via a pre-build Run Script phase; CI rebuilds it before every `xcodebuild` run in `test.yml` and `build_release.yml`. Manual rebuild is `bun run --filter widget build`. The WebSocket payload, widget URL, and theme/layout params are unchanged. Source files are heavily commented so the runtime can be read end to end.
+- **OBS widget build pipeline.** The overlay source moved out of the hand-edited `apps/native/WolfWave/Resources/widget.html` into a new `apps/widget/` Tailwind + TypeScript workspace. The bundled HTML is now a generated, fully inlined artifact (compiled CSS, design tokens, and JS runtime in one file, no external `<link>` or `<script src>`). Xcode ships the committed `widget.html` as-is; CI rebuilds the widget before every `xcodebuild` run in `test.yml` and `build_release.yml` and fails the PR on any drift. Manual rebuild is `bun run --filter widget build`. The WebSocket payload, widget URL, and theme/layout params are unchanged. Source files are heavily commented so the runtime can be read end to end.
 - **Inside-out release signing.** `build_release.yml` now signs nested bundles deepest-first before the app shell, dropping `--deep --force`, which stripped per-bundle entitlements. The pipeline is XPC-ready for a future sandbox helper (#199).
 - **Typed NotificationCenter payload helpers.** `Core/NotificationPayloads.swift` centralizes every notification payload post/observe pair so both sides share the same keys and types, removing about 38 hand-decoded `userInfo` sites (#198).
 - **HelixClient.** A shared HTTP wrapper for all Helix API calls, replacing per-service `send()` helpers. Maps 401, 429, and structured Helix errors uniformly; covered by `HelixClientTests` (#197).

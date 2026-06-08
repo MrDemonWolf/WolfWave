@@ -17,7 +17,7 @@ import SwiftUI
 ///
 /// Pass `systemImage` for status chips so the state reads through a shape, not
 /// color alone (WCAG 1.4.1). When omitted, the chip falls back to a plain
-/// colored dot — fine for non-status category tags where there is no shared
+/// colored dot, fine for non-status category tags where there is no shared
 /// icon vocabulary.
 struct StatusChip: View {
 

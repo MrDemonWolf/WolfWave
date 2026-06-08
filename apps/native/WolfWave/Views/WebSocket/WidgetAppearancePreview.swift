@@ -13,7 +13,7 @@ import WebKit
 ///
 /// This is the **real** overlay, not a SwiftUI re-creation of it. It loads the
 /// bundled `widget.html` (the exact file OBS renders) in a `WKWebView` running
-/// in preview mode, so the preview is pixel-identical to what goes live — every
+/// in preview mode, so the preview is pixel-identical to what goes live. Every
 /// theme gradient, backdrop blur, noise layer, and glow renders through the same
 /// code path. A previous version hand-rolled the card in SwiftUI and drifted out
 /// of sync with the web renderer on every theme change; this can't.

@@ -28,7 +28,7 @@ struct WolfHeroMark: View {
     enum Style: Equatable {
         /// Flat tint applied to silhouette and bars. Pass `.primary` for the
         /// theme-adaptive black/white treatment that matches the menu-bar
-        /// template icon — use this for small or inline marks.
+        /// template icon; use this for small or inline marks.
         case mono(Color)
         /// WolfWave brand gradient (navy → royal blue) masked over the
         /// silhouette + bars. The stops adapt to the color scheme so the mark

@@ -120,7 +120,7 @@ enum CrashReporter {
 
     /// Writes the breadcrumb body via Foundation. Used by the NSException handler
     /// (which runs in a normal runtime) and by tests. **Never** call this from a
-    /// signal handler — it allocates.
+    /// signal handler (it allocates).
     nonisolated static func writeMarker(_ body: String) {
         let url = markerURL()
         try? FileManager.default.createDirectory(
@@ -138,7 +138,7 @@ enum CrashReporter {
 // MARK: - C-callable handler state
 //
 // The handlers are assigned to C function pointers (`@convention(c)`), so they
-// can't capture context — their shared state lives at file scope. `nonisolated`
+// can't capture context; their shared state lives at file scope. `nonisolated`
 // keeps them out of the module's default `MainActor` isolation (a MainActor
 // function can't be converted to `@convention(c)`). `nonisolated(unsafe)` on the
 // mutable globals is sound here: everything is written once on the main thread in
@@ -173,8 +173,8 @@ private nonisolated(unsafe) var crashReporterPreviousActions: UnsafeMutablePoint
 
 /// Uncaught ObjC exception handler. Runs in a normal runtime (allocation OK).
 private nonisolated func crashReporterExceptionHandler(_ exception: NSException) {
-    let name = exception.name.rawValue
-    let reason = exception.reason ?? ""
+    let name = Log.redact(exception.name.rawValue)
+    let reason = Log.redact(exception.reason ?? "")
     let frames = exception.callStackSymbols.prefix(20).joined(separator: "\n")
     CrashReporter.writeMarker("EXCEPTION \(name)\n\(reason)\n\(frames)\n")
     Log.error("CrashReporter: uncaught NSException \(name): \(reason)", category: "App")

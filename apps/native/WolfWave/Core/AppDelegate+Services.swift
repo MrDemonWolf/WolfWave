@@ -361,10 +361,12 @@ extension AppDelegate {
                 MainActor.assumeIsolated {
                     guard let self,
                           let window = n.object as? NSWindow,
-                          window !== self.onboardingWindow else { return }
-                    // Onboarding is handled by `windowWillClose`. Every other
-                    // closing window, including SwiftUI's Settings scene window,
-                    // falls through here to restore menu-only mode.
+                          window !== self.onboardingWindow,
+                          window !== self.whatsNewWindow else { return }
+                    // Onboarding and What's New are handled by their own
+                    // `windowWillClose` delegate. Every other closing window,
+                    // including SwiftUI's Settings scene window, falls through
+                    // here to restore menu-only mode.
                     self.restoreMenuOnlyIfNeeded()
                 }
             }
@@ -602,7 +604,12 @@ extension AppDelegate {
         content.body = message
         content.sound = .default
 
-        let request = UNNotificationRequest(identifier: UUID().uuidString, content: content, trigger: nil)
+        // Stable identifier so a repeat re-auth prompt in the same session
+        // replaces the previous banner instead of stacking a duplicate.
+        let request = UNNotificationRequest(
+            identifier: AppConstants.UserNotification.twitchReauthIdentifier,
+            content: content,
+            trigger: nil)
 
         Task {
             do {

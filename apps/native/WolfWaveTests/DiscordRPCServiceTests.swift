@@ -263,7 +263,7 @@ final class DiscordRPCServiceTests: XCTestCase {
 
     func testReadResultPeerCloseHasNilDataAndZeroErrno() {
         // A clean peer close (read returns 0) is not a syscall error, so errno
-        // stays 0 while data is nil — distinct from a timeout/error path.
+        // stays 0 while data is nil, distinct from a timeout/error path.
         let result = DiscordRPCService.ReadResult(data: nil, errno: 0)
         XCTAssertNil(result.data)
         XCTAssertEqual(result.errno, 0)

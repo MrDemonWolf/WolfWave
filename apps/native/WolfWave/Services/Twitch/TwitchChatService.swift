@@ -1186,7 +1186,7 @@ actor TwitchChatService {
     ///
     /// This is the public entry point used by command handlers. It delegates to
     /// `sendMessageOnce(_:replyTo:)` and, on failure, queues a fresh retry at
-    /// `attempts: 0`. The drain loop does NOT call this method — it calls
+    /// `attempts: 0`. The drain loop does NOT call this method; it calls
     /// `sendMessageOnce` directly so the per-message attempt count is preserved
     /// across retries instead of being reset to 0.
     func sendMessage(_ message: String, replyTo parentMessageID: String?) async {
@@ -1252,6 +1252,14 @@ actor TwitchChatService {
                     category: "Twitch")
             }
             return true
+        } catch ConnectionError.authenticationFailed {
+            // Token rejected mid-session. Surface the re-auth banner and stop
+            // the reconnect loop instead of silently dropping every send.
+            Log.error(
+                "TwitchChatService: Send rejected (401/403) - token invalid. Signaling re-auth.",
+                category: "Twitch")
+            signalReauthNeededAndStop()
+            return false
         } catch {
             Log.error(
                 "TwitchChatService: Failed to send message - \(error.localizedDescription)",
@@ -1541,6 +1549,13 @@ actor TwitchChatService {
             Log.warn(
                 "TwitchChatService: API \(endpoint) returned HTTP \(http.statusCode) - \(responseText)",
                 category: "Twitch")
+            // 401/403 are never a success for any caller: the token is expired
+            // or missing the required scope. Throw so callers don't decode a
+            // success-shaped struct from the error body and silently treat the
+            // request as sent (which would make the bot go dark with no signal).
+            if http.statusCode == 401 || http.statusCode == 403 {
+                throw ConnectionError.authenticationFailed
+            }
         }
 
         return data
@@ -1819,6 +1834,14 @@ actor TwitchChatService {
                     category: "Twitch")
                 return
             }
+            // Reject messages timestamped more than 30s in the future (clock-skew
+            // grace). A negative age means the message is ahead of our clock.
+            if age < -30 {
+                Log.warn(
+                    "TwitchChatService: Rejecting future-dated EventSub message (skew: \(Int(-age))s)",
+                    category: "Twitch")
+                return
+            }
         }
 
         switch messageType {
@@ -1899,11 +1922,23 @@ actor TwitchChatService {
             Log.warn(
                 "TwitchChatService: EventSub subscription revoked (\(type)/\(status)); re-subscribing",
                 category: "Twitch")
-            guard sessionID != nil else { return }
+            guard sessionID != nil else {
+                // No live session: tear down and let the reconnect loop rebuild
+                // the session and subscriptions from scratch.
+                Log.warn(
+                    "TwitchChatService: No active session during revocation resubscribe; reconnecting",
+                    category: "Twitch")
+                disconnectFromEventSub()
+                scheduleReconnect()
+                return
+            }
             await subscribeToChannelChatMessage()
+            try? await Task.sleep(for: .milliseconds(200))
             await subscribeToPollEvents()
+            try? await Task.sleep(for: .milliseconds(200))
             await subscribeToStreamEvents()
             await seedStreamLiveState()
+            try? await Task.sleep(for: .milliseconds(200))
             await subscribeToRedemptionsIfEnabled()
         case .ignore:
             Log.debug(
@@ -1965,9 +2000,12 @@ actor TwitchChatService {
         }
 
         await subscribeToChannelChatMessage()
+        try? await Task.sleep(for: .milliseconds(200))
         await subscribeToPollEvents()
+        try? await Task.sleep(for: .milliseconds(200))
         await subscribeToStreamEvents()
         await seedStreamLiveState()
+        try? await Task.sleep(for: .milliseconds(200))
         await subscribeToRedemptionsIfEnabled()
     }
 
@@ -2314,7 +2352,7 @@ actor TwitchChatService {
             try? await channelPointsService.setRewardPaused(
                 credentials: credentials, rewardID: rewardID, paused: false)
             // Cost sync is non-fatal (the reward still works at its old cost),
-            // but don't swallow the failure silently — surface it in the log.
+            // but don't swallow the failure silently; surface it in the log.
             do {
                 try await channelPointsService.updateRewardCost(
                     credentials: credentials, rewardID: rewardID, cost: cost)

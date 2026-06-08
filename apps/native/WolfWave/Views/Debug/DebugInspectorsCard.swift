@@ -90,7 +90,7 @@ struct DebugInspectorsCard: View {
         }
         // Backstop poll for state with no change notification (Keychain).
         // Structured concurrency cancels the loop when the card disappears,
-        // matching DebugMetricsCard — no subscription to tear down.
+        // matching DebugMetricsCard; no subscription to tear down.
         .task {
             while !Task.isCancelled {
                 try? await Task.sleep(for: Self.pollInterval)

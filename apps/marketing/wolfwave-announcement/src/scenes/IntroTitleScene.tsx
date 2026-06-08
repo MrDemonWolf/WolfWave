@@ -42,7 +42,7 @@ export const IntroTitleScene: React.FC = () => {
     [brand.cyan, brand.magenta, brand.purple, brand.lime, brand.cyan]
   );
 
-  // Radial glow — color-shifting between cyan, magenta, purple
+  // Radial glow, color-shifting between cyan, magenta, purple
   const glowOpacity = interpolate(frame, [5, 30], [0, 0.6], {
     extrapolateLeft: 'clamp',
     extrapolateRight: 'clamp',
@@ -58,7 +58,7 @@ export const IntroTitleScene: React.FC = () => {
     ]
   );
 
-  // Second magenta glow — pulses opposite to the first
+  // Second magenta glow, pulses opposite to the first
   const magentaGlowOpacity =
     interpolate(frame, [10, 35], [0, 0.4], {
       extrapolateLeft: 'clamp',
@@ -187,7 +187,7 @@ export const IntroTitleScene: React.FC = () => {
           }}
         />
 
-        {/* Waveform — color-cycling stroke */}
+        {/* Waveform, color-cycling stroke */}
         <svg
           width="1920"
           height="1080"
@@ -205,7 +205,7 @@ export const IntroTitleScene: React.FC = () => {
           />
         </svg>
 
-        {/* Logo — positioned independently so size doesn't push text */}
+        {/* Logo, positioned independently so size doesn't push text */}
         <div
           style={{
             position: 'absolute',
@@ -225,7 +225,7 @@ export const IntroTitleScene: React.FC = () => {
           />
         </div>
 
-        {/* Title + Version — positioned below logo center */}
+        {/* Title + Version, positioned below logo center */}
         <div
           style={{
             position: 'absolute',

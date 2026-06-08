@@ -18,6 +18,8 @@ struct WebSocketSettingsView: View {
     @AppStorage(AppConstants.UserDefaults.websocketEnabled)
     private var websocketEnabled = false
 
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
     // MARK: - State
 
     // Seed from live services + cached IP so the first frame already reflects reality
@@ -58,7 +60,7 @@ struct WebSocketSettingsView: View {
                 for: Notification.Name.websocketServerStateChanged
             )
         ) { notification in
-            withAnimation(.easeInOut(duration: DSMotion.Duration.base)) {
+            withAnimation(reduceMotion ? nil : .easeInOut(duration: DSMotion.Duration.base)) {
                 if let rawValue = notification.stateString,
                    let state = WebSocketServerService.ServerState(rawValue: rawValue) {
                     serverState = state
@@ -119,7 +121,7 @@ struct WebSocketSettingsView: View {
         let ip = await NetworkInfoService.shared.refreshIPv4()
         await MainActor.run {
             guard ip != localNetworkIP else { return }
-            withAnimation(.easeInOut(duration: DSMotion.Duration.base)) {
+            withAnimation(reduceMotion ? nil : .easeInOut(duration: DSMotion.Duration.base)) {
                 localNetworkIP = ip
             }
         }
@@ -138,6 +140,8 @@ struct WebSocketSettingsView: View {
 // MARK: - Server Card
 
 fileprivate struct WebSocketServerCard: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
     @AppStorage(AppConstants.UserDefaults.websocketEnabled)
     private var websocketEnabled = false
 
@@ -203,7 +207,7 @@ fileprivate struct WebSocketServerCard: View {
                 accessibilityLabel: "Toggle Stream Widgets",
                 accessibilityIdentifier: "websocketEnabledToggle",
                 onChange: { _ in
-                    withAnimation(.easeInOut(duration: DSMotion.Duration.base)) {
+                    withAnimation(reduceMotion ? nil : .easeInOut(duration: DSMotion.Duration.base)) {
                         notifyServerSettingChanged()
                     }
                 }
@@ -296,7 +300,7 @@ fileprivate struct WebSocketServerCard: View {
                     .transition(.opacity.combined(with: .move(edge: .top)))
                 }
             }
-            .animation(.easeInOut(duration: DSMotion.Duration.base), value: localNetworkIP)
+            .animation(reduceMotion ? nil : .easeInOut(duration: DSMotion.Duration.base), value: localNetworkIP)
         }
         .cardStyleUnpadded()
         .onAppear {
@@ -510,6 +514,8 @@ fileprivate struct WebSocketServerCard: View {
 // MARK: - Browser Source Card
 
 fileprivate struct WebSocketBrowserSourceCard: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
     @AppStorage(AppConstants.UserDefaults.streamerModeEnabled)
     private var streamerMode = false
 
@@ -694,7 +700,7 @@ fileprivate struct WebSocketBrowserSourceCard: View {
                     .transition(.opacity.combined(with: .move(edge: .top)))
                 }
             }
-            .animation(.easeInOut(duration: DSMotion.Duration.base), value: localNetworkIP)
+            .animation(reduceMotion ? nil : .easeInOut(duration: DSMotion.Duration.base), value: localNetworkIP)
 
             Divider().padding(.leading, cardPadding)
 
@@ -725,6 +731,8 @@ fileprivate struct WebSocketBrowserSourceCard: View {
 // MARK: - Widget Appearance Card
 
 fileprivate struct WebSocketWidgetAppearanceCard: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
     // Applied (persisted) values. These are the source of truth the overlay
     // reads via `WebSocketServerService.broadcastWidgetConfig()`. The card never
     // writes them on every keystroke, only when the user taps Apply.
@@ -801,7 +809,7 @@ fileprivate struct WebSocketWidgetAppearanceCard: View {
             applyBar
             WidgetAppearancePreview(config: draft)
         }
-        .animation(.easeInOut(duration: DSMotion.Duration.fast), value: isDirty)
+        .animation(reduceMotion ? nil : .easeInOut(duration: DSMotion.Duration.fast), value: isDirty)
         .task {
             guard fontFamilies.isEmpty else { return }
             let families = await Task.detached(priority: .userInitiated) {

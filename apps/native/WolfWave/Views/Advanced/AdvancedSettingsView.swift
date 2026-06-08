@@ -21,6 +21,10 @@ import UniformTypeIdentifiers
 /// actual reset is performed by `SettingsView.resetSettings()` after the alert
 /// confirms. Everything else uses local @State.
 struct AdvancedSettingsView: View {
+    // MARK: - Environment
+
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
     // MARK: - State
 
     /// Whether the reset confirmation alert is currently shown.
@@ -148,10 +152,10 @@ struct AdvancedSettingsView: View {
 
             Pasteboard.copy(trimmed)
 
-            withAnimation { showingCopyFeedback = true }
+            withAnimation(reduceMotion ? nil : .default) { showingCopyFeedback = true }
             Task { @MainActor in
                 try? await Task.sleep(for: .seconds(2))
-                withAnimation { showingCopyFeedback = false }
+                withAnimation(reduceMotion ? nil : .default) { showingCopyFeedback = false }
             }
             Log.info("Logs copied to clipboard", category: "App")
         } catch {

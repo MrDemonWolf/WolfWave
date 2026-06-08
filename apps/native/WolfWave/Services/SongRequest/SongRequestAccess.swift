@@ -172,10 +172,12 @@ enum SongRequestPreset: String, CaseIterable, Identifiable {
             defaults.set(RequestAudience.subscribers.rawValue, forKey: AppConstants.UserDefaults.songRequestChatAudience)
             defaults.set(false, forKey: AppConstants.UserDefaults.songRequestChannelPointsEnabled)
             defaults.set(false, forKey: AppConstants.UserDefaults.songRequestBitsEnabled)
+            defaults.set(false, forKey: AppConstants.UserDefaults.songRequestBitsBoostEnabled)
         case .channelPointsOnly:
             defaults.set(false, forKey: AppConstants.UserDefaults.srCommandEnabled)
             defaults.set(true, forKey: AppConstants.UserDefaults.songRequestChannelPointsEnabled)
             defaults.set(false, forKey: AppConstants.UserDefaults.songRequestBitsEnabled)
+            defaults.set(false, forKey: AppConstants.UserDefaults.songRequestBitsBoostEnabled)
         case .custom:
             break
         }
