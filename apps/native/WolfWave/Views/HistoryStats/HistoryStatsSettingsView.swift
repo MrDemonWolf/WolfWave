@@ -261,13 +261,13 @@ struct HistoryStatsSettingsView: View {
             Divider().padding(.horizontal, AppConstants.SettingsUI.cardPadding)
 
             ToggleSettingRow(
-                title: "Stats & Charts",
+                title: "Show Stats & Charts",
                 subtitle: historyEnabled
-                    ? "Top artists, listening time, charts, and a monthly wrap."
+                    ? "Charts, top artists, listening by hour, and your Monthly Wrap."
                     : "Turn on Listening History first.",
                 isOn: $statsEnabled,
                 isDisabled: !historyEnabled || musicPermission == .denied,
-                accessibilityLabel: "Toggle Stats and Charts",
+                accessibilityLabel: "Toggle Show Stats and Charts",
                 accessibilityIdentifier: "statsEnabledToggle",
                 onChange: { handleStatsChange($0) }
             )
