@@ -134,7 +134,14 @@ struct LoggerTests {
         // burst large enough to rotate twice deletes our line outright), which
         // made the readback assertion flaky in CI (run 27049793195). The real
         // disk-write path stays covered by `testLogFileExport`.
-        let testMessage = "Test log message \(UUID().uuidString)"
+        //
+        // Marker is a fixed, non-numeric token. A raw `UUID().uuidString` was
+        // non-deterministic: when the leading hex group happened to be 8+ all
+        // digits, Logger's `\b\d{8,}\b` user-ID redaction rewrote it to
+        // "[USER_ID_REDACTED]" and the `.contains` assertion failed (CI run
+        // 27112171213). This token has no 8+ digit run and no 30+ char
+        // alphanumeric run, so no redaction rule can touch it.
+        let testMessage = "Test log message marker-AB12-CD34-EF56"
         let line = Log.formatFileLineForTesting(testMessage, level: .info, category: "TestCategory")
 
         #expect(line.contains(testMessage))
