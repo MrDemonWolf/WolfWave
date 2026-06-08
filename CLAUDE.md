@@ -10,6 +10,22 @@ WolfWave is a native macOS menu bar app that bridges Apple Music with Twitch, Di
 
 **Monorepo**: bun workspaces + Turborepo. The root `package.json` defines workspaces (`apps/*`, `apps/marketing/*`) and Turbo orchestrates `dev`, `build`, and `clean` tasks across packages.
 
+## Skills — use them, every time, by what you're editing
+
+These skills are not optional extras. Invoke the matching skill **before and while editing** the relevant code. Pick by what the change touches:
+
+| Editing | Use these skills |
+|---|---|
+| Native app — any `.swift` under `apps/native/` | `swift` (language patterns, concurrency, idioms) **and** `macos` (SwiftUI, AppKit bridging, macOS 26 APIs). For UI/view changes also pull `design` (Liquid Glass, animation, visual patterns). |
+| SwiftUI views specifically | `macos` + `design` + `swift`. Review against HIG before finalizing layout, color, control choices. |
+| Web frontend — docs site, landing page, OBS widget (`apps/docs/`, `apps/widget/`, any React/TS/CSS/HTML) | `frontend-design` (distinctive, production-grade UI; avoids generic AI look). |
+| Tests | `testing` (TDD, characterization, snapshot, test contracts). |
+| App Store / release prep | `release-review`, `greenlight`, `app-store-review-audit` as relevant. |
+
+**Research the Swift docs when needed.** When unsure about a Swift / SwiftUI / AppKit / Apple-framework API — signature, availability, behavior, the modern idiom — look it up before writing code. Prefer official Apple developer docs and the Swift language reference over guessing. The `swift` and `macos` skills point at the right patterns; confirm specifics against the docs rather than assuming. Never invent an API or default to a deprecated one.
+
+Default stance: if a change lands in Swift/SwiftUI, the `swift` + `macos` skills are in play. If it lands in web frontend, `frontend-design` is in play. Use them as the work demands, not just when asked.
+
 ## Build & Development Commands
 
 ### Monorepo (bun + Turborepo)

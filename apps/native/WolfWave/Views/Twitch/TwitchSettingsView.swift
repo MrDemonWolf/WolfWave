@@ -582,6 +582,7 @@ private struct SignedInView: View {
                                 ? "xmark.circle.fill" : "checkmark.circle.fill"
                         )
                         .font(.system(size: DSFont.Size.body, weight: .medium))
+                        .foregroundStyle(isChannelConnected ? DSColor.error : Color.primary)
                     }
                 }
                 .disabled(shouldDisableConnectButton)
