@@ -21,6 +21,12 @@ final class MockAppleMusicController: AppleMusicControlling {
     var currentTrackID: String?
     var authStatus: AppleMusicController.AuthStatus = .authorized
 
+    /// Optional override for `playbackSnapshot()`. When set, it is invoked for
+    /// every snapshot read, so a test can script a flaky read sequence (e.g. a
+    /// `nil` track key on some ticks). When `nil`, the snapshot is derived from
+    /// `isPlaying` / `isPaused` / `currentTrackID` so existing tests keep working.
+    var snapshotProvider: (() -> PlaybackSnapshot?)?
+
     var playNowCalled = false
     var enqueueCalled = false
     var skipCalled = false
@@ -34,6 +40,11 @@ final class MockAppleMusicController: AppleMusicControlling {
 
     func search(query: String) async -> AppleMusicController.SearchResult { .notFound }
     func resolve(url: URL) async -> AppleMusicController.SearchResult { .notFound }
+    func playbackSnapshot() -> PlaybackSnapshot? {
+        if let snapshotProvider { return snapshotProvider() }
+        let state: PlaybackSnapshot.State = isPlaying ? .playing : (isPaused ? .paused : .stopped)
+        return PlaybackSnapshot(state: state, trackKey: currentTrackID)
+    }
     func playNow(song: Song) async throws {
         if shouldThrowMusicAppNotRunning { throw PlaybackError.musicAppNotRunning }
         if shouldThrowNotPlayable { throw PlaybackError.notPlayable(title: song.title) }
@@ -512,6 +523,117 @@ final class SongRequestServiceTests: WolfWaveTestCase {
         service.stopPlaybackMonitoring()
 
         XCTAssertTrue(tookOver, "Request should take over once the current track ends")
+    }
+
+    func testFlakyTrackReadDoesNotInterruptStreamerSong() async {
+        // Regression for the "request cut my song off mid-play" bug. On macOS 26,
+        // Apple Events to Music.app time out intermittently, so a mid-song read can
+        // come back with no loaded-track identity even though the streamer's song
+        // is still playing. The old takeover logic treated that empty/nil read as
+        // "the song changed" and started the request immediately. It must not.
+        service = SongRequestService(
+            queue: queue,
+            musicController: mockController,
+            pollInterval: .milliseconds(20)
+        )
+        mockController.isMusicAppRunning = true
+
+        // "streamer-A" plays the whole time, but every third read flakes: a nil
+        // whole-snapshot (timed-out script) or a nil track key (track loaded,
+        // metadata unread). Neither is a real track boundary.
+        var reads = 0
+        mockController.snapshotProvider = {
+            reads += 1
+            switch reads % 3 {
+            case 0: return nil  // whole AppleScript read failed this tick
+            case 1: return PlaybackSnapshot(state: .playing, trackKey: nil)  // key unread
+            default: return PlaybackSnapshot(state: .playing, trackKey: "streamer-A")
+            }
+        }
+
+        queue.add(SongRequestItem(title: "Requested", artist: "A", requesterUsername: "viewer"))
+        service.startPlaybackMonitoring()
+
+        // Across many poll ticks of flaky reads, the request must never take over.
+        let tookOver = await waitUntil(timeout: .milliseconds(400)) {
+            self.queue.nowPlaying != nil || self.mockController.playNowCalled
+        }
+        service.stopPlaybackMonitoring()
+
+        XCTAssertFalse(tookOver, "A flaky or empty track read must not be mistaken for a song change")
+        XCTAssertNil(queue.nowPlaying, "The streamer's song must keep playing until it actually ends")
+    }
+
+    func testSingleTransientTrackChangeDoesNotTakeOver() async {
+        // A genuine boundary is two confirming reads of a new track. A single stray
+        // different-track read that immediately reverts to the streamer's track is
+        // noise, not a boundary, and must not trigger a takeover.
+        service = SongRequestService(
+            queue: queue,
+            musicController: mockController,
+            pollInterval: .milliseconds(20)
+        )
+        mockController.isMusicAppRunning = true
+
+        // Pattern A, A, B (one stray), A, A, A… — never two B's in a row.
+        var reads = 0
+        mockController.snapshotProvider = {
+            reads += 1
+            let key = (reads == 3) ? "streamer-B" : "streamer-A"
+            return PlaybackSnapshot(state: .playing, trackKey: key)
+        }
+
+        queue.add(SongRequestItem(title: "Requested", artist: "A", requesterUsername: "viewer"))
+        service.startPlaybackMonitoring()
+
+        let tookOver = await waitUntil(timeout: .milliseconds(400)) {
+            self.queue.nowPlaying != nil
+        }
+        service.stopPlaybackMonitoring()
+
+        XCTAssertFalse(tookOver, "A single transient track-id blip must not trigger a takeover")
+    }
+
+    func testBoostDoesNotInterruptStreamersPlayingTrack() async {
+        // Boost routes through the same idle-only fast path as a new request
+        // (`startImmediatelyIfIdle`): it reorders the queue but must NOT cut off the
+        // streamer's actively-playing track. A takeover, if any, happens later at
+        // the boundary via the poll — never as an immediate interrupt on the add.
+        service = SongRequestService(
+            queue: queue,
+            musicController: mockController,
+            pollInterval: .seconds(10)  // isolate the boost fast path from the poll
+        )
+        mockController.isMusicAppRunning = true
+        mockController.isPlaying = true
+        mockController.currentTrackID = "streamer-A"
+        queue.add(SongRequestItem(title: "A", artist: "x", requesterUsername: "alice"))
+
+        let boosted = await service.boost(username: "alice")
+
+        XCTAssertEqual(boosted?.title, "A")
+        XCTAssertFalse(mockController.playNowCalled, "Boost must not interrupt the streamer's playing track")
+        XCTAssertNil(queue.nowPlaying, "Boosted request must wait, not take over immediately")
+    }
+
+    func testBoostStartsImmediatelyWhenPlayerIsIdle() async {
+        // The flip side: when nothing is actively playing, the boost fast path does
+        // start the request right away (no song to wait for).
+        service = SongRequestService(
+            queue: queue,
+            musicController: mockController,
+            pollInterval: .seconds(10)
+        )
+        mockController.isMusicAppRunning = true
+        mockController.isPlaying = false  // idle / stopped
+        mockController.isPaused = false
+        queue.add(SongRequestItem(title: "A", artist: "x", requesterUsername: "alice"))
+
+        let boosted = await service.boost(username: "alice")
+
+        XCTAssertEqual(boosted?.title, "A")
+        // Idle → the request is pulled into the now-playing slot immediately.
+        XCTAssertEqual(queue.nowPlaying?.title, "A", "Boost should start the request from an idle player")
     }
 
     func testSkipInsideMusicAppAdvancesRequestQueue() async {

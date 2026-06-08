@@ -135,6 +135,23 @@ final class SongRequestService {
     /// non-request track parked on the now-playing slot forever.
     private var playingRequestTrackID: String?
 
+    /// Consecutive poll ticks the loaded track has differed from the takeover
+    /// baseline (the streamer's own track a request is waiting to follow). Like
+    /// `stoppedPollStreak`, a track change must be seen on two reads in a row
+    /// before the queue takes over, so a single transient AppleScript read can't
+    /// trigger a spurious takeover that cuts the streamer's song off mid-play.
+    private var takeoverDivergenceStreak = 0
+
+    /// Consecutive poll ticks the loaded track has differed from the playing
+    /// request's baseline. Same two-in-a-row debounce as `takeoverDivergenceStreak`,
+    /// applied to the "request finished / streamer skipped" hand-off.
+    private var requestDivergenceStreak = 0
+
+    /// Number of consecutive confirming reads a stop or track change needs before
+    /// the queue acts on it. Two ≈ one extra poll interval of latency at a track
+    /// boundary (unnoticeable) in exchange for immunity to a single flaky read.
+    private let pollConfirmations = 2
+
     /// Whether the fallback playlist is currently playing (no active requests).
     private(set) var isPlayingFallback = false
 
@@ -219,92 +236,79 @@ final class SongRequestService {
                 // flush via the didLaunchApplication observer when Music reopens.
                 guard self.musicController.isMusicAppRunning else { continue }
 
-                let isPlaying = self.musicController.isPlaying
-                let isPaused = self.musicController.isPaused
+                // One atomic read of player state + the loaded track's identity.
+                // A nil snapshot means the AppleScript read failed this tick
+                // (Apple Events to Music.app time out intermittently on macOS 26):
+                // treat it as "no information" and skip the tick entirely, so a
+                // flaky read can never be mistaken for a stop or a track change and
+                // cut a song off mid-play. Streak counters are left untouched so a
+                // single dropped read doesn't reset an in-progress debounce.
+                guard let snapshot = self.musicController.playbackSnapshot() else { continue }
 
-                // Debounce stopped detection: a flaky AppleScript read returns
-                // "stopped" on error, so require two consecutive stopped polls
-                // before advancing/taking over to avoid a spurious mid-track skip.
-                if !isPlaying && !isPaused {
+                // Debounce stopped detection: require two consecutive stopped reads
+                // before advancing/taking over, so one flaky read can't skip a track.
+                let confirmedStopped: Bool
+                if snapshot.state == .stopped {
                     self.stoppedPollStreak += 1
+                    confirmedStopped = self.stoppedPollStreak >= self.pollConfirmations
                 } else {
                     self.stoppedPollStreak = 0
+                    confirmedStopped = false
                 }
-                let confirmedStopped = self.stoppedPollStreak >= 2
 
                 if self.queue.nowPlaying != nil {
+                    // A request is playing.
                     self.takeoverBaselineTrackID = nil
+                    self.takeoverDivergenceStreak = 0
 
                     // Playback clearly stopped (two reads): advance, or drain.
                     if confirmedStopped {
+                        self.playingRequestTrackID = nil
+                        self.requestDivergenceStreak = 0
                         if !self.queue.isEmpty {
                             await self.advanceQueue()
                         } else {
                             await self.handleQueueEmptied()
                         }
-                        self.playingRequestTrackID = nil
                         continue
                     }
 
-                    // Still playing: detect when Music.app has moved off the
-                    // request's own track. That happens when the request ends and
-                    // Music autoplays the next (related) track, or when the
-                    // streamer hits skip inside Music.app. Music never reports
-                    // "stopped" in either case, so without this the queue stalls
-                    // and a non-request track keeps playing. Hand off to the next
-                    // queued request the moment the loaded track diverges.
-                    if isPlaying {
-                        let currentID = self.musicController.currentTrackID
-                        if let baseline = self.playingRequestTrackID {
-                            if let currentID, currentID != baseline {
-                                self.playingRequestTrackID = nil
-                                if !self.queue.isEmpty {
-                                    await self.advanceQueue()
-                                } else {
-                                    await self.handleQueueEmptied()
-                                }
-                            }
-                        } else {
-                            // First playing tick for this request: establish the
-                            // divergence baseline from whatever Music.app loaded.
-                            self.playingRequestTrackID = currentID
-                        }
+                    // Still playing: hand off to the next request the moment the
+                    // request's own track is replaced — the request ended and Music
+                    // autoplayed the next track, or the streamer skipped inside
+                    // Music.app. Music never reports "stopped" in either case.
+                    if snapshot.state == .playing {
+                        await self.handleRequestPlaybackDivergence(currentKey: snapshot.trackKey)
                     }
                     continue
                 }
 
                 // No request is playing.
                 self.playingRequestTrackID = nil
+                self.requestDivergenceStreak = 0
 
                 // Nothing to do unless requests wait.
                 guard !self.queue.isEmpty else {
                     self.takeoverBaselineTrackID = nil
+                    self.takeoverDivergenceStreak = 0
                     continue
                 }
 
                 if confirmedStopped || self.isPlayingFallback {
-                    // Silence, or the fallback playlist is filling: start the
-                    // first queued request immediately.
+                    // Silence, or the fallback playlist is filling: start the first
+                    // queued request. The fallback is explicit filler that yields to
+                    // a real request right away.
                     self.takeoverBaselineTrackID = nil
+                    self.takeoverDivergenceStreak = 0
                     await self.advanceQueue()
-                } else if isPlaying {
+                } else if snapshot.state == .playing {
                     // The streamer's own track is playing. Honor "play when the
-                    // current song ends": remember the track that's playing, then
-                    // take over the moment it changes (finishes or gets skipped),
-                    // rather than cutting it off mid-song.
-                    let currentID = self.musicController.currentTrackID
-                    if let baseline = self.takeoverBaselineTrackID {
-                        if currentID == nil || currentID != baseline {
-                            self.takeoverBaselineTrackID = nil
-                            await self.advanceQueue()
-                        }
-                    } else {
-                        self.takeoverBaselineTrackID = currentID
-                    }
-                } else {
-                    // Paused, or a single unconfirmed stopped read: wait.
-                    continue
+                    // current song ends": remember the loaded track, then take over
+                    // only once it changes to a different, confirmed track — never on
+                    // a single transient read that would cut the song off mid-play.
+                    await self.handleStreamerTrackTakeover(currentKey: snapshot.trackKey)
                 }
+                // Paused, or an unconfirmed stopped read: wait.
             }
         }
     }
@@ -380,14 +384,14 @@ final class SongRequestService {
 
             switch addResult {
             case .added(let position):
-                if musicController.isMusicAppRunning && !isHoldEnabled {
-                    if queue.nowPlaying == nil && (!musicController.isPlaying || isPlayingFallback) {
-                        // Nothing is playing, OR fallback playlist is filling: start the request now
-                        await playNextInQueue()
-                    }
-                    // else: a real request is already playing; auto-advance will pick this one up
+                if musicController.isMusicAppRunning && !isHoldEnabled && queue.nowPlaying == nil {
+                    // Start now only from an idle or fallback state; never interrupt
+                    // the streamer's actively-playing track (or act on a flaky read).
+                    // When a track is playing, the poll takes over at its boundary.
+                    await startImmediatelyIfIdle()
                 }
-                // else: Music.app is closed or hold is active, request stays buffered in the queue
+                // else: a request is already playing, Music.app is closed, or hold is
+                // active — the request stays buffered for the poll / launch flush.
                 return .added(item: item, position: position)
             case .queueFull(let max):
                 return .queueFull(max: max)
@@ -419,9 +423,11 @@ final class SongRequestService {
         isStartingPlayback = true
         defer { isStartingPlayback = false }
         takeoverBaselineTrackID = nil
+        takeoverDivergenceStreak = 0
         // Drop the divergence baseline so the poll re-establishes it for the
         // track Music.app loads next, instead of instantly re-skipping it.
         playingRequestTrackID = nil
+        requestDivergenceStreak = 0
 
         let next = queue.skip()
         if let next {
@@ -470,7 +476,9 @@ final class SongRequestService {
     func clearQueue() async -> Int {
         let count = queue.clear()
         takeoverBaselineTrackID = nil
+        takeoverDivergenceStreak = 0
         playingRequestTrackID = nil
+        requestDivergenceStreak = 0
         playAttemptCounts.removeAll()
         await musicController.clearPlayerQueue()
         return count
@@ -486,15 +494,96 @@ final class SongRequestService {
     func boost(username: String) async -> SongRequestItem? {
         guard isFeatureEnabled else { return nil }
         guard let boosted = queue.boost(username: username) else { return nil }
-        if musicController.isMusicAppRunning, !isHoldEnabled,
-           queue.nowPlaying == nil, (!musicController.isPlaying || isPlayingFallback) {
+        if musicController.isMusicAppRunning, !isHoldEnabled, queue.nowPlaying == nil {
             takeoverBaselineTrackID = nil
-            await playNextInQueue()
+            takeoverDivergenceStreak = 0
+            await startImmediatelyIfIdle()
         }
         return boosted
     }
 
     // MARK: - Private Helpers
+
+    /// Starts the just-added (or just-boosted) request immediately, but only from
+    /// a state where doing so won't cut a song off mid-play.
+    ///
+    /// Starts now when the fallback playlist is filling (explicit filler that
+    /// yields to a real request) or when nothing is actively playing (silent or
+    /// paused). When the streamer's own track is actively playing — or the
+    /// playback read is inconclusive (`nil`) — this does nothing, and the
+    /// auto-advance poll starts the request at the next confirmed track boundary.
+    /// That is the "wait until the current song ends" rule, applied at the entry
+    /// point so a request never interrupts a live read that happened to flake.
+    private func startImmediatelyIfIdle() async {
+        if isPlayingFallback {
+            await playNextInQueue()
+            return
+        }
+        // A nil snapshot is an inconclusive read: don't risk interrupting; let the
+        // poll take over at the next confirmed boundary.
+        guard let snapshot = musicController.playbackSnapshot() else { return }
+        guard snapshot.state != .playing else { return }
+        await playNextInQueue()
+    }
+
+    /// Boundary detection for the takeover poll: starts the first queued request
+    /// once the streamer's own track changes.
+    ///
+    /// Ignores an unknown (`nil`) track key — a failed metadata read is "no
+    /// information", never a boundary — and requires the new track to be seen on
+    /// `pollConfirmations` reads in a row, so a single transient read can't be
+    /// mistaken for a song change and cut the streamer's track off mid-play.
+    private func handleStreamerTrackTakeover(currentKey: String?) async {
+        guard let currentKey else {
+            // A track is loaded but its identity couldn't be read this tick. Hold
+            // the baseline and wait; never treat "unknown" as "the song changed".
+            return
+        }
+        guard let baseline = takeoverBaselineTrackID else {
+            // First read with the streamer's track loaded: baseline it.
+            takeoverBaselineTrackID = currentKey
+            takeoverDivergenceStreak = 0
+            return
+        }
+        guard currentKey != baseline else {
+            // Same song still loaded: reset any in-progress divergence streak.
+            takeoverDivergenceStreak = 0
+            return
+        }
+        takeoverDivergenceStreak += 1
+        guard takeoverDivergenceStreak >= pollConfirmations else { return }
+        takeoverBaselineTrackID = nil
+        takeoverDivergenceStreak = 0
+        await advanceQueue()
+    }
+
+    /// Boundary detection while a request is playing: advances to the next queued
+    /// request once the request's own track is replaced (it ended and Music
+    /// autoplayed on, or the streamer skipped inside Music.app). Same `nil`
+    /// tolerance and two-in-a-row confirmation as `handleStreamerTrackTakeover`.
+    private func handleRequestPlaybackDivergence(currentKey: String?) async {
+        guard let currentKey else { return }
+        guard let baseline = playingRequestTrackID else {
+            // First playing tick for this request: establish the divergence
+            // baseline from whatever Music.app loaded.
+            playingRequestTrackID = currentKey
+            requestDivergenceStreak = 0
+            return
+        }
+        guard currentKey != baseline else {
+            requestDivergenceStreak = 0
+            return
+        }
+        requestDivergenceStreak += 1
+        guard requestDivergenceStreak >= pollConfirmations else { return }
+        playingRequestTrackID = nil
+        requestDivergenceStreak = 0
+        if !queue.isEmpty {
+            await advanceQueue()
+        } else {
+            await handleQueueEmptied()
+        }
+    }
 
     /// Dequeues the next item and asks Music.app to play it. Re-queues at the
     /// head if Music.app is closed; advances past unplayable items otherwise.

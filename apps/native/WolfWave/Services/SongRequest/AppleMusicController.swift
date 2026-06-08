@@ -21,6 +21,38 @@ enum PlaybackError: Error {
     case notPlayable(title: String)
 }
 
+/// An atomic snapshot of Music.app's playback state and the loaded track's
+/// identity, captured in a single AppleScript round-trip.
+///
+/// The song-request auto-advance poll needs the player state and the loaded
+/// track to agree with each other. Reading them as separate AppleScript calls
+/// let them disagree: the state read could return "playing" while a second call
+/// for the current track timed out and came back empty. The boundary detector
+/// then misread that empty value as "the song changed" and cut the streamer's
+/// track off mid-play. One combined read keeps the two fields consistent, and a
+/// failed read becomes a single `nil` the caller can treat as "no information"
+/// instead of a false state transition.
+struct PlaybackSnapshot: Equatable {
+    /// Coarse player state. `fast forwarding` / `rewinding` collapse to
+    /// `.playing` — a track is loaded and advancing in both.
+    enum State {
+        case playing
+        case paused
+        case stopped
+    }
+
+    /// The current coarse player state.
+    let state: State
+
+    /// Stable identity of the loaded track (its name + artist). Name and artist
+    /// are intrinsic metadata that do not flake between reads the way a streamed
+    /// catalog track's persistent ID can, so they make a reliable "is this still
+    /// the same song" key. `nil` when no track is loaded or the metadata could
+    /// not be read this tick; a `nil` key is treated as "unknown", never as a
+    /// track boundary.
+    let trackKey: String?
+}
+
 /// Abstracts Apple Music search and playback control so the live
 /// `AppleMusicController` can be swapped for a stub in tests.
 protocol AppleMusicControlling {
@@ -35,6 +67,12 @@ protocol AppleMusicControlling {
     /// streamer's own track changes so a queued request can take over at the
     /// boundary instead of cutting a song off mid-play.
     var currentTrackID: String? { get }
+
+    /// Atomically reads player state and the loaded track's identity in one
+    /// AppleScript round-trip. Returns `nil` when Music.app is closed or the read
+    /// fails, so the auto-advance poll can treat a failed read as "no information"
+    /// rather than a state change. See `PlaybackSnapshot`.
+    func playbackSnapshot() -> PlaybackSnapshot?
 
     /// `true` once the user has granted MusicKit catalog access.
     var isAuthorized: Bool { get }
@@ -205,6 +243,58 @@ final class AppleMusicController: AppleMusicControlling {
         """)
         guard let result, !result.isEmpty else { return nil }
         return result
+    }
+
+    /// Atomically reads player state plus the loaded track's name + artist in a
+    /// single AppleScript call. See `PlaybackSnapshot` for why a combined read
+    /// matters.
+    ///
+    /// Returns `nil` without scripting when Music.app is closed (a bare
+    /// `tell application "Music"` would relaunch the app the user just quit), and
+    /// `nil` when the script itself fails (an Apple Event to Music.app timed out),
+    /// so the auto-advance poll can treat that tick as "no information" instead of
+    /// a stop or a track change.
+    ///
+    /// Uses the AppleScript `linefeed` / `tab` constants as field separators
+    /// rather than embedding raw control characters in the string literals, and
+    /// wraps the track read in `try` so a momentary "no current track" yields an
+    /// empty key (parsed back to `nil`) rather than aborting the whole script.
+    func playbackSnapshot() -> PlaybackSnapshot? {
+        guard isMusicAppRunning else { return nil }
+        let raw = runAppleScript("""
+        tell application "Music"
+            set stateText to "stopped"
+            if player state is playing then
+                set stateText to "playing"
+            else if player state is paused then
+                set stateText to "paused"
+            else if player state is fast forwarding then
+                set stateText to "playing"
+            else if player state is rewinding then
+                set stateText to "playing"
+            end if
+            set keyText to ""
+            try
+                set keyText to (get name of current track) & tab & (get artist of current track)
+            end try
+            return stateText & linefeed & keyText
+        end tell
+        """)
+        guard let raw else { return nil }
+
+        let parts = raw.split(separator: "\n", maxSplits: 1, omittingEmptySubsequences: false)
+        let stateText = parts.first.map(String.init) ?? ""
+        let keyText = parts.count > 1 ? String(parts[1]) : ""
+
+        let state: PlaybackSnapshot.State
+        switch stateText {
+        case "playing": state = .playing
+        case "paused": state = .paused
+        default: state = .stopped
+        }
+
+        let trimmedKey = keyText.trimmingCharacters(in: .whitespacesAndNewlines)
+        return PlaybackSnapshot(state: state, trackKey: trimmedKey.isEmpty ? nil : trimmedKey)
     }
 
     // MARK: - Authorization
