@@ -616,13 +616,13 @@ struct HistoryStatsSettingsView: View {
     /// keeps on disk before pruning. `0` means keep forever.
     private var retentionCard: some View {
         VStack(alignment: .leading, spacing: DSSpace.s3) {
-            CardEyebrowHeader("History retention", systemImage: "calendar")
+            CardEyebrowHeader("Keep history", systemImage: "calendar")
 
             HStack {
-                Text("Keep history for")
+                Text("Keep for")
                     .font(.system(size: DSFont.Size.body))
                 Spacer()
-                Picker("Keep history for", selection: $historyRetentionDays) {
+                Picker("Keep for", selection: $historyRetentionDays) {
                     Text("Forever").tag(0)
                     Text("7 days").tag(7)
                     Text("30 days").tag(30)
@@ -636,7 +636,7 @@ struct HistoryStatsSettingsView: View {
                 .accessibilityIdentifier("historyRetentionDays")
             }
 
-            Text("Older entries are pruned the next time the app launches.")
+            Text("Old plays clear on next launch.")
                 .font(.system(size: DSFont.Size.xs))
                 .foregroundStyle(.tertiary)
         }
@@ -652,7 +652,7 @@ struct HistoryStatsSettingsView: View {
     /// lives in the danger zone below, not here.
     private var actionsCard: some View {
         VStack(alignment: .leading, spacing: DSSpace.s3) {
-            CardEyebrowHeader("Manage", systemImage: "slider.horizontal.3")
+            CardEyebrowHeader("Recap", systemImage: "sparkles")
 
             Button {
                 showWrapSheet = true
