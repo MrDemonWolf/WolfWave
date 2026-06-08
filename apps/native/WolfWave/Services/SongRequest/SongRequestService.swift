@@ -138,6 +138,16 @@ final class SongRequestService {
     /// Whether the fallback playlist is currently playing (no active requests).
     private(set) var isPlayingFallback = false
 
+    /// Per-item count of consecutive failed play attempts. A request can fail to
+    /// play because its track is still syncing down from iCloud Music Library
+    /// right after being added; keeping a count lets the poll retry a few times
+    /// before giving up on one that never becomes playable (e.g. a song that
+    /// isn't available or the streamer has no active subscription).
+    private var playAttemptCounts: [UUID: Int] = [:]
+
+    /// Maximum play attempts before a stuck request is dropped with a chat notice.
+    private let maxPlayAttempts = 3
+
     /// Callback used to relay status messages back to Twitch chat. Set by
     /// `AppDelegate` once `TwitchChatService` is wired up.
     var sendChatMessage: ((String) -> Void)?
@@ -461,6 +471,7 @@ final class SongRequestService {
         let count = queue.clear()
         takeoverBaselineTrackID = nil
         playingRequestTrackID = nil
+        playAttemptCounts.removeAll()
         await musicController.clearPlayerQueue()
         return count
     }
@@ -505,6 +516,7 @@ final class SongRequestService {
 
         do {
             try await musicController.playNow(song: song)
+            playAttemptCounts[item.id] = nil
             isPlayingFallback = false
             Log.debug("SongRequestService: Now playing \"\(item.title)\" by \(item.artist) (requested by \(item.requesterUsername))", category: "SongRequest")
         } catch PlaybackError.musicAppNotRunning {
@@ -512,6 +524,25 @@ final class SongRequestService {
             queue.insertAtHead(item)
             queue.clearNowPlaying()
             Log.debug("SongRequestService: Music.app closed, \"\(item.title)\" re-queued at head", category: "SongRequest")
+        } catch PlaybackError.notPlayable(let title) {
+            // The song was added to the library but isn't playable yet — usually
+            // still syncing down from iCloud right after the add. Keep it queued
+            // at the head and let the poll retry, but cap attempts so a genuinely
+            // unavailable track (no subscription) is eventually dropped instead of
+            // looping forever.
+            let attempts = (playAttemptCounts[item.id] ?? 0) + 1
+            if attempts >= maxPlayAttempts {
+                playAttemptCounts[item.id] = nil
+                queue.clearNowPlaying()
+                Log.debug("SongRequestService: Dropping \"\(title)\" after \(attempts) failed play attempts (unavailable or no subscription)", category: "SongRequest")
+                sendChatMessage?("Couldn't play \"\(title)\" (not available on Apple Music). Skipping it.")
+                await playNextInQueueUnguarded()
+            } else {
+                playAttemptCounts[item.id] = attempts
+                queue.insertAtHead(item)
+                queue.clearNowPlaying()
+                Log.debug("SongRequestService: \"\(title)\" not ready (attempt \(attempts)/\(maxPlayAttempts)), re-queued; will retry", category: "SongRequest")
+            }
         } catch {
             Log.debug("SongRequestService: Failed to play \"\(item.title)\": \(error)", category: "SongRequest")
             await playNextInQueueUnguarded()

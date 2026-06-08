@@ -14,6 +14,11 @@ import MusicKit
 enum PlaybackError: Error {
     /// Music.app is not currently running. The request has been buffered.
     case musicAppNotRunning
+    /// The song was added to the library but could not be played from it yet.
+    /// Usually the track is still syncing down from iCloud Music Library; can
+    /// also mean the song is unavailable or the user has no active subscription.
+    /// The caller keeps the request queued and retries.
+    case notPlayable(title: String)
 }
 
 /// Abstracts Apple Music search and playback control so the live
@@ -78,9 +83,13 @@ protocol AppleMusicControlling {
 /// All playback commands use AppleScript to control Music.app directly,
 /// so songs play through Music.app's audio session rather than within this app.
 ///
-/// Note: macOS has no public API to insert songs into Music.app's native Up Next queue.
-/// WolfWave manages playback sequence internally and tells Music.app to open each song
-/// via `open location` when it is ready to play.
+/// Note: macOS has no public API to insert songs into Music.app's native Up Next
+/// queue (the AppleScript dictionary has no queue command, and the MusicKit
+/// players that can — `ApplicationMusicPlayer` / `SystemMusicPlayer` — are not
+/// available on macOS). WolfWave manages playback sequence internally. To play a
+/// requested song it adds the song to the library via `AppleMusicLibraryService`
+/// (required on macOS 26, where AppleScript can no longer play catalog songs that
+/// aren't in the library) and then plays it from the `WolfWave Requests` playlist.
 final class AppleMusicController: AppleMusicControlling {
     // MARK: - Types
 
@@ -98,6 +107,17 @@ final class AppleMusicController: AppleMusicControlling {
         case notFound
         case error(String)
     }
+
+    // MARK: - Properties
+
+    /// Writes requested songs into the `WolfWave Requests` library playlist so
+    /// they become playable via AppleScript on macOS 26. See `playNow`.
+    private let libraryService = AppleMusicLibraryService()
+
+    /// Catalog ids already added to the library this session. Playback retries
+    /// re-enter `playNow` for the same song, so this prevents re-adding it (and
+    /// piling up duplicate playlist entries) on every retry.
+    private var addedSongIDs: Set<String> = []
 
     // MARK: - Authorization Status
 
@@ -263,42 +283,83 @@ final class AppleMusicController: AppleMusicControlling {
 
     // MARK: - Playback (via AppleScript → Music.app)
 
-    /// Open and play a song in Music.app immediately.
+    /// Add a requested song to the library and play it from the `WolfWave
+    /// Requests` playlist.
     ///
-    /// Throws `PlaybackError.musicAppNotRunning` if Music.app is not running,
-    /// so the caller can buffer the request and retry when Music.app launches.
-    /// Uses `open location` with the song's Apple Music URL so Music.app handles
-    /// playback through its own audio session. Refocuses the previously-frontmost
-    /// app after opening so Music.app does not steal focus during streaming.
+    /// macOS 26 (Tahoe) broke AppleScript playback of catalog songs that aren't
+    /// in the user's library (`open location` for a catalog URL no longer starts
+    /// playback), and there is no Up Next / "add to queue" AppleScript command.
+    /// So the song is first added to the library via `AppleMusicLibraryService`
+    /// (contained in the requests playlist, which also adds it to the library),
+    /// then played from that playlist. Library tracks still play under Tahoe.
+    ///
+    /// - Throws: `PlaybackError.musicAppNotRunning` if Music.app is closed, so the
+    ///   caller can buffer the request and retry on launch. `PlaybackError.notPlayable`
+    ///   if the library add fails (no subscription, unavailable) or the added
+    ///   track can't be played within the retry window (still syncing from iCloud
+    ///   Music Library), so the caller keeps it queued and retries.
     func playNow(song: Song) async throws {
         guard isMusicAppRunning else {
             Log.debug("AppleMusicController: Music.app not running, buffering \"\(song.title)\"", category: "SongRequest")
             throw PlaybackError.musicAppNotRunning
         }
 
-        if let musicURL = song.url {
-            let urlString = musicURL.absoluteString
-            let script = """
-            tell application "Music"
-                open location "\(urlString)"
-            end tell
-            """
-            runAppleScriptPreservingFocus(script)
-            Log.debug("AppleMusicController: Opening in Music.app: \"\(song.title)\" by \(song.artistName)", category: "SongRequest")
-        } else {
-            // Fallback: search local library and play
-            let query = sanitizeForAppleScript("\(song.title) \(song.artistName)")
-            let script = """
-            tell application "Music"
-                set searchResults to search playlist "Library" for "\(query)"
-                if (count of searchResults) > 0 then
-                    play item 1 of searchResults
-                end if
-            end tell
-            """
-            runAppleScriptPreservingFocus(script)
-            Log.debug("AppleMusicController: Library fallback: \"\(song.title)\" by \(song.artistName)", category: "SongRequest")
+        // Add to the library once per song (retries re-enter here). A failure
+        // here — e.g. no active subscription — means we can't play it, so surface
+        // notPlayable and let the caller keep the request queued.
+        let songID = song.id.rawValue
+        if !addedSongIDs.contains(songID) {
+            do {
+                try await libraryService.addSongToRequestsPlaylist(song)
+                addedSongIDs.insert(songID)
+            } catch {
+                Log.debug("AppleMusicController: Library add failed for \"\(song.title)\": \(error)", category: "SongRequest")
+                throw PlaybackError.notPlayable(title: song.title)
+            }
         }
+
+        // A freshly added track takes a moment to sync down before AppleScript
+        // can see it, so the play is retried over a few seconds.
+        guard await playFromRequestsPlaylist(song: song) else {
+            throw PlaybackError.notPlayable(title: song.title)
+        }
+        Log.debug("AppleMusicController: Now playing \"\(song.title)\" by \(song.artistName) from \(AppConstants.Music.requestsPlaylistName)", category: "SongRequest")
+    }
+
+    /// Plays a song from the `WolfWave Requests` playlist by matching title and
+    /// artist, retrying briefly because a just-added track takes a moment to sync
+    /// down from iCloud Music Library and become visible to AppleScript.
+    ///
+    /// Matches title + artist first, then falls back to title-only within the
+    /// (small) requests playlist so a minor artist-string difference (e.g. a
+    /// "feat." credit) still resolves.
+    ///
+    /// - Returns: `true` once playback starts, `false` if the track never appeared
+    ///   within the retry window.
+    private func playFromRequestsPlaylist(song: Song) async -> Bool {
+        let playlist = sanitizeForAppleScript(AppConstants.Music.requestsPlaylistName)
+        let name = sanitizeForAppleScript(song.title)
+        let artist = sanitizeForAppleScript(song.artistName)
+        let script = """
+        tell application "Music"
+            try
+                set ms to (every track of playlist "\(playlist)" whose name is "\(name)" and artist is "\(artist)")
+                if (count of ms) is 0 then
+                    set ms to (every track of playlist "\(playlist)" whose name is "\(name)")
+                end if
+                if (count of ms) > 0 then
+                    play (item 1 of ms)
+                    return "ok"
+                end if
+            end try
+            return "miss"
+        end tell
+        """
+        for attempt in 0..<5 {
+            if runAppleScriptPreservingFocus(script) == "ok" { return true }
+            if attempt < 4 { try? await Task.sleep(for: .milliseconds(700)) }
+        }
+        return false
     }
 
     /// Note that a song has been queued internally.
@@ -390,6 +451,26 @@ final class AppleMusicController: AppleMusicControlling {
         Log.debug("AppleMusicController: Fallback playlist '\(name)' started", category: "SongRequest")
     }
 
+    /// Reveals (selects and scrolls to) the `WolfWave Requests` playlist in
+    /// Music.app and brings Music forward, so the streamer can hit Share to make
+    /// it public. macOS exposes no API to publish a playlist or generate its
+    /// share link, so this is the setup shortcut: one click to the playlist
+    /// instead of hunting for it in the sidebar.
+    ///
+    /// Deliberately launches Music.app if it is closed (the user asked to open
+    /// it), unlike the playback probes that avoid relaunching a quit app.
+    func revealRequestsPlaylist() {
+        let name = sanitizeForAppleScript(AppConstants.Music.requestsPlaylistName)
+        runAppleScript("""
+        tell application "Music"
+            activate
+            try
+                reveal playlist "\(name)"
+            end try
+        end tell
+        """)
+    }
+
     // MARK: - Private Helpers
 
     /// Sanitize a string for safe inclusion in an AppleScript string literal.
@@ -408,16 +489,21 @@ final class AppleMusicController: AppleMusicControlling {
 
     /// Run an AppleScript while preserving the frontmost app's focus.
     ///
-    /// `open location` in Music.app causes it to pop forward. This helper captures
+    /// Playing in Music.app causes it to pop forward. This helper captures
     /// whichever app had focus before the script runs and refocuses it ~150ms later,
     /// so Music.app plays silently in the background during streaming.
-    private func runAppleScriptPreservingFocus(_ source: String) {
+    ///
+    /// - Returns: The script's string result, so callers like the requests-playlist
+    ///   poller can read whether playback started.
+    @discardableResult
+    private func runAppleScriptPreservingFocus(_ source: String) -> String? {
         let previousFrontApp = NSWorkspace.shared.frontmostApplication
-        runAppleScript(source)
+        let result = runAppleScript(source)
         Task { @MainActor in
             try? await Task.sleep(for: .milliseconds(150))
             previousFrontApp?.activate()
         }
+        return result
     }
 
     /// Run an AppleScript and return the string result.

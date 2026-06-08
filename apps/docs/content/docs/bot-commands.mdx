@@ -11,6 +11,7 @@ keywords:
   - twitch song requests without spotify premium
   - channel point song requests twitch
   - bit cheer song boost twitch
+  - twitch song request playlist link apple music
 ogChips:
   - "!song"
   - "!sr"
@@ -70,9 +71,14 @@ Everyone can add tracks to your queue. Mods get extra controls.
 | `!hold`                  | Mods + owner | Pause new requests                                |
 | `!resume` / `!unhold`    | Mods + owner | Resume a held queue                               |
 | `!clearqueue`            | Mods + owner | Wipe the entire queue                             |
+| `!playlist`              | Everyone     | Link your song-request playlist (off by default)  |
 
 <Callout type="info">
   Configure the queue, blocklist, and which commands are enabled in **Settings → Song Requests**.
+</Callout>
+
+<Callout type="info">
+  **`!playlist` setup.** WolfWave gathers requested songs into a **WolfWave Requests** playlist in Apple Music. macOS can't share a playlist for you, so make it public once (in Music: open the playlist, then **Share → Show on Profile**), then tap **Fetch link** in **Settings → Song Requests → Commands**. After that `!playlist` posts the link and keeps it current as new requests come in. The **Open playlist in Music** button jumps you straight to it.
 </Callout>
 
 ---
@@ -168,7 +174,7 @@ Supported commands take comma-separated aliases. Add `np, track` to `!song` and 
 | `!last`     | Settings → Twitch → Bot Commands                  |
 | `!wolfwave` | Settings → Twitch → Bot Commands                  |
 | `!stats`    | Settings → History & Stats → `!stats` Twitch command |
-| `!sr`, `!queue`, `!myqueue`, `!skip`, `!clearqueue`, `!voteskip` | Settings → Song Requests |
+| `!sr`, `!queue`, `!myqueue`, `!skip`, `!clearqueue`, `!voteskip`, `!playlist` | Settings → Song Requests |
 
 Aliases honor the same enable, cooldown, audience, and live-gate rules as the canonical command. The `!` prefix is added automatically.
 

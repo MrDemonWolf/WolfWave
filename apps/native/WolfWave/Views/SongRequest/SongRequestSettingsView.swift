@@ -886,6 +886,15 @@ fileprivate struct SongRequestCommandsCard: View {
     @AppStorage(AppConstants.UserDefaults.songRequestGlobalCooldown) private var globalCooldown: Double = 5.0
     @AppStorage(AppConstants.UserDefaults.songRequestUserCooldown) private var userCooldown: Double = 30.0
 
+    @AppStorage(AppConstants.UserDefaults.songListCommandEnabled) private var songListCommandEnabled = false
+    @AppStorage(AppConstants.UserDefaults.songListCommandAliases) private var songListAliases = ""
+    @AppStorage(AppConstants.UserDefaults.songRequestSongListURL) private var songListURL = ""
+
+    @State private var libraryService = AppleMusicLibraryService()
+    @State private var musicController = AppleMusicController()
+    @State private var fetchingLink = false
+    @State private var fetchStatus: String?
+
     var body: some View {
         VStack(alignment: .leading, spacing: DSSpace.s6) {
             VStack(alignment: .leading, spacing: DSSpace.s1h) {
@@ -948,15 +957,142 @@ fileprivate struct SongRequestCommandsCard: View {
                     accessibilityLabel: "Enable clear queue command",
                     accessibilityIdentifier: "clearQueueCommandToggle",
                     aliases: $clearQueueAliases,
-                    aliasPlaceholder: "e.g. play, add",
-                    aliasAccessibilityIdentifier: "clearQueueCommandAliases",
+                    aliasPlaceholder: "e.g. play, add"
+                )
+
+                CommandSettingRow(
+                    title: "!playlist Command",
+                    triggers: "!playlist  ·  links your request playlist",
+                    isOn: $songListCommandEnabled,
+                    accessibilityLabel: "Enable playlist link command",
+                    accessibilityIdentifier: "songListCommandToggle",
+                    aliases: $songListAliases,
+                    aliasPlaceholder: "e.g. list, amplaylist",
+                    aliasAccessibilityIdentifier: "songListCommandAliases",
                     isLast: true
                 )
             }
             .cardStyleUnpadded()
 
+            VStack(alignment: .leading, spacing: DSSpace.s4) {
+                HStack {
+                    Text("Song list link")
+                        .font(.system(size: DSFont.Size.body, weight: .medium))
+                    Spacer()
+                    StatusChip(
+                        text: songListURL.isEmpty ? "Needs setup" : "Ready",
+                        color: songListURL.isEmpty ? Color.secondary : .green,
+                        systemImage: songListURL.isEmpty
+                            ? StatusChip.StateGlyph.off
+                            : StatusChip.StateGlyph.on
+                    )
+                }
+
+                Text("!playlist drops a link to your requests playlist in chat. Three quick steps:")
+                    .fieldSubtitle()
+
+                VStack(alignment: .leading, spacing: DSSpace.s3) {
+                    setupStep(1, "Open your requests playlist") {
+                        Button("Open in Music") {
+                            Task { await openPlaylistInMusic() }
+                        }
+                        .buttonStyle(.bordered)
+                        .controlSize(.small)
+                        .accessibilityIdentifier("songRequests.openPlaylistInMusic")
+                    }
+
+                    setupStep(2, "In Music, tap Share, then Show on Profile") {
+                        EmptyView()
+                    }
+
+                    setupStep(3, "Grab the link") {
+                        Button {
+                            Task { await fetchSongListLink() }
+                        } label: {
+                            if fetchingLink {
+                                ProgressView().controlSize(.small)
+                            } else {
+                                Text("Fetch link")
+                            }
+                        }
+                        .buttonStyle(.borderedProminent)
+                        .controlSize(.small)
+                        .disabled(fetchingLink)
+                        .accessibilityIdentifier("songRequests.fetchSongList")
+                    }
+                }
+
+                if let fetchStatus {
+                    Text(fetchStatus)
+                        .font(.system(size: DSFont.Size.xs))
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+
+                TextField("Link shows up here, or paste your own", text: $songListURL)
+                    .textFieldStyle(.roundedBorder)
+                    .font(.system(size: DSFont.Size.body))
+                    .accessibilityIdentifier("songRequests.songListURL")
+
+                Text("Leave blank and !playlist stays quiet.")
+                    .font(.system(size: DSFont.Size.xs))
+                    .foregroundStyle(.secondary)
+            }
+
             HintRow("Cooldowns don't apply to you or your mods.")
         }
+    }
+
+    /// One numbered step in the `!playlist` setup flow: a glyph, a short
+    /// instruction, and an optional trailing action button. Keeps the setup
+    /// scannable so it's quick to follow.
+    @ViewBuilder
+    private func setupStep<Trailing: View>(
+        _ number: Int,
+        _ text: String,
+        @ViewBuilder trailing: () -> Trailing
+    ) -> some View {
+        HStack(spacing: DSSpace.s3) {
+            Image(systemName: "\(number).circle.fill")
+                .font(.system(size: DSFont.Size.lg))
+                .foregroundStyle(.tint)
+                .accessibilityHidden(true)
+            Text(text)
+                .font(.system(size: DSFont.Size.body))
+                .fixedSize(horizontal: false, vertical: true)
+            Spacer(minLength: DSSpace.s2)
+            trailing()
+        }
+    }
+
+    /// Resolves the WolfWave Requests playlist's public share link, fills the
+    /// field, and turns `!playlist` on. The playlist must be public first (macOS
+    /// can't publish it), so a not-yet-public playlist resolves to a clear
+    /// "do steps 1 and 2 first" message.
+    @MainActor
+    private func fetchSongListLink() async {
+        fetchingLink = true
+        fetchStatus = nil
+        defer { fetchingLink = false }
+        do {
+            if let url = try await libraryService.resolveRequestsPlaylistShareURL() {
+                songListURL = url
+                songListCommandEnabled = true
+                fetchStatus = "Got it. !playlist is on and shares this link."
+            } else {
+                fetchStatus = "Not public yet. Do steps 1 and 2, then Fetch again."
+            }
+        } catch {
+            fetchStatus = "Couldn't fetch. Make sure you're signed in to Apple Music."
+        }
+    }
+
+    /// Ensures the WolfWave Requests playlist exists, then reveals it in Music so
+    /// the streamer can Share it (the one manual step macOS can't automate).
+    @MainActor
+    private func openPlaylistInMusic() async {
+        _ = try? await libraryService.ensureRequestsPlaylist()
+        musicController.revealRequestsPlaylist()
     }
 }
 

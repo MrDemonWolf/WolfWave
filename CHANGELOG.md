@@ -13,8 +13,9 @@ All notable changes to this project will be documented in this file.
 
 **Song requests**
 
-- **Song Requests.** Viewers request tracks with `!sr <song>`. Plays through Apple Music without stealing focus from your stream.
+- **Song Requests.** Viewers request tracks with `!sr <song>`. Plays through Apple Music without stealing focus from your stream. Each request is saved to a "WolfWave Requests" playlist and played from there, so it works on macOS 26 (Tahoe), where Apple Music stopped letting apps play songs you haven't saved.
 - **Queue commands.** `!queue` and `!myqueue` show the queue. `!skip`/`!next`, `!clearqueue`, and `!hold`/`!resume` are for mods and the broadcaster.
+- **`!playlist` command.** Drops a link to your requests playlist in chat. Make the playlist public once, tap Fetch in Settings, and the link stays live as songs are added. A one-tap "Open in Music" button gets you there. Off by default.
 - **Chat Vote-Skip.** Chat votes out a song with `!vs`. Counts unique voters, or opens a native Twitch poll (Affiliate/Partner). Set it up in Settings → Song Requests.
 - **Song Request Queue view.** A now-playing card, who asked for each track, and Skip / Hold / Clear.
 - **Hold the queue.** New requests pile up without auto-playing, so you can line them up first. From the queue view or the menu bar.

@@ -39,8 +39,9 @@ nonisolated private struct HelixStreamsResponse: Decodable {
     struct Stream: Decodable {
         let id: String
         /// ISO-8601 stream start time, e.g. `2026-06-08T18:04:21Z`. Anchors the
-        /// `!stats` "This stream" window when seeding mid-broadcast.
-        let started_at: String?
+        /// `!stats` "This stream" window when seeding mid-broadcast. Decoded from
+        /// the JSON `started_at` field via the snake-case key strategy.
+        let startedAt: String?
     }
     let data: [Stream]
 }
@@ -2227,7 +2228,7 @@ actor TwitchChatService {
             streamLive = live
             // Anchor "This stream" to the real start time when available, else now.
             if live {
-                let startedAt = response.data.first?.started_at
+                let startedAt = response.data.first?.startedAt
                     .flatMap { ISO8601DateFormatter().date(from: $0) }
                 streamLiveSince = startedAt ?? Date()
             } else {

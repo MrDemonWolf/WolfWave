@@ -66,6 +66,7 @@ final class BotCommandDispatcher {
     let clearQueueCommand = ClearQueueCommand()
     let holdCommand = HoldCommand()
     let voteSkipCommand = VoteSkipCommand()
+    let songListCommand = SongListCommand()
 
     /// Creates a dispatcher pre-loaded with every built-in command.
     init() {
@@ -74,7 +75,7 @@ final class BotCommandDispatcher {
 
     /// Registers the built-in command suite (`!song`, `!last`, `!stats`,
     /// `!wolfwave`, `!sr`, `!queue`, `!myqueue`, `!skip`, `!clearqueue`,
-    /// `!hold`, `!voteskip`). Called once from `init`.
+    /// `!hold`, `!voteskip`, `!playlist`). Called once from `init`.
     private func registerDefaultCommands() {
         register(songCommand)
         register(lastSongCommand)
@@ -87,6 +88,7 @@ final class BotCommandDispatcher {
         register(clearQueueCommand)
         register(holdCommand)
         register(voteSkipCommand)
+        register(songListCommand)
     }
 
     /// Adds a `BotCommand` to the dispatch table. Thread-safe.

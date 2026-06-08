@@ -435,6 +435,18 @@ nonisolated enum AppConstants {
         /// Custom aliases for !clearqueue command (String, comma-separated)
         static let clearQueueCommandAliases = "clearQueueCommandAliases"
 
+        /// Whether the !playlist link command is enabled (Bool, default: false)
+        static let songListCommandEnabled = "songListCommandEnabled"
+
+        /// Custom aliases for the !playlist command (String, comma-separated)
+        static let songListCommandAliases = "songListCommandAliases"
+
+        /// Public link to the song request playlist, posted by !playlist. macOS
+        /// can't publish a library playlist or fetch its share URL via the API,
+        /// so the streamer shares the `WolfWave Requests` playlist once and pastes
+        /// the link here (String, default: "")
+        static let songRequestSongListURL = "songRequestSongListURL"
+
         /// Global cooldown for song request commands in seconds (Double, default: 5.0)
         static let songRequestGlobalCooldown = "songRequestGlobalCooldown"
 
@@ -652,6 +664,9 @@ nonisolated enum AppConstants {
             myQueueCommandAliases,
             skipCommandAliases,
             clearQueueCommandAliases,
+            songListCommandEnabled,
+            songListCommandAliases,
+            songRequestSongListURL,
             songRequestGlobalCooldown,
             songRequestUserCooldown,
             songRequestFallbackPlaylist,
@@ -771,6 +786,9 @@ nonisolated enum AppConstants {
             myQueueCommandAliases,
             skipCommandAliases,
             clearQueueCommandAliases,
+            songListCommandEnabled,
+            songListCommandAliases,
+            songRequestSongListURL,
             songRequestGlobalCooldown,
             songRequestUserCooldown,
             songRequestFallbackPlaylist,
@@ -895,6 +913,26 @@ nonisolated enum AppConstants {
     enum Music {
         /// Bundle identifier for Apple Music app
         static let bundleIdentifier = "com.apple.Music"
+
+        /// Base URL for the Apple Music API (library + catalog endpoints).
+        /// Reached via `MusicDataRequest`, which auto-attaches the developer and
+        /// music-user tokens MusicKit manages on the user's behalf.
+        static let apiBaseURL = "https://api.music.apple.com/v1"
+
+        /// Name of the library playlist WolfWave creates to hold viewer song
+        /// requests.
+        ///
+        /// macOS 26 (Tahoe) broke AppleScript playback of catalog songs that are
+        /// not in the user's library, and Music.app's AppleScript dictionary has
+        /// no Up Next / queue command, so a requested song must be added to the
+        /// library before it can play. Funnelling every add into one dedicated
+        /// playlist keeps the streamer's curated library and Recently Added clean
+        /// and gives them a single place to clear.
+        static let requestsPlaylistName = "WolfWave Requests"
+
+        /// Description set on the WolfWave Requests playlist when it is created.
+        static let requestsPlaylistDescription =
+            "Songs your viewers requested through WolfWave. Safe to clear anytime."
     }
     
     // MARK: - Twitch Integration

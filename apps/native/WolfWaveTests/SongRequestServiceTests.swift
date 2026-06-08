@@ -30,11 +30,13 @@ final class MockAppleMusicController: AppleMusicControlling {
     var fallbackPlaylistName: String?
     var enqueuedSongs: [Song] = []
     var shouldThrowMusicAppNotRunning = false
+    var shouldThrowNotPlayable = false
 
     func search(query: String) async -> AppleMusicController.SearchResult { .notFound }
     func resolve(url: URL) async -> AppleMusicController.SearchResult { .notFound }
     func playNow(song: Song) async throws {
         if shouldThrowMusicAppNotRunning { throw PlaybackError.musicAppNotRunning }
+        if shouldThrowNotPlayable { throw PlaybackError.notPlayable(title: song.title) }
         playNowCalled = true
     }
     func enqueue(song: Song) async throws {
