@@ -4,7 +4,7 @@ Slider row with a leading label and a trailing live value readout.
 
 ## Purpose
 
-Bare `Slider` controls have no numeric indicator next to the thumb — the user has to guess "what does the current value mean?". Used for command cooldown rows (Everyone / Per person) across the Twitch Bot Commands and Song Request panes via [`CommandSettingRow`](command-setting-row.md), and directly in History's `!stats` card, so the user can see "15s" change as they drag.
+Bare `Slider` controls have no numeric indicator next to the thumb — the user has to guess "what does the current value mean?". Used for command cooldown rows (Everyone / Per person) across the Twitch Bot Commands and Song Request panes via [`CommandSettingRow`](command-setting-row.md), and in History's `!stats` card — both lay the Everyone / Per-person pair out two-up via [`CooldownSliderPair`](cooldown-slider-pair.md) — so the user can see "15s" change as they drag.
 
 ## API
 

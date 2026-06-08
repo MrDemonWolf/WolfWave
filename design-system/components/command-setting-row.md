@@ -36,7 +36,7 @@ CommandCooldown(global: Binding<Double>, user: Binding<Double>,
 | `triggers` | `String` | Subtitle line — the trigger list, or a one-line explanation for a non-command toggle. |
 | `isOn` | `Binding<Bool>` | Enable state; drives whether the details block shows. |
 | `accessibilityLabel` / `accessibilityIdentifier` | `String` | Required — for the toggle. Cooldown sliders derive `"\(id).everyoneCooldown"` / `.perUserCooldown`. |
-| `cooldown` | `CommandCooldown?` | `nil` → no sliders. Reuses [`LabeledSlider`](labeled-slider.md) twice. |
+| `cooldown` | `CommandCooldown?` | `nil` → no sliders. Renders the Everyone / Per-person pair two-up via [`CooldownSliderPair`](cooldown-slider-pair.md). |
 | `aliases` | `Binding<String>?` | `nil` → no alias field. Renders [`CommandAliasField`](command-alias-field.md). |
 | `aliasPlaceholder` / `aliasAccessibilityLabel` / `aliasAccessibilityIdentifier` | `String` / `String?` | Forwarded to `CommandAliasField`. |
 | `isLast` | `Bool` | Suppresses the trailing hairline on the final row of the card. |
@@ -53,7 +53,7 @@ CommandCooldown(global: Binding<Double>, user: Binding<Double>,
 flowchart TD
   Row[VStack spacing 0] --> Toggle[ToggleSettingRow: title + triggers + switch]
   Row -->|isOn && hasContent| Details[VStack spacing s2]
-  Details --> CD["LabeledSlider × 2 — Everyone / Per person (if cooldown)"]
+  Details --> CD["CooldownSliderPair — Everyone | Per person, two-up (if cooldown)"]
   Details --> Alias["CommandAliasField (if aliases)"]
   Details --> Extra["extra() — e.g. reply picker"]
   Row --> Divider["Divider (bottom, unless isLast)"]

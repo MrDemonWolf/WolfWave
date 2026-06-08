@@ -12,6 +12,7 @@ One markdown entry per reusable view. Stubs marked `(stub)` need filling in as w
 | CommandSettingRow | [command-setting-row.md](command-setting-row.md) | drafted |
 | CommandAliasField | [command-alias-field.md](command-alias-field.md) | drafted |
 | LabeledSlider | [labeled-slider.md](labeled-slider.md) | drafted |
+| CooldownSliderPair | [cooldown-slider-pair.md](cooldown-slider-pair.md) | drafted |
 | SuccessFeedbackRow | [success-feedback-row.md](success-feedback-row.md) | drafted |
 | SectionHeaderWithStatus | [section-header-with-status.md](section-header-with-status.md) | drafted |
 | NowPlayingHeroCard | [now-playing-hero-card.md](now-playing-hero-card.md) | drafted |

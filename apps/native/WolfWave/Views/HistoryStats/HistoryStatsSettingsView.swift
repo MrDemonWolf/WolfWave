@@ -585,8 +585,18 @@ struct HistoryStatsSettingsView: View {
 
             if statsCommandEnabled {
                 Divider()
-                cooldownRow(title: "Global cooldown", value: $statsGlobalCooldown)
-                cooldownRow(title: "Per-user cooldown", value: $statsUserCooldown)
+                CooldownSliderPair(
+                    everyone: .init(
+                        label: "Everyone",
+                        value: $statsGlobalCooldown,
+                        accessibilityIdentifier: "cooldown.Global cooldown"
+                    ),
+                    perPerson: .init(
+                        label: "Per person",
+                        value: $statsUserCooldown,
+                        accessibilityIdentifier: "cooldown.Per-user cooldown"
+                    )
+                )
 
                 CommandAliasField(
                     aliases: $statsCommandAliases,
@@ -633,18 +643,6 @@ struct HistoryStatsSettingsView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .padding(AppConstants.SettingsUI.cardPadding)
         .cardStyleUnpadded()
-    }
-
-    @ViewBuilder
-    private func cooldownRow(title: String, value: Binding<Double>) -> some View {
-        LabeledSlider(
-            label: title,
-            value: value,
-            range: 0...60,
-            step: 5,
-            format: { "\(Int($0))s" },
-            accessibilityIdentifier: "cooldown.\(title)"
-        )
     }
 
     // MARK: - Actions

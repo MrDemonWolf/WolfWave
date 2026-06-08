@@ -132,21 +132,21 @@ struct CommandSettingRow<Extra: View>: View {
     private var details: some View {
         VStack(alignment: .leading, spacing: DSSpace.s2) {
             if let cooldown {
-                LabeledSlider(
-                    label: "Everyone",
-                    value: cooldown.global,
-                    range: cooldown.globalRange,
-                    step: cooldown.step,
-                    format: { "\(Int($0))s" },
-                    accessibilityIdentifier: "\(accessibilityIdentifier).everyoneCooldown"
-                )
-                LabeledSlider(
-                    label: "Per person",
-                    value: cooldown.user,
-                    range: cooldown.userRange,
-                    step: cooldown.step,
-                    format: { "\(Int($0))s" },
-                    accessibilityIdentifier: "\(accessibilityIdentifier).perUserCooldown"
+                CooldownSliderPair(
+                    everyone: .init(
+                        label: "Everyone",
+                        value: cooldown.global,
+                        range: cooldown.globalRange,
+                        step: cooldown.step,
+                        accessibilityIdentifier: "\(accessibilityIdentifier).everyoneCooldown"
+                    ),
+                    perPerson: .init(
+                        label: "Per person",
+                        value: cooldown.user,
+                        range: cooldown.userRange,
+                        step: cooldown.step,
+                        accessibilityIdentifier: "\(accessibilityIdentifier).perUserCooldown"
+                    )
                 )
             }
 
