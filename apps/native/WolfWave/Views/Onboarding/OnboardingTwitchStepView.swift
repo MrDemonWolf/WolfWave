@@ -60,6 +60,10 @@ struct OnboardingTwitchStepView: View {
                     twitchViewModel.twitchService = appDelegate.twitchService
                 }
             }
+            prefillChannelIfNeeded()
+        }
+        .onChange(of: twitchViewModel.botUsername) { _, _ in
+            prefillChannelIfNeeded()
         }
     }
 
@@ -128,6 +132,14 @@ struct OnboardingTwitchStepView: View {
     }
 
     private var connectedContent: some View {
+        VStack(spacing: DSSpace.s4) {
+            accountCard
+            channelCard
+        }
+    }
+
+    /// The "Connected as @bot" identity card with a Sign Out action.
+    private var accountCard: some View {
         HStack(spacing: 14) {
             ZStack {
                 Circle()
@@ -163,6 +175,118 @@ struct OnboardingTwitchStepView: View {
         .accessibilityLabel("Twitch connected as \(twitchViewModel.botUsername).")
     }
 
+    /// Channel name field + Join button so the bot actually joins a chat.
+    /// Once joined, collapses to a green "In #channel" confirmation row.
+    @ViewBuilder
+    private var channelCard: some View {
+        VStack(alignment: .leading, spacing: DSSpace.s3) {
+            if twitchViewModel.channelConnected {
+                HStack(spacing: DSSpace.s2) {
+                    Image(systemName: "checkmark.circle.fill")
+                        .foregroundStyle(DSColor.success)
+                        .font(.system(size: DSFont.Size.md))
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("In your chat")
+                            .sectionEyebrow()
+                        Text("#\(twitchViewModel.channelID)")
+                            .font(.system(size: DSFont.Size.base, weight: .semibold))
+                    }
+                    Spacer()
+                    Button("Change") {
+                        twitchViewModel.leaveChannel()
+                    }
+                    .buttonStyle(.bordered)
+                    .controlSize(.small)
+                    .pointerCursor()
+                }
+                .accessibilityElement(children: .combine)
+                .accessibilityLabel("WolfWave is in channel \(twitchViewModel.channelID).")
+            } else {
+                Text("Which channel should WolfWave join?")
+                    .sectionEyebrow()
+
+                HStack(spacing: DSSpace.s2) {
+                    TextField("yourchannel", text: $twitchViewModel.channelID)
+                        .font(.system(size: DSFont.Size.base))
+                        .textFieldStyle(.roundedBorder)
+                        .disabled(twitchViewModel.isConnecting)
+                        .accessibilityLabel("Twitch channel name")
+                        .accessibilityHint("Enter the channel WolfWave should join")
+                        .onSubmit(joinChannelIfPossible)
+                        .onChange(of: twitchViewModel.channelID) { oldValue, newValue in
+                            let sanitized = newValue.lowercased()
+                                .trimmingCharacters(in: .whitespacesAndNewlines)
+                            if sanitized != newValue {
+                                twitchViewModel.channelID = sanitized
+                            }
+                            if oldValue.lowercased()
+                                .trimmingCharacters(in: .whitespacesAndNewlines) != sanitized {
+                                twitchViewModel.saveChannelID()
+                            }
+                        }
+
+                    Button(action: joinChannelIfPossible) {
+                        if twitchViewModel.isConnecting {
+                            ProgressView()
+                                .progressViewStyle(.circular)
+                                .controlSize(.small)
+                        } else {
+                            Text("Join")
+                        }
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .controlSize(.large)
+                    .pointerCursor()
+                    .disabled(joinDisabled)
+                }
+
+                channelValidationIndicator
+                    .animation(
+                        .easeInOut(duration: DSMotion.Duration.base),
+                        value: twitchViewModel.channelValidationState)
+            }
+        }
+        .padding(DSSpace.s5)
+        .cardStyle()
+    }
+
+    /// Inline feedback below the channel field mirroring the settings pane.
+    @ViewBuilder
+    private var channelValidationIndicator: some View {
+        switch twitchViewModel.channelValidationState {
+        case .idle, .valid:
+            EmptyView()
+        case .validating:
+            HStack(spacing: DSSpace.s1) {
+                ProgressView()
+                    .progressViewStyle(.circular)
+                    .controlSize(.mini)
+                Text("Verifying channel\u{2026}")
+                    .font(.system(size: DSFont.Size.sm))
+                    .foregroundStyle(.secondary)
+            }
+        case .invalid:
+            HStack(spacing: DSSpace.s1) {
+                Image(systemName: "xmark.circle.fill")
+                    .foregroundStyle(.red)
+                    .font(.system(size: DSFont.Size.sm))
+                Text("Channel not found")
+                    .font(.system(size: DSFont.Size.sm))
+                    .foregroundStyle(.red)
+            }
+        case .error(let message):
+            HStack(spacing: DSSpace.s1) {
+                Image(systemName: "exclamationmark.triangle.fill")
+                    .foregroundStyle(.orange)
+                    .font(.system(size: DSFont.Size.sm))
+                Text("Couldn't check channel")
+                    .font(.system(size: DSFont.Size.sm))
+                    .foregroundStyle(.orange)
+                    .help(message)
+            }
+        }
+    }
+
     /// Error-state subview shown when the Twitch device-code flow fails.
     /// Displays a warning icon plus a wrap-friendly explanation message.
     ///
@@ -190,6 +314,32 @@ struct OnboardingTwitchStepView: View {
     }
 
     // MARK: - Helpers
+
+    /// Whether the Join button should be disabled (empty channel or busy).
+    private var joinDisabled: Bool {
+        twitchViewModel.isConnecting
+            || twitchViewModel.channelID
+                .trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    }
+
+    /// Joins the typed channel if it's non-empty and no join is in flight.
+    private func joinChannelIfPossible() {
+        guard !joinDisabled else { return }
+        twitchViewModel.joinChannel()
+    }
+
+    /// Seeds the channel field with the bot's own login as a sensible default,
+    /// so a streamer using one account just clicks Join. Only fills when empty.
+    private func prefillChannelIfNeeded() {
+        guard twitchViewModel.channelID
+            .trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
+            !twitchViewModel.botUsername.isEmpty
+        else { return }
+        twitchViewModel.channelID = twitchViewModel.botUsername
+            .lowercased()
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        twitchViewModel.saveChannelID()
+    }
 
     private var stateKey: Int {
         switch twitchViewModel.integrationState {
