@@ -35,37 +35,46 @@ MOUNTPOINT=$(hdiutil attach -readwrite -noverify -noautoopen \
 sleep 1
 
 # Copy background images if available
-BG_APPLESCRIPT=""
+HAS_BG_PICTURE=false
 if [ "$HAS_BACKGROUND" = true ]; then
     mkdir -p "$MOUNTPOINT/.background"
     cp "$BG_IMAGE" "$MOUNTPOINT/.background/dmg-background.png"
     if [ -f "$BG_IMAGE_2X" ]; then
         cp "$BG_IMAGE_2X" "$MOUNTPOINT/.background/dmg-background@2x.png"
     fi
-    BG_APPLESCRIPT='set background picture of viewOptions to file ".background:dmg-background.png"'
+    HAS_BG_PICTURE=true
 fi
 
-osascript \
-    -e 'tell application "Finder"' \
-    -e '  tell disk "WolfWave"' \
-    -e '    open' \
-    -e '    delay 2' \
-    -e '    set current view of container window to icon view' \
-    -e '    set toolbar visible of container window to false' \
-    -e '    set statusbar visible of container window to false' \
-    -e '    set the bounds of container window to {200, 200, 860, 600}' \
-    -e '    set viewOptions to the icon view options of container window' \
-    -e '    set arrangement of viewOptions to not arranged' \
-    -e '    set icon size of viewOptions to 100' \
-    -e '    set text size of viewOptions to 12' \
-    ${BG_APPLESCRIPT:+-e "    $BG_APPLESCRIPT"} \
-    -e '    set position of item "WolfWave.app" of container window to {175, 190}' \
-    -e '    set position of item "Applications" of container window to {485, 190}' \
-    -e '    close' \
-    -e '    open' \
-    -e '    delay 1' \
-    -e '  end tell' \
-    -e 'end tell' || true
+# Build the osascript args in an array so the conditional background line keeps
+# its embedded quotes intact (a `${var:+-e "..."}` expansion mangles them).
+OSA_ARGS=(
+    -e 'tell application "Finder"'
+    -e '  tell disk "WolfWave"'
+    -e '    open'
+    -e '    delay 2'
+    -e '    set current view of container window to icon view'
+    -e '    set toolbar visible of container window to false'
+    -e '    set statusbar visible of container window to false'
+    -e '    set the bounds of container window to {200, 200, 800, 602}'
+    -e '    set viewOptions to the icon view options of container window'
+    -e '    set arrangement of viewOptions to not arranged'
+    -e '    set icon size of viewOptions to 96'
+    -e '    set text size of viewOptions to 12'
+)
+if [ "$HAS_BG_PICTURE" = true ]; then
+    OSA_ARGS+=(-e '    set background picture of viewOptions to file ".background:dmg-background.png"')
+fi
+OSA_ARGS+=(
+    -e '    set position of item "WolfWave.app" of container window to {168, 182}'
+    -e '    set position of item "Applications" of container window to {432, 182}'
+    -e '    close'
+    -e '    open'
+    -e '    delay 1'
+    -e '  end tell'
+    -e 'end tell'
+)
+
+osascript "${OSA_ARGS[@]}" || true
 
 sync; sleep 2
 hdiutil detach "$MOUNTPOINT" -quiet 2>/dev/null || true
