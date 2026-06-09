@@ -251,9 +251,25 @@ jobs:
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
           APPLE_APP_PASSWORD: ${{ secrets.APPLE_APP_PASSWORD }}
         run: |
-          xcrun notarytool submit "builds/$DMG_NAME" \
+          # Don't let -e abort before we fetch the notary log. A non-Accepted
+          # status makes `notarytool submit --wait` exit non-zero; without the
+          # log the reason is invisible (see the 2026-06 v2.0.0 Invalid block).
+          set -uo pipefail
+          submit_json="$(xcrun notarytool submit "builds/$DMG_NAME" \
             --apple-id "$APPLE_ID" --team-id "$APPLE_TEAM_ID" \
-            --password "$APPLE_APP_PASSWORD" --wait --timeout 30m
+            --password "$APPLE_APP_PASSWORD" --wait --timeout 30m \
+            --output-format json)"
+          echo "$submit_json"
+          submission_id="$(echo "$submit_json" | jq -r '.id')"
+          status="$(echo "$submit_json" | jq -r '.status')"
+          echo "Notarization status: $status (submission $submission_id)"
+          if [ "$status" != "Accepted" ]; then
+            echo "::error::Notarization $status — fetching notary log for $submission_id"
+            xcrun notarytool log "$submission_id" \
+              --apple-id "$APPLE_ID" --team-id "$APPLE_TEAM_ID" \
+              --password "$APPLE_APP_PASSWORD" || true
+            exit 1
+          fi
           echo "Notarization complete"
 
       - name: Staple notarization ticket
