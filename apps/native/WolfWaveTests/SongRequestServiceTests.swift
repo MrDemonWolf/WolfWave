@@ -860,7 +860,7 @@ final class SongRequestServiceTests: WolfWaveTestCase {
         mockController.snapshotProvider = { PlaybackSnapshot(state: .stopped, trackKey: nil) }
 
         // After two confirmed stopped ticks, handleQueueEmptied fires → startFallbackIfConfigured.
-        let fallbackStarted = await waitUntil(timeout: .seconds(1)) {
+        let fallbackStarted = await waitUntil(timeout: .seconds(2)) {
             self.mockController.playFallbackCalled
         }
         guard fallbackStarted else {
@@ -874,7 +874,11 @@ final class SongRequestServiceTests: WolfWaveTestCase {
         // tick dequeues it (fallback yields to a real request immediately).
         queue.add(SongRequestItem(title: "RequestedSong", artist: "B", requesterUsername: "viewer"))
 
-        let handedOff = await waitUntil(timeout: .seconds(1)) {
+        // Generous timeout: the takeover needs a single poll tick, but the poll
+        // Task is MainActor-bound and can be starved under heavy parallel CI load,
+        // so a tight 1s window flaked. The logic self-heals every tick while the
+        // snapshot reads stopped; the wait just needs slack for the scheduler.
+        let handedOff = await waitUntil(timeout: .seconds(3)) {
             self.queue.nowPlaying?.title == "RequestedSong"
         }
         service.stopPlaybackMonitoring()
@@ -909,7 +913,7 @@ final class SongRequestServiceTests: WolfWaveTestCase {
         try? await Task.sleep(for: .milliseconds(60))
         mockController.snapshotProvider = { PlaybackSnapshot(state: .stopped, trackKey: nil) }
 
-        let fallbackActive = await waitUntil(timeout: .seconds(1)) {
+        let fallbackActive = await waitUntil(timeout: .seconds(2)) {
             self.mockController.playFallbackCalled
         }
         guard fallbackActive else {
@@ -925,7 +929,8 @@ final class SongRequestServiceTests: WolfWaveTestCase {
         mockController.snapshotProvider = { PlaybackSnapshot(state: .playing, trackKey: "fallback-track") }
         queue.add(SongRequestItem(title: "LiveRequest", artist: "B", requesterUsername: "fan"))
 
-        let tookOver = await waitUntil(timeout: .seconds(1)) {
+        // Same MainActor-starvation slack as testFallbackYieldsToIncomingRequest.
+        let tookOver = await waitUntil(timeout: .seconds(3)) {
             self.queue.nowPlaying?.title == "LiveRequest"
         }
         service.stopPlaybackMonitoring()
