@@ -47,6 +47,8 @@ final class DiagnosticsServiceTests: XCTestCase {
     }
 
     func testRecordAppLaunchIncrementsCounter() {
+        // Launch counting is gated on the diagnostics opt-in (see #338).
+        defaults.set(true, forKey: AppConstants.UserDefaults.shareDiagnosticsEnabled)
         XCTAssertEqual(service.launchCount, 0)
 
         service.recordAppLaunch()
@@ -54,6 +56,15 @@ final class DiagnosticsServiceTests: XCTestCase {
         service.recordAppLaunch()
 
         XCTAssertEqual(service.launchCount, 3)
+    }
+
+    func testRecordAppLaunchIsNoOpWhenDisabled() {
+        XCTAssertFalse(service.isEnabled)
+
+        service.recordAppLaunch()
+        service.recordAppLaunch()
+
+        XCTAssertEqual(service.launchCount, 0, "Launches must not be counted while diagnostics are off")
     }
 
     func testPayloadDirectoryIsScopedToWolfWave() {

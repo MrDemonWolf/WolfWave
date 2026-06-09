@@ -492,6 +492,17 @@ enum Log {
             location: "Test.swift:0"
         )
     }
+
+    /// Test-only hook exposing the debug-logging build gate.
+    ///
+    /// `Log.debug` is dropped unless this is true (DEBUG builds only). Asserting
+    /// the gate here is deterministic; the old approach wrote a debug line and
+    /// read it back from the app-wide on-disk log, which other parallel suites
+    /// could rotate away mid-test (same `Log` singleton hazard as the hooks
+    /// above), making it flaky in CI.
+    nonisolated static var debugLoggingEnabledForTesting: Bool {
+        isDebugLoggingEnabled
+    }
     #endif
 
     // MARK: - Export
