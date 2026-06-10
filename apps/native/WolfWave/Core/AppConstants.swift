@@ -332,6 +332,11 @@ nonisolated enum AppConstants {
         /// Whether automatic update checking is enabled via Sparkle (Bool, default: true)
         static let updateCheckEnabled = "updateCheckEnabled"
 
+        /// Selected Sparkle update channel: `"stable"` (default) or `"nightly"`.
+        /// Stored as the `UpdateChannel` raw value. Nightly points Sparkle at the
+        /// rolling nightly appcast via `SparkleUpdaterService.feedURLString(for:)`.
+        static let updateChannel = "updateChannel"
+
         /// Version string the user has chosen to skip (String)
         static let updateSkippedVersion = "updateSkippedVersion"
 
@@ -650,6 +655,7 @@ nonisolated enum AppConstants {
             launchAtLogin,
             websocketServerPort,
             updateCheckEnabled,
+            updateChannel,
             updateSkippedVersion,
             lastSeenWhatsNewVersion,
             songCommandGlobalCooldown,
@@ -755,6 +761,7 @@ nonisolated enum AppConstants {
             streamerModeEnabled,
             shareDiagnosticsEnabled,
             updateCheckEnabled,
+            updateChannel,
             // Music monitor / song commands
             currentSongCommandEnabled,
             lastSongCommandEnabled,
@@ -1188,6 +1195,13 @@ nonisolated enum AppConstants {
         /// Interval between periodic update checks (24 hours in seconds)
         static let checkInterval: TimeInterval = 86400
 
+        /// Appcast feed for the opt-in Nightly channel.
+        ///
+        /// Served from a single rolling GitHub prerelease (fixed tag `nightly`)
+        /// whose `appcast-nightly.xml` asset is re-uploaded on every nightly CI
+        /// run, so the URL is stable. Signed with the same Sparkle EdDSA key as
+        /// the stable feed, so the installed app verifies either feed.
+        static let nightlyFeedURL = "https://github.com/MrDemonWolf/wolfwave/releases/download/nightly/appcast-nightly.xml"
     }
 
     // MARK: - Listening History

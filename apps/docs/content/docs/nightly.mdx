@@ -1,0 +1,62 @@
+---
+title: Nightly Builds
+description: Opt into WolfWave's Nightly update channel to test the newest builds off main before they ship. Warned, opt-in, and easy to leave. Stable stays the default.
+ogTitle: WolfWave Nightly Builds
+ogDescription: Ride the newest builds off main. Opt-in, clearly warned, and a one-click switch back to Stable.
+ogEyebrow: Guide
+ogChips:
+  - Opt-in channel
+  - Builds off main
+  - Clearly warned
+  - Back to Stable anytime
+keywords:
+  - wolfwave nightly builds
+  - wolfwave beta channel
+  - wolfwave dev builds
+  - wolfwave update channel
+---
+
+<span className="docs-eyebrow">Guide</span>
+
+# Nightly Builds
+
+WolfWave ships on two update channels. **Stable** is the default: tested,
+released versions. **Nightly** is opt-in. It tracks the newest builds straight
+off `main`, so you see features and fixes before they reach a stable release.
+
+Nightly is for people who want to help test. It can be buggy, it changes often,
+and it comes with no support promise. If that's not you, stay on Stable.
+
+## Switch to Nightly
+
+1. Open **Settings → Software Update**.
+2. Under **Update Channel**, pick **Nightly (dev)**.
+3. Read the warning, then confirm.
+
+WolfWave checks the nightly feed right away. From then on, automatic update
+checks pull nightly builds, signed and notarized the same as stable.
+
+## Go back to Stable
+
+1. **Settings → Software Update**.
+2. Pick **Stable** under Update Channel.
+3. Reinstall the latest [Stable build](/docs/installation).
+
+That last step matters. WolfWave never offers a *lower* version than the one
+you're running, and a nightly build number is always higher than stable's. So
+switching the channel back to Stable won't downgrade you on its own. Grab the
+latest stable DMG once, and you're back on the normal release track.
+
+## What you should know
+
+- **Same signing.** Nightly builds carry the same Developer ID signature and
+  notarization as stable, so Gatekeeper treats them the same.
+- **Unstable by design.** These are dev builds. Expect rough edges and frequent
+  updates.
+- **No support.** Bug reports are welcome, but nightly isn't a supported track.
+- **Homebrew installs can't use it.** When WolfWave is installed through
+  Homebrew, updates are managed by Homebrew and the channel picker is hidden.
+  Use `brew upgrade wolfwave` for the stable cask.
+
+Your channel choice sticks across updates, so once you're on Nightly you keep
+getting nightly builds until you switch back.

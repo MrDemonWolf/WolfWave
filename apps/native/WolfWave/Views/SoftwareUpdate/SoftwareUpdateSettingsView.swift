@@ -31,14 +31,47 @@ struct SoftwareUpdateSettingsView: View {
     @AppStorage(AppConstants.UserDefaults.updateCheckEnabled)
     private var updateCheckEnabled = true
 
+    @AppStorage(AppConstants.UserDefaults.updateChannel)
+    private var storedChannel = UpdateChannel.stable.rawValue
+
     @State private var isCheckingForUpdates = false
     @State private var isManualCheck = false
     @State private var isHomebrewInstall = false
+    @State private var showNightlyWarning = false
 
     private var appDelegate: AppDelegate? { AppDelegate.shared }
 
     private var currentVersion: String {
         Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "Unknown"
+    }
+
+    /// The channel currently persisted, used to drive the picker and banner.
+    private var selectedChannel: UpdateChannel { UpdateChannel.from(rawValue: storedChannel) }
+
+    /// Picker binding that gates the switch to Nightly behind a warning alert.
+    /// Switching to Stable is safe and commits immediately.
+    private var channelBinding: Binding<UpdateChannel> {
+        Binding(
+            get: { UpdateChannel.from(rawValue: storedChannel) },
+            set: { newValue in
+                switch newValue {
+                case .nightly:
+                    // Don't commit yet. The alert's confirm button applies it,
+                    // so Cancel leaves the picker reverted to its stored value.
+                    if UpdateChannel.from(rawValue: storedChannel) != .nightly {
+                        showNightlyWarning = true
+                    }
+                case .stable:
+                    applyChannel(.stable)
+                }
+            }
+        )
+    }
+
+    /// Persists the channel via the updater and silently re-checks the new feed.
+    private func applyChannel(_ channel: UpdateChannel) {
+        appDelegate?.sparkleUpdater?.channel = channel
+        appDelegate?.sparkleUpdater?.recheckAfterChannelChange()
     }
 
     /// Header chip text derived from live update state.
@@ -143,6 +176,16 @@ struct SoftwareUpdateSettingsView: View {
                 }
             }
 
+            if selectedChannel == .nightly {
+                CalloutBanner(
+                    "You're on Nightly. These are dev builds off main and can be unstable. Switch back to Stable below, then reinstall the latest Stable build.",
+                    title: "Nightly channel",
+                    style: .warning,
+                    systemImage: "flask.fill"
+                )
+                .transition(.opacity)
+            }
+
             #if DEBUG
             CalloutBanner(
                 "Development build. Update checks use dev-appcast.xml",
@@ -163,6 +206,33 @@ struct SoftwareUpdateSettingsView: View {
                     style: .neutral
                 )
                 .transition(.opacity)
+            }
+
+            Divider()
+
+            VStack(alignment: .leading, spacing: DSSpace.s2) {
+                Text("Update Channel")
+                    .font(.system(size: DSFont.Size.body, weight: .medium))
+
+                Picker("Update Channel", selection: channelBinding) {
+                    Text("Stable").tag(UpdateChannel.stable)
+                    Text("Nightly (dev)").tag(UpdateChannel.nightly)
+                }
+                .pickerStyle(.segmented)
+                .labelsHidden()
+                .accessibilityLabel("Update channel")
+                .accessibilityHint("Stable ships releases. Nightly is opt-in dev builds off main.")
+                .accessibilityValue(selectedChannel.title)
+                #if DEBUG
+                .disabled(true)
+                .opacity(0.5)
+                #endif
+
+                Text(selectedChannel == .nightly
+                    ? "Dev builds straight off main. Newer, but can be unstable."
+                    : "Shipped releases. Recommended for most people.")
+                    .font(.system(size: DSFont.Size.body))
+                    .foregroundStyle(.secondary)
             }
 
             Divider()
@@ -220,6 +290,15 @@ struct SoftwareUpdateSettingsView: View {
         .cardStyle()
         .animation(reduceMotion ? nil : .easeInOut(duration: DSMotion.Duration.base), value: updateAvailable)
         .animation(reduceMotion ? nil : .easeInOut(duration: DSMotion.Duration.base), value: updateCheckEnabled)
+        .animation(reduceMotion ? nil : .easeInOut(duration: DSMotion.Duration.base), value: selectedChannel)
+        .alert("Switch to Nightly builds?", isPresented: $showNightlyWarning) {
+            Button("Switch to Nightly", role: .destructive) {
+                applyChannel(.nightly)
+            }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("Nightly builds come straight off main. They're newer but can be buggy, get no support, and update often.\n\nTo go back to Stable later, pick Stable here, then reinstall the latest Stable build.")
+        }
     }
 }
 

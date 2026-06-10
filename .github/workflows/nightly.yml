@@ -1,0 +1,355 @@
+name: Nightly
+
+# Builds, signs, and notarizes WolfWave off `main` HEAD and publishes it to a
+# single rolling prerelease (fixed tag `nightly`). The app's opt-in Nightly
+# update channel points Sparkle at this release's `appcast-nightly.xml`.
+#
+# Stable releases (build_release.yml) are untouched: this is a separate feed.
+#
+# Secrets: the signing/notarization/build secrets (DEVELOPER_ID_CERT_P12,
+# DEVELOPER_ID_CERT_PASSWORD, APPLE_ID, APPLE_TEAM_ID, APPLE_APP_PASSWORD,
+# SPARKLE_PRIVATE_KEY, TWITCH_CLIENT_ID, DISCORD_CLIENT_ID) are repo-level, so
+# this workflow reads them directly. No GitHub environment is used: the cron
+# must run unattended, and an environment would only add a manual-approval gate
+# (the `release` env's purpose) without scoping any secret we need.
+
+on:
+  schedule:
+    - cron: '0 8 * * *'   # daily 08:00 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  SCHEME: WolfWave
+  PROJECT: apps/native/WolfWave.xcodeproj
+  CONFIGURATION: Release
+  NIGHTLY_TAG: nightly
+  DMG_NAME: WolfWave-nightly.dmg
+
+jobs:
+  # ---------------------------------------------------------------------------
+  # Skip the build on a scheduled run when main hasn't moved since the last
+  # nightly. A manual dispatch always builds.
+  # ---------------------------------------------------------------------------
+  guard:
+    name: Decide whether to build
+    runs-on: ubuntu-latest
+    outputs:
+      should_build: ${{ steps.decide.outputs.should_build }}
+    steps:
+      - name: Compare HEAD against last nightly
+        id: decide
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          EVENT: ${{ github.event_name }}
+          HEAD_SHA: ${{ github.sha }}
+        run: |
+          if [ "$EVENT" = "workflow_dispatch" ]; then
+            echo "Manual dispatch — building."
+            echo "should_build=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          last="$(gh release view "$NIGHTLY_TAG" \
+            --repo "$GITHUB_REPOSITORY" \
+            --json assets,body 2>/dev/null \
+            | jq -r '.body' | grep -oE 'built-from: [0-9a-f]{40}' | awk '{print $2}' || true)"
+          echo "Last nightly sha: ${last:-none}"
+          echo "Current HEAD sha: $HEAD_SHA"
+          if [ "$last" = "$HEAD_SHA" ]; then
+            echo "No new commits on main since last nightly — skipping."
+            echo "should_build=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "should_build=true" >> "$GITHUB_OUTPUT"
+          fi
+
+  test:
+    name: Run Tests
+    needs: guard
+    if: needs.guard.outputs.should_build == 'true'
+    runs-on: macos-26
+    steps:
+      - name: Checkout
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+        with:
+          persist-credentials: false
+
+      - name: Install Bun
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+
+      - name: Install JS dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Build OBS widget
+        run: bun run --filter widget build
+
+      - name: Create Config.xcconfig
+        run: |
+          printf 'TWITCH_CLIENT_ID = %s\nDISCORD_CLIENT_ID = %s\nGITHUB_REPO_OWNER = mrdemonwolf\nGITHUB_REPO_NAME = wolfwave\nDOCS_URL = https://mrdemonwolf.github.io/wolfwave\nCOMMUNITY_DISCORD_URL = https://mrdwolf.net/discord\nCOPYRIGHT_HOLDER = MrDemonWolf, Inc.\n' \
+            "${{ secrets.TWITCH_CLIENT_ID }}" \
+            "${{ secrets.DISCORD_CLIENT_ID }}" \
+            > apps/native/WolfWave/Config.xcconfig
+
+      - name: Regenerate SponsorConfig from FUNDING.yml
+        run: bash scripts/generate-sponsor-config.sh
+
+      - name: Cache SwiftPM packages
+        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+        with:
+          path: SourcePackages
+          key: ${{ runner.os }}-spm-${{ hashFiles('apps/native/WolfWave.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved') }}
+          restore-keys: ${{ runner.os }}-spm-
+
+      - name: Run Tests
+        run: |
+          xcodebuild -project "$PROJECT" -scheme "$SCHEME" \
+            -destination 'platform=macOS' \
+            ARCHS="arm64" \
+            -configuration Debug test \
+            -clonedSourcePackagesDirPath SourcePackages \
+            CODE_SIGN_IDENTITY="-" \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGNING_ALLOWED=NO \
+            -resultBundlePath NightlyTestResults.xcresult
+
+  build-and-publish:
+    name: Build & Publish Nightly
+    needs: [guard, test]
+    if: needs.guard.outputs.should_build == 'true'
+    runs-on: macos-26
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+
+      - name: Install Bun
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+
+      - name: Install JS dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Build OBS widget
+        run: bun run --filter widget build
+
+      - name: Create Config.xcconfig
+        run: |
+          printf 'TWITCH_CLIENT_ID = %s\nDISCORD_CLIENT_ID = %s\nGITHUB_REPO_OWNER = mrdemonwolf\nGITHUB_REPO_NAME = wolfwave\nDOCS_URL = https://mrdemonwolf.github.io/wolfwave\nCOMMUNITY_DISCORD_URL = https://mrdwolf.net/discord\nCOPYRIGHT_HOLDER = MrDemonWolf, Inc.\n' \
+            "${{ secrets.TWITCH_CLIENT_ID }}" \
+            "${{ secrets.DISCORD_CLIENT_ID }}" \
+            > apps/native/WolfWave/Config.xcconfig
+
+      - name: Regenerate SponsorConfig from FUNDING.yml
+        run: bash scripts/generate-sponsor-config.sh
+
+      - name: Cache SwiftPM packages
+        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+        with:
+          path: SourcePackages
+          key: ${{ runner.os }}-spm-${{ hashFiles('apps/native/WolfWave.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved') }}
+          restore-keys: ${{ runner.os }}-spm-
+
+      - name: Resolve nightly version
+        id: version
+        run: |
+          # Display version: <current marketing>-nightly+<short sha>.
+          # Build number: UTC minute stamp — strictly ascending and far above
+          # the small integer stable build numbers, so Sparkle always treats a
+          # nightly as newer than any stable on the nightly feed.
+          BASE=$(xcodebuild -project "$PROJECT" -scheme "$SCHEME" \
+            -configuration "$CONFIGURATION" -showBuildSettings 2>/dev/null \
+            | awk -F'= ' '/MARKETING_VERSION/ {gsub(/^[ \t]+/,"",$2); print $2; exit}')
+          SHORT_SHA=$(git rev-parse --short HEAD)
+          NIGHTLY_VERSION="${BASE}-nightly+${SHORT_SHA}"
+          NIGHTLY_BUILD=$(date -u +%Y%m%d%H%M)
+          echo "version=$NIGHTLY_VERSION" >> "$GITHUB_OUTPUT"
+          echo "build=$NIGHTLY_BUILD" >> "$GITHUB_OUTPUT"
+          echo "Nightly version: $NIGHTLY_VERSION (build $NIGHTLY_BUILD)"
+
+      - name: Import Developer ID certificate
+        env:
+          CERT_P12: ${{ secrets.DEVELOPER_ID_CERT_P12 }}
+          CERT_PASSWORD: ${{ secrets.DEVELOPER_ID_CERT_PASSWORD }}
+        run: |
+          KEYCHAIN_PATH="$RUNNER_TEMP/build.keychain-db"
+          CERT_PATH="$RUNNER_TEMP/certificate.p12"
+          echo "$CERT_P12" | base64 --decode > "$CERT_PATH"
+          security create-keychain -p "" "$KEYCHAIN_PATH"
+          security set-keychain-settings -lut 21600 "$KEYCHAIN_PATH"
+          security unlock-keychain -p "" "$KEYCHAIN_PATH"
+          security import "$CERT_PATH" \
+            -k "$KEYCHAIN_PATH" \
+            -P "$CERT_PASSWORD" \
+            -T /usr/bin/codesign \
+            -T /usr/bin/security
+          security set-key-partition-list -S apple-tool:,apple: -k "" "$KEYCHAIN_PATH"
+          security list-keychains -d user -s "$KEYCHAIN_PATH" login.keychain-db
+          rm -f "$CERT_PATH"
+          echo "Developer ID certificate imported"
+
+      - name: Build Release (arm64)
+        env:
+          NIGHTLY_VERSION: ${{ steps.version.outputs.version }}
+          NIGHTLY_BUILD: ${{ steps.version.outputs.build }}
+        run: |
+          xcodebuild -project "$PROJECT" -scheme "$SCHEME" \
+            -configuration "$CONFIGURATION" \
+            -destination 'generic/platform=macOS' \
+            ARCHS="arm64" \
+            MARKETING_VERSION="$NIGHTLY_VERSION" \
+            CURRENT_PROJECT_VERSION="$NIGHTLY_BUILD" \
+            CODE_SIGN_STYLE=Manual \
+            CODE_SIGN_IDENTITY="Developer ID Application" \
+            PROVISIONING_PROFILE_SPECIFIER="" \
+            -clonedSourcePackagesDirPath SourcePackages \
+            -derivedDataPath build build -quiet
+
+      - name: Locate app bundle
+        id: app
+        run: |
+          APP_PATH=$(xcodebuild -project "$PROJECT" -scheme "$SCHEME" \
+            -configuration "$CONFIGURATION" -derivedDataPath build \
+            -showBuildSettings 2>/dev/null \
+            | awk -F'= ' '/CONFIGURATION_BUILD_DIR/ {dir=$2} /WRAPPER_NAME/ {name=$2} END {gsub(/^[ \t]+/,"",dir); gsub(/^[ \t]+/,"",name); print dir "/" name}')
+          if [ ! -d "$APP_PATH" ]; then
+            echo "App not found at $APP_PATH"; exit 1
+          fi
+          echo "path=$APP_PATH" >> "$GITHUB_OUTPUT"
+          echo "App: $APP_PATH"
+
+      - name: Code sign app bundle (inside-out)
+        env:
+          APP_PATH: ${{ steps.app.outputs.path }}
+        run: |
+          set -euo pipefail
+          IDENTITY="Developer ID Application"
+          ENTITLEMENTS="apps/native/WolfWave/WolfWave.entitlements"
+
+          # Sign inside-out, never --deep (same rationale as build_release.yml).
+          find "$APP_PATH/Contents" \
+            \( -name "*.framework" -o -name "*.xpc" -o -name "*.app" -o -name "*.dylib" \) \
+            -print0 \
+            | while IFS= read -r -d '' nested; do
+                printf '%s\t%s\0' "$(printf '%s' "$nested" | tr -cd '/' | wc -c)" "$nested"
+              done \
+            | sort -z -rn -k1,1 \
+            | while IFS=$'\t' read -r -d '' _depth nested; do
+                echo "Signing nested: $nested"
+                codesign --force --options runtime --timestamp \
+                  --preserve-metadata=entitlements,flags,runtime \
+                  --sign "$IDENTITY" "$nested"
+              done
+
+          codesign --force --options runtime --timestamp \
+            --entitlements "$ENTITLEMENTS" \
+            --sign "$IDENTITY" "$APP_PATH"
+
+          codesign --verify --deep --strict --verbose=2 "$APP_PATH"
+          echo "App signed inside-out"
+
+      - name: Create DMG
+        env:
+          APP_PATH: ${{ steps.app.outputs.path }}
+        run: |
+          chmod +x scripts/create-dmg.sh
+          scripts/create-dmg.sh "$APP_PATH" "$DMG_NAME" builds
+
+      - name: Sign DMG
+        run: |
+          codesign --sign "Developer ID Application" --timestamp "builds/$DMG_NAME"
+          echo "DMG signed"
+
+      - name: Notarize DMG
+        env:
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          APPLE_APP_PASSWORD: ${{ secrets.APPLE_APP_PASSWORD }}
+        run: |
+          set -uo pipefail
+          submit_json="$(xcrun notarytool submit "builds/$DMG_NAME" \
+            --apple-id "$APPLE_ID" --team-id "$APPLE_TEAM_ID" \
+            --password "$APPLE_APP_PASSWORD" --wait --timeout 30m \
+            --output-format json)"
+          echo "$submit_json"
+          submission_id="$(echo "$submit_json" | jq -r '.id')"
+          status="$(echo "$submit_json" | jq -r '.status')"
+          echo "Notarization status: $status (submission $submission_id)"
+          if [ "$status" != "Accepted" ]; then
+            echo "::error::Notarization $status — fetching notary log for $submission_id"
+            xcrun notarytool log "$submission_id" \
+              --apple-id "$APPLE_ID" --team-id "$APPLE_TEAM_ID" \
+              --password "$APPLE_APP_PASSWORD" || true
+            exit 1
+          fi
+          echo "Notarization complete"
+
+      - name: Staple notarization ticket
+        run: |
+          xcrun stapler staple "builds/$DMG_NAME"
+          echo "Notarization ticket stapled"
+
+      - name: Install Sparkle CLI tools
+        run: |
+          brew install --cask sparkle
+          SPARKLE_BIN=$(find /opt/homebrew/Caskroom/sparkle /usr/local/Caskroom/sparkle -name generate_appcast -type f 2>/dev/null | head -1 | xargs -I {} dirname {})
+          if [ -z "$SPARKLE_BIN" ]; then
+            echo "::error::Could not locate Sparkle CLI tools after Homebrew install"
+            exit 1
+          fi
+          echo "SPARKLE_BIN=$SPARKLE_BIN" >> "$GITHUB_ENV"
+          echo "Sparkle CLI tools at $SPARKLE_BIN"
+
+      - name: Generate nightly release notes for Sparkle
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          # Nightly notes are generic (no versioned CHANGELOG section exists), so
+          # build the HTML directly. Named to match the DMG so generate_appcast
+          # embeds it as the appcast <description>. Lists recent main commits.
+          LOG=$(git log -10 --pretty='<li>%s</li>' HEAD)
+          {
+            printf '<h2>WolfWave Nightly</h2>'
+            printf '<p>Automated build off <code>main</code> (%s). Unstable; for testing only. No support.</p>' "$VERSION"
+            printf '<h3>Recent changes</h3><ul>%s</ul>' "$LOG"
+          } > builds/WolfWave-nightly.html
+          ls -l builds/WolfWave-nightly.html
+
+      - name: Generate nightly appcast
+        env:
+          SPARKLE_PRIVATE_KEY: ${{ secrets.SPARKLE_PRIVATE_KEY }}
+        run: |
+          echo "$SPARKLE_PRIVATE_KEY" > "$RUNNER_TEMP/sparkle_key"
+          trap 'rm -f "$RUNNER_TEMP/sparkle_key"' EXIT
+          # Dual-feed: a SEPARATE appcast file (no --channel flag). The fixed
+          # `nightly` release tag makes the download URLs stable.
+          "$SPARKLE_BIN/generate_appcast" \
+            --ed-key-file "$RUNNER_TEMP/sparkle_key" \
+            --download-url-prefix "https://github.com/MrDemonWolf/wolfwave/releases/download/${NIGHTLY_TAG}/" \
+            -o builds/appcast-nightly.xml builds/
+          xmllint --noout builds/appcast-nightly.xml
+          grep -q 'sparkle:edSignature=' builds/appcast-nightly.xml || { echo "::error::appcast-nightly.xml missing edSignature"; exit 1; }
+          echo "Nightly appcast generated and validated"
+
+      - name: Publish to rolling nightly prerelease
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          NOTES="$(printf 'Automated build off main. Unstable; for testing only.\n\nVersion: %s\nbuilt-from: %s' "$VERSION" "$GITHUB_SHA")"
+          if gh release view "$NIGHTLY_TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release edit "$NIGHTLY_TAG" --repo "$GITHUB_REPOSITORY" \
+              --title "WolfWave Nightly" --notes "$NOTES" --prerelease
+          else
+            gh release create "$NIGHTLY_TAG" --repo "$GITHUB_REPOSITORY" \
+              --title "WolfWave Nightly" --notes "$NOTES" --prerelease --target main
+          fi
+          # --clobber keeps the release (and its stable asset URLs) while
+          # replacing the bytes. Never delete+recreate (would 404 the feed).
+          gh release upload "$NIGHTLY_TAG" --repo "$GITHUB_REPOSITORY" \
+            "builds/$DMG_NAME" "builds/appcast-nightly.xml" --clobber
+
+      - name: Cleanup keychain
+        if: always()
+        run: |
+          security delete-keychain "$RUNNER_TEMP/build.keychain-db" 2>/dev/null || true

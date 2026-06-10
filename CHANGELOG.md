@@ -49,6 +49,7 @@ All notable changes to this project will be documented in this file.
 - **Light, Dark, or System appearance.** Pick one in Settings → General. The menu bar follows too.
 - **Back up and restore your settings.** Export to a JSON file, restore on another Mac. Accounts and secrets stay in the Keychain. On import, you choose whether to reconnect Twitch.
 - **macOS 26 Liquid Glass redesign.** Settings, menu bar, and a rebuilt onboarding wizard for Tahoe.
+- **Nightly update channel.** Opt into dev builds off main from Settings → Software Update. Clearly warned, easy to leave, and Stable stays the default.
 - **Diagnostics and bug reporting.** Export/Clear Logs and a one-click Report a Bug, with sensitive details redacted.
 - **On-device diagnostics.** An opt-in MetricKit report with a share card. Stays on your Mac. Off by default.
 - **Branded About window.** A native WolfWave About replaces the macOS default.

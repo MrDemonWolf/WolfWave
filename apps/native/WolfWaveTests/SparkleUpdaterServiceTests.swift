@@ -81,4 +81,67 @@ final class SparkleUpdaterServiceTests: XCTestCase {
         let service = SparkleUpdaterService()
         XCTAssertTrue(service is NSObject, "SparkleUpdaterService should be an NSObject subclass to satisfy SPUUpdaterDelegate")
     }
+
+    // MARK: - Feed Resolver Tests (channel selection)
+
+    private let nightlyURL = "https://example.com/appcast-nightly.xml"
+    private let devURL = "file:///tmp/dev-appcast.xml"
+
+    func testResolverDebugAlwaysUsesDevAppcastRegardlessOfChannel() {
+        // DEBUG builds must always exercise the bundled dev appcast, even if the
+        // stored channel is Nightly. The DEBUG branch wins.
+        for channel in UpdateChannel.allCases {
+            let resolved = SparkleUpdaterService.resolveFeedURLString(
+                channel: channel,
+                isDebug: true,
+                nightlyURL: nightlyURL,
+                devAppcastURL: devURL
+            )
+            XCTAssertEqual(resolved, devURL, "DEBUG should use dev appcast for channel \(channel.rawValue)")
+        }
+    }
+
+    func testResolverReleaseNightlyUsesNightlyFeed() {
+        let resolved = SparkleUpdaterService.resolveFeedURLString(
+            channel: .nightly,
+            isDebug: false,
+            nightlyURL: nightlyURL,
+            devAppcastURL: devURL
+        )
+        XCTAssertEqual(resolved, nightlyURL)
+    }
+
+    func testResolverReleaseStableFallsBackToInfoPlistFeed() {
+        // nil signals Sparkle to use SUFeedURL from Info.plist.
+        let resolved = SparkleUpdaterService.resolveFeedURLString(
+            channel: .stable,
+            isDebug: false,
+            nightlyURL: nightlyURL,
+            devAppcastURL: devURL
+        )
+        XCTAssertNil(resolved)
+    }
+
+    // MARK: - Channel Persistence Tests
+
+    func testChannelDefaultsToStable() {
+        UserDefaults.standard.removeObject(forKey: AppConstants.UserDefaults.updateChannel)
+        let service = SparkleUpdaterService()
+        XCTAssertEqual(service.channel, .stable)
+    }
+
+    func testChannelPersistsRawValue() {
+        let service = SparkleUpdaterService()
+        defer { UserDefaults.standard.removeObject(forKey: AppConstants.UserDefaults.updateChannel) }
+
+        service.channel = .nightly
+        XCTAssertEqual(
+            UserDefaults.standard.string(forKey: AppConstants.UserDefaults.updateChannel),
+            UpdateChannel.nightly.rawValue
+        )
+        XCTAssertEqual(service.channel, .nightly)
+
+        service.channel = .stable
+        XCTAssertEqual(service.channel, .stable)
+    }
 }

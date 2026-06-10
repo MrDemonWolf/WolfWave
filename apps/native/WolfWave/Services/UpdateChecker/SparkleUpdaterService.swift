@@ -63,6 +63,29 @@ final class SparkleUpdaterService: NSObject {
         }
     }
 
+    /// The selected update channel (Stable or Nightly).
+    ///
+    /// Persisted under `AppConstants.UserDefaults.updateChannel`. Changing it
+    /// re-points the appcast feed on the next check via `feedURLString(for:)`.
+    /// Call `recheckAfterChannelChange()` to consult the new feed immediately.
+    var channel: UpdateChannel {
+        get {
+            UpdateChannel.from(rawValue: UserDefaults.standard.string(forKey: AppConstants.UserDefaults.updateChannel))
+        }
+        set {
+            UserDefaults.standard.set(newValue.rawValue, forKey: AppConstants.UserDefaults.updateChannel)
+            Log.info("SparkleUpdaterService: Update channel set to \(newValue.rawValue)", category: "Update")
+        }
+    }
+
+    /// Silently re-checks the (possibly new) channel's feed after a channel switch.
+    ///
+    /// Uses a background check so the user isn't shown a modal when already up to
+    /// date. No-op in DEBUG (background checks are disabled) and for Homebrew.
+    func recheckAfterChannelChange() {
+        checkForUpdatesInBackground()
+    }
+
     /// Update check interval in seconds (default: 24 hours)
     var updateCheckInterval: TimeInterval {
         get {
@@ -191,17 +214,52 @@ final class SparkleUpdaterService: NSObject {
 
     /// Returns the URL for the Sparkle appcast feed.
     ///
-    /// Resolved from `SUFeedURL` in Info.plist (release builds) or the
-    /// bundled `dev-appcast.xml` (DEBUG builds, via `feedURLString(for:)`).
+    /// Resolved from `SUFeedURL` in Info.plist (release Stable), the nightly
+    /// feed (release Nightly), or the bundled `dev-appcast.xml` (DEBUG).
     var feedURL: URL? {
         #if DEBUG
         return Bundle.main.url(forResource: "dev-appcast", withExtension: "xml")
         #else
-        guard let raw = Bundle.main.object(forInfoDictionaryKey: "SUFeedURL") as? String else {
+        switch channel {
+        case .nightly:
+            return URL(string: AppConstants.Update.nightlyFeedURL)
+        case .stable:
+            guard let raw = Bundle.main.object(forInfoDictionaryKey: "SUFeedURL") as? String else {
+                return nil
+            }
+            return URL(string: raw)
+        }
+        #endif
+    }
+
+    // MARK: - Feed Resolution
+
+    /// Pure resolver for the appcast feed Sparkle should request.
+    ///
+    /// Extracted from `feedURLString(for:)` so the channel-vs-DEBUG decision is
+    /// unit-testable without instantiating Sparkle or a real bundle.
+    ///
+    /// Order of precedence:
+    /// 1. DEBUG builds always use the bundled dev appcast, regardless of channel.
+    /// 2. Nightly channel uses the nightly feed.
+    /// 3. Stable channel returns `nil` so Sparkle falls back to `SUFeedURL`.
+    ///
+    /// - Returns: a feed URL string, or `nil` to use `SUFeedURL` from Info.plist.
+    static func resolveFeedURLString(
+        channel: UpdateChannel,
+        isDebug: Bool,
+        nightlyURL: String,
+        devAppcastURL: String?
+    ) -> String? {
+        if isDebug {
+            return devAppcastURL
+        }
+        switch channel {
+        case .nightly:
+            return nightlyURL
+        case .stable:
             return nil
         }
-        return URL(string: raw)
-        #endif
     }
 }
 
@@ -210,15 +268,22 @@ final class SparkleUpdaterService: NSObject {
 extension SparkleUpdaterService: SPUUpdaterDelegate {
     /// Returns the appcast feed URL for the given updater.
     ///
-    /// - DEBUG: returns the bundled `dev-appcast.xml` so manual checks
-    ///   exercise the Sparkle UI against a dummy v99.0.0 entry.
-    /// - Release: returns `nil` to use `SUFeedURL` from Info.plist.
+    /// - DEBUG: the bundled `dev-appcast.xml` so manual checks exercise the
+    ///   Sparkle UI against a dummy v99.0.0 entry.
+    /// - Release + Nightly channel: the nightly appcast feed.
+    /// - Release + Stable channel: `nil` to use `SUFeedURL` from Info.plist.
     func feedURLString(for updater: SPUUpdater) -> String? {
         #if DEBUG
-        return Bundle.main.url(forResource: "dev-appcast", withExtension: "xml")?.absoluteString
+        let isDebug = true
         #else
-        return nil // Use SUFeedURL from Info.plist
+        let isDebug = false
         #endif
+        return Self.resolveFeedURLString(
+            channel: channel,
+            isDebug: isDebug,
+            nightlyURL: AppConstants.Update.nightlyFeedURL,
+            devAppcastURL: Bundle.main.url(forResource: "dev-appcast", withExtension: "xml")?.absoluteString
+        )
     }
 
     /// Called when Sparkle schedules its next automatic check. Logs the delay.
