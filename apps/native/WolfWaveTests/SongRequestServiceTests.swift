@@ -820,11 +820,11 @@ final class SongRequestServiceTests: WolfWaveTestCase {
         // Seeding isPlayingFallback requires a prior request to finish: add an item,
         // dequeue it into nowPlaying, then stop playback so handleQueueEmptied fires
         // and starts the fallback. Then add a new request and confirm it takes over.
-        service = SongRequestService(
-            queue: queue,
-            musicController: mockController,
-            pollInterval: .milliseconds(20)
-        )
+        //
+        // Drives pollTick() directly instead of startPlaybackMonitoring(): the
+        // wall-clock poll Task is MainActor-bound and gets starved under parallel
+        // CI load, so even a 3s waitUntil flaked (PR #341, run 27247125149).
+        // Direct ticks make the debounce counts exact and remove all timing.
         UserDefaults.standard.set(
             "Gaming Vibes", forKey: AppConstants.UserDefaults.songRequestFallbackPlaylist)
 
@@ -836,39 +836,27 @@ final class SongRequestServiceTests: WolfWaveTestCase {
         queue.add(SongRequestItem(title: "Finishing", artist: "A", requesterUsername: "u1"))
         queue.dequeue()
 
-        service.startPlaybackMonitoring()
-
-        // Let baseline establish (one playing tick), then stop playback.
-        try? await Task.sleep(for: .milliseconds(60))
+        // One playing tick establishes the request baseline, then stop playback.
+        await service.pollTick()
         mockController.snapshotProvider = { PlaybackSnapshot(state: .stopped, trackKey: nil) }
 
-        // After two confirmed stopped ticks, handleQueueEmptied fires → startFallbackIfConfigured.
-        let fallbackStarted = await waitUntil(timeout: .seconds(2)) {
-            self.mockController.playFallbackCalled
-        }
-        guard fallbackStarted else {
-            service.stopPlaybackMonitoring()
+        // Two confirmed stopped ticks → handleQueueEmptied → startFallbackIfConfigured.
+        await service.pollTick()
+        await service.pollTick()
+        guard mockController.playFallbackCalled else {
             XCTFail("Precondition: fallback should start once the last request finishes")
             UserDefaults.standard.removeObject(forKey: AppConstants.UserDefaults.songRequestFallbackPlaylist)
             return
         }
 
-        // isPlayingFallback is now true. Add a request and verify the next poll
-        // tick dequeues it (fallback yields to a real request immediately).
+        // isPlayingFallback is now true. Add a request and verify the very next
+        // poll tick dequeues it (fallback yields to a real request immediately).
         queue.add(SongRequestItem(title: "RequestedSong", artist: "B", requesterUsername: "viewer"))
+        await service.pollTick()
 
-        // Generous timeout: the takeover needs a single poll tick, but the poll
-        // Task is MainActor-bound and can be starved under heavy parallel CI load,
-        // so a tight 1s window flaked. The logic self-heals every tick while the
-        // snapshot reads stopped; the wait just needs slack for the scheduler.
-        let handedOff = await waitUntil(timeout: .seconds(3)) {
-            self.queue.nowPlaying?.title == "RequestedSong"
-        }
-        service.stopPlaybackMonitoring()
-
-        XCTAssertTrue(
-            handedOff,
-            "A request added while the fallback is playing should take over promptly (fallback yields)")
+        XCTAssertEqual(
+            queue.nowPlaying?.title, "RequestedSong",
+            "A request added while the fallback is playing should take over on the next poll tick (fallback yields)")
 
         UserDefaults.standard.removeObject(forKey: AppConstants.UserDefaults.songRequestFallbackPlaylist)
     }
@@ -876,12 +864,8 @@ final class SongRequestServiceTests: WolfWaveTestCase {
     func testFallbackYieldsViaIsPlayingFallbackFlag() async {
         // Mirror of testFallbackYieldsToIncomingRequest using a different playlist
         // name, to confirm the dequeue is driven by the isPlayingFallback flag
-        // (not just a stopped-state coincidence).
-        service = SongRequestService(
-            queue: queue,
-            musicController: mockController,
-            pollInterval: .milliseconds(20)
-        )
+        // (not just a stopped-state coincidence). Same deterministic pollTick()
+        // driving; see the sibling test for the CI-flake rationale.
         UserDefaults.standard.set(
             "Chill Mix", forKey: AppConstants.UserDefaults.songRequestFallbackPlaylist)
 
@@ -892,35 +876,27 @@ final class SongRequestServiceTests: WolfWaveTestCase {
         queue.add(SongRequestItem(title: "LastReq", artist: "A", requesterUsername: "u1"))
         queue.dequeue()
 
-        service.startPlaybackMonitoring()
-        try? await Task.sleep(for: .milliseconds(60))
+        // Baseline playing tick, then two confirmed stopped ticks start the fallback.
+        await service.pollTick()
         mockController.snapshotProvider = { PlaybackSnapshot(state: .stopped, trackKey: nil) }
-
-        let fallbackActive = await waitUntil(timeout: .seconds(2)) {
-            self.mockController.playFallbackCalled
-        }
-        guard fallbackActive else {
-            service.stopPlaybackMonitoring()
+        await service.pollTick()
+        await service.pollTick()
+        guard mockController.playFallbackCalled else {
             XCTFail("Precondition: fallback must activate before the request is added")
             UserDefaults.standard.removeObject(forKey: AppConstants.UserDefaults.songRequestFallbackPlaylist)
             return
         }
 
-        // isPlayingFallback = true. Adding a request should dequeue it promptly.
-        // Switch snapshot back to playing to confirm isPlayingFallback (not stopped)
-        // is what drives the takeover.
+        // isPlayingFallback = true. Switch the snapshot back to *playing* so the
+        // stopped-debounce can't be what dequeues; only the isPlayingFallback
+        // branch can take over on the next tick.
         mockController.snapshotProvider = { PlaybackSnapshot(state: .playing, trackKey: "fallback-track") }
         queue.add(SongRequestItem(title: "LiveRequest", artist: "B", requesterUsername: "fan"))
+        await service.pollTick()
 
-        // Same MainActor-starvation slack as testFallbackYieldsToIncomingRequest.
-        let tookOver = await waitUntil(timeout: .seconds(3)) {
-            self.queue.nowPlaying?.title == "LiveRequest"
-        }
-        service.stopPlaybackMonitoring()
-
-        XCTAssertTrue(
-            tookOver,
-            "A request added while isPlayingFallback is true should dequeue promptly even if music is playing")
+        XCTAssertEqual(
+            queue.nowPlaying?.title, "LiveRequest",
+            "A request added while isPlayingFallback is true should dequeue on the next tick even if music is playing")
 
         UserDefaults.standard.removeObject(forKey: AppConstants.UserDefaults.songRequestFallbackPlaylist)
     }
