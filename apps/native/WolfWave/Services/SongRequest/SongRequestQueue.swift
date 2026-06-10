@@ -94,12 +94,17 @@ final class SongRequestQueue {
                 return .userLimitReached(max: effectiveUserLimit)
             }
 
-            // Check for duplicate (same song by same user)
-            let isDuplicate = items.contains {
+            // Check for duplicate (same song by same user). The now-playing
+            // slot counts too, mirroring the per-user limit above: a requester
+            // shouldn't be able to immediately re-queue the song that's
+            // currently playing for them.
+            let matchesItem: (SongRequestItem) -> Bool = {
                 $0.title.lowercased() == item.title.lowercased()
-                && $0.artist.lowercased() == item.artist.lowercased()
-                && $0.requesterUsername.lowercased() == item.requesterUsername.lowercased()
+                    && $0.artist.lowercased() == item.artist.lowercased()
+                    && $0.requesterUsername.lowercased() == lowered
             }
+            let isDuplicate = (nowPlaying.map(matchesItem) ?? false)
+                || items.contains(where: matchesItem)
             guard !isDuplicate else {
                 return .alreadyInQueue
             }

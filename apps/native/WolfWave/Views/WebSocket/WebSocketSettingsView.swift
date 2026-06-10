@@ -489,10 +489,12 @@ fileprivate struct WebSocketServerCard: View {
 
     /// Pushes a token swap onto the live `WebSocketServerService` so existing
     /// clients are dropped and forced to re-handshake. Also bounces the widget
-    /// HTTP server so served HTML re-bakes the new value.
+    /// HTTP server so served HTML re-bakes the new value, and tells every other
+    /// view holding a token copy (Browser Source URL card) to re-read it.
     private func applyTokenToServer(_ token: String) {
         let server = AppDelegate.shared?.websocketServer
         Task { await server?.updateAuthToken(token) }
+        NotificationCenter.default.post(name: .websocketAuthTokenChanged, object: nil)
     }
 
     /// Validates the port text field and, when valid, persists the new port
@@ -565,10 +567,14 @@ fileprivate struct WebSocketBrowserSourceCard: View {
             widgetPortText = String(storedWidgetPort)
         }
         .task {
-            let token = await Task.detached(priority: .userInitiated) {
-                WebSocketAuthToken.currentOrCreate()
-            }.value
-            await MainActor.run { currentToken = token }
+            // `.task` re-runs on every structural identity change; skip the
+            // Keychain round-trip once the token is already loaded. In-session
+            // saves/regenerations arrive via `.websocketAuthTokenChanged` below.
+            guard currentToken.isEmpty else { return }
+            await reloadToken()
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .websocketAuthTokenChanged)) { _ in
+            Task { await reloadToken() }
         }
     }
 
@@ -725,6 +731,16 @@ fileprivate struct WebSocketBrowserSourceCard: View {
             name: Notification.Name.widgetHTTPServerChanged,
             object: nil
         )
+    }
+
+    /// Re-reads the overlay auth token off the main thread (Keychain I/O) and
+    /// publishes it into the card's state. Called on first appearance and
+    /// whenever `.websocketAuthTokenChanged` reports a save/regeneration.
+    private func reloadToken() async {
+        let token = await Task.detached(priority: .userInitiated) {
+            WebSocketAuthToken.currentOrCreate()
+        }.value
+        currentToken = token
     }
 }
 

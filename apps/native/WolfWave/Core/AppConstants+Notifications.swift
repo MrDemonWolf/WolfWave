@@ -31,6 +31,7 @@ extension NSNotification.Name {
     nonisolated static let updateStateChanged = NSNotification.Name(AppConstants.Notifications.updateStateChanged)
     nonisolated static let websocketServerChanged = NSNotification.Name(AppConstants.Notifications.websocketServerChanged)
     nonisolated static let websocketServerStateChanged = NSNotification.Name(AppConstants.Notifications.websocketServerStateChanged)
+    nonisolated static let websocketAuthTokenChanged = NSNotification.Name(AppConstants.Notifications.websocketAuthTokenChanged)
     nonisolated static let widgetHTTPServerChanged = NSNotification.Name(AppConstants.Notifications.widgetHTTPServerChanged)
     nonisolated static let powerStateChanged = NSNotification.Name(AppConstants.Notifications.powerStateChanged)
     nonisolated static let twitchConnectionStateChanged = NSNotification.Name(AppConstants.Notifications.twitchConnectionStateChanged)

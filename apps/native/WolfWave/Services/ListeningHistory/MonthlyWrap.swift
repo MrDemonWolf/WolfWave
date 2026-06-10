@@ -205,13 +205,21 @@ enum MonthlyWrap {
         // Need at least two distinct months for a "best yet" claim to mean anything.
         guard playsByMonth.count >= 2 else { return nil }
 
-        let maxPlays = playsByMonth.values.max() ?? 0
-        if thisMonthPlays >= maxPlays {
+        // Compare against every *other* month: `allRecords` includes the viewed
+        // month, so comparing against the overall max would make a strict
+        // comparison impossible, and `>=` would count a tie as "best yet"
+        // (contradicting the doc comment's "more plays than any other month").
+        let maxOtherPlays = playsByMonth
+            .filter { $0.key != monthStart }
+            .values.max() ?? 0
+        if thisMonthPlays > maxOtherPlays {
             return .bestMonthYet
         }
 
-        let maxSeconds = secondsByMonth.values.max() ?? 0
-        if thisMonthSeconds >= maxSeconds {
+        let maxOtherSeconds = secondsByMonth
+            .filter { $0.key != monthStart }
+            .values.max() ?? 0
+        if thisMonthSeconds > maxOtherSeconds {
             return .mostListeningYet
         }
         return nil

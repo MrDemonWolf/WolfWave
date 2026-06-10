@@ -166,7 +166,9 @@ struct MonthlyWrapView: View {
         }
 
         guard let urlString, let url = URL(string: urlString) else { return }
-        guard let (data, _) = try? await URLSession.shared.data(from: url) else { return }
+        // HTTPClient (not bare URLSession) so a failed artwork fetch is logged
+        // centrally instead of vanishing into a silent `try?`.
+        guard let data = try? await HTTPClient.shared.data(url: url) else { return }
         guard let image = NSImage(data: data),
               let color = ArtworkTint.dominantColor(from: image) else { return }
         tint = Color(nsColor: color)

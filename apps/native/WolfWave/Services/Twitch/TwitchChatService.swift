@@ -477,6 +477,14 @@ actor TwitchChatService {
     private var pendingMessages: [PendingMessage] = []
     private var pendingRetryTask: Task<Void, Never>?
 
+    // MARK: - Redemption Pipeline Tasks
+
+    /// In-flight channel-point / bits pipeline tasks, keyed so each removes
+    /// itself on completion. Tracked so `leaveChannel()` and `deinit` cancel
+    /// them instead of letting them outlive the connection (every other
+    /// long-running task in this actor is tracked the same way).
+    private var redemptionTasks: [UUID: Task<Void, Never>] = [:]
+
     // MARK: - AsyncStream Outputs
 
     /// Stream of chat messages received via EventSub `channel.chat.message`.
@@ -523,6 +531,7 @@ actor TwitchChatService {
         keepaliveWatchdogTask?.cancel()
         connectionMessageTask?.cancel()
         pendingRetryTask?.cancel()
+        redemptionTasks.values.forEach { $0.cancel() }
         networkPathMonitor?.cancel()
         webSocketTask?.cancel(with: .goingAway, reason: nil)
         chatMessagesContinuation.finish()
@@ -1071,6 +1080,12 @@ actor TwitchChatService {
         reconnectionAttempts = 0
         reconnectTask?.cancel()
         reconnectTask = nil
+
+        // Signal in-flight redemption pipelines to stop chatting; each still
+        // resolves (fulfils/refunds) its redemption so viewer points never
+        // strand in the pending state.
+        redemptionTasks.values.forEach { $0.cancel() }
+        redemptionTasks.removeAll()
 
         broadcasterID = nil
         botID = nil
@@ -1734,8 +1749,6 @@ actor TwitchChatService {
                         break
                     }
                 } catch {
-                    let isDisconnecting = await self?.isProcessingDisconnect ?? true
-                    if isDisconnecting { return }
                     await self?.handleReceiveError(error)
                     return
                 }
@@ -1745,6 +1758,11 @@ actor TwitchChatService {
 
     /// Handles a WebSocket receive error: logs, updates state, and attempts reconnect.
     private func handleReceiveError(_ error: Error) async {
+        // Checked here on the actor, not in the receive loop: a separate
+        // pre-check before the `handleReceiveError` await would race with
+        // `leaveChannel()` flipping the flag between the two suspension points.
+        if isProcessingDisconnect { return }
+
         // A receive error on a migration socket leads to a fresh `scheduleReconnect`
         // below, NOT a reconnect_url migration. Clear the migration flag so the
         // resulting fresh `session_welcome` runs the normal `subscribeTo*` path
@@ -2149,10 +2167,12 @@ actor TwitchChatService {
     private func handleStreamStateNotification(type: String) {
         switch type {
         case "stream.online":
-            streamLive = true
-            // Anchor the "This stream" stats window. The event payload carries no
-            // start time here, so the moment we're notified is close enough.
+            // Anchor the "This stream" stats window before flipping `streamLive`
+            // so a synchronous snapshot reader can never observe live=true with
+            // a nil anchor. The event payload carries no start time here, so
+            // the moment we're notified is close enough.
             streamLiveSince = Date()
+            streamLive = true
             Log.info("TwitchChatService: Stream went live", category: "Twitch")
         case "stream.offline":
             streamLive = false
@@ -2263,13 +2283,16 @@ actor TwitchChatService {
                 url: url,
                 headers: HelixClient.headers(for: .init(token: token, clientID: clientID)))
             let live = !response.data.isEmpty
-            streamLive = live
             // Anchor "This stream" to the real start time when available, else now.
+            // The anchor is set before `streamLive` flips true (and cleared after
+            // it flips false) so snapshot readers never see live=true with no anchor.
             if live {
                 let startedAt = response.data.first?.startedAt
-                    .flatMap { ISO8601DateFormatter().date(from: $0) }
+                    .flatMap { SharedFormatters.iso8601.date(from: $0) }
                 streamLiveSince = startedAt ?? Date()
+                streamLive = true
             } else {
+                streamLive = false
                 streamLiveSince = nil
             }
             Log.info("TwitchChatService: Seeded stream-live state: live=\(live)", category: "Twitch")
@@ -2499,44 +2522,78 @@ actor TwitchChatService {
         let credentials = currentChannelPointCredentials()
         let songRequestService = self.songRequestService
 
-        Task { [weak self] in
-            guard let self else { return }
-            guard let service = songRequestService else {
-                // Service not wired up: the points were already spent, so refund
-                // rather than strand the redemption in the pending state forever.
-                await self.resolveRedemption(
-                    credentials, rewardID: rewardID, redemptionID: redemptionID, as: .canceled)
-                return
-            }
-
-            // Channel-point requests off (toggle flipped between subscribe and
-            // redemption, or the reward wasn't paused in time): refund.
-            guard UserDefaults.standard.bool(
-                forKey: AppConstants.UserDefaults.songRequestChannelPointsEnabled) else {
-                await self.sendMessage(
-                    "@\(userName) channel-point song requests are off right now. Refunding your points.")
-                await self.resolveRedemption(
-                    credentials, rewardID: rewardID, redemptionID: redemptionID, as: .canceled)
-                return
-            }
-
-            if userInput.isEmpty {
-                await self.sendMessage(
-                    "@\(userName) add a song name when you redeem. Refunding your points.")
-                await self.resolveRedemption(
-                    credentials, rewardID: rewardID, redemptionID: redemptionID, as: .canceled)
-                return
-            }
-
-            let result = await service.processRequest(
-                query: userInput,
-                username: userName,
-                source: .channelPoints(redemptionID: redemptionID, rewardID: rewardID))
-            let (message, resolution) = await self.redemptionOutcome(for: result, username: userName)
-            await self.sendMessage(message)
-            await self.resolveRedemption(
-                credentials, rewardID: rewardID, redemptionID: redemptionID, as: resolution)
+        let taskID = UUID()
+        redemptionTasks[taskID] = Task { [weak self] in
+            await self?.runChannelPointsRedemption(
+                credentials: credentials,
+                rewardID: rewardID,
+                redemptionID: redemptionID,
+                userName: userName,
+                userInput: userInput,
+                service: songRequestService)
+            await self?.clearRedemptionTask(taskID)
         }
+    }
+
+    /// Runs the channel-point redemption pipeline. Cancellation (disconnect or
+    /// teardown) suppresses chat replies only; the redemption itself is always
+    /// resolved (fulfil/refund is Helix HTTP, independent of the chat socket),
+    /// so viewer points never strand in the pending state.
+    private func runChannelPointsRedemption(
+        credentials: TwitchChannelPointsService.Credentials?,
+        rewardID: String,
+        redemptionID: String,
+        userName: String,
+        userInput: String,
+        service: SongRequestService?
+    ) async {
+        guard let service, !Task.isCancelled else {
+            // Service not wired up, or cancelled before starting: the points
+            // were already spent, so refund rather than strand the redemption
+            // in the pending state forever.
+            await resolveRedemption(
+                credentials, rewardID: rewardID, redemptionID: redemptionID, as: .canceled)
+            return
+        }
+
+        // Channel-point requests off (toggle flipped between subscribe and
+        // redemption, or the reward wasn't paused in time): refund.
+        guard UserDefaults.standard.bool(
+            forKey: AppConstants.UserDefaults.songRequestChannelPointsEnabled) else {
+            if !Task.isCancelled {
+                await sendMessage(
+                    "@\(userName) channel-point song requests are off right now. Refunding your points.")
+            }
+            await resolveRedemption(
+                credentials, rewardID: rewardID, redemptionID: redemptionID, as: .canceled)
+            return
+        }
+
+        if userInput.isEmpty {
+            if !Task.isCancelled {
+                await sendMessage(
+                    "@\(userName) add a song name when you redeem. Refunding your points.")
+            }
+            await resolveRedemption(
+                credentials, rewardID: rewardID, redemptionID: redemptionID, as: .canceled)
+            return
+        }
+
+        let result = await service.processRequest(
+            query: userInput,
+            username: userName,
+            source: .channelPoints(redemptionID: redemptionID, rewardID: rewardID))
+        let (message, resolution) = await redemptionOutcome(for: result, username: userName)
+        if !Task.isCancelled {
+            await sendMessage(message)
+        }
+        await resolveRedemption(
+            credentials, rewardID: rewardID, redemptionID: redemptionID, as: resolution)
+    }
+
+    /// Drops a finished redemption pipeline task from the tracking table.
+    private func clearRedemptionTask(_ id: UUID) {
+        redemptionTasks[id] = nil
     }
 
     /// Handles a `channel.bits.use` event.
@@ -2559,27 +2616,51 @@ actor TwitchChatService {
         let query = Self.cleanBitsMessage(event["message"] as? [String: Any])
         let songRequestService = self.songRequestService
 
-        Task { [weak self] in
-            guard let self else { return }
-            guard let service = songRequestService else { return }
+        let taskID = UUID()
+        redemptionTasks[taskID] = Task { [weak self] in
+            await self?.runBitsUse(
+                userName: userName,
+                bits: bits,
+                boostEnabled: boostEnabled,
+                query: query,
+                service: songRequestService)
+            await self?.clearRedemptionTask(taskID)
+        }
+    }
 
-            if boostEnabled, let boosted = await service.boost(username: userName) {
-                await self.sendMessage(
+    /// Runs the bits-cheer pipeline. Unlike channel points there is nothing to
+    /// refund, so cancellation (disconnect or teardown) simply stops the
+    /// pipeline and suppresses chat replies.
+    private func runBitsUse(
+        userName: String,
+        bits: Int,
+        boostEnabled: Bool,
+        query: String,
+        service: SongRequestService?
+    ) async {
+        guard let service, !Task.isCancelled else { return }
+
+        if boostEnabled, let boosted = await service.boost(username: userName) {
+            if !Task.isCancelled {
+                await sendMessage(
                     "@\(userName) boosted \"\(boosted.title)\" to the front of the queue! (\(bits) bits)")
-                return
             }
+            return
+        }
 
-            guard !query.isEmpty else {
-                if boostEnabled {
-                    await self.sendMessage(
-                        "@\(userName) no song of yours to boost. Include a song name in your cheer to request one.")
-                }
-                return
+        guard !query.isEmpty else {
+            if boostEnabled, !Task.isCancelled {
+                await sendMessage(
+                    "@\(userName) no song of yours to boost. Include a song name in your cheer to request one.")
             }
+            return
+        }
 
-            let result = await service.processRequest(
-                query: query, username: userName, source: .bits(amount: bits))
-            await self.sendMessage(await self.bitsOutcomeMessage(for: result, username: userName))
+        guard !Task.isCancelled else { return }
+        let result = await service.processRequest(
+            query: query, username: userName, source: .bits(amount: bits))
+        if !Task.isCancelled {
+            await sendMessage(await bitsOutcomeMessage(for: result, username: userName))
         }
     }
 

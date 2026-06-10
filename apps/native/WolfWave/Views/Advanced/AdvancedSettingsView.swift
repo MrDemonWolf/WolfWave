@@ -591,11 +591,16 @@ struct AdvancedSettingsView: View {
         )
     }
 
-    /// `yyyy-MM-dd` stamp for the default export filename.
-    private static func fileDateStamp() -> String {
+    /// Cached: `DateFormatter` allocation is expensive and this runs per export.
+    private static let fileDateStampFormatter: DateFormatter = {
         let formatter = DateFormatter()
         formatter.dateFormat = "yyyy-MM-dd"
-        return formatter.string(from: Date())
+        return formatter
+    }()
+
+    /// `yyyy-MM-dd` stamp for the default export filename.
+    private static func fileDateStamp() -> String {
+        fileDateStampFormatter.string(from: Date())
     }
 
     /// Human-readable message for a backup decode error.

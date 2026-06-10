@@ -138,6 +138,10 @@ jobs:
               -configuration "$CONFIGURATION" -showBuildSettings 2>/dev/null \
               | awk -F'= ' '/MARKETING_VERSION/ {gsub(/^[ \t]+/,"",$2); print $2; exit}')
           fi
+          if [ -z "$VERSION" ]; then
+            echo "::error::Could not resolve VERSION (tag parse and MARKETING_VERSION extraction both came up empty)"
+            exit 1
+          fi
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
           echo "dmg_name=WolfWave-${VERSION}.dmg" >> "$GITHUB_OUTPUT"
           echo "Version: $VERSION"

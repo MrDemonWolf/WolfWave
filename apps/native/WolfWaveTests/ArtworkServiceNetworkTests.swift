@@ -10,14 +10,6 @@ import XCTest
 
 @testable import WolfWave
 
-/// Thread-safe request tally for assertions inside `@Sendable` mock handlers.
-private final class RequestCounter: @unchecked Sendable {
-    private let lock = NSLock()
-    private var count = 0
-    func increment() { lock.lock(); count += 1; lock.unlock() }
-    var value: Int { lock.lock(); defer { lock.unlock() }; return count }
-}
-
 // MARK: - ArtworkServiceNetworkTests
 
 /// Covers `ArtworkService` iTunes Search API parsing, error handling, and
@@ -45,23 +37,6 @@ final class ArtworkServiceNetworkTests: XCTestCase {
                 continuation.resume(returning: links)
             }
         }
-    }
-
-    /// Polls `condition` until it returns true or the timeout elapses.
-    /// Avoids fixed sleeps when waiting on async disk I/O, which are flaky under
-    /// CI load. Returns the final condition result.
-    @discardableResult
-    private func waitUntil(
-        timeout: Duration = .seconds(2),
-        interval: Duration = .milliseconds(20),
-        _ condition: () -> Bool
-    ) async -> Bool {
-        let deadline = ContinuousClock.now + timeout
-        while ContinuousClock.now < deadline {
-            if condition() { return true }
-            try? await Task.sleep(for: interval)
-        }
-        return condition()
     }
 
     func testFetchTrackLinksParsesFieldsAndUpgradesArtworkResolution() async {
@@ -111,9 +86,9 @@ final class ArtworkServiceNetworkTests: XCTestCase {
     }
 
     func testMissIsNotRequeriedWithinTTL() async {
-        let counter = RequestCounter()
+        let counter = ThreadSafeBox(0)
         MockURLProtocol.requestHandler = { request in
-            counter.increment()
+            counter.mutate { $0 += 1 }
             return (MockURLProtocol.httpResponse(for: request, status: 200), Data(#"{"results":[]}"#.utf8))
         }
 

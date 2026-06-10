@@ -10,6 +10,7 @@ import {
   layoutDimensions,
   preloadAllGoogleFonts,
 } from "./themes";
+import { formatTime } from "@/lib/format-time";
 
 // MARK: - Types
 
@@ -24,14 +25,6 @@ interface NowPlayingData {
 }
 
 type ConnectionStatus = "connected" | "connecting" | "disconnected";
-
-// MARK: - Time Helpers
-
-function formatTime(seconds: number): string {
-  const mins = Math.floor(seconds / 60);
-  const secs = Math.floor(seconds % 60);
-  return `${mins}:${secs.toString().padStart(2, "0")}`;
-}
 
 // MARK: - Widget Component
 

@@ -104,8 +104,10 @@ private struct BridgeWindowNeutralizer: NSViewRepresentable {
     func makeNSView(context: Context) -> NSView {
         let view = NSView(frame: .zero)
         // The window isn't attached during `makeNSView`; defer one runloop tick
-        // until `view.window` is populated.
-        DispatchQueue.main.async { neutralize(view.window) }
+        // until `view.window` is populated. `Task { @MainActor … }` keeps the
+        // deferred call inside MainActor isolation (a bare main-queue dispatch
+        // closure carries no isolation, so `neutralize` couldn't be called).
+        Task { @MainActor in neutralize(view.window) }
         return view
     }
 

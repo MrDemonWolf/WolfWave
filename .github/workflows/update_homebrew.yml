@@ -59,8 +59,9 @@ jobs:
           SHA256: ${{ steps.sha.outputs.sha256 }}
         run: |
           CASK="homebrew-den/Casks/wolfwave.rb"
-          sed -i "s/version \".*\"/version \"${VERSION}\"/" "$CASK"
-          sed -i "s/sha256 \".*\"/sha256 \"${SHA256}\"/" "$CASK"
+          # -i.bak form works on both GNU and BSD sed (bare -i is GNU-only).
+          sed -i.bak "s/version \".*\"/version \"${VERSION}\"/" "$CASK" && rm "${CASK}.bak"
+          sed -i.bak "s/sha256 \".*\"/sha256 \"${SHA256}\"/" "$CASK" && rm "${CASK}.bak"
           echo "Updated cask:"
           cat "$CASK"
 

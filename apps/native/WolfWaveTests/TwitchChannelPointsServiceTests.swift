@@ -10,38 +10,6 @@ import XCTest
 
 @testable import WolfWave
 
-// MARK: - Sendable Capture Box
-
-/// Thread-safe value box used to capture state from inside `@Sendable`
-/// `MockURLProtocol` request handlers without violating strict concurrency.
-private final class Box<Value>: @unchecked Sendable {
-    private let lock = NSLock()
-    private var storedValue: Value
-
-    init(_ value: Value) {
-        self.storedValue = value
-    }
-
-    var value: Value {
-        get {
-            lock.lock()
-            defer { lock.unlock() }
-            return storedValue
-        }
-        set {
-            lock.lock()
-            storedValue = newValue
-            lock.unlock()
-        }
-    }
-
-    func mutate(_ body: (inout Value) -> Void) {
-        lock.lock()
-        body(&storedValue)
-        lock.unlock()
-    }
-}
-
 // MARK: - TwitchChannelPointsServiceTests
 
 /// Covers `TwitchChannelPointsService` Helix request construction and reward
@@ -97,7 +65,7 @@ final class TwitchChannelPointsServiceTests: WolfWaveTestCase {
     // MARK: - Request Construction
 
     func testEnsureRewardCreatesRewardWhenNoStoredID() async throws {
-        let captured = Box<URLRequest?>(nil)
+        let captured = ThreadSafeBox<URLRequest?>(nil)
         MockURLProtocol.requestHandler = { request in
             captured.value = request
             let body: [String: Any] = ["data": [["id": "reward_new"]]]
@@ -131,7 +99,7 @@ final class TwitchChannelPointsServiceTests: WolfWaveTestCase {
     }
 
     func testUpdateRewardCostSendsPatchWithCorrectQueryAndBody() async throws {
-        let captured = Box<URLRequest?>(nil)
+        let captured = ThreadSafeBox<URLRequest?>(nil)
         MockURLProtocol.requestHandler = { request in
             captured.value = request
             return (MockURLProtocol.httpResponse(for: request, status: 204), Data())
@@ -154,7 +122,7 @@ final class TwitchChannelPointsServiceTests: WolfWaveTestCase {
     }
 
     func testResolveRedemptionFulfilledSendsFULFILLED() async throws {
-        let captured = Box<URLRequest?>(nil)
+        let captured = ThreadSafeBox<URLRequest?>(nil)
         MockURLProtocol.requestHandler = { request in
             captured.value = request
             return (MockURLProtocol.httpResponse(for: request, status: 204), Data())
@@ -182,7 +150,7 @@ final class TwitchChannelPointsServiceTests: WolfWaveTestCase {
     }
 
     func testResolveRedemptionCanceledSendsCANCELED() async throws {
-        let captured = Box<URLRequest?>(nil)
+        let captured = ThreadSafeBox<URLRequest?>(nil)
         MockURLProtocol.requestHandler = { request in
             captured.value = request
             return (MockURLProtocol.httpResponse(for: request, status: 204), Data())
@@ -205,7 +173,7 @@ final class TwitchChannelPointsServiceTests: WolfWaveTestCase {
         UserDefaults.standard.set("existing_id", forKey: storageKey)
 
         struct State { var callCount = 0; var lastMethod: String?; var lastURL: URL? }
-        let state = Box(State())
+        let state = ThreadSafeBox(State())
 
         MockURLProtocol.requestHandler = { request in
             state.mutate { stored in
@@ -236,7 +204,7 @@ final class TwitchChannelPointsServiceTests: WolfWaveTestCase {
 
     func testEnsureRewardCreatesFreshWhenStoredIDIsUnknown() async throws {
         UserDefaults.standard.set("stale_id", forKey: storageKey)
-        let methods = Box<[String]>([])
+        let methods = ThreadSafeBox<[String]>([])
 
         MockURLProtocol.requestHandler = { request in
             methods.mutate { $0.append(request.httpMethod ?? "") }
@@ -263,7 +231,7 @@ final class TwitchChannelPointsServiceTests: WolfWaveTestCase {
 
     func testEnsureRewardTreats404AsMissingAndRecreates() async throws {
         UserDefaults.standard.set("gone_id", forKey: storageKey)
-        let methods = Box<[String]>([])
+        let methods = ThreadSafeBox<[String]>([])
 
         MockURLProtocol.requestHandler = { request in
             methods.mutate { $0.append(request.httpMethod ?? "") }

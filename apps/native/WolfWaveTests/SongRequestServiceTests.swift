@@ -111,23 +111,6 @@ final class SongRequestServiceTests: WolfWaveTestCase {
         defaults.removeObject(forKey: AppConstants.UserDefaults.songRequestFallbackPlaylist)
     }
 
-    /// Polls `condition` until it returns true or the timeout elapses, returning
-    /// the final result. Mirrors `ArtworkServiceNetworkTests.waitUntil` so the
-    /// playback-monitor tests wait on the poll loop instead of a fixed sleep.
-    @discardableResult
-    private func waitUntil(
-        timeout: Duration = .seconds(2),
-        interval: Duration = .milliseconds(20),
-        _ condition: () -> Bool
-    ) async -> Bool {
-        let deadline = ContinuousClock.now + timeout
-        while ContinuousClock.now < deadline {
-            if condition() { return true }
-            try? await Task.sleep(for: interval)
-        }
-        return condition()
-    }
-
     override func setUp() {
         super.setUp()
         queue = SongRequestQueue()

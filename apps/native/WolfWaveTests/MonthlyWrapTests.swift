@@ -202,6 +202,18 @@ struct MonthlyWrapTests {
         #expect(wrap.milestone == nil)
     }
 
+    @Test("A tie with a previous month is not best month yet")
+    func testMilestoneTieIsNotBest() {
+        // April and May both log exactly one play with identical seconds:
+        // "more plays than any other recorded month" requires strictly more.
+        let records = [
+            record(track: "Apr", artist: "X", at: date(2026, 4, 10)),
+            record(track: "May", artist: "X", at: date(2026, 5, 10)),
+        ]
+        let wrap = MonthlyWrap.data(from: records, month: date(2026, 5, 15), calendar: calendar)
+        #expect(wrap.milestone == nil)
+    }
+
     @Test("Most listening yet when plays trail but time leads")
     func testMilestoneMostListening() {
         // April: two short plays. May: one long play (fewer plays, more seconds).

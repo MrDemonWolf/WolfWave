@@ -134,6 +134,10 @@ nonisolated enum AppConstants {
         /// Posted when the WebSocket server connection state changes.
         static let websocketServerStateChanged = "WebSocketServerStateChanged"
 
+        /// Posted after the overlay auth token is saved or regenerated, so every
+        /// view holding a copy (e.g. the Browser Source URL card) re-reads it.
+        static let websocketAuthTokenChanged = "WebSocketAuthTokenChanged"
+
         /// Posted when the widget HTTP server enabled state changes.
         static let widgetHTTPServerChanged = "WidgetHTTPServerChanged"
 
@@ -191,6 +195,7 @@ nonisolated enum AppConstants {
             updateStateChanged,
             websocketServerChanged,
             websocketServerStateChanged,
+            websocketAuthTokenChanged,
             widgetHTTPServerChanged,
             powerStateChanged,
             twitchConnectionStateChanged,

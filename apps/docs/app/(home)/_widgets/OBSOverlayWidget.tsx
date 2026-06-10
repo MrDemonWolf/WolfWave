@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { AlbumArt } from "./AlbumArt";
-import { formatTime } from "./sample-tracks";
+import { formatTime } from "@/lib/format-time";
 import { useCyclingTrack } from "./useCyclingTrack";
 import {
   WIDGET_THEMES,

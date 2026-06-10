@@ -242,8 +242,12 @@ type WSMessage =
  * ╚════════════════════════════════════════════════════════════════════════╝ */
 
 function formatTime(secs: number): string {
-  const m = Math.floor(secs / 60);
-  const s = Math.floor(secs % 60);
+  // Clamp negative/NaN input (a mid-stream elapsed glitch) to 0:00. Mirrors
+  // the docs site's shared `lib/format-time.ts`; this copy stays local because
+  // the widget compiles to a self-contained committed artifact.
+  const safe = Math.max(0, Math.floor(secs)) || 0;
+  const m = Math.floor(safe / 60);
+  const s = safe % 60;
   return m + ":" + String(s).padStart(2, "0");
 }
 

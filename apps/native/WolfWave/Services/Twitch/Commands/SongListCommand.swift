@@ -53,9 +53,7 @@ final class SongListCommand: BotCommand {
         guard Preferences.bool(AppConstants.UserDefaults.songListCommandEnabled, default: false) else {
             return nil
         }
-        let link = Foundation.UserDefaults.standard
-            .string(forKey: AppConstants.UserDefaults.songRequestSongListURL)?
-            .trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        let link = Preferences.songRequestSongListURL
         guard !link.isEmpty else {
             return nil
         }

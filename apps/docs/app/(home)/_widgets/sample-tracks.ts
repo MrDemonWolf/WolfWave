@@ -67,10 +67,3 @@ export const SAMPLE_TRACKS: SampleTrack[] = [
   },
 ];
 
-/** Format seconds as `m:ss`. */
-export function formatTime(totalSec: number): string {
-  const safe = Math.max(0, Math.floor(totalSec));
-  const m = Math.floor(safe / 60);
-  const s = safe % 60;
-  return `${m}:${s.toString().padStart(2, "0")}`;
-}

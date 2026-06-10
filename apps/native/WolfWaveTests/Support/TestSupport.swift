@@ -24,6 +24,54 @@ func makeIsolatedTempDirectory(prefix: String = "wolfwave-test") -> URL {
     return dir
 }
 
+/// Thread-safe value box for capturing state from inside `@Sendable` closures
+/// (mock request handlers, actor callbacks) without violating strict
+/// concurrency. NSLock is fine here; tests aren't measuring lock perf.
+///
+/// Shared by the suites that previously each declared a private copy
+/// (`RequestCounter`, `TestValueBox`, `Box`). Deliberately not named `Atomic`
+/// so it never shadows the production type in `Core/ThreadSafeStorage.swift`
+/// (exercised directly by `AtomicTests`).
+nonisolated final class ThreadSafeBox<Value>: @unchecked Sendable {
+    private let lock = NSLock()
+    private var stored: Value
+
+    init(_ value: Value) { stored = value }
+
+    var value: Value {
+        get { lock.withLock { stored } }
+        set { lock.withLock { stored = newValue } }
+    }
+
+    /// Atomically replaces the stored value.
+    func set(_ newValue: Value) { lock.withLock { stored = newValue } }
+
+    /// Atomically transforms the stored value in place.
+    func mutate(_ transform: (inout Value) -> Void) { lock.withLock { transform(&stored) } }
+}
+
+/// Polls `condition` until it returns true or the timeout elapses, returning
+/// the final result. Avoids fixed sleeps when waiting on async work (disk I/O,
+/// actor state), which are flaky under CI load.
+///
+/// The condition may be synchronous or `async`; non-async closures convert
+/// implicitly. Shared by the suites that previously each declared a private
+/// copy (ArtworkServiceNetworkTests, SkipVoteManagerTests,
+/// SongRequestServiceTests).
+@discardableResult
+func waitUntil(
+    timeout: Duration = .seconds(2),
+    interval: Duration = .milliseconds(20),
+    _ condition: () async -> Bool
+) async -> Bool {
+    let deadline = ContinuousClock.now + timeout
+    while ContinuousClock.now < deadline {
+        if await condition() { return true }
+        try? await Task.sleep(for: interval)
+    }
+    return await condition()
+}
+
 /// Round-trips a credential through a save/load/delete cycle and asserts the
 /// loaded value matches what was saved.
 ///

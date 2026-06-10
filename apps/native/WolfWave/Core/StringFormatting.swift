@@ -26,3 +26,25 @@ nonisolated enum StringFormatting {
         return String(text.prefix(maxLength)) + "..."
     }
 }
+
+// MARK: - Twitch Chat Truncation
+
+nonisolated extension String {
+    /// Truncates the string so it fits within Twitch chat's 500-character
+    /// per-message limit, appending the configured truncation suffix
+    /// (`AppConstants.Twitch.messageTruncationSuffix`) when shortened.
+    ///
+    /// Shared by the bot command replies (`TrackInfoCommand`, `InfoCommand`,
+    /// `SongListCommand`) and `TwitchChatService`'s outbound send path.
+    ///
+    /// - Returns: A version of `self` whose Swift `Character` count does not
+    ///   exceed `AppConstants.Twitch.maxMessageLength`. Note: this counts
+    ///   Unicode extended grapheme clusters, not UTF-8 bytes.
+    func truncatedForChat() -> String {
+        let maxLen = AppConstants.Twitch.maxMessageLength
+        let suffix = AppConstants.Twitch.messageTruncationSuffix
+        guard count > maxLen else { return self }
+        let prefixLen = max(maxLen - suffix.count, 0)
+        return String(prefix(prefixLen)) + suffix
+    }
+}

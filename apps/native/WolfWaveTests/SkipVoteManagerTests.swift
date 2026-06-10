@@ -60,23 +60,6 @@ final class SkipVoteManagerTests: WolfWaveTestCase {
         d.set(window, forKey: AppConstants.UserDefaults.voteSkipWindowSeconds)
     }
 
-    /// Polls an async `condition` until it returns true or the timeout elapses,
-    /// returning the final result. Mirrors `ArtworkServiceNetworkTests.waitUntil`
-    /// but awaits the (actor-isolated) condition instead of sleeping a fixed span.
-    @discardableResult
-    private func waitUntil(
-        timeout: Duration = .seconds(2),
-        interval: Duration = .milliseconds(10),
-        _ condition: () async -> Bool
-    ) async -> Bool {
-        let deadline = ContinuousClock.now + timeout
-        while ContinuousClock.now < deadline {
-            if await condition() { return true }
-            try? await Task.sleep(for: interval)
-        }
-        return await condition()
-    }
-
     // MARK: - Disabled
 
     func testDisabledWhenFeatureOff() async {
@@ -107,7 +90,7 @@ final class SkipVoteManagerTests: WolfWaveTestCase {
     func testThresholdReachedSkipsAndPasses() async {
         enableFeature(minVotes: 3)
         let manager = SkipVoteManager()
-        let skipCount = TestValueBox(0)
+        let skipCount = ThreadSafeBox(0)
         await manager.configure(
             performSkip: { skipCount.mutate { $0 += 1 } },
             sendChatMessage: nil,
@@ -127,7 +110,7 @@ final class SkipVoteManagerTests: WolfWaveTestCase {
     func testMinVotesOnePassesImmediately() async {
         enableFeature(minVotes: 1)
         let manager = SkipVoteManager()
-        let skipped = TestValueBox(false)
+        let skipped = ThreadSafeBox(false)
         await manager.configure(
             performSkip: { skipped.set(true) },
             sendChatMessage: nil,
@@ -152,7 +135,7 @@ final class SkipVoteManagerTests: WolfWaveTestCase {
     func testDuplicateVoteDoesNotCrossThreshold() async {
         enableFeature(minVotes: 2)
         let manager = SkipVoteManager()
-        let skipCount = TestValueBox(0)
+        let skipCount = ThreadSafeBox(0)
         await manager.configure(
             performSkip: { skipCount.mutate { $0 += 1 } },
             sendChatMessage: nil,
@@ -215,7 +198,7 @@ final class SkipVoteManagerTests: WolfWaveTestCase {
         // Inject a sub-100ms window so expiry is observed in milliseconds instead
         // of waiting out the integer-second `voteSkipWindowSeconds` minimum.
         let manager = SkipVoteManager(windowDuration: .milliseconds(50))
-        let chatMessage = TestValueBox<String?>(nil)
+        let chatMessage = ThreadSafeBox<String?>(nil)
         await manager.configure(
             performSkip: nil,
             sendChatMessage: { chatMessage.set($0) },
@@ -290,7 +273,7 @@ final class SkipVoteManagerTests: WolfWaveTestCase {
     func testPollEndedSkipsWhenSkipWins() async {
         enableFeature(minVotes: 3)
         let manager = SkipVoteManager()
-        let skipped = TestValueBox(false)
+        let skipped = ThreadSafeBox(false)
         await manager.configure(
             performSkip: { skipped.set(true) },
             sendChatMessage: nil,
@@ -303,7 +286,7 @@ final class SkipVoteManagerTests: WolfWaveTestCase {
     func testPollEndedDoesNotSkipBelowMinimum() async {
         enableFeature(minVotes: 10)
         let manager = SkipVoteManager()
-        let skipped = TestValueBox(false)
+        let skipped = ThreadSafeBox(false)
         await manager.configure(
             performSkip: { skipped.set(true) },
             sendChatMessage: nil,
@@ -316,7 +299,7 @@ final class SkipVoteManagerTests: WolfWaveTestCase {
     func testPollEndedDoesNotSkipWhenKeepWins() async {
         enableFeature(minVotes: 1)
         let manager = SkipVoteManager()
-        let skipped = TestValueBox(false)
+        let skipped = ThreadSafeBox(false)
         await manager.configure(
             performSkip: { skipped.set(true) },
             sendChatMessage: nil,
@@ -331,7 +314,7 @@ final class SkipVoteManagerTests: WolfWaveTestCase {
     func testOnVoteEventFiresStartedWhenSessionOpens() async {
         enableFeature(minVotes: 3)
         let manager = SkipVoteManager()
-        let events = TestValueBox<[String]>([])
+        let events = ThreadSafeBox<[String]>([])
         await manager.configure(
             performSkip: nil,
             sendChatMessage: nil,
@@ -350,7 +333,7 @@ final class SkipVoteManagerTests: WolfWaveTestCase {
     func testOnVoteEventFiresPassedOnThreshold() async {
         enableFeature(minVotes: 2)
         let manager = SkipVoteManager()
-        let events = TestValueBox<[String]>([])
+        let events = ThreadSafeBox<[String]>([])
         await manager.configure(
             performSkip: nil,
             sendChatMessage: nil,
@@ -372,7 +355,7 @@ final class SkipVoteManagerTests: WolfWaveTestCase {
     func testOnVoteEventFiresPassedFromPollResult() async {
         enableFeature(minVotes: 3)
         let manager = SkipVoteManager()
-        let events = TestValueBox<[String]>([])
+        let events = ThreadSafeBox<[String]>([])
         await manager.configure(
             performSkip: nil,
             sendChatMessage: nil,
@@ -387,25 +370,3 @@ final class SkipVoteManagerTests: WolfWaveTestCase {
     }
 }
 
-// MARK: - Sendable value box for closure capture
-
-/// Thread-safe value box, used by `@Sendable` closures captured into the actor
-/// under test. NSLock is fine here; the test isn't measuring lock perf.
-///
-/// Deliberately named `TestValueBox` (not `Atomic`) so it does not shadow the
-/// production `Atomic` in `Core/ThreadSafeStorage.swift`. The production type is
-/// exercised directly by `AtomicTests`.
-private final class TestValueBox<Value>: @unchecked Sendable {
-    private let lock = NSLock()
-    private var stored: Value
-
-    init(_ value: Value) { stored = value }
-
-    var value: Value { lock.withLock { stored } }
-
-    /// Atomically replaces the stored value.
-    func set(_ newValue: Value) { lock.withLock { stored = newValue } }
-
-    /// Atomically transforms the stored value in place.
-    func mutate(_ transform: (inout Value) -> Void) { lock.withLock { transform(&stored) } }
-}

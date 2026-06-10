@@ -178,6 +178,32 @@ final class SongRequestQueueTests: WolfWaveTestCase {
         XCTAssertEqual(queue.count, 2)
     }
 
+    func testAddDuplicateOfNowPlayingRejected() {
+        // High per-user limit so the duplicate check, not the user limit, decides.
+        UserDefaults.standard.set(5, forKey: AppConstants.UserDefaults.songRequestPerUserLimit)
+        queue.add(SongRequestItem(title: "Now Playing Song", artist: "Artist", requesterUsername: "user1"))
+        queue.dequeue() // moves the request into the now-playing slot
+        let result = queue.add(
+            SongRequestItem(title: "NOW PLAYING SONG", artist: "artist", requesterUsername: "USER1"))
+        guard case .alreadyInQueue = result else {
+            XCTFail("Expected .alreadyInQueue, got \(result)")
+            return
+        }
+        XCTAssertEqual(queue.count, 0)
+    }
+
+    func testAddNowPlayingSongByDifferentUserAllowed() {
+        queue.add(SongRequestItem(title: "Now Playing Song", artist: "Artist", requesterUsername: "user1"))
+        queue.dequeue()
+        let result = queue.add(
+            SongRequestItem(title: "Now Playing Song", artist: "Artist", requesterUsername: "user2"))
+        guard case .added = result else {
+            XCTFail("Expected .added, got \(result)")
+            return
+        }
+        XCTAssertEqual(queue.count, 1)
+    }
+
     // MARK: - Dequeue / Skip / Clear with Items
 
     func testDequeueSetsNowPlaying() {

@@ -500,6 +500,7 @@ final class AppleMusicSource: PlaybackSource, @unchecked Sendable {
 
     nonisolated private func scheduleTrackCheck(reason: String) {
         Task { [weak self] in
+            Log.debug("AppleMusicSource: track check scheduled (\(reason))", category: "Music")
             await self?.checkCurrentTrack()
         }
     }
@@ -507,6 +508,7 @@ final class AppleMusicSource: PlaybackSource, @unchecked Sendable {
     nonisolated private func scheduleTrackCheck(after delay: TimeInterval, reason: String) {
         Task { [weak self] in
             try? await Task.sleep(for: .seconds(delay))
+            Log.debug("AppleMusicSource: delayed track check fired (\(reason))", category: "Music")
             await self?.checkCurrentTrack()
         }
     }
