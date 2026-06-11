@@ -2583,7 +2583,7 @@ actor TwitchChatService {
             query: userInput,
             username: userName,
             source: .channelPoints(redemptionID: redemptionID, rewardID: rewardID))
-        let (message, resolution) = await redemptionOutcome(for: result, username: userName)
+        let (message, resolution) = redemptionOutcome(for: result, username: userName)
         if !Task.isCancelled {
             await sendMessage(message)
         }
@@ -2660,7 +2660,7 @@ actor TwitchChatService {
         let result = await service.processRequest(
             query: query, username: userName, source: .bits(amount: bits))
         if !Task.isCancelled {
-            await sendMessage(await bitsOutcomeMessage(for: result, username: userName))
+            await sendMessage(bitsOutcomeMessage(for: result, username: userName))
         }
     }
 
