@@ -346,9 +346,15 @@ jobs:
           VERSION: ${{ steps.version.outputs.version }}
           DMG_NAME: ${{ steps.version.outputs.dmg_name }}
         run: |
+          # The appcast's <sparkle:releaseNotesLink> points at the .html asset at
+          # this release's download URL, so the HTML MUST be uploaded alongside
+          # the DMG and appcast. Missing it = Sparkle shows "An error occurred
+          # while downloading the release notes." (regression that shipped v2.0.0).
+          NOTES_HTML="builds/${DMG_NAME%.dmg}.html"
+          test -f "$NOTES_HTML" || { echo "::error::$NOTES_HTML missing; release-notes step did not run"; exit 1; }
           gh release delete "v$VERSION" --yes 2>/dev/null || true
           gh release create "v$VERSION" \
-            "builds/$DMG_NAME" "builds/appcast.xml" \
+            "builds/$DMG_NAME" "builds/appcast.xml" "$NOTES_HTML" \
             --title "WolfWave v$VERSION" \
             --generate-notes --draft
 
