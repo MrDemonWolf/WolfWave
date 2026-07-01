@@ -210,8 +210,14 @@ jobs:
           #    deepest path first. --preserve-metadata=entitlements keeps each
           #    bundle's own entitlements from the xcodebuild signature instead
           #    of dropping them.
+          #    "Autoupdate" is Sparkle's bare, extension-less helper tool
+          #    (Sparkle.framework/Versions/B/Autoupdate). The name globs below
+          #    miss it, so it kept xcodebuild's ad-hoc signature (no Developer
+          #    ID, no secure timestamp) and was the sole binary failing
+          #    notarization (statusCode 4000). Match it by name (-type f skips
+          #    the framework's Autoupdate symlink so the real Mach-O signs once).
           find "$APP_PATH/Contents" \
-            \( -name "*.framework" -o -name "*.xpc" -o -name "*.app" -o -name "*.dylib" \) \
+            \( -name "*.framework" -o -name "*.xpc" -o -name "*.app" -o -name "*.dylib" -o -name "Autoupdate" -type f \) \
             -print0 \
             | while IFS= read -r -d '' nested; do
                 printf '%s\t%s\0' "$(printf '%s' "$nested" | tr -cd '/' | wc -c)" "$nested"

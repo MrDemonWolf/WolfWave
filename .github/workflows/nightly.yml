@@ -227,8 +227,11 @@ jobs:
           ENTITLEMENTS="apps/native/WolfWave/WolfWave.entitlements"
 
           # Sign inside-out, never --deep (same rationale as build_release.yml).
+          # "Autoupdate" is Sparkle's bare, extension-less helper; the name globs
+          # miss it, so it kept an ad-hoc signature and was the only binary
+          # failing notarization. Match it by name (-type f skips the symlink).
           find "$APP_PATH/Contents" \
-            \( -name "*.framework" -o -name "*.xpc" -o -name "*.app" -o -name "*.dylib" \) \
+            \( -name "*.framework" -o -name "*.xpc" -o -name "*.app" -o -name "*.dylib" -o -name "Autoupdate" -type f \) \
             -print0 \
             | while IFS= read -r -d '' nested; do
                 printf '%s\t%s\0' "$(printf '%s' "$nested" | tr -cd '/' | wc -c)" "$nested"
