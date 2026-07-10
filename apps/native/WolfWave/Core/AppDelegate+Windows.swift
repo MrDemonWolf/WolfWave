@@ -126,7 +126,7 @@ extension AppDelegate {
 
     /// Shows the What's New sheet once per version for returning users.
     func checkWhatsNew() {
-        let currentVersion = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "0"
+        let currentVersion = AppConstants.AppInfo.shortVersion
         let lastSeen = Preferences.lastSeenWhatsNewVersion
 
         guard lastSeen != currentVersion else { return }

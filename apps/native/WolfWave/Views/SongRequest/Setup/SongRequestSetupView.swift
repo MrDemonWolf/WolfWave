@@ -293,14 +293,7 @@ struct SongRequestSetupView: View {
                     }
                     .padding(DSSpace.s4)
                     .frame(maxWidth: .infinity, alignment: .leading)
-                    .background(
-                        RoundedRectangle(cornerRadius: AppConstants.SettingsUI.cardCornerRadius, style: .continuous)
-                            .fill(Color(nsColor: .controlBackgroundColor))
-                    )
-                    .overlay(
-                        RoundedRectangle(cornerRadius: AppConstants.SettingsUI.cardCornerRadius, style: .continuous)
-                            .stroke(Color.primary.opacity(0.06), lineWidth: 0.5)
-                    )
+                    .subtleCardShell()
 
                     if let fetchStatus {
                         Text(fetchStatus)
@@ -346,14 +339,7 @@ struct SongRequestSetupView: View {
                     }
                     .padding(DSSpace.s4)
                     .frame(maxWidth: .infinity, alignment: .leading)
-                    .background(
-                        RoundedRectangle(cornerRadius: AppConstants.SettingsUI.cardCornerRadius, style: .continuous)
-                            .fill(Color(nsColor: .controlBackgroundColor))
-                    )
-                    .overlay(
-                        RoundedRectangle(cornerRadius: AppConstants.SettingsUI.cardCornerRadius, style: .continuous)
-                            .stroke(Color.primary.opacity(0.06), lineWidth: 0.5)
-                    )
+                    .subtleCardShell()
 
                     Text("Turning this on enables song requests right away. You can switch it off whenever you like.")
                         .font(.system(size: DSFont.Size.sm))

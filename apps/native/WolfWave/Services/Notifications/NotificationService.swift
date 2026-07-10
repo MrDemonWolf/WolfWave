@@ -13,17 +13,34 @@ import UserNotifications
 /// Centralizes macOS User Notification delivery for WolfWave.
 ///
 /// Wraps `UNUserNotificationCenter` so callers don't repeat authorization and
-/// error-handling boilerplate. Posts song-change and skip-vote (started /
-/// passed) notifications; the private `post(content:identifier:)` core is the
-/// shared extension point for any future notification type.
-final class NotificationService {
+/// error-handling boilerplate. Posts song-change, skip-vote (started /
+/// passed), and Twitch re-auth notifications; the private
+/// `post(content:identifier:)` core is the shared extension point for any
+/// future notification type.
+///
+/// Also acts as the `UNUserNotificationCenterDelegate` (installed once at
+/// launch via `installCenterDelegate()`) so banners still present while
+/// WolfWave is frontmost. Inherits `NSObject` because that delegate protocol
+/// requires it.
+final class NotificationService: NSObject {
 
     // MARK: - Singleton
 
     /// Shared instance used across the app.
     static let shared = NotificationService()
 
-    private init() {}
+    private override init() {}
+
+    // MARK: - Center Delegate Installation
+
+    /// Installs this service as the notification-center delegate.
+    ///
+    /// Without a delegate, macOS suppresses every banner while the app is
+    /// frontmost, which is exactly when the user is in Settings flipping the
+    /// notification toggles and expecting to see one. Call once at launch.
+    func installCenterDelegate() {
+        UNUserNotificationCenter.current().delegate = self
+    }
 
     // MARK: - Song Change
 
@@ -190,6 +207,36 @@ final class NotificationService {
         return content
     }
 
+    // MARK: - Twitch Re-auth
+
+    /// Posts a "Twitch session expired" notification.
+    ///
+    /// Reuses the stable re-auth identifier so a repeat prompt in the same
+    /// session replaces the previous banner instead of stacking. Safe to call
+    /// from unattended paths (e.g. the boot token check): the shared post core
+    /// never requests authorization, it simply drops the banner unless the
+    /// user already granted it. The in-app re-auth banner covers that case.
+    func postTwitchReauthNeeded() async {
+        await post(
+            content: Self.makeTwitchReauthContent(),
+            identifier: AppConstants.UserNotification.twitchReauthIdentifier
+        )
+    }
+
+    /// Builds the notification content for an expired Twitch session.
+    ///
+    /// Pure, performs no system calls, so it can be unit-tested directly.
+    ///
+    /// - Returns: A configured notification content value with the default
+    ///   sound (the user must act to restore the Twitch connection).
+    static func makeTwitchReauthContent() -> UNMutableNotificationContent {
+        let content = UNMutableNotificationContent()
+        content.title = "Twitch Authentication Expired"
+        content.body = "Your Twitch session has expired. Please re-authorize in Settings."
+        content.sound = .default
+        return content
+    }
+
     /// Formats a `track · artist` line, tolerating either field being empty.
     private static func trackLine(track: String, artist: String) -> String {
         let trimmedTrack = track.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -315,5 +362,26 @@ final class NotificationService {
                 continuation.resume(returning: url)
             }
         }
+    }
+}
+
+// MARK: - UNUserNotificationCenterDelegate
+
+extension NotificationService: UNUserNotificationCenterDelegate {
+
+    /// Presents notifications while WolfWave is frontmost.
+    ///
+    /// Without this, macOS silently swallows every banner for the foreground
+    /// app, so a user testing the toggles in Settings would never see one.
+    ///
+    /// `nonisolated`: UserNotifications may invoke its delegate off the main
+    /// thread, and this class is MainActor by the module default. The method
+    /// touches no isolated state, so opting out of isolation avoids the
+    /// off-main-callback-into-MainActor-witness crash pattern.
+    nonisolated func userNotificationCenter(
+        _ center: UNUserNotificationCenter,
+        willPresent notification: UNNotification
+    ) async -> UNNotificationPresentationOptions {
+        [.banner, .sound]
     }
 }

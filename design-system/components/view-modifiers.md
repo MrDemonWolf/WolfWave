@@ -29,6 +29,26 @@ content
 - **When _not_:** inside another card (no nesting), or for full-bleed hero sections.
 - **Real-color cards keep their color** (they do not route through this modifier): the Discord brand card, callout / status banners (semantic info / warn / error tints), icon and accent chips, and share-card exports (opaque `windowBackgroundColor` for image render). Tinted sub-cards (Advanced danger red, Song Request orange / quaternary, App Visibility indigo notice, WebSocket blue info) still hand-roll because the modifier has no `tint:` option. A future `CardModifier(padded:tint:)` could fold those in.
 
+## `.subtleCardShell(cornerRadius:)`
+
+Quieter sibling of `cardStyle()`: the same opaque `controlBackgroundColor` surface, but on a continuous-corner shape with a faint `Color.primary.opacity(0.06)` 0.5pt stroke instead of the 1pt `separatorColor` hairline. Adds no padding; callers own their internal padding.
+
+```swift
+content
+  .background(
+    RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+      .fill(Color(nsColor: .controlBackgroundColor))
+  )
+  .overlay(
+    RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+      .stroke(Color.primary.opacity(0.06), lineWidth: 0.5)
+  )
+```
+
+- **Tokens:** defaults to `DSDimension.Settings.cardCornerRadius` (14); onboarding-language cards pass `DSRadius.lg2` (12).
+- **When to use:** onboarding rows (`OnboardingToggleCard`), grouped toggle stacks (the Notifications step's alert group), and the Song Requests setup sheet's step/recap groups. These sites used to hand-roll identical fill + overlay pairs.
+- **When _not_:** standard settings cards; use `cardStyle()`. The onboarding smart-toggle cards (Discord, OBS) use `.onboardingTintedToggleShell(...)` (see [`onboarding-toggle-card.md`](onboarding-toggle-card.md)), whose off state matches this shell exactly.
+
 ## `.interactiveRow(isEnabled:)`
 
 Adds hover background + pointer cursor for list rows that act as buttons.
@@ -86,5 +106,5 @@ Standardized section-header typography.
 
 - ✅ Reach for `cardStyle()` before drawing your own rounded rectangle.
 - ✅ Combine `pointerCursor()` with any custom `.onTapGesture` to make affordance obvious.
-- ❌ Don't hand-roll your own card surface. `cardStyle()` is the one neutral card chrome.
+- ❌ Don't hand-roll your own card surface. `cardStyle()` is the neutral settings-card chrome; `subtleCardShell()` is the quieter onboarding/setup variant.
 - ❌ Don't apply `interactiveRow` to disabled controls. Pass `isEnabled: false` instead so the hover state is suppressed.

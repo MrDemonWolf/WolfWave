@@ -108,6 +108,39 @@ extension View {
     }
 }
 
+// MARK: - Subtle Card Shell (0.5pt hairline variant)
+
+/// Quieter sibling of `CardModifier`: the same opaque `controlBackgroundColor`
+/// surface, but on a continuous-corner shape with a faint
+/// `Color.primary.opacity(0.06)` 0.5pt stroke instead of the 1pt
+/// `separatorColor` hairline. This is the card chrome used by onboarding rows,
+/// grouped toggle stacks, and the Song Requests setup sheet, which had been
+/// hand-rolling identical fill + overlay pairs.
+///
+/// Adds no padding; callers own their internal padding. Defaults to the
+/// settings-card radius; onboarding-language cards pass `DSRadius.lg2`.
+struct SubtleCardShellModifier: ViewModifier {
+    var cornerRadius: CGFloat = AppConstants.SettingsUI.cardCornerRadius
+
+    func body(content: Content) -> some View {
+        let shape = RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+        return content
+            .background(shape.fill(Color(nsColor: .controlBackgroundColor)))
+            .overlay(shape.stroke(Color.primary.opacity(0.06), lineWidth: 0.5))
+    }
+}
+
+extension View {
+    /// Applies the subtle opaque card shell: `controlBackgroundColor` fill with
+    /// a 0.5pt `Color.primary.opacity(0.06)` stroke on continuous corners.
+    ///
+    /// Use for onboarding-language cards and grouped row stacks. Prefer
+    /// `cardStyle()` for standard settings cards.
+    func subtleCardShell(cornerRadius: CGFloat = AppConstants.SettingsUI.cardCornerRadius) -> some View {
+        modifier(SubtleCardShellModifier(cornerRadius: cornerRadius))
+    }
+}
+
 // MARK: - Pane Title Style (H1)
 
 /// Top-level pane title styling: the single biggest heading on a settings pane.

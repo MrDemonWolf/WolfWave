@@ -367,7 +367,12 @@ extension AppDelegate: NSMenuDelegate {
         }
         guard musicRunning else { return }
 
-        let isPlaying = songRequestService?.musicController.isPlaying ?? false
+        // Derive play state from the cached snapshot that AppleMusicSource
+        // pushes via its delegate. Never probe Music.app synchronously here:
+        // menuNeedsUpdate runs during menu tracking on the main thread, and a
+        // busy Music.app would freeze the whole app until the Apple event
+        // times out. Eventually consistent is fine for a menu label.
+        let isPlaying = currentSong != nil && !currentIsPaused
 
         let playPauseItem = NSMenuItem(
             title: isPlaying ? "Pause" : "Play",
@@ -572,7 +577,7 @@ extension AppDelegate: NSMenuDelegate {
         menu.addItem(discordItem)
 
         let widgetsEnabled = FeatureFlags.websocketEnabled
-        let widgetPort = resolvedWidgetPort()
+        let widgetPort = Preferences.resolvedWidgetPort
         let clientCount = websocketServer?.connectedClientCount ?? 0
         let overlayItem = makeStatusItem(
             title: "OBS Overlay",
@@ -743,15 +748,6 @@ extension AppDelegate: NSMenuDelegate {
         return submenu
     }
 
-    // MARK: - Helpers
-
-    /// Resolves the user-configured widget HTTP port, falling back to the default.
-    fileprivate func resolvedWidgetPort() -> UInt16 {
-        let stored = Preferences.widgetPort
-        return stored > 0
-            ? UInt16(clamping: stored)
-            : AppConstants.WebSocketServer.widgetDefaultPort
-    }
 }
 
 // MARK: - Menu Toggle Actions
@@ -867,7 +863,7 @@ extension AppDelegate {
     /// Copies the local widget URL (e.g. `http://localhost:8766`) to the
     /// pasteboard for OBS browser-source configuration.
     @objc func copyWidgetURL() {
-        let url = "http://localhost:\(resolvedWidgetPort())"
+        let url = "http://localhost:\(Preferences.resolvedWidgetPort)"
         Pasteboard.copy(url)
         Log.debug("AppDelegate: Widget URL copied to clipboard: \(url)", category: "App")
     }
@@ -948,7 +944,7 @@ extension AppDelegate {
 
     /// Opens the local widget page in the user's default browser.
     @objc func openWidgetInBrowser() {
-        ExternalLink.open("http://localhost:\(resolvedWidgetPort())")
+        ExternalLink.open("http://localhost:\(Preferences.resolvedWidgetPort)")
     }
 
     /// Force-cycles Twitch, Discord, and the websocket overlays so a streamer
@@ -1027,8 +1023,7 @@ extension AppDelegate {
 
     /// Re-opens the What's New sheet for the current marketing version.
     @objc func showWhatsNewFromMenu() {
-        let version = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "0"
-        showWhatsNew(version: version)
+        showWhatsNew(version: AppConstants.AppInfo.shortVersion)
     }
 
     /// Opens the public documentation site.
@@ -1038,18 +1033,7 @@ extension AppDelegate {
 
     /// Opens the GitHub issue form with prefilled environment info.
     @objc func reportBug() {
-        let version = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "0"
-        let build = Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "0"
-        let install: BugReportURL.InstallMethod = Bundle.main.isHomebrewInstall ? .homebrew : .dmg
-        let url = BugReportURL.make(
-            base: AppConstants.URLs.githubIssuesNew,
-            appVersion: version,
-            build: build,
-            osVersion: ProcessInfo.processInfo.operatingSystemVersionString,
-            arch: BugReportURL.currentArch(),
-            install: install
-        )
-        if let url { NSWorkspace.shared.open(url) }
+        BugReportURL.openPrefilledIssue()
     }
 
     /// Opens the community Discord invite.

@@ -80,6 +80,12 @@ struct AdvancedSettingsView: View {
     /// Whether the import success alert is shown.
     @State private var showingImportSuccess = false
 
+    /// Message shown when an export can't be built or saved.
+    @State private var exportErrorMessage: String?
+
+    /// Whether the export error alert is shown.
+    @State private var showingExportError = false
+
     /// Opens a save panel to export the application log file.
     ///
     /// Presents the panel as a sheet on the settings window when available,
@@ -500,12 +506,18 @@ struct AdvancedSettingsView: View {
         } message: {
             Text(importSuccessMessage ?? "Your settings were restored.")
         }
+        .alert("Couldn't Export", isPresented: $showingExportError) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text(exportErrorMessage ?? "Couldn't save your backup.")
+        }
     }
 
     // MARK: - Backup Actions
 
     /// Exports portable settings to a user-chosen JSON file. Accounts and
     /// secrets are excluded. See `AppConstants.UserDefaults.exportableKeys`.
+    /// Build or write failures surface the export error alert.
     @MainActor
     private func exportSettings() {
         let service = SettingsBackupService()
@@ -514,6 +526,8 @@ struct AdvancedSettingsView: View {
             data = try service.makeBackupData()
         } catch {
             Log.error("Failed to build settings backup: \(error.localizedDescription)", category: "App")
+            exportErrorMessage = "Couldn't save your backup. \(error.localizedDescription)"
+            showingExportError = true
             return
         }
 
@@ -529,6 +543,8 @@ struct AdvancedSettingsView: View {
                 Log.info("Settings exported to \(url.lastPathComponent)", category: "App")
             } catch {
                 Log.error("Failed to write settings backup: \(error.localizedDescription)", category: "App")
+                exportErrorMessage = "Couldn't save your backup. \(error.localizedDescription)"
+                showingExportError = true
             }
         }
 

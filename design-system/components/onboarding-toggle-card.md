@@ -27,15 +27,18 @@ OnboardingToggleCard(
 | `isOn` | `Binding<Bool>` | Backing toggle state. |
 | `accessibilityLabel` | `String` | Spoken name for the switch. |
 | `accessibilityIdentifier` | `String` | UI-test handle for the switch. |
+| `showsCardBackground` | `Bool` (default `true`) | `true` draws the card's own `subtleCardShell`. Set `false` for chrome-free rows stacked inside one shared grouped container (the Notifications step's alert group). |
 
 ## Tokens used
 - `DSSpace.s4` (12): outer padding + row spacing
 - `DSSpace.s0` (2): title ↔ subtitle gap
 - `DSFont.Size.base` (13): title; icon glyph
 - `DSFont.Size.sm` (11): subtitle
-- `DSRadius.lg2` (12): card corner
+- `DSRadius.lg2` (12): card corner (via `subtleCardShell`)
 - `AppConstants.OnboardingUI.iconTileSize` (28): icon tile side
 - `AppConstants.OnboardingUI.iconTileRadius` (7): icon tile corner (mirrors the brand tile's 25% ratio)
+
+The card chrome comes from the shared `.subtleCardShell(cornerRadius: DSRadius.lg2)` modifier (see [`view-modifiers.md`](view-modifiers.md)): opaque `controlBackgroundColor` fill with a `Color.primary.opacity(0.06)` 0.5pt stroke.
 
 ## Anatomy
 ```mermaid
@@ -66,3 +69,33 @@ OnboardingToggleCard(
     accessibilityIdentifier: "onboarding.toggle.launch"
 )
 ```
+
+---
+
+## `.onboardingTintedToggleShell(...)` (same file)
+
+Card chrome for the onboarding "smart toggle" cards (Discord presence, OBS Stream Widgets): a neutral opaque card when off that brightens with a brand-tinted fill, stroke, and glow when on. Wraps a `ToggleSettingRow`; includes `DSSpace.s5` (14) padding and the on/off ease animation (`DSMotion.Duration.base`). The Discord and OBS steps used to carry byte-identical copies of this chrome.
+
+```swift
+ToggleSettingRow(...)
+    .onboardingTintedToggleShell(
+        isOn: presenceEnabled,
+        tint: AppConstants.Brand.discord,
+        fillOpacity: 0.10,
+        glowOpacity: 0.18,
+        glowRadius: 18,
+        glowYOffset: 6
+    )
+```
+
+| Param | Notes |
+|---|---|
+| `isOn` | Drives the tinted fill, stroke, and glow. |
+| `tint` | Brand color (Discord blurple, `.accentColor` for OBS widgets). |
+| `fillOpacity` | Enabled fill opacity (Discord 0.10, OBS 0.08). |
+| `glowOpacity` / `glowRadius` / `glowYOffset` | Enabled glow shadow (Discord 0.18 / 18 / 6, OBS 0.16 / 16 / 4). |
+
+- Off state renders exactly like `.subtleCardShell(cornerRadius: DSRadius.lg2)`.
+- Enabled stroke is always `tint.opacity(0.40)` at 0.5pt.
+- ✅ Use for onboarding toggles that light up a brand integration.
+- ❌ Don't use in settings panes; settings cards stay neutral (`cardStyle()`).

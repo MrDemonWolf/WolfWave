@@ -171,11 +171,7 @@ actor WebSocketServerService {
         if enabled {
             // Only start if WebSocket server is listening and HTTP isn't already running
             guard state == .listening, widgetHTTP == nil else { return }
-            let storedWidgetPort = UserDefaults.standard.integer(forKey: AppConstants.UserDefaults.widgetPort)
-            let widgetPort: UInt16 = storedWidgetPort > 0
-                ? (UInt16(exactly: storedWidgetPort) ?? AppConstants.WebSocketServer.widgetDefaultPort)
-                : AppConstants.WebSocketServer.widgetDefaultPort
-            widgetHTTP = WidgetHTTPService(port: widgetPort, authToken: authToken)
+            widgetHTTP = WidgetHTTPService(port: Preferences.resolvedWidgetPort, authToken: authToken)
             widgetHTTP?.start()
             Log.info("WebSocketServerService: Widget HTTP server started", category: "WebSocket")
         } else {
@@ -375,11 +371,7 @@ actor WebSocketServerService {
 
         let widgetHTTPEnabled = UserDefaults.standard.object(forKey: AppConstants.UserDefaults.widgetHTTPEnabled) as? Bool ?? false
         if widgetHTTPEnabled {
-            let storedWidgetPort = UserDefaults.standard.integer(forKey: AppConstants.UserDefaults.widgetPort)
-            let widgetPort: UInt16 = storedWidgetPort > 0
-                ? (UInt16(exactly: storedWidgetPort) ?? AppConstants.WebSocketServer.widgetDefaultPort)
-                : AppConstants.WebSocketServer.widgetDefaultPort
-            widgetHTTP = WidgetHTTPService(port: widgetPort, authToken: authToken)
+            widgetHTTP = WidgetHTTPService(port: Preferences.resolvedWidgetPort, authToken: authToken)
             widgetHTTP?.start()
         }
     }
@@ -519,8 +511,10 @@ actor WebSocketServerService {
     /// Sends the initial `welcome` envelope (server identity + version) to a
     /// freshly-accepted connection.
     private func sendWelcome(to connection: NWConnection) {
-        let appVersion = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "unknown"
-        Self.sendJSON(["type": "welcome", "server": "WolfWave", "version": appVersion], to: connection)
+        Self.sendJSON(
+            ["type": "welcome", "server": "WolfWave", "version": AppConstants.AppInfo.shortVersion],
+            to: connection
+        )
     }
 
     /// Sends the current widget theme/layout config to a newly connected client.

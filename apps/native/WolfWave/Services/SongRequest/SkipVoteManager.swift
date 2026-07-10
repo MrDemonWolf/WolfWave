@@ -101,12 +101,21 @@ actor SkipVoteManager {
     /// sub-100ms window so window-expiry assertions don't wait whole seconds.
     private let windowOverride: Duration?
 
+    /// Optional override for the poll-end fallback timeout. When set, it takes
+    /// precedence over `pollDuration` plus the grace period. Tests inject a
+    /// sub-100ms timeout so missed-poll-end assertions don't wait whole minutes.
+    private let pollTimeoutOverride: Duration?
+
     /// Creates a skip-vote manager.
     ///
-    /// - Parameter windowDuration: Overrides the chat-tally window length read
-    ///   from preferences. Defaults to `nil` (use the preference).
-    init(windowDuration: Duration? = nil) {
+    /// - Parameters:
+    ///   - windowDuration: Overrides the chat-tally window length read from
+    ///     preferences. Defaults to `nil` (use the preference).
+    ///   - pollTimeoutDuration: Overrides the poll-end fallback timeout
+    ///     (normally the poll duration plus a grace period). Defaults to `nil`.
+    init(windowDuration: Duration? = nil, pollTimeoutDuration: Duration? = nil) {
         self.windowOverride = windowDuration
+        self.pollTimeoutOverride = pollTimeoutDuration
     }
 
     // MARK: - State
@@ -116,12 +125,23 @@ actor SkipVoteManager {
     private var windowTask: Task<Void, Never>?
     private var lastSessionEnd: Date?
     private var pollActive = false
+    private var pollTimeoutTask: Task<Void, Never>?
 
     /// Monotonic id bumped each time a new chat-tally session opens. The window
     /// timer captures the id at spawn time and checks it before expiring, so a
     /// stale timer (whose sleep ran past a fast pass + immediate re-open with a
     /// zero cooldown) can't clear the session that replaced it.
     private var sessionGeneration = 0
+
+    /// Monotonic id bumped each time a new Twitch poll opens. The poll-end
+    /// fallback timer captures the id at spawn time and checks it before firing,
+    /// so a stale timer can't clear the poll that replaced it. Mirrors
+    /// `sessionGeneration` for the chat-tally window timer.
+    private var pollGeneration = 0
+
+    /// Extra seconds granted past `pollDuration` before the poll-end fallback
+    /// timer assumes the `channel.poll.end` event was missed.
+    private static let pollEndGraceSeconds = 15
 
     // MARK: - Configuration
 
@@ -181,12 +201,20 @@ actor SkipVoteManager {
         return (voters.count, minVotes)
     }
 
+    /// Reports whether a vote-skip Twitch poll is in flight (created, but its
+    /// `channel.poll.end` result not yet received or timed out).
+    func isPollInProgress() -> Bool {
+        pollActive
+    }
+
     /// Handles a finished Twitch poll (from the `channel.poll.end` EventSub event).
     ///
     /// - Parameters:
     ///   - skipVotes: Vote count for the "Skip" choice.
     ///   - keepVotes: Vote count for the "Keep playing" choice.
     func handlePollEnded(skipVotes: Int, keepVotes: Int) async {
+        pollTimeoutTask?.cancel()
+        pollTimeoutTask = nil
         pollActive = false
         let needed = minVotes
         if skipVotes > keepVotes && skipVotes >= needed {
@@ -198,10 +226,36 @@ actor SkipVoteManager {
         }
     }
 
+    /// Ends any open chat-tally session because the current song changed.
+    ///
+    /// Votes cast against the outgoing song must not carry over to the new
+    /// one, so the session is discarded. Unlike window expiry, the
+    /// inter-session cooldown does NOT start: the vote never ran its course,
+    /// so chat can open a fresh vote on the new song right away. A stale
+    /// window timer is defused the same way `windowExpired` handles it
+    /// (cancelled here, and its `sessionStart != nil` / generation guards
+    /// no-op it if the sleep already ran). Twitch polls are left alone: a
+    /// native poll runs on Twitch's side and still resolves via
+    /// `channel.poll.end` or the timeout fallback.
+    func trackDidChange() {
+        guard sessionStart != nil else { return }
+        windowTask?.cancel()
+        windowTask = nil
+        voters.removeAll()
+        sessionStart = nil
+        postState()
+        Log.debug(
+            "SkipVoteManager: track changed, chat-tally vote session cleared",
+            category: "SongRequest"
+        )
+    }
+
     /// Clears all session state (e.g. on Twitch disconnect).
     func reset() {
         windowTask?.cancel()
         windowTask = nil
+        pollTimeoutTask?.cancel()
+        pollTimeoutTask = nil
         voters.removeAll()
         sessionStart = nil
         lastSessionEnd = nil
@@ -288,6 +342,8 @@ actor SkipVoteManager {
 
         let success = await createPoll?("Skip the current song?", pollDuration) ?? false
         if success {
+            pollGeneration += 1
+            startPollTimeoutTask()
             onVoteEvent?(.pollStarted)
             return .pollStarted
         }
@@ -335,6 +391,36 @@ actor SkipVoteManager {
         lastSessionEnd = Date()
         postState()
         sendChatMessage?("⏳ Vote-skip failed, only \(count) of \(minVotes) needed. The song stays!")
+    }
+
+    /// Spawns the fallback timer that clears a latched poll when the
+    /// `channel.poll.end` event never arrives. EventSub does not replay events
+    /// missed during a disconnect, so without this a WebSocket drop mid-poll
+    /// would leave `pollActive` stuck at `true` and vote-skip permanently
+    /// replying "poll in progress". Waits the poll duration plus a grace period;
+    /// `handlePollEnded` and `reset()` cancel it on the happy paths.
+    private func startPollTimeoutTask() {
+        // Tests inject a sub-second `pollTimeoutOverride`; production waits out
+        // the Twitch poll plus a grace period for the poll.end event to land.
+        let duration = pollTimeoutOverride ?? .seconds(pollDuration + Self.pollEndGraceSeconds)
+        let generation = pollGeneration
+        pollTimeoutTask = Task { [weak self] in
+            try? await Task.sleep(for: duration)
+            guard !Task.isCancelled else { return }
+            await self?.pollTimedOut(generation: generation)
+        }
+    }
+
+    /// Called when the poll-end fallback timer fires. A no-op unless the same
+    /// poll generation is still marked active (`handlePollEnded` never ran).
+    private func pollTimedOut(generation: Int) {
+        guard pollActive, generation == pollGeneration else { return }
+        pollActive = false
+        pollTimeoutTask = nil
+        Log.warn(
+            "SkipVoteManager: Twitch poll result never arrived; clearing stuck poll state",
+            category: "SongRequest"
+        )
     }
 
     /// Posts `.voteSkipStateChanged` with the current session progress (if any).

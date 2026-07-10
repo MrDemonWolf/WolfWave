@@ -154,17 +154,19 @@ final class TwitchViewModel {
     /// Lock for thread-safe access to cached service
     @ObservationIgnored private let serviceLock = NSLock()
 
-    /// Long-lived consumer of `service.connectionStateChanges`. Cancelled and
+    /// Long-lived consumer of `service.connectionStateChanges()`. Cancelled and
     /// replaced whenever the service reference changes.
     @ObservationIgnored private var connectionObserverTask: Task<Void, Never>?
 
     /// Wires the connection-state AsyncStream into `channelConnected` and seeds
-    /// the initial value from the actor's nonisolated snapshot.
+    /// the initial value from the actor's nonisolated snapshot. Each call gets
+    /// its own per-subscriber stream, so cancelling this view model's iteration
+    /// (settings window closing) never starves other consumers.
     private func observeConnection(_ service: TwitchChatService) {
         connectionObserverTask?.cancel()
         self.channelConnected = service.isConnectedSnapshot.value
         connectionObserverTask = Task { [weak self] in
-            for await isConnected in service.connectionStateChanges {
+            for await isConnected in service.connectionStateChanges() {
                 await MainActor.run { self?.channelConnected = isConnected }
             }
         }
@@ -289,8 +291,7 @@ final class TwitchViewModel {
         }
 
         // Load reauth needed flag from UserDefaults
-        reauthNeeded = UserDefaults.standard.bool(
-            forKey: AppConstants.UserDefaults.twitchReauthNeeded)
+        reauthNeeded = Preferences.twitchReauthNeeded
 
         // Idempotent: only register observers once across repeated calls.
         // Notifications already arrive on `.main` (queue: .main), so we can mutate
@@ -302,8 +303,7 @@ final class TwitchViewModel {
                 queue: .main
             ) { [weak self] _ in
                 MainActor.assumeIsolated {
-                    self?.reauthNeeded = UserDefaults.standard.bool(
-                        forKey: AppConstants.UserDefaults.twitchReauthNeeded)
+                    self?.reauthNeeded = Preferences.twitchReauthNeeded
                 }
             }
         }
@@ -536,12 +536,7 @@ final class TwitchViewModel {
             try KeychainService.saveTwitchToken(oauthToken)
             try KeychainService.saveTwitchChannelID(channelID.lowercased())
             credentialsSaved = true
-            reauthNeeded = false
-            UserDefaults.standard.set(false, forKey: AppConstants.UserDefaults.twitchReauthNeeded)
-            NotificationCenter.default.post(
-                name: Notification.Name.twitchReauthNeededChanged,
-                object: nil
-            )
+            setReauthFlag(false)
             statusMessage = "✅ Credentials saved successfully"
         } catch {
             statusMessage = "❌ Failed to save: \(error.localizedDescription)"
@@ -598,16 +593,10 @@ final class TwitchViewModel {
         oauthToken = ""
         channelID = ""
         credentialsSaved = false
-        reauthNeeded = false
-        UserDefaults.standard.set(false, forKey: AppConstants.UserDefaults.twitchReauthNeeded)
+        setReauthFlag(false)
         statusMessage = ""
         authState = .idle
         channelValidationState = .idle
-
-        NotificationCenter.default.post(
-            name: Notification.Name.twitchReauthNeededChanged,
-            object: nil
-        )
     }
 
     /// Clears OAuth credentials and bot identity without touching the channel name.
@@ -624,16 +613,10 @@ final class TwitchViewModel {
         botUsername = ""
         oauthToken = ""
         credentialsSaved = false
-        reauthNeeded = false
-        UserDefaults.standard.set(false, forKey: AppConstants.UserDefaults.twitchReauthNeeded)
+        setReauthFlag(false)
         statusMessage = ""
         authState = .idle
         channelValidationState = .idle
-
-        NotificationCenter.default.post(
-            name: Notification.Name.twitchReauthNeededChanged,
-            object: nil
-        )
     }
 
     /// Joins the configured Twitch channel with the saved bot credentials.
@@ -842,12 +825,7 @@ final class TwitchViewModel {
         let isValid = await service.validateToken(token)
         guard !isValid else { return }
 
-        reauthNeeded = true
-        UserDefaults.standard.set(true, forKey: AppConstants.UserDefaults.twitchReauthNeeded)
-        NotificationCenter.default.post(
-            name: Notification.Name.twitchReauthNeededChanged,
-            object: nil
-        )
+        setReauthFlag(true)
     }
 
     /// Resets `testAuthResult` back to `.idle` after 3 seconds.
@@ -890,6 +868,19 @@ final class TwitchViewModel {
         authState = state
     }
 
+    /// Single write path for the re-auth flag: updates the observable
+    /// property, persists via `Preferences.setTwitchReauthNeeded`, and posts
+    /// `.twitchReauthNeededChanged` so every observer (menu bar, other view
+    /// model instances) stays in sync.
+    private func setReauthFlag(_ value: Bool) {
+        reauthNeeded = value
+        Preferences.setTwitchReauthNeeded(value)
+        NotificationCenter.default.post(
+            name: Notification.Name.twitchReauthNeededChanged,
+            object: nil
+        )
+    }
+
     /// Stores a freshly-issued OAuth token in the Keychain, clears the
     /// re-auth flag, and resolves the bot identity (username + user ID) via
     /// Helix so subsequent EventSub subscriptions have everything they need.
@@ -904,12 +895,7 @@ final class TwitchViewModel {
 
         do {
             try KeychainService.saveTwitchToken(token)
-            reauthNeeded = false
-            UserDefaults.standard.set(false, forKey: AppConstants.UserDefaults.twitchReauthNeeded)
-            NotificationCenter.default.post(
-                name: Notification.Name.twitchReauthNeededChanged,
-                object: nil
-            )
+            setReauthFlag(false)
             credentialsSaved = true
         } catch {
             Log.error(

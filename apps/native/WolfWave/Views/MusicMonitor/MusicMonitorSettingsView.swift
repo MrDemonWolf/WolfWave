@@ -326,10 +326,7 @@ struct MusicMonitorSettingsView: View {
 
     // MARK: - Helpers
 
-    private var widgetPort: UInt16 {
-        UInt16(UserDefaults.standard.integer(forKey: AppConstants.UserDefaults.widgetPort))
-            .nonZeroOrDefault(AppConstants.WebSocketServer.widgetDefaultPort)
-    }
+    private var widgetPort: UInt16 { Preferences.resolvedWidgetPort }
 
     /// Convenience wrapper around `NotificationCenter.default.publisher(for:)`
     /// that builds the `NSNotification.Name` from a string constant.
@@ -491,17 +488,6 @@ enum MusicPermissionCache {
     nonisolated static func write(_ state: MusicPermissionState) {
         value = state
         storedAt = Date()
-    }
-}
-
-// MARK: - UInt16 helper
-
-private extension UInt16 {
-    /// Returns `self` if non-zero, otherwise `fallback`. Used to coerce
-    /// `UserDefaults.integer(forKey:)`'s zero-default into the app's real
-    /// default port when the user has never customized it.
-    func nonZeroOrDefault(_ fallback: UInt16) -> UInt16 {
-        self == 0 ? fallback : self
     }
 }
 

@@ -151,8 +151,11 @@ struct SettingsBackupService {
         center.postEnabled(.streamerModeChanged, enabled: defaults.bool(forKey: keys.streamerModeEnabled))
         center.postDockVisibility(mode: defaults.string(forKey: keys.dockVisibility) ?? AppConstants.DockVisibility.default)
 
-        let portInt = defaults.integer(forKey: keys.websocketServerPort)
-        let port: UInt16? = (portInt > 0 && portInt <= Int(UInt16.max)) ? UInt16(portInt) : nil
+        // Only push a port when the user has a custom one stored; the resolved
+        // accessor centralizes the clamping so a bad value can never trap.
+        let port: UInt16? = Preferences.websocketServerPort > 0
+            ? Preferences.resolvedWebSocketServerPort
+            : nil
         center.postWebSocketServerChanged(
             enabled: defaults.bool(forKey: keys.websocketEnabled),
             widgetHTTPEnabled: defaults.bool(forKey: keys.widgetHTTPEnabled),
@@ -163,12 +166,8 @@ struct SettingsBackupService {
     // MARK: - App Version
 
     /// Running app marketing version (`CFBundleShortVersionString`).
-    static var appVersion: String {
-        Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "0"
-    }
+    static var appVersion: String { AppConstants.AppInfo.shortVersion }
 
     /// Running app build number (`CFBundleVersion`).
-    static var appBuild: String {
-        Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "0"
-    }
+    static var appBuild: String { AppConstants.AppInfo.buildNumber }
 }

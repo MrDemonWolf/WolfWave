@@ -60,7 +60,16 @@ async function buildJS(): Promise<string> {
     throw new Error("widget.ts bundle failed");
   }
   const jsPath = resolve(DIST, "widget.js");
-  return await readFile(jsPath, "utf8");
+  const js = await readFile(jsPath, "utf8");
+  // WS auth depends on this literal surviving minification: WidgetHTTPService
+  // substitutes the live token for it at serve time. If a future bundler
+  // constant-folds it away, the widget silently loses auth - fail the build.
+  if (!js.includes("__WOLFWAVE_TOKEN__")) {
+    throw new Error(
+      "dist/widget.js lost the __WOLFWAVE_TOKEN__ sentinel after minification",
+    );
+  }
+  return js;
 }
 
 /**

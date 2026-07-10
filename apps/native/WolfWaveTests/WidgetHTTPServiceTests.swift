@@ -6,6 +6,7 @@
 //  Copyright © 2026 MrDemonWolf, Inc. All rights reserved.
 //
 
+import Network
 import XCTest
 @testable import WolfWave
 
@@ -160,6 +161,139 @@ final class WidgetHTTPServiceTests: XCTestCase {
         XCTAssertTrue(
             body.contains("Waiting for music"),
             "Placeholder should carry the 'Waiting for music' copy"
+        )
+    }
+
+    // MARK: - Connection Lifecycle Helpers
+
+    /// Opens a raw TCP client to `127.0.0.1:port` that calls `onClosed` when
+    /// the server closes, resets, or otherwise terminates the connection.
+    /// The caller must `start` and later `cancel` the returned connection.
+    private func makeRawClient(
+        port: UInt16,
+        onClosed: @escaping @Sendable () -> Void
+    ) -> NWConnection? {
+        guard let nwPort = NWEndpoint.Port(rawValue: port) else { return nil }
+        let client = NWConnection(host: "127.0.0.1", port: nwPort, using: .tcp)
+        client.stateUpdateHandler = { state in
+            switch state {
+            case .failed, .cancelled:
+                onClosed()
+            default:
+                break
+            }
+        }
+        // A graceful server-side close arrives as EOF (isComplete) on a read
+        // rather than a state change, so observe both paths.
+        client.receive(minimumIncompleteLength: 1, maximumLength: 1024) { _, _, isComplete, error in
+            if isComplete || error != nil {
+                onClosed()
+            }
+        }
+        return client
+    }
+
+    /// Polls until the service tracks at least `count` connections, failing
+    /// the test if that doesn't happen within `timeout`. Bounded polling so
+    /// tests await the accept instead of sleeping a fixed interval.
+    private func waitForActiveConnections(
+        _ service: WidgetHTTPService,
+        atLeast count: Int,
+        timeout: TimeInterval = 5
+    ) async throws {
+        let deadline = Date().addingTimeInterval(timeout)
+        while service.activeConnectionCount < count {
+            if Date() >= deadline {
+                XCTFail("Timed out waiting for \(count) tracked connections")
+                return
+            }
+            try await Task.sleep(nanoseconds: 20_000_000)
+        }
+    }
+
+    // MARK: - Connection Lifecycle Tests
+
+    func testStopCancelsAcceptedIdleConnections() async throws {
+        let port: UInt16 = 59995
+        let service = WidgetHTTPService(port: port)
+        service.start()
+        defer { service.stop() }
+        try await service.ready()
+
+        let closed = expectation(description: "server closed the idle client on stop()")
+        closed.assertForOverFulfill = false
+        guard let client = makeRawClient(port: port, onClosed: { closed.fulfill() }) else {
+            XCTFail("Failed to build raw client for port \(port)")
+            return
+        }
+        client.start(queue: DispatchQueue(label: "test.raw-client"))
+        defer { client.cancel() }
+
+        // Send nothing: the connection sits idle with a pending server receive.
+        try await waitForActiveConnections(service, atLeast: 1)
+
+        service.stop()
+        await fulfillment(of: [closed], timeout: 5)
+        XCTAssertEqual(service.activeConnectionCount, 0, "stop() should drop all tracked connections")
+    }
+
+    func testHeaderTimeoutCancelsConnectionWithIncompleteHeaders() async throws {
+        let port: UInt16 = 59994
+        // Short timeout so the test stays fast; production default is 10s.
+        let service = WidgetHTTPService(port: port, headerTimeout: 0.5)
+        service.start()
+        defer { service.stop() }
+        try await service.ready()
+
+        let closed = expectation(description: "server cancelled the stalled client")
+        closed.assertForOverFulfill = false
+        guard let client = makeRawClient(port: port, onClosed: { closed.fulfill() }) else {
+            XCTFail("Failed to build raw client for port \(port)")
+            return
+        }
+        client.start(queue: DispatchQueue(label: "test.raw-client"))
+        defer { client.cancel() }
+
+        // Partial request line, no CRLF CRLF terminator: headers never complete.
+        client.send(content: Data("GET / HT".utf8), completion: .idempotent)
+
+        await fulfillment(of: [closed], timeout: 5)
+    }
+
+    func testConnectionCapRefusesExtraConnections() async throws {
+        let port: UInt16 = 59993
+        // Tiny cap so the test doesn't need 32 sockets; production default is 32.
+        let service = WidgetHTTPService(port: port, maxConcurrentConnections: 2)
+        service.start()
+        defer { service.stop() }
+        try await service.ready()
+
+        // Fill the cap with idle clients that never send a request.
+        var capFillers: [NWConnection] = []
+        defer { capFillers.forEach { $0.cancel() } }
+        for _ in 0..<2 {
+            guard let filler = makeRawClient(port: port, onClosed: {}) else {
+                XCTFail("Failed to build raw client for port \(port)")
+                return
+            }
+            filler.start(queue: DispatchQueue(label: "test.raw-client"))
+            capFillers.append(filler)
+        }
+        try await waitForActiveConnections(service, atLeast: 2)
+
+        let refused = expectation(description: "over-cap connection cancelled immediately")
+        refused.assertForOverFulfill = false
+        guard let extra = makeRawClient(port: port, onClosed: { refused.fulfill() }) else {
+            XCTFail("Failed to build raw client for port \(port)")
+            return
+        }
+        extra.start(queue: DispatchQueue(label: "test.raw-client"))
+        defer { extra.cancel() }
+
+        await fulfillment(of: [refused], timeout: 5)
+        XCTAssertEqual(
+            service.activeConnectionCount, 2,
+            "Refused connection should never be tracked"
         )
     }
 }

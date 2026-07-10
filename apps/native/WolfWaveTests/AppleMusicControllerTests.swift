@@ -11,10 +11,12 @@ import Testing
 
 @testable import WolfWave
 
-/// Covers `AppleMusicController.sanitizeForAppleScript(_:)`: the pure helper
-/// used to escape user-supplied strings before they are embedded in an
-/// AppleScript double-quoted literal. Playback paths (`playNow`, `playPause`,
-/// …) dispatch through `NSAppleScript` and are not exercised here.
+/// Covers `AppleMusicController`'s pure helpers: `sanitizeForAppleScript(_:)`
+/// (escapes user-supplied strings before they are embedded in an AppleScript
+/// double-quoted literal) and `timeoutWrapped(_:seconds:)` (caps Apple Event
+/// waits so a wedged Music.app can't pin the main thread for the ~60s
+/// AppleEvent default). Playback paths (`playNow`, `playPause`, …) dispatch
+/// through `NSAppleScript` and are not exercised here.
 @MainActor
 @Suite("AppleMusicController Tests")
 struct AppleMusicControllerTests {
@@ -117,6 +119,36 @@ struct AppleMusicControllerTests {
     @Test("Space (U+0020) preserved: boundary of control-char filter")
     func spacePreserved() {
         #expect(makeController().sanitizeForAppleScript("a b") == "a b")
+    }
+
+    // MARK: - Script timeout wrapping
+
+    @Test("timeoutWrapped surrounds the body with a with-timeout block")
+    func timeoutWrappedShape() {
+        let body = """
+        tell application "Music"
+            playpause
+        end tell
+        """
+        let script = AppleMusicController.timeoutWrapped(body, seconds: 5)
+        #expect(script.hasPrefix("with timeout of 5 seconds\n"))
+        #expect(script.hasSuffix("\nend timeout"))
+        #expect(script.contains(body))
+    }
+
+    @Test("timeoutWrapped embeds the requested number of seconds")
+    func timeoutWrappedSeconds() {
+        let script = AppleMusicController.timeoutWrapped("tell application \"Music\"\nend tell", seconds: 2)
+        #expect(script.contains("with timeout of 2 seconds"))
+    }
+
+    @Test("probe timeout is shorter than the command timeout")
+    func timeoutBudgets() {
+        // The song-request poll reads playbackSnapshot() every 2 seconds, so
+        // probes must fail fast; commands get a little longer.
+        #expect(AppleMusicController.ScriptTimeout.probe == 2)
+        #expect(AppleMusicController.ScriptTimeout.command == 5)
+        #expect(AppleMusicController.ScriptTimeout.probe < AppleMusicController.ScriptTimeout.command)
     }
 
     // MARK: - Edge

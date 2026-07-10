@@ -57,8 +57,17 @@ Both live in `design-system/tokens.json` under `widget.themes` and
 `widget.layouts`. Edit there, then `bun run tokens` to regenerate the JS
 bundle, then `bun run --filter widget build` to roll a new widget.html.
 
-Runtime switching: themes are NOT compiled into utility variants. The OBS
-user can change theme via `?theme=Glass` URL param without rebuilding.
+Runtime switching: themes are NOT compiled into utility variants; the theme
+and layout arrive at runtime via `widget_config` WebSocket messages, driven by
+the app's Stream Widgets settings. There is no URL param for them. The only
+URL params the widget reads are `port`/`wsPort`, `duration` (autohide
+seconds), `hideAlbumArt`, `token` (file:// fallback), and `preview`.
+
+> **Glass theme + OBS:** `backdrop-filter` cannot sample the video behind an
+> OBS Browser Source (the page backdrop is just transparent alpha), so Glass
+> ships an opaque-enough `containerBg` + subtle `textShadow` to stay legible
+> over bright footage. Don't thin those out based on how it looks in a normal
+> browser tab.
 
 ## Dev loop
 
@@ -83,8 +92,8 @@ Then open the generated HTML directly to spot-check:
 open apps/native/WolfWave/Resources/widget.html
 ```
 
-…or open `http://localhost:<port>/?theme=Glass&layout=Vertical` with the
-native app running for a live WebSocket feed.
+…or open `http://localhost:<port>/` with the native app running for a live
+WebSocket feed (theme/layout follow the app's Stream Widgets settings).
 
 ## Transitions
 

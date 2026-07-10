@@ -24,8 +24,7 @@ struct DebugUIPreviewsCard: View {
                 .fixedSize(horizontal: false, vertical: true)
 
             Button {
-                let version = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "0"
-                AppDelegate.shared?.showWhatsNew(version: version)
+                AppDelegate.shared?.showWhatsNew(version: AppConstants.AppInfo.shortVersion)
             } label: {
                 Label("Preview What's New Popup", systemImage: "sparkles")
                     .frame(maxWidth: .infinity)

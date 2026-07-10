@@ -41,9 +41,7 @@ struct SoftwareUpdateSettingsView: View {
 
     private var appDelegate: AppDelegate? { AppDelegate.shared }
 
-    private var currentVersion: String {
-        Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "Unknown"
-    }
+    private var currentVersion: String { AppConstants.AppInfo.shortVersion }
 
     /// The channel currently persisted, used to drive the picker and banner.
     private var selectedChannel: UpdateChannel { UpdateChannel.from(rawValue: storedChannel) }

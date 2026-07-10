@@ -190,6 +190,58 @@ struct SettingsBackupCoderTests {
         #expect(plan.twitchChannelName == nil)
     }
 
+    @Test func applyPlanDropsOutOfRangePortValues() {
+        let keys = AppConstants.UserDefaults.self
+        var backup = makeBackup(snapshot: [:])
+        // A hand-edited backup can carry ports UInt16 can't hold. They must
+        // never reach UserDefaults, where a later UInt16 conversion would trap.
+        backup.settings[keys.websocketServerPort] = .int(70000)
+        backup.settings[keys.widgetPort] = .int(-5)
+
+        let plan = coder.makeApplyPlan(
+            backup: backup,
+            choices: SettingsBackupCoder.ImportChoices(reconnectTwitch: false),
+            exportableKeys: exportable
+        )
+
+        #expect(plan.set[keys.websocketServerPort] == nil)
+        #expect(plan.set[keys.widgetPort] == nil)
+        #expect(plan.ignoredKeyCount == 2)
+    }
+
+    @Test func applyPlanDropsNonIntegerPortValues() {
+        let keys = AppConstants.UserDefaults.self
+        var backup = makeBackup(snapshot: [:])
+        backup.settings[keys.widgetPort] = .string("8766")
+
+        let plan = coder.makeApplyPlan(
+            backup: backup,
+            choices: SettingsBackupCoder.ImportChoices(reconnectTwitch: false),
+            exportableKeys: exportable
+        )
+
+        #expect(plan.set[keys.widgetPort] == nil)
+        #expect(plan.ignoredKeyCount == 1)
+    }
+
+    @Test func applyPlanKeepsInRangePortValues() {
+        let keys = AppConstants.UserDefaults.self
+        let backup = makeBackup(snapshot: [
+            keys.websocketServerPort: 8765,
+            keys.widgetPort: 0, // 0 = "use the default"; legal to restore
+        ])
+
+        let plan = coder.makeApplyPlan(
+            backup: backup,
+            choices: SettingsBackupCoder.ImportChoices(reconnectTwitch: false),
+            exportableKeys: exportable
+        )
+
+        #expect(plan.set[keys.websocketServerPort] == .int(8765))
+        #expect(plan.set[keys.widgetPort] == .int(0))
+        #expect(plan.ignoredKeyCount == 0)
+    }
+
     // MARK: - Summary
 
     @Test func restorableCountCountsOnlyExportableKeys() {

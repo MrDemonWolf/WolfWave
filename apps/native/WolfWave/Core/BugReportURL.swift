@@ -88,6 +88,29 @@ enum BugReportURL {
         return components.url
     }
 
+    /// Gathers the running app's environment (version, build, macOS version,
+    /// architecture, install method) and opens the prefilled GitHub issue form
+    /// in the default browser.
+    ///
+    /// Shared by the tray menu's "Report a Bug" and the About pane's
+    /// "Send Feedback" so environment assembly lives in one place.
+    @MainActor
+    static func openPrefilledIssue() {
+        let url = make(
+            base: AppConstants.URLs.githubIssuesNew,
+            appVersion: AppConstants.AppInfo.shortVersion,
+            build: AppConstants.AppInfo.buildNumber,
+            osVersion: ProcessInfo.processInfo.operatingSystemVersionString,
+            arch: currentArch(),
+            install: Bundle.main.isHomebrewInstall ? .homebrew : .dmg
+        )
+        guard let url else {
+            Log.error("BugReportURL: Failed to build bug report URL", category: "App")
+            return
+        }
+        ExternalLink.open(url.absoluteString)
+    }
+
     /// Returns the current process's CPU architecture identifier.
     static func currentArch() -> String {
         #if arch(arm64)

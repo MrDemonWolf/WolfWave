@@ -107,8 +107,8 @@ struct DebugInspectorsCard: View {
             Text("Bundle & build")
                 .sectionEyebrow()
 
-            inspectorRow("Version", bundleString("CFBundleShortVersionString"))
-            inspectorRow("Build", bundleString("CFBundleVersion"))
+            inspectorRow("Version", AppConstants.AppInfo.shortVersion)
+            inspectorRow("Build", AppConstants.AppInfo.buildNumber)
             inspectorRow("Bundle ID", Bundle.main.bundleIdentifier ?? "N/A")
             inspectorRow("macOS", ProcessInfo.processInfo.operatingSystemVersionString)
             inspectorRow("Locale", Locale.current.identifier)
@@ -253,6 +253,9 @@ struct DebugInspectorsCard: View {
 
     // MARK: - Helpers
 
+    /// Reads an arbitrary Info.plist string for ad-hoc inspector rows. Version
+    /// and build intentionally use `AppConstants.AppInfo` instead so their
+    /// fallbacks match the rest of the app.
     private func bundleString(_ key: String) -> String {
         Bundle.main.infoDictionary?[key] as? String ?? "N/A"
     }
@@ -267,8 +270,8 @@ struct DebugInspectorsCard: View {
 
     private var buildInfoJSON: String {
         let dict: [String: String] = [
-            "version": bundleString("CFBundleShortVersionString"),
-            "build": bundleString("CFBundleVersion"),
+            "version": AppConstants.AppInfo.shortVersion,
+            "build": AppConstants.AppInfo.buildNumber,
             "bundleID": Bundle.main.bundleIdentifier ?? "",
             "macOS": ProcessInfo.processInfo.operatingSystemVersionString,
             "locale": Locale.current.identifier,

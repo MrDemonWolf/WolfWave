@@ -148,10 +148,27 @@ nonisolated struct SettingsBackupCoder {
 
     // MARK: - Apply Planning
 
+    /// UserDefaults keys holding network ports. Their integer values must fit
+    /// `UInt16` (`0` means "use the default"), so an out-of-range value from a
+    /// hand-edited backup is ignored rather than persisted.
+    private static let portKeys: Set<String> = [
+        AppConstants.UserDefaults.websocketServerPort,
+        AppConstants.UserDefaults.widgetPort,
+    ]
+
+    /// Whether a backup value is safe to write for the given key.
+    /// Port keys must be integers in `0...65535`; everything else passes.
+    private func isValueAllowed(_ value: BackupValue, forKey key: String) -> Bool {
+        guard Self.portKeys.contains(key) else { return true }
+        guard case .int(let port) = value else { return false }
+        return (0...Int(UInt16.max)).contains(port)
+    }
+
     /// Resolves a backup plus the user's choices into an `ApplyPlan`.
     ///
     /// Merge semantics: only keys in `backup.settings` that are also in
-    /// `exportableKeys` are written. Account-linked and unknown keys are ignored.
+    /// `exportableKeys` are written. Account-linked and unknown keys are ignored,
+    /// as are out-of-range port values (see `isValueAllowed(_:forKey:)`).
     /// No key is ever removed, so an import never wipes unrelated settings.
     /// Twitch is restored only when `choices.reconnectTwitch` is set and the
     /// backup actually had a Twitch channel.
@@ -164,7 +181,7 @@ nonisolated struct SettingsBackupCoder {
         var set: [String: BackupValue] = [:]
         var ignored = 0
         for (key, value) in backup.settings {
-            if allow.contains(key) {
+            if allow.contains(key), isValueAllowed(value, forKey: key) {
                 set[key] = value
             } else {
                 ignored += 1

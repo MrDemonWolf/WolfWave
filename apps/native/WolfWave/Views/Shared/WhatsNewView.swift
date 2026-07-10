@@ -34,7 +34,7 @@ struct WhatsNewView: View {
         VStack(spacing: DSSpace.s7) {
             // MARK: Header
             VStack(spacing: DSSpace.s1h) {
-                Text("What's New in WolfWave v\(Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0")")
+                Text("What's New in WolfWave v\(AppConstants.AppInfo.shortVersion)")
                     .sectionHeader()
 
                 Text("The big ones. There's more in the full changelog.")

@@ -71,8 +71,7 @@ on stream. The card is **not** hidden. Instead:
 - The widget root gains the `.is-paused` class
 - Album artwork drops to ~55% opacity with reduced saturation
 - A pause glyph overlays the artwork
-- The progress bar transition is cut so the bar visibly freezes the moment
-  pause arrives
+- The progress loop suspends, so the bar freezes the moment pause arrives
 
 The card only fades out on a genuine "track cleared" event (Music.app quits,
 permission revoked, or tracking disabled). Hitting pause keeps the song
@@ -88,9 +87,9 @@ context visible so chat knows the integration is still healthy.
 | Default, Dark, Light, Glass, Neon, WolfWave | Horizontal, Vertical, Compact |
 
 **Swap themes without rebuilding.** Themes aren't compiled into utility
-variants. They stay as runtime CSS custom properties, so an OBS user changes
-them with the `?theme=` URL parameter. Tailwind utility classes resolve to
-those CSS variables.
+variants. They arrive at runtime over the WebSocket (`widget_config`
+messages), so changing the theme or layout in the app's **Stream Widgets**
+settings restyles the overlay live. No URL edit, no rebuild, no OBS refresh.
 
 **Preview before you commit.** The **Stream Widgets** settings pane (Widget
 Appearance) shows a live preview right under the controls. Change a theme,
@@ -102,11 +101,12 @@ Background color pickers; the other themes ship fixed palettes.
 
 | Parameter | What it does |
 |---|---|
-| `?theme=Glass` | Pick one of the six theme names |
-| `?layout=Vertical` | Pick one of the three layout names |
 | `?token=<hex>` | Auth token (auto-injected for loopback peers) |
 | `?duration=8` | Auto-hide after N seconds (0 = never) |
 | `?hideAlbumArt` | Render without the artwork tile |
+
+Theme and layout aren't URL parameters. Set them in **Settings → Stream
+Widgets** and the overlay follows along live.
 
 ## Transitions
 

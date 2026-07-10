@@ -84,27 +84,14 @@ struct OnboardingOBSWidgetStepView: View {
             accessibilityLabel: "Turn on Stream Widgets",
             accessibilityIdentifier: "onboardingOverlayToggle"
         )
-        .padding(DSSpace.s5)
-        .background(
-            RoundedRectangle(cornerRadius: DSRadius.lg2, style: .continuous)
-                .fill(overlayEnabled
-                      ? Color.accentColor.opacity(0.08)
-                      : Color(nsColor: .controlBackgroundColor))
+        .onboardingTintedToggleShell(
+            isOn: overlayEnabled,
+            tint: .accentColor,
+            fillOpacity: 0.08,
+            glowOpacity: 0.16,
+            glowRadius: 16,
+            glowYOffset: 4
         )
-        .overlay(
-            RoundedRectangle(cornerRadius: DSRadius.lg2, style: .continuous)
-                .stroke(
-                    overlayEnabled
-                        ? Color.accentColor.opacity(0.40)
-                        : Color.primary.opacity(0.06),
-                    lineWidth: 0.5
-                )
-        )
-        .shadow(
-            color: overlayEnabled ? Color.accentColor.opacity(0.16) : .clear,
-            radius: 16, x: 0, y: 4
-        )
-        .animation(.easeInOut(duration: DSMotion.Duration.base), value: overlayEnabled)
     }
 
     // MARK: - URL Reveal

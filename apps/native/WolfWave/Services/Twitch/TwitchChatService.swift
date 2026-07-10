@@ -285,6 +285,46 @@ actor TwitchChatService {
         }
     }
 
+    /// Bounded, time-limited store of seen EventSub `message_id`s.
+    ///
+    /// Twitch EventSub is at-least-once delivery: duplicate notification frames
+    /// (especially around `session_reconnect`) would re-run chat commands,
+    /// channel-point redemptions, and bits events. IDs are remembered for `ttl`
+    /// seconds (matching the 10-minute replay-age window in
+    /// `handleWebSocketMessage`) and the store is capped, evicting oldest-first,
+    /// so it can never grow without bound. A plain value type with an injectable
+    /// clock so the insert/prune/duplicate contract is unit-testable without the
+    /// actor or a live socket.
+    struct EventSubMessageDeduplicator {
+        /// How long a message ID stays remembered. Matches the replay-age
+        /// rejection window applied to `metadata.message_timestamp`.
+        private let ttl: TimeInterval
+        /// Maximum number of remembered IDs; the oldest are evicted first.
+        private let maxEntries: Int
+        private var seen: [String: Date] = [:]
+
+        init(ttl: TimeInterval = 600, maxEntries: Int = 500) {
+            self.ttl = ttl
+            self.maxEntries = max(1, maxEntries)
+        }
+
+        /// Records `id` as seen at `now` and reports whether it was already
+        /// seen within the `ttl` window. Expired entries are pruned first; the
+        /// size cap evicts the oldest entries after insertion.
+        mutating func isDuplicate(_ id: String, now: Date = Date()) -> Bool {
+            seen = seen.filter { now.timeIntervalSince($0.value) <= ttl }
+            if seen[id] != nil { return true }
+            seen[id] = now
+            if seen.count > maxEntries {
+                let overflowKeys = seen.sorted { $0.value < $1.value }
+                    .prefix(seen.count - maxEntries)
+                    .map(\.key)
+                for key in overflowKeys { seen.removeValue(forKey: key) }
+            }
+            return false
+        }
+    }
+
     /// Rate-limit bucket state for one Helix endpoint.
     struct RateLimitState: Sendable {
         var remaining: Int = 0
@@ -355,6 +395,11 @@ actor TwitchChatService {
     /// skipping the `subscribeTo*` calls because subscriptions migrate with the
     /// reconnect_url session.
     private var isMigratingSession = false
+
+    /// Dedup store for inbound EventSub frames. Twitch delivers at-least-once,
+    /// so `handleWebSocketMessage` drops any frame whose `metadata.message_id`
+    /// was already seen. Actor-isolated, mutated only on the actor.
+    private var messageDeduplicator = EventSubMessageDeduplicator()
 
     // MARK: - Credentials
 
@@ -448,6 +493,19 @@ actor TwitchChatService {
         _connected = value
     }
 
+    /// Broadcasts a connection-state transition to every consumer surface: the
+    /// actor's `_connected` flag (and its atomic mirror), the NotificationCenter
+    /// post observed by the UI, and every per-subscriber connection-state
+    /// stream. The single write path for connection-state transitions.
+    ///
+    /// - Parameter error: Optional failure description attached to the
+    ///   notification payload (transport errors only).
+    private func broadcastConnectionState(_ connected: Bool, error: String? = nil) {
+        setConnected(connected)
+        NotificationCenter.default.postTwitchConnectionState(isConnected: connected, error: error)
+        connectionStateHub.yield(connected)
+    }
+
     // MARK: - Disconnect / Network State
 
     private var isProcessingDisconnect = false
@@ -489,14 +547,24 @@ actor TwitchChatService {
 
     /// Stream of chat messages received via EventSub `channel.chat.message`.
     nonisolated let chatMessages: AsyncStream<ChatMessage>
-    /// Stream of connection state transitions (`true` = connected).
-    nonisolated let connectionStateChanges: AsyncStream<Bool>
     /// Stream of finished vote-skip poll tallies.
     nonisolated let skipPollResults: AsyncStream<SkipPollResult>
 
     private let chatMessagesContinuation: AsyncStream<ChatMessage>.Continuation
-    private let connectionStateContinuation: AsyncStream<Bool>.Continuation
     private let skipPollResultsContinuation: AsyncStream<SkipPollResult>.Continuation
+
+    /// Fan-out registry backing `connectionStateChanges()`. One continuation
+    /// per live subscriber; `broadcastConnectionState` yields to all of them.
+    nonisolated private let connectionStateHub = ConnectionStateHub()
+
+    /// Returns a fresh stream of connection state transitions (`true` = connected).
+    ///
+    /// Each call registers its own subscriber, so multiple consumers all
+    /// receive every transition, and cancelling one consumer (e.g. a settings
+    /// window closing its view model) never finishes anyone else's stream.
+    nonisolated func connectionStateChanges() -> AsyncStream<Bool> {
+        connectionStateHub.subscribe()
+    }
 
     // MARK: - Init / Deinit
 
@@ -507,17 +575,12 @@ actor TwitchChatService {
         let chat = AsyncStream.makeStream(
             of: ChatMessage.self,
             bufferingPolicy: .bufferingNewest(AppConstants.Twitch.chatMessageStreamBuffer))
-        let connection = AsyncStream.makeStream(
-            of: Bool.self,
-            bufferingPolicy: .bufferingNewest(AppConstants.Twitch.controlStreamBuffer))
         let skip = AsyncStream.makeStream(
             of: SkipPollResult.self,
             bufferingPolicy: .bufferingNewest(AppConstants.Twitch.controlStreamBuffer))
 
         self.chatMessages = chat.stream
         self.chatMessagesContinuation = chat.continuation
-        self.connectionStateChanges = connection.stream
-        self.connectionStateContinuation = connection.continuation
         self.skipPollResults = skip.stream
         self.skipPollResultsContinuation = skip.continuation
         self.commandDispatcher = BotCommandDispatcher()
@@ -535,7 +598,7 @@ actor TwitchChatService {
         networkPathMonitor?.cancel()
         webSocketTask?.cancel(with: .goingAway, reason: nil)
         chatMessagesContinuation.finish()
-        connectionStateContinuation.finish()
+        connectionStateHub.finish()
         skipPollResultsContinuation.finish()
     }
 
@@ -1093,9 +1156,7 @@ actor TwitchChatService {
         clientID = nil
         hasSentConnectionMessage = false
 
-        setConnected(false)
-        NotificationCenter.default.postTwitchConnectionState(isConnected: false)
-        connectionStateContinuation.yield(false)
+        broadcastConnectionState(false)
 
         Log.info("TwitchChatService: Left channel", category: "Twitch")
     }
@@ -1589,9 +1650,7 @@ actor TwitchChatService {
     private func connectToEventSub(urlString: String = TwitchChatService.defaultEventSubURL) {
         guard let url = URL(string: urlString) else {
             Log.error("TwitchChatService: Invalid EventSub URL", category: "Twitch")
-            setConnected(false)
-            NotificationCenter.default.postTwitchConnectionState(isConnected: false)
-            connectionStateContinuation.yield(false)
+            broadcastConnectionState(false)
             return
         }
 
@@ -1661,9 +1720,7 @@ actor TwitchChatService {
         Log.warn(
             "TwitchChatService: Keepalive watchdog fired (no frame within \(Int(keepaliveDeadlineSeconds))s); reconnecting",
             category: "Twitch")
-        setConnected(false)
-        NotificationCenter.default.postTwitchConnectionState(isConnected: false)
-        connectionStateContinuation.yield(false)
+        broadcastConnectionState(false)
 
         disconnectFromEventSub()
 
@@ -1690,9 +1747,7 @@ actor TwitchChatService {
         Log.error(
             "TwitchChatService: Session welcome timeout - WebSocket may not be responding",
             category: "Twitch")
-        setConnected(false)
-        NotificationCenter.default.postTwitchConnectionState(isConnected: false)
-        connectionStateContinuation.yield(false)
+        broadcastConnectionState(false)
 
         disconnectFromEventSub()
 
@@ -1783,10 +1838,7 @@ actor TwitchChatService {
                 category: "Twitch")
         }
 
-        setConnected(false)
-        NotificationCenter.default.postTwitchConnectionState(
-            isConnected: false, error: error.localizedDescription)
-        connectionStateContinuation.yield(false)
+        broadcastConnectionState(false, error: error.localizedDescription)
 
         if let channelName = reconnectChannelName,
            let token = reconnectToken,
@@ -1860,6 +1912,17 @@ actor TwitchChatService {
                     category: "Twitch")
                 return
             }
+        }
+
+        // Twitch EventSub is at-least-once delivery: duplicate frames
+        // (especially around session_reconnect) would re-run chat commands,
+        // channel-point redemptions, and bits events. Drop any frame whose
+        // message_id was already seen within the dedup window.
+        if messageDeduplicator.isDuplicate(messageID) {
+            Log.debug(
+                "TwitchChatService: Dropping duplicate EventSub message (id: \(messageID))",
+                category: "Twitch")
+            return
         }
 
         switch messageType {
@@ -2003,9 +2066,7 @@ actor TwitchChatService {
             timeoutSeconds: timeout, grace: AppConstants.Twitch.keepaliveGraceSeconds)
         armKeepaliveWatchdog(deadlineSeconds: deadline)
 
-        setConnected(true)
-        NotificationCenter.default.postTwitchConnectionState(isConnected: true)
-        connectionStateContinuation.yield(true)
+        broadcastConnectionState(true)
 
         // A `session_reconnect` migration carries its subscriptions to the new
         // session, so skip re-subscribing. Only fresh connects subscribe.
@@ -2195,9 +2256,7 @@ actor TwitchChatService {
             Log.error(
                 "TwitchChatService: Missing credentials for EventSub subscription",
                 category: "Twitch")
-            setConnected(false)
-            NotificationCenter.default.postTwitchConnectionState(isConnected: false)
-            connectionStateContinuation.yield(false)
+            broadcastConnectionState(false)
             return
         }
 
@@ -2239,9 +2298,7 @@ actor TwitchChatService {
         )
 
         if !subscribed {
-            setConnected(false)
-            NotificationCenter.default.postTwitchConnectionState(isConnected: false)
-            connectionStateContinuation.yield(false)
+            broadcastConnectionState(false)
             if sawAuthFailure {
                 Log.error(
                     "TwitchChatService: Chat subscription returned 401; signaling re-auth",
@@ -2371,9 +2428,19 @@ actor TwitchChatService {
             let rewardID = try await channelPointsService.ensureReward(
                 credentials: credentials, cost: cost)
             // Make sure a previously-paused reward is live again now that the
-            // feature is on.
-            try? await channelPointsService.setRewardPaused(
-                credentials: credentials, rewardID: rewardID, paused: false)
+            // feature is on. A failure here leaves the reward greyed out on
+            // Twitch even though everything else worked, so don't swallow it:
+            // log it and surface a non-ok status in the settings banner.
+            var unpauseFailed = false
+            do {
+                try await channelPointsService.setRewardPaused(
+                    credentials: credentials, rewardID: rewardID, paused: false)
+            } catch {
+                unpauseFailed = true
+                Log.error(
+                    "TwitchChatService: Failed to un-pause channel-point reward - \(error.localizedDescription)",
+                    category: "Twitch")
+            }
             // Cost sync is non-fatal (the reward still works at its old cost),
             // but don't swallow the failure silently; surface it in the log.
             do {
@@ -2385,7 +2452,7 @@ actor TwitchChatService {
                     category: "Twitch")
             }
             await subscribeToChannelPointsRedemption()
-            setRedemptionStatus(.ok)
+            setRedemptionStatus(unpauseFailed ? .subscribeFailed : .ok)
         } catch {
             Log.error(
                 "TwitchChatService: Failed to set up channel-point reward - \(error.localizedDescription)",
@@ -2673,7 +2740,15 @@ actor TwitchChatService {
         redemptionID: String,
         as resolution: TwitchChannelPointsService.Resolution
     ) async {
-        guard let credentials else { return }
+        // Prefer fresh credentials at resolve time: a momentary nil when the
+        // event arrived must not doom the later resolution (the never-strand
+        // invariant). Fall back to the credentials captured at event time.
+        guard let credentials = currentChannelPointCredentials() ?? credentials else {
+            Log.error(
+                "TwitchChatService: Cannot \(resolution.rawValue) redemption \(redemptionID) (reward \(rewardID)) - no credentials; redemption stays pending on Twitch",
+                category: "Twitch")
+            return
+        }
         do {
             try await channelPointsService.resolveRedemption(
                 credentials: credentials,
@@ -2908,6 +2983,51 @@ actor TwitchChatService {
         func current() -> (@Sendable () async -> String)? { lock.withLock { _current } }
         func last() -> (@Sendable () async -> String)? { lock.withLock { _last } }
         func stats() -> (@Sendable () async -> String)? { lock.withLock { _stats } }
+    }
+
+    /// Lock-protected fan-out registry for connection-state subscribers.
+    ///
+    /// A single shared `AsyncStream` is unicast: the first consumer's
+    /// cancellation finishes the shared continuation, silently dropping every
+    /// later yield for the process lifetime, and two concurrent consumers
+    /// split events arbitrarily. Instead, each `subscribe()` call returns a
+    /// fresh stream backed by its own continuation, `yield(_:)` broadcasts to
+    /// every live subscriber, and a stream's termination removes only that
+    /// subscriber (mirrors `NetworkInfoService.pathUpdates()`). Its own type
+    /// so the fan-out contract is unit-testable without the actor or a socket.
+    final class ConnectionStateHub: @unchecked Sendable {
+        private let lock = NSLock()
+        private var continuations: [UUID: AsyncStream<Bool>.Continuation] = [:]
+
+        /// Returns a fresh connection-state stream for one subscriber. The
+        /// subscriber is registered synchronously, so yields after this call
+        /// returns are buffered even before iteration starts.
+        func subscribe() -> AsyncStream<Bool> {
+            AsyncStream(bufferingPolicy: .bufferingNewest(AppConstants.Twitch.controlStreamBuffer)) { continuation in
+                let id = UUID()
+                lock.withLock { continuations[id] = continuation }
+                continuation.onTermination = { [weak self] _ in
+                    guard let self else { return }
+                    self.lock.withLock { _ = self.continuations.removeValue(forKey: id) }
+                }
+            }
+        }
+
+        /// Yields `value` to every live subscriber.
+        func yield(_ value: Bool) {
+            let subscribers = lock.withLock { continuations }
+            for continuation in subscribers.values { continuation.yield(value) }
+        }
+
+        /// Finishes every subscriber's stream and empties the registry.
+        func finish() {
+            let subscribers = lock.withLock {
+                let snapshot = continuations
+                continuations.removeAll()
+                return snapshot
+            }
+            for continuation in subscribers.values { continuation.finish() }
+        }
     }
 
 }

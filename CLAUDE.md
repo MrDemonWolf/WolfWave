@@ -55,7 +55,7 @@ bun run --filter widget build            # Rebuild OBS widget (Tailwind → inli
 ```bash
 make build          # Debug build via xcodebuild
 make clean          # Clean build artifacts
-make test           # Run unit tests (107 test files; run locally for current pass count)
+make test           # Run unit tests (111 test files; run locally for current pass count)
 make test-verbose   # Run unit tests with full xcodebuild output
 make test-ci        # Run unit tests in CI mode (writes TestResults.xcresult)
 make update-deps    # Resolve SwiftPM dependencies
@@ -144,7 +144,7 @@ The crash-class lint gate is **blocking** on production source: `.swiftlint-cras
 - **Services/UpdateChecker/** - `SparkleUpdaterService.swift` (Sparkle framework wrapper for auto-updates, EdDSA-signed appcast verification, Homebrew install detection disables Sparkle, DEBUG mode allows manual check via bundled `dev-appcast.xml`).
 - **Services/WebSocket/** - `WebSocketServerService.swift` (overlay broadcast, per-install auth-token handshake; connections must present `Sec-WebSocket-Protocol: wolfwave.token.<hex>` or get rejected), `WidgetHTTPService.swift` (static widget HTTP server; auto-injects the auth token into served `widget.html` for loopback peers).
 - **Services/ListeningHistory/** - `ListeningHistoryService.swift` (opt-in, on-device append-only NDJSON play log; records a track only after it crosses the half-length or 4-minute mark so skips don't count), `StatsAggregator.swift` (top artists / listening time / 7-day trend / listening-by-hour rollups powering History & Stats), `MonthlyWrap.swift` (per-month "wrapped"-style summary + share-card export), `HistoryFormatting.swift` (date/duration formatting helpers).
-- **Services/Notifications/** - `NotificationService.swift` (opt-in macOS banners via `UNUserNotificationCenter`; song-change, skip-vote-started, and skip-vote-passed each reuse a stable per-type identifier so a new banner replaces the previous one of its kind instead of stacking. Skip-vote-started is silent; skip-vote-passed uses the default system sound. Static `make…Content` builders keep the text pure and unit-testable. Skip-vote events arrive via `SkipVoteManager.onVoteEvent`, gated in `AppDelegate.handleVoteEvent` on both `voteSkipEnabled` and the matching per-event toggle).
+- **Services/Notifications/** - `NotificationService.swift` (opt-in macOS banners via `UNUserNotificationCenter`; song-change, skip-vote-started, and skip-vote-passed each reuse a stable per-type identifier so a new banner replaces the previous one of its kind instead of stacking. Skip-vote-started is silent; skip-vote-passed uses the default system sound. Static `make…Content` builders keep the text pure and unit-testable. Skip-vote events arrive via `SkipVoteManager.onVoteEvent`, gated in `AppDelegate.handleVoteEvent` on both `voteSkipEnabled` and the matching per-event toggle. The service is also the `UNUserNotificationCenterDelegate` (installed at launch) so banners still present while WolfWave is frontmost, and it owns the Twitch re-auth banner via `postTwitchReauthNeeded()`, which only posts when authorization is already granted - boot paths must never trigger the system permission prompt).
 - **Services/** - `ArtworkService.swift` (iTunes Search artwork fetch + cache), `LaunchAtLoginService.swift`, plus `DiagnosticsService.swift` (opt-in MetricKit diagnostics + share card).
 - **Views/** - SwiftUI settings shell `SettingsView.swift` with `NavigationSplitView` sidebar. Per-section views decomposed into `GeneralSettingsView.swift`, `MusicMonitor/MusicMonitorSettingsView.swift`, `AppVisibility/AppVisibilitySettingsView.swift`, `WebSocket/WebSocketSettingsView.swift` (Stream Widgets: token reveal/regenerate/edit controls), `Twitch/TwitchSettingsView.swift`, `Discord/DiscordSettingsView.swift`, `SongRequest/SongRequestSettingsView.swift` + `SongRequestQueueView.swift`, `Notifications/NotificationsSettingsView.swift`, `HistoryStats/HistoryStatsSettingsView.swift` + `StatsChartsView.swift` + `MonthlyWrapView.swift` (SwiftUI Charts powered, gated on the opt-in Listening History setting), `About/AboutSettingsView.swift`, `Advanced/AdvancedSettingsView.swift`. `TwitchViewModel` is the main observable for auth/connection state.
 - **Views/Onboarding/** - macOS 26 Liquid Glass onboarding wizard. The `OnboardingStep` enum (in `OnboardingViewModel.swift`) defines the step order: Welcome → Discord → Twitch → OBS Widget (overlay URL + HTTP widget toggle) → Preferences → Permissions (Apple Music automation only) → Notifications (notification authorization + the song-change / skip-vote alert toggles) → Menu Bar Pointer, followed by `OnboardingCompletionView`. Permissions and Notifications are deliberately two separate screens so each has a single job. Components in `Onboarding/Components/` (`PillButton`, `BrandTile`).
@@ -206,7 +206,7 @@ Existing legacy literals are tracked in [`design-system/lint-allowlist.txt`](des
 
 ## Testing
 
-Unit tests live in `apps/native/WolfWaveTests/` and use XCTest + Swift Testing with `@testable import WolfWave`. The test target is a hosted unit test bundle (`TEST_HOST` = WolfWave.app). Current file count: 107 test files (run `ls apps/native/WolfWaveTests/*.swift | wc -l` to verify).
+Unit tests live in `apps/native/WolfWaveTests/` and use XCTest + Swift Testing with `@testable import WolfWave`. The test target is a hosted unit test bundle (`TEST_HOST` = WolfWave.app). Current file count: 111 test files (run `ls apps/native/WolfWaveTests/*.swift | wc -l` to verify).
 
 > Auto-discovery: `apps/native/WolfWaveTests/` is a `PBXFileSystemSynchronizedRootGroup`; dropping a new `*.swift` file in is enough, no Xcode project edit required.
 
@@ -230,6 +230,9 @@ Unit tests live in `apps/native/WolfWaveTests/` and use XCTest + Swift Testing w
 - `NotificationServiceTests.swift` - song-change notification banner dedup + identifier reuse
 - `MetricsServiceTests.swift`, `DiagnosticsServiceTests.swift`, `DebugDiagnosticsTests.swift` - Opt-in MetricKit diagnostics + Debug-tab diagnostics
 - `WebSocketServerAuthTests.swift` - Per-install auth-token handshake (rejects missing/mismatched `wolfwave.token.<hex>` subprotocol)
+- `TwitchEventSubDedupTests.swift` - EventSub `message_id` dedup (at-least-once delivery: TTL expiry, cap eviction, no timestamp refresh on dup)
+- `TwitchConnectionStateHubTests.swift` - per-subscriber connection-state streams (multi-subscriber fan-out, single-subscriber termination, finish-all)
+- `PreferencesResolvedPortTests.swift` - clamped widget/WebSocket port resolution (0 falls back to default, out-of-range clamps instead of trapping)
 - `AppleMusicControllerTests.swift` - AppleScript playback dispatch + focus preservation
 - `LinkResolverServiceTests.swift`, `SongSearchResolverTests.swift` - MusicKit search + Apple Music link resolve
 - `MusicPermissionBannerTests.swift`, `MenuStatusFormatterTests.swift`, `OnboardingCompletionViewTests.swift`, `ActionGridTests.swift`, `LoadingRowTests.swift`, `WarningBannerTests.swift` - Shared view + onboarding state coverage

@@ -23,7 +23,15 @@ import MetricKit
 ///
 /// Marked `@unchecked Sendable` because all mutable state is lock-guarded;
 /// MetricKit invokes the subscriber callbacks off the main thread.
-final class DiagnosticsService: NSObject, MXMetricManagerSubscriber, @unchecked Sendable {
+///
+/// `nonisolated` is load-bearing. The module defaults to `MainActor`
+/// isolation, and MetricKit delivers both `didReceive(_:)` callbacks on a
+/// background queue; a MainActor-isolated class would make the `@objc`
+/// thunks assert the main-actor executor and trap on payload delivery.
+/// Everything this class touches is safe off-main: lock-guarded state,
+/// `UserDefaults`, `FileManager`, `Log`, and `SharedFormatters.iso8601`.
+/// Mirrors the `MetricsService` / `PlayLogStore` pattern.
+nonisolated final class DiagnosticsService: NSObject, MXMetricManagerSubscriber, @unchecked Sendable {
 
     // MARK: - Singleton
 

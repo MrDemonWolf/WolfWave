@@ -8,7 +8,27 @@
 
 import AppKit
 import Foundation
-import UserNotifications
+
+// MARK: - Playback Flush Guards
+
+// File-scope because `AppDelegate` extensions cannot add stored properties.
+// The app has exactly one delegate instance, and the module's MainActor
+// default isolates these globals to the main actor alongside the
+// `PlaybackSourceDelegate` callbacks that touch them.
+
+/// Consecutive `Script error` statuses received from the playback source.
+/// ScriptingBridge reads are documented flaky on macOS 26, so one bad read
+/// mid-track must not flush history and blank the now-playing snapshot.
+private var consecutiveScriptErrorCount = 0
+
+/// How many consecutive `Script error` statuses are required before playback
+/// is treated as genuinely stopped.
+private let scriptErrorStopThreshold = 3
+
+/// `true` once the in-progress play has been written to listening history
+/// (History toggle-off flush or a sustained playback stop). Blocks the same
+/// play from being recorded a second time; resets when a new track starts.
+private var currentPlayFlushedToHistory = false
 
 // MARK: - Service Initialization
 
@@ -117,8 +137,7 @@ extension AppDelegate {
             _ = NSFontManager.shared.availableFontFamilies
         }
 
-        let storedPort = Preferences.websocketServerPort
-        let port: UInt16 = storedPort > 0 ? UInt16(clamping: storedPort) : AppConstants.WebSocketServer.defaultPort
+        let port = Preferences.resolvedWebSocketServerPort
 
         let token = WebSocketAuthToken.currentOrCreate()
         Log.info(
@@ -325,8 +344,15 @@ extension AppDelegate {
 
 extension AppDelegate {
 
-    /// Registers all `NotificationCenter` observers for settings and system events.
+    /// Registers all `NotificationCenter` observers for settings and system
+    /// events, and installs the user-notification center delegate.
     func setupNotificationObservers() {
+        // Present WolfWave banners while the app is frontmost. Without a
+        // `UNUserNotificationCenterDelegate`, macOS suppresses every banner
+        // for the foreground app, exactly when the user is in Settings
+        // flipping the notification toggles and expecting a preview.
+        NotificationService.shared.installCenterDelegate()
+
         let nc = NotificationCenter.default
 
         notificationObservers.append(
@@ -437,6 +463,17 @@ extension AppDelegate {
                 MainActor.assumeIsolated { self?.listeningHistorySettingChanged(n) }
             }
         )
+
+        notificationObservers.append(
+            nc.addObserver(
+                forName: Notification.Name.twitchConnectionStateChanged,
+                object: nil,
+                queue: .main
+            ) { [weak self] notification in
+                nonisolated(unsafe) let n = notification
+                MainActor.assumeIsolated { self?.twitchConnectionStateChanged(n) }
+            }
+        )
     }
 }
 
@@ -541,9 +578,33 @@ extension AppDelegate {
         if enabled {
             historyService?.enable()
         } else {
-            // Capture the in-progress play before recording stops.
-            flushCurrentPlayToHistory()
+            // Capture the in-progress play before recording stops. Marks the
+            // play consumed so it can't be recorded a second time when the
+            // track later changes or playback stops.
+            flushCurrentPlayToHistoryOnce()
             historyService?.disable()
+        }
+    }
+
+    /// Flushes the in-progress play to history at most once per track.
+    ///
+    /// Wraps `flushCurrentPlayToHistory()` in a consumed flag so a single play
+    /// can't be recorded twice (e.g. the History toggle flushing mid-track,
+    /// then the track-change handler recording the same play again when the
+    /// song ends). The flag resets when a new track starts playing.
+    func flushCurrentPlayToHistoryOnce() {
+        guard !currentPlayFlushedToHistory else { return }
+        flushCurrentPlayToHistory()
+        currentPlayFlushedToHistory = true
+    }
+
+    /// Clears skip-vote session state when the Twitch connection drops.
+    /// EventSub does not replay missed `poll.end` events, so a poll left
+    /// "active" across a disconnect would block every future vote session.
+    @objc func twitchConnectionStateChanged(_ notification: Notification) {
+        guard notification.isConnectedFlag == false else { return }
+        Task { [weak self] in
+            await self?.skipVoteManager?.reset()
         }
     }
 
@@ -598,31 +659,16 @@ extension AppDelegate {
         Preferences.setTwitchReauthNeeded(needed)
     }
 
-    private func showTwitchAuthNotification(title: String, message: String) {
-        let content = UNMutableNotificationContent()
-        content.title = title
-        content.body = message
-        content.sound = .default
-
-        // Stable identifier so a repeat re-auth prompt in the same session
-        // replaces the previous banner instead of stacking a duplicate.
-        let request = UNNotificationRequest(
-            identifier: AppConstants.UserNotification.twitchReauthIdentifier,
-            content: content,
-            trigger: nil)
-
+    /// Posts the "Twitch session expired" banner via `NotificationService`.
+    ///
+    /// Never requests notification authorization: this runs from the
+    /// unattended boot-path token check, and prompting belongs only to the
+    /// primed onboarding / settings buttons. `NotificationService` drops the
+    /// banner unless authorization was already granted (`.notDetermined` is
+    /// treated like `.denied`); the in-app re-auth banner covers that case.
+    private func showTwitchAuthNotification() {
         Task {
-            do {
-                let granted = try await UNUserNotificationCenter.current()
-                    .requestAuthorization(options: [.alert, .sound])
-                guard granted else { return }
-                try await UNUserNotificationCenter.current().add(request)
-            } catch {
-                Log.error(
-                    "AppDelegate: Failed to send notification: \(error.localizedDescription)",
-                    category: "App"
-                )
-            }
+            await NotificationService.shared.postTwitchReauthNeeded()
         }
     }
 
@@ -643,10 +689,7 @@ extension AppDelegate {
             setReauthNeeded(!isValid)
 
             if !isValid {
-                showTwitchAuthNotification(
-                    title: "Twitch Authentication Expired",
-                    message: "Your Twitch session has expired. Please re-authorize in Settings."
-                )
+                showTwitchAuthNotification()
                 openSettingsToTwitch()
             }
         }
@@ -703,12 +746,26 @@ extension AppDelegate: PlaybackSourceDelegate {
         elapsed: TimeInterval,
         isPaused: Bool
     ) {
+        // A good read ends any ScriptingBridge error streak.
+        consecutiveScriptErrorCount = 0
+
+        // Composite identity: title alone conflates distinct songs that share
+        // a name (a cover, a live version, two songs called "Home"), silently
+        // skipping history recording, the !last update, recents, and the
+        // song-change banner on such transitions. Genuine re-emits of the same
+        // track carry identical title + artist + album, so pause/resume
+        // behavior is unchanged.
         let isSameTrack = currentSong == track
+            && currentArtist == artist
+            && (currentAlbum ?? "") == album
         if !isSameTrack {
             // The outgoing track's last polled playhead position (`currentElapsed`)
             // is how far it actually played. Hand it to history before we
-            // overwrite the now-playing state.
-            if let outgoing = currentSong, let outgoingArtist = currentArtist {
+            // overwrite the now-playing state, unless this play was already
+            // flushed (History toggle-off): recording it again would double
+            // count the track.
+            if let outgoing = currentSong, let outgoingArtist = currentArtist,
+               !currentPlayFlushedToHistory {
                 historyService?.recordTrackChange(
                     track: outgoing,
                     artist: outgoingArtist,
@@ -717,8 +774,17 @@ extension AppDelegate: PlaybackSourceDelegate {
                     playedSeconds: currentElapsed
                 )
             }
+            // The incoming track is a fresh play; it hasn't been flushed yet.
+            currentPlayFlushedToHistory = false
             lastSong = currentSong
             lastArtist = currentArtist
+
+            // Votes cast against the outgoing song must not carry over to the
+            // incoming one. Ends any open chat-tally vote session without
+            // starting the inter-session cooldown.
+            Task { [weak self] in
+                await self?.skipVoteManager?.trackDidChange()
+            }
 
             // Push the incoming track onto the tray-menu recents buffer.
             // De-dup happens inside the buffer so Music.app's resume
@@ -839,6 +905,24 @@ extension AppDelegate: PlaybackSourceDelegate {
     func playbackSource(didUpdateStatus status: String) {
         Log.info("AppDelegate: Playback status = \(status)", category: "Music")
 
+        // Debounce ScriptingBridge read errors. A single flaky read mid-track
+        // (documented macOS 26 behavior) must not flush a partial play to
+        // history (which double-counts the track when it later ends) or blank
+        // Discord and the overlay. Only a sustained error streak clears
+        // playback; any other status, or a good track read, resets the streak.
+        if status == "Script error" {
+            consecutiveScriptErrorCount += 1
+            if consecutiveScriptErrorCount < scriptErrorStopThreshold {
+                Log.debug(
+                    "AppDelegate: transient script error (\(consecutiveScriptErrorCount)/\(scriptErrorStopThreshold)), keeping playback snapshot",
+                    category: "Music"
+                )
+                return
+            }
+        } else {
+            consecutiveScriptErrorCount = 0
+        }
+
         // Any of these statuses mean "no track is reliably playing right now".
         // Flush in-progress history and blank the cached snapshot so Discord
         // Rich Presence and the WebSocket overlay don't keep broadcasting a
@@ -850,7 +934,7 @@ extension AppDelegate: PlaybackSourceDelegate {
             || status == "Script error"
 
         if shouldClearPlayback {
-            flushCurrentPlayToHistory()
+            flushCurrentPlayToHistoryOnce()
             currentSong = nil
             currentArtist = nil
             currentAlbum = nil

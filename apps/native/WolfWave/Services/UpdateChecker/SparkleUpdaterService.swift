@@ -26,7 +26,10 @@
 /// - All Sparkle APIs and notification posts run on the main actor.
 ///
 /// DEBUG builds:
-/// - Sparkle is initialized with `startingUpdater: false` (no background checks).
+/// - The controller is created with `startingUpdater: false`, automatic
+///   checks are forced off, and the updater is then started manually. A
+///   never-started updater ignores `checkForUpdates()`, so this keeps manual
+///   "Check for Updates" working while background checks stay disabled.
 /// - The delegate points the feed at the bundled `dev-appcast.xml` so manual
 ///   "Check for Updates" exercises the full Sparkle UI against a dummy entry.
 
@@ -41,6 +44,13 @@ final class SparkleUpdaterService: NSObject {
 
     /// Sparkle's updater controller (manages the update process)
     private var updaterController: SPUStandardUpdaterController?
+
+    /// Whether the current update cycle already surfaced a found update.
+    /// Sparkle calls `didFinishUpdateCycleFor` with an error after
+    /// `failedToDownloadUpdate` in the same session; without this flag that
+    /// error path would post `isUpdateAvailable: false` and wipe the
+    /// already-announced update from the settings pane.
+    private var didSurfaceUpdateThisCycle = false
 
     /// The updater instance (for manual checks and configuration)
     private var updater: SPUUpdater? {
@@ -130,9 +140,10 @@ final class SparkleUpdaterService: NSObject {
     private func setupSparkle() {
         Log.info("SparkleUpdaterService: Initializing Sparkle framework", category: "Update")
 
-        // In DEBUG, instantiate the controller but don't start the background
-        // update cycle. Manual "Check for Updates" still works and is routed
-        // at the bundled dev-appcast.xml via `feedURLString(for:)`.
+        // In DEBUG, instantiate the controller without starting the background
+        // update cycle; the updater is started manually below with automatic
+        // checks forced off. Manual "Check for Updates" is routed at the
+        // bundled dev-appcast.xml via `feedURLString(for:)`.
         #if DEBUG
         let startingUpdater = false
         #else
@@ -163,6 +174,22 @@ final class SparkleUpdaterService: NSObject {
 
             Log.info("SparkleUpdaterService: Configuration complete (auto-check: \(checkEnabled), interval: \(Int(AppConstants.Update.checkInterval))s, starting: \(startingUpdater))", category: "Update")
         }
+
+        #if DEBUG
+        // A never-started updater silently ignores `checkForUpdates()`
+        // (Sparkle guards on having been started), which made the documented
+        // dev-appcast manual check a no-op while `checkForUpdates()` still
+        // returned true. Force automatic checks off first (background checks
+        // stay disabled in DEBUG), then start the updater so manual
+        // "Check for Updates" works. Skipped under XCTest: unit tests build
+        // multiple service instances and must not start real Sparkle updaters
+        // in the shared test host.
+        if !WolfWaveApp.isRunningTests {
+            updater?.automaticallyChecksForUpdates = false
+            updaterController?.startUpdater()
+            Log.info("SparkleUpdaterService: DEBUG updater started (manual checks only)", category: "Update")
+        }
+        #endif
     }
 
     // MARK: - Public API
@@ -296,6 +323,7 @@ extension SparkleUpdaterService: SPUUpdaterDelegate {
         let version = item.displayVersionString
         Log.info("SparkleUpdaterService: Update found: v\(version)", category: "Update")
 
+        didSurfaceUpdateThisCycle = true
         NotificationCenter.default.postUpdateState(
             isUpdateAvailable: true,
             latestVersion: version,
@@ -309,7 +337,31 @@ extension SparkleUpdaterService: SPUUpdaterDelegate {
 
         NotificationCenter.default.postUpdateState(
             isUpdateAvailable: false,
-            latestVersion: Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "Unknown"
+            latestVersion: AppConstants.AppInfo.shortVersion
+        )
+    }
+
+    /// Called when an update check cycle finishes, successfully or not.
+    ///
+    /// A failed check (offline, DNS failure, malformed feed) never reaches
+    /// `didFindValidUpdate` or `updaterDidNotFindUpdate`, so without this hook
+    /// no `updateStateChanged` fires and the settings pane's Check Now spinner
+    /// sticks forever. Mirrors `updaterDidNotFindUpdate`'s payload so the UI
+    /// resets to the current version.
+    ///
+    /// The reset is skipped when this cycle already surfaced an update:
+    /// Sparkle also finishes the cycle with an error after a failed download,
+    /// and wiping the state then would hide the update the user just saw.
+    func updater(_ updater: SPUUpdater, didFinishUpdateCycleFor updateCheck: SPUUpdateCheck, error: Error?) {
+        let surfacedUpdate = didSurfaceUpdateThisCycle
+        didSurfaceUpdateThisCycle = false
+        guard let error else { return }
+        Log.info("SparkleUpdaterService: Update check finished with error: \(error.localizedDescription)", category: "Update")
+
+        guard !surfacedUpdate else { return }
+        NotificationCenter.default.postUpdateState(
+            isUpdateAvailable: false,
+            latestVersion: AppConstants.AppInfo.shortVersion
         )
     }
 

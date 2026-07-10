@@ -24,6 +24,16 @@ struct AppConstantsTests {
         #expect(AppConstants.AppInfo.bundleIdentifier == "com.mrdemonwolf.wolfwave")
         #expect(AppConstants.AppInfo.displayName == "WolfWave")
     }
+
+    @Test("Version and build number constants are defined")
+    func testVersionAndBuildNumber() async throws {
+        // Hosted tests run inside WolfWave.app, so the real Info.plist values
+        // are present; the "0.0.0"/"0" fallbacks only apply to stripped bundles.
+        #expect(!AppConstants.AppInfo.shortVersion.isEmpty)
+        #expect(!AppConstants.AppInfo.buildNumber.isEmpty)
+        // The build number is Sparkle's primary comparator; it must be numeric.
+        #expect(Int(AppConstants.AppInfo.buildNumber) != nil)
+    }
     
     // MARK: - Notification Names Tests
     

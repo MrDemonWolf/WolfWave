@@ -26,8 +26,6 @@ struct AboutSettingsView: View {
     // MARK: - Bundle Info (shared with the menu bar's standard About panel)
 
     private var appName: String { AboutCopy.appName }
-    private var version: String { AboutCopy.version }
-    private var build: String { AboutCopy.build }
     private var versionString: String { AboutCopy.versionString }
 
     // MARK: - Body
@@ -290,20 +288,7 @@ struct AboutSettingsView: View {
     }
 
     private func sendFeedback() {
-        let isHomebrew = Bundle.main.isHomebrewInstall
-
-        guard let url = BugReportURL.make(
-            base: AppConstants.URLs.githubIssuesNew,
-            appVersion: version,
-            build: build,
-            osVersion: ProcessInfo.processInfo.operatingSystemVersionString,
-            arch: BugReportURL.currentArch(),
-            install: isHomebrew ? .homebrew : .dmg
-        ) else {
-            Log.error("AboutSettingsView: Failed to build bug report URL", category: "App")
-            return
-        }
-        NSWorkspace.shared.open(url)
+        BugReportURL.openPrefilledIssue()
     }
 }
 

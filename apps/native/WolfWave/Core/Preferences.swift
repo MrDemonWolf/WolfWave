@@ -95,6 +95,32 @@ nonisolated enum Preferences {
         defaults.integer(forKey: AppConstants.UserDefaults.widgetPort)
     }
 
+    /// The effective WebSocket server port as a `UInt16`, ready to bind.
+    ///
+    /// Resolves ``websocketServerPort``: unset/zero falls back to
+    /// `AppConstants.WebSocketServer.defaultPort`, and any out-of-range stored
+    /// value (a hand-edited plist or corrupted backup) is clamped instead of
+    /// trapping. The single source of truth for this conversion; do not
+    /// re-derive it at call sites.
+    static var resolvedWebSocketServerPort: UInt16 {
+        resolvePort(websocketServerPort, default: AppConstants.WebSocketServer.defaultPort)
+    }
+
+    /// The effective widget HTTP server port as a `UInt16`, ready to bind.
+    ///
+    /// Resolves ``widgetPort`` with the same semantics as
+    /// ``resolvedWebSocketServerPort``, falling back to
+    /// `AppConstants.WebSocketServer.widgetDefaultPort`.
+    static var resolvedWidgetPort: UInt16 {
+        resolvePort(widgetPort, default: AppConstants.WebSocketServer.widgetDefaultPort)
+    }
+
+    /// Shared port resolution: non-positive means "use the default"; anything
+    /// else is clamped into `UInt16` range so a bad stored value can never trap.
+    private static func resolvePort(_ stored: Int, default defaultPort: UInt16) -> UInt16 {
+        stored > 0 ? UInt16(clamping: stored) : defaultPort
+    }
+
     static func setWebSocketEnabled(_ value: Bool) {
         defaults.set(value, forKey: AppConstants.UserDefaults.websocketEnabled)
     }

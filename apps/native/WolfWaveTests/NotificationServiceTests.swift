@@ -175,6 +175,32 @@ struct NotificationServiceTests {
         #expect(content.sound == .default)
     }
 
+    // MARK: - Twitch Re-auth Content
+
+    @Test("Twitch re-auth content names the expired session and plays the default sound")
+    func testTwitchReauthContent() async throws {
+        let content = NotificationService.makeTwitchReauthContent()
+        #expect(content.title == "Twitch Authentication Expired")
+        #expect(content.body == "Your Twitch session has expired. Please re-authorize in Settings.")
+        #expect(content.sound == .default)
+    }
+
+    @Test("Twitch re-auth requests reuse the re-auth identifier so they dedup")
+    func testTwitchReauthRequestReusesIdentifier() async throws {
+        let first = NotificationService.makeRequest(
+            content: NotificationService.makeTwitchReauthContent(),
+            identifier: AppConstants.UserNotification.twitchReauthIdentifier
+        )
+        let second = NotificationService.makeRequest(
+            content: NotificationService.makeTwitchReauthContent(),
+            identifier: AppConstants.UserNotification.twitchReauthIdentifier
+        )
+        // A repeat re-auth prompt in the same session replaces the previous
+        // banner instead of stacking a duplicate.
+        #expect(first.identifier == AppConstants.UserNotification.twitchReauthIdentifier)
+        #expect(first.identifier == second.identifier)
+    }
+
     // MARK: - Identifiers
 
     @Test("Notification identifiers are stable and non-empty")
@@ -185,13 +211,16 @@ struct NotificationServiceTests {
             == "com.mrdemonwolf.wolfwave.notification.skipVoteStarted")
         #expect(AppConstants.UserNotification.skipVotePassedIdentifier
             == "com.mrdemonwolf.wolfwave.notification.skipVotePassed")
+        #expect(AppConstants.UserNotification.twitchReauthIdentifier
+            == "com.mrdemonwolf.wolfwave.notification.twitchReauth")
         // All distinct so they don't replace each other in Notification Center.
         let ids = Set([
             AppConstants.UserNotification.songChangeIdentifier,
             AppConstants.UserNotification.skipVoteStartedIdentifier,
-            AppConstants.UserNotification.skipVotePassedIdentifier
+            AppConstants.UserNotification.skipVotePassedIdentifier,
+            AppConstants.UserNotification.twitchReauthIdentifier
         ])
-        #expect(ids.count == 3)
+        #expect(ids.count == 4)
     }
 
     // MARK: - Request Dedup (stable identifiers)

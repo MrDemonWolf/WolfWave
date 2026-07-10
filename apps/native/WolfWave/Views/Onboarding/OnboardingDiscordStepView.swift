@@ -48,27 +48,14 @@ struct OnboardingDiscordStepView: View {
                             NotificationCenter.default.postEnabled(.discordPresenceChanged, enabled: newValue)
                         }
                     )
-                    .padding(DSSpace.s5)
-                    .background(
-                        RoundedRectangle(cornerRadius: DSRadius.lg2, style: .continuous)
-                            .fill(presenceEnabled
-                                  ? AppConstants.Brand.discord.opacity(0.10)
-                                  : Color(nsColor: .controlBackgroundColor))
+                    .onboardingTintedToggleShell(
+                        isOn: presenceEnabled,
+                        tint: AppConstants.Brand.discord,
+                        fillOpacity: 0.10,
+                        glowOpacity: 0.18,
+                        glowRadius: 18,
+                        glowYOffset: 6
                     )
-                    .overlay(
-                        RoundedRectangle(cornerRadius: DSRadius.lg2, style: .continuous)
-                            .stroke(
-                                presenceEnabled
-                                    ? AppConstants.Brand.discord.opacity(0.40)
-                                    : Color.primary.opacity(0.06),
-                                lineWidth: 0.5
-                            )
-                    )
-                    .shadow(
-                        color: presenceEnabled ? AppConstants.Brand.discord.opacity(0.18) : .clear,
-                        radius: 18, x: 0, y: 6
-                    )
-                    .animation(.easeInOut(duration: DSMotion.Duration.base), value: presenceEnabled)
 
                     Text("Make sure Discord is open. We talk to it locally. Nothing leaves your Mac.")
                         .font(.system(size: DSFont.Size.sm))

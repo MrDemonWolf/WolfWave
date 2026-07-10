@@ -168,9 +168,9 @@ body {
 .progress-fill {
   height: 100%;
   border-radius: 9999px;
-  /* Default tick uses 1s linear (matches server progress cadence). When the
-   * track stops we swap this to a one-shot drain transition via JS. */
-  transition: width 1s linear;
+  /* No width transition here: the RAF loop in widget.ts already interpolates
+   * elapsed at 60Hz, so a CSS transition on top permanently lags the bar ~1s
+   * behind. The one-shot drain below is the only transition this needs. */
 }
 
 .progress-fill.draining {
@@ -238,12 +238,6 @@ body {
 
 #widget.is-paused .pause-overlay {
   opacity: 1;
-}
-
-#widget.is-paused .progress-fill {
-  /* Cut the 1s linear interpolation so the bar visibly stops the moment
-   * we go paused, instead of crawling another second forward. */
-  transition: none;
 }
 
 /* ─── 7. In-app Settings preview ────────────────────────────────────────────

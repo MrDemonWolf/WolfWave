@@ -118,14 +118,14 @@ const themePresets: Record<string, ThemePreset> = WW_TOKENS.themes || {
   Default: {
     containerBg: "transparent",
     containerBorder: "none",
-    containerShadow: "none",
+    containerShadow: "0 0 4px rgba(0,0,0,1)",
     containerRadius: "12px",
     backdropFilter: "none",
     overlayBg: "rgba(0,0,0,0.50)",
     textPrimary: "#FFFFFF",
     textSecondary: "rgba(255,255,255,0.90)",
     textMuted: "rgba(255,255,255,0.70)",
-    textShadow: "none",
+    textShadow: "2px 2px 2px rgb(0 0 0)",
     progressTrackBg: "rgba(255,255,255,0.20)",
     progressFillBg: "#FFFFFF",
     showArtworkBlur: true,
@@ -174,6 +174,15 @@ let ws: WebSocket | null = null;
 let reconnectTimer: number | null = null;
 let reconnectAttempts = 0;
 let hasReceivedTrack = false;
+
+// Progress-loop element cache. `updateProgress` runs every RAF frame; querying
+// the DOM there costs three selector walks per frame inside OBS's renderer.
+// `buildWidget` refreshes these after every innerHTML rebuild.
+let fillEl: HTMLElement | null = null;
+let elapsedTimeEl: HTMLElement | null = null;
+let remainingTimeEl: HTMLElement | null = null;
+let lastElapsedText = "";
+let lastRemainingText = "";
 
 /* ╔════════════════════════════════════════════════════════════════════════╗
  * ║  TYPES                                                                 ║
@@ -442,6 +451,11 @@ function enterWidget(): void {
   // Double-RAF so the starting frame commits before we begin animating.
   requestAnimationFrame(() => {
     requestAnimationFrame(() => {
+      // exitWidget() may have run inside this ~2-frame window (e.g. a
+      // now_playing immediately followed by a stop). Adding widget-visible
+      // then would win the cascade over widget-hidden and pin a dead card
+      // on stream, so bail out.
+      if (!visible) return;
       el.classList.remove("widget-entering");
       el.classList.add("widget-visible");
     });
@@ -459,14 +473,14 @@ function exitWidget(): void {
   const el = document.getElementById("widget");
   if (!el) return;
 
+  el.classList.remove("widget-entering");
   el.classList.remove("widget-visible");
   el.classList.add("widget-exiting");
 
   // Drain progress bar so it doesn't look frozen mid-way during the fade.
-  const fill = document.querySelector(".progress-fill") as HTMLElement | null;
-  if (fill) {
-    fill.classList.add("draining");
-    fill.style.width = "0%";
+  if (fillEl) {
+    fillEl.classList.add("draining");
+    fillEl.style.width = "0%";
   }
 
   if (exitTimer !== null) clearTimeout(exitTimer);
@@ -525,16 +539,24 @@ function swapInner(rebuild: () => void): void {
 function updateProgress(): void {
   if (!nowPlaying) return;
   const duration = nowPlaying.duration || 0;
-  const progress = duration > 0 ? Math.min((elapsed / duration) * 100, 100) : 0;
-  const remaining = duration > 0 ? Math.max(duration - elapsed, 0) : 0;
-  const fill = document.querySelector(".progress-fill") as HTMLElement | null;
-  const elapsedEl = document.querySelector(".elapsed-time");
-  const remainingEl = document.querySelector(".remaining-time");
-  if (fill && !fill.classList.contains("draining")) {
-    fill.style.width = progress + "%";
+  if (duration <= 0) return; // no bar/time row rendered for unknown durations
+  const progress = Math.min((elapsed / duration) * 100, 100);
+  const remaining = Math.max(duration - elapsed, 0);
+  if (fillEl && !fillEl.classList.contains("draining")) {
+    fillEl.style.width = progress + "%";
   }
-  if (elapsedEl) elapsedEl.textContent = formatTime(elapsed);
-  if (remainingEl) remainingEl.textContent = "-" + formatTime(remaining);
+  // The formatted strings change once per second; skipping the redundant
+  // textContent writes avoids replacing the text nodes 60x/sec.
+  const elapsedText = formatTime(elapsed);
+  if (elapsedTimeEl && elapsedText !== lastElapsedText) {
+    elapsedTimeEl.textContent = elapsedText;
+    lastElapsedText = elapsedText;
+  }
+  const remainingText = "-" + formatTime(remaining);
+  if (remainingTimeEl && remainingText !== lastRemainingText) {
+    remainingTimeEl.textContent = remainingText;
+    lastRemainingText = remainingText;
+  }
 }
 
 function buildWidget(): void {
@@ -633,7 +655,9 @@ function buildWidget(): void {
   const fillStyle =
     "width:" + progress + "%;background:" + theme.progressFillBg + ";height:100%;border-radius:9999px;";
 
-  const progressBar =
+  // Streams/radio/unknown tracks report duration 0 - an empty bar with
+  // "0:00 / -0:00" reads as broken on stream, so omit the row entirely.
+  const progressBar = duration <= 0 ? "" :
     '<div class="progress-track" style="background:' + theme.progressTrackBg + ";height:" + barH + ';">' +
     '<div class="progress-fill" style="' + fillStyle + '"></div>' +
     "</div>" +
@@ -705,6 +729,13 @@ function buildWidget(): void {
   }
 
   el.innerHTML = blurLayer + overlayLayer + noiseLayer + '<div class="relative h-full">' + layoutHTML + "</div>";
+
+  // Refresh the progress-loop element cache; the rebuild replaced the DOM.
+  fillEl = el.querySelector(".progress-fill");
+  elapsedTimeEl = el.querySelector(".elapsed-time");
+  remainingTimeEl = el.querySelector(".remaining-time");
+  lastElapsedText = "";
+  lastRemainingText = "";
 }
 
 /* ╔════════════════════════════════════════════════════════════════════════╗
@@ -744,6 +775,15 @@ function connect(): void {
     hasReceivedTrack = false;
     stopProgressLoop();
     exitWidget();
+    // If the app was never reachable, `exitWidget` above no-ops (never
+    // visible) and the "Waiting for music…" placeholder would sit on stream
+    // for the whole broadcast. Drop it on the first failed connect; it
+    // reappears naturally on the next page load.
+    const el = document.getElementById("widget");
+    if (el && el.classList.contains("placeholder")) {
+      el.classList.remove("placeholder");
+      el.classList.add("widget-hidden");
+    }
     reconnectAttempts++;
     const delay = Math.min(
       RECONNECT_BASE_MS * Math.pow(2, reconnectAttempts - 1),
@@ -805,6 +845,12 @@ function handleMessage(msg: WSMessage): void {
       const data = msg.data;
       // Re-anchor interpolation. Defends against clock drift on long tracks.
       elapsedRef = { value: data.elapsed, timestamp: Date.now(), isPlaying: data.isPlaying };
+      // A duration that becomes known (or corrects) mid-track re-renders the
+      // card so the progress row appears/updates instead of staying stale.
+      if (nowPlaying && data.duration > 0 && nowPlaying.duration !== data.duration) {
+        nowPlaying.duration = data.duration;
+        buildWidget();
+      }
       break;
     }
     case "playback_state": {
@@ -821,7 +867,12 @@ function handleMessage(msg: WSMessage): void {
         stopProgressLoop();
         exitWidget();
       } else {
-        if (nowPlaying) Object.assign(nowPlaying, data);
+        // No track loaded (e.g. right after a reconnect nulled `nowPlaying`):
+        // entering now would re-show the PREVIOUS track's stale DOM, since
+        // `buildWidget` no-ops without a track. The follow-up `now_playing`
+        // does the real build + enter.
+        if (!nowPlaying) break;
+        Object.assign(nowPlaying, data);
         elapsedRef = { value: elapsed, timestamp: Date.now(), isPlaying: true };
         if (!visible) enterWidget();
         buildWidget();

@@ -102,29 +102,12 @@ final class AppleMusicLibraryService {
     /// published `globalId` resolved against the user's storefront.
     ///
     /// - Returns: The `music.apple.com` share URL, or `nil` if not yet public.
+    /// - Throws: A transport or server error when the Apple Music API could not
+    ///   be reached, so the caller never mistakes a network blip for "not public".
     func resolveRequestsPlaylistShareURL() async throws -> String? {
         try ensureAuthorized()
         let playlistID = try await ensureRequestsPlaylist()
-
-        // Primary: the catalog relationship returns the public catalog playlist
-        // (with attributes.url) directly, no storefront needed.
-        if let data = await get("/me/library/playlists/\(playlistID)/catalog"),
-           let url = Self.parseShareURL(fromCatalogData: data) {
-            return url
-        }
-
-        // Fallback: read the published global id, then fetch the catalog playlist
-        // for the user's storefront.
-        if let libraryData = await get("/me/library/playlists/\(playlistID)"),
-           let globalID = Self.parseGlobalID(fromLibraryData: libraryData),
-           let storefrontData = await get("/me/storefront"),
-           let storefront = Self.parseStorefront(fromData: storefrontData),
-           let catalogData = await get("/catalog/\(storefront)/playlists/\(globalID)"),
-           let url = Self.parseShareURL(fromCatalogData: catalogData) {
-            return url
-        }
-
-        return nil
+        return try await resolveShareURL(forPlaylistID: playlistID)
     }
 
     // MARK: - Health Probe
@@ -144,6 +127,18 @@ final class AppleMusicLibraryService {
         case unreachable
     }
 
+    /// The outcome of a share-URL resolution attempt, kept separate from the
+    /// network calls so `classifyProbe(foundPlaylistID:shareURL:)` stays pure
+    /// and unit-testable.
+    enum ShareURLOutcome: Equatable {
+        /// The API answered definitively. `nil` means the playlist has no
+        /// public share link (it has not been shared yet).
+        case resolved(String?)
+        /// A transport or server error prevented an answer, so the share state
+        /// is unknown. Must classify as `.unreachable`, never `.notPublic`.
+        case failed
+    }
+
     /// Probes the WolfWave Requests playlist **without creating it**, so the setup
     /// health check can tell a deleted/un-shared playlist apart from a transient
     /// network failure.
@@ -152,8 +147,11 @@ final class AppleMusicLibraryService {
     /// `ensureRequestsPlaylist()` (which would silently recreate a deleted
     /// playlist and mask the very state we are trying to detect). A throwing
     /// library read maps to `.unreachable`; a successful read with no match maps
-    /// to `.missing`. Assumes MusicKit is already authorized (the service checks
-    /// auth first and reports `.musicAccessLost` before probing).
+    /// to `.missing`. A share-URL resolution that fails in transit also maps to
+    /// `.unreachable` (`.notPublic` requires a definitive "no link" answer), so
+    /// a timeout or 5xx never reads as "the streamer un-shared the playlist".
+    /// Assumes MusicKit is already authorized (the service checks auth first and
+    /// reports `.musicAccessLost` before probing).
     func probeRequestsPlaylist() async -> PlaylistProbe {
         let playlistID: String?
         do {
@@ -162,24 +160,36 @@ final class AppleMusicLibraryService {
             return .unreachable
         }
         guard let playlistID else { return .missing }
-        let shareURL = await resolveShareURL(forPlaylistID: playlistID)
-        return Self.classifyProbe(foundPlaylistID: playlistID, resolvedShareURL: shareURL)
+        let shareURL: ShareURLOutcome
+        do {
+            shareURL = .resolved(try await resolveShareURL(forPlaylistID: playlistID))
+        } catch {
+            shareURL = .failed
+        }
+        return Self.classifyProbe(foundPlaylistID: playlistID, shareURL: shareURL)
     }
 
-    /// Resolves the public share URL for an already-known library playlist id,
-    /// or `nil` when it is not public (or a catalog GET fails). Mirrors the
-    /// resolution order in `resolveRequestsPlaylistShareURL()` but takes the id
+    /// Resolves the public share URL for an already-known library playlist id.
+    /// Returns `nil` only when the API answered and the playlist has no public
+    /// catalog equivalent (not shared yet). Shared by
+    /// `resolveRequestsPlaylistShareURL()` and the health probe; takes the id
     /// directly so the probe never creates a playlist.
-    private func resolveShareURL(forPlaylistID playlistID: String) async -> String? {
-        if let data = await get("/me/library/playlists/\(playlistID)/catalog"),
+    ///
+    /// Tries the library playlist's `catalog` relationship first, then falls
+    /// back to the published `globalId` resolved against the user's storefront.
+    ///
+    /// - Throws: A transport or server error when the Apple Music API could not
+    ///   be reached (the share state is unknown, not "no link").
+    private func resolveShareURL(forPlaylistID playlistID: String) async throws -> String? {
+        if let data = try await get("/me/library/playlists/\(playlistID)/catalog"),
            let url = Self.parseShareURL(fromCatalogData: data) {
             return url
         }
-        if let libraryData = await get("/me/library/playlists/\(playlistID)"),
+        if let libraryData = try await get("/me/library/playlists/\(playlistID)"),
            let globalID = Self.parseGlobalID(fromLibraryData: libraryData),
-           let storefrontData = await get("/me/storefront"),
+           let storefrontData = try await get("/me/storefront"),
            let storefront = Self.parseStorefront(fromData: storefrontData),
-           let catalogData = await get("/catalog/\(storefront)/playlists/\(globalID)"),
+           let catalogData = try await get("/catalog/\(storefront)/playlists/\(globalID)"),
            let url = Self.parseShareURL(fromCatalogData: catalogData) {
             return url
         }
@@ -187,13 +197,20 @@ final class AppleMusicLibraryService {
     }
 
     /// Pure classification of a probe from the library-list outcome and the
-    /// resolved share URL. Separated from the network calls so the
-    /// missing / notPublic / ok decision is unit-testable. `.unreachable` is the
-    /// `probeRequestsPlaylist()` catch path and is not represented here.
-    static func classifyProbe(foundPlaylistID: String?, resolvedShareURL: String?) -> PlaylistProbe {
+    /// share-URL resolution outcome. Separated from the network calls so the
+    /// missing / notPublic / ok / unreachable decision is unit-testable.
+    /// (`.unreachable` from a failed library *list* is still the
+    /// `probeRequestsPlaylist()` catch path; this covers the share-URL half.)
+    static func classifyProbe(foundPlaylistID: String?, shareURL: ShareURLOutcome) -> PlaylistProbe {
         guard foundPlaylistID != nil else { return .missing }
-        if let url = resolvedShareURL { return .ok(shareURL: url) }
-        return .notPublic
+        switch shareURL {
+        case .failed:
+            return .unreachable
+        case .resolved(let url?):
+            return .ok(shareURL: url)
+        case .resolved(nil):
+            return .notPublic
+        }
     }
 
     /// Clears the cached playlist id so the next `ensureRequestsPlaylist()` call
@@ -203,15 +220,22 @@ final class AppleMusicLibraryService {
         cachedPlaylistID = nil
     }
 
-    /// GETs `path` and returns the raw response body, or `nil` on any failure
-    /// (network error, non-2xx, missing catalog). Resolution degrades to `nil`
-    /// rather than throwing so a not-yet-public playlist reads as "no link".
-    private func get(_ path: String) async -> Data? {
-        guard let url = try? Self.endpoint(path) else { return nil }
+    /// GETs `path` and returns the raw response body. Returns `nil` only on a
+    /// definitive HTTP 404, i.e. the API answered and the resource does not
+    /// exist (a library playlist with no public catalog equivalent 404s its
+    /// `catalog` relationship), so a not-yet-public playlist reads as "no link".
+    ///
+    /// Everything else (timeouts, 429, 5xx, transport errors) throws so callers
+    /// can classify the failure as `.unreachable` instead of "not public".
+    private func get(_ path: String) async throws -> Data? {
+        let url = try Self.endpoint(path)
         var request = URLRequest(url: url)
         request.httpMethod = "GET"
-        guard let response = try? await MusicDataRequest(urlRequest: request).response() else { return nil }
-        return response.data
+        do {
+            return try await MusicDataRequest(urlRequest: request).response().data
+        } catch let error as MusicDataRequest.Error where error.status == 404 {
+            return nil
+        }
     }
 
     // MARK: - Private Helpers

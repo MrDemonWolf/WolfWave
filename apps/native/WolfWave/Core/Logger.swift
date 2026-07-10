@@ -203,14 +203,24 @@ enum Log {
                 rotateLogFile(at: url)
             }
 
-            // Open file handle if needed
+            // Open file handle if needed. Throwing FileHandle APIs only: the
+            // legacy seekToEndOfFile()/write(_:) raise uncatchable ObjC
+            // exceptions on disk-full / I/O error / stale handle, which would
+            // crash the app from any log call.
             if fileHandle == nil {
                 fileHandle = FileHandle(forWritingAtPath: url.path)
-                fileHandle?.seekToEndOfFile()
+                _ = try? fileHandle?.seekToEnd()
             }
 
             if let data = (line + "\n").data(using: .utf8) {
-                fileHandle?.write(data)
+                do {
+                    try fileHandle?.write(contentsOf: data)
+                } catch {
+                    // Self-heal: drop the stale handle so the next write
+                    // reopens it instead of failing forever.
+                    try? fileHandle?.close()
+                    fileHandle = nil
+                }
             }
         }
     }
@@ -566,7 +576,14 @@ enum Log {
             let stamp = formatter.string(from: Date())
             let header = "[\(stamp)] ℹ️ INFO [App] Log cleared by user\n"
             if let data = header.data(using: .utf8) {
-                fileHandle?.write(data)
+                do {
+                    try fileHandle?.write(contentsOf: data)
+                } catch {
+                    // Self-heal: drop the stale handle so the next write
+                    // reopens it instead of failing forever.
+                    try? fileHandle?.close()
+                    fileHandle = nil
+                }
             }
             fileHandle?.synchronizeFile()
         }

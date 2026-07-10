@@ -30,6 +30,16 @@ import Network
 /// - `GET /widget-tokens.generated.js` → `200 OK` with generated design tokens JS
 /// - `GET /favicon.ico` / `GET /favicon.png` → `200 OK` with app icon PNG
 /// - All other requests → `404 Not Found`
+///
+/// ## Connection lifecycle
+///
+/// Accepted connections are tracked and bounded: at most
+/// `maxConcurrentConnections` are served at once (extra accepts are cancelled
+/// immediately), a connection that never delivers complete request headers is
+/// cancelled after `headerTimeout`, and `stop()` cancels every tracked
+/// connection along with the listener. Without this, a half-open LAN peer
+/// (an OBS box losing power mid-connect) would pin an `NWConnection` and its
+/// file descriptor for the app lifetime via the pending receive callback.
 nonisolated final class WidgetHTTPService: @unchecked Sendable {
 
     // MARK: - Errors
@@ -66,6 +76,38 @@ nonisolated final class WidgetHTTPService: @unchecked Sendable {
         qos: .utility
     )
 
+    /// Book-keeping for one accepted connection: the connection itself plus
+    /// whether its request headers have finished arriving, which disarms the
+    /// header timeout.
+    private struct TrackedConnection {
+        let connection: NWConnection
+        var headersComplete = false
+    }
+
+    /// Guards all reads and writes of `activeConnections` so the connection
+    /// callbacks on `queue` and `stop()` callers cannot race.
+    private let connectionsLock = NSLock()
+    /// Accepted connections currently being served, keyed by identity so each
+    /// connection's state callback removes exactly its own entry. Tracking lets
+    /// `stop()` tear down in-flight connections and lets the header timeout
+    /// find its peer.
+    private var activeConnections: [ObjectIdentifier: TrackedConnection] = [:]
+
+    /// Upper bound on concurrently tracked connections. Extra accepts are
+    /// cancelled immediately so a misbehaving LAN peer cannot exhaust file
+    /// descriptors.
+    private let maxConcurrentConnections: Int
+
+    /// How long an accepted connection may take to deliver its complete
+    /// request headers before it is cancelled.
+    private let headerTimeout: TimeInterval
+
+    /// Number of connections currently tracked. Exposed so tests can await
+    /// accepts deterministically instead of sleeping.
+    var activeConnectionCount: Int {
+        connectionsLock.withLock { activeConnections.count }
+    }
+
     /// Readiness latch, fulfilled once on the first `NWListener.State.ready`.
     /// Lets callers (notably tests) await the listener actually binding the
     /// port instead of sleeping a fixed interval. Guarded by `readyLock` so the
@@ -93,9 +135,22 @@ nonisolated final class WidgetHTTPService: @unchecked Sendable {
     ///   - authToken: WebSocket auth token to inject into the served HTML
     ///     **for loopback requests only**. Pass `nil` to ship the file
     ///     untouched. Only useful for tests.
-    init(port: UInt16, authToken: String? = nil) {
+    ///   - headerTimeout: Seconds an accepted connection may take to deliver
+    ///     its complete request headers before it is cancelled. Defaults to
+    ///     10; override only in tests.
+    ///   - maxConcurrentConnections: Upper bound on concurrently tracked
+    ///     connections; extra accepts are cancelled immediately. Defaults to
+    ///     32; override only in tests.
+    init(
+        port: UInt16,
+        authToken: String? = nil,
+        headerTimeout: TimeInterval = 10,
+        maxConcurrentConnections: Int = 32
+    ) {
         self.port = port
         self.authToken = authToken
+        self.headerTimeout = headerTimeout
+        self.maxConcurrentConnections = maxConcurrentConnections
     }
 
     deinit {
@@ -147,11 +202,21 @@ nonisolated final class WidgetHTTPService: @unchecked Sendable {
         listener?.start(queue: queue)
     }
 
-    /// Cancels the listener and tears down the bound port. Safe to call when
-    /// the service was never started or has already stopped.
+    /// Cancels the listener and tears down the bound port, then cancels every
+    /// tracked connection so pending receive callbacks (which retain their
+    /// connection) cannot outlive the service. Safe to call when the service
+    /// was never started or has already stopped.
     func stop() {
         listener?.cancel()
         listener = nil
+        let openConnections: [NWConnection] = connectionsLock.withLock {
+            let open = activeConnections.values.map(\.connection)
+            activeConnections.removeAll()
+            return open
+        }
+        for connection in openConnections {
+            connection.cancel()
+        }
         readyLock.withLock { isReady = false }
         // Wake any caller still awaiting `ready()` so a stop-before-bind doesn't
         // leave them suspended forever.
@@ -220,11 +285,80 @@ nonisolated final class WidgetHTTPService: @unchecked Sendable {
     /// HTTP header terminator: a blank line (CRLF CRLF) ends the request headers.
     private static let headerTerminator = Data([0x0D, 0x0A, 0x0D, 0x0A])
 
-    /// Accepts an inbound TCP connection and reads the request headers, then
-    /// dispatches to `serveResponse`.
+    /// Accepts an inbound TCP connection, tracks it for lifecycle teardown,
+    /// arms the header timeout, and begins reading the request headers.
+    /// Connections beyond `maxConcurrentConnections` are cancelled immediately.
     private func handleConnection(_ connection: NWConnection) {
+        let id = ObjectIdentifier(connection)
+
+        let accepted: Bool = connectionsLock.withLock {
+            guard activeConnections.count < maxConcurrentConnections else { return false }
+            activeConnections[id] = TrackedConnection(connection: connection)
+            return true
+        }
+        guard accepted else {
+            Log.warn(
+                "WidgetHTTPService: Refusing connection, \(maxConcurrentConnections) already active",
+                category: "WebSocket"
+            )
+            connection.cancel()
+            return
+        }
+
+        // Untrack on any terminal state so the table cannot grow without bound.
+        connection.stateUpdateHandler = { [weak self, weak connection] state in
+            switch state {
+            case .failed:
+                connection?.stateUpdateHandler = nil
+                connection?.cancel()
+                self?.removeConnection(id)
+            case .cancelled:
+                connection?.stateUpdateHandler = nil
+                self?.removeConnection(id)
+            default:
+                break
+            }
+        }
+
         connection.start(queue: queue)
+        scheduleHeaderTimeout(for: connection)
         readRequestHeaders(from: connection, accumulated: Data())
+    }
+
+    /// Cancels `connection` if its request headers have not completed within
+    /// `headerTimeout` of accept. Disarmed by `serveResponse` marking the
+    /// headers complete; a no-op once the connection has been untracked.
+    private func scheduleHeaderTimeout(for connection: NWConnection) {
+        let id = ObjectIdentifier(connection)
+        queue.asyncAfter(deadline: .now() + headerTimeout) { [weak self, weak connection] in
+            guard let self, let connection else { return }
+            let stillAwaitingHeaders: Bool = self.connectionsLock.withLock {
+                guard let tracked = self.activeConnections[id],
+                      tracked.connection === connection else { return false }
+                return !tracked.headersComplete
+            }
+            guard stillAwaitingHeaders else { return }
+            Log.warn(
+                "WidgetHTTPService: Cancelling connection with incomplete headers after \(self.headerTimeout)s",
+                category: "WebSocket"
+            )
+            connection.cancel()
+        }
+    }
+
+    /// Disarms the header timeout for `connection` once its request headers
+    /// have fully arrived.
+    private func markHeadersComplete(for connection: NWConnection) {
+        connectionsLock.withLock {
+            activeConnections[ObjectIdentifier(connection)]?.headersComplete = true
+        }
+    }
+
+    /// Drops the tracking entry for a connection that reached a terminal state.
+    private func removeConnection(_ id: ObjectIdentifier) {
+        connectionsLock.withLock {
+            _ = activeConnections.removeValue(forKey: id)
+        }
     }
 
     /// Reads from `connection` until the `\r\n\r\n` header terminator is seen or
@@ -267,6 +401,7 @@ nonisolated final class WidgetHTTPService: @unchecked Sendable {
     /// - `GET /favicon.ico` / `GET /favicon.png` → `serveFavicon`
     /// - Anything else → `send404`
     private func serveResponse(to connection: NWConnection, requestData: Data) {
+        markHeadersComplete(for: connection)
         let requestString = String(data: requestData, encoding: .utf8) ?? ""
         let firstLine = requestString.components(separatedBy: "\r\n").first ?? ""
         let parts = firstLine.components(separatedBy: " ")

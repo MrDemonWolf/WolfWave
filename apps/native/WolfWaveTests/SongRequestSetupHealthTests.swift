@@ -78,19 +78,47 @@ struct SongRequestSetupHealthTests {
 
     @Test("classify: no playlist id is missing")
     func classifyMissing() {
-        #expect(AppleMusicLibraryService.classifyProbe(foundPlaylistID: nil, resolvedShareURL: nil) == .missing)
+        #expect(
+            AppleMusicLibraryService.classifyProbe(foundPlaylistID: nil, shareURL: .resolved(nil))
+                == .missing)
     }
 
-    @Test("classify: an id with no url is not public")
+    @Test("classify: an id with a definitive no-url answer is not public")
     func classifyNotPublic() {
-        #expect(AppleMusicLibraryService.classifyProbe(foundPlaylistID: "p.1", resolvedShareURL: nil) == .notPublic)
+        #expect(
+            AppleMusicLibraryService.classifyProbe(foundPlaylistID: "p.1", shareURL: .resolved(nil))
+                == .notPublic)
     }
 
     @Test("classify: an id with a url is ok")
     func classifyOK() {
         #expect(
-            AppleMusicLibraryService.classifyProbe(foundPlaylistID: "p.1", resolvedShareURL: "https://x")
+            AppleMusicLibraryService.classifyProbe(foundPlaylistID: "p.1", shareURL: .resolved("https://x"))
                 == .ok(shareURL: "https://x"))
+    }
+
+    @Test("classify: a failed share resolution is unreachable, never not-public")
+    func classifyShareResolutionFailure() {
+        // A timeout / 429 / 5xx during share-URL resolution must not read as
+        // "the streamer un-shared the playlist".
+        #expect(
+            AppleMusicLibraryService.classifyProbe(foundPlaylistID: "p.1", shareURL: .failed)
+                == .unreachable)
+    }
+
+    @Test("classify: a missing playlist wins over a failed share resolution")
+    func classifyMissingWinsOverFailure() {
+        #expect(
+            AppleMusicLibraryService.classifyProbe(foundPlaylistID: nil, shareURL: .failed)
+                == .missing)
+    }
+
+    @Test("classify: a transport error ends as no banner change end to end")
+    func transportErrorNoBannerChange() {
+        // Full chain: failed share resolution -> .unreachable -> resolveHealth
+        // returns nil, so the stored link and the banner stay untouched.
+        let probe = AppleMusicLibraryService.classifyProbe(foundPlaylistID: "p.1", shareURL: .failed)
+        #expect(SongRequestService.resolveHealth(probe: probe, storedShareURL: "https://music.apple.com/x") == nil)
     }
 
     // MARK: - migrateSetupState

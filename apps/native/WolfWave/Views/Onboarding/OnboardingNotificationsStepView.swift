@@ -146,14 +146,7 @@ struct OnboardingNotificationsStepView: View {
                 accessibilityIdentifier: "onboardingSkipVotePassedNotificationsToggle"
             )
         }
-        .background(
-            RoundedRectangle(cornerRadius: DSRadius.lg2, style: .continuous)
-                .fill(Color(nsColor: .controlBackgroundColor))
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: DSRadius.lg2, style: .continuous)
-                .stroke(Color.primary.opacity(0.06), lineWidth: 0.5)
-        )
+        .subtleCardShell(cornerRadius: DSRadius.lg2)
     }
 
     /// Hairline between grouped rows, inset to start under the row title so it

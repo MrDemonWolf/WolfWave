@@ -260,13 +260,13 @@ nonisolated enum DSWidgetThemes {
             userCustomizable: false
         ),
         "Glass": DSWidgetTheme(
-            containerBg: Color(red: 0.000, green: 0.000, blue: 0.000, opacity: 0.300),
+            containerBg: Color(red: 0.000, green: 0.000, blue: 0.000, opacity: 0.500),
             borderColor: Color(red: 1.000, green: 1.000, blue: 1.000, opacity: 0.100),
             cornerRadius: 16,
             overlayBg: nil,
             textPrimary: Color(red: 0.961, green: 0.961, blue: 0.969),
             textSecondary: Color(red: 0.961, green: 0.961, blue: 0.969, opacity: 0.800),
-            textMuted: Color(red: 0.961, green: 0.961, blue: 0.969, opacity: 0.500),
+            textMuted: Color(red: 0.961, green: 0.961, blue: 0.969, opacity: 0.600),
             progressTrack: Color(red: 1.000, green: 1.000, blue: 1.000, opacity: 0.100),
             progressFill: Color(red: 0.000, green: 0.478, blue: 1.000),
             showArtworkBlur: false,

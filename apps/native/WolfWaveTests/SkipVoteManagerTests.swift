@@ -234,6 +234,69 @@ final class SkipVoteManagerTests: WolfWaveTestCase {
         XCTAssertNil(state)
     }
 
+    // MARK: - Track Change
+
+    func testTrackChangeClearsChatTallySession() async {
+        enableFeature(minVotes: 3)
+        let manager = SkipVoteManager()
+        _ = await manager.recordVote(context: context(userID: "1"))
+        _ = await manager.recordVote(context: context(userID: "2"))
+        let before = await manager.currentVoteState()
+        XCTAssertEqual(before?.count, 2)
+
+        await manager.trackDidChange()
+
+        let after = await manager.currentVoteState()
+        XCTAssertNil(after, "Votes against the old song must not carry over to the new one")
+    }
+
+    func testTrackChangeDoesNotStartCooldown() async {
+        // A long cooldown would block the next vote if trackDidChange (wrongly)
+        // ended the session the way window expiry does.
+        enableFeature(minVotes: 3, cooldown: 60)
+        let manager = SkipVoteManager()
+        _ = await manager.recordVote(context: context(userID: "1"))
+
+        await manager.trackDidChange()
+
+        let outcome = await manager.recordVote(context: context(userID: "2"))
+        XCTAssertEqual(
+            outcome,
+            .started(count: 1, needed: 3),
+            "A fresh vote must open immediately after a track change; no cooldown applies"
+        )
+    }
+
+    func testTrackChangeWithoutSessionIsNoOp() async {
+        enableFeature(minVotes: 3, cooldown: 60)
+        let manager = SkipVoteManager()
+
+        await manager.trackDidChange()
+
+        let outcome = await manager.recordVote(context: context(userID: "1"))
+        XCTAssertEqual(outcome, .started(count: 1, needed: 3))
+    }
+
+    func testTrackChangeLeavesActivePollAlone() async {
+        enableFeature(minVotes: 3)
+        UserDefaults.standard.set(true, forKey: AppConstants.UserDefaults.voteSkipUsePolls)
+        let manager = SkipVoteManager()
+        await manager.configure(
+            performSkip: nil,
+            sendChatMessage: nil,
+            createPoll: { _, _ in true }
+        )
+        _ = await manager.recordVote(context: context(userID: "1", isModerator: true))
+
+        await manager.trackDidChange()
+
+        let active = await manager.isPollInProgress()
+        XCTAssertTrue(
+            active,
+            "trackDidChange only ends chat-tally sessions; a live Twitch poll still resolves via poll.end"
+        )
+    }
+
     // MARK: - Polls Mode
 
     func testPollsModeRejectsNonModerator() async {
@@ -307,6 +370,82 @@ final class SkipVoteManagerTests: WolfWaveTestCase {
         )
         await manager.handlePollEnded(skipVotes: 2, keepVotes: 9)
         XCTAssertFalse(skipped.value)
+    }
+
+    // MARK: - Polls Mode Timeout Fallback
+
+    func testPollTimeoutClearsStuckPoll() async {
+        enableFeature(minVotes: 3)
+        UserDefaults.standard.set(true, forKey: AppConstants.UserDefaults.voteSkipUsePolls)
+        // Inject a sub-100ms fallback timeout so the "poll.end never arrived"
+        // path is observed in milliseconds instead of pollDuration plus grace.
+        let manager = SkipVoteManager(pollTimeoutDuration: .milliseconds(50))
+        await manager.configure(
+            performSkip: nil,
+            sendChatMessage: nil,
+            createPoll: { _, _ in true }
+        )
+
+        let outcome = await manager.recordVote(context: context(userID: "1", isModerator: true))
+        XCTAssertEqual(outcome, .pollStarted)
+        let activeBefore = await manager.isPollInProgress()
+        XCTAssertTrue(activeBefore)
+
+        // EventSub never delivers channel.poll.end (e.g. a WebSocket drop).
+        // The fallback timer must clear the latched poll state.
+        let cleared = await waitUntil(timeout: .seconds(1)) {
+            await manager.isPollInProgress() == false
+        }
+        XCTAssertTrue(cleared, "A missed poll.end must not latch pollActive forever")
+
+        // The stuck state is gone, so a fresh poll can start.
+        let next = await manager.recordVote(context: context(userID: "2", isModerator: true))
+        XCTAssertEqual(next, .pollStarted)
+    }
+
+    func testPollEndedCancelsTimeoutFallback() async {
+        enableFeature(minVotes: 1)
+        UserDefaults.standard.set(true, forKey: AppConstants.UserDefaults.voteSkipUsePolls)
+        let manager = SkipVoteManager(pollTimeoutDuration: .milliseconds(50))
+        await manager.configure(
+            performSkip: nil,
+            sendChatMessage: nil,
+            createPoll: { _, _ in true }
+        )
+
+        _ = await manager.recordVote(context: context(userID: "1", isModerator: true))
+        await manager.handlePollEnded(skipVotes: 0, keepVotes: 1)
+        let active = await manager.isPollInProgress()
+        XCTAssertFalse(active, "poll.end must clear the active poll")
+
+        // Give the cancelled fallback timer time to have fired if it were still
+        // alive; state must stay clear and a fresh poll must start cleanly.
+        try? await Task.sleep(for: .milliseconds(120))
+        let stillInactive = await manager.isPollInProgress()
+        XCTAssertFalse(stillInactive)
+        let next = await manager.recordVote(context: context(userID: "2", isModerator: true))
+        XCTAssertEqual(next, .pollStarted)
+    }
+
+    func testResetClearsActivePoll() async {
+        enableFeature(minVotes: 3)
+        UserDefaults.standard.set(true, forKey: AppConstants.UserDefaults.voteSkipUsePolls)
+        let manager = SkipVoteManager()
+        await manager.configure(
+            performSkip: nil,
+            sendChatMessage: nil,
+            createPoll: { _, _ in true }
+        )
+
+        _ = await manager.recordVote(context: context(userID: "1", isModerator: true))
+        let activeBefore = await manager.isPollInProgress()
+        XCTAssertTrue(activeBefore)
+
+        await manager.reset()
+        let activeAfter = await manager.isPollInProgress()
+        XCTAssertFalse(activeAfter, "reset (e.g. on disconnect) must clear a latched poll")
+        let next = await manager.recordVote(context: context(userID: "2", isModerator: true))
+        XCTAssertEqual(next, .pollStarted)
     }
 
     // MARK: - Vote Event Hook

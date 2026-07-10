@@ -146,6 +146,22 @@ final class AppleMusicController: AppleMusicControlling {
         case error(String)
     }
 
+    /// AppleScript-level Apple Event timeouts, in seconds.
+    ///
+    /// Without an explicit `with timeout` block, an Apple Event to a wedged
+    /// Music.app waits the AppleEvent default (about 60 seconds), and
+    /// `runAppleScript` pins the main thread for that whole wait. The
+    /// song-request auto-advance poll reads `playbackSnapshot()` every 2
+    /// seconds, so probes must fail fast; playback commands get a little
+    /// longer. A timed-out script surfaces as an AppleScript error, which every
+    /// caller already treats as "no information" / a failed attempt.
+    enum ScriptTimeout {
+        /// Read-only state probes (`player state`, `current track`).
+        static let probe = 2
+        /// Playback and UI commands (`play`, `next track`, `stop`, `reveal`).
+        static let command = 5
+    }
+
     // MARK: - Properties
 
     /// Writes requested songs into the `WolfWave Requests` library playlist so
@@ -196,7 +212,7 @@ final class AppleMusicController: AppleMusicControlling {
     /// `SongRequestService`).
     var isPlaying: Bool {
         guard isMusicAppRunning else { return false }
-        return runAppleScript("""
+        return runAppleScript(Self.timeoutWrapped("""
         tell application "Music"
             if player state is playing then
                 return "true"
@@ -204,7 +220,7 @@ final class AppleMusicController: AppleMusicControlling {
                 return "false"
             end if
         end tell
-        """) == "true"
+        """, seconds: ScriptTimeout.probe)) == "true"
     }
 
     /// Whether Music.app is paused (as opposed to stopped or finished).
@@ -213,7 +229,7 @@ final class AppleMusicController: AppleMusicControlling {
     /// `isPlaying` for why probing a closed app must be avoided.
     var isPaused: Bool {
         guard isMusicAppRunning else { return false }
-        return runAppleScript("""
+        return runAppleScript(Self.timeoutWrapped("""
         tell application "Music"
             if player state is paused then
                 return "true"
@@ -221,7 +237,7 @@ final class AppleMusicController: AppleMusicControlling {
                 return "false"
             end if
         end tell
-        """) == "true"
+        """, seconds: ScriptTimeout.probe)) == "true"
     }
 
     /// Stable identifier of the track Music.app currently has loaded.
@@ -232,7 +248,7 @@ final class AppleMusicController: AppleMusicControlling {
     /// with nothing loaded raises an error rather than returning empty.
     var currentTrackID: String? {
         guard isMusicAppRunning else { return nil }
-        let result = runAppleScript("""
+        let result = runAppleScript(Self.timeoutWrapped("""
         tell application "Music"
             try
                 return persistent ID of current track
@@ -240,7 +256,7 @@ final class AppleMusicController: AppleMusicControlling {
                 return ""
             end try
         end tell
-        """)
+        """, seconds: ScriptTimeout.probe))
         guard let result, !result.isEmpty else { return nil }
         return result
     }
@@ -261,7 +277,7 @@ final class AppleMusicController: AppleMusicControlling {
     /// empty key (parsed back to `nil`) rather than aborting the whole script.
     func playbackSnapshot() -> PlaybackSnapshot? {
         guard isMusicAppRunning else { return nil }
-        let raw = runAppleScript("""
+        let raw = runAppleScript(Self.timeoutWrapped("""
         tell application "Music"
             set stateText to "stopped"
             if player state is playing then
@@ -279,7 +295,7 @@ final class AppleMusicController: AppleMusicControlling {
             end try
             return stateText & linefeed & keyText
         end tell
-        """)
+        """, seconds: ScriptTimeout.probe))
         guard let raw else { return nil }
 
         let parts = raw.split(separator: "\n", maxSplits: 1, omittingEmptySubsequences: false)
@@ -435,7 +451,7 @@ final class AppleMusicController: AppleMusicControlling {
         let playlist = sanitizeForAppleScript(AppConstants.Music.requestsPlaylistName)
         let name = sanitizeForAppleScript(song.title)
         let artist = sanitizeForAppleScript(song.artistName)
-        let script = """
+        let script = Self.timeoutWrapped("""
         tell application "Music"
             try
                 set ms to (every track of playlist "\(playlist)" whose name is "\(name)" and artist is "\(artist)")
@@ -449,7 +465,7 @@ final class AppleMusicController: AppleMusicControlling {
             end try
             return "miss"
         end tell
-        """
+        """, seconds: ScriptTimeout.command)
         for attempt in 0..<5 {
             if runAppleScriptPreservingFocus(script) == "ok" { return true }
             if attempt < 4 { try? await Task.sleep(for: .milliseconds(700)) }
@@ -472,11 +488,11 @@ final class AppleMusicController: AppleMusicControlling {
     /// relaunch the app the user just quit.
     func skipToNext() async throws {
         guard isMusicAppRunning else { return }
-        runAppleScript("""
+        runAppleScript(Self.timeoutWrapped("""
         tell application "Music"
             next track
         end tell
-        """)
+        """, seconds: ScriptTimeout.command))
     }
 
     /// Rewind to the previous song in Music.app via AppleScript.
@@ -488,11 +504,11 @@ final class AppleMusicController: AppleMusicControlling {
     /// relaunch the app the user just quit.
     func previousTrack() async throws {
         guard isMusicAppRunning else { return }
-        runAppleScript("""
+        runAppleScript(Self.timeoutWrapped("""
         tell application "Music"
             previous track
         end tell
-        """)
+        """, seconds: ScriptTimeout.command))
     }
 
     /// Toggle Music.app's play/pause state. Routes through the focus-
@@ -503,11 +519,11 @@ final class AppleMusicController: AppleMusicControlling {
     /// relaunch the app the user just quit.
     func playPause() async throws {
         guard isMusicAppRunning else { return }
-        runAppleScriptPreservingFocus("""
+        runAppleScriptPreservingFocus(Self.timeoutWrapped("""
         tell application "Music"
             playpause
         end tell
-        """)
+        """, seconds: ScriptTimeout.command))
     }
 
     /// Stop playback in Music.app.
@@ -516,11 +532,11 @@ final class AppleMusicController: AppleMusicControlling {
     /// `tell application "Music"` would relaunch the app the user just quit.
     func clearPlayerQueue() async {
         guard isMusicAppRunning else { return }
-        runAppleScript("""
+        runAppleScript(Self.timeoutWrapped("""
         tell application "Music"
             stop
         end tell
-        """)
+        """, seconds: ScriptTimeout.command))
         Log.debug("AppleMusicController: Music.app stopped", category: "SongRequest")
     }
 
@@ -537,11 +553,11 @@ final class AppleMusicController: AppleMusicControlling {
     func playFallbackPlaylist(name: String) async throws {
         guard isMusicAppRunning else { throw PlaybackError.musicAppNotRunning }
         let safeName = sanitizeForAppleScript(name)
-        let script = """
+        let script = Self.timeoutWrapped("""
         tell application "Music"
             play playlist "\(safeName)"
         end tell
-        """
+        """, seconds: ScriptTimeout.command)
         runAppleScriptPreservingFocus(script)
         Log.debug("AppleMusicController: Fallback playlist '\(name)' started", category: "SongRequest")
     }
@@ -556,14 +572,14 @@ final class AppleMusicController: AppleMusicControlling {
     /// it), unlike the playback probes that avoid relaunching a quit app.
     func revealRequestsPlaylist() {
         let name = sanitizeForAppleScript(AppConstants.Music.requestsPlaylistName)
-        runAppleScript("""
+        runAppleScript(Self.timeoutWrapped("""
         tell application "Music"
             activate
             try
                 reveal playlist "\(name)"
             end try
         end tell
-        """)
+        """, seconds: ScriptTimeout.command))
     }
 
     // MARK: - Private Helpers
@@ -580,6 +596,22 @@ final class AppleMusicController: AppleMusicControlling {
             .filter { $0.value >= 32 && $0.value != 127 }
             .map(String.init)
             .joined()
+    }
+
+    /// Wraps an AppleScript body in a `with timeout of N seconds` block so any
+    /// Apple Event inside errors out after `seconds` instead of the ~60 second
+    /// AppleEvent default. Internal (not private) so the wrapper's shape is
+    /// unit-testable without invoking `NSAppleScript`.
+    ///
+    /// - Parameters:
+    ///   - body: The full script to wrap, typically a `tell` block.
+    ///   - seconds: The Apple Event reply timeout; see `ScriptTimeout`.
+    static func timeoutWrapped(_ body: String, seconds: Int) -> String {
+        """
+        with timeout of \(seconds) seconds
+        \(body)
+        end timeout
+        """
     }
 
     /// Run an AppleScript while preserving the frontmost app's focus.

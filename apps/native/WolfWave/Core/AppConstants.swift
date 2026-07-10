@@ -84,6 +84,14 @@ nonisolated enum AppConstants {
             fallback: "0.0.0"
         )
 
+        /// Build number string (`CFBundleVersion`) with a safe fallback for
+        /// contexts where the Info.plist key is absent. Sparkle uses this as
+        /// its primary version comparator.
+        static let buildNumber = infoPlistString(
+            "CFBundleVersion",
+            fallback: "0"
+        )
+
         /// Canonical public source repository URL. Casing matches the docs
         /// `repoUrl` constant (`apps/docs/lib/site.ts`).
         static let repositoryURL = "https://github.com/MrDemonWolf/WolfWave"
