@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { AlbumArt } from "./AlbumArt";
 import { formatTime } from "@/lib/format-time";
-import { useCyclingTrack } from "./useCyclingTrack";
+import { useCyclingTrack, cyclingPauseHandlers } from "./useCyclingTrack";
 import {
   WIDGET_THEMES,
   WIDGET_LAYOUTS,
@@ -51,7 +51,7 @@ export function OBSOverlayWidget({ controls = true }: { controls?: boolean } = {
   }
 
   return (
-    <div style={{ width: "100%" }}>
+    <div style={{ width: "100%" }} {...cyclingPauseHandlers()}>
       <ControlBar
         theme={theme}
         layout={layout}
@@ -415,6 +415,8 @@ function ControlBar({
           Layout
         </span>
         <div
+          role="group"
+          aria-label="Layout"
           style={{
             display: "inline-flex",
             padding: 2,
@@ -437,7 +439,7 @@ function ControlBar({
                   fontWeight: 600,
                   letterSpacing: "0.02em",
                   color: active ? "#FFFFFF" : "var(--txt-2)",
-                  background: active ? "var(--brand-500)" : "transparent",
+                  background: active ? "var(--brand-600)" : "transparent",
                   border: "none",
                   borderRadius: 9999,
                   cursor: "pointer",

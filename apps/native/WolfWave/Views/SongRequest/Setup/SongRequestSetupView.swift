@@ -471,7 +471,7 @@ struct SongRequestSetupView: View {
     // MARK: - Actions
 
     private func refreshTwitchState() {
-        viewModel.isTwitchConnected = appDelegate?.twitchService?.isConnectedSnapshot.value ?? false
+        viewModel.isTwitchConnected = appDelegate?.twitchService?.currentlyConnected ?? false
     }
 
     private func syncAuth(_ status: MusicAuthorization.Status) {

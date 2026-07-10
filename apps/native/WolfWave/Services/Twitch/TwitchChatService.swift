@@ -468,6 +468,12 @@ actor TwitchChatService {
     /// menu bar enable state) can read it without `await`.
     nonisolated let isConnectedSnapshot = Atomic(false)
 
+    /// Nonisolated read of the connection state, mirroring the actor-isolated
+    /// `isConnected`. Lets synchronous MainActor callers (menu bar, status
+    /// chips, settings panes) check the connection without `await` instead of
+    /// reaching through `isConnectedSnapshot.value` at every site.
+    nonisolated var currentlyConnected: Bool { isConnectedSnapshot.value }
+
     /// Nonisolated mirror of `streamLive` so the synchronous dispatcher bridge
     /// (`!stats` enable check) can read it without re-entering the actor.
     nonisolated private let streamLiveSnapshot = Atomic(false)
@@ -2202,7 +2208,7 @@ actor TwitchChatService {
 
     /// Subscribes to `channel.poll.end` so finished vote-skip polls can be tallied.
     private func subscribeToPollEvents() async {
-        guard UserDefaults.standard.bool(forKey: AppConstants.UserDefaults.voteSkipEnabled),
+        guard FeatureFlags.voteSkipEnabled,
               UserDefaults.standard.bool(forKey: AppConstants.UserDefaults.voteSkipUsePolls) else { return }
 
         guard let sessionID,

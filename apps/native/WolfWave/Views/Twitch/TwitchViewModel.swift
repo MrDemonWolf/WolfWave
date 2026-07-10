@@ -164,7 +164,7 @@ final class TwitchViewModel {
     /// (settings window closing) never starves other consumers.
     private func observeConnection(_ service: TwitchChatService) {
         connectionObserverTask?.cancel()
-        self.channelConnected = service.isConnectedSnapshot.value
+        self.channelConnected = service.currentlyConnected
         connectionObserverTask = Task { [weak self] in
             for await isConnected in service.connectionStateChanges() {
                 await MainActor.run { self?.channelConnected = isConnected }

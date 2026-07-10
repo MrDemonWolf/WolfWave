@@ -39,7 +39,12 @@ function CompareIcon({ state }: { state: CellState }) {
   const tone =
     state === "yes"
       ? { bg: "var(--brand-50)", color: "var(--brand-500)" }
-      : { bg: "var(--bg-surface)", color: "var(--txt-2)" };
+      : state === "partial"
+        ? {
+            bg: "color-mix(in srgb, #E0930C 16%, transparent)",
+            color: "#C17D12",
+          }
+        : { bg: "var(--bg-surface)", color: "var(--txt-2)" };
   const Icon = state === "yes" ? Check : state === "partial" ? Minus : XIcon;
   return (
     <span

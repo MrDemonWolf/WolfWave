@@ -88,6 +88,6 @@ final class OnboardingViewModel {
 
     /// Whether onboarding has been completed on a previous launch.
     static var hasCompletedOnboarding: Bool {
-        UserDefaults.standard.bool(forKey: AppConstants.UserDefaults.hasCompletedOnboarding)
+        Preferences.hasCompletedOnboarding
     }
 }

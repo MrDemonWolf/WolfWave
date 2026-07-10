@@ -110,6 +110,7 @@ warnings.
 | `!sr <song>` | Requests a song for the queue |
 | `!queue` | Shows the full request queue |
 | `!myqueue` | Shows just your own requests |
+| `!playlist` | Links the song request playlist |
 | `!voteskip` `!vs` | Casts a vote to skip the current song |
 | `!stats` | Shows today's top track (live only) |
 | `!wolfwave` | Tells chat what WolfWave is (off by default, four reply styles) |
@@ -237,8 +238,10 @@ wolfwave/
 │   │   ├── WolfWaveTests/      # Unit tests
 │   │   └── WolfWave.xcodeproj  # Xcode project
 │   ├── docs/                   # Fumadocs documentation site
-│   └── marketing/              # Remotion-based promo videos
+│   ├── marketing/              # Remotion-based promo videos
+│   └── widget/                 # OBS overlay widget source (builds Resources/widget.html)
 ├── assets/                     # Brand assets, logos
+├── design-system/              # Design tokens + component catalog
 ├── CHANGELOG.md                # Release history
 ├── Makefile                    # Build, test, release targets
 ├── package.json                # bun workspaces root

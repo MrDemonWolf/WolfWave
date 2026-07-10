@@ -17,7 +17,7 @@ instructions, and contribution guidelines.
 ```text
 apps/native/
 ├── WolfWave/             # App source (Swift, SwiftUI, AppKit)
-├── WolfWaveTests/        # Unit tests (107 source files; run make test for the current pass count)
+├── WolfWaveTests/        # Unit tests (111 source files; run make test for the current pass count)
 └── WolfWave.xcodeproj    # Xcode project
 ```
 

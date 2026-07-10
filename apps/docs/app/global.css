@@ -153,28 +153,6 @@
   border-color: color-mix(in srgb, var(--hairline) 70%, transparent);
 }
 
-/* ── Hero app-icon. Squircle with soft drop-shadow ─────── */
-.ww-hero-icon {
-  width: clamp(120px, 18vw, 200px);
-  height: auto;
-  aspect-ratio: 1;
-  border-radius: 22.37%; /* Apple iOS app-icon mask ratio */
-  margin: 0 auto 2rem;
-  display: block;
-  filter:
-    drop-shadow(0 14px 28px rgba(10, 132, 255, 0.18))
-    drop-shadow(0 32px 56px rgba(0, 0, 0, 0.22));
-  will-change: transform;
-  animation: ww-icon-float 6s ease-in-out infinite;
-}
-@keyframes ww-icon-float {
-  0%, 100% { transform: translateY(0); }
-  50%      { transform: translateY(-6px); }
-}
-@media (prefers-reduced-motion: reduce) {
-  .ww-hero-icon { animation: none; }
-}
-
 /* ── Apple-display hero scale ─────────────────────────────── */
 .ww-hero-headline {
   font-family: var(--font-unbounded), -apple-system, BlinkMacSystemFont,
@@ -206,19 +184,6 @@
   filter: blur(8px);
   pointer-events: none;
 }
-.ww-hero-card-float {
-  z-index: 1;
-  will-change: transform;
-  animation: ww-card-float 7s ease-in-out infinite;
-}
-@keyframes ww-card-float {
-  0%, 100% { transform: translateY(0); }
-  50%      { transform: translateY(-7px); }
-}
-@media (prefers-reduced-motion: reduce) {
-  .ww-hero-card-float { animation: none; }
-}
-
 /* ── Hero subtle radial (only decorative element) ────────── */
 .ww-hero-glow {
   position: absolute;
@@ -454,38 +419,7 @@
   position: relative;
 }
 
-/* Trust chip row. Native chips (no external shields.io images). */
-.ww-badge-bar {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: center;
-  gap: 0.6rem;
-}
-
-/* Native trust chip. On-brand replacement for shields.io badges. Live
-   star count and latest release are baked in at build time. */
-.ww-chip {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.45rem;
-  padding: 0.45rem 0.9rem;
-  border-radius: var(--ww-radius-control);
-  border: 1px solid var(--hairline);
-  background-color: var(--bg-elev);
-  color: var(--txt-1);
-  font-size: 0.82rem;
-  font-weight: 500;
-  transition: border-color 0.2s ease, transform 0.15s ease, box-shadow 0.2s ease;
-}
-.ww-chip svg {
-  color: var(--brand-500);
-}
-a.ww-chip:hover {
-  border-color: color-mix(in srgb, var(--brand-500) 40%, var(--hairline));
-  transform: translateY(-1px);
-  box-shadow: 0 10px 24px -16px rgba(10, 132, 255, 0.35);
-}
+/* Emphasis inside the download-meta line (latest version, star count). */
 .ww-chip-strong {
   color: var(--brand-600);
   font-weight: 700;
@@ -603,7 +537,6 @@ a.ww-chip:hover {
   .ww-proof,
   .ww-glass,
   .ww-code,
-  .ww-hero-icon,
   .ww-dev-window,
   .fd-card,
   a[data-card]:not(.peer),

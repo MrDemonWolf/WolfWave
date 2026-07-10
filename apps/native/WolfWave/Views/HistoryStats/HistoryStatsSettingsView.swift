@@ -550,7 +550,7 @@ struct HistoryStatsSettingsView: View {
 
     /// Pulls the current connection flag from the live Twitch service.
     private func refreshTwitchState() {
-        isTwitchConnected = appDelegate?.twitchService?.isConnectedSnapshot.value ?? false
+        isTwitchConnected = appDelegate?.twitchService?.currentlyConnected ?? false
     }
 
     /// Re-reads the reauth flag the Twitch view model persists.

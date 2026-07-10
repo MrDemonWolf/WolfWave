@@ -284,7 +284,7 @@ export default async function HomePage() {
             ].map(({ icon: Icon, title, body, href, cta }) => (
               <div
                 key={title}
-                className="ww-card ww-card-hover ww-glass flex flex-col"
+                className="ww-glass ww-card-hover flex flex-col p-8"
               >
                 <div
                   className="w-11 h-11 rounded-xl inline-flex items-center justify-center mb-5"
@@ -630,9 +630,9 @@ export default async function HomePage() {
 
           {/* ── WHAT ─────────────────────────────────────────── */}
           <div id="dev-what" className="mt-20 scroll-mt-20">
-            <p className="ww-mono text-xs ww-text-2 mb-4 text-center">
+            <h3 className="ww-mono text-xs ww-text-2 mb-4 text-center">
               01 · WHAT IT IS
-            </p>
+            </h3>
             <div className="grid md:grid-cols-3 gap-4">
               {[
                 {
@@ -665,7 +665,7 @@ export default async function HomePage() {
                   >
                     <Icon className="w-5 h-5" />
                   </div>
-                  <h3 className="ww-display ww-text-1 text-lg mb-2">{title}</h3>
+                  <h4 className="ww-display ww-text-1 text-lg mb-2">{title}</h4>
                   <p className="ww-text-2 text-sm leading-relaxed">{body}</p>
                 </div>
               ))}
@@ -674,9 +674,9 @@ export default async function HomePage() {
 
           {/* ── WHY ──────────────────────────────────────────── */}
           <div id="dev-why" className="mt-20 scroll-mt-20">
-            <p className="ww-mono text-xs ww-text-2 mb-4 text-center">
+            <h3 className="ww-mono text-xs ww-text-2 mb-4 text-center">
               02 · THE OLD WAY VS. WOLFWAVE
-            </p>
+            </h3>
             <div className="grid md:grid-cols-2 gap-4">
               <div
                 className="ww-card ww-bg-surface"
@@ -733,17 +733,17 @@ export default async function HomePage() {
 
           {/* ── HOW ──────────────────────────────────────────── */}
           <div id="dev-how" className="mt-20 scroll-mt-20">
-            <p className="ww-mono text-xs ww-text-2 mb-4 text-center">
+            <h3 className="ww-mono text-xs ww-text-2 mb-4 text-center">
               03 · HOW IT WIRES UP
-            </p>
+            </h3>
             <DeveloperTabs />
           </div>
 
           {/* ── DOCS ─────────────────────────────────────────── */}
           <div id="dev-docs" className="mt-20 scroll-mt-20">
-            <p className="ww-mono text-xs ww-text-2 mb-4 text-center">
+            <h3 className="ww-mono text-xs ww-text-2 mb-4 text-center">
               04 · WHERE TO GO NEXT
-            </p>
+            </h3>
             <div className="grid sm:grid-cols-2 gap-4">
               {[
                 {
@@ -787,9 +787,9 @@ export default async function HomePage() {
                       <Icon className="w-5 h-5" />
                     </div>
                     <div className="min-w-0 flex-1">
-                      <h3 className="ww-display ww-text-1 text-lg mb-1">
+                      <h4 className="ww-display ww-text-1 text-lg mb-1">
                         {title}
-                      </h3>
+                      </h4>
                       <p className="ww-text-2 text-sm leading-relaxed">{body}</p>
                       <span className="ww-text-brand mt-3 inline-flex items-center gap-1.5 text-sm font-semibold">
                         Read

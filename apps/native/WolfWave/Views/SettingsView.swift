@@ -150,7 +150,7 @@ struct SettingsView: View {
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .background(Color(nsColor: .windowBackgroundColor))
             .onAppear {
-                if let requestedSection = UserDefaults.standard.string(forKey: AppConstants.UserDefaults.selectedSettingsSection) {
+                if let requestedSection = Preferences.selectedSettingsSection {
                     if requestedSection == AppConstants.Twitch.settingsSection {
                         selectedSection = .twitchIntegration
                     }
@@ -188,7 +188,7 @@ struct SettingsView: View {
 
             // Initialize the view model's connection state from the service so the UI
             // reflects whether we are already joined (prevents missed callbacks).
-            twitchViewModel.channelConnected = appDelegate?.twitchService?.isConnectedSnapshot.value ?? false
+            twitchViewModel.channelConnected = appDelegate?.twitchService?.currentlyConnected ?? false
         }
         // `SettingsWindowConfigurator` hides the window title and makes the title
         // bar transparent for the clean full-height-sidebar look. The automatic

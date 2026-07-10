@@ -197,7 +197,7 @@ final class SongRequestService {
     /// the per-command and per-redemption toggles can't accept requests on their
     /// own while the feature as a whole is disabled.
     var isFeatureEnabled: Bool {
-        Foundation.UserDefaults.standard.bool(forKey: AppConstants.UserDefaults.songRequestEnabled)
+        FeatureFlags.songRequestEnabled
     }
 
     var isAutoAdvanceEnabled: Bool {

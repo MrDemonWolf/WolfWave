@@ -36,9 +36,9 @@ design-system/
 | `color.text.{light,dark}` | Text hierarchy | `primary`, `secondary`, `muted` |
 | `color.partner` | Third-party brand colors | `twitch`, `discord`, `appleMusic*`, `obs*` |
 | `font.family` | Typeface stacks | `display`, `sans`, `serif`, `mono`, `systemAppleDisplay` |
-| `font.size` | Type scale (px, mapped to CGFloat for Swift) | `xs=10`, `sm=11`, `body=12`, `base=13`, `md=14`, `lg=17`, `xl=20`, `2xl=22` |
+| `font.size` | Type scale (px, mapped to CGFloat for Swift) | `xs=10`, `sm=11`, `body=12`, `base=13`, `md=14`, `lg=17`, `xl=20`, `2xl=22`, `3xl=26`, `display=52` |
 | `font.weight` | Numeric weights | `regular=400` … `bold=700` |
-| `space` | 4-step spacing scale | `1=4 … 9=28` |
+| `space` | Spacing scale (4pt base, half-step `1h=6`) | `0=2 … 11=44` |
 | `radius` | Corner radii | `xs=4 … 2xl=16`, `pill=9999` |
 | `motion.duration` | Animation durations (ms) | `fast=150`, `base=220`, `slow=320` |
 | `motion.easing` | Cubic-beziers | `standard`, `emphasized` |

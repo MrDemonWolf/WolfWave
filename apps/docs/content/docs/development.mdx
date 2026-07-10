@@ -108,10 +108,13 @@ The bot is implemented with `TwitchChatService` using Twitch Helix + EventSub (n
 
 `BotCommandDispatcher` routes incoming chat messages to registered commands. Concrete commands live in `Services/Twitch/Commands/`:
 
-- `TrackInfoCommand`. Handles both `!song` / `!currentsong` / `!nowplaying` **and** `!last` / `!lastsong` / `!prevsong` via shared fixtures.
+- `TrackInfoCommand`. Handles `!song` / `!currentsong` / `!nowplaying`, `!last` / `!lastsong` / `!prevsong`, **and** `!stats` / `!musicstats` via three configured instances.
+- `InfoCommand`, `!wolfwave`. Static "what is WolfWave" reply styled by `WolfWaveReplyStyle`.
 - `SongRequestCommand` , `!songrequest` / `!sr`.
 - `QueueCommand` / `MyQueueCommand`. Read-only queue inspection.
+- `SongListCommand`, `!playlist`. Links the song-request playlist.
 - `SkipCommand` / `HoldCommand` / `ClearQueueCommand`. Mod-only controls.
+- `VoteSkipCommand`, `!voteskip` / `!vs`. Chat vote-to-skip.
 - `CooldownManager` enforces global + per-user cooldowns; mods bypass automatically.
 
 ## Song Request Service

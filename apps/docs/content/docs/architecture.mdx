@@ -139,7 +139,7 @@ Discord Rich Presence integration using:
 Local WebSocket server for OBS stream overlays using:
 
 - **Network.framework `NWListener`**: Native WebSocket server with auto-ping and multi-client support.
-- **JSON Broadcasting**: Sends `welcome`, `now_playing`, `progress`, and `playback_state` messages.
+- **JSON Broadcasting**: Sends `welcome`, `now_playing`, `progress`, `playback_state`, and `widget_config` messages.
 - **Progress Timer**: 1-second interval broadcasts elapsed-time estimation to avoid polling ScriptingBridge.
 - **Auto-retry**: Reconnects the listener after failures with configurable delay.
 - **LAN-reachable, token-gated**: Binds to all interfaces on `:8765` so a second-PC OBS or phone on the same network can connect. Every accepted connection. Loopback **and** LAN. Must present `Sec-WebSocket-Protocol: wolfwave.token.<hex>` matching the per-install token in the macOS Keychain. See [Security](/docs/security#websocket-server-security).

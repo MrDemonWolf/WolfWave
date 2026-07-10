@@ -124,14 +124,14 @@ make notarize
 
 ## CI/CD
 
-**Push a version tag** to kick off the GitHub Actions release workflow. It creates a draft GitHub Release:
+**Push a version tag** to kick off the GitHub Actions release workflow. It builds, signs, notarizes, and staples the app, generates the Sparkle appcast, and uploads the DMG (plus `appcast.xml` and the release-notes HTML) to a draft GitHub Release:
 
 ```bash
 git tag v2.0.0
 git push origin v2.0.0
 ```
 
-**Then finish it off locally.** Build and notarize with `make prod-build && make notarize`, upload the DMG to the draft release, and publish.
+**Then review and publish.** Open the draft release, confirm the notarized DMG and notes look right, and click Publish. The Homebrew cask is updated automatically once the release is live.
 
 Heads up: the `TWITCH_CLIENT_ID` and `DISCORD_CLIENT_ID` secrets must be set in your repo's Actions secrets. The full release checklist lives in the [Development Guide](./development) and [PUBLISH.md](https://github.com/MrDemonWolf/WolfWave/blob/main/PUBLISH.md).
 

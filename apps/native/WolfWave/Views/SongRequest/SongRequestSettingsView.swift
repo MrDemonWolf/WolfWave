@@ -138,7 +138,7 @@ struct SongRequestSettingsView: View {
     /// Refreshes the Twitch-connected flag from the live service so the
     /// song-request UI accurately reflects whether requests can flow in.
     private func refreshTwitchState() {
-        updateTwitchState(appDelegate?.twitchService?.isConnectedSnapshot.value ?? false)
+        updateTwitchState(appDelegate?.twitchService?.currentlyConnected ?? false)
     }
 
     /// Updates `isTwitchConnected`. Deliberately does NOT flip the persisted

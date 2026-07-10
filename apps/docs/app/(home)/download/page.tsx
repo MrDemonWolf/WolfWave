@@ -85,7 +85,7 @@ export default function DownloadPage() {
               className="ww-reveal ww-reveal-3 mt-10 inline-flex items-center gap-3 ww-pulse-ring"
               style={{
                 padding: "0.6rem 1.1rem",
-                borderRadius: "980px",
+                borderRadius: "var(--ww-radius-control)",
                 backgroundColor: "var(--bg-surface)",
                 border: "1px solid var(--hairline)",
               }}

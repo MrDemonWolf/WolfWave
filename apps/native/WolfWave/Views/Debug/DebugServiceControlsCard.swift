@@ -98,7 +98,7 @@ struct DebugServiceControlsCard: View {
     private var twitchSection: some View {
         VStack(alignment: .leading, spacing: DSSpace.s2) {
             sectionLabel("Twitch")
-            Text("Connected: \(appDelegate?.twitchService?.isConnectedSnapshot.value == true ? "yes" : "no")")
+            Text("Connected: \(appDelegate?.twitchService?.currentlyConnected == true ? "yes" : "no")")
                 .font(.system(size: DSFont.Size.sm))
                 .foregroundStyle(.secondary)
             HStack {
@@ -123,7 +123,7 @@ struct DebugServiceControlsCard: View {
                 }
                 .buttonStyle(.bordered)
                 .pointerCursor()
-                .disabled(appDelegate?.twitchService?.isConnectedSnapshot.value != true)
+                .disabled(appDelegate?.twitchService?.currentlyConnected != true)
             }
         }
     }
@@ -266,7 +266,7 @@ struct DebugServiceControlsCard: View {
             }
 
             Button {
-                let current = UserDefaults.standard.bool(forKey: AppConstants.UserDefaults.songRequestHoldEnabled)
+                let current = FeatureFlags.songRequestHoldEnabled
                 Task {
                     await appDelegate?.songRequestService?.setHold(!current)
                     UserDefaults.standard.set(!current, forKey: AppConstants.UserDefaults.songRequestHoldEnabled)

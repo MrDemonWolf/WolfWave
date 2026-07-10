@@ -159,7 +159,7 @@ final class SparkleUpdaterService: NSObject {
         // Configure updater preferences
         if let updater = updater {
             // Respect user's update check preference (defaults to true)
-            let checkEnabled = UserDefaults.standard.object(forKey: AppConstants.UserDefaults.updateCheckEnabled) as? Bool ?? true
+            let checkEnabled = Preferences.bool(AppConstants.UserDefaults.updateCheckEnabled, default: true)
             updater.automaticallyChecksForUpdates = checkEnabled
 
             // Set check interval (24 hours)

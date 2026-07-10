@@ -64,11 +64,9 @@ nonisolated struct SettingsBackupCoder {
         return encoder
     }
 
-    private var decoder: JSONDecoder {
-        let decoder = JSONDecoder()
-        decoder.dateDecodingStrategy = .iso8601
-        return decoder
-    }
+    // Shares the app-wide ISO-8601 decoder instead of allocating a fresh one
+    // with the same config on every access.
+    private var decoder: JSONDecoder { JSONCoders.camelCase }
 
     /// Builds a backup from a UserDefaults snapshot.
     ///

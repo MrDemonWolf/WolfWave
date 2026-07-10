@@ -369,8 +369,7 @@ actor WebSocketServerService {
 
         listener?.start(queue: networkQueue)
 
-        let widgetHTTPEnabled = UserDefaults.standard.object(forKey: AppConstants.UserDefaults.widgetHTTPEnabled) as? Bool ?? false
-        if widgetHTTPEnabled {
+        if FeatureFlags.widgetHTTPEnabled {
             widgetHTTP = WidgetHTTPService(port: Preferences.resolvedWidgetPort, authToken: authToken)
             widgetHTTP?.start()
         }

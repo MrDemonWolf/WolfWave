@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { ChevronLeft, ChevronRight, Gift, Smile, Users } from "lucide-react";
 import { SAMPLE_TRACKS, type SampleTrack } from "./sample-tracks";
-import { useCyclingTrack } from "./useCyclingTrack";
+import { useCyclingTrack, cyclingPauseHandlers } from "./useCyclingTrack";
 
 /**
  * Live recreation of a Twitch "Stream Chat" popout. Messages stream in over
@@ -137,7 +137,7 @@ function ChatLine({ msg }: { msg: Msg }) {
 export function TwitchChatPreview({
   viewportHeight = 300,
 }: { viewportHeight?: number } = {}) {
-  const { track, lastTrack, motionEnabled } = useCyclingTrack();
+  const { track, lastTrack, motionEnabled, paused } = useCyclingTrack();
 
   // Latest track in a ref so the interval closure always reads current values.
   const ctxRef = useRef<Ctx>({ cur: track, last: lastTrack });
@@ -156,7 +156,7 @@ export function TwitchChatPreview({
   const [msgs, setMsgs] = useState<Msg[]>(seed);
 
   useEffect(() => {
-    if (!motionEnabled) return;
+    if (!motionEnabled || paused) return;
     const id = window.setInterval(() => {
       const lines = SCRIPT[stepRef.current % SCRIPT.length](ctxRef.current);
       stepRef.current += 1;
@@ -165,12 +165,13 @@ export function TwitchChatPreview({
       );
     }, 2600);
     return () => window.clearInterval(id);
-  }, [motionEnabled]);
+  }, [motionEnabled, paused]);
 
   return (
     <div
       role="img"
       aria-label="Live Twitch chat: viewers requesting songs and running !song while the WolfWave bot replies with the current Apple Music track"
+      {...cyclingPauseHandlers()}
       style={{
         width: "100%",
         maxWidth: 380,

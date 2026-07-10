@@ -72,7 +72,7 @@ struct TwitchSettingsView: View {
                 }
 
                 if let svc = viewModel.twitchService {
-                    viewModel.channelConnected = svc.isConnectedSnapshot.value
+                    viewModel.channelConnected = svc.currentlyConnected
                 }
 
                 if viewModel.reauthNeeded && viewModel.channelConnected {

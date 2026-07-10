@@ -312,7 +312,7 @@ extension AppDelegate: NSMenuDelegate {
         let linkItem = makeCopySongLinkItem(song: song, artist: currentArtist)
         menu.addItem(linkItem)
 
-        if twitchService?.isConnectedSnapshot.value ?? false {
+        if twitchService?.currentlyConnected ?? false {
             let shareItem = NSMenuItem(
                 title: "Share to Twitch Chat",
                 action: #selector(shareCurrentTrackToTwitch),
@@ -544,7 +544,7 @@ extension AppDelegate: NSMenuDelegate {
         menu.addItem(trackingItem)
 
         if KeychainService.loadTwitchToken() != nil {
-            let connected = twitchService?.isConnectedSnapshot.value ?? false
+            let connected = twitchService?.currentlyConnected ?? false
             let rawChannel = Preferences.twitchChannelName
             let channel: String? = rawChannel.isEmpty
                 ? nil
@@ -772,7 +772,7 @@ extension AppDelegate {
     /// and the bot is idle; opens the Twitch settings pane when credentials
     /// are missing or the channel is unconfigured.
     @objc func toggleTwitchConnection() {
-        if twitchService?.isConnectedSnapshot.value ?? false {
+        if twitchService?.currentlyConnected ?? false {
             if let service = twitchService {
                 Task { await service.leaveChannel() }
             }
@@ -921,7 +921,7 @@ extension AppDelegate {
 
     /// Sends the same `!song` reply a viewer would see, directly to chat.
     @objc func shareCurrentTrackToTwitch() {
-        guard twitchService?.isConnectedSnapshot.value ?? false else { return }
+        guard twitchService?.currentlyConnected ?? false else { return }
         let message = getCurrentSongInfo()
         if let service = twitchService {
             Task { await service.sendMessage(message) }
@@ -955,7 +955,7 @@ extension AppDelegate {
     /// required opening Settings to come back online.
     @objc func reconnectAllServices() {
         // Twitch: leave then rejoin when creds + channel + clientID are all present.
-        if let twitch = twitchService, twitch.isConnectedSnapshot.value {
+        if let twitch = twitchService, twitch.currentlyConnected {
             let token = KeychainService.loadTwitchToken()
             let channelRaw = Preferences.twitchChannelName
             let channel: String? = channelRaw.isEmpty ? nil : channelRaw

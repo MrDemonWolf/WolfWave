@@ -31,7 +31,6 @@ One markdown entry per reusable view. Stubs marked `(stub)` need filling in as w
 | ActionGrid | [action-grid.md](action-grid.md) | drafted |
 | UpdateBannerView | [update-banner-view.md](update-banner-view.md) | drafted |
 | WhatsNewView | [whats-new-view.md](whats-new-view.md) | drafted |
-| AboutView | [about-view.md](about-view.md) | drafted |
 | TwitchGlitchShape | [twitch-glitch-shape.md](twitch-glitch-shape.md) | drafted |
 | ViewModifiers (cardStyle, interactiveRow, …) | [view-modifiers.md](view-modifiers.md) | drafted |
 | StreamerModeBadge | [streamer-mode-badge.md](streamer-mode-badge.md) | drafted |
