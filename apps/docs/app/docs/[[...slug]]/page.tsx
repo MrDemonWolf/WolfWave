@@ -21,6 +21,9 @@ export default async function Page(props: PageProps<'/docs/[[...slug]]'>) {
   const slug = params.slug?.join('/') ?? '';
   const pageUrl = `${siteUrl}/docs/${slug ? `${slug}/` : ''}`;
   const section = sectionLabel(params.slug);
+  // Route-level eyebrow above the title. Skips the docs root (index.mdx renders
+  // its own eyebrow inside .docs-hero).
+  const eyebrow = params.slug?.length ? page.data.ogEyebrow : undefined;
 
   const breadcrumbItems = [
     { name: 'Home', item: `${siteUrl}/` },
@@ -182,6 +185,7 @@ export default async function Page(props: PageProps<'/docs/[[...slug]]'>) {
           dangerouslySetInnerHTML={{ __html: JSON.stringify(faqLd) }}
         />
       )}
+      {eyebrow ? <span className="docs-eyebrow">{eyebrow}</span> : null}
       <DocsTitle>{page.data.title}</DocsTitle>
       <DocsDescription>{page.data.description}</DocsDescription>
       <DocsBody>
