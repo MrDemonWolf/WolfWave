@@ -228,7 +228,7 @@ export default async function HomePage() {
                   <Github className="w-3 h-3" /> Open source · GPL-3.0
                 </a>
                 <span className="ww-pill">macOS 26+ · Apple Silicon</span>
-                <span className="ww-pill">Under 30 MB</span>
+                <span className="ww-pill">Under 10 MB download</span>
               </div>
             </div>
 
@@ -518,7 +518,7 @@ export default async function HomePage() {
                     <span className="ww-download-sep" aria-hidden="true">
                       ·
                     </span>
-                    <span>Under 30 MB</span>
+                    <span>Under 10 MB download</span>
                     <span className="ww-download-sep" aria-hidden="true">
                       ·
                     </span>
@@ -910,7 +910,8 @@ export default async function HomePage() {
               q="Does it slow down my stream?"
               a={
                 <>
-                  No. The app is native, under 30 MB, and event-driven. It
+                  No. The app is native, under 20 MB on disk, and event-driven.
+                  It
                   reacts to Apple Music&apos;s own notifications with a 2-second
                   fallback poll. CPU and memory impact are negligible during a
                   stream.
