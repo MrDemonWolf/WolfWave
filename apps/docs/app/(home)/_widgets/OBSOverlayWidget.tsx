@@ -434,12 +434,13 @@ function ControlBar({
                 onClick={() => onLayoutChange(l)}
                 aria-pressed={active}
                 style={{
-                  padding: "4px 10px",
-                  fontSize: 11,
+                  minHeight: 36,
+                  padding: "7px 13px",
+                  fontSize: 12,
                   fontWeight: 600,
                   letterSpacing: "0.02em",
                   color: active ? "#FFFFFF" : "var(--txt-2)",
-                  background: active ? "var(--brand-600)" : "transparent",
+                  background: active ? "var(--brand-fill)" : "transparent",
                   border: "none",
                   borderRadius: 9999,
                   cursor: "pointer",
@@ -471,8 +472,9 @@ function ControlBar({
           value={theme}
           onChange={(e) => onThemeChange(e.target.value as ThemeName)}
           style={{
-            padding: "5px 10px",
-            fontSize: 12,
+            minHeight: 36,
+            padding: "7px 12px",
+            fontSize: 13,
             fontWeight: 500,
             color: "var(--txt-1)",
             background: "var(--bg-surface)",

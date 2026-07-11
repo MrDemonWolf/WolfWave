@@ -268,7 +268,8 @@ export function DeveloperTabs() {
           background: transparent;
           border: 0;
           border-radius: 9px;
-          padding: 7px 12px;
+          min-height: 40px;
+          padding: 9px 14px;
           color: var(--txt-2);
           font-size: 12px;
           cursor: pointer;

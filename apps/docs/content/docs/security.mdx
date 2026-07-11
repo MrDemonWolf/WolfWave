@@ -95,7 +95,7 @@ This flow:
 On app launch, stored tokens are validated:
 
 - Invalid or expired tokens trigger re-authentication
-- Token refresh is handled automatically when possible
+- Token refresh is handled for you when possible
 - Users are prompted to re-authorize if needed
 
 ## Build Configuration
@@ -143,7 +143,7 @@ The built-in WebSocket server binds to all interfaces (LAN-reachable) so two-PC 
 
 - The token is a 32-byte random hex string, minted on first launch by `WebSocketAuthToken.currentOrCreate()` and persisted in the macOS Keychain.
 - Every accepted connection. Loopback **and** LAN. Must present `Sec-WebSocket-Protocol: wolfwave.token.<hex>` on the handshake; the listener rejects everything else.
-- `WidgetHTTPService` serves `widget.html` and injects the token automatically for loopback peers; remote browsers must supply `?token=…` in the URL.
+- `WidgetHTTPService` serves `widget.html` and injects the token for loopback peers; remote browsers must supply `?token=…` in the URL.
 - Tokens are redacted to the first 4 characters in log lines, never written in full.
 - The Discord IPC channel is a separate local Unix socket (`$TMPDIR/discord-ipc-{0..9}`). Never LAN-reachable.
 
@@ -173,7 +173,7 @@ All external network traffic uses encrypted transport:
 | `eventsub.wss.twitch.tv/ws` | WSS | Twitch EventSub WebSocket |
 | `itunes.apple.com/search` | HTTPS | Album artwork for Discord Rich Presence |
 | `github.com/MrDemonWolf/wolfwave/releases/...` | HTTPS | Sparkle appcast + signed updates |
-| `0.0.0.0:8765` | WebSocket (LAN) | Now-playing broadcast. Token-gated via `Sec-WebSocket-Protocol`; same-Mac OBS gets the token automatically, remote browsers must supply `?token=…` |
+| `0.0.0.0:8765` | WebSocket (LAN) | Now-playing broadcast. Token-gated via `Sec-WebSocket-Protocol`; same-Mac OBS gets the token on its own, remote browsers must supply `?token=…` |
 | `0.0.0.0:8766` | HTTP (LAN) | Widget HTML server. Same token-gating rules |
 | Local Unix socket | IPC | Discord Rich Presence (`$TMPDIR/discord-ipc-{0..9}`) |
 
@@ -184,7 +184,7 @@ The WebSocket and Widget HTTP listeners bind to all interfaces so a second-PC OB
 Sparkle is configured with privacy-conscious defaults:
 
 - **EdDSA-signed appcast**. Every release is signed with an Ed25519 key; the public key (`SUPublicEDKey`) ships in `Info.plist` and verifies the signature before any update is applied.
-- **Explicit consent for downloads** , `automaticallyDownloadsUpdates = false`. Sparkle never writes bytes to disk until you click *Install*.
+- **Explicit consent for downloads**, `automaticallyDownloadsUpdates = false`. Sparkle never writes bytes to disk until you click *Install*.
 - **No anonymous system profile transmitted** , `SUSendProfileInfo` is not enabled, so background checks transmit only the appcast request itself (User-Agent + macOS version, no app-specific telemetry).
 - **DEBUG builds**. Sparkle is initialized with `startingUpdater: false`; manual checks read from a bundled `dev-appcast.xml`, so the developer experience never reaches the production feed.
 - **Homebrew installs**. Sparkle is disabled entirely; Homebrew manages updates.

@@ -38,11 +38,11 @@ function stateLabel(state: CellState): string {
 function CompareIcon({ state }: { state: CellState }) {
   const tone =
     state === "yes"
-      ? { bg: "var(--brand-50)", color: "var(--brand-500)" }
+      ? { bg: "var(--brand-50)", color: "var(--brand-600)" }
       : state === "partial"
         ? {
             bg: "color-mix(in srgb, #E0930C 16%, transparent)",
-            color: "#C17D12",
+            color: "var(--tone-warn-ink)",
           }
         : { bg: "var(--bg-surface)", color: "var(--txt-2)" };
   const Icon = state === "yes" ? Check : state === "partial" ? Minus : XIcon;

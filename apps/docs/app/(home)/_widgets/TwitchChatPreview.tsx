@@ -24,7 +24,9 @@ const TW = {
   muted: "#adadb8",
   purple: "#9147ff",
 };
-const BOT = { color: "#3aa0ff", badge: { label: "BOT", bg: "#0a84ff" } };
+// Widget is a fixed-dark Twitch recreation. Badge bg darkened from #0a84ff
+// (white text 3.65:1) to #0A6CD6 (5.09:1) so the BOT label clears WCAG AA.
+const BOT = { color: "#3aa0ff", badge: { label: "BOT", bg: "#0A6CD6" } };
 
 interface Msg {
   id: number;

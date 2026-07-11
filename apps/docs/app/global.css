@@ -69,6 +69,16 @@
   --brand-500: #0A84FF;
   --brand-600: #0066CC;
   --brand-50:  #F0F7FF;
+  /* Fill blue for white text ON blue (buttons, skip-nav, to-top, active tabs).
+     brand-600 lightens to #409CFF in dark, which fails white-on-blue contrast,
+     so filled surfaces use this token instead. Light #0066CC (white 5.6:1),
+     dark #0A6CD6 (white 5.1:1). brand-600 stays the token for brand-colored
+     text, where its per-theme tuning is already correct. */
+  --brand-fill: #0066CC;
+  /* Amber "partial" ink. The badge tint flips with theme (amber@16% over
+     white vs over black), so the ink flips too: dark ink on the light cream,
+     bright amber on the near-black tint. Both clear AA on their own ground. */
+  --tone-warn-ink: #9C5D08;
 
   --bg-base:    #FFFFFF;
   --bg-surface: #F5F5F7;
@@ -82,6 +92,8 @@
   --brand-500: #0A84FF;
   --brand-600: #409CFF;
   --brand-50:  rgba(10,132,255,0.08);
+  --brand-fill: #0A6CD6;
+  --tone-warn-ink: #E1953A;
 
   --bg-base:    #000000;
   --bg-surface: #1C1C1E;
@@ -96,6 +108,8 @@
     --brand-500: #0A84FF;
     --brand-600: #409CFF;
     --brand-50:  rgba(10,132,255,0.08);
+    --brand-fill: #0A6CD6;
+    --tone-warn-ink: #E1953A;
     --bg-base:    #000000;
     --bg-surface: #1C1C1E;
     --bg-elev:    #0A0A0C;
@@ -274,11 +288,21 @@
 .ww-btn:active { transform: scale(0.98); }
 
 .ww-btn-primary {
-  background-color: var(--brand-600);
+  background-color: var(--brand-fill);
   color: #fff;
 }
 .ww-btn-primary:hover {
-  background-color: color-mix(in srgb, var(--brand-600) 80%, #000);
+  background-color: color-mix(in srgb, var(--brand-fill) 82%, #000);
+}
+/* Dark CTA keeps the vivid brand blue instead of the deeper fill; a black label
+   lifts it to AA (black on #0A84FF = 5.76:1) without dimming the color the way
+   white-on-deep-blue would. Light mode stays white on #0066CC. */
+.dark .ww-btn-primary {
+  background-color: var(--brand-500);
+  color: #000;
+}
+.dark .ww-btn-primary:hover {
+  background-color: color-mix(in srgb, var(--brand-500) 85%, #fff);
 }
 
 .ww-btn-secondary {
@@ -356,11 +380,17 @@
   display: flex;
   flex-direction: column;
   gap: 0.4rem;
-  padding: 1.5rem 1.5rem;
+  min-width: 0; /* let the flex cell shrink so long values never clip */
+  padding: 1.15rem 1.2rem;
   border-radius: 1.1rem;
   border: 1px solid var(--hairline);
   background-color: var(--bg-elev);
   transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+}
+@media (min-width: 420px) {
+  .ww-stat {
+    padding: 1.5rem 1.5rem;
+  }
 }
 .ww-stat:hover {
   transform: translateY(-2px);
@@ -382,8 +412,7 @@
   color: var(--txt-2);
 }
 .ww-stat-icon {
-  color: var(--brand-500);
-  opacity: 0.9;
+  color: var(--brand-600);
 }
 
 /* ── Proof band. Brand-lit container so the trust row stops
@@ -496,7 +525,7 @@
   height: 44px;
   border-radius: 50%;
   color: #fff;
-  background-color: var(--brand-500);
+  background-color: var(--brand-fill);
   border: 1px solid color-mix(in srgb, #ffffff 22%, transparent);
   box-shadow: 0 6px 16px -8px rgba(10, 132, 255, 0.4);
   opacity: 0;
@@ -511,7 +540,7 @@
   pointer-events: auto;
 }
 .ww-to-top:hover {
-  background-color: var(--brand-600);
+  background-color: color-mix(in srgb, var(--brand-fill) 82%, #000);
 }
 @media (prefers-reduced-motion: reduce) {
   .ww-to-top {
@@ -657,7 +686,7 @@
 }
 #nd-nav [data-theme-toggle] .bg-fd-accent {
   background-color: var(--brand-50);
-  color: var(--brand-500);
+  color: var(--brand-600);
 }
 .dark #nd-nav [data-theme-toggle] .bg-fd-accent {
   background-color: rgba(10, 132, 255, 0.16);
@@ -677,6 +706,17 @@
   border-color: var(--hairline) !important;
 }
 
+/* Mobile docs TOC bar (the sticky "Page title ⌄" popover on small screens).
+   Fumadocs ships it with a transparent background + only an 8px blur, so page
+   content ghosts through as you scroll. Give it an opaque backing + real blur,
+   matching the top nav, so it stays legible. */
+[data-toc-popover] {
+  background-color: color-mix(in srgb, var(--bg-base) 90%, transparent);
+  -webkit-backdrop-filter: saturate(180%) blur(20px);
+  backdrop-filter: saturate(180%) blur(20px);
+  border-color: var(--hairline) !important;
+}
+
 /* ── Skip to content ─────────────────────────────────────── */
 .skip-nav {
   position: fixed;
@@ -684,7 +724,7 @@
   left: 1rem;
   z-index: 9999;
   padding: 0.75rem 1.25rem;
-  background-color: var(--brand-600);
+  background-color: var(--brand-fill);
   color: #fff;
   border-radius: var(--ww-radius-control);
   font-weight: 600;
@@ -795,7 +835,7 @@ html {
    permalinks (.peer) and Card links ([data-card]). */
 [class*="prose"] a:not(.peer):not([data-card]),
 .fd-prose a:not(.peer):not([data-card]) {
-  color: var(--brand-500) !important;
+  color: var(--brand-600) !important;
   text-decoration: underline;
   text-decoration-color: color-mix(in srgb, var(--brand-500) 40%, transparent);
   text-underline-offset: 3px;
@@ -810,7 +850,7 @@ html {
 
 /* Lists: branded markers, comfortable spacing. */
 [class*="prose"] ul > li::marker {
-  color: color-mix(in srgb, var(--brand-500) 70%, var(--txt-2));
+  color: color-mix(in srgb, var(--brand-600) 70%, var(--txt-2));
 }
 [class*="prose"] ol > li::marker {
   color: var(--txt-2);
@@ -927,7 +967,7 @@ article:has(.docs-hero) > p:first-of-type,
   font-weight: 600;
   letter-spacing: 0.12em;
   text-transform: uppercase;
-  color: var(--brand-500);
+  color: var(--brand-600);
   margin-bottom: 1rem;
 }
 
@@ -1062,13 +1102,23 @@ div[data-card]:hover {
 [class*="prose"] table tbody tr:nth-child(even) td {
   background-color: color-mix(in srgb, var(--bg-surface) 35%, transparent);
 }
-/* First column: labels. Left-aligned and emphasized. */
+/* First column: labels. Left-aligned, emphasized, and sticky so wide tables
+   keep their row labels when scrolled horizontally on phones. The cell needs
+   an opaque background to cover the scrolled body cells beneath it. */
 [class*="prose"] table th:first-child,
 [class*="prose"] table td:first-child {
   text-align: left;
   white-space: normal;
   font-weight: 600;
   color: var(--txt-1);
+  position: sticky;
+  left: 0;
+  z-index: 1;
+  background-color: var(--bg-base);
+}
+[class*="prose"] table thead th:first-child {
+  z-index: 2;
+  background-color: var(--bg-surface);
 }
 
 /* Accordion. Match marketing landing FaqRow aesthetic.

@@ -72,7 +72,7 @@ This project follows Swift best practices with professional-grade documentation:
 - **Separation of Concerns**: Clean architecture across Core / Services / Views / Monitors
 - **Secure Credential Storage**: macOS Keychain for all sensitive data
 - **ScriptingBridge Integration**: Direct Apple Music communication without spawning subprocesses
-- **Robust Error Handling**: Typed errors with localized descriptions
+- **Typed Error Handling**: Typed errors with localized descriptions
 - **Type Safety**: Strongly typed models for all data structures
 - **Minimal Dependencies**: Native Apple frameworks plus Sparkle for auto-updates
 
@@ -92,7 +92,7 @@ The bot is implemented with `TwitchChatService` using Twitch Helix + EventSub (n
 - **EventSub WebSocket**: Real-time chat message notifications.
 - **OAuth Device Code Flow**: Secure authentication via `TwitchDeviceAuth`.
 - **Token Validation**: Automatic token validation on app launch.
-- **Network Path Monitoring**: Reconnects automatically when the network comes back.
+- **Network Path Monitoring**: Reconnects on its own when the network comes back.
 - **Command System**: Extensible bot command architecture via `BotCommandDispatcher`.
 
 ### Usage
@@ -113,7 +113,7 @@ The bot is implemented with `TwitchChatService` using Twitch Helix + EventSub (n
 - `SongListCommand`, `!playlist`. Links the song-request playlist.
 - `SkipCommand` / `HoldCommand` / `ClearQueueCommand`. Mod-only controls.
 - `VoteSkipCommand`, `!voteskip` / `!vs`. Chat vote-to-skip.
-- `CooldownManager` enforces global + per-user cooldowns; mods bypass automatically.
+- `CooldownManager` enforces global + per-user cooldowns; mods skip them.
 
 ## Song Request Service
 
@@ -216,7 +216,7 @@ Whenever you touch any of these:
 
 | Trigger | Mechanism |
 |---------|-----------|
-| `Cmd+B` in Xcode | Pre-build Run Script phase `Build OBS Widget (Tailwind → inline)` runs `bun run --filter widget build` automatically |
+| `Cmd+B` in Xcode | Pre-build Run Script phase `Build OBS Widget (Tailwind → inline)` runs `bun run --filter widget build` for you |
 | CI (test + release) | Bun setup + widget build runs before every `xcodebuild` invocation |
 | Manual | `bun run --filter widget build` from the repo root |
 
@@ -260,7 +260,7 @@ Test files are auto-discovered via `PBXFileSystemSynchronizedRootGroup`. Just ad
 
 The project includes these GitHub Actions workflows:
 
-- **Test** (`.github/workflows/test.yml`): Runs `xcodebuild test` on every push and pull request to `main`. Automatically creates a placeholder `Config.xcconfig` for builds.
+- **Test** (`.github/workflows/test.yml`): Runs `xcodebuild test` on every push and pull request to `main`. Creates a placeholder `Config.xcconfig` for builds.
 - **Build & Release** (`.github/workflows/build_release.yml`): On tag push (`v*`), builds a signed and notarized DMG in CI, then creates a **draft** GitHub Release with the DMG attached. The developer reviews the draft and publishes it.
 - **Update Homebrew** (`.github/workflows/update_homebrew.yml`): After a published Release, auto-bumps the Homebrew cask.
 - **Docs** (`.github/workflows/docs.yml`): Deploys the Fumadocs site to GitHub Pages.
@@ -278,7 +278,7 @@ The project includes these GitHub Actions workflows:
 | `APPLE_APP_PASSWORD`         | App-specific password for notarization  |
 | `SPARKLE_PRIVATE_KEY`        | EdDSA private key for appcast signing   |
 
-Code signing, notarization, and DMG creation all happen in the release workflow. `GITHUB_TOKEN` is provided automatically by GitHub Actions.
+Code signing, notarization, and DMG creation all happen in the release workflow. `GITHUB_TOKEN` is provided by GitHub Actions.
 
 ### Triggering a Release
 

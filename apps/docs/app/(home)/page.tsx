@@ -195,11 +195,17 @@ export default async function HomePage() {
                 in your Twitch chat, your Discord profile, and your OBS overlay.
               </p>
               <div className="ww-reveal ww-reveal-3 mt-8 flex flex-col sm:flex-row items-center justify-center lg:justify-start gap-3">
-                <Link href="/download" className="ww-btn ww-btn-primary">
+                <Link
+                  href="/download"
+                  className="ww-btn ww-btn-primary w-full sm:w-auto"
+                >
                   <Download className="w-4 h-4" />
                   Download for Mac
                 </Link>
-                <Link href="/docs" className="ww-btn ww-btn-secondary">
+                <Link
+                  href="/docs"
+                  className="ww-btn ww-btn-secondary w-full sm:w-auto"
+                >
                   See how it works
                   <ArrowRight className="w-4 h-4" />
                 </Link>
@@ -216,7 +222,7 @@ export default async function HomePage() {
                   href={REPO_URL}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="ww-pill"
+                  className="ww-pill min-h-[40px]"
                   aria-label="View WolfWave on GitHub"
                 >
                   <Github className="w-3 h-3" /> Open source · GPL-3.0
@@ -542,8 +548,10 @@ export default async function HomePage() {
                 </div>
               </div>
 
-              {/* Proof grid: the trust facts, 2x2. */}
-              <div className="grid grid-cols-2 gap-3 sm:gap-4">
+              {/* Proof grid: the trust facts. One column on the narrowest
+                  phones (the value strings clip in a 2-up cell under ~400px),
+                  2-up once there's room. */}
+              <div className="grid grid-cols-1 min-[420px]:grid-cols-2 gap-3 sm:gap-4">
                 {[
                   {
                     Icon: DollarSign,
@@ -615,7 +623,7 @@ export default async function HomePage() {
               <a
                 key={step.id}
                 href={`#${step.id}`}
-                className="ww-mono inline-flex items-center gap-2 px-3 py-1.5 text-xs rounded-lg transition-colors"
+                className="ww-mono inline-flex items-center gap-2 px-3.5 py-2 min-h-[40px] text-[13px] rounded-lg transition-colors"
                 style={{
                   border: "1px solid var(--hairline)",
                   color: "var(--txt-2)",
@@ -1015,11 +1023,17 @@ export default async function HomePage() {
             <span className="ww-text-brand">We&apos;ll handle the rest.</span>
           </h2>
           <div className="mt-10 flex flex-col sm:flex-row items-center justify-center gap-3">
-            <Link href="/download" className="ww-btn ww-btn-primary">
+            <Link
+              href="/download"
+              className="ww-btn ww-btn-primary w-full sm:w-auto"
+            >
               <Download className="w-4 h-4" />
               Download WolfWave
             </Link>
-            <Link href="/docs" className="ww-btn ww-btn-secondary">
+            <Link
+              href="/docs"
+              className="ww-btn ww-btn-secondary w-full sm:w-auto"
+            >
               Read the docs
               <ArrowRight className="w-4 h-4" />
             </Link>
@@ -1027,7 +1041,7 @@ export default async function HomePage() {
               href={REPO_URL}
               target="_blank"
               rel="noopener noreferrer"
-              className="ww-btn ww-btn-ghost"
+              className="ww-btn ww-btn-ghost w-full sm:w-auto"
             >
               <Github className="w-4 h-4" />
               Star on GitHub
