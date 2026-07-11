@@ -56,7 +56,7 @@ jobs:
 
       - name: Cache bun dependencies
         if: steps.filter.outputs.native == 'true'
-        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ~/.bun/install/cache
           key: ${{ runner.os }}-bun-${{ hashFiles('bun.lock') }}
@@ -109,7 +109,7 @@ jobs:
 
       - name: Cache SwiftPM packages
         if: steps.filter.outputs.native == 'true'
-        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: SourcePackages
           key: ${{ runner.os }}-spm-${{ hashFiles('apps/native/WolfWave.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved') }}
@@ -195,7 +195,7 @@ jobs:
 
       - name: Cache bun dependencies
         if: steps.filter.outputs.docs == 'true'
-        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ~/.bun/install/cache
           key: ${{ runner.os }}-bun-${{ hashFiles('bun.lock') }}
