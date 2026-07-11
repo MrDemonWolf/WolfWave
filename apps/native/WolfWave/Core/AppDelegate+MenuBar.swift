@@ -1021,9 +1021,9 @@ extension AppDelegate {
         }
     }
 
-    /// Re-opens the What's New sheet for the current marketing version.
+    /// Re-opens the What's New sheet on demand.
     @objc func showWhatsNewFromMenu() {
-        showWhatsNew(version: AppConstants.AppInfo.shortVersion)
+        showWhatsNew()
     }
 
     /// Opens the public documentation site.

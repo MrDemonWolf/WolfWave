@@ -124,24 +124,26 @@ extension AppDelegate {
 
 extension AppDelegate {
 
-    /// Shows the What's New sheet once per version for returning users.
+    /// Auto-shows the What's New sheet once per *feature* release for returning
+    /// users. Gated on `whatsNewVersion` (bumped only when there are new
+    /// features), so patch/bug-fix updates never trigger it.
     func checkWhatsNew() {
-        let currentVersion = AppConstants.AppInfo.shortVersion
+        let featureVersion = AppConstants.AppInfo.whatsNewVersion
         let lastSeen = Preferences.lastSeenWhatsNewVersion
 
-        guard lastSeen != currentVersion else { return }
+        guard lastSeen != featureVersion else { return }
 
         // Don't show on first install (onboarding handles that)
         guard Preferences.hasCompletedOnboarding else { return }
 
         Task { @MainActor [weak self] in
             try? await Task.sleep(for: .seconds(1))
-            self?.showWhatsNew(version: currentVersion)
+            self?.showWhatsNew()
         }
     }
 
-    /// Presents the What's New window and marks this version as seen.
-    func showWhatsNew(version: String) {
+    /// Presents the What's New window and marks the feature version as seen.
+    func showWhatsNew() {
         let whatsNewView = WhatsNewView()
         let hostingController = NSHostingController(rootView: whatsNewView)
         let window = NSWindow(contentViewController: hostingController)
@@ -157,7 +159,7 @@ extension AppDelegate {
         window.makeKeyAndOrderFront(nil)
         NSApp.activate()
         whatsNewWindow = window
-        Preferences.setLastSeenWhatsNewVersion(version)
+        Preferences.setLastSeenWhatsNewVersion(AppConstants.AppInfo.whatsNewVersion)
     }
 }
 

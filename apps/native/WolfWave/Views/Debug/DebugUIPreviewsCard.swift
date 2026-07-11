@@ -14,7 +14,6 @@ import SwiftUI
 /// Includes shortcuts to the What's New popup, the onboarding wizard, and a
 /// simulated update banner so designers can iterate without bumping versions.
 struct DebugUIPreviewsCard: View {
-    @State private var customVersion: String = "99.0.0"
 
     var body: some View {
         VStack(alignment: .leading, spacing: DSSpace.s4) {
@@ -24,23 +23,13 @@ struct DebugUIPreviewsCard: View {
                 .fixedSize(horizontal: false, vertical: true)
 
             Button {
-                AppDelegate.shared?.showWhatsNew(version: AppConstants.AppInfo.shortVersion)
+                AppDelegate.shared?.showWhatsNew()
             } label: {
                 Label("Preview What's New Popup", systemImage: "sparkles")
                     .frame(maxWidth: .infinity)
             }
             .buttonStyle(.bordered)
             .pointerCursor()
-
-            HStack(spacing: DSSpace.s2) {
-                TextField("Version (e.g. 99.0.0)", text: $customVersion)
-                    .textFieldStyle(.roundedBorder)
-                Button("Show") {
-                    AppDelegate.shared?.showWhatsNew(version: customVersion)
-                }
-                .buttonStyle(.bordered)
-                .pointerCursor()
-            }
 
             Button {
                 UserDefaults.standard.removeObject(forKey: AppConstants.UserDefaults.lastSeenWhatsNewVersion)
