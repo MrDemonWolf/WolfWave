@@ -165,6 +165,7 @@ jobs:
           NIGHTLY_BUILD=$(date -u +%Y%m%d%H%M)
           echo "version=$NIGHTLY_VERSION" >> "$GITHUB_OUTPUT"
           echo "build=$NIGHTLY_BUILD" >> "$GITHUB_OUTPUT"
+          echo "short_sha=$SHORT_SHA" >> "$GITHUB_OUTPUT"
           echo "Nightly version: $NIGHTLY_VERSION (build $NIGHTLY_BUILD)"
 
       - name: Import Developer ID certificate
@@ -338,14 +339,16 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           VERSION: ${{ steps.version.outputs.version }}
+          SHORT_SHA: ${{ steps.version.outputs.short_sha }}
         run: |
+          TITLE="WolfWave Nightly ($SHORT_SHA)"
           NOTES="$(printf 'Automated build off main. Unstable; for testing only.\n\nVersion: %s\nbuilt-from: %s' "$VERSION" "$GITHUB_SHA")"
           if gh release view "$NIGHTLY_TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
             gh release edit "$NIGHTLY_TAG" --repo "$GITHUB_REPOSITORY" \
-              --title "WolfWave Nightly" --notes "$NOTES" --prerelease
+              --title "$TITLE" --notes "$NOTES" --prerelease
           else
             gh release create "$NIGHTLY_TAG" --repo "$GITHUB_REPOSITORY" \
-              --title "WolfWave Nightly" --notes "$NOTES" --prerelease --target main
+              --title "$TITLE" --notes "$NOTES" --prerelease --target main
           fi
           # --clobber keeps the release (and its stable asset URLs) while
           # replacing the bytes. Never delete+recreate (would 404 the feed).
