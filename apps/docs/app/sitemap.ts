@@ -42,6 +42,14 @@ export default function sitemap(): MetadataRoute.Sitemap {
       ...classify("/"),
     },
     {
+      // Conversion page + the nav's Download target. It's a (home) route, not a
+      // docs page, so source.getPages() misses it — list it explicitly.
+      url: abs("/download"),
+      lastModified: now,
+      priority: 0.9,
+      changeFrequency: "monthly",
+    },
+    {
       url: abs("/widget"),
       lastModified: now,
       priority: 0.4,

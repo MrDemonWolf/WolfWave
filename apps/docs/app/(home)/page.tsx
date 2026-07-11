@@ -11,11 +11,7 @@ import {
   Shield,
   Music,
   Code2,
-  DollarSign,
-  EyeOff,
-  Scale,
   Headphones,
-  Star,
   Terminal,
   Twitch,
   X as XIcon,
@@ -133,47 +129,7 @@ function FaqRow({ q, a }: { q: string; a: React.ReactNode }) {
   );
 }
 
-// Build-time GitHub stats for the native trust chips. Fetched once when the
-// site is statically generated, so the star count and latest release stay
-// current per deploy without shipping third-party shields.io images. Any
-// failure (rate limit, offline) falls back to label-only chips.
-interface RepoStats {
-  stars: number | null;
-  latest: string | null;
-}
-
-async function getRepoStats(): Promise<RepoStats> {
-  const headers = {
-    Accept: "application/vnd.github+json",
-    "User-Agent": "wolfwave-docs",
-  };
-  try {
-    const [repoRes, relRes] = await Promise.all([
-      fetch("https://api.github.com/repos/MrDemonWolf/WolfWave", { headers }),
-      fetch("https://api.github.com/repos/MrDemonWolf/WolfWave/releases/latest", {
-        headers,
-      }),
-    ]);
-    const repo = repoRes.ok ? await repoRes.json() : null;
-    const rel = relRes.ok ? await relRes.json() : null;
-    return {
-      stars:
-        typeof repo?.stargazers_count === "number"
-          ? repo.stargazers_count
-          : null,
-      latest: typeof rel?.tag_name === "string" ? rel.tag_name : null,
-    };
-  } catch {
-    return { stars: null, latest: null };
-  }
-}
-
-function fmtStars(n: number): string {
-  return n >= 1000 ? `${(n / 1000).toFixed(1).replace(/\.0$/, "")}k` : String(n);
-}
-
-export default async function HomePage() {
-  const { stars, latest } = await getRepoStats();
+export default function HomePage() {
   return (
     <main id="nd-page" tabIndex={-1} className="ww-font ww-bg-base">
       {/* ═══════════════ HERO ═══════════════ */}
@@ -480,113 +436,7 @@ export default async function HomePage() {
         </div>
       </section>
 
-      {/* ═══════════════ 06 · OPEN & TRUSTED (proof band) ═══════════════ */}
-      <section
-        id="download"
-        className="ww-bg-surface px-[10%] md:px-6 py-16 sm:py-24 lg:py-28 scroll-mt-20"
-      >
-        <div className="mx-auto max-w-5xl">
-          <CenterHead
-            index="06"
-            kicker="Open & trusted"
-            title={<>Free, open, and yours to fork.</>}
-            sub="No paywall, no telemetry. Read every line on GitHub, audit the security model, or ship your own build."
-          />
-
-          <div className="ww-proof mt-12">
-            <div className="grid gap-5 sm:gap-6 lg:grid-cols-[1.05fr_1fr] lg:items-stretch">
-              {/* Download card: the primary action, with platform facts and
-                  the live star count baked in from getRepoStats at build time. */}
-              <div className="ww-download-card">
-                <div>
-                  <p className="ww-download-eyebrow">Get WolfWave</p>
-                  <p className="ww-download-headline">Free for macOS.</p>
-                </div>
-                <div className="ww-download-actions">
-                  <Link
-                    href="/download"
-                    className="ww-btn ww-btn-primary ww-btn-lg"
-                  >
-                    <Download className="w-4 h-4" />
-                    Download for Mac
-                  </Link>
-                  <p className="ww-download-meta">
-                    <span>
-                      latest{" "}
-                      <b className="ww-chip-strong">{latest ?? "release"}</b>
-                    </span>
-                    <span className="ww-download-sep" aria-hidden="true">
-                      ·
-                    </span>
-                    <span>Under 10 MB download</span>
-                    <span className="ww-download-sep" aria-hidden="true">
-                      ·
-                    </span>
-                    <span>macOS 26+ · Apple Silicon</span>
-                  </p>
-                  <a
-                    href={REPO_URL}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="ww-btn ww-btn-ghost"
-                    aria-label={
-                      stars != null
-                        ? `Star WolfWave on GitHub, ${stars} stars`
-                        : "Star WolfWave on GitHub"
-                    }
-                  >
-                    <Star className="w-4 h-4" />
-                    {stars != null ? (
-                      <>
-                        <b className="ww-chip-strong">{fmtStars(stars)}</b> · Star
-                        on GitHub
-                      </>
-                    ) : (
-                      "Star on GitHub"
-                    )}
-                  </a>
-                </div>
-              </div>
-
-              {/* Proof grid: the trust facts. One column on the narrowest
-                  phones (the value strings clip in a 2-up cell under ~400px),
-                  2-up once there's room. */}
-              <div className="grid grid-cols-1 min-[420px]:grid-cols-2 gap-3 sm:gap-4">
-                {[
-                  {
-                    Icon: DollarSign,
-                    value: "$0",
-                    label: "Free forever. No tiers, no upsell.",
-                  },
-                  {
-                    Icon: Scale,
-                    value: "GPL-3.0",
-                    label: "Open source. Fork it freely.",
-                  },
-                  {
-                    Icon: EyeOff,
-                    value: "0",
-                    label: "Trackers, servers, or telemetry.",
-                  },
-                  {
-                    Icon: Shield,
-                    value: "Signed",
-                    label: "Notarized by Apple.",
-                  },
-                ].map(({ Icon, value, label }) => (
-                  <div key={label} className="ww-stat">
-                    <Icon className="ww-stat-icon w-5 h-5" aria-hidden="true" />
-                    <span className="ww-stat-value">{value}</span>
-                    <span className="ww-stat-label">{label}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* ═══════════════ 07 · DEVELOPERS ═══════════════ */}
+      {/* ═══════════════ 06 · DEVELOPERS ═══════════════ */}
       <section
         id="developers"
         className="ww-bg-base ww-dev-dot-grid px-[10%] md:px-6 py-16 sm:py-24 lg:py-28 scroll-mt-20 relative overflow-hidden"
@@ -597,7 +447,7 @@ export default async function HomePage() {
       >
         <div className="mx-auto max-w-5xl relative">
           <CenterHead
-            index="07"
+            index="06"
             kicker="For developers"
             title={
               <>
@@ -835,14 +685,14 @@ export default async function HomePage() {
         </div>
       </section>
 
-      {/* ═══════════════ 08 · PRIVACY ═══════════════ */}
+      {/* ═══════════════ 07 · PRIVACY ═══════════════ */}
       <section
         id="privacy"
         className="ww-bg-base px-[10%] md:px-6 py-16 sm:py-24 lg:py-28 scroll-mt-20"
       >
         <div className="mx-auto max-w-3xl text-center">
           <div className="flex justify-center mb-5">
-            <Kicker index="08">Private by default</Kicker>
+            <Kicker index="07">Private by default</Kicker>
           </div>
           <h2 className="ww-display ww-text-1 text-4xl sm:text-5xl">
             Your music stays on your Mac.
@@ -864,14 +714,14 @@ export default async function HomePage() {
         </div>
       </section>
 
-      {/* ═══════════════ 09 · FAQ ═══════════════ */}
+      {/* ═══════════════ 08 · FAQ ═══════════════ */}
       <section
         id="faq"
         className="ww-bg-surface px-[10%] md:px-6 py-16 sm:py-24 lg:py-28 scroll-mt-20"
       >
         <div className="mx-auto max-w-3xl">
           <CenterHead
-            index="09"
+            index="08"
             kicker="Questions, answered"
             title={<>Anything else?</>}
             sub="The short answers. Longer ones live in the docs."

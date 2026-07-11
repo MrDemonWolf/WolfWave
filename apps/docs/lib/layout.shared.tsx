@@ -27,8 +27,12 @@ export function baseOptions(): BaseLayoutProps {
       { text: "Features", url: "/#audiences" },
       { text: "Compare", url: "/#compare" },
       { text: "FAQ", url: "/#faq" },
-      { text: "Docs", url: "/docs" },
-      { text: "Download", url: "/download" },
+      // Real pages. `active: nested-url` keeps the item lit on the page and its
+      // children, so the nav always shows where you are.
+      { text: "Docs", url: "/docs", active: "nested-url" },
+      // Primary conversion, kept last for recall (serial-position effect).
+      { text: "Download", url: "/download", active: "url" },
+      // Single community link. External Discord, opens in a new tab.
       { text: "Support", url: "https://mrdwolf.net/discord" },
     ],
     themeSwitch: {
