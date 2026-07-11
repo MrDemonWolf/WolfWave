@@ -15,6 +15,20 @@ ogDescription: Every release. Features, fixes, breaking changes. Auto-updating v
 All notable changes to WolfWave are documented here. When an update is ready, the same notes show up right inside the app's update window.
 
 
+## v2.0.1. July 11, 2026
+
+### Fixed
+- **Update notes now load.** Sparkle's "What's New" window no longer 404s when you check for updates. (It broke in 2.0.0.)
+- **Fewer crashes.** Fixed a crash for people who opted into diagnostics, a crash from an out-of-range widget port, and hard failures when a log write hit a full disk.
+- **Music.app can't freeze WolfWave.** Every command to Apple Music now times out instead of hanging the app if Music gets stuck.
+- **Snappier menu bar.** Play/pause state reads from cache instead of pinging Music.app while the menu is open.
+- **No double actions.** Twitch events that arrive twice (chat commands, channel-point redemptions) only run once now.
+- **Overlays keep updating.** Closing the Settings window no longer stops now-playing updates from reaching your overlay.
+- **Vote-skip won't get stuck.** A Twitch poll that never closes now falls back cleanly, and chat votes reset between songs.
+- **Accurate history.** Listening History no longer double-counts a play, and tells apart songs that share a title.
+- **`!playlist` survives hiccups.** A brief network blip while checking your playlist link no longer switches the command off.
+
+
 ## v2.0.0. July 1, 2026
 
 ### Security
