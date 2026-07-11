@@ -327,12 +327,17 @@ jobs:
           trap 'rm -f "$RUNNER_TEMP/sparkle_key"' EXIT
           # Dual-feed: a SEPARATE appcast file (no --channel flag). The fixed
           # `nightly` release tag makes the download URLs stable.
+          # --embed-release-notes keeps the notes INLINE in <description> so
+          # Sparkle renders them. Without it, a linked GitHub release asset is
+          # served as an attachment and Sparkle downloads the .html instead.
           "$SPARKLE_BIN/generate_appcast" \
             --ed-key-file "$RUNNER_TEMP/sparkle_key" \
+            --embed-release-notes \
             --download-url-prefix "https://github.com/MrDemonWolf/wolfwave/releases/download/${NIGHTLY_TAG}/" \
             -o builds/appcast-nightly.xml builds/
           xmllint --noout builds/appcast-nightly.xml
           grep -q 'sparkle:edSignature=' builds/appcast-nightly.xml || { echo "::error::appcast-nightly.xml missing edSignature"; exit 1; }
+          grep -q 'releaseNotesLink' builds/appcast-nightly.xml && { echo "::error::appcast-nightly.xml has a releaseNotesLink; notes were not embedded"; exit 1; }
           echo "Nightly appcast generated and validated"
 
       - name: Publish to rolling nightly prerelease
