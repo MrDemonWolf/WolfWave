@@ -1,0 +1,94 @@
+name: Full Test Suite (weekly canary)
+
+# Runs the ENTIRE WolfWave test suite with NO -skip-testing, on a schedule.
+#
+# Why this exists: the PR `test` job in test.yml skips SongRequestCommandTests
+# and TrackInfoCommandTests on the macos-26 runner image, which reproducibly
+# aborts the xctest host with a malloc nano-zone crash (a runner-image bug, not
+# a product bug — the full suite passes locally under `make test`, 849/0). That
+# skip means those two classes get no CI coverage. This weekly canary runs them
+# on the macos-15 image (which does not exhibit the crash) so a regression in
+# those classes can't land unnoticed. It is a safety net, not a PR gate.
+#
+# CAVEAT (validate on first run): the app targets macOS 26.0, so the build
+# needs the macOS 26 SDK (Xcode 26). If the macos-15 runner image does not
+# provide an Xcode with that SDK, the "Select Xcode" / build step will fail and
+# the runner/xcode-version below must be revisited. Kick the first run manually
+# via the "Run workflow" button (workflow_dispatch) and confirm it goes green
+# before trusting it.
+
+on:
+  schedule:
+    - cron: '0 9 * * 1'   # Mondays 09:00 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  SCHEME: WolfWave
+  PROJECT: apps/native/WolfWave.xcodeproj
+
+jobs:
+  full-suite:
+    name: Full Suite (no skips)
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
+
+      - name: Select latest stable Xcode
+        uses: maxim-lobanov/setup-xcode@ed7a3b1fda3918c0306d1b724322adc0b8cc0a90 # v1.7.0
+        with:
+          xcode-version: latest-stable
+
+      - name: Install Bun
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+
+      - name: Install JS dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Build OBS widget
+        run: bun run --filter widget build
+
+      - name: Create Config.xcconfig
+        run: |
+          printf 'TWITCH_CLIENT_ID = placeholder\nDISCORD_CLIENT_ID = placeholder\nGITHUB_REPO_OWNER = mrdemonwolf\nGITHUB_REPO_NAME = wolfwave\nDOCS_URL = https://mrdemonwolf.github.io/wolfwave\nCOMMUNITY_DISCORD_URL = https://mrdwolf.net/discord\nCOPYRIGHT_HOLDER = MrDemonWolf, Inc.\n' \
+            > apps/native/WolfWave/Config.xcconfig
+
+      - name: Regenerate SponsorConfig from FUNDING.yml
+        run: bash scripts/generate-sponsor-config.sh
+
+      - name: Cache SwiftPM packages
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: SourcePackages
+          key: ${{ runner.os }}-spm-${{ hashFiles('apps/native/WolfWave.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved') }}
+          restore-keys: ${{ runner.os }}-spm-
+
+      - name: Run FULL test suite (no -skip-testing)
+        env:
+          # Same defensive env as the PR job: route allocations through the
+          # standard zone and keep OSLog chatter out of the captured output.
+          MallocNanoZone: "0"
+          WOLFWAVE_LOG_LEVEL: error
+        run: |
+          xcodebuild -project "$PROJECT" -scheme "$SCHEME" \
+            -destination 'platform=macOS' \
+            ARCHS="arm64" \
+            -configuration Debug test \
+            -clonedSourcePackagesDirPath SourcePackages \
+            -parallel-testing-enabled NO \
+            -disable-concurrent-destination-testing \
+            CODE_SIGN_IDENTITY="-" \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGNING_ALLOWED=NO \
+            -resultBundlePath FullSuiteTestResults.xcresult
+
+      - name: Upload Test Results
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: FullSuiteTestResults
+          path: FullSuiteTestResults.xcresult

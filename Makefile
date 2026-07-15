@@ -80,10 +80,21 @@ test-ci: sponsor-config
 		-resultBundlePath TestResults.xcresult \
 		test
 
+# Full SwiftLint pass, filtered through the committed baseline so only NEW
+# violations show. Mirrors the CI `lint` job (now blocking).
 lint:
 	@if ! command -v swiftlint >/dev/null 2>&1; then \
 		echo "❌ SwiftLint not found. Install with: brew install swiftlint"; exit 1; fi
-	swiftlint lint --config .swiftlint.yml
+	swiftlint lint --config .swiftlint.yml --baseline swiftlint-baseline.json
+
+# Regenerate the SwiftLint baseline of grandfathered legacy violations.
+# The baseline is a ratchet: it should only ever SHRINK as legacy violations
+# get fixed. Regenerate and commit after any change that moves code between
+# files or shifts line numbers (the baseline is keyed by file + line).
+lint-baseline:
+	@if ! command -v swiftlint >/dev/null 2>&1; then \
+		echo "❌ SwiftLint not found. Install with: brew install swiftlint"; exit 1; fi
+	swiftlint lint --config .swiftlint.yml --write-baseline swiftlint-baseline.json
 
 # Blocking crash-class gate: force-unwrap / try! / as! on production source.
 # Mirrors the CI `lint-crash-safety` job. Must stay clean.
