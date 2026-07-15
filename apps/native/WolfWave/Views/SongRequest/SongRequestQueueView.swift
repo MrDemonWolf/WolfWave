@@ -31,6 +31,7 @@ struct SongRequestQueueView: View {
     }
 
     @State private var items: [SongRequestItem] = []
+    @State private var pending: [SongRequestItem] = []
     @State private var nowPlaying: SongRequestItem?
     @State private var showingClearConfirm = false
     @State private var isMusicAppClosed = false
@@ -74,26 +75,31 @@ struct SongRequestQueueView: View {
                 }
             }
 
+            // Pending approval (only populated when approval mode is on)
+            if !pending.isEmpty {
+                pendingSection
+            }
+
             // Now Playing
             if let nowPlaying {
                 nowPlayingRow(nowPlaying)
             }
 
             // Queue
-            if items.isEmpty && nowPlaying == nil {
+            if items.isEmpty && nowPlaying == nil && pending.isEmpty {
                 emptyState
-            } else if items.isEmpty {
+            } else if items.isEmpty && nowPlaying != nil {
                 Text("Queue is empty, this is the last requested song.")
                     .font(.system(size: DSFont.Size.sm))
                     .foregroundStyle(.tertiary)
                     .frame(maxWidth: .infinity, alignment: .center)
                     .padding(.vertical, DSSpace.s2)
-            } else {
+            } else if !items.isEmpty {
                 queueList
             }
 
             // Actions
-            if nowPlaying != nil || !items.isEmpty {
+            if nowPlaying != nil || !items.isEmpty || !pending.isEmpty {
                 actionButtons
             }
         }
@@ -156,6 +162,66 @@ struct SongRequestQueueView: View {
         .accessibilityLabel(
             "Now playing: \(item.title), \(item.artist), requested by \(item.requesterUsername)"
         )
+    }
+
+    // MARK: - Pending Approval
+
+    /// Requests waiting for the streamer to approve or decline. Each row offers a
+    /// green Approve and a plain Decline. Only shown in approval mode.
+    private var pendingSection: some View {
+        VStack(alignment: .leading, spacing: DSSpace.s1) {
+            Text("Waiting for approval (\(pending.count))")
+                .font(.system(size: DSFont.Size.xs, weight: .semibold))
+                .foregroundStyle(.orange)
+
+            ForEach(pending, id: \.id) { item in
+                HStack(spacing: DSSpace.s3) {
+                    smallArtworkPlaceholder
+
+                    VStack(alignment: .leading, spacing: 1) {
+                        Text(item.title)
+                            .font(.system(size: DSFont.Size.body))
+                            .lineLimit(1)
+                        Text("\(item.artist) · requested by \(item.requesterUsername)")
+                            .font(.system(size: DSFont.Size.xs))
+                            .foregroundStyle(.secondary)
+                            .lineLimit(1)
+                    }
+                    .accessibilityElement(children: .ignore)
+                    .accessibilityLabel(
+                        "Awaiting approval: \(item.title), \(item.artist), requested by \(item.requesterUsername)"
+                    )
+
+                    Spacer()
+
+                    Button {
+                        Task { _ = await service?.approve(id: item.id); refreshState() }
+                    } label: {
+                        Label("Approve", systemImage: "checkmark")
+                            .font(.system(size: DSFont.Size.sm))
+                    }
+                    .buttonStyle(.bordered)
+                    .controlSize(.small)
+                    .tint(.green)
+                    .accessibilityLabel("Approve \(item.title)")
+
+                    Button {
+                        service?.reject(id: item.id)
+                        refreshState()
+                    } label: {
+                        Image(systemName: "xmark.circle.fill")
+                            .font(.system(size: DSFont.Size.body))
+                            .foregroundStyle(.secondary)
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("Decline \(item.title)")
+                }
+                .padding(.vertical, DSSpace.s1)
+                .padding(.horizontal, DSSpace.s2)
+                .background(.orange.opacity(0.08))
+                .clipShape(RoundedRectangle(cornerRadius: DSRadius.sm))
+            }
+        }
     }
 
     // MARK: - Queue List
@@ -266,7 +332,7 @@ struct SongRequestQueueView: View {
             }
             .buttonStyle(.bordered)
             .controlSize(.small)
-            .disabled(items.isEmpty && nowPlaying == nil)
+            .disabled(items.isEmpty && nowPlaying == nil && pending.isEmpty)
             .confirmationDialog(
                 "Clear all song requests?",
                 isPresented: $showingClearConfirm,
@@ -317,6 +383,10 @@ struct SongRequestQueueView: View {
         let newItems = queue?.items ?? []
         if newItems.map(\.id) != items.map(\.id) {
             items = newItems
+        }
+        let newPending = queue?.pending ?? []
+        if newPending.map(\.id) != pending.map(\.id) {
+            pending = newPending
         }
         let newNowPlaying = queue?.nowPlaying
         if newNowPlaying?.id != nowPlaying?.id {

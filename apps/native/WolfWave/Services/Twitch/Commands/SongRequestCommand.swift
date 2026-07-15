@@ -92,6 +92,9 @@ final class SongRequestCommand: AsyncBotCommand {
             case .added(let item, let position):
                 response = "Added \"\(item.title)\" by \(item.artist), #\(position) in queue"
 
+            case .pendingApproval(let item):
+                response = "Sent \"\(item.title)\" by \(item.artist) to the streamer for approval."
+
             case .queueFull(let max):
                 response = "Queue is full (\(max)/\(max)). Try again later!"
 

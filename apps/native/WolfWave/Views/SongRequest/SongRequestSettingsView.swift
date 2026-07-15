@@ -608,6 +608,10 @@ fileprivate struct SongRequestAccessCard: View {
     @AppStorage(AppConstants.UserDefaults.songRequestBitsBoostEnabled)
     private var bitsBoostEnabled = false
 
+    /// Screening: hold every request for approval before it queues.
+    @AppStorage(AppConstants.UserDefaults.songRequestApprovalRequired)
+    private var approvalRequired = false
+
     private var activePreset: SongRequestPreset { SongRequestPreset.current() }
 
     /// Applies a preset and re-evaluates redemption subscriptions (presets flip
@@ -677,6 +681,18 @@ fileprivate struct SongRequestAccessCard: View {
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
             }
+
+            // Screening applies to every request path (chat, points, bits), so it
+            // sits above the per-preset controls and shows for all presets.
+            Divider()
+
+            ToggleSettingRow(
+                title: "Require My Approval",
+                subtitle: "Requests wait in the Queue tab until you approve or decline them.",
+                isOn: $approvalRequired,
+                accessibilityLabel: "Require approval before requests queue",
+                accessibilityIdentifier: "songRequests.access.requireApproval"
+            )
 
             // Open and Custom expose the request-path options inline. Sub Only and
             // Channel Point Only are fixed policies, so they show no extra controls.

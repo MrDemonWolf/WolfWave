@@ -435,6 +435,9 @@ nonisolated enum AppConstants {
         /// Whether Apple Music autoplay resumes when queue empties (Bool, default: true)
         static let songRequestAutoplayWhenEmpty = "songRequestAutoplayWhenEmpty"
 
+        /// Whether requests wait for streamer approval before queueing (Bool, default: false)
+        static let songRequestApprovalRequired = "songRequestApprovalRequired"
+
         /// Whether !sr command is enabled (Bool, default: true)
         static let srCommandEnabled = "srCommandEnabled"
 
@@ -697,6 +700,7 @@ nonisolated enum AppConstants {
             songRequestSubscriberOnly,
             songRequestAutoAdvance,
             songRequestAutoplayWhenEmpty,
+            songRequestApprovalRequired,
             srCommandEnabled,
             queueCommandEnabled,
             myQueueCommandEnabled,
@@ -822,6 +826,7 @@ nonisolated enum AppConstants {
             songRequestSubscriberOnly,
             songRequestAutoAdvance,
             songRequestAutoplayWhenEmpty,
+            songRequestApprovalRequired,
             srCommandEnabled,
             queueCommandEnabled,
             myQueueCommandEnabled,

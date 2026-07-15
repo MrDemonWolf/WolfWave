@@ -2778,6 +2778,13 @@ actor TwitchChatService {
             return (
                 "@\(username) added \"\(item.title)\" by \(item.artist), #\(position) in queue",
                 .fulfilled)
+        case let .pendingApproval(item):
+            // ponytail: fulfill on submit-to-review. A later reject can't refund
+            // points once the redemption is resolved, so approval-mode redemptions
+            // consume points on request, not on approval.
+            return (
+                "@\(username) sent \"\(item.title)\" by \(item.artist) to the streamer for approval.",
+                .fulfilled)
         case let .queueFull(max):
             return ("@\(username) the queue is full (\(max)). Points refunded.", .canceled)
         case let .userLimitReached(max):
@@ -2808,6 +2815,8 @@ actor TwitchChatService {
         switch result {
         case let .added(item, position):
             return "@\(username) added \"\(item.title)\" by \(item.artist), #\(position) in queue. Thanks for the bits!"
+        case let .pendingApproval(item):
+            return "@\(username) sent \"\(item.title)\" by \(item.artist) to the streamer for approval. Thanks for the bits!"
         case let .queueFull(max):
             return "@\(username) the queue is full (\(max)/\(max)). Try again soon!"
         case let .userLimitReached(max):

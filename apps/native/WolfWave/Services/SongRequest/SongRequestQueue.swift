@@ -23,6 +23,11 @@ final class SongRequestQueue {
     /// The ordered queue of pending song requests.
     private(set) var items: [SongRequestItem] = []
 
+    /// Requests awaiting streamer approval (approval mode only). Empty when the
+    /// `songRequestApprovalRequired` toggle is off, since requests go straight to
+    /// `items` then.
+    private(set) var pending: [SongRequestItem] = []
+
     /// The item currently being played from the queue (nil if none).
     private(set) var nowPlaying: SongRequestItem?
 
@@ -116,6 +121,81 @@ final class SongRequestQueue {
         return result
     }
 
+    // MARK: - Approval Holding Pen
+
+    /// Number of requests awaiting approval.
+    var pendingCount: Int {
+        lock.withLock { pending.count }
+    }
+
+    /// Add a request to the approval holding pen. Capacity-capped by
+    /// `maxQueueSize`; dedups the same song by the same user. Per-user throttling
+    /// is left to the upstream command cooldowns.
+    /// ponytail: no per-user cap on pending; cooldowns + Clear All bound spam.
+    @discardableResult
+    func addPending(_ item: SongRequestItem) -> AddResult {
+        let result: AddResult = lock.withLock {
+            guard pending.count < maxQueueSize else {
+                return .queueFull(max: maxQueueSize)
+            }
+            let lowered = item.requesterUsername.lowercased()
+            // Dedupe across the pending pen, the live queue, and now-playing, so a
+            // song already queued/playing for a user can't be re-parked in pending
+            // and later approved as a duplicate. Mirrors `add(_:)`.
+            let matchesItem: (SongRequestItem) -> Bool = {
+                $0.title.lowercased() == item.title.lowercased()
+                    && $0.artist.lowercased() == item.artist.lowercased()
+                    && $0.requesterUsername.lowercased() == lowered
+            }
+            let isDuplicate = pending.contains(where: matchesItem)
+                || items.contains(where: matchesItem)
+                || (nowPlaying.map(matchesItem) ?? false)
+            guard !isDuplicate else { return .alreadyInQueue }
+            pending.append(item)
+            return .added(position: pending.count)
+        }
+        postQueueChanged()
+        return result
+    }
+
+    /// Remove and return a pending item by ID (used when approving it).
+    func takePending(id: UUID) -> SongRequestItem? {
+        let item: SongRequestItem? = lock.withLock {
+            guard let index = pending.firstIndex(where: { $0.id == id }) else { return nil }
+            return pending.remove(at: index)
+        }
+        if item != nil { postQueueChanged() }
+        return item
+    }
+
+    /// Remove all pending items. Returns the number removed.
+    @discardableResult
+    func clearPending() -> Int {
+        let count: Int = lock.withLock {
+            let count = pending.count
+            pending.removeAll()
+            return count
+        }
+        postQueueChanged()
+        return count
+    }
+
+    /// Append an already-approved item to the live queue, checking only queue
+    /// capacity. The streamer vetted it, so the per-user and duplicate gates that
+    /// `add(_:)` enforces don't apply to a manual approval.
+    @discardableResult
+    func addApproved(_ item: SongRequestItem) -> AddResult {
+        let result: AddResult = lock.withLock {
+            guard items.count < maxQueueSize else {
+                return .queueFull(max: maxQueueSize)
+            }
+            items.append(item)
+            return .added(position: items.count)
+        }
+        postQueueChanged()
+        return result
+    }
+
     /// Remove and return the next item from the front of the queue.
     ///
     /// Sets `nowPlaying` to the dequeued item.
@@ -157,6 +237,7 @@ final class SongRequestQueue {
         let count: Int = lock.withLock {
             let count = items.count
             items.removeAll()
+            pending.removeAll()
             nowPlaying = nil
             return count
         }

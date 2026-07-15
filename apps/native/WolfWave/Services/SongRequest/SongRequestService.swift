@@ -22,6 +22,9 @@ final class SongRequestService {
     /// Result of processing a song request.
     enum RequestResult {
         case added(item: SongRequestItem, position: Int)
+        /// Approval mode is on: the request is held for the streamer to approve or
+        /// reject before it reaches the live queue.
+        case pendingApproval(item: SongRequestItem)
         case queueFull(max: Int)
         case userLimitReached(max: Int)
         case alreadyInQueue
@@ -202,6 +205,12 @@ final class SongRequestService {
 
     var isAutoAdvanceEnabled: Bool {
         Preferences.bool(AppConstants.UserDefaults.songRequestAutoAdvance, default: true)
+    }
+
+    /// Whether resolved requests wait in a holding pen for the streamer to approve
+    /// before they reach the live queue. Off by default: requests auto-queue.
+    var isApprovalRequired: Bool {
+        Preferences.bool(AppConstants.UserDefaults.songRequestApprovalRequired, default: false)
     }
 
     /// Whether Apple Music's own autoplay should keep going once the request
@@ -511,6 +520,25 @@ final class SongRequestService {
             }
 
             let item = SongRequestItem(song: song, requesterUsername: username)
+
+            // Approval mode: park the resolved request in the holding pen and let
+            // the streamer approve/reject it from the Queue pane. The per-user and
+            // capacity gates run at approval time via `queue.addApproved`.
+            if isApprovalRequired {
+                switch queue.addPending(item) {
+                case .added:
+                    return .pendingApproval(item: item)
+                case .queueFull(let max):
+                    return .queueFull(max: max)
+                case .alreadyInQueue:
+                    return .alreadyInQueue
+                case .userLimitReached(let max):
+                    // Defensive only: addPending is not per-user capped today, so
+                    // this never fires. Handled because AddResult is shared with add(_:).
+                    return .userLimitReached(max: max)
+                }
+            }
+
             // Resolve the requester's per-user limit from their roles. Chat
             // requests use the sender's badges; channel-point / bit requests have
             // no chat badges, so they fall back to the everyone tier.
@@ -645,6 +673,47 @@ final class SongRequestService {
             await startImmediatelyIfIdle()
         }
         return boosted
+    }
+
+    // MARK: - Approval
+
+    /// Number of requests waiting for approval.
+    var pendingApprovalCount: Int { queue.pendingCount }
+
+    /// Approve a held request: move it into the live queue and start it if idle.
+    /// No-op (returns `nil`) when the ID is unknown or the queue is full.
+    @discardableResult
+    func approve(id: UUID) async -> SongRequestItem? {
+        guard let item = queue.takePending(id: id) else { return nil }
+        guard case .added = queue.addApproved(item) else {
+            // Live queue is full: put the request back in the pending pen so the
+            // streamer can retry once a slot frees up, instead of losing it.
+            queue.addPending(item)
+            sendChatMessage?("Couldn't queue \"\(item.title)\" — the queue is full. Still pending; approve again once there's room.")
+            return nil
+        }
+        if musicController.isMusicAppRunning, !isHoldEnabled, queue.nowPlaying == nil {
+            takeoverBaselineTrackID = nil
+            takeoverDivergenceStreak = 0
+            await startImmediatelyIfIdle()
+        }
+        sendChatMessage?("Approved: \"\(item.title)\" by \(item.artist) (requested by \(item.requesterUsername))")
+        return item
+    }
+
+    /// Reject a held request and drop it. Returns the removed item, or `nil` when
+    /// the ID is unknown.
+    @discardableResult
+    func reject(id: UUID) -> SongRequestItem? {
+        guard let item = queue.takePending(id: id) else { return nil }
+        sendChatMessage?("Request declined: \"\(item.title)\" (\(item.requesterUsername))")
+        return item
+    }
+
+    /// Drop every held request without approving any. Returns the number removed.
+    @discardableResult
+    func clearPending() -> Int {
+        queue.clearPending()
     }
 
     // MARK: - Private Helpers
