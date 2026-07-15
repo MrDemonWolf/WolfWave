@@ -46,6 +46,9 @@ xcdebugger/
 /.build/
 **/.build/
 /.swiftpm/
+# SwiftPM clone dir used by CI (`-clonedSourcePackagesDirPath SourcePackages`);
+# a local build can populate it at repo root, so ignore the root copy.
+/SourcePackages/
 Package.pins
 # For apps, keep Package.resolved tracked for reproducible builds.
 # Uncomment the next line to ignore it (not recommended for apps):
@@ -74,10 +77,14 @@ Package.pins
 ############################################################
 .env
 .env.*
-apps/native/wolfwave/Config.xcconfig
+apps/native/WolfWave/Config.xcconfig
 
 # Local DMG/output folder created by Makefile prod build
 builds/
+
+# Local build/verify scratch dirs and stray tool output
+/build_verify/
+/Outdated
 
 # Root node_modules (monorepo root)
 node_modules/
