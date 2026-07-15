@@ -23,6 +23,11 @@ final class BotCommandDispatcher {
     /// "commands only while live" setting folded with stream-live state. Default
     /// `{ true }` so a bare dispatcher (and unit tests) respond unconditionally.
     private var globalGate: () -> Bool = { true }
+
+    /// Fetches live substitution values for custom-command variables (`$song`,
+    /// `$lastsong`). Wired by `TwitchChatService`; defaults to empty strings so a
+    /// bare dispatcher still renders custom commands (just without live values).
+    private var customCommandVariables: @Sendable () async -> CustomCommandVariables = { .empty }
     private let songCommand = TrackInfoCommand(
         triggers: ["!song", "!currentsong", "!nowplaying"],
         description: "Displays the currently playing track",
@@ -223,6 +228,35 @@ final class BotCommandDispatcher {
         }
     }
 
+    /// Wires the live-value provider for custom-command variables.
+    ///
+    /// - Parameter provider: Async closure returning the current/last song used
+    ///   to interpolate `$song` / `$lastsong` in custom command replies.
+    func setCustomCommandVariablesProvider(
+        _ provider: @escaping @Sendable () async -> CustomCommandVariables
+    ) {
+        lock.withLock {
+            customCommandVariables = provider
+        }
+    }
+
+    /// The full command table for a message: the user's enabled custom commands
+    /// first, then the built-in commands. Rebuilt each message so edits in
+    /// Settings apply on the next chat line without re-registration.
+    ///
+    /// Custom commands come first so an enabled custom command that reuses a
+    /// built-in trigger (e.g. a custom `!song`) can override it. When that custom
+    /// command is disabled or denies the viewer, the dispatch loop `break`s to the
+    /// next match, falling back to the shadowed built-in.
+    private func commandSnapshot() -> [BotCommand] {
+        let builtins = lock.withLock { commands }
+        let vars = lock.withLock { customCommandVariables }
+        let custom = CustomCommandStore.shared.enabledCommands.map {
+            CustomBotCommand(definition: $0, variables: vars)
+        }
+        return custom + builtins
+    }
+
     /// Processes a chat message and returns a command response if matched.
     ///
     /// - Parameters:
@@ -270,16 +304,25 @@ final class BotCommandDispatcher {
         // equality routes each message to exactly one command.
         let commandToken = lowered.split(whereSeparator: \.isWhitespace).first.map(String.init) ?? lowered
 
-        let snapshot = lock.withLock { commands }
+        let snapshot = commandSnapshot()
         for command in snapshot {
             // Use allTriggers (includes user-configured aliases)
             let triggers = command.allTriggers
             for trigger in triggers {
                 let triggerLowered = trigger.lowercased()
                 if commandToken == triggerLowered {
-                    // Check if command is enabled
+                    // Check if command is enabled. `break` (not `return nil`) so a
+                    // disabled command falls through to another match on the same
+                    // trigger (e.g. a disabled custom command → its built-in).
                     guard command.isCommandEnabled else {
-                        return nil
+                        break
+                    }
+
+                    // Permission gate (custom commands), before cooldown so a
+                    // denied viewer can't warm the shared cooldown. `break` lets a
+                    // shadowed built-in with the same trigger still run.
+                    if let context, !command.isAllowed(context: context) {
+                        break
                     }
 
                     let canonical = command.triggers.first ?? trigger
@@ -365,16 +408,24 @@ final class BotCommandDispatcher {
         // First-token equality (see processMessage), avoids alias/prefix collisions.
         let commandToken = lowered.split(whereSeparator: \.isWhitespace).first.map(String.init) ?? lowered
 
-        let snapshot = lock.withLock { commands }
+        let snapshot = commandSnapshot()
         for command in snapshot {
             let triggers = command.allTriggers
             for trigger in triggers {
                 let triggerLowered = trigger.lowercased()
                 if commandToken == triggerLowered {
                     Log.debug("BotCommandDispatcher: matched trigger \(trigger)", category: "Twitch")
+                    // `break` (not `return nil`) so a disabled/denied command
+                    // falls through to another match on the same trigger (e.g. a
+                    // disabled custom command → its shadowed built-in).
                     guard command.isCommandEnabled else {
-                        Log.debug("BotCommandDispatcher: command \(trigger) disabled, bail", category: "Twitch")
-                        return nil
+                        Log.debug("BotCommandDispatcher: command \(trigger) disabled, try next match", category: "Twitch")
+                        break
+                    }
+
+                    if let context, !command.isAllowed(context: context) {
+                        Log.debug("BotCommandDispatcher: command \(trigger) denied by permission, try next match", category: "Twitch")
+                        break
                     }
 
                     let canonical = command.triggers.first ?? trigger

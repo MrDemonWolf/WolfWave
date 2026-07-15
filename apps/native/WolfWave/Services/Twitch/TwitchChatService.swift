@@ -977,6 +977,16 @@ actor TwitchChatService {
             }
             return streamLiveSnapshot.value
         }
+        // Live values for custom-command variables (`$song`, `$lastsong`). Reuses
+        // the same now-playing providers the built-in `!song` / `!last` commands
+        // read, so a custom command like "!np → Now playing: $song" stays in sync.
+        let customCommandVariables: @Sendable () async -> CustomCommandVariables = {
+            let song: String
+            if let provider = providers.current() { song = await provider() } else { song = "" }
+            let last: String
+            if let provider = providers.last() { last = await provider() } else { last = "" }
+            return CustomCommandVariables(currentSong: song, lastSong: last)
+        }
         await MainActor.run {
             commandDispatcher.setCurrentSongInfoAsync {
                 Log.debug("Twitch provider: current song closure invoked", category: "Twitch")
@@ -1000,6 +1010,7 @@ actor TwitchChatService {
             commandDispatcher.setLastSongCommandEnabled(callback: lastSongCommandEnabled)
             commandDispatcher.setStatsCommandEnabled(callback: statsCommandActive)
             commandDispatcher.setGlobalGate(callback: commandsGlobalGate)
+            commandDispatcher.setCustomCommandVariablesProvider(customCommandVariables)
         }
 
         // Don't set connected state here - wait for EventSub session_welcome

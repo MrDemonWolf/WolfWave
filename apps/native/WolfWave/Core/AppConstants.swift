@@ -295,6 +295,10 @@ nonisolated enum AppConstants {
         /// When `false`, commands respond regardless of live state (Bool, default: false).
         static let commandsLiveOnly = "commandsLiveOnly"
 
+        /// User-defined custom chat commands, stored as JSON-encoded
+        /// `[CustomCommand]`. Managed by `CustomCommandStore`. (Data, default: empty)
+        static let customCommands = "customCommands"
+
         /// Whether !song / !last replies include a song.link URL (Bool, default: false)
         static let songCommandSongLinkEnabled = "songCommandSongLinkEnabled"
 
@@ -655,6 +659,7 @@ nonisolated enum AppConstants {
             currentSongCommandEnabled,
             lastSongCommandEnabled,
             commandsLiveOnly,
+            customCommands,
             hasCompletedOnboarding,
             shareDiagnosticsEnabled,
             diagnosticsLaunchCount,
@@ -784,6 +789,7 @@ nonisolated enum AppConstants {
             currentSongCommandEnabled,
             lastSongCommandEnabled,
             commandsLiveOnly,
+            customCommands,
             songCommandSongLinkEnabled,
             songCommandGlobalCooldown,
             songCommandUserCooldown,

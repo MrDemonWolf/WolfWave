@@ -17,7 +17,9 @@ All notable changes to WolfWave are documented here. When an update is ready, th
 ## Unreleased
 
 ### Added
-- **Approve songs before they play.** New opt-in "Require My Approval" toggle in Settings → Song Requests → Access. When it's on, every request (chat, channel points, bits) waits in the Queue tab until you approve or decline it. Off by default, so requests still auto-queue unless you turn it on. See [Bot Commands](/docs/bot-commands).
+- **Custom bot commands.** Make your own chat commands with a fixed reply, in Settings → Twitch → Custom Commands. Use variables like `$user`, `$touser`, `$args`, `$1`–`$9`, `$song`, and `$lastsong` and they fill in live. Each command gets its own aliases and Everyone / Per-person cooldowns, same as the built-ins. See [Bot Commands](/docs/bot-commands).
+- **Pick who can run a command.** Set any custom command to Everyone, Subscribers, VIPs, Moderators, or Broadcaster only. Custom commands are included in your settings backup.
+- **Approve songs before they play.** New opt-in "Require My Approval" toggle in Settings → Song Requests → Access. When it's on, every request (chat, channel points, bits) waits in the Queue tab until you approve or decline it. Off by default, so requests still auto-queue unless you turn it on.
 
 
 ## v2.0.1. July 11, 2026

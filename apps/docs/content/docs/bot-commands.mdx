@@ -161,6 +161,32 @@ Two extra ways for viewers to add a track. Both feed the same queue, blocklist, 
 
 ---
 
+## Custom Commands
+**TL;DR: Make your own commands with a fixed reply.**
+
+Build your own chat commands in **Settings → Twitch → Custom Commands**. Give each one a trigger, a reply, and pick who can use it. Aliases and cooldowns work just like the built-ins.
+
+**Variables** fill in when the command runs:
+
+| Variable | Fills in with |
+| --- | --- |
+| `$user`, `$sender` | The name of whoever ran the command |
+| `$touser` | The first word they typed (a leading `@` is stripped), or their own name if they typed nothing |
+| `$args` | Everything they typed after the command |
+| `$1`–`$9` | A single word by position |
+| `$song` | Your current track |
+| `$lastsong` | The track you played before it |
+
+**Example.** Trigger `!hug`, reply `$user gives $touser a big hug!`. A viewer types `!hug @Luna` and chat sees `MrDemonWolf gives Luna a big hug!`.
+
+**Who can use it.** Set each command to Everyone, Subscribers, VIPs, Moderators, or Broadcaster only. More privileged viewers always clear a lower bar (a mod passes a Subscribers-only command).
+
+<Callout type="info">
+  Custom commands are saved with your [settings backup](/docs/backup), so they travel with the rest of your setup.
+</Callout>
+
+---
+
 ## Custom Aliases
 **TL;DR: Type your own command names.**
 

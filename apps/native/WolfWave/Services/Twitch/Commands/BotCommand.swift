@@ -38,6 +38,17 @@ protocol BotCommand {
     /// UserDefaults key storing custom alias triggers (comma-separated). nil = no custom aliases.
     var aliasesKey: String? { get }
 
+    /// Every trigger this command answers to: base triggers plus any aliases.
+    /// A protocol requirement (not just an extension) so commands that carry
+    /// their aliases inline (e.g. ``CustomBotCommand``) can override the default
+    /// `UserDefaults`-backed implementation.
+    var allTriggers: [String] { get }
+
+    /// Whether `context` is permitted to run this command. Checked by the
+    /// dispatcher before recording the cooldown, so a denied viewer can't warm
+    /// the shared cooldown. Default: allow everyone.
+    func isAllowed(context: BotCommandContext) -> Bool
+
     /// Execute the command and return the response message.
     /// Keep response time under 100ms for responsive chat experience.
     func execute(message: String) -> String?
@@ -81,6 +92,9 @@ extension BotCommand {
         }
         return result
     }
+
+    /// Default: no permission gate; every viewer may run the command.
+    func isAllowed(context: BotCommandContext) -> Bool { true }
 
     /// Whether this command is currently enabled.
     var isCommandEnabled: Bool {
