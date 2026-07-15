@@ -10,8 +10,9 @@ import Network
 import XCTest
 @testable import WolfWave
 
-/// Integration tests that start a real HTTP server (NWListener) on ephemeral ports.
-/// Some tests bind to high-numbered ports; conflicts are unlikely but possible.
+/// Integration tests that start a real HTTP server (NWListener). Port-binding
+/// tests go through `startBoundService`, which walks a small range of high ports
+/// until one binds, so a busy or lingering port can't flake CI.
 @MainActor
 final class WidgetHTTPServiceTests: XCTestCase {
 
@@ -98,33 +99,56 @@ final class WidgetHTTPServiceTests: XCTestCase {
 
     // MARK: - Served HTML Body Tests
 
-    /// Fetches `GET /` from the running service and returns the body as a string.
-    private func fetchServedWidget(port: UInt16, timeout: TimeInterval = 5) -> String? {
-        guard let url = URL(string: "http://127.0.0.1:\(port)/") else { return nil }
-        let exp = expectation(description: "fetch /")
-        var body: String?
-        let config = URLSessionConfiguration.ephemeral
-        config.requestCachePolicy = .reloadIgnoringLocalAndRemoteCacheData
-        let session = URLSession(configuration: config)
-        let task = session.dataTask(with: url) { data, _, _ in
-            if let data { body = String(data: data, encoding: .utf8) }
-            exp.fulfill()
+    /// Starts a `WidgetHTTPService` on the first port in a small high range that
+    /// binds, awaiting readiness. Retries on the next port when a bind fails so a
+    /// busy or lingering port can't flake CI. Returns the ready service and the
+    /// port it bound, or fails the test if none bind.
+    private func startBoundService(
+        from base: UInt16 = 59900,
+        attempts: Int = 20,
+        make: (UInt16) -> WidgetHTTPService = { WidgetHTTPService(port: $0) }
+    ) async -> (service: WidgetHTTPService, port: UInt16)? {
+        for offset in 0..<attempts {
+            let port = base &+ UInt16(offset)
+            let service = make(port)
+            service.start()
+            do {
+                try await service.ready()
+                return (service, port)
+            } catch {
+                service.stop()
+            }
         }
-        task.resume()
-        wait(for: [exp], timeout: timeout)
-        return body
+        XCTFail("WidgetHTTPService never bound a port in \(base)…\(base &+ UInt16(attempts - 1))")
+        return nil
+    }
+
+    /// Fetches `GET /` from the running service and returns the body as a string.
+    /// Retries a few times so a transient connect race right after `ready()`
+    /// doesn't flake the assertion.
+    private func fetchServedWidget(port: UInt16, attempts: Int = 5, timeout: TimeInterval = 5) -> String? {
+        guard let url = URL(string: "http://127.0.0.1:\(port)/") else { return nil }
+        for attempt in 0..<attempts {
+            let exp = expectation(description: "fetch / (attempt \(attempt))")
+            var body: String?
+            let config = URLSessionConfiguration.ephemeral
+            config.requestCachePolicy = .reloadIgnoringLocalAndRemoteCacheData
+            let session = URLSession(configuration: config)
+            let task = session.dataTask(with: url) { data, _, _ in
+                if let data { body = String(data: data, encoding: .utf8) }
+                exp.fulfill()
+            }
+            task.resume()
+            wait(for: [exp], timeout: timeout)
+            if let body, !body.isEmpty { return body }
+            Thread.sleep(forTimeInterval: 0.05)
+        }
+        return nil
     }
 
     func testServedWidgetInlinesTokensJS() async {
-        let port: UInt16 = 59997
-        let service = WidgetHTTPService(port: port)
-        service.start()
+        guard let (service, port) = await startBoundService() else { return }
         defer { service.stop() }
-
-        // Await the listener actually binding the port instead of sleeping.
-        // A failed/stopped bind throws rather than hanging; the fetch guard below
-        // turns any such case into a clear XCTFail.
-        try? await service.ready()
 
         guard let body = fetchServedWidget(port: port) else {
             XCTFail("Failed to fetch served widget.html")
@@ -142,12 +166,8 @@ final class WidgetHTTPServiceTests: XCTestCase {
     }
 
     func testServedWidgetContainsPlaceholder() async {
-        let port: UInt16 = 59996
-        let service = WidgetHTTPService(port: port)
-        service.start()
+        guard let (service, port) = await startBoundService() else { return }
         defer { service.stop() }
-
-        try? await service.ready()
 
         guard let body = fetchServedWidget(port: port) else {
             XCTFail("Failed to fetch served widget.html")

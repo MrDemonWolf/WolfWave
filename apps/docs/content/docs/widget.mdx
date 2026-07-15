@@ -77,12 +77,16 @@ context visible so chat knows the integration is still healthy.
 
 ## Themes and layouts
 
-**Six themes, three layouts, ready to go.** They live in
+**Five themes, three layouts, ready to go.** They live in
 `design-system/tokens.json` under `widget.themes` and `widget.layouts`:
 
 | Themes | Layouts |
 |---|---|
-| Default, Dark, Light, Glass, Neon, WolfWave | Horizontal, Vertical, Compact |
+| Default, Dark, Light, Glass, Neon | Horizontal, Vertical, Compact |
+
+`tokens.json` also defines a `WolfWave` theme that's hidden from the picker
+(`WidgetTheme.order` in the generated tokens excludes it), so the app exposes
+five selectable themes.
 
 **Swap themes without rebuilding.** Themes aren't compiled into utility
 variants. They arrive at runtime over the WebSocket (`widget_config`

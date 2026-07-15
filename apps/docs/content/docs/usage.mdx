@@ -60,9 +60,9 @@ WolfWave hosts the widget right on your Mac. No external links. No internet need
 
 | Layout | Browser Source size |
 |---|---|
-| Horizontal *(default)* | **500 × 120** |
-| Vertical | **320 × 360** |
-| Compact | **320 × 80** |
+| Horizontal *(default)* | **500 × 100** |
+| Vertical | **220 × 280** |
+| Compact | **350 × 56** |
 
 <Callout type="info">
   **Important**: Turn on "Shutdown source when not visible" in OBS so the widget reconnects cleanly when you switch scenes.
@@ -80,7 +80,7 @@ Connecting from a second computer or phone? Use `http://<your-lan-ip>:8766/?toke
 
 ### Themes &amp; Layouts
 
-Pick from six themes (`Default`, `Dark`, `Light`, `Glass`, `Neon`, `WolfWave`) and three layouts (`Horizontal`, `Vertical`, `Compact`) in **Settings → Stream Widgets**.
+Pick from five themes (`Default`, `Dark`, `Light`, `Glass`, `Neon`) and three layouts (`Horizontal`, `Vertical`, `Compact`) in **Settings → Stream Widgets**.
 
 ---
 
@@ -93,6 +93,7 @@ Once you're logged into Twitch (**Settings → Twitch**), the bot auto-connects 
 - **Pick commands**: Choose which ones chat can use (like `!song`, `!last`, `!sr`, `!voteskip`, `!stats`).
 - **Cooldowns**: Set wait times so nobody spams.
 - **Mod Bypass**: Mods and you can use commands as much as you want.
+- **Custom commands**: Add your own `!command` with a fixed reply, variables, cooldowns, and a permission level in **Settings → Twitch → Custom Commands**.
 
 See the [Bot Commands](/docs/bot-commands) page for the full list, including [Vote-Skip](/docs/bot-commands#vote-skip) and [Live Stats](/docs/bot-commands#live-stats).
 
@@ -106,6 +107,7 @@ Open **Settings → Song Requests** and run the quick guided setup. It checks yo
 
 - **How chat uses it**: `!sr <song name, or Apple Music / Spotify / YouTube link>`. WolfWave finds the track (resolving Spotify and YouTube links to the matching Apple Music song) and adds it to the queue.
 - **Queue Panel**: See every pending request right in Settings. Reorder or remove with a click.
+- **Approve first (optional)**: Turn on **Require My Approval** in **Settings → Song Requests → Access** and every request (chat, channel points, bits) waits in the queue for your OK before it plays. Off by default.
 - **Hold Mode**: Pause new requests when you need a break. Flip it from Settings or `!hold` in chat.
 - **Blocklist**: Block specific tracks, artists, or albums you never want played.
 - **Quick Access**: Hold/resume the queue directly from the menu bar.
@@ -141,9 +143,9 @@ From the menu bar, open **Settings** to:
 - **Stream Widgets**: Port, themes, layouts, auth token.
 - **History & Stats**: Listening history opt-in, Stats charts, Monthly Wrap.
 - **Notifications**: Song-change banner toggle.
-- **Twitch**: Log in, pick commands, tweak cooldowns.
+- **Twitch**: Log in, pick commands, add custom commands, tweak cooldowns.
 - **Discord**: Turn the profile status on/off.
-- **Song Requests**: Queue, hold, blocklist.
+- **Song Requests**: Queue, hold, blocklist, approval screening.
 - **Advanced**: Check for updates or reset the setup wizard.
 
 ---

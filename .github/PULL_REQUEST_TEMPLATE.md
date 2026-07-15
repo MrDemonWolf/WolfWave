@@ -16,7 +16,7 @@ Closes #
 
 <!-- How did you verify this works? List manual steps and confirm CI. -->
 
-- [ ] `make test` passes locally (1218 tests)
+- [ ] `make test` passes locally
 - [ ] Tested manually on macOS 26+
 
 **Steps to test:**
@@ -34,8 +34,10 @@ Closes #
 
 ### Feature / Bug fix PRs
 
-- [ ] `CHANGELOG.md` updated with entry under `[Unreleased]`
-- [ ] `apps/docs/content/docs/changelog.mdx` updated
+- [ ] `CHANGELOG.md` updated under the top unreleased `## [x.y.z]` heading
+- [ ] `apps/docs/content/docs/changelog.mdx` updated under the top `## vX.Y.Z` block
+- [ ] README + docs (`features` / `usage` / `bot-commands`) updated if behavior or structure changed
+- [ ] `CLAUDE.md` updated if architecture, services, or counts changed
 
 ### Release PRs
 

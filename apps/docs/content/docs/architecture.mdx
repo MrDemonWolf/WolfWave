@@ -121,6 +121,7 @@ Coordinates chat song requests end-to-end:
 - **Resolvers**: `SongSearchResolver` (MusicKit) and `LinkResolverService` (Apple Music URLs).
 - **Playback**: `AppleMusicController` plays tracks via AppleScript while preserving window focus.
 - **Blocklist**: `SongBlocklist` blocks by track ID, artist, or album.
+- **Approval screening**: opt-in "Require My Approval" (`isApprovalRequired`, `approve`/`decline`) holds each request in a pending state until the broadcaster acts, across chat, channel points, and bits.
 
 ### DiscordRPCService
 
@@ -156,8 +157,9 @@ Tiny companion HTTP server that serves the bundled `widget.html` to OBS:
 The bundled `widget.html` is a **generated artifact**. Its source lives in
 the `apps/widget/` workspace (Tailwind + TypeScript), and the build pipeline
 inlines the compiled CSS, design tokens, and JS runtime into a single
-self-contained HTML file. Xcode rebuilds it via a pre-build script phase;
-CI rebuilds it before every `xcodebuild` invocation. See the
+self-contained HTML file. The committed `widget.html` ships as-is (Xcode does
+not rebuild it); CI rebuilds it before every `xcodebuild` invocation and fails
+the PR on any drift between the `apps/widget/` sources and the committed output. See the
 [OBS Widget Architecture](/docs/widget) page for the full pipeline,
 message contract, theme/layout system, and transition state machine.
 
@@ -175,6 +177,7 @@ Wraps the Sparkle framework for auto-updates:
 Extensible command routing system that:
 
 - Registers available commands at startup (`registerDefaultCommands()`).
+- Merges streamer-authored `CustomBotCommand`s from `CustomCommandStore` on top of the built-ins, rebuilt per message so edits apply on the next chat line.
 - Matches incoming messages to trigger sets (commands implement `BotCommand` or `AsyncBotCommand`).
 - Enforces global + per-user cooldowns via `CooldownManager` (mods bypass).
 - Returns responses capped at 500 chars, with execution target under 100 ms.

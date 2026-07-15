@@ -52,6 +52,8 @@ Your music plays. Everything else keeps up.
 - **Hold-Mode Queue.** Mods hold, resume, skip, and clear the request queue from chat or the menu bar.
 - **Live Queue View.** See what's playing, what's next, and who requested each track right inside the app.
 - **Fallback Playlist.** Configure an Apple Music playlist that takes over when the queue runs dry.
+- **Approve Before Play.** Opt-in "Require My Approval" holds every request (chat, channel points, bits) in the queue until you approve or decline it.
+- **Custom Commands.** Build your own chat commands with a fixed reply. Variables (`$user`, `$touser`, `$args`, `$1`–`$9`, `$song`, `$lastsong`), per-command aliases and cooldowns, and a permission level (Everyone, Subscribers, VIPs, Moderators, or Broadcaster).
 
 ### Discord
 
@@ -59,7 +61,7 @@ Your music plays. Everything else keeps up.
 
 ### Stream Overlays
 
-- **Stream Widgets.** Drop-in browser-source overlay powered by a local WebSocket server with a per-install auth token, six themes (`Default`, `Dark`, `Light`, `Glass`, `Neon`, `WolfWave`), and three layouts (`Horizontal`, `Vertical`, `Compact`). Two-PC streamers can connect from a second machine on the LAN.
+- **Stream Widgets.** Drop-in browser-source overlay powered by a local WebSocket server with a per-install auth token, five themes (`Default`, `Dark`, `Light`, `Glass`, `Neon`), and three layouts (`Horizontal`, `Vertical`, `Compact`). Two-PC streamers can connect from a second machine on the LAN.
 
 ### History & Stats
 
@@ -124,6 +126,11 @@ warnings.
 | `!resume` `!unhold` | Resumes a held queue |
 | `!clearqueue` | Wipes the queue (with in-app confirmation) |
 
+Streamers can add their own commands (with variables, cooldowns, and a
+permission level) in **Settings > Twitch > Custom Commands**, and screen the
+request queue behind a **Require My Approval** toggle in **Settings > Song
+Requests > Access**.
+
 ### Discord Rich Presence
 
 Enable in **Settings > Discord** to show what you're listening to on
@@ -133,7 +140,7 @@ your Discord profile. Album artwork is fetched automatically.
 
 Enable in **Settings > Stream Widgets** to start a local WebSocket
 server. Copy the widget URL (auth token auto-injected) and add it as a
-Browser Source (500 x 120) in OBS. Two-PC streamers can reach the
+Browser Source (500 x 100) in OBS. Two-PC streamers can reach the
 overlay from a second computer or phone on the same network. Regenerate
 the token from Settings to drop every active client.
 
