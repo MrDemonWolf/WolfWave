@@ -17,25 +17,25 @@ final class DiscordIdlePresenceTests: XCTestCase {
     // MARK: - buildIdleActivity
 
     func test_idleActivity_isListeningType() {
-        let activity = DiscordRPCService.buildIdleActivity()
+        let activity = DiscordPresenceBuilder.buildIdleActivity()
         XCTAssertEqual(activity["type"] as? Int, AppConstants.Discord.listeningActivityType)
     }
 
     func test_idleActivity_usesIdleCopy() {
-        let activity = DiscordRPCService.buildIdleActivity()
+        let activity = DiscordPresenceBuilder.buildIdleActivity()
         XCTAssertEqual(activity["details"] as? String, AppConstants.Discord.idleDetails)
         XCTAssertEqual(activity["state"] as? String, AppConstants.Discord.idleState)
     }
 
     func test_idleActivity_hasNoButtonsOrTimestamps() {
-        let activity = DiscordRPCService.buildIdleActivity()
+        let activity = DiscordPresenceBuilder.buildIdleActivity()
         // Idle is a static marker. No clickable buttons and no live ticker.
         XCTAssertNil(activity["buttons"])
         XCTAssertNil(activity["timestamps"])
     }
 
     func test_idleActivity_usesWolfWaveLogoWithAppleMusicBadge() {
-        let activity = DiscordRPCService.buildIdleActivity()
+        let activity = DiscordPresenceBuilder.buildIdleActivity()
         let assets = activity["assets"] as? [String: String]
         // Idle: WolfWave logo as the large image, Apple Music demoted to the
         // small source badge, so idle reads distinctly from active playback.

@@ -386,8 +386,8 @@ struct DiscordSettingsView: View {
     // MARK: - Playlist Preview Helpers
 
     /// Resolves the playlist for the preview using the same logic as the live presence.
-    private var playlistDisplay: DiscordRPCService.PlaylistDisplay? {
-        DiscordRPCService.resolvePlaylistDisplay(
+    private var playlistDisplay: DiscordPresenceBuilder.PlaylistDisplay? {
+        DiscordPresenceBuilder.resolvePlaylistDisplay(
             playlist: nowPlaying.playlist,
             album: nowPlaying.album,
             defaults: .standard
@@ -396,7 +396,7 @@ struct DiscordSettingsView: View {
 
     /// The activity state line (line 2) as the live presence would render it.
     private var previewStateLine: String {
-        DiscordRPCService.stateLine(
+        DiscordPresenceBuilder.stateLine(
             artist: nowPlaying.artist,
             playlist: playlistDisplay,
             style: playlistStyle
@@ -406,7 +406,7 @@ struct DiscordSettingsView: View {
     /// The small-icon tooltip text, or nil when the playlist isn't shown there.
     private var previewPlaylistTooltip: String? {
         guard playlistStyle == .iconTooltip, playlistDisplay != nil else { return nil }
-        return DiscordRPCService.smallText(playlist: playlistDisplay, style: playlistStyle)
+        return DiscordPresenceBuilder.smallText(playlist: playlistDisplay, style: playlistStyle)
     }
 
     /// Caption describing where the chosen style surfaces the playlist.
