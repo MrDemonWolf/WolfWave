@@ -12,7 +12,7 @@ import Network
 // MARK: - Helix Response Models
 
 /// `GET /helix/users` response. Used by `fetchBotIdentity` and `resolveUsername`.
-nonisolated private struct HelixUsersResponse: Decodable {
+nonisolated struct HelixUsersResponse: Decodable {
     struct User: Decodable {
         let id: String
         let login: String
@@ -22,7 +22,7 @@ nonisolated private struct HelixUsersResponse: Decodable {
 }
 
 /// `GET https://id.twitch.tv/oauth2/validate` response. Used by `validateToken`.
-nonisolated private struct TwitchValidateResponse: Decodable {
+nonisolated struct TwitchValidateResponse: Decodable {
     let scopes: [String]?
 }
 
@@ -35,7 +35,7 @@ nonisolated private struct HelixSendMessageResponse: Decodable {
 }
 
 /// `GET /helix/streams` response. Used by `seedStreamLiveState`.
-nonisolated private struct HelixStreamsResponse: Decodable {
+nonisolated struct HelixStreamsResponse: Decodable {
     struct Stream: Decodable {
         let id: String
         /// ISO-8601 stream start time, e.g. `2026-06-08T18:04:21Z`. Anchors the
@@ -353,15 +353,15 @@ actor TwitchChatService {
 
     // MARK: - Configuration
 
-    private let apiBaseURL = AppConstants.Twitch.apiBaseURL
+    let apiBaseURL = AppConstants.Twitch.apiBaseURL
     /// `BotCommandDispatcher` is `@MainActor` (project default). The actor
     /// holds it as `nonisolated` (it's auto-Sendable since it's MainActor) and
     /// hops to `MainActor.run` for every call into it.
     nonisolated let commandDispatcher: BotCommandDispatcher
-    private let channelPointsService = TwitchChannelPointsService()
+    let channelPointsService = TwitchChannelPointsService()
     private let rateLimiter = RateLimiter()
 
-    private let urlSession: URLSession = {
+    let urlSession: URLSession = {
         let config = URLSessionConfiguration.default
         config.timeoutIntervalForRequest = 60
         config.timeoutIntervalForResource = 300
@@ -370,48 +370,48 @@ actor TwitchChatService {
         return URLSession(configuration: config)
     }()
 
-    private let maxReconnectionAttempts = AppConstants.Twitch.maxReconnectionAttempts
-    private let maxNetworkReconnectCycles = AppConstants.Twitch.maxNetworkReconnectCycles
+    let maxReconnectionAttempts = AppConstants.Twitch.maxReconnectionAttempts
+    let maxNetworkReconnectCycles = AppConstants.Twitch.maxNetworkReconnectCycles
     private let maxMessageRetries = AppConstants.Twitch.maxMessageRetries
 
     // MARK: - WebSocket / Session
 
-    private var webSocketTask: URLSessionWebSocketTask?
-    private var sessionID: String?
-    private var receiveTask: Task<Void, Never>?
+    var webSocketTask: URLSessionWebSocketTask?
+    var sessionID: String?
+    var receiveTask: Task<Void, Never>?
 
     /// Keepalive watchdog. Armed after `session_welcome` from the advertised
     /// `keepalive_timeout_seconds` (+ grace) and reset on every inbound frame.
     /// Firing means Twitch went quiet past the deadline, so we tear down and
     /// reconnect via the proven fresh-connect path.
-    private var keepaliveWatchdogTask: Task<Void, Never>?
+    var keepaliveWatchdogTask: Task<Void, Never>?
 
     /// Current keepalive deadline (seconds) used when the watchdog re-arms on
     /// each inbound frame. Set from the `session_welcome` payload.
-    private var keepaliveDeadlineSeconds: TimeInterval = AppConstants.Twitch.keepaliveDefaultTimeoutSeconds
+    var keepaliveDeadlineSeconds: TimeInterval = AppConstants.Twitch.keepaliveDefaultTimeoutSeconds
 
     /// True while a `session_reconnect` migration is in flight. The resulting
     /// `session_welcome` then only re-arms the watchdog and flips connected,
     /// skipping the `subscribeTo*` calls because subscriptions migrate with the
     /// reconnect_url session.
-    private var isMigratingSession = false
+    var isMigratingSession = false
 
     /// Dedup store for inbound EventSub frames. Twitch delivers at-least-once,
     /// so `handleWebSocketMessage` drops any frame whose `metadata.message_id`
     /// was already seen. Actor-isolated, mutated only on the actor.
-    private var messageDeduplicator = EventSubMessageDeduplicator()
+    var messageDeduplicator = EventSubMessageDeduplicator()
 
     // MARK: - Credentials
 
-    private var broadcasterID: String?
-    private var botID: String?
-    private var oauthToken: String?
-    private var clientID: String?
-    private var botUsername: String?
+    var broadcasterID: String?
+    var botID: String?
+    var oauthToken: String?
+    var clientID: String?
+    var botUsername: String?
 
     /// Live `SongRequestService`, used by the channel-point and bit redemption
     /// handlers. Set once by `AppDelegate` at startup via `setSongRequestService(_:)`.
-    private var songRequestService: SongRequestService?
+    var songRequestService: SongRequestService?
 
     // MARK: - Toggles
 
@@ -453,14 +453,14 @@ actor TwitchChatService {
         didSet { isConnectedSnapshot.set(_connected) }
     }
     private var hasSentConnectionMessage = false
-    private var streamLive = false {
+    var streamLive = false {
         didSet { streamLiveSnapshot.set(streamLive) }
     }
 
     /// When the current stream went live, or `nil` when offline. Anchors the
     /// `!stats` command's "This stream" window. Seeded from Helix `started_at` on
     /// connect and updated by the `stream.online` / `stream.offline` events.
-    private var streamLiveSince: Date? {
+    var streamLiveSince: Date? {
         didSet { streamSinceSnapshot.set(streamLiveSince) }
     }
 
@@ -495,7 +495,7 @@ actor TwitchChatService {
     /// silent unless this is `true`.
     var isStreamLive: Bool { streamLive }
 
-    private func setConnected(_ value: Bool) {
+    func setConnected(_ value: Bool) {
         _connected = value
     }
 
@@ -506,7 +506,7 @@ actor TwitchChatService {
     ///
     /// - Parameter error: Optional failure description attached to the
     ///   notification payload (transport errors only).
-    private func broadcastConnectionState(_ connected: Bool, error: String? = nil) {
+    func broadcastConnectionState(_ connected: Bool, error: String? = nil) {
         setConnected(connected)
         NotificationCenter.default.postTwitchConnectionState(isConnected: connected, error: error)
         connectionStateHub.yield(connected)
@@ -514,27 +514,27 @@ actor TwitchChatService {
 
     // MARK: - Disconnect / Network State
 
-    private var isProcessingDisconnect = false
-    private var networkPathMonitor: NWPathMonitor?
-    private let networkMonitorQueue = DispatchQueue(
+    var isProcessingDisconnect = false
+    var networkPathMonitor: NWPathMonitor?
+    let networkMonitorQueue = DispatchQueue(
         label: "com.mrdemonwolf.wolfwave.networkmonitor")
-    private var isNetworkReachable = true
+    var isNetworkReachable = true
 
     // MARK: - Reconnection State
 
-    private var reconnectionAttempts = 0
-    private var reconnectTask: Task<Void, Never>?
-    private var sessionWelcomeTask: Task<Void, Never>?
+    var reconnectionAttempts = 0
+    var reconnectTask: Task<Void, Never>?
+    var sessionWelcomeTask: Task<Void, Never>?
     private var connectionMessageTask: Task<Void, Never>?
 
     /// Tracks total network-triggered reconnect cycles to prevent infinite loops
     /// when the network path flaps repeatedly.
-    private var networkReconnectCycles = 0
-    private var lastNetworkReconnectTime: TimeInterval = 0
+    var networkReconnectCycles = 0
+    var lastNetworkReconnectTime: TimeInterval = 0
 
-    private var reconnectChannelName: String?
-    private var reconnectToken: String?
-    private var reconnectClientID: String?
+    var reconnectChannelName: String?
+    var reconnectToken: String?
+    var reconnectClientID: String?
 
     // MARK: - Pending Messages
 
@@ -547,7 +547,7 @@ actor TwitchChatService {
     /// itself on completion. Tracked so `leaveChannel()` and `deinit` cancel
     /// them instead of letting them outlive the connection (every other
     /// long-running task in this actor is tracked the same way).
-    private var redemptionTasks: [UUID: Task<Void, Never>] = [:]
+    var redemptionTasks: [UUID: Task<Void, Never>] = [:]
 
     // MARK: - AsyncStream Outputs
 
@@ -556,8 +556,8 @@ actor TwitchChatService {
     /// Stream of finished vote-skip poll tallies.
     nonisolated let skipPollResults: AsyncStream<SkipPollResult>
 
-    private let chatMessagesContinuation: AsyncStream<ChatMessage>.Continuation
-    private let skipPollResultsContinuation: AsyncStream<SkipPollResult>.Continuation
+    let chatMessagesContinuation: AsyncStream<ChatMessage>.Continuation
+    let skipPollResultsContinuation: AsyncStream<SkipPollResult>.Continuation
 
     /// Fan-out registry backing `connectionStateChanges()`. One continuation
     /// per live subscriber; `broadcastConnectionState` yields to all of them.
@@ -770,151 +770,7 @@ actor TwitchChatService {
         }
     }
 
-    // MARK: - Network Monitoring
-
-    /// Starts monitoring network connectivity and sets up automatic reconnection.
-    private func startNetworkMonitoring() {
-        let monitor = NWPathMonitor()
-        networkPathMonitor = monitor
-
-        monitor.pathUpdateHandler = { [weak self] path in
-            Task { await self?.handleNetworkPathChange(path) }
-        }
-
-        monitor.start(queue: networkMonitorQueue)
-    }
-
-    /// Handles network path changes and triggers reconnection if needed.
-    ///
-    /// Rate-limits network-triggered reconnects to prevent infinite loops when
-    /// the network path flaps rapidly between available/unavailable states.
-    private func handleNetworkPathChange(_ path: NWPath) async {
-        let isReachable = path.status == .satisfied
-        let wasReachable = isNetworkReachable
-        isNetworkReachable = isReachable
-
-        if !wasReachable && isReachable {
-            let now = Date().timeIntervalSince1970
-            // Reset cycle counter if enough time has passed
-            if now - lastNetworkReconnectTime > AppConstants.Twitch.networkReconnectCooldown {
-                networkReconnectCycles = 0
-            }
-
-            guard networkReconnectCycles < maxNetworkReconnectCycles else {
-                Log.error(
-                    "TwitchChatService: Max network reconnect cycles reached, not reconnecting",
-                    category: "Twitch")
-                return
-            }
-
-            networkReconnectCycles += 1
-            lastNetworkReconnectTime = now
-            // Reset per-attempt counter for the new cycle
-            reconnectionAttempts = 0
-            scheduleReconnect()
-        } else if wasReachable && !isReachable {
-            Log.warn("TwitchChatService: Network unavailable, disconnecting", category: "Twitch")
-            disconnectFromEventSub()
-        }
-    }
-
-    // MARK: - Reconnection
-
-    /// Schedules a reconnection attempt with exponential backoff. Cancels any
-    /// existing scheduled attempt so we never have two pending at once.
-    private func scheduleReconnect() {
-        guard let channelName = reconnectChannelName,
-              let token = reconnectToken,
-              let clientID = reconnectClientID else {
-            Log.debug("TwitchChatService: Cannot reconnect - missing credentials", category: "Twitch")
-            return
-        }
-
-        let attempts = reconnectionAttempts
-
-        if attempts >= maxReconnectionAttempts {
-            Log.error(
-                "TwitchChatService: Max reconnection attempts reached (\(maxReconnectionAttempts))",
-                category: "Twitch")
-            // Reset attempts after hitting the limit to allow manual reconnection later
-            reconnectionAttempts = 0
-            return
-        }
-
-        // Exponential backoff: 1s, 2s, 4s, 8s, 16s
-        let delaySeconds = min(pow(2.0, Double(attempts)), 16.0)
-
-        Log.info(
-            "TwitchChatService: Scheduling reconnection attempt \(attempts + 1)/\(maxReconnectionAttempts) in \(String(format: "%.1f", delaySeconds))s",
-            category: "Twitch")
-
-        reconnectTask?.cancel()
-        reconnectTask = Task { [weak self] in
-            // Backoff timing tolerates 10% jitter, lets the wakeup coalesce.
-            try? await Task.sleep(for: .seconds(delaySeconds), tolerance: .seconds(delaySeconds * 0.1))
-            if Task.isCancelled { return }
-            await self?.attemptReconnect(channelName: channelName, token: token, clientID: clientID)
-        }
-    }
-
-    private func attemptReconnect(channelName: String, token: String, clientID: String) async {
-        do {
-            try await connectToChannel(channelName: channelName, token: token, clientID: clientID)
-            reconnectionAttempts = 0
-            Log.info("TwitchChatService: Reconnection successful", category: "Twitch")
-        } catch ConnectionError.authenticationFailed {
-            // A 401 means the stored token is dead. Retrying with the same token
-            // only burns `maxReconnectionAttempts` and never succeeds, so stop the
-            // loop and surface the re-auth banner. Try one reactive token refresh
-            // first; only fall back to interactive re-auth when that fails.
-            Log.error(
-                "TwitchChatService: Reconnect failed with 401; token is invalid or expired",
-                category: "Twitch")
-            await handleAuthenticationFailureDuringReconnect(
-                channelName: channelName, clientID: clientID)
-        } catch {
-            reconnectionAttempts += 1
-            Log.warn(
-                "TwitchChatService: Reconnection attempt failed: \(error.localizedDescription)",
-                category: "Twitch")
-            if reconnectionAttempts < maxReconnectionAttempts && isNetworkReachable {
-                scheduleReconnect()
-            } else if !isNetworkReachable {
-                Log.info(
-                    "TwitchChatService: Network no longer reachable, stopping reconnection attempts",
-                    category: "Twitch")
-            }
-        }
-    }
-
-    /// Handles a 401 during reconnect. Attempts exactly ONE reactive token
-    /// refresh (no loop); on success it reconnects with the fresh token, and on
-    /// any failure it signals interactive re-auth and stops the reconnect loop.
-    private func handleAuthenticationFailureDuringReconnect(
-        channelName: String, clientID: String
-    ) async {
-        if let refreshed = await TwitchTokenRefresher.attemptReactiveRefresh(clientID: clientID) {
-            Log.info(
-                "TwitchChatService: Reactive token refresh succeeded; reconnecting",
-                category: "Twitch")
-            reconnectToken = refreshed
-            reconnectionAttempts = 0
-            do {
-                try await connectToChannel(
-                    channelName: channelName, token: refreshed, clientID: clientID)
-                Log.info(
-                    "TwitchChatService: Reconnection successful after token refresh",
-                    category: "Twitch")
-                return
-            } catch {
-                Log.warn(
-                    "TwitchChatService: Reconnect after refresh failed - \(error.localizedDescription)",
-                    category: "Twitch")
-            }
-        }
-        // Refresh unavailable or failed: stop looping and ask the user to re-auth.
-        signalReauthNeededAndStop()
-    }
+    // Network monitoring + reconnection lifecycle lives in TwitchChatService+Connection.swift
 
     // MARK: - Public Methods
 
@@ -1068,83 +924,7 @@ actor TwitchChatService {
         Log.info("TwitchChatService: Connected to channel \(channelName)", category: "Twitch")
     }
 
-    /// Resolves and stores the bot's identity (user ID and username).
-    func resolveBotIdentity(token: String, clientID: String) async throws {
-        guard !token.isEmpty else { throw ConnectionError.invalidCredentials }
-        guard !clientID.isEmpty else { throw ConnectionError.missingClientID }
-
-        let identity = try await fetchBotIdentity(token: token, clientID: clientID)
-        let resolvedUsername = identity.displayName.isEmpty ? identity.login : identity.displayName
-
-        try KeychainService.saveTwitchUsername(resolvedUsername)
-        try KeychainService.saveTwitchBotUserID(identity.userID)
-    }
-
-    /// Static method to resolve bot identity without an instance.
-    static func resolveBotIdentityStatic(token: String, clientID: String) async throws {
-        guard !token.isEmpty else { throw ConnectionError.invalidCredentials }
-        guard !clientID.isEmpty else { throw ConnectionError.missingClientID }
-
-        // `init()` is `@MainActor`; hop to construct.
-        let service = await MainActor.run { TwitchChatService() }
-        let identity = try await service.fetchBotIdentity(token: token, clientID: clientID)
-        let resolvedUsername = identity.displayName.isEmpty ? identity.login : identity.displayName
-
-        try KeychainService.saveTwitchUsername(resolvedUsername)
-        try KeychainService.saveTwitchBotUserID(identity.userID)
-    }
-
-    /// Resolves the Twitch Client ID from Info.plist (set via Config.xcconfig at build time).
-    nonisolated static func resolveClientID() -> String? {
-        if let plistValue = Bundle.main.object(forInfoDictionaryKey: "TWITCH_CLIENT_ID") as? String,
-           !plistValue.isEmpty,
-           !plistValue.hasPrefix("$(") {
-            return plistValue
-        }
-        if let env = ProcessInfo.processInfo.environment["TWITCH_CLIENT_ID"], !env.isEmpty {
-            return env
-        }
-        return nil
-    }
-
-    /// Fetches the bot's identity (user ID and usernames) from Twitch.
-    func fetchBotIdentity(token: String, clientID: String) async throws -> BotIdentity {
-        guard let url = URL(string: apiBaseURL + "/users") else {
-            Log.error("TwitchChatService: Failed to construct users endpoint URL", category: "Twitch")
-            throw ConnectionError.networkError("Invalid users endpoint")
-        }
-
-        let response: HelixUsersResponse
-        do {
-            response = try await HTTPClient.shared.get(
-                url: url,
-                headers: HelixClient.headers(for: .init(token: token, clientID: clientID)))
-        } catch {
-            let mapped = mapHelixError(error)
-            if case .authenticationFailed = mapped {
-                Log.error(
-                    "TwitchChatService: Authentication failed (401) - invalid or expired OAuth token",
-                    category: "Twitch")
-            } else {
-                Log.error(
-                    "TwitchChatService: Users endpoint failed - \(error.localizedDescription)",
-                    category: "Twitch")
-            }
-            throw mapped
-        }
-
-        guard let first = response.data.first else {
-            Log.error("TwitchChatService: Failed to parse user identity from response", category: "Twitch")
-            throw ConnectionError.networkError("Unable to parse user identity")
-        }
-
-        let displayName = first.displayName ?? first.login
-
-        botID = first.id
-        botUsername = displayName
-
-        return BotIdentity(userID: first.id, login: first.login, displayName: displayName)
-    }
+    // Bot identity + token/username resolution lives in TwitchChatService+Auth.swift
 
     /// Leaves the current channel and disconnects from EventSub.
     func leaveChannel() {
@@ -1178,77 +958,7 @@ actor TwitchChatService {
         Log.info("TwitchChatService: Left channel", category: "Twitch")
     }
 
-    /// Validates an OAuth token with Twitch and verifies required scopes.
-    func validateToken(
-        _ token: String,
-        requiredScopes: [String] = ["user:read:chat", "user:write:chat"]
-    ) async -> Bool {
-        guard let url = URL(string: "https://id.twitch.tv/oauth2/validate") else {
-            Log.error("TwitchChatService: Invalid validate URL", category: "Twitch")
-            return false
-        }
-
-        var request = URLRequest(url: url)
-        request.httpMethod = "GET"
-        request.timeoutInterval = 15
-        // Per Twitch docs, use "OAuth <token>" for the validate endpoint
-        request.setValue("OAuth \(token)", forHTTPHeaderField: "Authorization")
-        request.setValue(HTTPClient.defaultUserAgent, forHTTPHeaderField: "User-Agent")
-
-        do {
-            let (data, http) = try await HTTPClient.shared.send(request)
-
-            guard (200..<300).contains(http.statusCode) else {
-                if http.statusCode == 401 {
-                    Log.warn("TwitchChatService: Stored OAuth token is invalid or expired", category: "Twitch")
-                } else {
-                    Log.warn("TwitchChatService: Token validate HTTP \(http.statusCode)", category: "Twitch")
-                }
-                return false
-            }
-
-            guard let parsed = try? JSONCoders.snakeCase.decode(TwitchValidateResponse.self, from: data) else {
-                Log.warn("TwitchChatService: Could not parse token validate response", category: "Twitch")
-                return false
-            }
-
-            if let scopes = parsed.scopes {
-                // Vote-skip Polls mode needs the polls scope. Only require it when
-                // the user has actually enabled Polls mode, so existing users are
-                // not forced to re-authorize unless they opt in.
-                var effectiveScopes = requiredScopes
-                let defaults = UserDefaults.standard
-                if defaults.bool(forKey: AppConstants.UserDefaults.voteSkipUsePolls),
-                   !effectiveScopes.contains(AppConstants.Twitch.pollsScope) {
-                    effectiveScopes.append(AppConstants.Twitch.pollsScope)
-                }
-                // Flag re-auth proactively when a redemption feature is on but its
-                // scope is missing (an old token from before these features), so
-                // the failure surfaces at connect instead of as a later 403.
-                if defaults.bool(forKey: AppConstants.UserDefaults.songRequestChannelPointsEnabled),
-                   !effectiveScopes.contains(AppConstants.Twitch.channelPointsScope) {
-                    effectiveScopes.append(AppConstants.Twitch.channelPointsScope)
-                }
-                if defaults.bool(forKey: AppConstants.UserDefaults.songRequestBitsEnabled),
-                   !effectiveScopes.contains(AppConstants.Twitch.bitsScope) {
-                    effectiveScopes.append(AppConstants.Twitch.bitsScope)
-                }
-                let missing = effectiveScopes.filter { !scopes.contains($0) }
-                if !missing.isEmpty {
-                    Log.warn(
-                        "TwitchChatService: Token missing required scopes: \(missing.joined(separator: ", "))",
-                        category: "Twitch")
-                    return false
-                }
-            }
-            return true
-        } catch {
-            Log.error(
-                "TwitchChatService: Token validate request failed - \(error.localizedDescription)",
-                category: "Twitch")
-            return false
-        }
-    }
+    // Token validation lives in TwitchChatService+Auth.swift
 
     /// Sends the connection confirmation message to the channel.
     ///
@@ -1463,114 +1173,7 @@ actor TwitchChatService {
         }
     }
 
-    // MARK: - Message Parsing
-
-    /// Parses and handles an incoming message from EventSub.
-    func handleEventSubMessage(_ json: [String: Any]) async {
-        Log.debug("TwitchChatService: handleEventSubMessage enter (isProcessingDisconnect=\(isProcessingDisconnect))", category: "Twitch")
-        if isProcessingDisconnect { return }
-
-        guard let event = json["event"] as? [String: Any] else {
-            Log.debug("TwitchChatService: handleEventSubMessage: payload has no event, bail", category: "Twitch")
-            return
-        }
-
-        let messageID = (event["message_id"] as? String ?? "")
-            .trimmingCharacters(in: .whitespacesAndNewlines)
-        let username = (event["chatter_user_name"] as? String ?? "")
-            .trimmingCharacters(in: .whitespacesAndNewlines)
-        let userID = (event["chatter_user_id"] as? String ?? "")
-            .trimmingCharacters(in: .whitespacesAndNewlines)
-        let broadcasterID = event["broadcaster_user_id"] as? String ?? ""
-        let messageText = event["message"] as? [String: Any]
-        let text = (messageText?["text"] as? String ?? "")
-            .trimmingCharacters(in: .whitespacesAndNewlines)
-
-        guard !messageID.isEmpty, !username.isEmpty, !userID.isEmpty, !text.isEmpty else { return }
-
-        var badges: [ChatMessage.Badge] = []
-        if let badgeArray = event["badges"] as? [[String: Any]] {
-            for badge in badgeArray {
-                if let setID = badge["set_id"] as? String,
-                   let id = badge["id"] as? String,
-                   !setID.isEmpty, !id.isEmpty {
-                    let info = (badge["info"] as? String ?? "")
-                        .trimmingCharacters(in: .whitespacesAndNewlines)
-                    badges.append(ChatMessage.Badge(setID: setID, id: id, info: info))
-                }
-            }
-        }
-
-        var reply: ChatMessage.Reply?
-        if let replyObj = event["reply"] as? [String: Any] {
-            let parentMessageID = (replyObj["parent_message_id"] as? String ?? "")
-                .trimmingCharacters(in: .whitespacesAndNewlines)
-            let parentBody = (replyObj["parent_message_body"] as? String ?? "")
-                .trimmingCharacters(in: .whitespacesAndNewlines)
-            let parentUserID = (replyObj["parent_user_id"] as? String ?? "")
-                .trimmingCharacters(in: .whitespacesAndNewlines)
-            let parentUsername = (replyObj["parent_user_name"] as? String ?? "")
-                .trimmingCharacters(in: .whitespacesAndNewlines)
-
-            if !parentMessageID.isEmpty && !parentUserID.isEmpty {
-                reply = ChatMessage.Reply(
-                    parentMessageID: parentMessageID,
-                    parentMessageBody: parentBody,
-                    parentUserID: parentUserID,
-                    parentUsername: parentUsername
-                )
-            }
-        }
-
-        let chatMessage = ChatMessage(
-            messageID: messageID,
-            username: username,
-            userID: userID,
-            message: text,
-            channel: broadcasterID,
-            badges: badges,
-            reply: reply
-        )
-
-        if commandsEnabled {
-            let roles = chatMessage.roles
-            let bypassCooldown = roles.isModerator || roles.isBroadcaster
-
-            let context = BotCommandContext(
-                userID: userID,
-                username: username,
-                isModerator: roles.isModerator,
-                isBroadcaster: roles.isBroadcaster,
-                isSubscriber: roles.isSubscriber,
-                isVIP: roles.isVIP,
-                messageID: messageID
-            )
-
-            let asyncReply: @Sendable (String) -> Void = { [weak self] response in
-                guard let self else { return }
-                Task { await self.sendMessage(response, replyTo: messageID) }
-            }
-
-            // BotCommandDispatcher is `@MainActor`. `processMessageAsync` auto-hops
-            // and awaits the async track-info providers, so MainActor isn't blocked
-            // on a semaphore while the provider tries to re-enter MainActor (which
-            // was the original `runSync` deadlock).
-            Log.debug("TwitchChatService: dispatch enter text=\(text.prefix(40))", category: "Twitch")
-            let response: String? = await commandDispatcher.processMessageAsync(
-                text,
-                userID: userID,
-                isModerator: bypassCooldown,
-                context: context,
-                asyncReply: asyncReply
-            )
-            Log.debug("TwitchChatService: dispatch exit response=\(response?.prefix(40) ?? "nil")", category: "Twitch")
-            if let response {
-                await sendMessage(response, replyTo: messageID)
-            }
-        }
-
-        chatMessagesContinuation.yield(chatMessage)
-    }
+    // EventSub message parsing (handleEventSubMessage) lives in TwitchChatService+EventSub.swift
 
     // MARK: - API Requests
 
@@ -1654,1337 +1257,35 @@ actor TwitchChatService {
         return data
     }
 
-    // MARK: - WebSocket Management
-
-    /// Default Twitch EventSub WebSocket endpoint.
-    private static let defaultEventSubURL = "wss://eventsub.wss.twitch.tv/ws"
-
-    /// Connects to a Twitch EventSub WebSocket endpoint.
-    ///
-    /// - Parameter urlString: Endpoint to connect to. Defaults to the standard
-    ///   EventSub URL; a `session_reconnect` migration passes the server-provided
-    ///   `reconnect_url` instead so subscriptions carry over to the new session.
-    private func connectToEventSub(urlString: String = TwitchChatService.defaultEventSubURL) {
-        guard let url = URL(string: urlString) else {
-            Log.error("TwitchChatService: Invalid EventSub URL", category: "Twitch")
-            broadcastConnectionState(false)
-            return
-        }
-
-        // Defensively cancel any pre-existing task before reassigning. Call
-        // paths currently route through `disconnectFromEventSub()` first, but a
-        // direct double-connect would otherwise orphan a live task.
-        webSocketTask?.cancel(with: .goingAway, reason: nil)
-
-        let task = urlSession.webSocketTask(with: url)
-        webSocketTask = task
-
-        Log.info("TwitchChatService: Starting EventSub WebSocket connection", category: "Twitch")
-        task.resume()
-
-        startSessionWelcomeTimeout()
-        startReceiveLoop()
-    }
-
-    /// Starts a timeout task that fires if `session_welcome` doesn't arrive in time.
-    private func startSessionWelcomeTimeout() {
-        sessionWelcomeTask?.cancel()
-        sessionWelcomeTask = Task { [weak self] in
-            try? await Task.sleep(for: .seconds(AppConstants.Twitch.sessionWelcomeTimeout))
-            if Task.isCancelled { return }
-            await self?.handleSessionWelcomeTimeout()
-        }
-    }
-
-    /// Cancels the session welcome timeout.
-    private func cancelSessionWelcomeTimeout() {
-        sessionWelcomeTask?.cancel()
-        sessionWelcomeTask = nil
-    }
-
-    // MARK: - Keepalive Watchdog
-
-    /// Arms (or re-arms) the keepalive watchdog for `deadlineSeconds`. Cancels any
-    /// existing watchdog first so there is never more than one pending. On expiry
-    /// it reuses the proven transport-error teardown: `disconnectFromEventSub()`
-    /// then `scheduleReconnect()`.
-    private func armKeepaliveWatchdog(deadlineSeconds: TimeInterval) {
-        keepaliveDeadlineSeconds = deadlineSeconds
-        keepaliveWatchdogTask?.cancel()
-        keepaliveWatchdogTask = Task { [weak self] in
-            try? await Task.sleep(for: .seconds(deadlineSeconds))
-            if Task.isCancelled { return }
-            await self?.handleKeepaliveExpiry()
-        }
-    }
-
-    /// Resets the keepalive watchdog to a full deadline. Called on every inbound
-    /// frame. No-op until the watchdog has been armed by `session_welcome`.
-    private func resetKeepaliveWatchdog() {
-        guard keepaliveWatchdogTask != nil else { return }
-        armKeepaliveWatchdog(deadlineSeconds: keepaliveDeadlineSeconds)
-    }
-
-    /// Cancels the keepalive watchdog.
-    private func cancelKeepaliveWatchdog() {
-        keepaliveWatchdogTask?.cancel()
-        keepaliveWatchdogTask = nil
-    }
-
-    /// Called when no frame arrived before the keepalive deadline. Treated like a
-    /// transport error: tear down and reconnect fresh (which re-subscribes).
-    private func handleKeepaliveExpiry() async {
-        Log.warn(
-            "TwitchChatService: Keepalive watchdog fired (no frame within \(Int(keepaliveDeadlineSeconds))s); reconnecting",
-            category: "Twitch")
-        broadcastConnectionState(false)
-
-        disconnectFromEventSub()
-
-        if let channelName = reconnectChannelName,
-           let token = reconnectToken,
-           let clientID = reconnectClientID,
-           !channelName.isEmpty, !token.isEmpty, !clientID.isEmpty,
-           isNetworkReachable {
-            scheduleReconnect()
-        }
-    }
-
-    /// Called when session_welcome timeout expires.
-    private func handleSessionWelcomeTimeout() async {
-        guard sessionID == nil else { return } // If we already got a welcome, ignore
-
-        // A welcome that never arrived means the (possibly migration) socket is
-        // dead and we fall back to a fresh reconnect. Clear the migration flag so
-        // the next fresh `session_welcome` re-subscribes normally. (disconnectFromEventSub
-        // below also clears it, but reset here too so the contract is explicit and
-        // independent of teardown ordering.)
-        isMigratingSession = false
-
-        Log.error(
-            "TwitchChatService: Session welcome timeout - WebSocket may not be responding",
-            category: "Twitch")
-        broadcastConnectionState(false)
-
-        disconnectFromEventSub()
-
-        if let channelName = reconnectChannelName,
-           let token = reconnectToken,
-           let clientID = reconnectClientID,
-           !channelName.isEmpty, !token.isEmpty, !clientID.isEmpty,
-           isNetworkReachable {
-            Log.info(
-                "TwitchChatService: Attempting reconnection after session welcome timeout",
-                category: "Twitch")
-            scheduleReconnect()
-        }
-    }
-
-    /// Disconnects from the EventSub WebSocket and clears session state.
-    private func disconnectFromEventSub() {
-        setConnected(false)
-        let task = webSocketTask
-        webSocketTask = nil
-        sessionID = nil
-        task?.cancel(with: .goingAway, reason: nil)
-
-        sessionWelcomeTask?.cancel()
-        sessionWelcomeTask = nil
-        receiveTask?.cancel()
-        receiveTask = nil
-        keepaliveWatchdogTask?.cancel()
-        keepaliveWatchdogTask = nil
-        isMigratingSession = false
-
-        Log.debug("TwitchChatService: EventSub WebSocket disconnected", category: "Twitch")
-    }
-
-    /// Drives the WebSocket receive loop. Replaces the recursive
-    /// `task.receive { ... }` callback chain with a structured async loop
-    /// that keeps frame ordering and integrates cleanly with actor isolation.
-    private func startReceiveLoop() {
-        receiveTask?.cancel()
-        let task = webSocketTask
-        receiveTask = Task { [weak self] in
-            guard let task else { return }
-            while !Task.isCancelled {
-                do {
-                    let message = try await task.receive()
-                    switch message {
-                    case .string(let text):
-                        await self?.handleWebSocketMessage(text)
-                    case .data(let data):
-                        if let text = String(data: data, encoding: .utf8) {
-                            await self?.handleWebSocketMessage(text)
-                        }
-                    @unknown default:
-                        break
-                    }
-                } catch {
-                    await self?.handleReceiveError(error)
-                    return
-                }
-            }
-        }
-    }
-
-    /// Handles a WebSocket receive error: logs, updates state, and attempts reconnect.
-    private func handleReceiveError(_ error: Error) async {
-        // Checked here on the actor, not in the receive loop: a separate
-        // pre-check before the `handleReceiveError` await would race with
-        // `leaveChannel()` flipping the flag between the two suspension points.
-        if isProcessingDisconnect { return }
-
-        // A receive error on a migration socket leads to a fresh `scheduleReconnect`
-        // below, NOT a reconnect_url migration. Clear the migration flag so the
-        // resulting fresh `session_welcome` runs the normal `subscribeTo*` path
-        // instead of being mistaken for a carried-over migrated session.
-        isMigratingSession = false
-
-        let nsError = error as NSError
-        let errorCode = nsError.code
-        let errorDomain = nsError.domain
-
-        if errorDomain == NSURLErrorDomain && errorCode == NSURLErrorTimedOut {
-            Log.error(
-                "TwitchChatService: WebSocket connection timed out. This may be due to network issues, firewall blocking, or Twitch service problems.",
-                category: "Twitch")
-        } else {
-            Log.error(
-                "TwitchChatService: WebSocket connection error: \(error.localizedDescription) (Domain: \(errorDomain), Code: \(errorCode))",
-                category: "Twitch")
-        }
-
-        broadcastConnectionState(false, error: error.localizedDescription)
-
-        if let channelName = reconnectChannelName,
-           let token = reconnectToken,
-           let clientID = reconnectClientID,
-           !channelName.isEmpty, !token.isEmpty, !clientID.isEmpty,
-           isNetworkReachable {
-            Log.info("TwitchChatService: Attempting automatic reconnection", category: "Twitch")
-            scheduleReconnect()
-        }
-    }
-
-    /// Handles a received WebSocket message.
-    private func handleWebSocketMessage(_ text: String) async {
-        // Any inbound frame is proof the connection is alive: reset the keepalive
-        // watchdog before doing anything else, even if the frame later fails to
-        // parse. A no-op until the watchdog has been armed by `session_welcome`.
-        resetKeepaliveWatchdog()
-
-        guard let data = text.data(using: .utf8) else {
-            Log.warn("TwitchChatService: WebSocket message is not valid UTF-8", category: "Twitch")
-            return
-        }
-
-        let json: [String: Any]
-        do {
-            guard let parsed = try JSONSerialization.jsonObject(with: data) as? [String: Any] else {
-                Log.warn("TwitchChatService: WebSocket message is not a JSON object", category: "Twitch")
-                return
-            }
-            json = parsed
-        } catch {
-            Log.warn(
-                "TwitchChatService: Failed to parse WebSocket message JSON - \(error.localizedDescription)",
-                category: "Twitch")
-            return
-        }
-
-        guard let metadata = json["metadata"] as? [String: Any],
-              let messageType = metadata["message_type"] as? String,
-              let messageID = metadata["message_id"] as? String, !messageID.isEmpty,
-              let messageTimestamp = metadata["message_timestamp"] as? String, !messageTimestamp.isEmpty else {
-            Log.warn("TwitchChatService: EventSub message missing required metadata fields", category: "Twitch")
-            return
-        }
-
-        // Reject messages older than 10 minutes to prevent replay attacks
-        var timestamp = try? Date.ISO8601FormatStyle(includingFractionalSeconds: true)
-            .parse(messageTimestamp)
-        if timestamp == nil {
-            // Fallback: try without fractional seconds
-            timestamp = try? Date.ISO8601FormatStyle().parse(messageTimestamp)
-            if timestamp == nil {
-                Log.warn(
-                    "TwitchChatService: Failed to parse EventSub timestamp: \(messageTimestamp)",
-                    category: "Twitch")
-            }
-        }
-        if let timestamp {
-            let age = Date().timeIntervalSince(timestamp)
-            if age > 600 {
-                Log.warn(
-                    "TwitchChatService: Rejecting stale EventSub message (age: \(Int(age))s)",
-                    category: "Twitch")
-                return
-            }
-            // Reject messages timestamped more than 30s in the future (clock-skew
-            // grace). A negative age means the message is ahead of our clock.
-            if age < -30 {
-                Log.warn(
-                    "TwitchChatService: Rejecting future-dated EventSub message (skew: \(Int(-age))s)",
-                    category: "Twitch")
-                return
-            }
-        }
-
-        // Twitch EventSub is at-least-once delivery: duplicate frames
-        // (especially around session_reconnect) would re-run chat commands,
-        // channel-point redemptions, and bits events. Drop any frame whose
-        // message_id was already seen within the dedup window.
-        if messageDeduplicator.isDuplicate(messageID) {
-            Log.debug(
-                "TwitchChatService: Dropping duplicate EventSub message (id: \(messageID))",
-                category: "Twitch")
-            return
-        }
-
-        switch messageType {
-        case "session_welcome":
-            await handleSessionWelcome(json)
-        case "notification":
-            await handleNotification(json)
-        case "session_keepalive":
-            break
-        case "session_reconnect":
-            await handleSessionReconnect(json)
-        case "revocation":
-            await handleRevocation(json)
-        default:
-            break
-        }
-    }
-
-    /// Handles a `session_reconnect` message by migrating to the server-provided
-    /// `reconnect_url`. The migrated session keeps its existing subscriptions, so
-    /// the resulting `session_welcome` must NOT re-run the `subscribeTo*` calls.
-    ///
-    /// Safety: if the URL is missing/invalid OR anything goes wrong, fall back to
-    /// the proven fresh-connect path (`disconnectFromEventSub()` +
-    /// `scheduleReconnect()`), which re-subscribes. A brief event gap during the
-    /// migration is acceptable; correctness beats zero-gap.
-    private func handleSessionReconnect(_ json: [String: Any]) async {
-        guard let url = TwitchChatService.reconnectURL(from: json) else {
-            Log.warn(
-                "TwitchChatService: session_reconnect missing a valid reconnect_url; reconnecting fresh",
-                category: "Twitch")
-            disconnectFromEventSub()
-            scheduleReconnect()
-            return
-        }
-
-        Log.info("TwitchChatService: Migrating EventSub session to reconnect_url", category: "Twitch")
-
-        // Tear down only the old socket/receive loop; keep credentials and the
-        // armed-deadline value. Mark migration so the next welcome skips re-subscribe.
-        let oldTask = webSocketTask
-        webSocketTask = nil
-        sessionID = nil
-        receiveTask?.cancel()
-        receiveTask = nil
-        keepaliveWatchdogTask?.cancel()
-        keepaliveWatchdogTask = nil
-        sessionWelcomeTask?.cancel()
-        sessionWelcomeTask = nil
-
-        isMigratingSession = true
-        connectToEventSub(urlString: url)
-
-        // Close the old socket only after the new connect was initiated, so the
-        // new welcome can arrive without us re-entering the fresh path on close.
-        oldTask?.cancel(with: .goingAway, reason: nil)
-    }
-
-    /// Handles a `revocation` message. Routes `authorization_revoked` to the
-    /// shared re-auth signal and stops reconnecting; routes `user_removed` /
-    /// `version_removed` to a safe full re-subscribe.
-    private func handleRevocation(_ json: [String: Any]) async {
-        guard let payload = json["payload"] as? [String: Any],
-              let subscription = payload["subscription"] as? [String: Any] else {
-            Log.warn("TwitchChatService: revocation missing subscription payload", category: "Twitch")
-            return
-        }
-        let type = (subscription["type"] as? String) ?? ""
-        let status = (subscription["status"] as? String) ?? ""
-
-        switch TwitchChatService.revocationDisposition(type: type, status: status) {
-        case .reauth:
-            Log.error(
-                "TwitchChatService: EventSub authorization revoked (\(type)); signaling re-auth",
-                category: "Twitch")
-            signalReauthNeededAndStop()
-        case .resubscribe:
-            Log.warn(
-                "TwitchChatService: EventSub subscription revoked (\(type)/\(status)); re-subscribing",
-                category: "Twitch")
-            guard sessionID != nil else {
-                // No live session: tear down and let the reconnect loop rebuild
-                // the session and subscriptions from scratch.
-                Log.warn(
-                    "TwitchChatService: No active session during revocation resubscribe; reconnecting",
-                    category: "Twitch")
-                disconnectFromEventSub()
-                scheduleReconnect()
-                return
-            }
-            await subscribeToChannelChatMessage()
-            try? await Task.sleep(for: .milliseconds(200))
-            await subscribeToPollEvents()
-            try? await Task.sleep(for: .milliseconds(200))
-            await subscribeToStreamEvents()
-            await seedStreamLiveState()
-            try? await Task.sleep(for: .milliseconds(200))
-            await subscribeToRedemptionsIfEnabled()
-        case .ignore:
-            Log.debug(
-                "TwitchChatService: Ignoring revocation status \(status) for \(type)",
-                category: "Twitch")
-        }
-    }
-
-    /// Signals that interactive Twitch re-auth is required and stops the reconnect
-    /// loop. Reuses the existing re-auth banner path (`Preferences` flag plus the
-    /// `.twitchReauthNeededChanged` notification observed by `TwitchViewModel`).
-    private func signalReauthNeededAndStop() {
-        // Stop any pending/active reconnect so we don't burn attempts on a dead token.
-        reconnectTask?.cancel()
-        reconnectTask = nil
-        reconnectionAttempts = 0
-
-        disconnectFromEventSub()
-
-        // Preferences is a `nonisolated enum`, safe to call from the actor.
-        Preferences.setTwitchReauthNeeded(true)
-        NotificationCenter.default.post(name: Notification.Name.twitchReauthNeededChanged, object: nil)
-    }
-
-    /// Handles the session_welcome message from EventSub.
-    private func handleSessionWelcome(_ json: [String: Any]) async {
-        guard let payload = json["payload"] as? [String: Any],
-              let session = payload["session"] as? [String: Any],
-              let sessionID = session["id"] as? String else {
-            Log.error("TwitchChatService: Failed to parse session ID", category: "Twitch")
-            return
-        }
-
-        cancelSessionWelcomeTimeout()
-        self.sessionID = sessionID
-        Log.info(
-            "TwitchChatService: EventSub session established with ID: \(sessionID)",
-            category: "Twitch")
-
-        // Arm the keepalive watchdog from the advertised timeout (+ grace).
-        let timeout = TwitchChatService.keepaliveTimeoutSeconds(from: json)
-            ?? AppConstants.Twitch.keepaliveDefaultTimeoutSeconds
-        let deadline = TwitchChatService.keepaliveDeadline(
-            timeoutSeconds: timeout, grace: AppConstants.Twitch.keepaliveGraceSeconds)
-        armKeepaliveWatchdog(deadlineSeconds: deadline)
-
-        broadcastConnectionState(true)
-
-        // A `session_reconnect` migration carries its subscriptions to the new
-        // session, so skip re-subscribing. Only fresh connects subscribe.
-        if isMigratingSession {
-            isMigratingSession = false
-            Log.info(
-                "TwitchChatService: Session migration complete; subscriptions carried over",
-                category: "Twitch")
-            return
-        }
-
-        await subscribeToChannelChatMessage()
-        try? await Task.sleep(for: .milliseconds(200))
-        await subscribeToPollEvents()
-        try? await Task.sleep(for: .milliseconds(200))
-        await subscribeToStreamEvents()
-        await seedStreamLiveState()
-        try? await Task.sleep(for: .milliseconds(200))
-        await subscribeToRedemptionsIfEnabled()
-    }
-
-    /// Handles notification messages containing EventSub events.
-    private func handleNotification(_ json: [String: Any]) async {
-        guard let payload = json["payload"] as? [String: Any] else { return }
-        guard let subscription = payload["subscription"] as? [String: Any],
-              let subType = subscription["type"] as? String else {
-            Log.warn(
-                "TwitchChatService: EventSub notification missing subscription type",
-                category: "Twitch")
-            return
-        }
-
-        Log.debug("TwitchChatService: handleNotification subType=\(subType)", category: "Twitch")
-
-        switch subType {
-        case AppConstants.Twitch.eventSubChatMessage:
-            Log.debug("TwitchChatService: routing chat message → handleEventSubMessage", category: "Twitch")
-            await handleEventSubMessage(payload)
-        case "channel.poll.end":
-            handlePollEndEvent(payload)
-        case AppConstants.Twitch.eventSubChannelPointsRedemption:
-            handleChannelPointsRedemption(payload)
-        case AppConstants.Twitch.eventSubBitsUse:
-            handleBitsUse(payload)
-        default:
-            handleStreamStateNotification(type: subType)
-        }
-    }
-
-    /// Parses a `channel.poll.end` event and, when it is our vote-skip poll,
-    /// forwards the Skip/Keep tallies to the `skipPollResults` stream.
-    private func handlePollEndEvent(_ payload: [String: Any]) {
-        guard let event = payload["event"] as? [String: Any],
-              let title = event["title"] as? String,
-              title == TwitchChatService.skipPollTitle,
-              let choices = event["choices"] as? [[String: Any]] else { return }
-
-        var skipVotes = 0
-        var keepVotes = 0
-        for choice in choices {
-            let votes = choice["votes"] as? Int ?? 0
-            switch choice["title"] as? String {
-            case TwitchChatService.skipPollSkipChoice: skipVotes = votes
-            case TwitchChatService.skipPollKeepChoice: keepVotes = votes
-            default: break
-            }
-        }
-
-        Log.info(
-            "TwitchChatService: Vote-skip poll ended: \(skipVotes) skip / \(keepVotes) keep",
-            category: "Twitch")
-        skipPollResultsContinuation.yield(SkipPollResult(skipVotes: skipVotes, keepVotes: keepVotes))
-    }
-
-    // MARK: - Vote-Skip Polls
-
-    /// Creates a native Twitch poll asking chat to vote on skipping the current song.
-    ///
-    /// Requires the `channel:manage:polls` scope and Affiliate/Partner status.
-    /// Missing either causes Twitch to reject the request, in which case this
-    /// returns `false` and `SkipVoteManager` falls back to a chat tally.
-    func createSkipPoll(title: String, durationSeconds: Int) async -> Bool {
-        guard let broadcasterID,
-              let token = oauthToken,
-              let clientID else {
-            Log.warn("TwitchChatService: Cannot create poll: missing credentials", category: "Twitch")
-            return false
-        }
-
-        guard let url = URL(string: apiBaseURL + "/polls") else { return false }
-
-        let duration = min(max(durationSeconds, 15), 1800)
-        let body: [String: Any] = [
-            "broadcaster_id": broadcasterID,
-            "title": String(title.prefix(60)),
-            "choices": [
-                ["title": TwitchChatService.skipPollSkipChoice],
-                ["title": TwitchChatService.skipPollKeepChoice],
-            ],
-            "duration": duration,
-        ]
-
-        let request: URLRequest
-        do {
-            request = try HelixClient.buildRequest(
-                url: url, method: "POST",
-                credentials: .init(token: token, clientID: clientID), body: body)
-        } catch {
-            Log.error(
-                "TwitchChatService: Failed to serialize poll body - \(error.localizedDescription)",
-                category: "Twitch")
-            return false
-        }
-
-        do {
-            let (data, http) = try await HTTPClient.shared.send(request)
-            if (200..<300).contains(http.statusCode) {
-                Log.info("TwitchChatService: Vote-skip poll created", category: "Twitch")
-                return true
-            }
-            let text = String(data: data, encoding: .utf8) ?? "No response"
-            Log.warn(
-                "TwitchChatService: Poll creation failed: HTTP \(http.statusCode): \(text)",
-                category: "Twitch")
-            return false
-        } catch {
-            Log.error(
-                "TwitchChatService: Poll creation request failed - \(error.localizedDescription)",
-                category: "Twitch")
-            return false
-        }
-    }
-
-    /// Subscribes to `channel.poll.end` so finished vote-skip polls can be tallied.
-    private func subscribeToPollEvents() async {
-        guard FeatureFlags.voteSkipEnabled,
-              UserDefaults.standard.bool(forKey: AppConstants.UserDefaults.voteSkipUsePolls) else { return }
-
-        guard let sessionID,
-              let broadcasterID,
-              let token = oauthToken,
-              let clientID else {
-            Log.warn(
-                "TwitchChatService: Missing credentials for poll EventSub subscription",
-                category: "Twitch")
-            return
-        }
-
-        let body: [String: Any] = [
-            "type": "channel.poll.end",
-            "version": "1",
-            "condition": ["broadcaster_user_id": broadcasterID],
-            "transport": ["method": "websocket", "session_id": sessionID],
-        ]
-        await postEventSubSubscription(body: body, token: token, clientID: clientID, label: "channel.poll.end")
-    }
-
-    /// Updates `streamLive` from a `stream.online` / `stream.offline` event.
-    private func handleStreamStateNotification(type: String) {
-        switch type {
-        case "stream.online":
-            // Anchor the "This stream" stats window before flipping `streamLive`
-            // so a synchronous snapshot reader can never observe live=true with
-            // a nil anchor. The event payload carries no start time here, so
-            // the moment we're notified is close enough.
-            streamLiveSince = Date()
-            streamLive = true
-            Log.info("TwitchChatService: Stream went live", category: "Twitch")
-        case "stream.offline":
-            streamLive = false
-            streamLiveSince = nil
-            Log.info("TwitchChatService: Stream went offline", category: "Twitch")
-        default:
-            Log.debug("TwitchChatService: Ignoring unexpected EventSub type: \(type)", category: "Twitch")
-        }
-    }
-
-    // MARK: - EventSub Subscriptions
-
-    /// Subscribes to the channel.chat.message EventSub event.
-    private func subscribeToChannelChatMessage() async {
-        guard let sessionID,
-              let broadcasterID,
-              let botID,
-              let token = oauthToken,
-              let clientID else {
-            Log.error(
-                "TwitchChatService: Missing credentials for EventSub subscription",
-                category: "Twitch")
-            broadcastConnectionState(false)
-            return
-        }
-
-        let body: [String: Any] = [
-            "type": "channel.chat.message",
-            "version": "1",
-            "condition": [
-                "broadcaster_user_id": broadcasterID,
-                "user_id": botID,
-            ],
-            "transport": [
-                "method": "websocket",
-                "session_id": sessionID,
-            ],
-        ]
-
-        // Shares the EventSub POST scaffolding with every other subscription.
-        // The chat subscription is the critical one: its extra success
-        // side-effect is the connection confirmation message, and a failure
-        // tears the connection back down.
-        var sawAuthFailure = false
-        let subscribed = await postEventSubSubscription(
-            body: body,
-            token: token,
-            clientID: clientID,
-            label: "channel.chat.message",
-            onSuccess: {
-                Log.info("TwitchChatService: Connected to chat", category: "Twitch")
-                if shouldSendConnectionMessageOnSubscribe {
-                    sendConnectionMessage()
-                }
-            },
-            onFailureStatus: { status in
-                // A 401 on the critical chat subscription means the token is dead.
-                // The subscription runs async after `session_welcome`, so it can't
-                // throw back into `attemptReconnect`; surface it as a re-auth signal.
-                if status == 401 { sawAuthFailure = true }
-            }
-        )
-
-        if !subscribed {
-            broadcastConnectionState(false)
-            if sawAuthFailure {
-                Log.error(
-                    "TwitchChatService: Chat subscription returned 401; signaling re-auth",
-                    category: "Twitch")
-                signalReauthNeededAndStop()
-            }
-        }
-    }
-
-    /// Subscribes to `stream.online` / `stream.offline` so `streamLive` stays current.
-    private func subscribeToStreamEvents() async {
-        guard let sessionID,
-              let broadcasterID,
-              let token = oauthToken,
-              let clientID else { return }
-
-        for eventType in ["stream.online", "stream.offline"] {
-            let body: [String: Any] = [
-                "type": eventType,
-                "version": "1",
-                "condition": ["broadcaster_user_id": broadcasterID],
-                "transport": ["method": "websocket", "session_id": sessionID],
-            ]
-            await postEventSubSubscription(body: body, token: token, clientID: clientID, label: eventType)
-        }
-    }
-
-    /// Seeds `streamLive` with a single Helix "Get Streams" call.
-    private func seedStreamLiveState() async {
-        guard let broadcasterID,
-              let token = oauthToken,
-              let clientID,
-              var components = URLComponents(string: apiBaseURL + "/streams") else { return }
-        components.queryItems = [URLQueryItem(name: "user_id", value: broadcasterID)]
-        guard let url = components.url else { return }
-
-        do {
-            let response: HelixStreamsResponse = try await HTTPClient.shared.get(
-                url: url,
-                headers: HelixClient.headers(for: .init(token: token, clientID: clientID)))
-            let live = !response.data.isEmpty
-            // Anchor "This stream" to the real start time when available, else now.
-            // The anchor is set before `streamLive` flips true (and cleared after
-            // it flips false) so snapshot readers never see live=true with no anchor.
-            if live {
-                let startedAt = response.data.first?.startedAt
-                    .flatMap { SharedFormatters.iso8601.date(from: $0) }
-                streamLiveSince = startedAt ?? Date()
-                streamLive = true
-            } else {
-                streamLive = false
-                streamLiveSince = nil
-            }
-            Log.info("TwitchChatService: Seeded stream-live state: live=\(live)", category: "Twitch")
-        } catch {
-            Log.debug(
-                "TwitchChatService: Stream-live seed request failed - \(error.localizedDescription)",
-                category: "Twitch")
-        }
-    }
-
-    // MARK: - Redemption EventSub Subscriptions
-
-    /// Subscribes to channel-point and/or bit EventSub events when the matching
-    /// song-request features are enabled. Channel-point and bit subscriptions
-    /// require the signed-in account to be the broadcaster. When a separate bot
-    /// account is in use they are skipped and the UI is notified.
-    private func subscribeToRedemptionsIfEnabled() async {
-        let defaults = UserDefaults.standard
-
-        // Channel-point and bit toggles are independent of the master switch, so
-        // skip every redemption subscription while the feature as a whole is off.
-        // Pause the managed reward first so it can't be redeemed at the source.
-        guard defaults.bool(forKey: AppConstants.UserDefaults.songRequestEnabled) else {
-            await pauseManagedRewardIfPossible()
-            setRedemptionStatus(.ok)
-            return
-        }
-
-        let channelPointsEnabled = defaults.bool(
-            forKey: AppConstants.UserDefaults.songRequestChannelPointsEnabled)
-        let bitsEnabled = defaults.bool(forKey: AppConstants.UserDefaults.songRequestBitsEnabled)
-
-        // Channel points off but a reward may still exist on the channel: pause it
-        // so viewers can't spend points on a request WolfWave would only refund.
-        if !channelPointsEnabled {
-            await pauseManagedRewardIfPossible()
-        }
-
-        guard channelPointsEnabled || bitsEnabled else {
-            setRedemptionStatus(.ok)
-            return
-        }
-
-        // Channel-point and bit EventSub require the broadcaster's own token.
-        guard let broadcasterID, let botID, broadcasterID == botID else {
-            Log.warn(
-                "TwitchChatService: Redemption events need the broadcaster account, skipping",
-                category: "Twitch")
-            setRedemptionStatus(.botAccount)
-            return
-        }
-
-        setRedemptionStatus(.ok)
-
-        if channelPointsEnabled {
-            await ensureSongRequestRewardAndSubscribe()
-        }
-        if bitsEnabled {
-            await subscribeToBitsUse()
-        }
-    }
-
-    /// Re-evaluates redemption subscriptions against the current settings.
-    /// Called by the settings UI after the streamer changes a redemption toggle.
-    func refreshRedemptionSubscriptions() async {
-        guard isConnected else { return }
-        await subscribeToRedemptionsIfEnabled()
-    }
-
-    /// Ensures the WolfWave channel-point reward exists, syncs its cost, and
-    /// subscribes to its redemption events.
-    private func ensureSongRequestRewardAndSubscribe() async {
-        guard let credentials = currentChannelPointCredentials() else { return }
-        let cost = channelPointsCostSetting()
-        do {
-            let rewardID = try await channelPointsService.ensureReward(
-                credentials: credentials, cost: cost)
-            // Make sure a previously-paused reward is live again now that the
-            // feature is on. A failure here leaves the reward greyed out on
-            // Twitch even though everything else worked, so don't swallow it:
-            // log it and surface a non-ok status in the settings banner.
-            var unpauseFailed = false
-            do {
-                try await channelPointsService.setRewardPaused(
-                    credentials: credentials, rewardID: rewardID, paused: false)
-            } catch {
-                unpauseFailed = true
-                Log.error(
-                    "TwitchChatService: Failed to un-pause channel-point reward - \(error.localizedDescription)",
-                    category: "Twitch")
-            }
-            // Cost sync is non-fatal (the reward still works at its old cost),
-            // but don't swallow the failure silently; surface it in the log.
-            do {
-                try await channelPointsService.updateRewardCost(
-                    credentials: credentials, rewardID: rewardID, cost: cost)
-            } catch {
-                Log.warn(
-                    "TwitchChatService: Couldn't sync channel-point reward cost; the reward still works at its current cost - \(error.localizedDescription)",
-                    category: "Twitch")
-            }
-            await subscribeToChannelPointsRedemption()
-            setRedemptionStatus(unpauseFailed ? .subscribeFailed : .ok)
-        } catch {
-            Log.error(
-                "TwitchChatService: Failed to set up channel-point reward - \(error.localizedDescription)",
-                category: "Twitch")
-            setRedemptionStatus(.subscribeFailed)
-        }
-    }
-
-    /// Pauses the WolfWave-managed channel-point reward so it can't be redeemed
-    /// while channel-point requests are off. No-op when no reward was ever
-    /// created or broadcaster credentials are unavailable.
-    private func pauseManagedRewardIfPossible() async {
-        let storedID = UserDefaults.standard.string(
-            forKey: AppConstants.UserDefaults.songRequestChannelPointsRewardID) ?? ""
-        guard !storedID.isEmpty, let credentials = currentChannelPointCredentials() else { return }
-        do {
-            try await channelPointsService.setRewardPaused(
-                credentials: credentials, rewardID: storedID, paused: true)
-            Log.info("TwitchChatService: Paused channel-point reward (requests off)", category: "Twitch")
-        } catch {
-            Log.error(
-                "TwitchChatService: Failed to pause channel-point reward - \(error.localizedDescription)",
-                category: "Twitch")
-        }
-    }
-
-    private func subscribeToChannelPointsRedemption() async {
-        guard let broadcasterID, let token = oauthToken, let clientID, let sessionID else { return }
-        let body: [String: Any] = [
-            "type": AppConstants.Twitch.eventSubChannelPointsRedemption,
-            "version": "1",
-            "condition": ["broadcaster_user_id": broadcasterID],
-            "transport": ["method": "websocket", "session_id": sessionID],
-        ]
-        await postEventSubSubscription(body: body, token: token, clientID: clientID, label: "channel-point redemptions")
-    }
-
-    private func subscribeToBitsUse() async {
-        guard let broadcasterID, let token = oauthToken, let clientID, let sessionID else { return }
-        let body: [String: Any] = [
-            "type": AppConstants.Twitch.eventSubBitsUse,
-            "version": "1",
-            "condition": ["broadcaster_user_id": broadcasterID],
-            "transport": ["method": "websocket", "session_id": sessionID],
-        ]
-        await postEventSubSubscription(body: body, token: token, clientID: clientID, label: "bit usage")
-    }
-
-    /// Posts an EventSub subscription request. Logs success/failure and updates
-    /// redemption status on 403 (scope) / non-2xx (subscribeFailed).
-    ///
-    /// - Parameters:
-    ///   - onSuccess: Side effect run once on a 2xx response. Defaults to a
-    ///     no-op; `subscribeToChannelChatMessage` uses it to send the connection
-    ///     confirmation message.
-    /// - Returns: `true` when the subscription is in place (2xx, or 409 "already
-    ///   active"), `false` on any other failure. `subscribeToChannelChatMessage`
-    ///   branches on this to decide whether the connection is healthy.
-    @discardableResult
-    private func postEventSubSubscription(
-        body: [String: Any],
-        token: String,
-        clientID: String,
-        label: String,
-        onSuccess: () -> Void = {},
-        onFailureStatus: (Int) -> Void = { _ in }
-    ) async -> Bool {
-        guard let url = URL(string: apiBaseURL + "/eventsub/subscriptions") else { return false }
-
-        let request: URLRequest
-        do {
-            request = try HelixClient.buildRequest(
-                url: url, method: "POST",
-                credentials: .init(token: token, clientID: clientID), body: body)
-        } catch {
-            Log.error(
-                "TwitchChatService: Failed to serialize \(label) subscription - \(error.localizedDescription)",
-                category: "Twitch")
-            return false
-        }
-
-        do {
-            let (data, http) = try await HTTPClient.shared.send(request)
-            if (200..<300).contains(http.statusCode) {
-                Log.info("TwitchChatService: Subscribed to \(label)", category: "Twitch")
-                onSuccess()
-                return true
-            } else if http.statusCode == 409 {
-                Log.info("TwitchChatService: \(label) subscription already active", category: "Twitch")
-                return true
-            } else {
-                let responseText = String(data: data, encoding: .utf8) ?? "No response"
-                Log.error(
-                    "TwitchChatService: \(label) subscription failed - HTTP \(http.statusCode) - \(responseText)",
-                    category: "Twitch")
-                if label == "channel-point redemptions" || label == "bit usage" {
-                    setRedemptionStatus(http.statusCode == 403 ? .scopeMissing : .subscribeFailed)
-                }
-                onFailureStatus(http.statusCode)
-                return false
-            }
-        } catch {
-            Log.error(
-                "TwitchChatService: \(label) subscription error - \(error.localizedDescription)",
-                category: "Twitch")
-            return false
-        }
-    }
-
-    // MARK: - Redemption Event Handlers
-
-    /// Handles a channel-point reward redemption. Ignores redemptions for any
-    /// reward other than the WolfWave-managed one, routes the viewer's input
-    /// into the song-request pipeline, then fulfils the redemption on success
-    /// or cancels it (refunding the points) on failure.
-    private func handleChannelPointsRedemption(_ payload: [String: Any]) {
-        // Note: the enabled check happens inside the Task below (after we confirm
-        // this is our reward), so a redemption that arrives while the feature is
-        // off is refunded rather than silently swallowed.
-        guard let event = payload["event"] as? [String: Any] else { return }
-
-        let rewardID = ((event["reward"] as? [String: Any])?["id"] as? String) ?? ""
-        let storedRewardID = UserDefaults.standard.string(
-            forKey: AppConstants.UserDefaults.songRequestChannelPointsRewardID) ?? ""
-        guard !rewardID.isEmpty, rewardID == storedRewardID else { return }
-
-        let redemptionID = (event["id"] as? String) ?? ""
-        let userName = ((event["user_name"] as? String) ?? "")
-            .trimmingCharacters(in: .whitespacesAndNewlines)
-        let userInput = ((event["user_input"] as? String) ?? "")
-            .trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !redemptionID.isEmpty, !userName.isEmpty else { return }
-
-        let credentials = currentChannelPointCredentials()
-        let songRequestService = self.songRequestService
-
-        let taskID = UUID()
-        redemptionTasks[taskID] = Task { [weak self] in
-            await self?.runChannelPointsRedemption(
-                credentials: credentials,
-                rewardID: rewardID,
-                redemptionID: redemptionID,
-                userName: userName,
-                userInput: userInput,
-                service: songRequestService)
-            await self?.clearRedemptionTask(taskID)
-        }
-    }
-
-    /// Runs the channel-point redemption pipeline. Cancellation (disconnect or
-    /// teardown) suppresses chat replies only; the redemption itself is always
-    /// resolved (fulfil/refund is Helix HTTP, independent of the chat socket),
-    /// so viewer points never strand in the pending state.
-    private func runChannelPointsRedemption(
-        credentials: TwitchChannelPointsService.Credentials?,
-        rewardID: String,
-        redemptionID: String,
-        userName: String,
-        userInput: String,
-        service: SongRequestService?
-    ) async {
-        guard let service, !Task.isCancelled else {
-            // Service not wired up, or cancelled before starting: the points
-            // were already spent, so refund rather than strand the redemption
-            // in the pending state forever.
-            await resolveRedemption(
-                credentials, rewardID: rewardID, redemptionID: redemptionID, as: .canceled)
-            return
-        }
-
-        // Channel-point requests off (toggle flipped between subscribe and
-        // redemption, or the reward wasn't paused in time): refund.
-        guard UserDefaults.standard.bool(
-            forKey: AppConstants.UserDefaults.songRequestChannelPointsEnabled) else {
-            if !Task.isCancelled {
-                await sendMessage(
-                    "@\(userName) channel-point song requests are off right now. Refunding your points.")
-            }
-            await resolveRedemption(
-                credentials, rewardID: rewardID, redemptionID: redemptionID, as: .canceled)
-            return
-        }
-
-        if userInput.isEmpty {
-            if !Task.isCancelled {
-                await sendMessage(
-                    "@\(userName) add a song name when you redeem. Refunding your points.")
-            }
-            await resolveRedemption(
-                credentials, rewardID: rewardID, redemptionID: redemptionID, as: .canceled)
-            return
-        }
-
-        let result = await service.processRequest(
-            query: userInput,
-            username: userName,
-            source: .channelPoints(redemptionID: redemptionID, rewardID: rewardID))
-        let (message, resolution) = redemptionOutcome(for: result, username: userName)
-        if !Task.isCancelled {
-            await sendMessage(message)
-        }
-        await resolveRedemption(
-            credentials, rewardID: rewardID, redemptionID: redemptionID, as: resolution)
-    }
-
-    /// Drops a finished redemption pipeline task from the tracking table.
-    private func clearRedemptionTask(_ id: UUID) {
-        redemptionTasks[id] = nil
-    }
-
-    /// Handles a `channel.bits.use` event.
-    private func handleBitsUse(_ payload: [String: Any]) {
-        let defaults = UserDefaults.standard
-        guard
-            defaults.bool(forKey: AppConstants.UserDefaults.songRequestBitsEnabled),
-            let event = payload["event"] as? [String: Any]
-        else { return }
-
-        let bits = (event["bits"] as? Int) ?? 0
-        guard bits > 0, bits >= bitsMinimumSetting() else { return }
-
-        let userName = ((event["user_name"] as? String) ?? "")
-            .trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !userName.isEmpty else { return }
-
-        let boostEnabled = defaults.bool(
-            forKey: AppConstants.UserDefaults.songRequestBitsBoostEnabled)
-        let query = Self.cleanBitsMessage(event["message"] as? [String: Any])
-        let songRequestService = self.songRequestService
-
-        let taskID = UUID()
-        redemptionTasks[taskID] = Task { [weak self] in
-            await self?.runBitsUse(
-                userName: userName,
-                bits: bits,
-                boostEnabled: boostEnabled,
-                query: query,
-                service: songRequestService)
-            await self?.clearRedemptionTask(taskID)
-        }
-    }
-
-    /// Runs the bits-cheer pipeline. Unlike channel points there is nothing to
-    /// refund, so cancellation (disconnect or teardown) simply stops the
-    /// pipeline and suppresses chat replies.
-    private func runBitsUse(
-        userName: String,
-        bits: Int,
-        boostEnabled: Bool,
-        query: String,
-        service: SongRequestService?
-    ) async {
-        guard let service, !Task.isCancelled else { return }
-
-        if boostEnabled, let boosted = await service.boost(username: userName) {
-            if !Task.isCancelled {
-                await sendMessage(
-                    "@\(userName) boosted \"\(boosted.title)\" to the front of the queue! (\(bits) bits)")
-            }
-            return
-        }
-
-        guard !query.isEmpty else {
-            if boostEnabled, !Task.isCancelled {
-                await sendMessage(
-                    "@\(userName) no song of yours to boost. Include a song name in your cheer to request one.")
-            }
-            return
-        }
-
-        guard !Task.isCancelled else { return }
-        let result = await service.processRequest(
-            query: query, username: userName, source: .bits(amount: bits))
-        if !Task.isCancelled {
-            await sendMessage(bitsOutcomeMessage(for: result, username: userName))
-        }
-    }
-
-    // MARK: - Redemption Helpers
-
-    /// Resolves a channel-point redemption via Helix, logging any failure.
-    private func resolveRedemption(
-        _ credentials: TwitchChannelPointsService.Credentials?,
-        rewardID: String,
-        redemptionID: String,
-        as resolution: TwitchChannelPointsService.Resolution
-    ) async {
-        // Prefer fresh credentials at resolve time: a momentary nil when the
-        // event arrived must not doom the later resolution (the never-strand
-        // invariant). Fall back to the credentials captured at event time.
-        guard let credentials = currentChannelPointCredentials() ?? credentials else {
-            Log.error(
-                "TwitchChatService: Cannot \(resolution.rawValue) redemption \(redemptionID) (reward \(rewardID)) - no credentials; redemption stays pending on Twitch",
-                category: "Twitch")
-            return
-        }
-        do {
-            try await channelPointsService.resolveRedemption(
-                credentials: credentials,
-                rewardID: rewardID,
-                redemptionID: redemptionID,
-                as: resolution)
-        } catch {
-            Log.error(
-                "TwitchChatService: Failed to \(resolution.rawValue) redemption - \(error.localizedDescription)",
-                category: "Twitch")
-        }
-    }
-
-    /// Maps a request result to a chat message and a redemption resolution.
-    private func redemptionOutcome(
-        for result: SongRequestService.RequestResult,
-        username: String
-    ) -> (message: String, resolution: TwitchChannelPointsService.Resolution) {
-        switch result {
-        case let .added(item, position):
-            return (
-                "@\(username) added \"\(item.title)\" by \(item.artist), #\(position) in queue",
-                .fulfilled)
-        case let .pendingApproval(item):
-            // ponytail: fulfill on submit-to-review. A later reject can't refund
-            // points once the redemption is resolved, so approval-mode redemptions
-            // consume points on request, not on approval.
-            return (
-                "@\(username) sent \"\(item.title)\" by \(item.artist) to the streamer for approval.",
-                .fulfilled)
-        case let .queueFull(max):
-            return ("@\(username) the queue is full (\(max)). Points refunded.", .canceled)
-        case let .userLimitReached(max):
-            return ("@\(username) you already have \(max) songs queued. Points refunded.", .canceled)
-        case .alreadyInQueue:
-            return ("@\(username) that song is already queued. Points refunded.", .canceled)
-        case .blocked:
-            return ("@\(username) that song is on the blocklist. Points refunded.", .canceled)
-        case let .notFound(query):
-            let truncated = StringFormatting.truncatedWithEllipsis(query)
-            return ("@\(username) no results for \"\(truncated)\". Points refunded.", .canceled)
-        case .linkNotFound:
-            return ("@\(username) couldn't find that on Apple Music. Points refunded.", .canceled)
-        case .notAuthorized:
-            return ("@\(username) song requests aren't available right now. Points refunded.", .canceled)
-        case .featureDisabled:
-            return ("@\(username) song requests are off right now. Points refunded.", .canceled)
-        case let .error(message):
-            return ("@\(username) \(message) Points refunded.", .canceled)
-        }
-    }
-
-    /// Builds a chat reply for a bit-cheer song request.
-    private func bitsOutcomeMessage(
-        for result: SongRequestService.RequestResult,
-        username: String
-    ) -> String {
-        switch result {
-        case let .added(item, position):
-            return "@\(username) added \"\(item.title)\" by \(item.artist), #\(position) in queue. Thanks for the bits!"
-        case let .pendingApproval(item):
-            return "@\(username) sent \"\(item.title)\" by \(item.artist) to the streamer for approval. Thanks for the bits!"
-        case let .queueFull(max):
-            return "@\(username) the queue is full (\(max)/\(max)). Try again soon!"
-        case let .userLimitReached(max):
-            return "@\(username) you already have \(max) songs queued."
-        case .alreadyInQueue:
-            return "@\(username) that song is already in the queue."
-        case .blocked:
-            return "@\(username) sorry, that song/artist is on the blocklist."
-        case let .notFound(query):
-            let truncated = StringFormatting.truncatedWithEllipsis(query)
-            return "@\(username) no results for \"\(truncated)\"."
-        case .linkNotFound:
-            return "@\(username) couldn't find that on Apple Music."
-        case .notAuthorized:
-            return "@\(username) song requests aren't available right now."
-        case .featureDisabled:
-            return "@\(username) song requests are off right now."
-        case let .error(message):
-            return "@\(username) \(message)"
-        }
-    }
-
-    /// Current broadcaster credentials for Helix channel-point calls, or `nil`
-    /// when any credential is missing.
-    private func currentChannelPointCredentials() -> TwitchChannelPointsService.Credentials? {
-        guard let broadcasterID, let token = oauthToken, let clientID,
-              !broadcasterID.isEmpty, !token.isEmpty, !clientID.isEmpty else { return nil }
-        return TwitchChannelPointsService.Credentials(
-            broadcasterID: broadcasterID, token: token, clientID: clientID)
-    }
-
-    /// Configured channel-point cost for the managed reward (default 500).
-    nonisolated private func channelPointsCostSetting() -> Int {
-        Preferences.int(AppConstants.UserDefaults.songRequestChannelPointsCost, default: 500)
-    }
-
-    /// Configured minimum bits required to trigger a request (default 100).
-    nonisolated private func bitsMinimumSetting() -> Int {
-        Preferences.int(AppConstants.UserDefaults.songRequestBitsMinimum, default: 100)
-    }
-
-    /// Persists the redemption integration health for the settings UI.
-    nonisolated private func setRedemptionStatus(_ status: RedemptionStatus) {
-        UserDefaults.standard.set(
-            status.rawValue, forKey: AppConstants.UserDefaults.songRequestRedemptionStatus)
-    }
-
-    /// Extracts the viewer's song query from a `channel.bits.use` message,
-    /// dropping cheermote tokens.
-    nonisolated static func cleanBitsMessage(_ message: [String: Any]?) -> String {
-        guard let message else { return "" }
-
-        if let fragments = message["fragments"] as? [[String: Any]] {
-            let textParts = fragments.compactMap { fragment -> String? in
-                guard (fragment["type"] as? String) == "text" else { return nil }
-                return fragment["text"] as? String
-            }
-            let joined = textParts.joined().trimmingCharacters(in: .whitespacesAndNewlines)
-            if !joined.isEmpty { return joined }
-        }
-
-        let raw = (message["text"] as? String) ?? ""
-        return stripLeadingCheermotes(raw)
-    }
-
-    /// Cached compiled pattern for the leading-cheermote strip. Compiling it per call on the
-    /// hot chat path was wasteful. NSRegularExpression is thread-safe for matching.
-    private nonisolated static let cheermotePrefixRegex = try? NSRegularExpression(
-        pattern: "^(?:[Cc]heer[0-9]+\\s*)+")
-
-    /// Removes leading `Cheer<amount>` tokens from a raw cheer message.
-    nonisolated static func stripLeadingCheermotes(_ text: String) -> String {
-        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard
-            let regex = cheermotePrefixRegex,
-            let match = regex.firstMatch(
-                in: trimmed, range: NSRange(trimmed.startIndex..., in: trimmed)),
-            let range = Range(match.range, in: trimmed)
-        else {
-            return trimmed
-        }
-        var stripped = trimmed
-        stripped.removeSubrange(range)
-        return stripped.trimmingCharacters(in: .whitespacesAndNewlines)
-    }
-
-    // MARK: - Username Resolution
-
-    /// Validates whether a Twitch channel name exists by resolving it to a user ID.
-    func validateChannelExists(_ channelName: String, token: String, clientID: String) async -> ChannelValidationResult {
-        do {
-            let userID = try await resolveUsername(channelName, token: token, clientID: clientID)
-            return userID.isEmpty ? .notFound : .exists
-        } catch let error as ConnectionError {
-            switch error {
-            case .authenticationFailed:
-                return .authenticationFailed
-            case .networkError(let msg) where msg == "Unable to resolve username":
-                return .notFound
-            default:
-                return .error(error.localizedDescription)
-            }
-        } catch {
-            return .error(error.localizedDescription)
-        }
-    }
-
-    /// Resolves a Twitch username to a user ID.
-    func resolveUsername(_ username: String, token: String, clientID: String) async throws -> String {
-        let sanitizedUsername = username
-            .trimmingCharacters(in: .whitespacesAndNewlines)
-            .lowercased()
-        guard !sanitizedUsername.isEmpty else {
-            throw ConnectionError.networkError("Username cannot be empty")
-        }
-        guard let encodedUsername = sanitizedUsername.addingPercentEncoding(
-            withAllowedCharacters: .urlQueryAllowed) else {
-            throw ConnectionError.networkError("Invalid username format")
-        }
-        guard let url = URL(string: apiBaseURL + "/users?login=\(encodedUsername)") else {
-            throw ConnectionError.networkError("Invalid users endpoint")
-        }
-
-        var request = try HelixClient.buildRequest(
-            url: url, method: "GET",
-            credentials: .init(token: token, clientID: clientID))
-        request.timeoutInterval = 15
-
-        do {
-            let (data, http) = try await HTTPClient.shared.send(request)
-            guard (200..<300).contains(http.statusCode) else {
-                if http.statusCode == 401 { throw ConnectionError.authenticationFailed }
-                throw ConnectionError.networkError("HTTP \(http.statusCode)")
-            }
-
-            let parsed: HelixUsersResponse
-            do {
-                parsed = try JSONCoders.snakeCase.decode(HelixUsersResponse.self, from: data)
-            } catch {
-                throw ConnectionError.networkError(
-                    "Failed to decode username response: \(error.localizedDescription)")
-            }
-
-            guard let first = parsed.data.first, !first.id.isEmpty else {
-                throw ConnectionError.networkError("Unable to resolve username")
-            }
-            return first.id
-        } catch let error as ConnectionError {
-            throw error
-        } catch {
-            Log.error(
-                "TwitchChatService: Failed to resolve username - \(error.localizedDescription)",
-                category: "Twitch")
-            throw mapHelixError(error)
-        }
-    }
-
+    // WebSocket connection management lives in TwitchChatService+Connection.swift
+
+    // Keepalive watchdog + WebSocket receive loop live in TwitchChatService+Connection.swift
+
+    // EventSub message routing (handleWebSocketMessage, handleSessionReconnect,
+    // handleRevocation, signalReauthNeededAndStop, handleSessionWelcome,
+    // handleNotification, handlePollEndEvent) lives in TwitchChatService+EventSub.swift
+
+    // Vote-skip polls, stream-state handling, and EventSub subscriptions
+    // (createSkipPoll, subscribeToPollEvents, handleStreamStateNotification,
+    // subscribeToChannelChatMessage, subscribeToStreamEvents, seedStreamLiveState,
+    // postEventSubSubscription) live in TwitchChatService+EventSub.swift
+
+    // Redemption EventSub subscriptions (subscribeToRedemptionsIfEnabled,
+    // refreshRedemptionSubscriptions, ensureSongRequestRewardAndSubscribe,
+    // pauseManagedRewardIfPossible, subscribeToChannelPointsRedemption,
+    // subscribeToBitsUse) live in TwitchChatService+Redemptions.swift
+
+    // Redemption event handlers (handleChannelPointsRedemption,
+    // runChannelPointsRedemption, clearRedemptionTask, handleBitsUse, runBitsUse)
+    // live in TwitchChatService+Redemptions.swift
+
+    // Redemption helpers (resolveRedemption, redemptionOutcome, bitsOutcomeMessage,
+    // currentChannelPointCredentials, channelPointsCostSetting, bitsMinimumSetting,
+    // setRedemptionStatus, cleanBitsMessage, stripLeadingCheermotes) live in
+    // TwitchChatService+Redemptions.swift
+
+    // Channel/username resolution (validateChannelExists, resolveUsername) lives in
+    // TwitchChatService+Auth.swift
 
     /// Lock-protected registry for the three async track-info providers.
     ///
