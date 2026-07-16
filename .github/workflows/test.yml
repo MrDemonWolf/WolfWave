@@ -120,12 +120,10 @@ jobs:
         env:
           # Disable the nano malloc zone in the test host. The Swift
           # runtime + nano allocator on the macos-26 runner image
-          # reproducibly aborts the xctest host with
-          # `malloc: pointer being freed was not allocated` at
-          # process launch, cascading into "Restarting after
-          # unexpected exit" for every test. Setting MallocNanoZone=0
-          # routes allocations through the standard zone and
-          # bypasses the bug. Full suite passes locally (849/0).
+          # historically aborted the xctest host with
+          # `malloc: pointer being freed was not allocated` at process
+          # launch. That runner bug is resolved, but MallocNanoZone=0 is
+          # kept as cheap insurance against a regression.
           MallocNanoZone: "0"
           # Silence routine OSLog chatter (debug/info/warn) for the test
           # run so the captured xcodebuild output isn't flooded with
@@ -135,14 +133,12 @@ jobs:
           # auto-detects XCTest; this just pins the level explicitly.
           WOLFWAVE_LOG_LEVEL: error
         run: |
-          # SongRequestCommandTests and TrackInfoCommandTests are
-          # excluded on the macos-26 GitHub runner; both reliably
-          # abort the xctest host with the same malloc nano-zone
-          # crash even with MallocNanoZone=0 set, while the rest
-          # of the suite runs cleanly. The full suite passes
-          # locally under `make test` (849/0).
-          # TODO: drop -skip-testing once the runner image / Apple bug
-          # is fixed (Apple Feedback to be filed).
+          # Full suite runs unskipped. SongRequestCommandTests and
+          # TrackInfoCommandTests were previously -skip-testing'd because
+          # the macos-26 runner image aborted the xctest host with a
+          # malloc nano-zone crash; that runner bug is resolved (verified
+          # 2026-07-15: full suite green on macos-26, both classes pass).
+          # MallocNanoZone=0 + serial testing are kept as cheap insurance.
           xcodebuild -project "$PROJECT" -scheme "$SCHEME" \
             -destination 'platform=macOS' \
             ARCHS="arm64" \
@@ -150,8 +146,6 @@ jobs:
             -clonedSourcePackagesDirPath SourcePackages \
             -parallel-testing-enabled NO \
             -disable-concurrent-destination-testing \
-            -skip-testing:WolfWaveTests/SongRequestCommandTests \
-            -skip-testing:WolfWaveTests/TrackInfoCommandTests \
             CODE_SIGN_IDENTITY="-" \
             CODE_SIGNING_REQUIRED=NO \
             CODE_SIGNING_ALLOWED=NO \
