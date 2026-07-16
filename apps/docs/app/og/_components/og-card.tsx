@@ -258,6 +258,7 @@ export interface OgCardProps {
   accentWord?: string;
 }
 
+/** The standard 1200x630 social card: accent-split headline, capped description, chip row. */
 export function OgCard({ title, description, eyebrow, chips, accentWord }: OgCardProps): ReactElement {
   const [before, accent, after] = splitAccent(title, accentWord);
   // Cap the description so a long docs frontmatter line can't push the chips
@@ -356,6 +357,7 @@ export interface ChangelogOgCardProps {
   highlights: string[];
 }
 
+/** The changelog-specific social card: large version number, date, and top-3 highlights. */
 export function ChangelogOgCard({ version, date, highlights }: ChangelogOgCardProps): ReactElement {
   return (
     <Frame tag="release notes">
@@ -402,6 +404,7 @@ async function loadFont(family: string, weights: number[], italic = false): Prom
   return results;
 }
 
+/** Fetches the Inter + JetBrains Mono font buffers Satori needs to render the OG cards. */
 export async function loadOgFonts() {
   const [inter, mono] = await Promise.all([
     loadFont("Inter", [400, 500, 700]),

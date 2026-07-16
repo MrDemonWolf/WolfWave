@@ -15,6 +15,8 @@ import Foundation
 /// for quick pasting into a GitHub issue.
 enum DebugDiagnostics {
 
+    // MARK: - Snapshot
+
     /// Snapshot of app + service state at the moment "Copy Diagnostics" is clicked.
     struct Snapshot: Equatable {
         let appVersion: String
@@ -29,6 +31,8 @@ enum DebugDiagnostics {
         let widgetEnabled: Bool
         let musicTrackingEnabled: Bool
     }
+
+    // MARK: - Formatting
 
     /// Returns a markdown blob suitable for pasting into a GitHub issue.
     static func markdown(_ snapshot: Snapshot) -> String {

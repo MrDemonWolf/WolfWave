@@ -9,6 +9,7 @@ export const source = loader({
   plugins: [],
 });
 
+/** Returns the OG-image slug segments + absolute URL for a docs page's social card. */
 export function getPageImage(page: InferPageType<typeof source>) {
   const segments = [...page.slugs, 'image.png'];
 
@@ -18,6 +19,7 @@ export function getPageImage(page: InferPageType<typeof source>) {
   };
 }
 
+/** Renders a docs page as plain markdown (title + processed body) for the llms.txt export. */
 export async function getLLMText(page: InferPageType<typeof source>) {
   const processed = await page.data.getText('processed');
 

@@ -21,11 +21,15 @@ import Foundation
 /// Kept as a pure value type to allow unit testing without UI dependencies.
 enum BugReportURL {
 
+    // MARK: - Install Method
+
     /// How WolfWave was installed on the user's machine.
     enum InstallMethod: String {
         case homebrew = "Homebrew"
         case dmg = "DMG"
     }
+
+    // MARK: - Building
 
     /// Builds the GitHub issue URL.
     ///
@@ -88,6 +92,8 @@ enum BugReportURL {
         return components.url
     }
 
+    // MARK: - Actions
+
     /// Gathers the running app's environment (version, build, macOS version,
     /// architecture, install method) and opens the prefilled GitHub issue form
     /// in the default browser.
@@ -110,6 +116,8 @@ enum BugReportURL {
         }
         ExternalLink.open(url.absoluteString)
     }
+
+    // MARK: - Helpers
 
     /// Returns the current process's CPU architecture identifier.
     static func currentArch() -> String {

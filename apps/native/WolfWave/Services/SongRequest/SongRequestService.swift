@@ -689,7 +689,7 @@ final class SongRequestService {
             // Live queue is full: put the request back in the pending pen so the
             // streamer can retry once a slot frees up, instead of losing it.
             queue.addPending(item)
-            sendChatMessage?("Couldn't queue \"\(item.title)\" — the queue is full. Still pending; approve again once there's room.")
+            sendChatMessage?("Couldn't queue \"\(item.title)\". The queue is full. Still pending; approve again once there's room.")
             return nil
         }
         if musicController.isMusicAppRunning, !isHoldEnabled, queue.nowPlaying == nil {

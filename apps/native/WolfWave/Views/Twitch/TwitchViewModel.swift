@@ -554,11 +554,8 @@ final class TwitchViewModel {
         channelIDSaveTask?.cancel()
         channelValidationState = .idle
 
-        // Create a new task that waits 1 second before saving
         channelIDSaveTask = Task { @MainActor in
             try? await Task.sleep(for: .seconds(1))
-
-            // Check if task was cancelled
             guard !Task.isCancelled else { return }
 
             let channel = self.channelID.trimmingCharacters(in: .whitespacesAndNewlines)

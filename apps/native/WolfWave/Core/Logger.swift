@@ -182,7 +182,6 @@ enum Log {
         let url = logsDir.appending(path: "wolfwave.log")
         _logFileURL = url
 
-        // Create the file if it doesn't exist
         if !FileManager.default.fileExists(atPath: url.path) {
             FileManager.default.createFile(atPath: url.path, contents: nil)
         }

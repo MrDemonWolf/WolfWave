@@ -14,6 +14,8 @@ import Foundation
 /// the charts, the monthly wrap, and the `!stats` command.
 enum HistoryFormat {
 
+    // MARK: - Duration Formatting
+
     /// Formats a listening duration compactly, e.g. `6h 12m`, `12m`, `45s`.
     ///
     /// - Parameter seconds: Duration in seconds.
@@ -44,6 +46,8 @@ enum HistoryFormat {
         let total = max(0, Int(seconds.rounded()))
         return String(format: "%d:%02d", total / 60, total % 60)
     }
+
+    // MARK: - Relative Time
 
     /// Shared relative-time formatter ("2 min ago").
     private static let relativeFormatter: RelativeDateTimeFormatter = {

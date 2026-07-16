@@ -68,6 +68,11 @@ const googleFonts = new Set([
   "Permanent Marker",
 ]);
 
+/**
+ * Injects one stylesheet `<link>` that preloads every Google font the widget
+ * themes can use, so switching fonts in the landing-page preview doesn't flash.
+ * No-op if the link is already present.
+ */
 export function preloadAllGoogleFonts() {
   const id = "gfonts-preload";
   if (document.getElementById(id)) return;
@@ -234,15 +239,28 @@ export const defaultWidgetConfig: WidgetConfigData = {
 
 // MARK: - Resolver
 
+// Themes whose text/background color pickers are exposed in the native settings
+// UI, so their preset colors accept user overrides. Mirrors the `customizable`
+// set in `design-system/scripts/generate.ts` (which drives the native
+// `userCustomizable` flag) and `THEMES_ALLOWING_OVERRIDE` in the shipped
+// `apps/widget/src/widget.ts`. Keep all three in sync.
+const THEMES_ALLOWING_OVERRIDE = new Set(["Default", "Glass"]);
+
+/**
+ * Merges a theme preset with the user's font and (for customizable themes)
+ * text/background color overrides. Font always comes from config; color
+ * overrides apply only to themes in {@link THEMES_ALLOWING_OVERRIDE} and only
+ * when the value differs from the default (a value equal to the default is
+ * treated as "unset" and falls back to the preset, matching the shipped widget).
+ */
 export function resolveTheme(config: WidgetConfigData): ResolvedThemeStyles {
   const preset = themePresets[config.theme] ?? themePresets.Default;
   const resolved = { ...preset };
 
-  // Font always comes from the config setting
+  // Font always comes from the config setting.
   resolved.fontFamily = fontMap[config.fontFamily] ?? fontMap.System;
 
-  // For Default theme, allow custom text/background color overrides
-  if (config.theme === "Default") {
+  if (THEMES_ALLOWING_OVERRIDE.has(config.theme)) {
     if (config.textColor && config.textColor !== defaultWidgetConfig.textColor) {
       resolved.textPrimary = config.textColor;
       resolved.textSecondary = config.textColor;

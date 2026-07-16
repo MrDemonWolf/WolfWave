@@ -586,9 +586,8 @@ function buildWidget(): void {
   el.style.backdropFilter = theme.backdropFilter;
 
   /**
-   * Render the artwork - either the iTunes Search URL or a WolfWave-branded
-   * SVG fallback (wolf mark on brand-blue gradient). Keep the SVG in sync
-   * with Assets.xcassets/WolfMark.imageset/WolfMark.svg.
+   * Renders the centered pause glyph overlay (two vertical bars on a blurred
+   * translucent puck) drawn over the artwork when playback is paused.
    */
   function pauseOverlay(w: number, radius: string): string {
     const glyph = Math.max(Math.round(w * 0.42), 18);
@@ -604,6 +603,11 @@ function buildWidget(): void {
     );
   }
 
+  /**
+   * Renders the artwork - either the iTunes Search URL or a WolfWave-branded
+   * SVG fallback (wolf mark on brand-blue gradient). Keep the SVG in sync
+   * with Assets.xcassets/WolfMark.imageset/WolfMark.svg.
+   */
   function artImg(w: number, h: number, radius: string): string {
     let artURL = nowPlaying!.artworkURL || null;
     if (artURL && !artURL.startsWith("http://") && !artURL.startsWith("https://")) {

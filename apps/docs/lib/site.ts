@@ -21,6 +21,7 @@ export const basePath = (() => {
   return normalized.endsWith("/") ? normalized.slice(0, -1) : normalized;
 })();
 
+/** Joins `path` onto the canonical site origin, yielding an absolute URL. */
 export function absoluteUrl(path: string): string {
   const clean = path.startsWith("/") ? path : `/${path}`;
   return `${siteUrl}${clean === "/" ? "" : clean}`;

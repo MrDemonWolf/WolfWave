@@ -138,11 +138,11 @@ nonisolated struct CustomCommandVariables: Sendable {
 /// so it is trivially unit-testable.
 ///
 /// Supported tokens:
-/// - `$user` / `$sender` — the sender's display name
-/// - `$touser` — the first argument with a leading `@` stripped, else the sender
-/// - `$args` — every argument after the trigger, space-joined
-/// - `$1` … `$9` — individual arguments (empty when absent)
-/// - `$song` / `$lastsong` — current / previously played track
+/// - `$user` / `$sender`: the sender's display name
+/// - `$touser`: the first argument with a leading `@` stripped, else the sender
+/// - `$args`: every argument after the trigger, space-joined
+/// - `$1` … `$9`: individual arguments (empty when absent)
+/// - `$song` / `$lastsong`: current / previously played track
 nonisolated enum CustomCommandRenderer {
 
     /// The whitespace-separated arguments following the trigger token.

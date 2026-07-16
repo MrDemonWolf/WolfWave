@@ -20,6 +20,7 @@ const PRESETS: Record<string, OgPreset> = {
   "design-system": { eyebrow: "Design System", chips: ["Tokens", "Components", "Brand", "Liquid Glass"] },
 };
 
+/** Returns the OG-card eyebrow + chips for a docs slug, falling back to the homepage preset. */
 export function presetForSlug(slug: string[] | undefined): OgPreset {
   const key = slug?.[0] ?? "";
   return PRESETS[key] ?? PRESETS[""];

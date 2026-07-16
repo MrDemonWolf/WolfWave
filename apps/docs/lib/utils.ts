@@ -1,3 +1,8 @@
+/**
+ * Prefixes `path` with the deployment base path (`/wolfwave` on GitHub Pages,
+ * empty in local dev via `NEXT_PUBLIC_BASE_PATH=""`). Normalizes leading/trailing
+ * slashes so the result is always a single clean absolute path.
+ */
 export function getAssetPath(path: string): string {
   // Default to "/wolfwave"; explicit "" opts out for local dev.
   const envValue = process.env.NEXT_PUBLIC_BASE_PATH;

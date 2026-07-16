@@ -35,6 +35,8 @@ struct SongRequestItem: Identifiable, Equatable, Sendable {
     /// The MusicKit `Song` used for playback. Nil only in test contexts.
     let song: Song?
 
+    // MARK: - Initializers
+
     init(song: Song, requesterUsername: String) {
         self.id = UUID()
         self.title = song.title
@@ -57,6 +59,8 @@ struct SongRequestItem: Identifiable, Equatable, Sendable {
         self.song = nil
     }
     #endif
+
+    // MARK: - Equatable
 
     static func == (lhs: SongRequestItem, rhs: SongRequestItem) -> Bool {
         lhs.id == rhs.id

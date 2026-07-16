@@ -9,6 +9,8 @@
 import AppKit
 import Foundation
 
+// MARK: - MusicPermissionState
+
 /// Apple Events automation permission state for the Music app.
 ///
 /// `MusicPlaybackMonitor` infers this on first track query. When the system
@@ -19,6 +21,8 @@ enum MusicPermissionState: String, Sendable {
     case granted
     case denied
 }
+
+// MARK: - MusicPermissionChecker
 
 /// Lightweight, read-only helpers for checking + opening the System Settings
 /// Automation pane. Used by the Music permission denied flow (Screen J in

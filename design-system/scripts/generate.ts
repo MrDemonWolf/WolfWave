@@ -3,10 +3,11 @@
  * WolfWave design token generator.
  *
  * Reads `design-system/tokens.json` and emits platform-specific outputs:
- *   - Swift  → apps/native/WolfWave/Core/DesignSystem/Tokens.generated.swift
- *   - CSS    → apps/docs/app/tokens.generated.css
- *   - JS     → apps/native/WolfWave/Resources/widget-tokens.generated.js
- *   - TS     → apps/marketing/shared/tokens.generated.ts
+ *   - Swift        → apps/native/WolfWave/Core/DesignSystem/Tokens.generated.swift
+ *   - CSS          → apps/docs/app/tokens.generated.css
+ *   - Widget JS    → apps/native/WolfWave/Resources/widget-tokens.generated.js
+ *   - Marketing TS → apps/marketing/shared/tokens.generated.ts
+ *   - Docs TS      → apps/docs/app/(home)/_widgets/widget-themes.generated.ts
  *
  * Idempotent: re-running produces identical files. CI may diff to detect drift.
  */
@@ -395,9 +396,9 @@ function generateWidgetJS(): string {
 }
 
 // ── Docs widget themes TS ───────────────────────────────────────────────────
-// Typed module the marketing site imports so its OBS-overlay preview stays in
-// sync with the native app's themes + default. `USER_THEMES` excludes any theme
-// marked `hidden` in tokens.json (matches the native picker list).
+// Typed module the docs site imports so its landing-page OBS-overlay preview
+// stays in sync with the native app's themes + default. `USER_THEMES` excludes
+// any theme marked `hidden` in tokens.json (matches the native picker list).
 function generateDocsWidgetThemes(): string {
   const banner = `/*\n * ${BANNER_LINES.join("\n * ")}\n */`;
   const themes = (tokens.widget?.themes ?? {}) as Record<

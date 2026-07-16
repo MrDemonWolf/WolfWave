@@ -8,6 +8,8 @@
 
 import Foundation
 
+// MARK: - RecentTrack
+
 /// A single entry in the tray menu's "Recently Played" submenu.
 ///
 /// Captured at the moment a track change is observed by the playback source.
@@ -37,6 +39,8 @@ struct RecentTrack: Equatable, Hashable, Sendable {
         hasher.combine(artist)
     }
 }
+
+// MARK: - RecentTracksBuffer
 
 /// Fixed-capacity ring buffer of the most recently played tracks.
 ///

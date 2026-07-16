@@ -1,7 +1,8 @@
 #!/bin/bash
 # Parses xcodebuild test output to determine if any actual test failures occurred.
-# xcodebuild may exit non-zero due to device communication errors (e.g., locked iPhone)
-# even when all unit tests pass. This script checks the real test results.
+# xcodebuild may exit non-zero due to test-runner infrastructure errors (e.g., a
+# runner-image allocator crash or a test-host launch/teardown failure) even when
+# all unit tests pass. This script checks the real test results.
 #
 # Usage: xcodebuild test ... 2>/dev/null | scripts/check-test-results.sh
 
