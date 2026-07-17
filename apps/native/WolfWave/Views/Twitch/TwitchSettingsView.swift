@@ -552,7 +552,8 @@ private struct SignedInView: View {
         }
     }
 
-    /// Bottom row with Connect/Disconnect and Log Out buttons.
+    /// Bottom row with the Reconnect (when re-auth is needed) or Join/Leave
+    /// Channel button, plus a trailing Spacer. Log Out lives in `logOutSection`.
     private var actionButtonsSection: some View {
         HStack(spacing: DSSpace.s3) {
             if reauthNeeded {

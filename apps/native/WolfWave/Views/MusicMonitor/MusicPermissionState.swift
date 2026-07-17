@@ -13,9 +13,9 @@ import Foundation
 
 /// Apple Events automation permission state for the Music app.
 ///
-/// `MusicPlaybackMonitor` infers this on first track query. When the system
-/// returns `errAEEventNotPermitted` the user has denied automation, and we
-/// surface a banner + instruction sheet via `PermissionDeniedView`.
+/// Inferred on the first Apple Events track query. When the system returns
+/// `errAEEventNotPermitted` the user has denied automation, and we surface a
+/// banner + instruction sheet via `PermissionDeniedView`.
 enum MusicPermissionState: String, Sendable {
     case unknown
     case granted

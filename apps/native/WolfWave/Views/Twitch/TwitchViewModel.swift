@@ -415,7 +415,8 @@ final class TwitchViewModel {
     /// - Cancellation errors are ignored; UI shows "cancelled" status
     ///
     /// UI State Updates:
-    /// - authState cycles: idle -> requestingCode -> waitingForAuth -> authenticating -> success/error
+    /// - authState cycles: idle -> requestingCode -> waitingForAuth -> inProgress, then
+    ///   back to idle on success or to error(_) on failure
     /// - statusMessage updated at each step with user-facing text
     /// - All UI updates dispatched to @MainActor
     ///

@@ -94,7 +94,7 @@ extension AppConstants {
         static let discordPlaylistStyle = "discordPlaylistStyle"
 
         /// Whether WolfWave shows an "Idle" Discord activity when nothing is
-        /// playing instead of clearing the profile (Bool, default: false).
+        /// playing instead of clearing the profile (Bool, default: true).
         static let discordShowIdleStatus = "discordShowIdleStatus"
 
         /// Whether Discord presence is cleared while playback is paused, rather

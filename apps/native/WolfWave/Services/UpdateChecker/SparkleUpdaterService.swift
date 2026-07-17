@@ -365,7 +365,7 @@ extension SparkleUpdaterService: SPUUpdaterDelegate {
         )
     }
 
-    /// Called when an update check fails (network error, malformed feed, etc.)
+    /// Called when a found update fails to download (network error, bad payload, etc.)
     func updater(_ updater: SPUUpdater, failedToDownloadUpdate item: SUAppcastItem, error: Error) {
         Log.error("SparkleUpdaterService: Failed to download update: \(error.localizedDescription)", category: "Update")
     }
@@ -408,7 +408,7 @@ extension SparkleUpdaterService: SPUUpdaterDelegate {
         return []
     }
 
-    /// Called when the user is prompted for update permission.
+    /// Called when the user makes a choice (skip / install / dismiss) about a found update.
     func updater(_ updater: SPUUpdater, userDidMake choice: SPUUserUpdateChoice, forUpdate updateItem: SUAppcastItem, state: SPUUserUpdateState) {
         switch choice {
         case .skip:

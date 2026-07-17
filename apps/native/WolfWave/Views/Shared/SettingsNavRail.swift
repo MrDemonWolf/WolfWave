@@ -15,9 +15,8 @@ import SwiftUI
 ///
 /// Conformers are `String`-raw enums: the raw value seeds the accessibility
 /// identifier and the `ScrollViewReader` anchor, while `title` labels the row and
-/// `icon` is its leading SF Symbol. `GeneralSection`, `DebugSection`,
-/// `RequestSection`, and `HistorySection` conform with no extra members because
-/// they already expose `title` + `icon`.
+/// `icon` is its leading SF Symbol. `DebugSection` conforms with no extra members
+/// because it already exposes `title` + `icon`.
 protocol SettingsRailSection: Hashable, RawRepresentable where RawValue == String {
     /// Row label. Also used as the rail tooltip ("Jump to <title>").
     var title: String { get }

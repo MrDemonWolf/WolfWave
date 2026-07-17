@@ -237,8 +237,8 @@ struct SettingsView: View {
     /// Returns the detail pane content for the given sidebar section.
     /// Detail content for the selected section. Most sections render inside a
     /// shared scrolling, width-clamped column. A few opt out because they own
-    /// their own scroll layout: General and Song Requests (jump-nav rail),
-    /// History & Stats (plain scroll), and the DEBUG-only Debug tab.
+    /// their own scroll layout: General, Song Requests, and History & Stats
+    /// (each a plain ScrollView), plus the DEBUG-only Debug tab (jump-nav rail).
     @ViewBuilder
     private var detailPane: some View {
         if selectedSection == .general {
@@ -260,10 +260,9 @@ struct SettingsView: View {
         }
     }
 
-    /// General pane. Owns its own rail + scroll layout (see `GeneralSettingsView`),
-    /// so it bypasses `standardDetailScroll` and fills the full detail width like
-    /// the Debug tab. `configure` routes the integration "Configure" rows to the
-    /// matching sidebar section.
+    /// General pane. Owns its own plain-ScrollView layout (see `GeneralSettingsView`),
+    /// so it bypasses `standardDetailScroll`. `configure` routes the integration
+    /// "Configure" rows to the matching sidebar section.
     private var generalDetail: some View {
         GeneralSettingsView(configure: { target in
             switch target {
@@ -291,14 +290,14 @@ struct SettingsView: View {
     private func detailView(for section: SettingsSection) -> some View {
         switch section {
         case .general:
-            // General owns a full-width rail layout and is routed via
+            // General owns its own plain-ScrollView layout and is routed via
             // `generalDetail` in `detailPane`, bypassing this shared scroll
             // wrapper. Kept here only to satisfy switch exhaustiveness.
             EmptyView()
         case .songRequests:
-            // Song Requests owns a full-width rail layout (when enabled) and is
-            // routed via `detailPane`, bypassing this shared scroll wrapper. Kept
-            // here only to satisfy switch exhaustiveness.
+            // Song Requests owns its own plain-ScrollView layout and is routed
+            // via `detailPane`, bypassing this shared scroll wrapper. Kept here
+            // only to satisfy switch exhaustiveness.
             EmptyView()
         case .websocket:
             WebSocketSettingsView()

@@ -8,11 +8,12 @@
 
 import Foundation
 
-/// Manages the active music playback source and switches between them based on user preference.
+/// Manages the music playback source and forwards its delegate callbacks.
 ///
 /// AppDelegate owns a single PlaybackSourceManager and interacts with it instead of
-/// individual sources directly. The manager persists the chosen mode to UserDefaults
-/// and handles clean start/stop transitions when switching.
+/// individual sources directly. Apple Music is currently the only source, so the
+/// manager wraps the `AppleMusicSource` and relays its `PlaybackSourceDelegate`
+/// callbacks up to AppDelegate.
 /// Runs MainActor-isolated (the app's default actor isolation). All callers already
 /// hop to the main actor before invoking it.
 final class PlaybackSourceManager: PlaybackSourceDelegate {
