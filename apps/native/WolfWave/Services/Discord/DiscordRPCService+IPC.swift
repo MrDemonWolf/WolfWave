@@ -63,6 +63,20 @@ extension DiscordRPCService {
 
                 socketFD = fd
                 if await performHandshake() {
+                    // performHandshake suspends twice (write + read on ipcQueue).
+                    // A setEnabled(false) interleave during those awaits bumps the
+                    // generation and sets socketFD = -1; committing .connected
+                    // unconditionally here would wedge the service .connected on a
+                    // dead fd forever (sendFrame no-ops on fd < 0, and both
+                    // connectIfNeeded and pollTick guard state == .disconnected, so
+                    // re-enabling can never reconnect until relaunch). Re-validate.
+                    guard isEnabled, connectionGeneration == generation, socketFD == fd else {
+                        if socketFD == fd {
+                            await runOnIPCQueue { Self.closeFD(fd) }
+                            socketFD = -1
+                        }
+                        return
+                    }
                     state = .connected
                     reconnectDelay = AppConstants.Discord.reconnectBaseDelay
                     return

@@ -404,6 +404,14 @@ actor WebSocketServerService {
 
         stopProgressTimer()
 
+        // Detach the old listener's handlers BEFORE cancelling. Otherwise its
+        // asynchronous `.cancelled` event hops into handleListenerState and runs
+        // `transition(to: .stopped)` — which, when updateAuthToken/updatePort do
+        // stopServer(); startServer() back to back, can land after the new
+        // listener is already `.listening` and clobber the state to `.stopped`,
+        // making handleConnectionState cancel every subsequent overlay client.
+        listener?.stateUpdateHandler = nil
+        listener?.newConnectionHandler = nil
         listener?.cancel()
         listener = nil
 
@@ -466,6 +474,12 @@ actor WebSocketServerService {
             Self.receiveMessage(from: connection)
         case .failed(let error):
             Log.debug("WebSocketServerService: Client failed: \(error)", category: "WebSocket")
+            // A failed connection keeps its stateUpdateHandler (and any pending
+            // receive closure), which strongly retains the connection, until it
+            // reaches .cancelled. Without this explicit cancel the connection ↔
+            // handler cycle leaks per abruptly-dropped overlay client. The
+            // follow-up .cancelled re-enters removeConnection as a safe no-op.
+            connection.cancel()
             removeConnection(connection)
         case .cancelled:
             removeConnection(connection)

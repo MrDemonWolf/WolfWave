@@ -508,7 +508,14 @@ actor TwitchChatService {
     ///   notification payload (transport errors only).
     func broadcastConnectionState(_ connected: Bool, error: String? = nil) {
         setConnected(connected)
-        NotificationCenter.default.postTwitchConnectionState(isConnected: connected, error: error)
+        // Post on the main actor: this runs on the actor's background executor,
+        // and SwiftUI panes observe via NotificationCenter.publisher + .onReceive,
+        // which delivers synchronously on the posting thread with no main hop.
+        // Mutating MainActor view state off-main is the documented executor-assert
+        // SIGTRAP class, so hop here to cover every current and future observer.
+        Task { @MainActor in
+            NotificationCenter.default.postTwitchConnectionState(isConnected: connected, error: error)
+        }
         connectionStateHub.yield(connected)
     }
 
@@ -606,6 +613,10 @@ actor TwitchChatService {
         chatMessagesContinuation.finish()
         connectionStateHub.finish()
         skipPollResultsContinuation.finish()
+        // A URLSession that is never invalidated retains its internal state
+        // until the process exits. Throwaway instances (resolveBotIdentityStatic)
+        // would otherwise leak one session each per OAuth/re-auth.
+        urlSession.invalidateAndCancel()
     }
 
     // MARK: - Wiring (called once at app startup)

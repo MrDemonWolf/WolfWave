@@ -324,6 +324,14 @@ extension TwitchChatService {
                         break
                     }
                 } catch {
+                    // A teardown path (session migration, leaveChannel, reconnect)
+                    // is the only thing that cancels this task, and cancelling the
+                    // socket makes the suspended receive() throw. Bail so the
+                    // orphaned loop doesn't run handleReceiveError against a socket
+                    // that is already being replaced: doing so would reset
+                    // isMigratingSession, flip the UI to disconnected, and schedule
+                    // a reconnect that tears down the healthy migrated session.
+                    if Task.isCancelled { return }
                     await self?.handleReceiveError(error)
                     return
                 }

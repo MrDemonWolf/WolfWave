@@ -475,17 +475,22 @@ struct MusicMonitorSettingsView: View {
 /// milliseconds, measurable when switching back to the General settings pane. Cache the result
 /// for a short window so re-entering the pane within the same session is instant. The cache is
 /// invalidated by `NSApplication.didBecomeActiveNotification` and by explicit refresh calls.
+// MainActor-isolated (module default). Every caller already runs on main, so
+// this is race-free and turns any future off-main use into a compile error
+// instead of a silent data race on the `value`/`storedAt` pair (the previous
+// `nonisolated(unsafe)` markers disabled the compiler's race checking).
+@MainActor
 enum MusicPermissionCache {
-    nonisolated private static let ttl: TimeInterval = 30
-    nonisolated(unsafe) private static var value: MusicPermissionState?
-    nonisolated(unsafe) private static var storedAt: Date?
+    private static let ttl: TimeInterval = 30
+    private static var value: MusicPermissionState?
+    private static var storedAt: Date?
 
-    nonisolated static func read() -> MusicPermissionState? {
+    static func read() -> MusicPermissionState? {
         guard let value, let storedAt, Date().timeIntervalSince(storedAt) < ttl else { return nil }
         return value
     }
 
-    nonisolated static func write(_ state: MusicPermissionState) {
+    static func write(_ state: MusicPermissionState) {
         value = state
         storedAt = Date()
     }
