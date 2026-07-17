@@ -9,9 +9,9 @@
 import SwiftUI
 
 /// Apple Music permission step. Asks for the one system grant WolfWave needs to
-/// work: **Apple Music** automation (the TCC bucket `MusicPlaybackMonitor` reads
-/// the current track from). We never read the catalog or library. Notification
-/// alerts live on their own step right after this one.
+/// work: **Apple Music** automation (the TCC bucket the app reads the current
+/// track from via Apple Events). We never read the catalog or library.
+/// Notification alerts live on their own step right after this one.
 struct OnboardingPermissionsStepView: View {
 
     // MARK: - Apple Music State

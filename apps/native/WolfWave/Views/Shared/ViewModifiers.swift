@@ -24,37 +24,6 @@ extension View {
 
 // MARK: - Interactive Row Style
 
-/// A view modifier for interactive list rows with hover feedback.
-struct InteractiveRowModifier: ViewModifier {
-    @State private var isHovering = false
-    let isEnabled: Bool
-
-    init(isEnabled: Bool = true) {
-        self.isEnabled = isEnabled
-    }
-
-    func body(content: Content) -> some View {
-        content
-            .background(
-                RoundedRectangle(cornerRadius: 6)
-                    .fill(isHovering && isEnabled ? Color.primary.opacity(0.04) : Color.clear)
-            )
-            .onHover { hovering in
-                withAnimation(.easeInOut(duration: DSMotion.Duration.fast)) {
-                    isHovering = hovering
-                }
-            }
-            .pointerStyle(isEnabled ? .link : nil)
-    }
-}
-
-extension View {
-    /// Adds interactive row styling with hover feedback and pointer cursor.
-    func interactiveRow(isEnabled: Bool = true) -> some View {
-        modifier(InteractiveRowModifier(isEnabled: isEnabled))
-    }
-}
-
 // MARK: - Card Style (macOS default surface)
 
 /// Standard macOS card styling on an opaque grouped-content surface.
@@ -95,17 +64,6 @@ extension View {
         modifier(CardModifier(padded: false))
     }
 
-    /// Applies just the card clip-shape using a design-system radius.
-    ///
-    /// Use when you've already composed the background/material yourself
-    /// (e.g. a custom-tinted card or an `.overlay`-based stroke) and only
-    /// need the standard rounded corner. Defaults to the settings-card radius;
-    /// pass a `DSRadius.*` value for nested rows.
-    ///
-    /// Prefer `cardStyle()` for the full card shell.
-    func cardClipShape(radius: CGFloat = AppConstants.SettingsUI.cardCornerRadius) -> some View {
-        clipShape(RoundedRectangle(cornerRadius: radius, style: .continuous))
-    }
 }
 
 // MARK: - Subtle Card Shell (0.5pt hairline variant)
@@ -293,42 +251,6 @@ extension View {
     }
 }
 
-// MARK: - Reduce-Motion Helpers
-
-/// Returns the supplied animation, or `.none` when the user has Reduce Motion
-/// enabled in System Settings → Accessibility.
-///
-/// Use at call sites that opt in to motion:
-///
-/// ```swift
-/// @Environment(\.accessibilityReduceMotion) private var reduceMotion
-/// // …
-/// .animation(.reducedMotion(.easeInOut(duration: DSMotion.Duration.base),
-///                           reduceMotion: reduceMotion),
-///            value: state)
-/// ```
-extension Animation {
-    /// Returns `self` when reduce-motion is off, `nil` otherwise.
-    static func reducedMotion(_ animation: Animation, reduceMotion: Bool) -> Animation? {
-        reduceMotion ? nil : animation
-    }
-}
-
-extension View {
-    /// Applies an animation that respects the user's Reduce Motion preference.
-    ///
-    /// Wraps `.animation(_:value:)` and substitutes `nil` (no animation) when
-    /// `reduceMotion` is `true`. Pull the value via
-    /// `@Environment(\.accessibilityReduceMotion)`.
-    func reduceMotionAware<V: Equatable>(
-        _ animation: Animation,
-        reduceMotion: Bool,
-        value: V
-    ) -> some View {
-        self.animation(reduceMotion ? nil : animation, value: value)
-    }
-}
-
 // MARK: - Skeleton Loading
 
 /// A view modifier that renders the content as a redacted placeholder while
@@ -354,17 +276,6 @@ extension View {
     /// while loading so the user can't tap or hear stale data.
     func skeleton(_ isLoading: Bool) -> some View {
         modifier(SkeletonModifier(isLoading: isLoading))
-    }
-}
-
-// MARK: - Notification Posting Helper
-
-extension NotificationCenter {
-    /// Posts a notification using a string name from `AppConstants.Notifications`.
-    ///
-    /// Shorthand for the verbose `post(name: NSNotification.Name(...), object: nil, userInfo:)` pattern.
-    func post(_ name: String, userInfo: [String: Any]? = nil) {
-        post(name: NSNotification.Name(name), object: nil, userInfo: userInfo)
     }
 }
 

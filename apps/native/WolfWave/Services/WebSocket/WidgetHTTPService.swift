@@ -398,6 +398,7 @@ nonisolated final class WidgetHTTPService: @unchecked Sendable {
     ///
     /// Routes:
     /// - `GET /` (or empty path, with or without query) → `serveWidget`
+    /// - `GET /widget-tokens.generated.js` → `serveTokensJS`
     /// - `GET /favicon.ico` / `GET /favicon.png` → `serveFavicon`
     /// - Anything else → `send404`
     private func serveResponse(to connection: NWConnection, requestData: Data) {

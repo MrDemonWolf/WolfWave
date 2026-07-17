@@ -89,9 +89,9 @@ nonisolated enum WebSocketAuthToken {
     ///
     /// The two strings are compared as their UTF-8 byte buffers. Every byte of
     /// the longer buffer is XOR-accumulated into a single accumulator (out-of-range
-    /// bytes on the shorter side fold in a non-zero sentinel), and a length mismatch
-    /// also folds in a non-zero value. The function returns `true` only when the
-    /// accumulator is zero AND the lengths match. A length mismatch is detectable in
+    /// bytes on the shorter side are read as `0`), and a length mismatch seeds the
+    /// accumulator with a non-zero value up front. The function returns `true` only
+    /// when the accumulator is zero AND the lengths match. A length mismatch is detectable in
     /// constant time relative to the inputs, which is acceptable for this threat
     /// model: the secret is a fixed 64-hex-char token, so its length is not itself a
     /// secret. The accept/reject decision is identical to `lhs == rhs`.

@@ -13,7 +13,7 @@ import SwiftUI
 ///
 /// Cards, top to bottom (everything below Connection only shows once presence
 /// is enabled and a client ID is configured):
-///   1. **Connection**: enable toggle, connection status chip, test button.
+///   1. **Connection**: header + status chip, enable toggle, not-configured banner.
 ///   2. **Buttons**: master toggle plus per-button enable + URL preview.
 ///   3. **Playlist**: show the source playlist, display style, name privacy.
 ///   4. **Behavior**: what the profile shows when stopped or paused.

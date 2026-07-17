@@ -178,7 +178,9 @@ nonisolated enum AppConstants {
 
     /// Keychain service identifiers for secure credential storage.
     enum Keychain {
-        /// Primary keychain service for storing Twitch tokens and credentials
+        /// Legacy release-build keychain service string. `KeychainService` derives
+        /// its actual service from `Bundle.main.bundleIdentifier` (which equals this
+        /// on release builds) and does not read this constant.
         static let service = "com.mrdemonwolf.wolfwave"
 
         /// Account identifier for the Twitch OAuth refresh token.

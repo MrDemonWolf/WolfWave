@@ -1001,7 +1001,7 @@ fileprivate struct WebSocketWidgetAppearanceCard: View {
 
     /// Pushes the current widget theme/layout/font/color values to every
     /// connected overlay via `WebSocketServerService.broadcastWidgetConfig()`.
-    /// Called from `onChange` of each customization control.
+    /// Called from `applyChanges()` when the user taps Apply.
     private func broadcastWidgetConfig() {
         let server = AppDelegate.shared?.websocketServer
         Task { await server?.broadcastWidgetConfig() }
