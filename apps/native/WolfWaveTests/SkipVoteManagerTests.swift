@@ -191,6 +191,27 @@ final class SkipVoteManagerTests: WolfWaveTestCase {
         }
     }
 
+    func testCorruptSessionCooldownClampsAndDoesNotTrap() async {
+        // The cooldown key is user-writable (exportable backup, `defaults write`).
+        // An out-of-range value flows into Int(ceil(...)) on the next vote and
+        // would trap unclamped. The accessor must clamp to 0...3600.
+        UserDefaults.standard.set(1e300, forKey: AppConstants.UserDefaults.voteSkipSessionCooldown)
+        let manager = SkipVoteManager()
+        XCTAssertEqual(manager.sessionCooldown, 3600, accuracy: 0.001)
+
+        // Drive a real vote through the cooldown branch to prove no trap.
+        enableFeature(minVotes: 1, cooldown: 1e300)
+        await manager.configure(performSkip: {}, sendChatMessage: nil, createPoll: nil)
+        _ = await manager.recordVote(context: context(userID: "1"))
+        let second = await manager.recordVote(context: context(userID: "2"))
+        if case .onCooldown(let remaining) = second {
+            XCTAssertGreaterThanOrEqual(remaining, 0)
+            XCTAssertLessThanOrEqual(remaining, 3600)
+        } else {
+            XCTFail("Expected .onCooldown, got \(second)")
+        }
+    }
+
     // MARK: - Window Expiry
 
     func testWindowExpiryFailsSession() async throws {

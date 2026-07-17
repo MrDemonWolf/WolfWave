@@ -55,6 +55,18 @@ final class HistoryFormattingTests: XCTestCase {
         XCTAssertEqual(HistoryFormat.listeningTime(59.6), "1m")
     }
 
+    func testListeningTimeNonFiniteDoesNotTrap() {
+        // Corrupt NDJSON can produce inf/nan durations; must not crash.
+        XCTAssertEqual(HistoryFormat.listeningTime(.infinity), "0s")
+        XCTAssertEqual(HistoryFormat.listeningTime(-.infinity), "0s")
+        XCTAssertEqual(HistoryFormat.listeningTime(.nan), "0s")
+    }
+
+    func testListeningTimeOverflowDoesNotTrap() {
+        // 1e300 exceeds Int.max; converting unclamped would trap.
+        XCTAssertFalse(HistoryFormat.listeningTime(1e300).isEmpty)
+    }
+
     // MARK: - playCount
 
     func testPlayCountSingular() {
@@ -98,6 +110,11 @@ final class HistoryFormattingTests: XCTestCase {
     func testClockFractionalRoundsToNearest() {
         XCTAssertEqual(HistoryFormat.clock(7.4), "0:07")
         XCTAssertEqual(HistoryFormat.clock(7.6), "0:08")
+    }
+
+    func testClockNonFiniteDoesNotTrap() {
+        XCTAssertEqual(HistoryFormat.clock(.infinity), "0:00")
+        XCTAssertEqual(HistoryFormat.clock(.nan), "0:00")
     }
 
     // MARK: - relative

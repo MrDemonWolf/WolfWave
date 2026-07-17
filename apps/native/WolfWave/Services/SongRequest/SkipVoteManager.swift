@@ -163,8 +163,13 @@ actor SkipVoteManager {
     }
 
     /// Cooldown between sessions, in seconds. May legitimately be `0`.
+    ///
+    /// Clamped to `0...3600`: the key is user-writable (exportable settings
+    /// backup, `defaults write`) and unclamped it flows into `Int(ceil(...))`
+    /// at the cooldown branch, which traps on a non-finite/overflow value.
     nonisolated var sessionCooldown: TimeInterval {
-        Preferences.double(AppConstants.UserDefaults.voteSkipSessionCooldown, default: 30)
+        let value = Preferences.double(AppConstants.UserDefaults.voteSkipSessionCooldown, default: 30)
+        return value.isFinite ? min(max(value, 0), 3600) : 0
     }
 
     /// Whether only subscribers may vote.

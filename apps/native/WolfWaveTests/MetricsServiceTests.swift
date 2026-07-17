@@ -87,6 +87,17 @@ final class MetricsServiceTests: XCTestCase {
         XCTAssertEqual(service.snapshot().twitchRateLimits.first?.secondsUntilReset, 0)
     }
 
+    func testRateLimitResetNonFiniteDoesNotTrap() {
+        // A malformed `Ratelimit-Reset` header parses to inf/nan; Int(_:) would
+        // trap. Recording must clamp to 0 instead of crashing the app.
+        for bad in [Double.infinity, -.infinity, .nan, 1e300] {
+            service.recordTwitchRateLimit(endpoint: "users", remaining: 1, limit: 2, resetTime: bad)
+        }
+        let seconds = service.snapshot().twitchRateLimits.first?.secondsUntilReset ?? -1
+        XCTAssertGreaterThanOrEqual(seconds, 0)
+        XCTAssertLessThanOrEqual(seconds, 86_400)
+    }
+
     // MARK: - Memory
 
     func testResidentMemoryIsPositive() {
