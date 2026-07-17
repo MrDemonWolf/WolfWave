@@ -226,7 +226,7 @@ enum Log {
 
     /// Rotates the log file by renaming the current file and starting fresh.
     nonisolated private static func rotateLogFile(at url: URL) {
-        fileHandle?.closeFile()
+        try? fileHandle?.close()
         fileHandle = nil
 
         let backupURL = url.deletingLastPathComponent()
@@ -434,7 +434,7 @@ enum Log {
     /// Flushes any buffered log data to disk immediately.
     nonisolated static func flush() {
         fileQueue.sync {
-            fileHandle?.synchronizeFile()
+            try? fileHandle?.synchronize()
         }
     }
 
@@ -522,7 +522,7 @@ enum Log {
     nonisolated static func exportLogFile() -> URL? {
         fileQueue.sync {
             let url = logFileURL
-            fileHandle?.synchronizeFile()
+            try? fileHandle?.synchronize()
             return FileManager.default.fileExists(atPath: url.path) ? url : nil
         }
     }
@@ -533,7 +533,7 @@ enum Log {
     nonisolated static func logFileSize() -> Int64 {
         fileQueue.sync {
             let url = logFileURL
-            fileHandle?.synchronizeFile()
+            try? fileHandle?.synchronize()
             guard let attrs = try? FileManager.default.attributesOfItem(atPath: url.path),
                   let size = attrs[.size] as? NSNumber else { return 0 }
             return size.int64Value
@@ -545,7 +545,7 @@ enum Log {
     nonisolated static func logLineCount() -> Int {
         fileQueue.sync {
             let url = logFileURL
-            fileHandle?.synchronizeFile()
+            try? fileHandle?.synchronize()
             guard let handle = try? FileHandle(forReadingFrom: url) else { return 0 }
             defer { try? handle.close() }
 
@@ -584,7 +584,7 @@ enum Log {
                     fileHandle = nil
                 }
             }
-            fileHandle?.synchronizeFile()
+            try? fileHandle?.synchronize()
         }
     }
 
@@ -593,8 +593,8 @@ enum Log {
     /// Closes the log file handle. Called automatically at app termination.
     nonisolated static func shutdown() {
         fileQueue.sync {
-            fileHandle?.synchronizeFile()
-            fileHandle?.closeFile()
+            try? fileHandle?.synchronize()
+            try? fileHandle?.close()
             fileHandle = nil
         }
     }

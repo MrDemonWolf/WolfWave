@@ -105,7 +105,11 @@ nonisolated final class MetricsService: @unchecked Sendable {
     ///   - limit: Bucket size.
     ///   - resetTime: Bucket reset time as a Unix timestamp.
     func recordTwitchRateLimit(endpoint: String, remaining: Int, limit: Int, resetTime: TimeInterval) {
-        let secondsLeft = max(0, Int(resetTime - Date().timeIntervalSince1970))
+        // resetTime comes from the raw `Ratelimit-Reset` header (parsed via
+        // TimeInterval(String), which accepts "inf"/"nan"/"1e999"). Int(_:)
+        // traps on non-finite/overflow, so clamp before converting.
+        let delta = resetTime - Date().timeIntervalSince1970
+        let secondsLeft = delta.isFinite ? Int(min(max(delta, 0), 86_400)) : 0
         let metric = TwitchRateLimitMetric(
             endpoint: endpoint,
             remaining: remaining,

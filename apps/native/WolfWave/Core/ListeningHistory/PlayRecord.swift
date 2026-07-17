@@ -82,8 +82,17 @@ nonisolated struct PlayRecord: Codable, Equatable, Hashable, Sendable {
         track = try container.decode(String.self, forKey: .track)
         artist = try container.decode(String.self, forKey: .artist)
         album = (try? container.decode(String.self, forKey: .album)) ?? ""
-        duration = (try? container.decode(Double.self, forKey: .duration)) ?? 0
-        playedSeconds = (try? container.decode(Double.self, forKey: .playedSeconds)) ?? 0
+        // The play log is a user-inspectable NDJSON file. Sanitize durations at
+        // the decode boundary so one corrupt line (`inf`, `nan`, `1e300`) can't
+        // trap a downstream `Int(_:)` conversion in stats/formatting.
+        duration = Self.sanitize(try? container.decode(Double.self, forKey: .duration))
+        playedSeconds = Self.sanitize(try? container.decode(Double.self, forKey: .playedSeconds))
+    }
+
+    /// Clamps a decoded duration to a finite, non-negative, in-Int-range value.
+    private static func sanitize(_ value: Double?) -> Double {
+        guard let value, value.isFinite else { return 0 }
+        return min(max(value, 0), 9.0e18)
     }
 
     func encode(to encoder: Encoder) throws {
