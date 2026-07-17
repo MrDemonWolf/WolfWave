@@ -392,6 +392,20 @@ final class SongRequestService {
         // flush via the didLaunchApplication observer when Music reopens.
         guard musicController.isMusicAppRunning else { return }
 
+        // Idle early-out: with no request playing and an empty queue there is
+        // nothing to advance or take over, so skip the AppleScript round trip
+        // entirely (these are NSLock-guarded in-memory reads). Reset the streak
+        // counters so the two-consecutive-reads debounce restarts cleanly when
+        // activity resumes.
+        if queue.nowPlaying == nil, queue.isEmpty {
+            takeoverBaselineTrackID = nil
+            takeoverDivergenceStreak = 0
+            playingRequestTrackID = nil
+            requestDivergenceStreak = 0
+            stoppedPollStreak = 0
+            return
+        }
+
         // One atomic read of player state + the loaded track's identity.
         // A nil snapshot means the AppleScript read failed this tick
         // (Apple Events to Music.app time out intermittently on macOS 26):

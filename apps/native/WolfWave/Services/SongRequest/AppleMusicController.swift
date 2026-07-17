@@ -196,9 +196,12 @@ final class AppleMusicController: AppleMusicControlling {
     /// Checked before sending any playback command. If Music.app is closed,
     /// song requests are buffered in WolfWave's queue until it re-opens.
     var isMusicAppRunning: Bool {
-        NSWorkspace.shared.runningApplications.contains {
-            $0.bundleIdentifier == AppConstants.Music.bundleIdentifier && !$0.isTerminated
-        }
+        // Targeted lookup instead of bridging + scanning the full running-apps
+        // array on every poll tick. `runningApplications(withBundleIdentifier:)`
+        // already excludes terminated instances.
+        !NSRunningApplication
+            .runningApplications(withBundleIdentifier: AppConstants.Music.bundleIdentifier)
+            .isEmpty
     }
 
     // MARK: - Playback State (via AppleScript → Music.app)
@@ -650,12 +653,30 @@ final class AppleMusicController: AppleMusicControlling {
         return DispatchQueue.main.sync { Self.executeAppleScript(source) }
     }
 
+    /// Cache of compiled `NSAppleScript` instances keyed by source. The fixed
+    /// probe/command scripts (e.g. the 2-second player-state probe) are otherwise
+    /// recompiled on every call. Lock-guarded because the enclosing methods are
+    /// `nonisolated`; all real access is on the main thread. Bounded so the
+    /// dynamic-source scripts (track IDs embedded) can't grow it without limit.
+    private nonisolated(unsafe) static var compiledScripts: [String: NSAppleScript] = [:]
+    private nonisolated static let compiledScriptsLock = NSLock()
+    private nonisolated static let compiledScriptsCap = 32
+
     /// Executes an `NSAppleScript` and returns its string result.
     ///
     /// Must be called on the main thread. See `runAppleScript`.
     private nonisolated static func executeAppleScript(_ source: String) -> String? {
+        let script: NSAppleScript? = compiledScriptsLock.withLock {
+            if let cached = compiledScripts[source] { return cached }
+            guard let fresh = NSAppleScript(source: source) else { return nil }
+            if compiledScripts.count >= compiledScriptsCap {
+                compiledScripts.removeAll(keepingCapacity: true)
+            }
+            compiledScripts[source] = fresh
+            return fresh
+        }
+
         var error: NSDictionary?
-        let script = NSAppleScript(source: source)
         let result = script?.executeAndReturnError(&error)
 
         if let error {

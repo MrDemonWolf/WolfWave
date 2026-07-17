@@ -304,6 +304,11 @@ final class BotCommandDispatcher {
         // equality routes each message to exactly one command.
         let commandToken = lowered.split(whereSeparator: \.isWhitespace).first.map(String.init) ?? lowered
 
+        // Every trigger (built-in, alias, and custom) is normalized to a leading
+        // "!", so a token without one can't match. Bail before the snapshot copy
+        // and the per-command alias reads for the common non-command chat line.
+        guard commandToken.hasPrefix("!") else { return nil }
+
         let snapshot = commandSnapshot()
         for command in snapshot {
             // Use allTriggers (includes user-configured aliases)
@@ -407,6 +412,10 @@ final class BotCommandDispatcher {
         let lowered = trimmedMessage.lowercased()
         // First-token equality (see processMessage), avoids alias/prefix collisions.
         let commandToken = lowered.split(whereSeparator: \.isWhitespace).first.map(String.init) ?? lowered
+
+        // See processMessage: triggers are all "!"-prefixed, so skip the snapshot
+        // copy + alias reads for non-command lines (the vast majority of chat).
+        guard commandToken.hasPrefix("!") else { return nil }
 
         let snapshot = commandSnapshot()
         for command in snapshot {

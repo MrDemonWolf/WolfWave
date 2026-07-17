@@ -457,7 +457,7 @@ struct HistoryStatsSettingsView: View {
                         title: "Nothing is being recorded",
                         subtitle: "Turn on Listening History to start tracking your plays."
                     )
-                } else if recentPlaysSorted.isEmpty {
+                } else if service?.records.isEmpty ?? true {
                     emptyStateContent(
                         title: "Nothing recorded yet",
                         subtitle: "Play something in Apple Music and it'll show up here."
@@ -492,17 +492,14 @@ struct HistoryStatsSettingsView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
-    /// All recorded plays, newest first. Sorted lazily off the service's
-    /// `records` so we don't depend on the snapshot's limited `recent` slice.
-    private var recentPlaysSorted: [PlayRecord] {
-        guard let service else { return [] }
-        return service.records.sorted { $0.timestamp > $1.timestamp }
-    }
-
     private var recentPlaysList: some View {
-        let all = recentPlaysSorted
-        let visible = Array(all.prefix(visibleRecentCount))
-        let hasMore = visible.count < all.count
+        // `records` is append-ordered (chronological), so newest-first is a
+        // bounded reverse of the tail, not a full O(n log n) sort of up to
+        // ~10k records on every body evaluation.
+        let records = service?.records ?? []
+        let total = records.count
+        let visible = Array(records.suffix(visibleRecentCount).reversed())
+        let hasMore = visible.count < total
         // Fixed-height scroll box so the card never grows with the list. Newest
         // plays sit at the top; *Load more* appends below and the user scrolls.
         return ScrollView {
