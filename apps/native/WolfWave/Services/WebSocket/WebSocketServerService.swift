@@ -227,6 +227,23 @@ actor WebSocketServerService {
         artworkURL: String? = nil,
         isPaused: Bool = false
     ) {
+        // Steady-state dedup: the source re-emits the same track every ~5s. When
+        // only elapsed advanced (no track/pause/artwork change), refresh the
+        // progress baseline and skip the full rebroadcast + progress-timer
+        // restart. The timer is already in the correct state because isPaused is
+        // unchanged; overlay clients keep ticking locally from the last frame.
+        let unchanged = currentTrack == track
+            && currentArtist == artist
+            && currentAlbum == album
+            && currentDuration == duration
+            && isPlaying == !isPaused
+            && (artworkURL == nil || artworkURL == currentArtworkURL)
+        if unchanged {
+            currentElapsed = elapsed
+            lastElapsedUpdate = Date()
+            return
+        }
+
         currentTrack = track
         currentArtist = artist
         currentAlbum = album

@@ -799,6 +799,12 @@ extension AppDelegate: PlaybackSourceDelegate {
                 maybePostSongChangeNotification(track: track, artist: artist, album: album)
             }
             hasSeenInitialTrack = true
+
+            // Artwork is keyed by track+artist, so only refetch on a genuine
+            // track change. On a same-track re-emit (~every 5s) the previous
+            // fetch already populated the cache; refetching triggered a
+            // redundant full overlay rebroadcast per tick via updateArtworkURL.
+            fetchArtworkForWidget(track: track, artist: artist)
         }
 
         currentSong = track
@@ -821,8 +827,6 @@ extension AppDelegate: PlaybackSourceDelegate {
                 isPaused: isPaused
             )
         }
-
-        fetchArtworkForWidget(track: track, artist: artist)
 
         if let discordService {
             if isPaused && FeatureFlags.discordClearWhilePaused {

@@ -150,20 +150,25 @@ struct MusicMonitorSettingsView: View {
             loadIntegrationStatuses()
         }
         .onReceive(notif(AppConstants.Notifications.nowPlayingChanged)) { notification in
+            let payload = notification.nowPlaying
+            // The source re-emits the same track ~every 5s. Only the track
+            // identity change needs to drop the artwork URL and restart the
+            // AsyncImage fetch; a pause flip updates in place. Skipping the
+            // per-tick nil-then-refetch stops AsyncImage from restarting each tick.
+            let trackChanged = currentTrack != payload.track || currentArtist != payload.artist
             withAnimation(reduceMotion ? nil : .easeInOut(duration: DSMotion.Duration.base)) {
-                let payload = notification.nowPlaying
                 currentTrack = payload.track
                 currentArtist = payload.artist
                 currentAlbum = payload.album
                 currentIsPaused = payload.isPaused
-                currentArtworkURL = nil
+                if trackChanged { currentArtworkURL = nil }
             }
             // A successful track read implies the user has granted access.
             if currentTrack != nil, permissionState == .denied {
                 MusicPermissionCache.write(.granted)
                 permissionState = .granted
             }
-            fetchArtwork()
+            if trackChanged { fetchArtwork() }
         }
         .onReceive(notif(AppConstants.Notifications.twitchConnectionStateChanged)) { notification in
             withAnimation(reduceMotion ? nil : .easeInOut(duration: DSMotion.Duration.base)) {

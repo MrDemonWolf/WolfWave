@@ -94,12 +94,15 @@ actor SongBlocklist {
     ///   - artist: The artist name to check.
     /// - Returns: `true` if the song or its artist is on the blocklist.
     func isBlocked(title: String, artist: String) -> Bool {
-        entries.contains { entry in
+        // Lowercase the inputs once instead of per entry in the scan.
+        let loweredTitle = title.lowercased()
+        let loweredArtist = artist.lowercased()
+        return entries.contains { entry in
             switch entry.type {
             case .song:
-                return entry.value.lowercased() == title.lowercased()
+                return entry.value.lowercased() == loweredTitle
             case .artist:
-                return entry.value.lowercased() == artist.lowercased()
+                return entry.value.lowercased() == loweredArtist
             }
         }
     }

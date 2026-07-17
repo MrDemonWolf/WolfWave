@@ -312,6 +312,20 @@ actor DiscordRPCService {
     ) async {
         guard state == .connected else { return }
 
+        // Steady-state dedup: the now-playing poll re-emits the same track every
+        // ~5s. When nothing meaningful changed, skip building and sending the
+        // SET_ACTIVITY IPC frame entirely. Genuine track changes, pause flips,
+        // artwork resolution (handleResolvedLinks) and settings re-sends all call
+        // sendPresenceActivity directly and bypass this guard.
+        if let last = lastPresence,
+           last.track == track, last.artist == artist, last.album == album,
+           last.playlist == playlist, last.isPaused == isPaused {
+            // Paused: elapsed is frozen, compare directly. Playing: compare the
+            // incoming elapsed against the projected position so a seek still sends.
+            let reference = isPaused ? last.elapsed : last.elapsed + Date().timeIntervalSince(last.capturedAt)
+            if abs(reference - elapsed) <= 2 { return }
+        }
+
         // Check shared cache for immediate use (artwork + track links)
         let cached = ArtworkService.shared.cachedTrackLinks(track: track, artist: artist)
         await sendPresenceActivity(
