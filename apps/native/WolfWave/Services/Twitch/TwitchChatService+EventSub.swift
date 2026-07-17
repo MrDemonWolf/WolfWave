@@ -312,7 +312,13 @@ extension TwitchChatService {
 
         // Preferences is a `nonisolated enum`, safe to call from the actor.
         Preferences.setTwitchReauthNeeded(true)
-        NotificationCenter.default.post(name: Notification.Name.twitchReauthNeededChanged, object: nil)
+        // Post on the main actor: SwiftUI panes observe this via
+        // NotificationCenter.publisher + .onReceive with no main hop, so posting
+        // from the actor's background executor would mutate MainActor view state
+        // off-main (executor-assert SIGTRAP class).
+        Task { @MainActor in
+            NotificationCenter.default.post(name: Notification.Name.twitchReauthNeededChanged, object: nil)
+        }
     }
 
     /// Handles the session_welcome message from EventSub.

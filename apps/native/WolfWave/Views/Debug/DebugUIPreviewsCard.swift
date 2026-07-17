@@ -209,21 +209,16 @@ private struct MotionGallerySection: View {
                 .buttonStyle(.bordered)
                 .controlSize(.small)
             }
-            // A cancelable Task loop keeps the demo lively without a Combine
-            // pipeline. It advances the chip state every 1.2s.
-            .onAppear { startChipTimer() }
-        }
-    }
-
-    @State private var chipTimerTask: Task<Void, Never>?
-
-    private func startChipTimer() {
-        chipTimerTask?.cancel()
-        chipTimerTask = Task { @MainActor in
-            while !Task.isCancelled {
-                try? await Task.sleep(for: .milliseconds(1200))
-                guard !Task.isCancelled else { return }
-                chipState = chipState.next()
+            // Structured .task loop advances the chip state every 1.2s and
+            // auto-cancels when the card disappears (matches the other Debug
+            // cards). A stored onAppear task would outlive the view and keep
+            // mutating state for the process lifetime on every pane revisit.
+            .task {
+                while !Task.isCancelled {
+                    try? await Task.sleep(for: .milliseconds(1200))
+                    guard !Task.isCancelled else { return }
+                    chipState = chipState.next()
+                }
             }
         }
     }

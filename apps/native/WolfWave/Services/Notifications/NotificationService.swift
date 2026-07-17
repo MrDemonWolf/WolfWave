@@ -336,6 +336,15 @@ final class NotificationService: NSObject {
         track: String,
         artist: String
     ) async -> UNNotificationAttachment? {
+        // Gate on authorization BEFORE any network fetch or temp-file write.
+        // post() drops the notification when unauthorized, so without this check
+        // a denied/undetermined install downloads and strands an artwork file
+        // in the temp directory on every song change.
+        switch await authorizationStatus() {
+        case .notDetermined, .denied: return nil
+        default: break
+        }
+
         guard let urlString = await fetchArtworkURLString(track: track, artist: artist),
               let remoteURL = URL(string: urlString) else { return nil }
 
@@ -345,7 +354,13 @@ final class NotificationService: NSObject {
             let fileURL = FileManager.default.temporaryDirectory
                 .appending(path: "wolfwave-artwork-\(UUID().uuidString).\(ext)")
             try data.write(to: fileURL)
-            return try UNNotificationAttachment(identifier: "artwork", url: fileURL, options: nil)
+            do {
+                return try UNNotificationAttachment(identifier: "artwork", url: fileURL, options: nil)
+            } catch {
+                // Attachment init failed after the file was written: don't strand it.
+                try? FileManager.default.removeItem(at: fileURL)
+                throw error
+            }
         } catch {
             Log.debug(
                 "NotificationService: Artwork attachment unavailable: \(error.localizedDescription)",

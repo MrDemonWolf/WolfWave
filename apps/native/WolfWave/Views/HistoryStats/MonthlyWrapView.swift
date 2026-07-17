@@ -165,11 +165,16 @@ struct MonthlyWrapView: View {
             }
         }
 
-        guard let urlString, let url = URL(string: urlString) else { return }
+        // The continuation isn't cancellation-aware, so a paged-away month's fetch
+        // resumes after `.task(id:)` started the next month's load. Bail if this
+        // generation was cancelled, otherwise a stale month's color stains the
+        // current card (and its share-card export).
+        guard !Task.isCancelled, let urlString, let url = URL(string: urlString) else { return }
         // HTTPClient (not bare URLSession) so a failed artwork fetch is logged
         // centrally instead of vanishing into a silent `try?`.
         guard let data = try? await HTTPClient.shared.data(url: url) else { return }
-        guard let image = NSImage(data: data),
+        guard !Task.isCancelled,
+              let image = NSImage(data: data),
               let color = ArtworkTint.dominantColor(from: image) else { return }
         tint = Color(nsColor: color)
     }

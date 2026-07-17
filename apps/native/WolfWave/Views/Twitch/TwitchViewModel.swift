@@ -376,6 +376,12 @@ final class TwitchViewModel {
         channelIDSaveTask?.cancel()
         pendingAuthResetTask?.cancel()
         pendingTestAuthTask?.cancel()
+        // Without this, the never-finishing connectionStateChanges() loop keeps
+        // iterating after the view model deallocates (it captures self weakly),
+        // leaking a permanent ConnectionStateHub subscriber per Settings/
+        // Onboarding open→close. Cancelling triggers the stream's onTermination,
+        // which removes the continuation from the hub.
+        connectionObserverTask?.cancel()
         if let token = reauthObserver {
             NotificationCenter.default.removeObserver(token)
         }
