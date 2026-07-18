@@ -53,6 +53,7 @@ Your music plays. Everything else keeps up.
 - **Live Queue View.** See what's playing, what's next, and who requested each track right inside the app.
 - **Fallback Playlist.** Configure an Apple Music playlist that takes over when the queue runs dry.
 - **Approve Before Play.** Opt-in "Require My Approval" holds every request (chat, channel points, bits) in the queue until you approve or decline it.
+- **Fair-Share Ordering.** Round-robin queue plays everyone's first request before anyone's second, so a fast re-typist can't hog it. On by default; toggle off for classic FIFO.
 - **Custom Commands.** Build your own chat commands with a fixed reply. Variables (`$user`, `$touser`, `$args`, `$1`–`$9`, `$song`, `$lastsong`), per-command aliases and cooldowns, and a permission level (Everyone, Subscribers, VIPs, Moderators, or Broadcaster).
 
 ### Discord
