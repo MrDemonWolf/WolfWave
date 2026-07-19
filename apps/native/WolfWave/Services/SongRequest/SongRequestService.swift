@@ -296,6 +296,24 @@ final class SongRequestService {
     /// boundary (unnoticeable) in exchange for immunity to a single flaky read.
     private let pollConfirmations = 2
 
+    /// Clears the takeover-detection debounce: the streamer-track baseline and
+    /// its divergence streak. Kept granular (never merged with
+    /// ``resetRequestPlaybackTracking()``) so each poll branch resets exactly the
+    /// state it owns. Does not touch `stoppedPollStreak`. Not for the
+    /// baseline-establishment sites, which set `takeoverBaselineTrackID` to the
+    /// current key rather than nil.
+    private func resetTakeoverTracking() {
+        takeoverBaselineTrackID = nil
+        takeoverDivergenceStreak = 0
+    }
+
+    /// Clears the playing-request debounce: the tracked request track ID and its
+    /// divergence streak.
+    private func resetRequestPlaybackTracking() {
+        playingRequestTrackID = nil
+        requestDivergenceStreak = 0
+    }
+
     /// Whether the fallback playlist is currently playing (no active requests).
     private(set) var isPlayingFallback = false
 
@@ -398,10 +416,8 @@ final class SongRequestService {
         // counters so the two-consecutive-reads debounce restarts cleanly when
         // activity resumes.
         if queue.nowPlaying == nil, queue.isEmpty {
-            takeoverBaselineTrackID = nil
-            takeoverDivergenceStreak = 0
-            playingRequestTrackID = nil
-            requestDivergenceStreak = 0
+            resetTakeoverTracking()
+            resetRequestPlaybackTracking()
             stoppedPollStreak = 0
             return
         }
@@ -428,13 +444,11 @@ final class SongRequestService {
 
         if queue.nowPlaying != nil {
             // A request is playing.
-            takeoverBaselineTrackID = nil
-            takeoverDivergenceStreak = 0
+            resetTakeoverTracking()
 
             // Playback clearly stopped (two reads): advance, or drain.
             if confirmedStopped {
-                playingRequestTrackID = nil
-                requestDivergenceStreak = 0
+                resetRequestPlaybackTracking()
                 if !queue.isEmpty {
                     await advanceQueue()
                 } else {
@@ -454,13 +468,11 @@ final class SongRequestService {
         }
 
         // No request is playing.
-        playingRequestTrackID = nil
-        requestDivergenceStreak = 0
+        resetRequestPlaybackTracking()
 
         // Nothing to do unless requests wait.
         guard !queue.isEmpty else {
-            takeoverBaselineTrackID = nil
-            takeoverDivergenceStreak = 0
+            resetTakeoverTracking()
             return
         }
 
@@ -468,8 +480,7 @@ final class SongRequestService {
             // Silence, or the fallback playlist is filling: start the first
             // queued request. The fallback is explicit filler that yields to
             // a real request right away.
-            takeoverBaselineTrackID = nil
-            takeoverDivergenceStreak = 0
+            resetTakeoverTracking()
             await advanceQueue()
         } else if snapshot.state == .playing {
             // The streamer's own track is playing. Honor "play when the
@@ -620,12 +631,10 @@ final class SongRequestService {
         guard !isStartingPlayback else { return nil }
         isStartingPlayback = true
         defer { isStartingPlayback = false }
-        takeoverBaselineTrackID = nil
-        takeoverDivergenceStreak = 0
+        resetTakeoverTracking()
         // Drop the divergence baseline so the poll re-establishes it for the
         // track Music.app loads next, instead of instantly re-skipping it.
-        playingRequestTrackID = nil
-        requestDivergenceStreak = 0
+        resetRequestPlaybackTracking()
 
         let next = queue.skip()
         if let next {
@@ -673,10 +682,8 @@ final class SongRequestService {
     /// - Returns: Number of items that were in the queue before clearing.
     func clearQueue() async -> Int {
         let count = queue.clear()
-        takeoverBaselineTrackID = nil
-        takeoverDivergenceStreak = 0
-        playingRequestTrackID = nil
-        requestDivergenceStreak = 0
+        resetTakeoverTracking()
+        resetRequestPlaybackTracking()
         playAttemptCounts.removeAll()
         await musicController.clearPlayerQueue()
         return count
@@ -693,8 +700,7 @@ final class SongRequestService {
         guard isFeatureEnabled else { return nil }
         guard let boosted = queue.boost(username: username) else { return nil }
         if musicController.isMusicAppRunning, !isHoldEnabled, queue.nowPlaying == nil {
-            takeoverBaselineTrackID = nil
-            takeoverDivergenceStreak = 0
+            resetTakeoverTracking()
             await startImmediatelyIfIdle()
         }
         return boosted
@@ -718,8 +724,7 @@ final class SongRequestService {
             return nil
         }
         if musicController.isMusicAppRunning, !isHoldEnabled, queue.nowPlaying == nil {
-            takeoverBaselineTrackID = nil
-            takeoverDivergenceStreak = 0
+            resetTakeoverTracking()
             await startImmediatelyIfIdle()
         }
         sendChatMessage?("Approved: \"\(item.title)\" by \(item.artist) (requested by \(item.requesterUsername))")
@@ -791,8 +796,7 @@ final class SongRequestService {
         }
         takeoverDivergenceStreak += 1
         guard takeoverDivergenceStreak >= pollConfirmations else { return }
-        takeoverBaselineTrackID = nil
-        takeoverDivergenceStreak = 0
+        resetTakeoverTracking()
         await advanceQueue()
     }
 
@@ -815,8 +819,7 @@ final class SongRequestService {
         }
         requestDivergenceStreak += 1
         guard requestDivergenceStreak >= pollConfirmations else { return }
-        playingRequestTrackID = nil
-        requestDivergenceStreak = 0
+        resetRequestPlaybackTracking()
         if !queue.isEmpty {
             await advanceQueue()
         } else {
