@@ -492,12 +492,8 @@ extension TwitchChatService {
             return
         }
 
-        let body: [String: Any] = [
-            "type": "channel.poll.end",
-            "version": "1",
-            "condition": ["broadcaster_user_id": broadcasterID],
-            "transport": ["method": "websocket", "session_id": sessionID],
-        ]
+        let body = Self.eventSubBody(
+            type: "channel.poll.end", broadcasterID: broadcasterID, sessionID: sessionID)
         await postEventSubSubscription(body: body, token: token, clientID: clientID, label: "channel.poll.end")
     }
 
@@ -523,6 +519,28 @@ extension TwitchChatService {
 
     // MARK: - EventSub Subscriptions
 
+    /// Builds a version-1 EventSub subscription body over the WebSocket
+    /// transport. The `condition` always carries `broadcaster_user_id`; pass
+    /// `extraCondition` for events (e.g. `channel.chat.message`) that need more
+    /// condition keys. Serialized via `JSONSerialization`, so key order is
+    /// irrelevant. Centralizes the version/transport scaffolding every
+    /// subscription otherwise hand-builds.
+    nonisolated static func eventSubBody(
+        type: String,
+        broadcasterID: String,
+        sessionID: String,
+        extraCondition: [String: String] = [:]
+    ) -> [String: Any] {
+        var condition: [String: String] = ["broadcaster_user_id": broadcasterID]
+        condition.merge(extraCondition) { _, new in new }
+        return [
+            "type": type,
+            "version": "1",
+            "condition": condition,
+            "transport": ["method": "websocket", "session_id": sessionID],
+        ]
+    }
+
     /// Subscribes to the channel.chat.message EventSub event.
     private func subscribeToChannelChatMessage() async {
         guard let sessionID,
@@ -537,18 +555,11 @@ extension TwitchChatService {
             return
         }
 
-        let body: [String: Any] = [
-            "type": "channel.chat.message",
-            "version": "1",
-            "condition": [
-                "broadcaster_user_id": broadcasterID,
-                "user_id": botID,
-            ],
-            "transport": [
-                "method": "websocket",
-                "session_id": sessionID,
-            ],
-        ]
+        let body = Self.eventSubBody(
+            type: "channel.chat.message",
+            broadcasterID: broadcasterID,
+            sessionID: sessionID,
+            extraCondition: ["user_id": botID])
 
         // Shares the EventSub POST scaffolding with every other subscription.
         // The chat subscription is the critical one: its extra success
@@ -593,12 +604,8 @@ extension TwitchChatService {
               let clientID else { return }
 
         for eventType in ["stream.online", "stream.offline"] {
-            let body: [String: Any] = [
-                "type": eventType,
-                "version": "1",
-                "condition": ["broadcaster_user_id": broadcasterID],
-                "transport": ["method": "websocket", "session_id": sessionID],
-            ]
+            let body = Self.eventSubBody(
+                type: eventType, broadcasterID: broadcasterID, sessionID: sessionID)
             await postEventSubSubscription(body: body, token: token, clientID: clientID, label: eventType)
         }
     }

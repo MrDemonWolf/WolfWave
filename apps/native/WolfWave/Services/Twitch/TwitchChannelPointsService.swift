@@ -135,12 +135,9 @@ nonisolated struct TwitchChannelPointsService: Sendable {
     /// is turned off, without deleting and recreating the reward (which would
     /// reset its ID and any viewer-facing customization).
     func setRewardPaused(credentials: Credentials, rewardID: String, paused: Bool) async throws {
-        var components = URLComponents(string: baseURL + "/channel_points/custom_rewards")
-        components?.queryItems = [
-            URLQueryItem(name: "broadcaster_id", value: credentials.broadcasterID),
-            URLQueryItem(name: "id", value: rewardID),
-        ]
-        guard let url = components?.url else { throw RewardError.malformedResponse }
+        guard let url = customRewardsURL(
+            broadcasterID: credentials.broadcasterID, id: rewardID
+        ) else { throw RewardError.malformedResponse }
 
         do {
             _ = try await helix.sendJSON(
@@ -154,12 +151,9 @@ nonisolated struct TwitchChannelPointsService: Sendable {
 
     /// Updates the cost of the managed reward.
     func updateRewardCost(credentials: Credentials, rewardID: String, cost: Int) async throws {
-        var components = URLComponents(string: baseURL + "/channel_points/custom_rewards")
-        components?.queryItems = [
-            URLQueryItem(name: "broadcaster_id", value: credentials.broadcasterID),
-            URLQueryItem(name: "id", value: rewardID),
-        ]
-        guard let url = components?.url else { throw RewardError.malformedResponse }
+        guard let url = customRewardsURL(
+            broadcasterID: credentials.broadcasterID, id: rewardID
+        ) else { throw RewardError.malformedResponse }
 
         do {
             _ = try await helix.sendJSON(
@@ -201,15 +195,31 @@ nonisolated struct TwitchChannelPointsService: Sendable {
 
     // MARK: - Private Helpers
 
+    /// Builds a Helix `custom_rewards` URL with the common `broadcaster_id`
+    /// query plus the optional `id` / `only_manageable_rewards` filters. Returns
+    /// `nil` on the (practically impossible) malformed-URL case so each caller
+    /// keeps its own distinct failure branch (throw / `false` / `nil`). The
+    /// `/redemptions` path is deliberately not routed through this.
+    private func customRewardsURL(
+        broadcasterID: String,
+        id: String? = nil,
+        onlyManageable: Bool = false
+    ) -> URL? {
+        var components = URLComponents(string: baseURL + "/channel_points/custom_rewards")
+        var items = [URLQueryItem(name: "broadcaster_id", value: broadcasterID)]
+        if let id { items.append(URLQueryItem(name: "id", value: id)) }
+        if onlyManageable {
+            items.append(URLQueryItem(name: "only_manageable_rewards", value: "true"))
+        }
+        components?.queryItems = items
+        return components?.url
+    }
+
     /// Checks whether a reward ID still exists and is manageable by this client.
     private func rewardExists(credentials: Credentials, rewardID: String) async throws -> Bool {
-        var components = URLComponents(string: baseURL + "/channel_points/custom_rewards")
-        components?.queryItems = [
-            URLQueryItem(name: "broadcaster_id", value: credentials.broadcasterID),
-            URLQueryItem(name: "id", value: rewardID),
-            URLQueryItem(name: "only_manageable_rewards", value: "true"),
-        ]
-        guard let url = components?.url else { return false }
+        guard let url = customRewardsURL(
+            broadcasterID: credentials.broadcasterID, id: rewardID, onlyManageable: true
+        ) else { return false }
 
         do {
             let json = try await helix.sendJSON(
@@ -226,11 +236,9 @@ nonisolated struct TwitchChannelPointsService: Sendable {
 
     /// Creates the "Request a Song" reward and returns its ID.
     private func createReward(credentials: Credentials, cost: Int) async throws -> String {
-        var components = URLComponents(string: baseURL + "/channel_points/custom_rewards")
-        components?.queryItems = [
-            URLQueryItem(name: "broadcaster_id", value: credentials.broadcasterID)
-        ]
-        guard let url = components?.url else { throw RewardError.malformedResponse }
+        guard let url = customRewardsURL(
+            broadcasterID: credentials.broadcasterID
+        ) else { throw RewardError.malformedResponse }
 
         let body: [String: Any] = [
             "title": AppConstants.Twitch.songRequestRewardTitle,
@@ -270,12 +278,9 @@ nonisolated struct TwitchChannelPointsService: Sendable {
     private func findManagedRewardByTitle(
         credentials: Credentials, title: String
     ) async throws -> String? {
-        var components = URLComponents(string: baseURL + "/channel_points/custom_rewards")
-        components?.queryItems = [
-            URLQueryItem(name: "broadcaster_id", value: credentials.broadcasterID),
-            URLQueryItem(name: "only_manageable_rewards", value: "true"),
-        ]
-        guard let url = components?.url else { return nil }
+        guard let url = customRewardsURL(
+            broadcasterID: credentials.broadcasterID, onlyManageable: true
+        ) else { return nil }
 
         do {
             let json = try await helix.sendJSON(
