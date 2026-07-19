@@ -114,6 +114,22 @@ extension BotCommand {
     }
 }
 
+// MARK: - Trigger Matching
+
+extension BotCommand {
+    /// The lowercased first whitespace-delimited token of `message` — the part
+    /// matched against ``allTriggers``. Falls back to the whole lowercased
+    /// string when the message has no whitespace. Shared by the command
+    /// implementations that gate on their own trigger set.
+    ///
+    /// The dispatcher deliberately does not use this: its hot path computes the
+    /// token once and fast-exits on a missing `!` prefix before the snapshot copy.
+    func commandToken(in message: String) -> String {
+        let lowered = message.lowercased()
+        return lowered.split(whereSeparator: \.isWhitespace).first.map(String.init) ?? lowered
+    }
+}
+
 // MARK: - ServiceBoundCommand
 
 /// Mixin for async commands that require a `SongRequestService` and mod/broadcaster privilege.
