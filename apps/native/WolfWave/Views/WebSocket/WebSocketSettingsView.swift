@@ -579,11 +579,11 @@ fileprivate struct WebSocketBrowserSourceCard: View {
     }
 
     private var widgetSetupHeader: some View {
-        VStack(alignment: .leading, spacing: DSSpace.s1h) {
-            Text("Widget Setup").sectionHeader()
-            Text("Use this link in OBS (Browser Source) or open it in any browser.")
-                .fieldSubtitle()
-        }
+        SectionHeaderWithStatus(
+            title: "Widget Setup",
+            subtitle: "Use this link in OBS (Browser Source) or open it in any browser.",
+            prominence: .section
+        )
     }
 
     private var widgetSetupCard: some View {
@@ -753,19 +753,19 @@ fileprivate struct WebSocketWidgetAppearanceCard: View {
     // reads via `WebSocketServerService.broadcastWidgetConfig()`. The card never
     // writes them on every keystroke, only when the user taps Apply.
     @AppStorage(AppConstants.UserDefaults.widgetTheme)
-    private var widgetTheme = "Default"
+    private var widgetTheme = AppConstants.Widget.Defaults.theme
 
     @AppStorage(AppConstants.UserDefaults.widgetLayout)
-    private var widgetLayout = "Horizontal"
+    private var widgetLayout = AppConstants.Widget.Defaults.layout
 
     @AppStorage(AppConstants.UserDefaults.widgetTextColor)
-    private var widgetTextColor = "#FFFFFF"
+    private var widgetTextColor = AppConstants.Widget.Defaults.textColor
 
     @AppStorage(AppConstants.UserDefaults.widgetBackgroundColor)
-    private var widgetBackgroundColor = "#1A1A2E"
+    private var widgetBackgroundColor = AppConstants.Widget.Defaults.backgroundColor
 
     @AppStorage(AppConstants.UserDefaults.widgetFontFamily)
-    private var widgetFontFamily = "System Default"
+    private var widgetFontFamily = AppConstants.Widget.Defaults.fontFamily
 
     /// Live edits. Every control binds here and the preview renders this, so
     /// tweaks show instantly without touching the live overlay. `Apply` copies
@@ -836,11 +836,11 @@ fileprivate struct WebSocketWidgetAppearanceCard: View {
     }
 
     private var widgetAppearanceHeader: some View {
-        VStack(alignment: .leading, spacing: DSSpace.s1h) {
-            Text("Widget Appearance").sectionHeader()
-            Text("Tweak colors, fonts, and layout for your widget.")
-                .fieldSubtitle()
-        }
+        SectionHeaderWithStatus(
+            title: "Widget Appearance",
+            subtitle: "Tweak colors, fonts, and layout for your widget.",
+            prominence: .section
+        )
     }
 
     private var widgetAppearanceCard: some View {

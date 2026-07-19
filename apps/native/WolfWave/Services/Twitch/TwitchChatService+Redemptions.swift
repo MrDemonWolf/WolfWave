@@ -427,12 +427,12 @@ extension TwitchChatService {
 
     /// Configured channel-point cost for the managed reward (default 500).
     nonisolated private func channelPointsCostSetting() -> Int {
-        Preferences.int(AppConstants.UserDefaults.songRequestChannelPointsCost, default: 500)
+        Preferences.int(AppConstants.UserDefaults.songRequestChannelPointsCost, default: AppConstants.UserDefaults.Defaults.songRequestChannelPointsCost)
     }
 
     /// Configured minimum bits required to trigger a request (default 100).
     nonisolated private func bitsMinimumSetting() -> Int {
-        Preferences.int(AppConstants.UserDefaults.songRequestBitsMinimum, default: 100)
+        Preferences.int(AppConstants.UserDefaults.songRequestBitsMinimum, default: AppConstants.UserDefaults.Defaults.songRequestBitsMinimum)
     }
 
     /// Persists the redemption integration health for the settings UI.

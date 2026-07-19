@@ -40,13 +40,11 @@ struct NotificationsSettingsView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: DSSpace.s6) {
-            VStack(alignment: .leading, spacing: DSSpace.s1h) {
-                Text("Notifications")
-                    .sectionHeader()
-
-                Text("Get a heads-up in Notification Center as your music plays.")
-                    .fieldSubtitle()
-            }
+            SectionHeaderWithStatus(
+                title: "Notifications",
+                subtitle: "Get a heads-up in Notification Center as your music plays.",
+                prominence: .section
+            )
 
             VStack(alignment: .leading, spacing: DSSpace.s4) {
                 ToggleSettingRow(

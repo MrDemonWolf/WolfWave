@@ -338,13 +338,13 @@ fileprivate struct VoteSkipCard: View {
     private var voteSkipEnabled = false
 
     @AppStorage(AppConstants.UserDefaults.voteSkipMinVotes)
-    private var minVotes = 3
+    private var minVotes = AppConstants.UserDefaults.Defaults.voteSkipMinVotes
 
     @AppStorage(AppConstants.UserDefaults.voteSkipWindowSeconds)
-    private var windowSeconds = 60
+    private var windowSeconds = AppConstants.UserDefaults.Defaults.voteSkipWindowSeconds
 
     @AppStorage(AppConstants.UserDefaults.voteSkipSessionCooldown)
-    private var sessionCooldown: Double = 30
+    private var sessionCooldown = AppConstants.UserDefaults.Defaults.voteSkipSessionCooldown
 
     @AppStorage(AppConstants.UserDefaults.voteSkipSubscriberOnly)
     private var subscriberOnly = false
@@ -353,7 +353,7 @@ fileprivate struct VoteSkipCard: View {
     private var usePolls = false
 
     @AppStorage(AppConstants.UserDefaults.voteSkipPollDuration)
-    private var pollDuration = 60
+    private var pollDuration = AppConstants.UserDefaults.Defaults.voteSkipPollDuration
 
     @AppStorage(AppConstants.UserDefaults.voteSkipCommandEnabled)
     private var commandEnabled = true
@@ -369,13 +369,11 @@ fileprivate struct VoteSkipCard: View {
     }
 
     private var voteSkipHeader: some View {
-        VStack(alignment: .leading, spacing: DSSpace.s1h) {
-            Text("Chat Vote-Skip").sectionHeader()
-
-            Text("Let your Twitch chat vote to skip the current song. Skips the request queue when one is playing, otherwise it skips the current Apple Music track.")
-                .fieldSubtitle()
-                .fixedSize(horizontal: false, vertical: true)
-        }
+        SectionHeaderWithStatus(
+            title: "Chat Vote-Skip",
+            subtitle: "Let your Twitch chat vote to skip the current song. Skips the request queue when one is playing, otherwise it skips the current Apple Music track.",
+            prominence: .section
+        )
     }
 
     private var voteSkipCard: some View {
@@ -490,12 +488,12 @@ fileprivate struct VoteSkipCard: View {
 
 fileprivate struct SongRequestQueueConfigCard: View {
     @AppStorage(AppConstants.UserDefaults.songRequestMaxQueueSize)
-    private var maxQueueSize = 10
+    private var maxQueueSize = AppConstants.UserDefaults.Defaults.songRequestMaxQueueSize
 
     // Per-role limits. "Everyone" reuses the original per-user-limit key so
     // existing setups keep their value.
     @AppStorage(AppConstants.UserDefaults.songRequestPerUserLimit)
-    private var everyoneLimit = 2
+    private var everyoneLimit = AppConstants.UserDefaults.Defaults.songRequestPerUserLimit
     @AppStorage(AppConstants.UserDefaults.songRequestLimitSubscriber)
     private var subLimit = 2
     @AppStorage(AppConstants.UserDefaults.songRequestLimitVIP)
@@ -507,7 +505,7 @@ fileprivate struct SongRequestQueueConfigCard: View {
     private var stackMode: QueueLimitMode = .highest
 
     @AppStorage(AppConstants.UserDefaults.songRequestFairShare)
-    private var fairShare = true
+    private var fairShare = AppConstants.UserDefaults.Defaults.songRequestFairShare
 
     @AppStorage(AppConstants.UserDefaults.songRequestPriorityMode)
     private var priorityMode: SongRequestPriorityMode = .off
@@ -809,14 +807,14 @@ fileprivate struct SongRequestRedemptionsCard: View {
     @AppStorage(AppConstants.UserDefaults.songRequestChannelPointsEnabled)
     private var channelPointsEnabled = false
     @AppStorage(AppConstants.UserDefaults.songRequestChannelPointsCost)
-    private var channelPointsCost = 500
+    private var channelPointsCost = AppConstants.UserDefaults.Defaults.songRequestChannelPointsCost
     @AppStorage(AppConstants.UserDefaults.songRequestChannelPointsRewardID)
     private var rewardID = ""
 
     @AppStorage(AppConstants.UserDefaults.songRequestBitsEnabled)
     private var bitsEnabled = false
     @AppStorage(AppConstants.UserDefaults.songRequestBitsMinimum)
-    private var bitsMinimum = 100
+    private var bitsMinimum = AppConstants.UserDefaults.Defaults.songRequestBitsMinimum
     @AppStorage(AppConstants.UserDefaults.songRequestBitsBoostEnabled)
     private var bitsBoostEnabled = false
 
@@ -1051,12 +1049,11 @@ fileprivate struct SongRequestCommandsCard: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: DSSpace.s6) {
-            VStack(alignment: .leading, spacing: DSSpace.s1h) {
-                Text("Song Request Commands").sectionHeader()
-
-                Text("Toggle commands on/off and add custom aliases (comma-separated, without !).")
-                    .fieldSubtitle()
-            }
+            SectionHeaderWithStatus(
+                title: "Song Request Commands",
+                subtitle: "Toggle commands on/off and add custom aliases (comma-separated, without !).",
+                prominence: .section
+            )
 
             VStack(spacing: 1) {
                 CommandSettingRow(

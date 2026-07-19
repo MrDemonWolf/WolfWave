@@ -108,11 +108,10 @@ final class TrackInfoCommand: BotCommand {
     /// - Returns: Chat response, or `nil` if no trigger matched or the command
     ///   is disabled.
     func execute(message: String) -> String? {
-        let lowered = message.lowercased()
-        let commandToken = lowered.split(whereSeparator: \.isWhitespace).first.map(String.init) ?? lowered
+        let token = commandToken(in: message)
 
         for trigger in allTriggers {
-            if commandToken == trigger.lowercased() {
+            if token == trigger.lowercased() {
                 // Snapshot closures under lock to avoid racing with setter
                 let enabledCheck = isEnabled
                 let trackInfoProvider = getTrackInfo
@@ -134,11 +133,10 @@ final class TrackInfoCommand: BotCommand {
     /// `runSync` semaphore bridge that previously deadlocked MainActor on the
     /// first `!song`/`!last`/`!stats` chat command after Twitch auth.
     func executeAsync(message: String) async -> String? {
-        let lowered = message.lowercased()
-        let commandToken = lowered.split(whereSeparator: \.isWhitespace).first.map(String.init) ?? lowered
+        let token = commandToken(in: message)
 
         for trigger in allTriggers {
-            if commandToken == trigger.lowercased() {
+            if token == trigger.lowercased() {
                 let enabledCheck = isEnabled
                 let asyncProvider = getTrackInfoAsync
                 let syncProvider = getTrackInfo

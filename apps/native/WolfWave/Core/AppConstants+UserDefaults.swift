@@ -170,7 +170,7 @@ extension AppConstants {
         /// Widget background color hex (String, default: "#1A1A2E")
         static let widgetBackgroundColor = "widgetBackgroundColor"
 
-        /// Widget font family (String, default: "System")
+        /// Widget font family (String, default: "System Default")
         static let widgetFontFamily = "widgetFontFamily"
 
         /// Widget HTTP server port number (UInt16, default: 8766)
@@ -689,5 +689,23 @@ extension AppConstants {
             songRequestSetupComplete,
             songRequestPlaylistStatus,
         ]
+
+        /// Canonical default values for settings whose default was otherwise
+        /// typed twice: once as an `@AppStorage` seed in a settings view and
+        /// again as the `default:` argument to a `Preferences.*` read in the
+        /// owning service. Referencing these from both sides keeps the two in
+        /// lockstep. Only keys whose two copies already agreed are listed here.
+        enum Defaults {
+            static let updateCheckEnabled = true
+            static let voteSkipMinVotes = 3
+            static let voteSkipWindowSeconds = 60
+            static let voteSkipSessionCooldown: Double = 30
+            static let voteSkipPollDuration = 60
+            static let songRequestMaxQueueSize = 10
+            static let songRequestPerUserLimit = 2
+            static let songRequestFairShare = true
+            static let songRequestChannelPointsCost = 500
+            static let songRequestBitsMinimum = 100
+        }
     }
 }

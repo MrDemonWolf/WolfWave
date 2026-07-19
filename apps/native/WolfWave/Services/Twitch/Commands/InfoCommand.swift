@@ -81,10 +81,9 @@ final class InfoCommand: BotCommand {
     /// - Returns: Chat response, or `nil` if no trigger matched or the command
     ///   is disabled.
     func execute(message: String) -> String? {
-        let lowered = message.lowercased()
-        let commandToken = lowered.split(whereSeparator: \.isWhitespace).first.map(String.init) ?? lowered
+        let token = commandToken(in: message)
 
-        guard allTriggers.contains(where: { commandToken == $0.lowercased() }) else {
+        guard allTriggers.contains(where: { token == $0.lowercased() }) else {
             return nil
         }
         guard Preferences.bool(enabledDefaultsKey, default: false) else {

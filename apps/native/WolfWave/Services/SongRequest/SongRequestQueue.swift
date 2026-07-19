@@ -36,17 +36,17 @@ final class SongRequestQueue {
 
     /// Maximum number of items allowed in the queue.
     var maxQueueSize: Int {
-        Preferences.int(AppConstants.UserDefaults.songRequestMaxQueueSize, default: 10)
+        Preferences.int(AppConstants.UserDefaults.songRequestMaxQueueSize, default: AppConstants.UserDefaults.Defaults.songRequestMaxQueueSize)
     }
 
     /// Maximum requests per user in the queue at one time.
     var perUserLimit: Int {
-        Preferences.int(AppConstants.UserDefaults.songRequestPerUserLimit, default: 2)
+        Preferences.int(AppConstants.UserDefaults.songRequestPerUserLimit, default: AppConstants.UserDefaults.Defaults.songRequestPerUserLimit)
     }
 
     /// Whether new requests interleave round-robin (fair-share) instead of FIFO.
     var fairShareEnabled: Bool {
-        Preferences.bool(AppConstants.UserDefaults.songRequestFairShare, default: true)
+        Preferences.bool(AppConstants.UserDefaults.songRequestFairShare, default: AppConstants.UserDefaults.Defaults.songRequestFairShare)
     }
 
     /// Total number of items in the queue (not counting now-playing).

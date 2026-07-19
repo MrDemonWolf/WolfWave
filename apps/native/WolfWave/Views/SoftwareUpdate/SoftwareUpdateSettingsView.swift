@@ -29,7 +29,7 @@ struct SoftwareUpdateSettingsView: View {
     private var skippedVersion: String = ""
 
     @AppStorage(AppConstants.UserDefaults.updateCheckEnabled)
-    private var updateCheckEnabled = true
+    private var updateCheckEnabled = AppConstants.UserDefaults.Defaults.updateCheckEnabled
 
     @AppStorage(AppConstants.UserDefaults.updateChannel)
     private var storedChannel = UpdateChannel.stable.rawValue
