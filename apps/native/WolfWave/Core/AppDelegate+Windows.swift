@@ -76,15 +76,22 @@ extension AppDelegate {
         applyDockVisibility(currentDockVisibilityMode)
     }
 
+    /// True when at least one visible, key-capable, normal-level window exists.
+    ///
+    /// Single source for the menu-only activation-policy decision so the initial
+    /// apply and the window-close restore never diverge on what counts as a
+    /// "visible" window. (Distinct from `SettingsSceneBridge`'s window lookup,
+    /// which uses a different predicate to locate a specific window.)
+    private var hasVisibleNormalWindow: Bool {
+        NSApp.windows.contains { $0.isVisible && $0.canBecomeKey && $0.level == .normal }
+    }
+
     /// Sets activation policy and status item visibility based on the given mode.
     func applyDockVisibility(_ mode: String) {
         switch mode {
         case AppConstants.DockVisibility.menuOnly:
             statusItem?.isVisible = true
-            let hasVisibleWindows = NSApp.windows.contains { window in
-                window.isVisible && window.canBecomeKey && window.level == .normal
-            }
-            NSApp.setActivationPolicy(hasVisibleWindows ? .regular : .accessory)
+            NSApp.setActivationPolicy(hasVisibleNormalWindow ? .regular : .accessory)
         case AppConstants.DockVisibility.dockOnly:
             NSApp.setActivationPolicy(.regular)
             statusItem?.isVisible = false
@@ -101,11 +108,7 @@ extension AppDelegate {
     func restoreMenuOnlyIfNeeded() {
         guard currentDockVisibilityMode == AppConstants.DockVisibility.menuOnly else { return }
 
-        let hasVisibleWindows = NSApp.windows.contains { window in
-            window.isVisible && window.canBecomeKey && window.level == .normal
-        }
-
-        if !hasVisibleWindows {
+        if !hasVisibleNormalWindow {
             // Defer past the current AppKit layout pass: calling
             // setActivationPolicy(.accessory) inline during a window-close
             // animation triggers "layoutSubtreeIfNeeded on a view already

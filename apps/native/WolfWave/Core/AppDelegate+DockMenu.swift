@@ -44,16 +44,13 @@ extension AppDelegate {
     }
 
     private func addDockPlaybackControls(into menu: NSMenu) {
-        let musicRunning = NSWorkspace.shared.runningApplications.contains {
-            $0.bundleIdentifier == AppConstants.Music.bundleIdentifier
-        }
-        guard musicRunning else { return }
+        guard isMusicAppOpen() else { return }
 
         // Derive Play/Pause from the cached playback snapshot pushed by the
         // AppleMusicSource delegate, matching the menu-bar path. Building the
         // Dock menu must return immediately, so avoid the blocking
         // musicController.isPlaying read here.
-        let isPlaying = currentSong != nil && !currentIsPaused
+        let isPlaying = isPlayingNow
 
         menu.addItem(NSMenuItem(
             title: isPlaying ? "Pause" : "Play",

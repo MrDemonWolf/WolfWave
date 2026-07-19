@@ -321,16 +321,9 @@ extension AppDelegate {
     func setupPowerStateMonitor() {
         _ = PowerStateMonitor.shared
 
-        notificationObservers.append(
-            NotificationCenter.default.addObserver(
-                forName: Notification.Name.powerStateChanged,
-                object: nil,
-                queue: .main
-            ) { [weak self] notification in
-                nonisolated(unsafe) let n = notification
-                MainActor.assumeIsolated { self?.powerStateChanged(n) }
-            }
-        )
+        observeOnMain(Notification.Name.powerStateChanged) { [weak self] n in
+            self?.powerStateChanged(n)
+        }
     }
 
     /// Adjusts service polling intervals when system power state changes.
@@ -355,9 +348,57 @@ extension AppDelegate {
     }
 }
 
+// MARK: - Overlay Toggle
+
+extension AppDelegate {
+
+    /// Applies the overlay on/off state shared by the tray toggle
+    /// (`toggleWebSocket`) and the Stream Deck `.overlayToggle` action: flips the
+    /// WebSocket and widget-HTTP prefs in lockstep and broadcasts the change.
+    ///
+    /// Synchronous by design so the pref write and notification post are not
+    /// deferred into a `Task` (a synchronous observer would otherwise briefly
+    /// read the stale value). Callers own the async
+    /// `websocketServer.setWidgetHTTPEnabled(_:)` hop.
+    func applyOverlayEnabled(_ newValue: Bool) {
+        Preferences.setWebSocketEnabled(newValue)
+        // Keep widgetHTTPEnabled in sync: OBS loads the widget page over HTTP,
+        // so the overlay stays blank if the WebSocket channel comes up without it.
+        Preferences.setWidgetHTTPEnabled(newValue)
+        NotificationCenter.default.postWebSocketServerChanged(
+            enabled: newValue,
+            widgetHTTPEnabled: newValue
+        )
+    }
+}
+
 // MARK: - Notification Observers
 
 extension AppDelegate {
+
+    /// Registers a `NotificationCenter` observer that runs `handler` on the main
+    /// actor and stores the token in `notificationObservers` for teardown.
+    ///
+    /// Collapses the repeated `queue: .main` + `nonisolated(unsafe) let n` +
+    /// `MainActor.assumeIsolated` incantation shared by every settings/system
+    /// observer. `queue: .main` guarantees the block runs on the main thread,
+    /// which is what keeps `assumeIsolated` sound. Observers with custom bodies
+    /// (window-close filtering, notifications dropped with `_`) stay inline.
+    private func observeOnMain(
+        _ name: NSNotification.Name,
+        _ handler: @escaping @MainActor (Notification) -> Void
+    ) {
+        notificationObservers.append(
+            NotificationCenter.default.addObserver(
+                forName: name,
+                object: nil,
+                queue: .main
+            ) { notification in
+                nonisolated(unsafe) let n = notification
+                MainActor.assumeIsolated { handler(n) }
+            }
+        )
+    }
 
     /// Registers all `NotificationCenter` observers for settings and system
     /// events, and installs the user-notification center delegate.
@@ -370,28 +411,17 @@ extension AppDelegate {
 
         let nc = NotificationCenter.default
 
-        notificationObservers.append(
-            nc.addObserver(
-                forName: Notification.Name.trackingSettingChanged,
-                object: nil,
-                queue: .main
-            ) { [weak self] notification in
-                nonisolated(unsafe) let n = notification
-                MainActor.assumeIsolated { self?.trackingSettingChanged(n) }
-            }
-        )
+        observeOnMain(Notification.Name.trackingSettingChanged) { [weak self] n in
+            self?.trackingSettingChanged(n)
+        }
+        observeOnMain(Notification.Name.dockVisibilityChanged) { [weak self] n in
+            self?.dockVisibilityChanged(n)
+        }
 
-        notificationObservers.append(
-            nc.addObserver(
-                forName: Notification.Name.dockVisibilityChanged,
-                object: nil,
-                queue: .main
-            ) { [weak self] notification in
-                nonisolated(unsafe) let n = notification
-                MainActor.assumeIsolated { self?.dockVisibilityChanged(n) }
-            }
-        )
-
+        // Custom body — kept inline. Onboarding and What's New are handled by
+        // their own `windowWillClose` delegate. Every other closing window,
+        // including SwiftUI's Settings scene window, falls through here to
+        // restore menu-only mode.
         notificationObservers.append(
             nc.addObserver(
                 forName: NSWindow.willCloseNotification,
@@ -404,94 +434,36 @@ extension AppDelegate {
                           let window = n.object as? NSWindow,
                           window !== self.onboardingWindow,
                           window !== self.whatsNewWindow else { return }
-                    // Onboarding and What's New are handled by their own
-                    // `windowWillClose` delegate. Every other closing window,
-                    // including SwiftUI's Settings scene window, falls through
-                    // here to restore menu-only mode.
                     self.restoreMenuOnlyIfNeeded()
                 }
             }
         )
 
-        notificationObservers.append(
-            nc.addObserver(
-                forName: Notification.Name.discordPresenceChanged,
-                object: nil,
-                queue: .main
-            ) { [weak self] notification in
-                nonisolated(unsafe) let n = notification
-                MainActor.assumeIsolated { self?.discordPresenceSettingChanged(n) }
-            }
-        )
+        observeOnMain(Notification.Name.discordPresenceChanged) { [weak self] n in
+            self?.discordPresenceSettingChanged(n)
+        }
+        observeOnMain(Notification.Name.websocketServerChanged) { [weak self] n in
+            self?.websocketServerSettingChanged(n)
+        }
+        observeOnMain(Notification.Name.widgetHTTPServerChanged) { [weak self] n in
+            self?.widgetHTTPServerSettingChanged(n)
+        }
+        observeOnMain(Notification.Name.updateStateChanged) { [weak self] n in
+            self?.handleUpdateStateChanged(n)
+        }
+        observeOnMain(Notification.Name.songRequestSettingChanged) { [weak self] n in
+            self?.songRequestSettingChanged(n)
+        }
+        observeOnMain(Notification.Name.listeningHistorySettingChanged) { [weak self] n in
+            self?.listeningHistorySettingChanged(n)
+        }
+        observeOnMain(Notification.Name.twitchConnectionStateChanged) { [weak self] n in
+            self?.twitchConnectionStateChanged(n)
+        }
 
-        notificationObservers.append(
-            nc.addObserver(
-                forName: Notification.Name.websocketServerChanged,
-                object: nil,
-                queue: .main
-            ) { [weak self] notification in
-                nonisolated(unsafe) let n = notification
-                MainActor.assumeIsolated { self?.websocketServerSettingChanged(n) }
-            }
-        )
-
-        notificationObservers.append(
-            nc.addObserver(
-                forName: Notification.Name.widgetHTTPServerChanged,
-                object: nil,
-                queue: .main
-            ) { [weak self] notification in
-                nonisolated(unsafe) let n = notification
-                MainActor.assumeIsolated { self?.widgetHTTPServerSettingChanged(n) }
-            }
-        )
-
-        notificationObservers.append(
-            nc.addObserver(
-                forName: Notification.Name.updateStateChanged,
-                object: nil,
-                queue: .main
-            ) { [weak self] notification in
-                nonisolated(unsafe) let n = notification
-                MainActor.assumeIsolated { self?.handleUpdateStateChanged(n) }
-            }
-        )
-
-        notificationObservers.append(
-            nc.addObserver(
-                forName: Notification.Name.songRequestSettingChanged,
-                object: nil,
-                queue: .main
-            ) { [weak self] notification in
-                nonisolated(unsafe) let n = notification
-                MainActor.assumeIsolated { self?.songRequestSettingChanged(n) }
-            }
-        )
-
-        notificationObservers.append(
-            nc.addObserver(
-                forName: Notification.Name.listeningHistorySettingChanged,
-                object: nil,
-                queue: .main
-            ) { [weak self] notification in
-                nonisolated(unsafe) let n = notification
-                MainActor.assumeIsolated { self?.listeningHistorySettingChanged(n) }
-            }
-        )
-
-        notificationObservers.append(
-            nc.addObserver(
-                forName: Notification.Name.twitchConnectionStateChanged,
-                object: nil,
-                queue: .main
-            ) { [weak self] notification in
-                nonisolated(unsafe) let n = notification
-                MainActor.assumeIsolated { self?.twitchConnectionStateChanged(n) }
-            }
-        )
-
-        // Refresh the Stream Deck queue-counter / health broadcasts whenever the
-        // request queue changes so a counter key stays live without polling.
+        // Custom body (drops the notification payload) — kept inline. Refreshes
+        // the Stream Deck queue-counter / health broadcasts whenever the request
+        // queue changes so a counter key stays live without polling.
         notificationObservers.append(
             nc.addObserver(
                 forName: Notification.Name.songRequestQueueChanged,
