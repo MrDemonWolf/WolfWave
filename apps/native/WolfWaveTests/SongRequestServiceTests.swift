@@ -43,7 +43,7 @@ final class MockAppleMusicController: AppleMusicControlling {
 
     func search(query: String) async -> AppleMusicController.SearchResult { .notFound }
     func resolve(url: URL) async -> AppleMusicController.SearchResult { .notFound }
-    func playbackSnapshot() -> PlaybackSnapshot? {
+    func playbackSnapshot() async -> PlaybackSnapshot? {
         if let snapshotProvider { return snapshotProvider() }
         let state: PlaybackSnapshot.State = isPlaying ? .playing : (isPaused ? .paused : .stopped)
         return PlaybackSnapshot(state: state, trackKey: currentTrackID)

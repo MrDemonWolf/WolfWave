@@ -413,7 +413,7 @@ final class SongRequestService {
         // flaky read can never be mistaken for a stop or a track change and
         // cut a song off mid-play. Streak counters are left untouched so a
         // single dropped read doesn't reset an in-progress debounce.
-        guard let snapshot = musicController.playbackSnapshot() else { return }
+        guard let snapshot = await musicController.playbackSnapshot() else { return }
 
         // Debounce stopped detection: require two consecutive stopped reads
         // before advancing/taking over, so one flaky read can't skip a track.
@@ -760,7 +760,7 @@ final class SongRequestService {
         }
         // A nil snapshot is an inconclusive read: don't risk interrupting; let the
         // poll take over at the next confirmed boundary.
-        guard let snapshot = musicController.playbackSnapshot() else { return }
+        guard let snapshot = await musicController.playbackSnapshot() else { return }
         guard snapshot.state != .playing else { return }
         await playNextInQueue()
     }

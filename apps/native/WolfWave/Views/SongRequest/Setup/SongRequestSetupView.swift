@@ -530,7 +530,7 @@ struct SongRequestSetupView: View {
     @MainActor
     private func openPlaylistInMusic() async {
         _ = try? await libraryService.ensureRequestsPlaylist()
-        musicController.revealRequestsPlaylist()
+        await musicController.revealRequestsPlaylist()
     }
 }
 

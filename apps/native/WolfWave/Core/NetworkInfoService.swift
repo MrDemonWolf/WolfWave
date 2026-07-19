@@ -108,11 +108,17 @@ actor NetworkInfoService {
                addr.pointee.sa_family == UInt8(AF_INET),
                isUp, isRunning, !isLoopback {
                 var host = [CChar](repeating: 0, count: Int(NI_MAXHOST))
-                getnameinfo(addr, socklen_t(addr.pointee.sa_len),
+                let status = getnameinfo(addr, socklen_t(addr.pointee.sa_len),
                             &host, socklen_t(host.count),
                             nil, 0, NI_NUMERICHOST)
                 let bytes = host.prefix { $0 != 0 }.map { UInt8(bitPattern: $0) }
-                return String(decoding: bytes, as: UTF8.self)
+                let ip = String(decoding: bytes, as: UTF8.self)
+                // Only accept a successfully resolved, non-empty address; a
+                // failed interface falls through to the next candidate rather
+                // than returning a blank IP (which would build a malformed URL).
+                if status == 0, !ip.isEmpty {
+                    return ip
+                }
             }
             ptr = interface.pointee.ifa_next
         }

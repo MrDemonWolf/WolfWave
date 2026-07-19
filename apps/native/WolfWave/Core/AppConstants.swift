@@ -88,7 +88,7 @@ nonisolated enum AppConstants {
         /// ONLY on releases that add user-facing features, never on patch or
         /// bug-fix releases, so the window auto-opens only when there is
         /// something new worth showing. Keep it `<= shortVersion`.
-        static let whatsNewVersion = "2.0.0"
+        static let whatsNewVersion = "2.1.0"
 
         /// Build number string (`CFBundleVersion`) with a safe fallback for
         /// contexts where the Info.plist key is absent. Sparkle uses this as
