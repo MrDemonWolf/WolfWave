@@ -243,7 +243,7 @@ nonisolated enum AppConstants {
         static let themes = ["Default", "Dark", "Light", "Glass", "Neon"]
 
         /// Available widget layout styles
-        static let layouts = ["Horizontal", "Vertical", "Compact"]
+        static let layouts = ["Horizontal", "Vertical", "Compact", "Vinyl", "Classic"]
     }
 
     // MARK: - Discord Integration

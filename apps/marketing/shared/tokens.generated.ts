@@ -233,6 +233,14 @@ export const tokens = {
       "Compact": {
         "maxWidth": 350,
         "height": 56
+      },
+      "Vinyl": {
+        "maxWidth": 260,
+        "height": 300
+      },
+      "Classic": {
+        "maxWidth": 440,
+        "height": 112
       }
     },
     "themes": {

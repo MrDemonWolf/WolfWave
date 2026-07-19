@@ -269,3 +269,118 @@ body.ww-preview #root {
       linear-gradient(45deg, #383838 25%, transparent 25%, transparent 75%, #383838 75%);
   }
 }
+
+/* ─── 8. Vinyl layout ───────────────────────────────────────────────────────
+ *
+ * A spinning black record. The album art is the center label; a circular ring
+ * (`.progress-ring`, driven by stroke-dashoffset in the RAF loop) rides the
+ * rim. The disc itself is intentionally black under every theme, the record is
+ * part of the layout's identity, not the theme, but the ring color and the
+ * track text still come from the active theme. Spin pauses with `.is-paused`.
+ * ──────────────────────────────────────────────────────────────────────── */
+
+.wolf-vinyl-disc {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background:
+    repeating-radial-gradient(circle at 50% 50%, #0a0a0a 0 2px, #171717 2px 3px),
+    radial-gradient(circle at 38% 32%, #2c2c2c 0%, #0a0a0a 62%);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.55), inset 0 0 0 1px rgba(255, 255, 255, 0.05);
+  animation: wolf-vinyl-spin 4.5s linear infinite;
+}
+
+/* Rotating sheen sweep so the record catches "light" as it turns. */
+.wolf-vinyl-disc::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: conic-gradient(from 210deg, rgba(255, 255, 255, 0.10), transparent 25%, transparent 60%, rgba(255, 255, 255, 0.07) 80%, transparent);
+  mix-blend-mode: screen;
+  pointer-events: none;
+}
+
+.wolf-vinyl-label {
+  position: relative;
+  z-index: 1;
+  border-radius: 50%;
+  box-shadow: 0 0 0 3px rgba(0, 0, 0, 0.55), 0 0 0 4px rgba(255, 255, 255, 0.08);
+}
+
+.wolf-vinyl-spindle {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 9px;
+  height: 9px;
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  background: #060606;
+  box-shadow: 0 0 0 2px #2b2b2b;
+  z-index: 2;
+}
+
+.wolf-vinyl-ring {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  transform: rotate(-90deg);
+  pointer-events: none;
+  z-index: 3;
+}
+
+.wolf-vinyl-ring-track {
+  fill: none;
+  stroke-width: 5;
+}
+
+.wolf-vinyl-ring .progress-ring {
+  fill: none;
+  stroke-width: 5;
+  stroke-linecap: round;
+}
+
+@keyframes wolf-vinyl-spin {
+  to { transform: rotate(360deg); }
+}
+
+#widget.is-paused .wolf-vinyl-disc {
+  animation-play-state: paused;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .wolf-vinyl-disc { animation: none; }
+}
+
+/* ─── 9. Classic layout: progress knob ──────────────────────────────────────
+ *
+ * The linear bar is shared, but Classic adds a draggable-looking knob at the
+ * fill's leading edge. It's a CSS ::after on `.progress-fill` so the existing
+ * RAF loop (which sets the fill width) moves the knob for free. The shared
+ * `.progress-track` clips its children, so re-enable overflow here.
+ * ──────────────────────────────────────────────────────────────────────── */
+
+.wolf-classic .progress-track { overflow: visible; }
+
+.wolf-classic .progress-fill {
+  position: relative;
+  overflow: visible;
+}
+
+.wolf-classic .progress-fill::after {
+  content: "";
+  position: absolute;
+  right: -5px;
+  top: 50%;
+  width: 11px;
+  height: 11px;
+  transform: translateY(-50%);
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.5);
+}

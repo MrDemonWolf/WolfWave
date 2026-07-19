@@ -69,6 +69,8 @@ final class WidgetAppearancePreviewTests: XCTestCase {
         XCTAssertEqual(DSWidgetLayouts.size("Horizontal"), CGSize(width: 500, height: 100))
         XCTAssertEqual(DSWidgetLayouts.size("Vertical"), CGSize(width: 220, height: 280))
         XCTAssertEqual(DSWidgetLayouts.size("Compact"), CGSize(width: 350, height: 56))
+        XCTAssertEqual(DSWidgetLayouts.size("Vinyl"), CGSize(width: 260, height: 300))
+        XCTAssertEqual(DSWidgetLayouts.size("Classic"), CGSize(width: 440, height: 112))
     }
 
     func testUnknownLayoutFallsBackToHorizontal() {
