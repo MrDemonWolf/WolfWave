@@ -93,13 +93,11 @@ struct TwitchCommandsCard: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: DSSpace.s6) {
-            VStack(alignment: .leading, spacing: DSSpace.s1h) {
-                Text("Bot Commands")
-                    .sectionHeader()
-
-                Text("Choose which commands people can use in chat.")
-                    .fieldSubtitle()
-            }
+            SectionHeaderWithStatus(
+                title: "Bot Commands",
+                subtitle: "Choose which commands people can use in chat.",
+                prominence: .section
+            )
 
             TwitchConnectionNotice(
                 isConnected: viewModel.channelConnected,

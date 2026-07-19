@@ -23,13 +23,11 @@ struct AppearanceSettingsView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: DSSpace.s6) {
-            VStack(alignment: .leading, spacing: DSSpace.s2) {
-                Text("Appearance")
-                    .sectionHeader()
-
-                Text("Pick a look, or follow your system setting.")
-                    .fieldSubtitle()
-            }
+            SectionHeaderWithStatus(
+                title: "Appearance",
+                subtitle: "Pick a look, or follow your system setting.",
+                prominence: .section
+            )
 
             VStack(alignment: .leading, spacing: DSSpace.s4) {
                 HStack(alignment: .top, spacing: DSSpace.s4) {

@@ -27,13 +27,11 @@ struct CustomCommandsCard: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: DSSpace.s6) {
-            VStack(alignment: .leading, spacing: DSSpace.s1h) {
-                Text("Custom Commands")
-                    .sectionHeader()
-
-                Text("Make your own chat commands with a fixed reply.")
-                    .fieldSubtitle()
-            }
+            SectionHeaderWithStatus(
+                title: "Custom Commands",
+                subtitle: "Make your own chat commands with a fixed reply.",
+                prominence: .section
+            )
 
             if store.commands.isEmpty {
                 emptyState
