@@ -533,7 +533,18 @@ final class SongRequestService {
                 return .blocked
             }
 
-            let item = SongRequestItem(song: song, requesterUsername: username)
+            // Sub/VIP queue-jump perk (WW-43). Only chat requests carry badges;
+            // channel-point / bit redemptions have none, so they never gain
+            // priority. The flag rides on the item so an approved-from-pending
+            // request keeps its jump. Cooldown-skip is enforced upstream in the
+            // dispatcher, so this only cares about the queue-jump tier.
+            let isPriority: Bool
+            if case .chatCommand(let context) = source {
+                isPriority = SongRequestPriority.mode().jumpsQueue && SongRequestPriority.qualifies(context)
+            } else {
+                isPriority = false
+            }
+            let item = SongRequestItem(song: song, requesterUsername: username, isPriority: isPriority)
 
             // Approval mode: park the resolved request in the holding pen and let
             // the streamer approve/reject it from the Queue pane. The per-user and

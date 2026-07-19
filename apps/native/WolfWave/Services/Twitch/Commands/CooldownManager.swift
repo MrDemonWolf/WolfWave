@@ -43,6 +43,8 @@ final class CooldownManager {
     ///   - trigger: The command trigger string (e.g., "!song").
     ///   - userID: The Twitch user ID of the caller.
     ///   - isModerator: Whether the user has moderator badge (bypasses cooldowns).
+    ///   - bypassesCooldown: Whether the caller earned a cooldown bypass (e.g. the
+    ///     Sub/VIP song-request perk). Treated the same as a moderator bypass.
     ///   - globalCooldown: Global cooldown duration in seconds (0 = disabled).
     ///   - userCooldown: Per-user cooldown duration in seconds (0 = disabled).
     /// - Returns: `true` if the command is on cooldown and should be skipped.
@@ -50,11 +52,12 @@ final class CooldownManager {
         trigger: String,
         userID: String,
         isModerator: Bool,
+        bypassesCooldown: Bool = false,
         globalCooldown: TimeInterval,
         userCooldown: TimeInterval
     ) -> Bool {
-        // Moderators bypass all cooldowns
-        if isModerator { return false }
+        // Moderators and perk-bypassers skip all cooldowns
+        if isModerator || bypassesCooldown { return false }
 
         let now = Date()
 

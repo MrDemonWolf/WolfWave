@@ -193,6 +193,9 @@ extension AppConstants {
         /// Fair-share (round-robin) queue ordering vs classic FIFO (Bool, default: true)
         static let songRequestFairShare = "songRequestFairShare"
 
+        /// Sub/VIP request priority: off / cooldownSkip / queueJump (String, default: off)
+        static let songRequestPriorityMode = "songRequestPriorityMode"
+
         /// Whether song requests require a subscriber badge (Bool, default: false)
         static let songRequestSubscriberOnly = "songRequestSubscriberOnly"
 
@@ -466,6 +469,7 @@ extension AppConstants {
             songRequestMaxQueueSize,
             songRequestPerUserLimit,
             songRequestFairShare,
+            songRequestPriorityMode,
             songRequestSubscriberOnly,
             songRequestAutoAdvance,
             songRequestAutoplayWhenEmpty,
@@ -594,6 +598,7 @@ extension AppConstants {
             songRequestMaxQueueSize,
             songRequestPerUserLimit,
             songRequestFairShare,
+            songRequestPriorityMode,
             songRequestSubscriberOnly,
             songRequestAutoAdvance,
             songRequestAutoplayWhenEmpty,
