@@ -287,6 +287,74 @@ enum SongRequestLimits {
     }
 }
 
+// MARK: - Sub/VIP Priority
+
+/// How much of a perk subscribers/VIPs get on song requests. Persisted as a raw
+/// `String` so it can back an `@AppStorage` property. The tiers ladder up:
+/// `.queueJump` also skips the cooldown, so `skipsCooldown` is true for both
+/// non-`off` cases.
+enum SongRequestPriorityMode: String, CaseIterable, Identifiable {
+    /// No perk. Everyone plays by the normal cooldown and fair-share order.
+    case off
+    /// Priority roles skip the request cooldown, but queue in normal order.
+    case cooldownSkip
+    /// Priority roles skip the cooldown *and* jump ahead within the fair-share round.
+    case queueJump
+
+    var id: String { rawValue }
+
+    /// Short label for the settings picker.
+    var displayName: String {
+        switch self {
+        case .off: return "Off"
+        case .cooldownSkip: return "Skip cooldown"
+        case .queueJump: return "Jump the queue"
+        }
+    }
+
+    /// Whether this mode lets a priority requester bypass the request cooldown.
+    var skipsCooldown: Bool { self != .off }
+
+    /// Whether this mode lets a priority requester jump ahead in the queue.
+    var jumpsQueue: Bool { self == .queueJump }
+
+    /// One-line explanation for the settings picker.
+    var summary: String {
+        switch self {
+        case .off: return "Everyone requests on equal footing."
+        case .cooldownSkip: return "Subs, VIPs, and mods skip the request cooldown."
+        case .queueJump: return "Subs, VIPs, and mods skip the cooldown and jump ahead within each round."
+        }
+    }
+}
+
+/// Resolves the configured Sub/VIP priority perk and who qualifies for it.
+enum SongRequestPriority {
+
+    /// The configured priority mode (defaults to `.off` so the perk is opt-in).
+    static func mode(in defaults: Foundation.UserDefaults = .standard) -> SongRequestPriorityMode {
+        SongRequestPriorityMode(rawValue: defaults.string(forKey: AppConstants.UserDefaults.songRequestPriorityMode) ?? "")
+            ?? .off
+    }
+
+    /// Whether a viewer with the given badges qualifies for the priority perk.
+    /// Subscribers, VIPs, moderators, and the broadcaster all count so no higher
+    /// role ever sits behind a lower one in the queue.
+    static func qualifies(isSubscriber: Bool, isVIP: Bool, isModerator: Bool, isBroadcaster: Bool) -> Bool {
+        isSubscriber || isVIP || isModerator || isBroadcaster
+    }
+
+    /// Convenience overload reading roles straight from a chat command context.
+    static func qualifies(_ context: BotCommandContext) -> Bool {
+        qualifies(
+            isSubscriber: context.isSubscriber,
+            isVIP: context.isVIP,
+            isModerator: context.isModerator,
+            isBroadcaster: context.isBroadcaster
+        )
+    }
+}
+
 // MARK: - RedemptionStatus
 
 /// Health of the channel-point / bit redemption integration. Drives the

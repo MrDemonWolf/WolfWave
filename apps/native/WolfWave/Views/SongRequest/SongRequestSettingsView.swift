@@ -509,6 +509,9 @@ fileprivate struct SongRequestQueueConfigCard: View {
     @AppStorage(AppConstants.UserDefaults.songRequestFairShare)
     private var fairShare = true
 
+    @AppStorage(AppConstants.UserDefaults.songRequestPriorityMode)
+    private var priorityMode: SongRequestPriorityMode = .off
+
     private let limitOptions = [1, 2, 3, 5, 10, 15, 20]
 
     /// One labelled per-role limit stepper row.
@@ -541,6 +544,27 @@ fileprivate struct SongRequestQueueConfigCard: View {
                 accessibilityLabel: "Fair-share round-robin ordering",
                 accessibilityIdentifier: "songRequests.fairShare"
             )
+
+            HStack {
+                VStack(alignment: .leading, spacing: DSSpace.s0) {
+                    Text("Sub / VIP priority")
+                        .font(.system(size: DSFont.Size.body))
+                    Text(priorityMode.summary)
+                        .font(.system(size: DSFont.Size.xs))
+                        .foregroundStyle(.tertiary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                Spacer()
+                Picker("", selection: $priorityMode) {
+                    ForEach(SongRequestPriorityMode.allCases) { mode in
+                        Text(mode.displayName).tag(mode)
+                    }
+                }
+                .pickerStyle(.menu)
+                .frame(width: 150)
+                .accessibilityLabel("Sub and VIP request priority")
+                .accessibilityIdentifier("songRequests.priorityMode")
+            }
 
             Divider()
 

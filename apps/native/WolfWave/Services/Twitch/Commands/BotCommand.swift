@@ -49,6 +49,11 @@ protocol BotCommand {
     /// the shared cooldown. Default: allow everyone.
     func isAllowed(context: BotCommandContext) -> Bool
 
+    /// Whether this caller may bypass the command's cooldown (like moderators do).
+    /// Lets a command grant a per-role perk (e.g. the Sub/VIP song-request
+    /// priority). `context` is nil on non-chat dispatch paths. Default: no bypass.
+    func bypassesCooldown(context: BotCommandContext?) -> Bool
+
     /// Execute the command and return the response message.
     /// Keep response time under 100ms for responsive chat experience.
     func execute(message: String) -> String?
@@ -95,6 +100,9 @@ extension BotCommand {
 
     /// Default: no permission gate; every viewer may run the command.
     func isAllowed(context: BotCommandContext) -> Bool { true }
+
+    /// Default: no cooldown bypass; every caller waits out the cooldown.
+    func bypassesCooldown(context: BotCommandContext?) -> Bool { false }
 
     /// Whether this command is currently enabled.
     var isCommandEnabled: Bool {

@@ -35,9 +35,14 @@ struct SongRequestItem: Identifiable, Equatable, Sendable {
     /// The MusicKit `Song` used for playback. Nil only in test contexts.
     let song: Song?
 
+    /// Whether the requester earned queue priority (subscriber/VIP perk). Drives
+    /// the fair-share insert so a priority request jumps ahead of non-priority
+    /// requests *within the same round*. Default `false`.
+    let isPriority: Bool
+
     // MARK: - Initializers
 
-    init(song: Song, requesterUsername: String) {
+    init(song: Song, requesterUsername: String, isPriority: Bool = false) {
         self.id = UUID()
         self.title = song.title
         self.artist = song.artistName
@@ -45,11 +50,12 @@ struct SongRequestItem: Identifiable, Equatable, Sendable {
         self.requesterUsername = requesterUsername
         self.requestedAt = Date()
         self.song = song
+        self.isPriority = isPriority
     }
 
     #if DEBUG
     /// Test-only initializer that does not require a MusicKit `Song`.
-    init(title: String, artist: String, album: String = "Unknown Album", requesterUsername: String) {
+    init(title: String, artist: String, album: String = "Unknown Album", requesterUsername: String, isPriority: Bool = false) {
         self.id = UUID()
         self.title = title
         self.artist = artist
@@ -57,6 +63,7 @@ struct SongRequestItem: Identifiable, Equatable, Sendable {
         self.requesterUsername = requesterUsername
         self.requestedAt = Date()
         self.song = nil
+        self.isPriority = isPriority
     }
     #endif
 
