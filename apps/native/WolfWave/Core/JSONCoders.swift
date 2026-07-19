@@ -88,3 +88,23 @@ nonisolated enum JSONCoders {
         return encoder
     }()
 }
+
+/// Foundation-object (`[String: Any]`) JSON serialization guarded against the
+/// uncatchable `NSInvalidArgumentException` that `JSONSerialization` raises for
+/// a non-JSON leaf (a NaN/Inf `Double`, a non-`String` key).
+///
+/// `isValidJSONObject` short-circuits before `data(withJSONObject:)`, so callers
+/// get a `nil` they can handle instead of a crash `try?` cannot catch. Shared by
+/// the Discord IPC frame writer and the WebSocket text-frame sender.
+nonisolated enum JSONObjectSerialization {
+
+    /// Serializes a JSON object to `Data`, returning `nil` when it contains a
+    /// value `JSONSerialization` cannot encode.
+    static func data(from object: [String: Any]) -> Data? {
+        guard JSONSerialization.isValidJSONObject(object),
+              let data = try? JSONSerialization.data(withJSONObject: object) else {
+            return nil
+        }
+        return data
+    }
+}

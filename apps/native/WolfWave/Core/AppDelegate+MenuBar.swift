@@ -362,17 +362,14 @@ extension AppDelegate: NSMenuDelegate {
         // Only surface playback controls when Music.app is running. The
         // AppleScript commands silently no-op otherwise and a greyed-out
         // section is more confusing than absent.
-        let musicRunning = NSWorkspace.shared.runningApplications.contains {
-            $0.bundleIdentifier == AppConstants.Music.bundleIdentifier
-        }
-        guard musicRunning else { return }
+        guard isMusicAppOpen() else { return }
 
         // Derive play state from the cached snapshot that AppleMusicSource
         // pushes via its delegate. Never probe Music.app synchronously here:
         // menuNeedsUpdate runs during menu tracking on the main thread, and a
         // busy Music.app would freeze the whole app until the Apple event
         // times out. Eventually consistent is fine for a menu label.
-        let isPlaying = currentSong != nil && !currentIsPaused
+        let isPlaying = isPlayingNow
 
         let playPauseItem = NSMenuItem(
             title: isPlaying ? "Pause" : "Play",
@@ -804,15 +801,8 @@ extension AppDelegate {
     /// Toggles the WebSocket overlay broadcast plus the bundled widget HTTP
     /// server. Both flags are kept in sync from this single tray control.
     @objc func toggleWebSocket() {
-        let current = FeatureFlags.websocketEnabled
-        let newValue = !current
-        Preferences.setWebSocketEnabled(newValue)
-        // Keep widgetHTTPEnabled in sync with the tray toggle
-        Preferences.setWidgetHTTPEnabled(newValue)
-        NotificationCenter.default.postWebSocketServerChanged(
-            enabled: newValue,
-            widgetHTTPEnabled: newValue
-        )
+        let newValue = !FeatureFlags.websocketEnabled
+        applyOverlayEnabled(newValue)
         Task { [weak self] in await self?.websocketServer?.setWidgetHTTPEnabled(newValue) }
     }
 

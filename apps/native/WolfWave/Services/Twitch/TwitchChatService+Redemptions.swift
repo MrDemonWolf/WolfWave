@@ -131,23 +131,17 @@ extension TwitchChatService {
 
     private func subscribeToChannelPointsRedemption() async {
         guard let broadcasterID, let token = oauthToken, let clientID, let sessionID else { return }
-        let body: [String: Any] = [
-            "type": AppConstants.Twitch.eventSubChannelPointsRedemption,
-            "version": "1",
-            "condition": ["broadcaster_user_id": broadcasterID],
-            "transport": ["method": "websocket", "session_id": sessionID],
-        ]
+        let body = Self.eventSubBody(
+            type: AppConstants.Twitch.eventSubChannelPointsRedemption,
+            broadcasterID: broadcasterID, sessionID: sessionID)
         await postEventSubSubscription(body: body, token: token, clientID: clientID, label: "channel-point redemptions")
     }
 
     private func subscribeToBitsUse() async {
         guard let broadcasterID, let token = oauthToken, let clientID, let sessionID else { return }
-        let body: [String: Any] = [
-            "type": AppConstants.Twitch.eventSubBitsUse,
-            "version": "1",
-            "condition": ["broadcaster_user_id": broadcasterID],
-            "transport": ["method": "websocket", "session_id": sessionID],
-        ]
+        let body = Self.eventSubBody(
+            type: AppConstants.Twitch.eventSubBitsUse,
+            broadcasterID: broadcasterID, sessionID: sessionID)
         await postEventSubSubscription(body: body, token: token, clientID: clientID, label: "bit usage")
     }
 

@@ -327,11 +327,9 @@ extension DiscordRPCService {
         let fd = socketFD
         guard fd >= 0 else { return false }
 
-        // `isValidJSONObject` short-circuits before `data(withJSONObject:)`, so a
-        // non-JSON leaf (NaN/Inf Double, non-String key) returns false instead of
-        // raising an ObjC `NSInvalidArgumentException` that `try?` cannot catch.
-        guard JSONSerialization.isValidJSONObject(payload),
-              let jsonData = try? JSONSerialization.data(withJSONObject: payload) else {
+        // Guards a non-JSON leaf (NaN/Inf Double, non-String key) from raising an
+        // ObjC `NSInvalidArgumentException` that `try?` cannot catch.
+        guard let jsonData = JSONObjectSerialization.data(from: payload) else {
             Log.error("DiscordRPCService: Failed to serialize payload", category: "Discord")
             return false
         }

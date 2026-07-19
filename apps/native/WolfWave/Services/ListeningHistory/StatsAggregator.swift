@@ -305,12 +305,13 @@ enum StatsAggregator {
         return Array(ranked.prefix(topListLimit))
     }
 
-    /// Builds exactly 7 day buckets ending today (oldest first).
-    private static func dailyBuckets(
+    /// Folds play records into per-day buckets keyed on the start of each
+    /// record's day. Shared by the 7-day trend and the Monthly Wrap busiest-day
+    /// rollup.
+    static func dayBuckets(
         _ records: [PlayRecord],
-        startOfToday: Date,
         calendar: Calendar
-    ) -> [DailyCount] {
+    ) -> [Date: (count: Int, seconds: TimeInterval)] {
         var counts: [Date: (count: Int, seconds: TimeInterval)] = [:]
         for record in records {
             let day = calendar.startOfDay(for: record.timestamp)
@@ -319,6 +320,16 @@ enum StatsAggregator {
             bucket.seconds += record.playedSeconds
             counts[day] = bucket
         }
+        return counts
+    }
+
+    /// Builds exactly 7 day buckets ending today (oldest first).
+    private static func dailyBuckets(
+        _ records: [PlayRecord],
+        startOfToday: Date,
+        calendar: Calendar
+    ) -> [DailyCount] {
+        let counts = dayBuckets(records, calendar: calendar)
 
         return (0..<7).reversed().compactMap { offset -> DailyCount? in
             guard let day = calendar.date(byAdding: .day, value: -offset, to: startOfToday) else { return nil }

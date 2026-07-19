@@ -86,6 +86,16 @@ struct AdvancedSettingsView: View {
     /// Whether the export error alert is shown.
     @State private var showingExportError = false
 
+    /// Returns the current log file URL, or `nil` after logging a warning whose
+    /// suffix is `reason` (e.g. "for export", "to reveal", "to copy").
+    private func requireLogFile(orWarn reason: String) -> URL? {
+        guard let logURL = Log.exportLogFile() else {
+            Log.warn("No log file available \(reason)", category: "App")
+            return nil
+        }
+        return logURL
+    }
+
     /// Opens a save panel to export the application log file.
     ///
     /// Presents the panel as a sheet on the settings window when available,
@@ -94,10 +104,7 @@ struct AdvancedSettingsView: View {
     /// UI (no key window).
     @MainActor
     private func exportLogs() {
-        guard let logURL = Log.exportLogFile() else {
-            Log.warn("No log file available for export", category: "App")
-            return
-        }
+        guard let logURL = requireLogFile(orWarn: "for export") else { return }
 
         let panel = NSSavePanel()
         panel.nameFieldStringValue = "wolfwave-logs.log"
@@ -129,10 +136,7 @@ struct AdvancedSettingsView: View {
 
     /// Reveals the current log file in Finder.
     private func revealLogsInFinder() {
-        guard let logURL = Log.exportLogFile() else {
-            Log.warn("No log file available to reveal", category: "App")
-            return
-        }
+        guard let logURL = requireLogFile(orWarn: "to reveal") else { return }
         NSWorkspace.shared.activateFileViewerSelecting([logURL])
     }
 
@@ -140,10 +144,7 @@ struct AdvancedSettingsView: View {
     ///
     /// Limited to the last 64 KB to avoid pasteboard overload.
     private func copyLogsToClipboard() {
-        guard let logURL = Log.exportLogFile() else {
-            Log.warn("No log file available to copy", category: "App")
-            return
-        }
+        guard let logURL = requireLogFile(orWarn: "to copy") else { return }
 
         do {
             let contents = try String(contentsOf: logURL, encoding: .utf8)

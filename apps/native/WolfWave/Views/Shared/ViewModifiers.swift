@@ -279,6 +279,26 @@ extension View {
     }
 }
 
+// MARK: - Optional Accessibility Identifier
+
+extension View {
+    /// Applies `.accessibilityIdentifier` only when `identifier` is non-nil,
+    /// leaving the view untouched otherwise.
+    ///
+    /// SwiftUI's built-in modifier takes a non-optional `String`, so callers
+    /// otherwise hand-roll an `if let … else` that returns the bare view. The
+    /// `optional:` argument label keeps this from recursing into the built-in.
+    /// Omit-when-nil semantics are preserved, so UI-test targeting is unchanged.
+    @ViewBuilder
+    func accessibilityIdentifier(optional identifier: String?) -> some View {
+        if let identifier {
+            self.accessibilityIdentifier(identifier)
+        } else {
+            self
+        }
+    }
+}
+
 // MARK: - Color Hex Initializer
 
 extension Color {

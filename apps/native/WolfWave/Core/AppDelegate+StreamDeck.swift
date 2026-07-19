@@ -70,17 +70,11 @@ extension AppDelegate {
             return .success(action)
 
         case .overlayToggle:
+            // Shares the tray toggleWebSocket path: flips WebSocket + widget-HTTP
+            // prefs in lockstep and broadcasts, then brings the widget HTTP
+            // server up/down (OBS loads the widget page over HTTP).
             let newValue = !FeatureFlags.websocketEnabled
-            Preferences.setWebSocketEnabled(newValue)
-            // Keep widgetHTTPEnabled in sync, matching the tray toggleWebSocket
-            // path, so the Stream Deck overlay key brings the widget HTTP server
-            // up/down alongside the WebSocket channel (OBS loads the widget page
-            // over HTTP; without this the overlay stays blank).
-            Preferences.setWidgetHTTPEnabled(newValue)
-            NotificationCenter.default.postWebSocketServerChanged(
-                enabled: newValue,
-                widgetHTTPEnabled: newValue
-            )
+            applyOverlayEnabled(newValue)
             await websocketServer?.setWidgetHTTPEnabled(newValue)
             return .success(action)
 

@@ -50,15 +50,8 @@ nonisolated final class PlayLogStore: @unchecked Sendable {
     /// - Parameter directory: Override directory, primarily for tests. The
     ///   directory is created lazily on first write.
     init(directory: URL? = nil) {
-        let dir = directory ?? PlayLogStore.defaultDirectory()
+        let dir = directory ?? HistoryStoreSupport.defaultDirectory()
         fileURL = dir.appending(path: AppConstants.History.logFileName)
-    }
-
-    /// Resolves the default play-log directory under the `WolfWave/`
-    /// Application Support container, falling back to the temporary directory
-    /// if unavailable.
-    private static func defaultDirectory() -> URL {
-        AppContainer.directory(AppConstants.History.directoryName)
     }
 
     // MARK: - Public API
@@ -186,7 +179,6 @@ nonisolated final class PlayLogStore: @unchecked Sendable {
 
     /// Creates the containing directory if it does not exist. Runs on `ioQueue`.
     private func ensureDirectoryExists() {
-        let dir = fileURL.deletingLastPathComponent()
-        try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        HistoryStoreSupport.ensureDirectory(for: fileURL)
     }
 }

@@ -202,13 +202,7 @@ nonisolated final class TwitchDeviceAuth: Sendable {
             "scope": scopes.joined(separator: " "),
         ]
 
-        let body = formURLEncoded(params: params)
-        var request = URLRequest(url: url)
-        request.httpMethod = "POST"
-        request.setValue("application/x-www-form-urlencoded", forHTTPHeaderField: "Content-Type")
-        request.setValue(HTTPClient.defaultUserAgent, forHTTPHeaderField: "User-Agent")
-        request.httpBody = body
-        request.timeoutInterval = 15
+        let request = makeFormPOST(url: url, params: params)
 
         do {
             let (data, response) = try await session.data(for: request)
@@ -331,14 +325,7 @@ nonisolated final class TwitchDeviceAuth: Sendable {
                 "device_code": deviceCode,
             ]
 
-            let body = formURLEncoded(params: params)
-            var request = URLRequest(url: tokenURL)
-            request.httpMethod = "POST"
-            request.setValue(
-                "application/x-www-form-urlencoded", forHTTPHeaderField: "Content-Type")
-            request.setValue(HTTPClient.defaultUserAgent, forHTTPHeaderField: "User-Agent")
-            request.httpBody = body
-            request.timeoutInterval = 15
+            let request = makeFormPOST(url: tokenURL, params: params)
 
             do {
                 let (data, response) = try await session.data(for: request)
@@ -481,12 +468,7 @@ nonisolated final class TwitchDeviceAuth: Sendable {
             "grant_type": "refresh_token",
             "refresh_token": refreshToken,
         ]
-        var request = URLRequest(url: tokenURL)
-        request.httpMethod = "POST"
-        request.setValue("application/x-www-form-urlencoded", forHTTPHeaderField: "Content-Type")
-        request.setValue(HTTPClient.defaultUserAgent, forHTTPHeaderField: "User-Agent")
-        request.httpBody = formURLEncoded(params: params)
-        request.timeoutInterval = 15
+        let request = makeFormPOST(url: tokenURL, params: params)
 
         do {
             let (data, response) = try await session.data(for: request)
@@ -524,6 +506,19 @@ nonisolated final class TwitchDeviceAuth: Sendable {
     /// - Returns: URL-encoded data ready for HTTP body.
     private func formURLEncoded(params: [String: String]) -> Data {
         HTTPClient.formURLEncodedBody(params)
+    }
+
+    /// Builds a form-URL-encoded POST with the shared user-agent and the standard
+    /// 15s auth timeout. Centralizes the request scaffolding repeated by the three
+    /// OAuth calls (device-code request, token poll, refresh).
+    private func makeFormPOST(url: URL, params: [String: String]) -> URLRequest {
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("application/x-www-form-urlencoded", forHTTPHeaderField: "Content-Type")
+        request.setValue(HTTPClient.defaultUserAgent, forHTTPHeaderField: "User-Agent")
+        request.httpBody = formURLEncoded(params: params)
+        request.timeoutInterval = 15
+        return request
     }
 }
 

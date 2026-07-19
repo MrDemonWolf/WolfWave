@@ -49,11 +49,7 @@ struct CommandAliasField: View {
             .frame(maxWidth: AppConstants.SettingsUI.inlineFieldMaxWidth)
             .accessibilityLabel(accessibilityLabel)
 
-        if let accessibilityIdentifier {
-            base.accessibilityIdentifier(accessibilityIdentifier)
-        } else {
-            base
-        }
+        base.accessibilityIdentifier(optional: accessibilityIdentifier)
     }
 }
 

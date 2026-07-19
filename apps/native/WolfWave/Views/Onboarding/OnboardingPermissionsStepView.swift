@@ -27,20 +27,7 @@ struct OnboardingPermissionsStepView: View {
             title: "Let WolfWave read your music",
             description: "WolfWave reads the current track from the Music app so it can share what you're playing. That's the only access it needs.",
             icon: {
-                BrandTile(
-                    background: AnyShapeStyle(
-                        LinearGradient(
-                            colors: [Color.accentColor, Color.accentColor.opacity(0.75)],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        )
-                    ),
-                    glowColor: Color.accentColor,
-                    glyph:
-                        Image(systemName: "lock.shield.fill")
-                            .font(BrandTileGlyph.font)
-                            .foregroundStyle(.white)
-                )
+                BrandTileGlyph.symbol("lock.shield.fill", tint: Color.accentColor)
             },
             extras: {
                 appleMusicSection

@@ -59,11 +59,7 @@ struct CopyButton: View {
         .accessibilityHint("Copies text to clipboard")
         .accessibilityValue(copied ? "Copied" : "Not copied")
 
-        if let accessibilityIdentifier {
-            button.accessibilityIdentifier(accessibilityIdentifier)
-        } else {
-            button
-        }
+        button.accessibilityIdentifier(optional: accessibilityIdentifier)
     }
 
     // MARK: - Style

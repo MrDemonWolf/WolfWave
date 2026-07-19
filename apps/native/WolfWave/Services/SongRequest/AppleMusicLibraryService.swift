@@ -64,12 +64,9 @@ final class AppleMusicLibraryService {
     func addSongToRequestsPlaylist(_ song: Song) async throws {
         try ensureAuthorized()
         let playlistID = try await ensureRequestsPlaylist()
-        let url = try Self.endpoint("/me/library/playlists/\(playlistID)/tracks")
-        var request = URLRequest(url: url)
-        request.httpMethod = "POST"
-        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        request.httpBody = try Self.addTracksBody(forCatalogSongID: song.id.rawValue)
-        _ = try await MusicDataRequest(urlRequest: request).response()
+        _ = try await post(
+            "/me/library/playlists/\(playlistID)/tracks",
+            body: Self.addTracksBody(forCatalogSongID: song.id.rawValue))
         Log.debug(
             "AppleMusicLibraryService: Added \"\(song.title)\" to \(AppConstants.Music.requestsPlaylistName)",
             category: "SongRequest"
@@ -238,6 +235,19 @@ final class AppleMusicLibraryService {
         }
     }
 
+    /// Sends a JSON `POST` to the given library API path and returns the raw
+    /// response data. The write-path sibling of ``get(_:)`` (add-track, create-
+    /// playlist). Unlike `get(_:)` it does not map 404 to `nil` — a POST caller
+    /// treats any non-2xx as a genuine failure.
+    private func post(_ path: String, body: Data) async throws -> Data {
+        let url = try Self.endpoint(path)
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.httpBody = body
+        return try await MusicDataRequest(urlRequest: request).response().data
+    }
+
     // MARK: - Private Helpers
 
     /// Looks up the `WolfWave Requests` playlist by name across the user's
@@ -267,13 +277,8 @@ final class AppleMusicLibraryService {
 
     /// Creates the `WolfWave Requests` library playlist and returns its id.
     private func createRequestsPlaylist() async throws -> String {
-        let url = try Self.endpoint("/me/library/playlists")
-        var request = URLRequest(url: url)
-        request.httpMethod = "POST"
-        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        request.httpBody = try Self.createPlaylistBody()
-        let response = try await MusicDataRequest(urlRequest: request).response()
-        let page = try JSONCoders.default.decode(LibraryPlaylistsPage.self, from: response.data)
+        let data = try await post("/me/library/playlists", body: Self.createPlaylistBody())
+        let page = try JSONCoders.default.decode(LibraryPlaylistsPage.self, from: data)
         guard let id = page.data.first?.id else {
             throw AppleMusicLibraryError.playlistCreateFailed
         }

@@ -349,11 +349,21 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     // MARK: - Song Info Provider
 
     /// Returns `true` if Apple Music is currently running.
-    private func isMusicAppOpen() -> Bool {
+    ///
+    /// Shared by the tray and Dock playback sections (which gate their controls
+    /// on it) as well as the song-info providers.
+    func isMusicAppOpen() -> Bool {
         NSWorkspace.shared.runningApplications.contains {
             $0.bundleIdentifier == AppConstants.Music.bundleIdentifier
         }
     }
+
+    /// Play state derived from the cached snapshot pushed by the
+    /// `AppleMusicSource` delegate — never a synchronous Music.app probe.
+    ///
+    /// Drives the tray and Dock Play/Pause label and symbol. A paused track is
+    /// still "loaded", so this is only `true` while actively playing.
+    var isPlayingNow: Bool { currentSong != nil && !currentIsPaused }
 
     /// Returns a formatted string with the current track for Twitch bot commands.
     ///
