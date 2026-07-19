@@ -470,17 +470,7 @@ nonisolated final class WidgetHTTPService: @unchecked Sendable {
         }
 
         let body = Data(rendered.utf8)
-
-        let header = "HTTP/1.1 200 OK\r\n" +
-            "Content-Type: text/html; charset=utf-8\r\n" +
-            "Content-Length: \(body.count)\r\n" +
-            "Connection: close\r\n\r\n"
-        var response = Data(header.utf8)
-        response.append(body)
-
-        connection.send(content: response, completion: .contentProcessed { _ in
-            connection.cancel()
-        })
+        sendHTTPResponse(connection, contentType: "text/html; charset=utf-8", body: body)
     }
 
     /// Writes the bundled `widget-tokens.generated.js` as an HTTP/1.1 200 response.
@@ -494,17 +484,11 @@ nonisolated final class WidgetHTTPService: @unchecked Sendable {
             return
         }
 
-        let header = "HTTP/1.1 200 OK\r\n" +
-            "Content-Type: application/javascript; charset=utf-8\r\n" +
-            "Content-Length: \(body.count)\r\n" +
-            "Cache-Control: no-cache\r\n" +
-            "Connection: close\r\n\r\n"
-        var response = Data(header.utf8)
-        response.append(body)
-
-        connection.send(content: response, completion: .contentProcessed { _ in
-            connection.cancel()
-        })
+        sendHTTPResponse(
+            connection,
+            contentType: "application/javascript; charset=utf-8",
+            body: body,
+            extraHeaders: ["Cache-Control: no-cache"])
     }
 
     /// Encodes the app icon as PNG and serves it with a one-day cache header.
@@ -516,17 +500,11 @@ nonisolated final class WidgetHTTPService: @unchecked Sendable {
             return
         }
 
-        let header = "HTTP/1.1 200 OK\r\n" +
-            "Content-Type: image/png\r\n" +
-            "Content-Length: \(body.count)\r\n" +
-            "Cache-Control: public, max-age=86400\r\n" +
-            "Connection: close\r\n\r\n"
-        var response = Data(header.utf8)
-        response.append(body)
-
-        connection.send(content: response, completion: .contentProcessed { _ in
-            connection.cancel()
-        })
+        sendHTTPResponse(
+            connection,
+            contentType: "image/png",
+            body: body,
+            extraHeaders: ["Cache-Control: public, max-age=86400"])
     }
 
     // MARK: - Peer Inspection
@@ -557,16 +535,38 @@ nonisolated final class WidgetHTTPService: @unchecked Sendable {
         }
     }
 
+    /// Writes a raw HTTP/1.1 response and closes the connection. Centralizes the
+    /// status line + `Content-Type` + `Content-Length` + `Connection: close`
+    /// framing; there is no framework layer here, so the exact CRLF layout is
+    /// load-bearing. `extraHeaders` (each without its trailing CRLF) are inserted
+    /// before `Connection: close`.
+    private func sendHTTPResponse(
+        _ connection: NWConnection,
+        status: String = "200 OK",
+        contentType: String,
+        body: Data,
+        extraHeaders: [String] = []
+    ) {
+        var header = "HTTP/1.1 \(status)\r\n" +
+            "Content-Type: \(contentType)\r\n" +
+            "Content-Length: \(body.count)\r\n"
+        for line in extraHeaders {
+            header += line + "\r\n"
+        }
+        header += "Connection: close\r\n\r\n"
+        var response = Data(header.utf8)
+        response.append(body)
+
+        connection.send(content: response, completion: .contentProcessed { _ in
+            connection.cancel()
+        })
+    }
+
     /// Writes a minimal `404 Not Found` plain-text response and closes the
     /// connection.
     private func send404(to connection: NWConnection) {
-        let body = "Not Found"
-        let response = "HTTP/1.1 404 Not Found\r\n" +
-            "Content-Type: text/plain\r\n" +
-            "Content-Length: \(body.utf8.count)\r\n" +
-            "Connection: close\r\n\r\n" + body
-        connection.send(content: Data(response.utf8), completion: .contentProcessed { _ in
-            connection.cancel()
-        })
+        sendHTTPResponse(
+            connection, status: "404 Not Found",
+            contentType: "text/plain", body: Data("Not Found".utf8))
     }
 }

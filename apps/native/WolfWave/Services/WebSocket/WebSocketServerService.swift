@@ -278,10 +278,12 @@ actor WebSocketServerService {
         broadcastNowPlaying()
     }
 
-    /// Broadcasts widget theme/customization config to all connected clients.
-    func broadcastWidgetConfig() {
+    /// Builds the `widget_config` message from the persisted widget-appearance
+    /// prefs. Shared by the broadcast-to-all and send-to-one paths so the two
+    /// snapshots can never drift.
+    private func widgetConfigPayload() -> [String: Any] {
         let defaults = UserDefaults.standard
-        let config: [String: Any] = [
+        return [
             "type": "widget_config",
             "data": [
                 "theme": defaults.string(forKey: AppConstants.UserDefaults.widgetTheme) ?? "Default",
@@ -291,7 +293,11 @@ actor WebSocketServerService {
                 "fontFamily": defaults.string(forKey: AppConstants.UserDefaults.widgetFontFamily) ?? "System",
             ],
         ]
-        broadcastJSON(config)
+    }
+
+    /// Broadcasts widget theme/customization config to all connected clients.
+    func broadcastWidgetConfig() {
+        broadcastJSON(widgetConfigPayload())
     }
 
     /// Broadcasts request-queue counts so a Stream Deck counter key renders
@@ -603,48 +609,41 @@ actor WebSocketServerService {
 
     /// Sends the current widget theme/layout config to a newly connected client.
     private func sendWidgetConfig(to connection: NWConnection) {
-        let defaults = UserDefaults.standard
-        let config: [String: Any] = [
-            "type": "widget_config",
+        Self.sendJSON(widgetConfigPayload(), to: connection)
+    }
+
+    /// Builds the `now_playing` message from the stored track/artist/album plus
+    /// timing and artwork. Returns `nil` when no complete track is stored.
+    ///
+    /// `elapsed` is parameterized because the replay path interpolates an
+    /// estimate (`estimatedElapsed()`) while the live broadcast uses the raw
+    /// `currentElapsed`. Safe on this actor: called synchronously with no
+    /// suspension between the property reads.
+    private func nowPlayingPayload(elapsed: TimeInterval) -> [String: Any]? {
+        guard let track = currentTrack,
+              let artist = currentArtist,
+              let album = currentAlbum else { return nil }
+        return [
+            "type": "now_playing",
             "data": [
-                "theme": defaults.string(forKey: AppConstants.UserDefaults.widgetTheme) ?? "Default",
-                "layout": defaults.string(forKey: AppConstants.UserDefaults.widgetLayout) ?? "Horizontal",
-                "textColor": defaults.string(forKey: AppConstants.UserDefaults.widgetTextColor) ?? "#FFFFFF",
-                "backgroundColor": defaults.string(forKey: AppConstants.UserDefaults.widgetBackgroundColor) ?? "#1A1A2E",
-                "fontFamily": defaults.string(forKey: AppConstants.UserDefaults.widgetFontFamily) ?? "System",
+                "track": track, "artist": artist, "album": album,
+                "duration": currentDuration, "elapsed": elapsed,
+                "isPlaying": isPlaying, "artworkURL": currentArtworkURL ?? "",
             ],
         ]
-        Self.sendJSON(config, to: connection)
     }
 
     /// Sends the full current playback snapshot to a newly connected client.
     private func sendCurrentState(to connection: NWConnection) {
-        let track = currentTrack
-        let artist = currentArtist
-        let album = currentAlbum
-        let duration = currentDuration
-        let elapsed = estimatedElapsed()
-        let playing = isPlaying
-        let artwork = currentArtworkURL
-
-        guard let track, let artist, let album else {
+        guard let message = nowPlayingPayload(elapsed: estimatedElapsed()) else {
             Log.debug(
                 "WebSocketServerService: No playback state to replay on connect",
                 category: "WebSocket"
             )
             return
         }
-
-        let message: [String: Any] = [
-            "type": "now_playing",
-            "data": [
-                "track": track, "artist": artist, "album": album,
-                "duration": duration, "elapsed": elapsed,
-                "isPlaying": playing, "artworkURL": artwork ?? "",
-            ],
-        ]
         Log.debug(
-            "WebSocketServerService: Replaying last-known state to new client (track=\(track))",
+            "WebSocketServerService: Replaying last-known state to new client (track=\(currentTrack ?? ""))",
             category: "WebSocket"
         )
         Self.sendJSON(message, to: connection)
@@ -653,18 +652,8 @@ actor WebSocketServerService {
     /// Sends a `now_playing` snapshot (track/artist/album/timing/artwork) to
     /// every connected client. No-op when no track has been stored yet.
     private func broadcastNowPlaying() {
-        guard let track = currentTrack,
-              let artist = currentArtist,
-              let album = currentAlbum else { return }
-
-        broadcastJSON([
-            "type": "now_playing",
-            "data": [
-                "track": track, "artist": artist, "album": album,
-                "duration": currentDuration, "elapsed": currentElapsed,
-                "isPlaying": isPlaying, "artworkURL": currentArtworkURL ?? "",
-            ],
-        ])
+        guard let message = nowPlayingPayload(elapsed: currentElapsed) else { return }
+        broadcastJSON(message)
     }
 
     /// Sends a lightweight `playback_state` (play/pause) update to every
@@ -733,10 +722,9 @@ actor WebSocketServerService {
     /// Serializes `dict` to JSON and sends it as a single WebSocket text frame.
     /// Nonisolated. Does not touch actor state.
     private static func sendJSON(_ dict: [String: Any], to connection: NWConnection) {
-        // `isValidJSONObject` guard keeps a malformed leaf from raising an ObjC
-        // exception inside `data(withJSONObject:)` (uncatchable by `try?`).
-        guard JSONSerialization.isValidJSONObject(dict),
-              let jsonData = try? JSONSerialization.data(withJSONObject: dict),
+        // Guards a malformed leaf from raising an ObjC exception inside
+        // `data(withJSONObject:)` (uncatchable by `try?`).
+        guard let jsonData = JSONObjectSerialization.data(from: dict),
               let jsonString = String(data: jsonData, encoding: .utf8) else { return }
 
         MetricsService.shared.recordWebSocketMessage(byteCount: jsonData.count)
