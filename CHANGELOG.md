@@ -17,6 +17,7 @@ All notable changes to this project will be documented in this file.
 ### Developer
 
 - New `BotCommand.isAllowed(context:)` permission hook and `allTriggers` protocol requirement (both default-preserving, so built-ins are unchanged). `CustomBotCommand` is an `AsyncBotCommand` built per message from `CustomCommandStore`, so edits apply on the next chat line without re-registration. Pure `CustomCommandRenderer` covers variable substitution; 21 new tests.
+- Stream Deck control API (groundwork for the upcoming plugin, WW-36). The overlay WebSocket is now bidirectional: it parses a protocol-versioned inbound `command` envelope, runs it through a router mapping 11 actions to existing services, and replies with an `ack`; new `queue_state` / `health` broadcasts drive counter/health keys. The connection is still gated by the per-install `wolfwave.token.<hex>` handshake. Pure `StreamDeckControl.parse` with new tests. See `apps/native/docs/streamdeck-control-api.md`.
 
 ## [2.0.1] - 2026-07-11
 
