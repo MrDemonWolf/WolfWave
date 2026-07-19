@@ -115,14 +115,7 @@ enum MonthlyWrap {
         let uniqueArtists = Set(monthRecords.map { $0.artistKey }).count
         let uniqueTracks = Set(monthRecords.map { $0.trackKey }).count
 
-        var dayBuckets: [Date: (count: Int, seconds: TimeInterval)] = [:]
-        for record in monthRecords {
-            let day = calendar.startOfDay(for: record.timestamp)
-            var bucket = dayBuckets[day] ?? (0, 0)
-            bucket.count += 1
-            bucket.seconds += record.playedSeconds
-            dayBuckets[day] = bucket
-        }
+        let dayBuckets = StatsAggregator.dayBuckets(monthRecords, calendar: calendar)
         let busiest = dayBuckets
             .map { DailyCount(id: $0.key, count: $0.value.count, seconds: $0.value.seconds) }
             .max { $0.count < $1.count }

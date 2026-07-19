@@ -91,8 +91,7 @@ nonisolated struct PlayRecord: Codable, Equatable, Hashable, Sendable {
 
     /// Clamps a decoded duration to a finite, non-negative, in-Int-range value.
     private static func sanitize(_ value: Double?) -> Double {
-        guard let value, value.isFinite else { return 0 }
-        return min(max(value, 0), 9.0e18)
+        DurationSanitizer.clampFiniteSeconds(value)
     }
 
     func encode(to encoder: Encoder) throws {

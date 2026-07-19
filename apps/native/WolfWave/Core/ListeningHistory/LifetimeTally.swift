@@ -172,12 +172,8 @@ nonisolated final class LifetimeTallyStore: @unchecked Sendable {
     // MARK: - Init
 
     init(directory: URL? = nil) {
-        let dir = directory ?? LifetimeTallyStore.defaultDirectory()
+        let dir = directory ?? HistoryStoreSupport.defaultDirectory()
         fileURL = dir.appending(path: AppConstants.History.lifetimeTallyFileName)
-    }
-
-    private static func defaultDirectory() -> URL {
-        AppContainer.directory(AppConstants.History.directoryName)
     }
 
     // MARK: - Public API
@@ -224,7 +220,6 @@ nonisolated final class LifetimeTallyStore: @unchecked Sendable {
     }
 
     private func ensureDirectoryExists() {
-        let dir = fileURL.deletingLastPathComponent()
-        try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        HistoryStoreSupport.ensureDirectory(for: fileURL)
     }
 }

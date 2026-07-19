@@ -53,10 +53,7 @@ enum HistoryFormat {
     /// durations decode raw from a user-inspectable NDJSON file, so a corrupt
     /// or hand-edited value (`inf`, `1e300`) must not reach the conversion.
     private static func safeSeconds(_ seconds: TimeInterval) -> Int {
-        guard seconds.isFinite else { return 0 }
-        // Cap below Int.max: `Double(Int.max)` rounds up to Int.max+1, which
-        // would itself trap on conversion. 9e18 is ~292 billion years.
-        return Int(min(max(seconds, 0), 9.0e18).rounded())
+        Int(DurationSanitizer.clampFiniteSeconds(seconds).rounded())
     }
 
     // MARK: - Relative Time
