@@ -108,20 +108,13 @@ final class SongRequestQueue {
             // slot counts too, mirroring the per-user limit above: a requester
             // shouldn't be able to immediately re-queue the song that's
             // currently playing for them.
-            let matchesItem: (SongRequestItem) -> Bool = {
-                $0.title.lowercased() == item.title.lowercased()
-                    && $0.artist.lowercased() == item.artist.lowercased()
-                    && $0.requesterUsername.lowercased() == lowered
-            }
-            let isDuplicate = (nowPlaying.map(matchesItem) ?? false)
-                || items.contains(where: matchesItem)
+            let isDuplicate = (nowPlaying?.isSameRequest(as: item) ?? false)
+                || items.contains { $0.isSameRequest(as: item) }
             guard !isDuplicate else {
                 return .alreadyInQueue
             }
 
-            let index = fairShareEnabled ? fairShareInsertIndex(for: item) : items.count
-            items.insert(item, at: index)
-            return .added(position: index + 1)
+            return insertRespectingCapacity(item)
         }
         postQueueChanged()
         return result
@@ -152,6 +145,18 @@ final class SongRequestQueue {
         return items.count
     }
 
+    /// Inserts `item` at its fair-share position (or the tail) after a capacity
+    /// check. Assumes `lock` is held. Returns `.queueFull` at capacity, else
+    /// `.added(position:)`. Shared by `add(_:)` and `addApproved(_:)`.
+    private func insertRespectingCapacity(_ item: SongRequestItem) -> AddResult {
+        guard items.count < maxQueueSize else {
+            return .queueFull(max: maxQueueSize)
+        }
+        let index = fairShareEnabled ? fairShareInsertIndex(for: item) : items.count
+        items.insert(item, at: index)
+        return .added(position: index + 1)
+    }
+
     // MARK: - Approval Holding Pen
 
     /// Number of requests awaiting approval.
@@ -169,18 +174,12 @@ final class SongRequestQueue {
             guard pending.count < maxQueueSize else {
                 return .queueFull(max: maxQueueSize)
             }
-            let lowered = item.requesterUsername.lowercased()
             // Dedupe across the pending pen, the live queue, and now-playing, so a
             // song already queued/playing for a user can't be re-parked in pending
             // and later approved as a duplicate. Mirrors `add(_:)`.
-            let matchesItem: (SongRequestItem) -> Bool = {
-                $0.title.lowercased() == item.title.lowercased()
-                    && $0.artist.lowercased() == item.artist.lowercased()
-                    && $0.requesterUsername.lowercased() == lowered
-            }
-            let isDuplicate = pending.contains(where: matchesItem)
-                || items.contains(where: matchesItem)
-                || (nowPlaying.map(matchesItem) ?? false)
+            let isDuplicate = pending.contains { $0.isSameRequest(as: item) }
+                || items.contains { $0.isSameRequest(as: item) }
+                || (nowPlaying?.isSameRequest(as: item) ?? false)
             guard !isDuplicate else { return .alreadyInQueue }
             pending.append(item)
             return .added(position: pending.count)
@@ -217,12 +216,7 @@ final class SongRequestQueue {
     @discardableResult
     func addApproved(_ item: SongRequestItem) -> AddResult {
         let result: AddResult = lock.withLock {
-            guard items.count < maxQueueSize else {
-                return .queueFull(max: maxQueueSize)
-            }
-            let index = fairShareEnabled ? fairShareInsertIndex(for: item) : items.count
-            items.insert(item, at: index)
-            return .added(position: index + 1)
+            insertRespectingCapacity(item)
         }
         postQueueChanged()
         return result

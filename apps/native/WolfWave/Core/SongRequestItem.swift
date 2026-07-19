@@ -67,6 +67,20 @@ struct SongRequestItem: Identifiable, Equatable, Sendable {
     }
     #endif
 
+    // MARK: - Duplicate Detection
+
+    /// True when `other` is the same song by the same requester (case-insensitive
+    /// title + artist + username).
+    ///
+    /// Deliberately distinct from `==`, which compares the entry `id`. Used to
+    /// de-duplicate a request against the live queue, the pending pen, and the
+    /// now-playing slot.
+    func isSameRequest(as other: SongRequestItem) -> Bool {
+        title.lowercased() == other.title.lowercased()
+            && artist.lowercased() == other.artist.lowercased()
+            && requesterUsername.lowercased() == other.requesterUsername.lowercased()
+    }
+
     // MARK: - Equatable
 
     static func == (lhs: SongRequestItem, rhs: SongRequestItem) -> Bool {
