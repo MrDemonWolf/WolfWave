@@ -26,6 +26,9 @@ final class MyQueueCommandTests: WolfWaveTestCase {
     }
 
     private func makeQueueWith(users: [String]) -> SongRequestQueue {
+        // Pin FIFO so positions are deterministic; this suite tests MyQueueCommand
+        // reply formatting, not fair-share reordering.
+        UserDefaults.standard.set(false, forKey: AppConstants.UserDefaults.songRequestFairShare)
         let queue = SongRequestQueue()
         for (index, user) in users.enumerated() {
             _ = queue.add(SongRequestItem(

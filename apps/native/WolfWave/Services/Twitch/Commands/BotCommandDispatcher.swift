@@ -339,6 +339,7 @@ final class BotCommandDispatcher {
                         trigger: canonical,
                         userID: userID,
                         isModerator: isModerator,
+                        bypassesCooldown: command.bypassesCooldown(context: context),
                         globalCooldown: globalCD,
                         userCooldown: userCD
                     ) {
@@ -444,6 +445,7 @@ final class BotCommandDispatcher {
                         trigger: canonical,
                         userID: userID,
                         isModerator: isModerator,
+                        bypassesCooldown: command.bypassesCooldown(context: context),
                         globalCooldown: globalCD,
                         userCooldown: userCD
                     ) {

@@ -103,6 +103,12 @@ actor WebSocketServerService {
     private var widgetHTTP: WidgetHTTPService?
     private var retryTask: Task<Void, Never>?
 
+    /// Handler invoked for each inbound Stream Deck command, returning the ack to
+    /// send back on the originating connection. Set by AppDelegate via
+    /// ``setCommandHandler(_:)``; the service itself knows nothing about the
+    /// app's services, keeping this layer decoupled and testable.
+    private var onCommand: (@Sendable (StreamDeckCommand) async -> CommandAck)?
+
     // MARK: - Playback State
 
     private var currentTrack: String?
@@ -164,6 +170,11 @@ actor WebSocketServerService {
         } else {
             stopServer()
         }
+    }
+
+    /// Installs the inbound-command handler. Called once at setup by AppDelegate.
+    func setCommandHandler(_ handler: @escaping @Sendable (StreamDeckCommand) async -> CommandAck) {
+        onCommand = handler
     }
 
     /// Starts or stops the widget HTTP server independently.
@@ -281,6 +292,24 @@ actor WebSocketServerService {
             ],
         ]
         broadcastJSON(config)
+    }
+
+    /// Broadcasts request-queue counts so a Stream Deck counter key renders
+    /// without polling. Values are supplied by the caller (AppDelegate) to keep
+    /// this actor decoupled from the song-request services.
+    func broadcastQueueState(count: Int, pending: Int) {
+        broadcastJSON([
+            "type": "queue_state",
+            "data": ["count": count, "pending": pending],
+        ])
+    }
+
+    /// Broadcasts aggregate connection health for a Stream Deck status key.
+    func broadcastHealth(music: Bool, twitch: Bool, discord: Bool, overlay: Bool) {
+        broadcastJSON([
+            "type": "health",
+            "data": ["music": music, "twitch": twitch, "discord": discord, "overlay": overlay],
+        ])
     }
 
     /// Updates the progress broadcast interval and restarts the timer if currently broadcasting.
@@ -488,7 +517,7 @@ actor WebSocketServerService {
             sendWelcome(to: connection)
             sendCurrentState(to: connection)
             sendWidgetConfig(to: connection)
-            Self.receiveMessage(from: connection)
+            Self.receiveMessage(from: connection, onCommand: onCommand)
         case .failed(let error):
             Log.debug("WebSocketServerService: Client failed: \(error)", category: "WebSocket")
             // A failed connection keeps its stateUpdateHandler (and any pending
@@ -522,8 +551,17 @@ actor WebSocketServerService {
     /// or a transport error. A graceful close arrives as a `.close` opcode with
     /// `error == nil`, so keying only on `error` would re-arm `receiveMessage`
     /// forever and keep the dead `NWConnection` retained by the loop.
-    private static func receiveMessage(from connection: NWConnection) {
-        connection.receiveMessage { _, context, _, error in
+    ///
+    /// Inbound text frames are parsed as Stream Deck control commands
+    /// (``StreamDeckControl/parse(_:)``). A valid command runs through
+    /// `onCommand` and the ack goes back on the same connection; a rejected
+    /// command still acks; anything else is ignored. The connection already
+    /// proved the auth token at the handshake, so commands from it are trusted.
+    private static func receiveMessage(
+        from connection: NWConnection,
+        onCommand: (@Sendable (StreamDeckCommand) async -> CommandAck)?
+    ) {
+        connection.receiveMessage { data, context, _, error in
             if error != nil { return }
 
             if let metadata = context?.protocolMetadata(definition: NWProtocolWebSocket.definition)
@@ -532,7 +570,23 @@ actor WebSocketServerService {
                 return
             }
 
-            receiveMessage(from: connection)
+            if let data, !data.isEmpty, let text = String(data: data, encoding: .utf8) {
+                switch StreamDeckControl.parse(text) {
+                case .command(let command):
+                    if let onCommand {
+                        Task {
+                            let ack = await onCommand(command)
+                            sendJSON(ack.jsonObject, to: connection)
+                        }
+                    }
+                case .reject(let ack):
+                    sendJSON(ack.jsonObject, to: connection)
+                case .ignore:
+                    break
+                }
+            }
+
+            receiveMessage(from: connection, onCommand: onCommand)
         }
     }
 

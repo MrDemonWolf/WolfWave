@@ -45,6 +45,14 @@ final class SongRequestCommand: AsyncBotCommand {
     /// AppDelegate ↔ command dependency cycle at startup.
     var songRequestService: (() -> SongRequestService?)?
 
+    /// Subscribers/VIPs skip the request cooldown when the priority perk is set to
+    /// cooldown-skip or queue-jump. Mirrors the moderator bypass the dispatcher
+    /// already honors.
+    func bypassesCooldown(context: BotCommandContext?) -> Bool {
+        guard let context else { return false }
+        return SongRequestPriority.mode().skipsCooldown && SongRequestPriority.qualifies(context)
+    }
+
     // MARK: - AsyncBotCommand
 
     /// Parses the search query, dispatches to the resolver, and formats the

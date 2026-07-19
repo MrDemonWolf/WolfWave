@@ -44,6 +44,11 @@ final class SongRequestQueue {
         Preferences.int(AppConstants.UserDefaults.songRequestPerUserLimit, default: 2)
     }
 
+    /// Whether new requests interleave round-robin (fair-share) instead of FIFO.
+    var fairShareEnabled: Bool {
+        Preferences.bool(AppConstants.UserDefaults.songRequestFairShare, default: true)
+    }
+
     /// Total number of items in the queue (not counting now-playing).
     var count: Int {
         lock.withLock { items.count }
@@ -114,11 +119,37 @@ final class SongRequestQueue {
                 return .alreadyInQueue
             }
 
-            items.append(item)
-            return .added(position: items.count)
+            let index = fairShareEnabled ? fairShareInsertIndex(for: item) : items.count
+            items.insert(item, at: index)
+            return .added(position: index + 1)
         }
         postQueueChanged()
         return result
+    }
+
+    /// Fair-share (round-robin) insert index for a new item, assuming the lock is
+    /// held. The new item's "round" is how many requests its requester already has
+    /// queued (0 = their first). It slots after every item in earlier or equal
+    /// rounds and before the first item in a later round, so everyone's Nth request
+    /// plays before anyone's (N+1)th while FIFO order holds within a round.
+    ///
+    /// Sub/VIP priority (WW-43) applies *within* a round, not as a FIFO override: a
+    /// priority item slots ahead of the non-priority items in its own round but
+    /// stays behind earlier rounds and behind priority items already in that round.
+    /// A non-priority item never jumps a priority item, so priority requests lead
+    /// each round.
+    private func fairShareInsertIndex(for item: SongRequestItem) -> Int {
+        let lowered = item.requesterUsername.lowercased()
+        let newRound = items.filter { $0.requesterUsername.lowercased() == lowered }.count
+        var counts: [String: Int] = [:]
+        for (index, existing) in items.enumerated() {
+            let key = existing.requesterUsername.lowercased()
+            let existingRound = counts[key, default: 0]
+            counts[key] = existingRound + 1
+            if existingRound > newRound { return index }
+            if existingRound == newRound, item.isPriority, !existing.isPriority { return index }
+        }
+        return items.count
     }
 
     // MARK: - Approval Holding Pen
@@ -189,8 +220,9 @@ final class SongRequestQueue {
             guard items.count < maxQueueSize else {
                 return .queueFull(max: maxQueueSize)
             }
-            items.append(item)
-            return .added(position: items.count)
+            let index = fairShareEnabled ? fairShareInsertIndex(for: item) : items.count
+            items.insert(item, at: index)
+            return .added(position: index + 1)
         }
         postQueueChanged()
         return result

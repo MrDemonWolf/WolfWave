@@ -147,11 +147,26 @@ extension AppDelegate {
         let server = WebSocketServerService(port: port, authToken: token)
         websocketServer = server
 
+        // Handle inbound Stream Deck control commands. The connection is already
+        // token-gated at the handshake, so commands from it are trusted.
+        Task { [weak self] in
+            await server.setCommandHandler { [weak self] command in
+                await self?.handleStreamDeckCommand(command)
+                    ?? CommandAck.failure(command.action.rawValue, "unavailable")
+            }
+        }
+
         let stateChanges = server.stateChanges
-        Task.detached {
+        Task.detached { [weak self] in
             for await (newState, clientCount) in stateChanges {
                 Log.debug("AppDelegate: WebSocket state changed to \(newState.rawValue) (\(clientCount) clients)", category: "WebSocket")
                 MetricsService.shared.recordWebSocketClients(clientCount)
+                // Push a fresh queue/health snapshot so a newly connected Stream
+                // Deck key shows correct state immediately instead of waiting for
+                // the next change.
+                if clientCount > 0 {
+                    await MainActor.run { self?.broadcastStreamDeckState() }
+                }
             }
         }
 
@@ -474,6 +489,18 @@ extension AppDelegate {
                 MainActor.assumeIsolated { self?.twitchConnectionStateChanged(n) }
             }
         )
+
+        // Refresh the Stream Deck queue-counter / health broadcasts whenever the
+        // request queue changes so a counter key stays live without polling.
+        notificationObservers.append(
+            nc.addObserver(
+                forName: Notification.Name.songRequestQueueChanged,
+                object: nil,
+                queue: .main
+            ) { [weak self] _ in
+                MainActor.assumeIsolated { self?.broadcastStreamDeckState() }
+            }
+        )
     }
 }
 
@@ -602,6 +629,9 @@ extension AppDelegate {
     /// EventSub does not replay missed `poll.end` events, so a poll left
     /// "active" across a disconnect would block every future vote session.
     @objc func twitchConnectionStateChanged(_ notification: Notification) {
+        // Twitch connect/disconnect flips the Stream Deck health key.
+        broadcastStreamDeckState()
+
         guard notification.isConnectedFlag == false else { return }
         Task { [weak self] in
             await self?.skipVoteManager?.reset()

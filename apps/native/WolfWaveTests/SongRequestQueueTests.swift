@@ -290,4 +290,65 @@ final class SongRequestQueueTests: WolfWaveTestCase {
         queue.add(SongRequestItem(title: "Song 2", artist: "B", requesterUsername: "user2"))
         XCTAssertTrue(queue.isFull)
     }
+
+    // MARK: - Fair-Share Ordering
+
+    /// A newcomer's first request slots ahead of a regular's second, so
+    /// everyone's Nth request plays before anyone's (N+1)th.
+    func testFairShareInterleavesByRound() {
+        UserDefaults.standard.set(true, forKey: AppConstants.UserDefaults.songRequestFairShare)
+        queue.add(SongRequestItem(title: "A1", artist: "x", requesterUsername: "user1"))
+        queue.add(SongRequestItem(title: "A2", artist: "x", requesterUsername: "user1"))
+        queue.add(SongRequestItem(title: "B1", artist: "x", requesterUsername: "user2"))
+        XCTAssertEqual(queue.items.map(\.title), ["A1", "B1", "A2"])
+    }
+
+    /// With fair-share off, ordering is classic FIFO (insertion order).
+    func testFifoPreservesInsertionOrder() {
+        UserDefaults.standard.set(false, forKey: AppConstants.UserDefaults.songRequestFairShare)
+        queue.add(SongRequestItem(title: "A1", artist: "x", requesterUsername: "user1"))
+        queue.add(SongRequestItem(title: "A2", artist: "x", requesterUsername: "user1"))
+        queue.add(SongRequestItem(title: "B1", artist: "x", requesterUsername: "user2"))
+        XCTAssertEqual(queue.items.map(\.title), ["A1", "A2", "B1"])
+    }
+
+    /// FIFO order holds within a single round (two users, one request each).
+    func testFairShareKeepsFifoWithinRound() {
+        UserDefaults.standard.set(true, forKey: AppConstants.UserDefaults.songRequestFairShare)
+        queue.add(SongRequestItem(title: "A1", artist: "x", requesterUsername: "user1"))
+        queue.add(SongRequestItem(title: "B1", artist: "x", requesterUsername: "user2"))
+        XCTAssertEqual(queue.items.map(\.title), ["A1", "B1"])
+    }
+
+    // MARK: - Sub/VIP Priority (within fair-share rounds)
+
+    /// A priority request slots ahead of same-round non-priority requests, but
+    /// stays behind earlier rounds. Normal requests never jump a priority one.
+    func testPriorityJumpsAheadWithinRound() {
+        UserDefaults.standard.set(true, forKey: AppConstants.UserDefaults.songRequestFairShare)
+        queue.add(SongRequestItem(title: "A1", artist: "x", requesterUsername: "user1"))
+        queue.add(SongRequestItem(title: "A2", artist: "x", requesterUsername: "user1"))
+        queue.add(SongRequestItem(title: "SubFirst", artist: "x", requesterUsername: "sub", isPriority: true))
+        // Sub's first (round 0, priority) leads round 0; user1's second stays in round 1.
+        XCTAssertEqual(queue.items.map(\.title), ["SubFirst", "A1", "A2"])
+    }
+
+    /// Priority requests keep FIFO among themselves and all lead the round ahead
+    /// of a non-priority request.
+    func testPriorityKeepsFifoAmongPriority() {
+        UserDefaults.standard.set(true, forKey: AppConstants.UserDefaults.songRequestFairShare)
+        queue.add(SongRequestItem(title: "Sub1", artist: "x", requesterUsername: "sub1", isPriority: true))
+        queue.add(SongRequestItem(title: "Normal", artist: "x", requesterUsername: "reg"))
+        queue.add(SongRequestItem(title: "Sub2", artist: "x", requesterUsername: "sub2", isPriority: true))
+        XCTAssertEqual(queue.items.map(\.title), ["Sub1", "Sub2", "Normal"])
+    }
+
+    /// Priority is an in-round reorder, not a FIFO override: with fair-share off
+    /// the queue stays classic first-in, first-out and ignores the flag.
+    func testPriorityIgnoredWhenFifo() {
+        UserDefaults.standard.set(false, forKey: AppConstants.UserDefaults.songRequestFairShare)
+        queue.add(SongRequestItem(title: "Normal", artist: "x", requesterUsername: "reg"))
+        queue.add(SongRequestItem(title: "Sub", artist: "x", requesterUsername: "sub", isPriority: true))
+        XCTAssertEqual(queue.items.map(\.title), ["Normal", "Sub"])
+    }
 }

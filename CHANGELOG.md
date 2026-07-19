@@ -11,11 +11,14 @@ All notable changes to this project will be documented in this file.
 - **Custom bot commands.** Make your own chat commands with a fixed reply, right in Settings → Twitch → Custom Commands. Drop in variables like `$user`, `$touser`, `$args`, `$1`–`$9`, `$song`, and `$lastsong` and they fill in live. Each command gets its own aliases and Everyone / Per-person cooldowns, same as the built-ins.
 - **Pick who can run a command.** Set any custom command to Everyone, Subscribers, VIPs, Moderators, or Broadcaster only. Custom commands ride along with your settings backup.
 - **Approve songs before they play.** New opt-in "Require My Approval" toggle in Settings → Song Requests → Access. When it's on, every request (chat, channel points, bits) waits in the Queue tab until you approve or decline it. Off by default, so requests still auto-queue unless you turn it on.
+- **Fair-share song ordering.** The queue now interleaves requests round-robin, so everyone's first request plays before anyone's second. A regular who re-types fast no longer plays back-to-back while newcomers wait. On by default; flip "Fair-Share Ordering" off in Settings → Song Requests → Queue for classic first-in, first-out.
+- **Sub / VIP request priority.** Reward your subs, VIPs, and mods: pick a perk in Settings → Song Requests → Queue. "Skip cooldown" lets them request without the wait; "Jump the queue" also moves their song ahead of regular requests within the same fair-share round (so it's a nudge up, not a queue takeover). Off by default.
 - **Two new overlay layouts: Vinyl and Classic.** Vinyl is a spinning record with your album art as the label and a circular progress ring. Classic sets the album tile beside a card with the title, artist, and a progress bar. Pick either in Settings → Stream Widgets, same as Horizontal, Vertical, and Compact.
 
 ### Developer
 
 - New `BotCommand.isAllowed(context:)` permission hook and `allTriggers` protocol requirement (both default-preserving, so built-ins are unchanged). `CustomBotCommand` is an `AsyncBotCommand` built per message from `CustomCommandStore`, so edits apply on the next chat line without re-registration. Pure `CustomCommandRenderer` covers variable substitution; 21 new tests.
+- Stream Deck control API (groundwork for the upcoming plugin, WW-36). The overlay WebSocket is now bidirectional: it parses a protocol-versioned inbound `command` envelope, runs it through a router mapping 11 actions to existing services, and replies with an `ack`; new `queue_state` / `health` broadcasts drive counter/health keys. The connection is still gated by the per-install `wolfwave.token.<hex>` handshake. Pure `StreamDeckControl.parse` with new tests. See `apps/native/docs/streamdeck-control-api.md`.
 
 ## [2.0.1] - 2026-07-11
 
