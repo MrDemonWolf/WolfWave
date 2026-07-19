@@ -517,6 +517,15 @@ final class TwitchViewModel {
                     }
                 }
             } catch {
+                // A user cancel during the device-code request throws a wrapped
+                // error here (URLError.cancelled becomes TwitchDeviceAuthError,
+                // not a CancellationError), so guard the task's cancellation flag
+                // to avoid rendering an intentional cancel as an "OAuth setup
+                // failed" banner. cancelOAuth() already reset authState to .idle.
+                if Task.isCancelled {
+                    oAuthTask = nil
+                    return
+                }
                 updateAuthState(.error(error.localizedDescription))
                 statusMessage = "❌ OAuth setup failed: \(error.localizedDescription)"
                 await MainActor.run {

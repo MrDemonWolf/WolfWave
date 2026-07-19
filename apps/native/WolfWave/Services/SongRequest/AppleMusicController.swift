@@ -56,23 +56,15 @@ struct PlaybackSnapshot: Equatable {
 /// Abstracts Apple Music search and playback control so the live
 /// `AppleMusicController` can be swapped for a stub in tests.
 protocol AppleMusicControlling {
-    /// `true` while Music.app reports an active playing state.
-    var isPlaying: Bool { get }
-
-    /// `true` while Music.app is paused (a track is loaded but not advancing).
-    var isPaused: Bool { get }
-
-    /// Stable identifier of the track Music.app currently has loaded, or `nil`
-    /// when nothing is loaded or Music.app is closed. Used to detect when the
-    /// streamer's own track changes so a queued request can take over at the
-    /// boundary instead of cutting a song off mid-play.
-    var currentTrackID: String? { get }
-
     /// Atomically reads player state and the loaded track's identity in one
     /// AppleScript round-trip. Returns `nil` when Music.app is closed or the read
     /// fails, so the auto-advance poll can treat a failed read as "no information"
     /// rather than a state change. See `PlaybackSnapshot`.
-    func playbackSnapshot() -> PlaybackSnapshot?
+    ///
+    /// `async` because the read is funneled onto the dedicated AppleScript thread
+    /// (see `AppleScriptExecutor`); the main-actor poll suspends instead of
+    /// blocking the UI while Music.app answers the Apple Event.
+    func playbackSnapshot() async -> PlaybackSnapshot?
 
     /// `true` once the user has granted MusicKit catalog access.
     var isAuthorized: Bool { get }
@@ -206,64 +198,6 @@ final class AppleMusicController: AppleMusicControlling {
 
     // MARK: - Playback State (via AppleScript → Music.app)
 
-    /// Whether Music.app is currently playing.
-    ///
-    /// Returns `false` without scripting when Music.app is closed. A bare
-    /// `tell application "Music"` auto-launches Music.app, so probing player
-    /// state on a closed app would relaunch it. The exact behavior that kept
-    /// Music popping back open after the user quit it (poll loop in
-    /// `SongRequestService`).
-    var isPlaying: Bool {
-        guard isMusicAppRunning else { return false }
-        return runAppleScript(Self.timeoutWrapped("""
-        tell application "Music"
-            if player state is playing then
-                return "true"
-            else
-                return "false"
-            end if
-        end tell
-        """, seconds: ScriptTimeout.probe)) == "true"
-    }
-
-    /// Whether Music.app is paused (as opposed to stopped or finished).
-    ///
-    /// Returns `false` without scripting when Music.app is closed. See
-    /// `isPlaying` for why probing a closed app must be avoided.
-    var isPaused: Bool {
-        guard isMusicAppRunning else { return false }
-        return runAppleScript(Self.timeoutWrapped("""
-        tell application "Music"
-            if player state is paused then
-                return "true"
-            else
-                return "false"
-            end if
-        end tell
-        """, seconds: ScriptTimeout.probe)) == "true"
-    }
-
-    /// Stable identifier of the track Music.app currently has loaded.
-    ///
-    /// Returns `nil` without scripting when Music.app is closed (see `isPlaying`
-    /// for why probing a closed app must be avoided), and `nil` when no track is
-    /// loaded. Wrapped in an AppleScript `try` because reading `current track`
-    /// with nothing loaded raises an error rather than returning empty.
-    var currentTrackID: String? {
-        guard isMusicAppRunning else { return nil }
-        let result = runAppleScript(Self.timeoutWrapped("""
-        tell application "Music"
-            try
-                return persistent ID of current track
-            on error
-                return ""
-            end try
-        end tell
-        """, seconds: ScriptTimeout.probe))
-        guard let result, !result.isEmpty else { return nil }
-        return result
-    }
-
     /// Atomically reads player state plus the loaded track's name + artist in a
     /// single AppleScript call. See `PlaybackSnapshot` for why a combined read
     /// matters.
@@ -278,9 +212,9 @@ final class AppleMusicController: AppleMusicControlling {
     /// rather than embedding raw control characters in the string literals, and
     /// wraps the track read in `try` so a momentary "no current track" yields an
     /// empty key (parsed back to `nil`) rather than aborting the whole script.
-    func playbackSnapshot() -> PlaybackSnapshot? {
+    func playbackSnapshot() async -> PlaybackSnapshot? {
         guard isMusicAppRunning else { return nil }
-        let raw = runAppleScript(Self.timeoutWrapped("""
+        let raw = await runAppleScript(Self.timeoutWrapped("""
         tell application "Music"
             set stateText to "stopped"
             if player state is playing then
@@ -470,7 +404,7 @@ final class AppleMusicController: AppleMusicControlling {
         end tell
         """, seconds: ScriptTimeout.command)
         for attempt in 0..<5 {
-            if runAppleScriptPreservingFocus(script) == "ok" { return true }
+            if await runAppleScriptPreservingFocus(script) == "ok" { return true }
             if attempt < 4 { try? await Task.sleep(for: .milliseconds(700)) }
         }
         return false
@@ -491,7 +425,7 @@ final class AppleMusicController: AppleMusicControlling {
     /// relaunch the app the user just quit.
     func skipToNext() async throws {
         guard isMusicAppRunning else { return }
-        runAppleScript(Self.timeoutWrapped("""
+        await runAppleScript(Self.timeoutWrapped("""
         tell application "Music"
             next track
         end tell
@@ -507,7 +441,7 @@ final class AppleMusicController: AppleMusicControlling {
     /// relaunch the app the user just quit.
     func previousTrack() async throws {
         guard isMusicAppRunning else { return }
-        runAppleScript(Self.timeoutWrapped("""
+        await runAppleScript(Self.timeoutWrapped("""
         tell application "Music"
             previous track
         end tell
@@ -522,7 +456,7 @@ final class AppleMusicController: AppleMusicControlling {
     /// relaunch the app the user just quit.
     func playPause() async throws {
         guard isMusicAppRunning else { return }
-        runAppleScriptPreservingFocus(Self.timeoutWrapped("""
+        await runAppleScriptPreservingFocus(Self.timeoutWrapped("""
         tell application "Music"
             playpause
         end tell
@@ -535,7 +469,7 @@ final class AppleMusicController: AppleMusicControlling {
     /// `tell application "Music"` would relaunch the app the user just quit.
     func clearPlayerQueue() async {
         guard isMusicAppRunning else { return }
-        runAppleScript(Self.timeoutWrapped("""
+        await runAppleScript(Self.timeoutWrapped("""
         tell application "Music"
             stop
         end tell
@@ -561,7 +495,7 @@ final class AppleMusicController: AppleMusicControlling {
             play playlist "\(safeName)"
         end tell
         """, seconds: ScriptTimeout.command)
-        runAppleScriptPreservingFocus(script)
+        await runAppleScriptPreservingFocus(script)
         Log.debug("AppleMusicController: Fallback playlist '\(name)' started", category: "SongRequest")
     }
 
@@ -573,9 +507,9 @@ final class AppleMusicController: AppleMusicControlling {
     ///
     /// Deliberately launches Music.app if it is closed (the user asked to open
     /// it), unlike the playback probes that avoid relaunching a quit app.
-    func revealRequestsPlaylist() {
+    func revealRequestsPlaylist() async {
         let name = sanitizeForAppleScript(AppConstants.Music.requestsPlaylistName)
-        runAppleScript(Self.timeoutWrapped("""
+        await runAppleScript(Self.timeoutWrapped("""
         tell application "Music"
             activate
             try
@@ -626,9 +560,10 @@ final class AppleMusicController: AppleMusicControlling {
     /// - Returns: The script's string result, so callers like the requests-playlist
     ///   poller can read whether playback started.
     @discardableResult
-    private func runAppleScriptPreservingFocus(_ source: String) -> String? {
+    private func runAppleScriptPreservingFocus(_ source: String) async -> String? {
+        // Read the frontmost app on the main actor before yielding.
         let previousFrontApp = NSWorkspace.shared.frontmostApplication
-        let result = runAppleScript(source)
+        let result = await runAppleScript(source)
         Task { @MainActor in
             try? await Task.sleep(for: .milliseconds(150))
             previousFrontApp?.activate()
@@ -638,33 +573,31 @@ final class AppleMusicController: AppleMusicControlling {
 
     /// Run an AppleScript and return the string result.
     ///
-    /// `NSAppleScript` is **not** thread-safe and must execute on the main
-    /// thread (running it off-main can crash with a libdispatch queue assertion)
-    /// or return a spurious nil. Most callers are already on the main actor,
-    /// but `isPlaying`/`isPaused` are synchronous and can be read from the
-    /// `SongRequestService` background poll loop, so bounce to main when the
-    /// current thread isn't already it. The `Thread.isMainThread` guard avoids
-    /// a `DispatchQueue.main.sync` deadlock when we're already on main.
+    /// `NSAppleScript` is **not** thread-safe, and running it on a bare GCD queue
+    /// (no run loop) can hang or return a spurious nil, while running it on the
+    /// main thread blocks the UI for the whole Apple Event round-trip. So every
+    /// execution is funneled onto ``AppleScriptExecutor``'s single dedicated
+    /// thread, which has a live run loop to pump Apple Event replies. This method
+    /// is `async`: the caller (e.g. the every-2s auto-advance poll, which runs on
+    /// the main actor) suspends and yields the main thread instead of beachballing
+    /// while Music.app answers.
     @discardableResult
-    private func runAppleScript(_ source: String) -> String? {
-        if Thread.isMainThread {
-            return Self.executeAppleScript(source)
-        }
-        return DispatchQueue.main.sync { Self.executeAppleScript(source) }
+    private func runAppleScript(_ source: String) async -> String? {
+        await AppleScriptExecutor.shared.run { Self.executeAppleScript(source) }
     }
 
     /// Cache of compiled `NSAppleScript` instances keyed by source. The fixed
     /// probe/command scripts (e.g. the 2-second player-state probe) are otherwise
-    /// recompiled on every call. Lock-guarded because the enclosing methods are
-    /// `nonisolated`; all real access is on the main thread. Bounded so the
-    /// dynamic-source scripts (track IDs embedded) can't grow it without limit.
+    /// recompiled on every call. All access is confined to the single
+    /// ``AppleScriptExecutor`` thread; the lock is belt-and-suspenders. Bounded so
+    /// the dynamic-source scripts (track IDs embedded) can't grow it without limit.
     private nonisolated(unsafe) static var compiledScripts: [String: NSAppleScript] = [:]
     private nonisolated static let compiledScriptsLock = NSLock()
     private nonisolated static let compiledScriptsCap = 32
 
     /// Executes an `NSAppleScript` and returns its string result.
     ///
-    /// Must be called on the main thread. See `runAppleScript`.
+    /// Must be called on the ``AppleScriptExecutor`` thread. See `runAppleScript`.
     private nonisolated static func executeAppleScript(_ source: String) -> String? {
         let script: NSAppleScript? = compiledScriptsLock.withLock {
             if let cached = compiledScripts[source] { return cached }
@@ -685,5 +618,60 @@ final class AppleMusicController: AppleMusicControlling {
         }
 
         return result?.stringValue
+    }
+}
+
+// MARK: - AppleScriptExecutor
+
+/// Runs `NSAppleScript` on a single dedicated background thread that owns a live
+/// run loop.
+///
+/// `NSAppleScript` is not thread-safe and needs a run loop on its executing
+/// thread to pump Apple Event replies. A bare GCD queue has no run loop (the work
+/// can hang or return `nil`), and the main thread blocks the UI for the whole
+/// round-trip. Confining every execution to one consistent thread-with-run-loop
+/// is the supported way to run it off-main, so a wedged Music.app can no longer
+/// beachball WolfWave.
+private final class AppleScriptExecutor: @unchecked Sendable {
+    static let shared = AppleScriptExecutor()
+
+    private let thread: Thread
+
+    private init() {
+        let workerThread = Thread {
+            // A persistent Mach port keeps `RunLoop.run()` from returning
+            // immediately (a run loop with no input sources exits at once).
+            let port = NSMachPort()
+            RunLoop.current.add(port, forMode: .default)
+            RunLoop.current.run()
+        }
+        workerThread.name = "com.mrdemonwolf.wolfwave.applescript"
+        workerThread.qualityOfService = .userInitiated
+        workerThread.start()
+        thread = workerThread
+    }
+
+    /// Runs `work` on the dedicated AppleScript thread and resumes with its
+    /// result. The awaiting task suspends (yielding its thread) until the run
+    /// loop executes the block.
+    func run(_ work: @escaping @Sendable () -> String?) async -> String? {
+        await withCheckedContinuation { (continuation: CheckedContinuation<String?, Never>) in
+            let box = PerformBox { continuation.resume(returning: work()) }
+            box.perform(
+                #selector(PerformBox.invoke),
+                on: thread,
+                with: nil,
+                waitUntilDone: false,
+                modes: [RunLoop.Mode.default.rawValue]
+            )
+        }
+    }
+
+    /// Carries a closure across the `perform(_:on:...)` selector boundary so it
+    /// runs on the executor thread's run loop.
+    private final class PerformBox: NSObject, @unchecked Sendable {
+        private let work: () -> Void
+        init(_ work: @escaping () -> Void) { self.work = work }
+        @objc func invoke() { work() }
     }
 }

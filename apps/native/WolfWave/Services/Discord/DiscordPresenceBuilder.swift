@@ -74,7 +74,7 @@ nonisolated enum DiscordPresenceBuilder {
         // live ticker on the client so it doesn't keep counting up past the
         // real elapsed value while the user is paused. Resumes will rebuild
         // the timestamps from the next non-paused update.
-        if duration > 0 && !isPaused {
+        if duration > 0, !isPaused, elapsed.isFinite, duration.isFinite {
             let nowEpoch = now.timeIntervalSince1970
             let start = nowEpoch - elapsed
             let end = start + duration

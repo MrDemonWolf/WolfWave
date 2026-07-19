@@ -696,7 +696,14 @@ actor TwitchChatService {
         /// callers race for the same window.
         func awaitCapacity(endpoint: String) async {
             while let wait = waitTimeIfRateLimited(endpoint: endpoint) {
-                try? await Task.sleep(for: .seconds(wait))
+                do {
+                    try await Task.sleep(for: .seconds(wait))
+                } catch {
+                    // Task cancelled: unwind instead of busy-spinning. A bare
+                    // `try?` would swallow the CancellationError and re-enter
+                    // the still-true time-based loop, pegging this actor's core.
+                    return
+                }
             }
         }
 

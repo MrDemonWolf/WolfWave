@@ -177,16 +177,25 @@ struct AdvancedSettingsView: View {
     }
 
     /// Refreshes the displayed log size + line count from the Log singleton.
+    ///
+    /// The read is offloaded to a detached task: `logLineCount()` drains queued
+    /// writes then streams the whole log file (up to the 5 MB rotation cap)
+    /// through `fileQueue.sync`, which would stall first paint on a big log if
+    /// run on the main thread. State is assigned back on the MainActor. Mirrors
+    /// `DebugLogsAndEventsCard`.
     private func refreshLogStats() {
-        let bytes = Log.logFileSize()
-        let lines = Log.logLineCount()
+        Task { @MainActor in
+            let stats = await Task.detached(priority: .userInitiated) {
+                (bytes: Log.logFileSize(), lines: Log.logLineCount())
+            }.value
 
-        logSizeText = ByteFormatting.string(bytes)
+            logSizeText = ByteFormatting.string(stats.bytes)
 
-        let numberFormatter = NumberFormatter()
-        numberFormatter.numberStyle = .decimal
-        let formattedLines = numberFormatter.string(from: NSNumber(value: lines)) ?? String(lines)
-        logLineCountText = "\(formattedLines) lines"
+            let numberFormatter = NumberFormatter()
+            numberFormatter.numberStyle = .decimal
+            let formattedLines = numberFormatter.string(from: NSNumber(value: stats.lines)) ?? String(stats.lines)
+            logLineCountText = "\(formattedLines) lines"
+        }
     }
 
     /// Clears the persisted artwork links cache (memory + disk).

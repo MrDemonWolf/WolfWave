@@ -19,13 +19,11 @@ struct WhatsNewView: View {
     // MARK: - Feature Data
 
     private let features: [(icon: String, iconColor: Color, title: String, description: String)] = [
-        ("music.mic", .pink, "Song Requests", "Chat adds tracks with !sr. No focus-steal."),
-        ("hand.raised.fill", .cyan, "Chat Vote-Skip", "!vs lets chat vote out a song."),
-        ("chart.bar.fill", .green, "History & Stats", "Top artists, weekly trend, hourly pattern. On-device only."),
-        ("calendar", .purple, "Monthly Wrap", "Your Wrapped for any month. Save as a PNG."),
-        ("paintpalette.fill", .teal, "Widget Themes", "Six overlay themes and three layouts for OBS."),
-        ("circle.lefthalf.filled", .blue, "Light & Dark", "Pick Light, Dark, or System. The menu bar follows too."),
-        ("tray.and.arrow.down.fill", .indigo, "Backup & Restore", "Export settings to JSON, restore on any Mac."),
+        ("text.bubble.fill", .purple, "Custom Commands", "Make your own !commands with variables and cooldowns."),
+        ("checkmark.circle.fill", .orange, "Approve Requests", "Hold every song request until you say yes."),
+        ("person.3.sequence.fill", .blue, "Fair-Share Queue", "Everyone's first request plays before anyone's second."),
+        ("star.fill", .yellow, "Sub / VIP Priority", "Reward subs and VIPs with skip-cooldown or a queue jump."),
+        ("checkmark.seal.fill", .green, "Steadier & Smoother", "Fixed UI freezes and crashes across requests, overlays, and stats."),
     ]
 
     // MARK: - Body

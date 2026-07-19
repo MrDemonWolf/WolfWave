@@ -72,7 +72,16 @@ extension AppDelegate {
         case .overlayToggle:
             let newValue = !FeatureFlags.websocketEnabled
             Preferences.setWebSocketEnabled(newValue)
-            NotificationCenter.default.postWebSocketServerChanged(enabled: newValue)
+            // Keep widgetHTTPEnabled in sync, matching the tray toggleWebSocket
+            // path, so the Stream Deck overlay key brings the widget HTTP server
+            // up/down alongside the WebSocket channel (OBS loads the widget page
+            // over HTTP; without this the overlay stays blank).
+            Preferences.setWidgetHTTPEnabled(newValue)
+            NotificationCenter.default.postWebSocketServerChanged(
+                enabled: newValue,
+                widgetHTTPEnabled: newValue
+            )
+            await websocketServer?.setWidgetHTTPEnabled(newValue)
             return .success(action)
 
         case .discordToggle:

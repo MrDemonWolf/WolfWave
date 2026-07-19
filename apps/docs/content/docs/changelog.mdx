@@ -25,8 +25,17 @@ The next release. These ship on the [Nightly channel](/docs/nightly) off `main` 
 - **Fair-share song ordering.** The queue interleaves requests round-robin, so everyone's first request plays before anyone's second. A regular who re-types fast no longer plays back-to-back while newcomers wait. On by default; flip "Fair-Share Ordering" off in Settings → Song Requests → Queue for classic first-in, first-out.
 - **Sub / VIP request priority.** Reward your subs, VIPs, and mods: pick a perk in Settings → Song Requests → Queue. "Skip cooldown" lets them request without the wait; "Jump the queue" also moves their song ahead of regular requests within the same fair-share round (a nudge up, not a queue takeover). Off by default.
 
+### Fixed
+- **No more freezes from song requests.** WolfWave now talks to Apple Music off the main thread, so a slow or busy Music.app can't beachball the app while the request queue auto-advances or when you hit play, pause, or skip.
+- **Stream Deck overlay key turns the whole overlay on.** The overlay toggle now starts the widget page server too, not just the data feed, so OBS shows a live overlay instead of a blank one.
+- **Advanced settings opens instantly.** Log size and line count load in the background now, so a large log file no longer stalls the pane when it appears.
+- **Accurate lifetime stats after a hard quit.** Listening History no longer double-counts old plays if WolfWave is force-quit or crashes while it's trimming its history.
+- **Clean Twitch sign-in cancel.** Cancelling the Twitch connect flow no longer flashes a false "OAuth setup failed" error.
+- **Steadier under the hood.** Hardened Discord Rich Presence against a rare bad-playback-position crash, stopped a Twitch rate-limit wait from spinning the CPU when a connection drops, and made LAN IP detection skip a bad network interface instead of showing a blank overlay address.
+
 ### Developer
 - **Stream Deck control API.** Groundwork for the upcoming Stream Deck plugin. The overlay WebSocket is now bidirectional: it parses a protocol-versioned inbound `command` envelope, routes 11 actions to existing services, and replies with an `ack`; new `queue_state` / `health` broadcasts drive counter/health keys. Still gated by the per-install `wolfwave.token.<hex>` handshake. The plugin itself ships separately.
+- **Crash/lockup/data-race review pass.** `AppleMusicController` runs `NSAppleScript` on a dedicated `AppleScriptExecutor` thread (own run loop) instead of the main thread; `playbackSnapshot()` and the playback commands are now `async` so the main-actor poll suspends rather than blocking. `RateLimiter.awaitCapacity` unwinds on cancellation, `LifetimeTally` gained a `lastFoldedTimestamp` high-water mark for idempotent crash-recovery reloads, and `ListeningHistoryService` coalesces concurrent loads.
 
 
 ## v2.0.1. July 11, 2026

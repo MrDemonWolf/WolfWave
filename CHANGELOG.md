@@ -14,10 +14,20 @@ All notable changes to this project will be documented in this file.
 - **Fair-share song ordering.** The queue now interleaves requests round-robin, so everyone's first request plays before anyone's second. A regular who re-types fast no longer plays back-to-back while newcomers wait. On by default; flip "Fair-Share Ordering" off in Settings → Song Requests → Queue for classic first-in, first-out.
 - **Sub / VIP request priority.** Reward your subs, VIPs, and mods: pick a perk in Settings → Song Requests → Queue. "Skip cooldown" lets them request without the wait; "Jump the queue" also moves their song ahead of regular requests within the same fair-share round (so it's a nudge up, not a queue takeover). Off by default.
 
+### Fixed
+
+- **No more freezes from song requests.** WolfWave now talks to Apple Music off the main thread, so a slow or busy Music.app can't beachball the app while the request queue auto-advances or when you hit play, pause, or skip.
+- **Stream Deck overlay key turns the whole overlay on.** The overlay toggle now starts the widget page server too, not just the data feed, so OBS shows a live overlay instead of a blank one.
+- **Advanced settings opens instantly.** Log size and line count load in the background now, so a large log file no longer stalls the pane when it appears.
+- **Accurate lifetime stats after a hard quit.** Listening History no longer double-counts old plays if WolfWave is force-quit or crashes while it's trimming its history.
+- **Clean Twitch sign-in cancel.** Cancelling the Twitch connect flow no longer flashes a false "OAuth setup failed" error.
+- **Steadier under the hood.** Hardened Discord Rich Presence against a rare bad-playback-position crash, stopped a Twitch rate-limit wait from spinning the CPU when a connection drops, and made LAN IP detection skip a bad network interface instead of showing a blank overlay address.
+
 ### Developer
 
 - New `BotCommand.isAllowed(context:)` permission hook and `allTriggers` protocol requirement (both default-preserving, so built-ins are unchanged). `CustomBotCommand` is an `AsyncBotCommand` built per message from `CustomCommandStore`, so edits apply on the next chat line without re-registration. Pure `CustomCommandRenderer` covers variable substitution; 21 new tests.
 - Stream Deck control API (groundwork for the upcoming plugin, WW-36). The overlay WebSocket is now bidirectional: it parses a protocol-versioned inbound `command` envelope, runs it through a router mapping 11 actions to existing services, and replies with an `ack`; new `queue_state` / `health` broadcasts drive counter/health keys. The connection is still gated by the per-install `wolfwave.token.<hex>` handshake. Pure `StreamDeckControl.parse` with new tests. See `apps/native/docs/streamdeck-control-api.md`.
+- Adversarially-verified crash/lockup/data-race review pass. `AppleMusicController` no longer runs `NSAppleScript` on the main thread: a dedicated `AppleScriptExecutor` thread with its own run loop pumps every Apple Event, and `playbackSnapshot()` plus the playback commands are now `async` so the main-actor auto-advance poll suspends instead of blocking (the dead `isPlaying`/`isPaused`/`currentTrackID` reads were dropped). `RateLimiter.awaitCapacity` unwinds on cancellation instead of busy-spinning. `LifetimeTally` gained an optional `lastFoldedTimestamp` high-water mark so a crash-recovery reload can't re-fold overflow records, and `ListeningHistoryService` coalesces concurrent loads. Plus the Stream Deck overlay toggle now mirrors the tray (widget HTTP + WebSocket), a finiteness guard on Discord presence timestamps, an off-main log-stats read in the Advanced pane, a Twitch sign-in cancel guard, and a `getnameinfo` return-code check.
 
 ## [2.0.1] - 2026-07-11
 

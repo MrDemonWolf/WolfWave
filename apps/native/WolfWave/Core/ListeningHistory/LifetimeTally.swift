@@ -44,6 +44,14 @@ nonisolated struct LifetimeTally: Codable, Equatable, Sendable {
     /// Total listening seconds folded into the tally.
     var trimmedListeningSeconds: TimeInterval = 0
 
+    /// Timestamp of the newest record folded into this tally (its high-water
+    /// mark). `nil` until the first fold. Used on load to skip re-folding records
+    /// that are already reflected here but may still linger in the append-only
+    /// NDJSON after an unclean exit (which would otherwise double-count lifetime
+    /// stats). Optional so tally files written before this field decode cleanly
+    /// (absent key → `nil`).
+    var lastFoldedTimestamp: Date?
+
     /// Per-artist counts (key: `PlayRecord.artistKey`).
     var artistCounts: [String: TallyEntry] = [:]
 
@@ -79,6 +87,7 @@ nonisolated struct LifetimeTally: Codable, Equatable, Sendable {
     mutating func fold(_ record: PlayRecord, keyCap: Int = AppConstants.History.lifetimeTopKeyCap) {
         trimmedPlayCount += 1
         trimmedListeningSeconds += record.playedSeconds
+        lastFoldedTimestamp = Swift.max(lastFoldedTimestamp ?? record.timestamp, record.timestamp)
 
         Self.bump(
             &artistCounts, key: record.artistKey, name: record.artist,

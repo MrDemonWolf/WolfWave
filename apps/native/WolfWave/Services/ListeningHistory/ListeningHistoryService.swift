@@ -59,6 +59,12 @@ final class ListeningHistoryService {
     /// `loadFromDisk()` finishes so a track played mid-load isn't dropped.
     private var deferredDuringLoad: [PlayRecord] = []
 
+    /// The in-flight load, if any. Set synchronously in `scheduleLoad()` before
+    /// the task is spawned so a rapid disable→enable toggle coalesces onto the
+    /// single running load instead of starting a second one that would interleave
+    /// the shared stores and re-fold overflow.
+    private var loadTask: Task<Void, Never>?
+
     // MARK: - Init
 
     /// Creates the service.
@@ -83,15 +89,27 @@ final class ListeningHistoryService {
     /// enabled. Safe to call once at launch.
     func start() {
         guard isEnabled else { return }
-        Task { await loadFromDisk() }
+        scheduleLoad()
     }
 
     /// Enables recording and loads any existing history.
     func enable() {
         guard !isEnabled else { return }
         isEnabled = true
-        Task { await loadFromDisk() }
+        scheduleLoad()
         Log.info("ListeningHistoryService: Listening History enabled", category: AppConstants.History.logCategory)
+    }
+
+    /// Spawns `loadFromDisk()` unless a load is already in flight, so overlapping
+    /// callers (a rapid disable→enable toggle, or `start()` racing `enable()`)
+    /// share one load. Two concurrent loads could interleave the shared play-log
+    /// and tally stores and re-fold overflow or drop a deferred play.
+    private func scheduleLoad() {
+        guard loadTask == nil else { return }
+        loadTask = Task { [weak self] in
+            await self?.loadFromDisk()
+            self?.loadTask = nil
+        }
     }
 
     /// Stops recording. Existing history on disk is left intact.
@@ -314,14 +332,25 @@ final class ListeningHistoryService {
             }
 
             // 2. Rolling-window cap. Fold the oldest overflow into the tally.
+            //    Only fold records newer than the tally's high-water mark: after
+            //    a clean shutdown the NDJSON was compacted so the overflow is all
+            //    genuinely new, but after an unclean exit (crash / Force Quit /
+            //    kill) the NDJSON can still hold records already folded into the
+            //    persisted tally. Re-folding those would double-count lifetime
+            //    stats, so skip anything at or before the mark while still
+            //    trimming it out of the in-memory window (and off disk below).
             var trimmedCount = 0
             if all.count > cap {
                 let overflow = all.count - cap
                 let evicted = Array(all.prefix(overflow))
                 all.removeFirst(overflow)
-                tally.fold(evicted)
-                tallyStore.save(tally)
-                trimmedCount = overflow
+                let mark = tally.lastFoldedTimestamp ?? .distantPast
+                let toFold = evicted.filter { $0.timestamp > mark }
+                if !toFold.isEmpty {
+                    tally.fold(toFold)
+                    tallyStore.save(tally)
+                }
+                trimmedCount = toFold.count
                 rewrote = true
             }
 
