@@ -286,11 +286,11 @@ actor WebSocketServerService {
         return [
             "type": "widget_config",
             "data": [
-                "theme": defaults.string(forKey: AppConstants.UserDefaults.widgetTheme) ?? "Default",
-                "layout": defaults.string(forKey: AppConstants.UserDefaults.widgetLayout) ?? "Horizontal",
-                "textColor": defaults.string(forKey: AppConstants.UserDefaults.widgetTextColor) ?? "#FFFFFF",
-                "backgroundColor": defaults.string(forKey: AppConstants.UserDefaults.widgetBackgroundColor) ?? "#1A1A2E",
-                "fontFamily": defaults.string(forKey: AppConstants.UserDefaults.widgetFontFamily) ?? "System",
+                "theme": defaults.string(forKey: AppConstants.UserDefaults.widgetTheme) ?? AppConstants.Widget.Defaults.theme,
+                "layout": defaults.string(forKey: AppConstants.UserDefaults.widgetLayout) ?? AppConstants.Widget.Defaults.layout,
+                "textColor": defaults.string(forKey: AppConstants.UserDefaults.widgetTextColor) ?? AppConstants.Widget.Defaults.textColor,
+                "backgroundColor": defaults.string(forKey: AppConstants.UserDefaults.widgetBackgroundColor) ?? AppConstants.Widget.Defaults.backgroundColor,
+                "fontFamily": defaults.string(forKey: AppConstants.UserDefaults.widgetFontFamily) ?? AppConstants.Widget.Defaults.fontFamily,
             ],
         ]
     }

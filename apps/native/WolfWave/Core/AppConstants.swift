@@ -244,6 +244,21 @@ nonisolated enum AppConstants {
 
         /// Available widget layout styles
         static let layouts = ["Horizontal", "Vertical", "Compact", "Vinyl", "Classic"]
+
+        /// Default values for the widget appearance prefs.
+        ///
+        /// Single source shared by the WebSocket config broadcast, the settings
+        /// `@AppStorage` seeds, and the live preview. `fontFamily` is
+        /// `"System Default"` to match the Font picker's `.tag("System Default")`
+        /// (the `widget.ts` resolver maps `""`/`"System"`/`"System Default"` to
+        /// the same font stack, so overlay rendering is unaffected).
+        enum Defaults {
+            static let theme = "Default"
+            static let layout = "Horizontal"
+            static let textColor = "#FFFFFF"
+            static let backgroundColor = "#1A1A2E"
+            static let fontFamily = "System Default"
+        }
     }
 
     // MARK: - Discord Integration
