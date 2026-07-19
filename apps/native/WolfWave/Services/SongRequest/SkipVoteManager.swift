@@ -154,12 +154,12 @@ actor SkipVoteManager {
 
     /// Minimum unique voters required to skip. Clamped to at least 1.
     nonisolated var minVotes: Int {
-        Preferences.int(AppConstants.UserDefaults.voteSkipMinVotes, default: 3)
+        Preferences.int(AppConstants.UserDefaults.voteSkipMinVotes, default: AppConstants.UserDefaults.Defaults.voteSkipMinVotes)
     }
 
     /// How long a chat-tally session stays open, in seconds.
     nonisolated var windowSeconds: Int {
-        Preferences.int(AppConstants.UserDefaults.voteSkipWindowSeconds, default: 60)
+        Preferences.int(AppConstants.UserDefaults.voteSkipWindowSeconds, default: AppConstants.UserDefaults.Defaults.voteSkipWindowSeconds)
     }
 
     /// Cooldown between sessions, in seconds. May legitimately be `0`.
@@ -168,7 +168,7 @@ actor SkipVoteManager {
     /// backup, `defaults write`) and unclamped it flows into `Int(ceil(...))`
     /// at the cooldown branch, which traps on a non-finite/overflow value.
     nonisolated var sessionCooldown: TimeInterval {
-        let value = Preferences.double(AppConstants.UserDefaults.voteSkipSessionCooldown, default: 30)
+        let value = Preferences.double(AppConstants.UserDefaults.voteSkipSessionCooldown, default: AppConstants.UserDefaults.Defaults.voteSkipSessionCooldown)
         return value.isFinite ? min(max(value, 0), 3600) : 0
     }
 
@@ -184,7 +184,7 @@ actor SkipVoteManager {
 
     /// Twitch poll duration in seconds. Clamped to Twitch's 15-1800 range.
     nonisolated var pollDuration: Int {
-        let value = Preferences.int(AppConstants.UserDefaults.voteSkipPollDuration, default: 60)
+        let value = Preferences.int(AppConstants.UserDefaults.voteSkipPollDuration, default: AppConstants.UserDefaults.Defaults.voteSkipPollDuration)
         return min(max(value, 15), 1800)
     }
 
