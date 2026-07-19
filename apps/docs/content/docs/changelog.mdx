@@ -23,6 +23,9 @@ The next release. These ship on the [Nightly channel](/docs/nightly) off `main` 
 - **Pick who can run a command.** Set any custom command to Everyone, Subscribers, VIPs, Moderators, or Broadcaster only. Custom commands are included in your settings backup.
 - **Approve songs before they play.** New opt-in "Require My Approval" toggle in Settings → Song Requests → Access. When it's on, every request (chat, channel points, bits) waits in the Queue tab until you approve or decline it. Off by default, so requests still auto-queue unless you turn it on.
 
+### Developer
+- **Stream Deck control API.** Groundwork for the upcoming Stream Deck plugin. The overlay WebSocket is now bidirectional: it parses a protocol-versioned inbound `command` envelope, routes 11 actions to existing services, and replies with an `ack`; new `queue_state` / `health` broadcasts drive counter/health keys. Still gated by the per-install `wolfwave.token.<hex>` handshake. The plugin itself ships separately.
+
 
 ## v2.0.1. July 11, 2026
 
