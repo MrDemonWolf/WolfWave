@@ -28,13 +28,7 @@ struct OnboardingTwitchStepView: View {
                 BrandTile(
                     background: AnyShapeStyle(AppConstants.Brand.twitch),
                     glowColor: AppConstants.Brand.twitch,
-                    glyph:
-                        Image("TwitchLogo")
-                            .renderingMode(.template)
-                            .resizable()
-                            .aspectRatio(contentMode: .fit)
-                            .frame(width: BrandTileGlyph.assetSize, height: BrandTileGlyph.assetSize)
-                            .foregroundStyle(.white)
+                    glyph: BrandTileGlyph.asset("TwitchLogo")
                 )
             },
             extras: {

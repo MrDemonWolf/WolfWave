@@ -38,11 +38,7 @@ struct DSIconButton: View {
         .disabled(isDisabled)
         .accessibilityLabel(accessibilityLabel)
 
-        if let accessibilityIdentifier {
-            button.accessibilityIdentifier(accessibilityIdentifier)
-        } else {
-            button
-        }
+        button.accessibilityIdentifier(optional: accessibilityIdentifier)
     }
 }
 

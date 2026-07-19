@@ -51,13 +51,7 @@ struct OnboardingOBSWidgetStepView: View {
                         )
                     ),
                     glowColor: Color.black,
-                    glyph:
-                        Image("OBSLogo")
-                            .renderingMode(.template)
-                            .resizable()
-                            .aspectRatio(contentMode: .fit)
-                            .frame(width: BrandTileGlyph.assetSize, height: BrandTileGlyph.assetSize)
-                            .foregroundStyle(.white)
+                    glyph: BrandTileGlyph.asset("OBSLogo")
                 )
             },
             extras: {

@@ -28,6 +28,38 @@ enum BrandTileGlyph {
     /// Square edge for a brand-logo image glyph (template-rendered asset).
     /// Keeps Discord / Twitch / OBS marks at one size.
     static var assetSize: CGFloat { 30 }
+
+    // MARK: - Shared Glyph Builders
+
+    /// A single-tint gradient `BrandTile` with a white SF Symbol glyph — the
+    /// shape shared by the Preferences, Permissions, and Notifications steps.
+    static func symbol(_ systemName: String, tint: Color) -> some View {
+        BrandTile(
+            background: AnyShapeStyle(
+                LinearGradient(
+                    colors: [tint, tint.opacity(0.75)],
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
+                )
+            ),
+            glowColor: tint,
+            glyph: Image(systemName: systemName)
+                .font(BrandTileGlyph.font)
+                .foregroundStyle(.white)
+        )
+    }
+
+    /// A template-rendered brand-logo image glyph at the standard `assetSize`,
+    /// to be passed as the `glyph:` of a per-brand `BrandTile` (Discord, Twitch,
+    /// OBS steps). Not for the smaller in-button logos, which keep their own size.
+    static func asset(_ name: String) -> some View {
+        Image(name)
+            .renderingMode(.template)
+            .resizable()
+            .aspectRatio(contentMode: .fit)
+            .frame(width: assetSize, height: assetSize)
+            .foregroundStyle(.white)
+    }
 }
 
 // MARK: - BrandTile

@@ -26,13 +26,7 @@ struct OnboardingDiscordStepView: View {
                 BrandTile(
                     background: AnyShapeStyle(AppConstants.Brand.discord),
                     glowColor: AppConstants.Brand.discord,
-                    glyph:
-                        Image("DiscordLogo")
-                            .renderingMode(.template)
-                            .resizable()
-                            .aspectRatio(contentMode: .fit)
-                            .frame(width: BrandTileGlyph.assetSize, height: BrandTileGlyph.assetSize)
-                            .foregroundStyle(.white)
+                    glyph: BrandTileGlyph.asset("DiscordLogo")
                 )
             },
             extras: {

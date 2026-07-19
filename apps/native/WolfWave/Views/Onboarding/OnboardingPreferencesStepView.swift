@@ -28,24 +28,11 @@ struct OnboardingPreferencesStepView: View {
             title: "A couple Mac settings",
             description: "Start WolfWave at login and choose whether to remember your listening history.",
             icon: {
-                BrandTile(
-                    background: AnyShapeStyle(
-                        LinearGradient(
-                            colors: [Color.accentColor, Color.accentColor.opacity(0.75)],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        )
-                    ),
-                    glowColor: Color.accentColor,
-                    glyph:
-                        Image(systemName: "gearshape.fill")
-                            .font(BrandTileGlyph.font)
-                            .foregroundStyle(.white)
-                )
+                BrandTileGlyph.symbol("gearshape.fill", tint: Color.accentColor)
             },
             extras: {
                 VStack(spacing: DSSpace.s2) {
-                    preferenceRow(
+                    OnboardingToggleCard(
                         icon: "power",
                         iconColor: .green,
                         title: "Start WolfWave at login",
@@ -63,7 +50,7 @@ struct OnboardingPreferencesStepView: View {
                         accessibilityIdentifier: "onboardingLaunchAtLoginToggle"
                     )
 
-                    preferenceRow(
+                    OnboardingToggleCard(
                         icon: "chart.bar.xaxis",
                         iconColor: .purple,
                         title: "Remember my listening history",
@@ -81,41 +68,6 @@ struct OnboardingPreferencesStepView: View {
                     )
                 }
             }
-        )
-    }
-
-    // MARK: - Row
-
-    /// Builds a single labeled toggle row used in the preferences step:
-    /// colored icon tile, title, subtitle, and a binding switch.
-    ///
-    /// - Parameters:
-    ///   - icon: SF Symbol name shown in the colored tile.
-    ///   - iconColor: Accent color for the tile background and glyph.
-    ///   - title: Primary row title.
-    ///   - subtitle: Supporting copy under the title.
-    ///   - isOn: Two-way binding to the underlying boolean preference.
-    ///   - accessibilityLabel: VoiceOver label for the toggle.
-    ///   - accessibilityIdentifier: UI-testing identifier for the toggle.
-    /// - Returns: A styled preference row.
-    @ViewBuilder
-    private func preferenceRow(
-        icon: String,
-        iconColor: Color,
-        title: String,
-        subtitle: String,
-        isOn: Binding<Bool>,
-        accessibilityLabel: String,
-        accessibilityIdentifier: String
-    ) -> some View {
-        OnboardingToggleCard(
-            icon: icon,
-            iconColor: iconColor,
-            title: title,
-            subtitle: subtitle,
-            isOn: isOn,
-            accessibilityLabel: accessibilityLabel,
-            accessibilityIdentifier: accessibilityIdentifier
         )
     }
 }

@@ -38,20 +38,7 @@ struct OnboardingNotificationsStepView: View {
             title: "Pick your alerts",
             description: "WolfWave can ping you when something happens. Turn on notifications, then choose what's worth a banner.",
             icon: {
-                BrandTile(
-                    background: AnyShapeStyle(
-                        LinearGradient(
-                            colors: [Color.red, Color.red.opacity(0.75)],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        )
-                    ),
-                    glowColor: Color.red,
-                    glyph:
-                        Image(systemName: "bell.badge.fill")
-                            .font(BrandTileGlyph.font)
-                            .foregroundStyle(.white)
-                )
+                BrandTileGlyph.symbol("bell.badge.fill", tint: Color.red)
             },
             extras: {
                 notificationsSection
@@ -75,7 +62,7 @@ struct OnboardingNotificationsStepView: View {
         VStack(alignment: .leading, spacing: DSSpace.s3) {
             // The gate. Grants permission; the alert group below stays locked
             // until it's on.
-            preferenceRow(
+            OnboardingToggleCard(
                 icon: "bell.badge.fill",
                 iconColor: .red,
                 title: "Allow notifications",
@@ -112,38 +99,41 @@ struct OnboardingNotificationsStepView: View {
     @ViewBuilder
     private var alertGroup: some View {
         VStack(spacing: 0) {
-            groupedRow(
+            OnboardingToggleCard(
                 icon: "music.note",
                 iconColor: .pink,
                 title: "Song changes",
                 subtitle: "A banner with album art each time the track changes.",
                 isOn: $songChangeNotificationsEnabled,
                 accessibilityLabel: "Song change notifications",
-                accessibilityIdentifier: "onboardingSongChangeNotificationsToggle"
+                accessibilityIdentifier: "onboardingSongChangeNotificationsToggle",
+                showsCardBackground: false
             )
 
             rowDivider
 
-            groupedRow(
+            OnboardingToggleCard(
                 icon: "hand.raised.fill",
                 iconColor: .orange,
                 title: "Skip vote started",
                 subtitle: "When chat opens a vote to skip the current song.",
                 isOn: $skipVoteStartedNotificationsEnabled,
                 accessibilityLabel: "Skip vote started notifications",
-                accessibilityIdentifier: "onboardingSkipVoteStartedNotificationsToggle"
+                accessibilityIdentifier: "onboardingSkipVoteStartedNotificationsToggle",
+                showsCardBackground: false
             )
 
             rowDivider
 
-            groupedRow(
+            OnboardingToggleCard(
                 icon: "checkmark.seal.fill",
                 iconColor: .green,
                 title: "Skip vote passed",
                 subtitle: "When a chat skip-vote wins and the song is skipped.",
                 isOn: $skipVotePassedNotificationsEnabled,
                 accessibilityLabel: "Skip vote passed notifications",
-                accessibilityIdentifier: "onboardingSkipVotePassedNotificationsToggle"
+                accessibilityIdentifier: "onboardingSkipVotePassedNotificationsToggle",
+                showsCardBackground: false
             )
         }
         .subtleCardShell(cornerRadius: DSRadius.lg2)
@@ -154,55 +144,6 @@ struct OnboardingNotificationsStepView: View {
     private var rowDivider: some View {
         Divider()
             .padding(.leading, AppConstants.OnboardingUI.iconTileSize + DSSpace.s4 * 2)
-    }
-
-    // MARK: - Row
-
-    /// Builds a single labeled toggle row: colored icon tile, title, subtitle,
-    /// and a binding switch. Mirrors the row used in the Preferences step.
-    @ViewBuilder
-    private func preferenceRow(
-        icon: String,
-        iconColor: Color,
-        title: String,
-        subtitle: String,
-        isOn: Binding<Bool>,
-        accessibilityLabel: String,
-        accessibilityIdentifier: String
-    ) -> some View {
-        OnboardingToggleCard(
-            icon: icon,
-            iconColor: iconColor,
-            title: title,
-            subtitle: subtitle,
-            isOn: isOn,
-            accessibilityLabel: accessibilityLabel,
-            accessibilityIdentifier: accessibilityIdentifier
-        )
-    }
-
-    /// Same row, minus its own card chrome, for stacking inside `alertGroup`'s
-    /// shared border.
-    @ViewBuilder
-    private func groupedRow(
-        icon: String,
-        iconColor: Color,
-        title: String,
-        subtitle: String,
-        isOn: Binding<Bool>,
-        accessibilityLabel: String,
-        accessibilityIdentifier: String
-    ) -> some View {
-        OnboardingToggleCard(
-            icon: icon,
-            iconColor: iconColor,
-            title: title,
-            subtitle: subtitle,
-            isOn: isOn,
-            accessibilityLabel: accessibilityLabel,
-            accessibilityIdentifier: accessibilityIdentifier,
-            showsCardBackground: false
-        )
     }
 
     // MARK: - Notification Actions
