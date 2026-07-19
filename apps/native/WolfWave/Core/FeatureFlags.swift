@@ -31,10 +31,7 @@ nonisolated enum FeatureFlags {
     /// `discordShowIdleStatus` has been explicitly written it returns the
     /// stored value.
     static var discordShowIdleStatus: Bool {
-        if defaults.object(forKey: AppConstants.UserDefaults.discordShowIdleStatus) == nil {
-            return true
-        }
-        return defaults.bool(forKey: AppConstants.UserDefaults.discordShowIdleStatus)
+        Preferences.bool(AppConstants.UserDefaults.discordShowIdleStatus, default: true)
     }
 
     /// Opt-in: clear Discord presence while paused rather than keeping the
@@ -46,7 +43,7 @@ nonisolated enum FeatureFlags {
     /// Reads as `Bool?` first to distinguish "never set" from "explicitly false",
     /// matching the original mixed-cast behavior in `AppDelegate+Services`.
     static var widgetHTTPEnabled: Bool {
-        defaults.object(forKey: AppConstants.UserDefaults.widgetHTTPEnabled) as? Bool ?? false
+        Preferences.bool(AppConstants.UserDefaults.widgetHTTPEnabled, default: false)
     }
 
     // MARK: Tracking & history
@@ -54,10 +51,7 @@ nonisolated enum FeatureFlags {
     /// Music tracking. Defaults to `true` on first launch; once `trackingEnabled`
     /// has been explicitly written it returns the stored value.
     static var trackingEnabled: Bool {
-        if defaults.object(forKey: AppConstants.UserDefaults.trackingEnabled) == nil {
-            return true
-        }
-        return defaults.bool(forKey: AppConstants.UserDefaults.trackingEnabled)
+        Preferences.bool(AppConstants.UserDefaults.trackingEnabled, default: true)
     }
 
     static var listeningHistoryEnabled: Bool {
