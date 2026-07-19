@@ -77,12 +77,16 @@ context visible so chat knows the integration is still healthy.
 
 ## Themes and layouts
 
-**Five themes, three layouts, ready to go.** They live in
+**Five themes, five layouts, ready to go.** They live in
 `design-system/tokens.json` under `widget.themes` and `widget.layouts`:
 
 | Themes | Layouts |
 |---|---|
-| Default, Dark, Light, Glass, Neon | Horizontal, Vertical, Compact |
+| Default, Dark, Light, Glass, Neon | Horizontal, Vertical, Compact, Vinyl, Classic |
+
+Vinyl is a spinning record with the album art as its label and a circular
+progress ring; Classic is an album tile beside a card with title, artist, and a
+progress bar.
 
 `tokens.json` also defines a `WolfWave` theme that's hidden from the picker
 (`WidgetTheme.order` in the generated tokens excludes it), so the app exposes

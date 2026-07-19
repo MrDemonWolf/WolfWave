@@ -324,6 +324,8 @@ nonisolated enum DSWidgetLayouts {
         "Horizontal": CGSize(width: 500, height: 100),
         "Vertical": CGSize(width: 220, height: 280),
         "Compact": CGSize(width: 350, height: 56),
+        "Vinyl": CGSize(width: 260, height: 300),
+        "Classic": CGSize(width: 440, height: 112),
     ]
 
     static func size(_ name: String) -> CGSize { sizes[name] ?? CGSize(width: 500, height: 100) }

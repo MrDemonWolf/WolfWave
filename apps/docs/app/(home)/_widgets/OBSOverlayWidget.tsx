@@ -33,8 +33,8 @@ const LAYOUTS = Object.keys(WIDGET_LAYOUTS) as LayoutName[];
  * The aesthetic and theme tokens come from
  * `apps/native/WolfWave/Resources/widget.html` +
  * `widget-tokens.generated.js`. Visitor can switch layouts (Horizontal /
- * Vertical / Compact) and themes (WolfWave / Glass / Neon / Dark /
- * Light) right on the marketing page, selling the widget's flexibility
+ * Vertical / Compact / Vinyl / Classic) and themes (WolfWave / Glass / Neon /
+ * Dark / Light) right on the marketing page, selling the widget's flexibility
  * better than any static screenshot could.
  */
 export function OBSOverlayWidget({ controls = true }: { controls?: boolean } = {}) {
@@ -60,7 +60,7 @@ export function OBSOverlayWidget({ controls = true }: { controls?: boolean } = {
       />
       <div
         style={{
-          minHeight: layout === "Vertical" ? 320 : 160,
+          minHeight: layout === "Vertical" || layout === "Vinyl" ? 340 : 160,
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
@@ -252,6 +252,219 @@ function WidgetCard({
     );
   }
 
+  if (layout === "Vinyl") {
+    const RING_R = 94;
+    const RING_C = 2 * Math.PI * RING_R;
+    // An SVG stroke can't be a CSS gradient (e.g. the Neon theme's fill), so
+    // render a real <linearGradient> and stroke via url() when needed.
+    const ringIsGradient = /gradient/i.test(theme.progressFillBg);
+    const ringCols = ringIsGradient
+      ? theme.progressFillBg.match(/#[0-9a-fA-F]{3,8}|rgba?\([^)]*\)/g) ?? ["#FFFFFF"]
+      : [];
+    const ringStroke = ringIsGradient ? "url(#wwVinylRingGrad)" : theme.progressFillBg;
+    return (
+      <div role="group" aria-roledescription="OBS overlay demo" style={shell}>
+        {bgLayers}
+        <div
+          style={{
+            position: "relative",
+            zIndex: 1,
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            gap: 10,
+            padding: 14,
+          }}
+        >
+          <div style={{ position: "relative", width: 200, height: 200 }}>
+            <div
+              className={motionEnabled ? "ww-vinyl-spin" : undefined}
+              style={{
+                position: "absolute",
+                inset: 0,
+                borderRadius: "50%",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                background:
+                  "repeating-radial-gradient(circle at 50% 50%, #0a0a0a 0 2px, #171717 2px 3px), radial-gradient(circle at 38% 32%, #2c2c2c 0%, #0a0a0a 62%)",
+                boxShadow:
+                  "0 10px 30px rgba(0,0,0,0.55), inset 0 0 0 1px rgba(255,255,255,0.05)",
+              }}
+            >
+              <div
+                style={{
+                  borderRadius: "50%",
+                  boxShadow:
+                    "0 0 0 3px rgba(0,0,0,0.55), 0 0 0 4px rgba(255,255,255,0.08)",
+                }}
+              >
+                <AlbumArt
+                  gradient={track.gradient}
+                  glyph={track.glyph}
+                  size={84}
+                  radius={42}
+                />
+              </div>
+              <div
+                aria-hidden="true"
+                style={{
+                  position: "absolute",
+                  left: "50%",
+                  top: "50%",
+                  width: 9,
+                  height: 9,
+                  transform: "translate(-50%, -50%)",
+                  borderRadius: "50%",
+                  background: "#060606",
+                  boxShadow: "0 0 0 2px #2b2b2b",
+                }}
+              />
+            </div>
+            <svg
+              viewBox="0 0 200 200"
+              aria-hidden="true"
+              style={{
+                position: "absolute",
+                inset: 0,
+                width: "100%",
+                height: "100%",
+                transform: "rotate(-90deg)",
+              }}
+            >
+              {ringIsGradient ? (
+                <defs>
+                  <linearGradient id="wwVinylRingGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                    {ringCols.map((c, i) => (
+                      <stop
+                        key={i}
+                        offset={`${ringCols.length < 2 ? 0 : Math.round((i / (ringCols.length - 1)) * 100)}%`}
+                        stopColor={c}
+                      />
+                    ))}
+                  </linearGradient>
+                </defs>
+              ) : null}
+              <circle
+                cx="100"
+                cy="100"
+                r={RING_R}
+                fill="none"
+                strokeWidth={5}
+                stroke={theme.progressTrackBg}
+              />
+              <circle
+                cx="100"
+                cy="100"
+                r={RING_R}
+                fill="none"
+                strokeWidth={5}
+                strokeLinecap="round"
+                stroke={ringStroke}
+                strokeDasharray={RING_C}
+                strokeDashoffset={RING_C * (1 - progress)}
+                style={{ transition: motionEnabled ? "stroke-dashoffset 100ms linear" : "none" }}
+              />
+            </svg>
+          </div>
+          <div style={{ width: "100%", textAlign: "center" }}>
+            <div
+              style={{
+                fontSize: 14,
+                fontWeight: 600,
+                lineHeight: 1.25,
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+                whiteSpace: "nowrap",
+              }}
+            >
+              {track.title}
+            </div>
+            <div
+              style={{
+                fontSize: 12,
+                color: theme.textSecondary,
+                marginTop: 2,
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+                whiteSpace: "nowrap",
+              }}
+            >
+              {track.artist}
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (layout === "Classic") {
+    return (
+      <div
+        role="group"
+        aria-roledescription="OBS overlay demo"
+        style={{ ...shell, height: dims.height }}
+      >
+        {bgLayers}
+        <div
+          style={{
+            position: "relative",
+            zIndex: 1,
+            height: "100%",
+            display: "grid",
+            gridTemplateColumns: "92px 1fr",
+            gap: 14,
+            alignItems: "center",
+            padding: 10,
+          }}
+        >
+          <AlbumArt
+            gradient={track.gradient}
+            glyph={track.glyph}
+            size={92}
+            radius={14}
+          />
+          <div
+            style={{ minWidth: 0, display: "flex", flexDirection: "column", gap: 6 }}
+          >
+            <div
+              style={{
+                fontSize: 16,
+                fontWeight: 700,
+                lineHeight: 1.2,
+                whiteSpace: "nowrap",
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+              }}
+            >
+              {track.title}
+            </div>
+            <div
+              style={{
+                fontSize: 13,
+                color: theme.textSecondary,
+                whiteSpace: "nowrap",
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+              }}
+            >
+              {track.artist}
+            </div>
+            <ProgressBar
+              theme={theme}
+              elapsedSec={elapsedSec}
+              durationSec={track.durationSec}
+              progress={progress}
+              motionEnabled={motionEnabled}
+              showCounters
+              knob
+            />
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   // Horizontal (default)
   return (
     <div
@@ -325,6 +538,7 @@ function ProgressBar({
   progress,
   motionEnabled,
   showCounters,
+  knob,
 }: {
   theme: ThemeVals;
   elapsedSec: number;
@@ -332,6 +546,7 @@ function ProgressBar({
   progress: number;
   motionEnabled: boolean;
   showCounters?: boolean;
+  knob?: boolean;
 }) {
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 4, width: "100%" }}>
@@ -343,22 +558,40 @@ function ProgressBar({
         aria-valuenow={Math.round(elapsedSec)}
         style={{
           position: "relative",
-          height: 4,
+          height: knob ? 5 : 4,
           background: theme.progressTrackBg,
           borderRadius: 9999,
-          overflow: "hidden",
+          overflow: knob ? "visible" : "hidden",
         }}
       >
         <div
           style={{
             position: "absolute",
-            inset: 0,
+            insetBlock: 0,
+            left: 0,
             width: `${progress * 100}%`,
             background: theme.progressFillBg,
             borderRadius: 9999,
             transition: motionEnabled ? "width 100ms linear" : "none",
           }}
         />
+        {knob ? (
+          <div
+            aria-hidden="true"
+            style={{
+              position: "absolute",
+              top: "50%",
+              left: `${progress * 100}%`,
+              width: 11,
+              height: 11,
+              transform: "translate(-50%, -50%)",
+              borderRadius: "50%",
+              background: "#fff",
+              boxShadow: "0 1px 4px rgba(0,0,0,0.5)",
+              transition: motionEnabled ? "left 100ms linear" : "none",
+            }}
+          />
+        ) : null}
       </div>
       {showCounters && (
         <div

@@ -63,7 +63,7 @@ Your music plays. Everything else keeps up.
 
 ### Stream Overlays
 
-- **Stream Widgets.** Drop-in browser-source overlay powered by a local WebSocket server with a per-install auth token, five themes (`Default`, `Dark`, `Light`, `Glass`, `Neon`), and three layouts (`Horizontal`, `Vertical`, `Compact`). Two-PC streamers can connect from a second machine on the LAN.
+- **Stream Widgets.** Drop-in browser-source overlay powered by a local WebSocket server with a per-install auth token, five themes (`Default`, `Dark`, `Light`, `Glass`, `Neon`), and five layouts (`Horizontal`, `Vertical`, `Compact`, `Vinyl`, `Classic`). Two-PC streamers can connect from a second machine on the LAN.
 
 ### History & Stats
 

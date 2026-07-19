@@ -136,6 +136,8 @@ const layoutDimensions: Record<string, LayoutDims> = WW_TOKENS.layouts || {
   Horizontal: { maxWidth: 500, height: 100 },
   Vertical: { maxWidth: 220, height: 280 },
   Compact: { maxWidth: 350, height: 56 },
+  Vinyl: { maxWidth: 260, height: 300 },
+  Classic: { maxWidth: 440, height: 112 },
 };
 
 // Default config for `widget_config` messages. The native app pushes this
@@ -183,6 +185,11 @@ let elapsedTimeEl: HTMLElement | null = null;
 let remainingTimeEl: HTMLElement | null = null;
 let lastElapsedText = "";
 let lastRemainingText = "";
+// Vinyl layout only: the circular progress ring. Driven by stroke-dashoffset
+// instead of width, so it lives alongside `fillEl` in the RAF loop. Null for
+// every other layout. `ringCircumference` is cached from the circle's radius.
+let ringEl: SVGCircleElement | null = null;
+let ringCircumference = 0;
 
 /* ╔════════════════════════════════════════════════════════════════════════╗
  * ║  TYPES                                                                 ║
@@ -545,6 +552,10 @@ function updateProgress(): void {
   if (fillEl && !fillEl.classList.contains("draining")) {
     fillEl.style.width = progress + "%";
   }
+  if (ringEl) {
+    // Ring fills clockwise from 12 o'clock (the SVG is rotated -90deg in CSS).
+    ringEl.style.strokeDashoffset = String(ringCircumference * (1 - progress / 100));
+  }
   // The formatted strings change once per second; skipping the redundant
   // textContent writes avoids replacing the text nodes 60x/sec.
   const elapsedText = formatTime(elapsed);
@@ -715,6 +726,65 @@ function buildWidget(): void {
       "</div>" +
       '<div style="width:100%;padding:0 4px;margin-top:auto;">' + progressBar + "</div>" +
       "</div>";
+  } else if (layout === "Vinyl") {
+    // Spinning record: album art is the center label, a circular ring shows
+    // progress. The disc spins via CSS (paused by the `.is-paused` root class);
+    // there's no linear bar. Unknown durations render the disc with no ring.
+    const showRing = duration > 0;
+    const label = hideAlbumArt ? "" : artImg(84, 84, "50%");
+    // The linear progress bar can take a CSS gradient as `background`, but an SVG
+    // stroke cannot - it needs a color or `url(#id)`. Themes like Neon set
+    // `progressFillBg` to a gradient, so build a real <linearGradient> when the
+    // fill is a gradient and stroke via url(); otherwise stroke the solid color.
+    let ringStroke = theme.progressFillBg;
+    let ringDefs = "";
+    if (/gradient/i.test(ringStroke)) {
+      const cols = ringStroke.match(/#[0-9a-fA-F]{3,8}|rgba?\([^)]*\)/g) || ["#FFFFFF"];
+      const stops = cols
+        .map((c, i) => '<stop offset="' + (cols.length < 2 ? 0 : Math.round((i / (cols.length - 1)) * 100)) + '%" stop-color="' + c + '"></stop>')
+        .join("");
+      ringDefs = '<defs><linearGradient id="wolfVinylRingGrad" x1="0%" y1="0%" x2="100%" y2="100%">' + stops + "</linearGradient></defs>";
+      ringStroke = "url(#wolfVinylRingGrad)";
+    }
+    const ring = showRing
+      ? '<svg class="wolf-vinyl-ring" viewBox="0 0 200 200" aria-hidden="true">' +
+        ringDefs +
+        '<circle class="wolf-vinyl-ring-track" cx="100" cy="100" r="94" style="stroke:' + theme.progressTrackBg + ';"></circle>' +
+        '<circle class="progress-ring" cx="100" cy="100" r="94" style="stroke:' + ringStroke + ';"></circle>' +
+        "</svg>"
+      : "";
+    layoutHTML =
+      '<div class="wolf-vinyl" style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;gap:10px;padding:12px;">' +
+      '<div class="wolf-vinyl-stage" style="position:relative;width:200px;height:200px;flex-shrink:0;">' +
+      '<div class="wolf-vinyl-disc">' +
+      '<div class="wolf-vinyl-label">' + label + "</div>" +
+      '<div class="wolf-vinyl-spindle"></div>' +
+      "</div>" +
+      ring +
+      "</div>" +
+      '<div class="track-meta" style="text-align:center;max-width:100%;min-width:0;">' +
+      '<p style="font-size:15px;font-weight:700;line-height:1.2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:' + theme.textPrimary + ";text-shadow:" + theme.textShadow + ";font-family:" + theme.fontFamily + ';">' + escapeHtml(nowPlaying.track) + "</p>" +
+      '<p style="font-size:12px;font-style:italic;font-weight:300;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:' + theme.textSecondary + ";text-shadow:" + theme.textShadow + ";font-family:" + theme.fontFamily + ';">' + escapeHtml(nowPlaying.artist) + "</p>" +
+      "</div>" +
+      "</div>";
+  } else if (layout === "Classic") {
+    // Album tile + a card with title / artist / progress. Same data as
+    // Horizontal, re-proportioned with a rounded art tile and a knob on the
+    // progress bar (a CSS ::after on .progress-fill, so the RAF loop moves it).
+    const art = hideAlbumArt
+      ? ""
+      : '<div style="flex-shrink:0;padding:6px;">' + artImg(92, 92, "14px") + "</div>";
+    layoutHTML =
+      '<div class="wolf-classic flex h-full items-center">' +
+      art +
+      '<div style="display:flex;flex-direction:column;flex:1;min-width:0;justify-content:center;padding:8px 14px 8px 4px;">' +
+      '<div class="track-meta" style="min-width:0;">' +
+      '<p style="font-size:16px;font-weight:700;line-height:1.2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:' + theme.textPrimary + ";text-shadow:" + theme.textShadow + ";font-family:" + theme.fontFamily + ';">' + escapeHtml(nowPlaying.track) + "</p>" +
+      '<p style="font-size:13px;font-style:italic;font-weight:300;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:' + theme.textSecondary + ";text-shadow:" + theme.textShadow + ";font-family:" + theme.fontFamily + ';">' + escapeHtml(nowPlaying.artist) + "</p>" +
+      "</div>" +
+      '<div style="margin-top:8px;">' + progressBar + "</div>" +
+      "</div>" +
+      "</div>";
   } else {
     const art = hideAlbumArt
       ? ""
@@ -740,6 +810,19 @@ function buildWidget(): void {
   remainingTimeEl = el.querySelector(".remaining-time");
   lastElapsedText = "";
   lastRemainingText = "";
+
+  // Vinyl ring: cache the circle and seed its dash values from the current
+  // progress so the ring is correct on the first paint (and in the static
+  // Settings preview, where the RAF loop never runs).
+  ringEl = el.querySelector(".progress-ring") as SVGCircleElement | null;
+  if (ringEl) {
+    const r = Number(ringEl.getAttribute("r")) || 0;
+    ringCircumference = 2 * Math.PI * r;
+    ringEl.style.strokeDasharray = String(ringCircumference);
+    ringEl.style.strokeDashoffset = String(ringCircumference * (1 - progress / 100));
+  } else {
+    ringCircumference = 0;
+  }
 }
 
 /* ╔════════════════════════════════════════════════════════════════════════╗

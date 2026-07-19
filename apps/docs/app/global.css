@@ -596,6 +596,14 @@
   to { opacity: 1; transform: translateY(0); }
 }
 
+/* ── Vinyl overlay preview: spinning record ──────────────── */
+.ww-vinyl-spin {
+  animation: ww-vinyl-spin 4.5s linear infinite;
+}
+@keyframes ww-vinyl-spin {
+  to { transform: rotate(360deg); }
+}
+
 /* ── Dev code block ──────────────────────────────────────── */
 .ww-code {
   background-color: var(--bg-elev);
