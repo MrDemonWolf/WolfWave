@@ -102,6 +102,24 @@ const SCRIPT: ((c: Ctx) => Line[])[] = [
   ({ cur }) => [v("howler_99", "#ff8c5a", "!song"), bot(nowPlaying(cur))],
 ];
 
+// Script steps to pre-play so the chat looks "already live" on first paint
+// instead of showing a near-empty bottom-anchored viewport (see buildSeed).
+// Skips index 5 (the !sr request line): it advances the module-level
+// reqI/queueN counters as a side effect, and every OTHER step here is a pure
+// function of its ctx argument.
+const SEED_STEPS = [0, 1, 2, 3, 4, 6, 7, 8];
+
+/** Pure: no refs, no side effects, safe to call during render. */
+function buildSeed(ctx: Ctx): { msgs: Msg[]; lastId: number; nextStep: number } {
+  const lines: Line[] = [];
+  for (const i of SEED_STEPS) {
+    lines.push(...SCRIPT[i](ctx));
+  }
+  let id = 0;
+  const msgs = lines.map((l) => ({ ...l, id: ++id }));
+  return { msgs, lastId: id, nextStep: Math.max(...SEED_STEPS) + 1 };
+}
+
 function Badge({ label, bg }: { label: string; bg: string }) {
   return (
     <span
@@ -147,15 +165,19 @@ export function TwitchChatPreview({
     ctxRef.current = { cur: track, last: lastTrack };
   }, [track, lastTrack]);
 
-  const idRef = useRef(10);
-  const stepRef = useRef(0);
-
-  const seed: Msg[] = [
-    { id: 1, user: "wolf_fan_88", color: "#ff8c5a", body: "apple music night 🎧" },
-    { id: 2, ...bot(nowPlaying(track)) },
-    { id: 3, user: "emote_lord", color: "#2fd6c3", body: "this slaps 🔥" },
-  ];
-  const [msgs, setMsgs] = useState<Msg[]>(seed);
+  // Seed from the SCRIPT itself (the single source of truth for chat
+  // content) instead of a few hand-written lines. A tiny 3-line seed left a
+  // tall empty gap above the messages on first paint, since the viewport is
+  // bottom-anchored with a fixed height and the rest only fills in as the
+  // interval below fires. buildSeed plays the first several script steps up
+  // front so the chat looks "already live" immediately. It's a plain pure
+  // call (no refs), safe to run during render; only its first-render result
+  // is kept, since useState/useRef ignore their initial-value argument on
+  // every render after the first.
+  const seed = buildSeed({ cur: track, last: lastTrack });
+  const idRef = useRef(seed.lastId);
+  const stepRef = useRef(seed.nextStep);
+  const [msgs, setMsgs] = useState<Msg[]>(seed.msgs);
 
   useEffect(() => {
     if (!motionEnabled || paused) return;
