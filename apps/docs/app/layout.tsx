@@ -1,15 +1,16 @@
-import { Unbounded, Instrument_Sans } from "next/font/google";
+import { Instrument_Sans } from "next/font/google";
 import type { Metadata } from "next";
 import { Provider } from "@/components/provider";
 import { siteUrl, basePath, absoluteUrl, homepageSeo, repoUrl, orgUrl, getLatestVersion } from "@/lib/site";
 import "./global.css";
 
-const unbounded = Unbounded({
-  subsets: ["latin"],
-  variable: "--font-unbounded",
-  display: "swap",
-});
-
+// Display face for headlines (>= ~28px) only. Body/nav/UI text uses the
+// system stack (SF Pro on Mac) instead, see .ww-font in global.css. We used
+// to also load Unbounded for display type, but it's a wide/expanded web3
+// display face (commissioned for Polkadot) that reads "crypto template" next
+// to an Apple-style SF-set body and inflates hero line length on mobile.
+// Instrument Sans keeps a grotesque skeleton close to SF Pro while adding
+// just enough personality, so it now carries every display-sized heading.
 const instrumentSans = Instrument_Sans({
   subsets: ["latin"],
   variable: "--font-instrument",
@@ -126,7 +127,7 @@ function buildJsonLd(softwareVersion: string | null) {
 export default async function Layout({ children }: LayoutProps<"/">) {
   const jsonLd = buildJsonLd(await getLatestVersion());
   return (
-    <html lang="en" className={`${unbounded.variable} ${instrumentSans.variable}`} suppressHydrationWarning>
+    <html lang="en" className={instrumentSans.variable} suppressHydrationWarning>
       <body className="flex flex-col min-h-screen">
         <a href="#nd-page" className="skip-nav">
           Skip to content

@@ -12,7 +12,7 @@ export function baseOptions(): BaseLayoutProps {
             aria-hidden="true"
             className="h-7 w-auto"
           />
-          <span className="font-[var(--font-unbounded)] text-[1.05rem] font-semibold tracking-tight text-[var(--txt-1)]">
+          <span className="font-[var(--font-instrument)] text-[1.05rem] font-semibold tracking-tight text-[var(--txt-1)]">
             WolfWave
           </span>
         </span>
