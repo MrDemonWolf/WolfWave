@@ -2,6 +2,9 @@
 //  AppContainer.swift
 //  WolfWave
 //
+//  Created by Nathanial Henniges on 2026-06-06.
+//  Copyright © 2026 MrDemonWolf, Inc. All rights reserved.
+//
 //  Single owner of the app's Application Support container layout.
 //
 

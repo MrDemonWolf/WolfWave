@@ -14,7 +14,7 @@ DMG_NAME = WolfWave-$(VERSION).dmg
 
 .SHELLFLAGS = -ec
 
-.PHONY: help build clean test test-verbose test-ci lint lint-crash-safety update-deps open-xcode ci prod-build prod-install notarize verify-notarize sponsor-config widget
+.PHONY: help build clean test test-verbose test-ci lint lint-crash-safety lint-headers update-deps open-xcode ci prod-build prod-install notarize verify-notarize sponsor-config widget
 
 help:
 	@echo "Available targets:"
@@ -24,6 +24,7 @@ help:
 	@echo "  test           Run tests"
 	@echo "  lint           Run SwiftLint (requires: brew install swiftlint)"
 	@echo "  lint-crash-safety  Run crash-safety SwiftLint (blocking CI gate)"
+	@echo "  lint-headers   Verify Swift file headers match the Xcode template"
 	@echo "  prod-build     Release build + DMG  (-> builds/$(DMG_NAME))"
 	@echo "  prod-install   Release build + install to /Applications"
 	@echo "  notarize       Notarize builds/$(DMG_NAME)"
@@ -102,6 +103,12 @@ lint-crash-safety:
 	@if ! command -v swiftlint >/dev/null 2>&1; then \
 		echo "❌ SwiftLint not found. Install with: brew install swiftlint"; exit 1; fi
 	swiftlint lint --strict --config .swiftlint-crash-safety.yml
+
+# Blocking header gate: every Swift file must carry the canonical Xcode header
+# that IDETemplateMacros.plist generates, with a Created-by date matching the
+# file's git creation date. Mirrors the CI `lint-headers` job.
+lint-headers:
+	node scripts/check-headers.mjs
 
 update-deps:
 	xcodebuild -project $(PROJECT) -resolvePackageDependencies -quiet

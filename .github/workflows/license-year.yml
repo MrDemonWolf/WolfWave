@@ -1,4 +1,4 @@
-name: License Year
+name: Copyright Year
 
 on:
   schedule:
@@ -16,18 +16,55 @@ jobs:
       pull-requests: write
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
 
-      - name: Update copyright year in LICENSE
+      # LICENSE is deliberately NOT touched. It is the verbatim GPLv3 text, and
+      # its only dated copyright line belongs to the Free Software Foundation
+      # ("Copyright (C) 2007 Free Software Foundation, Inc."). Rewriting that
+      # would corrupt the license. WolfWave's own notice lives in the two files
+      # below.
+      #
+      # Per-file Swift headers ("Copyright © <year> MrDemonWolf, Inc.") are also
+      # left alone: that year records when the file was created, and
+      # scripts/check-headers.mjs accepts any 4-digit year.
+      - name: Update copyright year
         run: |
           CURRENT_YEAR=$(date +%Y)
           echo "CURRENT_YEAR=$CURRENT_YEAR" >> "$GITHUB_ENV"
-          sed -i "s/Copyright (c) [0-9]\{4\}/Copyright (c) $CURRENT_YEAR/" LICENSE
+
+          ABOUT=apps/native/WolfWave/Views/About/AboutCopy.swift
+          INFO=apps/native/WolfWave/Info.plist
+
+          # The AboutCopy pattern is anchored on the opening quote of the Swift
+          # string literal. A bare `© [0-9]{4}` would also match that file's own
+          # header comment, which must keep its creation year.
+          sed -i "s/\"© [0-9]\{4\} /\"© $CURRENT_YEAR /" "$ABOUT"
+          sed -i "s/Copyright © [0-9]\{4\} /Copyright © $CURRENT_YEAR /" "$INFO"
+
+          # Fail loudly rather than opening an empty PR: if either pattern ever
+          # moves, a silent no-op would leave a stale year shipping in the About
+          # pane and Finder's Get Info panel.
+          if ! grep -q "\"© $CURRENT_YEAR " "$ABOUT"; then
+            echo "::error file=$ABOUT::No '\"© $CURRENT_YEAR' after substitution. The copyright string moved or changed shape; update this workflow."
+            exit 1
+          fi
+          if ! grep -q "Copyright © $CURRENT_YEAR " "$INFO"; then
+            echo "::error file=$INFO::No 'Copyright © $CURRENT_YEAR' after substitution. NSHumanReadableCopyright moved or changed shape; update this workflow."
+            exit 1
+          fi
 
       - name: Create Pull Request
         uses: peter-evans/create-pull-request@5f6978faf089d4d20b00c7766989d076bb2fc7f1 # v8.1.1
         with:
-          commit-message: "chore: update license year to ${{ env.CURRENT_YEAR }}"
-          title: "chore: update MIT license year to ${{ env.CURRENT_YEAR }}"
-          body: "Automated annual update of the copyright year in the MIT license."
-          branch: chore/update-license-year
+          commit-message: "chore: update copyright year to ${{ env.CURRENT_YEAR }}"
+          title: "chore: update copyright year to ${{ env.CURRENT_YEAR }}"
+          body: |
+            Automated annual update of WolfWave's copyright year in the About
+            pane (`AboutCopy.swift`) and `NSHumanReadableCopyright`
+            (`Info.plist`).
+
+            `LICENSE` is untouched: it is the verbatim GPLv3 text and its dated
+            line belongs to the Free Software Foundation.
+          branch: chore/update-copyright-year
           delete-branch: true

@@ -270,6 +270,35 @@ jobs:
           docker run --rm -v "$PWD:/work" -w /work ghcr.io/realm/swiftlint:0.65.0 \
             swiftlint lint --strict --config .swiftlint-crash-safety.yml --reporter github-actions-logging
 
+  lint-headers:
+    name: Swift file headers (blocking)
+    # BLOCKING gate that every Swift file carries the canonical Xcode header
+    # from IDETemplateMacros.plist, with a Created-by date matching the file's
+    # git creation date.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          # Full history: the check resolves each file's creation date with
+          # `git log --diff-filter=A --follow`, which a shallow clone can't
+          # answer. The script degrades to a shape-only check when it detects
+          # one, so a shallow checkout here would silently weaken the gate.
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Detect native changes
+        id: filter
+        uses: dorny/paths-filter@7b450fff21473bca461d4b92ce414b9d0420d706 # v4.0.2
+        with:
+          filters: |
+            native:
+              - 'apps/native/**'
+              - 'scripts/check-headers.mjs'
+
+      - name: Check Swift file headers
+        if: steps.filter.outputs.native == 'true'
+        run: node scripts/check-headers.mjs
+
   ds-lint:
     name: Design-system lint
     runs-on: ubuntu-latest

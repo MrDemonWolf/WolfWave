@@ -2,7 +2,7 @@
 //  CardEyebrowHeader.swift
 //  WolfWave
 //
-//  Created by Nathanial Henniges on 2026-06-04.
+//  Created by Nathanial Henniges on 2026-06-05.
 //  Copyright © 2026 MrDemonWolf, Inc. All rights reserved.
 //
 
