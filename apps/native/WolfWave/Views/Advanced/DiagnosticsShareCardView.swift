@@ -32,21 +32,20 @@ struct DiagnosticsShareCardView: View {
                 Text("Diagnostics & Privacy")
                     .font(.system(size: DSFont.Size.base, weight: .semibold))
 
-                Text("WolfWave can collect crash and performance diagnostics using Apple's on-device MetricKit. Reports stay on your Mac. Nothing is ever uploaded.")
+                Text("WolfWave can collect crash and performance diagnostics using Apple's on-device MetricKit.")
                     .font(.system(size: DSFont.Size.body))
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
             }
 
-            Toggle(isOn: $shareEnabled) {
-                Text("Collect on-device diagnostics")
-                    .font(.system(size: DSFont.Size.body, weight: .medium))
-            }
-            .toggleStyle(.switch)
-            .onChange(of: shareEnabled) { _, enabled in
-                DiagnosticsService.shared.setEnabled(enabled)
-            }
-            .accessibilityIdentifier("shareDiagnosticsToggle")
+            ToggleSettingRow(
+                title: "Collect on-device diagnostics",
+                subtitle: "Reports stay on your Mac. Nothing is ever uploaded.",
+                isOn: $shareEnabled,
+                accessibilityLabel: "Collect on-device diagnostics",
+                accessibilityIdentifier: "shareDiagnosticsToggle",
+                onChange: { DiagnosticsService.shared.setEnabled($0) }
+            )
 
             Divider()
 

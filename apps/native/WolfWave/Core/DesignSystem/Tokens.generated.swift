@@ -146,6 +146,7 @@ nonisolated enum DSDimension {
         static let minHeight: CGFloat = 620
         static let idealWidth: CGFloat = 1240
         static let idealHeight: CGFloat = 780
+        static let sidebarWidth: CGFloat = 230
         static let maxContentWidth: CGFloat = 720
         static let contentPaddingH: CGFloat = 28
         static let contentPaddingV: CGFloat = 22

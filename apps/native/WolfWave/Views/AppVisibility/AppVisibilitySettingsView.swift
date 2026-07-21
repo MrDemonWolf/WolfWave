@@ -95,42 +95,38 @@ struct AppVisibilitySettingsView: View {
             Text("Startup")
                 .sectionEyebrow()
 
-            Toggle("Launch at Login", isOn: Binding(
-                get: { launchAtLogin },
-                set: { newValue in
-                    let outcome = LaunchAtLoginService.setEnabled(newValue)
-                    switch outcome {
-                    case .failure:
-                        // SMAppService threw; leave the toggle where it was.
-                        return
-                    case .requiresApproval:
-                        // Registration was accepted but is pending the user's
-                        // approval in Login Items. Keep the toggle ON (the user
-                        // opted in) and surface the approval affordance.
-                        loginItemNeedsApproval = true
-                    case .success:
-                        loginItemNeedsApproval = false
+            ToggleSettingRow(
+                title: "Launch at Login",
+                subtitle: "Starts WolfWave when you log in.",
+                isOn: Binding(
+                    get: { launchAtLogin },
+                    set: { newValue in
+                        let outcome = LaunchAtLoginService.setEnabled(newValue)
+                        switch outcome {
+                        case .failure:
+                            // SMAppService threw; leave the toggle where it was.
+                            return
+                        case .requiresApproval:
+                            // Registration was accepted but is pending the user's
+                            // approval in Login Items. Keep the toggle ON (the user
+                            // opted in) and surface the approval affordance.
+                            loginItemNeedsApproval = true
+                        case .success:
+                            loginItemNeedsApproval = false
+                        }
+                        launchAtLogin = newValue
+                        // Dock Only is incompatible with launch at login,
+                        // switch to Menu Bar + Dock so the app is always reachable.
+                        if newValue && dockVisibility == AppConstants.DockVisibility.dockOnly {
+                            dockVisibility = AppConstants.DockVisibility.default
+                            applyDockVisibility(AppConstants.DockVisibility.default)
+                        }
                     }
-                    launchAtLogin = newValue
-                    // Dock Only is incompatible with launch at login,
-                    // switch to Menu Bar + Dock so the app is always reachable.
-                    if newValue && dockVisibility == AppConstants.DockVisibility.dockOnly {
-                        dockVisibility = AppConstants.DockVisibility.default
-                        applyDockVisibility(AppConstants.DockVisibility.default)
-                    }
-                }
-            ))
-            .toggleStyle(.checkbox)
-            .font(.system(size: DSFont.Size.base))
-            .pointerCursor()
-            .accessibilityLabel("Launch at Login")
-            .accessibilityHint("Starts WolfWave automatically when you log in to your Mac")
-            .accessibilityIdentifier("launchAtLoginToggle")
-
-            Text("Automatically start WolfWave when you log in.")
-                .font(.system(size: DSFont.Size.sm))
-                .foregroundStyle(.tertiary)
-                .fixedSize(horizontal: false, vertical: true)
+                ),
+                accessibilityLabel: "Launch at Login",
+                accessibilityIdentifier: "launchAtLoginToggle",
+                accessibilityHint: "Starts WolfWave automatically when you log in to your Mac"
+            )
 
             if loginItemNeedsApproval {
                 VStack(alignment: .leading, spacing: DSSpace.s2) {
