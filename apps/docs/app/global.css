@@ -375,141 +375,9 @@
   letter-spacing: 0;
 }
 
-/* ── Stat tile. Big fact that pops in the proof band ───────── */
-.ww-stat {
-  display: flex;
-  flex-direction: column;
-  gap: 0.4rem;
-  min-width: 0; /* let the flex cell shrink so long values never clip */
-  padding: 1.15rem 1.2rem;
-  border-radius: 1.1rem;
-  border: 1px solid var(--hairline);
-  background-color: var(--bg-elev);
-  transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
-}
-@media (min-width: 420px) {
-  .ww-stat {
-    padding: 1.5rem 1.5rem;
-  }
-}
-.ww-stat:hover {
-  transform: translateY(-2px);
-  border-color: color-mix(in srgb, var(--brand-500) 35%, var(--hairline));
-  box-shadow: 0 16px 38px -22px rgba(10, 132, 255, 0.35);
-}
-.ww-stat-value {
-  font-family: var(--font-unbounded), -apple-system, "SF Pro Display",
-    system-ui, sans-serif;
-  font-weight: 700;
-  letter-spacing: -0.02em;
-  line-height: 1;
-  font-size: clamp(1.6rem, 3.2vw, 2rem);
-  color: var(--txt-1);
-}
-.ww-stat-label {
-  font-size: 0.82rem;
-  line-height: 1.4;
-  color: var(--txt-2);
-}
-.ww-stat-icon {
-  color: var(--brand-600);
-}
-
-/* ── Proof band. Brand-lit container so the trust row stops
-   reading as an orphaned badge strip. ─────────────────────── */
-.ww-proof {
-  position: relative;
-  overflow: hidden;
-  border-radius: 1.5rem;
-  border: 1px solid var(--hairline);
-  background-color: var(--bg-base);
-  padding: clamp(1.5rem, 4vw, 2.75rem);
-}
-.ww-proof::before {
-  content: "";
-  position: absolute;
-  inset: -40% -10% auto -10%;
-  height: 80%;
-  background: radial-gradient(
-    ellipse 55% 70% at 50% 0%,
-    rgba(10, 132, 255, 0.12) 0%,
-    transparent 70%
-  );
-  pointer-events: none;
-}
-.dark .ww-proof::before {
-  background: radial-gradient(
-    ellipse 55% 70% at 50% 0%,
-    rgba(10, 132, 255, 0.2) 0%,
-    transparent 70%
-  );
-}
-.ww-proof > * {
-  position: relative;
-}
-
-/* Emphasis inside the download-meta line (latest version, star count). */
-.ww-chip-strong {
-  color: var(--brand-600);
-  font-weight: 700;
-}
-.dark .ww-chip-strong {
-  color: var(--brand-500);
-}
-
-/* ── Download card. Primary action in the proof band, brand-tinted
-   so it reads as the focal point next to the flat trust grid. ───── */
-.ww-download-card {
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
-  gap: 1.5rem;
-  padding: clamp(1.5rem, 3vw, 2rem);
-  border-radius: 1.25rem;
-  border: 1px solid color-mix(in srgb, var(--brand-500) 24%, var(--hairline));
-  background-color: color-mix(in srgb, var(--brand-500) 6%, var(--bg-elev));
-}
-.ww-download-eyebrow {
-  font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
-  font-size: 0.72rem;
-  font-weight: 600;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  color: var(--brand-600);
-}
-.ww-download-headline {
-  margin-top: 0.5rem;
-  font-family: var(--font-unbounded), -apple-system, "SF Pro Display",
-    system-ui, sans-serif;
-  font-weight: 700;
-  letter-spacing: -0.02em;
-  line-height: 1.05;
-  font-size: clamp(1.5rem, 3vw, 2rem);
-  color: var(--txt-1);
-}
-.ww-download-actions {
-  display: flex;
-  flex-direction: column;
-  gap: 0.7rem;
-}
-.ww-download-actions .ww-btn {
-  width: 100%;
-}
 .ww-btn-lg {
   padding: 1.05rem 1.6rem;
   font-size: 1.02rem;
-}
-.ww-download-meta {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: center;
-  gap: 0.45rem;
-  font-size: 0.82rem;
-  color: var(--txt-2);
-}
-.ww-download-sep {
-  color: var(--hairline);
 }
 
 /* ── Back-to-top. Landing page only (rendered from the home page) ── */
@@ -562,8 +430,6 @@
    ────────────────────────────────────────────────────────── */
 @supports (corner-shape: squircle) {
   .ww-card,
-  .ww-stat,
-  .ww-proof,
   .ww-glass,
   .ww-code,
   .ww-dev-window,
