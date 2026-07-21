@@ -235,24 +235,24 @@ struct SoftwareUpdateSettingsView: View {
 
             Divider()
 
-            HStack {
-                Toggle("Check automatically", isOn: Binding(
+            ToggleSettingRow(
+                title: "Check automatically",
+                subtitle: "Looks for new versions in the background.",
+                isOn: Binding(
                     get: { appDelegate?.sparkleUpdater?.automaticCheckEnabled ?? true },
                     set: { newValue in
                         appDelegate?.sparkleUpdater?.automaticCheckEnabled = newValue
                     }
-                ))
-                .toggleStyle(.switch)
-                .controlSize(.small)
-                .font(.system(size: DSFont.Size.body))
-                .accessibilityLabel("Check for updates automatically")
-                .accessibilityHint("Enables periodic background checks for new versions")
-                .accessibilityValue(updateCheckEnabled ? "Enabled" : "Disabled")
-                #if DEBUG
-                .disabled(true)
-                .opacity(0.5)
-                #endif
+                ),
+                accessibilityLabel: "Check for updates automatically",
+                accessibilityIdentifier: "updateCheckToggle",
+                accessibilityHint: "Enables periodic background checks for new versions"
+            )
+            #if DEBUG
+            .disabled(true)
+            #endif
 
+            HStack {
                 Spacer()
 
                 Button {

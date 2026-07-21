@@ -646,6 +646,9 @@ struct HistoryStatsSettingsView: View {
 
     /// Toggle chips choosing which facts the `!stats` reply includes. At least one
     /// stays selected so the command never replies empty.
+    /// Chip-style multi-select (`.toggleStyle(.button)`) on purpose: this is a
+    /// compact fact picker, not a settings switch row, so it is exempt from the
+    /// `ToggleSettingRow` convention.
     private var statsPartsRow: some View {
         VStack(alignment: .leading, spacing: DSSpace.s2) {
             Text("Include")

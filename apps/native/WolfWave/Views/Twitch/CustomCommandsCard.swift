@@ -96,7 +96,7 @@ struct CustomCommandsCard: View {
 
                 Text(command.response.isEmpty ? "No reply set" : command.response)
                     .font(.system(size: DSFont.Size.sm))
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(.tertiary)
                     .lineLimit(1)
                     .truncationMode(.tail)
             }
@@ -110,6 +110,8 @@ struct CustomCommandsCard: View {
                 .toggleStyle(.switch)
                 .controlSize(.small)
                 .accessibilityLabel("Enable \(command.normalizedTrigger)")
+                .accessibilityIdentifier("customCommandToggle.\(command.normalizedTrigger)")
+                .accessibilityValue(command.enabled ? "Enabled" : "Disabled")
 
             DSIconButton(
                 systemImage: "pencil",
