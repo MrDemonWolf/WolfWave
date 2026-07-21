@@ -221,6 +221,18 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         guard !WolfWaveApp.isRunningTests else { return }
         CrashReporter.install()
 
+        // Drop any autosaved Settings sidebar split frames before the scene
+        // realizes. NSSplitView persists its column frames under the scene id
+        // ("NSSplitView Subview Frames wolfwave-settings, …") and restores them
+        // WITHOUT clamping to the SwiftUI column-width constraints, so a stale
+        // narrow sidebar (saved by an older build, or captured mid-collapse
+        // animation) would truncate every section label on the next launch.
+        // The sidebar width is fixed (not user-resizable), so clearing this
+        // never discards a user choice.
+        UserDefaults.standard.removeObject(
+            forKey: "NSSplitView Subview Frames \(WolfWaveApp.settingsWindowID), SidebarNavigationSplitView"
+        )
+
         // If the user runs menu-only, claim `.accessory` here, before AppKit's
         // first Dock paint in `applicationDidFinishLaunching`. The Info.plist keeps
         // the app a regular (Dock-visible) process by default, so a menu-only user

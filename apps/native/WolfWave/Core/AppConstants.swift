@@ -437,6 +437,12 @@ nonisolated enum AppConstants {
         /// Ideal height for settings window when first opened.
         static let idealHeight: CGFloat = DSDimension.Settings.idealHeight
 
+        /// Fixed sidebar column width (System Settings style, divider not
+        /// draggable). Fixed rather than ranged: NSSplitView restores its
+        /// autosaved column frames without clamping to a ranged min, so a
+        /// stale narrow width could come back and truncate the section labels.
+        static let sidebarWidth: CGFloat = DSDimension.Settings.sidebarWidth
+
         /// Maximum content width for detail pane
         static let maxContentWidth: CGFloat = DSDimension.Settings.maxContentWidth
 

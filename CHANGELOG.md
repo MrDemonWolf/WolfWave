@@ -17,6 +17,7 @@ All notable changes to this project will be documented in this file.
 
 ### Fixed
 
+- **Settings sidebar no longer opens too narrow.** The sidebar could come back squeezed from a previous session and cut off section names like "Stream Widgets". It now uses a fixed width, matching System Settings.
 - **No more freezes from song requests.** WolfWave now talks to Apple Music off the main thread, so a slow or busy Music.app can't beachball the app while the request queue auto-advances or when you hit play, pause, or skip.
 - **Stream Deck overlay key turns the whole overlay on.** The overlay toggle now starts the widget page server too, not just the data feed, so OBS shows a live overlay instead of a blank one.
 - **Advanced settings opens instantly.** Log size and line count load in the background now, so a large log file no longer stalls the pane when it appears.

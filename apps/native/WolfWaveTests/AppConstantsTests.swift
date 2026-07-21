@@ -206,6 +206,12 @@ struct AppConstantsTests {
         // Ideal size is the initial size fed to `SettingsView`'s `.frame`; it
         // may exceed 720p. SwiftUI keeps the `Settings` scene window within the
         // visible screen, so it still opens fully on smaller displays.
+
+        // Fixed sidebar must fit the longest section label ("Software Update"
+        // ≈ 170pt with icon + insets at 13pt) without truncating, while leaving
+        // the detail pane most of the min-width window.
+        #expect(AppConstants.SettingsUI.sidebarWidth >= 180)
+        #expect(AppConstants.SettingsUI.sidebarWidth <= AppConstants.SettingsUI.minWidth / 2)
     }
     
     // MARK: - Power Management Tests

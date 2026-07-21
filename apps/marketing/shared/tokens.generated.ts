@@ -175,6 +175,7 @@ export const tokens = {
       "minHeight": 620,
       "idealWidth": 1240,
       "idealHeight": 780,
+      "sidebarWidth": 230,
       "maxContentWidth": 720,
       "contentPaddingH": 28,
       "contentPaddingV": 22,

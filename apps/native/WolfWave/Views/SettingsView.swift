@@ -130,7 +130,12 @@ struct SettingsView: View {
     var body: some View {
         NavigationSplitView(columnVisibility: $columnVisibility) {
             SettingsSidebarView(selection: $selectedSection, groups: Self.sidebarGroups)
-                .navigationSplitViewColumnWidth(min: 200, ideal: 230, max: 280)
+                // Fixed width (System Settings style). A ranged width is a trap
+                // here: NSSplitView autosaves the column frames under the scene
+                // id and restores them WITHOUT clamping to `min:`, so a stale
+                // narrow width (e.g. captured mid-collapse animation) comes back
+                // on the next launch and truncates every section label.
+                .navigationSplitViewColumnWidth(AppConstants.SettingsUI.sidebarWidth)
                 // Remove SwiftUI's automatic sidebar toggle here, on the sidebar
                 // column it belongs to. Removing it from the outer split chain
                 // left it in place (two toggles); our detail-toolbar toggle is
