@@ -257,16 +257,40 @@ extension AppDelegate {
               let url = URL(string: urlString) else {
             return nil
         }
+        guard albumArtLoadsInFlight.insert(key).inserted else { return nil }
 
         Task { [weak self] in
-            guard let data = try? await HTTPClient.shared.data(url: url),
-                  let image = NSImage(data: data) else { return }
+            let image: NSImage?
+            if let data = try? await HTTPClient.shared.data(url: url) {
+                image = NSImage(data: data)
+            } else {
+                image = nil
+            }
             await MainActor.run { [weak self] in
-                self?.albumArtCache.setObject(image, forKey: key as NSString)
+                guard let self else { return }
+                self.albumArtLoadsInFlight.remove(key)
+                guard let image else { return }
+                self.albumArtCache.setObject(
+                    image,
+                    forKey: key as NSString,
+                    cost: Self.decodedImageCost(image)
+                )
             }
         }
 
         return nil
+    }
+
+    /// Approximate decoded bitmap bytes for NSCache's cost-based eviction.
+    private static func decodedImageCost(_ image: NSImage) -> Int {
+        image.representations.reduce(0) { largest, representation in
+            let pixels = representation.pixelsWide.multipliedReportingOverflow(
+                by: representation.pixelsHigh
+            )
+            guard !pixels.overflow else { return largest }
+            let bytes = pixels.partialValue.multipliedReportingOverflow(by: 4)
+            return bytes.overflow ? largest : max(largest, bytes.partialValue)
+        }
     }
 }
 
@@ -803,7 +827,6 @@ extension AppDelegate {
     @objc func toggleWebSocket() {
         let newValue = !FeatureFlags.websocketEnabled
         applyOverlayEnabled(newValue)
-        Task { [weak self] in await self?.websocketServer?.setWidgetHTTPEnabled(newValue) }
     }
 
     /// Flips a boolean UserDefaults value and broadcasts a notification.

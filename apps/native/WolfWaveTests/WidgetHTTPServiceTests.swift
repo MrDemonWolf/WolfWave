@@ -65,6 +65,60 @@ final class WidgetHTTPServiceTests: XCTestCase {
         // Multiple stop() calls should be safe since listener is set to nil after cancel
     }
 
+    func testTokenInjectionRequiresLoopbackPeerAndLiteralLocalHost() {
+        XCTAssertTrue(
+            WidgetHTTPService.shouldInjectToken(
+                loopbackPeer: true,
+                hostHeader: "localhost:8766"
+            )
+        )
+        XCTAssertTrue(
+            WidgetHTTPService.shouldInjectToken(
+                loopbackPeer: true,
+                hostHeader: "127.42.0.1:8766"
+            )
+        )
+        XCTAssertTrue(
+            WidgetHTTPService.shouldInjectToken(
+                loopbackPeer: true,
+                hostHeader: "[::1]:8766"
+            )
+        )
+        XCTAssertFalse(
+            WidgetHTTPService.shouldInjectToken(
+                loopbackPeer: true,
+                hostHeader: "attacker.example:8766"
+            ),
+            "A hostile DNS name must not receive the loopback credential"
+        )
+        XCTAssertFalse(
+            WidgetHTTPService.shouldInjectToken(
+                loopbackPeer: false,
+                hostHeader: "localhost:8766"
+            ),
+            "A LAN peer cannot opt into token injection with a forged Host"
+        )
+        XCTAssertFalse(
+            WidgetHTTPService.shouldInjectToken(
+                loopbackPeer: true,
+                hostHeader: "127.0.0.1.attacker.example"
+            )
+        )
+        XCTAssertFalse(
+            WidgetHTTPService.shouldInjectToken(loopbackPeer: true, hostHeader: nil),
+            "HTTP/1.1 requests without Host must never receive credentials"
+        )
+    }
+
+    func testHeaderValueDoesNotScanPastEndOfHeaders() {
+        let request = "GET / HTTP/1.1\r\nUser-Agent: WolfWaveTests\r\n\r\nHost: localhost:8766\r\n"
+
+        XCTAssertNil(
+            WidgetHTTPService.headerValue(named: "host", in: request),
+            "Header-like body content must not authorize token injection"
+        )
+    }
+
     // MARK: - Port 0 Handling Tests
 
     func testPortZeroHandledGracefully() {
@@ -123,30 +177,46 @@ final class WidgetHTTPServiceTests: XCTestCase {
         return nil
     }
 
-    /// Fetches `GET /` from the running service and returns the body as a string.
+    /// Fetches `GET /` from the running service and returns its body and response.
     /// Retries a few times so a transient connect race right after `ready()`
     /// doesn't flake the assertion.
-    private func fetchServedWidget(port: UInt16, attempts: Int = 5, timeout: TimeInterval = 5) -> String? {
+    private func fetchServedWidgetResponse(
+        port: UInt16,
+        attempts: Int = 5,
+        timeout: TimeInterval = 5
+    ) -> (body: String, response: HTTPURLResponse)? {
         guard let url = URL(string: "http://127.0.0.1:\(port)/") else { return nil }
         for attempt in 0..<attempts {
             let exp = expectation(description: "fetch / (attempt \(attempt))")
             var body: String?
+            var httpResponse: HTTPURLResponse?
             let config = URLSessionConfiguration.ephemeral
             config.requestCachePolicy = .reloadIgnoringLocalAndRemoteCacheData
             let session = URLSession(configuration: config)
-            let task = session.dataTask(with: url) { data, _, _ in
+            let task = session.dataTask(with: url) { data, response, _ in
                 if let data { body = String(data: data, encoding: .utf8) }
+                httpResponse = response as? HTTPURLResponse
                 exp.fulfill()
             }
             task.resume()
             wait(for: [exp], timeout: timeout)
-            if let body, !body.isEmpty { return body }
+            if let body, !body.isEmpty, let httpResponse {
+                return (body, httpResponse)
+            }
             Thread.sleep(forTimeInterval: 0.05)
         }
         return nil
     }
 
-    func testServedWidgetInlinesTokensJS() async {
+    private func fetchServedWidget(
+        port: UInt16,
+        attempts: Int = 5,
+        timeout: TimeInterval = 5
+    ) -> String? {
+        fetchServedWidgetResponse(port: port, attempts: attempts, timeout: timeout)?.body
+    }
+
+    func testServedWidgetContainsBuildInlinedTokensJS() async {
         guard let (service, port) = await startBoundService() else { return }
         defer { service.stop() }
 
@@ -157,11 +227,11 @@ final class WidgetHTTPServiceTests: XCTestCase {
 
         XCTAssertTrue(
             body.contains("window.WW_TOKENS"),
-            "Served HTML should contain inlined window.WW_TOKENS literal from widget-tokens.generated.js"
+            "The built widget should contain the inlined window.WW_TOKENS literal"
         )
         XCTAssertFalse(
             body.contains("<script src=\"widget-tokens.generated.js\"></script>"),
-            "Served HTML should not still reference the external tokens JS: it should be inlined"
+            "The build should remove the external tokens script before the native server reads the asset"
         )
     }
 
@@ -182,6 +252,19 @@ final class WidgetHTTPServiceTests: XCTestCase {
             body.contains("Waiting for music"),
             "Placeholder should carry the 'Waiting for music' copy"
         )
+    }
+
+    func testServedWidgetSuppressesTokenReferrers() async {
+        guard let (service, port) = await startBoundService() else { return }
+        defer { service.stop() }
+
+        guard let result = fetchServedWidgetResponse(port: port) else {
+            XCTFail("Failed to fetch served widget.html")
+            return
+        }
+
+        XCTAssertEqual(result.response.value(forHTTPHeaderField: "Referrer-Policy"), "no-referrer")
+        XCTAssertTrue(result.body.contains("<meta name=\"referrer\" content=\"no-referrer\">"))
     }
 
     // MARK: - Connection Lifecycle Helpers

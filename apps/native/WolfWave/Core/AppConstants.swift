@@ -234,10 +234,16 @@ nonisolated enum AppConstants {
 
     /// Widget overlay configuration.
     enum Widget {
-        /// Recommended browser source dimensions for OBS overlay
-        static let recommendedWidth = 500
-        static let recommendedHeight = 120
-        static let recommendedDimensionsText = "\(recommendedWidth) x \(recommendedHeight)"
+        /// `#root` reserves 16 points on every edge around the generated card.
+        static let viewportPadding = 32
+
+        /// Recommended OBS canvas for a layout, including the root safe area.
+        static func recommendedDimensionsText(for layout: String) -> String {
+            let card = DSWidgetLayouts.size(layout)
+            let width = Int(card.width) + viewportPadding
+            let height = Int(card.height) + viewportPadding
+            return "\(width) x \(height)"
+        }
 
         /// Available widget themes
         static let themes = ["Default", "Dark", "Light", "Glass", "Neon"]

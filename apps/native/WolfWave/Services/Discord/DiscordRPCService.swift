@@ -263,7 +263,7 @@ actor DiscordRPCService {
 
         if enabled {
             await connectIfNeeded()
-            startPolling()
+            updateAvailabilityPolling()
         } else {
             stopPolling()
             reconnectTask?.cancel()
@@ -365,6 +365,7 @@ actor DiscordRPCService {
     func updatePollInterval(_ interval: TimeInterval) {
         currentPollInterval = interval
         if pollTask != nil {
+            stopPolling()
             startPolling()
         }
     }
@@ -712,9 +713,29 @@ actor DiscordRPCService {
 
     // MARK: - Polling
 
+    /// Pure lifecycle policy shared by connection transitions and tests.
+    nonisolated static func shouldPollAvailability(
+        isEnabled: Bool,
+        state: ConnectionState
+    ) -> Bool {
+        isEnabled && state == .disconnected
+    }
+
+    /// Whether the coarse availability timer currently exists.
+    var isAvailabilityPolling: Bool { pollTask != nil }
+
+    /// Synchronizes the timer with the current enabled/connection state.
+    func updateAvailabilityPolling() {
+        if Self.shouldPollAvailability(isEnabled: isEnabled, state: state) {
+            startPolling()
+        } else {
+            stopPolling()
+        }
+    }
+
     /// Starts polling for Discord availability when not connected.
-    private func startPolling() {
-        stopPolling()
+    func startPolling() {
+        guard pollTask == nil else { return }
 
         let interval = currentPollInterval
         pollTask = Task { [weak self] in
@@ -734,7 +755,7 @@ actor DiscordRPCService {
     }
 
     /// Stops the availability poll timer.
-    private func stopPolling() {
+    func stopPolling() {
         pollTask?.cancel()
         pollTask = nil
     }

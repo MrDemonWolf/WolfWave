@@ -105,7 +105,11 @@ extension AppDelegate {
         discordArtworkConsumer = Task { @MainActor [weak self] in
             for await resolution in service.artworkResolutions {
                 if let server = self?.websocketServer {
-                    await server.updateArtworkURL(resolution.url)
+                    await server.updateArtworkURL(
+                        resolution.url,
+                        track: resolution.track,
+                        artist: resolution.artist
+                    )
                 }
             }
         }
@@ -118,23 +122,10 @@ extension AppDelegate {
 
     /// Creates the WebSocket server on the configured port and enables if configured.
     func setupWebSocketServer() {
-        // Warm the LAN IP cache on a background task so the Now-Playing Server settings
-        // can render the Network Address row instantly on first open instead of waiting
-        // on `getifaddrs`. Synchronous work runs off-main; cache becomes visible to the
-        // next view init. Also schedule an async refresh that picks up later interface
-        // changes.
-        Task.detached(priority: .userInitiated) {
-            NetworkInfoService.warmCache()
-        }
+        // One off-main scan primes the LAN IP cache. Network path updates refresh
+        // it later; running both warmCache and refreshIPv4 here walked getifaddrs twice.
         Task.detached(priority: .utility) {
             await NetworkInfoService.shared.refreshIPv4()
-        }
-
-        // Prime the system font registry on a background thread. The Widget Appearance card's
-        // Font picker calls `NSFontManager.availableFontFamilies` (200-800+ entries on
-        // design-heavy Macs). Warming here makes the first call in-view near-instant.
-        Task.detached(priority: .utility) {
-            _ = NSFontManager.shared.availableFontFamilies
         }
 
         let port = Preferences.resolvedWebSocketServerPort
@@ -319,17 +310,23 @@ extension AppDelegate {
 
     /// Initializes the power state monitor and registers for power state change notifications.
     func setupPowerStateMonitor() {
-        _ = PowerStateMonitor.shared
-
         observeOnMain(Notification.Name.powerStateChanged) { [weak self] n in
             self?.powerStateChanged(n)
         }
+
+        // Register before constructing the singleton: its initial evaluation may
+        // synchronously publish reduced mode. Explicitly apply the current snapshot
+        // as well so launch state never depends on notification ordering.
+        let reduced = PowerStateMonitor.shared.isReducedMode
+        applyPowerState(reduced: reduced)
     }
 
     /// Adjusts service polling intervals when system power state changes.
     @objc func powerStateChanged(_ notification: Notification) {
-        let reduced = PowerStateMonitor.shared.isReducedMode
+        applyPowerState(reduced: PowerStateMonitor.shared.isReducedMode)
+    }
 
+    private func applyPowerState(reduced: Bool) {
         playbackSourceManager?.updateCheckInterval(
             reduced ? AppConstants.PowerManagement.reducedMusicCheckInterval : 5.0
         )
@@ -352,9 +349,10 @@ extension AppDelegate {
 
 extension AppDelegate {
 
-    /// Applies the overlay on/off state shared by the tray toggle
-    /// (`toggleWebSocket`) and the Stream Deck `.overlayToggle` action: flips the
-    /// WebSocket and widget-HTTP prefs in lockstep and broadcasts the change.
+    /// Applies the full overlay-service on/off state used by the tray toggle:
+    /// flips the WebSocket and widget-HTTP prefs in lockstep and broadcasts the
+    /// change. Stream Deck visibility is independent so its control transport
+    /// remains connected while cards are hidden.
     ///
     /// Synchronous by design so the pref write and notification post are not
     /// deferred into a `Task` (a synchronous observer would otherwise briefly
@@ -503,7 +501,23 @@ extension AppDelegate {
     /// Stops the music monitor and clears the now-playing display.
     private func stopTrackingAndUpdate() {
         playbackSourceManager?.stopTracking()
+        clearPlaybackStateAndOutputs()
+    }
+
+    /// Canonical no-track transition shared by source failure and the user
+    /// disabling Music Sync. Clears every cached/output surface together.
+    private func clearPlaybackStateAndOutputs() {
+        flushCurrentPlayToHistoryOnce()
+        currentSong = nil
+        currentArtist = nil
+        currentAlbum = nil
+        currentPlaylist = nil
+        currentDuration = 0
+        currentElapsed = 0
+        currentIsPaused = false
         postNowPlayingUpdate(song: nil, artist: nil, album: nil)
+        applyDiscordCleared()
+        Task { [weak self] in await self?.websocketServer?.clearNowPlaying() }
     }
 
     /// Enables or disables the Discord IPC service and pushes current track if enabling.
@@ -543,10 +557,25 @@ extension AppDelegate {
     @objc func websocketServerSettingChanged(_ notification: Notification) {
         let enabled = notification.enabledFlag ?? FeatureFlags.websocketEnabled
         let portChange = notification.portValue
+        let widgetEnabled = notification.widgetHTTPEnabledFlag
+        let widgetPortChange = notification.widgetPortValue
         Task { [weak self] in
-            await self?.websocketServer?.setEnabled(enabled)
-            if let portChange {
-                await self?.websocketServer?.updatePort(portChange)
+            guard let server = self?.websocketServer else { return }
+            if enabled {
+                if let portChange { await server.updatePort(portChange) }
+                await server.setEnabled(true)
+            } else {
+                await server.setEnabled(false)
+                if let portChange { await server.updatePort(portChange) }
+            }
+            if let widgetEnabled {
+                if widgetEnabled {
+                    if let widgetPortChange { await server.updateWidgetPort(widgetPortChange) }
+                    await server.setWidgetHTTPEnabled(true)
+                } else {
+                    await server.setWidgetHTTPEnabled(false)
+                    if let widgetPortChange { await server.updateWidgetPort(widgetPortChange) }
+                }
             }
         }
     }
@@ -554,7 +583,12 @@ extension AppDelegate {
     /// Toggles the widget HTTP server independently from the WebSocket server.
     @objc func widgetHTTPServerSettingChanged(_ notification: Notification) {
         let enabled = notification.enabledFlag ?? FeatureFlags.widgetHTTPEnabled
-        Task { [weak self] in await self?.websocketServer?.setWidgetHTTPEnabled(enabled) }
+        let port = Preferences.resolvedWidgetPort
+        Task { [weak self] in
+            guard let server = self?.websocketServer else { return }
+            await server.updateWidgetPort(port)
+            await server.setWidgetHTTPEnabled(enabled)
+        }
     }
 
     /// Starts or stops the song request playback monitor when the setting changes.
@@ -647,7 +681,9 @@ extension AppDelegate {
     func fetchArtworkForWidget(track: String, artist: String) {
         ArtworkService.shared.fetchArtworkURL(track: track, artist: artist) { [weak self] url in
             guard let url else { return }
-            Task { [weak self] in await self?.websocketServer?.updateArtworkURL(url) }
+            Task { [weak self] in
+                await self?.websocketServer?.updateArtworkURL(url, track: track, artist: artist)
+            }
         }
     }
 }
@@ -819,6 +855,7 @@ extension AppDelegate: PlaybackSourceDelegate {
 
         postNowPlayingUpdate(song: track, artist: artist, album: album, playlist: playlist, isPaused: isPaused)
 
+        let cachedArtworkURL = ArtworkService.shared.cachedArtworkURL(track: track, artist: artist)
         Task { [weak self] in
             await self?.websocketServer?.updateNowPlaying(
                 track: track,
@@ -826,6 +863,7 @@ extension AppDelegate: PlaybackSourceDelegate {
                 album: album,
                 duration: duration,
                 elapsed: elapsed,
+                artworkURL: cachedArtworkURL,
                 isPaused: isPaused
             )
         }
@@ -940,12 +978,7 @@ extension AppDelegate: PlaybackSourceDelegate {
             || status == "Script error"
 
         if shouldClearPlayback {
-            flushCurrentPlayToHistoryOnce()
-            currentSong = nil
-            currentArtist = nil
-            currentAlbum = nil
-            currentPlaylist = nil
-            currentIsPaused = false
+            clearPlaybackStateAndOutputs()
         }
 
         if status == "Music access denied" {
@@ -955,11 +988,8 @@ extension AppDelegate: PlaybackSourceDelegate {
             NotificationCenter.default.post(name: .musicPermissionDenied, object: nil)
         }
 
-        postNowPlayingUpdate(song: nil, artist: nil, album: nil)
-
-        if shouldClearPlayback {
-            applyDiscordCleared()
-            Task { [weak self] in await self?.websocketServer?.clearNowPlaying() }
+        if !shouldClearPlayback {
+            postNowPlayingUpdate(song: nil, artist: nil, album: nil)
         }
     }
 }

@@ -70,10 +70,26 @@ body {
   width: 100%;
   overflow: hidden;
   position: relative;
-  will-change: opacity, transform, filter;
 }
 
-#widget.widget-hidden,
+#widget.widget-hidden {
+  opacity: 0;
+  transform: none;
+  filter: none;
+  pointer-events: none;
+}
+
+/* A Browser Source can become visible before its fresh WebSocket snapshot
+ * arrives. Keep retained DOM unpainted until the server confirms the current
+ * track or explicitly reports that playback stopped. */
+body.ww-awaiting-server #widget {
+  opacity: 0;
+  transform: none;
+  filter: none;
+  pointer-events: none;
+  transition: none;
+}
+
 #widget.widget-entering {
   opacity: 0;
   transform: translateY(12px) scale(0.97);
@@ -83,8 +99,8 @@ body {
 
 #widget.widget-visible {
   opacity: 1;
-  transform: translateY(0) scale(1);
-  filter: blur(0);
+  transform: none;
+  filter: none;
   transition:
     opacity 600ms cubic-bezier(0.34, 1.56, 0.64, 1),
     transform 600ms cubic-bezier(0.34, 1.56, 0.64, 1),
@@ -160,21 +176,23 @@ body {
 /* ─── 5. Progress bar + decorative layers ────────────────────────────────── */
 
 .progress-track {
+  position: relative;
   width: 100%;
   border-radius: 9999px;
   overflow: hidden;
 }
 
 .progress-fill {
+  width: 100%;
   height: 100%;
   border-radius: 9999px;
-  /* No width transition here: the RAF loop in widget.ts already interpolates
-   * elapsed at 60Hz, so a CSS transition on top permanently lags the bar ~1s
-   * behind. The one-shot drain below is the only transition this needs. */
+  transform-origin: left center;
+  /* The 10Hz timer writes transform directly. A continuous transition would
+   * wake the compositor at 60Hz; the one-shot drain is the only transition. */
 }
 
 .progress-fill.draining {
-  transition: width 400ms ease-out;
+  transition: transform 400ms ease-out;
 }
 
 .time-row {
@@ -225,8 +243,7 @@ body {
  * ──────────────────────────────────────────────────────────────────────── */
 
 .pause-overlay {
-  opacity: 0;
-  transition: opacity 200ms cubic-bezier(0.4, 0, 0.2, 1);
+  opacity: 1;
 }
 
 #widget.is-paused .artwork {
@@ -234,10 +251,6 @@ body {
   filter: saturate(0.6);
   transition: opacity 240ms cubic-bezier(0.4, 0, 0.2, 1),
               filter 240ms cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-#widget.is-paused .pause-overlay {
-  opacity: 1;
 }
 
 /* ─── 7. In-app Settings preview ────────────────────────────────────────────
@@ -349,38 +362,58 @@ body.ww-preview #root {
   to { transform: rotate(360deg); }
 }
 
-#widget.is-paused .wolf-vinyl-disc {
+#widget.is-paused .wolf-vinyl-disc,
+#widget.widget-hidden .wolf-vinyl-disc,
+#widget.widget-exiting .wolf-vinyl-disc,
+body.ww-inactive .wolf-vinyl-disc,
+body.ww-awaiting-server .wolf-vinyl-disc {
   animation-play-state: paused;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .wolf-vinyl-disc { animation: none; }
 }
 
 /* ─── 9. Classic layout: progress knob ──────────────────────────────────────
  *
  * The linear bar is shared, but Classic adds a draggable-looking knob at the
- * fill's leading edge. It's a CSS ::after on `.progress-fill` so the existing
- * RAF loop (which sets the fill width) moves the knob for free. The shared
- * `.progress-track` clips its children, so re-enable overflow here.
+ * fill's leading edge. It stays separate from the transform-scaled fill so it
+ * remains circular. The shared track clips children; re-enable overflow here.
  * ──────────────────────────────────────────────────────────────────────── */
 
 .wolf-classic .progress-track { overflow: visible; }
 
-.wolf-classic .progress-fill {
-  position: relative;
-  overflow: visible;
-}
-
-.wolf-classic .progress-fill::after {
-  content: "";
+.progress-knob {
   position: absolute;
-  right: -5px;
   top: 50%;
   width: 11px;
   height: 11px;
-  transform: translateY(-50%);
+  transform: translate(-50%, -50%);
   border-radius: 50%;
   background: #fff;
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.5);
+}
+
+.progress-knob.draining {
+  transition: left 400ms ease-out;
+}
+
+/* Honor the OS/OBS reduced-motion preference across every animation, not just
+ * the Vinyl layout. Runtime swaps also take an immediate path in this mode. */
+@media (prefers-reduced-motion: reduce) {
+  #widget.widget-hidden,
+  #widget.widget-entering,
+  #widget.widget-visible,
+  #widget.widget-exiting {
+    transform: none;
+    filter: none;
+    transition: none;
+  }
+
+  .track-meta,
+  .artwork,
+  #widget.is-paused .artwork,
+  .pause-overlay,
+  .progress-fill.draining,
+  .progress-knob.draining {
+    transition: none;
+  }
+
+  .wolf-vinyl-disc { animation: none; }
 }
