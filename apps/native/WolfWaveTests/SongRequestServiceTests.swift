@@ -114,6 +114,20 @@ final class SongRequestServiceTests: WolfWaveTestCase {
         defaults.removeObject(forKey: AppConstants.UserDefaults.songRequestFallbackPlaylist)
     }
 
+    private func makeServiceWithLiveRequest(
+        pollInterval: Duration
+    ) -> SongRequestService {
+        queue.add(SongRequestItem(
+            title: "Later", artist: "Artist", requesterUsername: "viewer"))
+        mockController.isPlaying = true
+        mockController.currentTrackID = "streamer-track"
+        return SongRequestService(
+            queue: queue,
+            musicController: mockController,
+            pollInterval: pollInterval
+        )
+    }
+
     override func setUp() {
         super.setUp()
         queue = SongRequestQueue()
@@ -749,15 +763,7 @@ final class SongRequestServiceTests: WolfWaveTestCase {
     }
 
     func testStoppingPlaybackMonitorDoesNotPerformFinalPoll() async {
-        queue.add(SongRequestItem(
-            title: "Later", artist: "Artist", requesterUsername: "viewer"))
-        mockController.isPlaying = true
-        mockController.currentTrackID = "streamer-track"
-        service = SongRequestService(
-            queue: queue,
-            musicController: mockController,
-            pollInterval: .milliseconds(500)
-        )
+        service = makeServiceWithLiveRequest(pollInterval: .milliseconds(500))
 
         service.startPlaybackMonitoring()
         // Let the task enter its long sleep, then cancel well before a natural tick.
@@ -772,13 +778,7 @@ final class SongRequestServiceTests: WolfWaveTestCase {
     }
 
     func testReconcileDoesNotRestartStoppedPlaybackMonitor() async {
-        queue.add(SongRequestItem(
-            title: "Later", artist: "Artist", requesterUsername: "viewer"))
-        service = SongRequestService(
-            queue: queue,
-            musicController: mockController,
-            pollInterval: .milliseconds(500)
-        )
+        service = makeServiceWithLiveRequest(pollInterval: .milliseconds(500))
 
         service.startPlaybackMonitoring()
         service.stopPlaybackMonitoring()
@@ -792,15 +792,7 @@ final class SongRequestServiceTests: WolfWaveTestCase {
     }
 
     func testAutoAdvanceToggleReconcilesPlaybackPolling() async {
-        queue.add(SongRequestItem(
-            title: "Later", artist: "Artist", requesterUsername: "viewer"))
-        mockController.isPlaying = true
-        mockController.currentTrackID = "streamer-track"
-        service = SongRequestService(
-            queue: queue,
-            musicController: mockController,
-            pollInterval: .milliseconds(20)
-        )
+        service = makeServiceWithLiveRequest(pollInterval: .milliseconds(20))
         UserDefaults.standard.set(
             false, forKey: AppConstants.UserDefaults.songRequestAutoAdvance)
 
@@ -832,15 +824,7 @@ final class SongRequestServiceTests: WolfWaveTestCase {
     }
 
     func testHoldToggleReconcilesPlaybackPolling() async {
-        queue.add(SongRequestItem(
-            title: "Later", artist: "Artist", requesterUsername: "viewer"))
-        mockController.isPlaying = true
-        mockController.currentTrackID = "streamer-track"
-        service = SongRequestService(
-            queue: queue,
-            musicController: mockController,
-            pollInterval: .milliseconds(20)
-        )
+        service = makeServiceWithLiveRequest(pollInterval: .milliseconds(20))
 
         service.startPlaybackMonitoring()
         let beganPolling = await waitUntil(timeout: .seconds(1)) {
