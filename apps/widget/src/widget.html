@@ -12,16 +12,16 @@
   Do NOT edit the generated file directly. Your edits get overwritten on
   the next `bun run --filter widget build`.
 
-  Placeholders (all replaced at build time):
-    %%TAILWIND_CSS%%  → contents of dist/widget.css
-    %%TOKENS_JS%%     → contents of widget-tokens.generated.js
-    %%WIDGET_JS%%     → contents of dist/widget.js
+  Three single-use build markers below inline the compiled Tailwind CSS,
+  generated design-system tokens, and bundled widget runtime. Keep each marker
+  at its actual style/script insertion site so payloads are never duplicated.
 ═══════════════════════════════════════════════════════════════════════════════
 -->
 <html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="referrer" content="no-referrer">
 <title>WolfWave Widget</title>
 <!--
   Favicon is inlined as data: URI so the bundle never makes a second HTTP
