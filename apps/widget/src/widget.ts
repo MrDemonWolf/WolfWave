@@ -540,6 +540,8 @@ function settleWidgetHidden(el: HTMLElement): void {
     "widget-exiting",
   );
   el.classList.add("widget-hidden");
+  fillEl?.classList.remove("draining");
+  knobEl?.classList.remove("draining");
   exitTimer = null;
 }
 

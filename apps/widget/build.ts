@@ -147,12 +147,18 @@ async function emit(): Promise<void> {
 
   const banner = "<!-- GENERATED: edit apps/widget/src/widget.html and run `bun run --filter widget build` to rebuild. -->\n";
 
+  const substitutions: Array<readonly [marker: string, payload: string]> = [
+    ["%%TAILWIND_CSS%%", css],
+    ["%%TOKENS_JS%%", tokens],
+    ["%%WIDGET_JS%%", js],
+  ];
   let bundled = template;
-  bundled = replaceExactlyOnce(bundled, "%%TAILWIND_CSS%%", css);
-  bundled = replaceExactlyOnce(bundled, "%%TOKENS_JS%%", tokens);
-  bundled = replaceExactlyOnce(bundled, "%%WIDGET_JS%%", js);
+  for (const [marker, payload] of substitutions) {
+    bundled = replaceExactlyOnce(bundled, marker, payload);
+  }
 
-  const unresolvedMarkers = ["%%TAILWIND_CSS%%", "%%TOKENS_JS%%", "%%WIDGET_JS%%"]
+  const unresolvedMarkers = substitutions
+    .map(([marker]) => marker)
     .filter((marker) => bundled.includes(marker));
   if (unresolvedMarkers.length > 0) {
     throw new Error(`unresolved build markers: ${unresolvedMarkers.join(", ")}`);
