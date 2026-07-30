@@ -6,6 +6,7 @@
 //  Copyright © 2026 MrDemonWolf, Inc. All rights reserved.
 //
 
+import Security
 import XCTest
 @testable import WolfWave
 
@@ -261,11 +262,11 @@ final class WebSocketServerAuthTests: XCTestCase {
         }
     }
 
-    func testRotateReplacesAndPersistsToken() {
-        withInMemoryKeychain {
+    func testRotateReplacesAndPersistsToken() throws {
+        try withInMemoryKeychain {
             let original = WebSocketAuthToken.currentOrCreate()
 
-            let rotated = WebSocketAuthToken.rotate()
+            let rotated = try WebSocketAuthToken.rotate()
 
             XCTAssertNotEqual(rotated, original, "rotate must mint a new token")
             XCTAssertTrue(WebSocketAuthToken.isValid(rotated))
@@ -277,4 +278,42 @@ final class WebSocketServerAuthTests: XCTestCase {
             )
         }
     }
+
+    func testCurrentOrCreateKeepsOneTokenAcrossPersistenceFailureAndRecovery() {
+        let previous = KeychainService.backend
+        KeychainService.backend = FailingKeychainBackend()
+        defer { KeychainService.backend = previous }
+
+        let first = WebSocketAuthToken.currentOrCreate()
+        let second = WebSocketAuthToken.currentOrCreate()
+        XCTAssertEqual(first, second, "A Keychain outage must not split HTTP and WebSocket credentials")
+
+        let recovered = InMemoryKeychainBackend()
+        KeychainService.backend = recovered
+        let stalePersistedToken = String(repeating: "a", count: 64)
+        try? KeychainService.saveToken(stalePersistedToken)
+        let persisted = WebSocketAuthToken.currentOrCreate()
+
+        XCTAssertEqual(persisted, first, "The active session token must win over stale Keychain state")
+        XCTAssertEqual(KeychainService.loadToken(), first, "The session token should persist after recovery")
+    }
+
+    func testRotateDoesNotPublishAnUnpersistedToken() {
+        let previous = KeychainService.backend
+        KeychainService.backend = FailingKeychainBackend()
+        defer { KeychainService.backend = previous }
+
+        XCTAssertThrowsError(try WebSocketAuthToken.rotate())
+        XCTAssertNil(KeychainService.loadToken())
+    }
+}
+
+private final class FailingKeychainBackend: KeychainBackend, @unchecked Sendable {
+    func save(account _: String, value _: String) throws {
+        throw KeychainService.KeychainError.saveFailed(errSecInteractionNotAllowed)
+    }
+
+    func load(account _: String) -> String? { nil }
+    func delete(account _: String) {}
+    func deleteAll() {}
 }

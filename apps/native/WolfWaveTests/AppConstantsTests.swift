@@ -120,8 +120,11 @@ struct AppConstantsTests {
     
     @Test("Widget constants are defined")
     func testWidgetConstants() async throws {
-        #expect(AppConstants.Widget.recommendedWidth == 500)
-        #expect(AppConstants.Widget.recommendedHeight == 120)
+        #expect(AppConstants.Widget.recommendedDimensionsText(for: "Horizontal") == "532 x 132")
+        #expect(AppConstants.Widget.recommendedDimensionsText(for: "Vertical") == "252 x 312")
+        #expect(AppConstants.Widget.recommendedDimensionsText(for: "Compact") == "382 x 88")
+        #expect(AppConstants.Widget.recommendedDimensionsText(for: "Vinyl") == "292 x 332")
+        #expect(AppConstants.Widget.recommendedDimensionsText(for: "Classic") == "472 x 144")
         #expect(!AppConstants.Widget.themes.isEmpty)
         #expect(AppConstants.Widget.themes.count == 5)
         #expect(!AppConstants.Widget.layouts.isEmpty)

@@ -7,6 +7,7 @@
 //
 
 import Foundation
+import os
 
 /// Manages the per-install authentication token used to gate WebSocket
 /// overlay connections.
@@ -22,6 +23,10 @@ import Foundation
 /// an in-memory backend there so `currentOrCreate()` / `rotate()` can be covered
 /// without touching the real Keychain (which prompts under ad-hoc test signing).
 nonisolated enum WebSocketAuthToken {
+    /// Stable in-process fallback for the rare case where Keychain persistence
+    /// is temporarily unavailable. Without this guard every caller would mint
+    /// a different token, splitting the HTTP widget and WebSocket listener.
+    private static let sessionToken = OSAllocatedUnfairLock<String?>(initialState: nil)
 
     /// Subprotocol prefix advertised by the widget on `new WebSocket(url, [...])`
     /// and checked server-side.
@@ -30,31 +35,64 @@ nonisolated enum WebSocketAuthToken {
     /// Returns the stored token, minting and persisting one on first call.
     @discardableResult
     static func currentOrCreate() -> String {
-        if let existing = KeychainService.loadToken(), !existing.isEmpty {
-            return existing
+        sessionToken.withLock { fallback in
+            if let sessionValue = fallback {
+                // Persistence can recover later in the same launch (for example,
+                // after the Keychain unlocks). Retry the same credential instead
+                // of switching back to a stale persisted token and splitting
+                // already-running HTTP/WebSocket consumers.
+                do {
+                    try KeychainService.saveToken(sessionValue)
+                    fallback = nil
+                    return sessionValue
+                } catch {
+                    Log.error(
+                        "WebSocketAuthToken: Failed to persist session token: \(error)",
+                        category: "WebSocket"
+                    )
+                }
+                return sessionValue
+            }
+            if let existing = KeychainService.loadToken(), !existing.isEmpty {
+                return existing
+            }
+
+            let fresh = generate()
+            do {
+                try KeychainService.saveToken(fresh)
+                fallback = nil
+            } catch {
+                Log.error("WebSocketAuthToken: Failed to persist new token: \(error)", category: "WebSocket")
+                fallback = fresh
+            }
+            return fresh
         }
-        let fresh = generate()
-        do {
-            try KeychainService.saveToken(fresh)
-        } catch {
-            Log.error("WebSocketAuthToken: Failed to persist new token: \(error)", category: "WebSocket")
+    }
+
+    /// Persists an explicitly supplied token and makes it authoritative for the
+    /// current process. Settings uses this path so a successful manual edit also
+    /// clears any temporary session fallback created during a Keychain outage.
+    static func persist(_ token: String) throws {
+        try sessionToken.withLock { fallback in
+            try KeychainService.saveToken(token)
+            fallback = nil
         }
-        return fresh
     }
 
     /// Mints a fresh token, replaces the stored one, and returns it.
     /// Active connections continue using the previous token until they
     /// disconnect. Caller is responsible for restarting the server when
     /// it wants to invalidate every client.
+    /// - Throws: The Keychain persistence error. No in-memory token changes
+    ///   until the new credential has been saved successfully.
     @discardableResult
-    static func rotate() -> String {
-        let fresh = generate()
-        do {
+    static func rotate() throws -> String {
+        try sessionToken.withLock { fallback in
+            let fresh = generate()
             try KeychainService.saveToken(fresh)
-        } catch {
-            Log.error("WebSocketAuthToken: Failed to rotate token: \(error)", category: "WebSocket")
+            fallback = nil
+            return fresh
         }
-        return fresh
     }
 
     /// Returns the subprotocol string a client must offer to be accepted.
