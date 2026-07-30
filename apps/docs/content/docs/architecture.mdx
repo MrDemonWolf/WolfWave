@@ -138,7 +138,7 @@ Discord Rich Presence integration using:
 Local WebSocket server for OBS stream overlays using:
 
 - **Network.framework `NWListener`**: Native WebSocket server with auto-ping and multi-client support.
-- **JSON Broadcasting**: Sends `welcome`, `now_playing`, `progress`, `playback_state`, `widget_config`, and (for the Stream Deck plugin) `queue_state` / `health` messages.
+- **JSON Broadcasting**: Sends `welcome`, `now_playing`, `progress`, `playback_state`, `overlay_visibility`, `widget_config`, and (for the Stream Deck plugin) `queue_state` / `health` messages.
 - **Bidirectional control channel**: Parses inbound `command` frames from an authenticated client (the Stream Deck plugin) via an injected `onCommand` handler and replies with an `ack`. Envelope decode is pure (`StreamDeckControl.parse`); the command router lives in `AppDelegate+StreamDeck`. See the Stream Deck control-API notes in `apps/native/docs/streamdeck-control-api.md`.
 - **Progress Timer**: 1-second interval broadcasts elapsed-time estimation to avoid polling ScriptingBridge.
 - **Auto-retry**: Reconnects the listener after failures with configurable delay.
