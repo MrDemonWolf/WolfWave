@@ -71,6 +71,49 @@ final class ArtworkServiceNetworkTests: XCTestCase {
         let links = await fetchLinks(track: "Song", artist: "Artist")
 
         XCTAssertNil(links.artworkURL)
+        XCTAssertFalse(
+            service.hasAttemptedTrackLinks(track: "Song", artist: "Artist"),
+            "A transient transport failure must remain retryable"
+        )
+    }
+
+    func testTransportFailureIsRetriedInsteadOfNegativeCached() async {
+        let counter = ThreadSafeBox(0)
+        MockURLProtocol.requestHandler = { request in
+            counter.mutate { $0 += 1 }
+            let attempt = counter.value
+            if attempt == 1 { throw URLError(.timedOut) }
+            let json = #"{"results":[{"artworkUrl100":"https://cdn.example/100x100.jpg"}]}"#
+            return (MockURLProtocol.httpResponse(for: request, status: 200), Data(json.utf8))
+        }
+
+        let first = await fetchLinks(track: "Retry", artist: "Artist")
+        let second = await fetchLinks(track: "Retry", artist: "Artist")
+
+        XCTAssertNil(first.artworkURL)
+        XCTAssertEqual(second.artworkURL, "https://cdn.example/512x512.jpg")
+        XCTAssertEqual(counter.value, 2)
+    }
+
+    func testServerFailureIsRetriedInsteadOfNegativeCached() async {
+        let counter = ThreadSafeBox(0)
+        MockURLProtocol.requestHandler = { request in
+            counter.mutate { $0 += 1 }
+            let attempt = counter.value
+            if attempt == 1 {
+                return (MockURLProtocol.httpResponse(for: request, status: 503), Data())
+            }
+            return (
+                MockURLProtocol.httpResponse(for: request, status: 200),
+                Data(#"{"results":[]}"#.utf8)
+            )
+        }
+
+        _ = await fetchLinks(track: "Retry 503", artist: "Artist")
+        _ = await fetchLinks(track: "Retry 503", artist: "Artist")
+
+        XCTAssertEqual(counter.value, 2)
+        XCTAssertTrue(service.hasAttemptedTrackLinks(track: "Retry 503", artist: "Artist"))
     }
 
     func testFetchTrackLinksPopulatesCache() async {

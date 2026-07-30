@@ -70,12 +70,13 @@ extension AppDelegate {
             return .success(action)
 
         case .overlayToggle:
-            // Shares the tray toggleWebSocket path: flips WebSocket + widget-HTTP
-            // prefs in lockstep and broadcasts, then brings the widget HTTP
-            // server up/down (OBS loads the widget page over HTTP).
-            let newValue = !FeatureFlags.websocketEnabled
-            applyOverlayEnabled(newValue)
-            await websocketServer?.setWidgetHTTPEnabled(newValue)
+            // Hide/show playback cards without stopping the authenticated socket
+            // that carries this command and its acknowledgement. The tray setting
+            // remains the explicit control for shutting the server down entirely.
+            guard let websocketServer else {
+                return .failure(action.rawValue, "unavailable")
+            }
+            _ = await websocketServer.toggleOverlayVisibility()
             return .success(action)
 
         case .discordToggle:
@@ -120,6 +121,7 @@ extension AppDelegate {
         // connection state in Phase B when a key actually consumes it.
         let discord = FeatureFlags.discordEnabled
         let overlay = websocketServer?.state == .listening
+            && websocketServer?.overlayVisible == true
         Task { [weak self] in
             await self?.websocketServer?.broadcastQueueState(count: count, pending: pending)
             await self?.websocketServer?.broadcastHealth(

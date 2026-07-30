@@ -468,7 +468,7 @@ fileprivate struct WebSocketServerCard: View {
         }
         tokenError = nil
         do {
-            try KeychainService.saveToken(trimmed)
+            try WebSocketAuthToken.persist(trimmed)
             currentToken = trimmed
             tokenDraft = trimmed
             applyTokenToServer(trimmed)
@@ -480,11 +480,16 @@ fileprivate struct WebSocketServerCard: View {
 
     /// Mints a fresh random token, persists it, and pushes it onto the service.
     private func regenerateToken() {
-        let fresh = WebSocketAuthToken.rotate()
-        currentToken = fresh
-        tokenDraft = fresh
-        tokenError = nil
-        applyTokenToServer(fresh)
+        do {
+            let fresh = try WebSocketAuthToken.rotate()
+            currentToken = fresh
+            tokenDraft = fresh
+            tokenError = nil
+            applyTokenToServer(fresh)
+        } catch {
+            Log.error("WebSocketSettings: Failed to rotate token: \(error)", category: "WebSocket")
+            tokenError = "Couldn't save the new token. Your current token is still active."
+        }
     }
 
     /// Pushes a token swap onto the live `WebSocketServerService` so existing
@@ -711,7 +716,9 @@ fileprivate struct WebSocketBrowserSourceCard: View {
             Divider().padding(.leading, cardPadding)
 
             CalloutBanner(
-                "In OBS, set the Width and Height to **\(AppConstants.Widget.recommendedDimensionsText)** for best results. Enable \"Shutdown source when not visible\" so the widget reconnects properly.",
+                "In OBS, set Width and Height to **\(AppConstants.Widget.recommendedDimensionsText(for: widgetLayout))** "
+                    + "for the \(widgetLayout) layout. Enable \"Shutdown source when not visible\" "
+                    + "so the widget reconnects properly.",
                 style: .info
             )
             .padding(.horizontal, cardPadding)
