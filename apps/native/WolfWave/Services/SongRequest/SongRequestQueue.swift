@@ -75,7 +75,7 @@ final class SongRequestQueue {
     }
 
     private func postQueueChanged() {
-        NotificationCenter.default.post(name: .songRequestQueueChanged, object: nil)
+        NotificationCenter.default.post(name: .songRequestQueueChanged, object: self)
     }
 
     /// Add a song request to the end of the queue.
