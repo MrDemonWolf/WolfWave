@@ -502,9 +502,11 @@ nonisolated final class WidgetHTTPService: @unchecked Sendable {
     // MARK: - Peer Inspection
 
     /// Extracts a case-insensitive HTTP header from a completed request block.
-    private static func headerValue(named name: String, in request: String) -> String? {
+    static func headerValue(named name: String, in request: String) -> String? {
         let prefix = name.lowercased() + ":"
-        for line in request.components(separatedBy: "\r\n").dropFirst() {
+        let headerEnd = request.range(of: "\r\n\r\n")?.lowerBound ?? request.endIndex
+        let headerBlock = String(request[..<headerEnd])
+        for line in headerBlock.components(separatedBy: "\r\n").dropFirst() {
             let lower = line.lowercased()
             guard lower.hasPrefix(prefix) else { continue }
             return String(line.dropFirst(prefix.count))

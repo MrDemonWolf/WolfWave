@@ -716,8 +716,10 @@ fileprivate struct WebSocketBrowserSourceCard: View {
             Divider().padding(.leading, cardPadding)
 
             CalloutBanner(
-                "In OBS, set Width and Height to **\(AppConstants.Widget.recommendedDimensionsText(for: widgetLayout))** "
-                    + "for the \(widgetLayout) layout. Enable \"Shutdown source when not visible\" "
+                "In OBS, set Width and Height to "
+                    + "**\(AppConstants.Widget.recommendedDimensionsText(for: widgetLayout))** "
+                    + "for the \(widgetLayout) layout. "
+                    + "Enable \"Shutdown source when not visible\" "
                     + "so the widget reconnects properly.",
                 style: .info
             )

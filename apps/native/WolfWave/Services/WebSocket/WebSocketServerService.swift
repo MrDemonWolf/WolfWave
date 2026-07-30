@@ -248,6 +248,7 @@ actor WebSocketServerService {
     func updatePort(_ newPort: UInt16) {
         guard newPort >= AppConstants.WebSocketServer.minPort,
               newPort <= AppConstants.WebSocketServer.maxPort else { return }
+        guard port != newPort else { return }
 
         let needsRestart = listener != nil
         port = newPort
