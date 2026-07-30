@@ -110,6 +110,15 @@ final class WidgetHTTPServiceTests: XCTestCase {
         )
     }
 
+    func testHeaderValueDoesNotScanPastEndOfHeaders() {
+        let request = "GET / HTTP/1.1\r\nUser-Agent: WolfWaveTests\r\n\r\nHost: localhost:8766\r\n"
+
+        XCTAssertNil(
+            WidgetHTTPService.headerValue(named: "host", in: request),
+            "Header-like body content must not authorize token injection"
+        )
+    }
+
     // MARK: - Port 0 Handling Tests
 
     func testPortZeroHandledGracefully() {

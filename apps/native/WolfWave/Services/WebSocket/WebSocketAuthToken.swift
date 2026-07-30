@@ -28,6 +28,10 @@ nonisolated enum WebSocketAuthToken {
     /// a different token, splitting the HTTP widget and WebSocket listener.
     private static let sessionToken = OSAllocatedUnfairLock<String?>(initialState: nil)
 
+    /// Serializes token lifecycle operations without holding the short-lived
+    /// session-state lock across Keychain I/O.
+    private static let operationGate = DispatchSemaphore(value: 1)
+
     /// Subprotocol prefix advertised by the widget on `new WebSocket(url, [...])`
     /// and checked server-side.
     static let subprotocolPrefix = "wolfwave.token."
@@ -35,48 +39,50 @@ nonisolated enum WebSocketAuthToken {
     /// Returns the stored token, minting and persisting one on first call.
     @discardableResult
     static func currentOrCreate() -> String {
-        sessionToken.withLock { fallback in
-            if let sessionValue = fallback {
-                // Persistence can recover later in the same launch (for example,
-                // after the Keychain unlocks). Retry the same credential instead
-                // of switching back to a stale persisted token and splitting
-                // already-running HTTP/WebSocket consumers.
-                do {
-                    try KeychainService.saveToken(sessionValue)
-                    fallback = nil
-                    return sessionValue
-                } catch {
-                    Log.error(
-                        "WebSocketAuthToken: Failed to persist session token: \(error)",
-                        category: "WebSocket"
-                    )
-                }
+        operationGate.wait()
+        defer { operationGate.signal() }
+
+        if let sessionValue = sessionToken.withLock({ $0 }) {
+            // Persistence can recover later in the same launch (for example,
+            // after the Keychain unlocks). Retry the same credential instead
+            // of switching back to a stale persisted token and splitting
+            // already-running HTTP/WebSocket consumers.
+            do {
+                try KeychainService.saveToken(sessionValue)
+                sessionToken.withLock { $0 = nil }
+            } catch {
+                Log.error(
+                    "WebSocketAuthToken: Failed to persist session token: \(error)",
+                    category: "WebSocket"
+                )
                 return sessionValue
             }
-            if let existing = KeychainService.loadToken(), !existing.isEmpty {
-                return existing
-            }
-
-            let fresh = generate()
-            do {
-                try KeychainService.saveToken(fresh)
-                fallback = nil
-            } catch {
-                Log.error("WebSocketAuthToken: Failed to persist new token: \(error)", category: "WebSocket")
-                fallback = fresh
-            }
-            return fresh
+            return sessionValue
         }
+        if let existing = KeychainService.loadToken(), !existing.isEmpty {
+            return existing
+        }
+
+        let fresh = generate()
+        do {
+            try KeychainService.saveToken(fresh)
+            sessionToken.withLock { $0 = nil }
+        } catch {
+            Log.error("WebSocketAuthToken: Failed to persist new token: \(error)", category: "WebSocket")
+            sessionToken.withLock { $0 = fresh }
+        }
+        return fresh
     }
 
     /// Persists an explicitly supplied token and makes it authoritative for the
     /// current process. Settings uses this path so a successful manual edit also
     /// clears any temporary session fallback created during a Keychain outage.
     static func persist(_ token: String) throws {
-        try sessionToken.withLock { fallback in
-            try KeychainService.saveToken(token)
-            fallback = nil
-        }
+        operationGate.wait()
+        defer { operationGate.signal() }
+
+        try KeychainService.saveToken(token)
+        sessionToken.withLock { $0 = nil }
     }
 
     /// Mints a fresh token, replaces the stored one, and returns it.
@@ -87,12 +93,13 @@ nonisolated enum WebSocketAuthToken {
     ///   until the new credential has been saved successfully.
     @discardableResult
     static func rotate() throws -> String {
-        try sessionToken.withLock { fallback in
-            let fresh = generate()
-            try KeychainService.saveToken(fresh)
-            fallback = nil
-            return fresh
-        }
+        operationGate.wait()
+        defer { operationGate.signal() }
+
+        let fresh = generate()
+        try KeychainService.saveToken(fresh)
+        sessionToken.withLock { $0 = nil }
+        return fresh
     }
 
     /// Returns the subprotocol string a client must offer to be accepted.
