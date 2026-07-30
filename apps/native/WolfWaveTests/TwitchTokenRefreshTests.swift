@@ -20,7 +20,7 @@ import XCTest
 ///   the injectable in-memory Keychain backend (never the real Keychain).
 ///
 /// The live socket orchestration around the refresh is not integration-tested
-/// here; that path degrades to interactive re-auth on any failure by design.
+/// here; a second 401 requests re-auth while transient failures keep backing off.
 @MainActor
 final class TwitchTokenRefreshTests: XCTestCase {
 

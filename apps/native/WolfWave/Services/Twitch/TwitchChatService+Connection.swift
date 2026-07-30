@@ -11,6 +11,27 @@ import Network
 
 extension TwitchChatService {
 
+    // MARK: - Reconnect Decisions
+
+    enum RefreshedReconnectFailureDisposition: Sendable, Equatable {
+        case authenticationFailure
+        case retryableFailure
+        case cancelled
+    }
+
+    /// Separates a second 401 from cancellation and transient connection errors
+    /// after a reactive token refresh.
+    nonisolated static func refreshedReconnectFailureDisposition(
+        for error: Error
+    ) -> RefreshedReconnectFailureDisposition {
+        if error is CancellationError { return .cancelled }
+        if let connectionError = error as? ConnectionError,
+           case .authenticationFailed = connectionError {
+            return .authenticationFailure
+        }
+        return .retryableFailure
+    }
+
     // MARK: - Network Monitoring
 
     /// Starts monitoring network connectivity and sets up automatic reconnection.
@@ -118,12 +139,27 @@ extension TwitchChatService {
     }
 
     private func attemptReconnect(channelName: String, token: String, clientID: String) async {
-        guard !Task.isCancelled,
-              !isProcessingDisconnect,
-              reconnectChannelName == channelName,
+        guard !Task.isCancelled else {
+            Log.debug(
+                "TwitchChatService: Scheduled reconnect cancelled before starting",
+                category: "Twitch")
+            return
+        }
+        guard !isProcessingDisconnect else {
+            Log.debug(
+                "TwitchChatService: Disconnect in progress, skipping scheduled reconnect",
+                category: "Twitch")
+            return
+        }
+        guard reconnectChannelName == channelName,
               reconnectToken == token,
-              reconnectClientID == clientID,
-              isNetworkReachable else {
+              reconnectClientID == clientID else {
+            Log.info(
+                "TwitchChatService: Connection configuration changed, skipping stale reconnect",
+                category: "Twitch")
+            return
+        }
+        guard isNetworkReachable else {
             Log.info(
                 "TwitchChatService: Network unavailable, skipping scheduled reconnect",
                 category: "Twitch")
@@ -184,8 +220,8 @@ extension TwitchChatService {
     }
 
     /// Handles a 401 during reconnect. Attempts exactly ONE reactive token
-    /// refresh (no loop); on success it reconnects with the fresh token, and on
-    /// any failure it signals interactive re-auth and stops the reconnect loop.
+    /// refresh (no loop). A second 401 signals interactive re-auth; a non-auth
+    /// connection failure resumes the existing bounded reconnect backoff.
     private func handleAuthenticationFailureDuringReconnect(
         channelName: String,
         clientID: String,
@@ -213,13 +249,30 @@ extension TwitchChatService {
                     "TwitchChatService: Reconnection transport started after token refresh; awaiting session_welcome",
                     category: "Twitch")
                 return
-            } catch is CancellationError {
-                return
             } catch {
                 guard connectionAttemptIsCurrent(refreshedGeneration) else { return }
-                Log.warn(
-                    "TwitchChatService: Reconnect after refresh failed - \(error.localizedDescription)",
-                    category: "Twitch")
+                switch Self.refreshedReconnectFailureDisposition(for: error) {
+                case .cancelled:
+                    return
+                case .authenticationFailure:
+                    Log.error(
+                        "TwitchChatService: Refreshed token was rejected with 401",
+                        category: "Twitch")
+                case .retryableFailure:
+                    Log.warn(
+                        "TwitchChatService: Reconnect after refresh failed transiently - "
+                            + error.localizedDescription,
+                        category: "Twitch")
+                    if reconnectionAttempts < maxReconnectionAttempts && isNetworkReachable {
+                        scheduleReconnect()
+                    } else if !isNetworkReachable {
+                        Log.info(
+                            "TwitchChatService: Network no longer reachable, "
+                                + "stopping reconnection attempts",
+                            category: "Twitch")
+                    }
+                    return
+                }
             }
         }
         // Refresh unavailable or failed: stop looping and ask the user to re-auth.
