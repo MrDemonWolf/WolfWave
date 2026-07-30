@@ -37,7 +37,7 @@ WolfWave/
 │   ├── SongRequest/               # Queue, resolvers, AppleMusicController, blocklist, vote-skip
 │   ├── Twitch/                    # ChatService (EventSub), ChannelPointsService, DeviceAuth, Commands/
 │   ├── UpdateChecker/             # SparkleUpdaterService
-│   └── WebSocket/                 # WebSocketServerService (+ StreamDeck control commands) + WidgetHTTPService (token-gated)
+│   └── WebSocket/                 # Token-gated WebSocketServerService (+ Stream Deck commands) + static WidgetHTTPService
 ├── Views/                         # SwiftUI settings shell + per-section views + Onboarding wizard
 └── Resources/                     # widget.html, Assets.xcassets, dev-appcast.xml
 ```
@@ -142,7 +142,7 @@ Local WebSocket server for OBS stream overlays using:
 - **Bidirectional control channel**: Parses inbound `command` frames from an authenticated client (the Stream Deck plugin) via an injected `onCommand` handler and replies with an `ack`. Envelope decode is pure (`StreamDeckControl.parse`); the command router lives in `AppDelegate+StreamDeck`. See the Stream Deck control-API notes in `apps/native/docs/streamdeck-control-api.md`.
 - **Progress Timer**: 1-second interval broadcasts elapsed-time estimation to avoid polling ScriptingBridge.
 - **Auto-retry**: Reconnects the listener after failures with configurable delay.
-- **LAN-reachable, token-gated**: Binds to all interfaces on `:8765` so a second-PC OBS or phone on the same network can connect. Every accepted connection. Loopback **and** LAN. Must present `Sec-WebSocket-Protocol: wolfwave.token.<hex>` matching the per-install token in the macOS Keychain. See [Security](/docs/security#websocket-server-security).
+- **LAN-reachable, token-gated**: Binds to all interfaces on `:8765` so a second-PC OBS or phone on the same network can connect. Every WebSocket connection, loopback or LAN, must present `Sec-WebSocket-Protocol: wolfwave.token.<hex>` matching the per-install token in the macOS Keychain. See [Security](/docs/security#websocket-server-security).
 
 Owns a `WidgetHTTPService` instance that starts and stops alongside it.
 
@@ -150,17 +150,19 @@ Owns a `WidgetHTTPService` instance that starts and stops alongside it.
 
 Tiny companion HTTP server that serves the bundled `widget.html` to OBS:
 
-- **LAN-reachable**: Binds to all interfaces on `:8766` so remote browsers can pull the widget HTML. Same token-gating rules as the WS listener. Loopback peers get the token auto-injected, remote browsers must supply `?token=…`.
+- **LAN-reachable**: Binds to all interfaces on `:8766` so remote browsers can pull the widget HTML. The static HTTP response is not authenticated.
+- **Credential bootstrap**: Responses inject the token only for a loopback TCP peer plus a literal local `Host`, and mark token-bearing HTML `no-store`. LAN URLs carry `?token=…`; the browser script forwards it in the authenticated WebSocket handshake.
 - **`GET /`** → `200 OK` with `widget.html` bytes from the app bundle.
-- **All other requests** → `404 Not Found`.
+- **Generated assets**: `/widget-tokens.generated.js`, `/favicon.ico`, and `/favicon.png` are also served.
+- **All other paths** → `404 Not Found`.
 - **Lifecycle**: Owned by `WebSocketServerService`; starts/stops with the WS server.
 
 The bundled `widget.html` is a **generated artifact**. Its source lives in
 the `apps/widget/` workspace (Tailwind + TypeScript), and the build pipeline
 inlines the compiled CSS, design tokens, and JS runtime into a single
 self-contained HTML file. The committed `widget.html` ships as-is (Xcode does
-not rebuild it); CI rebuilds it before every `xcodebuild` invocation and fails
-the PR on any drift between the `apps/widget/` sources and the committed output. See the
+not rebuild it); CI rebuilds it before `xcodebuild`, and test CI fails the PR on
+drift between the `apps/widget/` sources and committed output. See the
 [OBS Widget Architecture](/docs/widget) page for the full pipeline,
 message contract, theme/layout system, and transition state machine.
 
