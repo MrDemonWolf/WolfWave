@@ -532,6 +532,9 @@ fileprivate struct WebSocketBrowserSourceCard: View {
     @AppStorage(AppConstants.UserDefaults.widgetHTTPEnabled)
     private var widgetHTTPEnabled = false
 
+    @AppStorage(AppConstants.UserDefaults.widgetLayout)
+    private var widgetLayout = AppConstants.Widget.Defaults.layout
+
     @AppStorage(AppConstants.UserDefaults.widgetPort)
     private var storedWidgetPort: Int = Int(AppConstants.WebSocketServer.widgetDefaultPort)
 
