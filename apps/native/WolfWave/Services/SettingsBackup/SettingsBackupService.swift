@@ -151,15 +151,19 @@ struct SettingsBackupService {
         center.postEnabled(.streamerModeChanged, enabled: defaults.bool(forKey: keys.streamerModeEnabled))
         center.postDockVisibility(mode: defaults.string(forKey: keys.dockVisibility) ?? AppConstants.DockVisibility.default)
 
-        // Only push a port when the user has a custom one stored; the resolved
-        // accessor centralizes the clamping so a bad value can never trap.
-        let port: UInt16? = Preferences.websocketServerPort > 0
-            ? Preferences.resolvedWebSocketServerPort
-            : nil
+        // Always send both resolved ports. A stored zero means "use default";
+        // omitting it left an already-running custom-port listener unchanged.
         center.postWebSocketServerChanged(
             enabled: defaults.bool(forKey: keys.websocketEnabled),
             widgetHTTPEnabled: defaults.bool(forKey: keys.widgetHTTPEnabled),
-            port: port
+            port: Preferences.resolvePort(
+                defaults.integer(forKey: keys.websocketServerPort),
+                default: AppConstants.WebSocketServer.defaultPort
+            ),
+            widgetPort: Preferences.resolvePort(
+                defaults.integer(forKey: keys.widgetPort),
+                default: AppConstants.WebSocketServer.widgetDefaultPort
+            )
         )
     }
 

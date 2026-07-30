@@ -79,7 +79,7 @@ extension TwitchChatService {
             reply: reply
         )
 
-        if commandsEnabled {
+        if commandsEnabled, Self.isPotentialCommand(text) {
             let roles = chatMessage.roles
             let bypassCooldown = roles.isModerator || roles.isBroadcaster
 
@@ -239,8 +239,7 @@ extension TwitchChatService {
         sessionID = nil
         receiveTask?.cancel()
         receiveTask = nil
-        keepaliveWatchdogTask?.cancel()
-        keepaliveWatchdogTask = nil
+        cancelKeepaliveWatchdog()
         sessionWelcomeTask?.cancel()
         sessionWelcomeTask = nil
 
@@ -331,6 +330,12 @@ extension TwitchChatService {
         }
 
         cancelSessionWelcomeTimeout()
+        reconnectTask?.cancel()
+        reconnectTask = nil
+        // The WebSocket setup call returning is not success; this welcome is the
+        // first proof that the EventSub transport is usable.
+        reconnectionAttempts = 0
+        networkReconnectCycles = 0
         self.sessionID = sessionID
         Log.info(
             "TwitchChatService: EventSub session established with ID: \(sessionID)",

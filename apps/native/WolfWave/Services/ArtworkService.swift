@@ -210,16 +210,43 @@ nonisolated final class ArtworkService: @unchecked Sendable {
             return
         }
 
-        session.dataTask(with: url) { [weak self] data, _, error in
+        session.dataTask(with: url) { [weak self] data, response, error in
             guard let self else { return }
-            guard let data, error == nil,
-                  let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-                  let results = json["results"] as? [[String: Any]],
-                  let first = results.first
-            else {
-                Log.debug("Artwork: iTunes lookup failed for \"\(track)\" by \(artist)", category: "Artwork")
+
+            let emptyLinks = TrackLinks(artworkURL: nil, trackViewURL: nil, songLinkURL: nil)
+            guard error == nil, let data else {
+                Log.debug(
+                    "Artwork: iTunes transport failed for \"\(track)\" by \(artist)",
+                    category: "Artwork"
+                )
+                self.finishInFlight(cacheKey: cacheKey, with: emptyLinks)
+                return
+            }
+            guard let http = response as? HTTPURLResponse,
+                  (200..<300).contains(http.statusCode) else {
+                let status = (response as? HTTPURLResponse)?.statusCode ?? 0
+                Log.debug(
+                    "Artwork: iTunes lookup returned HTTP \(status) for \"\(track)\"",
+                    category: "Artwork"
+                )
+                self.finishInFlight(cacheKey: cacheKey, with: emptyLinks)
+                return
+            }
+            guard let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+                  let results = json["results"] as? [[String: Any]] else {
+                Log.debug(
+                    "Artwork: iTunes lookup returned malformed JSON for \"\(track)\"",
+                    category: "Artwork"
+                )
+                self.finishInFlight(cacheKey: cacheKey, with: emptyLinks)
+                return
+            }
+
+            guard let first = results.first else {
+                // A valid 2xx empty result is a real miss. Persist only this case;
+                // transient transport/HTTP/decoding failures above remain retryable.
                 self.cacheQueue.sync { self.recordResolution(cacheKey) }
-                self.finishInFlight(cacheKey: cacheKey, with: TrackLinks(artworkURL: nil, trackViewURL: nil, songLinkURL: nil))
+                self.finishInFlight(cacheKey: cacheKey, with: emptyLinks)
                 return
             }
 

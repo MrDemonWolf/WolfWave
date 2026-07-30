@@ -11,7 +11,7 @@
         "apps/docs/app/tokens.generated.css",
         "apps/native/WolfWave/Resources/widget-tokens.generated.js",
         "apps/marketing/shared/tokens.generated.ts",
-        "apps/docs/app/(home)/_widgets/widget-themes.generated.ts"
+        "apps/docs/app/*/_widgets/widget-themes.generated.ts"
       ]
     },
     "//#ds:lint": {
@@ -28,16 +28,17 @@
     "widget#build": {
       "dependsOn": ["//#tokens"],
       "inputs": [
-        "apps/widget/src/**",
-        "apps/widget/tailwind.config.ts",
-        "apps/widget/postcss.config.js",
-        "apps/widget/build.ts",
-        "apps/widget/package.json",
-        "design-system/tokens.json"
+        "src/**",
+        "tailwind.config.ts",
+        "postcss.config.js",
+        "build.ts",
+        "package.json",
+        "$TURBO_ROOT$/design-system/tokens.json",
+        "$TURBO_ROOT$/apps/native/WolfWave/Resources/widget-tokens.generated.js"
       ],
       "outputs": [
-        "apps/widget/dist/**",
-        "apps/native/WolfWave/Resources/widget.html"
+        "dist/**",
+        "$TURBO_ROOT$/apps/native/WolfWave/Resources/widget.html"
       ]
     },
     "dev": {

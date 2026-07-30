@@ -128,7 +128,7 @@ Listening History is **off by default**. When you turn it on, WolfWave appends a
 
 <Accordion title="Does the Now-Playing Widget URL leak if I screenshare it?">
 
-The widget URL embeds a per-install auth token. If you accidentally show it on stream you can regenerate it from **Settings → Stream Widgets**. That drops every active connection until OBS reconnects with the new URL. Before going live, flip on **Streamer Mode** (see above) to mask the URL in the WolfWave UI entirely.
+The same-Mac localhost URL does not contain the token; WolfWave injects it into the served HTML. The LAN link does include `?token=…` as WebSocket bootstrap, so treat that link as private. If you expose it, regenerate the token in **Settings → Stream Widgets**; active WebSocket clients disconnect and LAN sources need the updated link. Before going live, use **Streamer Mode** (see above) to mask URLs and credentials in the WolfWave UI.
 
 </Accordion>
 

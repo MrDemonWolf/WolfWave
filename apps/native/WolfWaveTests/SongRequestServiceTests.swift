@@ -26,6 +26,7 @@ final class MockAppleMusicController: AppleMusicControlling {
     /// `nil` track key on some ticks). When `nil`, the snapshot is derived from
     /// `isPlaying` / `isPaused` / `currentTrackID` so existing tests keep working.
     var snapshotProvider: (() -> PlaybackSnapshot?)?
+    var playbackSnapshotCallCount = 0
 
     var playNowCalled = false
     var playNowCallCount = 0
@@ -44,6 +45,7 @@ final class MockAppleMusicController: AppleMusicControlling {
     func search(query: String) async -> AppleMusicController.SearchResult { .notFound }
     func resolve(url: URL) async -> AppleMusicController.SearchResult { .notFound }
     func playbackSnapshot() async -> PlaybackSnapshot? {
+        playbackSnapshotCallCount += 1
         if let snapshotProvider { return snapshotProvider() }
         let state: PlaybackSnapshot.State = isPlaying ? .playing : (isPaused ? .paused : .stopped)
         return PlaybackSnapshot(state: state, trackKey: currentTrackID)
@@ -107,8 +109,23 @@ final class SongRequestServiceTests: WolfWaveTestCase {
         defaults.removeObject(forKey: AppConstants.UserDefaults.songRequestPerUserLimit)
         defaults.removeObject(forKey: AppConstants.UserDefaults.songRequestHoldEnabled)
         defaults.removeObject(forKey: AppConstants.UserDefaults.songRequestEnabled)
+        defaults.removeObject(forKey: AppConstants.UserDefaults.songRequestAutoAdvance)
         defaults.removeObject(forKey: AppConstants.UserDefaults.songRequestAutoplayWhenEmpty)
         defaults.removeObject(forKey: AppConstants.UserDefaults.songRequestFallbackPlaylist)
+    }
+
+    private func makeServiceWithLiveRequest(
+        pollInterval: Duration
+    ) -> SongRequestService {
+        queue.add(SongRequestItem(
+            title: "Later", artist: "Artist", requesterUsername: "viewer"))
+        mockController.isPlaying = true
+        mockController.currentTrackID = "streamer-track"
+        return SongRequestService(
+            queue: queue,
+            musicController: mockController,
+            pollInterval: pollInterval
+        )
     }
 
     override func setUp() {
@@ -698,6 +715,136 @@ final class SongRequestServiceTests: WolfWaveTestCase {
         XCTAssertEqual(queue.count, 1)
         XCTAssertEqual(queue.items.first?.title, "Current")
         XCTAssertEqual(queue.nowPlaying?.title, "Next Song")
+    }
+
+    func testPlaybackMonitorSleepsCompletelyWhileQueueIsIdle() async {
+        service = SongRequestService(
+            queue: queue,
+            musicController: mockController,
+            pollInterval: .milliseconds(20)
+        )
+        mockController.isPlaying = true
+        mockController.currentTrackID = "streamer-track"
+
+        service.startPlaybackMonitoring()
+        try? await Task.sleep(for: .milliseconds(120))
+        XCTAssertEqual(
+            mockController.playbackSnapshotCallCount,
+            0,
+            "An empty queue should not own a periodic playback task")
+
+        queue.add(SongRequestItem(
+            title: "Later", artist: "Artist", requesterUsername: "viewer"))
+        let beganPolling = await waitUntil(timeout: .seconds(1)) {
+            self.mockController.playbackSnapshotCallCount > 0
+        }
+        service.stopPlaybackMonitoring()
+
+        XCTAssertTrue(beganPolling, "A queue-change notification should activate polling")
+    }
+
+    func testUnrelatedQueueChangeDoesNotActivatePlaybackPolling() async {
+        service = SongRequestService(
+            queue: queue,
+            musicController: mockController,
+            pollInterval: .milliseconds(20)
+        )
+        service.startPlaybackMonitoring()
+
+        let unrelatedQueue = SongRequestQueue()
+        unrelatedQueue.add(SongRequestItem(
+            title: "Other", artist: "Artist", requesterUsername: "viewer"))
+        try? await Task.sleep(for: .milliseconds(80))
+
+        XCTAssertEqual(
+            mockController.playbackSnapshotCallCount,
+            0,
+            "A different queue's notification must not wake this service")
+    }
+
+    func testStoppingPlaybackMonitorDoesNotPerformFinalPoll() async {
+        service = makeServiceWithLiveRequest(pollInterval: .milliseconds(500))
+
+        service.startPlaybackMonitoring()
+        // Let the task enter its long sleep, then cancel well before a natural tick.
+        try? await Task.sleep(for: .milliseconds(50))
+        service.stopPlaybackMonitoring()
+        try? await Task.sleep(for: .milliseconds(50))
+
+        XCTAssertEqual(
+            mockController.playbackSnapshotCallCount,
+            0,
+            "Cancelling the sleep must return instead of executing one final poll")
+    }
+
+    func testReconcileDoesNotRestartStoppedPlaybackMonitor() async {
+        service = makeServiceWithLiveRequest(pollInterval: .milliseconds(500))
+
+        service.startPlaybackMonitoring()
+        service.stopPlaybackMonitoring()
+        service.reconcilePlaybackMonitoring()
+        try? await Task.sleep(for: .milliseconds(80))
+
+        XCTAssertEqual(
+            mockController.playbackSnapshotCallCount,
+            0,
+            "Reconciliation must not resurrect an explicitly stopped monitor")
+    }
+
+    func testAutoAdvanceToggleReconcilesPlaybackPolling() async {
+        service = makeServiceWithLiveRequest(pollInterval: .milliseconds(20))
+        UserDefaults.standard.set(
+            false, forKey: AppConstants.UserDefaults.songRequestAutoAdvance)
+
+        service.startPlaybackMonitoring()
+        try? await Task.sleep(for: .milliseconds(80))
+        XCTAssertEqual(
+            mockController.playbackSnapshotCallCount,
+            0,
+            "Disabled auto-advance should not own a periodic playback task")
+
+        UserDefaults.standard.set(
+            true, forKey: AppConstants.UserDefaults.songRequestAutoAdvance)
+        service.reconcilePlaybackMonitoring()
+        let beganPolling = await waitUntil(timeout: .seconds(1)) {
+            self.mockController.playbackSnapshotCallCount > 0
+        }
+        XCTAssertTrue(beganPolling, "Enabling auto-advance should start polling")
+
+        UserDefaults.standard.set(
+            false, forKey: AppConstants.UserDefaults.songRequestAutoAdvance)
+        service.reconcilePlaybackMonitoring()
+        let callsAfterDisable = mockController.playbackSnapshotCallCount
+        try? await Task.sleep(for: .milliseconds(80))
+
+        XCTAssertEqual(
+            mockController.playbackSnapshotCallCount,
+            callsAfterDisable,
+            "Disabling auto-advance should cancel polling immediately")
+    }
+
+    func testHoldToggleReconcilesPlaybackPolling() async {
+        service = makeServiceWithLiveRequest(pollInterval: .milliseconds(20))
+
+        service.startPlaybackMonitoring()
+        let beganPolling = await waitUntil(timeout: .seconds(1)) {
+            self.mockController.playbackSnapshotCallCount > 0
+        }
+        XCTAssertTrue(beganPolling)
+
+        await service.setHold(true)
+        let callsWhileHolding = mockController.playbackSnapshotCallCount
+        try? await Task.sleep(for: .milliseconds(80))
+        XCTAssertEqual(
+            mockController.playbackSnapshotCallCount,
+            callsWhileHolding,
+            "Hold should cancel playback polling immediately")
+
+        await service.setHold(false)
+        let resumedPolling = await waitUntil(timeout: .seconds(1)) {
+            self.mockController.playbackSnapshotCallCount > callsWhileHolding
+        }
+        XCTAssertTrue(resumedPolling, "Releasing hold should restore polling")
     }
 
     // MARK: - VoteSkip

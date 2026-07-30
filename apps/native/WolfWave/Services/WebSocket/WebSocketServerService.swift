@@ -29,10 +29,10 @@ import Network
 ///   via `KeychainService.saveToken(_:)`, and never logged in full. Redacted
 ///   log lines only carry the first 4 characters.
 /// - Local widgets get the token for free: `WidgetHTTPService` injects it into
-///   the served `widget.html` so same-Mac OBS Browser Sources "just work".
-///   Remote browsers either fetch widget.html through the same HTTP service
-///   (token still injected) or open the URL directly with `?token=…` in the
-///   query string.
+///   the served `widget.html` only for a loopback TCP peer with a literal-local
+///   Host header, so same-Mac OBS Browser Sources "just work" without exposing
+///   the credential to DNS-rebinding requests. Remote browsers use `?token=…`
+///   as bootstrap for the WebSocket subprotocol.
 /// - Connections without the subprotocol, or with a mismatched value, are
 ///   rejected by the `NWProtocolWebSocket` client-request handler before the
 ///   connection transitions to `.ready`; the snapshot count is not bumped and
@@ -55,6 +55,7 @@ actor WebSocketServerService {
     private nonisolated let snapshotLock = NSLock()
     nonisolated(unsafe) private var _stateSnapshot: ServerState = .stopped
     nonisolated(unsafe) private var _connectionCountSnapshot: Int = 0
+    nonisolated(unsafe) private var _overlayVisibleSnapshot = true
 
     /// Latest server state, safe to read synchronously from any thread.
     nonisolated var state: ServerState {
@@ -66,12 +67,22 @@ actor WebSocketServerService {
         snapshotLock.withLock { _connectionCountSnapshot }
     }
 
+    /// Whether playback cards are currently allowed to render. Stream Deck uses
+    /// this visibility switch instead of stopping the shared command transport.
+    nonisolated var overlayVisible: Bool {
+        snapshotLock.withLock { _overlayVisibleSnapshot }
+    }
+
     private func writeStateSnapshot(_ newState: ServerState) {
         snapshotLock.withLock { _stateSnapshot = newState }
     }
 
     private func writeConnectionCountSnapshot(_ count: Int) {
         snapshotLock.withLock { _connectionCountSnapshot = count }
+    }
+
+    private func writeOverlayVisibleSnapshot(_ visible: Bool) {
+        snapshotLock.withLock { _overlayVisibleSnapshot = visible }
     }
 
     // MARK: - State Change Stream
@@ -101,6 +112,7 @@ actor WebSocketServerService {
     )
     private var isEnabled = false
     private var widgetHTTP: WidgetHTTPService?
+    private var widgetHTTPPort: UInt16?
     private var retryTask: Task<Void, Never>?
 
     /// Handler invoked for each inbound Stream Deck command, returning the ack to
@@ -117,6 +129,7 @@ actor WebSocketServerService {
     private var currentDuration: TimeInterval = 0
     private var currentElapsed: TimeInterval = 0
     private var isPlaying = false
+    private var isOverlayVisible = true
     private var currentArtworkURL: String?
     private var lastElapsedUpdate: Date?
     private var progressTask: Task<Void, Never>?
@@ -167,6 +180,7 @@ actor WebSocketServerService {
         isEnabled = enabled
         if enabled {
             startServer()
+            reconcileProgressTimer()
         } else {
             stopServer()
         }
@@ -182,14 +196,39 @@ actor WebSocketServerService {
         if enabled {
             // Only start if WebSocket server is listening and HTTP isn't already running
             guard state == .listening, widgetHTTP == nil else { return }
-            widgetHTTP = WidgetHTTPService(port: Preferences.resolvedWidgetPort, authToken: authToken)
+            let resolvedPort = Preferences.resolvedWidgetPort
+            widgetHTTPPort = resolvedPort
+            widgetHTTP = WidgetHTTPService(port: resolvedPort, authToken: authToken)
             widgetHTTP?.start()
             Log.info("WebSocketServerService: Widget HTTP server started", category: "WebSocket")
         } else {
             widgetHTTP?.stop()
             widgetHTTP = nil
+            widgetHTTPPort = nil
             Log.info("WebSocketServerService: Widget HTTP server stopped", category: "WebSocket")
         }
+    }
+
+    /// Restarts only the widget HTTP listener when its configured port changes.
+    /// The WebSocket listener and connected OBS/Stream Deck clients stay intact.
+    func updateWidgetPort(_ newPort: UInt16) {
+        guard newPort >= AppConstants.WebSocketServer.minPort,
+              newPort <= AppConstants.WebSocketServer.maxPort else { return }
+        guard widgetHTTPPort != newPort else { return }
+
+        let wasRunning = widgetHTTP != nil
+        widgetHTTP?.stop()
+        widgetHTTP = nil
+        widgetHTTPPort = nil
+
+        guard wasRunning, state == .listening else { return }
+        widgetHTTPPort = newPort
+        widgetHTTP = WidgetHTTPService(port: newPort, authToken: authToken)
+        widgetHTTP?.start()
+        Log.info(
+            "WebSocketServerService: Widget HTTP port changed to \(newPort), listener restarted",
+            category: "WebSocket"
+        )
     }
 
     /// Swaps the auth token. Restarts the listener if it was running so every
@@ -209,6 +248,7 @@ actor WebSocketServerService {
     func updatePort(_ newPort: UInt16) {
         guard newPort >= AppConstants.WebSocketServer.minPort,
               newPort <= AppConstants.WebSocketServer.maxPort else { return }
+        guard port != newPort else { return }
 
         let needsRestart = listener != nil
         port = newPort
@@ -238,6 +278,8 @@ actor WebSocketServerService {
         artworkURL: String? = nil,
         isPaused: Bool = false
     ) {
+        let identityChanged = currentTrack != track || currentArtist != artist
+
         // Steady-state dedup: the source re-emits the same track every ~5s. When
         // only elapsed advanced (no track/pause/artwork change), refresh the
         // progress baseline and skip the full rebroadcast + progress-timer
@@ -252,6 +294,7 @@ actor WebSocketServerService {
         if unchanged {
             currentElapsed = elapsed
             lastElapsedUpdate = Date()
+            reconcileProgressTimer()
             return
         }
 
@@ -262,20 +305,56 @@ actor WebSocketServerService {
         currentElapsed = elapsed
         isPlaying = !isPaused
         lastElapsedUpdate = Date()
-        if let artworkURL { currentArtworkURL = artworkURL }
+        if identityChanged {
+            // Never let a new track inherit the previous track's artwork while
+            // its own asynchronous lookup is still in flight.
+            currentArtworkURL = artworkURL
+        } else if let artworkURL {
+            currentArtworkURL = artworkURL
+        }
 
         broadcastNowPlaying()
-        if isPaused {
-            stopProgressTimer()
-        } else {
-            startProgressTimer()
-        }
+        reconcileProgressTimer()
     }
 
-    /// Updates the artwork URL and re-broadcasts the current track to all clients.
-    func updateArtworkURL(_ url: String) {
+    /// Applies an asynchronous artwork result only if its track is still current.
+    /// Returns `false` when a late or duplicate result was ignored.
+    @discardableResult
+    func updateArtworkURL(_ url: String, track: String, artist: String) -> Bool {
+        guard currentTrack == track, currentArtist == artist else {
+            Log.debug(
+                "WebSocketServerService: Ignoring stale artwork result for \(track) — \(artist)",
+                category: "WebSocket"
+            )
+            return false
+        }
+        guard currentArtworkURL != url else { return false }
         currentArtworkURL = url
         broadcastNowPlaying()
+        return true
+    }
+
+    /// Toggles only playback-card visibility while leaving the authenticated
+    /// WebSocket transport alive for Stream Deck commands and acknowledgements.
+    @discardableResult
+    func toggleOverlayVisibility() -> Bool {
+        setOverlayVisibility(!isOverlayVisible)
+        return isOverlayVisible
+    }
+
+    func setOverlayVisibility(_ visible: Bool) {
+        guard visible != isOverlayVisible else { return }
+        isOverlayVisible = visible
+        writeOverlayVisibleSnapshot(visible)
+        broadcastOverlayVisibility()
+        if visible {
+            if currentTrack == nil {
+                broadcastPlaybackState()
+            } else {
+                broadcastNowPlaying()
+            }
+        }
+        reconcileProgressTimer()
     }
 
     /// Builds the `widget_config` message from the persisted widget-appearance
@@ -422,7 +501,9 @@ actor WebSocketServerService {
         listener?.start(queue: networkQueue)
 
         if FeatureFlags.widgetHTTPEnabled {
-            widgetHTTP = WidgetHTTPService(port: Preferences.resolvedWidgetPort, authToken: authToken)
+            let resolvedPort = Preferences.resolvedWidgetPort
+            widgetHTTPPort = resolvedPort
+            widgetHTTP = WidgetHTTPService(port: resolvedPort, authToken: authToken)
             widgetHTTP?.start()
         }
     }
@@ -453,6 +534,7 @@ actor WebSocketServerService {
 
         widgetHTTP?.stop()
         widgetHTTP = nil
+        widgetHTTPPort = nil
 
         stopProgressTimer()
 
@@ -521,9 +603,11 @@ actor WebSocketServerService {
             Log.info("WebSocketServerService: Client connected (\(count) total)", category: "WebSocket")
             notifyStateChange()
             sendWelcome(to: connection)
-            sendCurrentState(to: connection)
             sendWidgetConfig(to: connection)
+            sendOverlayVisibility(to: connection)
+            sendCurrentState(to: connection)
             Self.receiveMessage(from: connection, onCommand: onCommand)
+            reconcileProgressTimer()
         case .failed(let error):
             Log.debug("WebSocketServerService: Client failed: \(error)", category: "WebSocket")
             // A failed connection keeps its stateUpdateHandler (and any pending
@@ -548,6 +632,7 @@ actor WebSocketServerService {
 
         Log.debug("WebSocketServerService: Client disconnected (\(count) remaining)", category: "WebSocket")
         notifyStateChange()
+        reconcileProgressTimer()
     }
 
     /// Keeps the connection alive by continuously consuming inbound messages.
@@ -612,6 +697,18 @@ actor WebSocketServerService {
         Self.sendJSON(widgetConfigPayload(), to: connection)
     }
 
+    private func overlayVisibilityPayload() -> [String: Any] {
+        ["type": "overlay_visibility", "data": ["visible": isOverlayVisible]]
+    }
+
+    private func sendOverlayVisibility(to connection: NWConnection) {
+        Self.sendJSON(overlayVisibilityPayload(), to: connection)
+    }
+
+    private func broadcastOverlayVisibility() {
+        broadcastJSON(overlayVisibilityPayload())
+    }
+
     /// Builds the `now_playing` message from the stored track/artist/album plus
     /// timing and artwork. Returns `nil` when no complete track is stored.
     ///
@@ -635,10 +732,18 @@ actor WebSocketServerService {
 
     /// Sends the full current playback snapshot to a newly connected client.
     private func sendCurrentState(to connection: NWConnection) {
+        guard isOverlayVisible else { return }
         guard let message = nowPlayingPayload(elapsed: estimatedElapsed()) else {
             Log.debug(
                 "WebSocketServerService: No playback state to replay on connect",
                 category: "WebSocket"
+            )
+            Self.sendJSON(
+                [
+                    "type": "playback_state",
+                    "data": ["isPlaying": false, "track": "", "artist": "", "album": ""],
+                ],
+                to: connection
             )
             return
         }
@@ -652,6 +757,7 @@ actor WebSocketServerService {
     /// Sends a `now_playing` snapshot (track/artist/album/timing/artwork) to
     /// every connected client. No-op when no track has been stored yet.
     private func broadcastNowPlaying() {
+        guard isOverlayVisible else { return }
         guard let message = nowPlayingPayload(elapsed: currentElapsed) else { return }
         broadcastJSON(message)
     }
@@ -675,7 +781,13 @@ actor WebSocketServerService {
     private func broadcastProgress() {
         // No clients = nothing to do. Skipping the serialization when no overlay
         // is connected (the common idle case) avoids per-tick work.
-        guard isPlaying, !connections.isEmpty else { return }
+        guard Self.shouldRunProgressTimer(
+            isEnabled: isEnabled,
+            isOverlayVisible: isOverlayVisible,
+            isPlaying: isPlaying,
+            duration: currentDuration,
+            connectionCount: connections.count
+        ) else { return }
         broadcastJSON([
             "type": "progress",
             "data": [
@@ -694,10 +806,51 @@ actor WebSocketServerService {
 
     // MARK: - Progress Timer
 
+    /// Pure policy shared by every progress-loop entry point and regression tests.
+    nonisolated static func shouldRunProgressTimer(
+        isEnabled: Bool,
+        isOverlayVisible: Bool,
+        isPlaying: Bool,
+        duration: TimeInterval,
+        connectionCount: Int
+    ) -> Bool {
+        isEnabled
+            && isOverlayVisible
+            && isPlaying
+            && duration.isFinite
+            && duration > 0
+            && connectionCount > 0
+    }
+
+    /// Starts or stops the periodic task so disabled, hidden, paused, and
+    /// client-free states have no timer wakeups at all.
+    private func reconcileProgressTimer() {
+        // The auth protocol does not identify overlay vs. Stream Deck roles, so
+        // connectionCount currently includes control-only clients as well.
+        let shouldRun = Self.shouldRunProgressTimer(
+            isEnabled: isEnabled,
+            isOverlayVisible: isOverlayVisible,
+            isPlaying: isPlaying,
+            duration: currentDuration,
+            connectionCount: connections.count)
+        if shouldRun {
+            if progressTask == nil { startProgressTimer() }
+        } else {
+            stopProgressTimer()
+        }
+    }
+
     /// Starts (or restarts) the periodic progress broadcast loop using the
     /// current interval. Cancels any running loop before scheduling.
     private func startProgressTimer() {
         stopProgressTimer()
+        guard Self.shouldRunProgressTimer(
+            isEnabled: isEnabled,
+            isOverlayVisible: isOverlayVisible,
+            isPlaying: isPlaying,
+            duration: currentDuration,
+            connectionCount: connections.count
+        ) else { return }
 
         let interval = currentProgressInterval
         progressTask = Task { [weak self] in
@@ -717,6 +870,14 @@ actor WebSocketServerService {
         progressTask = nil
     }
 
+    /// Exposed internally for deterministic lifecycle tests.
+    var isProgressTimerActive: Bool { progressTask != nil }
+
+    /// Exposed internally for artwork identity regression tests.
+    var artworkState: (track: String?, artist: String?, url: String?) {
+        (currentTrack, currentArtist, currentArtworkURL)
+    }
+
     // MARK: - JSON Helpers
 
     /// Serializes `dict` to JSON and sends it as a single WebSocket text frame.
@@ -724,16 +885,20 @@ actor WebSocketServerService {
     private static func sendJSON(_ dict: [String: Any], to connection: NWConnection) {
         // Guards a malformed leaf from raising an ObjC exception inside
         // `data(withJSONObject:)` (uncatchable by `try?`).
-        guard let jsonData = JSONObjectSerialization.data(from: dict),
-              let jsonString = String(data: jsonData, encoding: .utf8) else { return }
+        guard let jsonData = JSONObjectSerialization.data(from: dict) else { return }
+        sendJSONData(jsonData, to: connection)
+    }
 
+    /// Sends already-encoded JSON so fan-out does not serialize or copy the
+    /// identical payload once per connection.
+    private static func sendJSONData(_ jsonData: Data, to connection: NWConnection) {
         MetricsService.shared.recordWebSocketMessage(byteCount: jsonData.count)
 
         let metadata = NWProtocolWebSocket.Metadata(opcode: .text)
         let context = NWConnection.ContentContext(identifier: "websocket", metadata: [metadata])
 
         connection.send(
-            content: jsonString.data(using: .utf8),
+            content: jsonData,
             contentContext: context,
             isComplete: true,
             completion: .contentProcessed { error in
@@ -746,8 +911,9 @@ actor WebSocketServerService {
     ///
     /// - Parameter dict: Top-level JSON object to serialize and broadcast.
     private func broadcastJSON(_ dict: [String: Any]) {
+        guard let jsonData = JSONObjectSerialization.data(from: dict) else { return }
         let conns = connections
-        for connection in conns { Self.sendJSON(dict, to: connection) }
+        for connection in conns { Self.sendJSONData(jsonData, to: connection) }
     }
 
     // MARK: - State Notification

@@ -2,7 +2,7 @@
 title: Features
 description: "Every WolfWave feature: !song chat command, song requests, Discord Rich Presence, OBS overlay themes, vote-to-skip, channel-point and bit redemptions."
 ogTitle: "One App. Apple Music → Twitch, Discord, OBS."
-ogDescription: "!song bot, !sr song requests, Discord Rich Presence, OBS overlay with 6 themes, vote-to-skip, channel points + bits. Free and open source."
+ogDescription: "!song bot, !sr song requests, Discord Rich Presence, OBS overlay with 5 selectable themes, vote-to-skip, channel points + bits. Free and open source."
 keywords:
   - apple music twitch features
   - apple music discord rich presence
@@ -103,11 +103,11 @@ One app. Apple Music → Twitch, Discord, OBS. Done.
 
 <Callout type="info">**TL;DR**: A good-looking widget, one browser source.</Callout>
 
-- **Works offline.** The widget runs on your Mac. No internet needed.
+- **Local-first.** WolfWave serves the HTML and now-playing data from your Mac, with no hosted overlay service. Fresh artwork still needs internet access.
 - **OBS ready.** Add it as a Browser Source and you're done.
 - **Updates instantly.** Changes the moment the song does.
 - **Smooth transitions.** The card slides in with a subtle bounce when a song starts, slides and blurs out calmly when playback stops, and the progress bar drains smoothly to zero. Rapid skips crossfade the artwork and text instead of replaying the entrance. No strobing on stream.
-- **Built-in auth token.** Every install ships with its own token, baked into the widget URL. Regenerate from Settings to kick off every active client. Two-PC streamers can connect from a second computer or phone over the LAN.
+- **Built-in WebSocket auth.** Every install has its own token. Localhost HTML gets it from the server; LAN links carry it as a query bootstrap for the WebSocket subprotocol. Regenerating the token drops active WebSocket clients. Two-PC streamers can connect from a second computer or phone over a trusted LAN.
 - **Five themes, five layouts.** `Default`, `Dark`, `Light`, `Glass`, `Neon` paired with `Horizontal`, `Vertical`, `Compact`, `Vinyl`, `Classic`. Pick one in Settings.
 - **Make it yours.** Tweak colors, fonts, and layout to fit your stream.
 

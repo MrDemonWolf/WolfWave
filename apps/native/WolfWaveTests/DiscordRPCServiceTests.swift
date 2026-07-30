@@ -349,4 +349,41 @@ final class DiscordRPCServiceTests: XCTestCase {
         // Reset semantics: a successful connect sets reconnectDelay back to base.
         XCTAssertEqual(base, AppConstants.Discord.reconnectBaseDelay, accuracy: 0.0001)
     }
+
+    // MARK: - Availability Poll Lifecycle
+
+    func testAvailabilityPollPolicyRunsOnlyWhileEnabledAndDisconnected() {
+        XCTAssertTrue(
+            DiscordRPCService.shouldPollAvailability(
+                isEnabled: true,
+                state: .disconnected))
+        XCTAssertFalse(
+            DiscordRPCService.shouldPollAvailability(
+                isEnabled: false,
+                state: .disconnected))
+        XCTAssertFalse(
+            DiscordRPCService.shouldPollAvailability(
+                isEnabled: true,
+                state: .connecting))
+        XCTAssertFalse(
+            DiscordRPCService.shouldPollAvailability(
+                isEnabled: true,
+                state: .connected))
+    }
+
+    func testEnabledDisconnectedServiceOwnsPollUntilDisabled() async {
+        let service = DiscordRPCService(clientID: "")
+        await service.setEnabled(true)
+        let pollingWhileEnabled = await service.isAvailabilityPolling
+        XCTAssertTrue(
+            pollingWhileEnabled,
+            "A disconnected enabled service needs the coarse Discord-availability fallback")
+
+        await service.setEnabled(false)
+        let pollingWhileDisabled = await service.isAvailabilityPolling
+        XCTAssertFalse(
+            pollingWhileDisabled,
+            "Disabling Discord must cancel the availability timer")
+    }
+
 }

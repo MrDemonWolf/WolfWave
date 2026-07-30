@@ -30,6 +30,7 @@ enum NotificationKeys {
     nonisolated static let enabled = "enabled"
     nonisolated static let widgetHTTPEnabled = "widgetHTTPEnabled"
     nonisolated static let port = "port"
+    nonisolated static let widgetPort = "widgetPort"
     nonisolated static let state = "state"
     nonisolated static let clients = "clients"
     nonisolated static let isConnected = "isConnected"
@@ -96,12 +97,14 @@ extension NotificationCenter {
     nonisolated func postWebSocketServerChanged(
         enabled: Bool? = nil,
         widgetHTTPEnabled: Bool? = nil,
-        port: UInt16? = nil
+        port: UInt16? = nil,
+        widgetPort: UInt16? = nil
     ) {
         var info: [String: Any] = [:]
         if let enabled { info[NotificationKeys.enabled] = enabled }
         if let widgetHTTPEnabled { info[NotificationKeys.widgetHTTPEnabled] = widgetHTTPEnabled }
         if let port { info[NotificationKeys.port] = port }
+        if let widgetPort { info[NotificationKeys.widgetPort] = widgetPort }
         post(name: .websocketServerChanged, object: nil, userInfo: info.isEmpty ? nil : info)
     }
 
@@ -181,6 +184,9 @@ extension Notification {
 
     /// The `port` value, when present.
     nonisolated var portValue: UInt16? { userInfo?[NotificationKeys.port] as? UInt16 }
+
+    /// The widget HTTP `port` value, when present.
+    nonisolated var widgetPortValue: UInt16? { userInfo?[NotificationKeys.widgetPort] as? UInt16 }
 
     /// A connection/lifecycle `state` raw value, when present.
     nonisolated var stateString: String? { userInfo?[NotificationKeys.state] as? String }
