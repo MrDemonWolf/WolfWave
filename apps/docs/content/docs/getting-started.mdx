@@ -95,7 +95,7 @@ open apps/native/WolfWave.xcodeproj
 make prod-build
 ```
 
-The DMG lands at `builds/WolfWave-{version}-arm64.dmg`. Have a Developer ID Application certificate in your Keychain? The app gets re-signed for distribution as part of the build.
+The DMG lands at `builds/WolfWave-{version}.dmg`. Have a Developer ID Application certificate in your Keychain? The app gets re-signed for distribution as part of the build.
 
 **To build and drop straight into `/Applications`:**
 
@@ -122,7 +122,9 @@ make notarize
 
 ## CI/CD
 
-**Push a version tag** to kick off the GitHub Actions release workflow. It builds, signs, notarizes, and staples the app, generates the Sparkle appcast, and uploads the DMG (plus `appcast.xml` and the release-notes HTML) to a draft GitHub Release:
+**Push a version tag that matches the app's `MARKETING_VERSION`** to kick off the GitHub Actions release workflow. It builds, signs, notarizes, and staples the app, embeds the release notes in the Sparkle appcast, and uploads the DMG plus `appcast.xml` to a draft GitHub Release.
+
+Rerunning the workflow updates an existing draft's assets. It refuses to replace a release that has already been published.
 
 ```bash
 git tag v2.0.0

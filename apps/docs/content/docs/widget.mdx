@@ -23,7 +23,8 @@ ogEyebrow: Developers
 
 **Don't edit that file directly.** The real source is a Tailwind + TypeScript
 workspace at `apps/widget/`. The bundled HTML is a generated artifact, produced
-at build time.
+by the explicit Bun build or by CI. Xcode bundles the committed artifact; it
+does not rebuild it.
 
 ## Architecture
 
@@ -42,14 +43,15 @@ flowchart TD
 
 Everything lands in one HTML file: `<style>`, the tokens `<script>`, and the
 runtime `<script>` all inlined. No `<link>`, no `<script src>`, no extra HTTP
-round-trips. Works in OBS Browser Source, from `file://`, and copied off the
-machine.
+round-trips. The supported path is the local HTTP URL exposed by WolfWave, which
+also bootstraps the authenticated WebSocket connection.
 
 ## Message contract
 
-The widget consumes one-way WebSocket messages from
-`WebSocketServerService.swift`. Schemas are frozen by the test suite. Adding
-fields server-side is safe, renaming fields requires a coordinated change.
+The browser widget consumes the server-to-client messages from the shared,
+bidirectional WebSocket service. Stream Deck commands use the reverse direction;
+the browser widget itself is receive-only. Schemas are frozen by the test suite.
+Adding fields server-side is safe; renaming fields requires a coordinated change.
 
 | Type | Payload | Cadence |
 |------|---------|---------|
@@ -57,9 +59,10 @@ fields server-side is safe, renaming fields requires a coordinated change.
 | `now_playing` | `{ track, artist, album, duration, elapsed, isPlaying, artworkURL }` | Track change |
 | `progress` | `{ elapsed, duration, isPlaying }` | ~1 Hz |
 | `playback_state` | `{ isPlaying, track?, artist?, album? }` | State change |
+| `overlay_visibility` | `{ visible }` | Stream Deck visibility toggle |
 | `widget_config` | `{ theme, layout, textColor, backgroundColor, fontFamily }` | Settings change |
 
-The widget never sends back. The native app pushes, the browser renders.
+The browser widget never sends back. The native app pushes, the browser renders.
 
 ## Paused playback
 
@@ -80,9 +83,17 @@ context visible so chat knows the integration is still healthy.
 **Five themes, five layouts, ready to go.** They live in
 `design-system/tokens.json` under `widget.themes` and `widget.layouts`:
 
-| Themes | Layouts |
-|---|---|
-| Default, Dark, Light, Glass, Neon | Horizontal, Vertical, Compact, Vinyl, Classic |
+The selectable themes are Default, Dark, Light, Glass, and Neon. The widget adds
+16 px of transparent padding on every side, so size the OBS Browser Source 32 px
+larger than the generated card:
+
+| Layout | Generated card | Recommended OBS canvas |
+|---|---:|---:|
+| Horizontal | 500 × 100 | 532 × 132 |
+| Vertical | 220 × 280 | 252 × 312 |
+| Compact | 350 × 56 | 382 × 88 |
+| Vinyl | 260 × 300 | 292 × 332 |
+| Classic | 440 × 112 | 472 × 144 |
 
 Vinyl is a spinning record with the album art as its label and a circular
 progress ring; Classic is an album tile beside a card with title, artist, and a
@@ -107,7 +118,7 @@ Background color pickers; the other themes ship fixed palettes.
 
 | Parameter | What it does |
 |---|---|
-| `?token=<hex>` | Auth token (auto-injected for loopback peers) |
+| `?token=<hex>` | LAN bootstrap token; the script forwards it in the WebSocket subprotocol. Loopback pages receive the token in the served HTML instead. |
 | `?duration=8` | Auto-hide after N seconds (0 = never) |
 | `?hideAlbumArt` | Render without the artwork tile |
 
@@ -156,42 +167,50 @@ to understand the whole widget.
 ## Dev loop
 
 ```bash
-# Regenerate design tokens (only when tokens.json changes)
+# Regenerate tokens when tokens.json or its generator inputs change
 bun run tokens
 
-# Rebuild the widget
-bun run --filter widget build
+# Rebuild the widget with the current generated token module
+make widget
+
+# Or build the ordered monorepo graph (tokens before widget)
+bun run build
 ```
 
-Output lands at `apps/native/WolfWave/Resources/widget.html`. To spot-check,
-open that file directly in a browser, or run the native app and point your
-browser at `http://localhost:<widgetHTTPPort>/`.
+Output lands at `apps/native/WolfWave/Resources/widget.html`. To spot-check the
+supported path, run the native app and open `http://localhost:<widgetHTTPPort>/`.
 
-### Rebuilds happen for you
+### When rebuilds happen
 
-**You rarely run the build by hand:**
-
-- **Xcode.** A pre-build Run Script phase (`Build OBS Widget (Tailwind → inline)`)
-  runs `bun run --filter widget build` whenever an input file changes. No `bun`
-  on PATH? The script exits 0 with a warning, so a fresh clone without the JS
-  toolchain still builds. It just bundles whatever `widget.html` is committed.
-- **CI.** Both [`test.yml`](https://github.com/MrDemonWolf/wolfwave/blob/main/.github/workflows/test.yml)
+- **Widget-only work.** Run `make widget` (or `bun run --filter widget build`).
+  Run `bun run tokens` first when token definitions or generator inputs changed.
+- **Root build.** `bun run build` lets Turborepo order token generation before
+  the widget build.
+- **Xcode.** Xcode does not invoke Bun. It bundles the committed `widget.html`,
+  which keeps native-only builds independent of the JavaScript toolchain.
+- **CI.** [`test.yml`](https://github.com/MrDemonWolf/wolfwave/blob/main/.github/workflows/test.yml)
   and [`build_release.yml`](https://github.com/MrDemonWolf/wolfwave/blob/main/.github/workflows/build_release.yml)
-  set up Bun and rebuild the widget before `xcodebuild`, so every shipped DMG
-  carries a freshly-built widget.
+  rebuild the artifact before `xcodebuild`; test CI also checks for drift.
 
 ## Security
 
-**The token is a WebSocket subprotocol, not a query parameter.** The native
-server (`WebSocketServerAuthTests`) rejects any client that doesn't present
-`Sec-WebSocket-Protocol: wolfwave.token.<hex>` matching the per-install token
-stored in the macOS Keychain.
+WebSocket authentication uses
+`Sec-WebSocket-Protocol: wolfwave.token.<hex>`. The native server
+(`WebSocketServerAuthTests`) rejects clients that do not present the per-install
+token stored in the macOS Keychain.
 
-- **Loopback peers:** `WidgetHTTPService` injects the live token into the served
-  `widget.html` for you.
-- **LAN peers** (two-PC streamers, phones): append the token to the URL
-  yourself. Settings → Stream Widgets exposes the URL with the token already
-  baked in.
+The HTTP request for the static widget shell is not authenticated. Credential
+bootstrap differs by peer:
+
+- **Loopback peers:** `WidgetHTTPService` injects the live token only when both
+  the TCP peer is loopback and the `Host` is a literal local name/address
+  (`localhost`, `127/8`, or `[::1]`). This blocks DNS-rebinding bootstrap. The
+  token-bearing response is `Cache-Control: no-store`.
+- **LAN peers** (two-PC streamers, phones): Settings → Stream Widgets supplies a
+  URL with `?token=<hex>`. The browser script consumes that query value and sends
+  it as the WebSocket subprotocol; it is not HTTP authentication. Both the HTML
+  document and HTTP response set `no-referrer`, preventing cross-origin artwork
+  requests from disclosing that query token.
 
 ## See also
 
