@@ -195,9 +195,10 @@ supported path, run the native app and open `http://localhost:<widgetHTTPPort>/`
 ## Security
 
 WebSocket authentication uses
-`Sec-WebSocket-Protocol: wolfwave.token.<hex>`. The native server
-(`WebSocketServerAuthTests`) rejects clients that do not present the per-install
-token stored in the macOS Keychain.
+`Sec-WebSocket-Protocol: wolfwave.token.<hex>`. `WebSocketServerService`, through
+`WebSocketAuthToken.shouldAccept` (verified by `WebSocketServerAuthTests`),
+rejects clients that do not present the per-install token stored in the macOS
+Keychain.
 
 The HTTP request for the static widget shell is not authenticated. Credential
 bootstrap differs by peer:
