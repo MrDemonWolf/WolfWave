@@ -423,7 +423,7 @@ struct TwitchChatServiceTests {
         #expect(TwitchChatService.helixResponseDisposition(for: 200) == .success)
         #expect(TwitchChatService.helixResponseDisposition(for: 204) == .success)
         #expect(TwitchChatService.helixResponseDisposition(for: 401) == .authenticationFailure)
-        #expect(TwitchChatService.helixResponseDisposition(for: 403) == .authenticationFailure)
+        #expect(TwitchChatService.helixResponseDisposition(for: 403) == .permanentFailure)
 
         for status in [408, 425, 429, 500, 503, 599] {
             #expect(TwitchChatService.helixResponseDisposition(for: status) == .retryableFailure)
@@ -431,6 +431,22 @@ struct TwitchChatServiceTests {
         for status in [300, 400, 404, 409, 422] {
             #expect(TwitchChatService.helixResponseDisposition(for: status) == .permanentFailure)
         }
+    }
+
+    @Test("Only a second 401 after token refresh requires re-authentication")
+    func testRefreshedReconnectFailureDisposition() {
+        #expect(TwitchChatService.refreshedReconnectFailureDisposition(
+            for: TwitchChatService.ConnectionError.authenticationFailed
+        ) == .authenticationFailure)
+        #expect(TwitchChatService.refreshedReconnectFailureDisposition(
+            for: CancellationError()
+        ) == .cancelled)
+        #expect(TwitchChatService.refreshedReconnectFailureDisposition(
+            for: TwitchChatService.ConnectionError.networkError("offline")
+        ) == .retryableFailure)
+        #expect(TwitchChatService.refreshedReconnectFailureDisposition(
+            for: TwitchChatService.ConnectionError.invalidCredentials
+        ) == .retryableFailure)
     }
 
     @Test("Reconnect attempts advance to the cap and never wrap")

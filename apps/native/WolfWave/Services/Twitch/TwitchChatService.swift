@@ -196,8 +196,8 @@ actor TwitchChatService {
     }
 
     /// Internal error used to preserve the retryability classification from the
-    /// HTTP layer through response decoding.
-    private enum ChatSendRequestError: Error {
+    /// Helix HTTP layer through response decoding.
+    private enum HelixRequestError: Error {
         case retryableHTTP(statusCode: Int)
         case permanentHTTP(statusCode: Int)
     }
@@ -303,7 +303,7 @@ actor TwitchChatService {
         switch statusCode {
         case 200..<300:
             return .success
-        case 401, 403:
+        case 401:
             return .authenticationFailure
         case 408, 425, 429, 500...599:
             return .retryableFailure
@@ -1272,16 +1272,16 @@ actor TwitchChatService {
             // Token rejected mid-session. Surface the re-auth banner and stop
             // the reconnect loop instead of silently dropping every send.
             Log.error(
-                "TwitchChatService: Send rejected (401/403) - token invalid. Signaling re-auth.",
+                "TwitchChatService: Send rejected (401) - token invalid. Signaling re-auth.",
                 category: "Twitch")
             signalReauthNeededAndStop()
             return .permanentFailure
-        } catch ChatSendRequestError.permanentHTTP(let statusCode) {
+        } catch HelixRequestError.permanentHTTP(let statusCode) {
             Log.error(
                 "TwitchChatService: Chat send permanently rejected with HTTP \(statusCode)",
                 category: "Twitch")
             return .permanentFailure
-        } catch ChatSendRequestError.retryableHTTP(let statusCode) {
+        } catch HelixRequestError.retryableHTTP(let statusCode) {
             Log.warn(
                 "TwitchChatService: Chat send transiently failed with HTTP \(statusCode)",
                 category: "Twitch")
@@ -1491,13 +1491,13 @@ actor TwitchChatService {
 
             switch disposition {
             case .success:
-                break
+                return data
             case .authenticationFailure:
                 throw ConnectionError.authenticationFailed
             case .retryableFailure:
-                throw ChatSendRequestError.retryableHTTP(statusCode: http.statusCode)
+                throw HelixRequestError.retryableHTTP(statusCode: http.statusCode)
             case .permanentFailure:
-                throw ChatSendRequestError.permanentHTTP(statusCode: http.statusCode)
+                throw HelixRequestError.permanentHTTP(statusCode: http.statusCode)
             }
         }
 
