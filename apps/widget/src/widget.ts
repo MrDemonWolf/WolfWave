@@ -17,7 +17,7 @@
  *
  *  How the server talks to us:
  *  ---------------------------
- *  Six message types arrive on the WS feed (schemas frozen by the Swift
+ *  Seven message types arrive on the WS feed (schemas frozen by the Swift
  *  tests `WebSocketServerServiceTests`/`WidgetHTTPServiceTests`):
  *
  *    • now_playing     { track, artist, album, duration, elapsed, isPlaying, artworkURL }
@@ -25,6 +25,7 @@
  *    • playback_state  { isPlaying, track, artist, album }
  *    • widget_config   { theme, layout, textColor, backgroundColor, fontFamily }
  *    • overlay_visibility { visible }
+ *    • queue_upcoming  { items: [{ title, requesterUsername }] }         // max 3, opt-in ticker (`?queueTicker=1`)
  *    • welcome         {}                                                // handshake ack
  *
  *  We do NOT push back. This is a one-way feed.
@@ -94,6 +95,9 @@ const autohide =
     ? requestedAutohide
     : 0;
 const hideAlbumArt = params.has("hideAlbumArt");
+// Opt-in only: no existing streamer's OBS scene should change on upgrade.
+// Ships as an independent fixed-position panel, not part of any layout.
+const queueTickerEnabled = params.has("queueTicker");
 
 // Auth token. `WidgetHTTPService` substitutes the live token for the
 // `__WOLFWAVE_TOKEN__` sentinel when it serves this file over loopback. When
@@ -193,6 +197,10 @@ let ws: WebSocket | null = null;
 let reconnectTimer: number | null = null;
 let reconnectAttempts = 0;
 let hasReceivedTrack = false;
+// `null` = no snapshot from the server yet (don't render anything, avoids a
+// flash of the empty-queue state before `welcome`'s first reply). `[]` is a
+// meaningful, confirmed value: "the queue is open."
+let queueUpcoming: Array<{ title: string; requesterUsername: string }> | null = null;
 
 // Progress-loop element cache. `updateProgress` runs at a restrained cadence;
 // querying the DOM there would still add needless work inside OBS's renderer.
@@ -269,6 +277,7 @@ type WSMessage =
   | { type: "playback_state"; data: { isPlaying: boolean; track?: string; artist?: string; album?: string } }
   | { type: "widget_config"; data: Partial<WidgetConfig> }
   | { type: "overlay_visibility"; data: { visible: boolean } }
+  | { type: "queue_upcoming"; data: { items: Array<{ title: string; requesterUsername: string }> } }
   | { type: "welcome" };
 
 /* ╔════════════════════════════════════════════════════════════════════════╗
@@ -973,6 +982,47 @@ function buildWidget(): void {
   syncProgressLoop();
 }
 
+/**
+ * Renders the opt-in (`?queueTicker=1`) upcoming-queue panel. Deliberately
+ * independent of `nowPlaying` - unlike `buildWidget`, this must be able to
+ * show "queue open" even when nothing is currently playing. Reuses the same
+ * `resolveTheme()` preset as the now-playing card so it always matches the
+ * active theme with no new design tokens.
+ */
+function buildQueueTicker(): void {
+  if (!queueTickerEnabled) return;
+  const el = document.getElementById("queue-ticker");
+  if (!el) return;
+
+  if (!overlayEnabled || queueUpcoming === null) {
+    el.classList.add("hidden");
+    return;
+  }
+
+  const theme = resolveTheme(widgetConfig);
+  el.style.background = theme.containerBg;
+  el.style.border = theme.containerBorder;
+  el.style.borderRadius = theme.containerRadius;
+  el.style.backdropFilter = theme.backdropFilter;
+  el.style.fontFamily = theme.fontFamily || "";
+
+  if (queueUpcoming.length === 0) {
+    el.innerHTML =
+      '<p class="queue-ticker-empty" style="color:' + theme.textMuted + ';">Queue open &mdash; !sr to join</p>';
+  } else {
+    el.innerHTML = queueUpcoming
+      .map((item, i) =>
+        '<div class="queue-ticker-row">' +
+        '<span class="queue-ticker-index" style="color:' + theme.textMuted + ';">' + (i + 1) + "</span>" +
+        '<p class="queue-ticker-title" style="color:' + theme.textPrimary + ';">' + escapeHtml(item.title) + "</p>" +
+        '<p class="queue-ticker-requester" style="color:' + theme.textSecondary + ';">' + escapeHtml(item.requesterUsername) + "</p>" +
+        "</div>"
+      )
+      .join('<div class="queue-ticker-divider" style="background:' + theme.progressTrackBg + ';"></div>');
+  }
+  el.classList.remove("hidden");
+}
+
 /* ╔════════════════════════════════════════════════════════════════════════╗
  * ║  WEBSOCKET                                                             ║
  * ╚════════════════════════════════════════════════════════════════════════╝
@@ -1266,6 +1316,7 @@ function handleMessage(msg: WSMessage): void {
       ) {
         buildWidget();
       }
+      buildQueueTicker();
       break;
     }
     case "overlay_visibility": {
@@ -1284,8 +1335,15 @@ function handleMessage(msg: WSMessage): void {
         pendingEnter = false;
         stopProgressLoop();
       }
+      // The ticker is overlay chrome too: hide/show it in lockstep with the
+      // Stream Deck "Hide Overlay" toggle, same as the now-playing card.
+      buildQueueTicker();
       break;
     }
+    case "queue_upcoming":
+      queueUpcoming = msg.data.items;
+      buildQueueTicker();
+      break;
     case "welcome":
       reconnectAttempts = 0;
       if (!hasReceivedTrack) {

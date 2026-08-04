@@ -10,7 +10,7 @@ import XCTest
 @testable import WolfWave
 
 // Integration tests for the WebSocket server lifecycle. Each test binds its own
-// high-numbered port in the 59001-59010 range; conflicts are unlikely but the
+// high-numbered port in the 59001-59012 range; conflicts are unlikely but the
 // tests gate on observed `ServerState` transitions rather than fixed sleeps, so
 // they stay deterministic regardless of how quickly the OS binds or releases a
 // port.
@@ -368,5 +368,115 @@ final class WebSocketServerIntegrationTests: XCTestCase, @unchecked Sendable {
             artist: "Artist B"
         )
         XCTAssertFalse(acceptedDuplicate, "An identical artwork result must be a no-op")
+    }
+
+    // MARK: - Queue Upcoming Tests (overlay queue ticker, WW-42)
+
+    /// A freshly-connected client should immediately receive the cached
+    /// upcoming-queue snapshot, mirroring `testFreshConnectionReceivesLastKnownState`
+    /// so an OBS Browser Source reload never sits on a stale/empty ticker.
+    func testFreshConnectionReceivesQueueUpcomingSnapshot() {
+        let port: UInt16 = 59011
+        let service = WebSocketServerService(port: port)
+
+        let listening = expectation(description: "server listening")
+        let listenObs = observe(service, fulfilling: listening) { state, _ in state == .listening }
+        Task { await service.setEnabled(true) }
+        wait(for: [listening], timeout: 5)
+        listenObs.cancel()
+
+        // Seed the upcoming-queue snapshot before any client connects.
+        let stateSeeded = expectation(description: "queue upcoming seeded")
+        Task {
+            await service.broadcastQueueUpcoming(items: [
+                WebSocketServerService.QueueUpcomingItem(title: "Seeded Track", requesterUsername: "someviewer")
+            ])
+            stateSeeded.fulfill()
+        }
+        wait(for: [stateSeeded], timeout: 5)
+
+        guard let url = URL(string: "ws://127.0.0.1:\(port)/") else {
+            XCTFail("bad ws url"); return
+        }
+        let session = URLSession(configuration: .ephemeral)
+        let task = session.webSocketTask(with: url)
+        task.resume()
+
+        let gotSnapshot = expectation(description: "received queue_upcoming replay")
+        func recv() {
+            task.receive { result in
+                switch result {
+                case .success(let message):
+                    let text: String
+                    switch message {
+                    case .string(let str): text = str
+                    case .data(let data): text = String(data: data, encoding: .utf8) ?? ""
+                    @unknown default: text = ""
+                    }
+                    if text.contains("\"type\":\"queue_upcoming\"") && text.contains("Seeded Track") {
+                        gotSnapshot.fulfill()
+                        return
+                    }
+                    recv()
+                case .failure:
+                    return
+                }
+            }
+        }
+        recv()
+
+        wait(for: [gotSnapshot], timeout: 5)
+
+        task.cancel(with: .normalClosure, reason: nil)
+        Task { await service.setEnabled(false) }
+    }
+
+    /// With no prior `broadcastQueueUpcoming` call, the default cached snapshot
+    /// is an empty array - "the queue is open" - not a missing message.
+    func testFreshConnectionWithNoQueueGetsEmptyItemsArray() {
+        let port: UInt16 = 59012
+        let service = WebSocketServerService(port: port)
+
+        let listening = expectation(description: "server listening")
+        let listenObs = observe(service, fulfilling: listening) { state, _ in state == .listening }
+        Task { await service.setEnabled(true) }
+        wait(for: [listening], timeout: 5)
+        listenObs.cancel()
+
+        guard let url = URL(string: "ws://127.0.0.1:\(port)/") else {
+            XCTFail("bad ws url"); return
+        }
+        let session = URLSession(configuration: .ephemeral)
+        let task = session.webSocketTask(with: url)
+        task.resume()
+
+        let gotEmptySnapshot = expectation(description: "received empty queue_upcoming")
+        func recv() {
+            task.receive { result in
+                switch result {
+                case .success(let message):
+                    let text: String
+                    switch message {
+                    case .string(let str): text = str
+                    case .data(let data): text = String(data: data, encoding: .utf8) ?? ""
+                    @unknown default: text = ""
+                    }
+                    if text.contains("\"type\":\"queue_upcoming\"") {
+                        XCTAssertTrue(text.contains("\"items\":[]"), "Default snapshot must be an empty array, not omitted: \(text)")
+                        gotEmptySnapshot.fulfill()
+                        return
+                    }
+                    recv()
+                case .failure:
+                    return
+                }
+            }
+        }
+        recv()
+
+        wait(for: [gotEmptySnapshot], timeout: 5)
+
+        task.cancel(with: .normalClosure, reason: nil)
+        Task { await service.setEnabled(false) }
     }
 }

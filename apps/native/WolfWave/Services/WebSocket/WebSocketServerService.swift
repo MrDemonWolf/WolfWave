@@ -49,6 +49,15 @@ actor WebSocketServerService {
         case stopped, starting, listening, error
     }
 
+    /// Lightweight snapshot of one queued request for the overlay's queue
+    /// ticker. Deliberately decoupled from `SongRequestItem` (which carries a
+    /// MusicKit `Song` this actor should never import) — mirrors the existing
+    /// `count`/`pending` decoupling in `broadcastQueueState`.
+    struct QueueUpcomingItem: Sendable, Equatable {
+        let title: String
+        let requesterUsername: String
+    }
+
     // MARK: - Nonisolated Snapshot
 
     /// Protects the snapshot variables read from outside the actor.
@@ -134,6 +143,13 @@ actor WebSocketServerService {
     private var lastElapsedUpdate: Date?
     private var progressTask: Task<Void, Never>?
     private var currentProgressInterval: TimeInterval = AppConstants.WebSocketServer.progressBroadcastInterval
+
+    /// Last-broadcast upcoming-queue snapshot, replayed to freshly-connected
+    /// clients the same way `currentTrack` is. Unlike `broadcastQueueState`
+    /// (counts only, never replayed), the ticker needs replay-on-connect so an
+    /// OBS Browser Source reload doesn't show an empty/stale ticker until the
+    /// next queue mutation.
+    private var currentQueueUpcoming: [QueueUpcomingItem] = []
 
     // MARK: - Init
 
@@ -389,6 +405,31 @@ actor WebSocketServerService {
         ])
     }
 
+    /// Builds the `queue_upcoming` message from the cached snapshot. Shared by
+    /// the broadcast-to-all and send-to-one paths, same reasoning as
+    /// `widgetConfigPayload()`.
+    private func queueUpcomingPayload() -> [String: Any] {
+        [
+            "type": "queue_upcoming",
+            "data": ["items": currentQueueUpcoming.map {
+                ["title": $0.title, "requesterUsername": $0.requesterUsername]
+            }],
+        ]
+    }
+
+    /// Caches and broadcasts the next few queued requests so the overlay's
+    /// queue ticker renders without polling. Caller (AppDelegate) is
+    /// responsible for capping to `AppConstants.WebSocketServer.queueTickerMaxItems`.
+    /// An empty array is a valid, meaningful state: "the queue is open."
+    func broadcastQueueUpcoming(items: [QueueUpcomingItem]) {
+        currentQueueUpcoming = items
+        broadcastJSON(queueUpcomingPayload())
+    }
+
+    private func sendQueueUpcoming(to connection: NWConnection) {
+        Self.sendJSON(queueUpcomingPayload(), to: connection)
+    }
+
     /// Broadcasts aggregate connection health for a Stream Deck status key.
     func broadcastHealth(music: Bool, twitch: Bool, discord: Bool, overlay: Bool) {
         broadcastJSON([
@@ -605,6 +646,7 @@ actor WebSocketServerService {
             sendWelcome(to: connection)
             sendWidgetConfig(to: connection)
             sendOverlayVisibility(to: connection)
+            sendQueueUpcoming(to: connection)
             sendCurrentState(to: connection)
             Self.receiveMessage(from: connection, onCommand: onCommand)
             reconcileProgressTimer()

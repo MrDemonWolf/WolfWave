@@ -291,6 +291,39 @@ final class SongRequestQueueTests: WolfWaveTestCase {
         XCTAssertTrue(queue.isFull)
     }
 
+    // MARK: - Upcoming (overlay queue ticker, WW-42)
+
+    func testUpcomingReturnsEmptyArrayWhenQueueEmpty() {
+        XCTAssertTrue(queue.upcoming().isEmpty)
+    }
+
+    func testUpcomingCapsAtLimit() {
+        for i in 1...5 {
+            queue.add(SongRequestItem(title: "Song \(i)", artist: "A", requesterUsername: "user\(i)"))
+        }
+        let upcoming = queue.upcoming(limit: 3)
+        XCTAssertEqual(upcoming.count, 3)
+        XCTAssertEqual(upcoming.map(\.title), Array(queue.items.prefix(3)).map(\.title))
+    }
+
+    func testUpcomingDefaultLimitIsThree() {
+        for i in 1...5 {
+            queue.add(SongRequestItem(title: "Song \(i)", artist: "A", requesterUsername: "user\(i)"))
+        }
+        XCTAssertEqual(queue.upcoming().count, AppConstants.WebSocketServer.queueTickerMaxItems)
+    }
+
+    /// `upcoming()` must reflect fair-share (round-robin) order, not raw
+    /// insertion order - it's a prefix read of `items`, which is already
+    /// reordered at insert time.
+    func testUpcomingReflectsFairShareOrder() {
+        UserDefaults.standard.set(true, forKey: AppConstants.UserDefaults.songRequestFairShare)
+        queue.add(SongRequestItem(title: "A1", artist: "x", requesterUsername: "user1"))
+        queue.add(SongRequestItem(title: "A2", artist: "x", requesterUsername: "user1"))
+        queue.add(SongRequestItem(title: "B1", artist: "x", requesterUsername: "user2"))
+        XCTAssertEqual(queue.upcoming().map(\.title), ["A1", "B1", "A2"])
+    }
+
     // MARK: - Fair-Share Ordering
 
     /// A newcomer's first request slots ahead of a regular's second, so

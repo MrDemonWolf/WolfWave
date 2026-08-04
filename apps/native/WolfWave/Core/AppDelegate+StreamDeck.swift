@@ -109,12 +109,16 @@ extension AppDelegate {
         UserDefaults.standard.set(themes[(index + 1) % themes.count], forKey: key)
     }
 
-    /// Gathers current queue counts + connection health and pushes both Stream
-    /// Deck broadcasts. Cheap; safe to call from any queue/connection change so a
-    /// counter or status key reflects app state without polling.
+    /// Gathers current queue counts + connection health and pushes the Stream
+    /// Deck broadcasts plus the overlay's upcoming-queue ticker. Cheap; safe to
+    /// call from any queue/connection change so a counter/status key or the
+    /// overlay ticker reflects app state without polling.
     func broadcastStreamDeckState() {
         let count = songRequestService?.queue.count ?? 0
         let pending = songRequestService?.pendingApprovalCount ?? 0
+        let upcoming = (songRequestService?.queue.upcoming() ?? []).map {
+            WebSocketServerService.QueueUpcomingItem(title: $0.title, requesterUsername: $0.requesterUsername)
+        }
         let music = currentSong != nil
         let twitch = twitchService?.currentlyConnected ?? false
         // ponytail: discord health = is-enabled proxy; wire the live IPC
@@ -124,6 +128,7 @@ extension AppDelegate {
             && websocketServer?.overlayVisible == true
         Task { [weak self] in
             await self?.websocketServer?.broadcastQueueState(count: count, pending: pending)
+            await self?.websocketServer?.broadcastQueueUpcoming(items: upcoming)
             await self?.websocketServer?.broadcastHealth(
                 music: music, twitch: twitch, discord: discord, overlay: overlay)
         }
