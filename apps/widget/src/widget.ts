@@ -97,7 +97,8 @@ const autohide =
 const hideAlbumArt = params.has("hideAlbumArt");
 // Opt-in only: no existing streamer's OBS scene should change on upgrade.
 // Ships as an independent fixed-position panel, not part of any layout.
-const queueTickerEnabled = params.has("queueTicker");
+// Exact "1" required so `?queueTicker=0`/`=false`/bare `?queueTicker` stay off.
+const queueTickerEnabled = params.get("queueTicker") === "1";
 
 // Auth token. `WidgetHTTPService` substitutes the live token for the
 // `__WOLFWAVE_TOKEN__` sentinel when it serves this file over loopback. When
