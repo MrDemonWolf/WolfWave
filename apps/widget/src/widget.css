@@ -152,6 +152,11 @@ body.ww-awaiting-server #widget {
 }
 
 #queue-ticker.hidden {
+  /* Override Tailwind's `.hidden { display: none }` utility - display:none
+   * would kill the opacity transition above (a display change and an opacity
+   * change can't animate together), so this element stays laid out and fades
+   * via opacity instead. */
+  display: block;
   opacity: 0;
   pointer-events: none;
 }

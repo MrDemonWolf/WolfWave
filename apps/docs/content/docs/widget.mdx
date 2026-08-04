@@ -137,11 +137,13 @@ Source's size or position. When the queue is empty it shows "Queue open, !sr
 to join" instead of disappearing, so the panel doesn't flicker in and out as
 the queue drains.
 
-To run it alongside the now-playing card, either add `&queueTicker=1` to your
-existing widget URL (both render in the same Browser Source, sized to fit
-both), or add a second Browser Source pointed at the same widget URL with
-`?queueTicker=1` and position it independently in your scene, the same way
-chat boxes and alert widgets are typically composed in OBS.
+To run it alongside the now-playing card, add it to your existing widget URL:
+`?queueTicker=1` if that URL has no query parameters yet, or `&queueTicker=1`
+if it already has one (a LAN URL carrying `?token=...`, for instance). Both
+render in the same Browser Source, sized to fit both. Or add a second Browser
+Source pointed at the same widget URL with `?queueTicker=1` and position it
+independently in your scene, the same way chat boxes and alert widgets are
+typically composed in OBS.
 
 ## Transitions
 
