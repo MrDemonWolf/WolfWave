@@ -133,6 +133,64 @@ body.ww-awaiting-server #widget {
   font-size: 13px;
 }
 
+/* ─── 3b. Queue ticker (opt-in, ?queueTicker=1) ───────────────────────────
+ *
+ * Independent fixed-position panel, not part of #root or any layout - see
+ * widget.ts buildQueueTicker(). Colors come from the active theme preset at
+ * render time (inline styles), same pattern as #widget.
+ * ──────────────────────────────────────────────────────────────────────── */
+
+#queue-ticker {
+  position: fixed;
+  bottom: 16px;
+  right: 16px;
+  min-width: 180px;
+  max-width: 260px;
+  padding: 8px 12px;
+  font-size: 12px;
+  transition: opacity 400ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+#queue-ticker.hidden {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.queue-ticker-row {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  padding: 3px 0;
+}
+
+.queue-ticker-index {
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.queue-ticker-title {
+  flex: 1;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-weight: 600;
+}
+
+.queue-ticker-requester {
+  flex-shrink: 0;
+  font-style: italic;
+}
+
+.queue-ticker-divider {
+  height: 1px;
+  margin: 2px 0;
+}
+
+.queue-ticker-empty {
+  text-align: center;
+}
+
 /* ─── 4. Inner track-swap transition ──────────────────────────────────────
  *
  * When a new track arrives WHILE the widget is already visible, we don't
@@ -411,7 +469,8 @@ body.ww-awaiting-server .wolf-vinyl-disc {
   #widget.is-paused .artwork,
   .pause-overlay,
   .progress-fill.draining,
-  .progress-knob.draining {
+  .progress-knob.draining,
+  #queue-ticker {
     transition: none;
   }
 

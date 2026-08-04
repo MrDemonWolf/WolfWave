@@ -391,6 +391,9 @@ nonisolated enum AppConstants {
 
         /// Default port for the local widget HTTP server
         static let widgetDefaultPort: UInt16 = 8766
+
+        /// Max upcoming-queue items the overlay ticker shows.
+        static let queueTickerMaxItems: Int = 3
     }
 
     // MARK: - Dispatch Queue Labels

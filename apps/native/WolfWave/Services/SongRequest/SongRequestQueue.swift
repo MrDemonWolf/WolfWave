@@ -323,6 +323,14 @@ final class SongRequestQueue {
         }
     }
 
+    /// Returns up to `limit` upcoming items in queue order, for the overlay's
+    /// queue ticker. `items` is already fair-share/priority ordered by
+    /// `fairShareInsertIndex(for:)` at insertion time, so this is a plain
+    /// prefix read, not a re-sort. An empty result is valid (queue is open).
+    func upcoming(limit: Int = AppConstants.WebSocketServer.queueTickerMaxItems) -> [SongRequestItem] {
+        lock.withLock { Array(items.prefix(limit)) }
+    }
+
     /// Clear the now-playing state (e.g., when song finishes and queue is empty).
     func clearNowPlaying() {
         lock.withLock {

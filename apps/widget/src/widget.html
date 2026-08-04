@@ -48,6 +48,14 @@
 </div>
 
 <!--
+  Opt-in (?queueTicker=1) upcoming-queue panel. Sibling of #root, not a
+  child - #root flex-centers the now-playing card and this is independently
+  positioned. Off by default: adding a second Browser Source with the flag
+  is how a streamer opts in. See widget.ts buildQueueTicker().
+-->
+<div id="queue-ticker" class="hidden"></div>
+
+<!--
   Design-system tokens (themes + layouts). Inlined to keep the widget a
   single self-contained file. Generated from design-system/tokens.json by
   design-system/scripts/generate.ts.
