@@ -91,6 +91,13 @@ custom_rules:
     name: "SBApplication addressed by bundle identifier"
     regex: 'SBApplication\(bundleIdentifier:'
     message: "Addressing a scripted app by bundle id auto-launches it. Use SBApplication(processIdentifier:) via MusicProcess.pid."
+    # Code only. The comments and doc comments that explain this trap have to be
+    # able to name the API they are warning about, and log messages quote it too.
+    excluded_match_kinds:
+      - comment
+      - doccomment
+      - doccomment.field
+      - string
     severity: error
 
 reporter: "xcode"
