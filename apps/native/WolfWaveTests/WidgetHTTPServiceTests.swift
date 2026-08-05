@@ -135,8 +135,8 @@ final class WidgetHTTPServiceTests: XCTestCase {
     // MARK: - Start/Stop Lifecycle Tests
 
     func testStartThenStopDoesNotCrash() {
-        // Use a high port unlikely to conflict
-        let service = WidgetHTTPService(port: 59999)
+        // Stay below macOS's ephemeral client-port range.
+        let service = WidgetHTTPService(port: 38999)
         service.start()
         service.stop()
         // Clean lifecycle = pass
@@ -144,7 +144,7 @@ final class WidgetHTTPServiceTests: XCTestCase {
 
     func testMultipleStartCallsDoNotCreateDuplicateListeners() {
         // The start() method guards on listener == nil, so calling it twice should be safe
-        let service = WidgetHTTPService(port: 59998)
+        let service = WidgetHTTPService(port: 38998)
         service.start()
         service.start() // Should be a no-op since listener is already set
         service.stop()
@@ -317,7 +317,7 @@ final class WidgetHTTPServiceTests: XCTestCase {
     // MARK: - Connection Lifecycle Tests
 
     func testStopCancelsAcceptedIdleConnections() async throws {
-        let port: UInt16 = 59995
+        let port: UInt16 = 38995
         let service = WidgetHTTPService(port: port)
         service.start()
         defer { service.stop() }
@@ -341,7 +341,7 @@ final class WidgetHTTPServiceTests: XCTestCase {
     }
 
     func testHeaderTimeoutCancelsConnectionWithIncompleteHeaders() async throws {
-        let port: UInt16 = 59994
+        let port: UInt16 = 38994
         // Short timeout so the test stays fast; production default is 10s.
         let service = WidgetHTTPService(port: port, headerTimeout: 0.5)
         service.start()
@@ -364,7 +364,7 @@ final class WidgetHTTPServiceTests: XCTestCase {
     }
 
     func testConnectionCapRefusesExtraConnections() async throws {
-        let port: UInt16 = 59993
+        let port: UInt16 = 38993
         // Tiny cap so the test doesn't need 32 sockets; production default is 32.
         let service = WidgetHTTPService(port: port, maxConcurrentConnections: 2)
         service.start()
