@@ -14,7 +14,7 @@ import Foundation
 ///
 /// Runs against an in-memory backend (`InMemoryKeychainBackend`) so the suite
 /// never touches the real Keychain. Ad-hoc test signing otherwise triggers an
-/// ACL prompt that blocks cold reads and fails CI. The system backend is
+/// ACL prompt that blocks cold reads and fails CI. The previous backend is
 /// restored after each test so other suites see unchanged behavior.
 ///
 /// Note: `.serialized` keeps tests sequential, matching the shared-backend model.
@@ -30,6 +30,12 @@ final class KeychainServiceTests {
 
     deinit {
         KeychainService.backend = previousBackend
+    }
+
+    @Test("Test hosts default to process-local credentials")
+    func testHostUsesInMemoryBackend() {
+        #expect(WolfWaveApp.isRunningTests)
+        #expect(KeychainService.makeDefaultBackend(isRunningTests: true) is InMemoryKeychainBackend)
     }
 
     // MARK: - Token Save/Load/Delete Tests

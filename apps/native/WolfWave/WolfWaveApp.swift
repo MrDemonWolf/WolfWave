@@ -28,7 +28,7 @@ struct WolfWaveApp: App {
     /// detection. `XCTest.framework` is only loaded into the host process when
     /// xctest runs. The env-var fallbacks preserve behavior on older runners
     /// that did expose those variables.
-    static let isRunningTests = NSClassFromString("XCTestCase") != nil
+    nonisolated static let isRunningTests = NSClassFromString("XCTestCase") != nil
         || ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil
         || ProcessInfo.processInfo.environment["XCTestBundlePath"] != nil
 
