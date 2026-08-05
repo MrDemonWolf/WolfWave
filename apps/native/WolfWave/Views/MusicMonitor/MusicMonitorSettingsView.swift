@@ -108,7 +108,12 @@ struct MusicMonitorSettingsView: View {
                         album: currentAlbum,
                         artworkURL: currentArtworkURL,
                         trackingEnabled: trackingEnabled,
-                        isPaused: currentIsPaused
+                        isPaused: currentIsPaused,
+                        // Read at render time. The card only re-renders when the
+                        // track changes, and Music quitting drives the track to
+                        // nil, so the flag is evaluated exactly when it matters.
+                        musicNotRunning: currentTrack == nil && !MusicProcess.isRunning,
+                        onOpenMusic: { Task { await MusicPermissionChecker.ensureMusicRunning() } }
                     )
                 }
             }

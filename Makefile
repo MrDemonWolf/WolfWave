@@ -14,6 +14,26 @@ DMG_NAME = WolfWave-$(VERSION).dmg
 
 .SHELLFLAGS = -ec
 
+# Signing for LOCAL Debug builds and tests.
+#
+# Ad-hoc signing ("-") derives the code signature from the binary's own hash, so
+# every rebuild looks like a different application to macOS. That invalidates the
+# Keychain ACL and the TCC Automation grant each time, which is why a locally
+# built app pops "WolfWave wants to use your confidential information stored in
+# com.mrdemonwolf.wolfwave.dev" on launch after every build, and why Apple Events
+# permission has to be re-granted. Signing with a real Apple Development identity
+# keeps the signature stable across rebuilds, so both grants stick.
+#
+# DEVELOPMENT_TEAM already lives in project.pbxproj, so only the identity is set
+# here. Falls back to ad-hoc when no identity is present (CI runners have none).
+LOCAL_SIGN_ID := $(shell security find-identity -v -p codesigning 2>/dev/null | awk -F'"' '/Apple Development/ { print $$2; exit }')
+
+ifeq ($(strip $(LOCAL_SIGN_ID)),)
+LOCAL_SIGN = CODE_SIGN_IDENTITY="-" CODE_SIGNING_REQUIRED=NO CODE_SIGNING_ALLOWED=NO
+else
+LOCAL_SIGN = CODE_SIGN_IDENTITY="$(LOCAL_SIGN_ID)" CODE_SIGN_STYLE=Manual
+endif
+
 .PHONY: help build clean test test-verbose test-ci lint lint-crash-safety lint-headers update-deps open-xcode ci prod-build prod-install notarize verify-notarize sponsor-config widget
 
 help:
@@ -40,7 +60,9 @@ help:
 # ---------------------------------------------------------------------------
 build: sponsor-config
 	xcodebuild -project $(PROJECT) -scheme $(SCHEME) \
-		-destination '$(DESTINATION)' -configuration Debug build -quiet
+		-destination '$(DESTINATION)' -configuration Debug \
+		$(LOCAL_SIGN) \
+		build -quiet
 
 # Regenerate apps/native/WolfWave/Core/SponsorConfig.generated.swift from
 # .github/FUNDING.yml. Idempotent; safe to run as a build prerequisite.
@@ -62,7 +84,7 @@ test: sponsor-config
 	@xcodebuild -project $(PROJECT) -scheme $(SCHEME) \
 		-destination '$(DESTINATION)' -configuration Debug \
 		-only-testing WolfWaveTests \
-		CODE_SIGN_IDENTITY="-" CODE_SIGNING_REQUIRED=NO CODE_SIGNING_ALLOWED=NO \
+		$(LOCAL_SIGN) \
 		test 2>/dev/null | scripts/check-test-results.sh
 
 test-verbose: sponsor-config

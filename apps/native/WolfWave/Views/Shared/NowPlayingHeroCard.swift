@@ -30,6 +30,17 @@ struct NowPlayingHeroCard: View {
     /// so the loaded song is still readable.
     var isPaused: Bool = false
 
+    /// Music.app has no running process.
+    ///
+    /// Distinct from "nothing playing": with Music closed there is nothing for the
+    /// user to do *in Music*, so the card says so plainly and offers to open it.
+    /// Collapsing the two states left people staring at "Nothing playing right now"
+    /// with no idea the app they needed was shut.
+    var musicNotRunning: Bool = false
+
+    /// Invoked by the Open Music button. Omit to hide the button.
+    var onOpenMusic: (() -> Void)?
+
     // MARK: - Body
 
     var body: some View {
@@ -44,12 +55,12 @@ struct NowPlayingHeroCard: View {
                         .id(isPaused)
                 }
 
-                Text(track ?? (trackingEnabled ? "Nothing playing right now" : "Sync Music is off"))
+                Text(track ?? emptyStateTitle)
                     .font(.system(size: DSFont.Size.lg, weight: .semibold))
                     .lineLimit(1)
                     .foregroundStyle(track == nil ? .secondary : .primary)
                     .contentTransition(.opacity)
-                    .id(track ?? "")
+                    .id(track ?? emptyStateTitle)
 
                 if let subtitle = subtitleText {
                     Text(subtitle)
@@ -58,6 +69,13 @@ struct NowPlayingHeroCard: View {
                         .lineLimit(1)
                         .contentTransition(.opacity)
                         .id(subtitle)
+                }
+
+                if track == nil, showsOpenMusic, let onOpenMusic {
+                    Button("Open Music", action: onOpenMusic)
+                        .buttonStyle(.bordered)
+                        .controlSize(.small)
+                        .padding(.top, DSSpace.s2)
                 }
 
                 if track != nil, duration > 0 {
@@ -130,7 +148,35 @@ struct NowPlayingHeroCard: View {
 
     // MARK: - Helpers
 
+    /// Headline for the no-track state.
+    ///
+    /// Three distinct causes, three distinct messages: tracking is switched off,
+    /// Music is closed, or Music is open with nothing loaded. Each one implies a
+    /// different next step for the user. Pure and `static` so the copy rules are
+    /// unit-testable without rendering the view.
+    static func emptyStateTitle(trackingEnabled: Bool, musicNotRunning: Bool) -> String {
+        guard trackingEnabled else { return "Sync Music is off" }
+        return musicNotRunning ? "Apple Music isn't open" : "Nothing playing right now"
+    }
+
+    /// Only offer to launch Music when it is actually closed and tracking is on.
+    /// Offering it while tracking is off would launch Music to no effect.
+    static func showsOpenMusic(trackingEnabled: Bool, musicNotRunning: Bool) -> Bool {
+        trackingEnabled && musicNotRunning
+    }
+
+    private var emptyStateTitle: String {
+        Self.emptyStateTitle(trackingEnabled: trackingEnabled, musicNotRunning: musicNotRunning)
+    }
+
+    private var showsOpenMusic: Bool {
+        Self.showsOpenMusic(trackingEnabled: trackingEnabled, musicNotRunning: musicNotRunning)
+    }
+
     private var subtitleText: String? {
+        if track == nil {
+            return showsOpenMusic ? "Open it and WolfWave picks up what you play." : nil
+        }
         switch (artist, album) {
         case let (a?, b?): return "\(a) · \(b)"
         case let (a?, nil): return a
@@ -140,9 +186,7 @@ struct NowPlayingHeroCard: View {
     }
 
     private var accessibilityLabel: String {
-        guard let track else {
-            return trackingEnabled ? "Nothing playing right now" : "Sync Music is off"
-        }
+        guard let track else { return emptyStateTitle }
         var label = isPaused ? "Paused: \(track)" : "Now playing: \(track)"
         if let artist { label += ", by \(artist)" }
         if let album { label += ", on \(album)" }
