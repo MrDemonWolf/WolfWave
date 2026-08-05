@@ -18,6 +18,7 @@ All notable changes to this project will be documented in this file.
 - **Fair-share song ordering.** The queue now interleaves requests round-robin, so everyone's first request plays before anyone's second. A regular who re-types fast no longer plays back-to-back while newcomers wait. On by default; flip "Fair-Share Ordering" off in Settings → Song Requests → Queue for classic first-in, first-out.
 - **Sub / VIP request priority.** Reward your subs, VIPs, and mods: pick a perk in Settings → Song Requests → Queue. "Skip cooldown" lets them request without the wait; "Jump the queue" also moves their song ahead of regular requests within the same fair-share round (so it's a nudge up, not a queue takeover). Off by default.
 - **Two new overlay layouts: Vinyl and Classic.** Vinyl is a spinning record with your album art as the label and a circular progress ring. Classic sets the album tile beside a card with the title, artist, and a progress bar. Pick either in Settings → Stream Widgets, same as Horizontal, Vertical, and Compact.
+- **Queue ticker overlay.** Add `?queueTicker=1` to your widget URL for a panel showing the next 3 song requests, title and requester, so viewers see their spot in line. Off by default, matches your current widget theme.
 
 ### Changed
 
