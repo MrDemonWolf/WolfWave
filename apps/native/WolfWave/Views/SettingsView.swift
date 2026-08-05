@@ -134,7 +134,11 @@ struct SettingsView: View {
                 // here: NSSplitView autosaves the column frames under the scene
                 // id and restores them WITHOUT clamping to `min:`, so a stale
                 // narrow width (e.g. captured mid-collapse animation) comes back
-                // on the next launch and truncates every section label.
+                // and truncates every section label.
+                // The autosave is switched off and the divider re-pinned in
+                // `SettingsWindowConfigurator`, which reaches the real `NSSplitView`
+                // through the window. Doing it from a `.background()` view here does
+                // not work: that view's superview chain never reaches the split view.
                 .navigationSplitViewColumnWidth(AppConstants.SettingsUI.sidebarWidth)
                 // Remove SwiftUI's automatic sidebar toggle here, on the sidebar
                 // column it belongs to. Removing it from the outer split chain
@@ -488,6 +492,49 @@ private struct SettingsWindowConfigurator: NSViewRepresentable {
         guard let window else { return }
         window.titleVisibility = .hidden
         window.titlebarAppearsTransparent = true
+        pinSidebarWidth(in: window)
+    }
+
+    /// Stops `NSSplitView` persisting the sidebar column and re-pins the divider to
+    /// the design token.
+    ///
+    /// SwiftUI's `NavigationSplitView` is backed by an `NSSplitView` that autosaves
+    /// its column frames under the scene id and restores them **without** clamping to
+    /// `navigationSplitViewColumnWidth`. Once a narrow frame was written (148pt in
+    /// practice, captured mid-collapse) it came back on every later open and truncated
+    /// every section label. Clearing `autosaveName` alone is not enough: by the time
+    /// this runs the bad width has already been restored, so the divider is also
+    /// pushed back to the token.
+    ///
+    /// The collapsed sidebar is left alone, otherwise re-pinning would fight the
+    /// hide/show toggle and force the sidebar back open.
+    @MainActor
+    private func pinSidebarWidth(in window: NSWindow) {
+        guard let contentView = window.contentView,
+              let split = Self.firstSplitView(in: contentView),
+              let sidebar = split.arrangedSubviews.first else { return }
+
+        split.autosaveName = nil
+
+        let target = AppConstants.SettingsUI.sidebarWidth
+        let current = sidebar.frame.width
+        // Collapsed (or mid-animation) sidebar: leave the toggle in control.
+        guard current > 1, abs(current - target) > 0.5 else { return }
+        split.setPosition(target, ofDividerAt: 0)
+    }
+
+    /// Depth-first search for the first `NSSplitView` under `view`.
+    ///
+    /// Searches downward from the window's content view rather than upward from a
+    /// hosted SwiftUI background view, whose superview chain does not reach the
+    /// split view.
+    @MainActor
+    private static func firstSplitView(in view: NSView) -> NSSplitView? {
+        if let split = view as? NSSplitView { return split }
+        for subview in view.subviews {
+            if let found = firstSplitView(in: subview) { return found }
+        }
+        return nil
     }
 }
 

@@ -317,11 +317,11 @@ final class WidgetHTTPServiceTests: XCTestCase {
     // MARK: - Connection Lifecycle Tests
 
     func testStopCancelsAcceptedIdleConnections() async throws {
-        let port: UInt16 = 59995
-        let service = WidgetHTTPService(port: port)
-        service.start()
+        // Walk for a free port instead of pinning one. A hardcoded port fails with
+        // `listenerFailed` whenever the previous run's socket is still in TIME_WAIT
+        // or the real app is running, which made this suite flake on every rerun.
+        guard let (service, port) = await startBoundService(from: 59995) else { return }
         defer { service.stop() }
-        try await service.ready()
 
         let closed = expectation(description: "server closed the idle client on stop()")
         closed.assertForOverFulfill = false
@@ -364,12 +364,13 @@ final class WidgetHTTPServiceTests: XCTestCase {
     }
 
     func testConnectionCapRefusesExtraConnections() async throws {
-        let port: UInt16 = 59993
         // Tiny cap so the test doesn't need 32 sockets; production default is 32.
-        let service = WidgetHTTPService(port: port, maxConcurrentConnections: 2)
-        service.start()
+        // Port-walks for the same reason as `testStopCancelsAcceptedIdleConnections`.
+        guard let (service, port) = await startBoundService(
+            from: 59993,
+            make: { WidgetHTTPService(port: $0, maxConcurrentConnections: 2) }
+        ) else { return }
         defer { service.stop() }
-        try await service.ready()
 
         // Fill the cap with idle clients that never send a request.
         var capFillers: [NWConnection] = []
