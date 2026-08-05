@@ -35,6 +35,7 @@ final class KeychainServiceTests {
     @Test("Test hosts default to process-local credentials")
     func testHostUsesInMemoryBackend() {
         #expect(WolfWaveApp.isRunningTests)
+        #expect(previousBackend is InMemoryKeychainBackend)
         #expect(KeychainService.makeDefaultBackend(isRunningTests: true) is InMemoryKeychainBackend)
     }
 
