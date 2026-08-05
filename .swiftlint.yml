@@ -81,4 +81,16 @@ large_tuple:
   warning: 3
   error: 5
 
+custom_rules:
+  # An Apple event addressed by bundle id is auto-launched by LaunchServices, so
+  # this call *starts Music* when it isn't running. Checking "is it running?"
+  # first does not help: the user can quit in the gap before the send. That race
+  # shipped twice (PR #203, PR #273) as "WolfWave keeps reopening Music".
+  # Resolve `MusicProcess.pid` and use `SBApplication(processIdentifier:)`.
+  sb_application_bundle_identifier:
+    name: "SBApplication addressed by bundle identifier"
+    regex: 'SBApplication\(bundleIdentifier:'
+    message: "Addressing a scripted app by bundle id auto-launches it. Use SBApplication(processIdentifier:) via MusicProcess.pid."
+    severity: error
+
 reporter: "xcode"

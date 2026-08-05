@@ -136,6 +136,35 @@ struct AppleMusicControllerTests {
         #expect(script.contains(body))
     }
 
+    @Test("timeoutWrapped gates the body on a non-launching running check")
+    func timeoutWrappedGuardsAgainstRelaunch() {
+        let body = """
+        tell application "Music"
+            playpause
+        end tell
+        """
+        let script = AppleMusicController.timeoutWrapped(body, seconds: 5)
+
+        // `application "Music" is running` is answered without launching Music,
+        // unlike the `tell` block it guards. Losing this line reintroduces the
+        // relaunch-on-quit bug (PR #203, PR #273).
+        #expect(script.contains("if application \"Music\" is running then"))
+
+        // The tell block must sit *inside* the guard, not before it.
+        let guardRange = script.range(of: "if application \"Music\" is running then")
+        let bodyRange = script.range(of: body)
+        #expect(guardRange != nil)
+        #expect(bodyRange != nil)
+        if let guardRange, let bodyRange {
+            #expect(guardRange.upperBound <= bodyRange.lowerBound)
+        }
+
+        // Closed Music must surface as a script error so callers take their
+        // existing nil / "no information" path instead of reading a stop.
+        #expect(script.contains("error \"Music is not running\" number -600"))
+        #expect(script.contains("end if"))
+    }
+
     @Test("timeoutWrapped embeds the requested number of seconds")
     func timeoutWrappedSeconds() {
         let script = AppleMusicController.timeoutWrapped("tell application \"Music\"\nend tell", seconds: 2)
