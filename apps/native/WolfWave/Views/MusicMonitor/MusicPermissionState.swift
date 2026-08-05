@@ -110,11 +110,7 @@ enum MusicPermissionChecker {
     }
 
     /// True when Music.app currently has a running process.
-    nonisolated static var isMusicRunning: Bool {
-        !NSRunningApplication
-            .runningApplications(withBundleIdentifier: AppConstants.Music.bundleIdentifier)
-            .isEmpty
-    }
+    nonisolated static var isMusicRunning: Bool { MusicProcess.isRunning }
 
     /// Launches Music.app in the background (no focus steal) if it isn't already
     /// running, then waits briefly for the process to register so a following

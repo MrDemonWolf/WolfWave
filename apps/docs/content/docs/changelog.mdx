@@ -37,7 +37,9 @@ The next release. These ship on the [Nightly channel](/docs/nightly) off `main` 
 - **Less background work.** WolfWave pauses unused overlay, Twitch, song-request, and Discord tasks instead of polling or retrying while those features are idle, disconnected, held, hidden, or disabled.
 
 ### Fixed
-- **Settings sidebar no longer opens too narrow.** The sidebar could come back squeezed from a previous session and cut off section names like "Stream Widgets". It now uses a fixed width, matching System Settings.
+- **Apple Music stays closed when you close it.** WolfWave no longer reopens Music.app after you quit it, and no longer opens it on its own while running.
+- **WolfWave tells you when Music isn't open.** The now-playing card used to say "Nothing playing right now" whether Music was closed or just idle. It now says "Apple Music isn't open" with an Open Music button when the app is shut.
+- **Settings sidebar no longer opens too narrow.** The sidebar could come back squeezed from a previous session and cut off section names like "Stream Widgets". It now uses a fixed width, matching System Settings, and a stale saved width can no longer be restored over it.
 - **No more freezes from song requests.** WolfWave now talks to Apple Music off the main thread, so a slow or busy Music.app can't beachball the app while the request queue auto-advances or when you hit play, pause, or skip.
 - **Stream Deck overlay key stays connected.** The action hides or shows overlay cards without dropping the authenticated control socket, so the next key press and its acknowledgement still work.
 - **Album art stays current.** A slow old lookup can no longer replace the current track's art, temporary download failures remain retryable, and the tray's decoded-art cache is bounded.
