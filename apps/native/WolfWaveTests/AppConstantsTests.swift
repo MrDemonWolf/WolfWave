@@ -21,6 +21,7 @@ struct AppConstantsTests {
     func testAppInfoConstants() async throws {
         #expect(!AppConstants.AppInfo.bundleIdentifier.isEmpty)
         #expect(!AppConstants.AppInfo.displayName.isEmpty)
+        // AppInfo identifies the release product; runtime isolation uses Bundle.main.bundleIdentifier.
         #expect(AppConstants.AppInfo.bundleIdentifier == "com.mrdemonwolf.wolfwave")
         #if DEBUG
         #expect(AppConstants.AppInfo.displayName == "WolfWave Dev")
