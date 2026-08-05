@@ -16,7 +16,7 @@
             <BuildableReference
                BuildableIdentifier = "primary"
                BlueprintIdentifier = "D40965C92F0F906C00B292B6"
-               BuildableName = "WolfWave.app"
+               BuildableName = "WolfWave Dev.app"
                BlueprintName = "WolfWave"
                ReferencedContainer = "container:WolfWave.xcodeproj">
             </BuildableReference>
@@ -58,7 +58,7 @@
          <BuildableReference
             BuildableIdentifier = "primary"
             BlueprintIdentifier = "D40965C92F0F906C00B292B6"
-            BuildableName = "WolfWave.app"
+            BuildableName = "WolfWave Dev.app"
             BlueprintName = "WolfWave"
             ReferencedContainer = "container:WolfWave.xcodeproj">
          </BuildableReference>
