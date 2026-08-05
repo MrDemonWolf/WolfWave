@@ -61,6 +61,7 @@ Adding fields server-side is safe; renaming fields requires a coordinated change
 | `playback_state` | `{ isPlaying, track?, artist?, album? }` | State change |
 | `overlay_visibility` | `{ visible }` | Stream Deck visibility toggle |
 | `widget_config` | `{ theme, layout, textColor, backgroundColor, fontFamily }` | Settings change |
+| `queue_upcoming` | `{ items: [{ title, requesterUsername }] }` (max 3) | Queue change |
 
 The browser widget never sends back. The native app pushes, the browser renders.
 
@@ -121,9 +122,28 @@ Background color pickers; the other themes ship fixed palettes.
 | `?token=<hex>` | LAN bootstrap token; the script forwards it in the WebSocket subprotocol. Loopback pages receive the token in the served HTML instead. |
 | `?duration=8` | Auto-hide after N seconds (0 = never) |
 | `?hideAlbumArt` | Render without the artwork tile |
+| `?queueTicker=1` | Show the upcoming-queue ticker panel (off by default) |
 
 Theme and layout aren't URL parameters. Set them in **Settings → Stream
 Widgets** and the overlay follows along live.
+
+## Queue ticker
+
+**Off by default, opt-in per Browser Source.** Add `?queueTicker=1` to your
+widget URL to show a small panel listing the next 3 song requests (title +
+requester). It's a separate fixed-position panel, not part of the now-playing
+card or any layout, so turning it on never changes an existing Browser
+Source's size or position. When the queue is empty it shows "Queue open, !sr
+to join" instead of disappearing, so the panel doesn't flicker in and out as
+the queue drains.
+
+To run it alongside the now-playing card, add it to your existing widget URL:
+`?queueTicker=1` if that URL has no query parameters yet, or `&queueTicker=1`
+if it already has one (a LAN URL carrying `?token=...`, for instance). Both
+render in the same Browser Source, sized to fit both. Or add a second Browser
+Source pointed at the same widget URL with `?queueTicker=1` and position it
+independently in your scene, the same way chat boxes and alert widgets are
+typically composed in OBS.
 
 ## Transitions
 
