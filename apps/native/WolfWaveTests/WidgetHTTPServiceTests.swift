@@ -135,8 +135,8 @@ final class WidgetHTTPServiceTests: XCTestCase {
     // MARK: - Start/Stop Lifecycle Tests
 
     func testStartThenStopDoesNotCrash() {
-        // Use a high port unlikely to conflict
-        let service = WidgetHTTPService(port: 59999)
+        // Stay below macOS's ephemeral client-port range.
+        let service = WidgetHTTPService(port: 38999)
         service.start()
         service.stop()
         // Clean lifecycle = pass
@@ -144,7 +144,7 @@ final class WidgetHTTPServiceTests: XCTestCase {
 
     func testMultipleStartCallsDoNotCreateDuplicateListeners() {
         // The start() method guards on listener == nil, so calling it twice should be safe
-        let service = WidgetHTTPService(port: 59998)
+        let service = WidgetHTTPService(port: 38998)
         service.start()
         service.start() // Should be a no-op since listener is already set
         service.stop()
@@ -320,7 +320,7 @@ final class WidgetHTTPServiceTests: XCTestCase {
         // Walk for a free port instead of pinning one. A hardcoded port fails with
         // `listenerFailed` whenever the previous run's socket is still in TIME_WAIT
         // or the real app is running, which made this suite flake on every rerun.
-        guard let (service, port) = await startBoundService(from: 59995) else { return }
+        guard let (service, port) = await startBoundService(from: 38995) else { return }
         defer { service.stop() }
 
         let closed = expectation(description: "server closed the idle client on stop()")
@@ -341,7 +341,7 @@ final class WidgetHTTPServiceTests: XCTestCase {
     }
 
     func testHeaderTimeoutCancelsConnectionWithIncompleteHeaders() async throws {
-        let port: UInt16 = 59994
+        let port: UInt16 = 38994
         // Short timeout so the test stays fast; production default is 10s.
         let service = WidgetHTTPService(port: port, headerTimeout: 0.5)
         service.start()
@@ -367,7 +367,7 @@ final class WidgetHTTPServiceTests: XCTestCase {
         // Tiny cap so the test doesn't need 32 sockets; production default is 32.
         // Port-walks for the same reason as `testStopCancelsAcceptedIdleConnections`.
         guard let (service, port) = await startBoundService(
-            from: 59993,
+            from: 38993,
             make: { WidgetHTTPService(port: $0, maxConcurrentConnections: 2) }
         ) else { return }
         defer { service.stop() }

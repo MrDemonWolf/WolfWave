@@ -68,7 +68,9 @@ make notarize       # Notarize the DMG (requires Developer ID + env vars)
 make verify-notarize # Verify the notarization ticket is stapled
 ```
 
-Xcode project is at `apps/native/WolfWave.xcodeproj` with scheme `WolfWave`. Build and run with Cmd+R in Xcode.
+Xcode project is at `apps/native/WolfWave.xcodeproj` with scheme `WolfWave`. Build and run with Cmd+R in Xcode. The Debug action must resolve to `WolfWave Dev.app`, display as **WolfWave Dev**, and use bundle ID `com.mrdemonwolf.wolfwave.dev`; Release remains `WolfWave.app` / `com.mrdemonwolf.wolfwave`. Do not collapse those identities or point the Debug scheme runnable at the Release product.
+
+All `make test*` targets use the ignored `DerivedData/Tests` directory. This keeps their unsigned test host from replacing the signed Debug app in Xcode's normal DerivedData. Test hosts also default `KeychainService` to process-local storage before any suite setup, so tests must never read, write, or prompt for the user's real dev Keychain.
 
 ## Build Configuration
 
@@ -208,7 +210,7 @@ Existing legacy literals are tracked in [`design-system/lint-allowlist.txt`](des
 
 ## Testing
 
-Unit tests live in `apps/native/WolfWaveTests/` and use XCTest + Swift Testing with `@testable import WolfWave`. The test target is a hosted unit test bundle (`TEST_HOST` = WolfWave.app). Run `ls apps/native/WolfWaveTests/*.swift | wc -l` for the current file count.
+Unit tests live in `apps/native/WolfWaveTests/` and use XCTest + Swift Testing with `@testable import WolfWave`. The test target is a hosted unit test bundle (`TEST_HOST` = `WolfWave Dev.app` for Debug and `WolfWave.app` for Release). Run `ls apps/native/WolfWaveTests/*.swift | wc -l` for the current file count.
 
 > Auto-discovery: `apps/native/WolfWaveTests/` is a `PBXFileSystemSynchronizedRootGroup`; dropping a new `*.swift` file in is enough, no Xcode project edit required.
 
@@ -268,11 +270,11 @@ Unit tests live in `apps/native/WolfWaveTests/` and use XCTest + Swift Testing w
 - `StreamerModeMaskingSweepTests.swift` - Sweeps every sensitive field for Streamer Mode masking
 - `AtomicTests.swift`, `ByteFormattingTests.swift`, `InlineMarkdownTests.swift`, `FeatureFlagsDefaultsTests.swift`, `JSONSerializationGuardTests.swift` - Core utility coverage
 - `HintRowTests.swift`, `LabeledSliderTests.swift`, `StatTileTests.swift`, `DestructiveButtonTests.swift`, `SectionEyebrowTests.swift`, `TwitchConnectionNoticeTests.swift`, `WidgetAppearancePreviewTests.swift` - Shared view components
-- `InMemoryKeychainBackend.swift` - Test double injected behind `KeychainService` (unit tests must never hit the real Keychain)
 
 ### Writing tests
 
 - Use `@testable import WolfWave` (module name matches `PRODUCT_NAME`)
+- Test hosts default to `InMemoryKeychainBackend`; never replace it with `SystemKeychainBackend` or access the user's real Keychain
 - `SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor` applies to test classes too; XCTest runs on main thread
 - Test files are auto-discovered via `PBXFileSystemSynchronizedRootGroup`; just add `.swift` files to `apps/native/WolfWaveTests/`
 - Focus on pure logic (version comparison, command matching, state machines); avoid tests that need AppDelegate, Keychain, or network

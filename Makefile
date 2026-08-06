@@ -7,6 +7,7 @@ PROD_DESTINATION = generic/platform=macOS
 PROD_ARCHS = arm64
 BUILD_DIR   = build
 BUILDS_DIR  = builds
+TEST_DERIVED_DATA = $(CURDIR)/DerivedData/Tests
 
 # Resolve version from Xcode project (Release config)
 VERSION = $(shell xcodebuild -project $(PROJECT) -scheme $(SCHEME) -configuration Release -showBuildSettings 2>/dev/null | awk -F'= ' '/MARKETING_VERSION/ {gsub(/^[ \t]+/,"",$$2); print $$2; exit}')
@@ -83,6 +84,7 @@ clean:
 test: sponsor-config
 	@xcodebuild -project $(PROJECT) -scheme $(SCHEME) \
 		-destination '$(DESTINATION)' -configuration Debug \
+		-derivedDataPath '$(TEST_DERIVED_DATA)' \
 		-only-testing WolfWaveTests \
 		$(LOCAL_SIGN) \
 		test 2>/dev/null | scripts/check-test-results.sh
@@ -90,12 +92,14 @@ test: sponsor-config
 test-verbose: sponsor-config
 	@xcodebuild -project $(PROJECT) -scheme $(SCHEME) \
 		-destination '$(DESTINATION)' -configuration Debug \
+		-derivedDataPath '$(TEST_DERIVED_DATA)' \
 		-only-testing WolfWaveTests \
 		test 2>/dev/null | tee /dev/stderr | scripts/check-test-results.sh
 
 test-ci: sponsor-config
 	xcodebuild -project $(PROJECT) -scheme $(SCHEME) \
 		-destination '$(DESTINATION)' -configuration Debug \
+		-derivedDataPath '$(TEST_DERIVED_DATA)' \
 		-only-testing WolfWaveTests \
 		CODE_SIGN_IDENTITY="-" \
 		CODE_SIGNING_REQUIRED=NO \

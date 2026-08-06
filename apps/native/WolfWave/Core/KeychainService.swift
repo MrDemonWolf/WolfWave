@@ -226,11 +226,20 @@ nonisolated enum KeychainService {
 
     /// Raw storage backing every credential operation.
     ///
-    /// Defaults to `SystemKeychainBackend` (Security framework). Unit tests swap
-    /// in an in-memory double so the suite never touches the real Keychain.
-    /// Ad-hoc test signing otherwise triggers an ACL prompt that blocks cold
-    /// reads and fails CI. Mutated only from serialized tests.
-    nonisolated(unsafe) static var backend: KeychainBackend = SystemKeychainBackend(service: service)
+    /// Test hosts default to process-local storage so no test can touch the
+    /// user's real Keychain before a suite installs its own backend. Normal app
+    /// launches use the Security framework. Mutated only from serialized tests.
+    nonisolated(unsafe) static var backend: KeychainBackend = makeDefaultBackend(
+        isRunningTests: WolfWaveApp.isRunningTests
+    )
+
+    /// Kept internal so the test suite can pin the security-sensitive branch.
+    static func makeDefaultBackend(isRunningTests: Bool) -> KeychainBackend {
+        if isRunningTests {
+            return InMemoryKeychainBackend()
+        }
+        return SystemKeychainBackend(service: service)
+    }
 
     // MARK: - Private Helpers
 

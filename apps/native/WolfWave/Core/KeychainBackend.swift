@@ -14,8 +14,8 @@ import Security
 /// `KeychainService` owns the credential semantics (account names, empty-value
 /// validation, error types, "save username only if changed"). It delegates the
 /// actual store/fetch/remove to a `KeychainBackend`. Production uses
-/// `SystemKeychainBackend` (Security framework); unit tests inject an in-memory
-/// double so the suite never touches the real Keychain. Ad-hoc test signing
+/// `SystemKeychainBackend` (Security framework); test hosts default to an
+/// in-memory double so the suite never touches the real Keychain. Ad-hoc signing
 /// otherwise triggers an ACL prompt that blocks cold reads and fails CI.
 nonisolated protocol KeychainBackend: Sendable {
     /// Stores `value` for `account`, overwriting any existing entry.
@@ -31,6 +31,40 @@ nonisolated protocol KeychainBackend: Sendable {
     /// Removes every entry for the backend's service in one sweep.
     /// Succeeds silently if nothing is stored. Used by the factory reset.
     func deleteAll()
+}
+
+/// Process-local credential storage used whenever WolfWave runs as a test host.
+///
+/// Tests must never initialize or query the user's real Keychain: unsigned test
+/// products have unstable identities that trigger ACL prompts and can corrupt
+/// the trusted-application entry for the signed development app.
+nonisolated final class InMemoryKeychainBackend: KeychainBackend, @unchecked Sendable {
+    private var store: [String: String] = [:]
+    private let lock = NSLock()
+
+    func save(account: String, value: String) throws {
+        lock.lock()
+        defer { lock.unlock() }
+        store[account] = value
+    }
+
+    func load(account: String) -> String? {
+        lock.lock()
+        defer { lock.unlock() }
+        return store[account]
+    }
+
+    func delete(account: String) {
+        lock.lock()
+        defer { lock.unlock() }
+        store[account] = nil
+    }
+
+    func deleteAll() {
+        lock.lock()
+        defer { lock.unlock() }
+        store.removeAll()
+    }
 }
 
 /// `KeychainBackend` backed by the macOS Security framework (generic passwords).
