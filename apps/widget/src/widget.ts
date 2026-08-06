@@ -770,7 +770,7 @@ function buildWidget(): void {
   /**
    * Renders the artwork - either the iTunes Search URL or a WolfWave-branded
    * SVG fallback (wolf mark on brand-blue gradient). Keep the SVG in sync
-   * with Assets.xcassets/WolfMark.imageset/WolfMark.svg.
+   * with assets/logo.svg; WolfMark.svg is its native template derivative.
    */
   function artImg(w: number, h: number, radius: string): string {
     let artURL = nowPlaying!.artworkURL || null;
@@ -784,23 +784,8 @@ function buildWidget(): void {
       return (
         wrapOpen +
         '<div class="artwork flex items-center justify-center" style="width:' + w + "px;height:" + h + "px;border-radius:" + radius + ";background:linear-gradient(135deg,#0A84FF,#003A78);box-shadow:0 2px 8px rgba(0,0,0,0.3);\">" +
-        '<svg width="' + mark + '" height="' + mark + '" viewBox="0 0 100 100" fill="#FFFFFF">' +
-        '<rect x="24" y="43" width="3.5" height="30" rx="1.75"/>' +
-        '<rect x="19" y="49" width="3.5" height="24" rx="1.75" opacity="0.9"/>' +
-        '<rect x="14" y="55" width="3.5" height="18" rx="1.75" opacity="0.73"/>' +
-        '<rect x="9" y="61" width="3.5" height="12" rx="1.75" opacity="0.54"/>' +
-        '<rect x="4" y="66" width="3.5" height="7" rx="1.75" opacity="0.34"/>' +
-        '<rect x="-1" y="69" width="3.5" height="4" rx="1.75" opacity="0.18"/>' +
-        '<rect x="72.5" y="43" width="3.5" height="30" rx="1.75"/>' +
-        '<rect x="77.5" y="49" width="3.5" height="24" rx="1.75" opacity="0.9"/>' +
-        '<rect x="82.5" y="55" width="3.5" height="18" rx="1.75" opacity="0.73"/>' +
-        '<rect x="87.5" y="61" width="3.5" height="12" rx="1.75" opacity="0.54"/>' +
-        '<rect x="92.5" y="66" width="3.5" height="7" rx="1.75" opacity="0.34"/>' +
-        '<rect x="97.5" y="69" width="3.5" height="4" rx="1.75" opacity="0.18"/>' +
-        '<polygon points="33,41 33,11 45,38"/>' +
-        '<polygon points="67,41 67,11 55,38"/>' +
-        '<ellipse cx="50" cy="52" rx="18" ry="17.5"/>' +
-        '<ellipse cx="50" cy="63" rx="11" ry="8"/>' +
+        '<svg width="' + mark + '" height="' + mark + '" viewBox="0 0 15 15" fill="#FFFFFF">' +
+        '<path d="M11.3 6.08L11.3 5.84C11.3 5.31 11.06 4.81 10.65 4.46L9.16 3.32L9.16 0.58C9.16 0.58 7.8 0.94 7.08 1.86L7.08 0L6.52 0.2C6.45 0.22 4.7 0.86 3.71 3.23L1 4.9L1.88 5.78L0 7.39L0 9.1C0.78 8.33 1.82 7.9 2.92 7.9C3.41 7.9 3.89 7.99 4.33 8.15C4.65 7.23 5.51 5.68 7.5 7.06C9.46 8.42 11.76 9.12 12.82 9.41L12.54 9.74C12.41 9.85 11.69 10.54 10.24 9.76L7.95 8.73L6.67 10.79L7.62 12.07L6.77 13.35L8.01 15L9.58 15L8.3 13.31L9.12 12.08L8.19 10.69C8.23 10.56 8.44 10.25 8.44 10.25L9.2 10.63C11.73 12.13 13.37 10.69 13.43 10.63L15 8.75L11.31 6.08L11.3 6.08ZM9.95 6.42C9.85 6.63 9.6 6.71 9.39 6.61L8.56 6.19C8.35 6.09 8.27 5.84 8.37 5.63C8.47 5.42 8.72 5.34 8.93 5.44L9.76 5.86C9.96 5.96 10.05 6.21 9.95 6.42L9.95 6.42Z"/>' +
         "</svg>" +
         "</div>" +
         wrapClose
