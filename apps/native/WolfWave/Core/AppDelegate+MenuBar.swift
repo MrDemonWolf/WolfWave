@@ -23,6 +23,7 @@ extension AppDelegate {
         guard let button = statusItem?.button else { return }
         if let icon = NSImage(named: "WolfMark") {
             icon.isTemplate = true
+            icon.size = NSSize(width: 18, height: 18)
             button.image = icon
         } else {
             button.image = NSImage(

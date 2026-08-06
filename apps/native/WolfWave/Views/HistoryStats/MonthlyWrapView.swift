@@ -274,14 +274,12 @@ struct MonthlyWrapCard: View {
         VStack(alignment: .leading, spacing: DSSpace.s5) {
             VStack(alignment: .leading, spacing: DSSpace.s0) {
                 HStack(spacing: DSSpace.s2) {
-                    if let mark = NSImage(named: "WolfMark") {
-                        Image(nsImage: mark)
-                            .resizable()
-                            .renderingMode(.template)
-                            .interpolation(.high)
-                            .frame(width: DSSpace.s6, height: DSSpace.s6)
-                            .foregroundStyle(.white)
-                    }
+                    Image("WolfMark")
+                        .resizable()
+                        .renderingMode(.template)
+                        .interpolation(.high)
+                        .frame(width: DSSpace.s6, height: DSSpace.s6)
+                        .foregroundStyle(.white)
                     Text("WOLFWAVE · MONTHLY WRAP")
                         .font(.system(size: DSFont.Size.xs, weight: .bold))
                         .tracking(1.4)

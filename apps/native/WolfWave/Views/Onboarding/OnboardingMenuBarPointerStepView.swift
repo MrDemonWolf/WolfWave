@@ -94,14 +94,12 @@ struct OnboardingMenuBarPointerStepView: View {
                     .fill(Color.accentColor.opacity(iconPulsing ? 0.20 : 0.08))
                     .frame(width: 26, height: 22)
 
-        if let trayIcon = NSImage(named: "WolfMark") {
-                    Image(nsImage: trayIcon)
-                        .renderingMode(.template)
-                        .resizable()
-                        .aspectRatio(contentMode: .fit)
-                        .frame(width: 16, height: 16)
-                        .foregroundStyle(.primary)
-                }
+                Image("WolfMark")
+                    .renderingMode(.template)
+                    .resizable()
+                    .aspectRatio(contentMode: .fit)
+                    .frame(width: 16, height: 16)
+                    .foregroundStyle(.primary)
             }
             .shadow(
                 color: Color.accentColor.opacity(iconPulsing ? 0.40 : 0),

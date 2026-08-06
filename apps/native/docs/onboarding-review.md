@@ -2,6 +2,8 @@
 
 **Reviewed:** 2026-06-06 · **Input:** Local SwiftUI code (`apps/native/WolfWave/Views/Onboarding/`) · **Method:** NN/g heuristic evaluation + Apple HIG review
 
+> Historical snapshot: findings below describe the 2026-06-06 implementation. See the status and 2026-08-06 brand-sync notes for the completed fixes; cited line numbers remain as audit history.
+
 ## Executive summary
 
 - The onboarding is well-built: a shared `OnboardingStepScaffold` keeps the icon→title→description→extras column at a constant Y across steps, entrance animations honor `reduceMotion`, and copy is short and ADHD-friendly.

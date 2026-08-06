@@ -34,7 +34,7 @@ graph TD
 
 ## Accessibility
 
-- Exposed as one element with `accessibilityLabel("WolfWave wolf mark")`.
+- Hidden from accessibility by default; visible screen titles already identify WolfWave.
 - Color is decorative; the mark conveys brand, not state.
 - The component has no internal motion. Host screens own entrance animation and Reduce Motion handling.
 
@@ -42,7 +42,7 @@ graph TD
 
 - ✅ Use `.brandGradient` on hero surfaces.
 - ✅ Use `.mono(.primary)` or `.mono(.secondary)` for inline marks.
-- ✅ Change geometry in `WolfMark.svg`, then sync its documented derivatives.
+- ✅ Change geometry in `assets/logo.svg`, then regenerate or synchronize `WolfMark.svg` and the other documented derivatives.
 - ❌ Don't redraw or paste the SVG path into Swift.
 - ❌ Don't use partner colors as the WolfWave tint.
 

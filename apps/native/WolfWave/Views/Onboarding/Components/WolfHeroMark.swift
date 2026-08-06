@@ -42,8 +42,7 @@ struct WolfHeroMark: View {
             }
         }
         .frame(width: size, height: size)
-        .accessibilityElement()
-        .accessibilityLabel("WolfWave wolf mark")
+        .accessibilityHidden(true)
     }
 
     // MARK: - Private Views
