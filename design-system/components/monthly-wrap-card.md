@@ -21,7 +21,7 @@ Card width is owner-controlled (production callers use `380`). Height grows to c
 - Background gradient: `AppConstants.Brand.wolfwaveGradientStart` → `wolfwaveGradientEnd` (`DSColor.partnerWolfwaveGradientStart` / `End`, `#0A2540` → `#2563EB`)
 - Type: `DSFont.Size.xs` (eyebrow + row caption + footer), `DSFont.Size.md` (row value), `DSFont.Size.x2xl` (month label), `DSFont.Size.x3xl` (stat values), `DSFont.Size.sm` (stat subtitle), `DSFont.Size.base` (empty state). This is the one share-card surface sanctioned to use the `x3xl` (26) display rung; it renders to an exported image, not settings chrome.
 - Spacing: `DSSpace.s0` (lockup), `DSSpace.s2` (mark gap + footer top), `DSSpace.s4` (empty state vertical pad), `DSSpace.s5` (outer stack), `DSSpace.s7` (card padding), `DSSpace.s8` (stat blocks)
-- Wolf mark dimension: `DSSpace.s6` (16): `TrayIcon` rendered as `.template` over white
+- Wolf mark dimension: `DSSpace.s6` (16): canonical `WolfMark` rendered as `.template` over white
 - Foreground: pure white at `1.0` (primary), `0.7` (eyebrow + stat subtitle), `0.6` (row caption), `0.55` (footer), `0.25` (divider)
 - Corner radius: `16` (continuous); legacy literal tracked in `lint-allowlist.txt`
 
