@@ -28,6 +28,10 @@ All notable changes to this project will be documented in this file.
 
 ### Fixed
 
+- **Twitch custom commands stay locked while disconnected.** The settings card now explains that Twitch must be connected and closes an open editor if the connection becomes unavailable.
+- **Low Power Mode no longer stalls launch.** Startup reads the posted power-state snapshot without recursively initializing the monitor.
+- **Discord presence settings apply immediately.** Idle presence and “hide while paused” changes refresh at once, preserve the paused track for restoration, and stay hidden when Discord is enabled mid-pause.
+
 - **Apple Music stays closed when you close it.** WolfWave no longer reopens Music.app after you quit it, and no longer opens it on its own while running.
 - **WolfWave tells you when Music isn't open.** The now-playing card used to say "Nothing playing right now" whether Music was closed or just idle. It now says "Apple Music isn't open" with an Open Music button when the app is shut.
 - **Settings sidebar no longer opens too narrow.** The sidebar could come back squeezed from a previous session and cut off section names like "Stream Widgets". It now uses a fixed width, matching System Settings, and a stale saved width can no longer be restored over it.
@@ -40,6 +44,8 @@ All notable changes to this project will be documented in this file.
 - **Steadier under the hood.** Hardened Discord Rich Presence against a rare bad-playback-position crash, stopped a Twitch rate-limit wait from spinning the CPU when a connection drops, and made LAN IP detection skip a bad network interface instead of showing a blank overlay address.
 
 ### Developer
+
+- Debug builds can treat every chatter, or selected Twitch logins, as normal viewers for permission and cooldown testing. Release builds omit the simulator.
 
 - New `BotCommand.isAllowed(context:)` permission hook and `allTriggers` protocol requirement (both default-preserving, so built-ins are unchanged). `CustomBotCommand` is an `AsyncBotCommand` built per message from `CustomCommandStore`, so edits apply on the next chat line without re-registration. Pure `CustomCommandRenderer` covers variable substitution; 21 new tests.
 - Stream Deck control API (groundwork for the upcoming plugin, WW-36). The overlay WebSocket is now bidirectional: it parses a protocol-versioned inbound `command` envelope, runs it through a router mapping 11 actions to existing services, and replies with an `ack`; new `queue_state` / `health` broadcasts drive counter/health keys. The connection is still gated by the per-install `wolfwave.token.<hex>` handshake. Pure `StreamDeckControl.parse` with new tests. See `apps/native/docs/streamdeck-control-api.md`.
