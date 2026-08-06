@@ -97,6 +97,9 @@ struct CustomCommandsCard: View {
                 onCancel: { editing = nil }
             )
         }
+        .onChange(of: twitchReady) { _, ready in
+            if !ready { editing = nil }
+        }
     }
 
     // MARK: - Rows
