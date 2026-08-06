@@ -323,7 +323,8 @@ extension AppDelegate {
 
     /// Adjusts service polling intervals when system power state changes.
     @objc func powerStateChanged(_ notification: Notification) {
-        applyPowerState(reduced: PowerStateMonitor.shared.isReducedMode)
+        guard let reduced = notification.isReducedModeFlag else { return }
+        applyPowerState(reduced: reduced)
     }
 
     private func applyPowerState(reduced: Bool) {
