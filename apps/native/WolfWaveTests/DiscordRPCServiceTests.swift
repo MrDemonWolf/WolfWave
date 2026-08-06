@@ -6,6 +6,7 @@
 //  Copyright © 2026 MrDemonWolf, Inc. All rights reserved.
 //
 
+import Darwin
 import XCTest
 @testable import WolfWave
 
@@ -167,6 +168,73 @@ final class DiscordRPCServiceTests: XCTestCase {
         await service.clearPresence()
         await service.clearPresence()
         // No crash = pass
+    }
+
+    func testPausedTrackReturnsAfterHideToggleTurnsOff() async throws {
+        var sockets = [Int32](repeating: -1, count: 2)
+        XCTAssertEqual(socketpair(AF_UNIX, SOCK_STREAM, 0, &sockets), 0)
+        guard sockets.allSatisfy({ $0 >= 0 }) else { return }
+
+        var timeout = timeval(tv_sec: 1, tv_usec: 0)
+        let timeoutResult = withUnsafePointer(to: &timeout) { pointer in
+            setsockopt(
+                sockets[1], SOL_SOCKET, SO_RCVTIMEO,
+                pointer, socklen_t(MemoryLayout<timeval>.size)
+            )
+        }
+        XCTAssertEqual(timeoutResult, 0)
+
+        let service = DiscordRPCService(clientID: "test")
+        await service.installTestSocket(sockets[0], connected: false)
+
+        do {
+            // Cache playback during the handshake without interleaving a
+            // SET_ACTIVITY frame before Discord's READY response.
+            await service.updatePresence(
+                track: "Test Track",
+                artist: "Test Artist",
+                album: "Test Album",
+                playlist: "",
+                duration: 180,
+                elapsed: 30,
+                isPaused: true,
+                showIdleStatus: false,
+                clearWhilePaused: true
+            )
+            var byte: UInt8 = 0
+            let prematureBytes = recv(sockets[1], &byte, 1, MSG_DONTWAIT)
+            XCTAssertEqual(prematureBytes, -1)
+            XCTAssertTrue(errno == EAGAIN || errno == EWOULDBLOCK)
+
+            await service.installTestSocket(sockets[0])
+            await service.updatePresence(
+                track: "Test Track",
+                artist: "Test Artist",
+                album: "Test Album",
+                playlist: "",
+                duration: 180,
+                elapsed: 35,
+                isPaused: true,
+                showIdleStatus: false,
+                clearWhilePaused: true
+            )
+            let hidden = try readRPCPayload(from: sockets[1])
+            XCTAssertNil(activity(in: hidden))
+
+            await service.refreshPresenceFromSettings(
+                showIdleStatus: false,
+                clearWhilePaused: false
+            )
+            let restored = try readRPCPayload(from: sockets[1])
+            XCTAssertEqual(activityDetails(in: restored), "Test Track")
+        } catch {
+            _ = await service.releaseTestSocket()
+            sockets.forEach { Darwin.close($0) }
+            throw error
+        }
+
+        _ = await service.releaseTestSocket()
+        sockets.forEach { Darwin.close($0) }
     }
 
     // MARK: - Connection State Enum Completeness
@@ -386,4 +454,65 @@ final class DiscordRPCServiceTests: XCTestCase {
             "Disabling Discord must cancel the availability timer")
     }
 
+}
+
+private extension DiscordRPCService {
+    func installTestSocket(_ fd: Int32, connected: Bool = true) {
+        socketFD = fd
+        isEnabled = true
+        state = connected ? .connected : .connecting
+    }
+
+    func releaseTestSocket() -> Int32 {
+        let fd = socketFD
+        socketFD = -1
+        isEnabled = false
+        state = .disconnected
+        return fd
+    }
+}
+
+private enum DiscordTestSocketError: Error {
+    case readFailed(Int32)
+    case invalidPayload
+}
+
+private func readRPCPayload(from fd: Int32) throws -> [String: Any] {
+    let header = try readExactly(8, from: fd)
+    let length = header.withUnsafeBytes { bytes in
+        UInt32(littleEndian: bytes.load(fromByteOffset: 4, as: UInt32.self))
+    }
+    let body = try readExactly(Int(length), from: fd)
+    guard let payload = try JSONSerialization.jsonObject(with: body) as? [String: Any] else {
+        throw DiscordTestSocketError.invalidPayload
+    }
+    return payload
+}
+
+private func readExactly(_ count: Int, from fd: Int32) throws -> Data {
+    var data = Data(count: count)
+    var offset = 0
+    while offset < count {
+        let result = data.withUnsafeMutableBytes { bytes -> Int in
+            guard let baseAddress = bytes.baseAddress else { return -1 }
+            return Darwin.read(fd, baseAddress.advanced(by: offset), count - offset)
+        }
+        if result > 0 {
+            offset += result
+        } else if result < 0, errno == EINTR {
+            continue
+        } else {
+            throw DiscordTestSocketError.readFailed(errno)
+        }
+    }
+    return data
+}
+
+private func activity(in payload: [String: Any]) -> [String: Any]? {
+    let args = payload["args"] as? [String: Any]
+    return args?["activity"] as? [String: Any]
+}
+
+private func activityDetails(in payload: [String: Any]) -> String? {
+    activity(in: payload)?["details"] as? String
 }
