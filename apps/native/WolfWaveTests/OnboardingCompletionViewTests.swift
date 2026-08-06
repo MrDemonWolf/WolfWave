@@ -57,22 +57,10 @@ final class OnboardingCompletionViewTests: XCTestCase {
             for size in sizes {
                 let mark = WolfHeroMark(
                     size: size,
-                    style: style,
-                    animatedBars: false,
-                    reduceMotion: true
+                    style: style
                 )
                 XCTAssertNotNil(mark.body)
             }
         }
-    }
-
-    func testWolfHeroMarkAnimatedBarsBuildsUnderReduceMotion() {
-        let mark = WolfHeroMark(
-            size: 96,
-            style: .brandGradient,
-            animatedBars: true,
-            reduceMotion: true
-        )
-        XCTAssertNotNil(mark.body)
     }
 }

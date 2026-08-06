@@ -274,7 +274,7 @@ struct MonthlyWrapCard: View {
         VStack(alignment: .leading, spacing: DSSpace.s5) {
             VStack(alignment: .leading, spacing: DSSpace.s0) {
                 HStack(spacing: DSSpace.s2) {
-                    if let mark = NSImage(named: "TrayIcon") {
+                    if let mark = NSImage(named: "WolfMark") {
                         Image(nsImage: mark)
                             .resizable()
                             .renderingMode(.template)
