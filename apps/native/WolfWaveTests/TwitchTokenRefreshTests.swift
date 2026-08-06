@@ -29,6 +29,7 @@ final class TwitchTokenRefreshTests: XCTestCase {
 
     override func setUp() {
         super.setUp()
+        KeychainBackendTestIsolation.acquire()
         previousBackend = KeychainService.backend
         backend = InMemoryKeychainBackend()
         KeychainService.backend = backend
@@ -37,6 +38,7 @@ final class TwitchTokenRefreshTests: XCTestCase {
     override func tearDown() {
         MockURLProtocol.reset()
         KeychainService.backend = previousBackend
+        KeychainBackendTestIsolation.release()
         super.tearDown()
     }
 
