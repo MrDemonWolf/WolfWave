@@ -110,6 +110,8 @@ Apple HIG backs the adaptive requirement: prefer dynamic/semantic colors and pro
 
 ## Status (2026-06-07)
 
+> Brand sync, 2026-08-06: `WolfHeroMark` now masks the canonical `WolfMark` template asset. The custom Swift path and bar geometry were removed.
+
 All findings implemented:
 
 - #1 hero mark: theme-adaptive WolfWave brand gradient.

@@ -19,11 +19,12 @@ ogEyebrow: Brand
 
 ## Logo
 
-WolfWave's mark is a stylized wave-and-howl glyph. The logo SVG lives at `apps/native/WolfWave/Resources/AppIcon.icon/Assets/logo.svg`.
+WolfWave's canonical mark is the minimal wolf head in [`assets/logo.svg`](https://github.com/MrDemonWolf/WolfWave/blob/main/assets/logo.svg). It is a single-path, `currentColor` SVG derived from the CC0 [Wolf head Pinhead icon](https://commons.wikimedia.org/wiki/File:Wolf_head_Pinhead_icon.svg).
 
-- Minimum clear space: equal to the height of the wave glyph on all sides.
-- Minimum size: 24×24 pt for digital. Avoid printed use under 12 mm.
-- Light mode fill: `#111`. Dark mode fill: `#FFF`. Do not recolor to brand blue.
+- Minimum size: 16×16 px for digital.
+- In app chrome, use template rendering so the mark inherits the current foreground color.
+- On standalone brand surfaces, use WolfWave blue (`#0A84FF`) or white over a WolfWave blue background. Never use a partner color.
+- App-icon treatments keep about 10% padding around the mark; the wolf is white in Light and `#00ACED` in Dark.
 
 ## Partner colors
 

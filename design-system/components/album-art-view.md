@@ -74,4 +74,4 @@ AlbumArtView(
 )
 ```
 
-> The OBS widget (`Resources/widget.html`, `artImg`) mirrors this fallback with an inline copy of the `WolfMark` SVG on the same brand gradient. Keep the two in sync.
+> The OBS widget (`Resources/widget.html`, `artImg`) mirrors this fallback with the canonical path from `assets/logo.svg` on the same brand gradient. Keep it in sync with `WolfMark.svg`.
