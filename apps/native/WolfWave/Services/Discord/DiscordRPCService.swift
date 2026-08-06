@@ -501,7 +501,15 @@ actor DiscordRPCService {
     /// in settings). Re-uses cached `TrackLinks` via `ArtworkService.shared` so no
     /// network round-trip is required.
     private func resendLastPresence() async {
-        guard state == .connected, let snap = lastPresence else { return }
+        guard state == .connected else { return }
+        guard let snap = lastPresence else {
+            await sendNoTrackPresence()
+            return
+        }
+        if snap.isPaused && FeatureFlags.discordClearWhilePaused {
+            await sendNoTrackPresence()
+            return
+        }
 
         // Recompute elapsed from the captured timestamp so the progress bar stays accurate.
         let drift = Date().timeIntervalSince(snap.capturedAt)
@@ -522,6 +530,15 @@ actor DiscordRPCService {
             songLinkURL: cached.songLinkURL,
             isPaused: snap.isPaused
         )
+    }
+
+    /// Applies the current no-track preference after a display setting changes.
+    private func sendNoTrackPresence() async {
+        if FeatureFlags.discordShowIdleStatus {
+            await showIdleStatus()
+        } else {
+            await performClearPresence()
+        }
     }
 
     // Presence payload + playlist-resolution builders (buildActivity,
