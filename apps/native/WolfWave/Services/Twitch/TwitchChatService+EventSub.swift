@@ -13,10 +13,19 @@ extension TwitchChatService {
     #if DEBUG
     /// Debug-only role override for exercising viewer permissions and cooldowns
     /// with real chat messages. Never compiled into release builds.
-    private static func shouldTreatAsViewer(username: String) -> Bool {
-        let defaults = UserDefaults.standard
-        if defaults.bool(forKey: "debugTreatAllChattersAsViewers") { return true }
-        let names = defaults.string(forKey: "debugViewerUsernames") ?? ""
+    static func shouldTreatAsViewer(
+        event: [String: Any],
+        defaults: UserDefaults = .standard
+    ) -> Bool {
+        if defaults.bool(forKey: AppConstants.UserDefaults.debugTreatAllChattersAsViewers) {
+            return true
+        }
+        let login = (event["chatter_user_login"] as? String ?? "")
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        let displayName = (event["chatter_user_name"] as? String ?? "")
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        let username = login.isEmpty ? displayName : login
+        let names = defaults.string(forKey: AppConstants.UserDefaults.debugViewerUsernames) ?? ""
         return names
             .split(separator: ",")
             .map { $0.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() }
@@ -96,7 +105,7 @@ extension TwitchChatService {
         if commandsEnabled, Self.isPotentialCommand(text) {
             let roles = chatMessage.roles
             #if DEBUG
-            let treatAsViewer = Self.shouldTreatAsViewer(username: username)
+            let treatAsViewer = Self.shouldTreatAsViewer(event: event)
             #else
             let treatAsViewer = false
             #endif

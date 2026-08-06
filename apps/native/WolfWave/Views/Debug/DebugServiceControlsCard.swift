@@ -22,8 +22,10 @@ struct DebugServiceControlsCard: View {
     @State private var queueCount: Int = 3
     @State private var wsTestTitle: String = "WS Test"
     @State private var wsTestArtist: String = "Debug"
-    @AppStorage("debugTreatAllChattersAsViewers") private var treatAllChattersAsViewers = false
-    @AppStorage("debugViewerUsernames") private var viewerUsernames = ""
+    @AppStorage(AppConstants.UserDefaults.debugTreatAllChattersAsViewers)
+    private var treatAllChattersAsViewers = false
+    @AppStorage(AppConstants.UserDefaults.debugViewerUsernames)
+    private var viewerUsernames = ""
 
     private var appDelegate: AppDelegate? { AppDelegate.shared }
 
@@ -108,7 +110,7 @@ struct DebugServiceControlsCard: View {
             TextField("Or test these usernames (comma-separated)", text: $viewerUsernames)
                 .textFieldStyle(.roundedBorder)
                 .disabled(treatAllChattersAsViewers)
-            Text("Overrides broadcaster, moderator, subscriber, and VIP roles; also applies normal cooldowns. Debug builds only.")
+            Text("Uses normal viewer permissions and cooldowns. Debug builds only.")
                 .font(.system(size: DSFont.Size.xs))
                 .foregroundStyle(.secondary)
             HStack {
