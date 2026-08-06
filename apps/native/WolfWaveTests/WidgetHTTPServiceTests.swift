@@ -341,12 +341,12 @@ final class WidgetHTTPServiceTests: XCTestCase {
     }
 
     func testHeaderTimeoutCancelsConnectionWithIncompleteHeaders() async throws {
-        let port: UInt16 = 38994
         // Short timeout so the test stays fast; production default is 10s.
-        let service = WidgetHTTPService(port: port, headerTimeout: 0.5)
-        service.start()
+        guard let (service, port) = await startBoundService(
+            from: 38994,
+            make: { WidgetHTTPService(port: $0, headerTimeout: 0.5) }
+        ) else { return }
         defer { service.stop() }
-        try await service.ready()
 
         let closed = expectation(description: "server cancelled the stalled client")
         closed.assertForOverFulfill = false
