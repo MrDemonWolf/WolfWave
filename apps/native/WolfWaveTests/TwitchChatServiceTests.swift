@@ -21,6 +21,38 @@ struct TwitchChatServiceTests {
         UserDefaults.standard.removeObject(forKey: AppConstants.UserDefaults.lastSongCommandEnabled)
     }
 
+    #if DEBUG
+    @Test("Debug viewer simulation matches canonical login and display-name fallback")
+    func testDebugViewerSimulationUsernameMatching() {
+        let suiteName = "TwitchChatServiceTests.viewer.\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suiteName)!
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+
+        defaults.set(
+            " other, SOMEHANDLE ",
+            forKey: AppConstants.UserDefaults.debugViewerUsernames
+        )
+        #expect(TwitchChatService.shouldTreatAsViewer(
+            event: ["chatter_user_login": "somehandle", "chatter_user_name": "Localized Name"],
+            defaults: defaults
+        ))
+        #expect(TwitchChatService.shouldTreatAsViewer(
+            event: ["chatter_user_name": "Other"],
+            defaults: defaults
+        ))
+        #expect(!TwitchChatService.shouldTreatAsViewer(
+            event: ["chatter_user_login": "different"],
+            defaults: defaults
+        ))
+
+        defaults.set(true, forKey: AppConstants.UserDefaults.debugTreatAllChattersAsViewers)
+        #expect(TwitchChatService.shouldTreatAsViewer(
+            event: ["chatter_user_login": "anyone"],
+            defaults: defaults
+        ))
+    }
+    #endif
+
     // MARK: - Initialization Tests
 
     @Test("Service initializes with default values")

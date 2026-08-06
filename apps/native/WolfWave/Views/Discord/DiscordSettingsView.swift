@@ -129,6 +129,8 @@ struct DiscordSettingsView: View {
         .onChange(of: playlistEnabled) { _, _ in scheduleSettingsResend() }
         .onChange(of: playlistShowName) { _, _ in scheduleSettingsResend() }
         .onChange(of: playlistStyle) { _, _ in scheduleSettingsResend() }
+        .onChange(of: showIdleStatus) { _, _ in scheduleSettingsResend() }
+        .onChange(of: clearWhilePaused) { _, _ in scheduleSettingsResend() }
     }
 
     // MARK: - Sections

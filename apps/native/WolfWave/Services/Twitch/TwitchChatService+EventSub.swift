@@ -10,6 +10,29 @@ import Foundation
 
 extension TwitchChatService {
 
+    #if DEBUG
+    /// Debug-only role override for exercising viewer permissions and cooldowns
+    /// with real chat messages. Never compiled into release builds.
+    static func shouldTreatAsViewer(
+        event: [String: Any],
+        defaults: UserDefaults = .standard
+    ) -> Bool {
+        if defaults.bool(forKey: AppConstants.UserDefaults.debugTreatAllChattersAsViewers) {
+            return true
+        }
+        let login = (event["chatter_user_login"] as? String ?? "")
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        let displayName = (event["chatter_user_name"] as? String ?? "")
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        let username = login.isEmpty ? displayName : login
+        let names = defaults.string(forKey: AppConstants.UserDefaults.debugViewerUsernames) ?? ""
+        return names
+            .split(separator: ",")
+            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() }
+            .contains(username.lowercased())
+    }
+    #endif
+
     // MARK: - Message Parsing
 
     /// Parses and handles an incoming message from EventSub.
@@ -81,15 +104,20 @@ extension TwitchChatService {
 
         if commandsEnabled, Self.isPotentialCommand(text) {
             let roles = chatMessage.roles
-            let bypassCooldown = roles.isModerator || roles.isBroadcaster
+            #if DEBUG
+            let treatAsViewer = Self.shouldTreatAsViewer(event: event)
+            #else
+            let treatAsViewer = false
+            #endif
+            let bypassCooldown = !treatAsViewer && (roles.isModerator || roles.isBroadcaster)
 
             let context = BotCommandContext(
                 userID: userID,
                 username: username,
-                isModerator: roles.isModerator,
-                isBroadcaster: roles.isBroadcaster,
-                isSubscriber: roles.isSubscriber,
-                isVIP: roles.isVIP,
+                isModerator: !treatAsViewer && roles.isModerator,
+                isBroadcaster: !treatAsViewer && roles.isBroadcaster,
+                isSubscriber: !treatAsViewer && roles.isSubscriber,
+                isVIP: !treatAsViewer && roles.isVIP,
                 messageID: messageID
             )
 

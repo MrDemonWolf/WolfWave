@@ -15,6 +15,18 @@ import SwiftUI
 /// reads), so a saved edit takes effect on the next chat line.
 struct CustomCommandsCard: View {
 
+    /// Custom commands only work while the Twitch chat connection is authorized.
+    let viewModel: TwitchViewModel
+
+    private var twitchReady: Bool {
+        viewModel.channelConnected && !viewModel.reauthNeeded
+    }
+
+    private let expiredMessage =
+        "Your Twitch sign-in expired. Reconnect above to manage custom commands."
+    private let disconnectedMessage =
+        "Connect with Twitch above to create and manage custom chat commands."
+
     /// The shared store; `@State` pins the singleton's identity for the view's
     /// lifetime while Observation tracks its property reads.
     @State private var store = CustomCommandStore.shared
@@ -33,25 +45,35 @@ struct CustomCommandsCard: View {
                 prominence: .section
             )
 
-            if store.commands.isEmpty {
-                emptyState
-            } else {
-                VStack(spacing: 1) {
-                    ForEach(store.commands) { command in
-                        row(for: command)
-                    }
-                }
-                .cardStyleUnpadded()
-            }
+            TwitchConnectionNotice(
+                isConnected: viewModel.channelConnected,
+                reauthNeeded: viewModel.reauthNeeded,
+                expiredMessage: expiredMessage,
+                disconnectedMessage: disconnectedMessage
+            )
 
-            Button {
-                isNewCommand = true
-                editing = CustomCommand()
-            } label: {
-                Label("Add command", systemImage: "plus")
+            Group {
+                if store.commands.isEmpty {
+                    emptyState
+                } else {
+                    VStack(spacing: 1) {
+                        ForEach(store.commands) { command in
+                            row(for: command)
+                        }
+                    }
+                    .cardStyleUnpadded()
+                }
+
+                Button {
+                    isNewCommand = true
+                    editing = CustomCommand()
+                } label: {
+                    Label("Add command", systemImage: "plus")
+                }
+                .controlSize(.small)
+                .accessibilityIdentifier("addCustomCommand")
             }
-            .controlSize(.small)
-            .accessibilityIdentifier("addCustomCommand")
+            .disabled(!twitchReady)
 
             HintRow("Use variables like $user, $touser, $args, $1, $song in your reply.")
         }
@@ -74,6 +96,9 @@ struct CustomCommandsCard: View {
                 },
                 onCancel: { editing = nil }
             )
+        }
+        .onChange(of: twitchReady) { _, ready in
+            if !ready { editing = nil }
         }
     }
 
@@ -286,7 +311,9 @@ private struct CustomCommandEditor: View {
 // MARK: - Preview
 
 #Preview("Custom Commands") {
-    CustomCommandsCard()
+    let connected = TwitchViewModel()
+    connected.channelConnected = true
+    return CustomCommandsCard(viewModel: connected)
         .padding()
         .frame(width: 700)
 }

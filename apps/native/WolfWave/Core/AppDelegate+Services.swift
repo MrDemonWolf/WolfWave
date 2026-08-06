@@ -323,7 +323,8 @@ extension AppDelegate {
 
     /// Adjusts service polling intervals when system power state changes.
     @objc func powerStateChanged(_ notification: Notification) {
-        applyPowerState(reduced: PowerStateMonitor.shared.isReducedMode)
+        guard let reduced = notification.isReducedModeFlag else { return }
+        applyPowerState(reduced: reduced)
     }
 
     private func applyPowerState(reduced: Bool) {
@@ -531,6 +532,7 @@ extension AppDelegate {
         let playlist = currentPlaylist ?? ""
         let duration = currentDuration
         let elapsed = currentElapsed
+        let isPaused = currentIsPaused
 
         Task {
             await discordService.setEnabled(enabled)
@@ -541,7 +543,8 @@ extension AppDelegate {
                     album: album,
                     playlist: playlist,
                     duration: duration,
-                    elapsed: elapsed
+                    elapsed: elapsed,
+                    isPaused: isPaused
                 )
             }
         }
@@ -869,22 +872,16 @@ extension AppDelegate: PlaybackSourceDelegate {
         }
 
         if let discordService {
-            if isPaused && FeatureFlags.discordClearWhilePaused {
-                // User opted to hide the track while paused: clear (or go idle)
-                // instead of keeping the paused track on their profile.
-                applyDiscordCleared()
-            } else {
-                Task {
-                    await discordService.updatePresence(
-                        track: track,
-                        artist: artist,
-                        album: album,
-                        playlist: playlist,
-                        duration: duration,
-                        elapsed: elapsed,
-                        isPaused: isPaused
-                    )
-                }
+            Task {
+                await discordService.updatePresence(
+                    track: track,
+                    artist: artist,
+                    album: album,
+                    playlist: playlist,
+                    duration: duration,
+                    elapsed: elapsed,
+                    isPaused: isPaused
+                )
             }
         }
     }
