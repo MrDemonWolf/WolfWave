@@ -10,6 +10,20 @@ import Foundation
 
 extension TwitchChatService {
 
+    #if DEBUG
+    /// Debug-only role override for exercising viewer permissions and cooldowns
+    /// with real chat messages. Never compiled into release builds.
+    private static func shouldTreatAsViewer(username: String) -> Bool {
+        let defaults = UserDefaults.standard
+        if defaults.bool(forKey: "debugTreatAllChattersAsViewers") { return true }
+        let names = defaults.string(forKey: "debugViewerUsernames") ?? ""
+        return names
+            .split(separator: ",")
+            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() }
+            .contains(username.lowercased())
+    }
+    #endif
+
     // MARK: - Message Parsing
 
     /// Parses and handles an incoming message from EventSub.
@@ -81,15 +95,20 @@ extension TwitchChatService {
 
         if commandsEnabled, Self.isPotentialCommand(text) {
             let roles = chatMessage.roles
-            let bypassCooldown = roles.isModerator || roles.isBroadcaster
+            #if DEBUG
+            let treatAsViewer = Self.shouldTreatAsViewer(username: username)
+            #else
+            let treatAsViewer = false
+            #endif
+            let bypassCooldown = !treatAsViewer && (roles.isModerator || roles.isBroadcaster)
 
             let context = BotCommandContext(
                 userID: userID,
                 username: username,
-                isModerator: roles.isModerator,
-                isBroadcaster: roles.isBroadcaster,
-                isSubscriber: roles.isSubscriber,
-                isVIP: roles.isVIP,
+                isModerator: !treatAsViewer && roles.isModerator,
+                isBroadcaster: !treatAsViewer && roles.isBroadcaster,
+                isSubscriber: !treatAsViewer && roles.isSubscriber,
+                isVIP: !treatAsViewer && roles.isVIP,
                 messageID: messageID
             )
 
