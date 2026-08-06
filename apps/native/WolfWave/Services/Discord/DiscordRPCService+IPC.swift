@@ -80,6 +80,7 @@ extension DiscordRPCService {
                     state = .connected
                     reconnectDelay = AppConstants.Discord.reconnectBaseDelay
                     updateAvailabilityPolling()
+                    await refreshPresenceFromSettings()
                     return
                 } else {
                     Log.warn("DiscordRPCService: Handshake failed on slot \(slot)", category: "Discord")

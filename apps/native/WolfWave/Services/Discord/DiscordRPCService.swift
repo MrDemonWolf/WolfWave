@@ -229,7 +229,7 @@ actor DiscordRPCService {
             forName: name, object: nil, queue: .main
         ) { [weak self] _ in
             guard let self else { return }
-            Task { await self.resendLastPresence() }
+            Task { await self.refreshPresenceFromSettings() }
         }
     }
 
@@ -301,6 +301,8 @@ actor DiscordRPCService {
     ///     native paused flag, so when set we omit `timestamps` (stops the live
     ///     ticker) and swap `small_image` to a `pause` art asset with a
     ///     `"Paused"` tooltip. Track text stays unchanged.
+    ///   - showIdleStatus: Whether hidden paused tracks use WolfWave's idle activity.
+    ///   - clearWhilePaused: Whether to hide the current track while it is paused.
     func updatePresence(
         track: String,
         artist: String,
@@ -308,26 +310,46 @@ actor DiscordRPCService {
         playlist: String,
         duration: TimeInterval = 0,
         elapsed: TimeInterval = 0,
-        isPaused: Bool = false
+        isPaused: Bool = false,
+        showIdleStatus: Bool = FeatureFlags.discordShowIdleStatus,
+        clearWhilePaused: Bool = FeatureFlags.discordClearWhilePaused
     ) async {
-        guard state == .connected else { return }
-
         // Steady-state dedup: the now-playing poll re-emits the same track every
         // ~5s. When nothing meaningful changed, skip building and sending the
         // SET_ACTIVITY IPC frame entirely. Genuine track changes, pause flips,
         // artwork resolution (handleResolvedLinks) and settings re-sends all call
         // sendPresenceActivity directly and bypass this guard.
+        var shouldSendPresence = true
         if let last = lastPresence,
            last.track == track, last.artist == artist, last.album == album,
            last.playlist == playlist, last.isPaused == isPaused {
             // Paused: elapsed is frozen, compare directly. Playing: compare the
             // incoming elapsed against the projected position so a seek still sends.
             let reference = isPaused ? last.elapsed : last.elapsed + Date().timeIntervalSince(last.capturedAt)
-            if abs(reference - elapsed) <= 2 { return }
+            if abs(reference - elapsed) <= 2 { shouldSendPresence = false }
         }
+
+        cachePresence(
+            track: track, artist: artist, album: album, playlist: playlist,
+            duration: duration, elapsed: elapsed, isPaused: isPaused
+        )
+        guard isEnabled, state == .connected else { return }
 
         // Check shared cache for immediate use (artwork + track links)
         let cached = ArtworkService.shared.cachedTrackLinks(track: track, artist: artist)
+        resolveLinksIfNeeded(track: track, artist: artist)
+
+        if isPaused && clearWhilePaused {
+            if shouldSendPresence {
+                await sendNoTrackPresence(
+                    showIdleStatus: showIdleStatus,
+                    preservingLastPresence: true
+                )
+            }
+            return
+        }
+
+        guard shouldSendPresence else { return }
         await sendPresenceActivity(
             track: track, artist: artist, album: album, playlist: playlist,
             artworkURL: cached.artworkURL,
@@ -336,25 +358,22 @@ actor DiscordRPCService {
             songLinkURL: cached.songLinkURL,
             isPaused: isPaused
         )
+    }
 
-        // Fetch track links asynchronously on cache miss
-        if cached.artworkURL == nil {
-            ArtworkService.shared.fetchTrackLinks(track: track, artist: artist) { [weak self] links in
+    private func resolveLinksIfNeeded(track: String, artist: String) {
+        guard !ArtworkService.shared.hasAttemptedTrackLinks(track: track, artist: artist) else {
+            return
+        }
+        ArtworkService.shared.fetchTrackLinks(track: track, artist: artist) { [weak self] links in
+            guard let self else { return }
+            let hasNewData = links.artworkURL != nil
+                || links.trackViewURL != nil
+                || links.songLinkURL != nil
+            guard hasNewData else { return }
+
+            Task { [weak self] in
                 guard let self else { return }
-                // Re-send if any link resolved. Buttons can appear even without artwork
-                let hasNewData = links.artworkURL != nil
-                    || links.trackViewURL != nil
-                    || links.songLinkURL != nil
-                guard hasNewData else { return }
-
-                Task { [weak self] in
-                    guard let self else { return }
-                    await self.handleResolvedLinks(
-                        track: track, artist: artist, album: album, playlist: playlist,
-                        links: links, duration: duration, elapsed: elapsed,
-                        isPaused: isPaused
-                    )
-                }
+                await self.handleResolvedLinks(track: track, artist: artist, links: links)
             }
         }
     }
@@ -379,9 +398,14 @@ actor DiscordRPCService {
     /// user chose to keep WolfWave visible on their profile instead of clearing
     /// it. No track, timestamps, or buttons, just a static idle marker.
     func showIdleStatus() async {
+        await performShowIdleStatus(preservingLastPresence: false)
+    }
+
+    private func performShowIdleStatus(preservingLastPresence: Bool) async {
+        if !preservingLastPresence {
+            lastPresence = nil
+        }
         guard state == .connected else { return }
-        // Idle has no track to re-send on a settings change.
-        lastPresence = nil
         await sendActivityFrame(DiscordPresenceBuilder.buildIdleActivity())
     }
 
@@ -390,23 +414,13 @@ actor DiscordRPCService {
     private func handleResolvedLinks(
         track: String,
         artist: String,
-        album: String,
-        playlist: String,
-        links: TrackLinks,
-        duration: TimeInterval,
-        elapsed: TimeInterval,
-        isPaused: Bool
+        links: TrackLinks
     ) async {
-        if state == .connected {
-            await sendPresenceActivity(
-                track: track, artist: artist, album: album, playlist: playlist,
-                artworkURL: links.artworkURL,
-                duration: duration, elapsed: elapsed,
-                appleMusicURL: links.trackViewURL,
-                songLinkURL: links.songLinkURL,
-                isPaused: isPaused
-            )
-        }
+        guard isEnabled, state == .connected,
+              let current = lastPresence,
+              current.track == track,
+              current.artist == artist else { return }
+        await refreshPresenceFromSettings()
         // Notify listeners (e.g., WebSocket server) only when artwork is resolved
         if let artworkURL = links.artworkURL {
             artworkContinuation.yield(
@@ -417,8 +431,10 @@ actor DiscordRPCService {
 
     // MARK: - Presence Helpers
 
-    private func performClearPresence() async {
-        lastPresence = nil
+    private func performClearPresence(preservingLastPresence: Bool = false) async {
+        if !preservingLastPresence {
+            lastPresence = nil
+        }
         guard state == .connected else { return }
 
         let payload: [String: Any] = [
@@ -455,14 +471,6 @@ actor DiscordRPCService {
         songLinkURL: String? = nil,
         isPaused: Bool = false
     ) async {
-        // Cache so settings changes can trigger a re-send without waiting for the next track.
-        lastPresence = LastPresence(
-            track: track, artist: artist, album: album, playlist: playlist,
-            duration: duration, elapsed: elapsed,
-            isPaused: isPaused,
-            capturedAt: Date()
-        )
-
         let activity = DiscordPresenceBuilder.buildActivity(
             track: track,
             artist: artist,
@@ -479,6 +487,22 @@ actor DiscordRPCService {
         )
 
         await sendActivityFrame(activity)
+    }
+
+    private func cachePresence(
+        track: String,
+        artist: String,
+        album: String,
+        playlist: String,
+        duration: TimeInterval,
+        elapsed: TimeInterval,
+        isPaused: Bool
+    ) {
+        lastPresence = LastPresence(
+            track: track, artist: artist, album: album, playlist: playlist,
+            duration: duration, elapsed: elapsed,
+            isPaused: isPaused, capturedAt: Date()
+        )
     }
 
     /// Wraps an `activity` dictionary in a `SET_ACTIVITY` frame and sends it.
@@ -500,20 +524,30 @@ actor DiscordRPCService {
     /// Called when `discordPresenceSettingsChanged` fires (e.g. user toggled a button
     /// in settings). Re-uses cached `TrackLinks` via `ArtworkService.shared` so no
     /// network round-trip is required.
-    private func resendLastPresence() async {
-        guard state == .connected else { return }
+    func refreshPresenceFromSettings(
+        showIdleStatus: Bool = FeatureFlags.discordShowIdleStatus,
+        clearWhilePaused: Bool = FeatureFlags.discordClearWhilePaused
+    ) async {
+        guard isEnabled, state == .connected else { return }
         guard let snap = lastPresence else {
-            await sendNoTrackPresence()
+            await sendNoTrackPresence(
+                showIdleStatus: showIdleStatus,
+                preservingLastPresence: false
+            )
             return
         }
-        if snap.isPaused && FeatureFlags.discordClearWhilePaused {
-            await sendNoTrackPresence()
+        resolveLinksIfNeeded(track: snap.track, artist: snap.artist)
+        if snap.isPaused && clearWhilePaused {
+            await sendNoTrackPresence(
+                showIdleStatus: showIdleStatus,
+                preservingLastPresence: true
+            )
             return
         }
 
         // Recompute elapsed from the captured timestamp so the progress bar stays accurate.
         let drift = Date().timeIntervalSince(snap.capturedAt)
-        let elapsed = snap.duration > 0
+        let elapsed = snap.isPaused ? snap.elapsed : snap.duration > 0
             ? min(snap.elapsed + drift, snap.duration)
             : snap.elapsed
 
@@ -533,11 +567,14 @@ actor DiscordRPCService {
     }
 
     /// Applies the current no-track preference after a display setting changes.
-    private func sendNoTrackPresence() async {
-        if FeatureFlags.discordShowIdleStatus {
-            await showIdleStatus()
+    private func sendNoTrackPresence(
+        showIdleStatus: Bool,
+        preservingLastPresence: Bool
+    ) async {
+        if showIdleStatus {
+            await performShowIdleStatus(preservingLastPresence: preservingLastPresence)
         } else {
-            await performClearPresence()
+            await performClearPresence(preservingLastPresence: preservingLastPresence)
         }
     }
 
