@@ -411,6 +411,17 @@ extension AppConstants {
         /// Overrides `NSApplication.appearance` app-wide; "system" follows the OS setting.
         static let appearancePreference = "appearancePreference"
 
+        #if DEBUG
+        static let debugTreatAllChattersAsViewers = "debugTreatAllChattersAsViewers"
+        static let debugViewerUsernames = "debugViewerUsernames"
+        private static let debugKeys = [
+            debugTreatAllChattersAsViewers,
+            debugViewerUsernames,
+        ]
+        #else
+        private static let debugKeys: [String] = []
+        #endif
+
         /// Every UserDefaults key the app writes. Source of truth for reset operations
         /// and the DEBUG-only UserDefaults inspector.
         static let allKeys: [String] = [
@@ -530,7 +541,7 @@ extension AppConstants {
             historyRetentionDays,
             streamerModeEnabled,
             appearancePreference,
-        ]
+        ] + debugKeys
 
         // MARK: Export / Import Classification
 
@@ -688,7 +699,7 @@ extension AppConstants {
             songRequestRedemptionStatus,
             songRequestSetupComplete,
             songRequestPlaylistStatus,
-        ]
+        ] + debugKeys
 
         /// Canonical default values for settings whose default was otherwise
         /// typed twice: once as an `@AppStorage` seed in a settings view and

@@ -225,9 +225,13 @@ final class WebSocketServerAuthTests: XCTestCase {
     /// Runs `body` with an empty in-memory Keychain backend installed, restoring
     /// the previously active backend afterward.
     private func withInMemoryKeychain(_ body: () throws -> Void) rethrows {
+        KeychainBackendTestIsolation.acquire()
         let previous = KeychainService.backend
         KeychainService.backend = InMemoryKeychainBackend()
-        defer { KeychainService.backend = previous }
+        defer {
+            KeychainService.backend = previous
+            KeychainBackendTestIsolation.release()
+        }
         try body()
     }
 
@@ -280,9 +284,13 @@ final class WebSocketServerAuthTests: XCTestCase {
     }
 
     func testCurrentOrCreateKeepsOneTokenAcrossPersistenceFailureAndRecovery() {
+        KeychainBackendTestIsolation.acquire()
         let previous = KeychainService.backend
         KeychainService.backend = FailingKeychainBackend()
-        defer { KeychainService.backend = previous }
+        defer {
+            KeychainService.backend = previous
+            KeychainBackendTestIsolation.release()
+        }
 
         let first = WebSocketAuthToken.currentOrCreate()
         let second = WebSocketAuthToken.currentOrCreate()
@@ -299,9 +307,13 @@ final class WebSocketServerAuthTests: XCTestCase {
     }
 
     func testRotateDoesNotPublishAnUnpersistedToken() {
+        KeychainBackendTestIsolation.acquire()
         let previous = KeychainService.backend
         KeychainService.backend = FailingKeychainBackend()
-        defer { KeychainService.backend = previous }
+        defer {
+            KeychainService.backend = previous
+            KeychainBackendTestIsolation.release()
+        }
 
         XCTAssertThrowsError(try WebSocketAuthToken.rotate())
         XCTAssertNil(KeychainService.loadToken())

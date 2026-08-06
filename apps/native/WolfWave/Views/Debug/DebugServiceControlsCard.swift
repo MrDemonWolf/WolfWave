@@ -22,6 +22,10 @@ struct DebugServiceControlsCard: View {
     @State private var queueCount: Int = 3
     @State private var wsTestTitle: String = "WS Test"
     @State private var wsTestArtist: String = "Debug"
+    @AppStorage(AppConstants.UserDefaults.debugTreatAllChattersAsViewers)
+    private var treatAllChattersAsViewers = false
+    @AppStorage(AppConstants.UserDefaults.debugViewerUsernames)
+    private var viewerUsernames = ""
 
     private var appDelegate: AppDelegate? { AppDelegate.shared }
 
@@ -100,6 +104,14 @@ struct DebugServiceControlsCard: View {
             sectionLabel("Twitch")
             Text("Connected: \(appDelegate?.twitchService?.currentlyConnected == true ? "yes" : "no")")
                 .font(.system(size: DSFont.Size.sm))
+                .foregroundStyle(.secondary)
+            Toggle("Treat every chatter as a normal viewer", isOn: $treatAllChattersAsViewers)
+                .font(.system(size: DSFont.Size.sm))
+            TextField("Or test these usernames (comma-separated)", text: $viewerUsernames)
+                .textFieldStyle(.roundedBorder)
+                .disabled(treatAllChattersAsViewers)
+            Text("Uses normal viewer permissions and cooldowns. Debug builds only.")
+                .font(.system(size: DSFont.Size.xs))
                 .foregroundStyle(.secondary)
             HStack {
                 Button {

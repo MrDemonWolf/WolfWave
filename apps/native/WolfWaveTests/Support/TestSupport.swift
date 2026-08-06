@@ -11,6 +11,15 @@
 import Foundation
 import Testing
 
+/// Serializes tests that temporarily replace the process-wide Keychain backend.
+/// ponytail: one test semaphore; use task-local backends if parallelism matters.
+nonisolated enum KeychainBackendTestIsolation {
+    private static let semaphore = DispatchSemaphore(value: 1)
+
+    static func acquire() { semaphore.wait() }
+    static func release() { semaphore.signal() }
+}
+
 /// Creates a fresh, unique temp directory and ensures it exists. Returns the URL.
 ///
 /// Swift Testing suites don't have tearDown. Callers are responsible for cleanup
