@@ -123,6 +123,10 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          # Full history: scripts/version.sh derives the build number from the
+          # commit count, and a shallow clone would report 1.
+          fetch-depth: 0
 
       - name: Install Bun
         uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
@@ -153,20 +157,12 @@ jobs:
       - name: Resolve nightly version
         id: version
         run: |
-          # Display version: <current marketing>-nightly+<short sha>.
-          # Build number: UTC minute stamp — strictly ascending and far above
-          # the small integer stable build numbers, so Sparkle always treats a
-          # nightly as newer than any stable on the nightly feed.
-          BASE=$(xcodebuild -project "$PROJECT" -scheme "$SCHEME" \
-            -configuration "$CONFIGURATION" -showBuildSettings 2>/dev/null \
-            | awk -F'= ' '/MARKETING_VERSION/ {gsub(/^[ \t]+/,"",$2); print $2; exit}')
-          SHORT_SHA=$(git rev-parse --short HEAD)
-          NIGHTLY_VERSION="${BASE}-nightly+${SHORT_SHA}"
-          NIGHTLY_BUILD=$(date -u +%Y%m%d%H%M)
-          echo "version=$NIGHTLY_VERSION" >> "$GITHUB_OUTPUT"
-          echo "build=$NIGHTLY_BUILD" >> "$GITHUB_OUTPUT"
-          echo "short_sha=$SHORT_SHA" >> "$GITHUB_OUTPUT"
-          echo "Nightly version: $NIGHTLY_VERSION (build $NIGHTLY_BUILD)"
+          # Single source of truth for both channels — see
+          # docs/build-versioning-standard.md. Emits marketing / build /
+          # short_sha / channel straight into $GITHUB_OUTPUT.
+          RESOLVED=$(scripts/version.sh --channel nightly --format env)
+          echo "$RESOLVED" >> "$GITHUB_OUTPUT"
+          echo "$RESOLVED"
 
       - name: Import Developer ID certificate
         env:
@@ -191,7 +187,7 @@ jobs:
 
       - name: Build Release (arm64)
         env:
-          NIGHTLY_VERSION: ${{ steps.version.outputs.version }}
+          NIGHTLY_VERSION: ${{ steps.version.outputs.marketing }}
           NIGHTLY_BUILD: ${{ steps.version.outputs.build }}
         run: |
           xcodebuild -project "$PROJECT" -scheme "$SCHEME" \
@@ -306,7 +302,7 @@ jobs:
 
       - name: Generate nightly release notes for Sparkle
         env:
-          VERSION: ${{ steps.version.outputs.version }}
+          VERSION: ${{ steps.version.outputs.marketing }}
         run: |
           # Nightly notes are generic (no versioned CHANGELOG section exists), so
           # build the HTML directly. Named to match the DMG so generate_appcast
@@ -343,7 +339,7 @@ jobs:
       - name: Publish to rolling nightly prerelease
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          VERSION: ${{ steps.version.outputs.version }}
+          VERSION: ${{ steps.version.outputs.marketing }}
           SHORT_SHA: ${{ steps.version.outputs.short_sha }}
         run: |
           TITLE="WolfWave Nightly ($SHORT_SHA)"
