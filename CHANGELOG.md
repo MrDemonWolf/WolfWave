@@ -22,7 +22,7 @@ All notable changes to this project will be documented in this file.
 
 ### Changed
 
-- **A cleaner wolf mark.** WolfWave now uses the same minimal wolf head across the app icon, menu bar, onboarding, OBS fallback, Discord art, docs, and repository branding.
+- **A custom WolfWave mark.** The familiar wolf now carries a padded side equalizer, used consistently across the app icon, menu bar, onboarding, OBS fallback, Discord art, DMG installer, docs, and repository branding.
 - **Settings toggles all look the same now.** Launch at Login, "Check automatically" (Software Update), and "Collect on-device diagnostics" (Advanced) now use the standard row: name and short description on the left, switch on the right. Same layout as every other toggle in Settings.
 - **Lighter OBS overlay.** Progress painting is batched at 10 Hz, and animation work stops while the page is hidden or unloaded and when reduced motion is enabled.
 - **Less background work.** WolfWave now pauses unused overlay, Twitch, song-request, and Discord tasks instead of polling or retrying while those features are idle, disconnected, held, hidden, or disabled.
