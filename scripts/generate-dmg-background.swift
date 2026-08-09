@@ -9,6 +9,7 @@
 import AppKit
 import CoreGraphics
 import Foundation
+import ImageIO
 
 // Canvas (points) = Finder's icon-view *content* area, which the background
 // fills. create-dmg.sh sets the window bounds to {200,200,800,602} (600x402);
@@ -19,6 +20,10 @@ let canvasHeight = 380
 
 // WolfWave brand blue (design-system tokens: brand.500 / brand.600).
 let brand = (r: 0.039, g: 0.518, b: 1.0)      // #0A84FF
+let projectDirectory = URL(fileURLWithPath: #filePath)
+    .deletingLastPathComponent()
+    .deletingLastPathComponent()
+let brandMarkURL = projectDirectory.appendingPathComponent("assets/logo-128.png")
 
 func generateBackground(scale: Int, outputPath: String) {
     let w = canvasWidth * scale
@@ -75,7 +80,24 @@ func generateBackground(scale: Int, outputPath: String) {
         options: []
     )
 
-    // 3. Chevron arrow ">" centered between the two icon slots, brand blue.
+    // 3. Canonical WolfWave mark, centered above the install flow.
+    guard
+        let markSource = CGImageSourceCreateWithURL(brandMarkURL as CFURL, nil),
+        let mark = CGImageSourceCreateImageAtIndex(markSource, 0, nil)
+    else {
+        print("Failed to load brand mark: \(brandMarkURL.path)")
+        exit(1)
+    }
+    let markSize: CGFloat = 64 * s
+    context.interpolationQuality = .high
+    context.draw(mark, in: CGRect(
+        x: (CGFloat(w) - markSize) / 2,
+        y: CGFloat(h) - 100 * s,
+        width: markSize,
+        height: markSize
+    ))
+
+    // 4. Chevron arrow ">" centered between the two icon slots, brand blue.
     //    Icons sit at y ~ 52% of height (top-left origin); CG origin is bottom-left,
     //    so draw at the mirrored y to line up with the icon row.
     let arrowX = CGFloat(w) * 0.50
@@ -94,7 +116,7 @@ func generateBackground(scale: Int, outputPath: String) {
     context.addLine(to: CGPoint(x: arrowX - chevronW, y: arrowY - chevronH))
     context.strokePath()
 
-    // 4. "Drag to install" label, above the chevron.
+    // 5. "Drag to install" label, above the chevron.
     let fontSize: CGFloat = 13.0 * s
     let font = CTFontCreateWithName("Helvetica Neue Medium" as CFString, fontSize, nil)
     let attrString = NSAttributedString(string: "Drag to install", attributes: [
