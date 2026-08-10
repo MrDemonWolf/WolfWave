@@ -37,7 +37,18 @@ bun run dev --filter docs                # Start docs dev server only
 bun run dev --filter wolfwave-announcement  # Open Remotion studio only
 bun run build --filter docs              # Build docs site
 bun run --filter widget build            # Rebuild OBS widget (Tailwind → inline)
+bun run --filter streamdeck build        # Bundle the Stream Deck plugin
+bun run --filter streamdeck test         # Stream Deck plugin tests (bun test)
 ```
+
+> **Stream Deck plugin**: `apps/streamdeck/` is the Elgato plugin consuming the
+> app's control API. Unlike the widget, its bundle is **not** committed and is
+> **not** shipped inside the app — it's distributed through Elgato. `src/wolfwave/`
+> is the TypeScript mirror of `Services/WebSocket/StreamDeckCommand.swift`: the
+> action tokens are the Swift enum's raw values and `PROTOCOL_VERSION` must equal
+> `StreamDeckControl.protocolVersion`. **Change one side, change the other**, and
+> bump the protocol version on any breaking envelope change. See
+> `apps/native/docs/streamdeck-control-api.md` and `apps/streamdeck/README.md`.
 
 > **OBS widget**: source lives at `apps/widget/`; the bundled
 > `apps/native/WolfWave/Resources/widget.html` is a **generated artifact**

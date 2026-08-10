@@ -164,6 +164,29 @@ the PR on any drift between the `apps/widget/` sources and the committed output.
 [OBS Widget Architecture](/docs/widget) page for the full pipeline,
 message contract, theme/layout system, and transition state machine.
 
+### Stream Deck plugin (`apps/streamdeck/`)
+
+The Elgato plugin that consumes the control channel above. A separate bun
+workspace, bundled for Node (Stream Deck runs `CodePath` under its own bundled
+Node, not Bun) into `com.mrdemonwolf.wolfwave.sdPlugin/bin/plugin.js`. Unlike
+`widget.html`, this output is **not** committed and is not shipped inside the
+app — the plugin is distributed through Elgato, not through WolfWave.
+
+- **`src/wolfwave/protocol.ts`** — pure wire layer and the TypeScript mirror of
+  `StreamDeckCommand.swift`. Its `ACTIONS` list is the Swift enum's raw values
+  and `PROTOCOL_VERSION` must equal `StreamDeckControl.protocolVersion`; a test
+  pins the full v1 set so the two can't drift silently.
+- **`src/wolfwave/state.ts`** — pure reducer folding inbound frames into the
+  state keys render from. Returns the same object reference when nothing
+  changed, so per-second `progress` frames don't repaint every key.
+- **`src/wolfwave/client.ts`** — one shared socket for all keys (the app
+  broadcasts `queue_state` / `health` to every client, so a socket per key would
+  just multiply fan-out), with capped reconnect backoff and FIFO ack correlation.
+- **`src/actions/`** — one class per manifest action over a shared base that
+  paints the disconnected / unauthorized / outdated states centrally.
+
+See the [Stream Deck](/docs/streamdeck) page for setup.
+
 ### SparkleUpdaterService
 
 Wraps the Sparkle framework for auto-updates:
