@@ -298,7 +298,7 @@ Unit tests live in `apps/native/WolfWaveTests/` and use XCTest + Swift Testing w
 - `.github/workflows/build_release.yml` - Builds, signs, notarizes, and creates a GitHub Release on tag push (`v*`). Required secrets: `DEVELOPER_ID_CERT_P12`, `DEVELOPER_ID_CERT_PASSWORD`, `APPLE_ID`, `APPLE_TEAM_ID`, `APPLE_APP_PASSWORD`, `TWITCH_CLIENT_ID`, `DISCORD_CLIENT_ID`, `SPARKLE_PRIVATE_KEY`.
 - `.github/workflows/docs.yml` - Builds and deploys the Fumadocs site to GitHub Pages.
 - `.github/workflows/update_homebrew.yml` - Opens a PR on the Homebrew tap after a GitHub Release is published.
-- `.github/workflows/nightly.yml` - Daily-cron signed + notarized build off `main` that publishes the rolling `nightly` GitHub prerelease feeding the opt-in Nightly update channel.
+- `.github/workflows/nightly.yml` - Daily-cron (08:00 UTC) signed + notarized build off `main` that publishes the rolling `nightly` GitHub prerelease feeding the opt-in Nightly update channel. `workflow_dispatch` builds on demand; a scheduled run is skipped when `main` hasn't moved since the last nightly, so quiet days cost nothing.
 - `.github/workflows/update_sponsors.yml` - Refreshes the GitHub Sponsors list. `.github/workflows/license-year.yml` - Keeps the `LICENSE` year current.
 
 ### Sparkle Auto-Updates
@@ -448,16 +448,37 @@ Follows [Semantic Versioning (SemVer)](https://semver.org/): `MAJOR.MINOR.PATCH`
 - **MINOR** - New features, backward-compatible
 - **PATCH** - Bug fixes, security patches, code quality improvements
 
-Version is set in `MARKETING_VERSION` in `project.pbxproj` (4 occurrences). `CURRENT_PROJECT_VERSION` (build number) must also be incremented with each release; Sparkle uses it as the primary version comparator in appcast.xml. Git tags use `v` prefix (e.g., `v1.0.1`). The release workflow triggers on `v*` tag pushes. Homebrew cask, CHANGELOG.md, and GitHub Release notes must all be updated to match.
+Version is set in `MARKETING_VERSION` in `project.pbxproj` (4 occurrences). Git tags use `v` prefix (e.g., `v1.0.1`). The release workflow triggers on `v*` tag pushes. Homebrew cask, CHANGELOG.md, and GitHub Release notes must all be updated to match.
+
+### Build numbers: do NOT hand-bump
+
+`CURRENT_PROJECT_VERSION` in `project.pbxproj` is a **dev-only placeholder**. Both release workflows override it at build time from [`scripts/version.sh`](scripts/version.sh), which is the single source of truth for marketing version + build number. The full rationale, including the platform limits that force this design, is in [`docs/build-versioning-standard.md`](docs/build-versioning-standard.md) — that doc is the portable house standard, written to be copied into the iOS/Android repos.
+
+The short version:
+
+| Rule | Why |
+|---|---|
+| Build number = `git rev-list --count HEAD` (floored). Stable **and** Nightly draw from the same counter. | Sparkle compares build numbers and **never offers a lower version**. Two counters means whichever channel has the bigger number strands its users on the other. |
+| Never a timestamp (`$(date -u +%Y%m%d%H%M)`). | ~2×10¹¹ — about 100× over Android's `versionCode` cap of 2,100,000,000, so it can't be the house standard. It also floats so far above any hand-set int that no release can overtake it. This is the exact bug the previous nightly scheme shipped. |
+| Never reset the counter per release. | The macOS App Store requires `CFBundleVersion` unique across *all* marketing versions. |
+| Every `actions/checkout` in a job that resolves a version needs `fetch-depth: 0`. | The default shallow clone makes the commit count `1`. `version.sh` hard-fails on a shallow repo rather than emitting a wrong number. |
+| A release tag must sit on a commit **later** than the last nightly's. | Same commit = same count = same build number, and Sparkle would never offer the release to nightly testers. The CHANGELOG + version-bump commit normally guarantees this; `build_release.yml` asserts it and fails the release if not. |
+
+Marketing version stays hand-maintained: `MARKETING_VERSION` in the pbxproj, overridden by the `v*` tag at release time.
+
+```bash
+scripts/version.sh --channel nightly
+```
 
 ### Release Checklist
 
 Run through every item before pushing the release tag.
 
-1. **`apps/native/WolfWave.xcodeproj/project.pbxproj`** - bump `MARKETING_VERSION` (4 occurrences) and `CURRENT_PROJECT_VERSION` (4 occurrences). Sparkle uses the build number as its primary comparator.
+1. **`apps/native/WolfWave.xcodeproj/project.pbxproj`** - bump `MARKETING_VERSION` (4 occurrences). Leave `CURRENT_PROJECT_VERSION` alone: it is a dev placeholder and CI overrides it from `scripts/version.sh` (see [Build numbers](#build-numbers-do-not-hand-bump)).
 2. **`CHANGELOG.md`** - add `## [X.Y.Z] - YYYY-MM-DD` entry in Keep-a-Changelog format. The release workflow renders this exact section into Sparkle's in-app update notes via `scripts/release-notes.mjs`, so write it for users first and keep developer-only items under `### Developer` (that subsection is stripped from the in-app notes).
 3. **`apps/docs/content/docs/changelog.mdx`** - add `## vX.Y.Z. Month DD, YYYY` entry in MDX format (the OG card reads the latest `## vX.Y.Z` block).
 4. **Push git tag** - `git tag vX.Y.Z && git push origin vX.Y.Z` triggers the release workflow (builds, signs, notarizes, creates GitHub Release).
 5. **Homebrew cask** - auto-updated by `update_homebrew.yml` after the GitHub Release is created. Verify the workflow ran successfully.
+6. **Bump `MARKETING_VERSION` to the *next* version** (4 occurrences) and open the new `## [X.Y.Z] - Unreleased` block in `CHANGELOG.md` + `changelog.mdx`. Do this right after the release lands, not at the start of the next one. Nightly builds advertise the committed `MARKETING_VERSION`, so until it's bumped every nightly claims the version you just shipped. `scripts/version.sh` warns on stderr when it detects this (committed version == newest `v*` tag).
 
 > After tagging, verify the GitHub Actions release workflow completes cleanly before announcing.
