@@ -56,6 +56,13 @@ export abstract class WolfWaveKeyAction extends SingletonAction {
     const action = ev.action;
     if (!action.isKey()) return;
 
+    // willAppear can fire again for the same action without an intervening
+    // willDisappear — switching back to a profile, a device reconnecting, or a
+    // missed willDisappear all do it. Overwriting the handle would strand the
+    // previous listener in the client for the life of the process, and every
+    // stranded one repaints the same key on every state change.
+    this.subscriptions.get(action.id)?.();
+
     const unsubscribe = this.client.onState((state) => {
       void this.paint(action, state);
     });
