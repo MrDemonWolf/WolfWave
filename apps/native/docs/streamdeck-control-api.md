@@ -5,9 +5,11 @@ WebSocket **bidirectional**: it now accepts inbound command frames and pushes tw
 new state broadcasts, so a Stream Deck (or any authenticated local client) can
 control WolfWave and reflect live state on physical keys.
 
-Phase B — the `.sdPlugin` itself, its Property Inspector, packaging, and Elgato
-Marketplace submission — is a separate follow-up (needs the Elgato SDK, real
-hardware, and a Marketplace account). This doc is the app side only.
+This doc is the app side only. The plugin that consumes it lives in
+[`apps/streamdeck/`](../../streamdeck/README.md) (WW-45, Phase B) — its
+`src/wolfwave/protocol.ts` is the TypeScript mirror of this contract, so a change
+here needs the matching change there. Packaging and Marketplace submission are
+still outstanding; they need real hardware and an Elgato account.
 
 ## Transport & auth
 
@@ -67,14 +69,23 @@ deferred to Phase B.
 Pushed to every connected client so counter/health keys render without polling:
 
 ```json
-{ "type": "queue_state", "data": { "count": 3, "pending": 1 } }
+{ "type": "queue_state", "data": { "count": 3, "pending": 1, "held": false } }
 { "type": "health", "data": { "music": true, "twitch": true, "discord": false, "overlay": true } }
 ```
 
-Fired on: request-queue changes (`SongRequestQueueChanged`), Twitch connect/
-disconnect, a new client connecting, and after any successful command. `discord`
-health is currently an is-enabled proxy; the live IPC connection state is a
-Phase B refinement.
+`held` reflects real hold state (`SongRequestService.isHoldEnabled`), so a hold
+key renders from the app rather than tracking its own optimistic toggle — hold
+is changeable from the tray, chat (`!hold`), and Settings, and a plugin-local
+guess drifts the moment it's used from any of those.
+
+Fired on: request-queue changes (`SongRequestQueueChanged`), hold changes
+(`SongRequestHoldChanged`), Twitch connect/disconnect, a new client connecting,
+and after any successful command. `discord` health is currently an is-enabled
+proxy; the live IPC connection state is a later refinement.
+
+Outbound broadcasts are additive-compatible: a client that doesn't know a field
+ignores it, so adding one here does **not** require a `protocolVersion` bump.
+The version gates the *inbound* command envelope only.
 
 ## Files
 
