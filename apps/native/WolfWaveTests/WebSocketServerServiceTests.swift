@@ -30,4 +30,21 @@ final class WebSocketServerServiceTests: XCTestCase {
         XCTAssertEqual(service.state, .stopped)
         XCTAssertEqual(service.connectionCount, 0)
     }
+
+    func testProgressTimerPolicySkipsZeroDurationWithConnectedClient() {
+        XCTAssertFalse(WebSocketServerService.shouldRunProgressTimer(
+            isEnabled: true,
+            isOverlayVisible: true,
+            isPlaying: true,
+            duration: 0,
+            connectionCount: 1
+        ))
+        XCTAssertTrue(WebSocketServerService.shouldRunProgressTimer(
+            isEnabled: true,
+            isOverlayVisible: true,
+            isPlaying: true,
+            duration: 180,
+            connectionCount: 1
+        ))
+    }
 }

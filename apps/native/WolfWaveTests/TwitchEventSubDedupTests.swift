@@ -120,4 +120,27 @@ struct TwitchEventSubDedupTests {
         #expect(!insertB)
         #expect(!reinsertA)
     }
+
+    @Test("Large busy-chat streams preserve cap semantics through queue compaction")
+    func busyChatCompactionPreservesNewestIDs() {
+        var dedup = TwitchChatService.EventSubMessageDeduplicator(
+            ttl: 600,
+            maxEntries: 500)
+
+        for index in 0..<2_000 {
+            let duplicate = dedup.isDuplicate(
+                "message-\(index)",
+                now: base.addingTimeInterval(Double(index) * 0.01))
+            #expect(!duplicate)
+        }
+
+        let oldestWasEvicted = dedup.isDuplicate(
+            "message-0",
+            now: base.addingTimeInterval(21))
+        let newestSurvived = dedup.isDuplicate(
+            "message-1999",
+            now: base.addingTimeInterval(21))
+        #expect(!oldestWasEvicted)
+        #expect(newestSurvived)
+    }
 }

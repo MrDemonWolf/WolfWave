@@ -55,7 +55,7 @@ Your music plays. Everything else keeps up.
 - **Approve Before Play.** Opt-in "Require My Approval" holds every request (chat, channel points, bits) in the queue until you approve or decline it.
 - **Fair-Share Ordering.** Round-robin queue plays everyone's first request before anyone's second, so a fast re-typist can't hog it. On by default; toggle off for classic FIFO.
 - **Sub / VIP Priority.** Optional perk for subs, VIPs, and mods: skip the request cooldown, or jump ahead within the fair-share round. Off by default.
-- **Custom Commands.** Build your own chat commands with a fixed reply. Variables (`$user`, `$touser`, `$args`, `$1`–`$9`, `$song`, `$lastsong`), per-command aliases and cooldowns, and a permission level (Everyone, Subscribers, VIPs, Moderators, or Broadcaster).
+- **Custom Commands.** Build your own chat commands with a fixed reply after connecting Twitch. Variables (`$user`, `$touser`, `$args`, `$1`–`$9`, `$song`, `$lastsong`), per-command aliases and cooldowns, and a permission level (Everyone, Subscribers, VIPs, Moderators, or Broadcaster).
 
 ### Discord
 
@@ -64,6 +64,8 @@ Your music plays. Everything else keeps up.
 ### Stream Overlays
 
 - **Stream Widgets.** Drop-in browser-source overlay powered by a local WebSocket server with a per-install auth token, five themes (`Default`, `Dark`, `Light`, `Glass`, `Neon`), and five layouts (`Horizontal`, `Vertical`, `Compact`, `Vinyl`, `Classic`). Two-PC streamers can connect from a second machine on the LAN.
+- **Queue Ticker Overlay.** Opt-in `?queueTicker=1` panel showing the next 3 song requests, title and requester, so viewers see their spot in line without asking chat.
+- **OBS-friendly by design.** Visual progress is batched at 10 Hz, rendering sleeps while hidden or unloaded, and reduced-motion mode removes continuous animation work.
 
 ### History & Stats
 
@@ -140,11 +142,23 @@ your Discord profile. Album artwork is fetched automatically.
 
 ### Stream Widgets
 
-Enable in **Settings > Stream Widgets** to start a local WebSocket
-server. Copy the widget URL (auth token auto-injected) and add it as a
-Browser Source (500 x 100) in OBS. Two-PC streamers can reach the
-overlay from a second computer or phone on the same network. Regenerate
-the token from Settings to drop every active client.
+Enable in **Settings > Stream Widgets** to start the local widget HTTP and
+WebSocket services. On the same Mac, copy the localhost link; WolfWave injects
+the WebSocket credential into the served page without exposing it in the URL.
+For a second computer or phone, use the token-bearing LAN link only on a trusted
+network.
+
+| Layout | Recommended OBS canvas |
+|---|---:|
+| Horizontal | 532 x 132 |
+| Vertical | 252 x 312 |
+| Compact | 382 x 88 |
+| Vinyl | 292 x 332 |
+| Classic | 472 x 144 |
+
+These sizes include the widget's transparent padding. The Stream Deck overlay
+action hides or shows cards without dropping its authenticated control socket,
+and regenerating the token disconnects active WebSocket clients.
 
 ## Tech Stack
 
@@ -225,7 +239,7 @@ Native app (Make):
 - `make prod-build` builds a release DMG in `builds/`.
 - `make prod-install` builds a release and installs to `/Applications`.
 - `make notarize` notarizes the DMG (requires Developer ID and env vars).
-- `make widget` rebuilds the OBS overlay widget (`apps/widget/` to `Resources/widget.html`); required after editing `apps/widget/` sources.
+- `make widget` rebuilds the OBS overlay widget (`apps/widget/` to `Resources/widget.html`). Run `bun run tokens` first when token definitions or their generator changed, or use the ordered root `bun run build`.
 
 ### Code Quality
 

@@ -28,7 +28,7 @@ struct WolfWaveApp: App {
     /// detection. `XCTest.framework` is only loaded into the host process when
     /// xctest runs. The env-var fallbacks preserve behavior on older runners
     /// that did expose those variables.
-    static let isRunningTests = NSClassFromString("XCTestCase") != nil
+    nonisolated static let isRunningTests = NSClassFromString("XCTestCase") != nil
         || ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil
         || ProcessInfo.processInfo.environment["XCTestBundlePath"] != nil
 
@@ -193,8 +193,13 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     let albumArtCache: NSCache<NSString, NSImage> = {
         let cache = NSCache<NSString, NSImage>()
         cache.countLimit = 64
+        cache.totalCostLimit = 32 * 1_024 * 1_024
         return cache
     }()
+
+    /// Cache keys currently downloading/decoding. Opening the tray repeatedly
+    /// while one image is in flight must not create duplicate network tasks.
+    var albumArtLoadsInFlight: Set<String> = []
 
     /// Whether a track has been seen since launch. The first track represents
     /// music that was already playing, so its song-change notification is
@@ -318,6 +323,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         NotificationCenter.default.removeObserver(self)
         notificationObservers.forEach { NotificationCenter.default.removeObserver($0) }
         notificationObservers.removeAll()
+        Log.shutdown()
     }
 
     /// Reopens the Settings window when the dock icon is clicked.

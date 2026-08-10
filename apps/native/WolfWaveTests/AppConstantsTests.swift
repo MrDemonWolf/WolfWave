@@ -21,13 +21,18 @@ struct AppConstantsTests {
     func testAppInfoConstants() async throws {
         #expect(!AppConstants.AppInfo.bundleIdentifier.isEmpty)
         #expect(!AppConstants.AppInfo.displayName.isEmpty)
+        // AppInfo identifies the release product; runtime isolation uses Bundle.main.bundleIdentifier.
         #expect(AppConstants.AppInfo.bundleIdentifier == "com.mrdemonwolf.wolfwave")
+        #if DEBUG
+        #expect(AppConstants.AppInfo.displayName == "WolfWave Dev")
+        #else
         #expect(AppConstants.AppInfo.displayName == "WolfWave")
+        #endif
     }
 
     @Test("Version and build number constants are defined")
     func testVersionAndBuildNumber() async throws {
-        // Hosted tests run inside WolfWave.app, so the real Info.plist values
+        // Hosted tests run inside the app product, so the real Info.plist values
         // are present; the "0.0.0"/"0" fallbacks only apply to stripped bundles.
         #expect(!AppConstants.AppInfo.shortVersion.isEmpty)
         #expect(!AppConstants.AppInfo.buildNumber.isEmpty)
@@ -120,8 +125,11 @@ struct AppConstantsTests {
     
     @Test("Widget constants are defined")
     func testWidgetConstants() async throws {
-        #expect(AppConstants.Widget.recommendedWidth == 500)
-        #expect(AppConstants.Widget.recommendedHeight == 120)
+        #expect(AppConstants.Widget.recommendedDimensionsText(for: "Horizontal") == "532 x 132")
+        #expect(AppConstants.Widget.recommendedDimensionsText(for: "Vertical") == "252 x 312")
+        #expect(AppConstants.Widget.recommendedDimensionsText(for: "Compact") == "382 x 88")
+        #expect(AppConstants.Widget.recommendedDimensionsText(for: "Vinyl") == "292 x 332")
+        #expect(AppConstants.Widget.recommendedDimensionsText(for: "Classic") == "472 x 144")
         #expect(!AppConstants.Widget.themes.isEmpty)
         #expect(AppConstants.Widget.themes.count == 5)
         #expect(!AppConstants.Widget.layouts.isEmpty)

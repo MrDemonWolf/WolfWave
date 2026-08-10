@@ -33,6 +33,17 @@ function log(step: string, detail = ""): void {
   console.log(`[widget:build] ${step}${detail ? ": " + detail : ""}`);
 }
 
+function replaceExactlyOnce(source: string, marker: string, payload: string): string {
+  const parts = source.split(marker);
+  if (parts.length !== 2) {
+    throw new Error(
+      `expected exactly one ${marker} marker, found ${parts.length - 1}`,
+    );
+  }
+  // Concatenation keeps arbitrary `$` sequences in CSS/JS payloads literal.
+  return parts[0] + payload + parts[1];
+}
+
 function run(cmd: string, args: string[]): Promise<void> {
   return new Promise((resolvePromise, rejectPromise) => {
     const child = spawn(cmd, args, { stdio: "inherit", cwd: __dirname });
@@ -136,17 +147,24 @@ async function emit(): Promise<void> {
 
   const banner = "<!-- GENERATED: edit apps/widget/src/widget.html and run `bun run --filter widget build` to rebuild. -->\n";
 
-  // String.replace would interpret $ sequences in the replacement (e.g. $1).
-  // Splitting + joining is safer for arbitrary CSS/JS payloads.
-  const out =
-    banner +
-    template
-      .split("%%TAILWIND_CSS%%")
-      .join(css)
-      .split("%%TOKENS_JS%%")
-      .join(tokens)
-      .split("%%WIDGET_JS%%")
-      .join(js);
+  const substitutions: Array<readonly [marker: string, payload: string]> = [
+    ["%%TAILWIND_CSS%%", css],
+    ["%%TOKENS_JS%%", tokens],
+    ["%%WIDGET_JS%%", js],
+  ];
+  let bundled = template;
+  for (const [marker, payload] of substitutions) {
+    bundled = replaceExactlyOnce(bundled, marker, payload);
+  }
+
+  const unresolvedMarkers = substitutions
+    .map(([marker]) => marker)
+    .filter((marker) => bundled.includes(marker));
+  if (unresolvedMarkers.length > 0) {
+    throw new Error(`unresolved build markers: ${unresolvedMarkers.join(", ")}`);
+  }
+
+  const out = banner + bundled;
 
   await mkdir(dirname(OUT_HTML), { recursive: true });
   await writeFile(OUT_HTML, out, "utf8");

@@ -54,11 +54,12 @@ bun run --filter streamdeck test         # Stream Deck plugin tests (bun test)
 > `apps/native/WolfWave/Resources/widget.html` is a **generated artifact**
 > that is **committed** to the repo. Xcode does **not** rebuild it; the
 > native build ships the committed file as-is, so contributors who only
-> touch Swift never need `bun`. If you edit anything under `apps/widget/`,
-> run `make widget` (or `bun run --filter widget build`) and commit the
-> regenerated `widget.html` alongside your source change. CI rebuilds the
-> widget and fails the PR on any drift between sources and the committed
-> output. See `apps/widget/README.md` and the
+> touch Swift never need `bun`. If you edit `apps/widget/`, run `make widget`
+> (or `bun run --filter widget build`). If you edit design tokens or their
+> generator, run `bun run tokens` first, or use the ordered root
+> `bun run build`. Commit the regenerated `widget.html` (and any token
+> outputs) with the source change. CI regenerates both layers and fails the
+> PR on drift. See `apps/widget/README.md` and the
 > [OBS Widget Architecture](apps/docs/content/docs/widget.mdx) docs page.
 
 ### Native App (Make)
@@ -78,7 +79,9 @@ make notarize       # Notarize the DMG (requires Developer ID + env vars)
 make verify-notarize # Verify the notarization ticket is stapled
 ```
 
-Xcode project is at `apps/native/WolfWave.xcodeproj` with scheme `WolfWave`. Build and run with Cmd+R in Xcode.
+Xcode project is at `apps/native/WolfWave.xcodeproj` with scheme `WolfWave`. Build and run with Cmd+R in Xcode. The Debug action must resolve to `WolfWave Dev.app`, display as **WolfWave Dev**, and use bundle ID `com.mrdemonwolf.wolfwave.dev`; Release remains `WolfWave.app` / `com.mrdemonwolf.wolfwave`. Do not collapse those identities or point the Debug scheme runnable at the Release product.
+
+All `make test*` targets use the ignored `DerivedData/Tests` directory. This keeps their unsigned test host from replacing the signed Debug app in Xcode's normal DerivedData. Test hosts also default `KeychainService` to process-local storage before any suite setup, so tests must never read, write, or prompt for the user's real dev Keychain.
 
 ## Build Configuration
 
@@ -154,7 +157,7 @@ The crash-class lint gate is **blocking** on production source: `.swiftlint-cras
 - **Services/SettingsBackup/** - `SettingsBackup.swift` (payload model), `SettingsBackupCoder.swift` (pure encode/decode), `SettingsBackupService.swift` (`@MainActor` export/import orchestration). Accounts and secrets are excluded; see `apps/docs/content/docs/backup.mdx`.
 - **Services/Discord/** - `DiscordRPCService.swift` (Discord Rich Presence via local IPC Unix domain socket, auto-reconnect with backoff), split into `DiscordRPCService+IPC.swift` (socket framing / connect) and `DiscordPresenceBuilder.swift` (pure presence-payload construction).
 - **Services/UpdateChecker/** - `SparkleUpdaterService.swift` (Sparkle framework wrapper for auto-updates, EdDSA-signed appcast verification, Homebrew install detection disables Sparkle, DEBUG mode allows manual check via bundled `dev-appcast.xml`), `UpdateChannel.swift` (`nonisolated` Stable/Nightly enum backing the dual-feed picker).
-- **Services/WebSocket/** - `WebSocketServerService.swift` (overlay broadcast, per-install auth-token handshake; connections must present `Sec-WebSocket-Protocol: wolfwave.token.<hex>` or get rejected; also **bidirectional** — parses inbound Stream Deck control commands via an injected `onCommand` handler and pushes `queue_state` / `health` broadcasts), `StreamDeckCommand.swift` (pure `StreamDeckAction` / `StreamDeckCommand` / `CommandAck` + `StreamDeckControl.parse` envelope decoder; protocol-versioned command channel for the Stream Deck plugin, see `apps/native/docs/streamdeck-control-api.md`), `WidgetHTTPService.swift` (static widget HTTP server; auto-injects the auth token into served `widget.html` for loopback peers), `WebSocketAuthToken.swift` (per-install token generation + Keychain persistence).
+- **Services/WebSocket/** - `WebSocketServerService.swift` (overlay broadcast, per-install auth-token handshake; connections must present `Sec-WebSocket-Protocol: wolfwave.token.<hex>` or get rejected; also **bidirectional** — parses inbound Stream Deck control commands via an injected `onCommand` handler and pushes `queue_state` / `health` broadcasts; progress work exists only while enabled, overlay-visible, playing, and serving clients, and each fan-out encodes once), `StreamDeckCommand.swift` (pure `StreamDeckAction` / `StreamDeckCommand` / `CommandAck` + `StreamDeckControl.parse` envelope decoder; protocol-versioned command channel for the Stream Deck plugin, see `apps/native/docs/streamdeck-control-api.md`; `overlay_toggle` changes card visibility without stopping the authenticated transport), `WidgetHTTPService.swift` (static widget HTTP server; injects the auth token only for literal loopback Host requests, returns those responses with `no-store`, and enforces `no-referrer` for every widget document; generated widget tokens are already build-inlined), `WebSocketAuthToken.swift` (per-install token generation + persistence-first Keychain rotation).
 - **Services/ListeningHistory/** - `ListeningHistoryService.swift` (opt-in, on-device append-only NDJSON play log; records a track only after it crosses the half-length or 4-minute mark so skips don't count), `StatsAggregator.swift` (top artists / listening time / 7-day trend / listening-by-hour rollups powering History & Stats), `MonthlyWrap.swift` (per-month "wrapped"-style summary + share-card export), `HistoryFormatting.swift` (date/duration formatting helpers).
 - **Services/Notifications/** - `NotificationService.swift` (opt-in macOS banners via `UNUserNotificationCenter`; song-change, skip-vote-started, and skip-vote-passed each reuse a stable per-type identifier so a new banner replaces the previous one of its kind instead of stacking. Skip-vote-started is silent; skip-vote-passed uses the default system sound. Static `make…Content` builders keep the text pure and unit-testable. Skip-vote events arrive via `SkipVoteManager.onVoteEvent`, gated in `AppDelegate.handleVoteEvent` on both `voteSkipEnabled` and the matching per-event toggle. The service is also the `UNUserNotificationCenterDelegate` (installed at launch) so banners still present while WolfWave is frontmost, and it owns the Twitch re-auth banner via `postTwitchReauthNeeded()`, which only posts when authorization is already granted - boot paths must never trigger the system permission prompt).
 - **Services/** - `ArtworkService.swift` (iTunes Search artwork fetch + cache), `ArtworkTint.swift` (album-art representative-color sampler for the Monthly Wrap share card), `LaunchAtLoginService.swift`. (`DiagnosticsService.swift` now lives in Core/.)
@@ -181,7 +184,7 @@ Single source of truth: [`design-system/tokens.json`](design-system/tokens.json)
 |---|---|---|
 | Swift | `apps/native/WolfWave/Core/DesignSystem/Tokens.generated.swift` | Native app: `DSColor`, `DSFont`, `DSSpace`, `DSRadius`, `DSMotion`, `DSDimension` |
 | CSS | `apps/docs/app/tokens.generated.css` | Fumadocs site (`--ds-*` custom properties) |
-| Widget JS | `apps/native/WolfWave/Resources/widget-tokens.generated.js` | `widget.html` reads via `window.WW_TOKENS` |
+| Widget JS | `apps/native/WolfWave/Resources/widget-tokens.generated.js` | `apps/widget/build.ts` inlines `window.WW_TOKENS` into the shipped `widget.html` |
 | Marketing TS | `apps/marketing/shared/tokens.generated.ts` | Remotion projects |
 | Docs widget themes TS | `apps/docs/app/(home)/_widgets/widget-themes.generated.ts` | `USER_THEMES`, `WIDGET_THEMES`, `WIDGET_LAYOUTS`, `DEFAULT_THEME`, `DEFAULT_LAYOUT` for the landing-page OBS overlay preview |
 
@@ -197,7 +200,7 @@ bun turbo build         # `tokens` is a build prerequisite; runs automatically
 
 ### Widget themes (`window.WW_TOKENS`)
 
-`widget.html` consumes `WW_TOKENS.themes` (6 themes: `Default`, `Dark`, `Light`, `Glass`, `Neon`, `WolfWave`) and `WW_TOKENS.layouts` (`Horizontal`, `Vertical`, `Compact`). Themes live in `tokens.json` under `widget.themes`; add or edit there, then regenerate. `WidgetHTTPService` serves `widget-tokens.generated.js` at `/widget-tokens.generated.js`, loaded via `<script src>` before the inline script.
+`widget.html` consumes build-inlined `WW_TOKENS.themes`: five selectable themes (`Default`, `Dark`, `Light`, `Glass`, `Neon`) plus the hidden internal `WolfWave` theme. `WW_TOKENS.layouts` contains five layouts (`Horizontal`, `Vertical`, `Compact`, `Vinyl`, `Classic`). Themes and layouts live in `tokens.json` under `widget`; add or edit them there, regenerate, then rebuild the widget. `WidgetHTTPService` may serve `/widget-tokens.generated.js` as a fallback asset route, but the shipped self-contained HTML does not fetch it at runtime.
 
 ### Component catalog
 
@@ -218,7 +221,7 @@ Existing legacy literals are tracked in [`design-system/lint-allowlist.txt`](des
 
 ## Testing
 
-Unit tests live in `apps/native/WolfWaveTests/` and use XCTest + Swift Testing with `@testable import WolfWave`. The test target is a hosted unit test bundle (`TEST_HOST` = WolfWave.app). Run `ls apps/native/WolfWaveTests/*.swift | wc -l` for the current file count.
+Unit tests live in `apps/native/WolfWaveTests/` and use XCTest + Swift Testing with `@testable import WolfWave`. The test target is a hosted unit test bundle (`TEST_HOST` = `WolfWave Dev.app` for Debug and `WolfWave.app` for Release). Run `ls apps/native/WolfWaveTests/*.swift | wc -l` for the current file count.
 
 > Auto-discovery: `apps/native/WolfWaveTests/` is a `PBXFileSystemSynchronizedRootGroup`; dropping a new `*.swift` file in is enough, no Xcode project edit required.
 
@@ -278,11 +281,11 @@ Unit tests live in `apps/native/WolfWaveTests/` and use XCTest + Swift Testing w
 - `StreamerModeMaskingSweepTests.swift` - Sweeps every sensitive field for Streamer Mode masking
 - `AtomicTests.swift`, `ByteFormattingTests.swift`, `InlineMarkdownTests.swift`, `FeatureFlagsDefaultsTests.swift`, `JSONSerializationGuardTests.swift` - Core utility coverage
 - `HintRowTests.swift`, `LabeledSliderTests.swift`, `StatTileTests.swift`, `DestructiveButtonTests.swift`, `SectionEyebrowTests.swift`, `TwitchConnectionNoticeTests.swift`, `WidgetAppearancePreviewTests.swift` - Shared view components
-- `InMemoryKeychainBackend.swift` - Test double injected behind `KeychainService` (unit tests must never hit the real Keychain)
 
 ### Writing tests
 
 - Use `@testable import WolfWave` (module name matches `PRODUCT_NAME`)
+- Test hosts default to `InMemoryKeychainBackend`; never replace it with `SystemKeychainBackend` or access the user's real Keychain
 - `SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor` applies to test classes too; XCTest runs on main thread
 - Test files are auto-discovered via `PBXFileSystemSynchronizedRootGroup`; just add `.swift` files to `apps/native/WolfWaveTests/`
 - Focus on pure logic (version comparison, command matching, state machines); avoid tests that need AppDelegate, Keychain, or network

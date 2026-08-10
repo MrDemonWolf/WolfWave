@@ -79,6 +79,8 @@ extension DiscordRPCService {
                     }
                     state = .connected
                     reconnectDelay = AppConstants.Discord.reconnectBaseDelay
+                    updateAvailabilityPolling()
+                    await refreshPresenceFromSettings()
                     return
                 } else {
                     Log.warn("DiscordRPCService: Handshake failed on slot \(slot)", category: "Discord")
@@ -422,6 +424,9 @@ extension DiscordRPCService {
     /// Handles a lost connection by disconnecting and scheduling reconnect.
     private func handleConnectionLost() async {
         await disconnect()
+        // The coarse availability fallback is useful only while disconnected;
+        // successful connect paths stop it again immediately.
+        updateAvailabilityPolling()
 
         guard isEnabled else { return }
 

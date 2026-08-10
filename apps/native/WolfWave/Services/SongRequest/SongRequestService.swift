@@ -230,6 +230,7 @@ final class SongRequestService {
         Foundation.UserDefaults.standard.set(enabled, forKey: AppConstants.UserDefaults.songRequestHoldEnabled)
         NotificationCenter.default.postEnabled(.songRequestHoldChanged, enabled: enabled)
         Log.debug("SongRequestService: Hold \(enabled ? "enabled" : "released")", category: "SongRequest")
+        defer { reconcilePlaybackMonitoring() }
 
         if !enabled {
             guard musicController.isMusicAppRunning else { return }
@@ -243,8 +244,11 @@ final class SongRequestService {
     }
 
     private var playbackObserver: Task<Void, Never>?
+    /// True only between explicit `startPlaybackMonitoring` / stop lifecycle calls.
+    private var isPlaybackMonitoringEnabled = false
 
     private var musicAppLaunchObserver: NSObjectProtocol?
+    private var queueChangeObserver: NSObjectProtocol?
 
     /// Interval between auto-advance polls. Injectable so tests can use a small
     /// value instead of waiting the full production cadence.
@@ -364,13 +368,14 @@ final class SongRequestService {
 
     /// Begins watching Apple Music playback and the Music.app launch state.
     ///
-    /// Spawns a 2-second polling task that auto-advances the queue when the
-    /// current track stops (not paused), plus an `NSWorkspace` observer that
-    /// flushes buffered requests when Music.app launches.
+    /// Installs lightweight launch/queue observers. The 2-second auto-advance
+    /// polling task exists only while auto-advance is enabled, hold is off, and
+    /// the live queue has a pending or current request.
     ///
     /// - Important: Idempotent. Calling twice cancels and re-creates observers.
     func startPlaybackMonitoring() {
         stopPlaybackMonitoring()
+        isPlaybackMonitoringEnabled = true
 
         // Watch for Music.app launching so buffered requests flush automatically.
         musicAppLaunchObserver = NSWorkspace.shared.notificationCenter.addObserver(
@@ -383,13 +388,57 @@ final class SongRequestService {
             Task { await self?.handleMusicAppLaunched() }
         }
 
+        // Queue mutations already publish this notification. Use it to keep the
+        // 2-second task completely absent while there is no queued/current request.
+        queueChangeObserver = NotificationCenter.default.addObserver(
+            forName: .songRequestQueueChanged,
+            object: queue,
+            queue: .main
+        ) { [weak self] _ in
+            MainActor.assumeIsolated {
+                self?.reconcilePlaybackMonitoring()
+            }
+        }
+
+        reconcilePlaybackMonitoring()
+    }
+
+    /// Reconciles the polling task after a queue or playback-setting change.
+    /// The settings view calls this after updating its `@AppStorage` binding.
+    /// A stopped service remains stopped; reconciliation never starts lifecycle.
+    func reconcilePlaybackMonitoring() {
+        updatePlaybackPolling()
+    }
+
+    /// Starts or stops the auto-advance task to match current queue activity.
+    /// Pending-approval items do not need playback observation until approved.
+    private func updatePlaybackPolling() {
+        let hasLiveRequest = queue.nowPlaying != nil || !queue.isEmpty
+        let needsPolling = isPlaybackMonitoringEnabled
+            && isAutoAdvanceEnabled
+            && !isHoldEnabled
+            && hasLiveRequest
+        guard needsPolling else {
+            playbackObserver?.cancel()
+            playbackObserver = nil
+            return
+        }
+        guard playbackObserver == nil else { return }
+
         playbackObserver = Task { [weak self] in
             guard let self else { return }
 
             while !Task.isCancelled {
                 // Auto-advance polling is not time-critical. A 20% tolerance lets
                 // macOS coalesce the wakeup (0.4s at the default 2s cadence).
-                try? await Task.sleep(for: self.pollInterval, tolerance: self.pollInterval / 5)
+                do {
+                    try await Task.sleep(
+                        for: self.pollInterval,
+                        tolerance: self.pollInterval / 5)
+                } catch {
+                    return
+                }
+                guard !Task.isCancelled else { return }
                 await self.pollTick()
             }
         }
@@ -492,14 +541,19 @@ final class SongRequestService {
         // Paused, or an unconfirmed stopped read: wait.
     }
 
-    /// Stops the polling task and removes the Music.app launch observer.
+    /// Stops the polling task and removes the Music.app/queue observers.
     /// Safe to call when no monitoring is active.
     func stopPlaybackMonitoring() {
+        isPlaybackMonitoringEnabled = false
         playbackObserver?.cancel()
         playbackObserver = nil
         if let observer = musicAppLaunchObserver {
             NSWorkspace.shared.notificationCenter.removeObserver(observer)
             musicAppLaunchObserver = nil
+        }
+        if let observer = queueChangeObserver {
+            NotificationCenter.default.removeObserver(observer)
+            queueChangeObserver = nil
         }
     }
 

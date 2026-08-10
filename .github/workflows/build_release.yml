@@ -43,8 +43,8 @@ jobs:
       - name: Install JS dependencies
         run: bun install --frozen-lockfile
 
-      - name: Build OBS widget
-        run: bun run --filter widget build
+      - name: Generate design tokens and build OBS widget
+        run: bun turbo run build --filter=widget
 
       - name: Create Config.xcconfig
         run: |
@@ -108,8 +108,8 @@ jobs:
       - name: Install JS dependencies
         run: bun install --frozen-lockfile
 
-      - name: Build OBS widget
-        run: bun run --filter widget build
+      - name: Generate design tokens and build OBS widget
+        run: bun turbo run build --filter=widget
 
       - name: Create Config.xcconfig
         run: |
@@ -131,12 +131,22 @@ jobs:
       - name: Resolve version
         id: version
         run: |
+          PROJECT_VERSION=$(xcodebuild -project "$PROJECT" -scheme "$SCHEME" \
+            -configuration "$CONFIGURATION" -showBuildSettings 2>/dev/null \
+            | awk -F'= ' '/MARKETING_VERSION/ {gsub(/^[ \t]+/,"",$2); print $2; exit}')
+          if [ -z "$PROJECT_VERSION" ]; then
+            echo "::error::Could not resolve MARKETING_VERSION from the app project"
+            exit 1
+          fi
+
           if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
             VERSION="${GITHUB_REF#refs/tags/v}"
+            if [ "$VERSION" != "$PROJECT_VERSION" ]; then
+              echo "::error::Release tag v$VERSION does not match app MARKETING_VERSION $PROJECT_VERSION"
+              exit 1
+            fi
           else
-            VERSION=$(xcodebuild -project "$PROJECT" -scheme "$SCHEME" \
-              -configuration "$CONFIGURATION" -showBuildSettings 2>/dev/null \
-              | awk -F'= ' '/MARKETING_VERSION/ {gsub(/^[ \t]+/,"",$2); print $2; exit}')
+            VERSION="$PROJECT_VERSION"
           fi
           if [ -z "$VERSION" ]; then
             echo "::error::Could not resolve VERSION (tag parse and MARKETING_VERSION extraction both came up empty)"
@@ -181,6 +191,8 @@ jobs:
 
       - name: Locate app bundle
         id: app
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
         run: |
           APP_PATH=$(xcodebuild -project "$PROJECT" -scheme "$SCHEME" \
             -configuration "$CONFIGURATION" -derivedDataPath build \
@@ -189,8 +201,15 @@ jobs:
           if [ ! -d "$APP_PATH" ]; then
             echo "App not found at $APP_PATH"; exit 1
           fi
+          APP_VERSION=$(/usr/libexec/PlistBuddy \
+            -c "Print :CFBundleShortVersionString" \
+            "$APP_PATH/Contents/Info.plist" 2>/dev/null || true)
+          if [ "$APP_VERSION" != "$VERSION" ]; then
+            echo "::error::Built app version ${APP_VERSION:-missing} does not match release version $VERSION"
+            exit 1
+          fi
           echo "path=$APP_PATH" >> "$GITHUB_OUTPUT"
-          echo "App: $APP_PATH"
+          echo "App: $APP_PATH (version $APP_VERSION)"
 
       - name: Code sign app bundle (inside-out)
         env:
@@ -348,7 +367,7 @@ jobs:
           name: ${{ steps.version.outputs.dmg_name }}
           path: builds/${{ steps.version.outputs.dmg_name }}
 
-      - name: Create draft GitHub Release
+      - name: Create or update draft GitHub Release
         if: ${{ !inputs.dry_run }}
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -360,11 +379,21 @@ jobs:
           # .html no longer needs to ship as a release asset. Uploading only the
           # DMG + appcast avoids re-introducing the download-instead-of-render bug
           # (a linked GitHub asset is served as an attachment).
-          gh release delete "v$VERSION" --yes 2>/dev/null || true
-          gh release create "v$VERSION" \
-            "builds/$DMG_NAME" "builds/appcast.xml" \
-            --title "WolfWave v$VERSION" \
-            --generate-notes --draft
+          TAG="v$VERSION"
+          if is_draft="$(gh release view "$TAG" --json isDraft --jq '.isDraft' 2>/dev/null)"; then
+            if [ "$is_draft" != "true" ]; then
+              echo "::error::Release $TAG is already published; refusing to replace it"
+              exit 1
+            fi
+
+            gh release edit "$TAG" --title "WolfWave v$VERSION"
+            gh release upload "$TAG" "builds/$DMG_NAME" "builds/appcast.xml" --clobber
+          else
+            gh release create "$TAG" \
+              "builds/$DMG_NAME" "builds/appcast.xml" \
+              --title "WolfWave v$VERSION" \
+              --generate-notes --draft
+          fi
 
       - name: Cleanup keychain
         if: always()

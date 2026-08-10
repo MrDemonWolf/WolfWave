@@ -17,13 +17,15 @@
  *
  *  How the server talks to us:
  *  ---------------------------
- *  Five message types arrive on the WS feed (schemas frozen by the Swift
+ *  Seven message types arrive on the WS feed (schemas frozen by the Swift
  *  tests `WebSocketServerServiceTests`/`WidgetHTTPServiceTests`):
  *
  *    • now_playing     { track, artist, album, duration, elapsed, isPlaying, artworkURL }
  *    • progress        { elapsed, duration, isPlaying }                  // ~1Hz
  *    • playback_state  { isPlaying, track, artist, album }
  *    • widget_config   { theme, layout, textColor, backgroundColor, fontFamily }
+ *    • overlay_visibility { visible }
+ *    • queue_upcoming  { items: [{ title, requesterUsername }] }         // max 3, opt-in ticker (`?queueTicker=1`)
  *    • welcome         {}                                                // handshake ack
  *
  *  We do NOT push back. This is a one-way feed.
@@ -31,7 +33,7 @@
  *  Visual state machine:
  *  ---------------------
  *
- *      ┌────────────┐     play       ┌──────────────┐     RAF tick     ┌─────────────┐
+ *      ┌────────────┐     play       ┌──────────────┐   next paint     ┌─────────────┐
  *      │ hidden     │ ─────────────▶ │ entering     │ ───────────────▶ │ visible     │
  *      └────────────┘                └──────────────┘                  └─────────────┘
  *             ▲                                                                │
@@ -87,8 +89,16 @@ declare global {
 
 const params = new URLSearchParams(location.search);
 const wsPort = params.get("port") || params.get("wsPort") || "8765";
-const autohide = Number(params.get("duration") || "0");
+const requestedAutohide = Number(params.get("duration") || "0");
+const autohide =
+  Number.isFinite(requestedAutohide) && requestedAutohide > 0
+    ? requestedAutohide
+    : 0;
 const hideAlbumArt = params.has("hideAlbumArt");
+// Opt-in only: no existing streamer's OBS scene should change on upgrade.
+// Ships as an independent fixed-position panel, not part of any layout.
+// Exact "1" required so `?queueTicker=0`/`=false`/bare `?queueTicker` stay off.
+const queueTickerEnabled = params.get("queueTicker") === "1";
 
 // Auth token. `WidgetHTTPService` substitutes the live token for the
 // `__WOLFWAVE_TOKEN__` sentinel when it serves this file over loopback. When
@@ -108,6 +118,12 @@ const RECONNECT_MAX_MS = 15_000;         // ceiling so we don't back off forever
 const ENTER_DURATION_MS = 600;
 const EXIT_DURATION_MS = 500;
 const SWAP_HALF_MS = 140;                // 1/2 of total 280ms swap budget
+const PROGRESS_UPDATE_INTERVAL_MS = 100;  // 10Hz is smooth without a 60Hz JS loop
+const TIME_UPDATE_INTERVAL_MS = 1000;
+const reducedMotionQuery =
+  typeof window.matchMedia === "function"
+    ? window.matchMedia("(prefers-reduced-motion: reduce)")
+    : null;
 
 // Design-system token shim. Identical shape to what `generate.ts` emits, used
 // only when the generated bundle didn't load (defensive).
@@ -169,24 +185,34 @@ let widgetConfig: WidgetConfig = { ...defaultConfig };
 let elapsed = 0;
 let elapsedRef: ElapsedRef = { value: 0, timestamp: 0, isPlaying: false };
 let visible = false;
-let rafId: number | null = null;
+let overlayEnabled = true;
+let pendingEnter = false;
+let pageSuspended = false;
+let awaitingAuthoritativeState = false;
+let progressTimer: number | null = null;
 let hideTimer: number | null = null;
 let exitTimer: number | null = null;
+let hideDeadline: number | null = null;
+let autohideExpired = false;
 let ws: WebSocket | null = null;
 let reconnectTimer: number | null = null;
 let reconnectAttempts = 0;
 let hasReceivedTrack = false;
+// `null` = no snapshot from the server yet (don't render anything, avoids a
+// flash of the empty-queue state before `welcome`'s first reply). `[]` is a
+// meaningful, confirmed value: "the queue is open."
+let queueUpcoming: Array<{ title: string; requesterUsername: string }> | null = null;
 
-// Progress-loop element cache. `updateProgress` runs every RAF frame; querying
-// the DOM there costs three selector walks per frame inside OBS's renderer.
+// Progress-loop element cache. `updateProgress` runs at a restrained cadence;
+// querying the DOM there would still add needless work inside OBS's renderer.
 // `buildWidget` refreshes these after every innerHTML rebuild.
 let fillEl: HTMLElement | null = null;
+let knobEl: HTMLElement | null = null;
 let elapsedTimeEl: HTMLElement | null = null;
 let remainingTimeEl: HTMLElement | null = null;
-let lastElapsedText = "";
-let lastRemainingText = "";
+let lastTimeUpdateAt = 0;
 // Vinyl layout only: the circular progress ring. Driven by stroke-dashoffset
-// instead of width, so it lives alongside `fillEl` in the RAF loop. Null for
+// instead of a transform, so it lives alongside `fillEl` in the timer. Null for
 // every other layout. `ringCircumference` is cached from the circle's radius.
 let ringEl: SVGCircleElement | null = null;
 let ringCircumference = 0;
@@ -251,6 +277,8 @@ type WSMessage =
   | { type: "progress"; data: { elapsed: number; duration: number; isPlaying: boolean } }
   | { type: "playback_state"; data: { isPlaying: boolean; track?: string; artist?: string; album?: string } }
   | { type: "widget_config"; data: Partial<WidgetConfig> }
+  | { type: "overlay_visibility"; data: { visible: boolean } }
+  | { type: "queue_upcoming"; data: { items: Array<{ title: string; requesterUsername: string }> } }
   | { type: "welcome" };
 
 /* ╔════════════════════════════════════════════════════════════════════════╗
@@ -396,33 +424,71 @@ function resolveTheme(config: WidgetConfig): ThemePreset {
  *
  *  Why interpolate client-side instead of trusting per-tick server pushes?
  *  The server emits `progress` at ~1Hz to save bandwidth, but the progress
- *  fill needs to look smooth (60Hz). We anchor on the latest server elapsed
- *  + wall-clock and let RAF fill in the gaps.
+ *  indicator still benefits from interpolation. We anchor on the latest
+ *  server elapsed and update progress at 10Hz while labels remain at 1Hz.
  *
  *  Formula:   elapsed = elapsedRef.value + (Date.now() - elapsedRef.timestamp) / 1000
  *
  *  When the server sends a new `progress` we re-anchor so any drift is
- *  corrected immediately on the next frame.
+ *  corrected within at most one lightweight timer interval.
  */
 
-function startProgressLoop(): void {
-  if (rafId !== null) cancelAnimationFrame(rafId);
-  function tick() {
-    const ref = elapsedRef;
-    if (ref.isPlaying && ref.timestamp > 0) {
-      elapsed = ref.value + (Date.now() - ref.timestamp) / 1000;
-    }
-    updateProgress();
-    rafId = requestAnimationFrame(tick);
-  }
-  rafId = requestAnimationFrame(tick);
+function isPageInactive(): boolean {
+  return pageSuspended || document.hidden;
 }
 
 function stopProgressLoop(): void {
-  if (rafId !== null) {
-    cancelAnimationFrame(rafId);
-    rafId = null;
+  if (progressTimer !== null) {
+    clearTimeout(progressTimer);
+    progressTimer = null;
   }
+}
+
+function hasProgressSurface(): boolean {
+  return !!(fillEl || knobEl || ringEl || elapsedTimeEl || remainingTimeEl);
+}
+
+function shouldRunProgressLoop(): boolean {
+  return (
+    !isPreview() &&
+    overlayEnabled &&
+    !awaitingAuthoritativeState &&
+    visible &&
+    !isPageInactive() &&
+    !!nowPlaying &&
+    elapsedRef.isPlaying &&
+    nowPlaying.duration > 0 &&
+    hasProgressSurface()
+  );
+}
+
+function progressTick(): void {
+  progressTimer = null;
+  if (!shouldRunProgressLoop()) return;
+
+  const now = Date.now();
+  const ref = elapsedRef;
+  if (ref.timestamp > 0) {
+    elapsed = ref.value + (now - ref.timestamp) / 1000;
+  }
+  updateProgress(now);
+
+  if (shouldRunProgressLoop()) {
+    progressTimer = window.setTimeout(progressTick, PROGRESS_UPDATE_INTERVAL_MS);
+  }
+}
+
+function startProgressLoop(): void {
+  if (!shouldRunProgressLoop()) {
+    stopProgressLoop();
+    return;
+  }
+  if (progressTimer === null) progressTick();
+}
+
+function syncProgressLoop(): void {
+  if (shouldRunProgressLoop()) startProgressLoop();
+  else stopProgressLoop();
 }
 
 /* ╔════════════════════════════════════════════════════════════════════════╗
@@ -440,8 +506,109 @@ function stopProgressLoop(): void {
  *  transition into `visible`.
  */
 
+function clearHideTimer(): void {
+  if (hideTimer !== null) {
+    clearTimeout(hideTimer);
+    hideTimer = null;
+  }
+}
+
+function clearAutohide(): void {
+  clearHideTimer();
+  hideDeadline = null;
+}
+
+function resumeAutohide(): void {
+  clearHideTimer();
+  if (hideDeadline === null || !visible || isPageInactive()) return;
+
+  const remainingMs = hideDeadline - Date.now();
+  if (remainingMs <= 0) {
+    autohideExpired = true;
+    exitWidget(true);
+    return;
+  }
+  hideTimer = window.setTimeout(() => {
+    hideTimer = null;
+    autohideExpired = true;
+    exitWidget();
+  }, remainingMs);
+}
+
+function beginAutohideCountdown(): void {
+  clearHideTimer();
+  autohideExpired = false;
+  hideDeadline = autohide > 0 ? Date.now() + autohide * 1000 : null;
+  resumeAutohide();
+}
+
+function settleWidgetHidden(el: HTMLElement): void {
+  el.classList.remove(
+    "placeholder",
+    "widget-entering",
+    "widget-visible",
+    "widget-exiting",
+  );
+  el.classList.add("widget-hidden");
+  fillEl?.classList.remove("draining");
+  knobEl?.classList.remove("draining");
+  exitTimer = null;
+}
+
 function enterWidget(): void {
+  if (!overlayEnabled || awaitingAuthoritativeState) return;
+  if (isPageInactive()) {
+    pendingEnter = !!nowPlaying;
+    return;
+  }
+
+  const el = document.getElementById("widget");
+  if (!el) return;
+  pendingEnter = false;
   visible = true;
+
+  if (exitTimer !== null) {
+    clearTimeout(exitTimer);
+    exitTimer = null;
+  }
+
+  el.classList.remove(
+    "placeholder",
+    "widget-hidden",
+    "widget-exiting",
+    "widget-visible",
+  );
+  el.classList.add("widget-entering");
+
+  if (reducedMotionQuery?.matches) {
+    el.classList.remove("widget-entering");
+    el.classList.add("widget-visible");
+  } else {
+    // Double-RAF so the starting frame commits before we begin animating.
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        // exitWidget() may have run inside this ~2-frame window (e.g. a
+        // now_playing immediately followed by a stop). Adding widget-visible
+        // then would win the cascade over widget-hidden and pin a dead card
+        // on stream, so bail out.
+        if (!visible) return;
+        el.classList.remove("widget-entering");
+        el.classList.add("widget-visible");
+      });
+    });
+  }
+
+  beginAutohideCountdown();
+  syncProgressLoop();
+}
+
+function exitWidget(immediate = false): void {
+  const wasVisible = visible;
+  visible = false;
+  pendingEnter = false;
+  stopProgressLoop();
+  clearAutohide();
+
   const el = document.getElementById("widget");
   if (!el) return;
 
@@ -450,50 +617,26 @@ function enterWidget(): void {
     exitTimer = null;
   }
 
-  el.classList.remove("placeholder");
-  el.classList.remove("widget-exiting");
-  el.classList.remove("widget-visible");
-  el.classList.add("widget-entering");
-
-  // Double-RAF so the starting frame commits before we begin animating.
-  requestAnimationFrame(() => {
-    requestAnimationFrame(() => {
-      // exitWidget() may have run inside this ~2-frame window (e.g. a
-      // now_playing immediately followed by a stop). Adding widget-visible
-      // then would win the cascade over widget-hidden and pin a dead card
-      // on stream, so bail out.
-      if (!visible) return;
-      el.classList.remove("widget-entering");
-      el.classList.add("widget-visible");
-    });
-  });
-
-  if (hideTimer !== null) clearTimeout(hideTimer);
-  if (autohide > 0) {
-    hideTimer = window.setTimeout(() => exitWidget(), autohide * 1000);
+  if (!wasVisible || immediate || reducedMotionQuery?.matches || isPageInactive()) {
+    settleWidgetHidden(el);
+    return;
   }
-}
 
-function exitWidget(): void {
-  if (!visible) return;
-  visible = false;
-  const el = document.getElementById("widget");
-  if (!el) return;
-
-  el.classList.remove("widget-entering");
-  el.classList.remove("widget-visible");
+  el.classList.remove("placeholder", "widget-hidden", "widget-entering", "widget-visible");
   el.classList.add("widget-exiting");
 
   // Drain progress bar so it doesn't look frozen mid-way during the fade.
   if (fillEl) {
     fillEl.classList.add("draining");
-    fillEl.style.width = "0%";
+    fillEl.style.transform = "scaleX(0)";
+  }
+  if (knobEl) {
+    knobEl.classList.add("draining");
+    knobEl.style.left = "0%";
   }
 
-  if (exitTimer !== null) clearTimeout(exitTimer);
   exitTimer = window.setTimeout(() => {
-    el.classList.remove("widget-exiting");
-    el.classList.add("widget-hidden");
+    settleWidgetHidden(el);
   }, EXIT_DURATION_MS);
 }
 
@@ -503,6 +646,11 @@ function exitWidget(): void {
  * stream calm during rapid skips.
  */
 function swapInner(rebuild: () => void): void {
+  if (reducedMotionQuery?.matches) {
+    rebuild();
+    return;
+  }
+
   const meta = document.querySelector(".track-meta") as HTMLElement | null;
   const art = document.querySelector(".artwork") as HTMLElement | null;
 
@@ -535,7 +683,7 @@ function swapInner(rebuild: () => void): void {
  * ║  RENDER                                                                ║
  * ╚════════════════════════════════════════════════════════════════════════╝
  *
- *  updateProgress() - runs every RAF frame; touches text + width only.
+ *  updateProgress() - runs at 10Hz; time labels are capped at 1Hz.
  *  buildWidget()    - full innerHTML rebuild on track change OR config change.
  *
  *  Why innerHTML? The widget is small and themes can change everything
@@ -543,31 +691,32 @@ function swapInner(rebuild: () => void): void {
  *  code than the entire file.
  */
 
-function updateProgress(): void {
+function updateProgress(now = Date.now()): void {
   if (!nowPlaying) return;
   const duration = nowPlaying.duration || 0;
   if (duration <= 0) return; // no bar/time row rendered for unknown durations
-  const progress = Math.min((elapsed / duration) * 100, 100);
-  const remaining = Math.max(duration - elapsed, 0);
+
+  const rawFraction = elapsed / duration;
+  const fraction = Number.isFinite(rawFraction)
+    ? Math.max(0, Math.min(rawFraction, 1))
+    : 0;
+  const progress = fraction * 100;
   if (fillEl && !fillEl.classList.contains("draining")) {
-    fillEl.style.width = progress + "%";
+    fillEl.style.transform = "scaleX(" + fraction + ")";
+  }
+  if (knobEl && !knobEl.classList.contains("draining")) {
+    knobEl.style.left = progress + "%";
   }
   if (ringEl) {
     // Ring fills clockwise from 12 o'clock (the SVG is rotated -90deg in CSS).
-    ringEl.style.strokeDashoffset = String(ringCircumference * (1 - progress / 100));
+    ringEl.style.strokeDashoffset = String(ringCircumference * (1 - fraction));
   }
-  // The formatted strings change once per second; skipping the redundant
-  // textContent writes avoids replacing the text nodes 60x/sec.
-  const elapsedText = formatTime(elapsed);
-  if (elapsedTimeEl && elapsedText !== lastElapsedText) {
-    elapsedTimeEl.textContent = elapsedText;
-    lastElapsedText = elapsedText;
-  }
-  const remainingText = "-" + formatTime(remaining);
-  if (remainingTimeEl && remainingText !== lastRemainingText) {
-    remainingTimeEl.textContent = remainingText;
-    lastRemainingText = remainingText;
-  }
+
+  if (now - lastTimeUpdateAt < TIME_UPDATE_INTERVAL_MS) return;
+  const remaining = Math.max(duration - elapsed, 0);
+  if (elapsedTimeEl) elapsedTimeEl.textContent = formatTime(elapsed);
+  if (remainingTimeEl) remainingTimeEl.textContent = "-" + formatTime(remaining);
+  lastTimeUpdateAt = now;
 }
 
 function buildWidget(): void {
@@ -579,7 +728,10 @@ function buildWidget(): void {
   const layout = widgetConfig.layout || "Horizontal";
   const dims = layoutDimensions[layout] || layoutDimensions["Horizontal"];
   const duration = nowPlaying.duration || 0;
-  const progress = duration > 0 ? Math.min((elapsed / duration) * 100, 100) : 0;
+  const rawProgress = duration > 0 ? (elapsed / duration) * 100 : 0;
+  const progress = Number.isFinite(rawProgress)
+    ? Math.max(0, Math.min(rawProgress, 100))
+    : 0;
   const remaining = duration > 0 ? Math.max(duration - elapsed, 0) : 0;
   // Paused affordance: track stays on stream but artwork dims and a pause
   // glyph overlays the album art. CSS keys off the `.is-paused` root class.
@@ -601,6 +753,7 @@ function buildWidget(): void {
    * translucent puck) drawn over the artwork when playback is paused.
    */
   function pauseOverlay(w: number, radius: string): string {
+    if (!isPaused) return "";
     const glyph = Math.max(Math.round(w * 0.42), 18);
     return (
       '<div class="pause-overlay" aria-hidden="true" style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;border-radius:' + radius + ';pointer-events:none;">' +
@@ -617,7 +770,7 @@ function buildWidget(): void {
   /**
    * Renders the artwork - either the iTunes Search URL or a WolfWave-branded
    * SVG fallback (wolf mark on brand-blue gradient). Keep the SVG in sync
-   * with Assets.xcassets/WolfMark.imageset/WolfMark.svg.
+   * with assets/logo.svg; WolfMark.svg is its native template derivative.
    */
   function artImg(w: number, h: number, radius: string): string {
     let artURL = nowPlaying!.artworkURL || null;
@@ -631,23 +784,9 @@ function buildWidget(): void {
       return (
         wrapOpen +
         '<div class="artwork flex items-center justify-center" style="width:' + w + "px;height:" + h + "px;border-radius:" + radius + ";background:linear-gradient(135deg,#0A84FF,#003A78);box-shadow:0 2px 8px rgba(0,0,0,0.3);\">" +
-        '<svg width="' + mark + '" height="' + mark + '" viewBox="0 0 100 100" fill="#FFFFFF">' +
-        '<rect x="24" y="43" width="3.5" height="30" rx="1.75"/>' +
-        '<rect x="19" y="49" width="3.5" height="24" rx="1.75" opacity="0.9"/>' +
-        '<rect x="14" y="55" width="3.5" height="18" rx="1.75" opacity="0.73"/>' +
-        '<rect x="9" y="61" width="3.5" height="12" rx="1.75" opacity="0.54"/>' +
-        '<rect x="4" y="66" width="3.5" height="7" rx="1.75" opacity="0.34"/>' +
-        '<rect x="-1" y="69" width="3.5" height="4" rx="1.75" opacity="0.18"/>' +
-        '<rect x="72.5" y="43" width="3.5" height="30" rx="1.75"/>' +
-        '<rect x="77.5" y="49" width="3.5" height="24" rx="1.75" opacity="0.9"/>' +
-        '<rect x="82.5" y="55" width="3.5" height="18" rx="1.75" opacity="0.73"/>' +
-        '<rect x="87.5" y="61" width="3.5" height="12" rx="1.75" opacity="0.54"/>' +
-        '<rect x="92.5" y="66" width="3.5" height="7" rx="1.75" opacity="0.34"/>' +
-        '<rect x="97.5" y="69" width="3.5" height="4" rx="1.75" opacity="0.18"/>' +
-        '<polygon points="33,41 33,11 45,38"/>' +
-        '<polygon points="67,41 67,11 55,38"/>' +
-        '<ellipse cx="50" cy="52" rx="18" ry="17.5"/>' +
-        '<ellipse cx="50" cy="63" rx="11" ry="8"/>' +
+        '<svg width="' + mark + '" height="' + mark + '" viewBox="0 0 15 15" fill="#FFFFFF">' +
+        '<g transform="translate(1.65 1.65) scale(.78)"><path d="M11.3 6.08L11.3 5.84C11.3 5.31 11.06 4.81 10.65 4.46L9.16 3.32L9.16 0.58C9.16 0.58 7.8 0.94 7.08 1.86L7.08 0L6.52 0.2C6.45 0.22 4.7 0.86 3.71 3.23L1 4.9L1.88 5.78L0 7.39L0 9.1C0.78 8.33 1.82 7.9 2.92 7.9C3.41 7.9 3.89 7.99 4.33 8.15C4.65 7.23 5.51 5.68 7.5 7.06C9.46 8.42 11.76 9.12 12.82 9.41L12.54 9.74C12.41 9.85 11.69 10.54 10.24 9.76L7.95 8.73L6.67 10.79L7.62 12.07L6.77 13.35L8.01 15L9.58 15L8.3 13.31L9.12 12.08L8.19 10.69C8.23 10.56 8.44 10.25 8.44 10.25L9.2 10.63C11.73 12.13 13.37 10.69 13.43 10.63L15 8.75L11.31 6.08L11.3 6.08ZM9.95 6.42C9.85 6.63 9.6 6.71 9.39 6.61L8.56 6.19C8.35 6.09 8.27 5.84 8.37 5.63C8.47 5.42 8.72 5.34 8.93 5.44L9.76 5.86C9.96 5.96 10.05 6.21 9.95 6.42L9.95 6.42Z"/></g>' +
+        '<path d="M.45 6.78v.85M.9 6.2v2M1.35 5.55v3.3M13.65 7.15v3.3M14.1 7.8v2M14.55 8.38v.85" fill="none" stroke="#FFFFFF" stroke-width=".26" stroke-linecap="round"/>' +
         "</svg>" +
         "</div>" +
         wrapClose
@@ -668,13 +807,17 @@ function buildWidget(): void {
   const barH = layout === "Vertical" ? "3px" : "4px";
   const timeSize = layout === "Vertical" ? "9px" : "10px";
   const fillStyle =
-    "width:" + progress + "%;background:" + theme.progressFillBg + ";height:100%;border-radius:9999px;";
+    "width:100%;background:" + theme.progressFillBg + ";height:100%;border-radius:9999px;transform:scaleX(" + progress / 100 + ");";
+  const progressKnob = layout === "Classic"
+    ? '<div class="progress-knob" style="left:' + progress + '%"></div>'
+    : "";
 
   // Streams/radio/unknown tracks report duration 0 - an empty bar with
   // "0:00 / -0:00" reads as broken on stream, so omit the row entirely.
   const progressBar = duration <= 0 ? "" :
     '<div class="progress-track" style="background:' + theme.progressTrackBg + ";height:" + barH + ';">' +
     '<div class="progress-fill" style="' + fillStyle + '"></div>' +
+    progressKnob +
     "</div>" +
     '<div class="time-row">' +
     '<span class="elapsed-time" style="color:' + theme.textMuted + ";font-family:" + theme.fontFamily + ";font-size:" + timeSize + ';">' + formatTime(elapsed) + "</span>" +
@@ -769,8 +912,7 @@ function buildWidget(): void {
       "</div>";
   } else if (layout === "Classic") {
     // Album tile + a card with title / artist / progress. Same data as
-    // Horizontal, re-proportioned with a rounded art tile and a knob on the
-    // progress bar (a CSS ::after on .progress-fill, so the RAF loop moves it).
+    // Horizontal, re-proportioned with a rounded art tile and progress knob.
     const art = hideAlbumArt
       ? ""
       : '<div style="flex-shrink:0;padding:6px;">' + artImg(92, 92, "14px") + "</div>";
@@ -806,14 +948,14 @@ function buildWidget(): void {
 
   // Refresh the progress-loop element cache; the rebuild replaced the DOM.
   fillEl = el.querySelector(".progress-fill");
+  knobEl = el.querySelector(".progress-knob");
   elapsedTimeEl = el.querySelector(".elapsed-time");
   remainingTimeEl = el.querySelector(".remaining-time");
-  lastElapsedText = "";
-  lastRemainingText = "";
+  lastTimeUpdateAt = Date.now();
 
   // Vinyl ring: cache the circle and seed its dash values from the current
   // progress so the ring is correct on the first paint (and in the static
-  // Settings preview, where the RAF loop never runs).
+  // Settings preview, where the progress timer never runs).
   ringEl = el.querySelector(".progress-ring") as SVGCircleElement | null;
   if (ringEl) {
     const r = Number(ringEl.getAttribute("r")) || 0;
@@ -823,6 +965,49 @@ function buildWidget(): void {
   } else {
     ringCircumference = 0;
   }
+
+  syncProgressLoop();
+}
+
+/**
+ * Renders the opt-in (`?queueTicker=1`) upcoming-queue panel. Deliberately
+ * independent of `nowPlaying` - unlike `buildWidget`, this must be able to
+ * show "queue open" even when nothing is currently playing. Reuses the same
+ * `resolveTheme()` preset as the now-playing card so it always matches the
+ * active theme with no new design tokens.
+ */
+function buildQueueTicker(): void {
+  if (!queueTickerEnabled) return;
+  const el = document.getElementById("queue-ticker");
+  if (!el) return;
+
+  if (!overlayEnabled || queueUpcoming === null) {
+    el.classList.add("hidden");
+    return;
+  }
+
+  const theme = resolveTheme(widgetConfig);
+  el.style.background = theme.containerBg;
+  el.style.border = theme.containerBorder;
+  el.style.borderRadius = theme.containerRadius;
+  el.style.backdropFilter = theme.backdropFilter;
+  el.style.fontFamily = theme.fontFamily || "";
+
+  if (queueUpcoming.length === 0) {
+    el.innerHTML =
+      '<p class="queue-ticker-empty" style="color:' + theme.textMuted + ';">Queue open &mdash; !sr to join</p>';
+  } else {
+    el.innerHTML = queueUpcoming
+      .map((item, i) =>
+        '<div class="queue-ticker-row">' +
+        '<span class="queue-ticker-index" style="color:' + theme.textMuted + ';">' + (i + 1) + "</span>" +
+        '<p class="queue-ticker-title" style="color:' + theme.textPrimary + ';">' + escapeHtml(item.title) + "</p>" +
+        '<p class="queue-ticker-requester" style="color:' + theme.textSecondary + ';">' + escapeHtml(item.requesterUsername) + "</p>" +
+        "</div>"
+      )
+      .join('<div class="queue-ticker-divider" style="background:' + theme.progressTrackBg + ';"></div>');
+  }
+  el.classList.remove("hidden");
 }
 
 /* ╔════════════════════════════════════════════════════════════════════════╗
@@ -835,20 +1020,109 @@ function buildWidget(): void {
  *  already wrong (matches the cadence the native app reconnects to Twitch).
  */
 
+function clearReconnectTimer(): void {
+  if (reconnectTimer !== null) {
+    clearTimeout(reconnectTimer);
+    reconnectTimer = null;
+  }
+}
+
+function suspendSocket(reason: string): void {
+  clearReconnectTimer();
+  const socket = ws;
+  ws = null;
+  if (!socket) return;
+
+  // Detach first so a deliberate visibility suspension cannot run the normal
+  // disconnect path, clear cached track state, or schedule a reconnect.
+  socket.onopen = null;
+  socket.onmessage = null;
+  socket.onclose = null;
+  socket.onerror = null;
+  socket.close(1000, reason);
+}
+
+function updateActivityClass(): void {
+  document.body.classList.toggle("ww-inactive", isPageInactive());
+  document.body.classList.toggle("ww-awaiting-server", awaitingAuthoritativeState);
+}
+
+function setAwaitingAuthoritativeState(awaiting: boolean): void {
+  awaitingAuthoritativeState = awaiting;
+  updateActivityClass();
+}
+
+function resumeVisibleWork(): void {
+  if (isPageInactive() || awaitingAuthoritativeState) return;
+
+  if (visible && hideDeadline !== null && hideDeadline <= Date.now()) {
+    autohideExpired = true;
+    exitWidget(true);
+    return;
+  }
+
+  // A transport suspension retains track/config state, but the awaiting gate
+  // keeps it unpainted until the server confirms the current playback snapshot.
+  if (overlayEnabled && nowPlaying && (visible || pendingEnter)) {
+    buildWidget();
+  }
+  if (pendingEnter && !visible) enterWidget();
+  else {
+    resumeAutohide();
+    syncProgressLoop();
+  }
+}
+
+function handleVisibilityChange(): void {
+  updateActivityClass();
+  if (document.hidden) {
+    stopProgressLoop();
+    clearHideTimer(); // Keep the deadline so hidden time still counts.
+    setAwaitingAuthoritativeState(true);
+    suspendSocket("document hidden");
+    return;
+  }
+  if (pageSuspended) return;
+  resumeVisibleWork();
+  if (!ws) connect();
+}
+
+function handlePageHide(): void {
+  pageSuspended = true;
+  updateActivityClass();
+  stopProgressLoop();
+  clearHideTimer();
+  setAwaitingAuthoritativeState(true);
+  suspendSocket("page hidden");
+}
+
+function handlePageShow(): void {
+  pageSuspended = false;
+  updateActivityClass();
+  if (document.hidden) return;
+  resumeVisibleWork();
+  connect();
+}
+
 function connect(): void {
-  if (ws) return;
+  if (ws || isPageInactive()) return;
+  clearReconnectTimer();
+
   const wsHost = location.hostname || "localhost";
   const wsURL = "ws://" + wsHost + ":" + wsPort;
   console.log("[WolfWave Widget] Connecting to " + wsURL);
   const protocols = wsToken ? ["wolfwave.token." + wsToken] : [];
-  ws = new WebSocket(wsURL, protocols);
+  const socket = new WebSocket(wsURL, protocols);
+  ws = socket;
 
-  ws.onopen = () => {
+  socket.onopen = () => {
+    if (ws !== socket) return;
     console.log("[WolfWave Widget] Connected to " + wsURL);
     reconnectAttempts = 0;
   };
 
-  ws.onmessage = (event) => {
+  socket.onmessage = (event) => {
+    if (ws !== socket) return;
     try {
       handleMessage(JSON.parse(event.data) as WSMessage);
     } catch (e) {
@@ -856,33 +1130,32 @@ function connect(): void {
     }
   };
 
-  ws.onclose = () => {
+  socket.onclose = () => {
+    if (ws !== socket) return;
     ws = null;
+    const wasAwaitingState = awaitingAuthoritativeState;
+    setAwaitingAuthoritativeState(false);
     nowPlaying = null;
+    autohideExpired = false;
     hasReceivedTrack = false;
-    stopProgressLoop();
-    exitWidget();
-    // If the app was never reachable, `exitWidget` above no-ops (never
-    // visible) and the "Waiting for music…" placeholder would sit on stream
-    // for the whole broadcast. Drop it on the first failed connect; it
-    // reappears naturally on the next page load.
-    const el = document.getElementById("widget");
-    if (el && el.classList.contains("placeholder")) {
-      el.classList.remove("placeholder");
-      el.classList.add("widget-hidden");
-    }
+    exitWidget(wasAwaitingState);
+
     reconnectAttempts++;
     const delay = Math.min(
       RECONNECT_BASE_MS * Math.pow(2, reconnectAttempts - 1),
       RECONNECT_MAX_MS,
     );
     console.log("[WolfWave Widget] Disconnected - reconnect in " + delay + "ms (attempt " + reconnectAttempts + ")");
-    if (reconnectTimer !== null) clearTimeout(reconnectTimer);
-    reconnectTimer = window.setTimeout(connect, delay);
+    if (isPageInactive()) return;
+    clearReconnectTimer();
+    reconnectTimer = window.setTimeout(() => {
+      reconnectTimer = null;
+      connect();
+    }, delay);
   };
 
-  ws.onerror = (e) => {
-    console.warn("[WolfWave Widget] WebSocket error:", e);
+  socket.onerror = (e) => {
+    if (ws === socket) console.warn("[WolfWave Widget] WebSocket error:", e);
   };
 }
 
@@ -905,12 +1178,44 @@ function handleMessage(msg: WSMessage): void {
     case "now_playing": {
       const data = msg.data;
       const sameTrack = isSameTrack(nowPlaying, data);
+      const wasAwaitingState = awaitingAuthoritativeState;
+
+      if (
+        wasAwaitingState &&
+        sameTrack &&
+        visible &&
+        hideDeadline !== null &&
+        hideDeadline <= Date.now()
+      ) {
+        setAwaitingAuthoritativeState(false);
+        autohideExpired = true;
+        exitWidget(true);
+        break;
+      }
+
+      setAwaitingAuthoritativeState(false);
       nowPlaying = data;
       elapsedRef = { value: data.elapsed, timestamp: Date.now(), isPlaying: data.isPlaying };
       elapsed = data.elapsed;
       hasReceivedTrack = true;
+      if (!sameTrack) autohideExpired = false;
 
-      if (visible && !sameTrack) {
+      // An autohide is one-shot for the current track. In particular, do not
+      // resurrect it when visibility reconnect replays the same now_playing.
+      if (autohideExpired && sameTrack) {
+        stopProgressLoop();
+        break;
+      }
+
+      // Keep the freshest track/config in memory while hidden, but avoid DOM
+      // rebuilds until OBS can actually paint the result.
+      if (!overlayEnabled || isPageInactive()) {
+        stopProgressLoop();
+        if (overlayEnabled && !visible) pendingEnter = true;
+        break;
+      }
+
+      if (visible && !sameTrack && !wasAwaitingState) {
         // New track while card is on stream - crossfade inner only.
         swapInner(buildWidget);
       } else {
@@ -921,57 +1226,111 @@ function handleMessage(msg: WSMessage): void {
       // still belong on stream with a paused affordance. `exitWidget` only
       // fires from the server-driven "track cleared" path.
       if (!visible) enterWidget();
-      if (data.isPlaying) {
-        startProgressLoop();
-      } else {
-        stopProgressLoop();
-      }
+      else if (!sameTrack) beginAutohideCountdown();
+      else if (wasAwaitingState) resumeAutohide();
+      syncProgressLoop();
       break;
     }
     case "progress": {
       const data = msg.data;
+      const durationChanged = !!nowPlaying && data.duration > 0 && nowPlaying.duration !== data.duration;
+      const playbackChanged = !!nowPlaying && nowPlaying.isPlaying !== data.isPlaying;
       // Re-anchor interpolation. Defends against clock drift on long tracks.
       elapsedRef = { value: data.elapsed, timestamp: Date.now(), isPlaying: data.isPlaying };
-      // A duration that becomes known (or corrects) mid-track re-renders the
-      // card so the progress row appears/updates instead of staying stale.
-      if (nowPlaying && data.duration > 0 && nowPlaying.duration !== data.duration) {
-        nowPlaying.duration = data.duration;
-        buildWidget();
+      elapsed = data.elapsed;
+      if (nowPlaying) {
+        nowPlaying.elapsed = data.elapsed;
+        nowPlaying.isPlaying = data.isPlaying;
+        if (data.duration > 0) nowPlaying.duration = data.duration;
+        if (
+          overlayEnabled &&
+          !awaitingAuthoritativeState &&
+          !isPageInactive() &&
+          (visible || pendingEnter) &&
+          (durationChanged || playbackChanged)
+        ) {
+          buildWidget();
+        }
       }
+      syncProgressLoop();
       break;
     }
     case "playback_state": {
       const data = msg.data;
+      const wasAwaitingState = awaitingAuthoritativeState;
       if (!data.isPlaying) {
-        // The server only emits `playback_state { isPlaying: false }` when
-        // playback has fully stopped - Music.app quit, permission revoked, or
-        // the source errored (`WebSocketServerService.clearNowPlaying`). A
-        // *pause* arrives as a `now_playing` message with `isPlaying: false`
-        // instead, so this branch always means "nothing is playing" and the
-        // overlay should leave the stream rather than linger on the last track.
+        setAwaitingAuthoritativeState(false);
+        // This server message means playback fully stopped; pauses arrive as
+        // now_playing/progress and retain the track with a paused affordance.
         nowPlaying = null;
+        autohideExpired = false;
         elapsedRef = { value: 0, timestamp: Date.now(), isPlaying: false };
-        stopProgressLoop();
-        exitWidget();
+        exitWidget(wasAwaitingState);
       } else {
-        // No track loaded (e.g. right after a reconnect nulled `nowPlaying`):
-        // entering now would re-show the PREVIOUS track's stale DOM, since
-        // `buildWidget` no-ops without a track. The follow-up `now_playing`
-        // does the real build + enter.
+        // A playing-only state is not enough to replace retained DOM after a
+        // visibility reconnect. Wait for the following now_playing snapshot.
+        if (wasAwaitingState) break;
+        // A follow-up now_playing performs the first render after reconnect.
         if (!nowPlaying) break;
-        Object.assign(nowPlaying, data);
+        nowPlaying.isPlaying = true;
+        if (data.track !== undefined) nowPlaying.track = data.track;
+        if (data.artist !== undefined) nowPlaying.artist = data.artist;
+        if (data.album !== undefined) nowPlaying.album = data.album;
         elapsedRef = { value: elapsed, timestamp: Date.now(), isPlaying: true };
-        if (!visible) enterWidget();
+        if (autohideExpired) {
+          stopProgressLoop();
+          break;
+        }
+        if (!overlayEnabled || isPageInactive()) {
+          stopProgressLoop();
+          if (overlayEnabled && !visible) pendingEnter = true;
+          break;
+        }
         buildWidget();
-        startProgressLoop();
+        if (!visible) enterWidget();
+        syncProgressLoop();
       }
       break;
     }
     case "widget_config": {
       widgetConfig = { ...defaultConfig, ...(msg.data as WidgetConfig) };
-      buildWidget();
+      if (
+        overlayEnabled &&
+        !awaitingAuthoritativeState &&
+        !isPageInactive() &&
+        nowPlaying &&
+        (visible || pendingEnter)
+      ) {
+        buildWidget();
+      }
+      buildQueueTicker();
       break;
     }
+    case "overlay_visibility": {
+      const wasEnabled = overlayEnabled;
+      const wasAwaitingState = awaitingAuthoritativeState;
+      overlayEnabled = msg.data.visible === true;
+      if (overlayEnabled && !wasEnabled) autohideExpired = false;
+      if (!overlayEnabled) {
+        setAwaitingAuthoritativeState(false);
+        exitWidget(wasAwaitingState); // Also removes the pre-connection placeholder.
+      } else if (!wasEnabled) {
+        // Do not render the locally cached track yet. The server follows this
+        // message with an authoritative now_playing replay when a track still
+        // exists. Waiting for that frame prevents a track that stopped while
+        // cards were hidden from flashing back onto the stream.
+        pendingEnter = false;
+        stopProgressLoop();
+      }
+      // The ticker is overlay chrome too: hide/show it in lockstep with the
+      // Stream Deck "Hide Overlay" toggle, same as the now-playing card.
+      buildQueueTicker();
+      break;
+    }
+    case "queue_upcoming":
+      queueUpcoming = msg.data.items;
+      buildQueueTicker();
+      break;
     case "welcome":
       reconnectAttempts = 0;
       if (!hasReceivedTrack) {
@@ -1060,6 +1419,10 @@ function setupPreview(): void {
     setupPreview();
     return;
   }
+  document.addEventListener("visibilitychange", handleVisibilityChange);
+  window.addEventListener("pagehide", handlePageHide);
+  window.addEventListener("pageshow", handlePageShow);
+  updateActivityClass();
   connect();
 })();
 

@@ -120,11 +120,6 @@ nonisolated final class WidgetHTTPService: @unchecked Sendable {
     /// live auth token before sending the response.
     private static let tokenPlaceholder = "__WOLFWAVE_TOKEN__"
 
-    /// `<script src>` tag in the bundled `widget.html` that we replace with an
-    /// inlined `<script>` block carrying `widget-tokens.generated.js` so the
-    /// browser doesn't have to make a second HTTP round-trip before first paint.
-    private static let tokensScriptTag = "<script src=\"widget-tokens.generated.js\"></script>"
-
     // MARK: - Init
 
     /// Creates a widget HTTP service.
@@ -363,10 +358,9 @@ nonisolated final class WidgetHTTPService: @unchecked Sendable {
 
     /// Reads from `connection` until the `\r\n\r\n` header terminator is seen or
     /// the `maxHeaderBytes` cap is hit, reassembling across fragmented reads so a
-    /// split first packet can't produce a false 404. The request line is always in
-    /// the first chunk we hand to `serveResponse`, so once the headers are complete
-    /// (or the cap is reached) we parse and stop reading. No security change: the
-    /// auth gate still lives in the WebSocket handshake, not here.
+    /// split first packet can't produce a false 404. Once the headers are complete
+    /// (or the cap is reached) we parse the request line and Host together; Host is
+    /// part of the loopback token-injection gate.
     private func readRequestHeaders(from connection: NWConnection, accumulated: Data) {
         connection.receive(minimumIncompleteLength: 1, maximumLength: 8192) { [weak self] data, _, isComplete, error in
             guard let self else { connection.cancel(); return }
@@ -409,9 +403,10 @@ nonisolated final class WidgetHTTPService: @unchecked Sendable {
         let method = parts.count > 0 ? parts[0] : ""
         let rawPath = parts.count > 1 ? parts[1] : ""
         let path = rawPath.components(separatedBy: "?").first ?? rawPath
+        let hostHeader = Self.headerValue(named: "host", in: requestString)
 
         if method == "GET" && (path == "/" || path.isEmpty) {
-            serveWidget(to: connection)
+            serveWidget(to: connection, hostHeader: hostHeader)
         } else if method == "GET" && path == "/widget-tokens.generated.js" {
             serveTokensJS(to: connection)
         } else if method == "GET" && (path == "/favicon.ico" || path == "/favicon.png") {
@@ -426,11 +421,10 @@ nonisolated final class WidgetHTTPService: @unchecked Sendable {
     /// Writes the bundled `widget.html` as an HTTP/1.1 200 response and
     /// closes the connection. Falls back to a 404 when the asset is missing.
     ///
-    /// Token injection is gated on the peer being loopback: a LAN peer
-    /// receives the raw template (its JS picks the token up from the
-    /// `?token=` URL query) so the credential never leaves this Mac in an
-    /// unauthenticated HTTP response.
-    private func serveWidget(to connection: NWConnection) {
+    /// Token injection requires both a loopback TCP peer and a literal local
+    /// Host header. The second check closes the DNS-rebinding path where an
+    /// attacker-controlled origin resolves to 127.0.0.1.
+    private func serveWidget(to connection: NWConnection, hostHeader: String?) {
         guard let url = Bundle.main.url(forResource: "widget", withExtension: "html"),
               let raw = try? String(contentsOf: url, encoding: .utf8) else {
             Log.error("WidgetHTTPService: widget.html not found in bundle", category: "WebSocket")
@@ -439,14 +433,20 @@ nonisolated final class WidgetHTTPService: @unchecked Sendable {
         }
 
         let isLoopback = Self.isLoopbackPeer(connection)
+        let shouldInjectToken = Self.shouldInjectToken(
+            loopbackPeer: isLoopback,
+            hostHeader: hostHeader
+        )
         var rendered: String
-        if isLoopback, let token = authToken, WebSocketAuthToken.isValid(token) {
+        var didInjectToken = false
+        if shouldInjectToken, let token = authToken, WebSocketAuthToken.isValid(token) {
             // `isValid` gates the substitution on hex-only / bounded length so a
             // corrupted or hand-edited token can't inject `</script>` or other
             // characters that would break out of the JS string context.
             rendered = raw.replacingOccurrences(of: Self.tokenPlaceholder, with: token)
+            didInjectToken = true
         } else {
-            if isLoopback, let token = authToken, !WebSocketAuthToken.isValid(token) {
+            if shouldInjectToken, let token = authToken, !WebSocketAuthToken.isValid(token) {
                 Log.warn(
                     "WidgetHTTPService: Refusing to inject non-hex auth token into widget.html",
                     category: "WebSocket"
@@ -455,22 +455,14 @@ nonisolated final class WidgetHTTPService: @unchecked Sendable {
             rendered = raw
         }
 
-        // Inline widget-tokens.generated.js to save the second HTTP round-trip
-        // on first paint. If the bundle asset is missing, leave the original
-        // <script src> tag so the /widget-tokens.generated.js route still works.
-        if let tokensURL = Bundle.main.url(forResource: "widget-tokens.generated", withExtension: "js"),
-           let tokensJS = try? String(contentsOf: tokensURL, encoding: .utf8) {
-            let inlined = "<script>\n" + tokensJS + "\n</script>"
-            rendered = rendered.replacingOccurrences(of: Self.tokensScriptTag, with: inlined)
-        } else {
-            Log.warn(
-                "WidgetHTTPService: widget-tokens.generated.js not found in bundle, falling back to external <script src>",
-                category: "WebSocket"
-            )
-        }
-
         let body = Data(rendered.utf8)
-        sendHTTPResponse(connection, contentType: "text/html; charset=utf-8", body: body)
+        let cacheHeader = didInjectToken ? "Cache-Control: no-store" : "Cache-Control: no-cache"
+        sendHTTPResponse(
+            connection,
+            contentType: "text/html; charset=utf-8",
+            body: body,
+            extraHeaders: [cacheHeader, "Referrer-Policy: no-referrer"]
+        )
     }
 
     /// Writes the bundled `widget-tokens.generated.js` as an HTTP/1.1 200 response.
@@ -508,6 +500,50 @@ nonisolated final class WidgetHTTPService: @unchecked Sendable {
     }
 
     // MARK: - Peer Inspection
+
+    /// Extracts a case-insensitive HTTP header from a completed request block.
+    static func headerValue(named name: String, in request: String) -> String? {
+        let prefix = name.lowercased() + ":"
+        let headerEnd = request.range(of: "\r\n\r\n")?.lowerBound ?? request.endIndex
+        let headerBlock = String(request[..<headerEnd])
+        for line in headerBlock.components(separatedBy: "\r\n").dropFirst() {
+            let lower = line.lowercased()
+            guard lower.hasPrefix(prefix) else { continue }
+            return String(line.dropFirst(prefix.count))
+                .trimmingCharacters(in: .whitespacesAndNewlines)
+        }
+        return nil
+    }
+
+    /// Pure policy seam used by integration tests and `serveWidget`.
+    nonisolated static func shouldInjectToken(loopbackPeer: Bool, hostHeader: String?) -> Bool {
+        loopbackPeer && isLiteralLocalHost(hostHeader)
+    }
+
+    /// Accepts localhost, 127.0.0.0/8, and bracketed ::1 with an optional
+    /// numeric port. Hostnames that merely resolve to loopback are rejected.
+    private nonisolated static func isLiteralLocalHost(_ rawValue: String?) -> Bool {
+        guard let rawValue else { return false }
+        let value = rawValue.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        guard !value.isEmpty else { return false }
+
+        if value == "localhost" { return true }
+        if value.hasPrefix("localhost:") {
+            return UInt16(String(value.dropFirst("localhost:".count))) != nil
+        }
+        if value == "[::1]" { return true }
+        if value.hasPrefix("[::1]:") {
+            return UInt16(String(value.dropFirst("[::1]:".count))) != nil
+        }
+
+        let pieces = value.split(separator: ":", maxSplits: 1, omittingEmptySubsequences: false)
+        guard pieces.count == 1 || (pieces.count == 2 && UInt16(String(pieces[1])) != nil) else {
+            return false
+        }
+        let octets = pieces[0].split(separator: ".", omittingEmptySubsequences: false)
+        guard octets.count == 4, octets[0] == "127" else { return false }
+        return octets.allSatisfy { UInt8(String($0)) != nil }
+    }
 
     /// Returns `true` when the peer's remote endpoint is on `127.0.0.0/8` or `::1`.
     ///

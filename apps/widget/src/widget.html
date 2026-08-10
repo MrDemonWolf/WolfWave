@@ -12,22 +12,22 @@
   Do NOT edit the generated file directly. Your edits get overwritten on
   the next `bun run --filter widget build`.
 
-  Placeholders (all replaced at build time):
-    %%TAILWIND_CSS%%  → contents of dist/widget.css
-    %%TOKENS_JS%%     → contents of widget-tokens.generated.js
-    %%WIDGET_JS%%     → contents of dist/widget.js
+  Three single-use build markers below inline the compiled Tailwind CSS,
+  generated design-system tokens, and bundled widget runtime. Keep each marker
+  at its actual style/script insertion site so payloads are never duplicated.
 ═══════════════════════════════════════════════════════════════════════════════
 -->
 <html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="referrer" content="no-referrer">
 <title>WolfWave Widget</title>
 <!--
   Favicon is inlined as data: URI so the bundle never makes a second HTTP
   request (important for OBS Browser Source and direct-from-bundle opens).
 -->
-<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg viewBox='8 2 84 94' xmlns='http://www.w3.org/2000/svg'%3E%3Cstyle%3E:root%7B--fill:%23111%7D%40media(prefers-color-scheme:dark)%7B:root%7B--fill:%23FFF%7D%7D%3C/style%3E%3Cdefs%3E%3Cmask id='m'%3E%3Crect x='0' y='0' width='100' height='100' fill='white'/%3E%3Cpolygon points='32,38 35.5,9 46,33' fill='black'/%3E%3Cpolygon points='68,38 64.5,9 54,33' fill='black'/%3E%3Cpath d='M32,43 C34,37.5 44.5,37.5 46.5,43 C44.5,48.5 34,48.5 32,43Z' fill='black'/%3E%3Cpath d='M53.5,43 C55.5,37.5 66,37.5 68,43 C66,48.5 55.5,48.5 53.5,43Z' fill='black'/%3E%3C/mask%3E%3C/defs%3E%3Cg fill='var(--fill)' mask='url(%23m)'%3E%3Crect x='25' y='38' width='4.5' height='35' rx='2.25'/%3E%3Crect x='18.5' y='47' width='4.5' height='26' rx='2.25' opacity='.78'/%3E%3Crect x='12' y='55' width='4.5' height='18' rx='2.25' opacity='.55'/%3E%3Crect x='5.5' y='62' width='4.5' height='11' rx='2.25' opacity='.33'/%3E%3Crect x='70.5' y='38' width='4.5' height='35' rx='2.25'/%3E%3Crect x='77' y='47' width='4.5' height='26' rx='2.25' opacity='.78'/%3E%3Crect x='83.5' y='55' width='4.5' height='18' rx='2.25' opacity='.55'/%3E%3Crect x='90' y='62' width='4.5' height='11' rx='2.25' opacity='.33'/%3E%3Cpolygon points='29,40 33,4 48,35'/%3E%3Cpolygon points='71,40 67,4 52,35'/%3E%3Cpath d='M50,18 C61,16 72,26 72,42 L70,57 L62,67 L50,71 L38,67 L30,57 L28,42 C28,26 39,16 50,18Z'/%3E%3Cpath d='M38,53 Q50,51 62,53 L60,67 Q50,77 40,67Z'/%3E%3Cpath d='M42,53 C42,46 58,46 58,53 C58,61 51,65 50,65 C49,65 42,61 42,53Z'/%3E%3C/g%3E%3Cpath d='M29,40 Q38,34 46.5,39 Q50,36.5 53.5,39 Q62,34 71,40' fill='none' stroke='var(--fill)' stroke-width='3' stroke-linecap='round' stroke-linejoin='round' opacity='.75'/%3E%3C/svg%3E">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg%20viewBox%3D'0%200%2015%2015'%20xmlns%3D'http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg'%3E%3Cstyle%3E%3Aroot%7B--fill%3A%23111%7D%40media(prefers-color-scheme%3Adark)%7B%3Aroot%7B--fill%3A%23FFF%7D%7D%3C%2Fstyle%3E%3Cg%20transform%3D'translate(1.65%201.65)%20scale(.78)'%3E%3Cpath%20fill%3D'var(--fill)'%20d%3D'M11.3%206.08L11.3%205.84C11.3%205.31%2011.06%204.81%2010.65%204.46L9.16%203.32L9.16%200.58C9.16%200.58%207.8%200.94%207.08%201.86L7.08%200L6.52%200.2C6.45%200.22%204.7%200.86%203.71%203.23L1%204.9L1.88%205.78L0%207.39L0%209.1C0.78%208.33%201.82%207.9%202.92%207.9C3.41%207.9%203.89%207.99%204.33%208.15C4.65%207.23%205.51%205.68%207.5%207.06C9.46%208.42%2011.76%209.12%2012.82%209.41L12.54%209.74C12.41%209.85%2011.69%2010.54%2010.24%209.76L7.95%208.73L6.67%2010.79L7.62%2012.07L6.77%2013.35L8.01%2015L9.58%2015L8.3%2013.31L9.12%2012.08L8.19%2010.69C8.23%2010.56%208.44%2010.25%208.44%2010.25L9.2%2010.63C11.73%2012.13%2013.37%2010.69%2013.43%2010.63L15%208.75L11.31%206.08L11.3%206.08ZM9.95%206.42C9.85%206.63%209.6%206.71%209.39%206.61L8.56%206.19C8.35%206.09%208.27%205.84%208.37%205.63C8.47%205.42%208.72%205.34%208.93%205.44L9.76%205.86C9.96%205.96%2010.05%206.21%209.95%206.42L9.95%206.42Z'%2F%3E%3C%2Fg%3E%3Cpath%20d%3D'M.45%206.78v.85M.9%206.2v2M1.35%205.55v3.3M13.65%207.15v3.3M14.1%207.8v2M14.55%208.38v.85'%20fill%3D'none'%20stroke%3D'var(--fill)'%20stroke-width%3D'.26'%20stroke-linecap%3D'round'%2F%3E%3C%2Fsvg%3E">
 
 <!--
   Inlined Tailwind output. The build script generates this from src/widget.css
@@ -46,6 +46,14 @@
 <div id="root">
   <div id="widget" class="placeholder">Waiting for music&hellip;</div>
 </div>
+
+<!--
+  Opt-in (?queueTicker=1) upcoming-queue panel. Sibling of #root, not a
+  child - #root flex-centers the now-playing card and this is independently
+  positioned. Off by default: adding a second Browser Source with the flag
+  is how a streamer opts in. See widget.ts buildQueueTicker().
+-->
+<div id="queue-ticker" class="hidden"></div>
 
 <!--
   Design-system tokens (themes + layouts). Inlined to keep the widget a
