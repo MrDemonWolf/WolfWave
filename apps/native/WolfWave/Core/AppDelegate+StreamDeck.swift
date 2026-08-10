@@ -116,6 +116,7 @@ extension AppDelegate {
     func broadcastStreamDeckState() {
         let count = songRequestService?.queue.count ?? 0
         let pending = songRequestService?.pendingApprovalCount ?? 0
+        let held = songRequestService?.isHoldEnabled ?? false
         let upcoming = (songRequestService?.queue.upcoming() ?? []).map {
             WebSocketServerService.QueueUpcomingItem(title: $0.title, requesterUsername: $0.requesterUsername)
         }
@@ -127,7 +128,7 @@ extension AppDelegate {
         let overlay = websocketServer?.state == .listening
             && websocketServer?.overlayVisible == true
         Task { [weak self] in
-            await self?.websocketServer?.broadcastQueueState(count: count, pending: pending)
+            await self?.websocketServer?.broadcastQueueState(count: count, pending: pending, held: held)
             await self?.websocketServer?.broadcastQueueUpcoming(items: upcoming)
             await self?.websocketServer?.broadcastHealth(
                 music: music, twitch: twitch, discord: discord, overlay: overlay)

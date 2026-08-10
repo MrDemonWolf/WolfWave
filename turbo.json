@@ -41,6 +41,15 @@
         "$TURBO_ROOT$/apps/native/WolfWave/Resources/widget.html"
       ]
     },
+    "streamdeck#build": {
+      "inputs": [
+        "src/**",
+        "build.ts",
+        "package.json",
+        "com.mrdemonwolf.wolfwave.sdPlugin/manifest.json"
+      ],
+      "outputs": ["com.mrdemonwolf.wolfwave.sdPlugin/bin/**"]
+    },
     "dev": {
       "cache": false,
       "persistent": true,

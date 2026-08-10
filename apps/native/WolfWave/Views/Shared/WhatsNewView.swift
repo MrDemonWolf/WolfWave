@@ -21,8 +21,9 @@ struct WhatsNewView: View {
     private let features: [(icon: String, iconColor: Color, title: String, description: String)] = [
         ("text.bubble.fill", .purple, "Custom Commands", "Make your own !commands with variables and cooldowns."),
         ("checkmark.circle.fill", .orange, "Approve Requests", "Hold every song request until you say yes."),
-        ("person.3.sequence.fill", .blue, "Fair-Share Queue", "Everyone's first request plays before anyone's second."),
-        ("star.fill", .yellow, "Sub / VIP Priority", "Reward subs and VIPs with skip-cooldown or a queue jump."),
+        ("person.3.sequence.fill", .blue, "Fair-Share Queue", "Everyone's first request plays before anyone's second, and subs or VIPs can get a perk."),
+        ("opticaldisc.fill", .pink, "Vinyl & Classic Overlays", "Two new looks for your stream: a spinning record, or art beside the track."),
+        ("bolt.fill", .yellow, "Lighter on Your Mac", "Much less work between songs. Same features, less CPU and battery."),
         ("checkmark.seal.fill", .green, "Steadier & Smoother", "Fixed UI freezes and crashes across requests, overlays, and stats."),
     ]
 

@@ -460,18 +460,25 @@ extension AppDelegate {
             self?.twitchConnectionStateChanged(n)
         }
 
-        // Custom body (drops the notification payload) — kept inline. Refreshes
-        // the Stream Deck queue-counter / health broadcasts whenever the request
-        // queue changes so a counter key stays live without polling.
-        notificationObservers.append(
-            nc.addObserver(
-                forName: Notification.Name.songRequestQueueChanged,
-                object: nil,
-                queue: .main
-            ) { [weak self] _ in
-                MainActor.assumeIsolated { self?.broadcastStreamDeckState() }
-            }
-        )
+        // Custom bodies (they drop the notification payload) — kept inline.
+        // Refresh the Stream Deck queue-counter / health broadcasts whenever the
+        // request queue or hold state changes, so counter and hold keys stay
+        // live without polling.
+        //
+        // Hold matters as much as the counts here: hold is togglable from the
+        // tray, chat (`!hold`), and Settings, so a Stream Deck key that only
+        // learned about its own presses would show the wrong state the moment
+        // hold changed anywhere else.
+        for name in [
+            Notification.Name.songRequestQueueChanged,
+            Notification.Name.songRequestHoldChanged,
+        ] {
+            notificationObservers.append(
+                nc.addObserver(forName: name, object: nil, queue: .main) { [weak self] _ in
+                    MainActor.assumeIsolated { self?.broadcastStreamDeckState() }
+                }
+            )
+        }
     }
 }
 
