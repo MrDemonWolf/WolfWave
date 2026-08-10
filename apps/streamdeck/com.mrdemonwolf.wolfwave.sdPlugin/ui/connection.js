@@ -153,8 +153,11 @@ function save() {
   send({ event: "setGlobalSettings", context: uuid, payload: settings });
 }
 
+// `change` alone, not `change` + `blur`: a text field fires both when an edited
+// value loses focus, which wrote settings twice per edit. `change` is the right
+// one of the pair — it fires on commit (blur or Enter) and stays silent when the
+// value didn't actually change.
 for (const field of Object.values(fields)) {
   field.addEventListener("change", save);
-  field.addEventListener("blur", save);
   field.addEventListener("input", refreshStatus);
 }
