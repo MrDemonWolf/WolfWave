@@ -395,13 +395,17 @@ actor WebSocketServerService {
         broadcastJSON(widgetConfigPayload())
     }
 
-    /// Broadcasts request-queue counts so a Stream Deck counter key renders
-    /// without polling. Values are supplied by the caller (AppDelegate) to keep
-    /// this actor decoupled from the song-request services.
-    func broadcastQueueState(count: Int, pending: Int) {
+    /// Broadcasts request-queue counts and hold state so a Stream Deck counter
+    /// or hold key renders without polling. Values are supplied by the caller
+    /// (AppDelegate) to keep this actor decoupled from the song-request services.
+    ///
+    /// `held` exists so the hold key can show real state instead of guessing:
+    /// without it a plugin has to track its own optimistic toggle, which drifts
+    /// the moment hold is changed from the tray, chat (`!hold`), or Settings.
+    func broadcastQueueState(count: Int, pending: Int, held: Bool) {
         broadcastJSON([
             "type": "queue_state",
-            "data": ["count": count, "pending": pending],
+            "data": ["count": count, "pending": pending, "held": held],
         ])
     }
 

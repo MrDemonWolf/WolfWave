@@ -16,13 +16,14 @@ keywords:
   - obs overlay control api
 ---
 
-WolfWave's overlay WebSocket is bidirectional. Any authenticated local client — a
-Stream Deck plugin, a Loupedeck profile, your own script — can send commands and
-receive live state, so physical keys can skip tracks, hold the queue, or flip
-toggles without touching the app.
+WolfWave's overlay WebSocket is bidirectional. Any authenticated local client —
+the official [Stream Deck plugin](/docs/streamdeck), a Loupedeck profile, your
+own script — can send commands and receive live state, so physical keys can
+skip tracks, hold the queue, or flip toggles without touching the app.
 
-This is the app-side protocol (v1). The official Stream Deck plugin, announce
-actions, and volume dials are planned follow-ups and not documented here.
+Just want to use a Stream Deck? Install the [Stream Deck plugin](/docs/streamdeck)
+instead — this page is the wire protocol for anyone building their own client.
+Announce actions and volume dials are planned follow-ups and not documented here.
 
 ## Connect
 
@@ -107,6 +108,7 @@ to watch `queue_state` and `health` frames arrive as things change.
 
 ## See also
 
+- [Stream Deck](/docs/streamdeck) — install and set up the official plugin.
 - [OBS Widget architecture](/docs/widget) — the overlay side of the same socket,
   including the now-playing message contract.
 - [Security](/docs/security#websocket-server-security) — the token handshake.
