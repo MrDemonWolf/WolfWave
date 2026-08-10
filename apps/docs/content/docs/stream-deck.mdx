@@ -1,0 +1,112 @@
+---
+title: Stream Deck Control API
+description: Control WolfWave from a Stream Deck or any local WebSocket client. Protocol v1 command envelope, 11 actions, acks, and live queue and health broadcasts.
+ogTitle: WolfWave Stream Deck Control API
+ogDescription: Drive playback, the request queue, and toggles over the overlay WebSocket. 11 actions, acks, live state broadcasts.
+ogEyebrow: Developers
+ogChips:
+  - Protocol v1
+  - 11 actions
+  - WebSocket
+  - Live state
+keywords:
+  - wolfwave stream deck
+  - stream deck apple music control
+  - wolfwave websocket commands
+  - obs overlay control api
+---
+
+WolfWave's overlay WebSocket is bidirectional. Any authenticated local client — a
+Stream Deck plugin, a Loupedeck profile, your own script — can send commands and
+receive live state, so physical keys can skip tracks, hold the queue, or flip
+toggles without touching the app.
+
+This is the app-side protocol (v1). The official Stream Deck plugin, announce
+actions, and volume dials are planned follow-ups and not documented here.
+
+## Connect
+
+Commands ride the same WebSocket the overlay uses:
+
+- **URL**: `ws://localhost:8765` (port configurable in **Settings → Stream Widgets**).
+- **Auth**: present the per-install token as the WebSocket subprotocol
+  `wolfwave.token.<hex>`. Connections without it are rejected during the
+  handshake, so a connected client is already authenticated — there is no
+  per-command token. See [WebSocket security](/docs/security#websocket-server-security)
+  for how the token works and how to rotate it.
+
+Copy the token from **Settings → Stream Widgets**.
+
+## Send a command
+
+Text frame, JSON:
+
+```json
+{ "type": "command", "action": "skip", "protocol": 1, "args": {} }
+```
+
+- `type` must be `"command"`; anything else is ignored (no ack).
+- `protocol` must be `1`. A mismatch is rejected with `error: "protocol"`, so an
+  out-of-date client can show an "update me" state.
+- `action` must be one of the actions below; unknown actions get `error: "unknown_action"`.
+- `args` is optional and unused by v1 actions (reserved for future parameters).
+
+Every command gets an ack on the same connection:
+
+```json
+{ "type": "ack", "action": "skip", "ok": true }
+{ "type": "ack", "action": "skip", "ok": false, "error": "music" }
+```
+
+## Actions
+
+| `action` | What it does | Fail `error` |
+|---|---|---|
+| `play_pause` | Apple Music play/pause | `unavailable` / `music` |
+| `skip` | Skip to the next track | `unavailable` / `music` |
+| `hold_queue` | Hold the song-request queue | — |
+| `resume_queue` | Resume the song-request queue | — |
+| `approve_next` | Approve the first pending request | `empty` |
+| `clear_queue` | Clear the request queue | — |
+| `block_current` | Add the current song to the blocklist | `empty` |
+| `overlay_toggle` | Hide/show the overlay cards (connection stays alive) | — |
+| `discord_toggle` | Toggle Discord Rich Presence | — |
+| `music_sync_toggle` | Toggle music tracking | — |
+| `cycle_theme` | Advance the widget theme, wrapping around | — |
+
+## Live state broadcasts
+
+WolfWave pushes two broadcast frames to every connected client, so counter and
+health keys render without polling:
+
+```json
+{ "type": "queue_state", "data": { "count": 3, "pending": 1 } }
+{ "type": "health", "data": { "music": true, "twitch": true, "discord": false, "overlay": true } }
+```
+
+They fire when the request queue changes, when Twitch connects or disconnects,
+when a new client connects, and after any successful command.
+
+## Try it from a terminal
+
+With the overlay server on and Music playing, connect with the token subprotocol
+and send a command. Using [`websocat`](https://github.com/vi/websocat):
+
+```bash
+websocat --protocol "wolfwave.token.<your-token>" ws://localhost:8765
+```
+
+Paste:
+
+```json
+{"type":"command","action":"skip","protocol":1}
+```
+
+You should see the ack frame and hear the track skip. Leave the connection open
+to watch `queue_state` and `health` frames arrive as things change.
+
+## See also
+
+- [OBS Widget architecture](/docs/widget) — the overlay side of the same socket,
+  including the now-playing message contract.
+- [Security](/docs/security#websocket-server-security) — the token handshake.
