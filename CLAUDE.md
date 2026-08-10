@@ -50,6 +50,8 @@ bun run --filter streamdeck test         # Stream Deck plugin tests (bun test)
 > bump the protocol version on any breaking envelope change. See
 > `apps/native/docs/streamdeck-control-api.md` and `apps/streamdeck/README.md`.
 
+<!-- Separates the two blockquotes; a bare blank line between them trips markdownlint MD028. -->
+
 > **OBS widget**: source lives at `apps/widget/`; the bundled
 > `apps/native/WolfWave/Resources/widget.html` is a **generated artifact**
 > that is **committed** to the repo. Xcode does **not** rebuild it; the
