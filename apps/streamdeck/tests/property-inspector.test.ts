@@ -24,22 +24,31 @@ const SOURCE = readFileSync(
 interface StubField {
   value: string;
   attributes: Record<string, string>;
+  listeners: Record<string, Array<() => void>>;
   setAttribute(name: string, value: string): void;
   removeAttribute(name: string): void;
-  addEventListener(): void;
+  addEventListener(type: string, handler: () => void): void;
+  /** Fires every handler registered for `type`, like a real event would. */
+  dispatch(type: string): void;
 }
 
 function stubField(): StubField {
   return {
     value: "",
     attributes: {},
+    listeners: {},
     setAttribute(name, value) {
       this.attributes[name] = value;
     },
     removeAttribute(name) {
       delete this.attributes[name];
     },
-    addEventListener() {},
+    addEventListener(type, handler) {
+      (this.listeners[type] ??= []).push(handler);
+    },
+    dispatch(type) {
+      for (const handler of this.listeners[type] ?? []) handler();
+    },
   };
 }
 
@@ -247,5 +256,28 @@ describe("save", () => {
     panel.token.value = `  ${HEX64}  `;
     panel.save();
     expect(panel.sent.at(-1)).toMatchObject({ payload: { token: HEX64 } });
+  });
+});
+
+describe("event wiring", () => {
+  test("one edit writes settings once", () => {
+    // Both `change` and `blur` were registered to save, so committing an edit
+    // sent setGlobalSettings twice.
+    const panel = loadPanel();
+    panel.token.value = HEX64;
+    panel.token.dispatch("input");
+    panel.token.dispatch("change");
+    panel.token.dispatch("blur");
+    expect(panel.sent).toHaveLength(1);
+  });
+
+  test("typing updates the status without persisting", () => {
+    // `input` fires per keystroke; persisting there would write on every
+    // character of a 64-character token.
+    const panel = loadPanel();
+    panel.token.value = "nope";
+    panel.token.dispatch("input");
+    expect(panel.sent).toHaveLength(0);
+    expect(panel.status.textContent).toContain("64 hex characters");
   });
 });
