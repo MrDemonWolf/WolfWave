@@ -1,0 +1,91 @@
+---
+title: Stream Deck
+description: Control WolfWave from your Elgato Stream Deck. Play, pause, skip, run the song-request queue, and toggle your overlay, Discord, and music sync from physical keys.
+ogTitle: WolfWave on Stream Deck
+ogDescription: Physical keys for playback, the request queue, and your overlay. Live state on every key.
+ogEyebrow: Guide
+ogChips:
+  - Eleven keys
+  - Live state
+  - Local only
+  - Token gated
+keywords:
+  - wolfwave stream deck plugin
+  - elgato stream deck apple music
+  - stream deck song request queue
+  - twitch song request stream deck
+---
+
+The WolfWave Stream Deck plugin puts playback, your song-request queue, and your
+integrations on physical keys. Keys aren't just buttons: they show live state, so
+a glance tells you what's playing and how many requests are waiting.
+
+<Callout type="warn">
+  The plugin is not on the Elgato Marketplace yet. Until it is, you install it
+  by hand from the repo.
+</Callout>
+
+## What you get
+
+| Key | Does |
+|---|---|
+| Play / Pause | Plays or pauses Apple Music. Shows the current track. |
+| Skip | Skips to the next track. |
+| Hold Queue | Holds or resumes the request queue. Shows the queue size. |
+| Approve Next | Approves the first request waiting for review. Shows how many are pending. |
+| Clear Queue | Empties the request queue. |
+| Block Song | Adds the current song to your blocklist. |
+| Overlay | Turns the stream overlay on or off. |
+| Discord Presence | Turns Discord Rich Presence on or off. |
+| Music Sync | Turns Apple Music tracking on or off. |
+| Cycle Theme | Switches the overlay to the next theme. |
+| Status | Shows which connections are live. Display only, pressing it does nothing. |
+
+Approve Next only matters if you've turned on **Require My Approval** in
+Settings → Song Requests → Access. See [Usage](/docs/usage).
+
+## Install
+
+1. Build the plugin from the repo:
+
+   ```bash
+   bun run --filter streamdeck build
+   ```
+
+2. Copy `apps/streamdeck/com.mrdemonwolf.wolfwave.sdPlugin` into
+   `~/Library/Application Support/com.elgato.StreamDeck/Plugins/`.
+3. Restart the Stream Deck app.
+
+## Connect it to WolfWave
+
+Drag any WolfWave key onto a page and open its settings panel.
+
+1. In WolfWave, go to Settings → Stream Widgets and reveal your access token.
+2. Paste it into the **Access token** field.
+3. Leave **Host** and **Port** alone if Stream Deck runs on the same Mac as
+   WolfWave.
+
+You only do this once. Every WolfWave key shares the same connection.
+
+<Callout type="info">
+  The plugin talks to WolfWave over the same local connection your overlay uses,
+  gated by the same access token. Nothing leaves your machine, and no key press
+  goes through a server.
+</Callout>
+
+## What the keys tell you
+
+| Key reads | Means |
+|---|---|
+| **Offline** | WolfWave isn't running, or the overlay server is off. The plugin keeps retrying. |
+| **Token?** | The token is missing or isn't a valid 64-character token. Re-copy it from Stream Widgets. |
+| **Update** | WolfWave is newer than the plugin. Rebuild or reinstall the plugin. |
+
+A key flashes a checkmark when a press worked and an alert when it didn't —
+pressing Approve Next with nothing pending, for example.
+
+## Streamer Mode
+
+[Streamer Mode](/docs/streamer-mode) masks your token in WolfWave's own windows.
+It doesn't change what the plugin does, but you'll need to turn it off (or use
+the reveal control) to copy the token in the first place.
