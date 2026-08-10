@@ -40,6 +40,15 @@
         "apps/native/WolfWave/Resources/widget.html"
       ]
     },
+    "streamdeck#build": {
+      "inputs": [
+        "apps/streamdeck/src/**",
+        "apps/streamdeck/build.ts",
+        "apps/streamdeck/package.json",
+        "apps/streamdeck/com.mrdemonwolf.wolfwave.sdPlugin/manifest.json"
+      ],
+      "outputs": ["apps/streamdeck/com.mrdemonwolf.wolfwave.sdPlugin/bin/**"]
+    },
     "dev": {
       "cache": false,
       "persistent": true,

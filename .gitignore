@@ -100,6 +100,14 @@ node_modules/
 apps/widget/dist/
 
 ############################################################
+# Stream Deck plugin (bundled output + packaged plugin)
+############################################################
+# Unlike the OBS widget, this bundle is not shipped inside the app, so there is
+# no reason to commit it — it is rebuilt from src/ and packaged for Elgato.
+apps/streamdeck/com.mrdemonwolf.wolfwave.sdPlugin/bin/
+apps/streamdeck/*.streamDeckPlugin
+
+############################################################
 # Docs (Next.js / Fumadocs)
 ############################################################
 apps/docs/.next/

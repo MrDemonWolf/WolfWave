@@ -1,0 +1,139 @@
+{
+  "$schema": "https://schemas.elgato.com/streamdeck/plugins/manifest.json",
+  "Name": "WolfWave",
+  "Version": "1.0.0.0",
+  "Author": "MrDemonWolf, Inc.",
+  "Description": "Control WolfWave from your Stream Deck. Play/pause, skip, manage the song-request queue, and toggle your overlay, Discord, and music sync.",
+  "Category": "WolfWave",
+  "CategoryIcon": "imgs/plugin/category-icon",
+  "Icon": "imgs/plugin/marketplace",
+  "URL": "https://mrdemonwolf.github.io/wolfwave/",
+  "SDKVersion": 2,
+  "Software": {
+    "MinimumVersion": "6.5"
+  },
+  "OS": [
+    {
+      "Platform": "mac",
+      "MinimumVersion": "13"
+    }
+  ],
+  "Nodejs": {
+    "Version": "20",
+    "Debug": "enabled"
+  },
+  "CodePath": "bin/plugin.js",
+  "PropertyInspectorPath": "ui/connection.html",
+  "UUID": "com.mrdemonwolf.wolfwave",
+  "Actions": [
+    {
+      "Name": "Play / Pause",
+      "UUID": "com.mrdemonwolf.wolfwave.playpause",
+      "Icon": "imgs/actions/playpause/icon",
+      "Tooltip": "Play or pause Apple Music.",
+      "Controllers": ["Keypad"],
+      "States": [
+        { "Image": "imgs/actions/playpause/key-paused", "TitleAlignment": "bottom" },
+        { "Image": "imgs/actions/playpause/key-playing", "TitleAlignment": "bottom" }
+      ]
+    },
+    {
+      "Name": "Skip",
+      "UUID": "com.mrdemonwolf.wolfwave.skip",
+      "Icon": "imgs/actions/skip/icon",
+      "Tooltip": "Skip to the next track.",
+      "Controllers": ["Keypad"],
+      "States": [{ "Image": "imgs/actions/skip/key", "TitleAlignment": "bottom" }]
+    },
+    {
+      "Name": "Hold Queue",
+      "UUID": "com.mrdemonwolf.wolfwave.queuehold",
+      "Icon": "imgs/actions/queuehold/icon",
+      "Tooltip": "Hold or resume the song-request queue. Shows the queue size.",
+      "Controllers": ["Keypad"],
+      "States": [
+        { "Image": "imgs/actions/queuehold/key-running", "TitleAlignment": "bottom" },
+        { "Image": "imgs/actions/queuehold/key-held", "TitleAlignment": "bottom" }
+      ]
+    },
+    {
+      "Name": "Approve Next",
+      "UUID": "com.mrdemonwolf.wolfwave.approvenext",
+      "Icon": "imgs/actions/approvenext/icon",
+      "Tooltip": "Approve the first request waiting for review. Shows how many are pending.",
+      "Controllers": ["Keypad"],
+      "States": [
+        { "Image": "imgs/actions/approvenext/key-empty", "TitleAlignment": "bottom" },
+        { "Image": "imgs/actions/approvenext/key-pending", "TitleAlignment": "bottom" }
+      ]
+    },
+    {
+      "Name": "Clear Queue",
+      "UUID": "com.mrdemonwolf.wolfwave.clearqueue",
+      "Icon": "imgs/actions/clearqueue/icon",
+      "Tooltip": "Clear the song-request queue.",
+      "Controllers": ["Keypad"],
+      "States": [{ "Image": "imgs/actions/clearqueue/key", "TitleAlignment": "bottom" }]
+    },
+    {
+      "Name": "Block Song",
+      "UUID": "com.mrdemonwolf.wolfwave.blockcurrent",
+      "Icon": "imgs/actions/blockcurrent/icon",
+      "Tooltip": "Add the current song to your blocklist.",
+      "Controllers": ["Keypad"],
+      "States": [{ "Image": "imgs/actions/blockcurrent/key", "TitleAlignment": "bottom" }]
+    },
+    {
+      "Name": "Overlay",
+      "UUID": "com.mrdemonwolf.wolfwave.overlaytoggle",
+      "Icon": "imgs/actions/overlaytoggle/icon",
+      "Tooltip": "Turn the stream overlay on or off.",
+      "Controllers": ["Keypad"],
+      "States": [
+        { "Image": "imgs/actions/overlaytoggle/key-off", "TitleAlignment": "bottom" },
+        { "Image": "imgs/actions/overlaytoggle/key-on", "TitleAlignment": "bottom" }
+      ]
+    },
+    {
+      "Name": "Discord Presence",
+      "UUID": "com.mrdemonwolf.wolfwave.discordtoggle",
+      "Icon": "imgs/actions/discordtoggle/icon",
+      "Tooltip": "Turn Discord Rich Presence on or off.",
+      "Controllers": ["Keypad"],
+      "States": [
+        { "Image": "imgs/actions/discordtoggle/key-off", "TitleAlignment": "bottom" },
+        { "Image": "imgs/actions/discordtoggle/key-on", "TitleAlignment": "bottom" }
+      ]
+    },
+    {
+      "Name": "Music Sync",
+      "UUID": "com.mrdemonwolf.wolfwave.musicsynctoggle",
+      "Icon": "imgs/actions/musicsynctoggle/icon",
+      "Tooltip": "Turn Apple Music tracking on or off.",
+      "Controllers": ["Keypad"],
+      "States": [
+        { "Image": "imgs/actions/musicsynctoggle/key-off", "TitleAlignment": "bottom" },
+        { "Image": "imgs/actions/musicsynctoggle/key-on", "TitleAlignment": "bottom" }
+      ]
+    },
+    {
+      "Name": "Cycle Theme",
+      "UUID": "com.mrdemonwolf.wolfwave.cycletheme",
+      "Icon": "imgs/actions/cycletheme/icon",
+      "Tooltip": "Switch the overlay to the next theme.",
+      "Controllers": ["Keypad"],
+      "States": [{ "Image": "imgs/actions/cycletheme/key", "TitleAlignment": "bottom" }]
+    },
+    {
+      "Name": "Status",
+      "UUID": "com.mrdemonwolf.wolfwave.status",
+      "Icon": "imgs/actions/status/icon",
+      "Tooltip": "Shows which WolfWave connections are live. Display only.",
+      "Controllers": ["Keypad"],
+      "States": [
+        { "Image": "imgs/actions/status/key-down", "TitleAlignment": "middle" },
+        { "Image": "imgs/actions/status/key-up", "TitleAlignment": "middle" }
+      ]
+    }
+  ]
+}
