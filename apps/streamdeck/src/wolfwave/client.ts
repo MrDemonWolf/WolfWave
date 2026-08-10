@@ -100,9 +100,15 @@ export class WolfWaveClient {
    *
    * Safe to call repeatedly — settings that haven't changed are a no-op, so the
    * Property Inspector can push on every keystroke without thrashing the socket.
+   *
+   * The `!this.stopped` term is load-bearing: clearing the token calls `stop()`
+   * but leaves the last settings cached, so re-entering the *same* token would
+   * otherwise match the cache, return early, and never reconnect — leaving every
+   * key on "Offline" until Stream Deck restarts.
    */
   configure(settings: ClientSettings): void {
     if (
+      !this.stopped &&
       this.settings &&
       this.settings.host === settings.host &&
       this.settings.port === settings.port &&
