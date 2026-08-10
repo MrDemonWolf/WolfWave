@@ -114,6 +114,7 @@ extension AppDelegate {
     func broadcastStreamDeckState() {
         let count = songRequestService?.queue.count ?? 0
         let pending = songRequestService?.pendingApprovalCount ?? 0
+        let held = songRequestService?.isHoldEnabled ?? false
         let music = currentSong != nil
         let twitch = twitchService?.currentlyConnected ?? false
         // ponytail: discord health = is-enabled proxy; wire the live IPC
@@ -121,7 +122,7 @@ extension AppDelegate {
         let discord = FeatureFlags.discordEnabled
         let overlay = websocketServer?.state == .listening
         Task { [weak self] in
-            await self?.websocketServer?.broadcastQueueState(count: count, pending: pending)
+            await self?.websocketServer?.broadcastQueueState(count: count, pending: pending, held: held)
             await self?.websocketServer?.broadcastHealth(
                 music: music, twitch: twitch, discord: discord, overlay: overlay)
         }
