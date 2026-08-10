@@ -48,6 +48,7 @@ All notable changes to this project will be documented in this file.
 - **Accurate lifetime stats after a hard quit.** Listening History no longer double-counts old plays if WolfWave is force-quit or crashes while it's trimming its history.
 - **Clean Twitch sign-in cancel.** Cancelling the Twitch connect flow no longer flashes a false "OAuth setup failed" error.
 - **Steadier under the hood.** Hardened Discord Rich Presence against a rare bad-playback-position crash, stopped a Twitch rate-limit wait from spinning the CPU when a connection drops, and made LAN IP detection skip a bad network interface instead of showing a blank overlay address.
+- **Nightly testers can get back to Stable.** Switching the Update Channel back to Stable now works on its own: the next stable release offers itself like any other update, instead of leaving you stuck until you manually reinstalled the DMG. One exception, one time: if you installed the August 5, 2026 nightly, grab any newer DMG once — that specific build can't update itself. See [Nightly Builds](https://mrdemonwolf.github.io/wolfwave/docs/nightly).
 
 ### Developer
 
@@ -74,6 +75,7 @@ All notable changes to this project will be documented in this file.
 - Local Debug builds sign with a stable Apple Development identity instead of ad-hoc. Ad-hoc signatures derive from the binary hash, so every rebuild looked like a different app and invalidated both the Keychain ACL and the TCC Automation grant, producing a password prompt on each launch. CI keeps ad-hoc signing (`test-ci` unchanged) and the Makefile falls back to it when no identity is present.
 - `scripts/check-test-results.sh` fixes: it summed the per-suite *and* enclosing-suite `Executed N tests` lines (an 18-test suite reported as 54), its failure-detail grep matched none of the formats xcodebuild actually emits, and it ignored Swift Testing entirely — so a failing `@Test` reported zero failures and exited 0.
 - `WidgetHTTPServiceTests` no longer pins ports 59995/59993; both tests use the existing `startBoundService` port walker, so a lingering socket or a running WolfWave can't fail the suite.
+- Build/version standard, applied to both release feeds. New `scripts/version.sh` is the single source of truth for marketing version + build number; `build_release.yml` and `nightly.yml` both call it and inject `MARKETING_VERSION` / `CURRENT_PROJECT_VERSION` at build time, so the pbxproj build number is now a dev-only placeholder and is no longer hand-bumped. Build number is `git rev-list --count HEAD` (floored), shared by both channels — the retired nightly scheme used a UTC minute stamp (~2×10¹¹), which is ~100× over Android's `versionCode` cap and sat so far above stable that no release could ever overtake it. Both workflows now need `fetch-depth: 0`; the resolver hard-fails on a shallow clone. Rationale and the portable cross-platform rules are in `docs/build-versioning-standard.md`. `version.sh` also warns when the committed `MARKETING_VERSION` still equals the newest `v*` tag, since nightlies advertise the *next* release version and that means the post-release bump-ahead was skipped.
 
 ## [2.0.1] - 2026-07-11
 
