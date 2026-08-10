@@ -46,23 +46,26 @@ Flip the **Sync Music** switch in Settings. WolfWave instantly spots when you ch
 
 <Callout type="info">**TL;DR**: One browser source in OBS. Done.</Callout>
 
-WolfWave hosts the widget right on your Mac. No external links. No internet needed.
+WolfWave serves the widget HTML and now-playing data from your Mac; no hosted
+overlay service is involved. Fresh album artwork and online integrations still require internet access.
 
 <Steps>
 
 <Step>Open **Settings → Stream Widgets**.</Step>
 <Step>Click **Enable Widget Server**.</Step>
-<Step>Copy the **Widget Link**. The per-install auth token is already in the URL. Keep it intact.</Step>
+<Step>Copy the **Widget Link**. On the same Mac, WolfWave injects the WebSocket credential into the served HTML, so it does not appear in the localhost URL.</Step>
 <Step>In OBS, add a **Browser Source** and paste the link.</Step>
 <Step>Set the size to match your layout. See the table below.</Step>
 
 </Steps>
 
-| Layout | Browser Source size |
-|---|---|
-| Horizontal *(default)* | **500 × 100** |
-| Vertical | **220 × 280** |
-| Compact | **350 × 56** |
+| Layout | Generated card | Recommended OBS canvas |
+|---|---:|---:|
+| Horizontal *(default)* | 500 × 100 | **532 × 132** |
+| Vertical | 220 × 280 | **252 × 312** |
+| Compact | 350 × 56 | **382 × 88** |
+| Vinyl | 260 × 300 | **292 × 332** |
+| Classic | 440 × 112 | **472 × 144** |
 
 <Callout type="info">
   **Important**: Turn on "Shutdown source when not visible" in OBS so the widget reconnects cleanly when you switch scenes.
@@ -70,13 +73,13 @@ WolfWave hosts the widget right on your Mac. No external links. No internet need
 
 ### Auth Token
 
-The widget is gated by a per-install token, stored in the macOS Keychain and auto-injected into the Widget Link.
+The WebSocket connection is gated by a per-install token stored in the macOS Keychain. The static HTTP shell itself is not authenticated.
 
 - **Reveal it**: Eye toggle next to the token field. Hidden by default.
 - **Regenerate**: Drops every active client. Re-copy the Widget Link into OBS afterward.
 - **Custom value**: Edit the token field to supply your own string (handy when you want a memorable value or you're rotating after a leak).
 
-Connecting from a second computer or phone? Use `http://<your-lan-ip>:8766/?token=<token>`. Both the host and the token are required.
+Connecting from a second computer or phone? Use `http://<your-lan-ip>:8766/?token=<token>`. The browser script consumes the query token and sends it in the authenticated WebSocket subprotocol; use this plaintext local transport only on a trusted LAN.
 
 ### Themes &amp; Layouts
 

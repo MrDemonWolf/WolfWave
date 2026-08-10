@@ -54,7 +54,7 @@ All sensitive credentials are stored in the macOS Keychain:
 - **Twitch refresh token**. For silent token refresh
 - **Twitch broadcaster + bot account info**. IDs and usernames associated with the connected account
 
-The local WebSocket server binds to all interfaces so a second-PC OBS or a phone browser on the same LAN can connect. Every accepted connection. Loopback or LAN. Must present the `wolfwave.token.<hex>` `Sec-WebSocket-Protocol` token, minted on first launch and stored in the macOS Keychain. See [WebSocket Server Security](#websocket-server-security) for details.
+The local WebSocket server binds to all interfaces so a second-PC OBS or phone browser on the same LAN can connect. Every WebSocket connection, loopback or LAN, must present the `wolfwave.token.<hex>` `Sec-WebSocket-Protocol` token minted on first launch and stored in the macOS Keychain. See [WebSocket Server Security](#websocket-server-security) for details.
 
 <Callout type="warn">
   Tokens are **never** written to UserDefaults or stored on disk in plain text.
@@ -142,8 +142,9 @@ WolfWave runs inside the macOS App Sandbox with the minimum required entitlement
 The built-in WebSocket server binds to all interfaces (LAN-reachable) so two-PC streaming setups and phone browsers can connect. Access is gated by a per-install auth token:
 
 - The token is a 32-byte random hex string, minted on first launch by `WebSocketAuthToken.currentOrCreate()` and persisted in the macOS Keychain.
-- Every accepted connection. Loopback **and** LAN. Must present `Sec-WebSocket-Protocol: wolfwave.token.<hex>` on the handshake; the listener rejects everything else.
-- `WidgetHTTPService` serves `widget.html` and injects the token for loopback peers; remote browsers must supply `?token=…` in the URL.
+- Every WebSocket connection, loopback **and** LAN, must present `Sec-WebSocket-Protocol: wolfwave.token.<hex>` on the handshake; the listener rejects everything else.
+- `WidgetHTTPService` serves an unauthenticated static shell. It injects the token only when the TCP peer is loopback **and** `Host` is a literal local name/address (`localhost`, `127/8`, or `[::1]`), preventing DNS-rebinding bootstrap; token-bearing responses use `Cache-Control: no-store`.
+- LAN URLs use `?token=…` as bootstrap; the browser script forwards it in the WebSocket subprotocol. The query does not authenticate the HTTP request. The HTML and HTTP response both enforce `no-referrer`, so cross-origin artwork requests cannot disclose the URL token.
 - Tokens are redacted to the first 4 characters in log lines, never written in full.
 - The Discord IPC channel is a separate local Unix socket (`$TMPDIR/discord-ipc-{0..9}`). Never LAN-reachable.
 
@@ -164,7 +165,7 @@ Every incoming EventSub message is validated before processing:
 
 ## Network Security
 
-All external network traffic uses encrypted transport:
+External network traffic uses encrypted transport. Local browser-source traffic is plaintext HTTP/WS on the same Mac or LAN:
 
 | Endpoint | Protocol | Purpose |
 |----------|----------|---------|
@@ -173,11 +174,11 @@ All external network traffic uses encrypted transport:
 | `eventsub.wss.twitch.tv/ws` | WSS | Twitch EventSub WebSocket |
 | `itunes.apple.com/search` | HTTPS | Album artwork for Discord Rich Presence |
 | `github.com/MrDemonWolf/wolfwave/releases/...` | HTTPS | Sparkle appcast + signed updates |
-| `0.0.0.0:8765` | WebSocket (LAN) | Now-playing broadcast. Token-gated via `Sec-WebSocket-Protocol`; same-Mac OBS gets the token on its own, remote browsers must supply `?token=…` |
-| `0.0.0.0:8766` | HTTP (LAN) | Widget HTML server. Same token-gating rules |
+| `0.0.0.0:8765` | WS (plaintext LAN) | Now-playing + Stream Deck channel. Token-gated via `Sec-WebSocket-Protocol`; LAN URLs use `?token=…` only to bootstrap that header |
+| `0.0.0.0:8766` | HTTP (plaintext LAN) | Unauthenticated widget shell; verified literal-local requests receive a `no-store` response with the WS credential; all widget HTML is `no-referrer` |
 | Local Unix socket | IPC | Discord Rich Presence (`$TMPDIR/discord-ipc-{0..9}`) |
 
-The WebSocket and Widget HTTP listeners bind to all interfaces so a second-PC OBS or a phone browser on the same network can connect. Connections must present the 32-byte hex auth token (minted on first launch, stored in macOS Keychain, never logged in full).
+The WebSocket and Widget HTTP listeners bind to all interfaces so a second-PC OBS or phone browser can connect. Only WebSocket connections must present the 32-byte hex token (minted on first launch, stored in macOS Keychain, never logged in full). Because the local transport is not encrypted and the HTTP shell is public, expose these ports only on a trusted LAN.
 
 ## Sparkle Updates
 

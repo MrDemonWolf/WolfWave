@@ -81,8 +81,8 @@ jobs:
       - name: Install JS dependencies
         run: bun install --frozen-lockfile
 
-      - name: Build OBS widget
-        run: bun run --filter widget build
+      - name: Generate design tokens and build OBS widget
+        run: bun turbo run build --filter=widget
 
       - name: Create Config.xcconfig
         run: |
@@ -130,8 +130,8 @@ jobs:
       - name: Install JS dependencies
         run: bun install --frozen-lockfile
 
-      - name: Build OBS widget
-        run: bun run --filter widget build
+      - name: Generate design tokens and build OBS widget
+        run: bun turbo run build --filter=widget
 
       - name: Create Config.xcconfig
         run: |

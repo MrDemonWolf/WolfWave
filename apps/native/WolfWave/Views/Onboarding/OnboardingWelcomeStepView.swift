@@ -39,9 +39,7 @@ struct OnboardingWelcomeStepView: View {
 
             WolfHeroMark(
                 size: Self.heroSize,
-                style: .brandGradient,
-                animatedBars: true,
-                reduceMotion: reduceMotion
+                style: .brandGradient
             )
             .opacity(heroVisible ? 1 : 0)
             .scaleEffect(heroVisible ? 1 : 0.92)

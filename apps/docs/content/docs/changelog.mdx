@@ -18,6 +18,10 @@ All notable changes to WolfWave are documented here. When an update is ready, th
 
 The next release. These ship on the [Nightly channel](/docs/nightly) off `main` until 2.1.0 is tagged.
 
+### Security
+- **Safer local widget credentials.** Token-bearing HTML is served only to a true loopback peer using a literal local Host and is marked `no-store`; token changes are saved to Keychain before connected clients rotate.
+
+
 ### Added
 - **Custom bot commands.** Make your own chat commands with a fixed reply, in Settings → Twitch → Custom Commands. Use variables like `$user`, `$touser`, `$args`, `$1`–`$9`, `$song`, and `$lastsong` and they fill in live. Each command gets its own aliases and Everyone / Per-person cooldowns, same as the built-ins. See [Bot Commands](/docs/bot-commands).
 - **Pick who can run a command.** Set any custom command to Everyone, Subscribers, VIPs, Moderators, or Broadcaster only. Custom commands are included in your settings backup.
@@ -25,26 +29,39 @@ The next release. These ship on the [Nightly channel](/docs/nightly) off `main` 
 - **Fair-share song ordering.** The queue interleaves requests round-robin, so everyone's first request plays before anyone's second. A regular who re-types fast no longer plays back-to-back while newcomers wait. On by default; flip "Fair-Share Ordering" off in Settings → Song Requests → Queue for classic first-in, first-out.
 - **Sub / VIP request priority.** Reward your subs, VIPs, and mods: pick a perk in Settings → Song Requests → Queue. "Skip cooldown" lets them request without the wait; "Jump the queue" also moves their song ahead of regular requests within the same fair-share round (a nudge up, not a queue takeover). Off by default.
 - **Two new overlay layouts: Vinyl and Classic.** Vinyl is a spinning record with your album art as the label and a circular progress ring. Classic sets the album tile beside a card with the title, artist, and a progress bar. Pick either in Settings → Stream Widgets. See [Themes & layouts](/docs/widget).
+- **Queue ticker overlay.** Add `?queueTicker=1` to your widget URL for a panel showing the next 3 song requests, title and requester, so viewers see their spot in line. Off by default, matches your current widget theme. See [Queue ticker](/docs/widget#queue-ticker).
 
 ### Changed
-- **Lighter on your Mac.** WolfWave does a lot less work between songs now. Chat lines that aren't commands bail out immediately, the request poller sleeps when nothing is playing and the queue is empty, and Discord and your overlay only get an update when something actually changed instead of every few seconds. The History pane stopped re-sorting your whole play log twice on every redraw. Same features, less CPU and battery.
+- **A custom WolfWave mark.** The familiar wolf now carries a padded side equalizer, used consistently across the app icon, menu bar, onboarding, OBS fallback, Discord art, DMG installer, docs, and repository branding.
 - **Settings toggles all look the same now.** Launch at Login, "Check automatically" (Software Update), and "Collect on-device diagnostics" (Advanced) now use the standard row: name and short description on the left, switch on the right. Same layout as every other toggle in Settings.
+- **Lighter on your Mac.** WolfWave does a lot less work between songs now. Chat lines that aren't commands bail out immediately, the request poller sleeps when nothing is playing and the queue is empty, and Discord and your overlay only get an update when something actually changed instead of every few seconds. The History pane stopped re-sorting your whole play log twice on every redraw. Same features, less CPU and battery.
+- **Lighter OBS overlay.** Progress painting is batched at 10 Hz, and animation work stops while the page is hidden or unloaded and when reduced motion is enabled.
+- **Less background work.** WolfWave pauses unused overlay, Twitch, song-request, and Discord tasks instead of polling or retrying while those features are idle, disconnected, held, hidden, or disabled.
 - **What's New only shows up for feature releases.** The window used to reappear after every version bump, including bug-fix ones, showing a stale feature list. It now opens once per release that actually ships features.
 
 ### Fixed
-- **Settings sidebar no longer opens too narrow.** The sidebar could come back squeezed from a previous session and cut off section names like "Stream Widgets". It now uses a fixed width, matching System Settings.
-- **Version history opens instead of downloading.** Clicking "version history" in the update window saved an HTML file to your Downloads instead of showing the changelog. The notes are embedded in the update feed now, so they render in place.
+
+- **Twitch custom commands stay locked while disconnected.** The settings card now explains that Twitch must be connected and closes an open editor if the connection becomes unavailable.
 - **Twitch stays connected when its server moves you.** Twitch periodically hands your connection to a different server. WolfWave could flash "disconnected" and tear down the new, healthy connection while doing that. It rides through cleanly now.
+- **Low Power Mode no longer stalls launch.** Startup reads the posted power-state snapshot without recursively initializing the monitor.
+- **Discord presence settings apply immediately.** Idle presence and "hide while paused" changes refresh at once, preserve the paused track for restoration, and stay hidden when Discord is enabled mid-pause.
+- **Apple Music stays closed when you close it.** WolfWave no longer reopens Music.app after you quit it, and no longer opens it on its own while running.
+- **WolfWave tells you when Music isn't open.** The now-playing card used to say "Nothing playing right now" whether Music was closed or just idle. It now says "Apple Music isn't open" with an Open Music button when the app is shut.
+- **Settings sidebar no longer opens too narrow.** The sidebar could come back squeezed from a previous session and cut off section names like "Stream Widgets". It now uses a fixed width, matching System Settings, and a stale saved width can no longer be restored over it.
+- **Version history opens instead of downloading.** Clicking "version history" in the update window saved an HTML file to your Downloads instead of showing the changelog. The notes are embedded in the update feed now, so they render in place.
 - **Overlays keep working after you change the token or port.** Regenerating your access token or changing the port could leave every new OBS source getting rejected until you restarted WolfWave.
 - **No more crashes from bad saved data.** A corrupted settings backup could crash the app the next time chat ran `!voteskip`, and one bad line in your listening history could crash the History pane and `!stats` every time they drew. Both are handled now, and a full disk no longer takes the app down while it's writing a log.
 - **No more freezes from song requests.** WolfWave now talks to Apple Music off the main thread, so a slow or busy Music.app can't beachball the app while the request queue auto-advances or when you hit play, pause, or skip.
-- **Stream Deck overlay key turns the whole overlay on.** The overlay toggle now starts the widget page server too, not just the data feed, so OBS shows a live overlay instead of a blank one.
+- **Stream Deck overlay key stays connected.** The action hides or shows overlay cards without dropping the authenticated control socket, so the next key press and its acknowledgement still work.
+- **Album art stays current.** A slow old lookup can no longer replace the current track's art, temporary download failures remain retryable, and the tray's decoded-art cache is bounded.
 - **Advanced settings opens instantly.** Log size and line count load in the background now, so a large log file no longer stalls the pane when it appears.
 - **Accurate lifetime stats after a hard quit.** Listening History no longer double-counts old plays if WolfWave is force-quit or crashes while it's trimming its history.
 - **Clean Twitch sign-in cancel.** Cancelling the Twitch connect flow no longer flashes a false "OAuth setup failed" error.
 - **Steadier under the hood.** Hardened Discord Rich Presence against a rare bad-playback-position crash, stopped a Twitch rate-limit wait from spinning the CPU when a connection drops, and made LAN IP detection skip a bad network interface instead of showing a blank overlay address.
 
 ### Developer
+
+- Debug builds can treat every chatter, or selected Twitch logins, as normal viewers for permission and cooldown testing. Release builds omit the simulator.
 - **Stream Deck control API.** Groundwork for the upcoming Stream Deck plugin. The overlay WebSocket is now bidirectional: it parses a protocol-versioned inbound `command` envelope, routes 11 actions to existing services, and replies with an `ack`; new `queue_state` / `health` broadcasts drive counter/health keys. Still gated by the per-install `wolfwave.token.<hex>` handshake. The plugin itself ships separately.
 - **Crash/lockup/data-race review pass.** `AppleMusicController` runs `NSAppleScript` on a dedicated `AppleScriptExecutor` thread (own run loop) instead of the main thread; `playbackSnapshot()` and the playback commands are now `async` so the main-actor poll suspends rather than blocking. `RateLimiter.awaitCapacity` unwinds on cancellation, `LifetimeTally` gained a `lastFoldedTimestamp` high-water mark for idempotent crash-recovery reloads, and `ListeningHistoryService` coalesces concurrent loads.
 - **`queue_state` gained a `held` field.** Carries real request-queue hold state (`SongRequestService.isHoldEnabled`), and `SongRequestHoldChanged` now triggers a Stream Deck rebroadcast alongside `SongRequestQueueChanged`. Without it a hold key had to track its own optimistic toggle, which inverted the moment hold was changed from the tray, chat (`!hold`), or Settings. Additive on an outbound broadcast, so no `protocolVersion` bump — the version gates the inbound command envelope only.
@@ -52,6 +69,8 @@ The next release. These ship on the [Nightly channel](/docs/nightly) off `main` 
 - **Steady-state performance pass.** Ten hot-path fixes, all behaviour-preserving, each removing work that repeated every ~5s tick or per chat line. `BotCommandDispatcher` early-outs on a missing `!` prefix before the command-table snapshot copy and per-command alias `UserDefaults` reads; `SongRequestService.pollTick` early-outs when nothing is playing and the queue is empty, skipping a 2s AppleScript round trip; `AppleMusicController` uses targeted `runningApplications(withBundleIdentifier:)` and caches compiled `NSAppleScript` by source; `DiscordRPCService.updatePresence` skips unchanged `SET_ACTIVITY` frames and `WebSocketServerService.updateNowPlaying` skips unchanged rebroadcasts; widget artwork only refetches on a genuine track change; `MusicMonitorSettingsView` stops restarting `AsyncImage` every tick; `HistoryStatsSettingsView` dropped a twice-per-body-pass O(n log n) sort over up to ~10k records; `SongBlocklist.isBlocked` lowercases once instead of per entry.
 - **Concurrency correctness pass.** Ten adversarially-verified race and leak fixes. `TwitchChatService` posts `NotificationCenter` from `@MainActor` (panes observe via `.onReceive` with no main hop) and bails out of `handleReceiveError` on `Task.isCancelled` so an orphaned receive loop can't undo a session migration; `DiscordRPCService.connectIfNeeded` re-validates generation/enabled/fd after its two-await handshake; `WebSocketServerService` detaches `stateUpdateHandler` before cancel and cancels failed connections; `MonthlyWrapView.loadTint` guards cancellation. Leaks closed in `TwitchViewModel.deinit`, `TwitchChatService.deinit`, and `NotificationService`. `MusicPermissionCache` traded `nonisolated(unsafe)` statics for `@MainActor` isolation.
 - **Crash-guard pass.** Four process-abort vectors reachable from external or user-writable data, none caught by the force-op lint gate. `Int(Double)` traps clamped in `MetricsService.recordTwitchRateLimit`, `SkipVoteManager.sessionCooldown`, and `HistoryFormat.listeningTime`/`clock` (plus sanitizing `duration`/`playedSeconds` at the `PlayRecord` decode boundary). `Logger` swapped six legacy raising `synchronizeFile()`/`closeFile()` sites for `try? synchronize()`/`close()`, which were aborting mid-error-handling on fsync `ENOSPC`/`EIO`.
+- **OBS resource pass.** The browser batches progress paint at 10 Hz and suspends when hidden/unloaded/reduced-motion; native progress work exists only while enabled, visible, playing, and serving clients, and JSON fan-out encodes once.
+- **Idle-service pass.** Twitch owns one keepalive/session with bounded classified retries and tears network work down on leave; Song Requests stops auto-advance polling while idle/held/disabled; Discord polls only while enabled and disconnected; decoded tray art is single-flight and bounded to 64 items / 32 MiB; startup duplicate warming was removed and reduced-power policy applies immediately.
 - **DRY pass.** 20 mechanical extractions with no behaviour change: shared HTTP-response / widget-config / now-playing / JSON-guard helpers, an EventSub body + form-POST + custom-rewards URL builder, shared day-bucketing and history-store filesystem helpers, a shared song-request dedup predicate and capacity insert, `BotCommand.commandToken(in:)` shared across the command match loops, `SectionHeaderWithStatus` reused at 10 hand-rolled header sites, and centralized setting + widget-appearance defaults.
 - **Source layout split.** No behaviour change: `AppConstants` into per-namespace `extension` files, `DiscordRPCService` into a pure `DiscordPresenceBuilder` plus an IPC seam, and the `TwitchChatService` actor across same-actor seam files (`+Auth`, `+Connection`, `+EventSub`, `+Redemptions`). See [Architecture](/docs/architecture).
 - **Dead code and stale docs removed.** ~89 unused lines from `ViewModifiers`, plus doc-comment corrections across `PlaybackSourceManager`, `SettingsView`/`SettingsNavRail`, `TwitchViewModel`, `AppConstants`, `SparkleUpdaterService`, `WidgetHTTPService`, and the Discord / Twitch / WebSocket settings views, each verified against the actual code.
@@ -78,7 +97,7 @@ The next release. These ship on the [Nightly channel](/docs/nightly) off `main` 
 ## v2.0.0. July 1, 2026
 
 ### Security
-- **Stream Widgets now need an access token.** Your overlay link carries a private token, so nobody else on your network can pull up your now-playing feed. It's made on first launch and kept in the Keychain. Your OBS sources keep working. Reveal, regenerate, or replace it in Settings → Stream Widgets.
+- **Stream Widgets now need an access token.** Every WebSocket client must authenticate with a per-install token kept in the Keychain. Localhost HTML receives it from WolfWave; LAN links carry it as connection bootstrap. Existing OBS sources keep working. Reveal, regenerate, or replace the token in Settings → Stream Widgets.
 - **Streamer Mode.** One tray toggle hides anything you wouldn't want on camera: channel name, overlay and widget URLs, and the access token. Copy and Open buttons switch off too. On-screen only. Your overlay, Discord, and chat output are untouched. See [Streamer Mode](/docs/streamer-mode).
 
 ### Added
@@ -104,7 +123,7 @@ The next release. These ship on the [Nightly channel](/docs/nightly) off `main` 
 
 **On stream**
 - **`!wolfwave` command.** A one-tap chat shoutout for the app. Four reply styles. Off by default.
-- **Widget themes.** Six overlay themes (Default, Dark, Light, Glass, Neon, WolfWave) and three layouts. See [Stream Widget](/docs/widget).
+- **Widget themes and layouts.** Five selectable themes (Default, Dark, Light, Glass, Neon), plus a hidden internal WolfWave theme, and five layouts (Horizontal, Vertical, Compact, Vinyl, Classic). See [Stream Widget](/docs/widget).
 - **Live widget preview.** See your overlay update as you tweak the theme, layout, font, and colors.
 - **Smoother OBS widget.** Songs slide in, fade out calmly, and crossfade on fast skips. No strobing.
 - **Discord idle and pause controls.** Keep an idle marker when nothing plays, or clear your profile while paused. Both off by default.
@@ -147,7 +166,7 @@ The next release. These ship on the [Nightly channel](/docs/nightly) off `main` 
 _Developer-facing changes. Not visible to end users._
 
 - **Unified design system.** One `design-system/tokens.json` feeds a generator that emits four platform outputs (Swift, docs CSS, widget JS, marketing TS), with a component catalog and a Turbo `tokens` build prerequisite.
-- **OBS widget build pipeline.** The widget source moved to a new `apps/widget/` Tailwind + TypeScript workspace; `widget.html` is now a generated, fully-inlined artifact rebuilt by Xcode and CI. See [OBS Widget Architecture](/docs/widget).
+- **OBS widget build pipeline.** The widget source moved to a new `apps/widget/` Tailwind + TypeScript workspace; `widget.html` is now a generated, fully-inlined artifact rebuilt explicitly or by CI and committed for Xcode to bundle. See [OBS Widget Architecture](/docs/widget).
 - **Sparkle hardening.** Opted out of system-profile telemetry, and the release pipeline turns each version's CHANGELOG section into styled HTML embedded in the appcast (`scripts/release-notes.mjs`).
 - **Crash safety net.** An uncaught-exception and signal handler records a breadcrumb and chains the previous handler, plus a blocking force-unwrap CI lint gate on production source.
 - **Concurrency and architecture cleanup.** `HelixClient`, a typed `Preferences` accessor, typed NotificationCenter payloads, actor adoption for `SongBlocklist` and `SkipVoteManager`, and Combine fully removed from the app target.

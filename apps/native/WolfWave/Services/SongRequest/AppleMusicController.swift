@@ -187,14 +187,7 @@ final class AppleMusicController: AppleMusicControlling {
     ///
     /// Checked before sending any playback command. If Music.app is closed,
     /// song requests are buffered in WolfWave's queue until it re-opens.
-    var isMusicAppRunning: Bool {
-        // Targeted lookup instead of bridging + scanning the full running-apps
-        // array on every poll tick. `runningApplications(withBundleIdentifier:)`
-        // already excludes terminated instances.
-        !NSRunningApplication
-            .runningApplications(withBundleIdentifier: AppConstants.Music.bundleIdentifier)
-            .isEmpty
-    }
+    var isMusicAppRunning: Bool { MusicProcess.isRunning }
 
     // MARK: - Playback State (via AppleScript → Music.app)
 
@@ -540,13 +533,32 @@ final class AppleMusicController: AppleMusicControlling {
     /// AppleEvent default. Internal (not private) so the wrapper's shape is
     /// unit-testable without invoking `NSAppleScript`.
     ///
+    /// The body is additionally gated on `application "Music" is running`, which
+    /// AppleScript answers **without launching** the target (unlike a bare
+    /// `tell application "Music"`, which LaunchServices auto-launches). Callers
+    /// already check `isMusicAppRunning` in Swift first, but the user can quit
+    /// Music in the gap between that check and the send; this in-script gate
+    /// closes that gap to a single script dispatch. See `MusicProcess`.
+    ///
+    /// When Music is closed the script raises `-600` (`procNotFound`) so
+    /// `executeAndReturnError` yields nil and every caller takes its existing
+    /// "no information" path, rather than misreading an empty result as a stop.
+    ///
+    /// `ponytail:` a microsecond-wide race remains inside the dispatch. If that
+    /// ever bites, move the playback commands to pid-addressed ScriptingBridge
+    /// selectors the way `AppleMusicSource` reads state.
+    ///
     /// - Parameters:
     ///   - body: The full script to wrap, typically a `tell` block.
     ///   - seconds: The Apple Event reply timeout; see `ScriptTimeout`.
     static func timeoutWrapped(_ body: String, seconds: Int) -> String {
         """
         with timeout of \(seconds) seconds
+        if application "Music" is running then
         \(body)
+        else
+        error "Music is not running" number -600
+        end if
         end timeout
         """
     }

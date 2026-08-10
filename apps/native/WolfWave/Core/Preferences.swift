@@ -117,7 +117,7 @@ nonisolated enum Preferences {
 
     /// Shared port resolution: non-positive means "use the default"; anything
     /// else is clamped into `UInt16` range so a bad stored value can never trap.
-    private static func resolvePort(_ stored: Int, default defaultPort: UInt16) -> UInt16 {
+    static func resolvePort(_ stored: Int, default defaultPort: UInt16) -> UInt16 {
         stored > 0 ? UInt16(clamping: stored) : defaultPort
     }
 

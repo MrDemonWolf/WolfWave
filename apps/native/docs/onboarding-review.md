@@ -2,6 +2,8 @@
 
 **Reviewed:** 2026-06-06 · **Input:** Local SwiftUI code (`apps/native/WolfWave/Views/Onboarding/`) · **Method:** NN/g heuristic evaluation + Apple HIG review
 
+> Historical snapshot: findings below describe the 2026-06-06 implementation. See the status and 2026-08-06 brand-sync notes for the completed fixes; cited line numbers remain as audit history.
+
 ## Executive summary
 
 - The onboarding is well-built: a shared `OnboardingStepScaffold` keeps the icon→title→description→extras column at a constant Y across steps, entrance animations honor `reduceMotion`, and copy is short and ADHD-friendly.
@@ -109,6 +111,8 @@ Apple HIG backs the adaptive requirement: prefer dynamic/semantic colors and pro
 - [x] Replace the `cornerRadius: 10` literals with `DSRadius.lg` (Permissions denied card).
 
 ## Status (2026-06-07)
+
+> Brand sync, 2026-08-06: `WolfHeroMark` now masks the canonical `WolfMark` template asset. The custom Swift path and bar geometry were removed.
 
 All findings implemented:
 

@@ -21,6 +21,38 @@ struct TwitchChatServiceTests {
         UserDefaults.standard.removeObject(forKey: AppConstants.UserDefaults.lastSongCommandEnabled)
     }
 
+    #if DEBUG
+    @Test("Debug viewer simulation matches canonical login and display-name fallback")
+    func testDebugViewerSimulationUsernameMatching() {
+        let suiteName = "TwitchChatServiceTests.viewer.\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suiteName)!
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+
+        defaults.set(
+            " other, SOMEHANDLE ",
+            forKey: AppConstants.UserDefaults.debugViewerUsernames
+        )
+        #expect(TwitchChatService.shouldTreatAsViewer(
+            event: ["chatter_user_login": "somehandle", "chatter_user_name": "Localized Name"],
+            defaults: defaults
+        ))
+        #expect(TwitchChatService.shouldTreatAsViewer(
+            event: ["chatter_user_name": "Other"],
+            defaults: defaults
+        ))
+        #expect(!TwitchChatService.shouldTreatAsViewer(
+            event: ["chatter_user_login": "different"],
+            defaults: defaults
+        ))
+
+        defaults.set(true, forKey: AppConstants.UserDefaults.debugTreatAllChattersAsViewers)
+        #expect(TwitchChatService.shouldTreatAsViewer(
+            event: ["chatter_user_login": "anyone"],
+            defaults: defaults
+        ))
+    }
+    #endif
+
     // MARK: - Initialization Tests
 
     @Test("Service initializes with default values")
@@ -407,5 +439,225 @@ struct TwitchChatServiceTests {
         #expect(observed == Array(1...maxRetries))
         // The loop terminated at exactly the retry limit.
         #expect(attempts == maxRetries)
+    }
+
+    // MARK: - Runtime Lifecycle / Retry Classification
+
+    @Test("Only transient chat-send failures enter the retry queue")
+    func testChatSendRetryDisposition() {
+        #expect(!TwitchChatService.shouldRetryChatSend(.sent))
+        #expect(TwitchChatService.shouldRetryChatSend(.retryableFailure))
+        #expect(!TwitchChatService.shouldRetryChatSend(.permanentFailure))
+    }
+
+    @Test("Helix status classification separates auth, transient, and permanent failures")
+    func testHelixResponseDisposition() {
+        #expect(TwitchChatService.helixResponseDisposition(for: 200) == .success)
+        #expect(TwitchChatService.helixResponseDisposition(for: 204) == .success)
+        #expect(TwitchChatService.helixResponseDisposition(for: 401) == .authenticationFailure)
+        #expect(TwitchChatService.helixResponseDisposition(for: 403) == .permanentFailure)
+
+        for status in [408, 425, 429, 500, 503, 599] {
+            #expect(TwitchChatService.helixResponseDisposition(for: status) == .retryableFailure)
+        }
+        for status in [300, 400, 404, 409, 422] {
+            #expect(TwitchChatService.helixResponseDisposition(for: status) == .permanentFailure)
+        }
+    }
+
+    @Test("Only a second 401 after token refresh requires re-authentication")
+    func testRefreshedReconnectFailureDisposition() {
+        #expect(TwitchChatService.refreshedReconnectFailureDisposition(
+            for: TwitchChatService.ConnectionError.authenticationFailed
+        ) == .authenticationFailure)
+        #expect(TwitchChatService.refreshedReconnectFailureDisposition(
+            for: CancellationError()
+        ) == .cancelled)
+        #expect(TwitchChatService.refreshedReconnectFailureDisposition(
+            for: TwitchChatService.ConnectionError.networkError("offline")
+        ) == .retryableFailure)
+        #expect(TwitchChatService.refreshedReconnectFailureDisposition(
+            for: TwitchChatService.ConnectionError.invalidCredentials
+        ) == .retryableFailure)
+    }
+
+    @Test("Reconnect attempts advance to the cap and never wrap")
+    func testReconnectAttemptCap() {
+        let maximum = AppConstants.Twitch.maxReconnectionAttempts
+        var attempts = 0
+        for expected in 1...maximum {
+            let next = TwitchChatService.nextReconnectAttempt(
+                after: attempts,
+                maximum: maximum)
+            #expect(next == expected)
+            attempts = next ?? attempts
+        }
+        #expect(TwitchChatService.nextReconnectAttempt(after: attempts, maximum: maximum) == nil)
+        #expect(TwitchChatService.nextReconnectAttempt(after: -1, maximum: maximum) == nil)
+    }
+
+    @Test("First non-whitespace character must be an exclamation for command dispatch")
+    func testPotentialCommandPrefilter() {
+        #expect(TwitchChatService.isPotentialCommand("!song"))
+        #expect(TwitchChatService.isPotentialCommand("!custom argument"))
+        #expect(TwitchChatService.isPotentialCommand("  !song"))
+        #expect(TwitchChatService.isPotentialCommand("\t!song"))
+        #expect(!TwitchChatService.isPotentialCommand("hello chat"))
+        #expect(!TwitchChatService.isPotentialCommand("   "))
+        #expect(!TwitchChatService.isPotentialCommand(""))
+    }
+
+    @Test("Inbound frames reuse one keepalive watchdog task")
+    func testKeepaliveResetDoesNotRecreateTask() async {
+        let service = TwitchChatService()
+        await service.armKeepaliveWatchdog(deadlineSeconds: 60)
+        for _ in 0..<100 {
+            await service.resetKeepaliveWatchdog()
+        }
+
+        #expect(await service.keepaliveWatchdogTaskStarts == 1)
+        await service.disconnectFromEventSub()
+        #expect(await service.lastKeepaliveActivity == nil)
+    }
+
+    @Test("A stale keepalive expiry cannot tear down a rearmed session")
+    func testStaleKeepaliveExpiryAfterRearmIsIgnored() async {
+        let service = TwitchChatService()
+        await service.armKeepaliveWatchdog(deadlineSeconds: 60)
+        let staleGeneration = await service.keepaliveGeneration
+
+        await service.disconnectFromEventSub()
+        await service.armKeepaliveWatchdog(deadlineSeconds: 60)
+        let activeGeneration = await service.keepaliveGeneration
+
+        let staleTaskShouldStop = await service.handleKeepaliveExpiry(
+            generation: staleGeneration,
+            at: ContinuousClock().now.advanced(by: .seconds(3_600)))
+
+        #expect(staleTaskShouldStop)
+        #expect(await service.keepaliveGeneration == activeGeneration)
+        #expect(await service.lastKeepaliveActivity != nil)
+        await service.disconnectFromEventSub()
+    }
+
+    @Test("Leaving invalidates an in-flight connection intent")
+    func testLeaveInvalidatesConnectionAttempt() async {
+        let service = TwitchChatService()
+        let generation = await service.beginConnectionAttempt()
+        #expect(await service.connectionAttemptIsCurrent(generation))
+
+        await service.leaveChannel()
+
+        #expect(!(await service.connectionAttemptIsCurrent(generation)))
+    }
+
+    @Test("session_welcome is the event that resets reconnect attempts")
+    func testSessionWelcomeResetsReconnectAttempts() async throws {
+        let service = TwitchChatService()
+        await service.configureReconnectStateForTesting(attempts: 3, migrating: true)
+
+        let message: [String: Any] = [
+            "metadata": [
+                "message_type": "session_welcome",
+                "message_id": "welcome-reset-test",
+                "message_timestamp": ISO8601DateFormatter().string(from: Date()),
+            ],
+            "payload": [
+                "session": [
+                    "id": "test-session",
+                    "keepalive_timeout_seconds": 60,
+                ]
+            ],
+        ]
+        let data = try JSONSerialization.data(withJSONObject: message)
+        let text = String(decoding: data, as: UTF8.self)
+        await service.handleWebSocketMessage(text)
+
+        #expect(await service.reconnectionAttempts == 0)
+        await service.disconnectFromEventSub()
+    }
+
+    @Test("Network loss broadcasts disconnected to stream consumers")
+    func testNetworkLossBroadcastsDisconnected() async {
+        let service = TwitchChatService()
+        let stream = service.connectionStateChanges()
+        let received = Task {
+            var iterator = stream.makeAsyncIterator()
+            return await iterator.next()
+        }
+
+        await service.setConnected(true)
+        await service.handleNetworkReachabilityChange(false)
+
+        let disconnected = await received.value
+        #expect(disconnected == false)
+    }
+
+    @Test("Network loss cancels a delayed reconnect")
+    func testNetworkLossCancelsScheduledReconnect() async {
+        let service = TwitchChatService()
+        await service.configureReconnectCredentialsForTesting()
+        await service.scheduleReconnect()
+        #expect(await service.hasScheduledReconnectForTesting)
+
+        await service.handleNetworkReachabilityChange(false)
+
+        #expect(!(await service.hasScheduledReconnectForTesting))
+    }
+
+    @Test("Accepted network recovery starts a fresh bounded attempt cycle")
+    func testNetworkRecoveryResetsExhaustedAttempts() async {
+        let service = TwitchChatService()
+        await service.configureNetworkRecoveryForTesting(
+            attempts: AppConstants.Twitch.maxReconnectionAttempts)
+
+        await service.handleNetworkReachabilityChange(true)
+
+        #expect(await service.reconnectionAttempts == 0)
+        #expect(await service.networkReconnectCycles == 1)
+    }
+
+    @Test("Leaving cancels and clears the pending message retry lifecycle")
+    func testLeaveClearsPendingMessageRetry() async {
+        let service = TwitchChatService()
+        await service.configureRetryChannelForTesting()
+
+        // Missing send credentials produces one transient failure and therefore
+        // starts the bounded drain loop without touching the network.
+        await service.sendMessage("queued reply")
+        #expect(await service.hasPendingMessageRetry)
+
+        await service.leaveChannel()
+        #expect(!(await service.hasPendingMessageRetry))
+        #expect(await service.pendingMessageCount == 0)
+    }
+
+}
+
+private extension TwitchChatService {
+    func configureReconnectStateForTesting(attempts: Int, migrating: Bool) {
+        reconnectionAttempts = attempts
+        isMigratingSession = migrating
+    }
+
+    func configureRetryChannelForTesting() {
+        reconnectChannelName = "test-channel"
+    }
+
+    func configureReconnectCredentialsForTesting() {
+        reconnectChannelName = "test-channel"
+        reconnectToken = "test-token"
+        reconnectClientID = "test-client"
+    }
+
+    var hasScheduledReconnectForTesting: Bool {
+        reconnectTask != nil
+    }
+
+    func configureNetworkRecoveryForTesting(attempts: Int) {
+        reconnectionAttempts = attempts
+        networkReconnectCycles = 0
+        isNetworkReachable = false
+        lastNetworkReconnectTime = Date().timeIntervalSince1970
     }
 }

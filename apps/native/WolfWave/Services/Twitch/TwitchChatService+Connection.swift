@@ -11,15 +11,41 @@ import Network
 
 extension TwitchChatService {
 
+    // MARK: - Reconnect Decisions
+
+    enum RefreshedReconnectFailureDisposition: Sendable, Equatable {
+        case authenticationFailure
+        case retryableFailure
+        case cancelled
+    }
+
+    /// Separates a second 401 from cancellation and transient connection errors
+    /// after a reactive token refresh.
+    nonisolated static func refreshedReconnectFailureDisposition(
+        for error: Error
+    ) -> RefreshedReconnectFailureDisposition {
+        if error is CancellationError { return .cancelled }
+        if let connectionError = error as? ConnectionError,
+           case .authenticationFailed = connectionError {
+            return .authenticationFailure
+        }
+        return .retryableFailure
+    }
+
     // MARK: - Network Monitoring
 
     /// Starts monitoring network connectivity and sets up automatic reconnection.
     func startNetworkMonitoring() {
+        networkPathMonitor?.pathUpdateHandler = nil
+        networkPathMonitor?.cancel()
+        networkMonitorGeneration &+= 1
+        let generation = networkMonitorGeneration
+
         let monitor = NWPathMonitor()
         networkPathMonitor = monitor
 
         monitor.pathUpdateHandler = { [weak self] path in
-            Task { await self?.handleNetworkPathChange(path) }
+            Task { await self?.handleNetworkPathChange(path, generation: generation) }
         }
 
         monitor.start(queue: networkMonitorQueue)
@@ -29,8 +55,13 @@ extension TwitchChatService {
     ///
     /// Rate-limits network-triggered reconnects to prevent infinite loops when
     /// the network path flaps rapidly between available/unavailable states.
-    private func handleNetworkPathChange(_ path: NWPath) async {
-        let isReachable = path.status == .satisfied
+    private func handleNetworkPathChange(_ path: NWPath, generation: UInt64) async {
+        guard generation == networkMonitorGeneration else { return }
+        await handleNetworkReachabilityChange(path.status == .satisfied)
+    }
+
+    /// Boolean seam shared by the path monitor and lifecycle tests.
+    func handleNetworkReachabilityChange(_ isReachable: Bool) async {
         let wasReachable = isNetworkReachable
         isNetworkReachable = isReachable
 
@@ -50,12 +81,20 @@ extension TwitchChatService {
 
             networkReconnectCycles += 1
             lastNetworkReconnectTime = now
-            // Reset per-attempt counter for the new cycle
+            // An accepted network-recovery cycle gets its own bounded attempt
+            // budget. Without this reset, a prior exhausted transport cycle
+            // could never recover after connectivity actually returned.
             reconnectionAttempts = 0
             scheduleReconnect()
         } else if wasReachable && !isReachable {
             Log.warn("TwitchChatService: Network unavailable, disconnecting", category: "Twitch")
+            // Do this before tearing down the socket so a delayed backoff task
+            // cannot wake and consume an attempt while the machine is offline.
+            reconnectTask?.cancel()
+            reconnectTask = nil
+            connectionGeneration &+= 1
             disconnectFromEventSub()
+            broadcastConnectionState(false)
         }
     }
 
@@ -77,8 +116,9 @@ extension TwitchChatService {
             Log.error(
                 "TwitchChatService: Max reconnection attempts reached (\(maxReconnectionAttempts))",
                 category: "Twitch")
-            // Reset attempts after hitting the limit to allow manual reconnection later
-            reconnectionAttempts = 0
+            // Keep the exhausted count intact. A manual connection may still
+            // start, and an accepted network-recovery cycle gets a fresh bounded
+            // budget; otherwise only session_welcome proves transport success.
             return
         }
 
@@ -99,11 +139,57 @@ extension TwitchChatService {
     }
 
     private func attemptReconnect(channelName: String, token: String, clientID: String) async {
+        guard !Task.isCancelled else {
+            Log.debug(
+                "TwitchChatService: Scheduled reconnect cancelled before starting",
+                category: "Twitch")
+            return
+        }
+        guard !isProcessingDisconnect else {
+            Log.debug(
+                "TwitchChatService: Disconnect in progress, skipping scheduled reconnect",
+                category: "Twitch")
+            return
+        }
+        guard reconnectChannelName == channelName,
+              reconnectToken == token,
+              reconnectClientID == clientID else {
+            Log.info(
+                "TwitchChatService: Connection configuration changed, skipping stale reconnect",
+                category: "Twitch")
+            return
+        }
+        guard isNetworkReachable else {
+            Log.info(
+                "TwitchChatService: Network unavailable, skipping scheduled reconnect",
+                category: "Twitch")
+            return
+        }
+        guard let attemptNumber = Self.nextReconnectAttempt(
+            after: reconnectionAttempts,
+            maximum: maxReconnectionAttempts
+        ) else {
+            Log.error(
+                "TwitchChatService: Reconnection cap reached before attempt start",
+                category: "Twitch")
+            return
+        }
+        reconnectionAttempts = attemptNumber
+        let generation = beginConnectionAttempt()
+
         do {
-            try await connectToChannel(channelName: channelName, token: token, clientID: clientID)
-            reconnectionAttempts = 0
-            Log.info("TwitchChatService: Reconnection successful", category: "Twitch")
+            try await connectToChannel(
+                channelName: channelName,
+                token: token,
+                clientID: clientID,
+                attemptGeneration: generation)
+            Log.info(
+                "TwitchChatService: Reconnection transport started "
+                    + "(attempt \(attemptNumber)/\(maxReconnectionAttempts)); "
+                    + "awaiting session_welcome",
+                category: "Twitch")
         } catch ConnectionError.authenticationFailed {
+            guard !Task.isCancelled, connectionAttemptIsCurrent(generation) else { return }
             // A 401 means the stored token is dead. Retrying with the same token
             // only burns `maxReconnectionAttempts` and never succeeds, so stop the
             // loop and surface the re-auth banner. Try one reactive token refresh
@@ -112,11 +198,16 @@ extension TwitchChatService {
                 "TwitchChatService: Reconnect failed with 401; token is invalid or expired",
                 category: "Twitch")
             await handleAuthenticationFailureDuringReconnect(
-                channelName: channelName, clientID: clientID)
+                channelName: channelName,
+                clientID: clientID,
+                attemptGeneration: generation)
+        } catch is CancellationError {
+            // A leave or newer connection attempt deliberately superseded this one.
+            return
         } catch {
-            reconnectionAttempts += 1
+            guard connectionAttemptIsCurrent(generation) else { return }
             Log.warn(
-                "TwitchChatService: Reconnection attempt failed: \(error.localizedDescription)",
+                "TwitchChatService: Reconnection attempt \(attemptNumber) failed: \(error.localizedDescription)",
                 category: "Twitch")
             if reconnectionAttempts < maxReconnectionAttempts && isNetworkReachable {
                 scheduleReconnect()
@@ -129,31 +220,63 @@ extension TwitchChatService {
     }
 
     /// Handles a 401 during reconnect. Attempts exactly ONE reactive token
-    /// refresh (no loop); on success it reconnects with the fresh token, and on
-    /// any failure it signals interactive re-auth and stops the reconnect loop.
+    /// refresh (no loop). A second 401 signals interactive re-auth; a non-auth
+    /// connection failure resumes the existing bounded reconnect backoff.
     private func handleAuthenticationFailureDuringReconnect(
-        channelName: String, clientID: String
+        channelName: String,
+        clientID: String,
+        attemptGeneration: UInt64
     ) async {
+        var terminalGeneration = attemptGeneration
         if let refreshed = await TwitchTokenRefresher.attemptReactiveRefresh(clientID: clientID) {
+            guard !Task.isCancelled,
+                  connectionAttemptIsCurrent(attemptGeneration),
+                  reconnectChannelName == channelName,
+                  reconnectClientID == clientID else { return }
             Log.info(
                 "TwitchChatService: Reactive token refresh succeeded; reconnecting",
                 category: "Twitch")
             reconnectToken = refreshed
-            reconnectionAttempts = 0
+            let refreshedGeneration = beginConnectionAttempt()
+            terminalGeneration = refreshedGeneration
             do {
                 try await connectToChannel(
-                    channelName: channelName, token: refreshed, clientID: clientID)
+                    channelName: channelName,
+                    token: refreshed,
+                    clientID: clientID,
+                    attemptGeneration: refreshedGeneration)
                 Log.info(
-                    "TwitchChatService: Reconnection successful after token refresh",
+                    "TwitchChatService: Reconnection transport started after token refresh; awaiting session_welcome",
                     category: "Twitch")
                 return
             } catch {
-                Log.warn(
-                    "TwitchChatService: Reconnect after refresh failed - \(error.localizedDescription)",
-                    category: "Twitch")
+                guard connectionAttemptIsCurrent(refreshedGeneration) else { return }
+                switch Self.refreshedReconnectFailureDisposition(for: error) {
+                case .cancelled:
+                    return
+                case .authenticationFailure:
+                    Log.error(
+                        "TwitchChatService: Refreshed token was rejected with 401",
+                        category: "Twitch")
+                case .retryableFailure:
+                    Log.warn(
+                        "TwitchChatService: Reconnect after refresh failed transiently - "
+                            + error.localizedDescription,
+                        category: "Twitch")
+                    if reconnectionAttempts < maxReconnectionAttempts && isNetworkReachable {
+                        scheduleReconnect()
+                    } else if !isNetworkReachable {
+                        Log.info(
+                            "TwitchChatService: Network no longer reachable, "
+                                + "stopping reconnection attempts",
+                            category: "Twitch")
+                    }
+                    return
+                }
             }
         }
         // Refresh unavailable or failed: stop looping and ask the user to re-auth.
+        guard connectionAttemptIsCurrent(terminalGeneration) else { return }
         signalReauthNeededAndStop()
     }
 
@@ -207,36 +330,82 @@ extension TwitchChatService {
 
     // MARK: - Keepalive Watchdog
 
-    /// Arms (or re-arms) the keepalive watchdog for `deadlineSeconds`. Cancels any
-    /// existing watchdog first so there is never more than one pending. On expiry
-    /// it reuses the proven transport-error teardown: `disconnectFromEventSub()`
-    /// then `scheduleReconnect()`.
+    /// Arms one watchdog for the EventSub session. Subsequent inbound frames move
+    /// the monotonic activity timestamp; they do not cancel/recreate the task.
     func armKeepaliveWatchdog(deadlineSeconds: TimeInterval) {
-        keepaliveDeadlineSeconds = deadlineSeconds
-        keepaliveWatchdogTask?.cancel()
-        keepaliveWatchdogTask = Task { [weak self] in
-            try? await Task.sleep(for: .seconds(deadlineSeconds))
-            if Task.isCancelled { return }
-            await self?.handleKeepaliveExpiry()
+        keepaliveDeadlineSeconds = max(1, deadlineSeconds)
+        let clock = ContinuousClock()
+        lastKeepaliveActivity = clock.now
+
+        guard keepaliveWatchdogTask == nil else { return }
+        keepaliveGeneration &+= 1
+        let generation = keepaliveGeneration
+        keepaliveWatchdogTaskStarts += 1
+        keepaliveWatchdogTask = Task.detached { [weak self] in
+            while !Task.isCancelled {
+                guard let snapshot = await self?.keepaliveSleepSnapshot(generation: generation) else {
+                    return
+                }
+                do {
+                    try await clock.sleep(
+                        until: snapshot.deadline,
+                        tolerance: .seconds(snapshot.tolerance))
+                } catch {
+                    return
+                }
+                if Task.isCancelled { return }
+
+                // Validate the session generation and expiry in one actor hop.
+                // Cancellation alone is cooperative: a superseded task may have
+                // passed its local check just before a new socket was armed.
+                guard let shouldStop = await self?.handleKeepaliveExpiry(
+                    generation: generation,
+                    at: clock.now
+                ) else { return }
+                if shouldStop { return }
+            }
         }
     }
 
-    /// Resets the keepalive watchdog to a full deadline. Called on every inbound
-    /// frame. No-op until the watchdog has been armed by `session_welcome`.
+    /// Records proof of life in O(1). No-op until `session_welcome` arms the
+    /// watchdog.
     func resetKeepaliveWatchdog() {
         guard keepaliveWatchdogTask != nil else { return }
-        armKeepaliveWatchdog(deadlineSeconds: keepaliveDeadlineSeconds)
+        lastKeepaliveActivity = ContinuousClock().now
+    }
+
+    private func keepaliveSleepSnapshot(generation: UInt64) -> (
+        deadline: ContinuousClock.Instant,
+        tolerance: TimeInterval
+    )? {
+        guard generation == keepaliveGeneration,
+              let lastKeepaliveActivity else { return nil }
+        return (
+            lastKeepaliveActivity.advanced(by: .seconds(keepaliveDeadlineSeconds)),
+            min(1, keepaliveDeadlineSeconds * 0.1)
+        )
     }
 
     /// Cancels the keepalive watchdog.
-    private func cancelKeepaliveWatchdog() {
+    func cancelKeepaliveWatchdog() {
+        keepaliveGeneration &+= 1
         keepaliveWatchdogTask?.cancel()
         keepaliveWatchdogTask = nil
+        lastKeepaliveActivity = nil
     }
 
     /// Called when no frame arrived before the keepalive deadline. Treated like a
     /// transport error: tear down and reconnect fresh (which re-subscribes).
-    private func handleKeepaliveExpiry() async {
+    /// Returns `true` when the calling watchdog must terminate. A stale
+    /// generation terminates without touching the current socket.
+    func handleKeepaliveExpiry(
+        generation: UInt64,
+        at now: ContinuousClock.Instant
+    ) -> Bool {
+        guard generation == keepaliveGeneration else { return true }
+        guard let snapshot = keepaliveSleepSnapshot(generation: generation) else { return true }
+        guard now >= snapshot.deadline else { return false }
+
         Log.warn(
             "TwitchChatService: Keepalive watchdog fired (no frame within \(Int(keepaliveDeadlineSeconds))s); reconnecting",
             category: "Twitch")
@@ -251,6 +420,7 @@ extension TwitchChatService {
            isNetworkReachable {
             scheduleReconnect()
         }
+        return true
     }
 
     /// Called when session_welcome timeout expires.
@@ -295,8 +465,7 @@ extension TwitchChatService {
         sessionWelcomeTask = nil
         receiveTask?.cancel()
         receiveTask = nil
-        keepaliveWatchdogTask?.cancel()
-        keepaliveWatchdogTask = nil
+        cancelKeepaliveWatchdog()
         isMigratingSession = false
 
         Log.debug("TwitchChatService: EventSub WebSocket disconnected", category: "Twitch")

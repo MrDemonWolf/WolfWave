@@ -91,11 +91,7 @@ final class AppleMusicSource: PlaybackSource, @unchecked Sendable {
     /// Whether Music.app is genuinely running. Filters out instances that have
     /// already terminated, so the quit window (still listed, not yet gone)
     /// reads as not-running. Reading this never launches Music.app.
-    nonisolated private var musicIsRunning: Bool {
-        NSRunningApplication
-            .runningApplications(withBundleIdentifier: Constants.musicBundleIdentifier)
-            .contains { !$0.isTerminated }
-    }
+    nonisolated private var musicIsRunning: Bool { MusicProcess.isRunning }
 
     // MARK: - Protocol Conformance
 
@@ -220,12 +216,30 @@ final class AppleMusicSource: PlaybackSource, @unchecked Sendable {
         }
 
         let result: (status: String, diagnostic: String?) = await MainActor.run {
-            // Re-check on the main actor immediately before the first Apple
-            // event. Music may have finished quitting between the guard above
-            // and this hop; sending now would relaunch it.
-            guard self.musicIsRunning else { return (Constants.Status.notRunning, nil) }
-            guard let musicApp = SBApplication(bundleIdentifier: Constants.musicBundleIdentifier) else {
+            // Address Music by pid, never by bundle id. A bundle-id-addressed
+            // Apple event is auto-launched by LaunchServices, so the previous
+            // `SBApplication(bundleIdentifier:)` relaunched Music whenever the
+            // user quit it in the window between the running-check and the send.
+            // Resolving the pid and targeting that exact process makes the
+            // relaunch structurally impossible: a dead pid fails the send instead
+            // of starting the app. See `MusicProcess` for the full rationale.
+            guard let pid = MusicProcess.pid else {
+                return (Constants.Status.notRunning, nil)
+            }
+            guard let musicApp = SBApplication(processIdentifier: pid) else {
                 return (Constants.Status.scriptBridgeNil, nil)
+            }
+            // `SBApplication(processIdentifier:)` does NOT return nil for a pid it
+            // can't resolve, despite what its header says: it hands back a plain
+            // `SBApplication` that is not KVC-compliant, and `value(forKey:)` on it
+            // raises `NSUnknownKeyException` — an ObjC exception Swift cannot catch,
+            // so the app would crash. That happens when the pid dies between the
+            // lookup above and this construction. A resolved target reports
+            // `isRunning == true` and responds to the accessor; an unresolved one
+            // fails both. Verified on macOS 26 with a bogus pid.
+            guard musicApp.isRunning,
+                  musicApp.responds(to: NSSelectorFromString("playerState")) else {
+                return (Constants.Status.notRunning, nil)
             }
             guard let stateObj = musicApp.value(forKey: "playerState") else {
                 // Music is running (checked above) but ScriptingBridge can't
@@ -393,7 +407,7 @@ final class AppleMusicSource: PlaybackSource, @unchecked Sendable {
             logGuardOnce(key: "access-denied", message: "AppleMusicSource: Music.app running but ScriptingBridge read returned nil: Automation permission likely denied")
             notifyDelegate(status: Constants.DelegateStatus.accessDenied)
         } else if trackInfo == Constants.Status.scriptBridgeNil {
-            logGuardOnce(key: "sb-nil", message: "AppleMusicSource: SBApplication(bundleIdentifier:) returned nil")
+            logGuardOnce(key: "sb-nil", message: "AppleMusicSource: SBApplication(processIdentifier:) returned nil")
             notifyDelegate(status: Constants.DelegateStatus.noTrackInfo)
         } else if trackInfo == Constants.Status.notPlaying {
             handleNotPlayingState()

@@ -65,8 +65,10 @@ GITHUB_REPO_NAME = wolfwave
 // ----------------------------------------------------------------------------
 // Overrides for forks / whitelabels. Defaults match the upstream MrDemonWolf
 // build. Each value falls back to the upstream default if left blank.
-// To rename the app itself, edit CFBundleDisplayName in Info.plist (or set
-// PRODUCT_NAME in an xcconfig overlay, see Config.Debug.xcconfig).
+// To rename the app itself, set PRODUCT_NAME and
+// INFOPLIST_KEY_CFBundleDisplayName in the relevant Xcode build configuration.
+// Keep Debug and Release product names distinct so the dev app cannot be
+// mistaken for or launched in place of the production app.
 //
 // URL GOTCHA: xcconfig treats a bare "//" as a comment and silently truncates
 // the value to "https:". The "$()" expands to nothing and breaks up the "//"

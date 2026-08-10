@@ -56,7 +56,7 @@ Every command that runs (or is rejected) gets a reply on the same connection:
 | `approve_next` | Approve the first pending request | `empty` |
 | `clear_queue` | Clear the request queue | — |
 | `block_current` | Add current song title to the blocklist | `empty` |
-| `overlay_toggle` | Toggle the overlay/WebSocket server | — |
+| `overlay_toggle` | Hide/show playback cards while keeping the control connection alive | — |
 | `discord_toggle` | Toggle Discord Rich Presence | — |
 | `music_sync_toggle` | Toggle music tracking | — |
 | `cycle_theme` | Advance the widget theme, wrapping | — |

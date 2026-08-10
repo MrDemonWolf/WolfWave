@@ -988,7 +988,10 @@ fileprivate struct SongRequestPlaybackCard: View {
                 subtitle: "Automatically play the next request when a song ends",
                 isOn: $autoAdvance,
                 accessibilityLabel: "Auto-advance queue",
-                accessibilityIdentifier: "songRequests.autoAdvance"
+                accessibilityIdentifier: "songRequests.autoAdvance",
+                onChange: { _ in
+                    AppDelegate.shared?.songRequestService?.reconcilePlaybackMonitoring()
+                }
             )
 
             ToggleSettingRow(
