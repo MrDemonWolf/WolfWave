@@ -69,30 +69,61 @@ function hydrate() {
   fields.token.value = settings.token ?? "";
   fields.host.value = settings.host ?? "";
   fields.port.value = settings.port ?? "";
-  validate();
+  refreshStatus();
 }
 
 /**
- * Validates the token locally.
+ * Strictly parses a port.
  *
- * Worth doing here because a bad token and a closed WolfWave produce the same
- * silent handshake rejection on the wire — without this check, a typo looks
- * exactly like "the app isn't running".
+ * `Number.parseInt` is too lenient for a field that has to agree with
+ * `readPort` in `src/plugin.ts`: it turns `123abc` into 123, `1.5` into 1, and
+ * `1e3` into 1. Any of those would be persisted as a number the streamer never
+ * typed. Digits only, or it isn't a port.
+ *
+ * Returns `null` for blank (meaning "use the default") and `undefined` for
+ * invalid, so callers can tell the two apart.
  */
-function validate() {
+function parsePort(raw) {
+  if (!raw) return null;
+  if (!/^\d+$/.test(raw)) return undefined;
+  const port = Number(raw);
+  return port > 0 && port <= 65535 ? port : undefined;
+}
+
+/**
+ * Validates both fields and paints the single status line.
+ *
+ * Deliberately one function rather than one per field: there is only one status
+ * element, so independent validators would overwrite each other's message and
+ * leave a corrected field still showing its old error. Errors are reported
+ * token-first because an unusable token blocks the connection outright, while a
+ * bad port only falls back to the default.
+ *
+ * Local validation earns its keep because a bad token and a closed WolfWave
+ * produce the same silent handshake rejection on the wire — without it, a typo
+ * looks exactly like "the app isn't running".
+ */
+function refreshStatus() {
   const token = fields.token.value.trim();
-  if (!token) {
-    fields.token.removeAttribute("aria-invalid");
+  const tokenValid = TOKEN_PATTERN.test(token);
+  if (!token) fields.token.removeAttribute("aria-invalid");
+  else fields.token.setAttribute("aria-invalid", String(!tokenValid));
+
+  const port = parsePort(fields.port.value.trim());
+  const portValid = port !== undefined;
+  fields.port.setAttribute("aria-invalid", String(!portValid));
+
+  if (token && !tokenValid) {
+    setStatus("That token isn't 64 hex characters.", false);
+  } else if (!portValid) {
+    setStatus("Port must be a whole number between 1 and 65535.", false);
+  } else if (!token) {
     setStatus("Paste your access token to connect.", null);
-    return false;
+  } else {
+    setStatus("Token looks right.", true);
   }
-  const valid = TOKEN_PATTERN.test(token);
-  fields.token.setAttribute("aria-invalid", String(!valid));
-  setStatus(
-    valid ? "Token looks right." : "That token isn't 64 hex characters.",
-    valid,
-  );
-  return valid;
+
+  return { tokenValid, port };
 }
 
 function setStatus(text, ok) {
@@ -102,35 +133,22 @@ function setStatus(text, ok) {
 }
 
 /**
- * Validates the port against the same range `readPort` in `src/plugin.ts`
- * enforces.
+ * Persists the current field values.
  *
- * Keeping the two in step matters: the plugin silently substitutes the default
- * for anything out of range, so a laxer check here would leave the panel showing
- * `70000` while the socket is actually talking to 8765 — the displayed config
- * would contradict the live one with nothing to explain the difference.
+ * Sends unconditionally, including when the token is blank or malformed. Both
+ * cases have to reach the plugin: a blank token is how it knows to disconnect,
+ * and a malformed one is what puts the keys into their "Token?" state. Gating
+ * the send on validity would strand the plugin on the last good token while the
+ * panel showed something else.
  */
-function validatePort() {
-  const raw = fields.port.value.trim();
-  if (!raw) {
-    fields.port.removeAttribute("aria-invalid");
-    return true;
-  }
-  const port = Number.parseInt(raw, 10);
-  const valid = Number.isInteger(port) && port > 0 && port <= 65535;
-  fields.port.setAttribute("aria-invalid", String(!valid));
-  if (!valid) setStatus("Port must be between 1 and 65535.", false);
-  return valid;
-}
-
 function save() {
-  validate();
-  const portValid = validatePort();
-  const port = Number.parseInt(fields.port.value, 10);
+  const { port } = refreshStatus();
   settings = {
     token: fields.token.value.trim(),
     host: fields.host.value.trim() || DEFAULT_HOST,
-    port: portValid && Number.isInteger(port) ? port : DEFAULT_PORT,
+    // null (blank) and undefined (invalid) both fall back to the default, which
+    // is what plugin.ts's readPort does with the same values.
+    port: port ?? DEFAULT_PORT,
   };
   send({ event: "setGlobalSettings", context: uuid, payload: settings });
 }
@@ -138,6 +156,5 @@ function save() {
 for (const field of Object.values(fields)) {
   field.addEventListener("change", save);
   field.addEventListener("blur", save);
+  field.addEventListener("input", refreshStatus);
 }
-fields.token.addEventListener("input", validate);
-fields.port.addEventListener("input", validatePort);
