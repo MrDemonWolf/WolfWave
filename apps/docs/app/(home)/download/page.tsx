@@ -214,7 +214,7 @@ export default function DownloadPage() {
               Installation guide
               <ArrowRight className="w-3.5 h-3.5" />
             </Link>
-            <Link href="/docs/usage" className="ww-btn ww-btn-ghost">
+            <Link href="/docs/features" className="ww-btn ww-btn-ghost">
               Usage guide
               <ArrowRight className="w-3.5 h-3.5" />
             </Link>

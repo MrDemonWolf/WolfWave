@@ -1,51 +1,93 @@
 ---
-title: Contribute
-description: Set up Xcode 16, run the test suite, regenerate design tokens, and ship a PR to WolfWave. The open-source Apple Music streamer app.
+title: Development
+description: Build WolfWave from source and contribute. Xcode 16, macOS 26, Config.xcconfig setup, make targets, the test suite, notarization, and the release pipeline.
 keywords:
+  - build wolfwave from source
   - contribute to wolfwave
   - wolfwave development
   - swift open source mac app
   - swiftui menu bar contribute
   - macos test suite xctest
-ogTitle: Contribute to WolfWave. Swift, SwiftUI, Xcode
-ogDescription: Xcode 16, full XCTest + Swift Testing suite, design-token codegen. Ship a PR to the open-source Apple Music streamer app.
+ogTitle: Build & Contribute to WolfWave
+ogDescription: Clone, configure Twitch + Discord IDs, build in Xcode, run the test suite, and ship a PR to the open-source Apple Music streamer app.
 ogChips:
   - Swift
   - SwiftUI
   - Xcode 16
   - XCTest
-ogEyebrow: Contribute
+ogEyebrow: Developers
 ---
 
-This guide covers everything you need to contribute to WolfWave.
+Everything you need to build WolfWave from source and contribute. Just want to
+use the app? See [Installation](/docs/installation).
 
 ## Prerequisites
 
-- macOS 26.0+ (Tahoe)
-- Apple Silicon (M1 or later)
-- Xcode 16.0+
-- Swift 5.9+
-- Command Line Tools: `xcode-select --install`
+- **macOS 26.0+** (Tahoe)
+- **Apple Silicon** (M1 or later)
+- **Xcode 16.0+**
+- **Command Line Tools.** Run `xcode-select --install` if you haven't.
 
-## Setup
+## Clone the repo
 
-1. Fork and clone the repository
-2. Copy `apps/native/WolfWave/Config.xcconfig.example` to `apps/native/WolfWave/Config.xcconfig`
-3. Set your Twitch Client ID and Discord Client ID in `Config.xcconfig`
-4. Open the project: `make open-xcode`
-5. Resolve dependencies: `make update-deps`
+```bash
+git clone https://github.com/MrDemonWolf/wolfwave.git
+cd wolfwave
+```
+
+## Configure API keys
+
+Copy the example config and set your keys:
+
+```bash
+cp apps/native/WolfWave/Config.xcconfig.example apps/native/WolfWave/Config.xcconfig
+```
+
+```
+TWITCH_CLIENT_ID = your_twitch_client_id_here
+DISCORD_CLIENT_ID = your_discord_client_id_here
+
+# Optional. Fork/whitelabel branding overrides. Leave as-is for the upstream defaults.
+DOCS_URL = https://mrdemonwolf.github.io/wolfwave
+COMMUNITY_DISCORD_URL = https://mrdwolf.net/discord
+COPYRIGHT_HOLDER = MrDemonWolf, Inc.
+```
+
+<Callout type="info">
+  Get a Twitch Client ID at
+  [dev.twitch.tv/console/apps](https://dev.twitch.tv/console/apps). Get a Discord
+  Application ID at
+  [discord.com/developers/applications](https://discord.com/developers/applications).
+</Callout>
+
+<Callout type="warn">
+  `Config.xcconfig` is gitignored. Each contributor uses their own.
+</Callout>
 
 ### Branding overrides
 
-`DOCS_URL`, `COMMUNITY_DISCORD_URL`, and `COPYRIGHT_HOLDER` control the docs link, community Discord invite, and legal entity shown in About + Monthly Wrap. You can change them at three levels, in priority order:
+`DOCS_URL`, `COMMUNITY_DISCORD_URL`, and `COPYRIGHT_HOLDER` control the docs
+link, community Discord invite, and legal entity shown in About + Monthly Wrap.
+Three levels, in priority order:
 
-1. **Per-machine / fork**: set them in `Config.xcconfig`. Highest priority. Gitignored, so this only affects your local builds.
-2. **Project-wide default**: edit the fallback strings in `Core/AppConstants.swift` (`AppInfo.copyrightHolder`, `URLs.docs`, `URLs.communityDiscord`). This is the **source of truth** shipped to every user. Change it here if you want to move the upstream default.
-3. **CI**: `.github/workflows/build_release.yml` and `test.yml` write these keys into the generated `Config.xcconfig` so the built `Info.plist` carries literal values instead of empty placeholders. Keep them in sync with the `AppConstants` defaults if you change the upstream values.
+1. **Per-machine / fork**: set them in `Config.xcconfig`. Gitignored, affects
+   only your local builds.
+2. **Project-wide default**: the fallback strings in `Core/AppConstants.swift`.
+   This is the source of truth shipped to every user.
+3. **CI**: the release and test workflows write these keys into the generated
+   `Config.xcconfig` so built apps carry literal values.
 
-Each key falls back to the `AppConstants` default when blank or unset, so leaving them out never breaks a build. To rename the app itself, edit `CFBundleDisplayName` in `Info.plist` (or set `PRODUCT_NAME` in an xcconfig overlay).
+Each key falls back to the `AppConstants` default when blank, so leaving them
+out never breaks a build. To rename the app itself, edit `CFBundleDisplayName`
+in `Info.plist` (or set `PRODUCT_NAME` in an xcconfig overlay).
 
-## Development Commands
+## Build and run
+
+```bash
+make open-xcode
+```
+
+Hit **⌘R** in Xcode. That's it.
 
 | Command                | Description                                |
 | ---------------------- | ------------------------------------------ |
@@ -60,215 +102,80 @@ Each key falls back to the `AppConstants` default when blank or unset, so leavin
 | `make notarize`        | Notarize the DMG (requires Developer ID)   |
 | `make verify-notarize` | Verify notarization of DMG                 |
 
-## Code Quality
-
-This project follows Swift best practices with professional-grade documentation:
-
-- **Swift 5.9+** with modern concurrency (async/await)
-- **SwiftUI** for user interfaces
-- **`@Observable` macro** for ViewModels (migrated from `ObservableObject` / `@Published`)
-- **Comprehensive Documentation**: DocC-style comments throughout with usage examples
-- **MARK Sections**: All files organized with clear section markers for easy navigation
-- **Separation of Concerns**: Clean architecture across Core / Services / Views / Monitors
-- **Secure Credential Storage**: macOS Keychain for all sensitive data
-- **ScriptingBridge Integration**: Direct Apple Music communication without spawning subprocesses
-- **Typed Error Handling**: Typed errors with localized descriptions
-- **Type Safety**: Strongly typed models for all data structures
-- **Minimal Dependencies**: Native Apple frameworks plus Sparkle for auto-updates
-
-## Playback Source
-
-Playback is abstracted behind the `PlaybackSource` protocol so additional sources can plug in later.
-
-- **`AppleMusicSource`**. ScriptingBridge + distributed notifications, with a 2-second fallback poll.
-- **`PlaybackSourceManager`**. Selects + multiplexes sources, exposes `PlaybackSourceDelegate` for track updates.
-
-## Twitch Chat Service
-
-The bot is implemented with `TwitchChatService` using Twitch Helix + EventSub (no IRC).
-
-### Features
-
-- **EventSub WebSocket**: Real-time chat message notifications.
-- **OAuth Device Code Flow**: Secure authentication via `TwitchDeviceAuth`.
-- **Token Validation**: Automatic token validation on app launch.
-- **Network Path Monitoring**: Reconnects on its own when the network comes back.
-- **Command System**: Extensible bot command architecture via `BotCommandDispatcher`.
-
-### Usage
-
-- Connect with saved credentials: `joinChannel(broadcasterID:botID:token:clientID:)` or `connectToChannel(channelName:token:clientID:)`
-- Send chat messages via Helix: `sendMessage(_:)` or `sendMessage(_:replyTo:)`
-- Supply current track info for commands: set `getCurrentSongInfo` on the service
-- The service respects `commandsEnabled` so you can disable all commands from Settings
-
-## Bot Commands
-
-`BotCommandDispatcher` routes incoming chat messages to registered commands. Concrete commands live in `Services/Twitch/Commands/`:
-
-- `TrackInfoCommand`. Handles `!song` / `!currentsong` / `!nowplaying`, `!last` / `!lastsong` / `!prevsong`, **and** `!stats` / `!musicstats` via three configured instances.
-- `InfoCommand`, `!wolfwave`. Static "what is WolfWave" reply styled by `WolfWaveReplyStyle`.
-- `SongRequestCommand` , `!songrequest` / `!sr`.
-- `QueueCommand` / `MyQueueCommand`. Read-only queue inspection.
-- `SongListCommand`, `!playlist`. Links the song-request playlist.
-- `SkipCommand` / `HoldCommand` / `ClearQueueCommand`. Mod-only controls.
-- `VoteSkipCommand`, `!voteskip` / `!vs`. Chat vote-to-skip.
-- `CooldownManager` enforces global + per-user cooldowns; mods skip them.
-
-## Song Request Service
-
-`SongRequestService` orchestrates request flow end-to-end.
-
-- **`SongRequestQueue`**. Queue with hold mode + Music.app-closed buffering.
-- **`SongSearchResolver`** / **`LinkResolverService`**. Resolve queries via MusicKit and Apple Music URLs.
-- **`AppleMusicController`**. Plays tracks via AppleScript while preserving window focus.
-- **`SongBlocklist`**. Block tracks, artists, or albums by ID.
-
-## Discord Rich Presence Service
-
-`DiscordRPCService` communicates with Discord via the local IPC Unix domain socket.
-
-### Features
-
-- **IPC Socket Client**: Connects to Discord's local Unix domain socket (`discord-ipc-{0..9}`).
-- **Dynamic Artwork**: Fetches album art from the iTunes Search API with caching.
-- **Auto-reconnect**: Automatic reconnection with backoff when Discord restarts.
-- **Sandbox Compatible**: Works within the macOS App Sandbox via SBPL entitlements.
-- **Thread-safe**: Serial `ipcQueue` confinement plus `enabledLock`.
-
-### Usage
-
-- Start the service: `connect()`. Discovers and connects to Discord's IPC socket.
-- Update presence: `updatePresence(track:artist:album:duration:elapsed:isPaused:)`. Sets the listening activity. Pass `isPaused: true` when Music.app reports `kPSp` so the live ticker is suppressed and the pause badge swaps in.
-- Clear presence: `clearPresence()`. Removes the activity from the user's profile.
-
-### Paused-state handling
-
-Discord has no native "paused" activity flag. WolfWave works around it with two changes inside `buildActivity` when `isPaused == true`:
-
-1. The `timestamps` block is omitted. Without `start`/`end` the Discord client stops the progress ticker instead of marching past the real elapsed value.
-2. `assets.small_image` is swapped from `apple_music` to `pause` and `assets.small_text` becomes `"Paused"`.
-
-The track text, large image, and buttons stay unchanged so chat can still read what's loaded.
-
-### Rich Presence art assets (required upload)
-
-`small_image` / `large_image` reference asset names registered against your Discord application. The PNGs live in [`discord-assets/`](https://github.com/MrDemonWolf-Inc/wolfwave/tree/main/discord-assets) and are **not** bundled with the app. You upload them once via the Discord developer portal.
-
-| Asset name | Used when |
-|---|---|
-| `apple_music` | Default `large_image` fallback + `small_image` "source" badge while playing |
-| `pause` | `small_image` badge that replaces `apple_music` while paused |
-
-**Fork maintainers**: if you ship WolfWave with your own `DISCORD_CLIENT_ID`, you must upload both assets to your Discord application's **Rich Presence → Art Assets** page before Rich Presence will render correctly. See [`discord-assets/README.md`](https://github.com/MrDemonWolf-Inc/wolfwave/blob/main/discord-assets/README.md) for the upload steps and asset specs.
-
-## WebSocket Server Service
-
-`WebSocketServerService` runs a local WebSocket server using Network.framework to broadcast now-playing data to stream overlay clients.
-
-### Features
-
-- **Network.framework `NWListener`**: Native WebSocket server with auto-ping support.
-- **Multi-client Support**: Multiple browser sources or tools can connect simultaneously.
-- **Progress Broadcasting**: 1-second interval timer broadcasts elapsed time during playback.
-- **Auto-retry**: Reconnects the listener after failures with configurable delay.
-- **LAN-reachable**: Binds to all interfaces on port `8765`. Every WebSocket connection (loopback or LAN) must present `Sec-WebSocket-Protocol: wolfwave.token.<hex>` or it is rejected. A verified loopback TCP peer plus literal local `Host` gets a `no-store` HTML response with the token; a LAN URL carries `?token=<hex>` only as bootstrap for the WebSocket subprotocol.
-
-### Usage
-
-- Enable/disable: `setEnabled(_:)`. Starts or stops the `NWListener`.
-- Update port: `updatePort(_:)`. Restarts the server on a new port if running (default `8765`).
-- Track change: `updateNowPlaying(track:artist:album:duration:elapsed:artworkURL:)`. Broadcasts `now_playing` JSON.
-- Clear: `clearNowPlaying()`. Broadcasts `playback_state` with `isPlaying: false`.
-
-## Widget HTTP Service
-
-`WidgetHTTPService` is a tiny companion HTTP server that serves the bundled `widget.html` to OBS.
-
-- **LAN-reachable**: Binds to all interfaces on port `8766`. The static HTTP shell is not authenticated; WebSocket authentication happens on port `8765`.
-- **Credential bootstrap**: Only verified loopback + literal-local Host responses inject the token, with `Cache-Control: no-store`. LAN URLs use `?token=<hex>`, which the browser script forwards as the WebSocket subprotocol.
-- **`GET /`** → `200 OK` with `widget.html` bytes from the app bundle.
-- **Generated assets**: `/widget-tokens.generated.js`, `/favicon.ico`, and `/favicon.png` are also served.
-- **All other paths** → `404 Not Found`.
-- **Lifecycle**: Owned by `WebSocketServerService`; starts/stops with the WS server.
-
-## Building the OBS Widget
-
-The bundled `widget.html` is **not hand-written**. It's generated from the
-`apps/widget/` Tailwind + TypeScript workspace. Source files:
-
-- `apps/widget/src/widget.html`. HTML shell with placeholders
-- `apps/widget/src/widget.css`. Tailwind directives + custom transition classes
-- `apps/widget/src/widget.ts`. Runtime (state, transitions, WS, render)
-- `apps/widget/build.ts`. Bundles JS, runs Tailwind, inlines everything
-
-The build emits a single self-contained file at
-`apps/native/WolfWave/Resources/widget.html` (committed to the repo so
-Xcode-only builds keep working).
-
-### When to rebuild
-
-Whenever you touch any of these:
-
-- Anything under `apps/widget/src/**`
-- `design-system/tokens.json` or `design-system/scripts/generate.ts`
-- `apps/widget/tailwind.config.ts`, `postcss.config.js`, or `build.ts`
-
-### How rebuilds happen
-
-| Trigger | Mechanism |
-|---------|-----------|
-| `Cmd+B` in Xcode | Bundles the committed `widget.html`; Xcode does not invoke Bun |
-| CI (test + release) | Sets up Bun and rebuilds before `xcodebuild`; test CI checks artifact drift |
-| Widget-only | Run `make widget` or `bun run --filter widget build` from the repo root |
-| Ordered root build | Run `bun run build`; Turborepo runs token generation before the widget |
-
-Run `bun run tokens` before a widget-only build when token definitions or the
-generator changed. Committing the generated HTML keeps
-native-only Xcode builds independent of the JavaScript toolchain.
-
-For the full architecture, message contract, theme system, and transition
-state machine, see the [OBS Widget Architecture](/docs/widget) page.
-
-## Sparkle Updater Service
-
-`SparkleUpdaterService` wraps the Sparkle framework for auto-updates.
-
-- **EdDSA-signed appcast**: Every update is verified against the public key in `Info.plist`.
-- **DEBUG builds**: Automatic checks disabled; manual "Check Now" reads the bundled `dev-appcast.xml`.
-- **Release builds**: Polls the remote `SUFeedURL`.
-- **Homebrew installs**: Fully disabled. Updates handled by Homebrew.
-
 ## Testing
 
-WolfWave includes a comprehensive unit test suite using XCTest + Swift Testing. Run all tests with:
+Run the suite with `make test` or **Cmd+U** in Xcode. The test target
+(`WolfWaveTests`) is a hosted unit test bundle that runs inside the app process.
+
+Tests live in
+[`apps/native/WolfWaveTests/`](https://github.com/MrDemonWolf/wolfwave/tree/main/apps/native/WolfWaveTests)
+and cover the playback parser, command dispatcher, Twitch + Discord services,
+WebSocket auth handshake, Keychain wrapper, onboarding state machine, listening
+history pipeline, and the Sparkle updater. For the live pass count, run
+`make test` locally — enumerating numbers here just rots on every PR.
+
+Test files are auto-discovered: drop a `.swift` file into
+`apps/native/WolfWaveTests/` and use `@testable import WolfWave`. No Xcode
+project edit needed.
+
+## Building the OBS widget
+
+The bundled `widget.html` is a generated artifact from the `apps/widget/`
+workspace, committed so Xcode-only builds keep working. If you touch widget
+source or design tokens, rebuild with `make widget` and commit the output. The
+full pipeline, rebuild triggers, and dev loop live in the
+[widget guide](/docs/widget#dev-loop).
+
+## Rich Presence art assets (fork maintainers)
+
+Discord Rich Presence references two asset names registered against the Discord
+application: `apple_music` (large image fallback + playing badge) and `pause`
+(the paused badge). The PNGs live in
+[`discord-assets/`](https://github.com/MrDemonWolf/wolfwave/tree/main/discord-assets)
+and are **not** bundled with the app. If you ship a fork with your own
+`DISCORD_CLIENT_ID`, upload both to your Discord application's
+**Rich Presence → Art Assets** page or presence won't render. See
+[`discord-assets/README.md`](https://github.com/MrDemonWolf/wolfwave/blob/main/discord-assets/README.md).
+
+## Production build
 
 ```bash
-make test
+make prod-build
 ```
 
-Or press **Cmd+U** in Xcode. The test target (`WolfWaveTests`) is a hosted unit test bundle that runs inside the app process.
+The DMG lands at `builds/WolfWave-{version}.dmg`. With a Developer ID
+Application certificate in your Keychain, the app is re-signed for distribution
+as part of the build. `make prod-install` builds and drops straight into
+`/Applications`.
 
-### Test Coverage
+### Notarization
 
-Tests live in [`apps/native/WolfWaveTests/`](https://github.com/MrDemonWolf/WolfWave/tree/main/apps/native/WolfWaveTests) and cover the playback parser, command dispatcher, Twitch + Discord services, WebSocket auth handshake, Keychain wrapper, onboarding state machine, listening history pipeline, and the full Sparkle updater.
+```bash
+APPLE_ID=you@example.com \
+APPLE_TEAM_ID=YOUR_TEAM_ID \
+APPLE_APP_PASSWORD=xxxx-xxxx-xxxx-xxxx \
+make notarize
+```
 
-For the live pass count and per-file coverage, run `make test` locally or browse the directory on GitHub. Enumerating files here just rots on every PR.
-
-### Adding New Tests
-
-Test files are auto-discovered via `PBXFileSystemSynchronizedRootGroup`. Just add `.swift` files to `apps/native/WolfWaveTests/`. Use `@testable import WolfWave` to access internal types.
+<Callout type="info">
+  Generate an app-specific password at
+  [appleid.apple.com](https://appleid.apple.com/account/manage) under **Sign-In and
+  Security → App-Specific Passwords**.
+</Callout>
 
 ## CI/CD
 
-The project includes these GitHub Actions workflows:
+- **Test** (`test.yml`): `xcodebuild test` on every push and PR to `main`.
+- **Build & Release** (`build_release.yml`): on a `v*` tag push, builds, signs,
+  notarizes, embeds release notes in the Sparkle appcast, and uploads the DMG to
+  a **draft** GitHub Release for review.
+- **Update Homebrew** (`update_homebrew.yml`): bumps the Homebrew cask after a
+  Release is published.
+- **Docs** (`docs.yml`): deploys this site to GitHub Pages.
+- **Nightly** (`nightly.yml`): daily signed build off `main` feeding the
+  opt-in [Nightly channel](/docs/nightly).
 
-- **Test** (`.github/workflows/test.yml`): Runs `xcodebuild test` on every push and pull request to `main`. Creates a placeholder `Config.xcconfig` for builds.
-- **Build & Release** (`.github/workflows/build_release.yml`): On tag push (`v*`), builds a signed and notarized DMG in CI, then creates a **draft** GitHub Release with the DMG attached. The developer reviews the draft and publishes it.
-- **Update Homebrew** (`.github/workflows/update_homebrew.yml`): After a published Release, auto-bumps the Homebrew cask.
-- **Docs** (`.github/workflows/docs.yml`): Deploys the Fumadocs site to GitHub Pages.
-
-### Required GitHub Secrets
+### Required GitHub secrets
 
 | Secret                       | Description                             |
 | ---------------------------- | --------------------------------------- |
@@ -281,23 +188,25 @@ The project includes these GitHub Actions workflows:
 | `APPLE_APP_PASSWORD`         | App-specific password for notarization  |
 | `SPARKLE_PRIVATE_KEY`        | EdDSA private key for appcast signing   |
 
-Code signing, notarization, and DMG creation all happen in the release workflow. `GITHUB_TOKEN` is provided by GitHub Actions.
+### Triggering a release
 
-### Triggering a Release
+Push a version tag matching the app's `MARKETING_VERSION`:
 
 ```bash
-git tag v2.0.0
-git push origin v2.0.0
+git tag vX.Y.Z
+git push origin vX.Y.Z
 ```
 
-This triggers the release workflow, which builds, signs, notarizes, and uploads the DMG to a draft GitHub Release. Once the workflow completes, review the draft and publish it.
+The workflow builds, signs, notarizes, and uploads to a draft Release.
+Rerunning it updates the draft's assets; it refuses to replace an
+already-published release. Review the draft, publish, and the Homebrew cask
+updates on its own. The full checklist lives in the repo's
+[Release Checklist](https://github.com/MrDemonWolf/wolfwave/blob/main/CLAUDE.md#release-checklist).
 
-For a complete step-by-step release checklist, see the [Release Checklist](https://github.com/MrDemonWolf/WolfWave/blob/main/CLAUDE.md#release-checklist) in the repository root.
+## Next steps
 
----
-
-## Support development
-
-WolfWave is built and maintained by one person. If the project saves you time or earns you viewers, please consider sponsoring. It directly funds development.
-
-[**Sponsor on GitHub →**](https://github.com/sponsors/nathanialhenniges)
+<Cards>
+  <Card title="Architecture" href="/docs/architecture" description="How the app is put together, service by service." />
+  <Card title="OBS Widget" href="/docs/widget" description="Widget build pipeline and message contract." />
+  <Card title="Stream Deck Control API" href="/docs/stream-deck" description="Drive WolfWave over the overlay socket." />
+</Cards>

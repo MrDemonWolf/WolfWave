@@ -62,6 +62,7 @@ The next release. These ship on the [Nightly channel](/docs/nightly) off `main` 
 
 ### Developer
 
+- Docs restructure: merged the Features/Usage and Getting Started/Development pages, added [Settings](/docs/settings) and [Stream Deck Control API](/docs/stream-deck) pages, trimmed the comparison page, and refreshed the legal pages.
 - Debug builds can treat every chatter, or selected Twitch logins, as normal viewers for permission and cooldown testing. Release builds omit the simulator.
 - **Stream Deck control API.** Groundwork for the upcoming Stream Deck plugin. The overlay WebSocket is now bidirectional: it parses a protocol-versioned inbound `command` envelope, routes 11 actions to existing services, and replies with an `ack`; new `queue_state` / `health` broadcasts drive counter/health keys. Still gated by the per-install `wolfwave.token.<hex>` handshake. The plugin itself ships separately.
 - **Crash/lockup/data-race review pass.** `AppleMusicController` runs `NSAppleScript` on a dedicated `AppleScriptExecutor` thread (own run loop) instead of the main thread; `playbackSnapshot()` and the playback commands are now `async` so the main-actor poll suspends rather than blocking. `RateLimiter.awaitCapacity` unwinds on cancellation, `LifetimeTally` gained a `lastFoldedTimestamp` high-water mark for idempotent crash-recovery reloads, and `ListeningHistoryService` coalesces concurrent loads.
@@ -134,7 +135,7 @@ The next release. These ship on the [Nightly channel](/docs/nightly) off `main` 
 - **Skip-vote notifications.** Optional banners when a vote starts and when it passes. Off by default.
 
 **The app**
-- **Light, Dark, or System appearance.** Pick one in Settings → General. The menu bar follows too. See [Appearance](/docs/appearance).
+- **Light, Dark, or System appearance.** Pick one in Settings → General. The menu bar follows too. See [Appearance](/docs/settings#general).
 - **Back up and restore your settings.** Export to a JSON file, restore on another Mac. Accounts and secrets stay in the Keychain. On import, you choose whether to reconnect Twitch. See [Back Up & Restore](/docs/backup).
 - **macOS 26 Liquid Glass redesign.** Settings, menu bar, and a rebuilt onboarding wizard for Tahoe.
 - **Nightly update channel.** Opt into dev builds off main from Settings → Software Update. Clearly warned, easy to leave, and Stable stays the default. See [Nightly Builds](/docs/nightly).
@@ -173,7 +174,7 @@ _Developer-facing changes. Not visible to end users._
 - **Crash safety net.** An uncaught-exception and signal handler records a breadcrumb and chains the previous handler, plus a blocking force-unwrap CI lint gate on production source.
 - **Concurrency and architecture cleanup.** `HelixClient`, a typed `Preferences` accessor, typed NotificationCenter payloads, actor adoption for `SongBlocklist` and `SkipVoteManager`, and Combine fully removed from the app target.
 - **DEBUG-only Debug settings tab** with inspectors, service controls, log/event views, and What's New previews.
-- **New unit tests** and an expanded design-token roster. The suite is now more than 2,200 tests across 90 files.
+- **New unit tests** and an expanded design-token roster across the suite.
 
 ### Fixed
 - **Twitch bot no longer goes silent after a relaunch.** It reconnects to your saved channel on its own, so chat commands work without reopening Twitch settings. The reconnect is silent.

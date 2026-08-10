@@ -17,37 +17,31 @@ ogChips:
 ogEyebrow: Components
 ---
 
-WolfWave's native macOS app ships a small library of SwiftUI components under `apps/native/WolfWave/Views/Shared/` and `Views/Onboarding/Components/`. Each entry below links to its source plus a markdown catalog entry with API, tokens, accessibility notes, and a do/don't list.
+WolfWave's native macOS app ships a library of reusable SwiftUI components under
+`apps/native/WolfWave/Views/Shared/` and `Views/Onboarding/Components/`. Every
+component has a markdown catalog entry in
+[`design-system/components/`](https://github.com/MrDemonWolf/wolfwave/tree/main/design-system/components)
+covering its API, the tokens it uses, an anatomy diagram, accessibility notes,
+and a do/don't list.
 
-## Shared
+The catalog's
+[README](https://github.com/MrDemonWolf/wolfwave/blob/main/design-system/components/README.md)
+is the live index — it tracks every entry and its status, so it never drifts
+from the source tree the way a copied table here would.
 
-| Component | What it does | Catalog |
-|---|---|---|
-| `StatusChip`              | Capsule indicator (dot + label) for connection state. | [docs](https://github.com/mrdemonwolf/wolfwave/blob/main/design-system/components/status-chip.md) |
-| `InfoRow`                 | Label + selectable read-only value. | [docs](https://github.com/mrdemonwolf/wolfwave/blob/main/design-system/components/info-row.md) |
-| `ToggleSettingRow`        | Toggle + title + caption row. | stub |
-| `SuccessFeedbackRow`      | Inline success/error feedback line. | stub |
-| `SectionHeaderWithStatus` | Section heading with trailing status chip. | stub |
-| `NowPlayingHeroCard`      | Large now-playing card (art + track + artist). | stub |
-| `AlbumArtView`            | Square album art with placeholder fallback. | stub |
-| `IntegrationDashboardView`| Compact panel showing integration statuses. | stub |
-| `ConfigRequiredBanner`    | Inline banner shown when API keys are missing. | stub |
-| `CopyButton`              | Icon button that copies a value to pasteboard. | stub |
-| `UpdateBannerView`        | Sparkle update available banner. | stub |
-| `WhatsNewView`            | What's new sheet content. | stub |
-| `TwitchGlitchShape`       | Twitch glitch logo `Shape`. | stub |
-| `ViewModifiers`           | `cardStyle`, `interactiveRow`, `pointerCursor`, … | [docs](https://github.com/mrdemonwolf/wolfwave/blob/main/design-system/components/view-modifiers.md) |
-
-## Onboarding
+A few representative entries:
 
 | Component | What it does | Catalog |
 |---|---|---|
-| `PillButton` | Capsule CTA with glow + gradient. | stub |
-| `BrandTile`  | 56×56 brand icon tile with glow. | stub |
+| `StatusChip` | Capsule indicator (dot + label) for connection state. | [entry](https://github.com/MrDemonWolf/wolfwave/blob/main/design-system/components/status-chip.md) |
+| `CalloutBanner` | Tinted info/success/warning/error callout used across settings. | [entry](https://github.com/MrDemonWolf/wolfwave/blob/main/design-system/components/callout-banner.md) |
+| `NowPlayingHeroCard` | Large now-playing card (art + track + artist). | [entry](https://github.com/MrDemonWolf/wolfwave/blob/main/design-system/components/now-playing-hero-card.md) |
+| `DSIconButton` | Single-glyph bordered button sized to match text-label neighbors. | [entry](https://github.com/MrDemonWolf/wolfwave/blob/main/design-system/components/ds-icon-button.md) |
+| `SettingsNavRail` | Two-column jump-nav rail with scroll sync for long settings panes. | [entry](https://github.com/MrDemonWolf/wolfwave/blob/main/design-system/components/settings-nav-rail.md) |
 
 ## How to add a component
 
 1. Build the SwiftUI view under `Views/Shared/` or `Views/Onboarding/Components/`.
 2. Reference `DSColor` / `DSFont` / `DSSpace` / `DSRadius` tokens. No hardcoded numbers.
-3. Add a markdown entry in `design-system/components/<name>.md` following the [template](https://github.com/mrdemonwolf/wolfwave/blob/main/design-system/components/README.md).
-4. Add a row to the table above.
+3. Add a markdown entry in `design-system/components/<name>.md` following the [template](https://github.com/MrDemonWolf/wolfwave/blob/main/design-system/components/README.md).
+4. The catalog README's status table is the index — update it in the same change.
