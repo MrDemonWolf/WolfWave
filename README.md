@@ -66,6 +66,7 @@ Your music plays. Everything else keeps up.
 - **Stream Widgets.** Drop-in browser-source overlay powered by a local WebSocket server with a per-install auth token, five themes (`Default`, `Dark`, `Light`, `Glass`, `Neon`), and five layouts (`Horizontal`, `Vertical`, `Compact`, `Vinyl`, `Classic`). Two-PC streamers can connect from a second machine on the LAN.
 - **Queue Ticker Overlay.** Opt-in `?queueTicker=1` panel showing the next 3 song requests, title and requester, so viewers see their spot in line without asking chat.
 - **OBS-friendly by design.** Visual progress is batched at 10 Hz, rendering sleeps while hidden or unloaded, and reduced-motion mode removes continuous animation work.
+- **Stream Deck Control.** The overlay WebSocket is bidirectional: an authenticated local client (like a Stream Deck plugin) can play/pause, skip, manage the request queue, and flip toggles, with live queue and health broadcasts.
 
 ### History & Stats
 
