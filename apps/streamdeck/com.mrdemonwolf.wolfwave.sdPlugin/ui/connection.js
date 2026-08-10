@@ -101,13 +101,36 @@ function setStatus(text, ok) {
   else status.setAttribute("data-ok", String(ok));
 }
 
+/**
+ * Validates the port against the same range `readPort` in `src/plugin.ts`
+ * enforces.
+ *
+ * Keeping the two in step matters: the plugin silently substitutes the default
+ * for anything out of range, so a laxer check here would leave the panel showing
+ * `70000` while the socket is actually talking to 8765 — the displayed config
+ * would contradict the live one with nothing to explain the difference.
+ */
+function validatePort() {
+  const raw = fields.port.value.trim();
+  if (!raw) {
+    fields.port.removeAttribute("aria-invalid");
+    return true;
+  }
+  const port = Number.parseInt(raw, 10);
+  const valid = Number.isInteger(port) && port > 0 && port <= 65535;
+  fields.port.setAttribute("aria-invalid", String(!valid));
+  if (!valid) setStatus("Port must be between 1 and 65535.", false);
+  return valid;
+}
+
 function save() {
   validate();
+  const portValid = validatePort();
   const port = Number.parseInt(fields.port.value, 10);
   settings = {
     token: fields.token.value.trim(),
     host: fields.host.value.trim() || DEFAULT_HOST,
-    port: Number.isFinite(port) && port > 0 ? port : DEFAULT_PORT,
+    port: portValid && Number.isInteger(port) ? port : DEFAULT_PORT,
   };
   send({ event: "setGlobalSettings", context: uuid, payload: settings });
 }
@@ -117,3 +140,4 @@ for (const field of Object.values(fields)) {
   field.addEventListener("blur", save);
 }
 fields.token.addEventListener("input", validate);
+fields.port.addEventListener("input", validatePort);

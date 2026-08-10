@@ -19,8 +19,7 @@
     }
   ],
   "Nodejs": {
-    "Version": "20",
-    "Debug": "enabled"
+    "Version": "20"
   },
   "CodePath": "bin/plugin.js",
   "PropertyInspectorPath": "ui/connection.html",
