@@ -68,9 +68,10 @@ Drag any WolfWave key onto a page and open its settings panel.
 You only do this once. Every WolfWave key shares the same connection.
 
 <Callout type="info">
-  The plugin talks to WolfWave over the same local connection your overlay uses,
-  gated by the same access token. Nothing leaves your machine, and no key press
-  goes through a server.
+  The plugin talks to WolfWave directly over the same connection your overlay
+  uses, gated by the same access token. No third-party service is involved and no
+  key press goes through the internet. If you point it at a different Mac, the
+  token and your key presses travel over your local network to reach it.
 </Callout>
 
 ## What the keys tell you
@@ -78,8 +79,8 @@ You only do this once. Every WolfWave key shares the same connection.
 | Key reads | Means |
 |---|---|
 | **Offline** | WolfWave isn't running, or the overlay server is off. The plugin keeps retrying. |
-| **Token?** | The token is missing or isn't a valid 64-character token. Re-copy it from Stream Widgets. |
-| **Update** | WolfWave is newer than the plugin. Rebuild or reinstall the plugin. |
+| **Token?** | The token is missing, or isn't exactly 64 hexadecimal characters (`0`–`9`, `a`–`f`). Re-copy it from Stream Widgets. |
+| **Update** | WolfWave and the plugin disagree on the control-protocol version — either one can be the older side. Update both to matching versions. |
 
 A key flashes a checkmark when a press worked and an alert when it didn't —
 pressing Approve Next with nothing pending, for example.
