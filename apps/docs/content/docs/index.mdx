@@ -37,16 +37,17 @@ keywords:
 ## Pick your path
 
 <Cards>
-  <Card title="🎮 For streamers" href="/docs/installation" description="Install, connect Twitch, drop the overlay into OBS. Five minutes, no terminal." />
-  <Card title="🛠 For builders" href="/docs/architecture" description="Native Swift. Local WebSocket. Fork it, wire it into your own overlay or Home Assistant." />
+  <Card title="For streamers" href="/docs/installation" description="Install, connect Twitch, drop the overlay into OBS. Five minutes, no terminal." />
+  <Card title="For builders" href="/docs/architecture" description="Native Swift. Local WebSocket. Fork it, wire it into your own overlay or Home Assistant." />
 </Cards>
 
 ### Streamers start here
 
 <Cards>
   <Card title="Install" href="/docs/installation" description="DMG or Homebrew. Signed and notarized." />
-  <Card title="Use it" href="/docs/usage" description="Menu bar, widget, song requests, Streamer Mode." />
+  <Card title="Use it" href="/docs/features" description="Menu bar, widget, song requests, Streamer Mode." />
   <Card title="Bot commands" href="/docs/bot-commands" description="!song, !sr, !voteskip. Every trigger." />
+  <Card title="Settings" href="/docs/settings" description="Every pane, and what lives where." />
   <Card title="FAQ" href="/docs/faq" description="Spotify? Intel Mac? Second-PC OBS? Answered." />
 </Cards>
 
@@ -56,6 +57,7 @@ keywords:
   <Card title="Architecture" href="/docs/architecture" description="MVVM + service-oriented Swift. ScriptingBridge → Apple Music." />
   <Card title="Development" href="/docs/development" description="Build from source. Run the tests. Ship a PR." />
   <Card title="OBS widget" href="/docs/widget" description="Tailwind + TypeScript workspace. Inlined into one HTML file." />
+  <Card title="Stream Deck API" href="/docs/stream-deck" description="Drive playback and the queue over the overlay socket." />
   <Card title="Security" href="/docs/security" description="Keychain, App Sandbox, OAuth, EdDSA-signed updates." />
 </Cards>
 
@@ -81,13 +83,13 @@ keywords:
 
 <Step>
 
-**Flip the commands you want.** `!song`, `!last`, `!sr`, `!voteskip` are all off by default.
+**Flip on the commands you want.** `!song`, `!last`, and `!voteskip` start off; song requests switch on after the guided setup.
 
 </Step>
 
 </Steps>
 
-Full walkthrough: [Twitch chat bot setup](/docs/usage#twitch-chat-bot) · [Every command](/docs/bot-commands)
+Full walkthrough: [Twitch chat bot setup](/docs/features#twitch-chat-bot) · [Every command](/docs/bot-commands)
 
 </Tab>
 
@@ -109,13 +111,13 @@ Full walkthrough: [Twitch chat bot setup](/docs/usage#twitch-chat-bot) · [Every
 
 <Step>
 
-**Paste into OBS as a Browser Source.** Recommended canvases include the widget's transparent padding: Horizontal (532×132), Vertical (252×312), Compact (382×88), Vinyl (292×332), Classic (472×144).
+**Paste into OBS as a Browser Source.** Size it for your layout with the [canvas table](/docs/widget#themes-and-layouts).
 
 </Step>
 
 </Steps>
 
-Full walkthrough: [OBS widget setup](/docs/usage#now-playing-widget) · [Themes & layouts](/docs/widget)
+Full walkthrough: [OBS widget setup](/docs/features#now-playing-widget) · [Themes & layouts](/docs/widget)
 
 </Tab>
 
@@ -143,7 +145,7 @@ Full walkthrough: [OBS widget setup](/docs/usage#now-playing-widget) · [Themes 
 
 </Steps>
 
-Full walkthrough: [Song requests](/docs/usage#song-requests) · [Vote-to-skip](/docs/bot-commands#vote-skip)
+Full walkthrough: [Song requests](/docs/features#song-requests) · [Vote-to-skip](/docs/bot-commands#vote-skip)
 
 </Tab>
 
@@ -171,17 +173,11 @@ Full walkthrough: [Song requests](/docs/usage#song-requests) · [Vote-to-skip](/
 
 </Steps>
 
-Full walkthrough: [Discord Rich Presence](/docs/usage#discord-status) · [Features](/docs/features#discord-status)
+Full walkthrough: [Discord status](/docs/features#discord-status)
 
 </Tab>
 
 </Tabs>
-
-## What's new
-
-<Callout type="info">
-  **Check the [changelog](/docs/changelog)** for every release. WolfWave auto-updates via Sparkle (EdDSA-signed); Homebrew installs update with `brew upgrade --cask wolfwave`.
-</Callout>
 
 ## Backed by sponsors
 

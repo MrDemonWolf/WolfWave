@@ -22,12 +22,12 @@ WolfWave follows a clean architecture with clear separation of concerns. Pattern
 
 ## Project Structure
 
-The native app lives at [`apps/native/WolfWave/`](https://github.com/MrDemonWolf/WolfWave/tree/main/apps/native/WolfWave) with tests at [`apps/native/WolfWaveTests/`](https://github.com/MrDemonWolf/WolfWave/tree/main/apps/native/WolfWaveTests). The top-level layout:
+The native app lives at [`apps/native/WolfWave/`](https://github.com/MrDemonWolf/wolfwave/tree/main/apps/native/WolfWave) with tests at [`apps/native/WolfWaveTests/`](https://github.com/MrDemonWolf/wolfwave/tree/main/apps/native/WolfWaveTests). The top-level layout:
 
 ```
 WolfWave/
 ├── WolfWaveApp.swift              # @main + NSApplicationDelegateAdaptor
-├── AppDelegate+*.swift            # MenuBar / Services / Windows splits
+├── AppDelegate+*.swift            # MenuBar / Services / Windows / DockMenu / StreamDeck splits
 ├── Core/                          # Constants, Keychain, Logger, StreamerMode, …
 ├── Monitors/                      # PlaybackSource protocol + AppleMusicSource (ScriptingBridge)
 ├── Services/
@@ -37,29 +37,14 @@ WolfWave/
 │   ├── SongRequest/               # Queue, resolvers, AppleMusicController, blocklist, vote-skip
 │   ├── Twitch/                    # ChatService (EventSub), ChannelPointsService, DeviceAuth, Commands/
 │   ├── UpdateChecker/             # SparkleUpdaterService
-│   └── WebSocket/                 # Token-gated WebSocketServerService (+ Stream Deck commands) + static WidgetHTTPService
+│   └── WebSocket/                 # Token-gated WebSocketServerService, StreamDeckCommand, static WidgetHTTPService
 ├── Views/                         # SwiftUI settings shell + per-section views + Onboarding wizard
 └── Resources/                     # widget.html, Assets.xcassets, dev-appcast.xml
 ```
 
-For the full file-by-file breakdown. Which rots every PR. See the [Source layout section of `CLAUDE.md`](https://github.com/MrDemonWolf/WolfWave/blob/main/CLAUDE.md#source-layout-appsnativewolfwave) in the repo root.
+Enumerating every file here would rot on each PR. For the full file-by-file breakdown, see the [Source layout section of `CLAUDE.md`](https://github.com/MrDemonWolf/wolfwave/blob/main/CLAUDE.md#source-layout-appsnativewolfwave) in the repo root.
 
 ## Architecture Highlights
-
-### MARK Sections
-
-Every file uses clear section markers for easy navigation:
-
-```swift
-// MARK: - Properties
-// MARK: - Initialization
-// MARK: - Public Methods
-// MARK: - Private Helpers
-```
-
-### Documentation
-
-Comprehensive DocC-style comments with parameter/return documentation throughout the codebase.
 
 ### Delegation Pattern
 
@@ -75,13 +60,7 @@ ViewModels separate UI logic from business logic. WolfWave uses the modern `@Obs
 
 ### Modern Concurrency
 
-Swift's async/await is used throughout for asynchronous operations:
-
-```swift
-func fetchData() async throws -> Data {
-    // Modern async implementation
-}
-```
+Swift async/await throughout. No `DispatchQueue` for new async work.
 
 ### Loose Coupling via NotificationCenter
 
@@ -102,7 +81,7 @@ Secure storage for sensitive credentials using the macOS Keychain API. All token
 
 ### PlaybackSource
 
-Source abstraction backed by `AppleMusicSource`, which uses ScriptingBridge for direct Apple Music communication without spawning subprocesses. Provides real-time track updates (including duration and elapsed time) via delegation, with a 2-second fallback poll. `PlaybackSourceManager` selects and multiplexes sources.
+Source abstraction backed by `AppleMusicSource`, which uses ScriptingBridge for direct Apple Music communication without spawning subprocesses. Provides real-time track updates (including duration and elapsed time) via distributed notifications plus delegation, with a 5-second fallback poll (throttled slower in low-power mode). `PlaybackSourceManager` selects and multiplexes sources.
 
 ### TwitchChatService
 
@@ -127,11 +106,33 @@ Coordinates chat song requests end-to-end:
 
 Discord Rich Presence integration using:
 
-- **Local IPC Socket**: Unix domain socket. No bot token or server required.
+- **Local IPC Socket**: Unix domain socket (`discord-ipc-{0..9}`). No bot token or server required.
 - **iTunes Search API**: Album artwork fetched dynamically with in-memory caching.
 - **Playback Progress**: Elapsed time and duration shown as a progress bar.
 - **Auto-reconnect**: Detects Discord availability and reconnects on its own.
 - **Sandbox Compatible**: Uses SBPL entitlements for socket access within the App Sandbox.
+
+Payload construction is pure and lives in `DiscordPresenceBuilder`; the IPC framing sits in `DiscordRPCService+IPC`.
+
+#### Paused-state handling
+
+Discord has no native "paused" activity flag, so WolfWave fakes one with two changes to the presence payload when Music reports paused:
+
+1. The `timestamps` block is omitted. Without `start`/`end`, the Discord client stops the progress ticker instead of marching past the real elapsed value.
+2. `assets.small_image` swaps from `apple_music` to `pause`, and `assets.small_text` becomes `"Paused"`.
+
+Track text, large image, and buttons stay unchanged so chat can still read what's loaded.
+
+#### Rich Presence art assets (required upload)
+
+`small_image` / `large_image` reference asset names registered against the Discord application, not bundled files. The PNGs live in [`discord-assets/`](https://github.com/MrDemonWolf/wolfwave/tree/main/discord-assets):
+
+| Asset name | Used when |
+|---|---|
+| `apple_music` | Default `large_image` fallback + `small_image` "source" badge while playing |
+| `pause` | `small_image` badge that replaces `apple_music` while paused |
+
+Fork maintainers shipping their own `DISCORD_CLIENT_ID` must upload both assets on the Discord application's **Rich Presence → Art Assets** page, or presence won't render correctly. See [`discord-assets/README.md`](https://github.com/MrDemonWolf/wolfwave/blob/main/discord-assets/README.md).
 
 ### WebSocketServerService
 
@@ -139,10 +140,10 @@ Local WebSocket server for OBS stream overlays using:
 
 - **Network.framework `NWListener`**: Native WebSocket server with auto-ping and multi-client support.
 - **JSON Broadcasting**: Sends `welcome`, `now_playing`, `progress`, `playback_state`, `overlay_visibility`, `widget_config`, and (for the Stream Deck plugin) `queue_state` / `health` messages.
-- **Bidirectional control channel**: Parses inbound `command` frames from an authenticated client (the Stream Deck plugin) via an injected `onCommand` handler and replies with an `ack`. Envelope decode is pure (`StreamDeckControl.parse`); the command router lives in `AppDelegate+StreamDeck`. See the Stream Deck control-API notes in `apps/native/docs/streamdeck-control-api.md`.
+- **Bidirectional control channel**: Parses inbound `command` frames from an authenticated client (the Stream Deck plugin) via an injected `onCommand` handler and replies with an `ack`. Envelope decode is pure (`StreamDeckControl.parse` in `Services/WebSocket/StreamDeckCommand.swift`); the command router lives in `AppDelegate+StreamDeck`. Full protocol on the [Stream Deck](/docs/stream-deck) page.
 - **Progress Timer**: 1-second interval broadcasts elapsed-time estimation to avoid polling ScriptingBridge.
 - **Auto-retry**: Reconnects the listener after failures with configurable delay.
-- **LAN-reachable, token-gated**: Binds to all interfaces on `:8765` so a second-PC OBS or phone on the same network can connect. Every WebSocket connection, loopback or LAN, must present `Sec-WebSocket-Protocol: wolfwave.token.<hex>` matching the per-install token in the macOS Keychain. See [Security](/docs/security#websocket-server-security).
+- **LAN-reachable, token-gated**: Binds to all interfaces on `:8765` so a second-PC OBS or phone on the same network can connect; every connection must present the per-install auth token — see [Security](/docs/security#websocket-server-security).
 
 Owns a `WidgetHTTPService` instance that starts and stops alongside it.
 
@@ -150,8 +151,7 @@ Owns a `WidgetHTTPService` instance that starts and stops alongside it.
 
 Tiny companion HTTP server that serves the bundled `widget.html` to OBS:
 
-- **LAN-reachable**: Binds to all interfaces on `:8766` so remote browsers can pull the widget HTML. The static HTTP response is not authenticated.
-- **Credential bootstrap**: Responses inject the token only for a loopback TCP peer plus a literal local `Host`, and mark token-bearing HTML `no-store`. LAN URLs carry `?token=…`; the browser script forwards it in the authenticated WebSocket handshake.
+- **LAN-reachable**: Binds to all interfaces on `:8766` so remote browsers can pull the widget HTML. The static HTTP shell is not authenticated; the token bootstrap rules are covered in [Security](/docs/security#websocket-server-security).
 - **`GET /`** → `200 OK` with `widget.html` bytes from the app bundle.
 - **Generated assets**: `/widget-tokens.generated.js`, `/favicon.ico`, and `/favicon.png` are also served.
 - **All other paths** → `404 Not Found`.

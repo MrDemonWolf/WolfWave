@@ -65,10 +65,6 @@ brew upgrade --cask wolfwave
 
 </Tabs>
 
-<Callout type="info">
-  WolfWave is signed and notarized by Apple. No security warnings, no right-click "Open Anyway" dance.
-</Callout>
-
 ## First launch
 
 **A setup wizard runs the first time you open WolfWave.** It's 8 short steps. Skip any optional one and finish it later from **Settings**.
@@ -103,7 +99,7 @@ brew upgrade --cask wolfwave
 
 ### OBS Widget *(optional)*
 
-**Add a now-playing overlay to OBS.** Turn on the widget, copy the localhost URL, and paste it into OBS as a Browser Source. WolfWave injects the WebSocket credential into the served HTML, so the localhost URL does not expose it.
+**Add a now-playing overlay to OBS.** Turn on the widget, copy the localhost URL, and paste it into OBS as a Browser Source. Details in the [widget guide](/docs/widget).
 
 </Step>
 
@@ -117,15 +113,15 @@ brew upgrade --cask wolfwave
 
 <Step>
 
-### Apple Music Access
+### Permissions
 
-**Click OK when macOS asks.** This is required. It's how WolfWave reads the song that's playing.
+**Click OK when macOS asks for Apple Music access.** This one is required. It's how WolfWave reads the song that's playing.
 
 </Step>
 
 <Step>
 
-### Notifications (optional)
+### Notifications *(optional)*
 
 **Pick which alerts you want:** song-change banners, skip-vote started, skip-vote passed. Turn on notifications first, then choose. Skip any you don't need.
 
@@ -133,7 +129,7 @@ brew upgrade --cask wolfwave
 
 <Step>
 
-### Menu Bar Pointer
+### Menu Bar
 
 **Find the wolf icon.** An arrow points to it, top-right of your screen.
 
@@ -149,12 +145,8 @@ brew upgrade --cask wolfwave
 
 </Steps>
 
----
-
-Love it? [**Sponsor WolfWave on GitHub →**](https://github.com/sponsors/nathanialhenniges)
-
 <Cards>
-  <Card title="Usage Guide" href="/docs/usage" description="Learn all the features." />
+  <Card title="Features & how-to" href="/docs/features" description="What WolfWave does and how to use it." />
   <Card title="Bot Commands" href="/docs/bot-commands" description="Every chat command explained." />
   <Card title="Nightly Builds" href="/docs/nightly" description="Want the newest builds off main? Opt into the Nightly channel." />
 </Cards>

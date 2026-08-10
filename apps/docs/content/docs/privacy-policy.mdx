@@ -23,7 +23,7 @@ export function ContactEmail() {
 }
 
 **Effective Date:** February 12, 2026
-**Last Updated:** May 24, 2026
+**Last Updated:** August 10, 2026
 
 MrDemonWolf, Inc. ("we", "us", or "our") operates the WolfWave application. This Privacy Policy explains how we handle information when you use WolfWave.
 
@@ -35,6 +35,8 @@ MrDemonWolf, Inc. ("we", "us", or "our") operates the WolfWave application. This
 - **Channel Name**. The Twitch channel name you connect to is stored locally in your macOS UserDefaults so the menu bar can display it.
 - **Discord Application ID**. Your Discord Application ID is stored in the app's build configuration and used to connect to Discord's local IPC socket.
 - **Song Request Blocklist**. Song titles and artist names you choose to block from song requests are stored locally in your macOS UserDefaults. You can remove individual entries or clear the entire list at any time from **Settings → Song Requests → Blocklist → Clear All**.
+- **Custom Bot Commands**. The triggers, replies, aliases, cooldowns, and permission levels of chat commands you author are stored locally in your macOS UserDefaults and included in a settings backup if you export one.
+- **Settings Backups**. When you export your settings, WolfWave writes a plain JSON file to the location you choose. Backups contain preferences only — they never include Twitch tokens, account identifiers, the widget access token, or anything else from the Keychain.
 
 ### Information Collected Automatically
 
@@ -52,6 +54,7 @@ WolfWave processes data **entirely on your device**. We do not operate servers o
 | Now playing info | Discord (via local IPC socket at `$TMPDIR/discord-ipc-{0..9}`) | Display Rich Presence status |
 | Now playing info | Local WebSocket server (token-gated, bound to all interfaces) | Stream data to OBS browser sources and overlays on the same machine or local network |
 | Album artwork query | iTunes Search API (`itunes.apple.com`) | Fetch album art and Apple Music / song.link URLs |
+| Song request queries | Apple Music API (`api.music.apple.com`), and Spotify / YouTube oEmbed + song.link when a viewer pastes one of those links | Find the requested track on Apple Music |
 | EventSub subscriptions | Twitch (`eventsub.wss.twitch.tv`) | Receive chat messages, channel-point redemptions, and bit cheers |
 | Update check | GitHub Releases (`github.com/MrDemonWolf/wolfwave`) | Sparkle appcast for in-app updates (skipped on Homebrew installs) |
 
@@ -93,6 +96,8 @@ All data is stored locally on your device. You can clear each category at any ti
 | Listening history (opt-in) | `~/Library/Application Support/WolfWave/History/plays.ndjson` | **Settings → History & Stats → Clear History** (retention window is also enforced on its own) |
 | Song request blocklist | UserDefaults | **Settings → Song Requests → Blocklist → Clear All** (or per-entry remove) |
 | Song request queue / vote-skip sessions | In-memory only | Quitting the app discards these immediately |
+| Custom bot commands | UserDefaults | Delete them in **Settings → Twitch → Custom Commands** |
+| Settings backups | Wherever you saved the export | Delete the JSON file yourself |
 | MetricKit diagnostics (opt-in) | `~/Library/Application Support/WolfWave/Diagnostics/` | Disable the toggle in **Settings → Advanced** and delete the directory |
 
 Uninstalling WolfWave removes UserDefaults, but Keychain items may persist on macOS. Use the in-app reset above or manually remove entries via Keychain Access.

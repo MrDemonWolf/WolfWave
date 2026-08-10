@@ -52,6 +52,7 @@ All notable changes to this project will be documented in this file.
 
 ### Developer
 
+- Docs restructure: merged the Features/Usage and Getting Started/Development pages, added Settings and Stream Deck Control API pages, trimmed the comparison page, and refreshed the legal pages.
 - Debug builds can treat every chatter, or selected Twitch logins, as normal viewers for permission and cooldown testing. Release builds omit the simulator.
 
 - New `BotCommand.isAllowed(context:)` permission hook and `allTriggers` protocol requirement (both default-preserving, so built-ins are unchanged). `CustomBotCommand` is an `AsyncBotCommand` built per message from `CustomCommandStore`, so edits apply on the next chat line without re-registration. Pure `CustomCommandRenderer` covers variable substitution; 21 new tests.

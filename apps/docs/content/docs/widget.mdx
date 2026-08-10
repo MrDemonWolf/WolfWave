@@ -48,10 +48,10 @@ also bootstraps the authenticated WebSocket connection.
 
 ## Message contract
 
-The browser widget consumes the server-to-client messages from the shared,
-bidirectional WebSocket service. Stream Deck commands use the reverse direction;
-the browser widget itself is receive-only. Schemas are frozen by the test suite.
-Adding fields server-side is safe; renaming fields requires a coordinated change.
+The browser widget consumes the server-to-client messages from the shared
+WebSocket service. The widget itself is receive-only. Schemas are frozen by the
+test suite. Adding fields server-side is safe; renaming fields requires a
+coordinated change.
 
 | Type | Payload | Cadence |
 |------|---------|---------|
@@ -64,6 +64,13 @@ Adding fields server-side is safe; renaming fields requires a coordinated change
 | `queue_upcoming` | `{ items: [{ title, requesterUsername }] }` (max 3) | Queue change |
 
 The browser widget never sends back. The native app pushes, the browser renders.
+
+### Control API
+
+The same WebSocket is bidirectional: Stream Deck plugins and other local
+clients send control commands (skip, hold, overlay toggle) in the reverse
+direction. The command protocol lives on the
+[Stream Deck page](/docs/stream-deck).
 
 ## Paused playback
 
@@ -119,7 +126,7 @@ Background color pickers; the other themes ship fixed palettes.
 
 | Parameter | What it does |
 |---|---|
-| `?token=<hex>` | LAN bootstrap token; the script forwards it in the WebSocket subprotocol. Loopback pages receive the token in the served HTML instead. |
+| `?token=<hex>` | LAN bootstrap token; the widget forwards it when opening the WebSocket. Loopback pages receive the token in the served HTML instead. |
 | `?duration=8` | Auto-hide after N seconds (0 = never) |
 | `?hideAlbumArt` | Render without the artwork tile |
 | `?queueTicker=1` | Show the upcoming-queue ticker panel (off by default) |
@@ -214,24 +221,17 @@ supported path, run the native app and open `http://localhost:<widgetHTTPPort>/`
 
 ## Security
 
-WebSocket authentication uses
-`Sec-WebSocket-Protocol: wolfwave.token.<hex>`. `WebSocketServerService`, through
-`WebSocketAuthToken.shouldAccept` (verified by `WebSocketServerAuthTests`),
-rejects clients that do not present the per-install token stored in the macOS
-Keychain.
+The widget only handles the auth token; the token itself and the WebSocket
+handshake are documented in the
+[security model](/docs/security#websocket-server-security). Widget-specific
+behavior:
 
-The HTTP request for the static widget shell is not authenticated. Credential
-bootstrap differs by peer:
-
-- **Loopback peers:** `WidgetHTTPService` injects the live token only when both
-  the TCP peer is loopback and the `Host` is a literal local name/address
-  (`localhost`, `127/8`, or `[::1]`). This blocks DNS-rebinding bootstrap. The
-  token-bearing response is `Cache-Control: no-store`.
-- **LAN peers** (two-PC streamers, phones): Settings → Stream Widgets supplies a
-  URL with `?token=<hex>`. The browser script consumes that query value and sends
-  it as the WebSocket subprotocol; it is not HTTP authentication. Both the HTML
-  document and HTTP response set `no-referrer`, preventing cross-origin artwork
-  requests from disclosing that query token.
+- **Loopback pages** get the token injected into the served HTML.
+  `WidgetHTTPService` returns those responses with `Cache-Control: no-store`,
+  so the token never sits in a browser cache.
+- **LAN pages** read `?token=<hex>` from the URL and forward it when opening
+  the WebSocket. Every widget document sets `no-referrer`, so cross-origin
+  artwork requests can't leak that query token.
 
 ## See also
 
