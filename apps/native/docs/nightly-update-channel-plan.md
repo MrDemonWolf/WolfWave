@@ -11,8 +11,11 @@ Decisions (chosen 2026-06-09):
   fixed URL; `SPUUpdaterDelegate.feedURLString(for:)` swaps feeds on opt-in. Keeps
   the stable release pipeline untouched and fits the current static GitHub-release
   hosting (no persistent-archive directory, no `latest`-excludes-prereleases trap).
-- **Cadence: nightly cron + manual.** Scheduled daily build off `main` (skipped when
-  no new commits) plus `workflow_dispatch`.
+- **Cadence: nightly cron + manual.** Scheduled daily 08:00 UTC off `main` (skipped when
+  no new commits) plus `workflow_dispatch`. Briefly cut to weekly on 2026-08-06 and reverted
+  the same day: the repo is public, so Actions minutes are free (no 10× macOS multiplier) and
+  notary submissions are free, and the skip-if-unchanged guard already makes quiet days cost
+  nothing. There was no cost to optimize.
 
 ## Background: how Sparkle does this
 
@@ -29,11 +32,19 @@ Setting the feed programmatically). The deprecated `-setFeedURL:` is **not** use
 
 ### Known caveat (applies to either approach)
 
-Sparkle never offers a **lower** version. A user who rode Nightly (high build number)
-and switches back to Stable will not be auto-offered the lower stable build; they stay
-put until stable's build number passes their installed nightly, or they reinstall the
-stable DMG manually. The warning UI must say so. This is inherent to channel switching,
-not specific to dual-feed.
+Sparkle never offers a **lower** version. A user who rode Nightly and switches back to
+Stable is not auto-offered a lower stable build; they stay put until stable's build number
+passes their installed nightly, or they reinstall the stable DMG manually. The warning UI
+must say so. This is inherent to channel switching, not specific to dual-feed.
+
+Since both channels moved onto one shared counter (see *Version scheme for nightly*), this
+is **self-healing** — but only when the stable release actually resolves to a *greater*
+build number. Shared numbering is not sufficient on its own: a tag placed on the exact
+commit a nightly was built from yields the same commit count, hence the same build number,
+and Sparkle still won't offer it. In practice the release commit (version bump + CHANGELOG)
+guarantees a later commit, and `build_release.yml` asserts the ordering against the nightly
+release's `built-from` sha and fails the release if it doesn't hold. When it does hold, the
+manual reinstall is only a shortcut, not the sole escape.
 
 ## Hosting model
 
@@ -51,21 +62,38 @@ Both DMGs are signed with the same Developer ID and notarized (Gatekeeper requir
 
 ## Version scheme for nightly
 
-Sparkle's primary comparator is `CFBundleVersion` (= `CURRENT_PROJECT_VERSION`).
-Nightly must be **monotonic and strictly greater** than any stable build number
-(stable builds are small ints). The nightly job overrides at build time without
-committing:
+**Revised 2026-08-06.** Nightly and stable share ONE build-number counter, resolved by
+`scripts/version.sh` — the house standard documented in
+[`docs/build-versioning-standard.md`](../../../docs/build-versioning-standard.md).
 
-- `CURRENT_PROJECT_VERSION` = `$(date -u +%Y%m%d%H%M)` (e.g. `202606091430`) — always
-  ascending, always far above stable's int build numbers.
-- `MARKETING_VERSION` (display) = `<next-version>-nightly+<short-sha>`, e.g.
-  `2.1.0-nightly+a1b2c3d`, so the About pane and update dialog read clearly as a dev build.
+- `CURRENT_PROJECT_VERSION` = `git rev-list --count HEAD` (floored). Monotonic, stateless,
+  identical for both feeds.
+- `MARKETING_VERSION` (display) = `<next-release-version>-nightly+<short-sha>`, e.g.
+  `2.1.0-nightly+a1b2c3d`, so the About pane and update dialog read clearly as a dev build
+  *and* name the release these changes are heading for. This works because the committed
+  `MARKETING_VERSION` is bumped to the next version immediately after a release is tagged
+  (release checklist step 1) — so between `v2.0.1` shipping and `v2.1.0` tagging, the pbxproj
+  reads `2.1.0` and every nightly in that window is `2.1.0-nightly+<sha>`. `version.sh` warns
+  on stderr if `MARKETING_VERSION` still equals the newest `v*` tag, which means the
+  bump-ahead was skipped and nightlies would be advertising an already-shipped version.
 
-Set via `xcodebuild ... CURRENT_PROJECT_VERSION=... MARKETING_VERSION=...` overrides in
-the nightly workflow only. The committed `project.pbxproj` is never touched by nightly.
+Set via `xcodebuild ... CURRENT_PROJECT_VERSION=... MARKETING_VERSION=...` overrides in both
+release workflows. The committed `project.pbxproj` build number is a dev placeholder and is
+never the value that ships.
 
-Because the stable feed never lists nightly items, a huge nightly build number can never
-leak into a stable user's comparison.
+### Superseded: the timestamp scheme
+
+The original design used `CURRENT_PROJECT_VERSION = $(date -u +%Y%m%d%H%M)`, reasoning that a
+nightly must sit above stable's small ints. That was wrong in two ways:
+
+1. It is ~2×10¹¹ — about **100× over Android's `versionCode` cap** (2,100,000,000), so it could
+   never generalize to the other MrDemonWolf apps.
+2. Sitting permanently above stable is not a feature. Sparkle never offers a *lower* build
+   number, so it guaranteed that **no future stable release could ever reach a nightly tester**.
+
+One nightly shipped under that scheme (build `202608051034`, 2026-08-05). It was abandoned rather
+than floored past, because flooring would have carried the 2×10¹¹ number forward forever. Testers
+on that single build reinstall the stable DMG once.
 
 ## Code changes (native app)
 

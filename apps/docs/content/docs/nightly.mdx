@@ -38,12 +38,13 @@ checks pull nightly builds, signed and notarized the same as stable.
 
 1. **Settings → Software Update**.
 2. Pick **Stable** under Update Channel.
-3. Reinstall the latest [Stable build](/docs/installation).
 
-That last step matters. WolfWave never offers a *lower* version than the one
-you're running, and a nightly build number is always higher than stable's. So
-switching the channel back to Stable won't downgrade you on its own. Grab the
-latest stable DMG once, and you're back on the normal release track.
+That's it. The next stable release will offer itself to you like normal.
+
+If you'd rather not wait, reinstall the latest [Stable build](/docs/installation)
+and you're back on the normal track immediately. WolfWave never offers you a
+*lower* version than the one you're running, so switching the channel alone
+doesn't move you backwards — it just puts you in line for the next release.
 
 ## What you should know
 
@@ -51,6 +52,10 @@ latest stable DMG once, and you're back on the normal release track.
   notarization as stable, so Gatekeeper treats them the same.
 - **Unstable by design.** These are dev builds. Expect rough edges and frequent
   updates.
+- **Built every night.** A new nightly goes out daily, but only when something
+  actually changed, so quiet days don't ship a pointless update.
+- **Named for what's coming.** A nightly reads like `2.1.0-nightly+a1b2c3d` —
+  that's the release these changes are heading into, not one that shipped.
 - **No support.** Bug reports are welcome, but nightly isn't a supported track.
 - **Homebrew installs can't use it.** When WolfWave is installed through
   Homebrew, updates are managed by Homebrew and the channel picker is hidden.
@@ -58,3 +63,11 @@ latest stable DMG once, and you're back on the normal release track.
 
 Your channel choice sticks across updates, so once you're on Nightly you keep
 getting nightly builds until you switch back.
+
+<Callout type="warn">
+  **One-time reinstall if you grabbed the August 5, 2026 nightly.** That build
+  (`2.1.0-nightly+4c36bef`) shipped with a build number so high that no later
+  build can reach it, so it will never update itself. Download the latest
+  [Stable](/docs/installation) or nightly DMG once and you're fixed for good —
+  the numbering behind this has been corrected and won't happen again.
+</Callout>
