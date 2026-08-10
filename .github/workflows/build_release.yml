@@ -98,6 +98,10 @@ jobs:
           # Full history: scripts/version.sh derives the build number from the
           # commit count, and a shallow clone would report 1.
           fetch-depth: 0
+          # This job has contents: write. Don't leave the checkout token in the
+          # local git config where the build steps could read it; the release
+          # commands take GH_TOKEN explicitly.
+          persist-credentials: false
 
       - name: Install Bun
         uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
@@ -134,6 +138,8 @@ jobs:
 
       - name: Resolve version
         id: version
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           # Single source of truth, shared with nightly.yml — see
           # docs/build-versioning-standard.md. Stable and nightly draw from the
@@ -160,6 +166,29 @@ jobs:
           if [[ "$GITHUB_REF" == refs/tags/v* ]] && [ "$VERSION" != "$PROJECT_VERSION" ]; then
             echo "::error::Release tag v$VERSION does not match app MARKETING_VERSION $PROJECT_VERSION"
             exit 1
+          fi
+
+          # Stable MUST outrank the newest nightly. Sharing one counter makes
+          # that true whenever the release commit is later than the last
+          # nightly's — but a tag placed on the exact commit a nightly was built
+          # from resolves to the SAME count, and Sparkle would then never offer
+          # this release to nightly testers. Compare counts (not the published
+          # build numbers) so the retired timestamp-numbered nightly can't
+          # block every future release.
+          BUILD=$(echo "$RESOLVED" | sed -n 's/^build=//p')
+          NIGHTLY_SHA=$(gh release view nightly --repo "$GITHUB_REPOSITORY" \
+            --json body --jq '.body' 2>/dev/null \
+            | grep -oE 'built-from: [0-9a-f]{40}' | awk '{print $2}' || true)
+          if [ -n "${NIGHTLY_SHA:-}" ] && git cat-file -e "${NIGHTLY_SHA}^{commit}" 2>/dev/null; then
+            NIGHTLY_BUILD=$(git rev-list --count "$NIGHTLY_SHA")
+            echo "Latest nightly built from $NIGHTLY_SHA (build $NIGHTLY_BUILD); this release is build $BUILD"
+            if [ "$BUILD" -le "$NIGHTLY_BUILD" ]; then
+              echo "::error::Release build $BUILD does not exceed the latest nightly build $NIGHTLY_BUILD."
+              echo "::error::Tag a commit after the last nightly (the CHANGELOG/version bump commit is enough)."
+              exit 1
+            fi
+          else
+            echo "No resolvable nightly built-from sha; skipping the nightly-ordering check."
           fi
 
           echo "dmg_name=WolfWave-${VERSION}.dmg" >> "$GITHUB_OUTPUT"

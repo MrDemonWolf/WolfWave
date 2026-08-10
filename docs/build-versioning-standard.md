@@ -23,6 +23,11 @@ counter. Separate counters are how you strand users: an updater that never offer
 number will never move someone from the channel with the bigger number back to the one with the
 smaller.
 
+One counter is necessary but not sufficient — a stable release must resolve *strictly greater*
+than the newest prerelease, and a tag placed on the exact commit a prerelease was built from
+resolves equal. The release commit normally guarantees a later commit; assert it in CI rather than
+trusting it.
+
 **3. Resolve once, pass down.** A single script emits both values; every platform job consumes its
 output. Nothing downstream computes its own.
 

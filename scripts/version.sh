@@ -104,6 +104,15 @@ if [ -z "$MARKETING" ]; then
   exit 1
 fi
 
+# Both sources are trusted inputs that can still be wrong: a mistyped tag
+# (`v2.1`, `vfoo`) or a hand-edited pbxproj would otherwise flow straight into
+# CFBundleShortVersionString, which Apple requires to be period-separated
+# integers. Reject it here rather than at notarization time.
+if ! [[ "$MARKETING" =~ ^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$ ]]; then
+  echo "version.sh: marketing version must be MAJOR.MINOR.PATCH (got '$MARKETING')." >&2
+  exit 1
+fi
+
 # Store-bound builds must ship a bare MAJOR.MINOR.PATCH; only non-store
 # channels carry a suffix.
 if [ "$CHANNEL" = "nightly" ]; then

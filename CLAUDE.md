@@ -449,6 +449,7 @@ The short version:
 | Never a timestamp (`$(date -u +%Y%m%d%H%M)`). | ~2×10¹¹ — about 100× over Android's `versionCode` cap of 2,100,000,000, so it can't be the house standard. It also floats so far above any hand-set int that no release can overtake it. This is the exact bug the previous nightly scheme shipped. |
 | Never reset the counter per release. | The macOS App Store requires `CFBundleVersion` unique across *all* marketing versions. |
 | Every `actions/checkout` in a job that resolves a version needs `fetch-depth: 0`. | The default shallow clone makes the commit count `1`. `version.sh` hard-fails on a shallow repo rather than emitting a wrong number. |
+| A release tag must sit on a commit **later** than the last nightly's. | Same commit = same count = same build number, and Sparkle would never offer the release to nightly testers. The CHANGELOG + version-bump commit normally guarantees this; `build_release.yml` asserts it and fails the release if not. |
 
 Marketing version stays hand-maintained: `MARKETING_VERSION` in the pbxproj, overridden by the `v*` tag at release time.
 

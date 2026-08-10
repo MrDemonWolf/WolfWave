@@ -38,9 +38,13 @@ passes their installed nightly, or they reinstall the stable DMG manually. The w
 must say so. This is inherent to channel switching, not specific to dual-feed.
 
 Since both channels moved onto one shared counter (see *Version scheme for nightly*), this
-is **self-healing**: the next stable release is built from a later commit than the nightly
-they're on, so its build number is higher and Sparkle offers it normally. The manual
-reinstall is now only a shortcut, not the sole escape.
+is **self-healing** — but only when the stable release actually resolves to a *greater*
+build number. Shared numbering is not sufficient on its own: a tag placed on the exact
+commit a nightly was built from yields the same commit count, hence the same build number,
+and Sparkle still won't offer it. In practice the release commit (version bump + CHANGELOG)
+guarantees a later commit, and `build_release.yml` asserts the ordering against the nightly
+release's `built-from` sha and fails the release if it doesn't hold. When it does hold, the
+manual reinstall is only a shortcut, not the sole escape.
 
 ## Hosting model
 

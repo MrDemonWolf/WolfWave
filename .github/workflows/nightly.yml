@@ -127,6 +127,10 @@ jobs:
           # Full history: scripts/version.sh derives the build number from the
           # commit count, and a shallow clone would report 1.
           fetch-depth: 0
+          # This job has contents: write. Don't leave the checkout token in the
+          # local git config where the build steps could read it; the release
+          # commands take GH_TOKEN explicitly.
+          persist-credentials: false
 
       - name: Install Bun
         uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
