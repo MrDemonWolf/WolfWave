@@ -32,7 +32,7 @@ No. WolfWave reads Apple Music via `ScriptingBridge`. The same framework Apple u
 
 <Accordion title="Is it really free?">
 
-Yes. GPL-3.0 licensed, no paywall, no premium tier, no upsell screens. The full source lives on [GitHub](https://github.com/MrDemonWolf/WolfWave). If you'd like to give back, [sponsor the project](/docs/support).
+Yes. GPL-3.0 licensed, no paywall, no premium tier, no upsell screens. The full source lives on [GitHub](https://github.com/MrDemonWolf/wolfwave). If you'd like to give back, [sponsor the project](/docs/support).
 
 </Accordion>
 
@@ -56,13 +56,13 @@ See [Features](/docs/features) for the full list.
 
 <Accordion title="Can I approve song requests before they play?">
 
-Yes. Turn on **Require My Approval** in **Settings → Song Requests → Access**. Every request (chat, channel points, and bits) then waits in the Queue tab until you approve or decline it, so nothing plays without your OK. It's off by default, so requests auto-queue until you switch it on.
+Yes. Turn on **Require My Approval** and every request waits in the queue until you approve or decline it. It's off by default. See [Song Requests](/docs/features#song-requests) for how the whole pipeline works.
 
 </Accordion>
 
 <Accordion title="My !playlist link stopped working, or WolfWave says my playlist needs setting up again">
 
-`!playlist` shares a public link to your **WolfWave Requests** playlist. If you delete that playlist in Apple Music, or turn its sharing off, the link goes dead. WolfWave checks for this when the Song Requests pane opens: it turns `!playlist` off so chat never gets a broken link, and shows a banner at the top of the pane. Tap **Re-share Playlist** (or **Set Up Again**) to fix it in a step or two. Your `!sr` requests, channel points, and bits keep working the whole time.
+The playlist was deleted or its sharing was turned off in Apple Music. WolfWave detects this, disables `!playlist` so chat never gets a broken link, and shows a fix-it banner in the Song Requests pane. Requests keep working the whole time. See [Song Requests](/docs/features#song-requests).
 
 </Accordion>
 
@@ -74,7 +74,7 @@ Yes. Turn on **Require My Approval** in **Settings → Song Requests → Access*
 
 <Accordion title="Does it slow down my stream?">
 
-No. The app is native Swift, under 20 MB on disk, and event-driven. It reacts to Apple Music's own notifications and falls back to a 2-second poll only if those notifications are missed. CPU and memory impact during a stream are negligible.
+No. The app is native Swift, a small download, and event-driven. It reacts to Apple Music's own notifications and only falls back to a light poll if those notifications are missed. CPU and memory impact during a stream are negligible.
 
 </Accordion>
 
@@ -86,7 +86,7 @@ Never. WolfWave is free and open source. No ads, no upsells, no tracking pixels.
 
 <Accordion title="Can I use it on a second-PC OBS setup?">
 
-Yes. The local WebSocket binds to all interfaces, so an OBS machine on the same LAN can connect to your Mac as a browser source. Every connection. Loopback or LAN. Must present a per-install token stored in macOS Keychain. See [Security](/docs/security) for the protocol details.
+Yes. The local WebSocket binds to all interfaces, so an OBS machine on the same LAN can connect to your Mac as a browser source. Every connection must present a per-install auth token. See [WebSocket security](/docs/security#websocket-server-security) for how that works.
 
 </Accordion>
 
@@ -98,7 +98,7 @@ If your overlay can consume a WebSocket feed or a small HTTP endpoint, yes. The 
 
 <Accordion title="What is Streamer Mode?">
 
-A one-tap toggle (in the menu bar's **Streamer Quick Actions**) that masks sensitive values across WolfWave's UI so the app is safe to show on camera. It hides your connected Twitch channel name, overlay/widget URLs, the WebSocket URI, and the auth token, and disables Copy/Open buttons next to those values. It's UI-only. WebSocket broadcast, Discord Rich Presence, and Twitch chat output keep working.
+A one-tap toggle that masks sensitive values (channel name, URLs, auth token) across WolfWave's UI so the app is safe to show on camera. It's UI-only; broadcasts keep working. See [Streamer Mode](/docs/streamer-mode) for exactly what gets masked.
 
 </Accordion>
 
@@ -122,19 +122,19 @@ No. There is no WolfWave server. Outbound traffic goes only to services you turn
 
 <Accordion title="How does Listening History store my data?">
 
-Listening History is **off by default**. When you turn it on, WolfWave appends a row to a local NDJSON file inside the app's sandbox for each track that plays past its halfway mark (or 4 minutes, whichever is shorter). Nothing is uploaded. The Stats charts, Monthly Wrap, and `!stats` command all read from that local file. Clear it from **Settings → History & Stats** and the log is gone. See [Security](/docs/security#listening-history-opt-in-on-device) for the full breakdown.
+Listening History is off by default, and everything it records stays in a local file on your Mac. Nothing is uploaded, and you can clear it any time. See [Listening History](/docs/listening-history) for what gets recorded and when.
 
 </Accordion>
 
 <Accordion title="Does the Now-Playing Widget URL leak if I screenshare it?">
 
-The same-Mac localhost URL does not contain the token; WolfWave injects it into the served HTML. The LAN link does include `?token=…` as WebSocket bootstrap, so treat that link as private. If you expose it, regenerate the token in **Settings → Stream Widgets**; active WebSocket clients disconnect and LAN sources need the updated link. Before going live, use **Streamer Mode** (see above) to mask URLs and credentials in the WolfWave UI.
+The same-Mac localhost URL never shows the token. The LAN link does include `?token=…`, so treat it as private, and regenerate the token if it leaks. See [WebSocket security](/docs/security#websocket-server-security) for the full token model, and [Streamer Mode](/docs/streamer-mode) for on-camera masking.
 
 </Accordion>
 
 <Accordion title="What about App Sandbox?">
 
-WolfWave runs under the macOS App Sandbox with the minimum entitlements needed to control Apple Music via AppleEvents and talk to the Discord IPC socket. See the [`WolfWave.entitlements`](https://github.com/MrDemonWolf/WolfWave/blob/main/apps/native/WolfWave/WolfWave.entitlements) file in the repo for the exact set.
+WolfWave runs under the macOS App Sandbox with the minimum entitlements needed to control Apple Music and talk to Discord. See the [`WolfWave.entitlements`](https://github.com/MrDemonWolf/wolfwave/blob/main/apps/native/WolfWave/WolfWave.entitlements) file in the repo for the exact set.
 
 </Accordion>
 
@@ -146,9 +146,7 @@ WolfWave runs under the macOS App Sandbox with the minimum entitlements needed t
 
 <Accordion title="How do updates work?">
 
-Sparkle with EdDSA-signed appcasts. The same framework Things, Tower, and many other Mac apps use. The signing key is rotated independently of the developer certificate, so even a compromised release server can't ship an unsigned update.
-
-Homebrew installs are managed by Homebrew instead , `brew upgrade --cask wolfwave` brings you to the latest version.
+Through Sparkle, the same auto-update framework many Mac apps use, with signed updates. There are two channels: Stable (default) and an opt-in [Nightly channel](/docs/nightly). Homebrew installs update via `brew upgrade --cask wolfwave` instead.
 
 </Accordion>
 
@@ -161,7 +159,7 @@ The App Store sandbox blocks the Discord IPC Unix socket, which would break Rich
 <Accordion title="Where do I get help?">
 
 - [Discord community](https://mrdwolf.net/discord). The fastest way to get a real human.
-- [GitHub Issues](https://github.com/MrDemonWolf/WolfWave/issues). For bug reports.
+- [GitHub Issues](https://github.com/MrDemonWolf/wolfwave/issues). For bug reports; see [how to report a bug](/docs/support#report-a-bug).
 - [Support page](/docs/support). Sponsor, star, share.
 
 </Accordion>
