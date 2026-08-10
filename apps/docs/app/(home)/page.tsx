@@ -226,7 +226,7 @@ export default function HomePage() {
                 icon: Twitch,
                 title: "For streamers",
                 body: "Go live on Apple Music without the hacks. !song replies, chat song requests, and a real-time overlay are ready the minute setup ends.",
-                href: "/docs/usage",
+                href: "/docs/features",
                 cta: "Streaming guide",
               },
               {
@@ -354,7 +354,7 @@ export default function HomePage() {
               every track change shows up on stream the instant it happens.
             </p>
             <Link
-              href="/docs/usage"
+              href="/docs/features"
               className="ww-text-brand mt-6 inline-flex items-center gap-1.5 text-sm font-semibold"
             >
               Set up the overlay

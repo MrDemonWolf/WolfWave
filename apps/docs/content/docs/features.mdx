@@ -1,15 +1,16 @@
 ---
 title: Features
-description: "Every WolfWave feature: !song chat command, song requests, Discord Rich Presence, OBS overlay themes, vote-to-skip, channel-point and bit redemptions."
+description: "Every WolfWave feature and how to use it: !song chat command, song requests, channel points and bits, Discord Rich Presence, OBS overlay, Stream Deck control."
 ogTitle: "One App. Apple Music → Twitch, Discord, OBS."
-ogDescription: "!song bot, !sr song requests, Discord Rich Presence, OBS overlay with 5 selectable themes, vote-to-skip, channel points + bits. Free and open source."
+ogDescription: "!song bot, !sr song requests, Discord Rich Presence, OBS overlay themes, vote-to-skip, channel points + bits. Free and open source."
 keywords:
   - apple music twitch features
   - apple music discord rich presence
   - apple music obs overlay
   - twitch song requests apple music
+  - how to show apple music on twitch chat
+  - connect apple music to discord mac free
   - spotchbot alternative apple music
-  - songify alternative mac
   - jam deck alternative twitch
 ogChips:
   - "!song bot"
@@ -19,142 +20,172 @@ ogChips:
 ogEyebrow: All-in-one
 ---
 
-One app. Apple Music → Twitch, Discord, OBS. Done.
+One app. Apple Music → Twitch, Discord, OBS. This page covers what each piece
+does and how to turn it on; every section links to its deep-dive.
 
----
+## Menu bar and Music Sync
 
-## Music Sync
+WolfWave lives in your macOS menu bar. Click the wolf icon for a now-playing
+card with artwork, quick toggles, and hold/resume for the request queue.
 
-<Callout type="info">**TL;DR**: WolfWave sees what you hear, right away.</Callout>
-
-- **Native sync.** Talks to Apple Music directly. No hacks, no lag.
-- **Set and forget.** Sits quietly in your menu bar.
-- **Remembers your last song.** So `!last` just works.
-- **Song-change banners.** Opt-in macOS banner on every track change, with album art. New banner replaces the old one instead of stacking.
-- **Battery friendly.** Slows down on Low Power Mode.
-
----
+- **Native sync.** Talks to Apple Music directly. No hacks, no lag. Flip
+  **Sync Music** in Settings → General and WolfWave spots every song change.
+- **Remembers your last song**, so `!last` just works.
+- **Battery friendly.** Polling slows down in Low Power Mode.
 
 ## Twitch Chat Bot
 
-<Callout type="info">**TL;DR**: Chat commands that run themselves.</Callout>
+Log in once (**Settings → Twitch**, device code — you never type your password
+into WolfWave) and the bot auto-connects when the app opens.
 
-- **Fast replies.** Uses Twitch EventSub for quick responses.
-- **One-click commands.** Flip `!song`, `!last`, and more on with a click.
-- **Anti-spam.** Built-in cooldowns keep chat tidy.
-- **Mods get a pass.** Mods and the channel owner skip cooldowns.
-- **Custom commands.** Roll your own `!command` with a fixed reply. Variables like `$user`, `$touser`, `$args`, `$song`, and `$lastsong` fill in live, with per-command aliases, cooldowns, and a permission level (Everyone, Subscribers, VIPs, Moderators, or Broadcaster). See [Bot Commands](/docs/bot-commands#custom-commands).
+- **Pick your commands.** Flip `!song`, `!last`, `!sr`, `!voteskip`, `!stats`,
+  and more on with a click, each with its own aliases and cooldowns.
+- **Anti-spam.** Global and per-user cooldowns; mods and the broadcaster bypass
+  them.
+- **Custom commands.** Roll your own `!command` with a fixed reply. Variables
+  like `$user`, `$touser`, `$args`, `$song`, and `$lastsong` fill in live, with
+  per-command aliases, cooldowns, and a permission level.
 
----
+Full reference, aliases, and defaults: [Bot Commands](/docs/bot-commands).
 
 ## Song Requests
 
-<Callout type="info">**TL;DR**: Let chat pick the music.</Callout>
+Open **Settings → Song Requests** and run the guided setup. It checks your
+Twitch connection, asks for Apple Music access, and creates the
+**WolfWave Requests** playlist. Requests can't switch on until setup finishes,
+so nothing half-configured ever goes live.
 
-- **`!sr <song>`.** Anyone can request a track. WolfWave finds it on Apple Music and queues it.
-- **Built-in queue.** See every pending request in Settings. Reorder, remove, or clear.
-- **Hold mode.** Pause new requests with one toggle (or `!hold` in chat).
+- **`!sr <song or link>`.** Chat requests by name or by Apple Music, Spotify,
+  or YouTube link; WolfWave resolves it to the matching Apple Music track and
+  queues it.
+- **Presets.** One-tap policies: **Open** (everyone; points and bits on),
+  **Sub Only**, **Channel Point Only**, or **Custom** for fine-grained control
+  over who can use `!sr` (Everyone, Subscribers, VIPs & Subscribers, Mods Only).
+- **Built-in queue.** See every request in Settings. Reorder, remove, or clear.
+- **Fair-share ordering.** Round-robin: everyone's first request plays before
+  anyone's second, so a fast re-typist can't hog the queue. On by default; turn
+  it off for classic first-in, first-out.
+- **Sub / VIP priority.** Optional perk: *Skip cooldown* lets subs, VIPs, and
+  mods request without the wait; *Jump the queue* also moves them ahead within
+  the current fair-share round. Off by default.
+- **Approve before play.** Opt-in **Require My Approval**: every request —
+  chat, channel points, bits — waits for your OK before it plays.
+- **Hold mode.** Pause the queue from the menu bar or `!hold`. Requests still
+  pile up; nothing plays until you resume.
+- **Vote-skip.** Chat skips the current song together with `!voteskip` — a
+  chat tally or a native Twitch poll, with a minimum-vote threshold you set.
 - **Blocklist.** Block tracks, artists, or albums you never want played.
-- **Mod controls.** `!skip`, `!hold`, `!clearqueue` for trusted users.
-- **Chat vote-skip.** Chat skips a song together with `!voteskip`. Chat-tally or native Twitch poll, with a minimum-vote threshold you set.
-- **Paste a link.** Drop an Apple Music, Spotify, or YouTube link and WolfWave resolves it to the track.
-- **Approve before play.** Opt-in "Require My Approval" (Settings → Song Requests → Access): every request (chat, channel points, bits) waits in the queue until you approve or decline it. Off by default.
-- **Fair-share ordering.** Round-robin queue: everyone's first request plays before anyone's second, so a fast re-typist can't hog the queue. On by default; turn off "Fair-Share Ordering" (Settings → Song Requests → Queue) for classic FIFO.
-- **Sub / VIP priority.** Optional perk for subs, VIPs, and mods: skip the request cooldown, or jump ahead within the fair-share round. Off by default (Settings → Song Requests → Queue).
+- **Fallback playlist.** When the queue runs dry, WolfWave can keep the music
+  going from a playlist you pick.
+- **Share the playlist.** Requests collect in "WolfWave Requests"; share it and
+  `!playlist` posts a live link in chat. If the playlist ever goes missing or
+  un-shared, WolfWave turns `!playlist` off and shows a fix-it banner instead of
+  letting chat get a dead link.
 
----
+### Channel points and bits
 
-## Channel Points &amp; Bits
-
-<Callout type="info">**TL;DR**: Reward your community for keeping the queue full.</Callout>
-
-- **Channel-point reward.** Flip one toggle and WolfWave creates, reconciles, and fulfills a "Request a Song" Channel Points reward for you. Redemptions feed straight into the song-request queue.
-- **Bit boost.** When a viewer cheers bits, their most-recent queued request jumps to the front. Same queue, same blocklist, same rules. Bits just bump priority.
-- **Same controls as `!sr`.** Channel-point and bit requests follow the request audience, blocklist, per-user limits, and hold mode that already gate chat requests.
-
----
-
-## Listening History &amp; Stats
-
-<Callout type="info">**TL;DR**: See what you actually listen to. Privately.</Callout>
-
-- **Opt-in.** Off by default. Turn it on in Settings or onboarding. Nothing is recorded until you do.
-- **Stays on your Mac.** Your history is a plain file on your computer. Never uploaded, never tracked.
-- **Counts real plays.** A track only counts once it plays past halfway. Skips don't pad your stats.
-- **Charts.** Top artists, listening time, a 7-day trend, and when-you-listen breakdowns.
-- **Monthly Wrap.** A personal "wrapped"-style summary every month. Export it as an image.
-- **`!stats` for chat.** Viewers can ask for your top track. Only answers while you're live.
-- **Keep it as long as you like.** Keep history forever, or auto-prune to 7 / 30 / 90 / 180 / 365 days. Older entries drop on next launch.
-
----
-
-## Discord Status
-
-<Callout type="info">**TL;DR**: Show off your taste.</Callout>
-
-- **Live profile.** "Listening to WolfWave" on your Discord profile, with Apple Music album art.
-- **Album art included.** High-res covers pulled from iTunes.
-- **Progress bar.** Friends see exactly where you are in the track.
-- **Nothing to set up.** Connects to Discord on your Mac. No bot tokens.
-
----
+- **Channel-point reward.** One toggle and WolfWave creates, reconciles, and
+  fulfills a "Request a Song" reward for you. Redemptions feed the same queue.
+- **Bit boost.** When a viewer cheers past your minimum, their most-recent
+  queued request jumps to the front. Same queue, same blocklist, same rules.
+- **Same controls as `!sr`.** Points and bits respect the request audience,
+  per-user limits, approval screening, and hold mode.
 
 ## Now-Playing Widget
 
-<Callout type="info">**TL;DR**: A good-looking widget, one browser source.</Callout>
+A good-looking overlay, one browser source, served entirely from your Mac — no
+hosted overlay service.
 
-- **Local-first.** WolfWave serves the HTML and now-playing data from your Mac, with no hosted overlay service. Fresh artwork still needs internet access.
-- **OBS ready.** Add it as a Browser Source and you're done.
-- **Updates instantly.** Changes the moment the song does.
-- **Smooth transitions.** The card slides in with a subtle bounce when a song starts, slides and blurs out calmly when playback stops, and the progress bar drains smoothly to zero. Rapid skips crossfade the artwork and text instead of replaying the entrance. No strobing on stream.
-- **Built-in WebSocket auth.** Every install has its own token. Localhost HTML gets it from the server; LAN links carry it as a query bootstrap for the WebSocket subprotocol. Regenerating the token drops active WebSocket clients. Two-PC streamers can connect from a second computer or phone over a trusted LAN.
-- **Five themes, five layouts.** `Default`, `Dark`, `Light`, `Glass`, `Neon` paired with `Horizontal`, `Vertical`, `Compact`, `Vinyl`, `Classic`. Pick one in Settings.
-- **Make it yours.** Tweak colors, fonts, and layout to fit your stream.
-- **Queue ticker, opt-in.** Add `?queueTicker=1` to the widget URL for a panel showing the next 3 song requests (title + requester), so viewers see their spot in line. Off by default, matches your chosen theme automatically.
+<Steps>
 
----
+<Step>Open **Settings → Stream Widgets** and enable the widget server.</Step>
+<Step>Copy the **Widget Link**.</Step>
+<Step>In OBS, add a **Browser Source** and paste the link.</Step>
+<Step>Size the source for your layout — see the [canvas table](/docs/widget#themes-and-layouts).</Step>
+
+</Steps>
+
+<Callout type="warn">
+  Turn on "Shutdown source when not visible" in OBS so the widget reconnects
+  cleanly when you switch scenes.
+</Callout>
+
+- **Themes and layouts.** Pick a theme (`Default`, `Dark`, `Light`, `Glass`,
+  `Neon`) and a layout (`Horizontal`, `Vertical`, `Compact`, `Vinyl`,
+  `Classic`), then tweak colors and fonts to match your stream.
+- **Updates instantly** with smooth transitions — no strobing on stream.
+- **Queue ticker, opt-in.** Add `?queueTicker=1` to the URL for a panel showing
+  the next requests so viewers see their spot in line.
+- **Token-gated.** Every install has its own access token; two-PC streamers can
+  connect over a trusted LAN. Details:
+  [WebSocket security](/docs/security#websocket-server-security).
+
+Sizes, the message contract, and theming internals: [OBS Widget](/docs/widget).
+
+## Stream Deck control
+
+The overlay socket is bidirectional: a Stream Deck (or any authenticated local
+client) can play/pause, skip, hold the queue, approve requests, and flip
+toggles, with live queue and health state on your keys. Protocol and actions:
+[Stream Deck Control API](/docs/stream-deck).
+
+## Discord Status
+
+Show "Listening to WolfWave" on your Discord profile with album art and a live
+progress bar. Connects to the Discord app on your Mac — no bot, no tokens, no
+setup. Off by default; when on, an idle status shows between songs (you can turn
+that off too).
+
+## Listening History & Stats
+
+- **Opt-in and on-device.** Off by default; your history is a plain file on
+  your Mac, never uploaded.
+- **Counts real plays.** A track counts after the halfway mark (or 4 minutes),
+  so skips don't pad your stats.
+- **Charts and Monthly Wrap.** Top artists, listening time, trends, and a
+  monthly "wrapped"-style summary you can export as an image.
+- **`!stats` for chat**, live-gated so it only answers during a stream.
+
+Retention, what counts, and privacy: [Listening History](/docs/listening-history).
+
+## Notifications
+
+Opt-in macOS banners: song changes (with album art), skip-vote started, and
+skip-vote passed. Each type replaces its previous banner instead of stacking.
+All off by default — turn them on in [Settings → General](/docs/settings#general).
 
 ## Streamer Mode
 
-<Callout type="info">**TL;DR**: One tap to make WolfWave camera-safe.</Callout>
+One tap from the menu bar makes WolfWave camera-safe: channel name, overlay
+URLs, and the auth token mask to `••••••` on screen while everything keeps
+working underneath. Details: [Streamer Mode](/docs/streamer-mode).
 
-- **One toggle.** Flip it from the menu bar's Streamer Quick Actions.
-- **Hides sensitive values.** Your Twitch channel name, overlay and widget URLs, the WebSocket URI, and the auth token all swap to `••••••` across the UI.
-- **Locks the buttons.** Copy and Open buttons next to masked values are disabled so screenshots can't leak the real value.
-- **Screen-only.** WebSocket broadcasts, Discord Rich Presence, and Twitch chat keep working. Only what's drawn on your screen changes.
+## Backup & Restore
 
----
+Export your settings to a JSON file and import them on a new Mac. Accounts and
+secrets are never included. Details: [Back Up & Restore](/docs/backup).
 
-## Security &amp; Privacy
+## Diagnostics and bug reports
 
-<Callout type="info">**TL;DR**: Your data is your business.</Callout>
+A built-in bug-report flow pre-fills a GitHub issue with your app version, and
+opt-in on-device diagnostics capture crash and performance data that never
+leaves your Mac unless you share it. See
+[Report a bug](/docs/support#report-a-bug).
 
-- **Tokens in the Keychain.** Stored in the macOS Keychain, the same place as your passwords.
-- **No tracking.** Zero analytics. Data only goes to services you turn on (Twitch, Discord, iTunes artwork).
-- **Signed and notarized.** Checked by Apple. Install with confidence.
+## Security & Privacy
 
----
+Tokens live in the macOS Keychain. Zero analytics — data only goes to services
+you turn on. Signed and notarized by Apple. Details: [Security](/docs/security)
+and the [Privacy Policy](/docs/privacy-policy).
 
-## How WolfWave compares
-
-Other tools cover one slice. WolfWave does the whole stack. For Apple Music, on macOS, free.
-
-| Capability | WolfWave | Jam Deck-style overlay | Discord-RPC-only apps | Spotify-only bots |
-|---|---|---|---|---|
-| Apple Music on macOS | ✅ | ✅ | ✅ | ❌ (Spotify) |
-| Twitch `!song` chat command | ✅ | ❌ | ❌ | ✅ |
-| Twitch song requests (`!sr`) | ✅ | ❌ | ❌ | ✅ |
-| Discord Rich Presence | ✅ | ❌ | ✅ | ❌ |
-| OBS browser-source overlay | ✅ | ✅ | ❌ | varies |
-| Channel-point + bits redemptions | ✅ | ❌ | ❌ | varies |
-| Free + open source (GPL-3.0) | ✅ | varies | varies | varies |
-
----
+Wondering how WolfWave stacks up against Jam Deck, SpotchBot, or
+Discord-RPC-only tools? See the [comparison](/docs/comparison).
 
 ## Where to next
 
 <Cards>
   <Card title="Installation" href="/docs/installation" description="Get it running on your Mac." />
-  <Card title="Usage Guide" href="/docs/usage" description="Every feature, set up step by step." />
+  <Card title="Bot Commands" href="/docs/bot-commands" description="Every chat command, with examples." />
+  <Card title="Settings" href="/docs/settings" description="Every pane, and what lives where." />
   <Card title="Support the project" href="/docs/support" description="Sponsor on GitHub." />
 </Cards>
