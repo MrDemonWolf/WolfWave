@@ -42,7 +42,7 @@ Closes #
 ### Release PRs
 
 - [ ] `MARKETING_VERSION` bumped in `project.pbxproj` (4 occurrences)
-- [ ] `CURRENT_PROJECT_VERSION` bumped in `project.pbxproj` (4 occurrences)
+- [ ] `CURRENT_PROJECT_VERSION` left alone — it is a dev placeholder that CI overrides from `scripts/version.sh` ([standard](docs/build-versioning-standard.md))
 
 ### UI changes
 
