@@ -40,20 +40,18 @@ final class HoldCommand: ServiceBoundCommand {
     /// - Parameters:
     ///   - message: Raw chat message; first word is matched against triggers.
     ///   - context: Sender context; must be mod or broadcaster.
-    ///   - reply: Closure invoked with the chat response.
-    func execute(message: String, context: BotCommandContext, reply: @escaping (String) -> Void) {
-        guard let service = requirePrivilegedService(context: context) else { return }
+    ///   - Returns: The eventual chat response, or nil when unauthorized.
+    func execute(message: String, context: BotCommandContext) async -> String? {
+        guard !Task.isCancelled else { return nil }
+        guard let service = requirePrivilegedService(context: context) else { return nil }
 
         let trigger = message.lowercased().components(separatedBy: " ").first ?? ""
-        let shouldHold = (trigger == "!hold")
-
-        Task {
-            await service.setHold(shouldHold)
-            if shouldHold {
-                reply("Song requests are on hold. Requests will queue but won't play until !resume")
-            } else {
-                reply("Song requests resumed. Playing buffered requests now")
-            }
-        }
+        let shouldHold = trigger == "!hold"
+        guard !Task.isCancelled else { return nil }
+        await service.setHold(shouldHold)
+        guard !Task.isCancelled else { return nil }
+        return shouldHold
+            ? "Song requests are on hold. Requests will queue but won't play until !resume"
+            : "Song requests resumed. Playing buffered requests now"
     }
 }

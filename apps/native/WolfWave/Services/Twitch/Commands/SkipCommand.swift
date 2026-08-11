@@ -46,16 +46,17 @@ final class SkipCommand: ServiceBoundCommand {
     /// - Parameters:
     ///   - message: Raw chat message (unused).
     ///   - context: Sender context; must be mod or broadcaster.
-    ///   - reply: Closure invoked with the chat response.
-    func execute(message: String, context: BotCommandContext, reply: @escaping (String) -> Void) {
-        guard let service = requirePrivilegedService(context: context) else { return }
+    ///   - Returns: The eventual chat response, or nil when unauthorized.
+    func execute(message: String, context: BotCommandContext) async -> String? {
+        guard !Task.isCancelled else { return nil }
+        guard let service = requirePrivilegedService(context: context) else { return nil }
 
-        Task {
-            if let next = await service.skip() {
-                reply("Skipped. Now playing: \"\(next.title)\" by \(next.artist) (requested by \(next.requesterUsername))")
-            } else {
-                reply("Skipped. Queue is now empty.")
-            }
+        guard !Task.isCancelled else { return nil }
+        if let next = await service.skip() {
+            guard !Task.isCancelled else { return nil }
+            return "Skipped. Now playing: \"\(next.title)\" by \(next.artist) (requested by \(next.requesterUsername))"
         }
+        guard !Task.isCancelled else { return nil }
+        return "Skipped. Queue is now empty."
     }
 }

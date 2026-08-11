@@ -369,6 +369,9 @@ enum RedemptionStatus: String {
     case botAccount
     /// An EventSub subscription request was rejected by Twitch.
     case subscribeFailed
+    /// Durable redemption intake cannot be written, so the managed reward is
+    /// held until storage is healthy again.
+    case storageUnavailable
 
     /// Banner message shown to the streamer, or `nil` when everything is fine.
     var bannerMessage: String? {
@@ -381,6 +384,9 @@ enum RedemptionStatus: String {
             return "Channel-point and bit requests need you to sign in with your broadcaster account, not a separate bot account."
         case .subscribeFailed:
             return "WolfWave couldn't subscribe to redemption events. Try reconnecting to Twitch."
+        case .storageUnavailable:
+            return "WolfWave paused channel-point requests because its recovery store is unavailable. "
+                + "Fix the storage issue, restart WolfWave, then reconnect to Twitch."
         }
     }
 }

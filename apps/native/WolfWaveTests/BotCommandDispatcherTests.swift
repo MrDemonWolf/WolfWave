@@ -98,6 +98,61 @@ final class BotCommandDispatcherTests: XCTestCase {
         XCTAssertNil(result)
     }
 
+    func testAsyncCommandIsAwaitedAndReturned() async {
+        let command = AwaitedTestCommand()
+        dispatcher.register(command)
+        let context = BotCommandContext(
+            userID: "viewer-1",
+            username: "Viewer",
+            isModerator: false,
+            isBroadcaster: false,
+            isSubscriber: false,
+            isVIP: false,
+            messageID: "message-1")
+
+        let result = await dispatcher.processMessageAsync(
+            "!awaited",
+            userID: context.userID,
+            context: context)
+
+        XCTAssertTrue(command.didExecute)
+        XCTAssertEqual(result, "awaited response")
+    }
+
+    func testDeniedServiceCommandDoesNotConsumeCooldown() async {
+        let command = PrivilegedCooldownTestCommand()
+        dispatcher.register(command)
+        let viewer = BotCommandContext(
+            userID: "viewer-1",
+            username: "Viewer",
+            isModerator: false,
+            isBroadcaster: false,
+            isSubscriber: false,
+            isVIP: false,
+            messageID: "message-1")
+        let broadcaster = BotCommandContext(
+            userID: "broadcaster-1",
+            username: "Broadcaster",
+            isModerator: false,
+            isBroadcaster: true,
+            isSubscriber: false,
+            isVIP: false,
+            messageID: "message-2")
+
+        let denied = await dispatcher.processMessageAsync(
+            "!privileged-cooldown",
+            userID: viewer.userID,
+            context: viewer)
+        let allowed = await dispatcher.processMessageAsync(
+            "!privileged-cooldown",
+            userID: broadcaster.userID,
+            context: broadcaster)
+
+        XCTAssertNil(denied)
+        XCTAssertEqual(allowed, "privileged response")
+        XCTAssertEqual(command.executionCount, 1)
+    }
+
     // MARK: - Whitespace Handling
 
     func testLeadingWhitespaceTrimmed() {
@@ -174,5 +229,37 @@ final class BotCommandDispatcherTests: XCTestCase {
         // Cleanup
         defaults.removeObject(forKey: AppConstants.UserDefaults.lastSongCommandGlobalCooldown)
         defaults.removeObject(forKey: AppConstants.UserDefaults.lastSongCommandUserCooldown)
+    }
+}
+
+@MainActor
+private final class AwaitedTestCommand: AsyncBotCommand {
+    let triggers = ["!awaited"]
+    let description = "Test structured async dispatch"
+    let globalCooldown: TimeInterval = 0
+    let userCooldown: TimeInterval = 0
+    private(set) var didExecute = false
+
+    func execute(message: String, context: BotCommandContext) async -> String? {
+        await Task.yield()
+        didExecute = true
+        return "awaited response"
+    }
+}
+
+@MainActor
+private final class PrivilegedCooldownTestCommand: ServiceBoundCommand {
+    let triggers = ["!privileged-cooldown"]
+    let description = "Test privileged cooldown reservation"
+    let globalCooldown: TimeInterval = 60
+    let userCooldown: TimeInterval = 60
+    var songRequestService: (() -> SongRequestService?)?
+    private(set) var executionCount = 0
+
+    func execute(message: String, context: BotCommandContext) async -> String? {
+        // Mirrors the production commands' execute-time privilege defense.
+        guard context.isPrivileged else { return nil }
+        executionCount += 1
+        return "privileged response"
     }
 }

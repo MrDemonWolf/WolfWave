@@ -18,14 +18,16 @@ import XCTest
 final class LinkResolverServiceTests: XCTestCase {
 
     private var resolver: LinkResolverService!
+    private let handlerStore = MockURLProtocol.HandlerStore()
 
     override func setUp() {
         super.setUp()
-        resolver = LinkResolverService(session: MockURLProtocol.makeSession())
+        handlerStore.handler = nil
+        resolver = LinkResolverService(session: MockURLProtocol.makeSession(handlerStore: handlerStore))
     }
 
     override func tearDown() {
-        MockURLProtocol.reset()
+        handlerStore.handler = nil
         resolver = nil
         super.tearDown()
     }
@@ -69,7 +71,7 @@ final class LinkResolverServiceTests: XCTestCase {
     }
 
     func testResolveSpotifyParsesOEmbedResponse() async {
-        MockURLProtocol.requestHandler = { request in
+        handlerStore.handler = { request in
             (MockURLProtocol.httpResponse(for: request, status: 200),
              Data(#"{"title":"Song Name","author_name":"Artist Name"}"#.utf8))
         }
@@ -85,7 +87,7 @@ final class LinkResolverServiceTests: XCTestCase {
     }
 
     func testResolveOEmbed404IsNotFound() async {
-        MockURLProtocol.requestHandler = { request in
+        handlerStore.handler = { request in
             (MockURLProtocol.httpResponse(for: request, status: 404), Data())
         }
 
@@ -98,7 +100,7 @@ final class LinkResolverServiceTests: XCTestCase {
     }
 
     func testResolveOEmbedServerErrorIsError() async {
-        MockURLProtocol.requestHandler = { request in
+        handlerStore.handler = { request in
             (MockURLProtocol.httpResponse(for: request, status: 500), Data())
         }
 

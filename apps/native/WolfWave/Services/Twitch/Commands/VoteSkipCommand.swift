@@ -49,16 +49,14 @@ final class VoteSkipCommand: AsyncBotCommand {
     /// - Parameters:
     ///   - message: Raw chat message (unused).
     ///   - context: Sender context, used for per-user vote deduplication.
-    ///   - reply: Closure invoked with the chat response.
-    func execute(message: String, context: BotCommandContext, reply: @escaping (String) -> Void) {
-        guard let manager = skipVoteManager?() else { return }
-
-        Task {
-            let outcome = await manager.recordVote(context: context)
-            if let response = Self.format(outcome) {
-                reply(response)
-            }
-        }
+    ///   - Returns: The formatted vote response, or nil to stay silent.
+    func execute(message: String, context: BotCommandContext) async -> String? {
+        guard !Task.isCancelled else { return nil }
+        guard let manager = skipVoteManager?() else { return nil }
+        guard !Task.isCancelled else { return nil }
+        let outcome = await manager.recordVote(context: context)
+        guard !Task.isCancelled else { return nil }
+        return Self.format(outcome)
     }
 
     // MARK: - Reply Formatting
@@ -67,7 +65,7 @@ final class VoteSkipCommand: AsyncBotCommand {
     /// should stay silent (feature disabled).
     static func format(_ outcome: SkipVoteManager.VoteOutcome) -> String? {
         switch outcome {
-        case .disabled:
+        case .cancelled, .disabled:
             return nil
         case .subscriberOnly:
             return "🔒 Vote-skip is subscriber-only right now."

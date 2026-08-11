@@ -43,17 +43,17 @@ final class ClearQueueCommand: ServiceBoundCommand {
     /// - Parameters:
     ///   - message: Raw chat message (unused).
     ///   - context: Sender context; must be mod or broadcaster.
-    ///   - reply: Closure invoked with the chat response.
-    func execute(message: String, context: BotCommandContext, reply: @escaping (String) -> Void) {
-        guard let service = requirePrivilegedService(context: context) else { return }
+    ///   - Returns: The queue result, or nil when unauthorized.
+    func execute(message: String, context: BotCommandContext) async -> String? {
+        guard !Task.isCancelled else { return nil }
+        guard let service = requirePrivilegedService(context: context) else { return nil }
 
-        Task {
-            let count = await service.clearQueue()
-            if count > 0 {
-                reply("Queue cleared (\(count) \(count == 1 ? "song" : "songs") removed)")
-            } else {
-                reply("Queue is already empty.")
-            }
+        guard !Task.isCancelled else { return nil }
+        let count = await service.clearQueue()
+        guard !Task.isCancelled else { return nil }
+        if count > 0 {
+            return "Queue cleared (\(count) \(count == 1 ? "song" : "songs") removed)"
         }
+        return "Queue is already empty."
     }
 }
