@@ -23,6 +23,7 @@ keywords:
 **Your preferences.** Things like:
 
 - **Song Request rules** (limits, cooldowns, command names, vote-skip)
+- **Custom bot commands** (triggers, replies, aliases, permissions, cooldowns)
 - **Stream Widget look and ports** (theme, layout, colors, server port)
 - **Discord Rich Presence options** (buttons, playlist, idle and pause behavior)
 - **Everything else**: notification toggles, History & Stats options, appearance, dock visibility
@@ -55,7 +56,9 @@ These live in the macOS Keychain, or macOS grants them per Mac, so they never ge
 
 **It merges, never wipes.** Importing adds your preferences in. It won't delete settings missing from the backup, and it won't touch a connection you leave switched off.
 
-System-backed preferences take effect during import too. WolfWave updates its appearance and update settings immediately and asks macOS to apply Launch at Login. If macOS rejects that login-item change, WolfWave keeps the real system setting and tells you instead of showing a switch that did not take effect.
+System-backed preferences take effect during import too. WolfWave updates its appearance and update settings immediately and asks macOS to apply Launch at Login. If macOS rejects that login-item change, WolfWave keeps the real system setting. If macOS accepts it but needs your approval, the import still counts it as restored and points you to **System Settings → General → Login Items**.
+
+Song Requests can only turn on after setup is complete on that Mac. Until then, import leaves the master switch off, excludes it from the review count, and tells you why. Finish setup in **Settings → Song Requests**, then turn it on.
 
 ## Move to a new Mac
 
@@ -70,4 +73,4 @@ System-backed preferences take effect during import too. WolfWave updates its ap
 - **Permissions don't carry over.** macOS grants them per Mac, so re-grant access (like Apple Music control) after importing.
 - **Newer-version backups** ask you to update WolfWave before they'll import.
 - **Listening History stays put.** Your play log and stats are personal data, not settings, so they're not in a settings backup.
-- **Hand-edited values are checked before import.** Unsafe ports and queue limits are skipped, and the review count includes only preferences WolfWave can restore.
+- **Hand-edited values are checked before import.** Wrong value types, malformed custom commands, unknown picker choices, and values outside a control's choices are skipped. The review count includes only preferences WolfWave can restore on this Mac.

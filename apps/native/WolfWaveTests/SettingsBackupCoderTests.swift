@@ -15,7 +15,9 @@ import Testing
 struct SettingsBackupCoderTests {
 
     private let coder = SettingsBackupCoder()
-    private var exportable: [String] { AppConstants.UserDefaults.exportableKeys }
+    private var exportable: [AppConstants.UserDefaults.ExportablePreference] {
+        AppConstants.UserDefaults.exportablePreferences
+    }
 
     private func makeBackup(
         snapshot: [String: Any],
@@ -23,7 +25,7 @@ struct SettingsBackupCoderTests {
     ) -> SettingsBackup {
         coder.makeBackup(
             snapshot: snapshot,
-            exportableKeys: exportable,
+            exportablePreferences: exportable,
             twitchChannelName: twitchChannelName,
             appVersion: "1.0.0",
             appBuild: "1",
@@ -33,30 +35,32 @@ struct SettingsBackupCoderTests {
 
     // MARK: - BackupValue typing
 
-    @Test func backupValueClassifiesScalarTypes() {
+    @Test func backupValueClassifiesSupportedTypes() {
         #expect(BackupValue.make(from: true) == .bool(true))
         #expect(BackupValue.make(from: false) == .bool(false))
         #expect(BackupValue.make(from: 8765) == .int(8765))
         #expect(BackupValue.make(from: 15.0) == .double(15.0))
         #expect(BackupValue.make(from: 30.5) == .double(30.5))
         #expect(BackupValue.make(from: "Neon") == .string("Neon"))
+        #expect(BackupValue.make(from: Data([0x01, 0x02])) == .data(Data([0x01, 0x02])))
     }
 
     @Test func backupValueRejectsUnsupportedTypes() {
         #expect(BackupValue.make(from: Date()) == nil)
         #expect(BackupValue.make(from: [1, 2, 3]) == nil)
-        #expect(BackupValue.make(from: Data([0x01])) == nil)
     }
 
     // MARK: - Round trip
 
     @Test func roundTripPreservesValueTypes() throws {
         let keys = AppConstants.UserDefaults.self
+        let customCommands = Data("[]".utf8)
         let snapshot: [String: Any] = [
             keys.trackingEnabled: true,
             keys.websocketServerPort: 8765,
             keys.songCommandGlobalCooldown: 15.0,
             keys.widgetTheme: "Neon",
+            keys.customCommands: customCommands,
         ]
         let data = try coder.encode(makeBackup(snapshot: snapshot))
         let decoded = try coder.decode(data)
@@ -65,6 +69,7 @@ struct SettingsBackupCoderTests {
         #expect(decoded.settings[keys.websocketServerPort] == .int(8765))
         #expect(decoded.settings[keys.songCommandGlobalCooldown] == .double(15.0))
         #expect(decoded.settings[keys.widgetTheme] == .string("Neon"))
+        #expect(decoded.settings[keys.customCommands] == .data(customCommands))
         #expect(decoded.format == SettingsBackup.currentFormat)
         #expect(decoded.schemaVersion == SettingsBackup.currentSchemaVersion)
     }
@@ -92,6 +97,20 @@ struct SettingsBackupCoderTests {
         let keys = AppConstants.UserDefaults.self
         let backup = makeBackup(snapshot: [keys.trackingEnabled: Date()])
         #expect(backup.settings[keys.trackingEnabled] == nil)
+    }
+
+    @Test func exportUsesTheSameTypeAndEnumSchemaAsImport() {
+        let keys = AppConstants.UserDefaults.self
+        let commandData = Data("[]".utf8)
+        let backup = makeBackup(snapshot: [
+            keys.trackingEnabled: "true",
+            keys.dockVisibility: "floating",
+            keys.customCommands: commandData,
+        ])
+
+        #expect(backup.settings[keys.trackingEnabled] == nil)
+        #expect(backup.settings[keys.dockVisibility] == nil)
+        #expect(backup.settings[keys.customCommands] == .data(commandData))
     }
 
     @Test func exportOmitsTwitchWhenChannelEmpty() {
@@ -136,6 +155,16 @@ struct SettingsBackupCoderTests {
         #expect(decoded.format == SettingsBackup.currentFormat)
     }
 
+    @Test func decodeAcceptsOlderSchemaBackup() throws {
+        var backup = makeBackup(snapshot: [AppConstants.UserDefaults.trackingEnabled: true])
+        backup.schemaVersion = 1
+
+        let decoded = try coder.decode(coder.encode(backup))
+
+        #expect(decoded.schemaVersion == 1)
+        #expect(decoded.settings[AppConstants.UserDefaults.trackingEnabled] == .bool(true))
+    }
+
     // MARK: - Apply planning
 
     @Test func applyPlanRestoresPortableAndIgnoresOthers() {
@@ -148,7 +177,7 @@ struct SettingsBackupCoderTests {
         let plan = coder.makeApplyPlan(
             backup: backup,
             choices: SettingsBackupCoder.ImportChoices(reconnectTwitch: false),
-            exportableKeys: exportable
+            exportablePreferences: exportable
         )
 
         #expect(plan.set[keys.trackingEnabled] == .bool(true))
@@ -162,7 +191,7 @@ struct SettingsBackupCoderTests {
         let plan = coder.makeApplyPlan(
             backup: backup,
             choices: SettingsBackupCoder.ImportChoices(reconnectTwitch: false),
-            exportableKeys: exportable
+            exportablePreferences: exportable
         )
         #expect(plan.reconnectTwitch == false)
         #expect(plan.twitchChannelName == nil)
@@ -173,7 +202,7 @@ struct SettingsBackupCoderTests {
         let plan = coder.makeApplyPlan(
             backup: backup,
             choices: SettingsBackupCoder.ImportChoices(reconnectTwitch: true),
-            exportableKeys: exportable
+            exportablePreferences: exportable
         )
         #expect(plan.reconnectTwitch == true)
         #expect(plan.twitchChannelName == "mrdemonwolf")
@@ -184,7 +213,7 @@ struct SettingsBackupCoderTests {
         let plan = coder.makeApplyPlan(
             backup: backup,
             choices: SettingsBackupCoder.ImportChoices(reconnectTwitch: true),
-            exportableKeys: exportable
+            exportablePreferences: exportable
         )
         #expect(plan.reconnectTwitch == false)
         #expect(plan.twitchChannelName == nil)
@@ -201,7 +230,7 @@ struct SettingsBackupCoderTests {
         let plan = coder.makeApplyPlan(
             backup: backup,
             choices: SettingsBackupCoder.ImportChoices(reconnectTwitch: false),
-            exportableKeys: exportable
+            exportablePreferences: exportable
         )
 
         #expect(plan.set[keys.websocketServerPort] == nil)
@@ -217,10 +246,25 @@ struct SettingsBackupCoderTests {
         let plan = coder.makeApplyPlan(
             backup: backup,
             choices: SettingsBackupCoder.ImportChoices(reconnectTwitch: false),
-            exportableKeys: exportable
+            exportablePreferences: exportable
         )
 
         #expect(plan.set[keys.widgetPort] == nil)
+        #expect(plan.ignoredKeyCount == 1)
+    }
+
+    @Test func applyPlanDropsReservedPortValues() {
+        let keys = AppConstants.UserDefaults.self
+        var backup = makeBackup(snapshot: [:])
+        backup.settings[keys.websocketServerPort] = .int(80)
+
+        let plan = coder.makeApplyPlan(
+            backup: backup,
+            choices: SettingsBackupCoder.ImportChoices(),
+            exportablePreferences: exportable
+        )
+
+        #expect(plan.set[keys.websocketServerPort] == nil)
         #expect(plan.ignoredKeyCount == 1)
     }
 
@@ -234,7 +278,7 @@ struct SettingsBackupCoderTests {
         let plan = coder.makeApplyPlan(
             backup: backup,
             choices: SettingsBackupCoder.ImportChoices(reconnectTwitch: false),
-            exportableKeys: exportable
+            exportablePreferences: exportable
         )
 
         #expect(plan.set[keys.websocketServerPort] == .int(8765))
@@ -253,7 +297,7 @@ struct SettingsBackupCoderTests {
         let plan = coder.makeApplyPlan(
             backup: backup,
             choices: SettingsBackupCoder.ImportChoices(),
-            exportableKeys: exportable
+            exportablePreferences: exportable
         )
 
         #expect(plan.set.isEmpty)
@@ -272,11 +316,114 @@ struct SettingsBackupCoderTests {
         let plan = coder.makeApplyPlan(
             backup: backup,
             choices: SettingsBackupCoder.ImportChoices(),
-            exportableKeys: exportable
+            exportablePreferences: exportable
         )
 
         #expect(plan.set.count == 4)
         #expect(plan.ignoredKeyCount == 0)
+    }
+
+    @Test func applyPlanRejectsMismatchedTypesForEverySupportedShape() {
+        let keys = AppConstants.UserDefaults.self
+        var backup = makeBackup(snapshot: [:])
+        backup.settings = [
+            // Each value is representable in a backup, but has the wrong tagged
+            // shape for this particular preference.
+            keys.trackingEnabled: .string("true"),
+            keys.widgetFontFamily: .bool(true),
+            keys.websocketServerPort: .double(8_765),
+            keys.songCommandGlobalCooldown: .int(15),
+            keys.customCommands: .string("[]"),
+        ]
+
+        let plan = coder.makeApplyPlan(
+            backup: backup,
+            choices: SettingsBackupCoder.ImportChoices(),
+            exportablePreferences: exportable
+        )
+
+        #expect(plan.set.isEmpty)
+        #expect(plan.ignoredKeyCount == 5)
+        #expect(
+            coder.restorableCount(
+                backup: backup,
+                exportablePreferences: exportable
+            ) == 0
+        )
+    }
+
+    @Test func applyPlanRejectsUnknownPickerAndStringListValues() {
+        let keys = AppConstants.UserDefaults.self
+        var backup = makeBackup(snapshot: [:])
+        backup.settings = [
+            keys.dockVisibility: .string("floating"),
+            keys.updateChannel: .string("beta"),
+            keys.widgetTheme: .string("Synthwave"),
+            keys.songRequestChatAudience: .string("friends"),
+            keys.statsCommandParts: .string("plays,secretMetric"),
+        ]
+
+        let plan = coder.makeApplyPlan(
+            backup: backup,
+            choices: SettingsBackupCoder.ImportChoices(),
+            exportablePreferences: exportable
+        )
+
+        #expect(plan.set.isEmpty)
+        #expect(plan.ignoredKeyCount == 5)
+        #expect(
+            coder.restorableCount(
+                backup: backup,
+                exportablePreferences: exportable
+            ) == 0
+        )
+    }
+
+    @Test func applyPlanRejectsNumericValuesSettingsControlsCannotRepresent() {
+        let keys = AppConstants.UserDefaults.self
+        var backup = makeBackup(snapshot: [:])
+        backup.settings = [
+            keys.songRequestMaxQueueSize: .int(6),
+            keys.songRequestPerUserLimit: .int(4),
+            keys.songRequestChannelPointsCost: .int(200),
+            keys.songRequestBitsMinimum: .int(2),
+            keys.voteSkipMinVotes: .int(4),
+            keys.voteSkipWindowSeconds: .int(45),
+            keys.voteSkipSessionCooldown: .double(10),
+            keys.voteSkipPollDuration: .int(15),
+            keys.historyRetentionDays: .int(1),
+            keys.songCommandGlobalCooldown: .double(7),
+        ]
+
+        let plan = coder.makeApplyPlan(
+            backup: backup,
+            choices: SettingsBackupCoder.ImportChoices(),
+            exportablePreferences: exportable
+        )
+
+        #expect(plan.set.isEmpty)
+        #expect(plan.ignoredKeyCount == 10)
+    }
+
+    @Test func applyPlanRejectsMalformedCustomCommandData() {
+        let key = AppConstants.UserDefaults.customCommands
+        var backup = makeBackup(snapshot: [:])
+        backup.settings[key] = .data(Data("not custom-command JSON".utf8))
+
+        let plan = coder.makeApplyPlan(
+            backup: backup,
+            choices: SettingsBackupCoder.ImportChoices(),
+            exportablePreferences: exportable
+        )
+
+        #expect(plan.set[key] == nil)
+        #expect(plan.ignoredKeyCount == 1)
+        #expect(
+            coder.restorableCount(
+                backup: backup,
+                exportablePreferences: exportable
+            ) == 0
+        )
     }
 
     // MARK: - Summary
@@ -285,7 +432,7 @@ struct SettingsBackupCoderTests {
         let keys = AppConstants.UserDefaults.self
         var backup = makeBackup(snapshot: [keys.trackingEnabled: true, keys.widgetTheme: "Neon"])
         backup.settings["unknownKey"] = .bool(true)
-        #expect(coder.restorableCount(backup: backup, exportableKeys: exportable) == 2)
+        #expect(coder.restorableCount(backup: backup, exportablePreferences: exportable) == 2)
     }
 
     @Test func restorableCountUsesTheSameValidationAsApply() {
@@ -298,11 +445,16 @@ struct SettingsBackupCoderTests {
         let plan = coder.makeApplyPlan(
             backup: backup,
             choices: SettingsBackupCoder.ImportChoices(),
-            exportableKeys: exportable
+            exportablePreferences: exportable
         )
 
         #expect(plan.set.count == 1)
-        #expect(coder.restorableCount(backup: backup, exportableKeys: exportable) == plan.set.count)
+        #expect(
+            coder.restorableCount(
+                backup: backup,
+                exportablePreferences: exportable
+            ) == plan.set.count
+        )
     }
 
     // MARK: - Decode rejects malformed input (surfaces an error, never crashes)

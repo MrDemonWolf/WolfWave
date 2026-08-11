@@ -143,6 +143,92 @@ final class SettingsBackupServiceTests: XCTestCase {
         )
     }
 
+    func testApplyCountsPendingLaunchAtLoginAndWarnsAboutSystemApproval() {
+        let suiteName = "SettingsBackupServiceTests.loginApproval.\(UUID().uuidString)"
+        guard let defaults = UserDefaults(suiteName: suiteName) else {
+            XCTFail("Could not create isolated UserDefaults suite")
+            return
+        }
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+
+        var launchAtLoginEnabled = false
+        let sideEffects = SettingsBackupService.SideEffects(
+            isLaunchAtLoginEnabled: { launchAtLoginEnabled },
+            setLaunchAtLogin: { enabled in
+                launchAtLoginEnabled = enabled
+                return .requiresApproval
+            },
+            applyAppearance: { _ in },
+            applyUpdatePreferences: { _ in }
+        )
+        let key = AppConstants.UserDefaults.launchAtLogin
+        let backup = makeBackup(settings: [key: .bool(true)])
+
+        let summary = SettingsBackupService(
+            defaults: defaults,
+            center: NotificationCenter(),
+            sideEffects: sideEffects
+        ).apply(backup, choices: .init())
+
+        XCTAssertTrue(defaults.bool(forKey: key))
+        XCTAssertEqual(summary.restoredCount, 1)
+        XCTAssertEqual(
+            summary.warnings,
+            ["Launch at Login requires approval in System Settings → General → Login Items."]
+        )
+    }
+
+    func testSongRequestsAreNotPreviewedOrRestoredBeforeSetupCompletes() {
+        let suiteName = "SettingsBackupServiceTests.songRequestSetup.\(UUID().uuidString)"
+        guard let defaults = UserDefaults(suiteName: suiteName) else {
+            XCTFail("Could not create isolated UserDefaults suite")
+            return
+        }
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+
+        let keys = AppConstants.UserDefaults.self
+        // Model a corrupted pre-import state too: resolving this backup must
+        // leave the unsupported master toggle safely off.
+        defaults.set(true, forKey: keys.songRequestEnabled)
+        defaults.set(false, forKey: keys.songRequestSetupComplete)
+        let backup = makeBackup(settings: [keys.songRequestEnabled: .bool(true)])
+        let service = SettingsBackupService(defaults: defaults, center: NotificationCenter())
+
+        XCTAssertEqual(service.restorableCount(backup), 0)
+
+        let summary = service.apply(backup, choices: .init())
+
+        XCTAssertFalse(defaults.bool(forKey: keys.songRequestEnabled))
+        XCTAssertEqual(summary.restoredCount, 0)
+        XCTAssertEqual(summary.ignoredCount, 1)
+        XCTAssertEqual(
+            summary.warnings,
+            ["Song Requests weren't restored because setup isn't complete on this Mac."]
+        )
+    }
+
+    func testSongRequestsArePreviewedAndRestoredAfterSetupCompletes() {
+        let suiteName = "SettingsBackupServiceTests.songRequestReady.\(UUID().uuidString)"
+        guard let defaults = UserDefaults(suiteName: suiteName) else {
+            XCTFail("Could not create isolated UserDefaults suite")
+            return
+        }
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+
+        let keys = AppConstants.UserDefaults.self
+        defaults.set(true, forKey: keys.songRequestSetupComplete)
+        let backup = makeBackup(settings: [keys.songRequestEnabled: .bool(true)])
+        let service = SettingsBackupService(defaults: defaults, center: NotificationCenter())
+
+        XCTAssertEqual(service.restorableCount(backup), 1)
+
+        let summary = service.apply(backup, choices: .init())
+
+        XCTAssertTrue(defaults.bool(forKey: keys.songRequestEnabled))
+        XCTAssertEqual(summary.restoredCount, 1)
+        XCTAssertTrue(summary.warnings.isEmpty)
+    }
+
     private func makeBackup(settings: [String: BackupValue]) -> SettingsBackup {
         SettingsBackup(
             format: SettingsBackup.currentFormat,

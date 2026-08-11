@@ -23,7 +23,7 @@ nonisolated struct SettingsBackup: Codable, Equatable {
     static let currentFormat = "com.mrdemonwolf.wolfwave.settings"
 
     /// Current backup schema version. Bump only on a breaking shape change.
-    static let currentSchemaVersion = 1
+    static let currentSchemaVersion = 2
 
     /// Always `SettingsBackup.currentFormat` for files this app writes.
     var format: String
@@ -67,12 +67,15 @@ nonisolated struct SettingsBackup: Codable, Equatable {
 /// which makes a bare JSON scalar ambiguous on the way back in (a stored `1.0`
 /// can decode as `Int`). Tagging the type keeps an export → import round trip
 /// lossless. `BackupValue.make(from:)` does the one tricky job, telling a
-/// boolean `NSNumber` apart from a numeric one.
+/// boolean `NSNumber` apart from a numeric one. `Data` is included for the
+/// JSON-encoded custom-command collection; arrays and other property-list
+/// shapes are not portable backup values.
 nonisolated enum BackupValue: Codable, Equatable {
     case bool(Bool)
     case int(Int)
     case double(Double)
     case string(String)
+    case data(Data)
 
     private enum CodingKeys: String, CodingKey {
         case type
@@ -80,11 +83,11 @@ nonisolated enum BackupValue: Codable, Equatable {
     }
 
     private enum ValueType: String, Codable {
-        case bool, int, double, string
+        case bool, int, double, string, data
     }
 
     /// Builds a `BackupValue` from a raw UserDefaults value, returning `nil` for
-    /// unsupported types (arrays, data, dates, etc., which backups don't carry).
+    /// unsupported types (arrays, dates, etc., which backups don't carry).
     ///
     /// Telling a boolean `NSNumber` from a numeric one needs the CoreFoundation
     /// type id, since `boolNumber as? Int` and `intNumber as? Bool` both succeed
@@ -107,6 +110,7 @@ nonisolated enum BackupValue: Codable, Equatable {
         if let i = raw as? Int { return .int(i) }
         if let d = raw as? Double { return .double(d) }
         if let s = raw as? String { return .string(s) }
+        if let data = raw as? Data { return .data(data) }
         return nil
     }
 
@@ -117,6 +121,7 @@ nonisolated enum BackupValue: Codable, Equatable {
         case .int(let i): return i
         case .double(let d): return d
         case .string(let s): return s
+        case .data(let data): return data
         }
     }
 
@@ -130,6 +135,7 @@ nonisolated enum BackupValue: Codable, Equatable {
         case .int: self = .int(try container.decode(Int.self, forKey: .value))
         case .double: self = .double(try container.decode(Double.self, forKey: .value))
         case .string: self = .string(try container.decode(String.self, forKey: .value))
+        case .data: self = .data(try container.decode(Data.self, forKey: .value))
         }
     }
 
@@ -148,6 +154,9 @@ nonisolated enum BackupValue: Codable, Equatable {
         case .string(let s):
             try container.encode(ValueType.string, forKey: .type)
             try container.encode(s, forKey: .value)
+        case .data(let data):
+            try container.encode(ValueType.data, forKey: .type)
+            try container.encode(data, forKey: .value)
         }
     }
 }

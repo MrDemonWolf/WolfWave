@@ -545,129 +545,237 @@ extension AppConstants {
 
         // MARK: Export / Import Classification
 
-        /// Keys safe to write to an exported settings backup and to restore on
-        /// import. Portable preferences only. No secrets, no account identity,
-        /// no per-install runtime state. Anything not listed here is deliberately
-        /// excluded from backups.
+        /// The on-disk value shape and optional validation rule for one portable
+        /// preference. This stays independent of `BackupValue` so the key
+        /// catalog remains the source of truth while the backup coder performs
+        /// the concrete tagged-value match.
+        nonisolated enum ExportedIntegerDomain: Equatable, Sendable {
+            case values(Set<Int>)
+            case zeroOrRange(ClosedRange<Int>)
+        }
+
+        nonisolated struct ExportedDoubleDomain: Equatable, Sendable {
+            let range: ClosedRange<Double>
+            let step: Double
+        }
+
+        nonisolated enum ExportedDataFormat: Equatable, Sendable {
+            case customCommands
+        }
+
+        nonisolated enum ExportedValueRule: Equatable, Sendable {
+            case bool
+            case int(ExportedIntegerDomain)
+            case double(ExportedDoubleDomain)
+            case string(Set<String>?)
+            case stringList(Set<String>)
+            case data(ExportedDataFormat)
+        }
+
+        /// One portable preference and the exact value shape an import accepts.
+        nonisolated struct ExportablePreference: Equatable, Sendable {
+            let key: String
+            let rule: ExportedValueRule
+        }
+
+        private static func portableBool(_ key: String) -> ExportablePreference {
+            ExportablePreference(key: key, rule: .bool)
+        }
+
+        private static func portableInt(
+            _ key: String,
+            allowedValues: [Int]
+        ) -> ExportablePreference {
+            ExportablePreference(key: key, rule: .int(.values(Set(allowedValues))))
+        }
+
+        private static func portablePort(_ key: String) -> ExportablePreference {
+            ExportablePreference(
+                key: key,
+                rule: .int(.zeroOrRange(
+                    Int(AppConstants.WebSocketServer.minPort)...Int(AppConstants.WebSocketServer.maxPort)
+                ))
+            )
+        }
+
+        private static func portableDouble(
+            _ key: String,
+            in range: ClosedRange<Double>,
+            step: Double
+        ) -> ExportablePreference {
+            ExportablePreference(
+                key: key,
+                rule: .double(ExportedDoubleDomain(range: range, step: step))
+            )
+        }
+
+        private static func portableString(
+            _ key: String,
+            allowedValues: [String]? = nil
+        ) -> ExportablePreference {
+            ExportablePreference(key: key, rule: .string(allowedValues.map { Set($0) }))
+        }
+
+        private static func portableStringList(
+            _ key: String,
+            allowedValues: [String]
+        ) -> ExportablePreference {
+            ExportablePreference(key: key, rule: .stringList(Set(allowedValues)))
+        }
+
+        private static func portableData(
+            _ key: String,
+            format: ExportedDataFormat
+        ) -> ExportablePreference {
+            ExportablePreference(key: key, rule: .data(format))
+        }
+
+        /// Portable preferences safe to export and restore, paired with their
+        /// complete validation schema. No secrets, account identity, or
+        /// per-install runtime state appears here. Anything not listed is
+        /// deliberately excluded from backups.
         ///
         /// Invariant: every key in `allKeys` must appear in exactly one of
         /// `exportableKeys`, `accountLinkedKeys`, or `runtimeStateKeys`. Adding a
         /// new UserDefaults key forces a classification choice; the
         /// `SettingsBackupKeyCoverageTests` guard fails until it is placed.
-        static let exportableKeys: [String] = [
+        static let exportablePreferences: [ExportablePreference] = [
             // General / appearance
-            trackingEnabled,
-            dockVisibility,
-            launchAtLogin,
-            appearancePreference,
-            streamerModeEnabled,
-            shareDiagnosticsEnabled,
-            updateCheckEnabled,
-            updateChannel,
+            portableBool(trackingEnabled),
+            portableString(dockVisibility, allowedValues: [
+                AppConstants.DockVisibility.menuOnly,
+                AppConstants.DockVisibility.dockOnly,
+                AppConstants.DockVisibility.both,
+            ]),
+            portableBool(launchAtLogin),
+            portableString(appearancePreference, allowedValues: [
+                AppConstants.Appearance.system,
+                AppConstants.Appearance.light,
+                AppConstants.Appearance.dark,
+            ]),
+            portableBool(streamerModeEnabled),
+            portableBool(shareDiagnosticsEnabled),
+            portableBool(updateCheckEnabled),
+            portableString(updateChannel, allowedValues: ["stable", "nightly"]),
             // Music monitor / song commands
-            currentSongCommandEnabled,
-            lastSongCommandEnabled,
-            commandsLiveOnly,
-            customCommands,
-            songCommandSongLinkEnabled,
-            songCommandGlobalCooldown,
-            songCommandUserCooldown,
-            songCommandAliases,
-            lastSongCommandGlobalCooldown,
-            lastSongCommandUserCooldown,
-            lastSongCommandAliases,
+            portableBool(currentSongCommandEnabled),
+            portableBool(lastSongCommandEnabled),
+            portableBool(commandsLiveOnly),
+            portableData(customCommands, format: .customCommands),
+            portableBool(songCommandSongLinkEnabled),
+            portableDouble(songCommandGlobalCooldown, in: 0...30, step: 5),
+            portableDouble(songCommandUserCooldown, in: 0...60, step: 5),
+            portableString(songCommandAliases),
+            portableDouble(lastSongCommandGlobalCooldown, in: 0...30, step: 5),
+            portableDouble(lastSongCommandUserCooldown, in: 0...60, step: 5),
+            portableString(lastSongCommandAliases),
             // WolfWave info command
-            wolfwaveCommandEnabled,
-            wolfwaveCommandGlobalCooldown,
-            wolfwaveCommandUserCooldown,
-            wolfwaveCommandAliases,
-            wolfwaveCommandReplyStyle,
+            portableBool(wolfwaveCommandEnabled),
+            portableDouble(wolfwaveCommandGlobalCooldown, in: 0...30, step: 5),
+            portableDouble(wolfwaveCommandUserCooldown, in: 0...60, step: 5),
+            portableString(wolfwaveCommandAliases),
+            portableString(wolfwaveCommandReplyStyle, allowedValues: [
+                "credit", "howto", "pitch", "short",
+            ]),
             // Discord Rich Presence (local IPC, no account/login)
-            discordPresenceEnabled,
-            discordButton1Enabled,
-            discordButton1Label,
-            discordButton2Enabled,
-            discordButton2Label,
-            discordButtonsEnabled,
-            discordPlaylistEnabled,
-            discordPlaylistShowName,
-            discordPlaylistStyle,
-            discordShowIdleStatus,
-            discordClearWhilePaused,
+            portableBool(discordPresenceEnabled),
+            portableBool(discordButton1Enabled),
+            portableString(discordButton1Label),
+            portableBool(discordButton2Enabled),
+            portableString(discordButton2Label),
+            portableBool(discordButtonsEnabled),
+            portableBool(discordPlaylistEnabled),
+            portableBool(discordPlaylistShowName),
+            portableString(discordPlaylistStyle, allowedValues: ["artistLine", "iconTooltip"]),
+            portableBool(discordShowIdleStatus),
+            portableBool(discordClearWhilePaused),
             // Stream widgets / WebSocket (local server; auth token auto-regenerates)
-            websocketEnabled,
-            websocketServerPort,
-            widgetHTTPEnabled,
-            widgetPort,
-            widgetTheme,
-            widgetLayout,
-            widgetTextColor,
-            widgetBackgroundColor,
-            widgetFontFamily,
+            portableBool(websocketEnabled),
+            portablePort(websocketServerPort),
+            portableBool(widgetHTTPEnabled),
+            portablePort(widgetPort),
+            portableString(widgetTheme, allowedValues: AppConstants.Widget.themes),
+            portableString(widgetLayout, allowedValues: AppConstants.Widget.layouts),
+            portableString(widgetTextColor),
+            portableString(widgetBackgroundColor),
+            portableString(widgetFontFamily),
             // Song requests
-            songRequestEnabled,
-            songRequestMaxQueueSize,
-            songRequestPerUserLimit,
-            songRequestFairShare,
-            songRequestPriorityMode,
-            songRequestSubscriberOnly,
-            songRequestAutoAdvance,
-            songRequestAutoplayWhenEmpty,
-            songRequestApprovalRequired,
-            srCommandEnabled,
-            queueCommandEnabled,
-            myQueueCommandEnabled,
-            skipCommandEnabled,
-            clearQueueCommandEnabled,
-            srCommandAliases,
-            queueCommandAliases,
-            myQueueCommandAliases,
-            skipCommandAliases,
-            clearQueueCommandAliases,
-            songListCommandEnabled,
-            songListCommandAliases,
-            songRequestSongListURL,
-            songRequestGlobalCooldown,
-            songRequestUserCooldown,
-            songRequestFallbackPlaylist,
-            songRequestHoldEnabled,
-            songRequestChatAudience,
-            songRequestChannelPointsEnabled,
-            songRequestChannelPointsCost,
-            songRequestBitsEnabled,
-            songRequestBitsMinimum,
-            songRequestBitsBoostEnabled,
-            songRequestDisabledReplyEnabled,
-            songRequestPolicyMode,
-            songRequestLimitStackMode,
-            songRequestLimitSubscriber,
-            songRequestLimitVIP,
-            songRequestLimitModerator,
+            portableBool(songRequestEnabled),
+            portableInt(songRequestMaxQueueSize, allowedValues: [5, 10, 15, 20, 25, 50]),
+            portableInt(songRequestPerUserLimit, allowedValues: [1, 2, 3, 5, 10, 15, 20]),
+            portableBool(songRequestFairShare),
+            portableString(songRequestPriorityMode, allowedValues: ["off", "cooldownSkip", "queueJump"]),
+            portableBool(songRequestSubscriberOnly),
+            portableBool(songRequestAutoAdvance),
+            portableBool(songRequestAutoplayWhenEmpty),
+            portableBool(songRequestApprovalRequired),
+            portableBool(srCommandEnabled),
+            portableBool(queueCommandEnabled),
+            portableBool(myQueueCommandEnabled),
+            portableBool(skipCommandEnabled),
+            portableBool(clearQueueCommandEnabled),
+            portableString(srCommandAliases),
+            portableString(queueCommandAliases),
+            portableString(myQueueCommandAliases),
+            portableString(skipCommandAliases),
+            portableString(clearQueueCommandAliases),
+            portableBool(songListCommandEnabled),
+            portableString(songListCommandAliases),
+            portableString(songRequestSongListURL),
+            portableDouble(songRequestGlobalCooldown, in: 0...30, step: 5),
+            portableDouble(songRequestUserCooldown, in: 0...60, step: 5),
+            portableString(songRequestFallbackPlaylist),
+            portableBool(songRequestHoldEnabled),
+            portableString(songRequestChatAudience, allowedValues: [
+                "everyone", "subscribers", "vipsAndSubs", "modsOnly",
+            ]),
+            portableBool(songRequestChannelPointsEnabled),
+            portableInt(
+                songRequestChannelPointsCost,
+                allowedValues: [100, 250, 500, 1_000, 2_500, 5_000]
+            ),
+            portableBool(songRequestBitsEnabled),
+            portableInt(songRequestBitsMinimum, allowedValues: [1, 50, 100, 200, 500, 1_000]),
+            portableBool(songRequestBitsBoostEnabled),
+            portableBool(songRequestDisabledReplyEnabled),
+            portableString(songRequestPolicyMode, allowedValues: [
+                "open", "subsOnly", "channelPointsOnly", "custom",
+            ]),
+            portableString(songRequestLimitStackMode, allowedValues: ["highest", "stacked"]),
+            portableInt(songRequestLimitSubscriber, allowedValues: [1, 2, 3, 5, 10, 15, 20]),
+            portableInt(songRequestLimitVIP, allowedValues: [1, 2, 3, 5, 10, 15, 20]),
+            portableInt(songRequestLimitModerator, allowedValues: [1, 2, 3, 5, 10, 15, 20]),
             // Vote skip
-            voteSkipEnabled,
-            voteSkipMinVotes,
-            voteSkipWindowSeconds,
-            voteSkipSessionCooldown,
-            voteSkipSubscriberOnly,
-            voteSkipCommandEnabled,
-            voteSkipCommandAliases,
-            voteSkipUsePolls,
-            voteSkipPollDuration,
+            portableBool(voteSkipEnabled),
+            portableInt(voteSkipMinVotes, allowedValues: [2, 3, 5, 7, 10]),
+            portableInt(voteSkipWindowSeconds, allowedValues: [30, 60, 90, 120]),
+            portableDouble(voteSkipSessionCooldown, in: 0...120, step: 15),
+            portableBool(voteSkipSubscriberOnly),
+            portableBool(voteSkipCommandEnabled),
+            portableString(voteSkipCommandAliases),
+            portableBool(voteSkipUsePolls),
+            portableInt(voteSkipPollDuration, allowedValues: [30, 60, 90, 120, 180, 300]),
             // Notifications
-            songChangeNotificationsEnabled,
-            skipVoteStartedNotificationsEnabled,
-            skipVotePassedNotificationsEnabled,
+            portableBool(songChangeNotificationsEnabled),
+            portableBool(skipVoteStartedNotificationsEnabled),
+            portableBool(skipVotePassedNotificationsEnabled),
             // History & stats
-            listeningHistoryEnabled,
-            statsEnabled,
-            statsCommandEnabled,
-            statsCommandGlobalCooldown,
-            statsCommandUserCooldown,
-            statsCommandAliases,
-            statsCommandWindow,
-            statsCommandParts,
-            historyRetentionDays,
+            portableBool(listeningHistoryEnabled),
+            portableBool(statsEnabled),
+            portableBool(statsCommandEnabled),
+            portableDouble(statsCommandGlobalCooldown, in: 0...60, step: 5),
+            portableDouble(statsCommandUserCooldown, in: 0...60, step: 5),
+            portableString(statsCommandAliases),
+            portableString(statsCommandWindow, allowedValues: ["today", "session", "week", "allTime"]),
+            portableStringList(statsCommandParts, allowedValues: [
+                "plays", "listeningTime", "topTrack", "topArtist",
+            ]),
+            portableInt(historyRetentionDays, allowedValues: [0, 7, 30, 90, 180, 365]),
         ]
+
+        /// Keys safe to write to a backup, derived from the validation schema so
+        /// classification and validation cannot drift into separate lists.
+        static let exportableKeys: [String] = exportablePreferences.map(\.key)
 
         /// Keys tied to a connected account. Restored only when the user opts to
         /// reconnect that integration during import. The actual credentials
