@@ -113,9 +113,9 @@ struct SongRequestSetupHealthTests {
                 == .missing)
     }
 
-    @Test("classify: a transport error ends as no banner change end to end")
+    @Test("classify: a transport error leaves the banner unchanged through the classification chain")
     func transportErrorNoBannerChange() {
-        // Full chain: failed share resolution -> .unreachable -> resolveHealth
+        // Classification chain: failed share resolution -> .unreachable -> resolveHealth
         // returns nil, so the stored link and the banner stay untouched.
         let probe = AppleMusicLibraryService.classifyProbe(foundPlaylistID: "p.1", shareURL: .failed)
         #expect(SongRequestService.resolveHealth(probe: probe, storedShareURL: "https://music.apple.com/x") == nil)

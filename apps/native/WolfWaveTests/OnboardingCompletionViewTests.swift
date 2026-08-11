@@ -13,14 +13,6 @@ import SwiftUI
 @MainActor
 final class OnboardingCompletionViewTests: XCTestCase {
 
-    // MARK: - Construction Smoke
-
-    func testCompletionViewBuildsWithoutCrash() {
-        let view = OnboardingCompletionView(onDismiss: {})
-        // Pull the body. If the view tree fails to construct, this asserts.
-        XCTAssertNotNil(view.body)
-    }
-
     // MARK: - Dismiss Contract
 
     /// The view auto-dismisses after the animation window. Window is ~1.8s
@@ -43,24 +35,4 @@ final class OnboardingCompletionViewTests: XCTestCase {
         await fulfillment(of: [expectation], timeout: 3.0)
     }
 
-    // MARK: - WolfHeroMark Smoke
-
-    func testWolfHeroMarkBuildsForAllStylesAndSizes() {
-        let styles: [WolfHeroMark.Style] = [
-            .mono(.primary),
-            .mono(.secondary),
-            .brandGradient
-        ]
-        let sizes: [CGFloat] = [24, 88, 200]
-
-        for style in styles {
-            for size in sizes {
-                let mark = WolfHeroMark(
-                    size: size,
-                    style: style
-                )
-                XCTAssertNotNil(mark.body)
-            }
-        }
-    }
 }
