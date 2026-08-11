@@ -55,6 +55,7 @@ Your music plays. Everything else keeps up.
 - **Approve Before Play.** Opt-in "Require My Approval" holds every request (chat, channel points, bits) in the queue until you approve or decline it.
 - **Fair-Share Ordering.** Round-robin queue plays everyone's first request before anyone's second, so a fast re-typist can't hog it. On by default; toggle off for classic FIFO.
 - **Sub / VIP Priority.** Optional perk for subs, VIPs, and mods: skip the request cooldown, or jump ahead within the fair-share round. Off by default.
+- **Blocklist.** Ban a song or a whole artist from requests. Blocked entries are rejected before they ever reach the queue.
 - **Custom Commands.** Build your own chat commands with a fixed reply after connecting Twitch. Variables (`$user`, `$touser`, `$args`, `$1`–`$9`, `$song`, `$lastsong`), per-command aliases and cooldowns, and a permission level (Everyone, Subscribers, VIPs, Moderators, or Broadcaster).
 
 ### Discord
@@ -66,7 +67,7 @@ Your music plays. Everything else keeps up.
 - **Stream Widgets.** Drop-in browser-source overlay powered by a local WebSocket server with a per-install auth token, five themes (`Default`, `Dark`, `Light`, `Glass`, `Neon`), and five layouts (`Horizontal`, `Vertical`, `Compact`, `Vinyl`, `Classic`). Two-PC streamers can connect from a second machine on the LAN.
 - **Queue Ticker Overlay.** Opt-in `?queueTicker=1` panel showing the next 3 song requests, title and requester, so viewers see their spot in line without asking chat.
 - **OBS-friendly by design.** Visual progress is batched at 10 Hz, rendering sleeps while hidden or unloaded, and reduced-motion mode removes continuous animation work.
-- **Stream Deck Control.** The overlay WebSocket is bidirectional: an authenticated local client (like a Stream Deck plugin) can play/pause, skip, manage the request queue, and flip toggles, with live queue and health broadcasts.
+- **Stream Deck Control.** The overlay WebSocket is bidirectional, so an authenticated local client can play/pause, skip, manage the request queue, and flip toggles, with live queue and health broadcasts. The Elgato plugin that drives it lives in this repo at `apps/streamdeck/`; the wire protocol is documented in [Stream Deck Control API](apps/native/docs/streamdeck-control-api.md).
 
 ### History & Stats
 
@@ -78,13 +79,16 @@ Your music plays. Everything else keeps up.
 
 - **macOS 26 Liquid Glass Design.** Refreshed onboarding, settings, and menu bar built for Tahoe.
 - **Light, Dark, or System.** Pick an appearance in Settings > General. System follows macOS; Light and Dark override it for the whole app, menu bar included.
+- **App Visibility.** Run menu-bar only, Dock only, or both, and set launch-at-login, from Settings > General. The menu bar icon stays reachable in every mode.
+- **Guided Apple Music Access.** Onboarding requests the Automation permission for Music.app and shows a recovery screen with the exact fix if macOS denies it later.
 - **Streamer Mode.** One-tap tray toggle that masks your Twitch channel name, widget URLs, and auth token across the UI, so the app is safe to show on camera.
 - **Backup & Restore.** Export your settings to a portable JSON file from Settings > Advanced and bring them back on another Mac or after a reinstall. Accounts and secrets stay in the Keychain, never in the file.
 - **Song-Change Notifications.** Opt-in macOS banner on every track change, with album art. The banner replaces in place instead of stacking.
 - **Secure by Default.** Credentials live in the macOS Keychain, never plain text.
-- **Automatic Updates.** Sparkle for DMG installs, or Homebrew (`brew upgrade --cask`).
+- **Automatic Updates.** Sparkle for DMG installs, or Homebrew (`brew upgrade --cask`). Pick Stable or opt into [Nightly builds](https://mrdemonwolf.github.io/wolfwave/docs/nightly) in Settings > Software Update.
 - **On-Device Diagnostics.** Opt-in MetricKit diagnostics card with a share helper for attaching reports to a bug filing. Reports stay on-device.
 - **Bug Report Flow.** One-click log export and a pre-filled GitHub issue from Advanced settings.
+- **Advanced Tools.** Clear the artwork cache or the log file, rerun the setup wizard, and a Danger Zone "Erase All Data & Reset" for a clean slate.
 
 ## Getting Started
 
@@ -114,22 +118,24 @@ warnings.
 | --- | --- |
 | `!song` `!currentsong` `!nowplaying` | Shows the current track |
 | `!lastsong` `!last` `!prevsong` | Shows the previous track |
-| `!sr <song>` | Requests a song for the queue |
-| `!queue` | Shows the full request queue |
-| `!myqueue` | Shows just your own requests |
+| `!sr <song>` `!request` `!songrequest` | Requests a song for the queue |
+| `!queue` `!songlist` `!requests` | Shows the full request queue |
+| `!myqueue` `!mysongs` | Shows just your own requests |
 | `!playlist` | Links the song request playlist |
 | `!voteskip` `!vs` | Casts a vote to skip the current song |
-| `!stats` | Shows today's top track (live only) |
+| `!stats` `!musicstats` | Shows today's top track (live only) |
 | `!wolfwave` | Tells chat what WolfWave is (off by default, four reply styles) |
+
+Every command above also takes streamer-defined aliases, editable per command in
+**Settings > Twitch**.
 
 ### Mod and Broadcaster Commands
 
 | Command | What it does |
 | --- | --- |
 | `!skip` `!next` | Skips the current request |
-| `!hold` | Pauses the queue so you can curate before releasing |
-| `!resume` `!unhold` | Resumes a held queue |
-| `!clearqueue` | Wipes the queue (with in-app confirmation) |
+| `!hold` `!resume` `!unhold` | Toggles the queue hold so you can curate before releasing |
+| `!clearqueue` `!cq` | Wipes the queue (with in-app confirmation) |
 
 Streamers can add their own commands (with variables, cooldowns, and a
 permission level) in **Settings > Twitch > Custom Commands**, and screen the
@@ -165,7 +171,7 @@ and regenerating the token disconnects active WebSocket clients.
 
 | Layer | Technology |
 | --- | --- |
-| Language | Swift 5.9+ |
+| Language | Swift 6.0 |
 | UI | SwiftUI, AppKit |
 | Platform | macOS 26.0+ (Tahoe), Apple Silicon, Apple Music app required |
 | Music | ScriptingBridge, MusicKit, AppleScript |
@@ -185,8 +191,8 @@ and regenerating the token disconnects active WebSocket clients.
 
 - macOS 26.0+ (Tahoe)
 - Apple Silicon (M1 or later)
-- Xcode 16.0+
-- Swift 5.9+
+- Xcode 26+ (the macOS 26 SDK is required by the 26.0 deployment target)
+- Swift 6.0
 - [bun](https://bun.sh) for docs and marketing workspaces
 - Command Line Tools: `xcode-select --install`
 
@@ -225,8 +231,15 @@ Monorepo (bun + Turborepo):
 
 - `bun install` installs all workspace dependencies.
 - `bun dev` starts every dev server via Turbo.
+- `bun run build` builds every workspace in dependency order.
+- `bun run clean` cleans workspace build artifacts.
+- `bun run tokens` regenerates the design tokens from `design-system/tokens.json`.
+- `bun run ds:lint` lints Swift views for hardcoded spacing and font sizes.
 - `bun run dev --filter docs` starts the docs dev server only.
 - `bun run build --filter docs` builds the docs site.
+- `bun run --filter widget build` rebuilds the OBS overlay widget.
+- `bun run --filter streamdeck build` bundles the Stream Deck plugin.
+- `bun run --filter streamdeck test` runs the Stream Deck plugin tests.
 - `bun run dev --filter wolfwave-announcement` opens Remotion studio for the launch announcement video.
 
 Native app (Make):
@@ -234,17 +247,27 @@ Native app (Make):
 - `make build` runs a debug build via `xcodebuild`.
 - `make clean` cleans build artifacts.
 - `make test` runs the unit test suite (run `make test` for the current pass count).
+- `make test-verbose` runs the tests with full `xcodebuild` output.
+- `make test-ci` runs the tests in CI mode and writes `TestResults.xcresult`.
 - `make update-deps` resolves SwiftPM dependencies.
 - `make open-xcode` opens the Xcode project.
-- `make ci` runs a CI-friendly build.
+- `make ci` runs a CI-friendly build (alias for `make test-ci`).
 - `make prod-build` builds a release DMG in `builds/`.
 - `make prod-install` builds a release and installs to `/Applications`.
 - `make notarize` notarizes the DMG (requires Developer ID and env vars).
+- `make verify-notarize` checks that the notarization ticket is stapled.
 - `make widget` rebuilds the OBS overlay widget (`apps/widget/` to `Resources/widget.html`). Run `bun run tokens` first when token definitions or their generator changed, or use the ordered root `bun run build`.
+
+Linting (all four also run as blocking CI jobs):
+
+- `make lint` runs SwiftLint against the tracked baseline.
+- `make lint-baseline` regenerates that baseline. It may only shrink.
+- `make lint-crash-safety` fails on any new force unwrap, `try!`, or `as!`.
+- `make lint-headers` checks the Swift file header on every source file.
 
 ### Code Quality
 
-- Swift 5.9+ with async/await concurrency (no `DispatchQueue` for new async work).
+- Swift 6.0 with async/await concurrency (no `DispatchQueue` for new async work).
 - MVVM with `@Observable` view models.
 - MARK sections in every file; DocC-style `///` comments on all public APIs.
 - No force unwrapping. Optionals and `guard` only.
@@ -260,14 +283,19 @@ wolfwave/
 │   ├── native/                 # Native macOS app (Swift, SwiftUI, AppKit)
 │   │   ├── WolfWave/           # App source
 │   │   ├── WolfWaveTests/      # Unit tests
+│   │   ├── docs/               # Internal design and protocol docs
 │   │   └── WolfWave.xcodeproj  # Xcode project
 │   ├── docs/                   # Fumadocs documentation site
-│   ├── marketing/              # Remotion-based promo videos
+│   ├── marketing/              # Remotion-based promo videos (+ shared/ tokens)
+│   ├── streamdeck/             # Elgato Stream Deck plugin (TypeScript)
 │   └── widget/                 # OBS overlay widget source (builds Resources/widget.html)
 ├── assets/                     # Brand assets, logos
 ├── design-system/              # Design tokens + component catalog
+├── docs/                       # Repo-level engineering standards
+├── scripts/                    # Release, versioning, and lint helper scripts
 ├── CHANGELOG.md                # Release history
-├── Makefile                    # Build, test, release targets
+├── CONTRIBUTING.md             # How to build, test, and submit changes
+├── Makefile                    # Build, test, lint, release targets
 ├── package.json                # bun workspaces root
 └── turbo.json                  # Turborepo pipeline config
 ```
@@ -285,6 +313,9 @@ Questions or feedback?
 - Discord: [Join my server](https://mrdwolf.net/discord)
 - Issues: [GitHub Issues](https://github.com/MrDemonWolf/WolfWave/issues)
 - Docs: [mrdemonwolf.github.io/wolfwave](https://mrdemonwolf.github.io/wolfwave)
+- Contributing: [CONTRIBUTING.md](CONTRIBUTING.md)
+- Conduct: [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md)
+- Security: [SECURITY.md](.github/SECURITY.md)
 
 ---
 
