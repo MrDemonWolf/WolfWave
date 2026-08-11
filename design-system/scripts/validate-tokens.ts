@@ -6,11 +6,10 @@
  * and exits non-zero with a pointer-per-error report on failure.
  *
  * Why this is a gate and not just editor tooling: tokens.json is the single
- * source of truth for five generated platform outputs (Swift, docs CSS, widget
- * JS, Remotion TS, docs widget themes). A typo'd or missing namespace breaks
- * the app, the docs site, the OBS widget, and the marketing projects at once,
- * and generate.ts does not validate shape before emitting. The schema only
- * helps if something actually runs it.
+ * source of truth for the generated platform outputs. A typo'd or missing
+ * namespace breaks the app, the docs site, the OBS widget, and the marketing
+ * projects at once, and generate.ts does not validate shape before emitting.
+ * The schema only helps if something actually runs it.
  *
  * The schema uses `additionalProperties: false` at the root, so adding a new
  * top-level namespace to tokens.json deliberately fails here until the schema

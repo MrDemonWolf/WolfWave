@@ -406,7 +406,7 @@ jobs:
         if: steps.filter.outputs.ds == 'true'
         run: bun run ds:lint
 
-      # tokens.json drives five generated platform outputs and generate.ts does
+      # tokens.json drives the generated platform outputs and generate.ts does
       # not check shape before emitting, so a typo'd namespace would reach the
       # Swift app, the docs CSS, the widget, and the Remotion projects at once.
       - name: Validate tokens.json against its schema
