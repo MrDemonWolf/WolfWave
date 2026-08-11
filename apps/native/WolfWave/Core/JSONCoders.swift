@@ -70,15 +70,6 @@ nonisolated enum JSONCoders {
         return encoder
     }()
 
-    /// Encoder that converts `camelCase` Swift properties to `snake_case`
-    /// JSON keys and emits ISO-8601 date strings.
-    static let snakeCaseEncoder: JSONEncoder = {
-        let encoder = JSONEncoder()
-        encoder.keyEncodingStrategy = .convertToSnakeCase
-        encoder.dateEncodingStrategy = .iso8601
-        return encoder
-    }()
-
     /// Encoder that matches Swift property names verbatim and emits ISO-8601
     /// date strings.
     static let camelCaseEncoder: JSONEncoder = {

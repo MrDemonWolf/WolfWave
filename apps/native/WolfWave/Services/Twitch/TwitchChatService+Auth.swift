@@ -12,27 +12,6 @@ extension TwitchChatService {
 
     // MARK: - Bot Identity
 
-    /// Resolves and stores the bot's identity (user ID and username).
-    func resolveBotIdentity(token: String, clientID: String) async throws {
-        guard !token.isEmpty else { throw ConnectionError.invalidCredentials }
-        guard !clientID.isEmpty else { throw ConnectionError.missingClientID }
-
-        guard let credentialRevision = TwitchCredentialStore.shared.revision(
-            matchingAccessToken: token
-        ) else { throw CancellationError() }
-        let identity = try await fetchBotIdentity(token: token, clientID: clientID)
-        let resolvedUsername = identity.displayName.isEmpty ? identity.login : identity.displayName
-
-        guard try TwitchCredentialStore.shared.commitIdentity(
-            username: resolvedUsername,
-            userID: identity.userID,
-            matchingAccessToken: token,
-            expectedRevision: credentialRevision
-        ) else {
-            throw CancellationError()
-        }
-    }
-
     /// Static method to resolve bot identity without an instance.
     static func resolveBotIdentityStatic(
         token: String,
