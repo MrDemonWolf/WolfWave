@@ -263,10 +263,14 @@ enum SongRequestLimits {
         isBroadcaster: Bool,
         in defaults: Foundation.UserDefaults = .standard
     ) -> Int {
-        let everyone = defaults.object(forKey: AppConstants.UserDefaults.songRequestPerUserLimit) as? Int ?? 2
-        let sub = defaults.object(forKey: AppConstants.UserDefaults.songRequestLimitSubscriber) as? Int ?? 2
-        let vip = defaults.object(forKey: AppConstants.UserDefaults.songRequestLimitVIP) as? Int ?? 2
-        let mod = defaults.object(forKey: AppConstants.UserDefaults.songRequestLimitModerator) as? Int ?? 2
+        let everyone = positiveLimit(
+            defaults.object(forKey: AppConstants.UserDefaults.songRequestPerUserLimit) as? Int)
+        let sub = positiveLimit(
+            defaults.object(forKey: AppConstants.UserDefaults.songRequestLimitSubscriber) as? Int)
+        let vip = positiveLimit(
+            defaults.object(forKey: AppConstants.UserDefaults.songRequestLimitVIP) as? Int)
+        let mod = positiveLimit(
+            defaults.object(forKey: AppConstants.UserDefaults.songRequestLimitModerator) as? Int)
 
         var applicable = [everyone]
         if isSubscriber { applicable.append(sub) }
@@ -275,8 +279,22 @@ enum SongRequestLimits {
 
         switch mode(in: defaults) {
         case .highest: return applicable.max() ?? everyone
-        case .stacked: return applicable.reduce(0, +)
+        case .stacked: return applicable.reduce(0, saturatingAdd)
         }
+    }
+
+    /// Treats corrupted zero/negative defaults as the normal fallback. Imports
+    /// reject them, but this keeps values written through `defaults` tooling safe.
+    private static func positiveLimit(_ stored: Int?) -> Int {
+        guard let stored, stored > 0 else { return 2 }
+        return stored
+    }
+
+    /// Adds queue-limit contributions without trapping on externally-written
+    /// `Int.max` values. Valid UI/import values never approach this boundary.
+    private static func saturatingAdd(_ lhs: Int, _ rhs: Int) -> Int {
+        let (sum, overflowed) = lhs.addingReportingOverflow(rhs)
+        return overflowed ? Int.max : sum
     }
 
     /// Effective limit for a requester arriving via a non-chat source (channel

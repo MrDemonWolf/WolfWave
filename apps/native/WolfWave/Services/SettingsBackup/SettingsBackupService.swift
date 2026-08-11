@@ -15,7 +15,8 @@ import Foundation
 ///
 /// File dialogs (`NSSavePanel` / `NSOpenPanel`) stay in the view layer, mirroring
 /// how `AdvancedSettingsView.exportLogs()` already presents panels. This type
-/// performs no UI and no file I/O of its own, only data + state changes.
+/// performs no UI and no file I/O of its own. System-backed preferences are
+/// applied through the injectable `SideEffects` adapter.
 @MainActor
 struct SettingsBackupService {
     /// Outcome of an import, surfaced to the user in the completion message.
@@ -26,8 +27,10 @@ struct SettingsBackupService {
         var reconnectedTwitch: Bool
         /// The restored Twitch channel name, when reconnecting.
         var twitchChannel: String?
-        /// Backup keys ignored because they are not exportable.
+        /// Backup keys ignored because they are unknown, non-portable, or invalid.
         var ignoredCount: Int
+        /// Non-fatal system-setting failures that need the user's attention.
+        var warnings: [String]
 
         /// The correctly pluralized noun for a preference count
         /// (`preference` for 1, `preferences` otherwise). Shared by the import
@@ -37,6 +40,41 @@ struct SettingsBackupService {
         }
     }
 
+    struct UpdatePreferences: Equatable {
+        var automaticCheckEnabled: Bool?
+        var channel: UpdateChannel?
+    }
+
+    struct SideEffects {
+        var isLaunchAtLoginEnabled: @MainActor () -> Bool
+        var setLaunchAtLogin: @MainActor (Bool) -> LaunchAtLoginService.RegistrationOutcome
+        var applyAppearance: @MainActor (String) -> Void
+        var applyUpdatePreferences: @MainActor (UpdatePreferences) -> Void
+
+        static let live = SideEffects(
+            isLaunchAtLoginEnabled: { LaunchAtLoginService.isEnabled },
+            setLaunchAtLogin: { LaunchAtLoginService.setEnabled($0) },
+            applyAppearance: { AppearanceController.apply($0) },
+            applyUpdatePreferences: { preferences in
+                guard let updater = AppDelegate.shared?.sparkleUpdater else { return }
+                #if !DEBUG
+                if let enabled = preferences.automaticCheckEnabled {
+                    updater.automaticCheckEnabled = enabled
+                }
+                #endif
+                if let channel = preferences.channel {
+                    updater.channel = channel
+                    updater.recheckAfterChannelChange()
+                }
+            }
+        )
+    }
+
+    private struct SideEffectResult {
+        var failedKeys: Set<String> = []
+        var warnings: [String] = []
+    }
+
     private let defaults: Foundation.UserDefaults
     private let center: NotificationCenter
     private let twitchChannelProvider: () throws -> String?
@@ -44,6 +82,7 @@ struct SettingsBackupService {
         @MainActor @Sendable (Data) -> Bool
     private let replaceSongRequestBlocklist:
         @MainActor @Sendable (Data) async -> Bool
+    private let sideEffects: SideEffects
     private let coder = SettingsBackupCoder()
 
     init(
@@ -60,13 +99,15 @@ struct SettingsBackupService {
             let blocklist = AppDelegate.shared?.songRequestService?.blocklist
                 ?? SongBlocklist()
             return await blocklist.replaceFromImportedData(data)
-        }
+        },
+        sideEffects: SideEffects = .live
     ) {
         self.defaults = defaults
         self.center = center
         self.twitchChannelProvider = twitchChannelProvider
         self.replaceCustomCommands = replaceCustomCommands
         self.replaceSongRequestBlocklist = replaceSongRequestBlocklist
+        self.sideEffects = sideEffects
     }
 
     // MARK: - Export
@@ -165,7 +206,8 @@ struct SettingsBackupService {
             shouldPostTwitchReauth = true
         }
 
-        var restoredCount = plan.set.count
+        let sideEffectResult = applySideEffects(for: plan)
+        var restoredCount = plan.set.count - sideEffectResult.failedKeys.count
         var ignoredCount = plan.ignoredKeyCount
         if let customCommandsData,
            !replaceCustomCommands(customCommandsData) {
@@ -187,8 +229,54 @@ struct SettingsBackupService {
             restoredCount: restoredCount,
             reconnectedTwitch: plan.reconnectTwitch,
             twitchChannel: plan.twitchChannelName,
-            ignoredCount: ignoredCount
+            ignoredCount: ignoredCount,
+            warnings: sideEffectResult.warnings
         )
+    }
+
+    private func applySideEffects(for plan: SettingsBackupCoder.ApplyPlan) -> SideEffectResult {
+        let keys = AppConstants.UserDefaults.self
+        var result = SideEffectResult()
+
+        if case .bool(let desired)? = plan.set[keys.launchAtLogin],
+           sideEffects.isLaunchAtLoginEnabled() != desired {
+            switch sideEffects.setLaunchAtLogin(desired) {
+            case .success, .requiresApproval:
+                break
+            case .failure:
+                let actual = sideEffects.isLaunchAtLoginEnabled()
+                defaults.set(actual, forKey: keys.launchAtLogin)
+                if actual != desired {
+                    result.failedKeys.insert(keys.launchAtLogin)
+                    result.warnings.append(
+                        "Launch at Login couldn't be restored and remains \(actual ? "on" : "off")."
+                    )
+                }
+            }
+        }
+
+        if case .string(let appearance)? = plan.set[keys.appearancePreference] {
+            sideEffects.applyAppearance(appearance)
+        }
+
+        let automaticChecks: Bool?
+        if case .bool(let enabled)? = plan.set[keys.updateCheckEnabled] {
+            automaticChecks = enabled
+        } else {
+            automaticChecks = nil
+        }
+        let channel: UpdateChannel?
+        if case .string(let rawChannel)? = plan.set[keys.updateChannel] {
+            channel = UpdateChannel.from(rawValue: rawChannel)
+        } else {
+            channel = nil
+        }
+        if automaticChecks != nil || channel != nil {
+            sideEffects.applyUpdatePreferences(
+                UpdatePreferences(automaticCheckEnabled: automaticChecks, channel: channel)
+            )
+        }
+        return result
     }
 
     // MARK: - Service Notifications

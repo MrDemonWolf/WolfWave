@@ -148,12 +148,16 @@ nonisolated struct SettingsBackupCoder {
 
     // MARK: - Apply Planning
 
-    /// UserDefaults keys holding network ports. Their integer values must fit
-    /// `UInt16` (`0` means "use the default"), so an out-of-range value from a
-    /// hand-edited backup is ignored rather than persisted.
-    private static let portKeys: Set<String> = [
-        AppConstants.UserDefaults.websocketServerPort,
-        AppConstants.UserDefaults.widgetPort,
+    /// Integer bounds for preferences whose consumers require a constrained
+    /// value. Keeping the rules in one table ensures import preview and apply
+    /// make the same decision for hand-edited backups.
+    private static let integerBounds: [String: ClosedRange<Int>] = [
+        AppConstants.UserDefaults.websocketServerPort: 0...Int(UInt16.max),
+        AppConstants.UserDefaults.widgetPort: 0...Int(UInt16.max),
+        AppConstants.UserDefaults.songRequestPerUserLimit: 1...20,
+        AppConstants.UserDefaults.songRequestLimitSubscriber: 1...20,
+        AppConstants.UserDefaults.songRequestLimitVIP: 1...20,
+        AppConstants.UserDefaults.songRequestLimitModerator: 1...20,
     ]
 
     /// Exportable preferences that intentionally persist encoded `Data`.
@@ -163,8 +167,8 @@ nonisolated struct SettingsBackupCoder {
     ]
 
     /// Whether a backup value is safe to write for the given key.
-    /// Data is accepted only for explicitly allow-listed keys; port keys must be
-    /// integers in `0...65535`; every other scalar passes.
+    /// Data is accepted only for explicitly allow-listed keys. Keys with an
+    /// integer rule must have the expected type and bounds; other scalars pass.
     private func isValueAllowed(_ value: BackupValue, forKey key: String) -> Bool {
         if Self.dataKeys.contains(key) {
             guard case .data(let data) = value else { return false }
@@ -183,9 +187,9 @@ nonisolated struct SettingsBackupCoder {
             return false
         }
         if case .data = value { return false }
-        guard Self.portKeys.contains(key) else { return true }
-        guard case .int(let port) = value else { return false }
-        return (0...Int(UInt16.max)).contains(port)
+        guard let bounds = Self.integerBounds[key] else { return true }
+        guard case .int(let integer) = value else { return false }
+        return bounds.contains(integer)
     }
 
     /// Resolves a backup plus the user's choices into an `ApplyPlan`.
