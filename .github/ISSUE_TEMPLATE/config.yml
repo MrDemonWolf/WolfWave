@@ -1,0 +1,11 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Feature idea or request
+    url: https://mrdwolf.net/discord
+    about: Feature ideas are triaged in Discord, not in GitHub Issues. Post in the WolfWave channel and we'll take it from there.
+  - name: Question or setup help
+    url: https://mrdemonwolf.github.io/wolfwave
+    about: Check the docs first. Installation, settings, bot commands, and the OBS widget are all covered there.
+  - name: Security vulnerability
+    url: https://github.com/MrDemonWolf/WolfWave/security/policy
+    about: Do not open a public issue. Report privately per the security policy.

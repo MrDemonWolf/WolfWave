@@ -1,6 +1,12 @@
 # wolfwave-announcement
 
-Remotion-based video project for the WolfWave v1.0 launch announcement.
+Remotion-based video project for the WolfWave **v1.0** launch announcement (shipped
+2026-03-30).
+
+> Scope note: this project is pinned to the v1.0 launch. The app has shipped 2.0 and 2.1
+> since, and nothing here has been re-cut for them. Treat it as an archived render, not as
+> current marketing. A new release video should be a new project under `apps/marketing/`
+> rather than an edit of this one, so the v1.0 render stays reproducible.
 
 ## Stack
 

@@ -1,16 +1,19 @@
-# Stream Deck Control API (Phase A)
+# Stream Deck Control API
 
-Groundwork for the Elgato Stream Deck plugin (WW-36). Makes the existing overlay
-WebSocket **bidirectional**: it now accepts inbound command frames and pushes two
-new state broadcasts, so a Stream Deck (or any authenticated local client) can
-control WolfWave and reflect live state on physical keys.
+> Living reference. This is the current wire contract for protocol v1, not a plan.
+> It is enforced by `apps/streamdeck/tests/protocol.test.ts` and the `streamdeck` CI job.
+
+Makes the overlay WebSocket **bidirectional**: it accepts inbound command frames and
+pushes two state broadcasts, so a Stream Deck (or any authenticated local client) can
+control WolfWave and reflect live state on physical keys. Originally shipped as WW-36.
 
 This doc is the app side only. The plugin that consumes it lives in
-[`apps/streamdeck/`](../../streamdeck/README.md) (WW-45, Phase B) — its
+[`apps/streamdeck/`](../../streamdeck/README.md) (WW-45); its
 `src/wolfwave/protocol.ts` is the TypeScript mirror of this contract, so a change
-here needs the matching change there. The plugin builds, carries its icons, and
-packages into a `.streamDeckPlugin`; what is still outstanding is verification on
-real hardware and the Marketplace submission itself.
+here needs the matching change there, and `PROTOCOL_VERSION` must equal
+`StreamDeckControl.protocolVersion` on the Swift side. CI fails the PR if they diverge.
+The plugin builds, carries its icons, and packages into a `.streamDeckPlugin`; what is
+still outstanding is verification on real hardware and the Marketplace submission itself.
 
 ## Transport & auth
 

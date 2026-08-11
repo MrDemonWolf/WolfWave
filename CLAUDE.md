@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 WolfWave is a native macOS menu bar app that bridges Apple Music with Twitch, Discord, and stream overlays. It tracks the currently playing song via ScriptingBridge and broadcasts it to Twitch chat via bot commands (EventSub + Helix API), shows "Listening to WolfWave" (with Apple Music album art) on Discord via Rich Presence, and streams now-playing data to overlays via WebSocket.
 
-**Stack**: Swift 5.9+, SwiftUI, AppKit, macOS 26.0+, Xcode 16+. Minimal dependencies (Sparkle for auto-updates); all other functionality uses native Apple frameworks.
+**Stack**: Swift 6.0, SwiftUI, AppKit, macOS 26.0+, Xcode 26+. Minimal dependencies (Sparkle for auto-updates); all other functionality uses native Apple frameworks.
 
 **Monorepo**: bun workspaces + Turborepo. The root `package.json` defines workspaces (`apps/*`, `apps/marketing/*`) and Turbo orchestrates `dev`, `build`, and `clean` tasks across packages.
 
@@ -33,6 +33,10 @@ Default stance: if a change lands in Swift/SwiftUI, the `swift` + `macos` skills
 ```bash
 bun install                              # Install all workspace dependencies
 bun dev                                  # Start all dev servers via Turbo
+bun run build                            # Build every workspace in dependency order
+bun run clean                            # Clean workspace build artifacts
+bun run tokens                           # Regenerate design tokens (root task //#tokens)
+bun run ds:lint                          # Design-system lint (root task //#ds:lint)
 bun run dev --filter docs                # Start docs dev server only
 bun run dev --filter wolfwave-announcement  # Open Remotion studio only
 bun run build --filter docs              # Build docs site
@@ -43,12 +47,19 @@ bun run --filter streamdeck test         # Stream Deck plugin tests (bun test)
 
 > **Stream Deck plugin**: `apps/streamdeck/` is the Elgato plugin consuming the
 > app's control API. Unlike the widget, its bundle is **not** committed and is
-> **not** shipped inside the app — it's distributed through Elgato. `src/wolfwave/`
+> **not** shipped inside the app; it's distributed through Elgato. `src/wolfwave/`
 > is the TypeScript mirror of `Services/WebSocket/StreamDeckCommand.swift`: the
 > action tokens are the Swift enum's raw values and `PROTOCOL_VERSION` must equal
 > `StreamDeckControl.protocolVersion`. **Change one side, change the other**, and
-> bump the protocol version on any breaking envelope change. See
-> `apps/native/docs/streamdeck-control-api.md` and `apps/streamdeck/README.md`.
+> bump the protocol version on any breaking envelope change. The plugin bundle
+> lives at `apps/streamdeck/com.mrdemonwolf.wolfwave.sdPlugin/` (`manifest.json`
+> plus the `ui/` Property Inspector); `manifest.json` is a `streamdeck#build` turbo
+> input and both it and the Property Inspector have their own tests. The `streamdeck`
+> CI job runs `typecheck`, `bun test`, `pack`, and an icon-drift check on any change
+> under `apps/streamdeck/`, so a protocol mismatch fails the PR. Icons are generated
+> from the brand mark by `scripts/generate-icons.ts`; regenerate rather than hand-editing
+> them, or the drift check fails. See `apps/native/docs/streamdeck-control-api.md`
+> and `apps/streamdeck/README.md`.
 
 <!-- Separates the two blockquotes; a bare blank line between them trips markdownlint MD028. -->
 
@@ -75,11 +86,23 @@ make test-ci        # Run unit tests in CI mode (writes TestResults.xcresult)
 make update-deps    # Resolve SwiftPM dependencies
 make open-xcode     # Open Xcode project
 make ci             # CI-friendly build (alias for test-ci)
+make widget         # Rebuild the OBS widget into Resources/widget.html
+make sponsor-config # Regenerate SponsorConfig.generated.swift from FUNDING.yml
 make prod-build     # Release build → DMG in builds/
 make prod-install   # Release build → install to /Applications
 make notarize       # Notarize the DMG (requires Developer ID + env vars)
 make verify-notarize # Verify the notarization ticket is stapled
+
+# Lint. All four also run as their own CI jobs; the last two are blocking.
+make lint           # SwiftLint against swiftlint-baseline.json
+make lint-baseline  # Regenerate that baseline (ratchet: it may only shrink)
+make lint-crash-safety # No new force_unwrapping / force_try / force_cast
+make lint-headers   # Swift file-header convention check
 ```
+
+`sponsor-config` is a prerequisite of `build`, every `test*` target, and `prod-build`, so
+it normally runs on its own. Invoke it directly only when regenerating after a
+`FUNDING.yml` edit.
 
 Xcode project is at `apps/native/WolfWave.xcodeproj` with scheme `WolfWave`. Build and run with Cmd+R in Xcode. The Debug action must resolve to `WolfWave Dev.app`, display as **WolfWave Dev**, and use bundle ID `com.mrdemonwolf.wolfwave.dev`; Release remains `WolfWave.app` / `com.mrdemonwolf.wolfwave`. Do not collapse those identities or point the Debug scheme runnable at the Release product.
 
@@ -151,7 +174,7 @@ The crash-class lint gate is **blocking** on production source: `.swiftlint-cras
 
 ### Source layout (`apps/native/WolfWave/`)
 
-- **Core/** - `AppConstants.swift` split across per-namespace `extension` files: `AppConstants+Notifications.swift`, `AppConstants+Discord.swift`, `AppConstants+Twitch.swift`, `AppConstants+URLs.swift`, `AppConstants+UserDefaults.swift` (centralized config enums for keys, identifiers, timing, notification names), the `AppDelegate+*` extensions, `KeychainService.swift` (macOS Security framework wrapper), `Logger.swift` (structured logging), `PowerStateMonitor.swift`, `NetworkInfoService.swift` (LAN IP cache), `StreamerMode.swift` (UI-only masking of sensitive values for on-camera safety; observable singleton read across settings views and the menu bar), `SongRequestItem.swift`, `BlocklistItem.swift`. Foundation utilities: `HTTPClient.swift` (shared async HTTP wrapper), `JSONCoders.swift` (shared `JSONEncoder`/`JSONDecoder`), `BugReportURL.swift` (pre-filled GitHub issue URL builder), `Bundle+InstallMethod.swift` (DMG vs Homebrew install detection), `Preferences.swift` / `FeatureFlags.swift` (typed `UserDefaults` accessors; strings/ints and bool toggles, so reads route through one place instead of scattered `UserDefaults.standard` calls), `SharedFormatters.swift` / `ByteFormatting.swift` / `StringFormatting.swift` (shared date, byte, and string-truncation formatting), `ThreadSafeStorage.swift` (`Atomic<Value>`, the `nonisolated @unchecked Sendable` + `NSLock` box used by actor→sync bridge seams like `DiscordRPCService.stateSnapshot` and the Twitch dispatcher flags). Also in Core/: `AppContainer.swift` (Application Support / temp directory resolution), `AppearanceController.swift` (app-wide `NSApp.appearance` override), `KeychainBackend.swift` (test-injectable storage behind `KeychainService`), `DiagnosticsService.swift` (opt-in MetricKit diagnostics + share card), `MetricsService.swift`, `MenuStatusFormatter.swift`, `ExternalLink.swift`, `Pasteboard.swift`, `ImageEncoding.swift`, `InlineMarkdown.swift`, `NotificationPayloads.swift`, `RecentTrack.swift`, `SponsorConfig.generated.swift`, `CrashReporter.swift` (process-wide last-gasp crash handlers), and the `Core/ListeningHistory/` subdir (`PlayLogStore`, `PlayRecord`, `LifetimeTally`, `DurationSanitizer` (clamps implausible track durations), `HistoryStoreSupport` (shared store filesystem + day-bucketing helpers)).
+- **Core/** - `AppConstants.swift` split across per-namespace `extension` files: `AppConstants+Notifications.swift`, `AppConstants+Discord.swift`, `AppConstants+Twitch.swift`, `AppConstants+URLs.swift`, `AppConstants+UserDefaults.swift` (centralized config enums for keys, identifiers, timing, notification names), the `AppDelegate+*` extensions, `KeychainService.swift` (macOS Security framework wrapper), `Logger.swift` (structured logging), `PowerStateMonitor.swift`, `NetworkInfoService.swift` (LAN IP cache), `StreamerMode.swift` (UI-only masking of sensitive values for on-camera safety; observable singleton read across settings views and the menu bar), `SongRequestItem.swift`, `BlocklistItem.swift`. Foundation utilities: `HTTPClient.swift` (shared async HTTP wrapper), `JSONCoders.swift` (shared `JSONEncoder`/`JSONDecoder`), `BugReportURL.swift` (pre-filled GitHub issue URL builder), `Bundle+InstallMethod.swift` (DMG vs Homebrew install detection), `Preferences.swift` / `FeatureFlags.swift` (typed `UserDefaults` accessors; strings/ints and bool toggles, so reads route through one place instead of scattered `UserDefaults.standard` calls), `SharedFormatters.swift` / `ByteFormatting.swift` / `StringFormatting.swift` (shared date, byte, and string-truncation formatting), `ThreadSafeStorage.swift` (`Atomic<Value>`, the `nonisolated @unchecked Sendable` + `NSLock` box used by actor→sync bridge seams like `DiscordRPCService.stateSnapshot` and the Twitch dispatcher flags). Also in Core/: `AppContainer.swift` (Application Support / temp directory resolution), `AppearanceController.swift` (app-wide `NSApp.appearance` override), `KeychainBackend.swift` (test-injectable storage behind `KeychainService`), `DiagnosticsService.swift` (opt-in MetricKit diagnostics + share card), `MetricsService.swift`, `MenuStatusFormatter.swift`, `ExternalLink.swift`, `Pasteboard.swift`, `ImageEncoding.swift`, `InlineMarkdown.swift`, `NotificationPayloads.swift`, `RecentTrack.swift`, `SponsorConfig.generated.swift`, `CrashReporter.swift` (process-wide last-gasp crash handlers), `MusicProcess.swift` (resolves the running Music.app by pid so ScriptingBridge never relaunches a quit Music; see PR #392), and the `Core/ListeningHistory/` subdir (`PlayLogStore`, `PlayRecord`, `LifetimeTally`, `DurationSanitizer` (clamps implausible track durations), `HistoryStoreSupport` (shared store filesystem + day-bucketing helpers)).
 - **Monitors/** - Playback source abstraction. `PlaybackSource.swift` (protocol), `AppleMusicSource.swift` (ScriptingBridge + distributed notifications + 5s fallback polling, throttled slower in low-power mode), `PlaybackSourceManager.swift` (selects + multiplexes sources). Delegate pattern via `PlaybackSourceDelegate`.
 - **Services/Twitch/** - `TwitchChatService.swift` (EventSub WebSocket + Helix chat API, thread-safe with NSLock, network path monitoring for reconnection, Twitch user ID redacted in logs; also dispatches `channel.channel_points_custom_reward_redemption.add` and `channel.bits.use` events into the song-request pipeline), `TwitchChannelPointsService.swift` (Helix create / reconcile / fulfill / cancel for the WolfWave-managed "Request a Song" reward), `HelixClient.swift` (shared Helix API wrapper over `HTTPClient`: auth headers, body encode, status validation, Helix error mapping; used by `TwitchChatService` and `TwitchChannelPointsService`), `TwitchDeviceAuth.swift` (OAuth Device Code flow). The chat-service actor is split across same-actor seam files: `TwitchChatService+Auth.swift`, `TwitchChatService+Connection.swift`, `TwitchChatService+EventSub.swift`, `TwitchChatService+Redemptions.swift`.
 - **Services/Twitch/Commands/** - `BotCommand` protocol (`triggers`, `description`, `execute(message:) -> String?`), `AsyncBotCommand` for I/O-bound commands, `BotCommandContext`, `BotCommandDispatcher`. Concrete commands: `TrackInfoCommand` (drives `!song`, `!last`, and `!stats` via three configured instances), `InfoCommand` (`!wolfwave`, static reply styled by `WolfWaveReplyStyle`), `SongRequestCommand`, `QueueCommand`, `MyQueueCommand`, `SkipCommand`, `HoldCommand`, `ClearQueueCommand`, `VoteSkipCommand` (chat vote-to-skip), `SongListCommand` (`!playlist`). Streamer-authored commands run through `CustomBotCommand` (an `AsyncBotCommand` rebuilt per message from `CustomCommandStore`), backed by the `CustomCommand` model and the `CustomCommandRenderer` enum, which does variable substitution (`$user`/`$sender`, `$touser`, `$args`, `$1`–`$9`, `$song`, `$lastsong`) and `CommandPermission` gating (everyone/subscriber/vip/moderator/broadcaster). `StatsCommandFormat` supplies the `!stats` window formatting. `CooldownManager` enforces global + per-user cooldowns.
@@ -164,8 +187,8 @@ The crash-class lint gate is **blocking** on production source: `.swiftlint-cras
 - **Services/Notifications/** - `NotificationService.swift` (opt-in macOS banners via `UNUserNotificationCenter`; song-change, skip-vote-started, and skip-vote-passed each reuse a stable per-type identifier so a new banner replaces the previous one of its kind instead of stacking. Skip-vote-started is silent; skip-vote-passed uses the default system sound. Static `make…Content` builders keep the text pure and unit-testable. Skip-vote events arrive via `SkipVoteManager.onVoteEvent`, gated in `AppDelegate.handleVoteEvent` on both `voteSkipEnabled` and the matching per-event toggle. The service is also the `UNUserNotificationCenterDelegate` (installed at launch) so banners still present while WolfWave is frontmost, and it owns the Twitch re-auth banner via `postTwitchReauthNeeded()`, which only posts when authorization is already granted - boot paths must never trigger the system permission prompt).
 - **Services/** - `ArtworkService.swift` (iTunes Search artwork fetch + cache), `ArtworkTint.swift` (album-art representative-color sampler for the Monthly Wrap share card), `LaunchAtLoginService.swift`. (`DiagnosticsService.swift` now lives in Core/.)
 - **Views/** - SwiftUI settings shell `SettingsView.swift` with `NavigationSplitView` sidebar. Per-section views decomposed into `GeneralSettingsView.swift`, `MusicMonitor/MusicMonitorSettingsView.swift`, `AppVisibility/AppVisibilitySettingsView.swift`, `WebSocket/WebSocketSettingsView.swift` (Stream Widgets: token reveal/regenerate/edit controls), `Twitch/TwitchSettingsView.swift`, `Discord/DiscordSettingsView.swift`, `SongRequest/SongRequestSettingsView.swift` + `SongRequestQueueView.swift`, `Notifications/NotificationsSettingsView.swift`, `HistoryStats/HistoryStatsSettingsView.swift` + `StatsChartsView.swift` + `MonthlyWrapView.swift` (SwiftUI Charts powered, gated on the opt-in Listening History setting), `Appearance/AppearanceSettingsView.swift`, `SoftwareUpdate/SoftwareUpdateSettingsView.swift`, `About/AboutSettingsView.swift` + `AboutCopy.swift` (pure copy strings incl. the displayed copyright year), `Advanced/AdvancedSettingsView.swift` + `SettingsImportSheet.swift` + `DiagnosticsShareCardView.swift`. The shell itself is split into `SettingsSidebarView.swift` (sidebar) and `SettingsSceneBridge.swift` (AppKit window plumbing). Per-pane supporting views: `Discord/DiscordPreviewCard.swift` + `DiscordButtonConfigRow.swift`, `MusicMonitor/MusicPermissionState.swift` + `PermissionDeniedView.swift`, `Twitch/TwitchCommandsCard.swift` + `CustomCommandsCard.swift` + `DeviceCodeView.swift`, `WebSocket/WidgetAppearancePreview.swift`, and `SongRequest/Setup/SongRequestSetupView.swift` + `SongRequestSetupViewModel.swift` (the guided setup gate). `TwitchViewModel` is the main observable for auth/connection state.
-- **Views/Onboarding/** - macOS 26 Liquid Glass onboarding wizard. The `OnboardingStep` enum (in `OnboardingViewModel.swift`) defines the step order: Welcome → Discord → Twitch → OBS Widget (overlay URL + HTTP widget toggle) → Preferences → Permissions (Apple Music automation only) → Notifications (notification authorization + the song-change / skip-vote alert toggles) → Menu Bar Pointer, followed by `OnboardingCompletionView`. Permissions and Notifications are deliberately two separate screens so each has a single job. One file per step: `OnboardingWelcomeStepView`, `OnboardingDiscordStepView`, `OnboardingTwitchStepView`, `OnboardingOBSWidgetStepView`, `OnboardingPreferencesStepView`, `OnboardingPermissionsStepView`, `OnboardingNotificationsStepView`, `OnboardingMenuBarPointerStepView`. Components in `Onboarding/Components/` (`PillButton`, `BrandTile`, `OnboardingStepScaffold`, `OnboardingToggleCard`, `WolfHeroMark`).
-- **Views/Debug/** - **DEBUG-only** developer tooling tab. `DebugSettingsView.swift` shell plus cards: `DebugInspectorsCard`, `DebugLogsAndEventsCard`, `DebugMetricsCard`, `DebugServiceControlsCard`, `DebugUIPreviewsCard`. Not compiled into release builds.
+- **Views/Onboarding/** - macOS 26 Liquid Glass onboarding wizard. The `OnboardingStep` enum (in `OnboardingViewModel.swift`) defines the step order: Welcome → Discord → Twitch → OBS Widget (overlay URL + HTTP widget toggle) → Preferences → Permissions (Apple Music automation only) → Notifications (notification authorization + the song-change / skip-vote alert toggles) → Menu Bar Pointer, followed by `OnboardingCompletionView`. Permissions and Notifications are deliberately two separate screens so each has a single job. One file per step: `OnboardingWelcomeStepView`, `OnboardingDiscordStepView`, `OnboardingTwitchStepView`, `OnboardingOBSWidgetStepView`, `OnboardingPreferencesStepView`, `OnboardingPermissionsStepView`, `OnboardingNotificationsStepView`, `OnboardingMenuBarPointerStepView`, all hosted by the `OnboardingView.swift` wizard container. Components in `Onboarding/Components/` (`PillButton`, `BrandTile`, `OnboardingStepScaffold`, `OnboardingToggleCard`, `WolfHeroMark`).
+- **Views/Debug/** - **DEBUG-only** developer tooling tab. `DebugSettingsView.swift` shell plus cards: `DebugInspectorsCard`, `DebugLogsAndEventsCard`, `DebugMetricsCard`, `DebugServiceControlsCard`, `DebugUIPreviewsCard`, over the `DebugDiagnostics.swift` snapshot helpers. Not compiled into release builds.
 - **Views/Shared/** - Shared UI components: `StatusChip`, `InfoRow`, `ToggleSettingRow`, `SuccessFeedbackRow`, `SectionHeaderWithStatus`, `CardEyebrowHeader`, `NowPlayingHeroCard`, `AlbumArtView`, `IntegrationDashboardView`, `CalloutBanner` (consolidated info/success/warning/error/neutral tinted callout that replaced the old `WarningBanner` / `ConfigRequiredBanner` / `ConnectionTestButton` variants), `CopyButton`, `CopyableURLRow`, `OpenInBrowserButton`, `SharePickerButton`, `DestructiveButton`, `DSIconButton`, `UpdateBannerView`, `WhatsNewView`, `ActionGrid`, `LoadingRow`, `HintRow`, `MusicPermissionBanner`, `StatTile`, `LabeledSlider`, `CooldownSliderPair`, `CommandAliasField`, `CommandSettingRow`, `ResponsiveRow`, `QRCodeImage`, `StreamerModeBadge`, `TwitchConnectionNotice`, `TwitchGlitchShape`, `ViewModifiers`, `SettingsNavRail` (shared two-column jump-nav rail + scroll-sync used by General, Debug, Song Requests, and History & Stats; sections conform `SettingsRailSection` and tag their top view with `.railSection(_:)`; panes that use it bypass `standardDetailScroll` in `SettingsView.detailPane` to own the full pane width). Sensitive fields wrap their value in a `StreamerMode.shared` check before rendering; when Streamer Mode is on, the value is replaced with a `••••••` mask and Copy/Open buttons are disabled.
 
 ### Key patterns
@@ -198,7 +221,15 @@ bun turbo tokens        # Via Turbo (cached when inputs unchanged)
 bun turbo build         # `tokens` is a build prerequisite; runs automatically
 ```
 
-`turbo.json` declares `//#tokens` as a root task; both `build` and `dev` `dependsOn` it. Inputs: `design-system/tokens.json` + `design-system/scripts/generate.ts`. Outputs: the five generated files above.
+`turbo.json` declares two root tasks:
+
+| Root task | Script | Inputs |
+|---|---|---|
+| `//#tokens` | `bun run tokens` | `design-system/tokens.json`, `design-system/scripts/generate.ts`. Outputs the five generated files above. |
+| `//#ds:lint` | `bun run ds:lint` | `apps/native/WolfWave/Views/**/*.swift`, `design-system/scripts/lint.ts`, `design-system/lint-allowlist.txt` |
+
+Both `build` and `dev` `dependsOn` `//#tokens`, so it runs automatically. `//#ds:lint` is
+invoked on its own (locally, and as the `ds-lint` CI job).
 
 ### Widget themes (`window.WW_TOKENS`)
 
@@ -206,7 +237,7 @@ bun turbo build         # `tokens` is a build prerequisite; runs automatically
 
 ### Component catalog
 
-[`design-system/components/`](design-system/components/) - one markdown entry per reusable view. Status tracked in [`design-system/components/README.md`](design-system/components/README.md). Every entry follows the same template (Purpose, API, Tokens used, Anatomy mermaid, Accessibility, Do/Don't, Example); see [`status-chip.md`](design-system/components/status-chip.md) as the quality bar.
+[`design-system/components/`](design-system/components/) - one markdown entry per reusable view, indexed by [`design-system/components/README.md`](design-system/components/README.md). The catalog covers three source directories, not just one: `Views/Shared/`, `Views/Onboarding/Components/`, and `Views/HistoryStats/`. Every entry follows the same template (Purpose, API, Tokens used, Anatomy mermaid, Accessibility, Do/Don't, Example); see [`status-chip.md`](design-system/components/status-chip.md) as the quality bar.
 
 **When you touch any of these views, update the matching catalog entry in the same change.** That keeps token usage docs and anatomy diagrams from drifting.
 
@@ -217,7 +248,7 @@ These rules are enforced by [`design-system/scripts/lint.ts`](design-system/scri
 - **Never** use literal numbers in `font(.system(size:))`; use `DSFont.Size.*` (`xs=10`, `sm=11`, `body=12`, `base=13`, `md=14`, `lg=17`, `xl=20`, `x2xl=22`, `x3xl=26`). Heading ramp: `.paneTitle()` (22 bold, H1) → `.sectionHeader()` (17 semibold, H2) → `.sectionEyebrow()` (11 semibold secondary, H3); body via `.fieldSubtitle()` (13) / `.captionText()` (10). The old `.sectionSubHeader()` (15) was retired 2026-06-05 because it collided with the 17pt pane title; `x3xl` (26) is reserved for hero + the Monthly Wrap share card.
 - **Never** use literal numbers in `spacing:` or `.padding(N)`; use `DSSpace.*` (`s0=2`, `s1=4`, `s2=8`, `s3=10`, `s4=12`, `s5=14`, `s6=16`, `s7=20`, `s8=24`, `s9=28`, `s10=32`, `s11=44`).
 - For single-glyph bordered buttons, use [`DSIconButton`](apps/native/WolfWave/Views/Shared/DSIconButton.swift); do **not** hand-roll `Button { Image(...) } .buttonStyle(.bordered) .controlSize(.small)`. Hand-rolled icon-only buttons collapse to a narrower frame than text-label neighbors like `CopyButton`, causing visible drift.
-- When you touch a `Views/Shared/` component, update its catalog entry in [`design-system/components/`](design-system/components/) in the same change.
+- When you touch a component under `Views/Shared/`, `Views/Onboarding/Components/`, or `Views/HistoryStats/`, update its catalog entry in [`design-system/components/`](design-system/components/) in the same change.
 
 Existing legacy literals are tracked in [`design-system/lint-allowlist.txt`](design-system/lint-allowlist.txt); migrate them file-by-file in follow-up PRs. Do **not** add new entries.
 
@@ -269,9 +300,9 @@ Unit tests live in `apps/native/WolfWaveTests/` and use XCTest + Swift Testing w
 - `AppConstantsTests.swift` + `AppConstantsEdgeCaseTests.swift` - Constant values, URL validity, dimension bounds, cross-references
 - `AppContainerTests.swift` - Application Support path composition and container wipe
 - `CrashReporterTests.swift` - Crash-marker lifecycle (never raises a real signal or `NSException`; that would kill the xctest host)
-- `SettingsBackupCoderTests.swift`, `SettingsBackupKeyCoverageTests.swift` - Backup encode/decode and the exportable / account-linked / runtime-state key classification
-- `CustomCommandTests.swift`, `WolfWaveReplyStyleTests.swift` - Custom bot commands (variable substitution, permission gating) and reply styling
-- `QueueCommandTests.swift`, `MyQueueCommandTests.swift`, `ClearQueueCommandTests.swift`, `SongListCommandTests.swift` - Remaining song-request chat commands
+- `SettingsBackupCoderTests.swift`, `SettingsBackupServiceTests.swift`, `SettingsBackupKeyCoverageTests.swift` - Backup encode/decode, export/import orchestration, and the exportable / account-linked / runtime-state key classification
+- `CustomCommandTests.swift`, `InfoCommandTests.swift`, `WolfWaveReplyStyleTests.swift` - Custom bot commands (variable substitution, permission gating), the `!wolfwave` info command, and reply styling
+- `QueueCommandTests.swift`, `MyQueueCommandTests.swift`, `ClearQueueCommandTests.swift`, `SkipCommandTests.swift`, `SongListCommandTests.swift` - Remaining song-request chat commands
 - `SongRequestQueuePendingTests.swift`, `SongRequestPriorityTests.swift` - Approval-screening pending state and the Sub/VIP priority perk
 - `SongRequestSetupHealthTests.swift`, `SongRequestSetupViewModelTests.swift`, `PlaylistSetupStatusTests.swift`, `AppleMusicLibraryServiceTests.swift`, `MusicPermissionCheckerTests.swift` - Song Requests setup gate, playlist health check, and MusicKit library access
 - `TwitchEventSubLifecycleTests.swift`, `TwitchTokenRefreshTests.swift`, `TwitchRateLimiterTests.swift`, `HelixClientTests.swift`, `MapHelixErrorTests.swift` - EventSub lifecycle, token refresh, rate limiting, and the shared Helix wrapper
@@ -282,7 +313,7 @@ Unit tests live in `apps/native/WolfWaveTests/` and use XCTest + Swift Testing w
 - `OnboardingFlowIntegrationTests.swift` - End-to-end onboarding step traversal
 - `StreamerModeMaskingSweepTests.swift` - Sweeps every sensitive field for Streamer Mode masking
 - `AtomicTests.swift`, `ByteFormattingTests.swift`, `InlineMarkdownTests.swift`, `FeatureFlagsDefaultsTests.swift`, `JSONSerializationGuardTests.swift` - Core utility coverage
-- `HintRowTests.swift`, `LabeledSliderTests.swift`, `StatTileTests.swift`, `DestructiveButtonTests.swift`, `SectionEyebrowTests.swift`, `TwitchConnectionNoticeTests.swift`, `WidgetAppearancePreviewTests.swift` - Shared view components
+- `HintRowTests.swift`, `LabeledSliderTests.swift`, `StatTileTests.swift`, `DestructiveButtonTests.swift`, `SectionEyebrowTests.swift`, `NowPlayingHeroCardTests.swift`, `TwitchConnectionNoticeTests.swift`, `WidgetAppearancePreviewTests.swift` - Shared view components
 
 ### Writing tests
 
@@ -294,7 +325,17 @@ Unit tests live in `apps/native/WolfWaveTests/` and use XCTest + Swift Testing w
 
 ## CI/CD
 
-- `.github/workflows/test.yml` - Runs `xcodebuild test` on every push/PR to `main` (path-filtered to native changes). Creates a placeholder `Config.xcconfig` for CI builds and sets `MallocNanoZone=0` to work around a runner-image allocator crash.
+- `.github/workflows/test.yml` (workflow name `CI`) - Runs on every push/PR to `main`. Seven jobs, each path-filtered:
+
+  | Job | Name | What it gates |
+  |---|---|---|
+  | `test` | Build & Test | `xcodebuild test` on `macos-26`, plus three drift gates: `widget.html` in sync with `apps/widget/`, the generated design tokens in sync with `tokens.json`, and `SponsorConfig.generated.swift` in sync with `FUNDING.yml`. Creates a placeholder `Config.xcconfig` and sets `MallocNanoZone=0` to work around a runner-image allocator crash. |
+  | `docs` | Docs Build | `types:check`, `lint`, and a full docs build |
+  | `streamdeck` | Stream Deck Plugin | `typecheck`, `bun test`, `pack`, and an icon-generator drift check for `apps/streamdeck/`. Keeps the TS protocol mirror honest against `StreamDeckCommand.swift`, which is in the path filter so a Swift-only change still re-runs the TS tests |
+  | `lint` | SwiftLint | SwiftLint against `swiftlint-baseline.json` |
+  | `lint-crash-safety` | SwiftLint (crash-safety) | **Blocking.** No new force unwrap, `try!`, or `as!` |
+  | `lint-headers` | Swift file headers | **Blocking.** File-header convention |
+  | `ds-lint` | Design-system lint | `bun run ds:lint` |
 - `.github/workflows/build_release.yml` - Builds, signs, notarizes, and creates a GitHub Release on tag push (`v*`). Required secrets: `DEVELOPER_ID_CERT_P12`, `DEVELOPER_ID_CERT_PASSWORD`, `APPLE_ID`, `APPLE_TEAM_ID`, `APPLE_APP_PASSWORD`, `TWITCH_CLIENT_ID`, `DISCORD_CLIENT_ID`, `SPARKLE_PRIVATE_KEY`.
 - `.github/workflows/docs.yml` - Builds and deploys the Fumadocs site to GitHub Pages.
 - `.github/workflows/update_homebrew.yml` - Opens a PR on the Homebrew tap after a GitHub Release is published.
@@ -315,11 +356,15 @@ Sparkle uses EdDSA (Ed25519) signing for update verification. The public key is 
 
 Docs site built with Fumadocs (Next.js) at `apps/docs/`. Content in `apps/docs/content/docs/` as `.mdx` files. Sidebar defined in `apps/docs/content/docs/meta.json` with Guide, Developers, Design System, Support, and Legal sections. The Design System group is docs-facing (`design-system/{index,foundations,components,brand}.mdx`), separate from the source-of-truth `design-system/` directory at the repo root. Deployed to GitHub Pages. Run with `bun run dev --filter docs` from root.
 
+> **Two Stream Deck pages, one character apart.** `streamdeck.mdx` is the user-facing
+> plugin walkthrough (Guide group); `stream-deck.mdx` is the control API reference
+> (Developers group). Check which one you opened before editing.
+
 ### Keep docs in sync (do not let these drift)
 
 Any change that is user-facing or changes structure updates the docs in the **same PR**. Match the change to what it touches:
 
-- **New or changed feature / command** → `README.md` (Features + Usage) **and** the affected docs pages (`features.mdx`, `usage.mdx`, `bot-commands.mdx`), plus a `CHANGELOG.md` entry under the top unreleased `## [x.y.z]` heading and the matching top block in `changelog.mdx`.
+- **New or changed feature / command** → `README.md` (Features + Usage) **and** the affected docs pages (`features.mdx`, `settings.mdx`, `bot-commands.mdx`), plus a `CHANGELOG.md` entry under the top unreleased `## [x.y.z]` heading and the matching top block in `changelog.mdx`. The `### Developer` subsection is contributor-only: it is stripped from Sparkle's in-app notes and is deliberately absent from `changelog.mdx`, so a developer-only entry needs no docs-site change.
 - **New service, renamed file, moved directory** → `architecture.mdx` source map **and** the Source-layout list in this file.
 - **Changed numbers** (widget sizes, ports, theme/layout counts, minimum macOS) → grep the docs for the old value and fix every copy.
 
@@ -419,7 +464,7 @@ These lines appear in Xcode console / stdout but are emitted by macOS itself, no
 
 ## Code Conventions
 
-- Swift 5.9+ with async/await concurrency (no DispatchQueue for new async work)
+- Swift 6.0 with async/await concurrency (no DispatchQueue for new async work)
 - MARK sections organize every file (Properties, Public Methods, Private Helpers, etc.)
 - DocC-style `///` comments on all public APIs
 - No force unwrapping; use optionals and guard
