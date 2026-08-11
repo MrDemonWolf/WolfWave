@@ -2299,7 +2299,7 @@ private actor DeterministicAsyncGate {
 }
 
 @MainActor
-private final class SuspendedTestCommand: AsyncBotCommand {
+private final class SuspendedTestCommand: @MainActor AsyncBotCommand {
     let triggers = ["!suspend"]
     let description = "Suspends until its owning session is canceled"
     let globalCooldown: TimeInterval = 0
