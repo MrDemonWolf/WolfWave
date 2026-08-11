@@ -1,6 +1,14 @@
 import Link from "next/link";
 import { HomeLayout } from "fumadocs-ui/layouts/home";
 import { baseOptions } from "@/lib/layout.shared";
+import { repoUrl } from "@/lib/site";
+
+/**
+ * The commit this build came from. CI passes `NEXT_PUBLIC_COMMIT_SHA`; the bare
+ * `GITHUB_SHA` is the fallback for any workflow that forgets to. Undefined
+ * locally, where there is no deploy to point at.
+ */
+const commitSha = process.env.NEXT_PUBLIC_COMMIT_SHA ?? process.env.GITHUB_SHA;
 
 export default function Layout({ children }: LayoutProps<"/">) {
   const currentYear = new Date().getFullYear();
@@ -23,6 +31,20 @@ export default function Layout({ children }: LayoutProps<"/">) {
             >
               MrDemonWolf, Inc.
             </a>
+            {commitSha ? (
+              <>
+                {" · built from "}
+                <a
+                  href={`${repoUrl}/commit/${commitSha}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="ww-text-1 hover:underline font-mono"
+                  style={{ textUnderlineOffset: 3 }}
+                >
+                  {commitSha.slice(0, 7)}
+                </a>
+              </>
+            ) : null}
           </p>
           <nav className="flex items-center gap-6 text-sm ww-text-2">
             <a

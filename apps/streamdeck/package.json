@@ -6,6 +6,8 @@
   "scripts": {
     "build": "bun run build.ts",
     "dev": "bun run build.ts --watch",
+    "icons": "bun run scripts/generate-icons.ts",
+    "pack": "bun run build.ts && streamdeck pack com.mrdemonwolf.wolfwave.sdPlugin --force --output dist",
     "test": "bun test",
     "typecheck": "tsc --noEmit"
   },
@@ -14,6 +16,8 @@
     "ws": "^8.21.2"
   },
   "devDependencies": {
+    "@elgato/cli": "^1.4.0",
+    "@resvg/resvg-js": "^2.6.2",
     "@types/bun": "^1.1.0",
     "@types/node": "^20.14.0",
     "@types/ws": "^8.5.12",

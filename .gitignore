@@ -104,8 +104,13 @@ apps/widget/dist/
 ############################################################
 # Unlike the OBS widget, this bundle is not shipped inside the app, so there is
 # no reason to commit it — it is rebuilt from src/ and packaged for Elgato.
+# Icons under the bundle's imgs/ ARE committed: they are inputs, regenerated
+# only when the brand mark or the glyph table changes (`bun run --filter
+# streamdeck icons`).
 apps/streamdeck/com.mrdemonwolf.wolfwave.sdPlugin/bin/
 apps/streamdeck/*.streamDeckPlugin
+apps/streamdeck/dist/
+apps/streamdeck/logs/
 
 ############################################################
 # Docs (Next.js / Fumadocs)
