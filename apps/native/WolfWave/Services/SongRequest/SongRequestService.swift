@@ -21,6 +21,9 @@ final class SongRequestService {
 
     /// Result of processing a song request.
     enum RequestResult {
+        /// The caller was cancelled before the request could mutate queue or
+        /// playback state. Callers deliberately keep this outcome silent.
+        case cancelled
         case added(item: SongRequestItem, position: Int)
         /// Approval mode is on: the request is held for the streamer to approve or
         /// reject before it reaches the live queue.
@@ -227,6 +230,7 @@ final class SongRequestService {
     /// Toggle hold mode. When enabled, new requests buffer without playing and
     /// auto-advance is suspended. When disabled, the first buffered song plays immediately.
     func setHold(_ enabled: Bool) async {
+        guard !Task.isCancelled else { return }
         Foundation.UserDefaults.standard.set(enabled, forKey: AppConstants.UserDefaults.songRequestHoldEnabled)
         NotificationCenter.default.postEnabled(.songRequestHoldChanged, enabled: enabled)
         Log.debug("SongRequestService: Hold \(enabled ? "enabled" : "released")", category: "SongRequest")
@@ -235,7 +239,9 @@ final class SongRequestService {
         if !enabled {
             guard musicController.isMusicAppRunning else { return }
             if queue.nowPlaying == nil && !queue.isEmpty {
+                guard !Task.isCancelled else { return }
                 await playNextInQueue()
+                guard !Task.isCancelled else { return }
                 if let nowPlaying = queue.nowPlaying {
                     sendChatMessage?("Now playing: \"\(nowPlaying.title)\" by \(nowPlaying.artist) (requested by \(nowPlaying.requesterUsername))")
                 }
@@ -573,6 +579,8 @@ final class SongRequestService {
     /// - Returns: A `RequestResult` describing the outcome (added, blocked,
     ///   queue-full, not-found, etc.)
     func processRequest(query: String, username: String, source: RequestSource) async -> RequestResult {
+        guard !Task.isCancelled else { return .cancelled }
+
         // Master gate. The settings UI hides itself when this is off, but the
         // `!sr` command, channel-point reward, and bit handler can each still
         // fire from their own independent toggles, so the only safe place to
@@ -591,10 +599,13 @@ final class SongRequestService {
         }
 
         let searchResult = await searchResolver.resolve(query: query)
+        guard !Task.isCancelled else { return .cancelled }
 
         switch searchResult {
         case .found(let song):
-            if await blocklist.isBlocked(title: song.title, artist: song.artistName) {
+            let isBlocked = await blocklist.isBlocked(title: song.title, artist: song.artistName)
+            guard !Task.isCancelled else { return .cancelled }
+            if isBlocked {
                 return .blocked
             }
 
@@ -615,6 +626,7 @@ final class SongRequestService {
             // the streamer approve/reject it from the Queue pane. The per-user and
             // capacity gates run at approval time via `queue.addApproved`.
             if isApprovalRequired {
+                guard !Task.isCancelled else { return .cancelled }
                 switch queue.addPending(item) {
                 case .added:
                     return .pendingApproval(item: item)
@@ -643,6 +655,7 @@ final class SongRequestService {
             } else {
                 effectiveUserLimit = SongRequestLimits.nonChatLimit()
             }
+            guard !Task.isCancelled else { return .cancelled }
             let addResult = queue.add(item, perUserLimit: effectiveUserLimit)
 
             switch addResult {
@@ -651,7 +664,9 @@ final class SongRequestService {
                     // Start now only from an idle or fallback state; never interrupt
                     // the streamer's actively-playing track (or act on a flaky read).
                     // When a track is playing, the poll takes over at its boundary.
-                    await startImmediatelyIfIdle()
+                    if !Task.isCancelled {
+                        await startImmediatelyIfIdle()
+                    }
                 }
                 // else: a request is already playing, Music.app is closed, or hold is
                 // active; the request stays buffered for the poll / launch flush.
@@ -679,6 +694,7 @@ final class SongRequestService {
     ///
     /// - Returns: The newly-playing item, or `nil` when the queue empties.
     func skip() async -> SongRequestItem? {
+        guard !Task.isCancelled else { return nil }
         // Take the playback-transition guard so the auto-advance poll can't
         // interleave a second dequeue across the `playNow` await and consume two
         // tracks for one skip.
@@ -696,6 +712,7 @@ final class SongRequestService {
             if let song = next.song {
                 do {
                     try await musicController.playNow(song: song)
+                    guard !Task.isCancelled else { return next }
                     Log.debug("SongRequestService: Skipped to \"\(next.title)\"", category: "SongRequest")
                 } catch {
                     Log.debug("SongRequestService: Failed to play after skip: \(error)", category: "SongRequest")
@@ -706,6 +723,7 @@ final class SongRequestService {
         }
         // Queue emptied by the skip: honor the drain policy (fallback / autoplay /
         // silence) instead of an unconditional stop.
+        guard !Task.isCancelled else { return nil }
         await handleQueueEmptied()
         return nil
     }
@@ -719,11 +737,14 @@ final class SongRequestService {
     /// - Returns: The newly-playing request when one exists, otherwise `nil`.
     @discardableResult
     func voteSkip() async -> SongRequestItem? {
+        guard !Task.isCancelled else { return nil }
         if queue.nowPlaying != nil {
             return await skip()
         }
         do {
+            guard !Task.isCancelled else { return nil }
             try await musicController.skipToNext()
+            guard !Task.isCancelled else { return nil }
             Log.debug("SongRequestService: Vote-skip advanced the Apple Music track", category: "SongRequest")
         } catch {
             Log.debug("SongRequestService: Vote-skip failed to advance track: \(error)", category: "SongRequest")
@@ -735,10 +756,12 @@ final class SongRequestService {
     ///
     /// - Returns: Number of items that were in the queue before clearing.
     func clearQueue() async -> Int {
+        guard !Task.isCancelled else { return 0 }
         let count = queue.clear()
         resetTakeoverTracking()
         resetRequestPlaybackTracking()
         playAttemptCounts.removeAll()
+        guard !Task.isCancelled else { return count }
         await musicController.clearPlayerQueue()
         return count
     }
@@ -751,10 +774,13 @@ final class SongRequestService {
     /// the user has nothing queued or the feature is off.
     @discardableResult
     func boost(username: String) async -> SongRequestItem? {
+        guard !Task.isCancelled else { return nil }
         guard isFeatureEnabled else { return nil }
+        guard !Task.isCancelled else { return nil }
         guard let boosted = queue.boost(username: username) else { return nil }
         if musicController.isMusicAppRunning, !isHoldEnabled, queue.nowPlaying == nil {
             resetTakeoverTracking()
+            guard !Task.isCancelled else { return boosted }
             await startImmediatelyIfIdle()
         }
         return boosted

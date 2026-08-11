@@ -102,55 +102,123 @@ extension TwitchChatService {
             reply: reply
         )
 
-        if commandsEnabled, Self.isPotentialCommand(text) {
-            let roles = chatMessage.roles
-            #if DEBUG
-            let treatAsViewer = Self.shouldTreatAsViewer(event: event)
-            #else
-            let treatAsViewer = false
-            #endif
-            let bypassCooldown = !treatAsViewer && (roles.isModerator || roles.isBroadcaster)
+        if Self.isPotentialCommand(text) {
+            let isDuplicateCommand = commandMessageDeduplicator.isDuplicate(messageID)
+            if isDuplicateCommand {
+                Log.debug(
+                    "TwitchChatService: Dropping duplicate command message (id: \(messageID))",
+                    category: "Twitch")
+            } else if commandsEnabled {
+                let roles = chatMessage.roles
+                #if DEBUG
+                let treatAsViewer = Self.shouldTreatAsViewer(event: event)
+                #else
+                let treatAsViewer = false
+                #endif
+                let bypassCooldown = !treatAsViewer && (roles.isModerator || roles.isBroadcaster)
 
-            let context = BotCommandContext(
-                userID: userID,
-                username: username,
-                isModerator: !treatAsViewer && roles.isModerator,
-                isBroadcaster: !treatAsViewer && roles.isBroadcaster,
-                isSubscriber: !treatAsViewer && roles.isSubscriber,
-                isVIP: !treatAsViewer && roles.isVIP,
-                messageID: messageID
-            )
+                let context = BotCommandContext(
+                    userID: userID,
+                    username: username,
+                    isModerator: !treatAsViewer && roles.isModerator,
+                    isBroadcaster: !treatAsViewer && roles.isBroadcaster,
+                    isSubscriber: !treatAsViewer && roles.isSubscriber,
+                    isVIP: !treatAsViewer && roles.isVIP,
+                    messageID: messageID
+                )
 
-            let asyncReply: @Sendable (String) -> Void = { [weak self] response in
-                guard let self else { return }
-                Task { await self.sendMessage(response, replyTo: messageID) }
-            }
-
-            // BotCommandDispatcher is `@MainActor`. `processMessageAsync` auto-hops
-            // and awaits the async track-info providers, so MainActor isn't blocked
-            // on a semaphore while the provider tries to re-enter MainActor (which
-            // was the original `runSync` deadlock).
-            Log.debug("TwitchChatService: dispatch enter text=\(text.prefix(40))", category: "Twitch")
-            let response: String? = await commandDispatcher.processMessageAsync(
-                text,
-                userID: userID,
-                isModerator: bypassCooldown,
-                context: context,
-                asyncReply: asyncReply
-            )
-            Log.debug("TwitchChatService: dispatch exit response=\(response?.prefix(40) ?? "nil")", category: "Twitch")
-            if let response {
-                await sendMessage(response, replyTo: messageID)
+                startCommandDispatch(
+                    text: text,
+                    userID: userID,
+                    isModerator: bypassCooldown,
+                    context: context,
+                    replyTo: messageID,
+                    generation: connectionGeneration,
+                    broadcasterID: broadcasterID)
             }
         }
 
         chatMessagesContinuation.yield(chatMessage)
     }
 
+    /// Starts a command pipeline without stalling the serial WebSocket receive
+    /// loop. The task is tracked until completion and canceled whenever its
+    /// connection generation is superseded.
+    private func startCommandDispatch(
+        text: String,
+        userID: String,
+        isModerator: Bool,
+        context: BotCommandContext,
+        replyTo messageID: String,
+        generation: UInt64,
+        broadcasterID: String
+    ) {
+        let taskID = UUID()
+        commandTasks[taskID] = Task { [weak self] in
+            await self?.runCommandDispatch(
+                text: text,
+                userID: userID,
+                isModerator: isModerator,
+                context: context,
+                replyTo: messageID,
+                generation: generation,
+                broadcasterID: broadcasterID)
+            await self?.clearCommandTask(taskID)
+        }
+    }
+
+    private func runCommandDispatch(
+        text: String,
+        userID: String,
+        isModerator: Bool,
+        context: BotCommandContext,
+        replyTo messageID: String,
+        generation: UInt64,
+        broadcasterID: String
+    ) async {
+        guard !Task.isCancelled,
+              commandReplyIsCurrent(generation: generation, broadcasterID: broadcasterID) else {
+            return
+        }
+
+        // BotCommandDispatcher is MainActor-isolated. The tracked task awaits
+        // its async result while the EventSub receive task remains free to read
+        // keepalives and later notifications.
+        Log.debug("TwitchChatService: dispatch enter text=\(text.prefix(40))", category: "Twitch")
+        let response = await commandDispatcher.processMessageAsync(
+            text,
+            userID: userID,
+            isModerator: isModerator,
+            context: context)
+        Log.debug("TwitchChatService: dispatch exit response=\(response?.prefix(40) ?? "nil")", category: "Twitch")
+
+        guard let response, !Task.isCancelled else { return }
+        await sendCommandReply(
+            response,
+            replyTo: messageID,
+            generation: generation,
+            broadcasterID: broadcasterID)
+    }
+
+    private func clearCommandTask(_ id: UUID) {
+        commandTasks[id] = nil
+    }
+
     // MARK: - EventSub Message Routing
 
     /// Handles a received WebSocket message.
     func handleWebSocketMessage(_ text: String) async {
+        await handleWebSocketMessage(text, receiveContext: nil)
+    }
+
+    /// Production receive entry point carrying ownership of the socket that
+    /// produced the frame. The nil-context wrapper above remains a parsing seam
+    /// for focused unit tests.
+    func handleWebSocketMessage(
+        _ text: String,
+        receiveContext: EventSubReceiveContext?
+    ) async {
+        guard receiveContextIsCurrent(receiveContext) else { return }
         // Any inbound frame is proof the connection is alive: reset the keepalive
         // watchdog before doing anything else, even if the frame later fails to
         // parse. A no-op until the watchdog has been armed by `session_welcome`.
@@ -184,33 +252,35 @@ extension TwitchChatService {
         }
 
         // Reject messages older than 10 minutes to prevent replay attacks
-        var timestamp = try? Date.ISO8601FormatStyle(includingFractionalSeconds: true)
-            .parse(messageTimestamp)
+        var timestamp = try? Date.ISO8601FormatStyle(
+            includingFractionalSeconds: true
+        ).parse(messageTimestamp)
         if timestamp == nil {
-            // Fallback: try without fractional seconds
+            // Fallback: try without fractional seconds.
             timestamp = try? Date.ISO8601FormatStyle().parse(messageTimestamp)
-            if timestamp == nil {
-                Log.warn(
-                    "TwitchChatService: Failed to parse EventSub timestamp: \(messageTimestamp)",
-                    category: "Twitch")
-            }
         }
-        if let timestamp {
-            let age = Date().timeIntervalSince(timestamp)
-            if age > 600 {
-                Log.warn(
-                    "TwitchChatService: Rejecting stale EventSub message (age: \(Int(age))s)",
-                    category: "Twitch")
-                return
-            }
-            // Reject messages timestamped more than 30s in the future (clock-skew
-            // grace). A negative age means the message is ahead of our clock.
-            if age < -30 {
-                Log.warn(
-                    "TwitchChatService: Rejecting future-dated EventSub message (skew: \(Int(-age))s)",
-                    category: "Twitch")
-                return
-            }
+        guard let timestamp else {
+            // Twitch guarantees RFC3339. Accepting an unparseable timestamp
+            // would make the bounded replay and paid-event dedup horizon false.
+            Log.warn(
+                "TwitchChatService: Rejecting EventSub message with invalid timestamp: \(messageTimestamp)",
+                category: "Twitch")
+            return
+        }
+        let age = Date().timeIntervalSince(timestamp)
+        if age > 600 {
+            Log.warn(
+                "TwitchChatService: Rejecting stale EventSub message (age: \(Int(age))s)",
+                category: "Twitch")
+            return
+        }
+        // Reject messages timestamped more than 30s in the future (clock-skew
+        // grace). A negative age means the message is ahead of our clock.
+        if age < -30 {
+            Log.warn(
+                "TwitchChatService: Rejecting future-dated EventSub message (skew: \(Int(-age))s)",
+                category: "Twitch")
+            return
         }
 
         // Twitch EventSub is at-least-once delivery: duplicate frames
@@ -226,15 +296,18 @@ extension TwitchChatService {
 
         switch messageType {
         case "session_welcome":
-            await handleSessionWelcome(json)
+            await handleSessionWelcome(json, receiveContext: receiveContext)
         case "notification":
-            await handleNotification(json)
+            await handleNotification(
+                json,
+                messageID: messageID,
+                receiveContext: receiveContext)
         case "session_keepalive":
             break
         case "session_reconnect":
-            await handleSessionReconnect(json)
+            await handleSessionReconnect(json, receiveContext: receiveContext)
         case "revocation":
-            await handleRevocation(json)
+            await handleRevocation(json, receiveContext: receiveContext)
         default:
             break
         }
@@ -244,11 +317,21 @@ extension TwitchChatService {
     /// `reconnect_url`. The migrated session keeps its existing subscriptions, so
     /// the resulting `session_welcome` must NOT re-run the `subscribeTo*` calls.
     ///
-    /// Safety: if the URL is missing/invalid OR anything goes wrong, fall back to
-    /// the proven fresh-connect path (`disconnectFromEventSub()` +
-    /// `scheduleReconnect()`), which re-subscribes. A brief event gap during the
-    /// migration is acceptable; correctness beats zero-gap.
-    private func handleSessionReconnect(_ json: [String: Any]) async {
+    /// Twitch requires the source socket to remain open until the replacement
+    /// sends `session_welcome`. Both receive loops therefore run during the
+    /// handoff; message-ID deduplication makes overlapping deliveries safe.
+    private func handleSessionReconnect(
+        _ json: [String: Any],
+        receiveContext: EventSubReceiveContext?
+    ) async {
+        guard !eventSubTeardownQuiescing.value,
+              receiveContextIsCurrent(receiveContext) else { return }
+        guard !isMigratingSession else {
+            Log.debug(
+                "TwitchChatService: Ignoring duplicate session_reconnect during migration",
+                category: "Twitch")
+            return
+        }
         guard let url = TwitchChatService.reconnectURL(from: json) else {
             Log.warn(
                 "TwitchChatService: session_reconnect missing a valid reconnect_url; reconnecting fresh",
@@ -260,29 +343,29 @@ extension TwitchChatService {
 
         Log.info("TwitchChatService: Migrating EventSub session to reconnect_url", category: "Twitch")
 
-        // Tear down only the old socket/receive loop; keep credentials and the
-        // armed-deadline value. Mark migration so the next welcome skips re-subscribe.
-        let oldTask = webSocketTask
+        // Move ownership of the source socket/loop aside without cancelling it.
+        // Session-bound command and paid redemption work remains valid because
+        // this is a transport handoff for the same logical channel session.
+        migrationSourceWebSocketTask = webSocketTask
+        migrationSourceReceiveTask = receiveTask
         webSocketTask = nil
-        sessionID = nil
-        receiveTask?.cancel()
         receiveTask = nil
-        cancelKeepaliveWatchdog()
         sessionWelcomeTask?.cancel()
         sessionWelcomeTask = nil
 
         isMigratingSession = true
         connectToEventSub(urlString: url)
-
-        // Close the old socket only after the new connect was initiated, so the
-        // new welcome can arrive without us re-entering the fresh path on close.
-        oldTask?.cancel(with: .goingAway, reason: nil)
     }
 
-    /// Handles a `revocation` message. Routes `authorization_revoked` to the
-    /// shared re-auth signal and stops reconnecting; routes `user_removed` /
-    /// `version_removed` to a safe full re-subscribe.
-    private func handleRevocation(_ json: [String: Any]) async {
+    /// Handles every documented EventSub revocation status. Terminal account,
+    /// client-version, and permission failures stop without retry; transient
+    /// maintenance/WebSocket statuses use the existing bounded reconnect loop.
+    private func handleRevocation(
+        _ json: [String: Any],
+        receiveContext: EventSubReceiveContext?
+    ) async {
+        guard !eventSubTeardownQuiescing.value,
+              receiveContextIsCurrent(receiveContext) else { return }
         guard let payload = json["payload"] as? [String: Any],
               let subscription = payload["subscription"] as? [String: Any] else {
             Log.warn("TwitchChatService: revocation missing subscription payload", category: "Twitch")
@@ -297,33 +380,44 @@ extension TwitchChatService {
                 "TwitchChatService: EventSub authorization revoked (\(type)); signaling re-auth",
                 category: "Twitch")
             signalReauthNeededAndStop()
-        case .resubscribe:
-            Log.warn(
-                "TwitchChatService: EventSub subscription revoked (\(type)/\(status)); re-subscribing",
+        case .accountUnavailable:
+            stopEventSubWithoutReconnect(
+                error: "The connected Twitch account is no longer available.")
+            Log.error(
+                "TwitchChatService: EventSub account removed (\(type)); connection stopped",
                 category: "Twitch")
-            guard sessionID != nil else {
-                // No live session: tear down and let the reconnect loop rebuild
-                // the session and subscriptions from scratch.
-                Log.warn(
-                    "TwitchChatService: No active session during revocation resubscribe; reconnecting",
-                    category: "Twitch")
-                disconnectFromEventSub()
+        case .clientUpdateRequired:
+            stopEventSubWithoutReconnect(
+                error: "Twitch retired an EventSub version used by WolfWave. Please update WolfWave.")
+            Log.error(
+                "TwitchChatService: EventSub version removed (\(type)); client update required",
+                category: "Twitch")
+        case .permissionLost:
+            stopEventSubWithoutReconnect(
+                error: "WolfWave no longer has permission to receive Twitch chat events.")
+            Log.error(
+                "TwitchChatService: EventSub permission/channel access lost (\(type)/\(status))",
+                category: "Twitch")
+        case .reconnect:
+            Log.warn(
+                "TwitchChatService: Transient EventSub revocation (\(type)/\(status)); reconnecting",
+                category: "Twitch")
+            disconnectFromEventSub(error: "Twitch temporarily interrupted EventSub delivery.")
+            if isNetworkReachable {
                 scheduleReconnect()
-                return
             }
-            await subscribeToChannelChatMessage()
-            try? await Task.sleep(for: .milliseconds(200))
-            await subscribeToPollEvents()
-            try? await Task.sleep(for: .milliseconds(200))
-            await subscribeToStreamEvents()
-            await seedStreamLiveState()
-            try? await Task.sleep(for: .milliseconds(200))
-            await subscribeToRedemptionsIfEnabled()
         case .ignore:
             Log.debug(
                 "TwitchChatService: Ignoring revocation status \(status) for \(type)",
                 category: "Twitch")
         }
+    }
+
+    private func stopEventSubWithoutReconnect(error: String) {
+        reconnectTask?.cancel()
+        reconnectTask = nil
+        reconnectionAttempts = 0
+        disconnectFromEventSub(error: error)
     }
 
     /// Signals that interactive Twitch re-auth is required and stops the reconnect
@@ -349,7 +443,20 @@ extension TwitchChatService {
     }
 
     /// Handles the session_welcome message from EventSub.
-    private func handleSessionWelcome(_ json: [String: Any]) async {
+    private func handleSessionWelcome(
+        _ json: [String: Any],
+        receiveContext: EventSubReceiveContext?
+    ) async {
+        guard !eventSubTeardownQuiescing.value,
+              receiveContextIsCurrent(receiveContext) else { return }
+        if isMigratingSession,
+           let receiveContext,
+           migrationSourceWebSocketTask === receiveContext.webSocketTask {
+            Log.debug(
+                "TwitchChatService: Ignoring unexpected duplicate welcome from migration source",
+                category: "Twitch")
+            return
+        }
         guard let payload = json["payload"] as? [String: Any],
               let session = payload["session"] as? [String: Any],
               let sessionID = session["id"] as? String else {
@@ -360,46 +467,80 @@ extension TwitchChatService {
         cancelSessionWelcomeTimeout()
         reconnectTask?.cancel()
         reconnectTask = nil
-        // The WebSocket setup call returning is not success; this welcome is the
-        // first proof that the EventSub transport is usable.
-        reconnectionAttempts = 0
-        networkReconnectCycles = 0
+        welcomedWebSocketTask = receiveContext?.webSocketTask ?? webSocketTask
         self.sessionID = sessionID
         Log.info(
             "TwitchChatService: EventSub session established with ID: \(sessionID)",
             category: "Twitch")
 
         // Arm the keepalive watchdog from the advertised timeout (+ grace).
+        // A migration source may already have a watchdog sleeping against its
+        // own (possibly much longer) deadline. Merely updating the shared
+        // deadline does not wake that task, so a valid target welcome must
+        // invalidate the source generation and start a target-owned sleeper.
+        let completesMigration = isMigratingSession
+        if completesMigration {
+            cancelKeepaliveWatchdog()
+        }
         let timeout = TwitchChatService.keepaliveTimeoutSeconds(from: json)
             ?? AppConstants.Twitch.keepaliveDefaultTimeoutSeconds
         let deadline = TwitchChatService.keepaliveDeadline(
             timeoutSeconds: timeout, grace: AppConstants.Twitch.keepaliveGraceSeconds)
         armKeepaliveWatchdog(deadlineSeconds: deadline)
 
-        broadcastConnectionState(true)
-
         // A `session_reconnect` migration carries its subscriptions to the new
         // session, so skip re-subscribing. Only fresh connects subscribe.
-        if isMigratingSession {
+        if completesMigration {
+            let sourceSocket = migrationSourceWebSocketTask
+            migrationSourceWebSocketTask = nil
+            sourceSocket?.cancel(with: .goingAway, reason: nil)
+            migrationSourceReceiveTask?.cancel()
+            migrationSourceReceiveTask = nil
             isMigratingSession = false
+            reconnectionAttempts = 0
+            networkReconnectCycles = 0
+            broadcastConnectionState(true)
             Log.info(
                 "TwitchChatService: Session migration complete; subscriptions carried over",
                 category: "Twitch")
             return
         }
 
-        await subscribeToChannelChatMessage()
+        let chatSubscribed = await subscribeToChannelChatMessage(
+            receiveContext: receiveContext
+        )
+        guard receiveContextIsCurrent(receiveContext) else { return }
+        guard chatSubscribed else { return }
+
+        // A fresh connection is usable only after its critical chat
+        // subscription succeeds. Reset retry budgets at that point, not merely
+        // on session_welcome, so repeated subscription failures remain bounded.
+        reconnectionAttempts = 0
+        networkReconnectCycles = 0
+        broadcastConnectionState(true)
+
         try? await Task.sleep(for: .milliseconds(200))
-        await subscribeToPollEvents()
+        guard receiveContextIsCurrent(receiveContext) else { return }
+        await subscribeToPollEvents(receiveContext: receiveContext)
+        guard receiveContextIsCurrent(receiveContext) else { return }
         try? await Task.sleep(for: .milliseconds(200))
-        await subscribeToStreamEvents()
-        await seedStreamLiveState()
+        guard receiveContextIsCurrent(receiveContext) else { return }
+        await subscribeToStreamEvents(receiveContext: receiveContext)
+        guard receiveContextIsCurrent(receiveContext) else { return }
+        await seedStreamLiveState(receiveContext: receiveContext)
+        guard receiveContextIsCurrent(receiveContext) else { return }
         try? await Task.sleep(for: .milliseconds(200))
-        await subscribeToRedemptionsIfEnabled()
+        guard receiveContextIsCurrent(receiveContext) else { return }
+        await subscribeToRedemptionsIfEnabled(receiveContext: receiveContext)
     }
 
     /// Handles notification messages containing EventSub events.
-    private func handleNotification(_ json: [String: Any]) async {
+    private func handleNotification(
+        _ json: [String: Any],
+        messageID: String,
+        receiveContext: EventSubReceiveContext?
+    ) async {
+        guard receiveContextIsCurrent(receiveContext) else { return }
         guard let payload = json["payload"] as? [String: Any] else { return }
         guard let subscription = payload["subscription"] as? [String: Any],
               let subType = subscription["type"] as? String else {
@@ -420,7 +561,8 @@ extension TwitchChatService {
         case AppConstants.Twitch.eventSubChannelPointsRedemption:
             handleChannelPointsRedemption(payload)
         case AppConstants.Twitch.eventSubBitsUse:
-            handleBitsUse(payload)
+            handleBitsUse(
+                payload, eventSubMessageID: messageID)
         default:
             handleStreamStateNotification(type: subType)
         }
@@ -511,7 +653,10 @@ extension TwitchChatService {
     }
 
     /// Subscribes to `channel.poll.end` so finished vote-skip polls can be tallied.
-    private func subscribeToPollEvents() async {
+    private func subscribeToPollEvents(
+        receiveContext: EventSubReceiveContext? = nil
+    ) async {
+        guard receiveContextIsCurrent(receiveContext) else { return }
         guard FeatureFlags.voteSkipEnabled,
               UserDefaults.standard.bool(forKey: AppConstants.UserDefaults.voteSkipUsePolls) else { return }
 
@@ -527,7 +672,13 @@ extension TwitchChatService {
 
         let body = Self.eventSubBody(
             type: "channel.poll.end", broadcasterID: broadcasterID, sessionID: sessionID)
-        await postEventSubSubscription(body: body, token: token, clientID: clientID, label: "channel.poll.end")
+        await postEventSubSubscription(
+            body: body,
+            token: token,
+            clientID: clientID,
+            label: "channel.poll.end",
+            receiveContext: receiveContext
+        )
     }
 
     /// Updates `streamLive` from a `stream.online` / `stream.offline` event.
@@ -575,7 +726,11 @@ extension TwitchChatService {
     }
 
     /// Subscribes to the channel.chat.message EventSub event.
-    private func subscribeToChannelChatMessage() async {
+    @discardableResult
+    private func subscribeToChannelChatMessage(
+        receiveContext: EventSubReceiveContext? = nil
+    ) async -> Bool {
+        guard receiveContextIsCurrent(receiveContext) else { return false }
         guard let sessionID,
               let broadcasterID,
               let botID,
@@ -584,8 +739,8 @@ extension TwitchChatService {
             Log.error(
                 "TwitchChatService: Missing credentials for EventSub subscription",
                 category: "Twitch")
-            broadcastConnectionState(false)
-            return
+            disconnectFromEventSub()
+            return false
         }
 
         let body = Self.eventSubBody(
@@ -598,12 +753,17 @@ extension TwitchChatService {
         // The chat subscription is the critical one: its extra success
         // side-effect is the connection confirmation message, and a failure
         // tears the connection back down.
-        var sawAuthFailure = false
+        let expectedCredential = TwitchCredentialStore.shared
+            .connectionSnapshot(
+                matchingAccessToken: token
+            )?.accessExpectation
+        var failureStatus: Int?
         let subscribed = await postEventSubSubscription(
             body: body,
             token: token,
             clientID: clientID,
             label: "channel.chat.message",
+            receiveContext: receiveContext,
             onSuccess: {
                 Log.info("TwitchChatService: Connected to chat", category: "Twitch")
                 if shouldSendConnectionMessageOnSubscribe {
@@ -611,26 +771,59 @@ extension TwitchChatService {
                 }
             },
             onFailureStatus: { status in
-                // A 401 on the critical chat subscription means the token is dead.
-                // The subscription runs async after `session_welcome`, so it can't
-                // throw back into `attemptReconnect`; surface it as a re-auth signal.
-                if status == 401 { sawAuthFailure = true }
+                failureStatus = status
             }
         )
 
-        if !subscribed {
-            broadcastConnectionState(false)
-            if sawAuthFailure {
-                Log.error(
-                    "TwitchChatService: Chat subscription returned 401; signaling re-auth",
-                    category: "Twitch")
-                signalReauthNeededAndStop()
+        guard receiveContextIsCurrent(receiveContext) else { return false }
+        guard !subscribed else { return true }
+
+        if failureStatus == 401 {
+            let generation = receiveContext?.generation ?? connectionGeneration
+            Log.error(
+                "TwitchChatService: Chat subscription returned 401; attempting token refresh",
+                category: "Twitch")
+            if let expectedCredential {
+                let recovery = await recoverRejectedAccessToken(
+                    expectedCredential,
+                    clientID: clientID,
+                    generation: generation,
+                    broadcasterID: broadcasterID
+                )
+                guard receiveContextIsCurrent(receiveContext) else { return false }
+                if case .invalid? = recovery {
+                    signalReauthNeededAndStop()
+                    return false
+                }
             }
         }
+
+        let reconnectCredentialIsReady = prepareCurrentStoredCredentialForReconnect(
+            replacing: token,
+            clientID: clientID,
+            broadcasterID: broadcasterID,
+            authorizedUserID: botID)
+        // No welcomed socket may survive without the critical chat subscription.
+        // If the stored grant rotated for this broadcaster, adopt it before
+        // scheduling; a different/unresolved account remains disconnected.
+        disconnectFromEventSub()
+        if reconnectCredentialIsReady, isNetworkReachable { scheduleReconnect() }
+        return false
     }
 
+    #if DEBUG
+    func subscribeToChannelChatMessageForTesting(
+        receiveContext: EventSubReceiveContext
+    ) async -> Bool {
+        await subscribeToChannelChatMessage(receiveContext: receiveContext)
+    }
+    #endif
+
     /// Subscribes to `stream.online` / `stream.offline` so `streamLive` stays current.
-    private func subscribeToStreamEvents() async {
+    private func subscribeToStreamEvents(
+        receiveContext: EventSubReceiveContext? = nil
+    ) async {
+        guard receiveContextIsCurrent(receiveContext) else { return }
         guard let sessionID,
               let broadcasterID,
               let token = oauthToken,
@@ -639,12 +832,22 @@ extension TwitchChatService {
         for eventType in ["stream.online", "stream.offline"] {
             let body = Self.eventSubBody(
                 type: eventType, broadcasterID: broadcasterID, sessionID: sessionID)
-            await postEventSubSubscription(body: body, token: token, clientID: clientID, label: eventType)
+            await postEventSubSubscription(
+                body: body,
+                token: token,
+                clientID: clientID,
+                label: eventType,
+                receiveContext: receiveContext
+            )
+            guard receiveContextIsCurrent(receiveContext) else { return }
         }
     }
 
     /// Seeds `streamLive` with a single Helix "Get Streams" call.
-    private func seedStreamLiveState() async {
+    private func seedStreamLiveState(
+        receiveContext: EventSubReceiveContext? = nil
+    ) async {
+        guard receiveContextIsCurrent(receiveContext) else { return }
         guard let broadcasterID,
               let token = oauthToken,
               let clientID,
@@ -656,6 +859,7 @@ extension TwitchChatService {
             let response: HelixStreamsResponse = try await HTTPClient.shared.get(
                 url: url,
                 headers: HelixClient.headers(for: .init(token: token, clientID: clientID)))
+            guard receiveContextIsCurrent(receiveContext) else { return }
             let live = !response.data.isEmpty
             // Anchor "This stream" to the real start time when available, else now.
             // The anchor is set before `streamLive` flips true (and cleared after
@@ -671,6 +875,7 @@ extension TwitchChatService {
             }
             Log.info("TwitchChatService: Seeded stream-live state: live=\(live)", category: "Twitch")
         } catch {
+            guard receiveContextIsCurrent(receiveContext) else { return }
             Log.debug(
                 "TwitchChatService: Stream-live seed request failed - \(error.localizedDescription)",
                 category: "Twitch")
@@ -684,42 +889,61 @@ extension TwitchChatService {
     ///   - onSuccess: Side effect run once on a 2xx response. Defaults to a
     ///     no-op; `subscribeToChannelChatMessage` uses it to send the connection
     ///     confirmation message.
-    /// - Returns: `true` when the subscription is in place (2xx, or 409 "already
-    ///   active"), `false` on any other failure. `subscribeToChannelChatMessage`
-    ///   branches on this to decide whether the connection is healthy.
+    /// A 409 is not success for WebSocket transport: the existing subscription
+    /// may belong to the superseded socket. Twitch includes that subscription's
+    /// exact ID in the error body, so delete it and retry the POST once.
+    ///
+    /// - Returns: `true` only after Twitch accepts the subscription POST.
     @discardableResult
     func postEventSubSubscription(
         body: [String: Any],
         token: String,
         clientID: String,
         label: String,
+        receiveContext: EventSubReceiveContext? = nil,
         onSuccess: () -> Void = {},
         onFailureStatus: (Int) -> Void = { _ in }
     ) async -> Bool {
+        guard receiveContextIsCurrent(receiveContext) else { return false }
         guard let url = URL(string: apiBaseURL + "/eventsub/subscriptions") else { return false }
 
-        let request: URLRequest
-        do {
-            request = try HelixClient.buildRequest(
-                url: url, method: "POST",
-                credentials: .init(token: token, clientID: clientID), body: body)
-        } catch {
-            Log.error(
-                "TwitchChatService: Failed to serialize \(label) subscription - \(error.localizedDescription)",
-                category: "Twitch")
-            return false
-        }
+        var recoveredConflict = false
+        while true {
+            let request: URLRequest
+            do {
+                request = try HelixClient.buildRequest(
+                    url: url, method: "POST",
+                    credentials: .init(token: token, clientID: clientID), body: body)
+            } catch {
+                guard receiveContextIsCurrent(receiveContext) else { return false }
+                Log.error(
+                    "TwitchChatService: Failed to serialize \(label) subscription - \(error.localizedDescription)",
+                    category: "Twitch")
+                return false
+            }
 
-        do {
-            let (data, http) = try await HTTPClient.shared.send(request)
-            if (200..<300).contains(http.statusCode) {
-                Log.info("TwitchChatService: Subscribed to \(label)", category: "Twitch")
-                onSuccess()
-                return true
-            } else if http.statusCode == 409 {
-                Log.info("TwitchChatService: \(label) subscription already active", category: "Twitch")
-                return true
-            } else {
+            do {
+                let (data, http) = try await eventSubHTTPClient.send(request)
+                guard receiveContextIsCurrent(receiveContext) else { return false }
+                if (200..<300).contains(http.statusCode) {
+                    Log.info("TwitchChatService: Subscribed to \(label)", category: "Twitch")
+                    onSuccess()
+                    return true
+                }
+                if http.statusCode == 409,
+                   !recoveredConflict,
+                   let conflictingID = Self.conflictingSubscriptionID(from: data) {
+                    recoveredConflict = true
+                    let removed = await deleteConflictingEventSubSubscription(
+                        id: conflictingID,
+                        token: token,
+                        clientID: clientID,
+                        receiveContext: receiveContext,
+                        onFailureStatus: onFailureStatus)
+                    guard receiveContextIsCurrent(receiveContext), removed else { return false }
+                    continue
+                }
+
                 let responseText = String(data: data, encoding: .utf8) ?? "No response"
                 Log.error(
                     "TwitchChatService: \(label) subscription failed - HTTP \(http.statusCode) - \(responseText)",
@@ -729,10 +953,65 @@ extension TwitchChatService {
                 }
                 onFailureStatus(http.statusCode)
                 return false
+            } catch {
+                guard receiveContextIsCurrent(receiveContext) else { return false }
+                Log.error(
+                    "TwitchChatService: \(label) subscription error - \(error.localizedDescription)",
+                    category: "Twitch")
+                return false
             }
-        } catch {
+        }
+    }
+
+    /// Twitch's Create EventSub 409 response exposes the conflicting
+    /// subscription as a top-level `id`. Tolerate the regular `data[0].id`
+    /// envelope too so mocked/local Twitch-compatible endpoints work as well.
+    nonisolated static func conflictingSubscriptionID(from data: Data) -> String? {
+        guard let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
+            return nil
+        }
+        let candidate = (json["id"] as? String)
+            ?? ((json["data"] as? [[String: Any]])?.first?["id"] as? String)
+        let trimmed = candidate?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        return trimmed.isEmpty ? nil : trimmed
+    }
+
+    private func deleteConflictingEventSubSubscription(
+        id: String,
+        token: String,
+        clientID: String,
+        receiveContext: EventSubReceiveContext?,
+        onFailureStatus: (Int) -> Void
+    ) async -> Bool {
+        guard receiveContextIsCurrent(receiveContext),
+              var components = URLComponents(string: apiBaseURL + "/eventsub/subscriptions") else {
+            return false
+        }
+        components.queryItems = [URLQueryItem(name: "id", value: id)]
+        guard let url = components.url else { return false }
+
+        do {
+            let request = try HelixClient.buildRequest(
+                url: url,
+                method: "DELETE",
+                credentials: .init(token: token, clientID: clientID))
+            let (_, response) = try await eventSubHTTPClient.send(request)
+            guard receiveContextIsCurrent(receiveContext) else { return false }
+            if response.statusCode == 204 || response.statusCode == 404 {
+                Log.info(
+                    "TwitchChatService: Removed conflicting EventSub subscription \(id)",
+                    category: "Twitch")
+                return true
+            }
+            onFailureStatus(response.statusCode)
             Log.error(
-                "TwitchChatService: \(label) subscription error - \(error.localizedDescription)",
+                "TwitchChatService: Could not remove conflicting EventSub subscription - HTTP \(response.statusCode)",
+                category: "Twitch")
+            return false
+        } catch {
+            guard receiveContextIsCurrent(receiveContext) else { return false }
+            Log.error(
+                "TwitchChatService: Conflicting EventSub delete failed - \(error.localizedDescription)",
                 category: "Twitch")
             return false
         }

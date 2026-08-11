@@ -103,25 +103,17 @@ final class VoteSkipCommandTests: WolfWaveTestCase {
         let command = VoteSkipCommand()
         command.skipVoteManager = { manager }
 
-        let replied = expectation(description: "reply delivered")
-        command.execute(message: "!voteskip", context: context(userID: "1")) { response in
-            XCTAssertFalse(response.isEmpty)
-            replied.fulfill()
-        }
-        await fulfillment(of: [replied], timeout: 2)
+        let response = await command.execute(message: "!voteskip", context: context(userID: "1"))
+        XCTAssertFalse(response?.isEmpty ?? true)
     }
 
-    func testExecuteStaysSilentWhenFeatureDisabled() {
+    func testExecuteStaysSilentWhenFeatureDisabled() async {
         // voteSkipEnabled is unset → feature off → manager returns .disabled → no reply.
         let manager = SkipVoteManager()
         let command = VoteSkipCommand()
         command.skipVoteManager = { manager }
 
-        let noReply = expectation(description: "no reply")
-        noReply.isInverted = true
-        command.execute(message: "!voteskip", context: context(userID: "1")) { _ in
-            noReply.fulfill()
-        }
-        wait(for: [noReply], timeout: 1)
+        let response = await command.execute(message: "!voteskip", context: context(userID: "1"))
+        XCTAssertNil(response)
     }
 }

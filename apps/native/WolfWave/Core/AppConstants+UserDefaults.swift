@@ -34,8 +34,13 @@ extension AppConstants {
         /// Whether Twitch re-authentication is required (Bool, default: false)
         static let twitchReauthNeeded = "twitchReauthNeeded"
 
-        /// Connected Twitch channel/login name shown in the menu bar status line (String)
+        /// Legacy pre-Keychain Twitch channel name. Retained only so reset and
+        /// backup allow-list logic can remove/ignore old installations' value.
         static let twitchChannelName = "twitchChannelName"
+
+        /// Channel restored from a backup but not yet paired with a newly
+        /// authenticated account. Never used for connection decisions.
+        static let twitchPendingImportedChannelName = "twitchPendingImportedChannelName"
 
         /// Settings section to open next time (String, "twitchIntegration", etc.)
         static let selectedSettingsSection = "selectedSettingsSection"
@@ -272,8 +277,13 @@ extension AppConstants {
         /// Channel-point cost of the WolfWave-managed "Request a Song" reward (Int, default: 500)
         static let songRequestChannelPointsCost = "songRequestChannelPointsCost"
 
-        /// ID of the WolfWave-managed custom channel-point reward (String, default: "")
+        /// Legacy/UI mirror of the WolfWave-managed custom reward ID. The atomic
+        /// owner-bound identity below is authoritative for every Helix mutation.
         static let songRequestChannelPointsRewardID = "songRequestChannelPointsRewardID"
+
+        /// Atomic encoded {rewardID, broadcasterID} identity for the managed reward.
+        static let songRequestChannelPointsRewardIdentity =
+            "songRequestChannelPointsRewardIdentity"
 
         /// Whether bit-cheer song requests are enabled (Bool, default: false)
         static let songRequestBitsEnabled = "songRequestBitsEnabled"
@@ -431,6 +441,7 @@ extension AppConstants {
             dockVisibility,
             twitchReauthNeeded,
             twitchChannelName,
+            twitchPendingImportedChannelName,
             selectedSettingsSection,
             websocketEnabled,
             currentSongCommandEnabled,
@@ -506,6 +517,7 @@ extension AppConstants {
             songRequestChannelPointsEnabled,
             songRequestChannelPointsCost,
             songRequestChannelPointsRewardID,
+            songRequestChannelPointsRewardIdentity,
             songRequestBitsEnabled,
             songRequestBitsMinimum,
             songRequestBitsBoostEnabled,
@@ -671,15 +683,17 @@ extension AppConstants {
 
         /// Keys tied to a connected account. Restored only when the user opts to
         /// reconnect that integration during import. The actual credentials
-        /// (Twitch OAuth token + user/channel IDs) live in Keychain and never
-        /// enter a backup file; these UserDefaults entries are account identity
-        /// and re-auth state, not secrets.
+        /// (Twitch OAuth tokens + resolved user ID) live in Keychain and never
+        /// enter a backup file. The public configured channel name is exported
+        /// separately as reconnect metadata; these UserDefaults entries are
+        /// migration, pending-import, and re-auth state, not credentials.
         ///
         /// Twitch is the only OAuth account in WolfWave. Discord Rich Presence is
         /// a local IPC connection and the WebSocket/widget server is a local
         /// server with an auto-regenerated token, so neither is account-linked.
         static let accountLinkedKeys: [String] = [
             twitchChannelName,
+            twitchPendingImportedChannelName,
             twitchReauthNeeded,
         ]
 
@@ -696,6 +710,7 @@ extension AppConstants {
             updateSkippedVersion,
             lastSeenWhatsNewVersion,
             songRequestChannelPointsRewardID,
+            songRequestChannelPointsRewardIdentity,
             songRequestRedemptionStatus,
             songRequestSetupComplete,
             songRequestPlaylistStatus,

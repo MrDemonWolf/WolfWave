@@ -115,7 +115,7 @@ struct OnboardingTwitchStepView: View {
 
                 Button("Cancel") {
                     hasStartedActivation = false
-                    twitchViewModel.cancelOAuth()
+                    Task { @MainActor in await twitchViewModel.cancelOAuth() }
                 }
                 .buttonStyle(.bordered)
                 .controlSize(.small)
@@ -157,11 +157,14 @@ struct OnboardingTwitchStepView: View {
             Spacer()
 
             Button("Sign Out") {
-                twitchViewModel.cancelOAuth()
+                Task { @MainActor in
+                    await twitchViewModel.clearCredentials()
+                }
             }
             .buttonStyle(.bordered)
             .controlSize(.small)
             .pointerCursor()
+            .disabled(twitchViewModel.isAccountTeardownInProgress)
         }
         .padding(DSSpace.s5)
         .cardStyle()
@@ -215,7 +218,7 @@ struct OnboardingTwitchStepView: View {
                             }
                             if oldValue.lowercased()
                                 .trimmingCharacters(in: .whitespacesAndNewlines) != sanitized {
-                                twitchViewModel.saveChannelID()
+                                twitchViewModel.channelDraftChanged()
                             }
                         }
 
@@ -332,7 +335,7 @@ struct OnboardingTwitchStepView: View {
         twitchViewModel.channelID = twitchViewModel.botUsername
             .lowercased()
             .trimmingCharacters(in: .whitespacesAndNewlines)
-        twitchViewModel.saveChannelID()
+        twitchViewModel.channelDraftChanged()
     }
 
     private var stateKey: Int {

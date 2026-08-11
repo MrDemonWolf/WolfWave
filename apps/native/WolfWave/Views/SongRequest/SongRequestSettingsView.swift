@@ -829,9 +829,10 @@ fileprivate struct SongRequestRedemptionsCard: View {
         }
     }
 
-    private func recreateReward() {
-        Foundation.UserDefaults.standard.removeObject(
-            forKey: AppConstants.UserDefaults.songRequestChannelPointsRewardID)
+    private func repairReward() {
+        // Reconciliation proves the stored broadcaster/reward pair before it
+        // pauses, replaces, or forgets anything. Never delete the legacy UI
+        // mirror directly; the canonical owner record remains authoritative.
         refresh()
     }
 
@@ -896,7 +897,7 @@ fileprivate struct SongRequestRedemptionsCard: View {
                     Button {
                         showRecreateAlert = true
                     } label: {
-                        Label("Recreate Reward", systemImage: "arrow.clockwise")
+                        Label("Repair Reward", systemImage: "arrow.clockwise")
                             .font(.system(size: DSFont.Size.sm))
                     }
                     .buttonStyle(.bordered)
@@ -941,11 +942,15 @@ fileprivate struct SongRequestRedemptionsCard: View {
             }
         }
         .cardStyle()
-        .alert("Recreate Channel Point reward?", isPresented: $showRecreateAlert) {
+        .alert("Repair Channel Point reward?", isPresented: $showRecreateAlert) {
             Button("Cancel", role: .cancel) {}
-            Button("Recreate", role: .destructive) { recreateReward() }
+            Button("Repair") { repairReward() }
         } message: {
-            Text("Clears the stored reward ID so WolfWave will create a fresh \u{201C}Request a Song\u{201D} reward on Twitch. Use this if you deleted the reward manually.")
+            Text(
+                "Verifies the managed reward with Twitch. If it was deleted, "
+                    + "WolfWave will safely create a fresh \u{201C}Request a Song\u{201D} reward on Twitch. "
+                    + "Use this if you deleted the reward manually."
+            )
         }
     }
 }

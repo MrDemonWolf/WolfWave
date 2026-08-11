@@ -17,25 +17,55 @@ extension TwitchChatService {
         guard !token.isEmpty else { throw ConnectionError.invalidCredentials }
         guard !clientID.isEmpty else { throw ConnectionError.missingClientID }
 
+        guard let credentialRevision = TwitchCredentialStore.shared.revision(
+            matchingAccessToken: token
+        ) else { throw CancellationError() }
         let identity = try await fetchBotIdentity(token: token, clientID: clientID)
         let resolvedUsername = identity.displayName.isEmpty ? identity.login : identity.displayName
 
-        try KeychainService.saveTwitchUsername(resolvedUsername)
-        try KeychainService.saveTwitchBotUserID(identity.userID)
+        guard try TwitchCredentialStore.shared.commitIdentity(
+            username: resolvedUsername,
+            userID: identity.userID,
+            matchingAccessToken: token,
+            expectedRevision: credentialRevision
+        ) else {
+            throw CancellationError()
+        }
     }
 
     /// Static method to resolve bot identity without an instance.
-    static func resolveBotIdentityStatic(token: String, clientID: String) async throws {
+    static func resolveBotIdentityStatic(
+        token: String,
+        clientID: String,
+        credentialRevision: UInt64? = nil
+    ) async throws {
         guard !token.isEmpty else { throw ConnectionError.invalidCredentials }
         guard !clientID.isEmpty else { throw ConnectionError.missingClientID }
 
         // `init()` is `@MainActor`; hop to construct.
+        let expectedRevision: UInt64
+        if let credentialRevision {
+            expectedRevision = credentialRevision
+        } else if let matchingRevision = TwitchCredentialStore.shared.revision(
+            matchingAccessToken: token
+        ) {
+            expectedRevision = matchingRevision
+        } else {
+            throw CancellationError()
+        }
         let service = await MainActor.run { TwitchChatService() }
         let identity = try await service.fetchBotIdentity(token: token, clientID: clientID)
+        try Task.checkCancellation()
         let resolvedUsername = identity.displayName.isEmpty ? identity.login : identity.displayName
 
-        try KeychainService.saveTwitchUsername(resolvedUsername)
-        try KeychainService.saveTwitchBotUserID(identity.userID)
+        guard try TwitchCredentialStore.shared.commitIdentity(
+            username: resolvedUsername,
+            userID: identity.userID,
+            matchingAccessToken: token,
+            expectedRevision: expectedRevision
+        ) else {
+            throw CancellationError()
+        }
     }
 
     /// Resolves the Twitch Client ID from Info.plist (set via Config.xcconfig at build time).
@@ -84,20 +114,23 @@ extension TwitchChatService {
 
         let displayName = first.displayName ?? first.login
 
-        botID = first.id
-        botUsername = displayName
-
         return BotIdentity(userID: first.id, login: first.login, displayName: displayName)
     }
 
     /// Validates an OAuth token with Twitch and verifies required scopes.
+    ///
+    /// Twitch documents HTTP 401 as its definitive invalid-token response.
+    /// Every ambiguous failure preserves the local session for a later retry.
     func validateToken(
         _ token: String,
-        requiredScopes: [String] = ["user:read:chat", "user:write:chat"]
-    ) async -> Bool {
+        requiredScopes: [String] = ["user:read:chat", "user:write:chat"],
+        expectedClientID: String? = TwitchChatService.resolveClientID(),
+        http: HTTPClient = .shared
+    ) async -> TokenValidationResult {
+        guard !token.isEmpty else { return .invalid }
         guard let url = URL(string: "https://id.twitch.tv/oauth2/validate") else {
             Log.error("TwitchChatService: Invalid validate URL", category: "Twitch")
-            return false
+            return .temporarilyUnavailable
         }
 
         var request = URLRequest(url: url)
@@ -108,57 +141,77 @@ extension TwitchChatService {
         request.setValue(HTTPClient.defaultUserAgent, forHTTPHeaderField: "User-Agent")
 
         do {
-            let (data, http) = try await HTTPClient.shared.send(request)
+            let (data, response) = try await http.send(request)
 
-            guard (200..<300).contains(http.statusCode) else {
-                if http.statusCode == 401 {
+            guard (200..<300).contains(response.statusCode) else {
+                if response.statusCode == 401 {
                     Log.warn("TwitchChatService: Stored OAuth token is invalid or expired", category: "Twitch")
+                    return .invalid
                 } else {
-                    Log.warn("TwitchChatService: Token validate HTTP \(http.statusCode)", category: "Twitch")
+                    Log.warn(
+                        "TwitchChatService: Token validation temporarily unavailable (HTTP \(response.statusCode))",
+                        category: "Twitch")
+                    return .temporarilyUnavailable
                 }
-                return false
             }
 
             guard let parsed = try? JSONCoders.snakeCase.decode(TwitchValidateResponse.self, from: data) else {
                 Log.warn("TwitchChatService: Could not parse token validate response", category: "Twitch")
-                return false
+                return .temporarilyUnavailable
             }
 
-            if let scopes = parsed.scopes {
-                // Vote-skip Polls mode needs the polls scope. Only require it when
-                // the user has actually enabled Polls mode, so existing users are
-                // not forced to re-authorize unless they opt in.
-                var effectiveScopes = requiredScopes
-                let defaults = UserDefaults.standard
-                if defaults.bool(forKey: AppConstants.UserDefaults.voteSkipUsePolls),
-                   !effectiveScopes.contains(AppConstants.Twitch.pollsScope) {
-                    effectiveScopes.append(AppConstants.Twitch.pollsScope)
-                }
-                // Flag re-auth proactively when a redemption feature is on but its
-                // scope is missing (an old token from before these features), so
-                // the failure surfaces at connect instead of as a later 403.
-                if defaults.bool(forKey: AppConstants.UserDefaults.songRequestChannelPointsEnabled),
-                   !effectiveScopes.contains(AppConstants.Twitch.channelPointsScope) {
-                    effectiveScopes.append(AppConstants.Twitch.channelPointsScope)
-                }
-                if defaults.bool(forKey: AppConstants.UserDefaults.songRequestBitsEnabled),
-                   !effectiveScopes.contains(AppConstants.Twitch.bitsScope) {
-                    effectiveScopes.append(AppConstants.Twitch.bitsScope)
-                }
-                let missing = effectiveScopes.filter { !scopes.contains($0) }
-                if !missing.isEmpty {
+            if let expectedClientID, !expectedClientID.isEmpty {
+                guard let validatedClientID = parsed.clientID else {
                     Log.warn(
-                        "TwitchChatService: Token missing required scopes: \(missing.joined(separator: ", "))",
+                        "TwitchChatService: Token validate response omitted client_id",
                         category: "Twitch")
-                    return false
+                    return .temporarilyUnavailable
+                }
+                guard validatedClientID == expectedClientID else {
+                    Log.warn(
+                        "TwitchChatService: Token belongs to a different Twitch client",
+                        category: "Twitch")
+                    return .invalid
                 }
             }
-            return true
+
+            guard let scopes = parsed.scopes else {
+                Log.warn("TwitchChatService: Token validate response omitted scopes", category: "Twitch")
+                return .temporarilyUnavailable
+            }
+            // Vote-skip Polls mode needs the polls scope. Only require it when
+            // the user has actually enabled Polls mode, so existing users are
+            // not forced to re-authorize unless they opt in.
+            var effectiveScopes = requiredScopes
+            let defaults = UserDefaults.standard
+            if defaults.bool(forKey: AppConstants.UserDefaults.voteSkipUsePolls),
+               !effectiveScopes.contains(AppConstants.Twitch.pollsScope) {
+                effectiveScopes.append(AppConstants.Twitch.pollsScope)
+            }
+            // Flag re-auth proactively when a redemption feature is on but its
+            // scope is missing (an old token from before these features), so
+            // the failure surfaces at connect instead of as a later 403.
+            if defaults.bool(forKey: AppConstants.UserDefaults.songRequestChannelPointsEnabled),
+               !effectiveScopes.contains(AppConstants.Twitch.channelPointsScope) {
+                effectiveScopes.append(AppConstants.Twitch.channelPointsScope)
+            }
+            if defaults.bool(forKey: AppConstants.UserDefaults.songRequestBitsEnabled),
+               !effectiveScopes.contains(AppConstants.Twitch.bitsScope) {
+                effectiveScopes.append(AppConstants.Twitch.bitsScope)
+            }
+            let missing = effectiveScopes.filter { !scopes.contains($0) }
+            if !missing.isEmpty {
+                Log.warn(
+                    "TwitchChatService: Token missing required scopes: \(missing.joined(separator: ", "))",
+                    category: "Twitch")
+                return .invalid
+            }
+            return .valid
         } catch {
             Log.error(
-                "TwitchChatService: Token validate request failed - \(error.localizedDescription)",
+                "TwitchChatService: Token validation temporarily unavailable - \(error.localizedDescription)",
                 category: "Twitch")
-            return false
+            return .temporarilyUnavailable
         }
     }
 
@@ -205,7 +258,7 @@ extension TwitchChatService {
         request.timeoutInterval = 15
 
         do {
-            let (data, http) = try await HTTPClient.shared.send(request)
+            let (data, http) = try await helixHTTPClient.send(request)
             guard (200..<300).contains(http.statusCode) else {
                 if http.statusCode == 401 { throw ConnectionError.authenticationFailed }
                 throw ConnectionError.networkError("HTTP \(http.statusCode)")

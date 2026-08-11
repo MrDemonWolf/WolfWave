@@ -141,6 +141,12 @@ protocol ServiceBoundCommand: AsyncBotCommand {
 }
 
 extension ServiceBoundCommand {
+    /// Rejects non-privileged callers before the dispatcher reserves a cooldown.
+    /// Individual commands retain their execute-time guard as defense in depth.
+    func isAllowed(context: BotCommandContext) -> Bool {
+        context.isPrivileged
+    }
+
     /// Returns the service only if the context is privileged (mod or broadcaster).
     /// Silently returns `nil` for non-privileged users, matching the established pattern.
     func requirePrivilegedService(context: BotCommandContext) -> SongRequestService? {

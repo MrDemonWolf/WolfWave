@@ -32,6 +32,167 @@ extension TwitchChatService {
         return .retryableFailure
     }
 
+    /// True only while the rejected credential still owns both durable storage
+    /// and the actor session that issued the request.
+    func rejectedCredentialIsCurrent(
+        _ expected: TwitchCredentialStore.AccessExpectation,
+        clientID: String,
+        generation: UInt64,
+        broadcasterID expectedBroadcasterID: String?
+    ) -> Bool {
+        !Task.isCancelled
+            && connectionAttemptIsCurrent(generation)
+            && oauthToken == expected.accessToken
+            && self.clientID == clientID
+            && (expectedBroadcasterID == nil || broadcasterID == expectedBroadcasterID)
+            && TwitchCredentialStore.shared.matches(expected)
+    }
+
+    /// Reconnect-specific ownership check used when no active OAuth actor field
+    /// has been published yet.
+    private func reconnectCredentialIsCurrent(
+        _ expected: TwitchCredentialStore.AccessExpectation,
+        channelName: String,
+        clientID: String,
+        generation: UInt64
+    ) -> Bool {
+        !Task.isCancelled
+            && connectionAttemptIsCurrent(generation)
+            && reconnectChannelName == channelName
+            && reconnectToken == expected.accessToken
+            && reconnectClientID == clientID
+            && TwitchCredentialStore.shared.matches(expected)
+    }
+
+    /// CAS-adopts a persisted access-token rotation into the active and reconnect
+    /// state. If a backoff task captured the old token, reschedule it so it cannot
+    /// wake, fail its stale-configuration guard, and silently end recovery.
+    @discardableResult
+    func adoptRefreshedAccessCredential(
+        _ refreshed: TwitchCredentialStore.AccessExpectation,
+        replacing rejected: TwitchCredentialStore.AccessExpectation,
+        restartPendingReconnect: Bool = true
+    ) -> Bool {
+        guard refreshed.revision == rejected.revision,
+              TwitchCredentialStore.shared.matches(refreshed) else {
+            return false
+        }
+
+        let ownsRejected = oauthToken == rejected.accessToken
+            || reconnectToken == rejected.accessToken
+        let alreadyAdopted = oauthToken == refreshed.accessToken
+            || reconnectToken == refreshed.accessToken
+        guard ownsRejected || alreadyAdopted
+                || (oauthToken == nil && reconnectToken == nil) else {
+            return false
+        }
+
+        let hadPendingReconnect = reconnectTask != nil
+            && reconnectToken == rejected.accessToken
+        let hadLiveSession = webSocketTask != nil
+            && oauthToken == rejected.accessToken
+        if oauthToken == rejected.accessToken {
+            oauthToken = refreshed.accessToken
+        }
+        if reconnectToken == rejected.accessToken {
+            reconnectToken = refreshed.accessToken
+        }
+        if restartPendingReconnect && (hadPendingReconnect || hadLiveSession) {
+            if hadLiveSession {
+                // EventSub subscriptions are authorized for the token/session
+                // pair that created them. A rotation starts a fresh generation.
+                disconnectFromEventSub()
+            }
+            if isNetworkReachable { scheduleReconnect() }
+        }
+        return true
+    }
+
+    /// Adopts a stored rotation only when it still belongs to the actor's
+    /// authorized chat user; broadcaster ownership is checked separately. A
+    /// different or unresolved account remains disconnected so an old socket cannot outlive credential replacement.
+    func prepareCurrentStoredCredentialForReconnect(
+        replacing staleToken: String,
+        clientID: String,
+        broadcasterID: String,
+        authorizedUserID: String
+    ) -> Bool {
+        guard self.clientID == clientID,
+              self.broadcasterID == broadcasterID,
+              botID == authorizedUserID else { return false }
+        let reconnectCandidate = reconnectToken ?? staleToken
+        if let matching = TwitchCredentialStore.shared.connectionSnapshot(
+            matchingAccessToken: reconnectCandidate),
+           matching.userID == authorizedUserID {
+            return true
+        }
+        guard let current = TwitchCredentialStore.shared.connectionSnapshot(),
+              current.userID == authorizedUserID else { return false }
+        let stale = TwitchCredentialStore.AccessExpectation(
+            revision: current.revision,
+            accessToken: staleToken)
+        return adoptRefreshedAccessCredential(
+            current.accessExpectation,
+            replacing: stale,
+            restartPendingReconnect: false)
+    }
+
+    /// Runs the shared credential-keyed refresh decision for a 401 emitted by
+    /// live chat or EventSub HTTP work. Every post-await result is revalidated
+    /// before it may mutate actor state or authorize re-auth.
+    func recoverRejectedAccessToken(
+        _ expected: TwitchCredentialStore.AccessExpectation,
+        clientID: String,
+        generation: UInt64,
+        broadcasterID expectedBroadcasterID: String?
+    ) async -> TwitchTokenRefresher.RefreshResult? {
+        guard rejectedCredentialIsCurrent(
+            expected,
+            clientID: clientID,
+            generation: generation,
+            broadcasterID: expectedBroadcasterID
+        ) else { return nil }
+
+        let result: TwitchTokenRefresher.RefreshResult
+        do {
+            result = try await reactiveTokenRefresh(clientID, expected: expected)
+        } catch is CancellationError {
+            return nil
+        } catch {
+            result = .temporarilyUnavailable
+        }
+
+        switch result {
+        case .refreshed(let refreshedToken):
+            let refreshed = expected.replacingAccessToken(refreshedToken)
+            guard !Task.isCancelled,
+                  connectionAttemptIsCurrent(generation),
+                  oauthToken == expected.accessToken,
+                  self.clientID == clientID,
+                  expectedBroadcasterID == nil
+                    || broadcasterID == expectedBroadcasterID,
+                  TwitchCredentialStore.shared.matches(refreshed) else {
+                return nil
+            }
+            guard adoptRefreshedAccessCredential(
+                refreshed,
+                replacing: expected,
+                restartPendingReconnect: false
+            ) else { return nil }
+            return result
+        case .invalid, .temporarilyUnavailable:
+            guard rejectedCredentialIsCurrent(
+                expected,
+                clientID: clientID,
+                generation: generation,
+                broadcasterID: expectedBroadcasterID
+            ) else { return nil }
+            return result
+        case .superseded:
+            return nil
+        }
+    }
+
     // MARK: - Network Monitoring
 
     /// Starts monitoring network connectivity and sets up automatic reconnection.
@@ -92,9 +253,7 @@ extension TwitchChatService {
             // cannot wake and consume an attempt while the machine is offline.
             reconnectTask?.cancel()
             reconnectTask = nil
-            connectionGeneration &+= 1
             disconnectFromEventSub()
-            broadcastConnectionState(false)
         }
     }
 
@@ -103,6 +262,7 @@ extension TwitchChatService {
     /// Schedules a reconnection attempt with exponential backoff. Cancels any
     /// existing scheduled attempt so we never have two pending at once.
     func scheduleReconnect() {
+        guard !eventSubTeardownQuiescing.value else { return }
         guard let channelName = reconnectChannelName,
               let token = reconnectToken,
               let clientID = reconnectClientID else {
@@ -165,6 +325,15 @@ extension TwitchChatService {
                 category: "Twitch")
             return
         }
+        guard let expected = TwitchCredentialStore.shared
+            .connectionSnapshot(
+                matchingAccessToken: token
+            )?.accessExpectation else {
+            Log.info(
+                "TwitchChatService: Stored credential changed, skipping stale reconnect",
+                category: "Twitch")
+            return
+        }
         guard let attemptNumber = Self.nextReconnectAttempt(
             after: reconnectionAttempts,
             maximum: maxReconnectionAttempts
@@ -198,6 +367,7 @@ extension TwitchChatService {
                 "TwitchChatService: Reconnect failed with 401; token is invalid or expired",
                 category: "Twitch")
             await handleAuthenticationFailureDuringReconnect(
+                expected: expected,
                 channelName: channelName,
                 clientID: clientID,
                 attemptGeneration: generation)
@@ -223,26 +393,53 @@ extension TwitchChatService {
     /// refresh (no loop). A second 401 signals interactive re-auth; a non-auth
     /// connection failure resumes the existing bounded reconnect backoff.
     private func handleAuthenticationFailureDuringReconnect(
+        expected: TwitchCredentialStore.AccessExpectation,
         channelName: String,
         clientID: String,
         attemptGeneration: UInt64
     ) async {
-        var terminalGeneration = attemptGeneration
-        if let refreshed = await TwitchTokenRefresher.attemptReactiveRefresh(clientID: clientID) {
+        guard reconnectCredentialIsCurrent(
+            expected,
+            channelName: channelName,
+            clientID: clientID,
+            generation: attemptGeneration
+        ) else { return }
+
+        let refreshResult: TwitchTokenRefresher.RefreshResult
+        do {
+            refreshResult = try await reactiveTokenRefresh(
+                clientID,
+                expected: expected
+            )
+        } catch is CancellationError {
+            return
+        } catch {
+            refreshResult = .temporarilyUnavailable
+        }
+
+        switch refreshResult {
+        case .refreshed(let refreshedToken):
+            let refreshed = expected.replacingAccessToken(refreshedToken)
             guard !Task.isCancelled,
                   connectionAttemptIsCurrent(attemptGeneration),
                   reconnectChannelName == channelName,
-                  reconnectClientID == clientID else { return }
+                  reconnectToken == expected.accessToken,
+                  reconnectClientID == clientID,
+                  TwitchCredentialStore.shared.matches(refreshed),
+                  adoptRefreshedAccessCredential(
+                    refreshed,
+                    replacing: expected,
+                    restartPendingReconnect: false
+                  ) else { return }
+
             Log.info(
                 "TwitchChatService: Reactive token refresh succeeded; reconnecting",
                 category: "Twitch")
-            reconnectToken = refreshed
             let refreshedGeneration = beginConnectionAttempt()
-            terminalGeneration = refreshedGeneration
             do {
                 try await connectToChannel(
                     channelName: channelName,
-                    token: refreshed,
+                    token: refreshedToken,
                     clientID: clientID,
                     attemptGeneration: refreshedGeneration)
                 Log.info(
@@ -250,7 +447,12 @@ extension TwitchChatService {
                     category: "Twitch")
                 return
             } catch {
-                guard connectionAttemptIsCurrent(refreshedGeneration) else { return }
+                guard reconnectCredentialIsCurrent(
+                    refreshed,
+                    channelName: channelName,
+                    clientID: clientID,
+                    generation: refreshedGeneration
+                ) else { return }
                 switch Self.refreshedReconnectFailureDisposition(for: error) {
                 case .cancelled:
                     return
@@ -258,6 +460,8 @@ extension TwitchChatService {
                     Log.error(
                         "TwitchChatService: Refreshed token was rejected with 401",
                         category: "Twitch")
+                    signalReauthNeededAndStop()
+                    return
                 case .retryableFailure:
                     Log.warn(
                         "TwitchChatService: Reconnect after refresh failed transiently - "
@@ -274,10 +478,31 @@ extension TwitchChatService {
                     return
                 }
             }
+        case .invalid:
+            guard reconnectCredentialIsCurrent(
+                expected,
+                channelName: channelName,
+                clientID: clientID,
+                generation: attemptGeneration
+            ) else { return }
+            signalReauthNeededAndStop()
+        case .temporarilyUnavailable:
+            guard reconnectCredentialIsCurrent(
+                expected,
+                channelName: channelName,
+                clientID: clientID,
+                generation: attemptGeneration
+            ) else { return }
+            Log.warn(
+                "TwitchChatService: Token refresh temporarily unavailable; keeping credentials",
+                category: "Twitch"
+            )
+            if reconnectionAttempts < maxReconnectionAttempts && isNetworkReachable {
+                scheduleReconnect()
+            }
+        case .superseded:
+            return
         }
-        // Refresh unavailable or failed: stop looping and ask the user to re-auth.
-        guard connectionAttemptIsCurrent(terminalGeneration) else { return }
-        signalReauthNeededAndStop()
     }
 
     // MARK: - WebSocket Management
@@ -291,9 +516,10 @@ extension TwitchChatService {
     ///   EventSub URL; a `session_reconnect` migration passes the server-provided
     ///   `reconnect_url` instead so subscriptions carry over to the new session.
     func connectToEventSub(urlString: String = TwitchChatService.defaultEventSubURL) {
+        guard !eventSubTeardownQuiescing.value else { return }
         guard let url = URL(string: urlString) else {
             Log.error("TwitchChatService: Invalid EventSub URL", category: "Twitch")
-            broadcastConnectionState(false)
+            disconnectFromEventSub()
             return
         }
 
@@ -302,23 +528,28 @@ extension TwitchChatService {
         // direct double-connect would otherwise orphan a live task.
         webSocketTask?.cancel(with: .goingAway, reason: nil)
 
-        let task = urlSession.webSocketTask(with: url)
+        let task = eventSubWebSocketFactory?(url) ?? urlSession.webSocketTask(with: url)
         webSocketTask = task
 
         Log.info("TwitchChatService: Starting EventSub WebSocket connection", category: "Twitch")
-        task.resume()
+        eventSubWebSocketResume(task)
 
-        startSessionWelcomeTimeout()
+        startSessionWelcomeTimeout(
+            receiveContext: EventSubReceiveContext(
+                generation: connectionGeneration,
+                webSocketTask: task
+            )
+        )
         startReceiveLoop()
     }
 
     /// Starts a timeout task that fires if `session_welcome` doesn't arrive in time.
-    private func startSessionWelcomeTimeout() {
+    private func startSessionWelcomeTimeout(receiveContext: EventSubReceiveContext) {
         sessionWelcomeTask?.cancel()
         sessionWelcomeTask = Task { [weak self] in
             try? await Task.sleep(for: .seconds(AppConstants.Twitch.sessionWelcomeTimeout))
             if Task.isCancelled { return }
-            await self?.handleSessionWelcomeTimeout()
+            await self?.handleSessionWelcomeTimeout(receiveContext: receiveContext)
         }
     }
 
@@ -333,7 +564,7 @@ extension TwitchChatService {
     /// Arms one watchdog for the EventSub session. Subsequent inbound frames move
     /// the monotonic activity timestamp; they do not cancel/recreate the task.
     func armKeepaliveWatchdog(deadlineSeconds: TimeInterval) {
-        keepaliveDeadlineSeconds = max(1, deadlineSeconds)
+        keepaliveDeadlineSeconds = Self.normalizedKeepaliveDeadline(deadlineSeconds)
         let clock = ContinuousClock()
         lastKeepaliveActivity = clock.now
 
@@ -380,9 +611,10 @@ extension TwitchChatService {
     )? {
         guard generation == keepaliveGeneration,
               let lastKeepaliveActivity else { return nil }
+        let deadlineSeconds = Self.normalizedKeepaliveDeadline(keepaliveDeadlineSeconds)
         return (
-            lastKeepaliveActivity.advanced(by: .seconds(keepaliveDeadlineSeconds)),
-            min(1, keepaliveDeadlineSeconds * 0.1)
+            lastKeepaliveActivity.advanced(by: .seconds(deadlineSeconds)),
+            min(1, deadlineSeconds * 0.1)
         )
     }
 
@@ -409,8 +641,6 @@ extension TwitchChatService {
         Log.warn(
             "TwitchChatService: Keepalive watchdog fired (no frame within \(Int(keepaliveDeadlineSeconds))s); reconnecting",
             category: "Twitch")
-        broadcastConnectionState(false)
-
         disconnectFromEventSub()
 
         if let channelName = reconnectChannelName,
@@ -424,8 +654,12 @@ extension TwitchChatService {
     }
 
     /// Called when session_welcome timeout expires.
-    private func handleSessionWelcomeTimeout() async {
-        guard sessionID == nil else { return } // If we already got a welcome, ignore
+    private func handleSessionWelcomeTimeout(
+        receiveContext: EventSubReceiveContext
+    ) async {
+        guard !eventSubTeardownQuiescing.value,
+              receiveContextIsCurrent(receiveContext) else { return }
+        guard welcomedWebSocketTask !== receiveContext.webSocketTask else { return }
 
         // A welcome that never arrived means the (possibly migration) socket is
         // dead and we fall back to a fresh reconnect. Clear the migration flag so
@@ -437,8 +671,6 @@ extension TwitchChatService {
         Log.error(
             "TwitchChatService: Session welcome timeout - WebSocket may not be responding",
             category: "Twitch")
-        broadcastConnectionState(false)
-
         disconnectFromEventSub()
 
         if let channelName = reconnectChannelName,
@@ -454,21 +686,78 @@ extension TwitchChatService {
     }
 
     /// Disconnects from the EventSub WebSocket and clears session state.
-    func disconnectFromEventSub() {
-        setConnected(false)
+    func disconnectFromEventSub(
+        error: String? = nil,
+        allowDuringCredentialTeardown: Bool = false
+    ) {
+        guard allowDuringCredentialTeardown
+                || !eventSubTeardownQuiescing.value else {
+            Log.debug(
+                "TwitchChatService: Deferring EventSub disconnect during credential teardown",
+                category: "Twitch")
+            return
+        }
+        invalidateSessionBoundChatWork()
         let task = webSocketTask
+        let migrationSourceTask = migrationSourceWebSocketTask
         webSocketTask = nil
+        migrationSourceWebSocketTask = nil
         sessionID = nil
+        welcomedWebSocketTask = nil
         task?.cancel(with: .goingAway, reason: nil)
+        migrationSourceTask?.cancel(with: .goingAway, reason: nil)
 
         sessionWelcomeTask?.cancel()
         sessionWelcomeTask = nil
         receiveTask?.cancel()
         receiveTask = nil
+        migrationSourceReceiveTask?.cancel()
+        migrationSourceReceiveTask = nil
         cancelKeepaliveWatchdog()
         isMigratingSession = false
+        broadcastConnectionState(false, error: error)
 
         Log.debug("TwitchChatService: EventSub WebSocket disconnected", category: "Twitch")
+    }
+
+    /// Stops the socket at the receive boundary without cancelling a receive
+    /// task that may already be waiting to enter this actor with a paid frame.
+    /// Once both loops finish, every frame returned by `receive()` has either
+    /// completed routing or been rejected before the teardown cutoff.
+    func quiesceEventSubReceiveBeforeCredentialTeardown(
+        expectedOwnershipGeneration: UInt64,
+        expectedConnectionGeneration: UInt64,
+        timeout: Duration = .seconds(5)
+    ) async -> Bool {
+        guard eventSubTeardownQuiescing.value,
+              channelOwnershipGeneration == expectedOwnershipGeneration,
+              connectionGeneration == expectedConnectionGeneration else {
+            return false
+        }
+        webSocketTask?.cancel(with: .goingAway, reason: nil)
+        migrationSourceWebSocketTask?.cancel(with: .goingAway, reason: nil)
+
+        let clock = ContinuousClock()
+        let deadline = clock.now.advanced(by: timeout)
+        while receiveTask != nil || migrationSourceReceiveTask != nil {
+            guard eventSubTeardownQuiescing.value,
+                  channelOwnershipGeneration == expectedOwnershipGeneration,
+                  connectionGeneration == expectedConnectionGeneration else {
+                return false
+            }
+            guard clock.now < deadline else {
+                Log.error(
+                    "TwitchChatService: Timed out quiescing EventSub paid-event intake before credential teardown",
+                    category: "Twitch")
+                return false
+            }
+            do {
+                try await Task.sleep(for: .milliseconds(25))
+            } catch {
+                return false
+            }
+        }
+        return true
     }
 
     /// Drives the WebSocket receive loop. Replaces the recursive
@@ -477,17 +766,24 @@ extension TwitchChatService {
     private func startReceiveLoop() {
         receiveTask?.cancel()
         let task = webSocketTask
+        let generation = connectionGeneration
+        let receive = eventSubWebSocketReceive
         receiveTask = Task { [weak self] in
             guard let task else { return }
+            let context = EventSubReceiveContext(
+                generation: generation,
+                webSocketTask: task
+            )
             while !Task.isCancelled {
                 do {
-                    let message = try await task.receive()
+                    let message = try await receive(task)
+                    if Task.isCancelled { break }
                     switch message {
                     case .string(let text):
-                        await self?.handleWebSocketMessage(text)
+                        await self?.handleWebSocketMessage(text, receiveContext: context)
                     case .data(let data):
                         if let text = String(data: data, encoding: .utf8) {
-                            await self?.handleWebSocketMessage(text)
+                            await self?.handleWebSocketMessage(text, receiveContext: context)
                         }
                     @unknown default:
                         break
@@ -500,20 +796,53 @@ extension TwitchChatService {
                     // that is already being replaced: doing so would reset
                     // isMigratingSession, flip the UI to disconnected, and schedule
                     // a reconnect that tears down the healthy migrated session.
-                    if Task.isCancelled { return }
-                    await self?.handleReceiveError(error)
-                    return
+                    if Task.isCancelled
+                        || self?.eventSubTeardownQuiescing.value == true {
+                        break
+                    }
+                    await self?.handleReceiveError(error, receiveContext: context)
+                    break
                 }
             }
+            await self?.finishEventSubReceiveLoop(context)
+        }
+    }
+
+    private func finishEventSubReceiveLoop(
+        _ context: EventSubReceiveContext
+    ) {
+        if webSocketTask === context.webSocketTask {
+            receiveTask = nil
+        }
+        if migrationSourceWebSocketTask === context.webSocketTask {
+            migrationSourceReceiveTask = nil
         }
     }
 
     /// Handles a WebSocket receive error: logs, updates state, and attempts reconnect.
-    private func handleReceiveError(_ error: Error) async {
+    private func handleReceiveError(
+        _ error: Error,
+        receiveContext: EventSubReceiveContext
+    ) async {
         // Checked here on the actor, not in the receive loop: a separate
         // pre-check before the `handleReceiveError` await would race with
         // `leaveChannel()` flipping the flag between the two suspension points.
-        if isProcessingDisconnect { return }
+        guard !eventSubTeardownQuiescing.value,
+              receiveContextIsCurrent(receiveContext) else { return }
+
+        // Twitch explicitly allows the source socket to close after it has sent
+        // `session_reconnect`. The replacement remains authoritative; an error
+        // from the retained source must not tear it down or flip UI state.
+        if isMigratingSession,
+           migrationSourceWebSocketTask === receiveContext.webSocketTask {
+            migrationSourceWebSocketTask?.cancel(with: .goingAway, reason: nil)
+            migrationSourceWebSocketTask = nil
+            migrationSourceReceiveTask = nil
+            Log.info(
+                "TwitchChatService: Migration source socket closed; awaiting replacement welcome",
+                category: "Twitch")
+            return
+        }
 
         // A receive error on a migration socket leads to a fresh `scheduleReconnect`
         // below, NOT a reconnect_url migration. Clear the migration flag so the
@@ -535,7 +864,7 @@ extension TwitchChatService {
                 category: "Twitch")
         }
 
-        broadcastConnectionState(false, error: error.localizedDescription)
+        disconnectFromEventSub(error: error.localizedDescription)
 
         if let channelName = reconnectChannelName,
            let token = reconnectToken,
@@ -546,4 +875,16 @@ extension TwitchChatService {
             scheduleReconnect()
         }
     }
+
+    #if DEBUG
+    func handleQueuedReceiveErrorForTesting(
+        webSocketTask: URLSessionWebSocketTask
+    ) async {
+        await handleReceiveError(
+            URLError(.networkConnectionLost),
+            receiveContext: EventSubReceiveContext(
+                generation: connectionGeneration,
+                webSocketTask: webSocketTask))
+    }
+    #endif
 }

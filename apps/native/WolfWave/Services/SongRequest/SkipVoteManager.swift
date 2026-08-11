@@ -26,6 +26,8 @@ actor SkipVoteManager {
     /// The result of recording a `!voteskip`. Returned as a value (not a string) so
     /// the logic stays unit-testable; `VoteSkipCommand` formats the chat reply.
     enum VoteOutcome: Equatable, Sendable {
+        /// The invoking command was cancelled before state could be mutated.
+        case cancelled
         /// The feature master toggle is off, the command should stay silent.
         case disabled
         /// Subscriber-only voting is on and the voter is not a subscriber.
@@ -192,6 +194,7 @@ actor SkipVoteManager {
 
     /// Records a `!voteskip` from `context` and returns the outcome.
     func recordVote(context: BotCommandContext) async -> VoteOutcome {
+        guard !Task.isCancelled else { return .cancelled }
         guard isEnabled else { return .disabled }
         if usePolls {
             return await handlePollVote(context: context)
@@ -270,6 +273,7 @@ actor SkipVoteManager {
     // MARK: - Chat-tally Voting
 
     private func recordChatVote(context: BotCommandContext) async -> VoteOutcome {
+        guard !Task.isCancelled else { return .cancelled }
         if isSubscriberOnly && !context.isSubscriber && !context.isPrivileged {
             return .subscriberOnly
         }
@@ -331,7 +335,9 @@ actor SkipVoteManager {
             return outcome
         case .pass(let count):
             postState()
+            guard !Task.isCancelled else { return .cancelled }
             await performSkip?()
+            guard !Task.isCancelled else { return .cancelled }
             onVoteEvent?(.passed)
             return .passed(count: count)
         }
@@ -340,12 +346,17 @@ actor SkipVoteManager {
     // MARK: - Polls Voting
 
     private func handlePollVote(context: BotCommandContext) async -> VoteOutcome {
+        guard !Task.isCancelled else { return .cancelled }
         guard context.isPrivileged else { return .pollNotAllowed }
 
         if pollActive { return .pollInProgress }
         pollActive = true
 
         let success = await createPoll?("Skip the current song?", pollDuration) ?? false
+        guard !Task.isCancelled else {
+            pollActive = false
+            return .cancelled
+        }
         if success {
             pollGeneration += 1
             startPollTimeoutTask()

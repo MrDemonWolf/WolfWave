@@ -69,16 +69,15 @@ final class SkipCommandTests: WolfWaveTestCase {
 
     // MARK: - Privilege Gate
 
-    func testViewerCannotSkip() {
+    func testViewerCannotSkip() async {
         let command = SkipCommand()
         command.songRequestService = { self.makeService() }
 
-        var replyCalled = false
-        command.execute(message: "!skip", context: viewerContext()) { _ in replyCalled = true }
-        XCTAssertFalse(replyCalled)
+        let reply = await command.execute(message: "!skip", context: viewerContext())
+        XCTAssertNil(reply)
     }
 
-    func testSubscriberAloneCannotSkip() {
+    func testSubscriberAloneCannotSkip() async {
         let command = SkipCommand()
         command.songRequestService = { self.makeService() }
         let subscriber = BotCommandContext(
@@ -87,9 +86,8 @@ final class SkipCommandTests: WolfWaveTestCase {
             isSubscriber: true, isVIP: true, messageID: "m"
         )
 
-        var replyCalled = false
-        command.execute(message: "!skip", context: subscriber) { _ in replyCalled = true }
-        XCTAssertFalse(replyCalled)
+        let reply = await command.execute(message: "!skip", context: subscriber)
+        XCTAssertNil(reply)
     }
 
     // MARK: - Empty Queue
@@ -98,20 +96,17 @@ final class SkipCommandTests: WolfWaveTestCase {
         let command = SkipCommand()
         command.songRequestService = { self.makeService() }
 
-        let reply = await captureReply { done in
-            command.execute(message: "!skip", context: self.privilegedContext()) { done($0) }
-        }
+        let reply = await command.execute(message: "!skip", context: privilegedContext()) ?? ""
         XCTAssertTrue(reply.lowercased().contains("empty"))
     }
 
     // MARK: - Missing Service
 
-    func testMissingServiceIsSilent() {
+    func testMissingServiceIsSilent() async {
         let command = SkipCommand()
         command.songRequestService = { nil }
 
-        var replyCalled = false
-        command.execute(message: "!skip", context: privilegedContext()) { _ in replyCalled = true }
-        XCTAssertFalse(replyCalled)
+        let reply = await command.execute(message: "!skip", context: privilegedContext())
+        XCTAssertNil(reply)
     }
 }
