@@ -606,15 +606,17 @@ struct AdvancedSettingsView: View {
     @MainActor
     private func applyImport(_ choices: SettingsBackupCoder.ImportChoices) {
         guard let backup = pendingBackup else { return }
-        let summary = SettingsBackupService().apply(backup, choices: choices)
         showingImportSheet = false
         pendingBackup = nil
-        importSuccessMessage = Self.successMessage(summary)
-        showingImportSuccess = true
-        Log.info(
-            "Settings imported (\(summary.restoredCount) restored, twitch=\(summary.reconnectedTwitch))",
-            category: "App"
-        )
+        Task { @MainActor in
+            let summary = await SettingsBackupService().apply(backup, choices: choices)
+            importSuccessMessage = Self.successMessage(summary)
+            showingImportSuccess = true
+            Log.info(
+                "Settings imported (\(summary.restoredCount) restored, twitch=\(summary.reconnectedTwitch))",
+                category: "App"
+            )
+        }
     }
 
     /// Cached: `DateFormatter` allocation is expensive and this runs per export.
