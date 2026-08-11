@@ -729,12 +729,11 @@ final class KeychainServiceTests {
         #expect(updated.username == grant.username)
         #expect(updated.userID == grant.userID)
         #expect(updated.channelID == "new-channel")
-        #expect(
-            TwitchCredentialStore.shared.commitChannelID(
-                "stale-channel",
-                expected: original
-            ) == nil
+        let staleCommit = try TwitchCredentialStore.shared.commitChannelID(
+            "stale-channel",
+            expected: original
         )
+        #expect(staleCommit == nil)
         #expect(
             try KeychainService.loadTwitchCredentialGrantChecked().channelID
                 == "new-channel"
@@ -760,12 +759,11 @@ final class KeychainServiceTests {
                 matchingAccessToken: "ACCESS")
         )
 
-        let committed = try #require(
-            TwitchCredentialStore.shared.commitChannelID(
-                "new-channel",
-                expected: originalSnapshot
-            )
+        let commitResult = try TwitchCredentialStore.shared.commitChannelID(
+            "new-channel",
+            expected: originalSnapshot
         )
+        let committed = try #require(commitResult)
         #expect(committed.channelID == "new-channel")
         #expect(committed.revision == originalSnapshot.revision &+ 1)
         let afterCommit = try KeychainService.loadTwitchCredentialGrantChecked()
@@ -775,12 +773,11 @@ final class KeychainServiceTests {
         #expect(afterCommit.userID == originalGrant.userID)
         #expect(afterCommit.channelID == "new-channel")
 
-        let unchanged = try #require(
-            TwitchCredentialStore.shared.commitChannelID(
-                "new-channel",
-                expected: committed
-            )
+        let unchangedResult = try TwitchCredentialStore.shared.commitChannelID(
+            "new-channel",
+            expected: committed
         )
+        let unchanged = try #require(unchangedResult)
         #expect(unchanged == committed)
 
         backend.failNextSave(
