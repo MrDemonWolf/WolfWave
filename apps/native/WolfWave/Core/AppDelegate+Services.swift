@@ -130,16 +130,33 @@ extension AppDelegate {
 
         let port = Preferences.resolvedWebSocketServerPort
 
-        let token = WebSocketAuthToken.currentOrCreate()
+        let overlayToken = WebSocketAuthToken.currentOrCreate(for: .overlay)
+        var controlToken = WebSocketAuthToken.currentOrCreate(for: .control)
+        if WebSocketAuthToken.constantTimeEquals(overlayToken, controlToken) {
+            do {
+                controlToken = try WebSocketAuthToken.rotate(.control)
+                Log.warn(
+                    "AppDelegate: Replaced a control token that matched the overlay token",
+                    category: "WebSocket"
+                )
+            } catch {
+                Log.error("AppDelegate: Could not separate WebSocket credentials", category: "WebSocket")
+            }
+        }
         Log.info(
-            "AppDelegate: WebSocket server initialized on port \(port) (token=\(WebSocketAuthToken.redact(token)))",
+            "AppDelegate: WebSocket server initialized on port " + String(port)
+                + " (overlay=" + WebSocketAuthToken.redact(overlayToken)
+                + ", control=" + WebSocketAuthToken.redact(controlToken) + ")",
             category: "WebSocket"
         )
-        let server = WebSocketServerService(port: port, authToken: token)
+        let server = WebSocketServerService(
+            port: port,
+            overlayToken: overlayToken,
+            controlToken: controlToken
+        )
         websocketServer = server
 
-        // Handle inbound Stream Deck control commands. The connection is already
-        // token-gated at the handshake, so commands from it are trusted.
+        // Only loopback control-role connections can reach this handler.
         Task { [weak self] in
             await server.setCommandHandler { [weak self] command in
                 await self?.handleStreamDeckCommand(command)

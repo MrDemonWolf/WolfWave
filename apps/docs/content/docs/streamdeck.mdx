@@ -64,18 +64,20 @@ Stream Deck app.
 
 Drag any WolfWave key onto a page and open its settings panel.
 
-1. In WolfWave, go to Settings → Stream Widgets and reveal your access token.
-2. Paste it into the **Access token** field.
-3. Leave **Host** and **Port** alone if Stream Deck runs on the same Mac as
-   WolfWave.
+1. In WolfWave, go to Settings → Stream Widgets and reveal **Stream Deck Control Token**.
+2. Paste it into the **Control token** field.
+3. Leave **Port** alone unless you changed the WebSocket port in WolfWave.
+   The plugin always connects to WolfWave on this Mac.
 
 You only do this once. Every WolfWave key shares the same connection.
+If you used protocol v1, copy the new control token once after updating. The old
+shared access token is now the read-only overlay token and cannot run commands.
 
 <Callout type="info">
-  The plugin talks to WolfWave directly over the same connection your overlay
-  uses, gated by the same access token. No third-party service is involved and no
-  key press goes through the internet. If you point it at a different Mac, the
-  token and your key presses travel over your local network to reach it.
+  The plugin talks directly to WolfWave over a loopback-only control role, gated
+  by its own control token. The overlay token is read-only. No third-party service
+  is involved, no key press goes through the internet, and the plugin cannot be
+  pointed at another Mac.
 </Callout>
 
 ## What the keys tell you
@@ -83,7 +85,7 @@ You only do this once. Every WolfWave key shares the same connection.
 | Key reads | Means |
 |---|---|
 | **Offline** | WolfWave isn't running, or the overlay server is off. The plugin keeps retrying. |
-| **Token?** | The token is missing, or isn't exactly 64 hexadecimal characters (`0`–`9`, `a`–`f`). Re-copy it from Stream Widgets. |
+| **Token?** | The control token is missing, or isn't exactly 64 hexadecimal characters (`0`–`9`, `a`–`f`). Re-copy **Stream Deck Control Token** from Stream Widgets. |
 | **Update** | WolfWave and the plugin disagree on the control-protocol version — either one can be the older side. Update both to matching versions. |
 
 A key flashes a checkmark when a press worked and an alert when it didn't —
@@ -91,6 +93,6 @@ pressing Approve Next with nothing pending, for example.
 
 ## Streamer Mode
 
-[Streamer Mode](/docs/streamer-mode) masks your token in WolfWave's own windows.
+[Streamer Mode](/docs/streamer-mode) masks both tokens in WolfWave's own windows.
 It doesn't change what the plugin does, but you'll need to turn it off (or use
-the reveal control) to copy the token in the first place.
+the reveal control) to copy the control token in the first place.

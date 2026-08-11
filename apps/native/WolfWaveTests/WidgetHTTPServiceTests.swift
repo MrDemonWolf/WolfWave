@@ -267,6 +267,28 @@ final class WidgetHTTPServiceTests: XCTestCase {
         XCTAssertTrue(result.body.contains("<meta name=\"referrer\" content=\"no-referrer\">"))
     }
 
+    func testLoopbackWidgetInjectsReadOnlyOverlayCredential() async {
+        let overlayToken = String(repeating: "a", count: 64)
+        guard let (service, port) = await startBoundService(
+            from: 59880,
+            make: { WidgetHTTPService(port: $0, overlayToken: overlayToken) }
+        ) else { return }
+        defer { service.stop() }
+
+        guard let result = fetchServedWidgetResponse(port: port) else {
+            XCTFail("Failed to fetch served widget.html")
+            return
+        }
+
+        XCTAssertTrue(result.body.contains(overlayToken))
+        XCTAssertTrue(result.body.contains("wolfwave.overlay."))
+        XCTAssertFalse(result.body.contains("wolfwave.control."))
+        XCTAssertEqual(
+            result.response.value(forHTTPHeaderField: "Cache-Control"),
+            "no-store"
+        )
+    }
+
     // MARK: - Connection Lifecycle Helpers
 
     /// Opens a raw TCP client to `127.0.0.1:port` that calls `onClosed` when

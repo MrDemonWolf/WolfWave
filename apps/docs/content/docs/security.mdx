@@ -26,7 +26,8 @@ All credentials live in the macOS Keychain, accessed through the app's `Keychain
 - **Twitch OAuth access token**. Used for Helix API + EventSub
 - **Twitch refresh token**. For silent token refresh
 - **Twitch broadcaster + bot account info**. IDs and usernames for the connected account
-- **WebSocket auth token**. Gates the overlay server; see [WebSocket Server Security](#websocket-server-security)
+- **WebSocket overlay token**. Read-only credential for OBS and LAN state consumers
+- **WebSocket control token**. Separate same-Mac credential for Stream Deck commands
 
 ```swift
 // Store a credential
@@ -58,16 +59,18 @@ On every launch, stored tokens are validated. Expired tokens refresh silently wh
 
 ## WebSocket Server Security
 
-The built-in WebSocket server (port 8765) binds to all interfaces so a second-PC OBS or a phone browser on the same LAN can connect. Access is gated by a per-install auth token:
+The built-in WebSocket server (port 8765) binds to all interfaces so a second-PC OBS or a phone browser on the same LAN can connect. Authentication assigns one of two roles:
 
-- **The token** is a 64-character hex string (32 random bytes), minted at first launch and stored in the macOS Keychain.
-- **Every WebSocket connection**, loopback **and** LAN, must present it as the subprotocol `Sec-WebSocket-Protocol: wolfwave.token.<hex>` on the handshake. Anything else is rejected.
-- **The static HTTP shell** (port 8766) is unauthenticated. It injects the token into the served HTML only when the TCP peer is loopback **and** the `Host` header is a literal local name or address (`localhost`, `127/8`, `[::1]`), which blocks DNS-rebinding bootstrap. Token-bearing responses are marked `Cache-Control: no-store`.
-- **LAN URLs carry `?token=…` solely as a bootstrap.** The widget script forwards it into the WebSocket subprotocol; the query never authenticates the HTTP request itself. Widget HTML enforces `no-referrer`, so cross-origin artwork requests can't leak the URL token.
-- **The token is rotatable** from Settings → Stream Widgets. Rotation drops every connected client; update your browser-source URLs afterward.
-- **Logs redact the token** to its first 4 characters, never the full value.
+- **Both tokens** are independent 64-character hex strings (32 random bytes), minted at first launch and stored separately in the macOS Keychain.
+- **Overlay role**: a client presents `Sec-WebSocket-Protocol: wolfwave.overlay.<hex>`. Loopback and LAN peers may connect and receive state, but inbound commands are rejected.
+- **Control role**: a client presents `Sec-WebSocket-Protocol: wolfwave.control.<hex>`. The server accepts it only from a literal loopback IP (`127/8` or `::1`), and only this role may execute commands. Reusing the overlay secret with a control prefix does not authenticate.
+- **Selected subprotocols are revalidated** after the handshake before a connection enters the broadcast set.
+- **The static HTTP shell** (port 8766) is unauthenticated. It injects only the overlay token into served HTML when the TCP peer is loopback **and** the `Host` header is a literal local name or address (`localhost`, `127/8`, `[::1]`), which blocks DNS-rebinding bootstrap. Token-bearing responses are marked `Cache-Control: no-store`.
+- **LAN URLs carry `?token=…` solely as an overlay bootstrap.** The widget script forwards it into the overlay subprotocol; the query never authenticates the HTTP request itself. Widget HTML enforces `no-referrer`, so cross-origin artwork requests cannot leak the URL token.
+- **Either token is rotatable** from Settings → Stream Widgets. Rotation drops every connected client; update the matching browser-source URL or Stream Deck setting afterward.
+- **Logs redact both tokens** to their first 4 characters, never the full values.
 
-The [Stream Deck control channel](/docs/stream-deck) rides this same authenticated socket, so plugin commands are gated by the identical token handshake. Discord Rich Presence uses a separate local Unix socket (`$TMPDIR/discord-ipc-{0..9}`) that is never LAN-reachable.
+The [Stream Deck control channel](/docs/stream-deck) uses this listener but a separate credential and loopback-only authorization policy. Discord Rich Presence uses a separate local Unix socket (`$TMPDIR/discord-ipc-{0..9}`) that is never LAN-reachable.
 
 ## Network Security
 
@@ -80,7 +83,7 @@ External traffic uses encrypted transport. Local browser-source traffic is plain
 | `eventsub.wss.twitch.tv/ws` | WSS | Twitch EventSub WebSocket |
 | `itunes.apple.com/search` | HTTPS | Album artwork for Discord Rich Presence |
 | `github.com/MrDemonWolf/wolfwave/releases/...` | HTTPS | Sparkle appcast + signed updates |
-| `0.0.0.0:8765` | WS (plaintext LAN) | Now-playing + Stream Deck channel, token-gated |
+| `0.0.0.0:8765` | WS (plaintext LAN) | Read-only now-playing over LAN; control only from loopback, both token-gated |
 | `0.0.0.0:8766` | HTTP (plaintext LAN) | Unauthenticated widget shell |
 | Local Unix socket | IPC | Discord Rich Presence (`$TMPDIR/discord-ipc-{0..9}`) |
 

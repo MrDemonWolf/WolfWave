@@ -33,7 +33,7 @@ nonisolated enum StreamDeckAction: String, Codable, CaseIterable, Sendable {
 /// A decoded, validated inbound command ready to run.
 nonisolated struct StreamDeckCommand: Sendable, Equatable {
     let action: StreamDeckAction
-    /// Optional string args from the envelope (unused by the v1 actions; carried
+    /// Optional string args from the envelope (unused by the v2 actions; carried
     /// so a future action can take a parameter without a protocol bump).
     let args: [String: String]
 }
@@ -72,7 +72,7 @@ nonisolated enum StreamDeckControl {
     /// Command protocol version. Bump on any breaking envelope change so an
     /// out-of-date plugin can detect the mismatch (ack `error:"protocol"`) and
     /// prompt for an update instead of silently misbehaving.
-    static let protocolVersion = 1
+    static let protocolVersion = 2
 
     /// Outcome of decoding one inbound WebSocket text frame.
     enum InboundFrame: Equatable {

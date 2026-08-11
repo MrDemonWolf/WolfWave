@@ -22,25 +22,21 @@ import Network
 ///
 /// - The listener binds to all interfaces so LAN peers (a second-PC OBS, a phone
 ///   browser) can reach the widget. Two-PC setups would otherwise be impossible.
-/// - Every accepted connection (loopback or LAN) must present the
-///   `wolfwave.token.<hex>` WebSocket subprotocol (`Sec-WebSocket-Protocol`)
-///   on the handshake. The token is minted on first launch by
-///   `WebSocketAuthToken.currentOrCreate()`, persisted in the macOS Keychain
-///   via `KeychainService.saveToken(_:)`, and never logged in full. Redacted
-///   log lines only carry the first 4 characters.
-/// - Local widgets get the token for free: `WidgetHTTPService` injects it into
+/// - Overlay clients authenticate with a read-only `wolfwave.overlay.<hex>`
+///   subprotocol. They receive state broadcasts but cannot execute commands.
+/// - Stream Deck authenticates with a separate `wolfwave.control.<hex>`
+///   subprotocol. Control-role connections are accepted only from a literal
+///   loopback IP, and only that role can execute commands.
+/// - Local widgets get the overlay token for free: `WidgetHTTPService` injects it into
 ///   the served `widget.html` only for a loopback TCP peer with a literal-local
 ///   Host header, so same-Mac OBS Browser Sources "just work" without exposing
 ///   the credential to DNS-rebinding requests. Remote browsers use `?token=…`
 ///   as bootstrap for the WebSocket subprotocol.
-/// - Connections without the subprotocol, or with a mismatched value, are
-///   rejected by the `NWProtocolWebSocket` client-request handler before the
-///   connection transitions to `.ready`; the snapshot count is not bumped and
-///   no playback frames are sent.
-/// - Rotating the token via `updateAuthToken(_:)` restarts the listener so every
-///   already-authorized client is dropped.
-/// - The init that omits `authToken` exists for unit tests that exercise the pure
-///   lifecycle / state machine without standing up Keychain.
+/// - Connections without a valid role-specific subprotocol are rejected before
+///   they can receive playback frames.
+/// - Rotating either credential restarts the listener so authorized clients are dropped.
+/// - The initializer that omits credentials exists for lifecycle tests and
+///   grants only the read-only overlay role.
 actor WebSocketServerService {
 
     // MARK: - Types
@@ -108,10 +104,12 @@ actor WebSocketServerService {
     // MARK: - Properties
 
     private var port: UInt16
-    /// Token a client must echo back as the `wolfwave.token.<hex>` subprotocol on
-    /// the WebSocket handshake. `nil` disables auth, used only by lifecycle tests
-    /// that construct the service via `init(port:)`.
-    private var authToken: String?
+    /// Read-only credential used by OBS widgets and other state consumers.
+    /// `nil` only in lifecycle tests that construct the legacy initializer.
+    private var overlayToken: String?
+    /// Privileged credential used by same-Mac Stream Deck clients.
+    /// `nil` only in lifecycle tests that construct the legacy initializer.
+    private var controlToken: String?
     private var listener: NWListener?
     private var connections: [NWConnection] = []
     /// Dispatch queue used only for Network.framework callbacks. All state is actor-confined.
@@ -155,7 +153,8 @@ actor WebSocketServerService {
 
     init(port: UInt16 = AppConstants.WebSocketServer.defaultPort) {
         self.port = port
-        self.authToken = nil
+        self.overlayToken = nil
+        self.controlToken = nil
         let (stream, continuation) = AsyncStream<(ServerState, Int)>.makeStream(
             bufferingPolicy: .bufferingNewest(64)
         )
@@ -163,10 +162,11 @@ actor WebSocketServerService {
         self.stateContinuation = continuation
     }
 
-    /// Production initializer. Enforces the supplied token on every handshake.
-    init(port: UInt16, authToken: String) {
+    /// Production initializer. Enforces role-specific credentials on every handshake.
+    init(port: UInt16, overlayToken: String, controlToken: String) {
         self.port = port
-        self.authToken = authToken
+        self.overlayToken = overlayToken
+        self.controlToken = controlToken
         let (stream, continuation) = AsyncStream<(ServerState, Int)>.makeStream(
             bufferingPolicy: .bufferingNewest(64)
         )
@@ -214,7 +214,7 @@ actor WebSocketServerService {
             guard state == .listening, widgetHTTP == nil else { return }
             let resolvedPort = Preferences.resolvedWidgetPort
             widgetHTTPPort = resolvedPort
-            widgetHTTP = WidgetHTTPService(port: resolvedPort, authToken: authToken)
+            widgetHTTP = WidgetHTTPService(port: resolvedPort, overlayToken: overlayToken)
             widgetHTTP?.start()
             Log.info("WebSocketServerService: Widget HTTP server started", category: "WebSocket")
         } else {
@@ -239,7 +239,7 @@ actor WebSocketServerService {
 
         guard wasRunning, state == .listening else { return }
         widgetHTTPPort = newPort
-        widgetHTTP = WidgetHTTPService(port: newPort, authToken: authToken)
+        widgetHTTP = WidgetHTTPService(port: newPort, overlayToken: overlayToken)
         widgetHTTP?.start()
         Log.info(
             "WebSocketServerService: Widget HTTP port changed to \(newPort), listener restarted",
@@ -247,12 +247,23 @@ actor WebSocketServerService {
         )
     }
 
-    /// Swaps the auth token. Restarts the listener if it was running so every
-    /// already-connected client is dropped and forced to re-handshake with the
-    /// new credential. Caller is responsible for persisting the token to
-    /// Keychain before invoking this.
-    func updateAuthToken(_ newToken: String) {
-        authToken = newToken
+    /// Swaps the overlay credential and restarts an active listener so every
+    /// client must re-authenticate. The caller persists it first.
+    func updateOverlayToken(_ newToken: String) {
+        guard overlayToken != newToken else { return }
+        overlayToken = newToken
+        restartIfListening()
+    }
+
+    /// Swaps the control credential and restarts an active listener so every
+    /// client must re-authenticate. The caller persists it first.
+    func updateControlToken(_ newToken: String) {
+        guard controlToken != newToken else { return }
+        controlToken = newToken
+        restartIfListening()
+    }
+
+    private func restartIfListening() {
         guard listener != nil else { return }
         stopServer()
         startServer()
@@ -487,19 +498,21 @@ actor WebSocketServerService {
         let wsOptions = NWProtocolWebSocket.Options()
         wsOptions.autoReplyPing = true
 
-        // Gate the handshake on the auth token. Network.framework invokes this
-        // closure on `networkQueue` for every inbound upgrade request, *before*
-        // the connection transitions to `.ready`. Rejected clients never reach
-        // `handleNewConnection`, so they can't pollute the active connection set.
-        let expectedToken = authToken
+        // Resolve an explicit role during the handshake. The selected
+        // subprotocol is validated again when the connection becomes ready.
+        let expectedOverlayToken = overlayToken
+        let expectedControlToken = controlToken
         wsOptions.setClientRequestHandler(networkQueue) { subprotocols, _ in
-            let accept = WebSocketAuthToken.shouldAccept(
-                expectedToken: expectedToken,
+            let role = WebSocketAuthToken.authenticationRole(
+                overlayToken: expectedOverlayToken,
+                controlToken: expectedControlToken,
                 offeredSubprotocols: subprotocols
             )
-            if accept {
-                let selected: String? = expectedToken.map(WebSocketAuthToken.expectedSubprotocol(for:))
-                    ?? subprotocols.first
+            if let role {
+                let token = role == .overlay ? expectedOverlayToken : expectedControlToken
+                let selected = token.map {
+                    WebSocketAuthToken.expectedSubprotocol(for: $0, role: role)
+                } ?? subprotocols.first
                 return NWProtocolWebSocket.Response(
                     status: .accept,
                     subprotocol: selected,
@@ -548,7 +561,7 @@ actor WebSocketServerService {
         if FeatureFlags.widgetHTTPEnabled {
             let resolvedPort = Preferences.resolvedWidgetPort
             widgetHTTPPort = resolvedPort
-            widgetHTTP = WidgetHTTPService(port: resolvedPort, authToken: authToken)
+            widgetHTTP = WidgetHTTPService(port: resolvedPort, overlayToken: overlayToken)
             widgetHTTP?.start()
         }
     }
@@ -585,7 +598,7 @@ actor WebSocketServerService {
 
         // Detach the old listener's handlers BEFORE cancelling. Otherwise its
         // asynchronous `.cancelled` event hops into handleListenerState and runs
-        // `transition(to: .stopped)` — which, when updateAuthToken/updatePort do
+        // `transition(to: .stopped)` — which, when updateOverlayToken/updateControlToken/updatePort do
         // stopServer(); startServer() back to back, can land after the new
         // listener is already `.listening` and clobber the state to `.stopped`,
         // making handleConnectionState cancel every subsequent overlay client.
@@ -638,6 +651,29 @@ actor WebSocketServerService {
     private func handleConnectionState(_ connection: NWConnection, state: NWConnection.State) {
         switch state {
         case .ready:
+            let metadata = connection.metadata(definition: NWProtocolWebSocket.definition)
+                as? NWProtocolWebSocket.Metadata
+            guard let role = WebSocketAuthToken.role(
+                forSelectedSubprotocol: metadata?.selectedSubprotocol,
+                overlayToken: overlayToken,
+                controlToken: controlToken
+            ) else {
+                Log.warn(
+                    "WebSocketServerService: Cancelling client with unvalidated selected subprotocol",
+                    category: "WebSocket"
+                )
+                connection.cancel()
+                return
+            }
+            let isLoopback = WebSocketAuthToken.isLoopbackEndpoint(connection.endpoint)
+            guard Self.allowsConnection(role: role, isLoopback: isLoopback) else {
+                Log.warn(
+                    "WebSocketServerService: Refusing non-loopback control connection",
+                    category: "WebSocket"
+                )
+                connection.cancel()
+                return
+            }
             // Ignore a late .ready that lands after stopServer(); re-adding would
             // inflate the count. `state` the param is NWConnection.State; qualify
             // with self to read the server's lifecycle state.
@@ -652,7 +688,12 @@ actor WebSocketServerService {
             sendOverlayVisibility(to: connection)
             sendQueueUpcoming(to: connection)
             sendCurrentState(to: connection)
-            Self.receiveMessage(from: connection, onCommand: onCommand)
+            Self.receiveMessage(
+                from: connection,
+                role: role,
+                isLoopback: isLoopback,
+                onCommand: onCommand
+            )
             reconcileProgressTimer()
         case .failed(let error):
             Log.debug("WebSocketServerService: Client failed: \(error)", category: "WebSocket")
@@ -681,6 +722,18 @@ actor WebSocketServerService {
         reconcileProgressTimer()
     }
 
+    /// Pure authorization seams shared by the ready-state gate and tests.
+    nonisolated static func allowsConnection(
+        role: WebSocketAuthToken.Role,
+        isLoopback: Bool
+    ) -> Bool {
+        role == .overlay || isLoopback
+    }
+
+    nonisolated static func allowsCommands(role: WebSocketAuthToken.Role, isLoopback: Bool) -> Bool {
+        role == .control && isLoopback
+    }
+
     /// Keeps the connection alive by continuously consuming inbound messages.
     /// Nonisolated. Does not touch actor state.
     ///
@@ -692,10 +745,12 @@ actor WebSocketServerService {
     /// Inbound text frames are parsed as Stream Deck control commands
     /// (``StreamDeckControl/parse(_:)``). A valid command runs through
     /// `onCommand` and the ack goes back on the same connection; a rejected
-    /// command still acks; anything else is ignored. The connection already
-    /// proved the auth token at the handshake, so commands from it are trusted.
+    /// command still acks; anything else is ignored. Overlay credentials never
+    /// authorize commands, and control credentials remain loopback-only.
     private static func receiveMessage(
         from connection: NWConnection,
+        role: WebSocketAuthToken.Role,
+        isLoopback: Bool,
         onCommand: (@Sendable (StreamDeckCommand) async -> CommandAck)?
     ) {
         connection.receiveMessage { data, context, _, error in
@@ -710,7 +765,12 @@ actor WebSocketServerService {
             if let data, !data.isEmpty, let text = String(data: data, encoding: .utf8) {
                 switch StreamDeckControl.parse(text) {
                 case .command(let command):
-                    if let onCommand {
+                    if !allowsCommands(role: role, isLoopback: isLoopback) {
+                        sendJSON(
+                            CommandAck.failure(command.action.rawValue, "unauthorized").jsonObject,
+                            to: connection
+                        )
+                    } else if let onCommand {
                         Task {
                             let ack = await onCommand(command)
                             sendJSON(ack.jsonObject, to: connection)
@@ -723,7 +783,12 @@ actor WebSocketServerService {
                 }
             }
 
-            receiveMessage(from: connection, onCommand: onCommand)
+            receiveMessage(
+                from: connection,
+                role: role,
+                isLoopback: isLoopback,
+                onCommand: onCommand
+            )
         }
     }
 
