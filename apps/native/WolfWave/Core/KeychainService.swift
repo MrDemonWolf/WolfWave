@@ -19,7 +19,7 @@ import Foundation
 /// - **Twitch OAuth Token**: User's OAuth token for Twitch API and chat
 /// - **Twitch Username**: Bot account username for display and identification
 /// - **Twitch User ID**: Bot account user ID for EventSub subscriptions
-/// - **Twitch Channel ID**: Target channel for bot commands
+/// - **Twitch Channel Login**: Normalized public channel name for bot commands
 ///
 /// Error Handling:
 /// - All save operations throw `KeychainError` on failure
@@ -48,6 +48,7 @@ nonisolated enum KeychainService {
         var refreshToken: String?
         var username: String?
         var userID: String?
+        /// Legacy field name; stores a normalized channel login, not a numeric Helix ID.
         var channelID: String?
 
         static let empty = TwitchCredentialGrant()
@@ -133,7 +134,7 @@ nonisolated enum KeychainService {
         case malformed
     }
 
-    /// Account identifier for Twitch channel ID.
+    /// Legacy account identifier for the normalized Twitch channel login.
     private static let twitchChannelIDAccount = "twitchChannelIDAccount"
 
     // MARK: - Error Types

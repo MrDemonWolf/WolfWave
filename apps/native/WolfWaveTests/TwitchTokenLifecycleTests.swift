@@ -63,7 +63,7 @@ final class TwitchTokenLifecycleTests: XCTestCase {
             refreshToken: "OLD_REFRESH",
             username: "old_user",
             userID: "old_id",
-            channelID: "old-channel"
+            channelID: "old_channel"
         )
         try KeychainService.saveTwitchCredentialGrant(prior)
         let revision = TwitchCredentialStore.shared.supersede()
@@ -94,7 +94,7 @@ final class TwitchTokenLifecycleTests: XCTestCase {
             refreshToken: "OLD_REFRESH",
             username: "old_user",
             userID: "old_id",
-            channelID: "old-channel"
+            channelID: "old_channel"
         )
         try KeychainService.saveTwitchCredentialGrant(prior)
 
@@ -198,7 +198,9 @@ final class TwitchTokenLifecycleTests: XCTestCase {
         XCTAssertEqual(viewModel.statusMessage, "")
     }
 
-    func testOAuthOwnerReleaseRestoresValidationBeforeTaskStarts() async throws {
+    func testOnlyOwningWindowCloseCancelsOAuthAndRestoresValidation() async throws {
+        let settingsOwner = TwitchViewModel.OAuthPresentationOwner.settings(UUID())
+        let onboardingOwner = TwitchViewModel.OAuthPresentationOwner.onboarding(UUID())
         let prior = KeychainService.TwitchCredentialGrant(
             accessToken: "OLD_ACCESS",
             refreshToken: "OLD_REFRESH",
@@ -206,6 +208,62 @@ final class TwitchTokenLifecycleTests: XCTestCase {
             userID: "old_id"
         )
         try KeychainService.saveTwitchCredentialGrant(prior)
+        let requestEntered = DispatchSemaphore(value: 0)
+        let releaseRequest = DispatchSemaphore(value: 0)
+        let auth = TwitchDeviceAuth(
+            clientID: "client",
+            scopes: AppConstants.Twitch.allScopes,
+            session: MockURLProtocol.makeSession { request in
+                requestEntered.signal()
+                _ = releaseRequest.wait(timeout: .now() + 2)
+                return (
+                    MockURLProtocol.httpResponse(for: request, status: 503),
+                    Data("temporary".utf8)
+                )
+            }
+        )
+        let cancellations = ThreadSafeBox(0)
+        let restarts = ThreadSafeBox(0)
+        let viewModel = TwitchViewModel(
+            cancelTokenValidationSchedule: {
+                cancellations.mutate { $0 += 1 }
+            },
+            restartTokenValidationSchedule: {
+                restarts.mutate { $0 += 1 }
+            },
+            makeOAuthClient: { ("client", auth) }
+        )
+
+        viewModel.startOAuth(owner: settingsOwner)
+        let flow = try XCTUnwrap(viewModel.oAuthTask)
+        XCTAssertEqual(cancellations.value, 1)
+        let requestDidStart = await waitForSemaphore(
+            requestEntered,
+            timeout: .now() + 2
+        )
+        XCTAssertTrue(requestDidStart)
+
+        XCTAssertNil(
+            viewModel.requestOAuthCancellation(ifOwnedBy: onboardingOwner)
+        )
+        XCTAssertFalse(flow.isCancelled)
+        XCTAssertEqual(restarts.value, 0)
+
+        let close = try XCTUnwrap(
+            viewModel.requestOAuthCancellation(ifOwnedBy: settingsOwner)
+        )
+        releaseRequest.signal()
+        await close.value
+        await flow.value
+
+        XCTAssertEqual(restarts.value, 1)
+        XCTAssertEqual(KeychainService.loadTwitchCredentialGrant(), prior)
+        XCTAssertEqual(viewModel.authState, .idle)
+    }
+
+    func testStaleSettingsPresentationCannotCancelReplacementOAuth() async throws {
+        let oldOwner = TwitchViewModel.OAuthPresentationOwner.settings(UUID())
+        let replacementOwner = TwitchViewModel.OAuthPresentationOwner.settings(UUID())
         let auth = TwitchDeviceAuth(
             clientID: "client",
             scopes: AppConstants.Twitch.allScopes,
@@ -216,28 +274,26 @@ final class TwitchTokenLifecycleTests: XCTestCase {
                 )
             }
         )
-        let cancellations = ThreadSafeBox(0)
-        let restarts = ThreadSafeBox(0)
-        var viewModel: TwitchViewModel? = TwitchViewModel(
-            cancelTokenValidationSchedule: {
-                cancellations.set(cancellations.value + 1)
-            },
-            restartTokenValidationSchedule: {
-                restarts.set(restarts.value + 1)
-            },
+        let viewModel = TwitchViewModel(
+            cancelTokenValidationSchedule: {},
+            restartTokenValidationSchedule: {},
             makeOAuthClient: { ("client", auth) }
         )
-        weak var releasedViewModel = viewModel
 
-        viewModel?.startOAuth()
-        let flow = try XCTUnwrap(viewModel?.oAuthTask)
-        XCTAssertEqual(cancellations.value, 1)
-        viewModel = nil
+        viewModel.startOAuth(owner: oldOwner)
+        let queuedOldClose = try XCTUnwrap(
+            viewModel.requestOAuthCancellation(ifOwnedBy: oldOwner)
+        )
 
-        XCTAssertNil(releasedViewModel)
-        await flow.value
-        XCTAssertEqual(restarts.value, 1)
-        XCTAssertEqual(KeychainService.loadTwitchCredentialGrant(), prior)
+        viewModel.startOAuth(owner: replacementOwner)
+        let replacement = try XCTUnwrap(viewModel.oAuthTask)
+        await queuedOldClose.value
+
+        XCTAssertNil(
+            viewModel.requestOAuthCancellation(ifOwnedBy: oldOwner)
+        )
+        XCTAssertFalse(replacement.isCancelled)
+        await replacement.value
     }
 
     func testOAuthRequestFailureRestoresSurvivingGrantValidationOwner() async throws {
@@ -486,6 +542,66 @@ final class TwitchTokenLifecycleTests: XCTestCase {
         XCTAssertEqual(KeychainService.loadTwitchCredentialGrant().refreshToken, "REFRESH")
     }
 
+    func testWindowCloseAfterGrantCommitAllowsIdentityToFinish() async throws {
+        let settingsOwner = TwitchViewModel.OAuthPresentationOwner.settings(UUID())
+        let auth = TwitchDeviceAuth(
+            clientID: "client",
+            scopes: AppConstants.Twitch.allScopes,
+            session: MockURLProtocol.makeSession { request in
+                if request.url?.absoluteString == AppConstants.API.twitchOAuthDevice {
+                    let body = #"""
+                    {"device_code":"DEV","user_code":"CODE",
+                     "verification_uri":"https://twitch.tv/activate",
+                     "expires_in":600,"interval":1}
+                    """#
+                    return (
+                        MockURLProtocol.httpResponse(for: request, status: 200),
+                        Data(body.utf8)
+                    )
+                }
+                return (
+                    MockURLProtocol.httpResponse(for: request, status: 200),
+                    Data(#"{"access_token":"ACCESS","refresh_token":"REFRESH"}"#.utf8)
+                )
+            }
+        )
+        let gate = OAuthIdentityGate()
+        let viewModel = TwitchViewModel(
+            cancelTokenValidationSchedule: {},
+            restartTokenValidationSchedule: {},
+            makeOAuthClient: { ("client", auth) },
+            resolveBotIdentity: { token, _, revision in
+                await gate.suspend()
+                guard try TwitchCredentialStore.shared.commitIdentity(
+                    username: "wolfwave",
+                    userID: "broadcaster",
+                    matchingAccessToken: token,
+                    expectedRevision: revision
+                ) else {
+                    throw CancellationError()
+                }
+            }
+        )
+
+        viewModel.startOAuth(owner: settingsOwner)
+        let flow = try XCTUnwrap(viewModel.oAuthTask)
+        let identityLookupSuspended = await waitUntil { await gate.suspended }
+        XCTAssertTrue(identityLookupSuspended)
+        XCTAssertNil(
+            viewModel.requestOAuthCancellation(ifOwnedBy: settingsOwner)
+        )
+
+        await gate.resume()
+        await flow.value
+
+        let stored = try KeychainService.loadTwitchCredentialGrantChecked()
+        XCTAssertEqual(stored.username, "wolfwave")
+        XCTAssertEqual(stored.userID, "broadcaster")
+        XCTAssertEqual(viewModel.botUsername, "wolfwave")
+        XCTAssertTrue(viewModel.credentialsSaved)
+        XCTAssertEqual(viewModel.authState, .idle)
+    }
+
     func testOAuthCommitFailureRestoresPriorGrantValidationOwner() async throws {
         let failingBackend = InspectableKeychainBackend()
         KeychainService.backend = failingBackend
@@ -494,11 +610,11 @@ final class TwitchTokenLifecycleTests: XCTestCase {
             refreshToken: "OLD_REFRESH",
             username: "old_user",
             userID: "old_id",
-            channelID: "old-channel"
+            channelID: "old_channel"
         )
         try KeychainService.saveTwitchCredentialGrant(prior)
         UserDefaults.standard.set(
-            "imported-channel",
+            "imported_channel",
             forKey: AppConstants.UserDefaults.twitchPendingImportedChannelName
         )
         failingBackend.failNextSave(
@@ -532,7 +648,7 @@ final class TwitchTokenLifecycleTests: XCTestCase {
         XCTAssertEqual(KeychainService.loadTwitchCredentialGrant(), prior)
         XCTAssertEqual(
             Preferences.pendingImportedTwitchChannelName,
-            "imported-channel"
+            "imported_channel"
         )
     }
 
@@ -543,11 +659,11 @@ final class TwitchTokenLifecycleTests: XCTestCase {
                 refreshToken: "OLD_REFRESH",
                 username: "old_user",
                 userID: "old_id",
-                channelID: "old-channel"
+                channelID: "old_channel"
             )
         )
         UserDefaults.standard.set(
-            "  Imported-Channel  ",
+            "  Imported_Channel  ",
             forKey: AppConstants.UserDefaults.twitchPendingImportedChannelName
         )
         let viewModel = TwitchViewModel(
@@ -564,7 +680,19 @@ final class TwitchTokenLifecycleTests: XCTestCase {
                 }
             }
         )
-        viewModel.channelID = "visible-draft"
+        viewModel.twitchService = TwitchChatService(
+            helixHTTPClient: HTTPClient(
+                session: MockURLProtocol.makeSession { request in
+                    let body =
+                        #"{"data":[{"id":"channel-id","login":"imported_channel","display_name":"Imported Channel"}]}"#
+                    return (
+                        MockURLProtocol.httpResponse(for: request, status: 200),
+                        Data(body.utf8)
+                    )
+                }
+            )
+        )
+        viewModel.channelID = "visible_draft"
         let revision = TwitchCredentialStore.shared.supersede()
 
         await viewModel.handleOAuthSuccess(
@@ -585,11 +713,211 @@ final class TwitchTokenLifecycleTests: XCTestCase {
                 refreshToken: "NEW_REFRESH",
                 username: "new_user",
                 userID: "new_id",
-                channelID: "imported-channel"
+                channelID: "imported_channel"
             )
         )
-        XCTAssertEqual(viewModel.channelID, "imported-channel")
+        XCTAssertEqual(viewModel.channelID, "imported_channel")
         XCTAssertEqual(Preferences.pendingImportedTwitchChannelName, "")
+    }
+
+    func testOAuthDoesNotPromoteMissingPendingChannel() async throws {
+        try KeychainService.saveTwitchCredentialGrant(
+            .init(
+                accessToken: "OLD_ACCESS",
+                refreshToken: "OLD_REFRESH",
+                username: "old_user",
+                userID: "old_id",
+                channelID: "old_channel"
+            )
+        )
+        UserDefaults.standard.set(
+            "missing_channel",
+            forKey: AppConstants.UserDefaults.twitchPendingImportedChannelName
+        )
+        let viewModel = TwitchViewModel(
+            cancelTokenValidationSchedule: {},
+            restartTokenValidationSchedule: {},
+            resolveBotIdentity: { token, _, revision in
+                guard try TwitchCredentialStore.shared.commitIdentity(
+                    username: "new_user",
+                    userID: "new_id",
+                    matchingAccessToken: token,
+                    expectedRevision: revision
+                ) else {
+                    throw CancellationError()
+                }
+            }
+        )
+        viewModel.twitchService = TwitchChatService(
+            helixHTTPClient: HTTPClient(
+                session: MockURLProtocol.makeSession { request in
+                    (
+                        MockURLProtocol.httpResponse(for: request, status: 200),
+                        Data(#"{"data":[]}"#.utf8)
+                    )
+                }
+            )
+        )
+        let revision = TwitchCredentialStore.shared.supersede()
+
+        await viewModel.handleOAuthSuccess(
+            grant: .init(
+                accessToken: "NEW_ACCESS",
+                refreshToken: "NEW_REFRESH",
+                expiresIn: nil
+            ),
+            clientID: "client",
+            generation: 0,
+            credentialRevision: revision
+        )
+
+        let committed = try KeychainService.loadTwitchCredentialGrantChecked()
+        XCTAssertEqual(committed.accessToken, "NEW_ACCESS")
+        XCTAssertEqual(committed.refreshToken, "NEW_REFRESH")
+        XCTAssertEqual(committed.channelID, "old_channel")
+        XCTAssertEqual(Preferences.pendingImportedTwitchChannelName, "missing_channel")
+        XCTAssertEqual(viewModel.channelValidationState, .invalid)
+        XCTAssertTrue(viewModel.statusMessage.contains("not found"))
+    }
+
+    func testOAuthDoesNotPromotePendingChannelOnValidationOutage() async throws {
+        try KeychainService.saveTwitchCredentialGrant(
+            .init(
+                accessToken: "OLD_ACCESS",
+                refreshToken: "OLD_REFRESH",
+                username: "old_user",
+                userID: "old_id",
+                channelID: "old_channel"
+            )
+        )
+        UserDefaults.standard.set(
+            "pending_channel",
+            forKey: AppConstants.UserDefaults.twitchPendingImportedChannelName
+        )
+        let viewModel = TwitchViewModel(
+            cancelTokenValidationSchedule: {},
+            restartTokenValidationSchedule: {},
+            resolveBotIdentity: { token, _, revision in
+                guard try TwitchCredentialStore.shared.commitIdentity(
+                    username: "new_user",
+                    userID: "new_id",
+                    matchingAccessToken: token,
+                    expectedRevision: revision
+                ) else {
+                    throw CancellationError()
+                }
+            }
+        )
+        viewModel.twitchService = TwitchChatService(
+            helixHTTPClient: HTTPClient(
+                session: MockURLProtocol.makeSession { request in
+                    (
+                        MockURLProtocol.httpResponse(for: request, status: 503),
+                        Data("temporary".utf8)
+                    )
+                }
+            )
+        )
+        let revision = TwitchCredentialStore.shared.supersede()
+
+        await viewModel.handleOAuthSuccess(
+            grant: .init(
+                accessToken: "NEW_ACCESS",
+                refreshToken: "NEW_REFRESH",
+                expiresIn: nil
+            ),
+            clientID: "client",
+            generation: 0,
+            credentialRevision: revision
+        )
+
+        let committed = try KeychainService.loadTwitchCredentialGrantChecked()
+        XCTAssertEqual(committed.accessToken, "NEW_ACCESS")
+        XCTAssertEqual(committed.channelID, "old_channel")
+        XCTAssertEqual(Preferences.pendingImportedTwitchChannelName, "pending_channel")
+        XCTAssertEqual(
+            viewModel.channelValidationState,
+            .error("Channel verification failed")
+        )
+        XCTAssertTrue(viewModel.statusMessage.contains("verification failed"))
+    }
+
+    func testOAuthDoesNotPromoteChannelChangedDuringValidation() async throws {
+        try KeychainService.saveTwitchCredentialGrant(
+            .init(
+                accessToken: "OLD_ACCESS",
+                refreshToken: "OLD_REFRESH",
+                username: "old_user",
+                userID: "old_id",
+                channelID: "old_channel"
+            )
+        )
+        UserDefaults.standard.set(
+            "first_channel",
+            forKey: AppConstants.UserDefaults.twitchPendingImportedChannelName
+        )
+        let requestEntered = DispatchSemaphore(value: 0)
+        let releaseRequest = DispatchSemaphore(value: 0)
+        let viewModel = TwitchViewModel(
+            cancelTokenValidationSchedule: {},
+            restartTokenValidationSchedule: {},
+            resolveBotIdentity: { token, _, revision in
+                guard try TwitchCredentialStore.shared.commitIdentity(
+                    username: "new_user",
+                    userID: "new_id",
+                    matchingAccessToken: token,
+                    expectedRevision: revision
+                ) else {
+                    throw CancellationError()
+                }
+            }
+        )
+        viewModel.twitchService = TwitchChatService(
+            helixHTTPClient: HTTPClient(
+                session: MockURLProtocol.makeSession { request in
+                    requestEntered.signal()
+                    _ = releaseRequest.wait(timeout: .now() + 2)
+                    let body =
+                        #"{"data":[{"id":"channel-id","login":"first_channel","display_name":"First Channel"}]}"#
+                    return (
+                        MockURLProtocol.httpResponse(for: request, status: 200),
+                        Data(body.utf8)
+                    )
+                }
+            )
+        )
+        let revision = TwitchCredentialStore.shared.supersede()
+        let completion = Task { @MainActor in
+            await viewModel.handleOAuthSuccess(
+                grant: .init(
+                    accessToken: "NEW_ACCESS",
+                    refreshToken: "NEW_REFRESH",
+                    expiresIn: nil
+                ),
+                clientID: "client",
+                generation: 0,
+                credentialRevision: revision
+            )
+        }
+        let requestDidStart = await waitForSemaphore(
+            requestEntered,
+            timeout: .now() + 2
+        )
+        XCTAssertTrue(requestDidStart)
+        viewModel.channelID = "replacement_channel"
+        viewModel.channelDraftChanged()
+        releaseRequest.signal()
+        await completion.value
+
+        let committed = try KeychainService.loadTwitchCredentialGrantChecked()
+        XCTAssertEqual(committed.accessToken, "NEW_ACCESS")
+        XCTAssertEqual(committed.channelID, "old_channel")
+        XCTAssertEqual(
+            Preferences.pendingImportedTwitchChannelName,
+            ""
+        )
+        XCTAssertEqual(viewModel.channelID, "replacement_channel")
+        XCTAssertEqual(viewModel.channelValidationState, .idle)
     }
 
     func testKeychainReadFailureConservativelyRestoresValidationOwner() throws {
@@ -625,7 +953,7 @@ final class TwitchTokenLifecycleTests: XCTestCase {
                 refreshToken: "REFRESH",
                 username: "bot",
                 userID: "bot-id",
-                channelID: "old-channel"
+                channelID: "old_channel"
             )
         )
         let validationRequests = ThreadSafeBox(0)
@@ -633,7 +961,7 @@ final class TwitchTokenLifecycleTests: XCTestCase {
             helixHTTPClient: HTTPClient(
                 session: MockURLProtocol.makeSession { request in
                     validationRequests.mutate { $0 += 1 }
-                    let body = #"{"data":[{"id":"new-id","login":"new-channel","display_name":"New Channel"}]}"#
+                    let body = #"{"data":[{"id":"new-id","login":"new_channel","display_name":"New Channel"}]}"#
                     return (
                         MockURLProtocol.httpResponse(for: request, status: 200),
                         Data(body.utf8)
@@ -651,7 +979,7 @@ final class TwitchTokenLifecycleTests: XCTestCase {
         )
         viewModel.twitchService = service
         viewModel.credentialsSaved = true
-        viewModel.channelID = "new-channel"
+        viewModel.channelID = "new_channel"
 
         viewModel.joinChannel()
         let finished = await waitUntil {
@@ -668,7 +996,7 @@ final class TwitchTokenLifecycleTests: XCTestCase {
         XCTAssertEqual(viewModel.channelValidationState, .error("Could not safely disconnect"))
         XCTAssertEqual(
             try KeychainService.loadTwitchCredentialGrantChecked().channelID,
-            "old-channel"
+            "old_channel"
         )
     }
 
@@ -679,7 +1007,7 @@ final class TwitchTokenLifecycleTests: XCTestCase {
                 refreshToken: "REFRESH",
                 username: "bot",
                 userID: "bot-id",
-                channelID: "old-channel"
+                channelID: "old_channel"
             )
         )
         let service = TwitchChatService(
@@ -702,7 +1030,7 @@ final class TwitchTokenLifecycleTests: XCTestCase {
         )
         viewModel.twitchService = service
         viewModel.credentialsSaved = true
-        viewModel.channelID = "missing-channel"
+        viewModel.channelID = "missing_channel"
 
         viewModel.joinChannel()
         let finished = await waitUntil {
@@ -718,37 +1046,92 @@ final class TwitchTokenLifecycleTests: XCTestCase {
         XCTAssertTrue(viewModel.statusMessage.contains("not found"))
         XCTAssertEqual(
             try KeychainService.loadTwitchCredentialGrantChecked().channelID,
-            "old-channel"
+            "old_channel"
         )
     }
 
-    func testManualCredentialWriteFailureRestoresPriorGrantValidationOwner() async throws {
-        let failingBackend = InspectableKeychainBackend()
-        KeychainService.backend = failingBackend
-        let prior = KeychainService.TwitchCredentialGrant(
-            accessToken: "OLD_ACCESS",
-            refreshToken: "OLD_REFRESH",
-            username: "old_user",
-            userID: "old_id"
+    func testJoinWaitsForOAuthThenClearsPendingAndRestartsValidation() async throws {
+        try KeychainService.saveTwitchCredentialGrant(
+            .init(
+                accessToken: "ACCESS",
+                refreshToken: "REFRESH",
+                username: "bot",
+                userID: "bot_id",
+                channelID: "old_channel"
+            )
         )
-        try KeychainService.saveTwitchCredentialGrant(prior)
-        failingBackend.failNextSave(
-            for: KeychainService.twitchCredentialGrantAccount)
-        let restarts = ThreadSafeBox(0)
-        let viewModel = TwitchViewModel(
-            cancelTokenValidationSchedule: {},
-            restartTokenValidationSchedule: {
-                restarts.mutate { $0 += 1 }
+        UserDefaults.standard.set(
+            "pending_channel",
+            forKey: AppConstants.UserDefaults.twitchPendingImportedChannelName
+        )
+        let requests = ThreadSafeBox(0)
+        let socketSession = URLSession(configuration: .ephemeral)
+        defer { socketSession.invalidateAndCancel() }
+        let socket = socketSession.webSocketTask(
+            with: try XCTUnwrap(URL(string: "wss://eventsub.wss.twitch.tv/join"))
+        )
+        let service = TwitchChatService(
+            helixHTTPClient: HTTPClient(
+                session: MockURLProtocol.makeSession { request in
+                    requests.mutate { $0 += 1 }
+                    let body =
+                        #"{"data":[{"id":"new_id","login":"new_channel","display_name":"New Channel"}]}"#
+                    return (
+                        MockURLProtocol.httpResponse(for: request, status: 200),
+                        Data(body.utf8)
+                    )
+                }
+            ),
+            eventSubWebSocketFactory: { _ in socket },
+            eventSubWebSocketResume: { _ in },
+            eventSubWebSocketReceive: { _ in
+                try await Task.sleep(for: .seconds(3_600))
+                throw CancellationError()
             }
         )
-        viewModel.oauthToken = "NEW_ACCESS"
-        viewModel.channelID = "new-channel"
+        let restarts = ThreadSafeBox(0)
+        let teardownAttempts = ThreadSafeBox(0)
+        let viewModel = TwitchViewModel(
+            restartTokenValidationSchedule: {
+                restarts.mutate { $0 += 1 }
+            },
+            twitchClientIDProvider: { "client" },
+            leaveAccountService: { _, _ in
+                teardownAttempts.mutate { $0 += 1 }
+                return true
+            }
+        )
+        viewModel.twitchService = service
+        viewModel.credentialsSaved = true
+        viewModel.channelID = "new_channel"
+        viewModel.authState = .requestingCode
 
-        await viewModel.saveCredentials()
+        viewModel.joinChannel()
 
+        XCTAssertEqual(requests.value, 0)
+        XCTAssertEqual(teardownAttempts.value, 0)
+        XCTAssertEqual(restarts.value, 0)
+        XCTAssertEqual(Preferences.pendingImportedTwitchChannelName, "pending_channel")
+        XCTAssertTrue(viewModel.statusMessage.contains("Finish or cancel"))
+
+        viewModel.authState = .idle
+        viewModel.joinChannel()
+        let finished = await waitUntil(timeout: .seconds(4)) {
+            await MainActor.run {
+                viewModel.statusMessage == "Waiting for connection..."
+            }
+        }
+
+        XCTAssertTrue(finished)
+        XCTAssertEqual(requests.value, 2)
+        XCTAssertEqual(teardownAttempts.value, 1)
         XCTAssertEqual(restarts.value, 1)
-        XCTAssertEqual(KeychainService.loadTwitchCredentialGrant(), prior)
-        XCTAssertTrue(viewModel.statusMessage.contains("Failed to save"))
+        XCTAssertEqual(Preferences.pendingImportedTwitchChannelName, "")
+        XCTAssertEqual(
+            try KeychainService.loadTwitchCredentialGrantChecked().channelID,
+            "new_channel"
+        )
+        _ = await service.leaveChannel()
     }
 
     func testReactiveRefreshPersistsNewTokens() async throws {
@@ -939,24 +1322,65 @@ final class TwitchTokenLifecycleTests: XCTestCase {
         XCTAssertEqual(KeychainService.loadTwitchRefreshToken(), "OLD_RT")
     }
 
-    func testMalformedRefreshSuccessDoesNotReplaceStoredGrant() async throws {
+    func testMalformedRefreshSuccessRetriesWithoutReplacingStoredGrant() async throws {
         await TwitchTokenRefresher.invalidateSession()
         try KeychainService.saveTwitchCredentialGrant(
             .init(accessToken: "OLD_AT", refreshToken: "OLD_RT")
         )
+        let attempts = ThreadSafeBox(0)
+        let delays = ThreadSafeBox<[Duration]>([])
         handlerStore.handler = { request in
-            (
+            attempts.mutate { $0 += 1 }
+            return (
                 MockURLProtocol.httpResponse(for: request, status: 200),
                 Data(#"{"access_token":"NEW_AT"}"#.utf8))
         }
 
         let result = try await TwitchTokenRefresher.attemptReactiveRefresh(
             clientID: "test-client",
-            session: MockURLProtocol.makeSession(handlerStore: handlerStore))
+            session: MockURLProtocol.makeSession(handlerStore: handlerStore),
+            maxTransientAttempts: 3,
+            sleep: { delay in delays.mutate { $0.append(delay) } }
+        )
 
-        XCTAssertEqual(result, .invalid)
+        XCTAssertEqual(result, .temporarilyUnavailable)
+        XCTAssertEqual(attempts.value, 3)
+        XCTAssertEqual(delays.value, [.milliseconds(250), .milliseconds(500)])
         XCTAssertEqual(KeychainService.loadTwitchToken(), "OLD_AT")
         XCTAssertEqual(KeychainService.loadTwitchRefreshToken(), "OLD_RT")
+    }
+
+    func testMalformedRefreshSuccessRecoversOnValidRetry() async throws {
+        await TwitchTokenRefresher.invalidateSession()
+        try KeychainService.saveTwitchCredentialGrant(
+            .init(accessToken: "OLD_AT", refreshToken: "OLD_RT")
+        )
+        let attempts = ThreadSafeBox(0)
+        let delays = ThreadSafeBox<[Duration]>([])
+        handlerStore.handler = { request in
+            let attempt = attempts.value
+            attempts.mutate { $0 += 1 }
+            let body = attempt == 0
+                ? #"{"access_token":"INCOMPLETE_AT"}"#
+                : #"{"access_token":"NEW_AT","refresh_token":"NEW_RT"}"#
+            return (
+                MockURLProtocol.httpResponse(for: request, status: 200),
+                Data(body.utf8)
+            )
+        }
+
+        let result = try await TwitchTokenRefresher.attemptReactiveRefresh(
+            clientID: "test-client",
+            session: MockURLProtocol.makeSession(handlerStore: handlerStore),
+            maxTransientAttempts: 3,
+            sleep: { delay in delays.mutate { $0.append(delay) } }
+        )
+
+        XCTAssertEqual(result, .refreshed("NEW_AT"))
+        XCTAssertEqual(attempts.value, 2)
+        XCTAssertEqual(delays.value, [.milliseconds(250)])
+        XCTAssertEqual(KeychainService.loadTwitchToken(), "NEW_AT")
+        XCTAssertEqual(KeychainService.loadTwitchRefreshToken(), "NEW_RT")
     }
 
     func testReactiveRefreshReturnsInvalidWithoutStoredRefreshToken() async throws {
