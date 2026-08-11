@@ -26,9 +26,13 @@ private final class HistoryLoadBarrier: @unchecked Sendable {
     func waitUntilBlocked(
         timeout: DispatchTimeInterval = .seconds(2)
     ) async -> Bool {
-        await Task.detached {
-            self.reached.wait(timeout: .now() + timeout) == .success
-        }.value
+        await withCheckedContinuation { continuation in
+            DispatchQueue.global(qos: .userInitiated).async {
+                continuation.resume(
+                    returning: self.reached.wait(timeout: .now() + timeout) == .success
+                )
+            }
+        }
     }
 
     func release() {
