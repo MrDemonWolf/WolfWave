@@ -36,8 +36,9 @@ Closes #
 
 - [ ] `CHANGELOG.md` updated under the top unreleased `## [x.y.z]` heading
 - [ ] `apps/docs/content/docs/changelog.mdx` updated under the top `## vX.Y.Z` block
-- [ ] README + docs (`features` / `usage` / `bot-commands`) updated if behavior or structure changed
+- [ ] README + docs (`features` / `settings` / `bot-commands`) updated if behavior or structure changed
 - [ ] `CLAUDE.md` updated if architecture, services, or counts changed
+- [ ] Design-system catalog entry updated if a view under `Views/Shared/`, `Views/Onboarding/Components/`, or `Views/HistoryStats/` changed
 
 ### Release PRs
 
