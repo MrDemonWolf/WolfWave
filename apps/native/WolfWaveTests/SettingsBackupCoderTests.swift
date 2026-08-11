@@ -50,6 +50,7 @@ struct SettingsBackupCoderTests {
 
     // MARK: - Round trip
 
+    @MainActor
     @Test func roundTripPreservesValueTypes() throws {
         let keys = AppConstants.UserDefaults.self
         let commands = try JSONCoders.defaultEncoder.encode([
