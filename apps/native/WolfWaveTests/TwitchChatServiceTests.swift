@@ -213,12 +213,13 @@ struct TwitchChatServiceTests {
         let service = TwitchChatService(
             eventSubHTTPClient: HTTPClient(session: MockURLProtocol.makeSession(handlerStore: handlerStore)))
         let success = ThreadSafeBox(false)
+        let onSuccess: @Sendable () -> Void = { success.value = true }
         let subscribed = await service.postEventSubSubscription(
             body: ["type": "channel.chat.message"],
             token: "token",
             clientID: "client",
             label: "chat messages",
-            onSuccess: { success.value = true })
+            onSuccess: onSuccess)
 
         #expect(subscribed)
         #expect(success.value)
@@ -2086,14 +2087,16 @@ struct TwitchChatServiceTests {
         _ = await service.configureCommandSessionForTesting(
             broadcasterID: "channel-1")
 
-        let event = Self.chatEvent(
+        await service.handleEventSubMessage(Self.chatEvent(
             id: "duplicate-command",
             text: "!suspend",
-            broadcasterID: "channel-1")
-        await service.handleEventSubMessage(event)
+            broadcasterID: "channel-1"))
         #expect(await waitUntil { await gate.started })
 
-        await service.handleEventSubMessage(event)
+        await service.handleEventSubMessage(Self.chatEvent(
+            id: "duplicate-command",
+            text: "!suspend",
+            broadcasterID: "channel-1"))
         await Task.yield()
         #expect(await service.activeCommandTaskCount == 1)
 
@@ -2108,22 +2111,23 @@ struct TwitchChatServiceTests {
         service.commandDispatcher.register(SuspendedTestCommand(gate: gate))
         _ = await service.configureCommandSessionForTesting(
             broadcasterID: "channel-1")
-        let event = Self.chatEvent(
+        await service.setCommandsEnabled(false)
+        await service.handleEventSubMessage(Self.chatEvent(
             id: "disabled-command",
             text: "!suspend",
-            broadcasterID: "channel-1")
-
-        await service.setCommandsEnabled(false)
-        await service.handleEventSubMessage(event)
+            broadcasterID: "channel-1"))
         await service.setCommandsEnabled(true)
-        await service.handleEventSubMessage(event)
+        await service.handleEventSubMessage(Self.chatEvent(
+            id: "disabled-command",
+            text: "!suspend",
+            broadcasterID: "channel-1"))
         await Task.yield()
 
         #expect(!(await gate.started))
         #expect(await service.activeCommandTaskCount == 0)
     }
 
-    private static func chatEvent(
+    nonisolated private static func chatEvent(
         id: String,
         text: String,
         broadcasterID: String
