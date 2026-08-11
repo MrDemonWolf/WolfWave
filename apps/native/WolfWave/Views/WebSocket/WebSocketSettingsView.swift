@@ -6,6 +6,7 @@
 //  Copyright © 2026 MrDemonWolf, Inc. All rights reserved.
 //
 
+import CoreText
 import Network
 import SwiftUI
 
@@ -841,7 +842,7 @@ fileprivate struct WebSocketWidgetAppearanceCard: View {
         .task {
             guard fontFamilies.isEmpty else { return }
             let families = await Task.detached(priority: .userInitiated) {
-                NSFontManager.shared.availableFontFamilies.sorted()
+                CTFontManagerCopyAvailableFontFamilyNames() as? [String] ?? []
             }.value
             fontFamilies = families
         }

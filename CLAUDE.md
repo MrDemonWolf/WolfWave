@@ -329,7 +329,7 @@ Unit tests live in `apps/native/WolfWaveTests/` and use XCTest + Swift Testing w
 
 - Use `@testable import WolfWave` (module name matches `PRODUCT_NAME`)
 - Test hosts default to `InMemoryKeychainBackend`; never replace it with `SystemKeychainBackend` or access the user's real Keychain
-- `SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor` applies to test classes too; XCTest runs on main thread
+- `WolfWaveTests` uses `SWIFT_DEFAULT_ACTOR_ISOLATION = nonisolated`; annotate UI-facing tests or helpers with `@MainActor` explicitly
 - Test files are auto-discovered via `PBXFileSystemSynchronizedRootGroup`; just add `.swift` files to `apps/native/WolfWaveTests/`
 - Focus on pure logic (version comparison, command matching, state machines); avoid tests that need AppDelegate, Keychain, or network
 
