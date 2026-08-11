@@ -395,13 +395,14 @@ struct SettingsView: View {
     /// install. This is a true factory reset, not just a preferences reset.
     ///
     /// Order matters: stop outward connections, then tear down their config.
-    /// 1. Disconnect Discord Rich Presence and the WebSocket overlay server
-    /// 2. Disconnect Twitch and clear its in-memory state
-    /// 3. Delete every Keychain credential (Twitch tokens + WebSocket token)
-    /// 4. Remove every UserDefaults key the app writes
-    /// 5. Delete the on-disk container (logs, listening history, artwork
+    /// 1. Disconnect Twitch and clear its in-memory state
+    /// 2. Disconnect Discord Rich Presence and await the WebSocket server stop
+    /// 3. Delete every Keychain credential (Twitch tokens + WebSocket tokens)
+    /// 4. Drain and clear live custom-command and song-blocklist owners
+    /// 5. Remove every UserDefaults key the app writes
+    /// 6. Delete the on-disk container (logs, listening history, artwork
     ///    cache, crash markers, diagnostics)
-    /// 6. Relaunch into a clean state so onboarding returns and live services
+    /// 7. Relaunch into a clean state so onboarding returns and live services
     ///    boot without stale in-memory state
     private func resetSettings() {
         Task { @MainActor in await performResetSettings() }
@@ -426,6 +427,10 @@ struct SettingsView: View {
         // Disconnect remaining outward integrations before clearing their config.
         NotificationCenter.default.postEnabled(.discordPresenceChanged, enabled: false)
         NotificationCenter.default.postWebSocketServerChanged(enabled: false)
+        // Await the control socket itself as well as broadcasting the setting.
+        // This prevents new Stream Deck blocklist mutations from starting while
+        // the reset drains the live SongBlocklist actor below.
+        await appDelegate?.websocketServer?.setEnabled(false)
 
         // Keychain: wipe every stored credential in one sweep. Abort before
         // preferences or files are removed if macOS refuses the deletion.
@@ -439,6 +444,17 @@ struct SettingsView: View {
                 category: "App")
             return
         }
+
+        // Detach the live song-request owner before the actor barrier. Earlier
+        // mutations drain first; later tasks either see no service or are rejected
+        // by the actor reset gate, so they cannot rewrite the removed preference.
+        // Clear the MainActor-owned command store after the await so no UI
+        // mutation can run between its clear and the synchronous defaults sweep.
+        let liveSongRequestService = appDelegate?.songRequestService
+        appDelegate?.songRequestService = nil
+        liveSongRequestService?.stopPlaybackMonitoring()
+        await liveSongRequestService?.blocklist.prepareForFactoryReset()
+        CustomCommandStore.shared.clearAll()
 
         // UserDefaults: remove every key the app writes.
         AppConstants.UserDefaults.allKeys.forEach {

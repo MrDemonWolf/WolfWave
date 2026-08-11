@@ -233,6 +233,25 @@ struct CustomCommandStoreTests {
         #expect(reloaded.commands.first?.normalizedTrigger == "!hug")
     }
 
+    @Test("clearAll replaces the live and persisted snapshot")
+    func clearAll() throws {
+        let (store, defaults) = makeStore()
+        store.add(CustomCommand(trigger: "hug", response: "hi"))
+
+        store.clearAll()
+
+        #expect(store.commands.isEmpty)
+        let data = try #require(
+            defaults.data(forKey: AppConstants.UserDefaults.customCommands)
+        )
+        #expect(try JSONCoders.default.decode([CustomCommand].self, from: data).isEmpty)
+
+        let later = CustomCommand(trigger: "wave", response: "hello")
+        store.add(later)
+        let reloaded = CustomCommandStore(defaults: defaults)
+        #expect(reloaded.commands == [later])
+    }
+
     @Test("enabledCommands drops disabled and triggerless entries")
     func enabledFilter() {
         let (store, _) = makeStore()
