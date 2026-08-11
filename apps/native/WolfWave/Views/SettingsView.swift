@@ -152,7 +152,7 @@ struct SettingsView: View {
             .onChange(of: selectedSection) { _, newSection in
                 // Cancel in-progress Twitch OAuth if user navigates away
                 if newSection != .twitchIntegration, twitchViewModel.authState.isInProgress {
-                    twitchViewModel.cancelOAuth()
+                    Task { @MainActor in await twitchViewModel.cancelOAuth() }
                 }
             }
             .padding(.top, DSSpace.s2)
@@ -395,16 +395,41 @@ struct SettingsView: View {
     /// 6. Relaunch into a clean state so onboarding returns and live services
     ///    boot without stale in-memory state
     private func resetSettings() {
-        // Disconnect outward integrations before clearing their config.
+        Task { @MainActor in await performResetSettings() }
+    }
+
+    /// Performs factory-reset teardown in order; notably, Twitch must finish
+    /// leaving before a later account or relaunch can reuse the service.
+    private func performResetSettings() async {
+        // Twitch must be proven safe first; an aborted reset should not partially
+        // disable unrelated outward integrations.
+        // Twitch: disconnect + clear in-memory view-model state.
+        // clearCredentials() leaves the channel first when connected.
+        guard await twitchViewModel.clearCredentials(
+            discardOpaqueRedemptionRecovery: true
+        ) else {
+            Log.warn(
+                "SettingsView: Factory reset aborted because Twitch teardown was not safe",
+                category: "App")
+            return
+        }
+
+        // Disconnect remaining outward integrations before clearing their config.
         NotificationCenter.default.postEnabled(.discordPresenceChanged, enabled: false)
         NotificationCenter.default.postWebSocketServerChanged(enabled: false)
 
-        // Twitch: disconnect + clear in-memory view-model state.
-        // clearCredentials() leaves the channel first when connected.
-        twitchViewModel.clearCredentials()
-
-        // Keychain: wipe every stored credential in one sweep.
-        KeychainService.deleteAll()
+        // Keychain: wipe every stored credential in one sweep. Abort before
+        // preferences or files are removed if macOS refuses the deletion.
+        do {
+            try KeychainService.deleteAll()
+        } catch {
+            twitchViewModel.statusMessage =
+                "⚠️ Factory reset could not clear saved credentials. Please try again."
+            Log.error(
+                "SettingsView: Factory reset Keychain deletion failed - \(error.localizedDescription)",
+                category: "App")
+            return
+        }
 
         // UserDefaults: remove every key the app writes.
         AppConstants.UserDefaults.allKeys.forEach {

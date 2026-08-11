@@ -265,24 +265,22 @@ final class BotCommandDispatcher {
     ///   - isModerator: Whether the user has a moderator badge (bypasses cooldowns).
     /// - Returns: The command response string, or nil if no command matched or on cooldown.
     func processMessage(_ message: String, userID: String = "", isModerator: Bool = false) -> String? {
-        return processMessage(message, userID: userID, isModerator: isModerator, context: nil, asyncReply: nil)
+        processMessage(message, userID: userID, isModerator: isModerator, context: nil)
     }
 
-    /// Processes a chat message with full context, supporting both sync and async commands.
+    /// Processes a chat message synchronously for legacy providers and tests.
     ///
     /// - Parameters:
     ///   - message: The chat message text.
     ///   - userID: The Twitch user ID of the sender (for per-user cooldowns).
     ///   - isModerator: Whether the user has a moderator badge (bypasses cooldowns).
-    ///   - context: Full user context for async commands (nil for legacy callers).
-    ///   - asyncReply: Callback for async command responses (nil for sync-only callers).
-    /// - Returns: The command response string for sync commands, or nil if async/no match/on cooldown.
+    ///   - context: Full user context for permission and cooldown decisions.
+    /// - Returns: The command response string, or nil for async/no match/on cooldown.
     func processMessage(
         _ message: String,
         userID: String = "",
         isModerator: Bool = false,
-        context: BotCommandContext?,
-        asyncReply: ((String) -> Void)?
+        context: BotCommandContext?
     ) -> String? {
         let trimmedMessage = message.trimmingCharacters(in: .whitespaces)
 
@@ -355,16 +353,6 @@ final class BotCommandDispatcher {
                         return nil
                     }
 
-                    // Try async command first if context is available
-                    if let asyncCommand = command as? AsyncBotCommand, let ctx = context, let reply = asyncReply {
-                        cooldownManager.recordUse(trigger: canonical, userID: userID)
-                        asyncCommand.execute(message: trimmedMessage, context: ctx, reply: reply)
-                        Log.debug(
-                            "BotCommandDispatcher: Async command '\(trigger)' (group: \(canonical)) dispatched",
-                            category: "Twitch")
-                        return nil // Response will come via asyncReply callback
-                    }
-
                     // Sync command
                     if let response = command.execute(message: trimmedMessage) {
                         cooldownManager.recordUse(trigger: canonical, userID: userID)
@@ -391,9 +379,9 @@ final class BotCommandDispatcher {
         _ message: String,
         userID: String = "",
         isModerator: Bool = false,
-        context: BotCommandContext?,
-        asyncReply: ((String) -> Void)?
+        context: BotCommandContext?
     ) async -> String? {
+        guard !Task.isCancelled else { return nil }
         Log.debug("BotCommandDispatcher: processMessageAsync enter msg=\(message.prefix(40))", category: "Twitch")
         let trimmedMessage = message.trimmingCharacters(in: .whitespaces)
 
@@ -461,17 +449,21 @@ final class BotCommandDispatcher {
                         return nil
                     }
 
-                    if let asyncCommand = command as? AsyncBotCommand, let ctx = context, let reply = asyncReply {
+                    if let asyncCommand = command as? AsyncBotCommand, let ctx = context {
+                        guard !Task.isCancelled else { return nil }
                         cooldownManager.recordUse(trigger: canonical, userID: userID)
-                        asyncCommand.execute(message: trimmedMessage, context: ctx, reply: reply)
+                        guard !Task.isCancelled else { return nil }
+                        let response = await asyncCommand.execute(message: trimmedMessage, context: ctx)
+                        guard !Task.isCancelled else { return nil }
                         Log.debug(
-                            "BotCommandDispatcher: Async command '\(trigger)' (group: \(canonical)) dispatched",
+                            "BotCommandDispatcher: Async command \(trigger) completed (group: \(canonical))",
                             category: "Twitch")
-                        return nil
+                        return response
                     }
 
                     let response: String?
                     if let track = command as? TrackInfoCommand {
+                        guard !Task.isCancelled else { return nil }
                         Log.debug("BotCommandDispatcher: TrackInfoCommand.executeAsync start \(trigger)", category: "Twitch")
                         response = await track.executeAsync(message: trimmedMessage)
                         Log.debug("BotCommandDispatcher: TrackInfoCommand.executeAsync done \(trigger) → \(response?.prefix(40) ?? "nil")", category: "Twitch")

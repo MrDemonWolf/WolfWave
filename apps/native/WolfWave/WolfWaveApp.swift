@@ -166,6 +166,9 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     /// Long-lived consumer of `twitchService.skipPollResults`. Cancelled on
     /// teardown / re-setup of the skip-vote manager.
     var skipPollObserverTask: Task<Void, Never>?
+    /// Sole app-lifetime startup + hourly Twitch validation/recovery task.
+    var twitchBootValidationTask: Task<Void, Never>?
+    var twitchBootValidationGeneration: UInt64 = 0
 
     var currentSong: String?
     var currentArtist: String?
@@ -318,6 +321,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
     /// Removes all stored notification observers and tears down services.
     func applicationWillTerminate(_ notification: Notification) {
+        cancelTwitchBootValidation()
         flushCurrentPlayToHistory()
         historyService?.shutdown()
         NotificationCenter.default.removeObserver(self)

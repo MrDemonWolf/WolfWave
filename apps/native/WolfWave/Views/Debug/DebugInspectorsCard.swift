@@ -142,22 +142,22 @@ struct DebugInspectorsCard: View {
 
             if keychainLoaded {
                 keychainRow("Overlay Auth Token", present: keychainPresence["overlayToken"] ?? false) {
-                    KeychainService.deleteToken()
+                    try KeychainService.deleteToken()
                 }
                 keychainRow("Control Auth Token", present: keychainPresence["controlToken"] ?? false) {
-                    KeychainService.deleteControlToken()
+                    try KeychainService.deleteControlToken()
                 }
-                keychainRow("Twitch OAuth Token", present: keychainPresence["twitchToken"] ?? false) {
-                    KeychainService.deleteTwitchToken()
-                }
-                keychainRow("Twitch Username", present: keychainPresence["twitchUsername"] ?? false) {
-                    KeychainService.deleteTwitchUsername()
-                }
-                keychainRow("Twitch Bot User ID", present: keychainPresence["twitchBotUserID"] ?? false) {
-                    KeychainService.deleteTwitchBotUserID()
-                }
+                keychainRow(
+                    "Twitch OAuth Token",
+                    present: keychainPresence["twitchToken"] ?? false)
+                keychainRow(
+                    "Twitch Username",
+                    present: keychainPresence["twitchUsername"] ?? false)
+                keychainRow(
+                    "Twitch Bot User ID",
+                    present: keychainPresence["twitchBotUserID"] ?? false)
                 keychainRow("Twitch Channel ID", present: keychainPresence["twitchChannelID"] ?? false) {
-                    KeychainService.deleteTwitchChannelID()
+                    try TwitchCredentialStore.shared.updateChannelID(nil)
                 }
             } else {
                 LoadingRow(text: "Reading Keychain…")
@@ -203,17 +203,27 @@ struct DebugInspectorsCard: View {
         }
     }
 
-    private func keychainRow(_ label: String, present: Bool, onDelete: @escaping () -> Void) -> some View {
+    private func keychainRow(
+        _ label: String,
+        present: Bool,
+        onDelete: (() throws -> Void)? = nil
+    ) -> some View {
         HStack {
             Image(systemName: present ? "checkmark.circle.fill" : "circle")
                 .foregroundStyle(present ? DSColor.success : .secondary)
             Text(label)
                 .font(.system(size: DSFont.Size.body))
             Spacer()
-            if present {
+            if present, let onDelete {
                 Button {
-                    onDelete()
-                    refreshTick &+= 1
+                    do {
+                        try onDelete()
+                        refreshTick &+= 1
+                    } catch {
+                        Log.error(
+                            "Debug inspector: Keychain delete failed - \(error.localizedDescription)",
+                            category: "Keychain")
+                    }
                 } label: {
                     Image(systemName: "trash")
                         .foregroundStyle(DSColor.error)

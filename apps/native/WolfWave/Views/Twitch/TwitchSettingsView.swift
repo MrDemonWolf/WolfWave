@@ -80,16 +80,6 @@ struct TwitchSettingsView: View {
                 }
             }
         }
-        .task {
-            // Re-check the saved Twitch token on a cadence so the status chip
-            // flips to "Sign-in expired" on its own when a token silently dies.
-            // Replaces the manual "Test Login" button. Auto-cancels when the
-            // pane goes away.
-            while !Task.isCancelled {
-                await viewModel.refreshAuthStatus()
-                try? await Task.sleep(for: .seconds(60))
-            }
-        }
     }
 
     // MARK: - Subviews
@@ -270,7 +260,7 @@ struct TwitchSettingsView: View {
                 Spacer()
 
                 Button("Cancel") {
-                    viewModel.cancelOAuth()
+                    Task { @MainActor in await viewModel.cancelOAuth() }
                 }
                 .buttonStyle(.bordered)
                 .tint(.red)
@@ -292,12 +282,21 @@ struct TwitchSettingsView: View {
             isConnecting: viewModel.isConnecting,
             reauthNeeded: viewModel.reauthNeeded,
             credentialsSaved: viewModel.credentialsSaved,
+            isAccountTeardownInProgress: viewModel.isAccountTeardownInProgress,
             channelValidationState: viewModel.channelValidationState,
-            onReauth: { viewModel.clearAuthOnly(); viewModel.startOAuth() },
-            onClearCredentials: { viewModel.clearCredentials() },
+            onReauth: {
+                Task { @MainActor in
+                    if await viewModel.clearAuthOnly() {
+                        viewModel.startOAuth()
+                    }
+                }
+            },
+            onClearCredentials: {
+                Task { @MainActor in await viewModel.clearCredentials() }
+            },
             onJoinChannel: { viewModel.joinChannel() },
             onLeaveChannel: { viewModel.leaveChannel() },
-            onChannelIDChanged: { viewModel.saveChannelID() }
+            onChannelIDChanged: { viewModel.channelDraftChanged() }
         )
         .transition(.opacity)
     }
@@ -335,6 +334,7 @@ private struct SignedInView: View {
     let isConnecting: Bool
     let reauthNeeded: Bool
     let credentialsSaved: Bool
+    let isAccountTeardownInProgress: Bool
     let channelValidationState: TwitchViewModel.ChannelValidationState
     var onReauth: () -> Void
     var onClearCredentials: () -> Void
@@ -508,7 +508,7 @@ private struct SignedInView: View {
                 TextField("Channel Name", text: $channelID)
                     .font(.system(size: DSFont.Size.base))
                     .textFieldStyle(.plain)
-                    .disabled(isConnecting)
+                    .disabled(isConnecting || isAccountTeardownInProgress)
                     .accessibilityLabel("Twitch channel name")
                     .accessibilityHint("Enter your Twitch channel name")
                     .accessibilityIdentifier("twitchChannelTextField")
@@ -569,6 +569,7 @@ private struct SignedInView: View {
                 .accessibilityLabel("Reconnect with Twitch")
                 .accessibilityHint("Clears credentials and starts a new sign-in")
                 .accessibilityIdentifier("twitchReauthButton")
+                .disabled(isAccountTeardownInProgress)
             } else {
                 Button(action: {
                     if isChannelConnected {
@@ -666,6 +667,7 @@ private struct SignedInView: View {
                 .accessibilityLabel("Clear saved Twitch credentials")
                 .accessibilityHint("Signs out of your Twitch account")
                 .accessibilityIdentifier("twitchClearCredentialsButton")
+                .disabled(isAccountTeardownInProgress)
         }
         .padding(.horizontal, AppConstants.SettingsUI.cardPadding)
         .padding(.vertical, DSSpace.s4)
@@ -674,7 +676,7 @@ private struct SignedInView: View {
     /// Whether the Connect button should be grayed out (missing channel name or still connecting).
     private var shouldDisableConnectButton: Bool {
         let validChannel = !channelID.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-        if isConnecting { return true }
+        if isConnecting || isAccountTeardownInProgress { return true }
         // If credentials are saved we can attempt to connect even if the
         // bot username hasn't been resolved yet, rely on saved token.
         if credentialsSaved {
@@ -823,4 +825,3 @@ private struct SignedInView: View {
         .padding()
         .frame(width: 700)
 }
-
