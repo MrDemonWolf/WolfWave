@@ -239,6 +239,57 @@ final class ArtworkServiceNetworkTests: XCTestCase {
         XCTAssertTrue(deleted, "Cache file should be deleted within the timeout")
     }
 
+    func testFreshGenerationPersistsWhenFetchedImmediatelyAfterClear() async {
+        let url = FileManager.default.temporaryDirectory
+            .appendingPathComponent("artwork-test-\(UUID().uuidString).json")
+        defer { try? FileManager.default.removeItem(at: url) }
+
+        MockURLProtocol.requestHandler = { request in
+            let json = #"{"results":[{"artworkUrl100":"https://cdn.example/old/100x100.jpg"}]}"#
+            return (MockURLProtocol.httpResponse(for: request, status: 200), Data(json.utf8))
+        }
+
+        let svc = ArtworkService(session: MockURLProtocol.makeSession(), persistenceURL: url)
+        _ = await withCheckedContinuation { (cont: CheckedContinuation<TrackLinks, Never>) in
+            svc.fetchTrackLinks(track: "Old", artist: "Artist") { cont.resume(returning: $0) }
+        }
+        let wroteOldGeneration = await waitUntil {
+            FileManager.default.fileExists(atPath: url.path)
+        }
+        XCTAssertTrue(wroteOldGeneration, "Initial cache generation should reach disk")
+
+        svc.clearCache()
+
+        MockURLProtocol.requestHandler = { request in
+            let json = #"{"results":[{"artworkUrl100":"https://cdn.example/fresh/100x100.jpg"}]}"#
+            return (MockURLProtocol.httpResponse(for: request, status: 200), Data(json.utf8))
+        }
+        let fresh = await withCheckedContinuation { (cont: CheckedContinuation<TrackLinks, Never>) in
+            svc.fetchTrackLinks(track: "Fresh", artist: "Artist") { cont.resume(returning: $0) }
+        }
+        XCTAssertEqual(fresh.artworkURL, "https://cdn.example/fresh/512x512.jpg")
+
+        let persistedFreshGeneration = await waitUntil {
+            let reloaded = ArtworkService(
+                session: MockURLProtocol.makeSession(),
+                persistenceURL: url
+            )
+            return reloaded.cachedArtworkURL(track: "Fresh", artist: "Artist")
+                == "https://cdn.example/fresh/512x512.jpg"
+        }
+        XCTAssertTrue(
+            persistedFreshGeneration,
+            "Clear deletion must run before the fresh-generation persistence write"
+        )
+
+        let reloaded = ArtworkService(session: MockURLProtocol.makeSession(), persistenceURL: url)
+        XCTAssertNil(reloaded.cachedArtworkURL(track: "Old", artist: "Artist"))
+        XCTAssertEqual(
+            reloaded.cachedArtworkURL(track: "Fresh", artist: "Artist"),
+            "https://cdn.example/fresh/512x512.jpg"
+        )
+    }
+
     func testClearCacheRejectsOldResponseAndStartsFreshGeneration() async {
         let gate = ArtworkRequestGate()
         defer { gate.releaseAll() }
