@@ -18,7 +18,6 @@ import Foundation
 /// restored after each test so other suites see unchanged behavior.
 ///
 /// Note: `.serialized` keeps tests sequential, matching the shared-backend model.
-@MainActor
 @Suite("Keychain Service Tests", .serialized)
 final class KeychainServiceTests {
 
@@ -865,30 +864,43 @@ final class KeychainServiceTests {
                 matchingAccessToken: "ACCESS"))
         let cancellations = ThreadSafeBox(0)
         let restarts = ThreadSafeBox(0)
-        let viewModel = TwitchViewModel(
-            cancelTokenValidationSchedule: {
-                cancellations.mutate { $0 += 1 }
-            },
-            restartTokenValidationSchedule: {
-                restarts.mutate { $0 += 1 }
-            },
-            leaveAccountService: { _, _ in true })
-        viewModel.botUsername = "wolf"
-        viewModel.oauthToken = "ACCESS"
-        viewModel.channelID = "channel"
-        viewModel.credentialsSaved = true
+        let viewModel = await MainActor.run {
+            let viewModel = TwitchViewModel(
+                cancelTokenValidationSchedule: {
+                    cancellations.mutate { $0 += 1 }
+                },
+                restartTokenValidationSchedule: {
+                    restarts.mutate { $0 += 1 }
+                },
+                leaveAccountService: { _, _ in true })
+            viewModel.botUsername = "wolf"
+            viewModel.oauthToken = "ACCESS"
+            viewModel.channelID = "channel"
+            viewModel.credentialsSaved = true
+            return viewModel
+        }
         backend.failNextSave(
             for: KeychainService.twitchCredentialGrantAccount)
 
         let cleared = await viewModel.clearAuthOnly()
+        let viewState = await MainActor.run {
+            (
+                botUsername: viewModel.botUsername,
+                oauthToken: viewModel.oauthToken,
+                channelID: viewModel.channelID,
+                credentialsSaved: viewModel.credentialsSaved,
+                statusMessage: viewModel.statusMessage,
+                isAccountTeardownInProgress: viewModel.isAccountTeardownInProgress
+            )
+        }
 
         #expect(!cleared)
-        #expect(viewModel.botUsername == "wolf")
-        #expect(viewModel.oauthToken == "ACCESS")
-        #expect(viewModel.channelID == "channel")
-        #expect(viewModel.credentialsSaved)
-        #expect(viewModel.statusMessage.contains("Please try again"))
-        #expect(!viewModel.isAccountTeardownInProgress)
+        #expect(viewState.botUsername == "wolf")
+        #expect(viewState.oauthToken == "ACCESS")
+        #expect(viewState.channelID == "channel")
+        #expect(viewState.credentialsSaved)
+        #expect(viewState.statusMessage.contains("Please try again"))
+        #expect(!viewState.isAccountTeardownInProgress)
         #expect(cancellations.value == 1)
         #expect(restarts.value == 1)
         #expect(try KeychainService.loadTwitchCredentialGrantChecked() == grant)
@@ -958,8 +970,8 @@ final class KeychainServiceTests {
         let iterations = 50
         let group = DispatchGroup()
         let queue = DispatchQueue(label: "keychain.stress", attributes: .concurrent)
-        var readResults: [String?] = Array(repeating: nil, count: iterations)
-        let resultsLock = NSLock()
+        let readResults = ThreadSafeBox<[String?]>(
+            Array(repeating: nil, count: iterations))
 
         // Seed with a known value first
         try KeychainService.saveToken("seed_token")
@@ -976,9 +988,7 @@ final class KeychainServiceTests {
             group.enter()
             queue.async {
                 let loaded = KeychainService.loadToken()
-                resultsLock.lock()
-                readResults[i] = loaded
-                resultsLock.unlock()
+                readResults.mutate { $0[i] = loaded }
                 group.leave()
             }
         }
@@ -989,7 +999,7 @@ final class KeychainServiceTests {
 
         // Validate: every read should have returned a non-nil, non-empty token
         // (since we seeded and continuously wrote valid tokens)
-        for (index, result) in readResults.enumerated() {
+        for (index, result) in readResults.value.enumerated() {
             #expect(result != nil, "Read at index \(index) returned nil: possible corruption")
             if let value = result {
                 #expect(!value.isEmpty, "Read at index \(index) returned empty string: possible corruption")
