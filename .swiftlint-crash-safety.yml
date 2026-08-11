@@ -2,10 +2,10 @@
 #
 # Scoped to ONLY the three rules whose violations turn into hard runtime crashes:
 # a force-unwrap of nil, a `try!` on a throwing call, or a force `as!` cast. The
-# main `.swiftlint.yml` stays lenient (warnings, `continue-on-error: true`) while
-# the codebase ramps up on style; these three stay enforced at error severity. The
-# CI `lint-crash-safety` job runs this config with `--strict` and no
-# `continue-on-error`, so a regression fails the PR.
+# main `.swiftlint.yml` reports warning debt and blocks error-severity rules;
+# these three stay independently visible at error severity for production code.
+# CI runs this config with `--strict` and no `continue-on-error`, so a regression
+# fails the PR.
 #
 # Lives at the repo root next to `.swiftlint.yml` so `included` paths resolve the
 # same way. Run locally with `make lint-crash-safety`.
