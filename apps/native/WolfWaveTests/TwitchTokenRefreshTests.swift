@@ -82,7 +82,7 @@ final class TwitchTokenRefreshTests: XCTestCase {
         storeManagedRewardIdentity(rewardID: rewardID)
     }
 
-    private static func emptyUnfulfilledRedemptionsResponse(
+    nonisolated private static func emptyUnfulfilledRedemptionsResponse(
         for request: URLRequest
     ) -> (HTTPURLResponse, Data)? {
         guard request.httpMethod == "GET",
