@@ -56,9 +56,10 @@ final class HTTPClientTests: XCTestCase {
         }
         let firstClient = HTTPClient(session: firstSession)
         let secondClient = HTTPClient(session: secondSession)
+        let requestURL = url()
 
-        async let first: Payload = firstClient.get(url: url())
-        async let second: Payload = secondClient.get(url: url())
+        async let first: Payload = firstClient.get(url: requestURL)
+        async let second: Payload = secondClient.get(url: requestURL)
         let results = try await (first, second)
 
         XCTAssertEqual(results.0, Payload(name: "first", count: 1))
