@@ -147,7 +147,8 @@ struct AppleMusicControllerTests {
 
         #expect(handler?.stringValue == "wolfWaveRun")
         #expect(target?.descriptorType == typeKernelProcessID)
-        #expect(target?.int32Value == 4_242)
+        let expectedPIDData = withUnsafeBytes(of: pid_t(4_242)) { Data($0) }
+        #expect(target?.data == expectedPIDData)
     }
 
     @Test("Focus restores only when Music remains frontmost")
