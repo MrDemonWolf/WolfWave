@@ -1119,7 +1119,7 @@ actor TwitchChatService {
                     $0,
                     now: Date(timeIntervalSince1970: now))
             }
-            let resetSeconds = headerValue("Ratelimit-Reset").flatMap { reset in
+            let resetSeconds: TimeInterval? = headerValue("Ratelimit-Reset").flatMap { reset in
                 guard let resetEpoch = TimeInterval(
                     reset.trimmingCharacters(in: .whitespacesAndNewlines)) else {
                     return nil
