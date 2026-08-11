@@ -151,9 +151,6 @@ final class TwitchViewModel {
     /// Cached reference to the Twitch chat service
     @ObservationIgnored private var cachedTwitchService: TwitchChatService?
 
-    /// Lock for thread-safe access to cached service
-    @ObservationIgnored private let serviceLock = NSLock()
-
     /// Long-lived consumer of `service.connectionStateChanges()`. Cancelled and
     /// replaced whenever the service reference changes.
     @ObservationIgnored private var connectionObserverTask: Task<Void, Never>?
@@ -164,10 +161,13 @@ final class TwitchViewModel {
     /// (settings window closing) never starves other consumers.
     private func observeConnection(_ service: TwitchChatService) {
         connectionObserverTask?.cancel()
+        // Register first so a transition between the snapshot and iteration is
+        // buffered by AsyncStream instead of being lost.
+        let stateChanges = service.connectionStateChanges()
         self.channelConnected = service.currentlyConnected
         connectionObserverTask = Task { [weak self] in
-            for await isConnected in service.connectionStateChanges() {
-                await MainActor.run { self?.channelConnected = isConnected }
+            for await isConnected in stateChanges {
+                self?.channelConnected = isConnected
             }
         }
     }
@@ -175,9 +175,6 @@ final class TwitchViewModel {
     /// Reference to the Twitch chat service with fallback to AppDelegate
     var twitchService: TwitchChatService? {
         get {
-            serviceLock.lock()
-            defer { serviceLock.unlock() }
-
             // If we have a cached service, return it
             if let cached = cachedTwitchService {
                 return cached
@@ -198,9 +195,6 @@ final class TwitchViewModel {
             return nil
         }
         set {
-            serviceLock.lock()
-            defer { serviceLock.unlock() }
-
             cachedTwitchService = newValue
             if let svc = newValue {
                 observeConnection(svc)
@@ -211,16 +205,45 @@ final class TwitchViewModel {
         }
     }
 
-    /// Background task for polling token during OAuth flow
-    @ObservationIgnored var devicePollingTask: Task<Void, Never>?
     /// Outer task that drives the overall OAuth flow (request + polling)
     @ObservationIgnored var oAuthTask: Task<Void, Never>?
-    /// Debounce task for saving channel ID to avoid excessive Keychain writes
-    @ObservationIgnored private var channelIDSaveTask: Task<Void, Never>?
+    /// Supersedes UI mutations and cleanup from an older OAuth flow.
+    @ObservationIgnored private var oauthGeneration: UInt64 = 0
+    /// Set only after the replacement flow has awaited service teardown. OAuth
+    /// cancellation may invalidate this revision without racing the old reward
+    /// pause; before then, generation + task cancellation are sufficient.
+    @ObservationIgnored private var oauthCredentialRevision: UInt64?
+    /// Owns the current validate+join pipeline so logout/account replacement can
+    /// cancel it before clearing credentials and leaving the actor service.
+    @ObservationIgnored private var joinTask: Task<Void, Never>?
+    @ObservationIgnored private var joinGeneration: UInt64 = 0
     /// Task that resets the test-auth result badge back to idle after a delay.
     @ObservationIgnored private var pendingAuthResetTask: Task<Void, Never>?
     /// In-flight task for the lightweight token validation check.
     @ObservationIgnored private var pendingTestAuthTask: Task<Void, Never>?
+    /// Stops the validation owner for the account being replaced or cleared.
+    @ObservationIgnored private let cancelTokenValidationSchedule:
+        @MainActor @Sendable () -> Void
+    /// Starts the app-lifetime validation owner immediately after a durable
+    /// OAuth grant commit, before identity resolution can suspend or cancel.
+    @ObservationIgnored private let restartTokenValidationSchedule:
+        @MainActor @Sendable () -> Void
+    /// Resolves the Twitch client ID for validation and channel joins.
+    @ObservationIgnored private let twitchClientIDProvider:
+        @MainActor @Sendable () -> String?
+    /// Resolves configuration and constructs one test-injectable device-flow client.
+    @ObservationIgnored private let makeOAuthClient:
+        @MainActor @Sendable () -> (clientID: String, auth: TwitchDeviceAuth)?
+    /// Injectable identity lookup keeps OAuth commit ordering deterministic in
+    /// lifecycle tests without performing a live Helix request.
+    @ObservationIgnored private let resolveBotIdentity:
+        @MainActor @Sendable (String, String, UInt64) async throws -> Void
+    /// Test-injectable account leave keeps cancellation ordering deterministic.
+    @ObservationIgnored private let leaveAccountService:
+        @MainActor @Sendable (TwitchChatService?, Bool) async -> Bool
+    /// Prevents a replacement OAuth/join from starting while an older account
+    /// teardown is still awaiting actor-owned refresh/socket cleanup.
+    private(set) var isAccountTeardownInProgress = false
 
     /// Tracked notification observer tokens for proper cleanup
     @ObservationIgnored private var reauthObserver: NSObjectProtocol?
@@ -228,7 +251,60 @@ final class TwitchViewModel {
 
     // MARK: - Initialization
 
-    init() {
+    init(
+        cancelTokenValidationSchedule: @escaping @MainActor @Sendable () -> Void = {
+            AppDelegate.shared?.cancelTwitchBootValidation()
+        },
+        restartTokenValidationSchedule: @escaping @MainActor @Sendable () -> Void = {
+            AppDelegate.shared?.restartTwitchTokenValidationSchedule()
+        },
+        twitchClientIDProvider: @escaping @MainActor @Sendable () -> String? = {
+            TwitchChatService.resolveClientID()
+        },
+        makeOAuthClient: @escaping @MainActor @Sendable ()
+            -> (clientID: String, auth: TwitchDeviceAuth)? = {
+            guard let clientID = TwitchChatService.resolveClientID(),
+                  !clientID.isEmpty else { return nil }
+            return (
+                clientID,
+                TwitchDeviceAuth(
+                    clientID: clientID,
+                    scopes: AppConstants.Twitch.allScopes
+                )
+            )
+        },
+        resolveBotIdentity: @escaping @MainActor @Sendable (
+            String,
+            String,
+            UInt64
+        ) async throws -> Void = { token, clientID, revision in
+            try await TwitchChatService.resolveBotIdentityStatic(
+                token: token,
+                clientID: clientID,
+                credentialRevision: revision
+            )
+        },
+        leaveAccountService: @escaping @MainActor @Sendable (
+            TwitchChatService?,
+            Bool
+        ) async -> Bool = { service, discardOpaqueRedemptionRecovery in
+            guard let service else {
+                return TwitchManagedRewardStore.snapshot() == .none
+                    && (discardOpaqueRedemptionRecovery
+                        || !TwitchRedemptionResolutionOutbox.shared
+                            .hasOpaqueRecoveryRisk())
+            }
+            return await service.leaveChannel(
+                allowDiscardingOpaqueRedemptionRecovery:
+                    discardOpaqueRedemptionRecovery)
+        }
+    ) {
+        self.cancelTokenValidationSchedule = cancelTokenValidationSchedule
+        self.restartTokenValidationSchedule = restartTokenValidationSchedule
+        self.twitchClientIDProvider = twitchClientIDProvider
+        self.makeOAuthClient = makeOAuthClient
+        self.resolveBotIdentity = resolveBotIdentity
+        self.leaveAccountService = leaveAccountService
         // Immediately try to get the service reference on initialization
         if let appDelegate = AppDelegate.shared {
             self.cachedTwitchService = appDelegate.twitchService
@@ -238,17 +314,28 @@ final class TwitchViewModel {
         }
     }
 
-    /// Cancel any in-progress OAuth/device-code flow and reset related state.
-    func cancelOAuth() {
-        if let poll = devicePollingTask {
-            poll.cancel()
-            devicePollingTask = nil
+    /// Cancels the active OAuth flow, waits for its old-account leave boundary,
+    /// then restores validation only if no newer flow superseded this cancel.
+    func cancelOAuth() async {
+        let outer = oAuthTask
+        let hadCredentialRevision = oauthCredentialRevision != nil
+        oauthGeneration &+= 1
+        let generation = oauthGeneration
+        if hadCredentialRevision {
+            TwitchCredentialStore.shared.supersede()
         }
-        if let outer = oAuthTask {
-            outer.cancel()
-            oAuthTask = nil
-        }
+        oauthCredentialRevision = nil
+        outer?.cancel()
+        oAuthTask = nil
 
+        if let outer {
+            await outer.value
+        }
+        guard oauthGeneration == generation else { return }
+
+        if outer != nil {
+            restoreTokenValidationScheduleForStoredCredential()
+        }
         authState = .idle
         statusMessage = ""
     }
@@ -279,15 +366,23 @@ final class TwitchViewModel {
     ///
     /// Also loads the reauth needed flag and sets up notification observers for auth state changes.
     func loadSavedCredentials() {
-        if let username = KeychainService.loadTwitchUsername() {
-            botUsername = username
-        }
-        if let token = KeychainService.loadTwitchToken() {
-            oauthToken = token
-            credentialsSaved = true
-        }
-        if let channel = KeychainService.loadTwitchChannelID() {
-            channelID = channel
+        do {
+            let grant = try KeychainService.loadTwitchCredentialGrantChecked()
+            botUsername = grant.username ?? ""
+            oauthToken = grant.accessToken ?? ""
+            channelID = grant.channelID ?? ""
+            credentialsSaved = grant.accessToken?.isEmpty == false
+        } catch {
+            // A Keychain outage is not proof that the account disappeared. Keep
+            // the last coherent UI snapshot and let the user retry the read.
+            Log.error(
+                "TwitchViewModel: Could not read saved Twitch credentials - "
+                    + error.localizedDescription,
+                category: "Twitch"
+            )
+            if statusMessage.isEmpty {
+                statusMessage = "⚠️ Could not access saved Twitch credentials. Try again."
+            }
         }
 
         // Load reauth needed flag from UserDefaults
@@ -371,9 +466,26 @@ final class TwitchViewModel {
     // Isolation is also required here: the non-Sendable `NSObjectProtocol`
     // observer tokens can't be touched from a nonisolated deinit under Swift 6.
     isolated deinit {
-        devicePollingTask?.cancel()
+        let shouldRestoreTokenValidation: Bool
+        if oAuthTask != nil {
+            do {
+                shouldRestoreTokenValidation = try KeychainService
+                    .loadTwitchCredentialGrantChecked().accessToken != nil
+            } catch {
+                // Losing visibility into Keychain must not silently orphan a
+                // potentially durable credential after an interrupted OAuth flow.
+                shouldRestoreTokenValidation = true
+                Log.warn(
+                    "TwitchViewModel: Conservatively restoring token validation "
+                        + "after a Keychain read failure",
+                    category: "Twitch"
+                )
+            }
+        } else {
+            shouldRestoreTokenValidation = false
+        }
         oAuthTask?.cancel()
-        channelIDSaveTask?.cancel()
+        joinTask?.cancel()
         pendingAuthResetTask?.cancel()
         pendingTestAuthTask?.cancel()
         // Without this, the never-finishing connectionStateChanges() loop keeps
@@ -388,10 +500,10 @@ final class TwitchViewModel {
         if let token = connectionObserver {
             NotificationCenter.default.removeObserver(token)
         }
-
-        serviceLock.lock()
         cachedTwitchService = nil
-        serviceLock.unlock()
+        if shouldRestoreTokenValidation {
+            restartTokenValidationSchedule()
+        }
     }
 
     /// Initiates the OAuth Device Code flow.
@@ -424,133 +536,165 @@ final class TwitchViewModel {
     /// - Missing Client ID: Shows warning and sets error state
     /// - Network/parsing errors: Handled by handleOAuthError
     /// - User denial: Caught during polling and shown as error
-    /// - Timeout: Device code expires after ~10 minutes; polling stops
+    /// - Timeout: Polling stops at Twitch's original device-code expiry deadline
     ///
     /// Dependencies:
     /// - Requires TWITCH_CLIENT_ID environment variable in Xcode scheme
     /// - Requires internet connectivity
     ///
     func startOAuth() {
-        authState = .requestingCode
-        statusMessage = "Requesting authorization code from Twitch..."
+        guard !isAccountTeardownInProgress else { return }
 
-        // Cancel any existing polling task
-        if let existingTask = devicePollingTask {
-            existingTask.cancel()
-            devicePollingTask = nil
-        }
-
-        guard let clientID = TwitchChatService.resolveClientID(), !clientID.isEmpty else {
+        guard let oauthClient = makeOAuthClient() else {
             statusMessage = "⚠️ Missing Twitch Client ID. Set TWITCH_CLIENT_ID in Config.xcconfig."
             authState = .error("Missing Client ID")
             return
         }
+        let clientID = oauthClient.clientID
+        let helper = oauthClient.auth
 
-        // Request every scope WolfWave can use up front (chat, channel-point
-        // redemptions, bits, and polls). Channel points / bits / Polls mode are
-        // off by default, but granting their scopes at sign-in means turning one
-        // on later never forces a second authorization round-trip.
-        let helper = TwitchDeviceAuth(
-            clientID: clientID,
-            scopes: AppConstants.Twitch.allScopes
-        )
+        let serviceToDisconnect = cancelJoinForAccountTransition()
+        oauthGeneration &+= 1
+        let generation = oauthGeneration
+        oAuthTask?.cancel()
+        oauthCredentialRevision = nil
+        oAuthTask = nil
 
-        // Track the overall OAuth flow so it can be cancelled cleanly
-        oAuthTask = Task { @MainActor in
+        // Keep the old app-lifetime validator from re-adopting or reconnecting
+        // the prior account while its replacement device flow is in progress.
+        cancelTokenValidationSchedule()
+
+        authState = .requestingCode
+        statusMessage = "Requesting authorization code from Twitch..."
+
+        // One structured task owns both the device-code request and polling.
+        oAuthTask = Task { @MainActor [weak self] in
+            guard let self else { return }
+            var validationOwnershipHandled = false
+            defer {
+                if self.oauthGeneration == generation {
+                    self.oAuthTask = nil
+                    self.oauthCredentialRevision = nil
+                    if !validationOwnershipHandled {
+                        // Restore whichever durable grant survived only when the
+                        // success path did not already settle validation ownership.
+                        self.restoreTokenValidationScheduleForStoredCredential()
+                    }
+                }
+            }
             do {
-                let response = try await helper.requestDeviceCode()
-                updateAuthState(
-                    .waitingForAuth(
-                        userCode: response.userCode, verificationURI: response.verificationURI)
-                )
-                statusMessage = "✅ Code ready! Go to Twitch and enter the code above."
-
-                // Start a 5-minute timeout that cancels the flow if not completed
-                let timeoutTask = Task {
-                    try await Task.sleep(for: .seconds(5 * 60))
-                    await MainActor.run { [weak self] in
-                        guard let self, self.authState != .idle else { return }
-                        if case .waitingForAuth = self.authState {
-                            Log.info("OAuth device code flow timed out after 5 minutes", category: "Twitch")
-                            self.cancelOAuth()
-                            self.statusMessage = "Authorization timed out. Please try again."
-                        }
-                    }
-                }
-
-                // Start polling in a child task so it can be cancelled independently
-                devicePollingTask = Task {
-                    defer {
-                        timeoutTask.cancel()
-                        Task { @MainActor in
-                            self.devicePollingTask = nil
-                            self.oAuthTask = nil
-                        }
-                    }
-
-                    do {
-                        // Check for cancellation before starting poll
-                        try Task.checkCancellation()
-                        
-                        let token = try await helper.pollForToken(
-                            deviceCode: response.deviceCode,
-                            interval: response.interval,
-                            expiresIn: response.expiresIn
-                        ) { status in
-                            Task { @MainActor [weak self] in
-                                guard let self else { return }
-                                self.statusMessage = status
-                            }
-                        }
-
-                        await self.handleOAuthSuccess(token: token, clientID: clientID)
-                    } catch let error as TwitchDeviceAuthError {
-                        await self.handleOAuthError(error)
-                    } catch is CancellationError {
-                        // Task was cancelled - clean exit
-                        await MainActor.run { [weak self] in
-                            self?.statusMessage = "Authorization cancelled"
-                            self?.authState = .idle
-                        }
-                    } catch {
-                        await self.handleOAuthError(.unknown(error.localizedDescription))
-                    }
-                }
-            } catch {
-                // A user cancel during the device-code request throws a wrapped
-                // error here (URLError.cancelled becomes TwitchDeviceAuthError,
-                // not a CancellationError), so guard the task's cancellation flag
-                // to avoid rendering an intentional cancel as an "OAuth setup
-                // failed" banner. cancelOAuth() already reset authState to .idle.
-                if Task.isCancelled {
-                    oAuthTask = nil
+                // Account replacement owns the service lifecycle: retire the
+                // existing socket before changing the credential revision, so
+                // no old join or receive loop can survive under the new grant.
+                guard await self.leaveServiceForAccountTransition(
+                    serviceToDisconnect) else {
+                    guard !Task.isCancelled,
+                          self.oauthGeneration == generation else { return }
+                    self.showAccountTeardownRetry()
                     return
                 }
-                updateAuthState(.error(error.localizedDescription))
-                statusMessage = "❌ OAuth setup failed: \(error.localizedDescription)"
-                await MainActor.run {
-                    self.oAuthTask = nil
+                guard !Task.isCancelled, self.oauthGeneration == generation else { return }
+                await TwitchTokenRefresher.invalidateSession()
+                guard !Task.isCancelled, self.oauthGeneration == generation else { return }
+                let credentialRevision = TwitchCredentialStore.shared.supersede()
+                self.oauthCredentialRevision = credentialRevision
+
+                let response = try await helper.requestDeviceCode()
+                guard !Task.isCancelled, self.oauthGeneration == generation else { return }
+                self.updateAuthState(
+                    .waitingForAuth(
+                        userCode: response.userCode,
+                        verificationURI: response.verificationURIComplete
+                            ?? response.verificationURI)
+                )
+                self.statusMessage = "✅ Code ready! Go to Twitch and enter the code above."
+
+                // TwitchDeviceAuth owns the one monotonic expiry deadline from
+                // the server response. Keep no competing UI timer here.
+                let grant = try await helper.pollForToken(
+                    deviceCode: response.deviceCode,
+                    interval: response.interval,
+                    expiresIn: response.expiresIn
+                ) { status in
+                    Task { @MainActor [weak self] in
+                        guard let self,
+                              self.oauthGeneration == generation,
+                              !Task.isCancelled else { return }
+                        self.statusMessage = status
+                    }
                 }
+
+                guard !Task.isCancelled, self.oauthGeneration == generation else { return }
+                validationOwnershipHandled = await self.handleOAuthSuccess(
+                    grant: grant,
+                    clientID: clientID,
+                    generation: generation,
+                    credentialRevision: credentialRevision
+                )
+            } catch is CancellationError {
+                guard self.oauthGeneration == generation else { return }
+                self.statusMessage = "Authorization cancelled"
+                self.authState = .idle
+            } catch let error as TwitchDeviceAuthError {
+                guard !Task.isCancelled, self.oauthGeneration == generation else { return }
+                await self.handleOAuthError(error, generation: generation)
+            } catch {
+                guard !Task.isCancelled, self.oauthGeneration == generation else { return }
+                await self.handleOAuthError(
+                    .unknown(error.localizedDescription),
+                    generation: generation
+                )
             }
         }
     }
 
     /// Saves credentials to macOS Keychain and resolves bot identity.
-    func saveCredentials() {
+    func saveCredentials() async {
+        guard !isAccountTeardownInProgress else { return }
         // Validate before saving
         guard !oauthToken.isEmpty else {
             statusMessage = "❌ No OAuth token to save"
             return
         }
 
-        guard !channelID.isEmpty else {
+        let manualChannel = channelID
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .lowercased()
+        guard !manualChannel.isEmpty else {
             statusMessage = "❌ Please enter a channel name"
             return
         }
 
+        let manualToken = oauthToken
+        let serviceToDisconnect = cancelJoinForAccountTransition()
+        oauthGeneration &+= 1
+        let generation = oauthGeneration
+        oAuthTask?.cancel()
+        oAuthTask = nil
+        authState = .idle
+
+        cancelTokenValidationSchedule()
+        // Once the old owner is stopped, every exit must restore validation
+        // whenever either the old or new atomic grant remains available.
+        defer {
+            restoreTokenValidationScheduleForStoredCredential()
+        }
+
+        await TwitchTokenRefresher.invalidateSession()
+        guard await leaveServiceForAccountTransition(
+            serviceToDisconnect) else {
+            showAccountTeardownRetry()
+            return
+        }
+        guard !Task.isCancelled,
+              !isAccountTeardownInProgress,
+              oauthGeneration == generation else { return }
+
         do {
-            try KeychainService.saveTwitchToken(oauthToken)
-            try KeychainService.saveTwitchChannelID(channelID.lowercased())
+            try TwitchCredentialStore.shared.replaceWithManualCredentials(
+                accessToken: manualToken,
+                channelID: manualChannel
+            )
             credentialsSaved = true
             setReauthFlag(false)
             statusMessage = "✅ Credentials saved successfully"
@@ -563,65 +707,105 @@ final class TwitchViewModel {
         }
     }
 
-    /// Saves just the channel ID to Keychain (auto-save on input).
-    /// Debounced to avoid excessive writes - waits 1 second after last keystroke.
-    func saveChannelID() {
-        // Cancel any pending save task
-        channelIDSaveTask?.cancel()
+    /// Marks a channel edit as an uncommitted UI draft. The draft becomes
+    /// canonical only after Join validates that the channel exists.
+    func channelDraftChanged() {
+        guard !isAccountTeardownInProgress else { return }
         channelValidationState = .idle
-
-        channelIDSaveTask = Task { @MainActor in
-            try? await Task.sleep(for: .seconds(1))
-            guard !Task.isCancelled else { return }
-
-            let channel = self.channelID.trimmingCharacters(in: .whitespacesAndNewlines)
-
-            do {
-                try KeychainService.saveTwitchChannelID(channel)
-            } catch {
-                Log.error(
-                    "TwitchViewModel: Failed to save channel ID: \(error.localizedDescription)",
-                    category: "Twitch"
-                )
-            }
-        }
+        joinGeneration &+= 1
+        joinTask?.cancel()
+        joinTask = nil
+        isConnecting = false
     }
 
     /// Clears all stored Twitch credentials and resets state.
-    func clearCredentials() {
-
-        // Disconnect from channel first if connected
-        if channelConnected {
-            leaveChannel()
+    @discardableResult
+    func clearCredentials(
+        discardOpaqueRedemptionRecovery: Bool = false
+    ) async -> Bool {
+        guard !isAccountTeardownInProgress else { return false }
+        isAccountTeardownInProgress = true
+        defer { isAccountTeardownInProgress = false }
+        cancelTokenValidationSchedule()
+        // Cancel task/UI owners synchronously, but do not supersede the
+        // credential revision until the old service transport is fully gone.
+        joinGeneration &+= 1
+        joinTask?.cancel()
+        joinTask = nil
+        oauthGeneration &+= 1
+        oAuthTask?.cancel()
+        oAuthTask = nil
+        oauthCredentialRevision = nil
+        pendingTestAuthTask?.cancel()
+        pendingTestAuthTask = nil
+        let service = twitchService
+        await TwitchTokenRefresher.invalidateSession()
+        guard await leaveServiceForAccountTransition(
+            service,
+            discardOpaqueRedemptionRecovery: discardOpaqueRedemptionRecovery
+        ) else {
+            restoreTokenValidationScheduleForStoredCredential()
+            showAccountTeardownRetry()
+            return false
+        }
+        do {
+            try TwitchCredentialStore.shared.clearCredentials(
+                includingChannel: true)
+        } catch {
+            restoreTokenValidationScheduleForStoredCredential()
+            showCredentialDeletionRetry(error)
+            return false
         }
 
-        // Clear all keychain data
-        KeychainService.deleteTwitchUsername()
-        KeychainService.deleteTwitchBotUserID()
-        KeychainService.deleteTwitchToken()
-        KeychainService.deleteTwitchChannelID()
-
-        // Clear all state
+        // Clear all state only after the Keychain transaction commits.
         botUsername = ""
         oauthToken = ""
         channelID = ""
+        Preferences.clearPendingImportedTwitchChannelName()
         credentialsSaved = false
         setReauthFlag(false)
         statusMessage = ""
         authState = .idle
         channelValidationState = .idle
+        isConnecting = false
+        channelConnected = false
+        return true
     }
 
     /// Clears OAuth credentials and bot identity without touching the channel name.
     /// Use for re-authentication flows where the target channel should be preserved.
-    func clearAuthOnly() {
-        if channelConnected {
-            leaveChannel()
+    @discardableResult
+    func clearAuthOnly() async -> Bool {
+        guard !isAccountTeardownInProgress else { return false }
+        isAccountTeardownInProgress = true
+        defer { isAccountTeardownInProgress = false }
+        cancelTokenValidationSchedule()
+        // Cancel task/UI owners synchronously, but do not supersede the
+        // credential revision until the old service transport is fully gone.
+        joinGeneration &+= 1
+        joinTask?.cancel()
+        joinTask = nil
+        oauthGeneration &+= 1
+        oAuthTask?.cancel()
+        oAuthTask = nil
+        oauthCredentialRevision = nil
+        pendingTestAuthTask?.cancel()
+        pendingTestAuthTask = nil
+        let service = twitchService
+        await TwitchTokenRefresher.invalidateSession()
+        guard await leaveServiceForAccountTransition(service) else {
+            restoreTokenValidationScheduleForStoredCredential()
+            showAccountTeardownRetry()
+            return false
         }
-
-        KeychainService.deleteTwitchUsername()
-        KeychainService.deleteTwitchBotUserID()
-        KeychainService.deleteTwitchToken()
+        do {
+            try TwitchCredentialStore.shared.clearCredentials(
+                includingChannel: false)
+        } catch {
+            restoreTokenValidationScheduleForStoredCredential()
+            showCredentialDeletionRetry(error)
+            return false
+        }
 
         botUsername = ""
         oauthToken = ""
@@ -630,6 +814,9 @@ final class TwitchViewModel {
         statusMessage = ""
         authState = .idle
         channelValidationState = .idle
+        isConnecting = false
+        channelConnected = false
+        return true
     }
 
     /// Joins the configured Twitch channel with the saved bot credentials.
@@ -646,10 +833,10 @@ final class TwitchViewModel {
     /// - Verifies Client ID is configured
     ///
     /// Connection Process:
-    /// 1. Shows "Connecting to Twitch..." status
-    /// 2. Calls TwitchChatService.connectToChannel() (async, off-thread)
-    /// 3. TwitchChatService validates and resolves user IDs
-    /// 4. Establishes EventSub WebSocket connection
+    /// 1. Validates the draft channel against Twitch
+    /// 2. Safely drains and leaves the prior EventSub broadcaster
+    /// 3. Commits the validated channel with credential compare-and-swap
+    /// 4. Establishes the replacement EventSub WebSocket connection
     /// 5. Updates UI state on success/failure
     ///
     /// UI Updates:
@@ -662,18 +849,15 @@ final class TwitchViewModel {
     /// - Generic errors from system are caught and displayed
     /// - Errors are logged; UI shows user-friendly messages
     ///
-    /// Note: Does not validate that channel name exists on Twitch.
-    /// Validation happens during EventSub subscription in TwitchChatService.
+    /// The canonical channel remains unchanged if validation or safe teardown
+    /// fails, so reconnect owners never observe an unvalidated draft.
     ///
     func joinChannel() {
+        guard !isAccountTeardownInProgress else { return }
+        joinTask?.cancel()
+        joinGeneration &+= 1
+        let generation = joinGeneration
         isConnecting = true
-
-        guard let token = KeychainService.loadTwitchToken(), !token.isEmpty else {
-            statusMessage = "❌ No OAuth token found. Please sign in first."
-            Log.error("TwitchViewModel: No OAuth token found", category: "Twitch")
-            isConnecting = false
-            return
-        }
 
         let channel = channelID.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
         guard !channel.isEmpty else {
@@ -688,96 +872,134 @@ final class TwitchViewModel {
             return
         }
 
-        guard let clientID = TwitchChatService.resolveClientID(), !clientID.isEmpty else {
+        guard let clientID = twitchClientIDProvider(), !clientID.isEmpty else {
             statusMessage = "❌ Client ID not configured"
             isConnecting = false
             return
         }
 
-        Task {
+        guard let credential = TwitchCredentialStore.shared.connectionSnapshot() else {
+            statusMessage = "❌ No OAuth token found. Please sign in first."
+            Log.error("TwitchViewModel: No OAuth token found", category: "Twitch")
+            isConnecting = false
+            return
+        }
+
+        joinTask = Task { @MainActor [weak self] in
+            guard let self else { return }
+            defer {
+                if self.joinGeneration == generation {
+                    self.joinTask = nil
+                }
+            }
             do {
                 // Access the service property which will fetch from AppDelegate if needed
                 guard let service = self.twitchService else {
-                    await MainActor.run {
-                        self.statusMessage =
-                            "❌ Twitch service not initialized. Try restarting the app."
-                        self.isConnecting = false
-                    }
+                    self.statusMessage =
+                        "❌ Twitch service not initialized. Try restarting the app."
+                    self.isConnecting = false
                     Log.error(
                         "TwitchViewModel: twitchService property returned nil", category: "Twitch")
                     return
                 }
 
                 // Validate channel exists before attempting connection
-                await MainActor.run {
-                    self.channelValidationState = .validating
-                    self.statusMessage = "Verifying channel..."
-                }
+                self.channelValidationState = .validating
+                self.statusMessage = "Verifying channel..."
 
                 let validationResult = await service.validateChannelExists(
-                    channel, token: token, clientID: clientID)
+                    channel, token: credential.accessToken, clientID: clientID)
+                guard !Task.isCancelled,
+                      self.joinGeneration == generation,
+                      !self.isAccountTeardownInProgress,
+                      TwitchCredentialStore.shared.connectionSnapshot() == credential else {
+                    throw CancellationError()
+                }
 
                 switch validationResult {
                 case .exists:
-                    await MainActor.run {
-                        self.channelValidationState = .valid
-                    }
+                    break
                 case .notFound:
-                    await MainActor.run {
-                        self.channelValidationState = .invalid
-                        self.statusMessage = "❌ Channel \"\(channel)\" not found on Twitch"
-                        self.isConnecting = false
-                    }
+                    self.channelValidationState = .invalid
+                    self.statusMessage = "❌ Channel \"\(channel)\" not found on Twitch"
+                    self.isConnecting = false
                     return
                 case .authenticationFailed:
-                    await MainActor.run {
-                        self.channelValidationState = .error("Authentication failed")
-                        self.statusMessage = "❌ Authentication failed. Try signing in again."
-                        self.isConnecting = false
-                    }
+                    self.channelValidationState = .error("Authentication failed")
+                    self.statusMessage = "❌ Authentication failed. Try signing in again."
+                    self.isConnecting = false
                     return
                 case .error(let message):
-                    await MainActor.run {
-                        self.channelValidationState = .error(message)
-                        self.statusMessage = "❌ Validation error: \(message)"
-                        self.isConnecting = false
-                    }
+                    self.channelValidationState = .error(message)
+                    self.statusMessage = "❌ Validation error: \(message)"
+                    self.isConnecting = false
                     return
                 }
+
+                // Quiesce and drain the old broadcaster before publishing the
+                // new canonical channel. This keeps the old managed reward from
+                // accepting a paid redemption in the commit-to-disconnect gap.
+                guard await self.leaveServiceForAccountTransition(service) else {
+                    guard self.joinGeneration == generation else { return }
+                    self.channelValidationState = .error("Could not safely disconnect")
+                    self.statusMessage =
+                        "⚠️ Could not safely disconnect Twitch. Please try Join again."
+                    self.isConnecting = false
+                    return
+                }
+                guard !Task.isCancelled,
+                      self.joinGeneration == generation,
+                      !self.isAccountTeardownInProgress,
+                      TwitchCredentialStore.shared.connectionSnapshot() == credential else {
+                    throw CancellationError()
+                }
+
+                guard let committedCredential = try TwitchCredentialStore.shared
+                    .commitChannelID(channel, expected: credential) else {
+                    throw CancellationError()
+                }
+                self.channelValidationState = .valid
 
                 Log.info(
                     "TwitchViewModel: Twitch service found, starting connection to channel: \(channel)",
                     category: "Twitch")
 
-                await MainActor.run {
-                    self.statusMessage = "Connecting to Twitch..."
-                }
+                self.statusMessage = "Connecting to Twitch..."
 
                 await service.setShouldSendConnectionMessageOnSubscribe(true)
+                guard !Task.isCancelled,
+                      self.joinGeneration == generation,
+                      !self.isAccountTeardownInProgress,
+                      TwitchCredentialStore.shared.connectionSnapshot() == committedCredential else {
+                    throw CancellationError()
+                }
 
                 try await service.connectToChannel(
                     channelName: channel,
-                    token: token,
-                    clientID: clientID
+                    token: committedCredential.accessToken,
+                    clientID: clientID,
+                    expectedCredentialRevision: committedCredential.revision
                 )
 
                 // Don't set channelConnected here - it will be set by the notification
                 // from the service when the EventSub session is actually established
-                await MainActor.run {
-                    self.statusMessage = "Waiting for connection..."
+                guard self.joinGeneration == generation else { return }
+                self.statusMessage = "Waiting for connection..."
+            } catch is CancellationError {
+                if self.joinGeneration == generation {
+                    self.isConnecting = false
                 }
+                return
             } catch let error as TwitchChatService.ConnectionError {
-                await MainActor.run {
-                    self.statusMessage = "❌ Connection failed: \(error)"
-                    self.channelConnected = false
-                    self.isConnecting = false
-                }
+                guard self.joinGeneration == generation else { return }
+                self.statusMessage = "❌ Connection failed: \(error)"
+                self.channelConnected = false
+                self.isConnecting = false
             } catch {
-                await MainActor.run {
-                    self.statusMessage = "❌ Error: \(error.localizedDescription)"
-                    self.channelConnected = false
-                    self.isConnecting = false
-                }
+                guard self.joinGeneration == generation else { return }
+                self.statusMessage = "❌ Error: \(error.localizedDescription)"
+                self.channelConnected = false
+                self.isConnecting = false
             }
         }
     }
@@ -787,8 +1009,19 @@ final class TwitchViewModel {
     /// Performs a lightweight HTTP GET to the Twitch token validation endpoint
     /// to verify the token is still valid and has the required scopes.
     func testConnection() {
-        guard let token = KeychainService.loadTwitchToken(), !token.isEmpty else {
-            statusMessage = "❌ No OAuth token found"
+        let token: String
+        do {
+            guard let storedToken = try KeychainService
+                .loadTwitchCredentialGrantChecked().accessToken,
+                  !storedToken.isEmpty else {
+                statusMessage = "❌ No OAuth token found"
+                testAuthResult = .failure
+                scheduleTestAuthReset()
+                return
+            }
+            token = storedToken
+        } catch {
+            statusMessage = "⚠️ Could not access saved Twitch credentials. Try again."
             testAuthResult = .failure
             scheduleTestAuthReset()
             return
@@ -807,18 +1040,20 @@ final class TwitchViewModel {
         // Cancel any in-flight test-auth task to prevent stale resets
         pendingTestAuthTask?.cancel()
         pendingTestAuthTask = Task {
-            let isValid = await service.validateToken(token)
+            let result = await service.validateToken(token)
             guard !Task.isCancelled else { return }
-            await MainActor.run {
-                if isValid {
-                    self.statusMessage = "✅ Token is valid. Scopes OK"
-                    self.testAuthResult = .success
-                } else {
-                    self.statusMessage = "❌ Token is invalid or expired"
-                    self.testAuthResult = .failure
-                }
-                self.scheduleTestAuthReset()
+            switch result {
+            case .valid:
+                self.statusMessage = "✅ Token is valid. Scopes OK"
+                self.testAuthResult = .success
+            case .invalid:
+                self.statusMessage = "❌ Token is invalid or expired"
+                self.testAuthResult = .failure
+            case .temporarilyUnavailable:
+                self.statusMessage = "⚠️ Could not verify token. Try again shortly"
+                self.testAuthResult = .failure
             }
+            self.scheduleTestAuthReset()
         }
     }
 
@@ -832,12 +1067,34 @@ final class TwitchViewModel {
     /// actually changes.
     func refreshAuthStatus() async {
         guard credentialsSaved, !reauthNeeded else { return }
-        guard let token = KeychainService.loadTwitchToken(), !token.isEmpty,
-              let service = twitchService else { return }
+        let token: String
+        do {
+            guard let storedToken = try KeychainService
+                .loadTwitchCredentialGrantChecked().accessToken,
+                  !storedToken.isEmpty else { return }
+            token = storedToken
+        } catch {
+            Log.warn(
+                "TwitchViewModel: Skipping background token validation because "
+                    + "Keychain is temporarily unavailable",
+                category: "Twitch"
+            )
+            return
+        }
+        guard let service = twitchService else { return }
 
-        let isValid = await service.validateToken(token)
-        guard !isValid else { return }
+        let result = await service.validateToken(token)
+        applyTokenValidationResult(result)
+    }
 
+    /// Applies a background validation result without conflating an outage with
+    /// an expired grant. Internal so the credential-preservation rule has direct
+    /// regression coverage without performing a live Twitch request.
+    func applyTokenValidationResult(_ result: TwitchChatService.TokenValidationResult) {
+        // Only Twitch's explicit invalid-token response (or confirmed missing
+        // required scopes) may expire the local session. Outages are retried on
+        // the next cadence without touching credentials or the re-auth flag.
+        guard result == .invalid else { return }
         setReauthFlag(true)
     }
 
@@ -866,13 +1123,81 @@ final class TwitchViewModel {
     /// - Connection state notifications are posted
     ///
     func leaveChannel() {
-        if let service = twitchService {
-            Task { await service.leaveChannel() }
+        guard let service = twitchService else {
+            channelConnected = false
+            return
         }
-        channelConnected = false
+        Task { @MainActor [weak self] in
+            guard let self else { return }
+            if await service.leaveChannel() {
+                self.channelConnected = false
+            } else {
+                self.statusMessage =
+                    "⚠️ Could not safely disconnect Twitch. Please try again."
+            }
+        }
     }
 
     // MARK: - Private Methods
+
+    /// Cancels any join that belongs to the old account before an OAuth/manual
+    /// replacement starts. The returned actor is then awaited for transport
+    /// teardown by the owning structured task.
+    private func cancelJoinForAccountTransition() -> TwitchChatService? {
+        joinGeneration &+= 1
+        joinTask?.cancel()
+        joinTask = nil
+        isConnecting = false
+        return twitchService
+    }
+
+    /// Account replacement/clear may destroy the last credentials able to hold
+    /// the managed reward. A newer explicit join supersedes the pending leave;
+    /// in that case preserve Keychain state and ask the user to retry instead of
+    /// clearing credentials under a live replacement session.
+    private func leaveServiceForAccountTransition(
+        _ service: TwitchChatService?,
+        discardOpaqueRedemptionRecovery: Bool = false
+    ) async -> Bool {
+        await leaveAccountService(service, discardOpaqueRedemptionRecovery)
+    }
+
+    private func showAccountTeardownRetry() {
+        let message = "Could not safely disconnect Twitch. Please try again."
+        statusMessage = "⚠️ \(message)"
+        authState = .error(message)
+    }
+
+    private func showCredentialDeletionRetry(_ error: Error) {
+        let message = "Could not clear saved Twitch credentials. Please try again."
+        statusMessage = "⚠️ \(message)"
+        authState = .error(message)
+        Log.error(
+            "TwitchViewModel: Keychain credential deletion failed - \(error.localizedDescription)",
+            category: "Twitch")
+    }
+
+    /// Installs exactly one validation owner for whichever durable grant
+    /// survived an OAuth cancellation/failure, or leaves validation stopped
+    /// when there is no stored account.
+    func restoreTokenValidationScheduleForStoredCredential() {
+        do {
+            if try KeychainService.loadTwitchCredentialGrantChecked().accessToken == nil {
+                cancelTokenValidationSchedule()
+            } else {
+                restartTokenValidationSchedule()
+            }
+        } catch {
+            // A read error is uncertainty, not confirmed absence. Retain a
+            // validator owner so a durable token cannot be abandoned silently.
+            Log.warn(
+                "TwitchViewModel: Conservatively restoring token validation "
+                    + "after a Keychain read failure",
+                category: "Twitch"
+            )
+            restartTokenValidationSchedule()
+        }
+    }
 
     /// Updates the published authorization state. Centralized so the
     /// observable-mutation site is consistent in the future when telemetry or
@@ -901,15 +1226,45 @@ final class TwitchViewModel {
     /// - Parameters:
     ///   - token: New OAuth access token.
     ///   - clientID: Twitch developer client ID used to mint the token.
-    private func handleOAuthSuccess(token: String, clientID: String) async {
+    @discardableResult
+    func handleOAuthSuccess(
+        grant: TwitchTokenResponse,
+        clientID: String,
+        generation: UInt64,
+        credentialRevision: UInt64
+    ) async -> Bool {
+        guard !Task.isCancelled, oauthGeneration == generation else { return false }
+        cancelTokenValidationSchedule()
         authState = .inProgress
         statusMessage = "✅ Authorization successful! Saving credentials..."
-        oauthToken = token
+        let pendingImportedChannel = Preferences.pendingImportedTwitchChannelName
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .lowercased()
+        let visibleChannel = channelID
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .lowercased()
+        let configuredChannel = !pendingImportedChannel.isEmpty
+            ? pendingImportedChannel
+            : (visibleChannel.isEmpty ? nil : visibleChannel)
 
         do {
-            try KeychainService.saveTwitchToken(token)
-            setReauthFlag(false)
-            credentialsSaved = true
+            guard try TwitchCredentialStore.shared.commitDeviceGrant(
+                grant,
+                channelID: configuredChannel,
+                expectedRevision: credentialRevision
+            ) else {
+                restoreTokenValidationScheduleForStoredCredential()
+                return true
+            }
+            // Install the new app-lifetime owner before any cancellable identity
+            // lookup so a committed grant is never left without validation.
+            restartTokenValidationSchedule()
+            guard !Task.isCancelled, oauthGeneration == generation else { return true }
+            oauthToken = grant.accessToken
+            if let configuredChannel {
+                channelID = configuredChannel
+            }
+            Preferences.clearPendingImportedTwitchChannelName()
         } catch {
             Log.error(
                 "TwitchViewModel: Failed to save OAuth token: \(error.localizedDescription)",
@@ -917,18 +1272,42 @@ final class TwitchViewModel {
             )
             statusMessage = "⚠️ Keychain save failed: \(error.localizedDescription)"
             authState = .error(error.localizedDescription)
-            return
+            restoreTokenValidationScheduleForStoredCredential()
+            return true
         }
 
-        // Resolve bot identity
+        // Resolve bot identity. The committed grant already has an app-lifetime
+        // validation owner even if this follow-up lookup fails or is cancelled.
         do {
-            try await TwitchChatService.resolveBotIdentityStatic(token: token, clientID: clientID)
-            if let username = KeychainService.loadTwitchUsername() {
-                botUsername = username
-                statusMessage = "✅ Bot identity resolved: \(username)"
-                authState = .idle
+            try await resolveBotIdentity(
+                grant.accessToken,
+                clientID,
+                credentialRevision)
+            guard !Task.isCancelled, oauthGeneration == generation else { return true }
+            let committedGrant = try KeychainService.loadTwitchCredentialGrantChecked()
+            guard committedGrant.accessToken == grant.accessToken else {
+                throw CancellationError()
             }
+            guard let username = committedGrant.username, !username.isEmpty else {
+                throw TwitchChatService.ConnectionError.invalidCredentials
+            }
+            botUsername = username
+            channelID = committedGrant.channelID ?? ""
+            setReauthFlag(false)
+            credentialsSaved = true
+            statusMessage = "✅ Bot identity resolved: \(username)"
+            authState = .idle
+            await twitchService?.replayPendingRedemptionResolutions()
+        } catch is CancellationError {
+            guard oauthGeneration == generation else { return true }
+            oauthToken = ""
+            botUsername = ""
+            credentialsSaved = false
+            statusMessage = ""
+            authState = .idle
+            return true
         } catch {
+            guard !Task.isCancelled, oauthGeneration == generation else { return true }
             Log.error(
                 "TwitchViewModel: Failed to resolve bot identity: \(error.localizedDescription)",
                 category: "Twitch"
@@ -936,20 +1315,18 @@ final class TwitchViewModel {
             statusMessage = "⚠️ Could not resolve bot identity: \(error.localizedDescription)"
             authState = .error(error.localizedDescription)
         }
-        // Ensure botUsername is up-to-date from Keychain even if the
-        // identity resolution path above didn't set it (e.g. partial failure).
-        self.botUsername = KeychainService.loadTwitchUsername() ?? ""
-
-        // Ensure any polling/outer tasks are cleared after success
-        devicePollingTask = nil
-        oAuthTask = nil
+        return true
     }
 
     /// Maps a `TwitchDeviceAuthError` into a user-facing `statusMessage` and
     /// transitions the auth state machine to `.error` for UI display.
     ///
     /// - Parameter error: Failure produced by the device-code OAuth flow.
-    private func handleOAuthError(_ error: TwitchDeviceAuthError) async {
+    private func handleOAuthError(
+        _ error: TwitchDeviceAuthError,
+        generation: UInt64
+    ) async {
+        guard !Task.isCancelled, oauthGeneration == generation else { return }
         let message: String
         switch error {
         case .accessDenied:
@@ -967,9 +1344,6 @@ final class TwitchViewModel {
         }
         statusMessage = message
         authState = .error(message)
-        // Clear any polling/outer tasks on error
-        devicePollingTask = nil
-        oAuthTask = nil
     }
 
     // deinit handled above to remove all observers

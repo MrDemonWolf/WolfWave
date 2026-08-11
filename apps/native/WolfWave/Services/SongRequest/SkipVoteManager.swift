@@ -39,6 +39,8 @@ actor SkipVoteManager {
     /// The result of recording a `!voteskip`. Returned as a value (not a string) so
     /// the logic stays unit-testable; `VoteSkipCommand` formats the chat reply.
     enum VoteOutcome: Equatable, Sendable {
+        /// The invoking command was cancelled before state could be mutated.
+        case cancelled
         /// The feature master toggle is off, the command should stay silent.
         case disabled
         /// Subscriber-only voting is on and the voter is not a subscriber.
@@ -243,6 +245,7 @@ actor SkipVoteManager {
 
     /// Records a `!voteskip` from `context` and returns the outcome.
     func recordVote(context: BotCommandContext) async -> VoteOutcome {
+        guard !Task.isCancelled else { return .cancelled }
         guard isEnabled else { return .disabled }
         // A native poll remains remote state even if the local mode toggle is
         // changed. Never open a simultaneous chat tally while it is latched.
@@ -364,6 +367,7 @@ actor SkipVoteManager {
         context: BotCommandContext,
         fallbackTarget: PlaybackTarget? = nil
     ) async -> VoteOutcome {
+        guard !Task.isCancelled else { return .cancelled }
         if isSubscriberOnly && !context.isSubscriber && !context.isPrivileged {
             return .subscriberOnly
         }
@@ -382,6 +386,7 @@ actor SkipVoteManager {
                   openingLifecycleGeneration == lifecycleGeneration else {
                 return .playbackUnavailable
             }
+            guard !Task.isCancelled else { return .cancelled }
             guard isEnabled else { return .disabled }
             guard !usePolls else { return .playbackUnavailable }
             openingTarget = captured
@@ -451,9 +456,11 @@ actor SkipVoteManager {
             return outcome
         case .pass(let count, let target):
             postState()
+            guard !Task.isCancelled else { return .cancelled }
             guard await performSkip?(target) == true else {
                 return .skipUnavailable
             }
+            guard !Task.isCancelled else { return .cancelled }
             onVoteEvent?(.passed)
             return .passed(count: count)
         }
@@ -462,6 +469,7 @@ actor SkipVoteManager {
     // MARK: - Polls Voting
 
     private func handlePollVote(context: BotCommandContext) async -> VoteOutcome {
+        guard !Task.isCancelled else { return .cancelled }
         guard context.isPrivileged else { return .pollNotAllowed }
 
         if pollActive { return .pollInProgress }
@@ -470,6 +478,7 @@ actor SkipVoteManager {
         guard let target = await targetForNewVote() else {
             return .playbackUnavailable
         }
+        guard !Task.isCancelled else { return .cancelled }
         guard requestTrackGeneration == trackGeneration else {
             return .pollTrackChanged
         }
@@ -518,6 +527,19 @@ actor SkipVoteManager {
                 clearPollState()
             }
             return .pollTrackChanged
+        }
+
+        if Task.isCancelled {
+            switch creation {
+            case .created(let pollID):
+                activePollID = pollID
+                startPollTimeoutTask()
+            case .pollAlreadyActive, .indeterminate:
+                startPollTimeoutTask()
+            case .definitiveFailure:
+                clearPollState()
+            }
+            return .cancelled
         }
 
         switch creation {

@@ -246,7 +246,7 @@ struct OnboardingView: View {
     private func cancelTwitchOAuthIfNeeded() {
         guard viewModel.currentStep == .twitchConnect else { return }
         if case .authorizing = twitchViewModel.integrationState {
-            twitchViewModel.cancelOAuth()
+            Task { @MainActor in await twitchViewModel.cancelOAuth() }
         }
     }
 

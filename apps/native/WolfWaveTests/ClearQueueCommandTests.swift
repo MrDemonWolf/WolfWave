@@ -62,13 +62,12 @@ final class ClearQueueCommandTests: WolfWaveTestCase {
 
     // MARK: - Privilege Gate
 
-    func testViewerCannotClear() {
+    func testViewerCannotClear() async {
         let command = ClearQueueCommand()
         command.songRequestService = { self.makeService() }
 
-        var replyCalled = false
-        command.execute(message: "!clearqueue", context: viewerContext()) { _ in replyCalled = true }
-        XCTAssertFalse(replyCalled)
+        let reply = await command.execute(message: "!clearqueue", context: viewerContext())
+        XCTAssertNil(reply)
     }
 
     // MARK: - Empty Queue
@@ -77,20 +76,17 @@ final class ClearQueueCommandTests: WolfWaveTestCase {
         let command = ClearQueueCommand()
         command.songRequestService = { self.makeService() }
 
-        let reply = await captureReply { done in
-            command.execute(message: "!clearqueue", context: self.privilegedContext()) { done($0) }
-        }
+        let reply = await command.execute(message: "!clearqueue", context: privilegedContext()) ?? ""
         XCTAssertTrue(reply.lowercased().contains("already empty"))
     }
 
     // MARK: - Missing Service
 
-    func testMissingServiceIsSilent() {
+    func testMissingServiceIsSilent() async {
         let command = ClearQueueCommand()
         command.songRequestService = { nil }
 
-        var replyCalled = false
-        command.execute(message: "!clearqueue", context: privilegedContext()) { _ in replyCalled = true }
-        XCTAssertFalse(replyCalled)
+        let reply = await command.execute(message: "!clearqueue", context: privilegedContext())
+        XCTAssertNil(reply)
     }
 }

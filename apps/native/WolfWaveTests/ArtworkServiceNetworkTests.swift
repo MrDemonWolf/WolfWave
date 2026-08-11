@@ -18,14 +18,16 @@ import XCTest
 final class ArtworkServiceNetworkTests: XCTestCase {
 
     private var service: ArtworkService!
+    private let handlerStore = MockURLProtocol.HandlerStore()
 
     override func setUp() {
         super.setUp()
-        service = ArtworkService(session: MockURLProtocol.makeSession(), persistenceURL: nil)
+        handlerStore.handler = nil
+        service = ArtworkService(session: MockURLProtocol.makeSession(handlerStore: handlerStore), persistenceURL: nil)
     }
 
     override func tearDown() {
-        MockURLProtocol.reset()
+        handlerStore.handler = nil
         service = nil
         super.tearDown()
     }
@@ -40,7 +42,7 @@ final class ArtworkServiceNetworkTests: XCTestCase {
     }
 
     func testFetchTrackLinksParsesFieldsAndUpgradesArtworkResolution() async {
-        MockURLProtocol.requestHandler = { request in
+        handlerStore.handler = { request in
             let result = #"{"artworkUrl100":"https://cdn.example/100x100bb.jpg","trackViewUrl":"https://music.apple.com/track","trackId":42}"#
             let json = #"{"results":[\#(result)]}"#
             return (MockURLProtocol.httpResponse(for: request, status: 200), Data(json.utf8))
@@ -54,7 +56,7 @@ final class ArtworkServiceNetworkTests: XCTestCase {
     }
 
     func testFetchTrackLinksReturnsNilFieldsOnEmptyResults() async {
-        MockURLProtocol.requestHandler = { request in
+        handlerStore.handler = { request in
             (MockURLProtocol.httpResponse(for: request, status: 200), Data(#"{"results":[]}"#.utf8))
         }
 
@@ -66,7 +68,7 @@ final class ArtworkServiceNetworkTests: XCTestCase {
     }
 
     func testFetchTrackLinksHandlesNetworkError() async {
-        MockURLProtocol.requestHandler = { _ in throw URLError(.timedOut) }
+        handlerStore.handler = { _ in throw URLError(.timedOut) }
 
         let links = await fetchLinks(track: "Song", artist: "Artist")
 
@@ -79,7 +81,7 @@ final class ArtworkServiceNetworkTests: XCTestCase {
 
     func testTransportFailureIsRetriedInsteadOfNegativeCached() async {
         let counter = ThreadSafeBox(0)
-        MockURLProtocol.requestHandler = { request in
+        handlerStore.handler = { request in
             counter.mutate { $0 += 1 }
             let attempt = counter.value
             if attempt == 1 { throw URLError(.timedOut) }
@@ -97,7 +99,7 @@ final class ArtworkServiceNetworkTests: XCTestCase {
 
     func testServerFailureIsRetriedInsteadOfNegativeCached() async {
         let counter = ThreadSafeBox(0)
-        MockURLProtocol.requestHandler = { request in
+        handlerStore.handler = { request in
             counter.mutate { $0 += 1 }
             let attempt = counter.value
             if attempt == 1 {
@@ -117,7 +119,7 @@ final class ArtworkServiceNetworkTests: XCTestCase {
     }
 
     func testFetchTrackLinksPopulatesCache() async {
-        MockURLProtocol.requestHandler = { request in
+        handlerStore.handler = { request in
             let json = #"{"results":[{"artworkUrl100":"https://cdn.example/100x100.jpg","trackId":7}]}"#
             return (MockURLProtocol.httpResponse(for: request, status: 200), Data(json.utf8))
         }
@@ -130,7 +132,7 @@ final class ArtworkServiceNetworkTests: XCTestCase {
 
     func testMissIsNotRequeriedWithinTTL() async {
         let counter = ThreadSafeBox(0)
-        MockURLProtocol.requestHandler = { request in
+        handlerStore.handler = { request in
             counter.mutate { $0 += 1 }
             return (MockURLProtocol.httpResponse(for: request, status: 200), Data(#"{"results":[]}"#.utf8))
         }
@@ -148,13 +150,16 @@ final class ArtworkServiceNetworkTests: XCTestCase {
             .appendingPathComponent("artwork-test-\(UUID().uuidString).json")
         defer { try? FileManager.default.removeItem(at: url) }
 
-        MockURLProtocol.requestHandler = { request in
+        handlerStore.handler = { request in
             let json = #"{"results":[{"artworkUrl100":"https://cdn.example/100x100.jpg","trackId":7}]}"#
             return (MockURLProtocol.httpResponse(for: request, status: 200), Data(json.utf8))
         }
 
         // First instance fetches + persists to disk.
-        let first = ArtworkService(session: MockURLProtocol.makeSession(), persistenceURL: url)
+        let first = ArtworkService(
+            session: MockURLProtocol.makeSession(handlerStore: handlerStore),
+            persistenceURL: url
+        )
         _ = await withCheckedContinuation { (cont: CheckedContinuation<TrackLinks, Never>) in
             first.fetchTrackLinks(track: "Persisted", artist: "Artist") { cont.resume(returning: $0) }
         }
@@ -164,7 +169,10 @@ final class ArtworkServiceNetworkTests: XCTestCase {
         XCTAssertTrue(wrote, "Cache file should be written within the timeout")
 
         // Second instance loads from the same file, no network.
-        let second = ArtworkService(session: MockURLProtocol.makeSession(), persistenceURL: url)
+        let second = ArtworkService(
+            session: MockURLProtocol.makeSession(handlerStore: handlerStore),
+            persistenceURL: url
+        )
         let cached = second.cachedTrackLinks(track: "Persisted", artist: "Artist")
         XCTAssertEqual(cached.artworkURL, "https://cdn.example/512x512.jpg")
     }
@@ -174,12 +182,12 @@ final class ArtworkServiceNetworkTests: XCTestCase {
             .appendingPathComponent("artwork-test-\(UUID().uuidString).json")
         defer { try? FileManager.default.removeItem(at: url) }
 
-        MockURLProtocol.requestHandler = { request in
+        handlerStore.handler = { request in
             let json = #"{"results":[{"artworkUrl100":"https://cdn.example/100x100.jpg","trackId":7}]}"#
             return (MockURLProtocol.httpResponse(for: request, status: 200), Data(json.utf8))
         }
 
-        let svc = ArtworkService(session: MockURLProtocol.makeSession(), persistenceURL: url)
+        let svc = ArtworkService(session: MockURLProtocol.makeSession(handlerStore: handlerStore), persistenceURL: url)
         _ = await withCheckedContinuation { (cont: CheckedContinuation<TrackLinks, Never>) in
             svc.fetchTrackLinks(track: "Doomed", artist: "Artist") { cont.resume(returning: $0) }
         }
@@ -194,14 +202,14 @@ final class ArtworkServiceNetworkTests: XCTestCase {
     }
 
     func testCachedResultIsServedWithoutHittingNetwork() async {
-        MockURLProtocol.requestHandler = { request in
+        handlerStore.handler = { request in
             let json = #"{"results":[{"artworkUrl100":"https://cdn.example/100x100.jpg","trackId":7}]}"#
             return (MockURLProtocol.httpResponse(for: request, status: 200), Data(json.utf8))
         }
         _ = await fetchLinks(track: "Track", artist: "Artist")
 
         // Any further network call now fails. A cache hit must avoid it.
-        MockURLProtocol.requestHandler = { _ in throw URLError(.notConnectedToInternet) }
+        handlerStore.handler = { _ in throw URLError(.notConnectedToInternet) }
         let links = await fetchLinks(track: "Track", artist: "Artist")
 
         XCTAssertEqual(links.artworkURL, "https://cdn.example/512x512.jpg")
