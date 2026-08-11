@@ -18,6 +18,16 @@ extension DiscordRPCService {
     /// Tries each candidate temp directory, and within each, tries sockets 0 through 9.
     /// Keeps the first successful connection.
     func connectIfNeeded() async {
+        if let pendingClose = ipcCloseInProgress {
+            await pendingClose.wait()
+            if ipcCloseInProgress === pendingClose {
+                ipcCloseInProgress = nil
+            }
+        }
+        // The close wait is an actor-reentrancy point. A disable may have won
+        // while it was suspended, so do not let the stale connect publish a
+        // new `.connecting` state after the final user intent is already off.
+        guard isEnabled else { return }
         guard state == .disconnected else { return }
         guard !clientID.isEmpty else {
             Log.warn("DiscordRPCService: No client ID configured: skipping connection", category: "Discord")
@@ -25,6 +35,7 @@ extension DiscordRPCService {
         }
 
         state = .connecting
+        let attemptGeneration = connectionGeneration
 
         let candidates = tempDirectoryCandidates()
         guard !candidates.isEmpty else {
@@ -52,28 +63,43 @@ extension DiscordRPCService {
                 // is in flight, close the just-opened fd on `ipcQueue` and bail
                 // without committing `socketFD`/`state`, so a stale connect can
                 // never overwrite a fresh teardown.
-                let generation = connectionGeneration
-                let fd = await runOnIPCQueue { Self.openIPCSocket(at: socketPath, slot: slot) }
-                guard fd >= 0 else { continue }
-
-                guard isEnabled, connectionGeneration == generation, state == .connecting else {
-                    await runOnIPCQueue { Self.closeFD(fd) }
+                let opener = ipcSocketOpener
+                let fd = await runOnIPCQueue { opener(socketPath, slot) }
+                guard isEnabled,
+                      connectionGeneration == attemptGeneration,
+                      state == .connecting else {
+                    if fd >= 0 {
+                        let closer = ipcSocketCloser
+                        await runOnIPCQueue { closer(fd) }
+                    }
+                    // If this attempt still owns the generation, a disable
+                    // interleaved after the opener was queued but before it
+                    // returned. Retire its transient state so a later enable
+                    // can start a fresh connection. Never overwrite a newer
+                    // generation's state.
+                    if connectionGeneration == attemptGeneration,
+                       state == .connecting {
+                        state = .disconnected
+                    }
                     return
                 }
+                guard fd >= 0 else { continue }
 
                 socketFD = fd
+                ipcReadBuffer = IPCReadBuffer()
                 if await performHandshake() {
-                    // performHandshake suspends twice (write + read on ipcQueue).
-                    // A setEnabled(false) interleave during those awaits bumps the
-                    // generation and sets socketFD = -1; committing .connected
-                    // unconditionally here would wedge the service .connected on a
-                    // dead fd forever (sendFrame no-ops on fd < 0, and both
-                    // connectIfNeeded and pollTick guard state == .disconnected, so
-                    // re-enabling can never reconnect until relaunch). Re-validate.
-                    guard isEnabled, connectionGeneration == generation, socketFD == fd else {
-                        if socketFD == fd {
-                            await runOnIPCQueue { Self.closeFD(fd) }
-                            socketFD = -1
+                    // performHandshake suspends while one write/read transaction
+                    // runs on ipcQueue. A setEnabled(false) interleave during that
+                    // await bumps the generation and sets socketFD = -1. Committing
+                    // .connected here would wedge the service on a dead fd because
+                    // connectIfNeeded and pollTick both require .disconnected.
+                    // Re-validate before publishing the successful connection.
+                    guard ownsConnection(fd: fd, generation: attemptGeneration), isEnabled else {
+                        if ownsConnection(fd: fd, generation: attemptGeneration) {
+                            await retirePreSourceConnection(
+                                fd: fd,
+                                generation: attemptGeneration
+                            )
                         }
                         return
                     }
@@ -81,6 +107,7 @@ extension DiscordRPCService {
                     reconnectDelay = AppConstants.Discord.reconnectBaseDelay
                     updateAvailabilityPolling()
                     await refreshPresenceFromSettings()
+                    startIPCReadPump()
                     return
                 } else {
                     Log.warn("DiscordRPCService: Handshake failed on slot \(slot)", category: "Discord")
@@ -89,16 +116,29 @@ extension DiscordRPCService {
                     // and resets socketFD to -1. Only close here if the fd is
                     // still ours; otherwise we'd double-close (EBADF, and a
                     // recycled fd could be hit in edge cases).
-                    if socketFD == fd {
-                        await runOnIPCQueue { Self.closeFD(fd) }
-                        socketFD = -1
+                    if ownsConnection(fd: fd, generation: attemptGeneration) {
+                        await retirePreSourceConnection(
+                            fd: fd,
+                            generation: attemptGeneration
+                        )
                     }
+                    guard isEnabled, connectionGeneration == attemptGeneration else { return }
                 }
             }
         }
 
         Log.debug("DiscordRPCService: No active IPC socket found in any candidate directory", category: "Discord")
+        guard isEnabled,
+              connectionGeneration == attemptGeneration,
+              state == .connecting else { return }
         state = .disconnected
+    }
+
+    /// Result of one injected `poll` call used by the nonblocking-connect seam.
+    struct IPCPollResult: Sendable {
+        let count: Int32
+        let revents: Int16
+        let errno: Int32
     }
 
     /// Opens, connects, and applies timeouts to a Unix-domain socket at
@@ -106,7 +146,7 @@ extension DiscordRPCService {
     /// blocking `connect()` belongs). Returns the connected fd with send/receive
     /// timeouts applied, or -1 on any failure (closing any partial fd first).
     /// `slot` is used only for logging.
-    private nonisolated static func openIPCSocket(at socketPath: String, slot: Int) -> Int32 {
+    nonisolated static func openIPCSocket(at socketPath: String, slot: Int) -> Int32 {
         let fd = socket(AF_UNIX, SOCK_STREAM, 0)
         guard fd >= 0 else { return -1 }
 
@@ -128,6 +168,13 @@ extension DiscordRPCService {
             }
         }
 
+        let originalFlags = fcntl(fd, F_GETFL, 0)
+        guard originalFlags >= 0,
+              fcntl(fd, F_SETFL, originalFlags | O_NONBLOCK) == 0 else {
+            Darwin.close(fd)
+            return -1
+        }
+
         let addrLen = socklen_t(MemoryLayout<sockaddr_un>.size)
         let result = withUnsafePointer(to: &addr) { addrPtr in
             addrPtr.withMemoryRebound(to: sockaddr.self, capacity: 1) { sockaddrPtr in
@@ -135,38 +182,152 @@ extension DiscordRPCService {
             }
         }
 
-        guard result == 0 else {
-            let err = errno
+        let connectError: Int32
+        if result == 0 {
+            connectError = 0
+        } else {
+            let immediateError = errno
+            if immediateError == EINPROGRESS {
+                connectError = waitForNonblockingConnect(
+                    fd: fd,
+                    deadline: monotonicDeadline(
+                        afterNanoseconds: UInt64(AppConstants.Discord.socketTimeoutSeconds)
+                            * 1_000_000_000
+                    ),
+                    now: monotonicNow,
+                    poller: systemPollForWrite,
+                    socketError: pendingSocketError
+                )
+            } else {
+                connectError = immediateError
+            }
+        }
+
+        let restoreResult = fcntl(fd, F_SETFL, originalFlags)
+        guard connectError == 0, restoreResult == 0 else {
+            let err = connectError != 0 ? connectError : errno
             Log.debug("DiscordRPCService: connect() failed on slot \(slot): errno \(err) (\(String(cString: strerror(err))))", category: "Discord")
             Darwin.close(fd)
             return -1
         }
 
-        setSocketTimeouts(fd)
+        guard setSocketTimeouts(fd) else {
+            Darwin.close(fd)
+            return -1
+        }
         return fd
     }
 
-    /// Sends the RPC handshake (opcode 0) with the client ID.
+    /// Waits for a nonblocking connect to finish within an absolute monotonic
+    /// deadline. `poller`, `socketError`, and `now` are injected so timeout and
+    /// error handling are deterministic in unit tests without a live socket.
+    nonisolated static func waitForNonblockingConnect(
+        fd: Int32,
+        deadline: UInt64,
+        now: () -> UInt64,
+        poller: (Int32, Int32) -> IPCPollResult,
+        socketError: (Int32) -> Int32
+    ) -> Int32 {
+        while true {
+            let current = now()
+            guard current < deadline else { return ETIMEDOUT }
+            let timeout = pollTimeoutMilliseconds(deadline: deadline, now: current)
+            let result = poller(fd, timeout)
+            if result.count > 0 {
+                return socketError(fd)
+            }
+            if result.count == 0 {
+                return ETIMEDOUT
+            }
+            if result.errno == EINTR {
+                continue
+            }
+            return result.errno == 0 ? EIO : result.errno
+        }
+    }
+
+    private nonisolated static func systemPollForWrite(
+        _ fd: Int32,
+        _ timeout: Int32
+    ) -> IPCPollResult {
+        var descriptor = pollfd(fd: fd, events: Int16(POLLOUT), revents: 0)
+        let count = Darwin.poll(&descriptor, nfds_t(1), timeout)
+        return IPCPollResult(
+            count: count,
+            revents: descriptor.revents,
+            errno: count < 0 ? errno : 0
+        )
+    }
+
+    private nonisolated static func pendingSocketError(_ fd: Int32) -> Int32 {
+        var pendingError: Int32 = 0
+        var size = socklen_t(MemoryLayout<Int32>.size)
+        guard getsockopt(fd, SOL_SOCKET, SO_ERROR, &pendingError, &size) == 0 else {
+            return errno
+        }
+        return pendingError
+    }
+
+    /// Sends the RPC handshake and accepts only Discord's READY dispatch.
     ///
-    /// - Returns: True if handshake was sent and a response was received.
-    private func performHandshake() async -> Bool {
+    /// The write and response read run in one ``ipcQueue`` block. Keeping the
+    /// exchange atomic prevents another actor call from inserting a command
+    /// between the handshake write and READY response.
+    ///
+    /// - Returns: True only for an opcode-``Opcode/frame`` response whose payload
+    ///   has `cmd == "DISPATCH"` and `evt == "READY"`.
+    func performHandshake() async -> Bool {
         let handshake: [String: Any] = [
             "v": AppConstants.Discord.rpcVersion,
             "client_id": clientID,
         ]
 
-        guard await sendFrame(opcode: .handshake, payload: handshake) else {
+        guard let outbound = Self.encodeFrame(opcode: .handshake, payload: handshake) else {
+            Log.error("DiscordRPCService: Failed to serialize handshake", category: "Discord")
             return false
         }
 
-        // Read the READY response
-        guard let (opcode, _) = await readFrame() else {
-            Log.warn("DiscordRPCService: No handshake response", category: "Discord")
+        let fd = socketFD
+        guard fd >= 0 else { return false }
+        let generation = connectionGeneration
+        let readBuffer = ipcReadBuffer
+        let timeoutNanoseconds = ipcTransactionTimeoutNanoseconds
+        let result = await runOnIPCQueue {
+            Self.performIPCTransaction(
+                outbound,
+                expecting: .ready,
+                fd: fd,
+                readBuffer: readBuffer,
+                timeoutNanoseconds: timeoutNanoseconds
+            )
+        }
+
+        // The actor was re-entrant while the blocking transaction ran. An fd
+        // integer can be reused, so both fd and generation are required before
+        // this continuation may inspect or mutate connection state.
+        guard ownsConnection(fd: fd, generation: generation) else { return false }
+
+        guard result.writeResult.ok else {
+            let err = result.writeResult.errno
+            let reason = "\(err) (\(String(cString: strerror(err))))"
+            Log.error(
+                "DiscordRPCService: Handshake write failed/timed out: \(reason)",
+                category: "Discord"
+            )
             return false
         }
 
-        if opcode == Opcode.close.rawValue {
-            Log.warn("DiscordRPCService: Received CLOSE during handshake", category: "Discord")
+        guard result.response != nil else {
+            if result.readErrno != 0 {
+                let err = result.readErrno
+                let reason = "\(err) (\(String(cString: strerror(err))))"
+                Log.error(
+                    "DiscordRPCService: Handshake read failed/timed out: \(reason)",
+                    category: "Discord"
+                )
+            } else {
+                Log.warn("DiscordRPCService: Invalid handshake response; expected DISPATCH/READY", category: "Discord")
+            }
             return false
         }
 
@@ -184,12 +345,76 @@ extension DiscordRPCService {
 
         guard socketFD >= 0 else {
             if state != .disconnected { state = .disconnected }
+            if let pendingClose = ipcCloseInProgress {
+                await pendingClose.wait()
+                if ipcCloseInProgress === pendingClose {
+                    ipcCloseInProgress = nil
+                }
+            }
             return
         }
+
         let fd = socketFD
+        let source = ipcReadSource
+        let sourceClose = ipcReadSourceClose
+
+        // Retire every actor-visible ownership token before the first await.
+        // Another disconnect or connect can now observe that this generation no
+        // longer owns `fd`, even while the asynchronous cancel handler is gated.
         socketFD = -1
+        ipcReadSource = nil
+        ipcReadSourceClose = nil
         state = .disconnected
-        await runOnIPCQueue { Self.closeFD(fd) }
+
+        let completion = sourceClose ?? IPCDescriptorClose()
+        ipcCloseInProgress = completion
+        let closer = ipcSocketCloser
+        if let source {
+            if sourceClose == nil {
+                // Defensive repair for an incompletely installed test source.
+                // Production installation always pairs these atomically.
+                source.setCancelHandler {
+                    closer(fd)
+                    completion.complete()
+                }
+            }
+            // Once installed, the source cancellation handler is the sole
+            // descriptor closer. Never directly close `fd` on this path.
+            source.cancel()
+        } else {
+            // Pre-source descriptor (normally a handshake in progress).
+            ipcQueue.async {
+                closer(fd)
+                completion.complete()
+            }
+        }
+
+        await completion.wait()
+        if ipcCloseInProgress === completion {
+            ipcCloseInProgress = nil
+        }
+    }
+
+    /// Synchronously retires an actor-owned descriptor that has not yet gained a
+    /// read source, then awaits its queue-confined close. Used by stale-success
+    /// and failed-handshake paths so actor reentrancy cannot retain a recycled fd.
+    private func retirePreSourceConnection(fd: Int32, generation: UInt64) async {
+        guard ownsConnection(fd: fd, generation: generation) else { return }
+        socketFD = -1
+        ipcReadSource = nil
+        ipcReadSourceClose = nil
+
+        let completion = IPCDescriptorClose()
+        ipcCloseInProgress = completion
+        let closer = ipcSocketCloser
+        ipcQueue.async {
+            closer(fd)
+            completion.complete()
+        }
+        await completion.wait()
+        if ipcCloseInProgress === completion {
+            ipcCloseInProgress = nil
+        }
     }
 
     // MARK: - Frame I/O
@@ -203,14 +428,24 @@ extension DiscordRPCService {
     /// only one such block runs at a time, preserving single-threaded socket
     /// access. `work` must be self-contained: it takes only `Sendable` inputs and
     /// touches no actor state, so the hop is safe.
-    private nonisolated func runOnIPCQueue<T: Sendable>(
+    private func runOnIPCQueue<T: Sendable>(
         _ work: @escaping @Sendable () -> T
     ) async -> T {
-        await withCheckedContinuation { continuation in
+        let observer = ipcWorkEnqueuedObserver
+        return await withCheckedContinuation { continuation in
             ipcQueue.async {
                 continuation.resume(returning: work())
             }
+            // DispatchQueue.async has accepted the block before this fires,
+            // giving tests a real enqueue happens-before edge.
+            observer?()
         }
+    }
+
+    /// Installs the optional queue-enqueue observer used by deterministic socket
+    /// transaction tests.
+    func setIPCWorkEnqueuedObserver(_ observer: (@Sendable () -> Void)?) {
+        ipcWorkEnqueuedObserver = observer
     }
 
     /// Applies send/receive timeouts to the IPC socket.
@@ -220,11 +455,94 @@ extension DiscordRPCService {
     /// its receive buffer) would block the queue's worker thread forever.
     /// `SO_RCVTIMEO`/`SO_SNDTIMEO` make a stalled read/write fail with `EAGAIN`,
     /// which the frame I/O treats as a lost connection. Pure: no actor state.
-    private nonisolated static func setSocketTimeouts(_ fd: Int32) {
+    nonisolated static func setSocketTimeouts(_ fd: Int32) -> Bool {
         var tv = timeval(tv_sec: AppConstants.Discord.socketTimeoutSeconds, tv_usec: 0)
+        var noSigPipe: Int32 = 1
         let size = socklen_t(MemoryLayout<timeval>.size)
-        _ = setsockopt(fd, SOL_SOCKET, SO_RCVTIMEO, &tv, size)
-        _ = setsockopt(fd, SOL_SOCKET, SO_SNDTIMEO, &tv, size)
+        guard setsockopt(
+            fd,
+            SOL_SOCKET,
+            SO_NOSIGPIPE,
+            &noSigPipe,
+            socklen_t(MemoryLayout<Int32>.size)
+        ) == 0 else {
+            let err = errno
+            Log.error(
+                "DiscordRPCService: Failed to suppress SIGPIPE: errno \(err)",
+                category: "Discord"
+            )
+            return false
+        }
+        guard setsockopt(fd, SOL_SOCKET, SO_RCVTIMEO, &tv, size) == 0 else {
+            let err = errno
+            Log.error(
+                "DiscordRPCService: Failed to set receive timeout: errno \(err)",
+                category: "Discord"
+            )
+            return false
+        }
+        guard setsockopt(fd, SOL_SOCKET, SO_SNDTIMEO, &tv, size) == 0 else {
+            let err = errno
+            Log.error(
+                "DiscordRPCService: Failed to set send timeout: errno \(err)",
+                category: "Discord"
+            )
+            return false
+        }
+        return true
+    }
+
+    /// Current monotonic time used for socket deadlines.
+    private nonisolated static func monotonicNow() -> UInt64 {
+        DispatchTime.now().uptimeNanoseconds
+    }
+
+    /// Saturating absolute monotonic deadline.
+    private nonisolated static func monotonicDeadline(
+        afterNanoseconds interval: UInt64
+    ) -> UInt64 {
+        let now = monotonicNow()
+        let (deadline, overflow) = now.addingReportingOverflow(interval)
+        return overflow ? UInt64.max : deadline
+    }
+
+    /// Remaining `poll(2)` timeout, rounded up so a sub-millisecond remainder
+    /// does not become a premature zero-timeout poll.
+    private nonisolated static func pollTimeoutMilliseconds(
+        deadline: UInt64,
+        now: UInt64
+    ) -> Int32 {
+        guard deadline > now else { return 0 }
+        let remaining = deadline - now
+        let whole = remaining / 1_000_000
+        let rounded = whole + (remaining % 1_000_000 == 0 ? 0 : 1)
+        return Int32(Swift.min(rounded, UInt64(Int32.max)))
+    }
+
+    /// Waits until `fd` is ready for the requested operation, recomputing the
+    /// remaining time after signals so one absolute deadline bounds every retry.
+    private nonisolated static func waitForSocket(
+        _ fd: Int32,
+        events: Int16,
+        deadline: UInt64
+    ) -> Int32 {
+        while true {
+            let now = monotonicNow()
+            guard now < deadline else { return ETIMEDOUT }
+            var descriptor = pollfd(fd: fd, events: events, revents: 0)
+            let result = Darwin.poll(
+                &descriptor,
+                nfds_t(1),
+                pollTimeoutMilliseconds(deadline: deadline, now: now)
+            )
+            if result > 0 {
+                guard monotonicNow() < deadline else { return ETIMEDOUT }
+                return descriptor.revents & Int16(POLLNVAL) == 0 ? 0 : EBADF
+            }
+            if result == 0 { return ETIMEDOUT }
+            if errno == EINTR { continue }
+            return errno
+        }
     }
 
     /// Result of a blocking write, carrying the failing `errno` captured on the
@@ -254,19 +572,36 @@ extension DiscordRPCService {
     /// everything is written. The `errno` is read on this worker thread so it
     /// reflects the actual failure, not later actor-executor work. Pure of actor
     /// state (takes `fd` explicitly) so it can run on ``ipcQueue``.
-    private nonisolated static func writeFully(_ data: Data, fd: Int32) -> WriteResult {
+    private nonisolated static func writeFully(
+        _ data: Data,
+        fd: Int32,
+        deadline: UInt64
+    ) -> WriteResult {
         guard !data.isEmpty else { return WriteResult(ok: true, errno: 0) }
         return data.withUnsafeBytes { raw -> WriteResult in
             guard let base = raw.baseAddress else { return WriteResult(ok: false, errno: 0) }
             var total = 0
             while total < data.count {
-                let n = Darwin.write(fd, base + total, data.count - total)
+                let waitError = waitForSocket(
+                    fd,
+                    events: Int16(POLLOUT),
+                    deadline: deadline
+                )
+                guard waitError == 0 else {
+                    return WriteResult(ok: false, errno: waitError)
+                }
+                let n = Darwin.send(
+                    fd,
+                    base + total,
+                    data.count - total,
+                    Int32(MSG_DONTWAIT)
+                )
                 if n > 0 {
                     total += n
-                } else if n < 0 && errno == EINTR {
+                } else if n < 0 && (errno == EINTR || errno == EAGAIN || errno == EWOULDBLOCK) {
                     continue
                 } else {
-                    return WriteResult(ok: false, errno: errno)
+                    return WriteResult(ok: false, errno: n == 0 ? EPIPE : errno)
                 }
             }
             return WriteResult(ok: true, errno: 0)
@@ -282,7 +617,11 @@ extension DiscordRPCService {
     /// worker thread so it reflects the actual failure, not later actor-executor
     /// work. A clean peer close (`read` returns 0) leaves `errno == 0`. Pure of
     /// actor state (takes `fd` explicitly) so it can run on ``ipcQueue``.
-    private nonisolated static func readFully(_ count: Int, fd: Int32) -> ReadResult {
+    private nonisolated static func readFully(
+        _ count: Int,
+        fd: Int32,
+        deadline: UInt64
+    ) -> ReadResult {
         guard count > 0 else { return ReadResult(data: Data(), errno: 0) }
         var buffer = Data(count: count)
         var failErrno: Int32 = 0
@@ -290,10 +629,24 @@ extension DiscordRPCService {
             guard let base = raw.baseAddress else { return false }
             var total = 0
             while total < count {
-                let n = Darwin.read(fd, base + total, count - total)
+                let waitError = waitForSocket(
+                    fd,
+                    events: Int16(POLLIN),
+                    deadline: deadline
+                )
+                guard waitError == 0 else {
+                    failErrno = waitError
+                    return false
+                }
+                let n = Darwin.recv(
+                    fd,
+                    base + total,
+                    count - total,
+                    Int32(MSG_DONTWAIT)
+                )
                 if n > 0 {
                     total += n
-                } else if n < 0 && errno == EINTR {
+                } else if n < 0 && (errno == EINTR || errno == EAGAIN || errno == EWOULDBLOCK) {
                     continue
                 } else {
                     // peer closed (n == 0, errno stays 0) or error/timeout (n < 0)
@@ -306,108 +659,512 @@ extension DiscordRPCService {
         return ok ? ReadResult(data: buffer, errno: 0) : ReadResult(data: nil, errno: failErrno)
     }
 
-    /// Closes `fd` on ``ipcQueue`` so the close serializes after any queued
-    /// read/write on the same descriptor. Pure of actor state. A no-op for a
-    /// negative `fd`. Closing on the queue (never on the actor executor) prevents
-    /// a double-close or closing a recycled descriptor while an in-flight
-    /// `readFully`/`writeFully` still holds the captured fd value.
-    private nonisolated static func closeFD(_ fd: Int32) {
-        guard fd >= 0 else { return }
-        Darwin.close(fd)
+    /// One decoded IPC frame carried across the ``ipcQueue`` continuation.
+    private struct IPCFrame: Sendable {
+        let opcode: UInt32
+        let payload: Data?
     }
 
-    /// Sends a framed message to Discord.
-    ///
-    /// Frame format: `[opcode: UInt32 LE][length: UInt32 LE][JSON payload]`
-    ///
-    /// - Parameters:
-    ///   - opcode: The IPC opcode.
-    ///   - payload: Dictionary to serialize as JSON.
-    /// - Returns: True if the write succeeded.
-    @discardableResult
-    func sendFrame(opcode: Opcode, payload: [String: Any]) async -> Bool {
-        let fd = socketFD
-        guard fd >= 0 else { return false }
+    /// Result of reading one complete IPC frame on ``ipcQueue``.
+    private struct FrameReadResult: Sendable {
+        let frame: IPCFrame?
+        let errno: Int32
+    }
 
-        // Guards a non-JSON leaf (NaN/Inf Double, non-String key) from raising an
-        // ObjC `NSInvalidArgumentException` that `try?` cannot catch.
-        guard let jsonData = JSONObjectSerialization.data(from: payload) else {
-            Log.error("DiscordRPCService: Failed to serialize payload", category: "Discord")
-            return false
+    /// Result of one queue-owned write/read exchange.
+    private struct IPCTransactionResult: Sendable {
+        let writeResult: WriteResult
+        let response: IPCFrame?
+        let readErrno: Int32
+    }
+
+    /// Response identity used while draining an IPC transaction.
+    private enum IPCResponseExpectation: Sendable {
+        case ready
+        case command(nonce: String, command: String)
+    }
+
+    /// Finite drain bound for a malformed or hostile peer that continuously
+    /// sends unmatched frames. READY and command transactions share the same
+    /// policy because WolfWave does not subscribe to Discord event frames.
+    private nonisolated static let ipcTransactionMaximumFrames = 32
+
+    /// Encodes one Discord IPC frame.
+    ///
+    /// Frame format: `[opcode: UInt32 LE][length: UInt32 LE][JSON payload]`.
+    /// Guards invalid JSON leaves and oversized payloads before integer
+    /// conversion so malformed app state cannot trap the process.
+    private nonisolated static func encodeFrame(
+        opcode: Opcode,
+        payload: [String: Any]
+    ) -> Data? {
+        guard let jsonData = JSONObjectSerialization.data(from: payload),
+              let length = UInt32(exactly: jsonData.count),
+              length < AppConstants.Discord.maxIPCFrameBytes else {
+            return nil
         }
 
         var header = Data(count: 8)
         header.withUnsafeMutableBytes { buf in
             buf.storeBytes(of: opcode.rawValue.littleEndian, toByteOffset: 0, as: UInt32.self)
-            buf.storeBytes(of: UInt32(jsonData.count).littleEndian, toByteOffset: 4, as: UInt32.self)
+            buf.storeBytes(of: length.littleEndian, toByteOffset: 4, as: UInt32.self)
         }
+        return header + jsonData
+    }
 
-        // Blocking write runs off the actor executor on `ipcQueue`. The frame is
-        // fully built here, so the closure only flushes bytes to `fd`. The
-        // `errno` is captured inside the closure (on the worker thread) so it
-        // reflects the actual write failure, not unrelated actor-executor work.
-        let frame = header + jsonData
-        let result = await runOnIPCQueue { Self.writeFully(frame, fd: fd) }
-        guard result.ok else {
-            let err = result.errno
-            Log.error("DiscordRPCService: Write failed/timed out with errno \(err) (\(String(cString: strerror(err))))", category: "Discord")
-            await handleConnectionLost()
+    /// Encodes a frame whose body must be preserved byte-for-byte (PING/PONG).
+    private nonisolated static func encodeRawFrame(
+        opcode: Opcode,
+        payload: Data
+    ) -> Data? {
+        guard let length = UInt32(exactly: payload.count),
+              length < AppConstants.Discord.maxIPCFrameBytes else { return nil }
+        var header = Data(count: 8)
+        header.withUnsafeMutableBytes { buf in
+            buf.storeBytes(of: opcode.rawValue.littleEndian, toByteOffset: 0, as: UInt32.self)
+            buf.storeBytes(of: length.littleEndian, toByteOffset: 4, as: UInt32.self)
+        }
+        return header + payload
+    }
+
+    /// Sends one command and consumes its matching Discord reply atomically.
+    ///
+    /// The entire write plus reply-drain loop is a single ``ipcQueue`` block.
+    /// Actor reentrancy can enqueue another transaction while this method awaits,
+    /// but that transaction cannot write until this command's nonce-matched reply
+    /// has been consumed.
+    @discardableResult
+    func sendCommandFrame(_ payload: [String: Any]) async -> Bool {
+        guard let nonce = payload["nonce"] as? String,
+              !nonce.isEmpty,
+              let command = payload["cmd"] as? String,
+              !command.isEmpty,
+              let outbound = Self.encodeFrame(opcode: .frame, payload: payload) else {
+            Log.error("DiscordRPCService: Invalid command payload", category: "Discord")
             return false
         }
 
+        let fd = socketFD
+        guard fd >= 0 else { return false }
+        let generation = connectionGeneration
+        let readBuffer = ipcReadBuffer
+        let timeoutNanoseconds = ipcTransactionTimeoutNanoseconds
+        let result = await runOnIPCQueue {
+            Self.performIPCTransaction(
+                outbound,
+                expecting: .command(nonce: nonce, command: command),
+                fd: fd,
+                readBuffer: readBuffer,
+                timeoutNanoseconds: timeoutNanoseconds
+            )
+        }
+
+        guard ownsConnection(fd: fd, generation: generation) else { return false }
+
+        guard result.writeResult.ok else {
+            let err = result.writeResult.errno
+            let reason = "\(err) (\(String(cString: strerror(err))))"
+            Log.error(
+                "DiscordRPCService: Command write failed/timed out: \(reason)",
+                category: "Discord"
+            )
+            await handleConnectionLost(fd: fd, generation: generation)
+            return false
+        }
+
+        guard let response = result.response,
+              let payloadData = response.payload,
+              let responsePayload = Self.decodeFramePayload(payloadData) else {
+            if result.readErrno != 0 {
+                let err = result.readErrno
+                let reason = "\(err) (\(String(cString: strerror(err))))"
+                Log.error(
+                    "DiscordRPCService: Command reply read failed/timed out: \(reason)",
+                    category: "Discord"
+                )
+            } else {
+                Log.warn("DiscordRPCService: Missing or mismatched command reply", category: "Discord")
+            }
+            await handleConnectionLost(fd: fd, generation: generation)
+            return false
+        }
+
+        if responsePayload["evt"] as? String == "ERROR" {
+            Log.warn("DiscordRPCService: Discord rejected \(command)", category: "Discord")
+            return false
+        }
         return true
     }
 
-    /// Reads a single framed message from Discord.
+    /// Performs a write plus response match as one serial-queue transaction.
     ///
-    /// - Returns: Tuple of (opcode, JSON payload) or nil on failure.
-    private func readFrame() async -> (UInt32, [String: Any]?)? {
-        let fd = socketFD
-        guard fd >= 0 else { return nil }
-
-        // Blocking reads run off the actor executor on `ipcQueue`. The queue is
-        // serial, so the header read always completes before the body read, and
-        // no other IPC operation interleaves on `fd`. The `errno` is captured
-        // inside the closure (on the worker thread) so it reflects the actual
-        // read failure, not unrelated actor-executor work.
-        let headerResult = await runOnIPCQueue { Self.readFully(8, fd: fd) }
-        guard let headerBuf = headerResult.data else {
-            let err = headerResult.errno
-            Log.error("DiscordRPCService: Header read failed/timed out with errno \(err) (\(String(cString: strerror(err))))", category: "Discord")
-            return nil
+    /// Unmatched frames are drained inside the same block. A CLOSE frame,
+    /// malformed frame, timeout, or exhausted drain bound fails the transaction;
+    /// no reply is left unread for the next command to accidentally consume.
+    private nonisolated static func performIPCTransaction(
+        _ outbound: Data,
+        expecting expectation: IPCResponseExpectation,
+        fd: Int32,
+        readBuffer: IPCReadBuffer,
+        timeoutNanoseconds: UInt64
+    ) -> IPCTransactionResult {
+        // A single absolute deadline covers the write and every subsequent
+        // header/body/PONG/unmatched-frame operation. Receiving one byte or one
+        // stale frame never resets the budget.
+        let deadline = monotonicDeadline(afterNanoseconds: timeoutNanoseconds)
+        let writeResult = writeFully(outbound, fd: fd, deadline: deadline)
+        guard writeResult.ok else {
+            return IPCTransactionResult(
+                writeResult: writeResult,
+                response: nil,
+                readErrno: 0
+            )
         }
 
-        let opcode = headerBuf.withUnsafeBytes { buf in
-            UInt32(littleEndian: buf.load(fromByteOffset: 0, as: UInt32.self))
-        }
-        let length = headerBuf.withUnsafeBytes { buf in
-            UInt32(littleEndian: buf.load(fromByteOffset: 4, as: UInt32.self))
+        for _ in 0..<Self.ipcTransactionMaximumFrames {
+            guard monotonicNow() < deadline else {
+                return IPCTransactionResult(
+                    writeResult: writeResult,
+                    response: nil,
+                    readErrno: ETIMEDOUT
+                )
+            }
+            let readResult = readIPCFrame(
+                fd: fd,
+                readBuffer: readBuffer,
+                deadline: deadline
+            )
+            guard let frame = readResult.frame else {
+                return IPCTransactionResult(
+                    writeResult: writeResult,
+                    response: nil,
+                    readErrno: readResult.errno
+                )
+            }
+            guard frame.opcode != Opcode.close.rawValue else {
+                return IPCTransactionResult(
+                    writeResult: writeResult,
+                    response: nil,
+                    readErrno: 0
+                )
+            }
+            if frame.opcode == Opcode.ping.rawValue {
+                guard let pong = encodeRawFrame(
+                    opcode: .pong,
+                    payload: frame.payload ?? Data()
+                ) else {
+                    return IPCTransactionResult(
+                        writeResult: WriteResult(ok: false, errno: EMSGSIZE),
+                        response: nil,
+                        readErrno: 0
+                    )
+                }
+                let pongResult = writeFully(pong, fd: fd, deadline: deadline)
+                guard pongResult.ok else {
+                    return IPCTransactionResult(
+                        writeResult: pongResult,
+                        response: nil,
+                        readErrno: 0
+                    )
+                }
+                continue
+            }
+            if response(frame, matches: expectation) {
+                return IPCTransactionResult(
+                    writeResult: writeResult,
+                    response: frame,
+                    readErrno: 0
+                )
+            }
         }
 
-        guard length > 0 else { return (opcode, nil) }
+        return IPCTransactionResult(
+            writeResult: writeResult,
+            response: nil,
+            readErrno: 0
+        )
+    }
+
+    /// Reads one complete framed message. Must run on ``ipcQueue``.
+    private nonisolated static func readIPCFrame(
+        fd: Int32,
+        readBuffer: IPCReadBuffer,
+        deadline: UInt64
+    ) -> FrameReadResult {
+        while true {
+            if let parsed = popIPCFrame(from: readBuffer) { return parsed }
+
+            let targetCount: Int
+            if readBuffer.data.count < 8 {
+                targetCount = 8
+            } else {
+                let length = readBuffer.data.withUnsafeBytes { buf in
+                    UInt32(littleEndian: buf.loadUnaligned(fromByteOffset: 4, as: UInt32.self))
+                }
+                guard length < AppConstants.Discord.maxIPCFrameBytes else {
+                    readBuffer.data.removeAll(keepingCapacity: true)
+                    return FrameReadResult(frame: nil, errno: EMSGSIZE)
+                }
+                targetCount = 8 + Int(length)
+            }
+
+            let missing = targetCount - readBuffer.data.count
+            let readResult = readFully(missing, fd: fd, deadline: deadline)
+            guard let bytes = readResult.data else {
+                return FrameReadResult(frame: nil, errno: readResult.errno)
+            }
+            readBuffer.data.append(bytes)
+        }
+    }
+
+    /// Removes one complete frame from the shared queue-owned byte buffer.
+    private nonisolated static func popIPCFrame(
+        from readBuffer: IPCReadBuffer
+    ) -> FrameReadResult? {
+        guard readBuffer.data.count >= 8 else { return nil }
+        let opcode = readBuffer.data.withUnsafeBytes { buf in
+            UInt32(littleEndian: buf.loadUnaligned(fromByteOffset: 0, as: UInt32.self))
+        }
+        let length = readBuffer.data.withUnsafeBytes { buf in
+            UInt32(littleEndian: buf.loadUnaligned(fromByteOffset: 4, as: UInt32.self))
+        }
         guard length < AppConstants.Discord.maxIPCFrameBytes else {
-            Log.warn("DiscordRPCService: Oversized IPC frame (\(length) bytes); disconnecting", category: "Discord")
-            return nil
+            readBuffer.data.removeAll(keepingCapacity: true)
+            return FrameReadResult(frame: nil, errno: EMSGSIZE)
+        }
+        let total = 8 + Int(length)
+        guard readBuffer.data.count >= total else { return nil }
+        let payload = length == 0
+            ? nil
+            : readBuffer.data.subdata(in: 8..<total)
+        readBuffer.data.removeSubrange(0..<total)
+        return FrameReadResult(
+            frame: IPCFrame(opcode: opcode, payload: payload),
+            errno: 0
+        )
+    }
+
+    /// Tests a decoded frame against the active transaction expectation.
+    private nonisolated static func response(
+        _ frame: IPCFrame,
+        matches expectation: IPCResponseExpectation
+    ) -> Bool {
+        guard let payloadData = frame.payload,
+              let payload = decodeFramePayload(payloadData) else {
+            return false
         }
 
-        let bodyLength = Int(length)
-        let bodyResult = await runOnIPCQueue { Self.readFully(bodyLength, fd: fd) }
-        guard let bodyBuf = bodyResult.data else {
-            let err = bodyResult.errno
-            Log.error("DiscordRPCService: Body read failed/timed out with errno \(err) (\(String(cString: strerror(err))))", category: "Discord")
-            return nil
+        switch expectation {
+        case .ready:
+            return isReadyHandshakeResponse(opcode: frame.opcode, payload: payload)
+        case let .command(nonce, command):
+            return isCommandResponse(
+                opcode: frame.opcode,
+                payload: payload,
+                nonce: nonce,
+                command: command
+            )
         }
+    }
 
-        let json = Self.decodeFramePayload(bodyBuf)
-        return (opcode, json)
+    /// Pure validator for Discord's handshake response.
+    nonisolated static func isReadyHandshakeResponse(
+        opcode: UInt32,
+        payload: [String: Any]?
+    ) -> Bool {
+        opcode == Opcode.frame.rawValue
+            && payload?["cmd"] as? String == "DISPATCH"
+            && payload?["evt"] as? String == "READY"
+    }
+
+    /// Pure validator for a command response. Both command and nonce must match.
+    nonisolated static func isCommandResponse(
+        opcode: UInt32,
+        payload: [String: Any]?,
+        nonce: String,
+        command: String
+    ) -> Bool {
+        opcode == Opcode.frame.rawValue
+            && payload?["cmd"] as? String == command
+            && payload?["nonce"] as? String == nonce
     }
 
     /// Decodes a Discord IPC frame body into a JSON object, or nil if the bytes
     /// aren't a JSON object. Pure and static so it's unit-testable without a live
     /// socket. `JSONSerialization.jsonObject(with:)` throws (caught by `try?`) on
     /// malformed input and never raises, so a hostile or garbled frame can't crash.
-    static func decodeFramePayload(_ data: Data) -> [String: Any]? {
+    nonisolated static func decodeFramePayload(_ data: Data) -> [String: Any]? {
         (try? JSONSerialization.jsonObject(with: data)) as? [String: Any]
+    }
+
+    // MARK: - Idle Inbound Pump
+
+    /// Result of one short, queue-owned idle read slice.
+    private enum IdleReadResult: Sendable {
+        case handled
+        case needsDrain
+        case connectionLost(errno: Int32)
+    }
+
+    /// Starts the sole unsolicited-frame reader for the current connection.
+    ///
+    /// The dispatch source only schedules work when the socket becomes readable,
+    /// avoiding the permanent 100 ms polling loop previously used here. Its
+    /// event handler runs on ipcQueue, the same serial queue as command
+    /// transactions. A handler that runs first cannot steal a future command
+    /// reply because that command has not yet written; a transaction that runs
+    /// first owns its complete write/read exchange.
+    func startIPCReadPump() {
+        // Installation transfers physical fd ownership to the source's cancel
+        // handler. Replacing a live source would create two potential closers,
+        // so repeated starts are deliberately a no-op.
+        guard ipcReadSource == nil else { return }
+        guard state == .connected, socketFD >= 0 else {
+            return
+        }
+        guard ipcCloseInProgress == nil else { return }
+        let fd = socketFD
+        let generation = connectionGeneration
+        let readBuffer = ipcReadBuffer
+        let closeCompletion = IPCDescriptorClose()
+        let closer = ipcSocketCloser
+        let source = DispatchSource.makeReadSource(fileDescriptor: fd, queue: ipcQueue)
+        source.setEventHandler { [weak self] in
+            let result = Self.performIdleReadSlice(fd: fd, readBuffer: readBuffer)
+            switch result {
+            case .handled:
+                break
+            case .needsDrain, .connectionLost:
+                Task {
+                    await self?.handleIdleReadResult(
+                        result,
+                        fd: fd,
+                        generation: generation,
+                        readBuffer: readBuffer
+                    )
+                }
+            }
+        }
+        source.setCancelHandler {
+            closer(fd)
+            closeCompletion.complete()
+        }
+        ipcReadSource = source
+        ipcReadSourceClose = closeCompletion
+        source.resume()
+    }
+
+    /// Finishes bounded buffered draining or handles a connection loss back on
+    /// the actor. Each additional drain is submitted as a fresh queue block so a
+    /// command transaction already waiting on ipcQueue can run between batches.
+    private func handleIdleReadResult(
+        _ initialResult: IdleReadResult,
+        fd: Int32,
+        generation: UInt64,
+        readBuffer: IPCReadBuffer
+    ) async {
+        var result = initialResult
+        while ownsConnection(fd: fd, generation: generation), state == .connected {
+            switch result {
+            case .handled:
+                return
+            case .connectionLost(let err):
+                if err != 0 {
+                    Log.debug(
+                        "DiscordRPCService: Idle IPC read failed: errno \(err)",
+                        category: "Discord"
+                    )
+                }
+                await handleConnectionLost(fd: fd, generation: generation)
+                return
+            case .needsDrain:
+                result = await runOnIPCQueue {
+                    Self.performIdleReadSlice(fd: fd, readBuffer: readBuffer)
+                }
+            }
+        }
+    }
+
+    /// Reads one currently available byte batch and answers up to 32 complete
+    /// unsolicited frames. `MSG_DONTWAIT` keeps this event handler from parking
+    /// ipcQueue if DispatchSource coalesces readiness notifications.
+    private nonisolated static func performIdleReadSlice(
+        fd: Int32,
+        readBuffer: IPCReadBuffer
+    ) -> IdleReadResult {
+        let deadline = monotonicDeadline(
+            afterNanoseconds: UInt64(AppConstants.Discord.socketTimeoutSeconds)
+                * 1_000_000_000
+        )
+        var bytes = [UInt8](repeating: 0, count: 16_384)
+        let count = bytes.withUnsafeMutableBytes { rawBuffer -> Int in
+            guard let baseAddress = rawBuffer.baseAddress else { return -1 }
+            return Darwin.recv(fd, baseAddress, rawBuffer.count, Int32(MSG_DONTWAIT))
+        }
+        if count > 0 {
+            readBuffer.data.append(contentsOf: bytes.prefix(count))
+        } else if count == 0 {
+            return .connectionLost(errno: 0)
+        } else if errno != EAGAIN && errno != EWOULDBLOCK && errno != EINTR {
+            return .connectionLost(errno: errno)
+        }
+
+        for _ in 0..<32 {
+            guard let readResult = popIPCFrame(from: readBuffer) else { break }
+            guard let frame = readResult.frame else {
+                return .connectionLost(errno: readResult.errno)
+            }
+            if frame.opcode == Opcode.close.rawValue {
+                return .connectionLost(errno: 0)
+            }
+            guard frame.opcode == Opcode.ping.rawValue else { continue }
+            guard let pong = encodeRawFrame(
+                opcode: .pong,
+                payload: frame.payload ?? Data()
+            ) else {
+                return .connectionLost(errno: EMSGSIZE)
+            }
+            let writeResult = writeFully(pong, fd: fd, deadline: deadline)
+            guard writeResult.ok else {
+                return .connectionLost(errno: writeResult.errno)
+            }
+        }
+
+        return hasCompleteIPCFrame(in: readBuffer) ? .needsDrain : .handled
+    }
+
+    /// Whether the queue-owned buffer contains at least one complete frame.
+    /// An oversized advertised length also counts as complete so the next drain
+    /// reports the malformed frame instead of leaving it buffered forever.
+    private nonisolated static func hasCompleteIPCFrame(in readBuffer: IPCReadBuffer) -> Bool {
+        guard readBuffer.data.count >= 8 else { return false }
+        let length = readBuffer.data.withUnsafeBytes { buffer in
+            UInt32(littleEndian: buffer.loadUnaligned(fromByteOffset: 4, as: UInt32.self))
+        }
+        guard length < AppConstants.Discord.maxIPCFrameBytes else { return true }
+        return readBuffer.data.count >= 8 + Int(length)
+    }
+
+    /// Connection ownership predicate. Descriptor integers alone are unsafe:
+    /// the OS may recycle one for a replacement socket after a teardown.
+    nonisolated static func isCurrentConnection(
+        capturedFD: Int32,
+        capturedGeneration: UInt64,
+        currentFD: Int32,
+        currentGeneration: UInt64
+    ) -> Bool {
+        capturedFD >= 0
+            && capturedFD == currentFD
+            && capturedGeneration == currentGeneration
+    }
+
+    private func ownsConnection(fd: Int32, generation: UInt64) -> Bool {
+        Self.isCurrentConnection(
+            capturedFD: fd,
+            capturedGeneration: generation,
+            currentFD: socketFD,
+            currentGeneration: connectionGeneration
+        )
     }
 
     // MARK: - Reconnection
@@ -422,7 +1179,8 @@ extension DiscordRPCService {
     }
 
     /// Handles a lost connection by disconnecting and scheduling reconnect.
-    private func handleConnectionLost() async {
+    private func handleConnectionLost(fd: Int32, generation: UInt64) async {
+        guard ownsConnection(fd: fd, generation: generation) else { return }
         await disconnect()
         // The coarse availability fallback is useful only while disconnected;
         // successful connect paths stop it again immediately.
