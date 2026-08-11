@@ -1,10 +1,88 @@
+import { once } from "node:events";
+import type { AddressInfo } from "node:net";
 import { describe, expect, test } from "bun:test";
+import WebSocket, { WebSocketServer, type RawData } from "ws";
 import { WolfWaveClient } from "../src/wolfwave/client.js";
 
 const HEX64 = "a".repeat(64);
 const settings = { port: 8765, token: HEX64 };
+const EVENT_TIMEOUT_MS = 2_000;
 
-/** Reaches the private fields the reconnect guard turns on. */
+function bounded<T>(promise: Promise<T>, label: string): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const timer = setTimeout(
+      () => reject(new Error(`Timed out waiting for ${label}`)),
+      EVENT_TIMEOUT_MS,
+    );
+    timer.unref?.();
+    promise.then(
+      (value) => {
+        clearTimeout(timer);
+        resolve(value);
+      },
+      (error: unknown) => {
+        clearTimeout(timer);
+        reject(error);
+      },
+    );
+  });
+}
+
+async function loopbackServer(): Promise<{
+  port: number;
+  server: WebSocketServer;
+}> {
+  const server = new WebSocketServer({ host: "127.0.0.1", port: 0 });
+  await bounded(once(server, "listening"), "loopback server to listen");
+  const address = server.address() as AddressInfo;
+  return { port: address.port, server };
+}
+
+async function nextConnection(server: WebSocketServer): Promise<WebSocket> {
+  const [socket] = (await bounded(
+    once(server, "connection"),
+    "WebSocket connection",
+  )) as [WebSocket];
+  return socket;
+}
+
+async function nextMessage(socket: WebSocket): Promise<string> {
+  const [raw] = (await bounded(
+    once(socket, "message"),
+    "WebSocket message",
+  )) as [RawData];
+  return raw.toString();
+}
+
+function nextConnectedState(
+  client: WolfWaveClient,
+): Promise<typeof client.currentState> {
+  return bounded(
+    new Promise<typeof client.currentState>((resolve) => {
+      let unsubscribe = () => {};
+      unsubscribe = client.onState((snapshot) => {
+        if (snapshot.phase === "connected") {
+          unsubscribe();
+          resolve(snapshot);
+        }
+      });
+    }),
+    "welcome state",
+  );
+}
+
+async function closeLoopbackServer(server: WebSocketServer): Promise<void> {
+  const peerCloses = [...server.clients]
+    .filter((socket) => socket.readyState !== WebSocket.CLOSED)
+    .map((socket) => once(socket, "close"));
+  await bounded(Promise.all(peerCloses), "WebSocket peers to close");
+
+  const closed = bounded(once(server, "close"), "loopback server to close");
+  server.close();
+  await closed;
+}
+
+/** Reaches private socket state for lifecycle details with no public signal. */
 type ClientInternals = {
   stopped: boolean;
   settings: unknown;
@@ -22,33 +100,64 @@ function internals(client: WolfWaveClient): ClientInternals {
 }
 
 describe("configure / stop", () => {
-  test("re-configuring with identical settings after stop() reconnects", () => {
-    // The regression: stop() leaves the last settings cached, so an unchanged
-    // configure() used to match the cache and return early — every key stuck on
-    // "Offline" until Stream Deck restarted. Clearing the token in the Property
-    // Inspector and pasting the same one back hits exactly this path.
+  test("loopback flow keeps live settings and reconnects after stop", async () => {
+    const { port, server } = await loopbackServer();
     const client = new WolfWaveClient();
-    client.configure(settings);
-    client.stop();
-    expect(internals(client).stopped).toBe(true);
+    const liveSettings = { port, token: HEX64 };
+    let connections = 0;
+    server.on("connection", () => {
+      connections += 1;
+    });
 
-    client.configure({ ...settings });
-    expect(internals(client).stopped).toBe(false);
+    try {
+      const firstConnection = nextConnection(server);
+      client.configure(liveSettings);
+      const first = await firstConnection;
+      expect(first.protocol).toBe(`wolfwave.control.${HEX64}`);
 
-    client.stop();
-  });
+      const state = nextConnectedState(client);
+      first.send(
+        JSON.stringify({
+          type: "welcome",
+          server: "WolfWave",
+          version: "1.2.3",
+        }),
+      );
+      expect(await state).toMatchObject({
+        phase: "connected",
+        serverVersion: "1.2.3",
+      });
 
-  test("re-configuring with identical settings while live is a no-op", () => {
-    // The Property Inspector pushes on every keystroke; unchanged settings must
-    // not thrash the socket.
-    const client = new WolfWaveClient();
-    client.configure(settings);
-    const before = internals(client).settings;
+      const command = nextMessage(first);
+      client.configure({ ...liveSettings });
+      const ack = client.sendAwaitingAck("skip");
+      expect(JSON.parse(await command)).toEqual({
+        type: "command",
+        action: "skip",
+        protocol: 2,
+      });
+      expect(connections).toBe(1);
 
-    client.configure({ ...settings });
-    expect(internals(client).settings).toBe(before);
+      first.send(JSON.stringify({ type: "ack", action: "skip", ok: true }));
+      await expect(ack).resolves.toEqual({
+        kind: "ack",
+        action: "skip",
+        ok: true,
+      });
 
-    client.stop();
+      const firstClosed = bounded(once(first, "close"), "first socket to close");
+      client.stop();
+      await firstClosed;
+
+      const secondConnection = nextConnection(server);
+      client.configure({ ...liveSettings });
+      const second = await secondConnection;
+      expect(second.protocol).toBe(`wolfwave.control.${HEX64}`);
+      expect(connections).toBe(2);
+    } finally {
+      client.stop();
+      await closeLoopbackServer(server);
+    }
   });
 
   test("invalid reconfiguration immediately revokes the old socket", () => {
