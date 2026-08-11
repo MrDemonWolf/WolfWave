@@ -1,0 +1,286 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://mrdemonwolf.github.io/wolfwave/design-system/tokens.schema.json",
+  "title": "WolfWave design tokens",
+  "description": "Shape of design-system/tokens.json. The consumer is design-system/scripts/generate.ts, which reads these namespaces by name and emits five platform outputs. A missing or misnamed namespace breaks the Swift app, the docs CSS, the OBS widget, and the Remotion projects at once.",
+  "type": "object",
+  "required": [
+    "meta",
+    "color",
+    "font",
+    "space",
+    "radius",
+    "motion",
+    "shadow",
+    "dimension",
+    "widget"
+  ],
+  "additionalProperties": false,
+
+  "definitions": {
+    "hex": {
+      "description": "Hex color. generate.ts parses these with hexToRGB(), which only understands #RGB / #RRGGBB / #RRGGBBAA.",
+      "type": "string",
+      "pattern": "^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$"
+    },
+    "hexMap": {
+      "type": "object",
+      "minProperties": 1,
+      "additionalProperties": { "$ref": "#/definitions/hex" }
+    },
+    "numberMap": {
+      "type": "object",
+      "minProperties": 1,
+      "additionalProperties": { "type": "number" }
+    },
+    "cssColor": {
+      "description": "Any CSS color the widget accepts. cssColorToSwift() understands #hex, rgb()/rgba(), and linear-gradient() (first stop wins); 'transparent'/'none'/'' render as a nil layer. Anything else silently degrades to nil in the native preview.",
+      "type": "string"
+    }
+  },
+
+  "properties": {
+    "$schema": { "type": "string" },
+
+    "meta": {
+      "type": "object",
+      "required": ["name", "version", "description"],
+      "additionalProperties": false,
+      "properties": {
+        "name": { "type": "string" },
+        "version": {
+          "description": "Bump on any breaking token change (rename, removal, value drift).",
+          "type": "string",
+          "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$"
+        },
+        "description": { "type": "string" }
+      }
+    },
+
+    "color": {
+      "type": "object",
+      "required": ["brand", "brandDark", "semantic", "surface", "text", "partner"],
+      "additionalProperties": false,
+      "properties": {
+        "brand": {
+          "description": "Emitted as DSColor.brand{key} and --ds-color-brand-{key}.",
+          "$ref": "#/definitions/hexMap"
+        },
+        "brandDark": {
+          "description": "Dark-mode brand overrides. CSS only (.dark block); no Swift counterpart.",
+          "$ref": "#/definitions/hexMap"
+        },
+        "semantic": {
+          "type": "object",
+          "required": ["success", "warning", "error", "info"],
+          "additionalProperties": { "$ref": "#/definitions/hex" }
+        },
+        "surface": {
+          "type": "object",
+          "required": ["light", "dark"],
+          "additionalProperties": false,
+          "properties": {
+            "light": { "$ref": "#/definitions/hexMap" },
+            "dark": { "$ref": "#/definitions/hexMap" }
+          }
+        },
+        "text": {
+          "type": "object",
+          "required": ["light", "dark"],
+          "additionalProperties": false,
+          "properties": {
+            "light": { "$ref": "#/definitions/hexMap" },
+            "dark": { "$ref": "#/definitions/hexMap" }
+          }
+        },
+        "partner": {
+          "description": "Third-party brand colors (Twitch, Discord, Apple Music, OBS). Not WolfWave brand.",
+          "$ref": "#/definitions/hexMap"
+        }
+      }
+    },
+
+    "font": {
+      "type": "object",
+      "required": ["family", "size", "weight"],
+      "additionalProperties": false,
+      "properties": {
+        "family": {
+          "description": "CSS font stacks. CSS output only.",
+          "type": "object",
+          "minProperties": 1,
+          "additionalProperties": { "type": "string" }
+        },
+        "size": {
+          "description": "px in CSS, CGFloat in Swift. Keys starting with a digit are prefixed with 'x' in Swift (2xl -> x2xl).",
+          "$ref": "#/definitions/numberMap"
+        },
+        "weight": {
+          "description": "Closed set: generate.ts maps each key through a fixed weightMap to a SwiftUI Font.Weight. An unlisted key emits `Font.Weight = undefined`, which does not compile.",
+          "type": "object",
+          "required": ["regular", "medium", "semibold", "bold"],
+          "additionalProperties": false,
+          "properties": {
+            "regular": { "type": "number" },
+            "medium": { "type": "number" },
+            "semibold": { "type": "number" },
+            "bold": { "type": "number" }
+          }
+        }
+      }
+    },
+
+    "space": {
+      "description": "Spacing scale. Emitted as DSSpace.s{key}, so keys must be valid Swift identifier tails (0, 1, 1h, 2 ...).",
+      "type": "object",
+      "minProperties": 1,
+      "propertyNames": { "pattern": "^[A-Za-z0-9]+$" },
+      "additionalProperties": { "type": "number" }
+    },
+
+    "radius": {
+      "description": "Corner radii in px/pt. The `pill` key is special-cased to 9999px in CSS.",
+      "$ref": "#/definitions/numberMap"
+    },
+
+    "motion": {
+      "type": "object",
+      "required": ["duration", "easing"],
+      "additionalProperties": false,
+      "properties": {
+        "duration": {
+          "description": "Milliseconds. Swift divides by 1000 to get seconds.",
+          "$ref": "#/definitions/numberMap"
+        },
+        "easing": {
+          "description": "CSS timing functions. CSS output only.",
+          "type": "object",
+          "minProperties": 1,
+          "additionalProperties": { "type": "string" }
+        },
+        "spring": {
+          "description": "Optional. Emitted as SwiftUI .spring(response:dampingFraction:).",
+          "type": "object",
+          "additionalProperties": {
+            "type": "object",
+            "required": ["response", "damping"],
+            "additionalProperties": false,
+            "properties": {
+              "response": { "type": "number", "exclusiveMinimum": 0 },
+              "damping": { "type": "number", "minimum": 0, "maximum": 1 }
+            }
+          }
+        }
+      }
+    },
+
+    "shadow": {
+      "description": "CSS box-shadow strings. CSS + widget outputs only.",
+      "type": "object",
+      "minProperties": 1,
+      "additionalProperties": { "type": "string" }
+    },
+
+    "dimension": {
+      "description": "Window and control sizing. Each sub-object is emitted as a Swift enum of CGFloat, so all six are required.",
+      "type": "object",
+      "required": [
+        "settings",
+        "onboarding",
+        "about",
+        "whatsNew",
+        "iconButton",
+        "historyStats"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "settings": { "$ref": "#/definitions/numberMap" },
+        "onboarding": { "$ref": "#/definitions/numberMap" },
+        "about": { "$ref": "#/definitions/numberMap" },
+        "whatsNew": { "$ref": "#/definitions/numberMap" },
+        "iconButton": { "$ref": "#/definitions/numberMap" },
+        "historyStats": { "$ref": "#/definitions/numberMap" }
+      }
+    },
+
+    "widget": {
+      "description": "OBS overlay themes and layouts. Consumed by widget.html (window.WW_TOKENS), the native appearance preview (DSWidgetThemes), and the docs landing-page preview.",
+      "type": "object",
+      "required": ["themes", "layouts"],
+      "additionalProperties": false,
+      "properties": {
+        "defaultTheme": {
+          "description": "Must name a key in `themes`. Defaults to \"Default\" when absent.",
+          "type": "string"
+        },
+        "defaultLayout": {
+          "description": "Must name a key in `layouts`. Defaults to \"Horizontal\" when absent.",
+          "type": "string"
+        },
+        "layouts": {
+          "type": "object",
+          "minProperties": 1,
+          "additionalProperties": {
+            "type": "object",
+            "required": ["maxWidth", "height"],
+            "additionalProperties": false,
+            "properties": {
+              "maxWidth": { "type": "number", "exclusiveMinimum": 0 },
+              "height": { "type": "number", "exclusiveMinimum": 0 }
+            }
+          }
+        },
+        "themes": {
+          "description": "Theme name -> palette. Every visible theme appears in the app's picker; `hidden: true` keeps a theme out of the picker but still available internally (WolfWave).",
+          "type": "object",
+          "minProperties": 1,
+          "additionalProperties": {
+            "type": "object",
+            "required": [
+              "containerBg",
+              "containerBorder",
+              "containerShadow",
+              "containerRadius",
+              "backdropFilter",
+              "overlayBg",
+              "textPrimary",
+              "textSecondary",
+              "textMuted",
+              "textShadow",
+              "progressTrackBg",
+              "progressFillBg",
+              "showArtworkBlur"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "hidden": {
+                "description": "Excluded from the picker and from USER_THEMES in the docs build.",
+                "type": "boolean"
+              },
+              "containerBg": { "$ref": "#/definitions/cssColor" },
+              "containerBorder": {
+                "description": "Full CSS border shorthand or 'none'. Swift takes the first color stop.",
+                "type": "string"
+              },
+              "containerShadow": { "type": "string" },
+              "containerRadius": {
+                "description": "CSS length; Swift parseFloat()s it, so keep it a plain px value.",
+                "type": "string",
+                "pattern": "^[0-9]+(\\.[0-9]+)?px$"
+              },
+              "backdropFilter": { "type": "string" },
+              "overlayBg": { "$ref": "#/definitions/cssColor" },
+              "textPrimary": { "$ref": "#/definitions/cssColor" },
+              "textSecondary": { "$ref": "#/definitions/cssColor" },
+              "textMuted": { "$ref": "#/definitions/cssColor" },
+              "textShadow": { "type": "string" },
+              "progressTrackBg": { "$ref": "#/definitions/cssColor" },
+              "progressFillBg": { "$ref": "#/definitions/cssColor" },
+              "showArtworkBlur": { "type": "boolean" }
+            }
+          }
+        }
+      }
+    }
+  }
+}
