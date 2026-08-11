@@ -94,7 +94,7 @@ final class TwitchDeviceAuthNetworkTests: XCTestCase {
     func testRequestDeviceCodeParsesResponse() async throws {
         let requestBody = ThreadSafeBox("")
         handlerStore.handler = { request in
-            requestBody.value = String(data: request.httpBody ?? Data(), encoding: .utf8) ?? ""
+            requestBody.value = requestBodyString(request)
             let json = #"{"device_code":"DEV","user_code":"WXYZ","verification_uri":"https://twitch.tv/activate","verification_uri_complete":"https://twitch.tv/activate?code=WXYZ","expires_in":600,"interval":5}"#
             return (MockURLProtocol.httpResponse(for: request, status: 200), Data(json.utf8))
         }
@@ -107,7 +107,10 @@ final class TwitchDeviceAuthNetworkTests: XCTestCase {
         XCTAssertEqual(response.verificationURIComplete, "https://twitch.tv/activate?code=WXYZ")
         XCTAssertEqual(response.expiresIn, 600)
         XCTAssertEqual(response.interval, 5)
-        XCTAssertTrue(requestBody.value.contains("scopes=user%3Aread%3Achat"))
+        let scopes = URLComponents(
+            string: "https://localhost/?\(requestBody.value)"
+        )?.queryItems?.first(where: { $0.name == "scopes" })?.value
+        XCTAssertEqual(scopes, "user:read:chat")
     }
 
     func testRequestDeviceCodeDefaultsMissingIntervalToRFCValue() async throws {
@@ -202,7 +205,7 @@ final class TwitchDeviceAuthNetworkTests: XCTestCase {
     func testPollForTokenReturnsAccessTokenOnSuccess() async throws {
         let requestBody = ThreadSafeBox("")
         handlerStore.handler = { request in
-            requestBody.value = String(data: request.httpBody ?? Data(), encoding: .utf8) ?? ""
+            requestBody.value = requestBodyString(request)
             return (
                 MockURLProtocol.httpResponse(for: request, status: 200),
                 Data(#"{"access_token":"ABC123","refresh_token":"REFRESH123"}"#.utf8)
@@ -213,7 +216,10 @@ final class TwitchDeviceAuthNetworkTests: XCTestCase {
 
         XCTAssertEqual(grant.accessToken, "ABC123")
         XCTAssertEqual(grant.refreshToken, "REFRESH123")
-        XCTAssertTrue(requestBody.value.contains("scopes=user%3Aread%3Achat"))
+        let scopes = URLComponents(
+            string: "https://localhost/?\(requestBody.value)"
+        )?.queryItems?.first(where: { $0.name == "scopes" })?.value
+        XCTAssertEqual(scopes, "user:read:chat")
     }
 
     func testAuthorizationPendingContinuesAtOriginalInterval() async throws {
