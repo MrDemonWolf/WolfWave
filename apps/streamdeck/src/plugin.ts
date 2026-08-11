@@ -2,8 +2,8 @@
  * WolfWave Stream Deck plugin entry point.
  *
  * Owns the single {@link WolfWaveClient} shared by every key, wires connection
- * settings from global settings (so the streamer configures host/port/token once
- * rather than per key), and registers the v1 action set.
+ * settings from global settings (so the streamer configures port/control token once
+ * rather than per key), and registers the v2 action set.
  */
 
 import streamDeck from "@elgato/streamdeck";
@@ -22,15 +22,11 @@ for (const ActionClass of ACTION_CLASSES) {
  *
  * Settings arrive as untyped JSON from the Property Inspector, so each field is
  * read defensively rather than trusted — a hand-edited settings file shouldn't
- * be able to hand the socket a non-string host.
+ * be able to hand the socket a non-string token.
  *
- * Defaults to loopback: WolfWave binds the overlay server locally and the
- * common case is Stream Deck running on the same Mac. A LAN host is supported
- * for a second machine, but isn't the default because that would quietly fail
- * for everyone else.
+ * The control channel is fixed to loopback so a credential copied into Stream Deck cannot authorize commands from another machine.
  */
 function applySettings(settings: Record<string, unknown>): void {
-  const host = readString(settings.host) || "127.0.0.1";
   const port = readPort(settings.port);
   const token = readString(settings.token);
 
@@ -41,7 +37,7 @@ function applySettings(settings: Record<string, unknown>): void {
     return;
   }
 
-  client.configure({ host, port, token });
+  client.configure({ port, token });
 }
 
 function readString(value: unknown): string {

@@ -59,9 +59,9 @@ nonisolated final class WidgetHTTPService: @unchecked Sendable {
 
     private let port: UInt16
     /// Token baked into the served `widget.html` so OBS browser sources hit the
-    /// WebSocket with a valid `wolfwave.token.<hex>` subprotocol without the user
+    /// WebSocket with a valid `wolfwave.overlay.<hex>` subprotocol without the user
     /// pasting a query string. `nil` ships the file un-substituted (test-only).
-    private let authToken: String?
+    private let overlayToken: String?
     /// Guards all reads and writes of `listener` so the state-callback queue and
     /// `stop()` callers cannot race on the reference.
     private let listenerLock = NSLock()
@@ -127,7 +127,7 @@ nonisolated final class WidgetHTTPService: @unchecked Sendable {
     /// - Parameters:
     ///   - port: TCP port to listen on. Bound on all interfaces so LAN peers
     ///     can reach the widget for two-PC streaming setups.
-    ///   - authToken: WebSocket auth token to inject into the served HTML
+    ///   - overlayToken: read-only overlay token to inject into the served HTML
     ///     **for loopback requests only**. Pass `nil` to ship the file
     ///     untouched. Only useful for tests.
     ///   - headerTimeout: Seconds an accepted connection may take to deliver
@@ -138,12 +138,12 @@ nonisolated final class WidgetHTTPService: @unchecked Sendable {
     ///     32; override only in tests.
     init(
         port: UInt16,
-        authToken: String? = nil,
+        overlayToken: String? = nil,
         headerTimeout: TimeInterval = 10,
         maxConcurrentConnections: Int = 32
     ) {
         self.port = port
-        self.authToken = authToken
+        self.overlayToken = overlayToken
         self.headerTimeout = headerTimeout
         self.maxConcurrentConnections = maxConcurrentConnections
     }
@@ -432,21 +432,21 @@ nonisolated final class WidgetHTTPService: @unchecked Sendable {
             return
         }
 
-        let isLoopback = Self.isLoopbackPeer(connection)
+        let isLoopback = WebSocketAuthToken.isLoopbackEndpoint(connection.endpoint)
         let shouldInjectToken = Self.shouldInjectToken(
             loopbackPeer: isLoopback,
             hostHeader: hostHeader
         )
         var rendered: String
         var didInjectToken = false
-        if shouldInjectToken, let token = authToken, WebSocketAuthToken.isValid(token) {
+        if shouldInjectToken, let token = overlayToken, WebSocketAuthToken.isValid(token) {
             // `isValid` gates the substitution on hex-only / bounded length so a
             // corrupted or hand-edited token can't inject `</script>` or other
             // characters that would break out of the JS string context.
             rendered = raw.replacingOccurrences(of: Self.tokenPlaceholder, with: token)
             didInjectToken = true
         } else {
-            if shouldInjectToken, let token = authToken, !WebSocketAuthToken.isValid(token) {
+            if shouldInjectToken, let token = overlayToken, !WebSocketAuthToken.isValid(token) {
                 Log.warn(
                     "WidgetHTTPService: Refusing to inject non-hex auth token into widget.html",
                     category: "WebSocket"
@@ -543,32 +543,6 @@ nonisolated final class WidgetHTTPService: @unchecked Sendable {
         let octets = pieces[0].split(separator: ".", omittingEmptySubsequences: false)
         guard octets.count == 4, octets[0] == "127" else { return false }
         return octets.allSatisfy { UInt8(String($0)) != nil }
-    }
-
-    /// Returns `true` when the peer's remote endpoint is on `127.0.0.0/8` or `::1`.
-    ///
-    /// Used by `serveWidget` to gate token injection: only same-Mac peers see
-    /// the auth credential baked into the served HTML. LAN peers receive the
-    /// raw template and must supply `?token=…` in the URL.
-    private static func isLoopbackPeer(_ connection: NWConnection) -> Bool {
-        switch connection.endpoint {
-        case .hostPort(let host, _):
-            switch host {
-            case .ipv4(let addr):
-                return addr.isLoopback
-            case .ipv6(let addr):
-                return addr.isLoopback
-            case .name:
-                // The widget always connects to ws://localhost which resolves to
-                // an IP endpoint; an unresolved .name is never a genuine loopback
-                // peer, so return false rather than trusting a hostname string.
-                return false
-            @unknown default:
-                return false
-            }
-        default:
-            return false
-        }
     }
 
     /// Writes a raw HTTP/1.1 response and closes the connection. Centralizes the

@@ -1,11 +1,11 @@
 ---
 title: Stream Deck Control API
-description: Control WolfWave from a Stream Deck or any local WebSocket client. Protocol v1 command envelope, 11 actions, acks, and live queue and health broadcasts.
+description: Control WolfWave from a same-Mac Stream Deck client. Protocol v2 command envelope, 11 actions, acks, and live queue and health broadcasts.
 ogTitle: WolfWave Stream Deck Control API
-ogDescription: Drive playback, the request queue, and toggles over the overlay WebSocket. 11 actions, acks, live state broadcasts.
+ogDescription: Drive playback, the request queue, and toggles over a loopback-only control role. 11 actions, acks, live state broadcasts.
 ogEyebrow: Developers
 ogChips:
-  - Protocol v1
+  - Protocol v2
   - 11 actions
   - WebSocket
   - Live state
@@ -16,10 +16,10 @@ keywords:
   - obs overlay control api
 ---
 
-WolfWave's overlay WebSocket is bidirectional. Any authenticated local client —
-the official [Stream Deck plugin](/docs/streamdeck), a Loupedeck profile, your
-own script — can send commands and receive live state, so physical keys can
-skip tracks, hold the queue, or flip toggles without touching the app.
+WolfWave exposes a command-capable WebSocket role only to clients on the same
+Mac. The official [Stream Deck plugin](/docs/streamdeck), a Loupedeck profile,
+or your own local script can send commands and receive live state, so physical
+keys can skip tracks, hold the queue, or flip toggles without touching the app.
 
 Just want to use a Stream Deck? Install the [Stream Deck plugin](/docs/streamdeck)
 instead — this page is the wire protocol for anyone building their own client.
@@ -27,30 +27,31 @@ Announce actions and volume dials are planned follow-ups and not documented here
 
 ## Connect
 
-Commands ride the same WebSocket the overlay uses:
+Commands use the same listener as the overlay, but a separate role and secret:
 
-- **URL**: `ws://localhost:8765` (port configurable in **Settings → Stream Widgets**).
-- **Auth**: present the per-install token as the WebSocket subprotocol
-  `wolfwave.token.<hex>`. Connections without it are rejected during the
-  handshake, so a connected client is already authenticated — there is no
-  per-command token. See [WebSocket security](/docs/security#websocket-server-security)
-  for how the token works and how to rotate it.
+- **URL**: `ws://127.0.0.1:8765` (port configurable in **Settings → Stream Widgets**).
+- **Auth**: present the **Stream Deck Control Token** as the WebSocket
+  subprotocol `wolfwave.control.<hex>`. The server accepts this role only from a
+  literal loopback peer and revalidates the selected handshake subprotocol.
+- **Read-only separation**: `wolfwave.overlay.<hex>` clients may receive state
+  over the LAN but cannot run commands.
 
-Copy the token from **Settings → Stream Widgets**.
+Copy **Stream Deck Control Token** from **Settings → Stream Widgets**. There is
+no per-command token. See [WebSocket security](/docs/security#websocket-server-security).
 
 ## Send a command
 
 Text frame, JSON:
 
 ```json
-{ "type": "command", "action": "skip", "protocol": 1, "args": {} }
+{ "type": "command", "action": "skip", "protocol": 2, "args": {} }
 ```
 
 - `type` must be `"command"`; anything else is ignored (no ack).
-- `protocol` must be `1`. A mismatch is rejected with `error: "protocol"`, so an
+- `protocol` must be `2`. A mismatch is rejected with `error: "protocol"`, so an
   out-of-date client can show an "update me" state.
 - `action` must be one of the actions below; unknown actions get `error: "unknown_action"`.
-- `args` is optional and unused by v1 actions (reserved for future parameters).
+- `args` is optional and unused by v2 actions (reserved for future parameters).
 
 Every command gets an ack on the same connection:
 
@@ -81,7 +82,7 @@ WolfWave pushes two broadcast frames to every connected client, so counter and
 health keys render without polling:
 
 ```json
-{ "type": "queue_state", "data": { "count": 3, "pending": 1 } }
+{ "type": "queue_state", "data": { "count": 3, "pending": 1, "held": false } }
 { "type": "health", "data": { "music": true, "twitch": true, "discord": false, "overlay": true } }
 ```
 
@@ -90,17 +91,17 @@ when a new client connects, and after any successful command.
 
 ## Try it from a terminal
 
-With the overlay server on and Music playing, connect with the token subprotocol
-and send a command. Using [`websocat`](https://github.com/vi/websocat):
+With the server on and Music playing, connect from the same Mac with the control
+subprotocol and send a command. Using [`websocat`](https://github.com/vi/websocat):
 
 ```bash
-websocat --protocol "wolfwave.token.<your-token>" ws://localhost:8765
+websocat --protocol "wolfwave.control.<your-control-token>" ws://127.0.0.1:8765
 ```
 
 Paste:
 
 ```json
-{"type":"command","action":"skip","protocol":1}
+{"type":"command","action":"skip","protocol":2}
 ```
 
 You should see the ack frame and hear the track skip. Leave the connection open

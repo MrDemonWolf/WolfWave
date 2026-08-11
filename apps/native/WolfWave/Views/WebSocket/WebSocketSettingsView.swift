@@ -158,20 +158,8 @@ fileprivate struct WebSocketServerCard: View {
     /// after edits/regens so the displayed URL row stays in sync.
     @State private var currentToken: String = ""
 
-    /// Live edit buffer for the token field. Seeded from `currentToken` and only
-    /// committed when the user hits Save or presses return.
-    @State private var tokenDraft: String = ""
-
-    /// `true` reveals the token; default hidden behind a `SecureField`.
-    @State private var isTokenRevealed: Bool = false
-
-    /// Inline validation message shown beneath the token field, mirroring the
-    /// port-field error pattern. `nil` when the draft is valid or unchanged.
-    @State private var tokenError: String? = nil
-
-    /// Confirmation gate for regenerating the auth token, which disconnects
-    /// every live overlay until the new URL is re-copied into OBS.
-    @State private var showingRegenerateConfirm = false
+    /// Cached same-Mac control credential shown in the Stream Deck row.
+    @State private var currentControlToken: String = ""
 
     let serverState: WebSocketServerService.ServerState
     let localNetworkIP: String?
@@ -185,11 +173,6 @@ fileprivate struct WebSocketServerCard: View {
     private var networkConnectionURL: String? {
         guard let ip = localNetworkIP else { return nil }
         return "ws://\(ip):\(storedPort)/?token=\(currentToken)"
-    }
-
-    private var hasTokenEdits: Bool {
-        let trimmed = tokenDraft.trimmingCharacters(in: .whitespacesAndNewlines)
-        return !trimmed.isEmpty && trimmed != currentToken
     }
 
     private var isPortValid: Bool {
@@ -265,7 +248,25 @@ fileprivate struct WebSocketServerCard: View {
 
             Divider().padding(.leading, cardPadding)
 
-            authTokenRow
+            WebSocketTokenEditorRow(
+                role: .overlay,
+                title: "Overlay Token",
+                subtitle: "Read-only. OBS widgets use this token to receive updates.",
+                currentToken: $currentToken,
+                streamerMode: streamerMode,
+                otherToken: currentControlToken
+            )
+
+            Divider().padding(.leading, cardPadding)
+
+            WebSocketTokenEditorRow(
+                role: .control,
+                title: "Stream Deck Control Token",
+                subtitle: "Stream Deck uses this token to run commands on this Mac.",
+                currentToken: $currentControlToken,
+                streamerMode: streamerMode,
+                otherToken: currentToken
+            )
 
             Divider().padding(.leading, cardPadding)
 
@@ -305,24 +306,91 @@ fileprivate struct WebSocketServerCard: View {
         .cardStyleUnpadded()
         .onAppear {
             portText = String(storedPort)
-            tokenDraft = currentToken
         }
         .task {
-            guard currentToken.isEmpty else { return }
-            let token = await Task.detached(priority: .userInitiated) {
-                WebSocketAuthToken.currentOrCreate()
+            guard currentToken.isEmpty || currentControlToken.isEmpty else { return }
+            let tokens = await Task.detached(priority: .userInitiated) {
+                (
+                    WebSocketAuthToken.currentOrCreate(for: .overlay),
+                    WebSocketAuthToken.currentOrCreate(for: .control)
+                )
             }.value
-            await MainActor.run {
-                currentToken = token
-                if tokenDraft.isEmpty { tokenDraft = token }
-            }
+            currentToken = tokens.0
+            currentControlToken = tokens.1
         }
     }
+    /// Validates the port text field and, when valid, persists the new port
+    /// to UserDefaults and posts a `websocketServerChanged` notification so
+    /// the server restarts on the new port.
+    private func applyPort() {
+        guard isPortValid, let port = UInt16(portText) else { return }
+        storedPort = Int(port)
+        NotificationCenter.default.postWebSocketServerChanged(port: port)
+    }
 
-    // MARK: - Auth Token Row
+    /// Posts a `websocketServerChanged` notification without altering settings.
+    /// Used after a setting change persists, to nudge the service to re-read.
+    private func notifyServerSettingChanged() {
+        NotificationCenter.default.postWebSocketServerChanged()
+    }
+}
 
-    @ViewBuilder
-    private var authTokenRow: some View {
+// MARK: - WebSocket Token Editor
+
+/// Shared editor for the two role-specific credentials. Keeping one row
+/// implementation prevents overlay and Stream Deck validation or masking
+/// behavior from drifting while preserving the existing settings-card design.
+fileprivate struct WebSocketTokenEditorRow: View {
+    let role: WebSocketAuthToken.Role
+    let title: String
+    let subtitle: String
+    @Binding var currentToken: String
+    let streamerMode: Bool
+    let otherToken: String
+
+    @State private var tokenDraft = ""
+    @State private var isTokenRevealed = false
+    @State private var tokenError: String?
+    @State private var showingRegenerateConfirm = false
+
+    private let cardPadding = AppConstants.SettingsUI.cardPadding
+
+    private var isOverlay: Bool { role == .overlay }
+
+    private var hasTokenEdits: Bool {
+        let trimmed = tokenDraft.trimmingCharacters(in: .whitespacesAndNewlines)
+        return !trimmed.isEmpty && trimmed != currentToken
+    }
+
+    private var visibleFieldIdentifier: String {
+        isOverlay ? "websocketTokenFieldVisible" : "websocketControlTokenFieldVisible"
+    }
+
+    private var hiddenFieldIdentifier: String {
+        isOverlay ? "websocketTokenFieldHidden" : "websocketControlTokenFieldHidden"
+    }
+
+    private var revealButtonIdentifier: String {
+        isOverlay ? "websocketTokenRevealButton" : "websocketControlTokenRevealButton"
+    }
+
+    private var copyButtonIdentifier: String {
+        isOverlay ? "copyWebsocketTokenButton" : "copyWebsocketControlTokenButton"
+    }
+
+    private var errorIdentifier: String {
+        isOverlay ? "websocketTokenError" : "websocketControlTokenError"
+    }
+
+    private var regenerateButtonIdentifier: String {
+        isOverlay ? "regenerateWebsocketTokenButton" : "regenerateWebsocketControlTokenButton"
+    }
+
+    private var saveButtonIdentifier: String {
+        isOverlay ? "saveWebsocketTokenButton" : "saveWebsocketControlTokenButton"
+    }
+
+    var body: some View {
         VStack(alignment: .leading, spacing: DSSpace.s2) {
             HStack(alignment: .firstTextBaseline, spacing: DSSpace.s2) {
                 VStack(alignment: .leading, spacing: DSSpace.s0) {
@@ -330,10 +398,10 @@ fileprivate struct WebSocketServerCard: View {
                         Image(systemName: "lock.fill")
                             .font(.system(size: DSFont.Size.sm))
                             .foregroundStyle(.secondary)
-                        Text("Auth Token").font(.system(size: DSFont.Size.base, weight: .medium))
+                        Text(title).font(.system(size: DSFont.Size.base, weight: .medium))
                         if streamerMode { StreamerModeBadge() }
                     }
-                    Text("Required. Overlays must present this token to connect.")
+                    Text(subtitle)
                         .font(.system(size: DSFont.Size.sm))
                         .foregroundStyle(.tertiary)
                 }
@@ -348,14 +416,14 @@ fileprivate struct WebSocketServerCard: View {
                             .font(.system(size: DSFont.Size.body, design: .monospaced))
                             .autocorrectionDisabled(true)
                             .onSubmit { saveTokenEdit() }
-                            .accessibilityIdentifier("websocketTokenFieldVisible")
+                            .accessibilityIdentifier(visibleFieldIdentifier)
                     } else {
                         SecureField("Token", text: $tokenDraft)
                             .textFieldStyle(.roundedBorder)
                             .font(.system(size: DSFont.Size.body, design: .monospaced))
                             .onSubmit { saveTokenEdit() }
                             .disabled(streamerMode)
-                            .accessibilityIdentifier("websocketTokenFieldHidden")
+                            .accessibilityIdentifier(hiddenFieldIdentifier)
                     }
                 }
 
@@ -363,7 +431,7 @@ fileprivate struct WebSocketServerCard: View {
                     systemImage: isTokenRevealed ? "eye.slash" : "eye",
                     action: { isTokenRevealed.toggle() },
                     accessibilityLabel: isTokenRevealed ? "Hide token" : "Reveal token",
-                    accessibilityIdentifier: "websocketTokenRevealButton"
+                    accessibilityIdentifier: revealButtonIdentifier
                 )
                 .help(isTokenRevealed ? "Hide token" : "Reveal token")
                 .disabled(streamerMode)
@@ -373,8 +441,10 @@ fileprivate struct WebSocketServerCard: View {
                     label: "Copy",
                     copiedLabel: "Copied",
                     isDisabled: currentToken.isEmpty || streamerMode,
-                    accessibilityLabel: "Copy auth token",
-                    accessibilityIdentifier: "copyWebsocketTokenButton"
+                    accessibilityLabel: isOverlay
+                        ? "Copy overlay token"
+                        : "Copy Stream Deck control token",
+                    accessibilityIdentifier: copyButtonIdentifier
                 )
             }
 
@@ -382,11 +452,10 @@ fileprivate struct WebSocketServerCard: View {
                 HStack(spacing: DSSpace.s1h) {
                     Image(systemName: "exclamationmark.circle.fill")
                         .font(.system(size: DSFont.Size.sm))
-                    Text(tokenError)
-                        .font(.system(size: DSFont.Size.sm))
+                    Text(tokenError).font(.system(size: DSFont.Size.sm))
                 }
                 .foregroundStyle(.red)
-                .accessibilityIdentifier("websocketTokenError")
+                .accessibilityIdentifier(errorIdentifier)
             }
 
             HStack(spacing: DSSpace.s2) {
@@ -402,56 +471,58 @@ fileprivate struct WebSocketServerCard: View {
                 .tint(.red)
                 .controlSize(.small)
                 .disabled(streamerMode)
-                .help(streamerMode
-                    ? "Turn off Streamer Mode to regenerate the token."
-                    : "Generate a new random token. Active overlays will disconnect until updated.")
-                .accessibilityIdentifier("regenerateWebsocketTokenButton")
+                .help(regenerateHelp)
+                .accessibilityIdentifier(regenerateButtonIdentifier)
 
                 if hasTokenEdits {
-                    Button {
-                        saveTokenEdit()
-                    } label: {
-                        Text("Save").font(.system(size: DSFont.Size.sm))
-                    }
-                    .buttonStyle(.borderedProminent)
-                    .controlSize(.small)
-                    .disabled(streamerMode)
-                    .accessibilityIdentifier("saveWebsocketTokenButton")
+                    Button("Save") { saveTokenEdit() }
+                        .buttonStyle(.borderedProminent)
+                        .controlSize(.small)
+                        .disabled(streamerMode)
+                        .accessibilityIdentifier(saveButtonIdentifier)
 
-                    Button {
+                    Button("Cancel") {
                         tokenDraft = currentToken
                         tokenError = nil
-                    } label: {
-                        Text("Cancel").font(.system(size: DSFont.Size.sm))
                     }
                     .buttonStyle(.bordered)
                     .controlSize(.small)
                 }
-
                 Spacer()
             }
         }
         .padding(.horizontal, cardPadding)
         .padding(.vertical, DSSpace.s4)
+        .onAppear {
+            if tokenDraft.isEmpty { tokenDraft = currentToken }
+        }
+        .onChange(of: currentToken) { _, newValue in
+            tokenDraft = newValue
+            tokenError = nil
+        }
         .confirmationDialog(
-            "Regenerate auth token?",
+            isOverlay ? "Regenerate overlay token?" : "Regenerate control token?",
             isPresented: $showingRegenerateConfirm,
             titleVisibility: .visible
         ) {
             Button("Regenerate", role: .destructive) { regenerateToken() }
             Button("Cancel", role: .cancel) {}
         } message: {
-            Text("Every connected overlay disconnects until you copy the new URL back into OBS.")
+            Text(
+                isOverlay
+                    ? "Active overlays disconnect until you copy the new URL back into OBS."
+                    : "Stream Deck disconnects until you copy the new control token into its settings."
+            )
         }
     }
 
-    /// Persists `tokenDraft` to Keychain, swaps the token on the live service,
-    /// and refreshes the displayed URL row. No-op when nothing changed.
-    ///
-    /// Tokens are gated through `WebSocketAuthToken.isValid` (hex-only, 16-128
-    /// chars) so a user-supplied string can never contain `</script>` or other
-    /// characters that would break out of the JS string context when
-    /// `WidgetHTTPService` substitutes the token into the served `widget.html`.
+    private var regenerateHelp: String {
+        if streamerMode { return "Turn off Streamer Mode to regenerate this token." }
+        return isOverlay
+            ? "Generate a new overlay token. Active overlays will disconnect until updated."
+            : "Generate a new control token. Stream Deck will disconnect until updated."
+    }
+
     private func saveTokenEdit() {
         let trimmed = tokenDraft.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty, trimmed != currentToken else {
@@ -459,62 +530,60 @@ fileprivate struct WebSocketServerCard: View {
             return
         }
         guard WebSocketAuthToken.isValid(trimmed) else {
-            Log.warn(
-                "WebSocketSettings: Rejected custom token: must be hex characters (16-128).",
-                category: "WebSocket"
-            )
             tokenError = "Use 16-128 hex chars (0-9, a-f)."
             return
         }
-        tokenError = nil
+        guard otherToken.isEmpty || !WebSocketAuthToken.constantTimeEquals(trimmed, otherToken) else {
+            tokenError = "Overlay and control tokens must be different."
+            return
+        }
+
         do {
-            try WebSocketAuthToken.persist(trimmed)
+            try WebSocketAuthToken.persist(trimmed, for: role)
             currentToken = trimmed
             tokenDraft = trimmed
+            tokenError = nil
             applyTokenToServer(trimmed)
         } catch {
-            Log.error("WebSocketSettings: Failed to save custom token: \(error)", category: "WebSocket")
+            Log.error(
+                "WebSocketSettings: Failed to save " + role.rawValue + " token: "
+                    + String(describing: error),
+                category: "WebSocket"
+            )
             tokenError = "Couldn't save token. Try again."
         }
     }
 
-    /// Mints a fresh random token, persists it, and pushes it onto the service.
     private func regenerateToken() {
         do {
-            let fresh = try WebSocketAuthToken.rotate()
+            let fresh = try WebSocketAuthToken.rotate(role)
             currentToken = fresh
             tokenDraft = fresh
             tokenError = nil
             applyTokenToServer(fresh)
         } catch {
-            Log.error("WebSocketSettings: Failed to rotate token: \(error)", category: "WebSocket")
+            Log.error(
+                "WebSocketSettings: Failed to rotate " + role.rawValue + " token: "
+                    + String(describing: error),
+                category: "WebSocket"
+            )
             tokenError = "Couldn't save the new token. Your current token is still active."
         }
     }
 
-    /// Pushes a token swap onto the live `WebSocketServerService` so existing
-    /// clients are dropped and forced to re-handshake. Also bounces the widget
-    /// HTTP server so served HTML re-bakes the new value, and tells every other
-    /// view holding a token copy (Browser Source URL card) to re-read it.
     private func applyTokenToServer(_ token: String) {
         let server = AppDelegate.shared?.websocketServer
-        Task { await server?.updateAuthToken(token) }
-        NotificationCenter.default.post(name: .websocketAuthTokenChanged, object: nil)
-    }
-
-    /// Validates the port text field and, when valid, persists the new port
-    /// to UserDefaults and posts a `websocketServerChanged` notification so
-    /// the server restarts on the new port.
-    private func applyPort() {
-        guard isPortValid, let port = UInt16(portText) else { return }
-        storedPort = Int(port)
-        NotificationCenter.default.postWebSocketServerChanged(port: port)
-    }
-
-    /// Posts a `websocketServerChanged` notification without altering settings.
-    /// Used after a setting change persists, to nudge the service to re-read.
-    private func notifyServerSettingChanged() {
-        NotificationCenter.default.postWebSocketServerChanged()
+        Task {
+            switch role {
+            case .overlay:
+                await server?.updateOverlayToken(token)
+            case .control:
+                await server?.updateControlToken(token)
+            }
+        }
+        if isOverlay {
+            NotificationCenter.default.post(name: .websocketAuthTokenChanged, object: nil)
+        }
     }
 }
 
@@ -540,7 +609,7 @@ fileprivate struct WebSocketBrowserSourceCard: View {
 
     @State private var widgetPortText: String = ""
 
-    /// Cached auth token. Seeded once in `.onAppear` so a SwiftUI recompute
+    /// Cached read-only overlay token. Seeded once in `.onAppear` so a SwiftUI recompute
     /// never reaches into the Keychain (which `WebSocketAuthToken.currentOrCreate()`
     /// would otherwise do, with side effects, on every render).
     @State private var currentToken: String = ""
@@ -745,12 +814,12 @@ fileprivate struct WebSocketBrowserSourceCard: View {
         )
     }
 
-    /// Re-reads the overlay auth token off the main thread (Keychain I/O) and
+    /// Re-reads the read-only overlay token off the main thread (Keychain I/O) and
     /// publishes it into the card's state. Called on first appearance and
     /// whenever `.websocketAuthTokenChanged` reports a save/regeneration.
     private func reloadToken() async {
         let token = await Task.detached(priority: .userInitiated) {
-            WebSocketAuthToken.currentOrCreate()
+            WebSocketAuthToken.currentOrCreate(for: .overlay)
         }.value
         currentToken = token
     }

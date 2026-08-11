@@ -14,7 +14,8 @@ import Foundation
 /// All items use `kSecAttrAccessibleAfterFirstUnlock` accessibility for persistence after unlock.
 ///
 /// Stored Credentials:
-/// - **WebSocket Auth Token**: Generic password for WebSocket authentication
+/// - **Overlay Auth Token**: Read-only WebSocket credential used by OBS widgets
+/// - **Control Auth Token**: Same-Mac WebSocket credential used by Stream Deck
 /// - **Twitch OAuth Token**: User's OAuth token for Twitch API and chat
 /// - **Twitch Username**: Bot account username for display and identification
 /// - **Twitch User ID**: Bot account user ID for EventSub subscriptions
@@ -57,8 +58,12 @@ nonisolated enum KeychainService {
         return bundleID
     }()
 
-    /// Account identifier for WebSocket auth token.
+    /// Account identifier for the read-only overlay token. The legacy account
+    /// name is intentionally preserved so existing OBS URLs survive upgrade.
     private static let websocketAuthToken = "websocketAuthToken"
+
+    /// Account identifier for the privileged, loopback-only control token.
+    private static let websocketControlToken = "websocketControlToken"
 
     /// Account identifier for Twitch OAuth token.
     private static let twitchBotAccountOauthToken = "twitchBotAccountOauthToken"
@@ -95,9 +100,9 @@ nonisolated enum KeychainService {
         }
     }
 
-    // MARK: - Public Methods - WebSocket Token
+    // MARK: - Public Methods - WebSocket Tokens
 
-    /// Saves a WebSocket authentication token to Keychain.
+    /// Saves the read-only overlay authentication token to Keychain.
     ///
     /// Uses update-or-add pattern for efficiency (single Keychain roundtrip when updating).
     ///
@@ -107,18 +112,33 @@ nonisolated enum KeychainService {
         try upsertItem(account: websocketAuthToken, value: token)
     }
 
-    /// Loads the WebSocket authentication token from Keychain.
+    /// Loads the read-only overlay authentication token from Keychain.
     ///
     /// - Returns: The stored token string, or nil if not found or on error.
     static func loadToken() -> String? {
         loadItem(account: websocketAuthToken)
     }
 
-    /// Deletes the WebSocket authentication token from Keychain.
+    /// Deletes the read-only overlay authentication token from Keychain.
     ///
     /// Succeeds silently if token doesn't exist.
     static func deleteToken() {
         deleteItem(account: websocketAuthToken)
+    }
+
+    /// Saves the privileged, loopback-only control token to Keychain.
+    static func saveControlToken(_ token: String) throws {
+        try upsertItem(account: websocketControlToken, value: token)
+    }
+
+    /// Loads the privileged, loopback-only control token from Keychain.
+    static func loadControlToken() -> String? {
+        loadItem(account: websocketControlToken)
+    }
+
+    /// Deletes the privileged, loopback-only control token from Keychain.
+    static func deleteControlToken() {
+        deleteItem(account: websocketControlToken)
     }
 
     // MARK: - Public Methods - Twitch OAuth Token
@@ -215,7 +235,7 @@ nonisolated enum KeychainService {
     /// Deletes every WolfWave credential from the Keychain in one sweep.
     ///
     /// Wipes the entire generic-password class for the app's service, so it
-    /// covers the WebSocket auth token, all Twitch tokens, and any credential
+    /// covers both WebSocket tokens, all Twitch tokens, and any credential
     /// added later without needing a per-account call. Used by the factory
     /// reset. Succeeds silently if nothing is stored.
     static func deleteAll() {

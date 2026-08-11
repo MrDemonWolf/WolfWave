@@ -64,7 +64,8 @@ struct DebugInspectorsCard: View {
         .task(id: refreshTick) {
             let presence = await Task.detached(priority: .userInitiated) {
                 [
-                    "token": KeychainService.loadToken() != nil,
+                    "overlayToken": KeychainService.loadToken() != nil,
+                    "controlToken": KeychainService.loadControlToken() != nil,
                     "twitchToken": KeychainService.loadTwitchToken() != nil,
                     "twitchUsername": KeychainService.loadTwitchUsername() != nil,
                     "twitchBotUserID": KeychainService.loadTwitchBotUserID() != nil,
@@ -140,8 +141,11 @@ struct DebugInspectorsCard: View {
                 .foregroundStyle(.secondary)
 
             if keychainLoaded {
-                keychainRow("WebSocket Auth Token", present: keychainPresence["token"] ?? false) {
+                keychainRow("Overlay Auth Token", present: keychainPresence["overlayToken"] ?? false) {
                     KeychainService.deleteToken()
+                }
+                keychainRow("Control Auth Token", present: keychainPresence["controlToken"] ?? false) {
+                    KeychainService.deleteControlToken()
                 }
                 keychainRow("Twitch OAuth Token", present: keychainPresence["twitchToken"] ?? false) {
                     KeychainService.deleteTwitchToken()

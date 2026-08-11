@@ -83,11 +83,13 @@ a key has besides its title.
    `~/Library/Application Support/com.elgato.StreamDeck/Plugins/`.
 2. Restart the Stream Deck app.
 3. Drop a WolfWave key onto a page, open its Property Inspector, and paste the
-   access token from WolfWave: Settings → Stream Widgets.
-4. Leave host and port alone unless WolfWave runs on a different Mac.
+   **Stream Deck Control Token** from WolfWave: Settings → Stream Widgets.
+4. Leave the port alone unless you changed it in WolfWave. The host is fixed to
+   `127.0.0.1`; command transport is intentionally same-Mac only.
 
 Settings are global, not per-key: one WolfWave install serves every key, so the
-token is entered once.
+control token is entered once. Protocol-v1 installs must copy this new token
+after upgrading; the former shared token remains read-only for overlays.
 
 ## Key states
 
@@ -96,7 +98,7 @@ The base class paints these centrally, so no individual key can forget one:
 | Phase | Key shows | Meaning |
 |---|---|---|
 | `disconnected` | `Offline` | No socket. Retrying with capped backoff. |
-| `unauthorized` | `Token?` | Token missing or not 64 hex characters. Retrying won't help. |
+| `unauthorized` | `Token?` | Control token missing or not 64 hex characters. Retrying won't help. |
 | `outdated` | `Update` | WolfWave rejected the protocol version (`ack error:"protocol"`). |
 | `connected` | per-key render | Live. |
 
@@ -106,7 +108,7 @@ The base class paints these centrally, so no individual key can forget one:
 `StreamDeckControl.protocolVersion` in the app. The action tokens in `ACTIONS`
 are the raw values of the Swift `StreamDeckAction` enum, so renaming one is a
 protocol change that requires bumping the version on both sides.
-`tests/protocol.test.ts` pins the full v1 action set; it fails when the two
+`tests/protocol.test.ts` pins the full v2 action set; it fails when the two
 drift.
 
 ## Not yet done
@@ -121,5 +123,5 @@ this repo:
 - Marketplace submission. The packaged `.streamDeckPlugin` is one `bun run
   --filter streamdeck pack` away; submitting it needs an Elgato Maker account.
 
-Deferred v1 actions from WW-45: announce song, and a now-playing dial with album
+Deferred initial-release actions from WW-45: announce song, and a now-playing dial with album
 art and rotation-bound volume. Both want app-side seams that don't exist yet.
