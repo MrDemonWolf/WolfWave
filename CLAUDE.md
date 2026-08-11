@@ -337,6 +337,7 @@ Unit tests live in `apps/native/WolfWaveTests/` and use XCTest + Swift Testing w
   | `lint-crash-safety` | SwiftLint (crash-safety) | **Blocking.** No new force unwrap, `try!`, or `as!` |
   | `lint-headers` | Swift file headers | **Blocking.** File-header convention |
   | `ds-lint` | Design-system lint | `bun run ds:lint` plus `bun run ds:schema`, which validates `tokens.json` against `tokens.schema.json` |
+
 - `.github/workflows/build_release.yml` - Builds, signs, notarizes, and creates a GitHub Release on tag push (`v*`). Required secrets: `DEVELOPER_ID_CERT_P12`, `DEVELOPER_ID_CERT_PASSWORD`, `APPLE_ID`, `APPLE_TEAM_ID`, `APPLE_APP_PASSWORD`, `TWITCH_CLIENT_ID`, `DISCORD_CLIENT_ID`, `SPARKLE_PRIVATE_KEY`.
 - `.github/workflows/docs.yml` - Builds and deploys the Fumadocs site to GitHub Pages.
 - `.github/workflows/update_homebrew.yml` - Opens a PR on the Homebrew tap after a GitHub Release is published.

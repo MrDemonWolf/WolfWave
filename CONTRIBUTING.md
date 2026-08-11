@@ -131,7 +131,7 @@ The full list is in [`CLAUDE.md`](CLAUDE.md). The ones that fail review most oft
 ## Design System
 
 [`design-system/tokens.json`](design-system/tokens.json) is the single source of
-truth. The generator emits five platform outputs. **Never hand-edit a
+truth. The generator emits the platform outputs. **Never hand-edit a
 `*.generated.*` file.**
 
 ```bash
