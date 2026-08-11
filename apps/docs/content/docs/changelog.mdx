@@ -43,8 +43,9 @@ The next release. These ship on the [Nightly channel](/docs/nightly) off `main` 
 ### Fixed
 
 - **Twitch sign-in survives service hiccups.** Device-code login now uses the original expiry deadline, follows the required polling slowdown and timeout backoff, and keeps trying through rate limits plus temporary network or server failures instead of failing early.
-- **Twitch no longer mistakes an outage for an expired sign-in.** Only Twitch's explicit token rejection or confirmed missing permissions prompts a reconnect; network errors, rate limits, and malformed server responses leave saved credentials alone.
-- **Twitch account changes stay internally consistent.** Access tokens, refresh tokens, account identity, and the configured channel now change together in one Keychain write. Existing saved fields migrate without deleting the originals until the new record is safe, and a channel edit becomes canonical only after Twitch validates it.
+- **Twitch no longer mistakes an outage for an expired sign-in.** Only Twitch's explicit token rejection or confirmed missing permissions prompts a reconnect. Network errors, rate limits, and malformed refresh responses retry within a bounded window and leave saved credentials intact when Twitch remains unavailable.
+- **Twitch account changes stay internally consistent.** Access tokens, refresh tokens, account identity, and the configured channel now change together in one Keychain write. Existing saved fields migrate without deleting the originals until the new record is safe. Imported and edited channel names are checked with Twitch before becoming canonical; invalid, missing, stale, or temporarily unverifiable names stay pending.
+- **Settings backups preserve authored rules.** Custom bot commands and the Song Request blocklist now round-trip with other portable preferences, and Reset Settings clears the centralized blocklist data.
 - **Slow Twitch commands no longer hold up chat.** Song requests and custom commands run as tracked connection work, so keepalives and later messages continue; disconnecting or switching channels cancels old replies before they can land in the wrong chat.
 - **Paid Twitch actions recover after quits and outages.** Channel-point intake and fulfill/refund outcomes are durable until Twitch acknowledges them. Qualifying Bits cheers persist the complete boost/request action before queue work and replay after relaunch. If local recovery storage fails, WolfWave pauses the managed reward, shows a warning, and still gives an already-paid Bits cheer one process-owned attempt.
 - **Discord presence replies no longer cross wires or hang indefinitely.** Each local IPC command consumes the response with its own nonce, the handshake accepts only Discord's READY dispatch, and stalled local connects or replies now stop at one bounded deadline.
@@ -150,7 +151,7 @@ The next release. These ship on the [Nightly channel](/docs/nightly) off `main` 
 
 **The app**
 - **Light, Dark, or System appearance.** Pick one in Settings → General. The menu bar follows too. See [Appearance](/docs/settings#general).
-- **Back up and restore your settings.** Export to a JSON file, restore on another Mac. Accounts and secrets stay in the Keychain. On import, you choose whether to reconnect Twitch. See [Back Up & Restore](/docs/backup).
+- **Back up and restore your settings.** Export to a JSON file, restore on another Mac. Credentials and private account IDs stay in the Keychain; the public Twitch channel name travels with your preferences. On import, you choose whether to reconnect Twitch. See [Back Up & Restore](/docs/backup).
 - **macOS 26 Liquid Glass redesign.** Settings, menu bar, and a rebuilt onboarding wizard for Tahoe.
 - **Nightly update channel.** Opt into dev builds off main from Settings → Software Update. Clearly warned, easy to leave, and Stable stays the default. See [Nightly Builds](/docs/nightly).
 - **Diagnostics and bug reporting.** Export/Clear Logs and a one-click Report a Bug, with sensitive details redacted.
