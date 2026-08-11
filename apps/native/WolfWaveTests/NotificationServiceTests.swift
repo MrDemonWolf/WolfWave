@@ -185,7 +185,7 @@ struct NotificationServiceTests {
         #expect(content.sound == .default)
     }
 
-    @Test("Twitch re-auth requests reuse the re-auth identifier so they dedup")
+    @Test("Twitch re-auth requests reuse one stable identifier")
     func testTwitchReauthRequestReusesIdentifier() async throws {
         let first = NotificationService.makeRequest(
             content: NotificationService.makeTwitchReauthContent(),
@@ -195,8 +195,6 @@ struct NotificationServiceTests {
             content: NotificationService.makeTwitchReauthContent(),
             identifier: AppConstants.UserNotification.twitchReauthIdentifier
         )
-        // A repeat re-auth prompt in the same session replaces the previous
-        // banner instead of stacking a duplicate.
         #expect(first.identifier == AppConstants.UserNotification.twitchReauthIdentifier)
         #expect(first.identifier == second.identifier)
     }
@@ -225,7 +223,7 @@ struct NotificationServiceTests {
 
     // MARK: - Request Dedup (stable identifiers)
 
-    @Test("Song-change requests reuse the song-change identifier so they dedup")
+    @Test("Song-change requests reuse one stable identifier")
     func testSongChangeRequestReusesIdentifier() async throws {
         let first = NotificationService.makeRequest(
             content: NotificationService.makeSongChangeContent(
@@ -239,12 +237,10 @@ struct NotificationServiceTests {
         )
 
         #expect(first.identifier == AppConstants.UserNotification.songChangeIdentifier)
-        // Two consecutive song-change requests share one identifier, so the
-        // second replaces the first in Notification Center rather than stacking.
         #expect(first.identifier == second.identifier)
     }
 
-    @Test("Skip-vote-started requests reuse the skip-vote-started identifier so they dedup")
+    @Test("Skip-vote-started requests reuse one stable identifier")
     func testSkipVoteStartedRequestReusesIdentifier() async throws {
         let first = NotificationService.makeRequest(
             content: NotificationService.makeSkipVoteStartedContent(
@@ -264,6 +260,60 @@ struct NotificationServiceTests {
         #expect(first.identifier != AppConstants.UserNotification.songChangeIdentifier)
     }
 
+    // MARK: - Delivery Ordering
+
+    @Test("Posting removes a delivered notification before adding its replacement")
+    func testPostRemovesDeliveredIdentifierBeforeAdd() async {
+        let center = TestUserNotificationCenter()
+        let identifier = AppConstants.UserNotification.songChangeIdentifier
+        let service = NotificationService(
+            center: center,
+            artworkAttachmentProvider: { _, _ in nil }
+        )
+
+        await service.postSongChange(track: "Track", artist: "Artist", album: "Album")
+
+        #expect(center.operations == [
+            .remove(identifier),
+            .add(identifier: identifier, subtitle: "Track"),
+        ])
+    }
+
+    @Test("A slow old artwork lookup cannot replace the latest song notification")
+    func testSlowArtworkLookupCannotPostStaleSong() async {
+        let center = TestUserNotificationCenter()
+        let artwork = ControlledArtworkProvider()
+        let service = NotificationService(
+            center: center,
+            artworkAttachmentProvider: { track, artist in
+                await artwork.attachment(track: track, artist: artist)
+            }
+        )
+
+        let first = Task {
+            await service.postSongChange(track: "First", artist: "Artist", album: "Album")
+        }
+        await artwork.waitUntilRequested(track: "First")
+
+        let second = Task {
+            await service.postSongChange(track: "Second", artist: "Artist", album: "Album")
+        }
+        await artwork.waitUntilRequested(track: "Second")
+
+        artwork.complete(track: "Second")
+        await second.value
+        artwork.complete(track: "First")
+        await first.value
+
+        #expect(center.operations == [
+            .remove(AppConstants.UserNotification.songChangeIdentifier),
+            .add(
+                identifier: AppConstants.UserNotification.songChangeIdentifier,
+                subtitle: "Second"
+            ),
+        ])
+    }
+
     // MARK: - UserDefaults Keys
 
     @Test("Notification preference keys are registered for reset")
@@ -276,5 +326,66 @@ struct NotificationServiceTests {
             #expect(!key.isEmpty)
             #expect(AppConstants.UserDefaults.allKeys.contains(key))
         }
+    }
+}
+
+@MainActor
+private final class TestUserNotificationCenter: UserNotificationCenterProviding {
+    enum Operation: Equatable {
+        case remove(String)
+        case add(identifier: String, subtitle: String)
+    }
+
+    var status: UNAuthorizationStatus = .authorized
+    var operations: [Operation] = []
+
+    func installDelegate(_ delegate: (any UNUserNotificationCenterDelegate)?) {}
+
+    func authorizationStatus() async -> UNAuthorizationStatus {
+        status
+    }
+
+    func requestAuthorization(options: UNAuthorizationOptions) async throws -> Bool {
+        true
+    }
+
+    func removeDeliveredNotifications(withIdentifiers identifiers: [String]) {
+        for identifier in identifiers {
+            operations.append(.remove(identifier))
+        }
+    }
+
+    func add(_ request: UNNotificationRequest) async throws {
+        operations.append(
+            .add(identifier: request.identifier, subtitle: request.content.subtitle)
+        )
+    }
+}
+
+@MainActor
+private final class ControlledArtworkProvider {
+    private var requested: Set<String> = []
+    private var requestWaiters: [String: CheckedContinuation<Void, Never>] = [:]
+    private var attachmentContinuations: [
+        String: CheckedContinuation<UNNotificationAttachment?, Never>
+    ] = [:]
+
+    func attachment(track: String, artist: String) async -> UNNotificationAttachment? {
+        await withCheckedContinuation { continuation in
+            attachmentContinuations[track] = continuation
+            requested.insert(track)
+            requestWaiters.removeValue(forKey: track)?.resume()
+        }
+    }
+
+    func waitUntilRequested(track: String) async {
+        if requested.contains(track) { return }
+        await withCheckedContinuation { continuation in
+            requestWaiters[track] = continuation
+        }
+    }
+
+    func complete(track: String) {
+        attachmentContinuations.removeValue(forKey: track)?.resume(returning: nil)
     }
 }
