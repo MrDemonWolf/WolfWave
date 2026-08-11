@@ -928,6 +928,16 @@ final class SongRequestService {
                 queue.clearNowPlaying()
                 Log.debug("SongRequestService: \"\(title)\" not ready (attempt \(attempts)/\(maxPlayAttempts)), re-queued; will retry", category: "SongRequest")
             }
+        } catch PlaybackError.commandFailed(let command, let message) {
+            // A timeout or rejected Apple Event is transient infrastructure
+            // failure, not proof that the catalog item is unplayable. Preserve
+            // queue order and retry on the next playback poll.
+            queue.insertAtHead(item)
+            queue.clearNowPlaying()
+            Log.warn(
+                "SongRequestService: \(command) failed for \"\(item.title)\": \(message); re-queued at head",
+                category: "SongRequest"
+            )
         } catch {
             Log.debug("SongRequestService: Failed to play \"\(item.title)\": \(error)", category: "SongRequest")
             await playNextInQueueUnguarded()

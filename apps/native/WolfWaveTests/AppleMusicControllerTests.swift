@@ -6,6 +6,7 @@
 //  Copyright © 2026 MrDemonWolf, Inc. All rights reserved.
 //
 
+import Carbon
 import Foundation
 import Testing
 
@@ -13,10 +14,10 @@ import Testing
 
 /// Covers `AppleMusicController`'s pure helpers: `sanitizeForAppleScript(_:)`
 /// (escapes user-supplied strings before they are embedded in an AppleScript
-/// double-quoted literal) and `timeoutWrapped(_:seconds:)` (caps Apple Event
-/// waits so a wedged Music.app can't pin the main thread for the ~60s
-/// AppleEvent default). Playback paths (`playNow`, `playPause`, …) dispatch
-/// through `NSAppleScript` and are not exercised here.
+/// double-quoted literal), the PID-addressed invocation descriptor, structured
+/// error parsing, and focus-restoration policy. Playback paths (`playNow`,
+/// `playPause`, …) dispatch through `NSAppleScript` and are not exercised
+/// here.
 @MainActor
 @Suite("AppleMusicController Tests")
 struct AppleMusicControllerTests {
@@ -121,54 +122,62 @@ struct AppleMusicControllerTests {
         #expect(makeController().sanitizeForAppleScript("a b") == "a b")
     }
 
-    // MARK: - Script timeout wrapping
+    // MARK: - PID-targeted scripts
 
-    @Test("timeoutWrapped surrounds the body with a with-timeout block")
-    func timeoutWrappedShape() {
-        let body = """
-        tell application "Music"
-            playpause
-        end tell
-        """
-        let script = AppleMusicController.timeoutWrapped(body, seconds: 5)
-        #expect(script.hasPrefix("with timeout of 5 seconds\n"))
-        #expect(script.hasSuffix("\nend timeout"))
-        #expect(script.contains(body))
+    @Test("PID-targeted script wraps Music terminology in a timeout handler")
+    func pidTargetedScriptShape() {
+        let script = AppleMusicController.pidTargetedScript("playpause", seconds: 5)
+
+        #expect(script.contains("using terms from application \"Music\""))
+        #expect(script.contains("on wolfWaveRun(musicTarget)"))
+        #expect(script.contains("with timeout of 5 seconds"))
+        #expect(script.contains("tell musicTarget"))
+        #expect(script.contains("playpause"))
+        #expect(script.contains("end wolfWaveRun"))
+        #expect(!script.contains("tell application \"Music\""))
+        #expect(!script.contains("if application \"Music\" is running"))
     }
 
-    @Test("timeoutWrapped gates the body on a non-launching running check")
-    func timeoutWrappedGuardsAgainstRelaunch() {
-        let body = """
-        tell application "Music"
-            playpause
-        end tell
-        """
-        let script = AppleMusicController.timeoutWrapped(body, seconds: 5)
+    @Test("Invocation event carries a kernel process ID argument")
+    func invocationEventTargetsPID() {
+        let event = AppleMusicController.scriptInvocationEvent(targetPID: 4_242)
+        let handler = event.paramDescriptor(forKeyword: keyASSubroutineName)
+        let arguments = event.paramDescriptor(forKeyword: keyDirectObject)
+        let target = arguments?.atIndex(1)
 
-        // `application "Music" is running` is answered without launching Music,
-        // unlike the `tell` block it guards. Losing this line reintroduces the
-        // relaunch-on-quit bug (PR #203, PR #273).
-        #expect(script.contains("if application \"Music\" is running then"))
-
-        // The tell block must sit *inside* the guard, not before it.
-        let guardRange = script.range(of: "if application \"Music\" is running then")
-        let bodyRange = script.range(of: body)
-        #expect(guardRange != nil)
-        #expect(bodyRange != nil)
-        if let guardRange, let bodyRange {
-            #expect(guardRange.upperBound <= bodyRange.lowerBound)
-        }
-
-        // Closed Music must surface as a script error so callers take their
-        // existing nil / "no information" path instead of reading a stop.
-        #expect(script.contains("error \"Music is not running\" number -600"))
-        #expect(script.contains("end if"))
+        #expect(handler?.stringValue == "wolfWaveRun")
+        #expect(target?.descriptorType == typeKernelProcessID)
+        #expect(target?.int32Value == 4_242)
     }
 
-    @Test("timeoutWrapped embeds the requested number of seconds")
-    func timeoutWrappedSeconds() {
-        let script = AppleMusicController.timeoutWrapped("tell application \"Music\"\nend tell", seconds: 2)
-        #expect(script.contains("with timeout of 2 seconds"))
+    @Test("Focus restores only when Music remains frontmost")
+    func focusRestorationPolicy() {
+        #expect(AppleMusicController.shouldRestoreFocus(
+            previousPID: 10,
+            currentPID: 20,
+            musicPID: 20
+        ))
+        #expect(!AppleMusicController.shouldRestoreFocus(
+            previousPID: 10,
+            currentPID: 30,
+            musicPID: 20
+        ))
+        #expect(!AppleMusicController.shouldRestoreFocus(
+            previousPID: 20,
+            currentPID: 20,
+            musicPID: 20
+        ))
+    }
+
+    @Test("AppleScript error dictionaries preserve number and message")
+    func structuredScriptFailure() {
+        let error = NSMutableDictionary()
+        error[NSAppleScript.errorNumber] = NSNumber(value: -1_712)
+        error[NSAppleScript.errorMessage] = "Timed out"
+
+        let failure = AppleMusicController.scriptFailure(from: error)
+        #expect(failure.number == -1_712)
+        #expect(failure.message == "Timed out")
     }
 
     @Test("probe timeout is shorter than the command timeout")
