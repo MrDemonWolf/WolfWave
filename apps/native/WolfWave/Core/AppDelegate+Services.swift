@@ -988,7 +988,7 @@ extension AppDelegate {
     /// replacement account.
     func restartTwitchTokenValidationSchedule() {
         cancelTwitchBootValidation()
-        guard currentTwitchValidationCredential() != nil else {
+        guard Self.currentTwitchValidationCredential() != nil else {
             setReauthNeeded(false)
             return
         }
