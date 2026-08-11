@@ -430,6 +430,7 @@
    ────────────────────────────────────────────────────────── */
 @supports (corner-shape: squircle) {
   .ww-card,
+  .ww-faq,
   .ww-glass,
   .ww-code,
   .ww-dev-window,
@@ -998,41 +999,102 @@ div[data-card]:hover {
   background-color: var(--bg-surface);
 }
 
-/* Accordion. Match marketing landing FaqRow aesthetic.
-   Fumadocs renders each item as <div data-state data-orientation>. */
-div[data-orientation="vertical"][data-state] {
-  border: 1px solid var(--hairline) !important;
-  border-radius: 12px !important;
-  background-color: var(--bg-elev) !important;
-  margin-bottom: 0.5rem !important;
+/* Accordion (the Fumadocs MDX <Accordions> used on /docs/faq). Matches the
+   marketing landing .ww-faq rows below, so both FAQ surfaces read as one thing.
+
+   Fumadocs markup, which drives every selector here:
+     root  div[data-orientation]                      (no data-state)
+       item  div[data-state][data-orientation]
+         h3 > button > svg (ChevronRight) + title
+         content div[role="region"][data-state][data-orientation] > div
+
+   The content region carries data-state and data-orientation too, so the item
+   selector must exclude [role="region"] or the body renders as a second card
+   nested inside the first. */
+
+/* Root ships its own border, radius and card background. We want one card per
+   item, so flatten the frame and space the items instead. */
+div[data-orientation="vertical"]:not([data-state]):has(
+    > div[data-state][data-orientation="vertical"]
+  ) {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  border: 0;
+  border-radius: 0;
+  background-color: transparent;
+  overflow: visible;
+}
+
+div[data-orientation="vertical"][data-state]:not([role="region"]) {
+  border: 1px solid var(--hairline);
+  border-radius: 12px;
+  background-color: var(--bg-elev);
   overflow: hidden;
   transition: border-color 0.2s ease, background-color 0.2s ease;
 }
-div[data-orientation="vertical"][data-state="open"] {
-  border-color: color-mix(in srgb, var(--brand-500) 30%, var(--hairline)) !important;
-  background-color: color-mix(in srgb, var(--brand-50) 35%, var(--bg-elev)) !important;
+div[data-orientation="vertical"][data-state="open"]:not([role="region"]) {
+  border-color: color-mix(in srgb, var(--brand-500) 30%, var(--hairline));
+  background-color: color-mix(in srgb, var(--brand-50) 35%, var(--bg-elev));
 }
-div[data-orientation="vertical"][data-state] > h3 {
-  margin: 0 !important;
+div[data-orientation="vertical"][data-state]:not([role="region"]) > h3 {
+  margin: 0;
 }
-div[data-orientation="vertical"][data-state] > h3 > button {
+div[data-orientation="vertical"][data-state]:not([role="region"]) > h3 > button {
   width: 100%;
-  padding: 0.85rem 1.1rem !important;
-  font-weight: 600 !important;
-  color: var(--txt-1) !important;
-  font-size: 0.95rem !important;
+  padding: 0.9rem 1.1rem;
+  font-weight: 600;
+  color: var(--txt-1);
+  font-size: 0.95rem;
 }
-div[data-orientation="vertical"][data-state] > h3 > button:hover {
-  background-color: color-mix(in srgb, var(--brand-50) 60%, transparent) !important;
+div[data-orientation="vertical"][data-state]:not([role="region"])
+  > h3
+  > button:hover {
+  background-color: color-mix(in srgb, var(--brand-50) 60%, transparent);
 }
-div[data-orientation="vertical"][data-state] > h3 > button > svg {
-  color: var(--brand-500) !important;
-  transition: transform 0.2s ease;
+/* Chevron rotation is Fumadocs' own (rotate-90 when open). Only recolor it.
+   Adding a second rotation here stacks to 180deg and points it backwards. */
+div[data-orientation="vertical"][data-state]:not([role="region"])
+  > h3
+  > button
+  > svg {
+  color: var(--brand-500);
 }
-div[data-orientation="vertical"][data-state="open"] > h3 > button > svg {
-  transform: rotate(90deg);
-}
+/* Pad the inner wrapper, never the animated region: padding on the collapsing
+   element makes the open/close height animation jump. */
 div[data-orientation="vertical"][data-state] > div[role="region"] {
-  padding: 0 1.25rem 1rem !important;
   color: var(--txt-2);
+}
+div[data-orientation="vertical"][data-state] > div[role="region"] > div {
+  padding: 0 1.1rem 1rem;
+}
+
+/* Landing-page FAQ rows (native <details>/<summary> in app/(home)/page.tsx).
+   Deliberately the same card treatment as the docs accordion above. */
+.ww-faq {
+  border: 1px solid var(--hairline);
+  border-radius: 12px;
+  background-color: var(--bg-elev);
+  transition: border-color 0.2s ease, background-color 0.2s ease;
+}
+.ww-faq[open] {
+  border-color: color-mix(in srgb, var(--brand-500) 30%, var(--hairline));
+  background-color: color-mix(in srgb, var(--brand-50) 35%, var(--bg-elev));
+}
+.ww-faq > summary {
+  padding: 0.9rem 1.1rem;
+  border-radius: 12px;
+}
+.ww-faq > summary::-webkit-details-marker {
+  display: none;
+}
+.ww-faq > summary:hover {
+  background-color: color-mix(in srgb, var(--brand-50) 60%, transparent);
+}
+.ww-faq > summary:focus-visible {
+  outline: 2px solid var(--brand-500);
+  outline-offset: 2px;
+}
+.ww-faq > .ww-faq-body {
+  padding: 0 1.1rem 1rem;
 }
