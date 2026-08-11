@@ -54,7 +54,6 @@ function stubField(): StubField {
 
 interface Panel {
   token: StubField;
-  host: StubField;
   port: StubField;
   status: StubField & { textContent: string };
   sent: unknown[];
@@ -72,12 +71,11 @@ interface Panel {
  */
 function loadPanel(): Panel {
   const token = stubField();
-  const host = stubField();
   const port = stubField();
   const status = { ...stubField(), textContent: "" };
   const sent: unknown[] = [];
 
-  const elements: Record<string, unknown> = { token, host, port, status };
+  const elements: Record<string, unknown> = { token, port, status };
 
   class StubSocket {
     static readonly OPEN = 1;
@@ -117,7 +115,6 @@ function loadPanel(): Panel {
 
   return {
     token,
-    host,
     port,
     status,
     sent,
@@ -192,7 +189,7 @@ describe("status line", () => {
 
     panel.port.value = "8765";
     panel.refreshStatus();
-    expect(panel.status.textContent).toBe("Token looks right.");
+    expect(panel.status.textContent).toBe("Control token looks right.");
     expect(panel.port.attributes["aria-invalid"]).toBe("false");
   });
 
@@ -215,13 +212,13 @@ describe("status line", () => {
     panel.token.value = HEX64;
     panel.refreshStatus();
     expect(panel.token.attributes["aria-invalid"]).toBe("false");
-    expect(panel.status.textContent).toBe("Token looks right.");
+    expect(panel.status.textContent).toBe("Control token looks right.");
   });
 
   test("blank token prompts rather than erroring", () => {
     const panel = loadPanel();
     panel.refreshStatus();
-    expect(panel.status.textContent).toContain("Paste your access token");
+    expect(panel.status.textContent).toContain("Paste your control token");
     expect(panel.token.attributes["aria-invalid"]).toBeUndefined();
   });
 });
@@ -243,12 +240,14 @@ describe("save", () => {
     expect(panel.sent.at(-1)).toMatchObject({ payload: { token: "nope" } });
   });
 
-  test("blank host falls back to loopback", () => {
+  test("never persists a configurable host", () => {
     const panel = loadPanel();
     panel.token.value = HEX64;
-    panel.host.value = "";
     panel.save();
-    expect(panel.sent.at(-1)).toMatchObject({ payload: { host: "127.0.0.1" } });
+
+    const message = panel.sent.at(-1) as { payload: Record<string, unknown> };
+    expect(message.payload).not.toHaveProperty("host");
+    expect(message.payload.port).toBe(8765);
   });
 
   test("trims the token", () => {
