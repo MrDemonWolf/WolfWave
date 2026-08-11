@@ -49,12 +49,6 @@ export default function sitemap(): MetadataRoute.Sitemap {
       priority: 0.9,
       changeFrequency: "monthly",
     },
-    {
-      url: abs("/widget"),
-      lastModified: now,
-      priority: 0.4,
-      changeFrequency: "monthly",
-    },
   ];
 
   const docEntries: MetadataRoute.Sitemap = source.getPages().map((page) => ({
