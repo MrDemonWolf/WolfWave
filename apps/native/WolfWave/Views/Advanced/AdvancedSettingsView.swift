@@ -650,6 +650,9 @@ struct AdvancedSettingsView: View {
         if summary.reconnectedTwitch {
             message += " Open the Twitch tab to finish signing in."
         }
+        if !summary.warnings.isEmpty {
+            message += " " + summary.warnings.joined(separator: " ")
+        }
         return message
     }
 
@@ -663,4 +666,3 @@ struct AdvancedSettingsView: View {
         .padding()
         .frame(width: 700)
 }
-

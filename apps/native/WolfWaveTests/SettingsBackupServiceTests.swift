@@ -392,6 +392,101 @@ final class SettingsBackupServiceTests: XCTestCase {
         XCTAssertTrue(defaults.bool(forKey: AppConstants.UserDefaults.twitchReauthNeeded))
         XCTAssertEqual(KeychainService.loadTwitchCredentialGrant(), original)
     }
+    func testApplyEnactsSystemBackedPreferences() async throws {
+        let suiteName = "SettingsBackupServiceTests.sideEffects.\(UUID().uuidString)"
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suiteName))
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+
+        var launchAtLoginEnabled = false
+        var launchRequests: [Bool] = []
+        var appliedAppearances: [String] = []
+        var appliedUpdates: [SettingsBackupService.UpdatePreferences] = []
+        let sideEffects = SettingsBackupService.SideEffects(
+            isLaunchAtLoginEnabled: { launchAtLoginEnabled },
+            setLaunchAtLogin: { enabled in
+                launchRequests.append(enabled)
+                launchAtLoginEnabled = enabled
+                return .success
+            },
+            applyAppearance: { appliedAppearances.append($0) },
+            applyUpdatePreferences: { appliedUpdates.append($0) }
+        )
+        let keys = AppConstants.UserDefaults.self
+        let backup = SettingsBackup(
+            format: SettingsBackup.currentFormat,
+            schemaVersion: SettingsBackup.currentSchemaVersion,
+            appVersion: "1.0.0",
+            appBuild: "1",
+            exportedAt: Date(timeIntervalSince1970: 0),
+            settings: [
+                keys.launchAtLogin: .bool(true),
+                keys.appearancePreference: .string(AppConstants.Appearance.dark),
+                keys.updateCheckEnabled: .bool(false),
+                keys.updateChannel: .string(UpdateChannel.nightly.rawValue),
+            ],
+            integrations: .init(twitch: nil)
+        )
+
+        let summary = await SettingsBackupService(
+            defaults: defaults,
+            center: NotificationCenter(),
+            replaceCustomCommands: { _ in false },
+            replaceSongRequestBlocklist: { _ in false },
+            sideEffects: sideEffects
+        ).apply(backup, choices: .init())
+
+        XCTAssertEqual(launchRequests, [true])
+        XCTAssertEqual(appliedAppearances, [AppConstants.Appearance.dark])
+        XCTAssertEqual(
+            appliedUpdates,
+            [.init(automaticCheckEnabled: false, channel: .nightly)]
+        )
+        XCTAssertEqual(summary.restoredCount, 4)
+        XCTAssertTrue(summary.warnings.isEmpty)
+    }
+
+    func testApplyReconcilesRejectedLaunchAtLoginChange() async throws {
+        let suiteName = "SettingsBackupServiceTests.loginFailure.\(UUID().uuidString)"
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suiteName))
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+
+        var launchRequests: [Bool] = []
+        let sideEffects = SettingsBackupService.SideEffects(
+            isLaunchAtLoginEnabled: { false },
+            setLaunchAtLogin: { enabled in
+                launchRequests.append(enabled)
+                return .failure
+            },
+            applyAppearance: { _ in },
+            applyUpdatePreferences: { _ in }
+        )
+        let key = AppConstants.UserDefaults.launchAtLogin
+        let backup = SettingsBackup(
+            format: SettingsBackup.currentFormat,
+            schemaVersion: SettingsBackup.currentSchemaVersion,
+            appVersion: "1.0.0",
+            appBuild: "1",
+            exportedAt: Date(timeIntervalSince1970: 0),
+            settings: [key: .bool(true)],
+            integrations: .init(twitch: nil)
+        )
+
+        let summary = await SettingsBackupService(
+            defaults: defaults,
+            center: NotificationCenter(),
+            replaceCustomCommands: { _ in false },
+            replaceSongRequestBlocklist: { _ in false },
+            sideEffects: sideEffects
+        ).apply(backup, choices: .init())
+
+        XCTAssertEqual(launchRequests, [true])
+        XCTAssertFalse(defaults.bool(forKey: key))
+        XCTAssertEqual(summary.restoredCount, 0)
+        XCTAssertEqual(
+            summary.warnings,
+            ["Launch at Login couldn't be restored and remains off."]
+        )
+    }
 }
 
 private actor SettingsBackupAsyncGate {

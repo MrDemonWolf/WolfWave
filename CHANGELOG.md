@@ -32,6 +32,7 @@ All notable changes to this project will be documented in this file.
 
 ### Fixed
 
+- **Settings backups now restore live behavior, not just switches.** Appearance, update settings, and Launch at Login take effect during import; rejected login-item changes stay matched to macOS, unsafe queue limits are ignored, and the preview count matches what will actually restore.
 - **Twitch sign-in survives service hiccups.** Device-code login now uses the original expiry deadline, follows the required polling slowdown and timeout backoff, and keeps trying through rate limits plus temporary network or server failures instead of failing early.
 - **Twitch no longer mistakes an outage for an expired sign-in.** Only Twitch's explicit token rejection or confirmed missing permissions prompts a reconnect. Network errors, rate limits, and malformed refresh responses retry within a bounded window and leave saved credentials intact when Twitch remains unavailable.
 - **Twitch account changes stay internally consistent.** Access tokens, refresh tokens, account identity, and the configured channel now change together in one Keychain write. Existing saved fields migrate without deleting the originals until the new record is safe. Imported and edited channel names are checked with Twitch before becoming canonical; invalid, missing, stale, or temporarily unverifiable names stay pending.
