@@ -82,7 +82,7 @@ Your music plays. Everything else keeps up.
 - **App Visibility.** Run menu-bar only, Dock only, or both, and set launch-at-login, from Settings > General. The menu bar icon stays reachable in every mode.
 - **Guided Apple Music Access.** Onboarding requests the Automation permission for Music.app and shows a recovery screen with the exact fix if macOS denies it later.
 - **Streamer Mode.** One-tap tray toggle that masks your Twitch channel name, widget URLs, and overlay/control tokens across the UI, so the app is safe to show on camera.
-- **Backup & Restore.** Export your settings to a portable JSON file from Settings > Advanced and bring them back on another Mac or after a reinstall. Accounts and secrets stay in the Keychain, never in the file.
+- **Backup & Restore.** Export your settings to a portable JSON file from Settings > Advanced and bring them back on another Mac or after a reinstall. Credentials and private account IDs stay in Keychain; the public Twitch channel name travels with your preferences.
 - **Song-Change Notifications.** Opt-in macOS banner on every track change, with album art. The banner replaces in place instead of stacking.
 - **Secure by Default.** Credentials live in the macOS Keychain, never plain text.
 - **Automatic Updates.** Sparkle for DMG installs, or Homebrew (`brew upgrade --cask`). Pick Stable or opt into [Nightly builds](https://mrdemonwolf.github.io/wolfwave/docs/nightly) in Settings > Software Update.
