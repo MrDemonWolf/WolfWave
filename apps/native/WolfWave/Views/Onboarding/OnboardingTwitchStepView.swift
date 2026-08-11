@@ -15,6 +15,8 @@ struct OnboardingTwitchStepView: View {
     // MARK: - Properties
 
     @Bindable var twitchViewModel: TwitchViewModel
+    /// Stable owner supplied by the containing Onboarding presentation.
+    let oauthOwner: TwitchViewModel.OAuthPresentationOwner
 
     @State private var hasStartedActivation = false
 
@@ -69,7 +71,7 @@ struct OnboardingTwitchStepView: View {
                 background: AnyShapeStyle(AppConstants.Brand.twitch),
                 action: {
                     hasStartedActivation = false
-                    twitchViewModel.startOAuth()
+                    twitchViewModel.startOAuth(owner: oauthOwner)
                 },
                 label: {
                     HStack(spacing: 8) {
@@ -115,7 +117,7 @@ struct OnboardingTwitchStepView: View {
 
                 Button("Cancel") {
                     hasStartedActivation = false
-                    Task { @MainActor in await twitchViewModel.cancelOAuth() }
+                    twitchViewModel.requestOAuthCancellation(ifOwnedBy: oauthOwner)
                 }
                 .buttonStyle(.bordered)
                 .controlSize(.small)
@@ -303,7 +305,7 @@ struct OnboardingTwitchStepView: View {
             .cardStyle()
 
             Button("Try Again") {
-                twitchViewModel.startOAuth()
+                twitchViewModel.startOAuth(owner: oauthOwner)
             }
             .buttonStyle(.bordered)
             .pointerCursor()
@@ -351,7 +353,10 @@ struct OnboardingTwitchStepView: View {
 // MARK: - Previews
 
 #Preview("Not connected") {
-    OnboardingTwitchStepView(twitchViewModel: TwitchViewModel())
+    OnboardingTwitchStepView(
+        twitchViewModel: TwitchViewModel(),
+        oauthOwner: .onboarding(UUID())
+    )
         .frame(
             width: AppConstants.OnboardingUI.windowWidth,
             height: AppConstants.OnboardingUI.windowHeight

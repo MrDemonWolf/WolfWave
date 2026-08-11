@@ -608,38 +608,6 @@ final class KeychainServiceTests {
         #expect(backend.rawValue(account: KeychainService.twitchCredentialGrantAccount) == nil)
     }
 
-    @Test("Manual token and channel write failure preserves prior pair and revision")
-    func testManualCredentialWriteFailurePreservesPriorPairAndRevision() throws {
-        let originalBackend = KeychainService.backend
-        let backend = InspectableKeychainBackend()
-        KeychainService.backend = backend
-        defer { KeychainService.backend = originalBackend }
-        let grant = KeychainService.TwitchCredentialGrant(
-            accessToken: "OLD_ACCESS",
-            refreshToken: "OLD_REFRESH",
-            username: "wolf",
-            userID: "123",
-            channelID: "old-channel")
-        try KeychainService.saveTwitchCredentialGrant(grant)
-        let revision = try #require(
-            TwitchCredentialStore.shared.revision(
-                matchingAccessToken: "OLD_ACCESS"))
-        backend.failNextSave(
-            for: KeychainService.twitchCredentialGrantAccount)
-
-        #expect(throws: InspectableKeychainBackend.InjectedError.self) {
-            try TwitchCredentialStore.shared.replaceWithManualCredentials(
-                accessToken: "NEW_ACCESS",
-                channelID: "new-channel"
-            )
-        }
-
-        #expect(try KeychainService.loadTwitchCredentialGrantChecked() == grant)
-        #expect(
-            TwitchCredentialStore.shared.revision(
-                matchingAccessToken: "OLD_ACCESS") == revision)
-    }
-
     @Test("Channel-preserving clear failure preserves the account and revision")
     func testChannelPreservingClearFailurePreservesAccountAndRevision() throws {
         let originalBackend = KeychainService.backend

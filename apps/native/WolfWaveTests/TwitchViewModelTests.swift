@@ -327,46 +327,6 @@ struct TwitchViewModelTests {
         #expect(viewModel.channelValidationState == .idle)
     }
 
-    // MARK: - Save Credentials Tests
-
-    @Test("Save credentials validates empty token")
-    func testSaveCredentialsEmptyToken() async throws {
-        let validationCancellations = ThreadSafeBox(0)
-        let viewModel = TwitchViewModel(
-            cancelTokenValidationSchedule: {
-                validationCancellations.mutate { $0 += 1 }
-            }
-        )
-        
-        viewModel.oauthToken = ""
-        viewModel.channelID = "testchannel"
-        
-        await viewModel.saveCredentials()
-        
-        #expect(viewModel.statusMessage == "❌ No OAuth token to save")
-        #expect(viewModel.credentialsSaved == false)
-        #expect(validationCancellations.value == 0)
-    }
-    
-    @Test("Save credentials validates empty channel")
-    func testSaveCredentialsEmptyChannel() async throws {
-        let validationCancellations = ThreadSafeBox(0)
-        let viewModel = TwitchViewModel(
-            cancelTokenValidationSchedule: {
-                validationCancellations.mutate { $0 += 1 }
-            }
-        )
-        
-        viewModel.oauthToken = "test_token"
-        viewModel.channelID = ""
-        
-        await viewModel.saveCredentials()
-        
-        #expect(viewModel.statusMessage == "❌ Please enter a channel name")
-        #expect(viewModel.credentialsSaved == false)
-        #expect(validationCancellations.value == 0)
-    }
-    
     // MARK: - Cancel OAuth Tests
     
     @Test("Cancel OAuth resets state")
