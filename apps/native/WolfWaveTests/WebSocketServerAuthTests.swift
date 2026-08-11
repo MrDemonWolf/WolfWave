@@ -13,19 +13,19 @@ import XCTest
 /// Pins the pure authentication and authorization contract used by the
 /// Network.framework handshake and connection-state gates.
 final class WebSocketServerAuthTests: XCTestCase {
-    private let overlayToken = "abcdef1234567890"
-    private let controlToken = "0123456789abcdef"
+    private let overlayToken = String(repeating: "abcdef1234567890", count: 4)
+    private let controlToken = String(repeating: "0123456789abcdef", count: 4)
 
     // MARK: - Role-specific subprotocols
 
     func testExpectedSubprotocolsCarryDistinctRolePrefixes() {
         XCTAssertEqual(
             WebSocketAuthToken.expectedSubprotocol(for: overlayToken, role: .overlay),
-            "wolfwave.overlay.abcdef1234567890"
+            "wolfwave.overlay.\(overlayToken)"
         )
         XCTAssertEqual(
             WebSocketAuthToken.expectedSubprotocol(for: controlToken, role: .control),
-            "wolfwave.control.0123456789abcdef"
+            "wolfwave.control.\(controlToken)"
         )
     }
 
