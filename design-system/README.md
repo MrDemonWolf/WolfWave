@@ -7,6 +7,7 @@ Single source of truth for WolfWave's visual language across the native app, the
 ```
 design-system/
   tokens.json          # canonical token source; edit this
+  tokens.schema.json   # JSON schema for editor validation; keep in sync with generate.ts
   lint-allowlist.txt   # grandfathered literal spacing/font sites, ratchet-only
   scripts/generate.ts  # bun script that emits per-platform outputs
   scripts/lint.ts      # design-system lint (bun run ds:lint)
