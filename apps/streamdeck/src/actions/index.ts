@@ -1,5 +1,5 @@
 /**
- * The v1 key set. One class per manifest action.
+ * The v2 key set. One class per manifest action.
  *
  * Every UUID here must match an entry in
  * `com.mrdemonwolf.wolfwave.sdPlugin/manifest.json`; the SDK silently ignores a

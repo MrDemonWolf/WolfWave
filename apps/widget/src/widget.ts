@@ -106,7 +106,7 @@ const queueTickerEnabled = params.get("queueTicker") === "1";
 //
 // Why a subprotocol header instead of a query-param token?
 // The Swift WebSocket server (`WebSocketServerAuthTests`) enforces the token
-// via `Sec-WebSocket-Protocol: wolfwave.token.<hex>`. Query-param tokens are
+// via `Sec-WebSocket-Protocol: wolfwave.overlay.<hex>`. Query-param tokens are
 // fine for the HTTP page fetch but not for the WS upgrade itself.
 const injectedToken = "__WOLFWAVE_TOKEN__";
 const wsToken =
@@ -1111,7 +1111,7 @@ function connect(): void {
   const wsHost = location.hostname || "localhost";
   const wsURL = "ws://" + wsHost + ":" + wsPort;
   console.log("[WolfWave Widget] Connecting to " + wsURL);
-  const protocols = wsToken ? ["wolfwave.token." + wsToken] : [];
+  const protocols = wsToken ? ["wolfwave.overlay." + wsToken] : [];
   const socket = new WebSocket(wsURL, protocols);
   ws = socket;
 
