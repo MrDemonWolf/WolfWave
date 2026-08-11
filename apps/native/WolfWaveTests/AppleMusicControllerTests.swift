@@ -141,8 +141,8 @@ struct AppleMusicControllerTests {
     @Test("Invocation event carries a kernel process ID argument")
     func invocationEventTargetsPID() {
         let event = AppleMusicController.scriptInvocationEvent(targetPID: 4_242)
-        let handler = event.paramDescriptor(forKeyword: keyASSubroutineName)
-        let arguments = event.paramDescriptor(forKeyword: keyDirectObject)
+        let handler = event.paramDescriptor(forKeyword: AEKeyword(keyASSubroutineName))
+        let arguments = event.paramDescriptor(forKeyword: AEKeyword(keyDirectObject))
         let target = arguments?.atIndex(1)
 
         #expect(handler?.stringValue == "wolfWaveRun")
