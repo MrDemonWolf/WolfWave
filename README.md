@@ -47,7 +47,7 @@ Your music plays. Everything else keeps up.
 
 - **Now Playing in Chat.** Viewers type `!song`, `!currentsong`, or `!nowplaying` and instantly see the track you're spinning.
 - **Song Requests.** Viewers request songs with `!sr <track>`. Requests play through Apple Music without stealing focus from OBS.
-- **Channel Points & Bits.** A WolfWave-managed "Request a Song" channel-point reward, plus bit cheers that boost the cheerer's queued track to the front.
+- **Channel Points & Bits.** A WolfWave-managed "Request a Song" channel-point reward, plus bit cheers that boost a queued track to the front. Paid point and qualifying Bits actions use a local recovery record; WolfWave pauses the managed reward and shows a warning if durable recovery is unavailable.
 - **Chat Vote-Skip.** Viewers vote off a song with `!voteskip` or `!vs`, in chat-tally mode or native Twitch Polls.
 - **Hold-Mode Queue.** Mods hold, resume, skip, and clear the request queue from chat or the menu bar.
 - **Live Queue View.** See what's playing, what's next, and who requested each track right inside the app.
