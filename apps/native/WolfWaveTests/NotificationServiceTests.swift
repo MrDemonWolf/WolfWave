@@ -211,7 +211,7 @@ struct NotificationServiceTests {
             == "com.mrdemonwolf.wolfwave.notification.skipVotePassed")
         #expect(AppConstants.UserNotification.twitchReauthIdentifier
             == "com.mrdemonwolf.wolfwave.notification.twitchReauth")
-        // All distinct so they don't replace each other in Notification Center.
+        // All request identities stay distinct; lifecycle cleanup is explicit.
         let ids = Set([
             AppConstants.UserNotification.songChangeIdentifier,
             AppConstants.UserNotification.skipVoteStartedIdentifier,
@@ -310,6 +310,111 @@ struct NotificationServiceTests {
             .add(
                 identifier: AppConstants.UserNotification.songChangeIdentifier,
                 subtitle: "Second"
+            ),
+        ])
+    }
+
+    @Test("A passed skip vote invalidates a slow started notification across identifiers")
+    func testSkipVotePassedInvalidatesSlowStartedPost() async {
+        let center = TestUserNotificationCenter()
+        let artwork = ControlledArtworkProvider()
+        let service = NotificationService(
+            center: center,
+            artworkAttachmentProvider: { track, artist in
+                await artwork.attachment(track: track, artist: artist)
+            }
+        )
+
+        let started = Task {
+            await service.postSkipVoteStarted(
+                track: "Started Track",
+                artist: "Artist",
+                votesNeeded: 3,
+                viaPoll: false
+            )
+        }
+        await artwork.waitUntilRequested(track: "Started Track")
+
+        let passed = Task {
+            await service.postSkipVotePassed(track: "Passed Track", artist: "Artist")
+        }
+        await artwork.waitUntilRequested(track: "Passed Track")
+
+        artwork.complete(track: "Passed Track")
+        await passed.value
+        artwork.complete(track: "Started Track")
+        await started.value
+
+        #expect(center.operations == [
+            .remove(AppConstants.UserNotification.skipVotePassedIdentifier),
+            .remove(AppConstants.UserNotification.skipVoteStartedIdentifier),
+            .add(
+                identifier: AppConstants.UserNotification.skipVotePassedIdentifier,
+                subtitle: "Skipping Passed Track · Artist"
+            ),
+        ])
+    }
+
+    @Test("A passed skip vote removes an already-delivered started notification")
+    func testSkipVotePassedRemovesDeliveredStartedNotification() async {
+        let center = TestUserNotificationCenter()
+        let service = NotificationService(
+            center: center,
+            artworkAttachmentProvider: { _, _ in nil }
+        )
+
+        await service.postSkipVoteStarted(
+            track: "Track",
+            artist: "Artist",
+            votesNeeded: 3,
+            viaPoll: false
+        )
+        await service.postSkipVotePassed(track: "Track", artist: "Artist")
+
+        #expect(center.operations == [
+            .remove(AppConstants.UserNotification.skipVoteStartedIdentifier),
+            .remove(AppConstants.UserNotification.skipVotePassedIdentifier),
+            .add(
+                identifier: AppConstants.UserNotification.skipVoteStartedIdentifier,
+                subtitle: "Track · Artist"
+            ),
+            .remove(AppConstants.UserNotification.skipVotePassedIdentifier),
+            .remove(AppConstants.UserNotification.skipVoteStartedIdentifier),
+            .add(
+                identifier: AppConstants.UserNotification.skipVotePassedIdentifier,
+                subtitle: "Skipping Track · Artist"
+            ),
+        ])
+    }
+
+    @Test("A new skip vote removes the previous vote's delivered passed notification")
+    func testSkipVoteStartedRemovesDeliveredPassedNotification() async {
+        let center = TestUserNotificationCenter()
+        let service = NotificationService(
+            center: center,
+            artworkAttachmentProvider: { _, _ in nil }
+        )
+
+        await service.postSkipVotePassed(track: "Old Track", artist: "Artist")
+        await service.postSkipVoteStarted(
+            track: "New Track",
+            artist: "Artist",
+            votesNeeded: 3,
+            viaPoll: false
+        )
+
+        #expect(center.operations == [
+            .remove(AppConstants.UserNotification.skipVotePassedIdentifier),
+            .remove(AppConstants.UserNotification.skipVoteStartedIdentifier),
+            .add(
+                identifier: AppConstants.UserNotification.skipVotePassedIdentifier,
+                subtitle: "Skipping Old Track · Artist"
+            ),
+            .remove(AppConstants.UserNotification.skipVoteStartedIdentifier),
+            .remove(AppConstants.UserNotification.skipVotePassedIdentifier),
+            .add(
+                identifier: AppConstants.UserNotification.skipVoteStartedIdentifier,
+                subtitle: "New Track · Artist"
             ),
         ])
     }

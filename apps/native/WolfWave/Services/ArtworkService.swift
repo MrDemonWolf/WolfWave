@@ -409,9 +409,13 @@ nonisolated final class ArtworkService: @unchecked Sendable {
             songLinkURLCache.removeAll()
             resolvedAt.removeAll()
             cacheKeyOrder.removeAll()
-        }
-        if let url = persistenceURL {
-            ioQueue.async { try? FileManager.default.removeItem(at: url) }
+
+            // Enqueue deletion while still holding the generation barrier.
+            // Any fresh-generation save must acquire cacheQueue first, so its
+            // disk write is guaranteed to follow this deletion on ioQueue.
+            if let url = persistenceURL {
+                ioQueue.async { try? FileManager.default.removeItem(at: url) }
+            }
         }
         Log.info("Artwork: cache cleared", category: "Artwork")
     }
