@@ -114,6 +114,11 @@ export class WolfWaveClient {
     ) {
       return;
     }
+    // A configuration change revokes the old authority synchronously. Do not
+    // leave an authenticated socket usable until the zero-delay reconnect runs.
+    this.clearTimer();
+    this.closeSocket();
+    this.flushPending();
     this.settings = settings;
     this.attempt = 0;
     this.stopped = false;
@@ -173,6 +178,9 @@ export class WolfWaveClient {
     const settings = this.settings;
     if (!settings || this.stopped) return;
 
+    // Retire any previous authority before validating replacement settings.
+    this.closeSocket();
+
     const subprotocol = tokenSubprotocol(settings.token);
     if (!subprotocol) {
       // A malformed token can never succeed, so don't burn a reconnect loop on
@@ -180,8 +188,6 @@ export class WolfWaveClient {
       this.setState(withPhase(this.state, "unauthorized"));
       return;
     }
-
-    this.closeSocket();
 
     const socket = new WebSocket(socketURL(settings.port), [
       subprotocol,

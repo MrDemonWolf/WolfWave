@@ -186,11 +186,11 @@ final class WebSocketServerAuthTests: XCTestCase {
 
     func testTokenValidation() {
         XCTAssertTrue(WebSocketAuthToken.isValid(overlayToken))
-        XCTAssertTrue(WebSocketAuthToken.isValid("ABCDEF1234567890"))
+        XCTAssertFalse(WebSocketAuthToken.isValid("ABCDEF1234567890"))
         XCTAssertTrue(WebSocketAuthToken.isValid(String(repeating: "a", count: 64)))
         XCTAssertFalse(WebSocketAuthToken.isValid(""))
-        XCTAssertFalse(WebSocketAuthToken.isValid(String(repeating: "a", count: 15)))
-        XCTAssertFalse(WebSocketAuthToken.isValid(String(repeating: "a", count: 129)))
+        XCTAssertFalse(WebSocketAuthToken.isValid(String(repeating: "a", count: 63)))
+        XCTAssertFalse(WebSocketAuthToken.isValid(String(repeating: "a", count: 65)))
         XCTAssertFalse(WebSocketAuthToken.isValid("</script><script>alert(1)</script>"))
         XCTAssertFalse(WebSocketAuthToken.isValid("0123456789abcdef-"))
     }
@@ -227,6 +227,19 @@ final class WebSocketServerAuthTests: XCTestCase {
             XCTAssertNotEqual(overlay, control)
             XCTAssertEqual(KeychainService.loadToken(), overlay)
             XCTAssertEqual(KeychainService.loadControlToken(), control)
+        }
+    }
+
+    func testCurrentOrCreateReplacesInvalidStoredCredential() throws {
+        try withInMemoryKeychain {
+            try KeychainService.saveControlToken("ABCDEF1234567890")
+
+            let replacement = WebSocketAuthToken.currentOrCreate(for: .control)
+
+            XCTAssertEqual(replacement.count, 64)
+            XCTAssertTrue(WebSocketAuthToken.isValid(replacement))
+            XCTAssertNotEqual(replacement, "ABCDEF1234567890")
+            XCTAssertEqual(KeychainService.loadControlToken(), replacement)
         }
     }
 
