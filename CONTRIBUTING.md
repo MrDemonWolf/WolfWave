@@ -107,6 +107,7 @@ make lint                # SwiftLint against the tracked baseline
 make lint-crash-safety   # Blocking. No new force unwrap, try!, or as!
 make lint-headers        # Blocking. Swift file-header convention
 bun run ds:lint          # Design-system lint (no literal spacing or font sizes)
+bun run ds:schema        # Validate tokens.json against tokens.schema.json
 ```
 
 `make lint-baseline` regenerates `swiftlint-baseline.json`. It is a ratchet: the

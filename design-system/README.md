@@ -51,9 +51,16 @@ design-system/
 ## Change process
 
 1. Edit `design-system/tokens.json`.
-2. Run `bun run tokens` from repo root.
-3. Commit `tokens.json` **and** all five generated files in the same commit. CI verifies they are in sync (`bun run tokens && git diff --exit-code`).
-4. If the change is breaking (rename, removed key, value drift), bump `meta.version` in `tokens.json` and call it out in the PR description.
+2. Run `bun run ds:schema` to check the shape against `tokens.schema.json`.
+3. Run `bun run tokens` from repo root.
+4. Commit `tokens.json` **and** all five generated files in the same commit. CI verifies they are in sync (`bun run tokens && git diff --exit-code`).
+5. If the change is breaking (rename, removed key, value drift), bump `meta.version` in `tokens.json` and call it out in the PR description.
+
+Adding a **new top-level namespace** means updating `tokens.schema.json` in the same
+change. The schema sets `additionalProperties: false` at the root, so `ds:schema` fails
+until you do. That coupling is deliberate: `generate.ts` reads namespaces by name and
+does not check shape before emitting, so a typo'd or missing namespace would otherwise
+reach the Swift app, the docs CSS, the OBS widget, and the Remotion projects at once.
 
 ## Brand primary
 
