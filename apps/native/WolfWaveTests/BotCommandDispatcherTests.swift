@@ -233,7 +233,7 @@ final class BotCommandDispatcherTests: XCTestCase {
 }
 
 @MainActor
-private final class AwaitedTestCommand: AsyncBotCommand {
+private final class AwaitedTestCommand: @MainActor AsyncBotCommand {
     let triggers = ["!awaited"]
     let description = "Test structured async dispatch"
     let globalCooldown: TimeInterval = 0
@@ -248,7 +248,7 @@ private final class AwaitedTestCommand: AsyncBotCommand {
 }
 
 @MainActor
-private final class PrivilegedCooldownTestCommand: ServiceBoundCommand {
+private final class PrivilegedCooldownTestCommand: @MainActor ServiceBoundCommand {
     let triggers = ["!privileged-cooldown"]
     let description = "Test privileged cooldown reservation"
     let globalCooldown: TimeInterval = 60
