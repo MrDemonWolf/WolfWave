@@ -11,6 +11,8 @@
 import Foundation
 import Testing
 
+@testable import WolfWave
+
 /// Serializes tests that temporarily replace the process-wide Keychain backend.
 /// ponytail: one test semaphore; use task-local backends if parallelism matters.
 nonisolated enum KeychainBackendTestIsolation {
@@ -59,6 +61,69 @@ nonisolated final class ThreadSafeBox<Value>: @unchecked Sendable {
     func mutate(_ transform: (inout Value) -> Void) { lock.withLock { transform(&stored) } }
 }
 
+/// Bridges a synchronous GCD semaphore wait into async tests without running a
+/// blocking operation inside a Swift concurrency task. The continuation is
+/// resumed exactly once by the dedicated GCD work item, including on timeout.
+func waitForSemaphore(
+    _ semaphore: DispatchSemaphore,
+    timeout: DispatchTime
+) async -> Bool {
+    await withCheckedContinuation { continuation in
+        DispatchQueue.global(qos: .userInitiated).async {
+            continuation.resume(
+                returning: semaphore.wait(timeout: timeout) == .success
+            )
+        }
+    }
+}
+
+/// Inspectable process-local Keychain backend with a one-shot save failure.
+/// Shared by migration and transaction tests so failure semantics stay
+/// deterministic without reaching the user's real Keychain.
+nonisolated final class InspectableKeychainBackend: KeychainBackend, @unchecked Sendable {
+    enum InjectedError: Error {
+        case save
+    }
+
+    private let lock = NSLock()
+    private var store: [String: String] = [:]
+    private var nextFailingSaveAccount: String?
+
+    func failNextSave(for account: String) {
+        lock.withLock { nextFailingSaveAccount = account }
+    }
+
+    func seed(account: String, value: String) {
+        lock.withLock { store[account] = value }
+    }
+
+    func rawValue(account: String) -> String? {
+        lock.withLock { store[account] }
+    }
+
+    func save(account: String, value: String) throws {
+        try lock.withLock {
+            if nextFailingSaveAccount == account {
+                nextFailingSaveAccount = nil
+                throw InjectedError.save
+            }
+            store[account] = value
+        }
+    }
+
+    func load(account: String) -> String? {
+        rawValue(account: account)
+    }
+
+    func delete(account: String) {
+        lock.withLock { store[account] = nil }
+    }
+
+    func deleteAll() {
+        lock.withLock { store.removeAll() }
+    }
+}
+
 /// Polls `condition` until it returns true or the timeout elapses, returning
 /// the final result. Avoids fixed sleeps when waiting on async work (disk I/O,
 /// actor state), which are flaky under CI load.
@@ -79,6 +144,40 @@ func waitUntil(
         try? await Task.sleep(for: interval)
     }
     return await condition()
+}
+
+/// Collects exactly `count` values from an `AsyncStream`, or returns nil when
+/// the deadline wins. Task-group cancellation makes a missing event fail the
+/// test instead of leaving an unbounded `iterator.next()` suspended forever.
+func collectFirst<Element: Sendable>(
+    _ count: Int,
+    from stream: AsyncStream<Element>,
+    timeout: Duration = .seconds(2)
+) async -> [Element]? {
+    guard count > 0 else { return [] }
+    return await withTaskGroup(of: [Element]?.self) { group in
+        group.addTask {
+            var iterator = stream.makeAsyncIterator()
+            var values: [Element] = []
+            values.reserveCapacity(count)
+            for _ in 0..<count {
+                guard let value = await iterator.next() else { return nil }
+                values.append(value)
+            }
+            return values
+        }
+        group.addTask {
+            do {
+                try await Task.sleep(for: timeout)
+                return nil
+            } catch {
+                return nil
+            }
+        }
+        let result = await group.next() ?? nil
+        group.cancelAll()
+        return result
+    }
 }
 
 /// Round-trips a credential through a save/load/delete cycle and asserts the
