@@ -32,51 +32,95 @@ nonisolated enum WebSocketAuthToken {
         }
     }
 
-    /// Stable in-process fallbacks for the rare case where Keychain persistence
-    /// is temporarily unavailable. Keeping each role separate prevents a failed
-    /// control-token write from changing the overlay credential (and vice versa).
-    private static let sessionTokens = OSAllocatedUnfairLock<[Role: String]>(initialState: [:])
+    private struct SessionCredential: Sendable {
+        let token: String
+        /// False after a read failure: absence was never proven, so this token
+        /// must remain process-only and may not overwrite a durable credential.
+        var mayRetryPersistence: Bool
+    }
+
+    /// Stable in-process fallbacks for the rare case where Keychain access is
+    /// temporarily unavailable. Keeping each role separate prevents a failed
+    /// control-token operation from changing the overlay credential (and vice versa).
+    private static let sessionTokens =
+        OSAllocatedUnfairLock<[Role: SessionCredential]>(initialState: [:])
 
     /// Serializes credential lifecycle operations without holding the short-lived
     /// session-state lock across Keychain I/O.
     private static let operationGate = DispatchSemaphore(value: 1)
 
-    /// Returns the stored credential for `role`, minting and persisting it on
-    /// first call. A temporary session credential is retried before a stale
-    /// Keychain value is considered.
+    /// Returns the stored credential for `role`, minting and persisting it only
+    /// after a checked read proves the item absent or invalid. A read failure
+    /// gets a stable process-only fallback that can never overwrite an existing
+    /// durable credential in this process.
     @discardableResult
     static func currentOrCreate(for role: Role) -> String {
         operationGate.wait()
         defer { operationGate.signal() }
 
-        if let sessionValue = sessionTokens.withLock({ $0[role] }) {
+        if var session = sessionTokens.withLock({ state in state[role] }) {
+            guard session.mayRetryPersistence else { return session.token }
             do {
-                try save(sessionValue, for: role)
-                sessionTokens.withLock { $0[role] = nil }
+                if let durable = try loadChecked(for: role), isValid(durable) {
+                    if constantTimeEquals(durable, session.token) {
+                        sessionTokens.withLock { state in state[role] = nil }
+                        return durable
+                    }
+                    // Another writer installed a valid credential after the
+                    // fallback was minted. Keep this process internally stable,
+                    // but never overwrite that durable value.
+                    session.mayRetryPersistence = false
+                    sessionTokens.withLock { state in state[role] = session }
+                    return session.token
+                }
+                try save(session.token, for: role)
+                sessionTokens.withLock { state in state[role] = nil }
             } catch {
                 Log.error(
-                    "WebSocketAuthToken: Failed to persist session \(role.rawValue) token: \(error)",
+                    "WebSocketAuthToken: Could not settle session "
+                        + role.rawValue + " token: " + error.localizedDescription,
                     category: "WebSocket"
                 )
-                return sessionValue
+                return session.token
             }
-            return sessionValue
+            return session.token
         }
 
-        if let existing = load(for: role), isValid(existing) {
-            return existing
+        do {
+            if let existing = try loadChecked(for: role), isValid(existing) {
+                return existing
+            }
+        } catch {
+            let fresh = generate()
+            sessionTokens.withLock { state in
+                state[role] = SessionCredential(
+                    token: fresh,
+                    mayRetryPersistence: false)
+            }
+            Log.error(
+                "WebSocketAuthToken: Keychain read failed for "
+                    + role.rawValue + "; using a process-only token: "
+                    + error.localizedDescription,
+                category: "WebSocket"
+            )
+            return fresh
         }
 
         let fresh = generate()
         do {
             try save(fresh, for: role)
-            sessionTokens.withLock { $0[role] = nil }
+            sessionTokens.withLock { state in state[role] = nil }
         } catch {
             Log.error(
-                "WebSocketAuthToken: Failed to persist new \(role.rawValue) token: \(error)",
+                "WebSocketAuthToken: Failed to persist new " + role.rawValue
+                    + " token: " + error.localizedDescription,
                 category: "WebSocket"
             )
-            sessionTokens.withLock { $0[role] = fresh }
+            sessionTokens.withLock { state in
+                state[role] = SessionCredential(
+                    token: fresh,
+                    mayRetryPersistence: true)
+            }
         }
         return fresh
     }
@@ -100,8 +144,13 @@ nonisolated enum WebSocketAuthToken {
 
         let fresh = generate()
         try save(fresh, for: role)
-        sessionTokens.withLock { $0[role] = nil }
+        sessionTokens.withLock { state in state[role] = nil }
         return fresh
+    }
+
+    /// Test isolation for the process-only fallback state.
+    static func resetSessionCredentialsForTesting() {
+        sessionTokens.withLock { state in state.removeAll() }
     }
 
     /// Returns the exact subprotocol string a client in `role` must offer.
@@ -228,12 +277,12 @@ nonisolated enum WebSocketAuthToken {
         return bytes.map { String(format: "%02x", $0) }.joined()
     }
 
-    private static func load(for role: Role) -> String? {
+    private static func loadChecked(for role: Role) throws -> String? {
         switch role {
         case .overlay:
-            return KeychainService.loadToken()
+            return try KeychainService.loadTokenChecked()
         case .control:
-            return KeychainService.loadControlToken()
+            return try KeychainService.loadControlTokenChecked()
         }
     }
 

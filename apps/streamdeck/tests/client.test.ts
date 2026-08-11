@@ -12,6 +12,7 @@ type ClientInternals = {
     readyState: number;
     send: (message: string) => void;
     removeAllListeners: () => void;
+    once: (event: "error", listener: () => void) => void;
     close: () => void;
   } | null;
 };
@@ -63,6 +64,7 @@ describe("configure / stop", () => {
         sends += 1;
       },
       removeAllListeners: () => {},
+      once: () => {},
       close: () => {
         closes += 1;
       },
@@ -77,6 +79,31 @@ describe("configure / stop", () => {
     expect(raw.socket).toBeNull();
     expect(client.send("skip")).toBe(false);
     client.stop();
+  });
+
+  test("retiring a connecting socket keeps an error sink before close", () => {
+    const client = new WolfWaveClient();
+    const raw = internals(client);
+    let hasErrorSink = false;
+    let closeSawErrorSink = false;
+    raw.socket = {
+      readyState: 0,
+      send: () => {},
+      removeAllListeners: () => {
+        hasErrorSink = false;
+      },
+      once: (event) => {
+        if (event === "error") hasErrorSink = true;
+      },
+      close: () => {
+        closeSawErrorSink = hasErrorSink;
+      },
+    };
+
+    client.stop();
+
+    expect(closeSawErrorSink).toBe(true);
+    expect(raw.socket).toBeNull();
   });
 
   test("stop() leaves the client disconnected", () => {
