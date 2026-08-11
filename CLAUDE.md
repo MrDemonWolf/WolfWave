@@ -128,6 +128,20 @@ All `make test*` targets use the ignored `DerivedData/Tests` directory. This kee
 
 `Config.xcconfig` is gitignored, so a fresh git worktree under `.claude/worktrees/` won't have one and the native app can't build there. **When working in a worktree and `apps/native/WolfWave/Config.xcconfig` is missing, copy it from the primary checkout before building.** Find it via `git worktree list` (first entry is the main worktree) and copy that worktree's `apps/native/WolfWave/Config.xcconfig` into the current one. Only copy an existing real config; never synthesize one from `Config.xcconfig.example` to unblock a build without asking.
 
+#### Each worktree has its own DerivedData
+
+Xcode derives the DerivedData directory name from the project's **path**, so every worktree gets its own `~/Library/Developer/Xcode/DerivedData/WolfWave-<hash>/`. Inspecting a build product without confirming which one you are in is a reliable way to verify the wrong thing: a stale `WolfWave Dev.app` from another worktree looks exactly like a change that failed to take effect. This produced a false negative while verifying the Debug app icon (PR #406) — the built app appeared unchanged because the `.app` being read was a week-old artifact from a different worktree.
+
+Resolve the path from the build itself rather than guessing:
+
+```bash
+# The DerivedData dir for THIS worktree
+xcodebuild -project apps/native/WolfWave.xcodeproj -scheme WolfWave -showBuildSettings \
+  | awk -F' = ' '/ BUILT_PRODUCTS_DIR/ {print $2; exit}'
+```
+
+If several candidates exist, the newest build wins; `find ~/Library/Developer/Xcode/DerivedData -name 'WolfWave Dev.app' -maxdepth 6` plus the timestamp disambiguates. Also note `xcodebuild ... -quiet` (what `make build` uses) suppresses the error detail on failure, so rerun without `-quiet` when a build result looks wrong.
+
 `Info.plist` also contains `SUPublicEDKey` (Sparkle EdDSA public key) and `SUFeedURL` (appcast URL). These are committed and should not be modified unless rotating the Sparkle signing key.
 
 ### Entitlements: do NOT remove
