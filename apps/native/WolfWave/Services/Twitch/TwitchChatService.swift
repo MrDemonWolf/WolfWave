@@ -25,6 +25,11 @@ nonisolated struct HelixUsersResponse: Decodable {
 nonisolated struct TwitchValidateResponse: Decodable {
     let clientID: String?
     let scopes: [String]?
+
+    private enum CodingKeys: String, CodingKey {
+        case clientID = "client_id"
+        case scopes
+    }
 }
 
 /// `POST /helix/chat/messages` response. Used by `sendMessage` to confirm delivery.
