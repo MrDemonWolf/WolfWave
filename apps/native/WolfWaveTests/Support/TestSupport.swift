@@ -39,7 +39,7 @@ func makeIsolatedTempDirectory(prefix: String = "wolfwave-test") -> URL {
 /// `URLProtocol` test doubles.
 func requestBodyString(_ request: URLRequest) -> String {
     if let body = request.httpBody, !body.isEmpty {
-        return String(decoding: body, as: UTF8.self)
+        return String(bytes: body, encoding: .utf8) ?? ""
     }
     guard let stream = request.httpBodyStream else { return "" }
     stream.open()
@@ -53,7 +53,7 @@ func requestBodyString(_ request: URLRequest) -> String {
         guard count > 0 else { break }
         body.append(buffer, count: count)
     }
-    return String(decoding: body, as: UTF8.self)
+    return String(bytes: body, encoding: .utf8) ?? ""
 }
 
 /// Thread-safe value box for capturing state from inside `@Sendable` closures
