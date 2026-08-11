@@ -70,8 +70,9 @@ nonisolated enum WebSocketAuthToken {
                     // fallback was minted. Keep this process internally stable,
                     // but never overwrite that durable value.
                     session.mayRetryPersistence = false
-                    sessionTokens.withLock { state in state[role] = session }
-                    return session.token
+                    let retainedSession = session
+                    sessionTokens.withLock { state in state[role] = retainedSession }
+                    return retainedSession.token
                 }
                 try save(session.token, for: role)
                 sessionTokens.withLock { state in state[role] = nil }
