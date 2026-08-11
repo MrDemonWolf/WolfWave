@@ -50,8 +50,8 @@ nonisolated struct SettingsBackupCoder {
         var reconnectTwitch: Bool
         /// Twitch channel name to restore, when reconnecting.
         var twitchChannelName: String?
-        /// Count of backup keys ignored because they are not exportable
-        /// (account/runtime/unknown). Surfaced for transparency, never applied.
+        /// Count of backup keys ignored because they are non-exportable, unknown,
+        /// or fail validation. Surfaced for transparency, never applied.
         var ignoredKeyCount: Int
     }
 
@@ -72,30 +72,33 @@ nonisolated struct SettingsBackupCoder {
     ///
     /// - Parameters:
     ///   - snapshot: Raw `key -> value` pairs (typically from UserDefaults).
-    ///   - exportableKeys: The allow-list of keys permitted in a backup.
+    ///   - exportablePreferences: Portable keys and their value validation rules.
     ///   - twitchChannelName: Connected channel name, if any (non-secret).
     ///   - appVersion: Marketing version stamped into the file.
     ///   - appBuild: Build number stamped into the file.
     ///   - exportedAt: Creation timestamp.
     ///
-    /// Keys outside `exportableKeys`, and values of unsupported types, are
-    /// silently skipped. A backup can only ever contain portable scalar or
-    /// explicitly allow-listed data values.
+    /// Keys outside `exportablePreferences`, unsupported value shapes, and
+    /// values that fail their preference rule are silently skipped.
     func makeBackup(
         snapshot: [String: Any],
-        exportableKeys: [String],
+        exportablePreferences: [AppConstants.UserDefaults.ExportablePreference],
         twitchChannelName: String?,
         appVersion: String,
         appBuild: String,
         exportedAt: Date
     ) -> SettingsBackup {
-        let allow = Set(exportableKeys)
+        let schema = Dictionary(
+            uniqueKeysWithValues: exportablePreferences.map { ($0.key, $0.rule) }
+        )
         var settings: [String: BackupValue] = [:]
-        for (key, raw) in snapshot where allow.contains(key) {
-            if let value = BackupValue.make(from: raw),
-               isValueAllowed(value, forKey: key) {
-                settings[key] = value
-            }
+        for (key, raw) in snapshot {
+            guard
+                let rule = schema[key],
+                let value = BackupValue.make(from: raw),
+                isValueAllowed(value, by: rule)
+            else { continue }
+            settings[key] = value
         }
 
         let twitch = twitchChannelName
@@ -148,68 +151,71 @@ nonisolated struct SettingsBackupCoder {
 
     // MARK: - Apply Planning
 
-    /// Integer bounds for preferences whose consumers require a constrained
-    /// value. Keeping the rules in one table ensures import preview and apply
-    /// make the same decision for hand-edited backups.
-    private static let integerBounds: [String: ClosedRange<Int>] = [
-        AppConstants.UserDefaults.websocketServerPort: 0...Int(UInt16.max),
-        AppConstants.UserDefaults.widgetPort: 0...Int(UInt16.max),
-        AppConstants.UserDefaults.songRequestPerUserLimit: 1...20,
-        AppConstants.UserDefaults.songRequestLimitSubscriber: 1...20,
-        AppConstants.UserDefaults.songRequestLimitVIP: 1...20,
-        AppConstants.UserDefaults.songRequestLimitModerator: 1...20,
-    ]
-
-    /// Exportable preferences that intentionally persist encoded `Data`.
-    private static let dataKeys: Set<String> = [
-        AppConstants.UserDefaults.customCommands,
-        AppConstants.UserDefaults.songRequestBlocklist,
-    ]
-
-    /// Whether a backup value is safe to write for the given key.
-    /// Data is accepted only for explicitly allow-listed keys. Keys with an
-    /// integer rule must have the expected type and bounds; other scalars pass.
-    private func isValueAllowed(_ value: BackupValue, forKey key: String) -> Bool {
-        if Self.dataKeys.contains(key) {
-            guard case .data(let data) = value else { return false }
-            if key == AppConstants.UserDefaults.customCommands {
-                return (try? JSONCoders.default.decode(
-                    [CustomCommand].self,
-                    from: data
-                )) != nil
+    /// Whether a tagged backup value exactly matches a schema rule.
+    ///
+    /// This is the sole validator used for export, import preview, and apply.
+    /// Hand-edited backups therefore cannot exploit type bridging in
+    /// `UserDefaults` or install unknown raw values for a picker-backed enum.
+    private func isValueAllowed(
+        _ value: BackupValue,
+        by rule: AppConstants.UserDefaults.ExportedValueRule
+    ) -> Bool {
+        switch (rule, value) {
+        case (.bool, .bool):
+            return true
+        case (.int(let domain), .int(let integer)):
+            switch domain {
+            case .values(let values):
+                return values.contains(integer)
+            case .zeroOrRange(let range):
+                return integer == 0 || range.contains(integer)
             }
-            if key == AppConstants.UserDefaults.songRequestBlocklist {
-                return (try? JSONCoders.camelCase.decode(
-                    [BlocklistItem].self,
-                    from: data
-                )) != nil
+        case (.double(let domain), .double(let number)):
+            guard number.isFinite, domain.range.contains(number), domain.step > 0 else {
+                return false
             }
+            let stepCount = (number - domain.range.lowerBound) / domain.step
+            return abs(stepCount - stepCount.rounded()) < 1e-9
+        case (.string(let allowedValues), .string(let string)):
+            return allowedValues?.contains(string) ?? true
+        case (.stringList(let allowedValues), .string(let string)):
+            let values = string
+                .split(separator: ",", omittingEmptySubsequences: false)
+                .map { $0.trimmingCharacters(in: .whitespaces) }
+            return !values.isEmpty
+                && values.allSatisfy { !$0.isEmpty && allowedValues.contains($0) }
+        case (.data(let format), .data(let data)):
+            switch format {
+            case .customCommands:
+                return (try? JSONCoders.default.decode([CustomCommand].self, from: data)) != nil
+            case .songRequestBlocklist:
+                return (try? JSONCoders.camelCase.decode([BlocklistItem].self, from: data)) != nil
+            }
+        default:
             return false
         }
-        if case .data = value { return false }
-        guard let bounds = Self.integerBounds[key] else { return true }
-        guard case .int(let integer) = value else { return false }
-        return bounds.contains(integer)
     }
 
     /// Resolves a backup plus the user's choices into an `ApplyPlan`.
     ///
     /// Merge semantics: only keys in `backup.settings` that are also in
-    /// `exportableKeys` are written. Account-linked and unknown keys are ignored,
-    /// as are out-of-range port values (see `isValueAllowed(_:forKey:)`).
+    /// `exportablePreferences` are written. Account-linked and unknown keys are
+    /// ignored, as are values rejected by the centralized validation schema.
     /// No key is ever removed, so an import never wipes unrelated settings.
     /// Twitch is restored only when `choices.reconnectTwitch` is set and the
     /// backup actually had a Twitch channel.
     func makeApplyPlan(
         backup: SettingsBackup,
         choices: ImportChoices,
-        exportableKeys: [String]
+        exportablePreferences: [AppConstants.UserDefaults.ExportablePreference]
     ) -> ApplyPlan {
-        let allow = Set(exportableKeys)
+        let schema = Dictionary(
+            uniqueKeysWithValues: exportablePreferences.map { ($0.key, $0.rule) }
+        )
         var set: [String: BackupValue] = [:]
         var ignored = 0
         for (key, value) in backup.settings {
-            if allow.contains(key), isValueAllowed(value, forKey: key) {
+            if let rule = schema[key], isValueAllowed(value, by: rule) {
                 set[key] = value
             } else {
                 ignored += 1
@@ -232,13 +238,16 @@ nonisolated struct SettingsBackupCoder {
     }
 
     /// How many portable preferences a backup would restore (for the import
-    /// review summary). Counts only keys that are still exportable.
-    func restorableCount(backup: SettingsBackup, exportableKeys: [String]) -> Int {
-        let allow = Set(exportableKeys)
-        return backup.settings.reduce(into: 0) { count, entry in
-            if allow.contains(entry.key), isValueAllowed(entry.value, forKey: entry.key) {
-                count += 1
-            }
-        }
+    /// review summary). Uses the same validation as apply so the preview can
+    /// never promise a preference that import will reject.
+    func restorableCount(
+        backup: SettingsBackup,
+        exportablePreferences: [AppConstants.UserDefaults.ExportablePreference]
+    ) -> Int {
+        makeApplyPlan(
+            backup: backup,
+            choices: ImportChoices(),
+            exportablePreferences: exportablePreferences
+        ).set.count
     }
 }

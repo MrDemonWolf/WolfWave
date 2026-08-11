@@ -75,6 +75,14 @@ struct SettingsBackupService {
         var warnings: [String] = []
     }
 
+    /// An apply plan after incorporating state that exists only on this Mac.
+    /// Preview and apply share it so their restored counts cannot disagree.
+    private struct ResolvedImportPlan {
+        var plan: SettingsBackupCoder.ApplyPlan
+        var forceSongRequestsOff = false
+        var warnings: [String] = []
+    }
+
     private let defaults: Foundation.UserDefaults
     private let center: NotificationCenter
     private let twitchChannelProvider: () throws -> String?
@@ -116,7 +124,7 @@ struct SettingsBackupService {
     func makeBackup(exportedAt: Date = Date()) throws -> SettingsBackup {
         coder.makeBackup(
             snapshot: snapshot(),
-            exportableKeys: AppConstants.UserDefaults.exportableKeys,
+            exportablePreferences: AppConstants.UserDefaults.exportablePreferences,
             twitchChannelName: try twitchChannelProvider(),
             appVersion: Self.appVersion,
             appBuild: Self.appBuild,
@@ -149,7 +157,10 @@ struct SettingsBackupService {
 
     /// How many preferences a backup would restore (for the review summary).
     func restorableCount(_ backup: SettingsBackup) -> Int {
-        coder.restorableCount(backup: backup, exportableKeys: AppConstants.UserDefaults.exportableKeys)
+        resolvedImportPlan(
+            backup: backup,
+            choices: SettingsBackupCoder.ImportChoices()
+        ).plan.set.count
     }
 
     /// Applies a backup using the user's per-integration choices.
@@ -162,11 +173,8 @@ struct SettingsBackupService {
         _ backup: SettingsBackup,
         choices: SettingsBackupCoder.ImportChoices
     ) async -> ApplySummary {
-        let plan = coder.makeApplyPlan(
-            backup: backup,
-            choices: choices,
-            exportableKeys: AppConstants.UserDefaults.exportableKeys
-        )
+        let resolved = resolvedImportPlan(backup: backup, choices: choices)
+        let plan = resolved.plan
         let keys = AppConstants.UserDefaults.self
         var customCommandsData: Data?
         if let value = plan.set[keys.customCommands],
@@ -188,8 +196,7 @@ struct SettingsBackupService {
             defaults.set(value.userDefaultsValue, forKey: key)
         }
 
-        if defaults.bool(forKey: keys.songRequestEnabled),
-           !defaults.bool(forKey: keys.songRequestSetupComplete) {
+        if resolved.forceSongRequestsOff {
             defaults.set(false, forKey: keys.songRequestEnabled)
         }
 
@@ -230,7 +237,35 @@ struct SettingsBackupService {
             reconnectedTwitch: plan.reconnectTwitch,
             twitchChannel: plan.twitchChannelName,
             ignoredCount: ignoredCount,
-            warnings: sideEffectResult.warnings
+            warnings: resolved.warnings + sideEffectResult.warnings
+        )
+    }
+
+    private func resolvedImportPlan(
+        backup: SettingsBackup,
+        choices: SettingsBackupCoder.ImportChoices
+    ) -> ResolvedImportPlan {
+        var plan = coder.makeApplyPlan(
+            backup: backup,
+            choices: choices,
+            exportablePreferences: AppConstants.UserDefaults.exportablePreferences
+        )
+        let keys = AppConstants.UserDefaults.self
+        guard
+            case .bool(true)? = plan.set[keys.songRequestEnabled],
+            !defaults.bool(forKey: keys.songRequestSetupComplete)
+        else {
+            return ResolvedImportPlan(plan: plan)
+        }
+
+        plan.set.removeValue(forKey: keys.songRequestEnabled)
+        plan.ignoredKeyCount += 1
+        return ResolvedImportPlan(
+            plan: plan,
+            forceSongRequestsOff: true,
+            warnings: [
+                "Song Requests weren't restored because setup isn't complete on this Mac.",
+            ]
         )
     }
 
@@ -241,8 +276,12 @@ struct SettingsBackupService {
         if case .bool(let desired)? = plan.set[keys.launchAtLogin],
            sideEffects.isLaunchAtLoginEnabled() != desired {
             switch sideEffects.setLaunchAtLogin(desired) {
-            case .success, .requiresApproval:
+            case .success:
                 break
+            case .requiresApproval:
+                result.warnings.append(
+                    "Launch at Login requires approval in System Settings → General → Login Items."
+                )
             case .failure:
                 let actual = sideEffects.isLaunchAtLoginEnabled()
                 defaults.set(actual, forKey: keys.launchAtLogin)
