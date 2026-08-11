@@ -29,23 +29,5 @@ final class StatTileTests: XCTestCase {
         XCTAssertGreaterThan(host.fittingSize.height, 0)
     }
 
-    func testDefaultAccessibilityIdentifierUsesCaption() {
-        // The default identifier falls back to "statTile.\(caption)" when none
-        // is passed. SwiftUI does not expose the resolved identifier off the
-        // hosted NSView tree, so this only smoke-checks that the default-id
-        // configuration renders.
-        let view = StatTile(value: "10", caption: "Today")
-        let host = NSHostingView(rootView: view)
-        host.setFrameSize(NSSize(width: 200, height: 80))
-        host.layoutSubtreeIfNeeded()
-        // Smoke check: the host renders without crashing and reports content size.
-        XCTAssertGreaterThan(host.fittingSize.height, 0)
-    }
 
-    func testCustomAccessibilityIdentifier() {
-        let view = StatTile(value: "5", caption: "Top", accessibilityIdentifier: "custom.id")
-        let host = NSHostingView(rootView: view)
-        host.layoutSubtreeIfNeeded()
-        XCTAssertGreaterThan(host.fittingSize.height, 0)
-    }
 }

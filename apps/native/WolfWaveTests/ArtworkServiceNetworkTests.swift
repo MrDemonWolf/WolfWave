@@ -128,6 +128,10 @@ final class ArtworkServiceNetworkTests: XCTestCase {
 
         let cached = service.cachedTrackLinks(track: "Cached", artist: "Artist")
         XCTAssertEqual(cached.artworkURL, "https://cdn.example/512x512.jpg")
+        XCTAssertNil(
+            service.cachedArtworkURL(track: "cached", artist: "artist"),
+            "Cache keys must preserve track and artist case"
+        )
     }
 
     func testMissIsNotRequeriedWithinTTL() async {

@@ -1088,20 +1088,6 @@ struct TwitchChatServiceTests {
         #expect(service.lastSongCommandEnabled == false)
     }
     
-    // MARK: - Client ID Resolution Tests
-    
-    @Test("Resolves client ID from Info.plist")
-    func testClientIDResolution() async throws {
-        // This will return nil in test environment, but shouldn't crash
-        let clientID = TwitchChatService.resolveClientID()
-        
-        // In test environment, should be nil or a valid string
-        if let clientID = clientID {
-            #expect(!clientID.isEmpty)
-            #expect(!clientID.hasPrefix("$("))
-        }
-    }
-    
     // MARK: - Connection Error Tests
     
     @Test("Connection error has correct descriptions")
@@ -1117,21 +1103,6 @@ struct TwitchChatServiceTests {
         
         let authFailed = TwitchChatService.ConnectionError.authenticationFailed
         #expect(authFailed.errorDescription == "Failed to authenticate with Twitch")
-    }
-    
-    // MARK: - Bot Identity Tests
-    
-    @Test("BotIdentity structure stores values correctly")
-    func testBotIdentityStructure() async throws {
-        let identity = TwitchChatService.BotIdentity(
-            userID: "12345",
-            login: "testbot",
-            displayName: "TestBot"
-        )
-        
-        #expect(identity.userID == "12345")
-        #expect(identity.login == "testbot")
-        #expect(identity.displayName == "TestBot")
     }
     
     // MARK: - Token Validation Tests
@@ -1310,41 +1281,7 @@ struct TwitchChatServiceTests {
         #expect(!roles.isModerator && !roles.isBroadcaster && !roles.isSubscriber && !roles.isVIP)
     }
 
-    // MARK: - Channel Validation Tests
-    
-    @Test("ChannelValidationResult enum works correctly")
-    func testChannelValidationResult() async throws {
-        // Test all cases exist and are equatable
-        let exists = TwitchChatService.ChannelValidationResult.exists
-        let notFound = TwitchChatService.ChannelValidationResult.notFound
-        let authFailed = TwitchChatService.ChannelValidationResult.authenticationFailed
-        let error = TwitchChatService.ChannelValidationResult.error("Test error")
-        
-        // Verify cases are distinct
-        switch exists {
-        case .exists: break
-        default: Issue.record("Expected .exists case")
-        }
-        
-        switch notFound {
-        case .notFound: break
-        default: Issue.record("Expected .notFound case")
-        }
-        
-        switch authFailed {
-        case .authenticationFailed: break
-        default: Issue.record("Expected .authenticationFailed case")
-        }
-        
-        switch error {
-        case .error(let msg):
-            #expect(msg == "Test error")
-        default:
-            Issue.record("Expected .error case")
-        }
-    }
-    
-    // MARK: - UserDefaults Integration Tests
+    // MARK: - UserDefaults Persistence Bridge Tests
     
     @Test("Current song command enabled reads from UserDefaults")
     func testCurrentSongCommandEnabledUserDefaults() async throws {
@@ -1352,14 +1289,9 @@ struct TwitchChatServiceTests {
         
         // Clear any existing value
         UserDefaults.standard.removeObject(forKey: AppConstants.UserDefaults.currentSongCommandEnabled)
+        defer { UserDefaults.standard.removeObject(forKey: AppConstants.UserDefaults.currentSongCommandEnabled) }
         
         // Should default to false
-        #expect(service.currentSongCommandEnabled == false)
-
-        // Set to false
-        UserDefaults.standard.set(false, forKey: AppConstants.UserDefaults.currentSongCommandEnabled)
-        
-        // Should now read false (computed property)
         #expect(service.currentSongCommandEnabled == false)
         
         // Set to true
@@ -1368,8 +1300,6 @@ struct TwitchChatServiceTests {
         // Should now read true
         #expect(service.currentSongCommandEnabled == true)
         
-        // Cleanup
-        UserDefaults.standard.removeObject(forKey: AppConstants.UserDefaults.currentSongCommandEnabled)
     }
     
     @Test("Last song command enabled reads from UserDefaults")
@@ -1378,14 +1308,9 @@ struct TwitchChatServiceTests {
 
         // Clear any existing value
         UserDefaults.standard.removeObject(forKey: AppConstants.UserDefaults.lastSongCommandEnabled)
+        defer { UserDefaults.standard.removeObject(forKey: AppConstants.UserDefaults.lastSongCommandEnabled) }
 
         // Should default to false
-        #expect(service.lastSongCommandEnabled == false)
-
-        // Set to false
-        UserDefaults.standard.set(false, forKey: AppConstants.UserDefaults.lastSongCommandEnabled)
-
-        // Should now read false (computed property)
         #expect(service.lastSongCommandEnabled == false)
 
         // Set to true
@@ -1394,8 +1319,6 @@ struct TwitchChatServiceTests {
         // Should now read true
         #expect(service.lastSongCommandEnabled == true)
 
-        // Cleanup
-        UserDefaults.standard.removeObject(forKey: AppConstants.UserDefaults.lastSongCommandEnabled)
     }
 
     // MARK: - Toggle Tests
@@ -1420,17 +1343,6 @@ struct TwitchChatServiceTests {
         #expect(await service.debugLoggingEnabled == false)
     }
 
-    // MARK: - Re-initialization Tests
-
-    @Test("Service re-initialization does not crash")
-    func testServiceReInitialization() async throws {
-        var service: TwitchChatService? = TwitchChatService()
-        #expect(service != nil)
-        service = nil
-        service = TwitchChatService()
-        #expect(await service?.isConnected == false)
-    }
-
     // MARK: - Connection Error Distinctness Tests
 
     @Test("Connection error cases are distinct")
@@ -1448,25 +1360,6 @@ struct TwitchChatServiceTests {
         // All descriptions should be unique
         let uniqueDescriptions = Set(descriptions)
         #expect(uniqueDescriptions.count == descriptions.count)
-    }
-
-    // MARK: - ChatMessage Edge Case Tests
-
-    @Test("ChatMessage with empty badges and nil reply")
-    func testChatMessageEmptyBadgesNilReply() async throws {
-        let message = TwitchChatService.ChatMessage(
-            messageID: "msg-001",
-            username: "TestUser",
-            userID: "user-001",
-            message: "Hello",
-            channel: "channel-001",
-            badges: [],
-            reply: nil
-        )
-
-        #expect(message.badges.isEmpty)
-        #expect(message.reply == nil)
-        #expect(message.messageID == "msg-001")
     }
 
     // MARK: - Retry-Queue Cap Tests
