@@ -50,10 +50,11 @@ extension AppDelegate {
         }
     }
 
-    /// Creates the playback source manager and sets this as delegate.
+    /// Creates the Apple Music monitor and sets this as delegate.
     func setupMusicMonitor() {
-        playbackSourceManager = PlaybackSourceManager()
-        playbackSourceManager?.delegate = self
+        let source = AppleMusicSource()
+        source.delegate = self
+        appleMusicSource = source
     }
 
     /// Creates the Twitch chat service and wires up song info callbacks.
@@ -328,7 +329,7 @@ extension AppDelegate {
     }
 
     private func applyPowerState(reduced: Bool) {
-        playbackSourceManager?.updateCheckInterval(
+        appleMusicSource?.updateCheckInterval(
             reduced ? AppConstants.PowerManagement.reducedMusicCheckInterval : 5.0
         )
         if let discordService {
@@ -490,10 +491,10 @@ extension AppDelegate {
     @objc func trackingSettingChanged(_ notification: Notification) {
         guard let enabled = notification.enabledFlag else { return }
         if enabled {
-            playbackSourceManager?.startTracking()
+            appleMusicSource?.startTracking()
             // Guarantee the ON edge yields a fresh now-playing read even
             // when the monitor was already running.
-            playbackSourceManager?.forceRefresh()
+            appleMusicSource?.forceRefresh()
         } else {
             stopTrackingAndUpdate()
         }
@@ -503,12 +504,12 @@ extension AppDelegate {
     /// snapshot. Safe to call from the UI; no-ops if tracking is disabled.
     @MainActor
     func refreshNowPlaying() {
-        playbackSourceManager?.forceRefresh()
+        appleMusicSource?.forceRefresh()
     }
 
     /// Stops the music monitor and clears the now-playing display.
     private func stopTrackingAndUpdate() {
-        playbackSourceManager?.stopTracking()
+        appleMusicSource?.stopTracking()
         clearPlaybackStateAndOutputs()
     }
 
@@ -672,7 +673,7 @@ extension AppDelegate {
         Preferences.seedTrackingEnabledDefaultIfNeeded()
 
         if isTrackingEnabled() {
-            playbackSourceManager?.startTracking()
+            appleMusicSource?.startTracking()
         } else {
             postNowPlayingUpdate(song: nil, artist: nil, album: nil)
         }

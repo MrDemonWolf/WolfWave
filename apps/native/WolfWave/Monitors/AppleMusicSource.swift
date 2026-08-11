@@ -10,7 +10,7 @@ import Foundation
 import AppKit
 import ScriptingBridge
 
-final class AppleMusicSource: PlaybackSource, @unchecked Sendable {
+final class AppleMusicSource: @unchecked Sendable {
 
     // MARK: - Properties
 

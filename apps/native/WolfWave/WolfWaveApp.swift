@@ -145,7 +145,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     // MARK: - Properties
 
     var statusItem: NSStatusItem?
-    var playbackSourceManager: PlaybackSourceManager?
+    var appleMusicSource: AppleMusicSource?
     // Settings is a dedicated SwiftUI `Window` scene (see WolfWaveApp.body);
     // SwiftUI owns that window, so AppDelegate no longer holds an `NSWindow` for it.
     var onboardingWindow: NSWindow?
