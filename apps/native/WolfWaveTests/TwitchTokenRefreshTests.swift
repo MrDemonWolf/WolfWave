@@ -1244,10 +1244,10 @@ final class TwitchTokenRefreshTests: XCTestCase {
             try await service.runManagedRewardUnpauseUnderSetupLeaseForTesting(
                 rewardID: "reward")
         }
-        XCTAssertTrue(
-            await waitForSemaphore(
-                unpauseEntered,
-                timeout: .now() + 2))
+        let unpauseDidStart = await waitForSemaphore(
+            unpauseEntered,
+            timeout: .now() + 2)
+        XCTAssertTrue(unpauseDidStart)
 
         let viewModel = TwitchViewModel(
             cancelTokenValidationSchedule: {},
@@ -1539,10 +1539,10 @@ final class TwitchTokenRefreshTests: XCTestCase {
             redemptionClientIDProvider: { "client" })
 
         await service.replayPendingRedemptionResolutions()
-        XCTAssertTrue(
-            await waitForSemaphore(
-                patchEntered,
-                timeout: .now() + 2))
+        let patchDidStart = await waitForSemaphore(
+            patchEntered,
+            timeout: .now() + 2)
+        XCTAssertTrue(patchDidStart)
         let oldIdentity = TwitchManagedRewardStore.Identity(
             rewardID: "reward",
             broadcasterID: "broadcaster")
