@@ -34,7 +34,7 @@ MrDemonWolf, Inc. ("we", "us", or "our") operates the WolfWave application. This
 - **Twitch Account Credentials**. When you connect your Twitch account via OAuth Device Code Flow, WolfWave receives OAuth access and refresh tokens from Twitch. These tokens are stored locally in your macOS Keychain and are never transmitted to us.
 - **Channel Name**. The Twitch channel you connect to is stored with your Twitch account record in the macOS Keychain. If you restore a backup while signed out, WolfWave temporarily stages that public channel name in UserDefaults only until a successful Twitch sign-in commits it with the account.
 - **Discord Application ID**. Your Discord Application ID is stored in the app's build configuration and used to connect to Discord's local IPC socket.
-- **Song Request Blocklist**. Song titles and artist names you choose to block from song requests are stored locally in your macOS UserDefaults. You can remove individual entries or clear the entire list at any time from **Settings → Song Requests → Blocklist → Clear All**.
+- **Song Request Blocklist**. Song titles and artist names you choose to block from song requests are stored locally in your macOS UserDefaults and included in a settings backup if you export one. You can remove individual entries or clear the entire list at any time from **Settings → Song Requests → Blocklist → Clear All**.
 - **Custom Bot Commands**. The triggers, replies, aliases, cooldowns, and permission levels of chat commands you author are stored locally in your macOS UserDefaults and included in a settings backup if you export one.
 - **Settings Backups**. When you export your settings, WolfWave writes a plain JSON file to the location you choose. Backups contain portable preferences and the public Twitch channel name used to offer reconnection. They never include OAuth tokens, resolved Twitch user IDs, overlay or Stream Deck control tokens, or other Keychain secrets.
 
@@ -91,7 +91,8 @@ All data is stored locally on your device. You can clear each category at any ti
 
 | Category | Location | How to clear |
 |----------|----------|--------------|
-| Twitch account record / Discord tokens | macOS Keychain | **Settings → Advanced → Reset Settings** |
+| Paid-event recovery records | `~/Library/Application Support/WolfWave/State/twitch-redemption-resolution-outbox.json*` | Removed automatically after processing; **Settings → Advanced → Reset Settings** clears all live or quarantined records |
+| Twitch account record / WebSocket tokens | macOS Keychain | **Settings → Advanced → Reset Settings** |
 | App preferences | UserDefaults | **Settings → Advanced → Reset Settings** |
 | Application logs | `~/Library/Application Support/WolfWave/Logs/` | **Settings → Advanced → Clear Logs** |
 | Listening history (opt-in) | `~/Library/Application Support/WolfWave/History/plays.ndjson` | **Settings → History & Stats → Clear History** (retention window is also enforced on its own) |
@@ -101,13 +102,13 @@ All data is stored locally on your device. You can clear each category at any ti
 | Settings backups | Wherever you saved the export | Delete the JSON file yourself |
 | MetricKit diagnostics (opt-in) | `~/Library/Application Support/WolfWave/Diagnostics/` | Disable the toggle in **Settings → Advanced** and delete the directory |
 
-Uninstalling WolfWave removes UserDefaults, but Keychain items may persist on macOS. Use the in-app reset above or manually remove entries via Keychain Access.
+Deleting WolfWave may leave UserDefaults, Application Support files, and Keychain items on macOS. Use the in-app reset before uninstalling, or remove the remaining local files and Keychain entries manually.
 
 ## Security
 
 - External service traffic uses encrypted transport (HTTPS/WSS)
 - The local OBS transport uses plaintext HTTP/WS; WebSocket connections require the per-install token, so LAN access should be limited to trusted networks
-- Credentials are stored in the macOS Keychain with hardware-backed encryption
+- Credentials are encrypted and protected by the macOS Keychain
 - The app is sandboxed with minimum required entitlements
 - The app is signed with a Developer ID certificate
 
