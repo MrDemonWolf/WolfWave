@@ -655,23 +655,13 @@ struct TwitchChatServiceTests {
         _ = await service.configureChatSendForTesting(broadcasterID: "channel")
         await service.setSongRequestServiceReference(
             SongRequestService(musicController: music))
-        let payload: [String: Any] = [
-            "event": [
-                "type": "cheer",
-                "bits": 100,
-                "broadcaster_user_id": "channel",
-                "user_name": "Viewer",
-                "message": ["text": "Cheer100 a song"],
-            ]
-        ]
-
         await service.handleBitsUse(
-            payload, eventSubMessageID: "bits-fallback")
+            Self.bitsPayload(), eventSubMessageID: "bits-fallback")
         await service.handleBitsUse(
-            payload, eventSubMessageID: "bits-fallback")
+            Self.bitsPayload(), eventSubMessageID: "bits-fallback")
         await service.awaitPaidRedemptionTasksForTesting()
         await service.handleBitsUse(
-            payload, eventSubMessageID: "bits-fallback")
+            Self.bitsPayload(), eventSubMessageID: "bits-fallback")
         await service.awaitPaidRedemptionTasksForTesting()
 
         #expect(searches.value == 1)
@@ -1045,7 +1035,19 @@ struct TwitchChatServiceTests {
         })
     }
 
-    private static func redemptionPayload(id: String) -> [String: Any] {
+    nonisolated private static func bitsPayload() -> [String: Any] {
+        [
+            "event": [
+                "type": "cheer",
+                "bits": 100,
+                "broadcaster_user_id": "channel",
+                "user_name": "Viewer",
+                "message": ["text": "Cheer100 a song"],
+            ]
+        ]
+    }
+
+    nonisolated private static func redemptionPayload(id: String) -> [String: Any] {
         [
             "event": [
                 "id": id,
