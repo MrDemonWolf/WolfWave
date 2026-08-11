@@ -7,6 +7,7 @@
 //
 
 import AppKit
+import Carbon
 import Foundation
 import MusicKit
 
@@ -19,6 +20,8 @@ enum PlaybackError: Error {
     /// also mean the song is unavailable or the user has no active subscription.
     /// The caller keeps the request queued and retries.
     case notPlayable(title: String)
+    /// Music.app rejected or timed out while executing a playback command.
+    case commandFailed(command: String, message: String)
 }
 
 /// An atomic snapshot of Music.app's playback state and the loaded track's
@@ -61,9 +64,9 @@ protocol AppleMusicControlling {
     /// fails, so the auto-advance poll can treat a failed read as "no information"
     /// rather than a state change. See `PlaybackSnapshot`.
     ///
-    /// `async` because the read is funneled onto the dedicated AppleScript thread
-    /// (see `AppleScriptExecutor`); the main-actor poll suspends instead of
-    /// blocking the UI while Music.app answers the Apple Event.
+    /// `async` because callers already live in the structured-concurrency playback
+    /// pipeline. `NSAppleScript` itself executes on the main thread, as required by
+    /// Foundation's thread-safety contract.
     func playbackSnapshot() async -> PlaybackSnapshot?
 
     /// `true` once the user has granted MusicKit catalog access.
@@ -138,15 +141,40 @@ final class AppleMusicController: AppleMusicControlling {
         case error(String)
     }
 
+    /// A structured AppleScript failure, preserving the Apple Event error number
+    /// for callers that need to distinguish a quit target (`-600`) from another
+    /// command failure.
+    struct ScriptFailure: Error, Equatable, Sendable {
+        /// AppleScript / Apple Event error number, when supplied by Foundation.
+        let number: Int?
+        /// Human-readable error detail suitable for logs and propagated errors.
+        let message: String
+    }
+
+    /// Result of one script invocation. Command callers must inspect this instead
+    /// of treating a missing string result as success.
+    enum ScriptExecutionResult: Equatable, Sendable {
+        /// Script completed. Many commands legitimately return no string value.
+        case success(String?)
+        /// Script compilation or execution failed.
+        case failure(ScriptFailure)
+
+        /// String result for read/query scripts; nil for failures and successful
+        /// commands that do not return text.
+        var output: String? {
+            guard case .success(let value) = self else { return nil }
+            return value
+        }
+    }
+
     /// AppleScript-level Apple Event timeouts, in seconds.
     ///
     /// Without an explicit `with timeout` block, an Apple Event to a wedged
-    /// Music.app waits the AppleEvent default (about 60 seconds), and
-    /// `runAppleScript` pins the main thread for that whole wait. The
-    /// song-request auto-advance poll reads `playbackSnapshot()` every 2
-    /// seconds, so probes must fail fast; playback commands get a little
-    /// longer. A timed-out script surfaces as an AppleScript error, which every
-    /// caller already treats as "no information" / a failed attempt.
+    /// Music.app waits the AppleEvent default (about 60 seconds). `NSAppleScript`
+    /// is main-thread-only, so a bounded timeout is also the UI-stall budget. The
+    /// song-request poll probes must fail fast; playback commands get a little
+    /// longer. A timeout is preserved as a structured failure rather than being
+    /// mistaken for success.
     enum ScriptTimeout {
         /// Read-only state probes (`player state`, `current track`).
         static let probe = 2
@@ -164,6 +192,17 @@ final class AppleMusicController: AppleMusicControlling {
     /// re-enter `playNow` for the same song, so this prevents re-adding it (and
     /// piling up duplicate playlist entries) on every retry.
     private var addedSongIDs: Set<String> = []
+
+    /// Compiled scripts are main-actor confined with the controller. The cache is
+    /// bounded because request-track metadata is embedded in some script bodies.
+    private var compiledScripts: [String: NSAppleScript] = [:]
+
+    /// Maximum number of compiled scripts retained before the small cache clears.
+    private static let compiledScriptsCap = 32
+
+    /// Handler invoked through `executeAppleEvent`; its argument is a PID-addressed
+    /// application descriptor, so no command can auto-launch a replacement Music.
+    private static let scriptHandlerName = "wolfWaveRun"
 
     // MARK: - Authorization Status
 
@@ -206,27 +245,25 @@ final class AppleMusicController: AppleMusicControlling {
     /// wraps the track read in `try` so a momentary "no current track" yields an
     /// empty key (parsed back to `nil`) rather than aborting the whole script.
     func playbackSnapshot() async -> PlaybackSnapshot? {
-        guard isMusicAppRunning else { return nil }
-        let raw = await runAppleScript(Self.timeoutWrapped("""
-        tell application "Music"
-            set stateText to "stopped"
-            if player state is playing then
-                set stateText to "playing"
-            else if player state is paused then
-                set stateText to "paused"
-            else if player state is fast forwarding then
-                set stateText to "playing"
-            else if player state is rewinding then
-                set stateText to "playing"
-            end if
-            set keyText to ""
-            try
-                set keyText to (get name of current track) & tab & (get artist of current track)
-            end try
-            return stateText & linefeed & keyText
-        end tell
-        """, seconds: ScriptTimeout.probe))
-        guard let raw else { return nil }
+        guard let pid = MusicProcess.pid else { return nil }
+        let source = Self.pidTargetedScript("""
+        set stateText to "stopped"
+        if player state is playing then
+            set stateText to "playing"
+        else if player state is paused then
+            set stateText to "paused"
+        else if player state is fast forwarding then
+            set stateText to "playing"
+        else if player state is rewinding then
+            set stateText to "playing"
+        end if
+        set keyText to ""
+        try
+            set keyText to (get name of current track) & tab & (get artist of current track)
+        end try
+        return stateText & linefeed & keyText
+        """, seconds: ScriptTimeout.probe)
+        guard let raw = runAppleScript(source, targetPID: pid).output else { return nil }
 
         let parts = raw.split(separator: "\n", maxSplits: 1, omittingEmptySubsequences: false)
         let stateText = parts.first.map(String.init) ?? ""
@@ -356,7 +393,7 @@ final class AppleMusicController: AppleMusicControlling {
 
         // A freshly added track takes a moment to sync down before AppleScript
         // can see it, so the play is retried over a few seconds.
-        guard await playFromRequestsPlaylist(song: song) else {
+        guard try await playFromRequestsPlaylist(song: song) else {
             // The playlist may have been deleted and rebuilt mid-session.
             // Drop the stale cache so the next attempt re-adds the song to the
             // fresh playlist rather than skipping the add step.
@@ -371,34 +408,49 @@ final class AppleMusicController: AppleMusicControlling {
     /// artist, retrying briefly because a just-added track takes a moment to sync
     /// down from iCloud Music Library and become visible to AppleScript.
     ///
-    /// Matches title + artist first, then falls back to title-only within the
-    /// (small) requests playlist so a minor artist-string difference (e.g. a
-    /// "feat." credit) still resolves.
+    /// Requires title + artist. A title-only fallback can select an unrelated
+    /// song when two artists use the same title, so a mismatch remains queued.
     ///
     /// - Returns: `true` once playback starts, `false` if the track never appeared
     ///   within the retry window.
-    private func playFromRequestsPlaylist(song: Song) async -> Bool {
+    private func playFromRequestsPlaylist(song: Song) async throws -> Bool {
         let playlist = sanitizeForAppleScript(AppConstants.Music.requestsPlaylistName)
         let name = sanitizeForAppleScript(song.title)
         let artist = sanitizeForAppleScript(song.artistName)
-        let script = Self.timeoutWrapped("""
-        tell application "Music"
-            try
-                set ms to (every track of playlist "\(playlist)" whose name is "\(name)" and artist is "\(artist)")
-                if (count of ms) is 0 then
-                    set ms to (every track of playlist "\(playlist)" whose name is "\(name)")
-                end if
-                if (count of ms) > 0 then
-                    play (item 1 of ms)
-                    return "ok"
-                end if
-            end try
-            return "miss"
-        end tell
+        let script = Self.pidTargetedScript("""
+        set ms to (every track of playlist "\(playlist)" whose name is "\(name)" and artist is "\(artist)")
+        if (count of ms) > 0 then
+            play (item 1 of ms)
+            return "ok"
+        end if
+        return "miss"
         """, seconds: ScriptTimeout.command)
+
+        var lastFailure: ScriptFailure?
         for attempt in 0..<5 {
-            if await runAppleScriptPreservingFocus(script) == "ok" { return true }
-            if attempt < 4 { try? await Task.sleep(for: .milliseconds(700)) }
+            guard let pid = MusicProcess.pid else {
+                throw PlaybackError.musicAppNotRunning
+            }
+            let result = await runAppleScriptPreservingFocus(script, targetPID: pid)
+            switch result {
+            case .success(let output):
+                lastFailure = nil
+                if output == "ok" { return true }
+            case .failure(let failure):
+                if failure.number == -600 || failure.number == -609 {
+                    throw PlaybackError.musicAppNotRunning
+                }
+                lastFailure = failure
+            }
+            if attempt < 4 {
+                try await Task.sleep(for: .milliseconds(700))
+            }
+        }
+        if let lastFailure {
+            throw PlaybackError.commandFailed(
+                command: "play request",
+                message: lastFailure.message
+            )
         }
         return false
     }
@@ -414,15 +466,15 @@ final class AppleMusicController: AppleMusicControlling {
 
     /// Skip the current song in Music.app via AppleScript.
     ///
-    /// No-op when Music.app is closed. A bare `tell application "Music"` would
-    /// relaunch the app the user just quit.
+    /// Throws when Music.app is closed or rejects the command. The event targets
+    /// the observed PID, so a quit target cannot be relaunched accidentally.
     func skipToNext() async throws {
-        guard isMusicAppRunning else { return }
-        await runAppleScript(Self.timeoutWrapped("""
-        tell application "Music"
-            next track
-        end tell
-        """, seconds: ScriptTimeout.command))
+        guard let pid = MusicProcess.pid else { throw PlaybackError.musicAppNotRunning }
+        let result = runAppleScript(
+            Self.pidTargetedScript("next track", seconds: ScriptTimeout.command),
+            targetPID: pid
+        )
+        try requireCommandSuccess(result, command: "next track")
     }
 
     /// Rewind to the previous song in Music.app via AppleScript.
@@ -430,30 +482,30 @@ final class AppleMusicController: AppleMusicControlling {
     /// Uses `previous track` (not `back track`) so Music.app moves to the
     /// prior queue entry rather than restarting the current track.
     ///
-    /// No-op when Music.app is closed. A bare `tell application "Music"` would
-    /// relaunch the app the user just quit.
+    /// Throws when Music.app is closed or rejects the command. The event targets
+    /// the observed PID, so a quit target cannot be relaunched accidentally.
     func previousTrack() async throws {
-        guard isMusicAppRunning else { return }
-        await runAppleScript(Self.timeoutWrapped("""
-        tell application "Music"
-            previous track
-        end tell
-        """, seconds: ScriptTimeout.command))
+        guard let pid = MusicProcess.pid else { throw PlaybackError.musicAppNotRunning }
+        let result = runAppleScript(
+            Self.pidTargetedScript("previous track", seconds: ScriptTimeout.command),
+            targetPID: pid
+        )
+        try requireCommandSuccess(result, command: "previous track")
     }
 
     /// Toggle Music.app's play/pause state. Routes through the focus-
     /// preserving runner so calling from the tray does not steal focus from
     /// the frontmost app.
     ///
-    /// No-op when Music.app is closed. A bare `tell application "Music"` would
-    /// relaunch the app the user just quit.
+    /// Throws when Music.app is closed or rejects the command. The event targets
+    /// the observed PID, so a quit target cannot be relaunched accidentally.
     func playPause() async throws {
-        guard isMusicAppRunning else { return }
-        await runAppleScriptPreservingFocus(Self.timeoutWrapped("""
-        tell application "Music"
-            playpause
-        end tell
-        """, seconds: ScriptTimeout.command))
+        guard let pid = MusicProcess.pid else { throw PlaybackError.musicAppNotRunning }
+        let result = await runAppleScriptPreservingFocus(
+            Self.pidTargetedScript("playpause", seconds: ScriptTimeout.command),
+            targetPID: pid
+        )
+        try requireCommandSuccess(result, command: "play/pause")
     }
 
     /// Stop playback in Music.app.
@@ -461,13 +513,20 @@ final class AppleMusicController: AppleMusicControlling {
     /// No-op when Music.app is closed. There is nothing to stop, and a bare
     /// `tell application "Music"` would relaunch the app the user just quit.
     func clearPlayerQueue() async {
-        guard isMusicAppRunning else { return }
-        await runAppleScript(Self.timeoutWrapped("""
-        tell application "Music"
-            stop
-        end tell
-        """, seconds: ScriptTimeout.command))
-        Log.debug("AppleMusicController: Music.app stopped", category: "SongRequest")
+        guard let pid = MusicProcess.pid else { return }
+        let result = runAppleScript(
+            Self.pidTargetedScript("stop", seconds: ScriptTimeout.command),
+            targetPID: pid
+        )
+        switch result {
+        case .success:
+            Log.debug("AppleMusicController: Music.app stopped", category: "SongRequest")
+        case .failure(let failure):
+            Log.warn(
+                "AppleMusicController: Failed to stop Music.app: \(failure.message)",
+                category: "SongRequest"
+            )
+        }
     }
 
     /// No-op on macOS. Music.app's Up Next queue is not scriptable.
@@ -481,14 +540,13 @@ final class AppleMusicController: AppleMusicControlling {
     ///
     /// Throws `PlaybackError.musicAppNotRunning` if Music.app is not running.
     func playFallbackPlaylist(name: String) async throws {
-        guard isMusicAppRunning else { throw PlaybackError.musicAppNotRunning }
+        guard let pid = MusicProcess.pid else { throw PlaybackError.musicAppNotRunning }
         let safeName = sanitizeForAppleScript(name)
-        let script = Self.timeoutWrapped("""
-        tell application "Music"
-            play playlist "\(safeName)"
-        end tell
+        let script = Self.pidTargetedScript("""
+        play playlist "\(safeName)"
         """, seconds: ScriptTimeout.command)
-        await runAppleScriptPreservingFocus(script)
+        let result = await runAppleScriptPreservingFocus(script, targetPID: pid)
+        try requireCommandSuccess(result, command: "play fallback playlist")
         Log.debug("AppleMusicController: Fallback playlist '\(name)' started", category: "SongRequest")
     }
 
@@ -501,15 +559,22 @@ final class AppleMusicController: AppleMusicControlling {
     /// Deliberately launches Music.app if it is closed (the user asked to open
     /// it), unlike the playback probes that avoid relaunching a quit app.
     func revealRequestsPlaylist() async {
+        await ensureMusicRunningForReveal()
+        guard let pid = MusicProcess.pid else {
+            Log.warn("AppleMusicController: Could not launch Music.app to reveal requests playlist", category: "SongRequest")
+            return
+        }
         let name = sanitizeForAppleScript(AppConstants.Music.requestsPlaylistName)
-        await runAppleScript(Self.timeoutWrapped("""
-        tell application "Music"
-            activate
-            try
-                reveal playlist "\(name)"
-            end try
-        end tell
-        """, seconds: ScriptTimeout.command))
+        let result = runAppleScript(Self.pidTargetedScript("""
+        activate
+        reveal playlist "\(name)"
+        """, seconds: ScriptTimeout.command), targetPID: pid)
+        if case .failure(let failure) = result {
+            Log.warn(
+                "AppleMusicController: Could not reveal requests playlist: \(failure.message)",
+                category: "SongRequest"
+            )
+        }
     }
 
     // MARK: - Private Helpers
@@ -528,162 +593,186 @@ final class AppleMusicController: AppleMusicControlling {
             .joined()
     }
 
-    /// Wraps an AppleScript body in a `with timeout of N seconds` block so any
-    /// Apple Event inside errors out after `seconds` instead of the ~60 second
-    /// AppleEvent default. Internal (not private) so the wrapper's shape is
-    /// unit-testable without invoking `NSAppleScript`.
-    ///
-    /// The body is additionally gated on `application "Music" is running`, which
-    /// AppleScript answers **without launching** the target (unlike a bare
-    /// `tell application "Music"`, which LaunchServices auto-launches). Callers
-    /// already check `isMusicAppRunning` in Swift first, but the user can quit
-    /// Music in the gap between that check and the send; this in-script gate
-    /// closes that gap to a single script dispatch. See `MusicProcess`.
-    ///
-    /// When Music is closed the script raises `-600` (`procNotFound`) so
-    /// `executeAndReturnError` yields nil and every caller takes its existing
-    /// "no information" path, rather than misreading an empty result as a stop.
-    ///
-    /// `ponytail:` a microsecond-wide race remains inside the dispatch. If that
-    /// ever bites, move the playback commands to pid-addressed ScriptingBridge
-    /// selectors the way `AppleMusicSource` reads state.
+    /// Builds a handler whose target is supplied at execution time as a process-id
+    /// address descriptor. Unlike `tell application "Music"`, a dead PID cannot
+    /// cause LaunchServices to launch a replacement process.
     ///
     /// - Parameters:
-    ///   - body: The full script to wrap, typically a `tell` block.
-    ///   - seconds: The Apple Event reply timeout; see `ScriptTimeout`.
-    static func timeoutWrapped(_ body: String, seconds: Int) -> String {
+    ///   - body: Music terminology to execute inside the PID-targeted `tell`.
+    ///   - seconds: Apple Event reply timeout; see `ScriptTimeout`.
+    static func pidTargetedScript(_ body: String, seconds: Int) -> String {
         """
-        with timeout of \(seconds) seconds
-        if application "Music" is running then
+        using terms from application "Music"
+            on \(scriptHandlerName)(musicTarget)
+                with timeout of \(seconds) seconds
+                    tell musicTarget
         \(body)
-        else
-        error "Music is not running" number -600
-        end if
-        end timeout
+                    end tell
+                end timeout
+            end \(scriptHandlerName)
+        end using terms from
         """
     }
 
-    /// Run an AppleScript while preserving the frontmost app's focus.
-    ///
-    /// Playing in Music.app causes it to pop forward. This helper captures
-    /// whichever app had focus before the script runs and refocuses it ~150ms later,
-    /// so Music.app plays silently in the background during streaming.
-    ///
-    /// - Returns: The script's string result, so callers like the requests-playlist
-    ///   poller can read whether playback started.
+    /// Runs an AppleScript while preserving the user's focus when Music brings
+    /// itself forward. Focus is restored only if Music is still frontmost after
+    /// the short settling delay; a deliberate user switch is never overridden.
     @discardableResult
-    private func runAppleScriptPreservingFocus(_ source: String) async -> String? {
-        // Read the frontmost app on the main actor before yielding.
+    private func runAppleScriptPreservingFocus(
+        _ source: String,
+        targetPID: pid_t
+    ) async -> ScriptExecutionResult {
         let previousFrontApp = NSWorkspace.shared.frontmostApplication
-        let result = await runAppleScript(source)
-        Task { @MainActor in
-            try? await Task.sleep(for: .milliseconds(150))
+        let result = runAppleScript(source, targetPID: targetPID)
+
+        do {
+            try await Task.sleep(for: .milliseconds(150))
+        } catch {
+            return result
+        }
+
+        let currentPID = NSWorkspace.shared.frontmostApplication?.processIdentifier
+        if Self.shouldRestoreFocus(
+            previousPID: previousFrontApp?.processIdentifier,
+            currentPID: currentPID,
+            musicPID: targetPID
+        ) {
             previousFrontApp?.activate()
         }
         return result
     }
 
-    /// Run an AppleScript and return the string result.
-    ///
-    /// `NSAppleScript` is **not** thread-safe, and running it on a bare GCD queue
-    /// (no run loop) can hang or return a spurious nil, while running it on the
-    /// main thread blocks the UI for the whole Apple Event round-trip. So every
-    /// execution is funneled onto ``AppleScriptExecutor``'s single dedicated
-    /// thread, which has a live run loop to pump Apple Event replies. This method
-    /// is `async`: the caller (e.g. the every-2s auto-advance poll, which runs on
-    /// the main actor) suspends and yields the main thread instead of beachballing
-    /// while Music.app answers.
+    /// Pure focus-restoration policy, internal so races are covered without
+    /// activating real applications in tests.
+    static func shouldRestoreFocus(
+        previousPID: pid_t?,
+        currentPID: pid_t?,
+        musicPID: pid_t
+    ) -> Bool {
+        guard let previousPID, let currentPID else { return false }
+        return previousPID != musicPID && currentPID == musicPID
+    }
+
+    /// Runs NSAppleScript on the main actor, Foundation's documented supported
+    /// execution context. ScriptTimeout bounds how long a wedged target can
+    /// block that actor.
+    @MainActor
     @discardableResult
-    private func runAppleScript(_ source: String) async -> String? {
-        await AppleScriptExecutor.shared.run { Self.executeAppleScript(source) }
+    private func runAppleScript(
+        _ source: String,
+        targetPID: pid_t
+    ) -> ScriptExecutionResult {
+        executeAppleScript(source, targetPID: targetPID)
     }
 
-    /// Cache of compiled `NSAppleScript` instances keyed by source. The fixed
-    /// probe/command scripts (e.g. the 2-second player-state probe) are otherwise
-    /// recompiled on every call. All access is confined to the single
-    /// ``AppleScriptExecutor`` thread; the lock is belt-and-suspenders. Bounded so
-    /// the dynamic-source scripts (track IDs embedded) can't grow it without limit.
-    private nonisolated(unsafe) static var compiledScripts: [String: NSAppleScript] = [:]
-    private nonisolated static let compiledScriptsLock = NSLock()
-    private nonisolated static let compiledScriptsCap = 32
+    /// Returns a cached compiled script, clearing the small bounded cache before
+    /// dynamic track metadata can make it grow indefinitely.
+    private func compiledScript(for source: String) -> NSAppleScript? {
+        if let cached = compiledScripts[source] { return cached }
+        guard let fresh = NSAppleScript(source: source) else { return nil }
+        if compiledScripts.count >= Self.compiledScriptsCap {
+            compiledScripts.removeAll(keepingCapacity: true)
+        }
+        compiledScripts[source] = fresh
+        return fresh
+    }
 
-    /// Executes an `NSAppleScript` and returns its string result.
-    ///
-    /// Must be called on the ``AppleScriptExecutor`` thread. See `runAppleScript`.
-    private nonisolated static func executeAppleScript(_ source: String) -> String? {
-        let script: NSAppleScript? = compiledScriptsLock.withLock {
-            if let cached = compiledScripts[source] { return cached }
-            guard let fresh = NSAppleScript(source: source) else { return nil }
-            if compiledScripts.count >= compiledScriptsCap {
-                compiledScripts.removeAll(keepingCapacity: true)
-            }
-            compiledScripts[source] = fresh
-            return fresh
+    /// Builds the AppleScript subroutine event and passes Music as a kernel-PID
+    /// address descriptor. Internal so the descriptor shape is unit-testable.
+    static func scriptInvocationEvent(targetPID: pid_t) -> NSAppleEventDescriptor {
+        let event = NSAppleEventDescriptor(
+            eventClass: kASAppleScriptSuite,
+            eventID: kASSubroutineEvent,
+            targetDescriptor: nil,
+            returnID: AEReturnID(kAutoGenerateReturnID),
+            transactionID: AETransactionID(kAnyTransactionID)
+        )
+        event.setParam(
+            NSAppleEventDescriptor(string: scriptHandlerName),
+            forKeyword: keyASSubroutineName
+        )
+        let arguments = NSAppleEventDescriptor.list()
+        arguments.insert(NSAppleEventDescriptor(processIdentifier: targetPID), at: 1)
+        event.setParam(arguments, forKeyword: keyDirectObject)
+        return event
+    }
+
+    /// Executes a PID-targeted script and preserves the Apple Event error number
+    /// instead of collapsing every failure into a successful nil result.
+    private func executeAppleScript(
+        _ source: String,
+        targetPID: pid_t
+    ) -> ScriptExecutionResult {
+        guard let script = compiledScript(for: source) else {
+            return .failure(ScriptFailure(
+                number: nil,
+                message: "Could not create AppleScript from source."
+            ))
         }
 
+        let event = Self.scriptInvocationEvent(targetPID: targetPID)
         var error: NSDictionary?
-        let result = script?.executeAndReturnError(&error)
-
+        let descriptor = script.executeAppleEvent(event, error: &error)
         if let error {
-            Log.debug("AppleMusicController: AppleScript error: \(error)", category: "SongRequest")
-            return nil
+            let failure = Self.scriptFailure(from: error)
+            Log.warn(
+                "AppleMusicController: AppleScript error \(failure.number.map(String.init) ?? "unknown"): \(failure.message)",
+                category: "SongRequest"
+            )
+            return .failure(failure)
         }
-
-        return result?.stringValue
-    }
-}
-
-// MARK: - AppleScriptExecutor
-
-/// Runs `NSAppleScript` on a single dedicated background thread that owns a live
-/// run loop.
-///
-/// `NSAppleScript` is not thread-safe and needs a run loop on its executing
-/// thread to pump Apple Event replies. A bare GCD queue has no run loop (the work
-/// can hang or return `nil`), and the main thread blocks the UI for the whole
-/// round-trip. Confining every execution to one consistent thread-with-run-loop
-/// is the supported way to run it off-main, so a wedged Music.app can no longer
-/// beachball WolfWave.
-private final class AppleScriptExecutor: @unchecked Sendable {
-    static let shared = AppleScriptExecutor()
-
-    private let thread: Thread
-
-    private init() {
-        let workerThread = Thread {
-            // A persistent Mach port keeps `RunLoop.run()` from returning
-            // immediately (a run loop with no input sources exits at once).
-            let port = NSMachPort()
-            RunLoop.current.add(port, forMode: .default)
-            RunLoop.current.run()
-        }
-        workerThread.name = "com.mrdemonwolf.wolfwave.applescript"
-        workerThread.qualityOfService = .userInitiated
-        workerThread.start()
-        thread = workerThread
+        return .success(descriptor.stringValue)
     }
 
-    /// Runs `work` on the dedicated AppleScript thread and resumes with its
-    /// result. The awaiting task suspends (yielding its thread) until the run
-    /// loop executes the block.
-    func run(_ work: @escaping @Sendable () -> String?) async -> String? {
-        await withCheckedContinuation { (continuation: CheckedContinuation<String?, Never>) in
-            let box = PerformBox { continuation.resume(returning: work()) }
-            box.perform(
-                #selector(PerformBox.invoke),
-                on: thread,
-                with: nil,
-                waitUntilDone: false,
-                modes: [RunLoop.Mode.default.rawValue]
+    /// Converts Foundation's loosely typed AppleScript dictionary into the
+    /// controller's structured, Sendable error value.
+    static func scriptFailure(from error: NSDictionary) -> ScriptFailure {
+        let number = (error[NSAppleScript.errorNumber] as? NSNumber)?.intValue
+        let message = (error[NSAppleScript.errorMessage] as? String)
+            ?? (error[NSAppleScript.errorBriefMessage] as? String)
+            ?? "Unknown AppleScript error"
+        return ScriptFailure(number: number, message: message)
+    }
+
+    /// Throws the public playback error corresponding to a failed command.
+    private func requireCommandSuccess(
+        _ result: ScriptExecutionResult,
+        command: String
+    ) throws {
+        guard case .failure(let failure) = result else { return }
+        if failure.number == -600 || failure.number == -609 {
+            throw PlaybackError.musicAppNotRunning
+        }
+        throw PlaybackError.commandFailed(command: command, message: failure.message)
+    }
+
+    /// Launches Music only for the explicit Reveal action, then waits briefly for
+    /// its process identifier to become observable before dispatching the event.
+    private func ensureMusicRunningForReveal() async {
+        guard MusicProcess.pid == nil else { return }
+        guard let applicationURL = NSWorkspace.shared.urlForApplication(
+            withBundleIdentifier: "com.apple.Music"
+        ) else {
+            return
+        }
+
+        let configuration = NSWorkspace.OpenConfiguration()
+        configuration.activates = true
+        configuration.addsToRecentItems = false
+        do {
+            _ = try await NSWorkspace.shared.openApplication(
+                at: applicationURL,
+                configuration: configuration
+            )
+            for _ in 0..<20 {
+                if MusicProcess.pid != nil { return }
+                try await Task.sleep(for: .milliseconds(100))
+            }
+        } catch {
+            Log.warn(
+                "AppleMusicController: Could not launch Music.app: \(error.localizedDescription)",
+                category: "SongRequest"
             )
         }
-    }
-
-    /// Carries a closure across the `perform(_:on:...)` selector boundary so it
-    /// runs on the executor thread's run loop.
-    private final class PerformBox: NSObject, @unchecked Sendable {
-        private let work: () -> Void
-        init(_ work: @escaping () -> Void) { self.work = work }
-        @objc func invoke() { work() }
     }
 }
