@@ -17,11 +17,16 @@ describe("manifest / action registration", () => {
   const registeredIds: string[] = ACTION_CLASSES.map((ActionClass) => {
     const instance = new ActionClass(new WolfWaveClient());
     const id = (instance as { manifestId?: string }).manifestId;
-    expect(typeof id).toBe("string");
     return id ?? "";
   });
 
   const manifestIds: string[] = manifest.Actions.map((entry) => entry.UUID);
+
+  test("every action decorator exposes a manifest UUID", () => {
+    for (const id of registeredIds) {
+      expect(id).not.toBe("");
+    }
+  });
 
   test("every registered action has a manifest entry", () => {
     for (const id of registeredIds) {
