@@ -235,6 +235,7 @@ Monorepo (bun + Turborepo):
 - `bun run clean` cleans workspace build artifacts.
 - `bun run tokens` regenerates the design tokens from `design-system/tokens.json`.
 - `bun run ds:lint` lints Swift views for hardcoded spacing and font sizes.
+- `bun run ds:schema` validates `design-system/tokens.json` against its JSON schema.
 - `bun run dev --filter docs` starts the docs dev server only.
 - `bun run build --filter docs` builds the docs site.
 - `bun run --filter widget build` rebuilds the OBS overlay widget.
