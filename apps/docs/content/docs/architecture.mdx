@@ -98,7 +98,7 @@ Full Twitch integration using:
 Coordinates chat song requests end-to-end:
 
 - **Queue** with hold mode and buffering when Music.app is closed.
-- **Resolvers**: `SongSearchResolver` (MusicKit) and `LinkResolverService` (Apple Music URLs).
+- **Resolvers**: `SongSearchResolver` (MusicKit) and `LinkResolverService` (native URL detection, Spotify/YouTube oEmbed, and validated Apple Music URLs).
 - **Playback**: `AppleMusicController` plays tracks via AppleScript while preserving window focus.
 - **Blocklist**: `SongBlocklist` blocks by track ID, artist, or album.
 - **Approval screening**: opt-in "Require My Approval" (`isApprovalRequired`, `approve`/`decline`) holds each request in a pending state until the broadcaster acts, across chat, channel points, and bits.
