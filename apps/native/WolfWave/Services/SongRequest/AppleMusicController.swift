@@ -826,11 +826,11 @@ final class AppleMusicController: AppleMusicControlling {
         )
         event.setParam(
             NSAppleEventDescriptor(string: scriptHandlerName),
-            forKeyword: keyASSubroutineName
+            forKeyword: AEKeyword(keyASSubroutineName)
         )
         let arguments = NSAppleEventDescriptor.list()
         arguments.insert(NSAppleEventDescriptor(processIdentifier: targetPID), at: 1)
-        event.setParam(arguments, forKeyword: keyDirectObject)
+        event.setParam(arguments, forKeyword: AEKeyword(keyDirectObject))
         return event
     }
 
