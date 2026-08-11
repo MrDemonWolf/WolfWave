@@ -846,8 +846,8 @@ final class KeychainServiceTests {
         #expect(KeychainService.loadToken() == "overlay-token")
     }
 
-    @Test("Auth clear failure preserves credentials, UI, and validation owner")
     @MainActor
+    @Test("Auth clear failure preserves credentials, UI, and validation owner")
     func testClearAuthFailurePreservesState() async throws {
         let originalBackend = KeychainService.backend
         let backend = InspectableKeychainBackend()
