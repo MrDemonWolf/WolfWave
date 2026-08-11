@@ -10,220 +10,204 @@ import Security
 import XCTest
 @testable import WolfWave
 
-/// Unit tests for the WebSocket auth-token gate.
-///
-/// The decision logic that backs the `NWProtocolWebSocket` client-request
-/// handler in `WebSocketServerService` is intentionally factored out into the
-/// pure static helper `WebSocketAuthToken.shouldAccept(...)` so it can be
-/// verified without standing up `NWListener` / `NWConnection`. The lifecycle
-/// integration tests in `WebSocketServerIntegrationTests` cover the wiring; this
-/// file pins down the actual auth contract.
+/// Pins the pure authentication and authorization contract used by the
+/// Network.framework handshake and connection-state gates.
 final class WebSocketServerAuthTests: XCTestCase {
+    private let overlayToken = "abcdef1234567890"
+    private let controlToken = "0123456789abcdef"
 
-    // MARK: - Subprotocol shape
+    // MARK: - Role-specific subprotocols
 
-    func testExpectedSubprotocolHasWolfWavePrefix() {
+    func testExpectedSubprotocolsCarryDistinctRolePrefixes() {
         XCTAssertEqual(
-            WebSocketAuthToken.expectedSubprotocol(for: "abcdef1234567890"),
-            "wolfwave.token.abcdef1234567890"
+            WebSocketAuthToken.expectedSubprotocol(for: overlayToken, role: .overlay),
+            "wolfwave.overlay.abcdef1234567890"
+        )
+        XCTAssertEqual(
+            WebSocketAuthToken.expectedSubprotocol(for: controlToken, role: .control),
+            "wolfwave.control.0123456789abcdef"
         )
     }
 
-    // MARK: - shouldAccept, auth disabled (legacy init)
-
-    func testShouldAcceptIsTrueWhenTokenIsNil() {
-        XCTAssertTrue(
-            WebSocketAuthToken.shouldAccept(expectedToken: nil, offeredSubprotocols: []),
-            "Legacy `init(port:)` (no token) must keep accepting unauthenticated clients"
-        )
-        XCTAssertTrue(
-            WebSocketAuthToken.shouldAccept(expectedToken: nil, offeredSubprotocols: ["whatever"])
-        )
-    }
-
-    // MARK: - shouldAccept, token configured
-
-    func testRejectsWhenNoSubprotocolOffered() {
-        XCTAssertFalse(
-            WebSocketAuthToken.shouldAccept(
-                expectedToken: "abcdef1234567890",
+    func testLegacyInitializerResolvesReadOnlyOverlayRole() {
+        XCTAssertEqual(
+            WebSocketAuthToken.authenticationRole(
+                overlayToken: nil,
+                controlToken: nil,
                 offeredSubprotocols: []
             ),
-            "Handshake with no Sec-WebSocket-Protocol header must be rejected"
+            .overlay
         )
     }
 
-    func testRejectsWhenSubprotocolDoesNotMatch() {
-        XCTAssertFalse(
-            WebSocketAuthToken.shouldAccept(
-                expectedToken: "abcdef1234567890",
-                offeredSubprotocols: ["wolfwave.token.deadbeef"]
+    func testMissingAndMismatchedSubprotocolsAreRejected() {
+        XCTAssertNil(
+            WebSocketAuthToken.authenticationRole(
+                overlayToken: overlayToken,
+                controlToken: controlToken,
+                offeredSubprotocols: []
             )
         )
-        XCTAssertFalse(
-            WebSocketAuthToken.shouldAccept(
-                expectedToken: "abcdef1234567890",
-                offeredSubprotocols: ["some.other.protocol", "graphql-ws"]
+        XCTAssertNil(
+            WebSocketAuthToken.authenticationRole(
+                overlayToken: overlayToken,
+                controlToken: controlToken,
+                offeredSubprotocols: ["graphql-ws", "wolfwave.overlay.deadbeef"]
             )
         )
-    }
-
-    func testRejectsRawTokenWithoutPrefix() {
-        // Client must offer the full `wolfwave.token.<hex>` form, not the bare token.
-        XCTAssertFalse(
-            WebSocketAuthToken.shouldAccept(
-                expectedToken: "abcdef1234567890",
-                offeredSubprotocols: ["abcdef1234567890"]
-            )
-        )
-    }
-
-    func testAcceptsWhenSubprotocolMatches() {
-        XCTAssertTrue(
-            WebSocketAuthToken.shouldAccept(
-                expectedToken: "abcdef1234567890",
-                offeredSubprotocols: ["wolfwave.token.abcdef1234567890"]
-            )
+        XCTAssertNil(
+            WebSocketAuthToken.authenticationRole(
+                overlayToken: overlayToken,
+                controlToken: controlToken,
+                offeredSubprotocols: [overlayToken]
+            ),
+            "A raw token without a role prefix must not authenticate"
         )
     }
 
-    func testAcceptsWhenMatchingSubprotocolIsOneOfMany() {
-        XCTAssertTrue(
-            WebSocketAuthToken.shouldAccept(
-                expectedToken: "abcdef1234567890",
+    func testOverlayCredentialResolvesOnlyOverlayRole() {
+        XCTAssertEqual(
+            WebSocketAuthToken.authenticationRole(
+                overlayToken: overlayToken,
+                controlToken: controlToken,
+                offeredSubprotocols: ["wolfwave.overlay." + overlayToken]
+            ),
+            .overlay
+        )
+        XCTAssertNil(
+            WebSocketAuthToken.authenticationRole(
+                overlayToken: overlayToken,
+                controlToken: controlToken,
+                offeredSubprotocols: ["wolfwave.control." + overlayToken]
+            ),
+            "Changing the prefix must not promote an overlay credential"
+        )
+    }
+
+    func testIdenticalCredentialsFailClosedForControlRole() {
+        XCTAssertNil(
+            WebSocketAuthToken.authenticationRole(
+                overlayToken: overlayToken,
+                controlToken: overlayToken,
+                offeredSubprotocols: ["wolfwave.control." + overlayToken]
+            )
+        )
+        XCTAssertEqual(
+            WebSocketAuthToken.authenticationRole(
+                overlayToken: overlayToken,
+                controlToken: overlayToken,
+                offeredSubprotocols: ["wolfwave.overlay." + overlayToken]
+            ),
+            .overlay
+        )
+    }
+
+    func testControlCredentialResolvesControlRole() {
+        XCTAssertEqual(
+            WebSocketAuthToken.authenticationRole(
+                overlayToken: overlayToken,
+                controlToken: controlToken,
+                offeredSubprotocols: ["wolfwave.control." + controlToken]
+            ),
+            .control
+        )
+    }
+
+    func testControlWinsWhenBothValidRolesAreOffered() {
+        XCTAssertEqual(
+            WebSocketAuthToken.authenticationRole(
+                overlayToken: overlayToken,
+                controlToken: controlToken,
                 offeredSubprotocols: [
-                    "graphql-ws",
-                    "wolfwave.token.abcdef1234567890",
-                    "json.api.v1",
+                    "wolfwave.overlay." + overlayToken,
+                    "wolfwave.control." + controlToken,
                 ]
+            ),
+            .control
+        )
+    }
+
+    func testRoleMatchingIsCaseSensitive() {
+        XCTAssertNil(
+            WebSocketAuthToken.authenticationRole(
+                overlayToken: overlayToken,
+                controlToken: controlToken,
+                offeredSubprotocols: ["wolfwave.overlay.ABCDEF1234567890"]
             )
         )
     }
 
-    func testCaseSensitiveTokenMatching() {
-        // Hex tokens are produced lowercase. A case-mangled offer must not pass,
-        // otherwise an attacker that knew the entropy could attempt mixed-case bypass.
-        XCTAssertFalse(
-            WebSocketAuthToken.shouldAccept(
-                expectedToken: "abcdef1234567890",
-                offeredSubprotocols: ["wolfwave.token.ABCDEF1234567890"]
+    func testSelectedSubprotocolIsRevalidated() {
+        XCTAssertEqual(
+            WebSocketAuthToken.role(
+                forSelectedSubprotocol: "wolfwave.overlay." + overlayToken,
+                overlayToken: overlayToken,
+                controlToken: controlToken
+            ),
+            .overlay
+        )
+        XCTAssertNil(
+            WebSocketAuthToken.role(
+                forSelectedSubprotocol: "wolfwave.control." + overlayToken,
+                overlayToken: overlayToken,
+                controlToken: controlToken
             )
         )
     }
 
-    // MARK: - Constant-time comparison
+    // MARK: - Connection and command authorization
 
-    func testConstantTimeEqualsMatch() {
-        XCTAssertTrue(
-            WebSocketAuthToken.constantTimeEquals("abcdef1234567890", "abcdef1234567890")
-        )
+    func testOverlayConnectionsCanReceiveStateFromLoopbackOrLAN() {
+        XCTAssertTrue(WebSocketServerService.allowsConnection(role: .overlay, isLoopback: true))
+        XCTAssertTrue(WebSocketServerService.allowsConnection(role: .overlay, isLoopback: false))
+    }
+
+    func testControlConnectionsAreLoopbackOnly() {
+        XCTAssertTrue(WebSocketServerService.allowsConnection(role: .control, isLoopback: true))
+        XCTAssertFalse(WebSocketServerService.allowsConnection(role: .control, isLoopback: false))
+    }
+
+    func testCommandsRequireLoopbackControlRole() {
+        XCTAssertTrue(WebSocketServerService.allowsCommands(role: .control, isLoopback: true))
+        XCTAssertFalse(WebSocketServerService.allowsCommands(role: .control, isLoopback: false))
+        XCTAssertFalse(WebSocketServerService.allowsCommands(role: .overlay, isLoopback: true))
+        XCTAssertFalse(WebSocketServerService.allowsCommands(role: .overlay, isLoopback: false))
+    }
+
+    // MARK: - Constant-time comparison and validation
+
+    func testConstantTimeEquals() {
+        XCTAssertTrue(WebSocketAuthToken.constantTimeEquals(overlayToken, overlayToken))
         XCTAssertTrue(WebSocketAuthToken.constantTimeEquals("", ""))
+        XCTAssertFalse(WebSocketAuthToken.constantTimeEquals(overlayToken, controlToken))
+        XCTAssertFalse(WebSocketAuthToken.constantTimeEquals("abcdef", overlayToken))
+        XCTAssertFalse(WebSocketAuthToken.constantTimeEquals(overlayToken, "abcdef"))
     }
 
-    func testConstantTimeEqualsNonMatchSameLength() {
-        XCTAssertFalse(
-            WebSocketAuthToken.constantTimeEquals("abcdef1234567890", "abcdef1234567891")
-        )
-        // Differ only in the first byte (the early-exit risk for naive compares).
-        XCTAssertFalse(
-            WebSocketAuthToken.constantTimeEquals("Xbcdef1234567890", "abcdef1234567890")
-        )
-    }
-
-    func testConstantTimeEqualsLengthMismatch() {
-        XCTAssertFalse(WebSocketAuthToken.constantTimeEquals("abcdef", "abcdef1234567890"))
-        XCTAssertFalse(WebSocketAuthToken.constantTimeEquals("abcdef1234567890", "abcdef"))
-        // A prefix must not pass.
-        XCTAssertFalse(WebSocketAuthToken.constantTimeEquals("abc", "abcdef"))
-    }
-
-    // MARK: - Token shape validation (used before persisting / substituting)
-
-    func testIsValidAcceptsLowercaseHex() {
-        XCTAssertTrue(WebSocketAuthToken.isValid("abcdef1234567890"))
-    }
-
-    func testIsValidAcceptsUppercaseHex() {
+    func testTokenValidation() {
+        XCTAssertTrue(WebSocketAuthToken.isValid(overlayToken))
         XCTAssertTrue(WebSocketAuthToken.isValid("ABCDEF1234567890"))
-    }
-
-    func testIsValidAcceptsFullLengthGeneratedToken() {
-        // The generator emits 64 hex characters (32 random bytes).
         XCTAssertTrue(WebSocketAuthToken.isValid(String(repeating: "a", count: 64)))
-    }
-
-    func testIsValidRejectsTooShort() {
-        XCTAssertFalse(WebSocketAuthToken.isValid("abc"))
-        XCTAssertFalse(WebSocketAuthToken.isValid(String(repeating: "a", count: 15)))
-    }
-
-    func testIsValidRejectsTooLong() {
-        XCTAssertFalse(WebSocketAuthToken.isValid(String(repeating: "a", count: 129)))
-    }
-
-    func testIsValidRejectsEmpty() {
         XCTAssertFalse(WebSocketAuthToken.isValid(""))
-    }
-
-    func testIsValidRejectsInjectionAttempts() {
-        // The whole point: a user-edited token that could escape the JS string
-        // context in `widget.html` must not pass validation.
+        XCTAssertFalse(WebSocketAuthToken.isValid(String(repeating: "a", count: 15)))
+        XCTAssertFalse(WebSocketAuthToken.isValid(String(repeating: "a", count: 129)))
         XCTAssertFalse(WebSocketAuthToken.isValid("</script><script>alert(1)</script>"))
-        XCTAssertFalse(WebSocketAuthToken.isValid("abc'; document.cookie"))
-        XCTAssertFalse(WebSocketAuthToken.isValid("0123456789abcdef\""))
-        XCTAssertFalse(WebSocketAuthToken.isValid("0123456789abcdef\\"))
-    }
-
-    func testIsValidRejectsNonHexCharacters() {
-        XCTAssertFalse(WebSocketAuthToken.isValid("ghijklmnopqrstuv"))
         XCTAssertFalse(WebSocketAuthToken.isValid("0123456789abcdef-"))
     }
 
-    // MARK: - Redaction (logging safety)
-
-    func testRedactKeepsOnlyFirstFourChars() {
-        XCTAssertEqual(WebSocketAuthToken.redact("abcdef1234567890"), "abcd…")
-    }
-
-    func testRedactCollapsesShortInputs() {
+    func testGenerationAndRedaction() {
+        let first = WebSocketAuthToken.generate()
+        let second = WebSocketAuthToken.generate()
+        XCTAssertEqual(first.count, 64)
+        XCTAssertTrue(WebSocketAuthToken.isValid(first))
+        XCTAssertNotEqual(first, second)
+        XCTAssertEqual(WebSocketAuthToken.redact(overlayToken), "abcd…")
         XCTAssertEqual(WebSocketAuthToken.redact("ab"), "…")
-        XCTAssertEqual(WebSocketAuthToken.redact(""), "…")
+        XCTAssertFalse(WebSocketAuthToken.redact(first).contains(String(first.dropFirst(4))))
     }
 
-    func testRedactNeverLeaksFullToken() {
-        let token = WebSocketAuthToken.generate()
-        let redacted = WebSocketAuthToken.redact(token)
-        XCTAssertFalse(redacted.contains(String(token.dropFirst(4))))
-        XCTAssertLessThanOrEqual(redacted.count, 5)
-    }
+    // MARK: - Role-isolated persistence
 
-    // MARK: - Generation (Keychain-free)
-    //
-    // `generate()` is exercised directly. `currentOrCreate()` / `rotate()` are
-    // covered below through an in-memory backend so the tests NEVER touch the
-    // real Keychain (which prompts under the ad-hoc-signed test host).
-
-    func testGenerateProduces64HexChars() {
-        let token = WebSocketAuthToken.generate()
-        XCTAssertEqual(token.count, 64, "32 random bytes → 64 hex chars")
-        XCTAssertTrue(WebSocketAuthToken.isValid(token))
-    }
-
-    func testGenerateProducesDistinctTokens() {
-        var seen = Set<String>()
-        for _ in 0..<50 { seen.insert(WebSocketAuthToken.generate()) }
-        XCTAssertEqual(seen.count, 50, "generated tokens must not repeat")
-    }
-
-    // MARK: - currentOrCreate / rotate (in-memory backend, Keychain-free)
-    //
-    // `WebSocketAuthToken` persists through `KeychainService`, which carries its
-    // own injectable `KeychainBackend` seam. Each of these tests swaps in a fresh
-    // `InMemoryKeychainBackend` and restores the previous one so they NEVER touch
-    // the real Keychain (which prompts under ad-hoc test signing).
-
-    /// Runs `body` with an empty in-memory Keychain backend installed, restoring
-    /// the previously active backend afterward.
     private func withInMemoryKeychain(_ body: () throws -> Void) rethrows {
         KeychainBackendTestIsolation.acquire()
         let previous = KeychainService.backend
@@ -235,55 +219,55 @@ final class WebSocketServerAuthTests: XCTestCase {
         try body()
     }
 
-    func testCurrentOrCreateMintsAndPersistsWhenEmpty() {
+    func testCurrentOrCreateMintsSeparatePersistedCredentials() {
         withInMemoryKeychain {
-            XCTAssertNil(KeychainService.loadToken())
+            let overlay = WebSocketAuthToken.currentOrCreate(for: .overlay)
+            let control = WebSocketAuthToken.currentOrCreate(for: .control)
 
-            let minted = WebSocketAuthToken.currentOrCreate()
-
-            XCTAssertTrue(WebSocketAuthToken.isValid(minted), "minted token must be valid hex")
-            XCTAssertEqual(KeychainService.loadToken(), minted, "minted token must be persisted")
+            XCTAssertNotEqual(overlay, control)
+            XCTAssertEqual(KeychainService.loadToken(), overlay)
+            XCTAssertEqual(KeychainService.loadControlToken(), control)
         }
     }
 
-    func testCurrentOrCreateIsStableAcrossCalls() {
-        withInMemoryKeychain {
-            let first = WebSocketAuthToken.currentOrCreate()
-            let second = WebSocketAuthToken.currentOrCreate()
-
-            XCTAssertEqual(first, second, "currentOrCreate must return the persisted token on later calls")
-        }
-    }
-
-    func testCurrentOrCreateReusesPreexistingToken() throws {
+    func testCurrentOrCreateReusesEachPreexistingCredential() throws {
         try withInMemoryKeychain {
-            let existing = WebSocketAuthToken.generate()
-            try KeychainService.saveToken(existing)
+            try KeychainService.saveToken(overlayToken)
+            try KeychainService.saveControlToken(controlToken)
 
-            let returned = WebSocketAuthToken.currentOrCreate()
-
-            XCTAssertEqual(returned, existing, "an already-stored token must be returned verbatim")
+            XCTAssertEqual(WebSocketAuthToken.currentOrCreate(for: .overlay), overlayToken)
+            XCTAssertEqual(WebSocketAuthToken.currentOrCreate(for: .control), controlToken)
         }
     }
 
-    func testRotateReplacesAndPersistsToken() throws {
+    func testPersistChangesOnlyRequestedRole() throws {
         try withInMemoryKeychain {
-            let original = WebSocketAuthToken.currentOrCreate()
+            try KeychainService.saveToken(overlayToken)
+            try KeychainService.saveControlToken(controlToken)
+            let replacement = String(repeating: "f", count: 64)
 
-            let rotated = try WebSocketAuthToken.rotate()
+            try WebSocketAuthToken.persist(replacement, for: .control)
 
-            XCTAssertNotEqual(rotated, original, "rotate must mint a new token")
-            XCTAssertTrue(WebSocketAuthToken.isValid(rotated))
-            XCTAssertEqual(KeychainService.loadToken(), rotated, "rotate must persist the new token")
-            XCTAssertEqual(
-                WebSocketAuthToken.currentOrCreate(),
-                rotated,
-                "a subsequent currentOrCreate must return the rotated token"
-            )
+            XCTAssertEqual(KeychainService.loadToken(), overlayToken)
+            XCTAssertEqual(KeychainService.loadControlToken(), replacement)
         }
     }
 
-    func testCurrentOrCreateKeepsOneTokenAcrossPersistenceFailureAndRecovery() {
+    func testRotateChangesOnlyRequestedRole() throws {
+        try withInMemoryKeychain {
+            let overlay = WebSocketAuthToken.currentOrCreate(for: .overlay)
+            let control = WebSocketAuthToken.currentOrCreate(for: .control)
+
+            let rotated = try WebSocketAuthToken.rotate(.control)
+
+            XCTAssertNotEqual(rotated, control)
+            XCTAssertEqual(KeychainService.loadToken(), overlay)
+            XCTAssertEqual(KeychainService.loadControlToken(), rotated)
+            XCTAssertEqual(WebSocketAuthToken.currentOrCreate(for: .control), rotated)
+        }
+    }
+
+    func testSessionFallbackStaysRoleScopedAndPersistsAfterRecovery() {
         KeychainBackendTestIsolation.acquire()
         let previous = KeychainService.backend
         KeychainService.backend = FailingKeychainBackend()
@@ -292,21 +276,20 @@ final class WebSocketServerAuthTests: XCTestCase {
             KeychainBackendTestIsolation.release()
         }
 
-        let first = WebSocketAuthToken.currentOrCreate()
-        let second = WebSocketAuthToken.currentOrCreate()
-        XCTAssertEqual(first, second, "A Keychain outage must not split HTTP and WebSocket credentials")
+        let first = WebSocketAuthToken.currentOrCreate(for: .overlay)
+        let second = WebSocketAuthToken.currentOrCreate(for: .overlay)
+        XCTAssertEqual(first, second)
 
         let recovered = InMemoryKeychainBackend()
         KeychainService.backend = recovered
-        let stalePersistedToken = String(repeating: "a", count: 64)
-        try? KeychainService.saveToken(stalePersistedToken)
-        let persisted = WebSocketAuthToken.currentOrCreate()
+        try? KeychainService.saveToken(String(repeating: "a", count: 64))
 
-        XCTAssertEqual(persisted, first, "The active session token must win over stale Keychain state")
-        XCTAssertEqual(KeychainService.loadToken(), first, "The session token should persist after recovery")
+        XCTAssertEqual(WebSocketAuthToken.currentOrCreate(for: .overlay), first)
+        XCTAssertEqual(KeychainService.loadToken(), first)
+        XCTAssertNil(KeychainService.loadControlToken())
     }
 
-    func testRotateDoesNotPublishAnUnpersistedToken() {
+    func testRotateDoesNotPublishUnpersistedCredential() {
         KeychainBackendTestIsolation.acquire()
         let previous = KeychainService.backend
         KeychainService.backend = FailingKeychainBackend()
@@ -315,8 +298,8 @@ final class WebSocketServerAuthTests: XCTestCase {
             KeychainBackendTestIsolation.release()
         }
 
-        XCTAssertThrowsError(try WebSocketAuthToken.rotate())
-        XCTAssertNil(KeychainService.loadToken())
+        XCTAssertThrowsError(try WebSocketAuthToken.rotate(.control))
+        XCTAssertNil(KeychainService.loadControlToken())
     }
 }
 

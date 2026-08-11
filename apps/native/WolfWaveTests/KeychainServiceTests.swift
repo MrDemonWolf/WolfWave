@@ -102,6 +102,26 @@ final class KeychainServiceTests {
         KeychainService.deleteToken()
     }
 
+    @Test("Control token has independent save, load, and delete lifecycle")
+    func testControlTokenRoundTrip() async throws {
+        let token = "control_token"
+
+        try KeychainService.saveControlToken(token)
+
+        #expect(KeychainService.loadControlToken() == token)
+        #expect(KeychainService.loadToken() == nil)
+
+        KeychainService.deleteControlToken()
+        #expect(KeychainService.loadControlToken() == nil)
+    }
+
+    @Test("Save empty control token throws error")
+    func testSaveEmptyControlToken() async throws {
+        #expect(throws: KeychainService.KeychainError.self) {
+            try KeychainService.saveControlToken("")
+        }
+    }
+
     // MARK: - Twitch Token Tests
 
     @Test("Save and load Twitch token")
@@ -311,6 +331,7 @@ final class KeychainServiceTests {
     func testDeleteAllRemovesEveryCredential() async throws {
         // Seed one of each credential the factory reset must wipe.
         try KeychainService.saveToken("ws_token")
+        try KeychainService.saveControlToken("ws_control_token")
         try KeychainService.saveTwitchToken("twitch_oauth")
         try KeychainService.saveTwitchRefreshToken("twitch_refresh")
         try KeychainService.saveTwitchUsername("wolf")
@@ -320,6 +341,7 @@ final class KeychainServiceTests {
         KeychainService.deleteAll()
 
         #expect(KeychainService.loadToken() == nil)
+        #expect(KeychainService.loadControlToken() == nil)
         #expect(KeychainService.loadTwitchToken() == nil)
         #expect(KeychainService.loadTwitchRefreshToken() == nil)
         #expect(KeychainService.loadTwitchUsername() == nil)
@@ -331,5 +353,6 @@ final class KeychainServiceTests {
     func testDeleteAllWhenEmpty() async throws {
         KeychainService.deleteAll()
         #expect(KeychainService.loadToken() == nil)
+        #expect(KeychainService.loadControlToken() == nil)
     }
 }
