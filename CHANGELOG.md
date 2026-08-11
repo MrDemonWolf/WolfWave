@@ -32,6 +32,7 @@ All notable changes to this project will be documented in this file.
 
 ### Fixed
 
+- **Settings backups now restore live behavior, not just switches.** Appearance, update settings, and Launch at Login take effect during import; rejected login-item changes stay matched to macOS, unsafe queue limits are ignored, and the preview count matches what will actually restore.
 - **Twitch custom commands stay locked while disconnected.** The settings card now explains that Twitch must be connected and closes an open editor if the connection becomes unavailable.
 - **Twitch stays connected when its server moves you.** Twitch periodically hands your connection to a different server. WolfWave could flash "disconnected" and tear down the new, healthy connection while doing that. It rides through cleanly now.
 - **Low Power Mode no longer stalls launch.** Startup reads the posted power-state snapshot without recursively initializing the monitor.

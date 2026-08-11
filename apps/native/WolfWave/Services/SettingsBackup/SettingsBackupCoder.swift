@@ -50,8 +50,8 @@ nonisolated struct SettingsBackupCoder {
         var reconnectTwitch: Bool
         /// Twitch channel name to restore, when reconnecting.
         var twitchChannelName: String?
-        /// Count of backup keys ignored because they are not exportable
-        /// (account/runtime/unknown). Surfaced for transparency, never applied.
+        /// Count of backup keys ignored because they are non-exportable, unknown,
+        /// or fail validation. Surfaced for transparency, never applied.
         var ignoredKeyCount: Int
     }
 
@@ -146,27 +146,35 @@ nonisolated struct SettingsBackupCoder {
 
     // MARK: - Apply Planning
 
-    /// UserDefaults keys holding network ports. Their integer values must fit
-    /// `UInt16` (`0` means "use the default"), so an out-of-range value from a
-    /// hand-edited backup is ignored rather than persisted.
-    private static let portKeys: Set<String> = [
-        AppConstants.UserDefaults.websocketServerPort,
-        AppConstants.UserDefaults.widgetPort,
+    /// Integer bounds for preferences whose consumers require a constrained
+    /// value. Keeping the rules in one table ensures import preview and apply
+    /// make the same decision for hand-edited backups.
+    private static let integerBounds: [String: ClosedRange<Int>] = [
+        // Zero means "use the default port"; positive values must fit UInt16.
+        AppConstants.UserDefaults.websocketServerPort: 0...Int(UInt16.max),
+        AppConstants.UserDefaults.widgetPort: 0...Int(UInt16.max),
+        // These four pickers expose 1...20. Larger values can overflow when
+        // several role contributions are stacked.
+        AppConstants.UserDefaults.songRequestPerUserLimit: 1...20,
+        AppConstants.UserDefaults.songRequestLimitSubscriber: 1...20,
+        AppConstants.UserDefaults.songRequestLimitVIP: 1...20,
+        AppConstants.UserDefaults.songRequestLimitModerator: 1...20,
     ]
 
     /// Whether a backup value is safe to write for the given key.
-    /// Port keys must be integers in `0...65535`; everything else passes.
+    /// Keys with an integer rule must have the expected type and bounds;
+    /// everything else passes through unchanged.
     private func isValueAllowed(_ value: BackupValue, forKey key: String) -> Bool {
-        guard Self.portKeys.contains(key) else { return true }
-        guard case .int(let port) = value else { return false }
-        return (0...Int(UInt16.max)).contains(port)
+        guard let bounds = Self.integerBounds[key] else { return true }
+        guard case .int(let integer) = value else { return false }
+        return bounds.contains(integer)
     }
 
     /// Resolves a backup plus the user's choices into an `ApplyPlan`.
     ///
     /// Merge semantics: only keys in `backup.settings` that are also in
     /// `exportableKeys` are written. Account-linked and unknown keys are ignored,
-    /// as are out-of-range port values (see `isValueAllowed(_:forKey:)`).
+    /// as are values rejected by the centralized key validation rules.
     /// No key is ever removed, so an import never wipes unrelated settings.
     /// Twitch is restored only when `choices.reconnectTwitch` is set and the
     /// backup actually had a Twitch channel.
@@ -202,11 +210,13 @@ nonisolated struct SettingsBackupCoder {
     }
 
     /// How many portable preferences a backup would restore (for the import
-    /// review summary). Counts only keys that are still exportable.
+    /// review summary). Uses the same validation as apply so the preview can
+    /// never promise a preference that import will reject.
     func restorableCount(backup: SettingsBackup, exportableKeys: [String]) -> Int {
-        let allow = Set(exportableKeys)
-        return backup.settings.keys.reduce(into: 0) { count, key in
-            if allow.contains(key) { count += 1 }
-        }
+        makeApplyPlan(
+            backup: backup,
+            choices: ImportChoices(),
+            exportableKeys: exportableKeys
+        ).set.count
     }
 }

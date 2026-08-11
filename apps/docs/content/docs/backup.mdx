@@ -55,6 +55,8 @@ These live in the macOS Keychain, or macOS grants them per Mac, so they never ge
 
 **It merges, never wipes.** Importing adds your preferences in. It won't delete settings missing from the backup, and it won't touch a connection you leave switched off.
 
+System-backed preferences take effect during import too. WolfWave updates its appearance and update settings immediately and asks macOS to apply Launch at Login. If macOS rejects that login-item change, WolfWave keeps the real system setting and tells you instead of showing a switch that did not take effect.
+
 ## Move to a new Mac
 
 1. **Old Mac:** **Export Settings**.
@@ -68,3 +70,4 @@ These live in the macOS Keychain, or macOS grants them per Mac, so they never ge
 - **Permissions don't carry over.** macOS grants them per Mac, so re-grant access (like Apple Music control) after importing.
 - **Newer-version backups** ask you to update WolfWave before they'll import.
 - **Listening History stays put.** Your play log and stats are personal data, not settings, so they're not in a settings backup.
+- **Hand-edited values are checked before import.** Unsafe ports and queue limits are skipped, and the review count includes only preferences WolfWave can restore.

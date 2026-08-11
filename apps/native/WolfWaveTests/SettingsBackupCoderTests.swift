@@ -242,6 +242,43 @@ struct SettingsBackupCoderTests {
         #expect(plan.ignoredKeyCount == 0)
     }
 
+    @Test func applyPlanDropsOutOfRangeRoleLimits() {
+        let keys = AppConstants.UserDefaults.self
+        var backup = makeBackup(snapshot: [:])
+        backup.settings[keys.songRequestPerUserLimit] = .int(0)
+        backup.settings[keys.songRequestLimitSubscriber] = .int(-1)
+        backup.settings[keys.songRequestLimitVIP] = .int(21)
+        backup.settings[keys.songRequestLimitModerator] = .int(Int.max)
+
+        let plan = coder.makeApplyPlan(
+            backup: backup,
+            choices: SettingsBackupCoder.ImportChoices(),
+            exportableKeys: exportable
+        )
+
+        #expect(plan.set.isEmpty)
+        #expect(plan.ignoredKeyCount == 4)
+    }
+
+    @Test func applyPlanKeepsRoleLimitBoundaries() {
+        let keys = AppConstants.UserDefaults.self
+        let backup = makeBackup(snapshot: [
+            keys.songRequestPerUserLimit: 1,
+            keys.songRequestLimitSubscriber: 20,
+            keys.songRequestLimitVIP: 1,
+            keys.songRequestLimitModerator: 20,
+        ])
+
+        let plan = coder.makeApplyPlan(
+            backup: backup,
+            choices: SettingsBackupCoder.ImportChoices(),
+            exportableKeys: exportable
+        )
+
+        #expect(plan.set.count == 4)
+        #expect(plan.ignoredKeyCount == 0)
+    }
+
     // MARK: - Summary
 
     @Test func restorableCountCountsOnlyExportableKeys() {
@@ -249,6 +286,23 @@ struct SettingsBackupCoderTests {
         var backup = makeBackup(snapshot: [keys.trackingEnabled: true, keys.widgetTheme: "Neon"])
         backup.settings["unknownKey"] = .bool(true)
         #expect(coder.restorableCount(backup: backup, exportableKeys: exportable) == 2)
+    }
+
+    @Test func restorableCountUsesTheSameValidationAsApply() {
+        let keys = AppConstants.UserDefaults.self
+        var backup = makeBackup(snapshot: [keys.trackingEnabled: true])
+        backup.settings[keys.websocketServerPort] = .int(70_000)
+        backup.settings[keys.songRequestLimitSubscriber] = .int(Int.max)
+        backup.settings["unknownKey"] = .bool(true)
+
+        let plan = coder.makeApplyPlan(
+            backup: backup,
+            choices: SettingsBackupCoder.ImportChoices(),
+            exportableKeys: exportable
+        )
+
+        #expect(plan.set.count == 1)
+        #expect(coder.restorableCount(backup: backup, exportableKeys: exportable) == plan.set.count)
     }
 
     // MARK: - Decode rejects malformed input (surfaces an error, never crashes)
