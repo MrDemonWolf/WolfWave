@@ -10,13 +10,15 @@ import Foundation
 import MusicKit
 
 /// Errors raised while writing to the user's Apple Music library.
-enum AppleMusicLibraryError: LocalizedError {
+nonisolated enum AppleMusicLibraryError: LocalizedError {
     /// MusicKit has not been authorized, so no music-user-token is available.
     case notAuthorized
     /// A constructed Apple Music API URL was malformed.
     case invalidURL(String)
     /// The create-playlist call returned no resource id.
     case playlistCreateFailed
+    /// A track add proved that the previously-resolved playlist was deleted.
+    case playlistMissing
 
     var errorDescription: String? {
         switch self {
@@ -26,6 +28,8 @@ enum AppleMusicLibraryError: LocalizedError {
             return "Invalid Apple Music API path: \(path)"
         case .playlistCreateFailed:
             return "Couldn't create the \(AppConstants.Music.requestsPlaylistName) playlist."
+        case .playlistMissing:
+            return "The \(AppConstants.Music.requestsPlaylistName) playlist no longer exists."
         }
     }
 }
@@ -48,8 +52,31 @@ final class AppleMusicLibraryService {
     // MARK: - Properties
 
     /// Cached id of the `WolfWave Requests` library playlist, resolved lazily on
-    /// the first add and reused for the rest of the session.
+    /// the first add and reused for the rest of the session. The same id is also
+    /// persisted so launch-time discovery probes one exact resource before
+    /// falling back to a paged scan.
     private var cachedPlaylistID: String?
+    /// Shared ensure operation so concurrent first adds cannot create duplicates.
+    private var ensureTask: (generation: Int, task: Task<String, Error>)?
+    private var ensureGeneration = 0
+
+    private let defaults: Foundation.UserDefaults
+    private let getOverride: (@Sendable (String) async throws -> Data?)?
+    private let postOverride: (@Sendable (String, Data) async throws -> Data)?
+
+    // MARK: - Init
+
+    /// Creates the library service. Network overrides are narrow test seams;
+    /// production uses MusicDataRequest for both.
+    init(
+        defaults: Foundation.UserDefaults = .standard,
+        getOverride: (@Sendable (String) async throws -> Data?)? = nil,
+        postOverride: (@Sendable (String, Data) async throws -> Data)? = nil
+    ) {
+        self.defaults = defaults
+        self.getOverride = getOverride
+        self.postOverride = postOverride
+    }
 
     // MARK: - Public API
 
@@ -63,27 +90,70 @@ final class AppleMusicLibraryService {
     ///   the user has no active Apple Music subscription).
     func addSongToRequestsPlaylist(_ song: Song) async throws {
         try ensureAuthorized()
-        let playlistID = try await ensureRequestsPlaylist()
-        _ = try await post(
-            "/me/library/playlists/\(playlistID)/tracks",
-            body: Self.addTracksBody(forCatalogSongID: song.id.rawValue))
+        try await addCatalogSongIDToRequestsPlaylist(song.id.rawValue)
         Log.debug(
             "AppleMusicLibraryService: Added \"\(song.title)\" to \(AppConstants.Music.requestsPlaylistName)",
             category: "SongRequest"
         )
     }
 
+    /// Adds one raw catalog song ID to the resolved requests playlist. Kept
+    /// internal as a narrow deterministic test seam; production callers enter
+    /// through the MusicKit `Song` API above after authorization.
+    ///
+    /// A tracks POST 404 is definitive evidence that the cached playlist was
+    /// deleted. In that one case, invalidate identity, resolve once, and retry
+    /// exactly once. Every other failure propagates without creating duplicates.
+    func addCatalogSongIDToRequestsPlaylist(_ catalogSongID: String) async throws {
+        let playlistID = try await ensureRequestsPlaylist()
+        do {
+            try await addCatalogSongID(catalogSongID, toPlaylistID: playlistID)
+        } catch AppleMusicLibraryError.playlistMissing {
+            resetCachedPlaylistID(ifCurrent: playlistID)
+            let recoveredID = try await ensureRequestsPlaylist()
+            try await addCatalogSongID(catalogSongID, toPlaylistID: recoveredID)
+        }
+    }
+
     /// Returns the `WolfWave Requests` playlist id, finding it in the user's
-    /// library or creating it if it does not exist yet.
+    /// library or creating it if it does not exist yet. Concurrent callers share
+    /// one lookup/create task so first-use song bursts cannot create duplicates.
     func ensureRequestsPlaylist() async throws -> String {
         if let cached = cachedPlaylistID { return cached }
-        if let existing = try await findRequestsPlaylist() {
-            cachedPlaylistID = existing
-            return existing
+        if let inFlight = ensureTask {
+            return try await finishEnsure(
+                task: inFlight.task, generation: inFlight.generation)
         }
-        let created = try await createRequestsPlaylist()
-        cachedPlaylistID = created
-        return created
+
+        ensureGeneration &+= 1
+        let generation = ensureGeneration
+        let task = Task { try await self.resolveRequestsPlaylist() }
+        ensureTask = (generation, task)
+        return try await finishEnsure(task: task, generation: generation)
+    }
+
+    /// Publishes one shared ensure result and clears only the matching in-flight
+    /// slot. The generation guard prevents a late waiter from clearing a newer
+    /// retry after the original task failed.
+    private func finishEnsure(
+        task: Task<String, Error>,
+        generation: Int
+    ) async throws -> String {
+        do {
+            let id = try await task.value
+            guard generation == ensureGeneration else {
+                throw CancellationError()
+            }
+            cachedPlaylistID = id
+            defaults.set(id, forKey: AppConstants.UserDefaults.songRequestPlaylistID)
+            ensureTask = nil
+            return id
+        } catch {
+            if generation == ensureGeneration {
+                ensureTask = nil
+            }
+            throw error
+        }
     }
 
     // MARK: - Share URL Resolution
@@ -214,7 +284,26 @@ final class AppleMusicLibraryService {
     /// re-finds or recreates it. Used by the health check after it detects the
     /// playlist was deleted.
     func resetCachedPlaylistID() {
+        ensureGeneration &+= 1
+        ensureTask?.task.cancel()
+        ensureTask = nil
         cachedPlaylistID = nil
+        defaults.removeObject(forKey: AppConstants.UserDefaults.songRequestPlaylistID)
+    }
+
+    /// Invalidates a failed playlist identity only while it is still current.
+    /// Two concurrent track adds can both observe the old playlist's 404. The
+    /// first starts shared recovery; the second must join that ensure instead of
+    /// cancelling it or erasing the replacement the first caller just cached.
+    private func resetCachedPlaylistID(ifCurrent failedID: String) {
+        let persistedID = defaults.string(
+            forKey: AppConstants.UserDefaults.songRequestPlaylistID)
+        guard cachedPlaylistID == failedID
+            || (cachedPlaylistID == nil && ensureTask == nil && persistedID == failedID)
+        else {
+            return
+        }
+        resetCachedPlaylistID()
     }
 
     /// GETs `path` and returns the raw response body. Returns `nil` only on a
@@ -225,6 +314,9 @@ final class AppleMusicLibraryService {
     /// Everything else (timeouts, 429, 5xx, transport errors) throws so callers
     /// can classify the failure as `.unreachable` instead of "not public".
     private func get(_ path: String) async throws -> Data? {
+        if let getOverride {
+            return try await getOverride(path)
+        }
         let url = try Self.endpoint(path)
         var request = URLRequest(url: url)
         request.httpMethod = "GET"
@@ -240,6 +332,9 @@ final class AppleMusicLibraryService {
     /// playlist). Unlike `get(_:)` it does not map 404 to `nil` — a POST caller
     /// treats any non-2xx as a genuine failure.
     private func post(_ path: String, body: Data) async throws -> Data {
+        if let postOverride {
+            return try await postOverride(path, body)
+        }
         let url = try Self.endpoint(path)
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
@@ -250,29 +345,64 @@ final class AppleMusicLibraryService {
 
     // MARK: - Private Helpers
 
-    /// Looks up the `WolfWave Requests` playlist by name across the user's
-    /// library playlists, paging until found or exhausted.
+    /// Resolves an existing owned requests playlist. A persisted id is validated
+    /// first; if it is gone or renamed, the method falls back to a complete,
+    /// loop-guarded paged scan. A same-name user playlist is never adopted by
+    /// discovery.
     private func findRequestsPlaylist() async throws -> String? {
+        let defaultsKey = AppConstants.UserDefaults.songRequestPlaylistID
+        if let persistedID = defaults.string(forKey: defaultsKey),
+           !persistedID.isEmpty {
+            if let data = try await get("/me/library/playlists/\(persistedID)"),
+               Self.parsePersistedPlaylistID(
+                   fromLibraryData: data,
+                   expectedID: persistedID) == persistedID {
+                return persistedID
+            }
+            defaults.removeObject(forKey: defaultsKey)
+        }
+
         var path = "/me/library/playlists?limit=100"
-        // Bound the paging so a huge library (or an unexpected `next` loop) can't
-        // spin forever; 20 pages × 100 = 2000 playlists is far past any real case.
-        for _ in 0..<20 {
-            let url = try Self.endpoint(path)
-            var request = URLRequest(url: url)
-            request.httpMethod = "GET"
-            let response = try await MusicDataRequest(urlRequest: request).response()
-            let page = try JSONCoders.default.decode(LibraryPlaylistsPage.self, from: response.data)
-            if let match = page.data.first(where: {
-                $0.attributes?.name == AppConstants.Music.requestsPlaylistName
-            }) {
+        var visitedPaths: Set<String> = []
+        while visitedPaths.insert(path).inserted {
+            guard let data = try await get(path) else { return nil }
+            let page = try JSONCoders.default.decode(LibraryPlaylistsPage.self, from: data)
+            if let match = page.data.first(where: Self.isOwnedRequestsPlaylist) {
+                defaults.set(match.id, forKey: defaultsKey)
                 return match.id
             }
-            guard let next = page.next else { return nil }
+            guard let next = page.next, !next.isEmpty else { return nil }
             // `next` is an absolute API path that already carries the `/v1`
             // prefix; strip it because `endpoint(_:)` adds the versioned base.
             path = next.hasPrefix("/v1") ? String(next.dropFirst(3)) : next
         }
         return nil
+    }
+
+    /// Posts one catalog track to one concrete library playlist. Only a 404 from
+    /// this tracks endpoint becomes `playlistMissing`; create/list/share 404s
+    /// retain their existing meanings.
+    private func addCatalogSongID(
+        _ catalogSongID: String,
+        toPlaylistID playlistID: String
+    ) async throws {
+        do {
+            _ = try await post(
+                "/me/library/playlists/\(playlistID)/tracks",
+                body: Self.addTracksBody(forCatalogSongID: catalogSongID))
+        } catch let error as MusicDataRequest.Error where error.status == 404 {
+            throw AppleMusicLibraryError.playlistMissing
+        }
+    }
+
+    /// Finds the owned playlist or creates one when discovery definitively
+    /// reports none. Transport and decoding failures propagate, preventing a
+    /// transient lookup error from creating a duplicate.
+    private func resolveRequestsPlaylist() async throws -> String {
+        if let existingID = try await findRequestsPlaylist() {
+            return existingID
+        }
+        return try await createRequestsPlaylist()
     }
 
     /// Creates the `WolfWave Requests` library playlist and returns its id.
@@ -314,16 +444,15 @@ final class AppleMusicLibraryService {
         )
     }
 
-    /// JSON body for creating the requests playlist. Sets `authorDisplayName` so
-    /// Music shows "WolfWave" as the creator (the only API-supported branding;
-    /// playlist artwork is auto-built from the songs and can't be set here).
+    /// JSON body for creating the requests playlist. Apple's create-library-
+    /// playlist endpoint supports `name` and optional `description`; the exact
+    /// description doubles as WolfWave's ownership marker during discovery.
     static func createPlaylistBody() throws -> Data {
         try JSONCoders.defaultEncoder.encode(
             CreatePlaylistRequest(
                 attributes: CreatePlaylistRequest.Attributes(
                     name: AppConstants.Music.requestsPlaylistName,
-                    description: AppConstants.Music.requestsPlaylistDescription,
-                    authorDisplayName: AppConstants.Music.requestsPlaylistAuthor
+                    description: AppConstants.Music.requestsPlaylistDescription
                 )
             )
         )
@@ -338,6 +467,20 @@ final class AppleMusicLibraryService {
         return page?.data.first?.attributes?.url
     }
 
+    /// Validates a previously-owned resource by exact id and expected name.
+    /// Description edits are allowed here because the persisted id was already
+    /// verified when discovered or created; scans still require the exact marker.
+    static func parsePersistedPlaylistID(
+        fromLibraryData data: Data,
+        expectedID: String
+    ) -> String? {
+        let page = try? JSONCoders.default.decode(LibraryPlaylistsPage.self, from: data)
+        return page?.data.first {
+            $0.id == expectedID
+                && $0.attributes?.name == AppConstants.Music.requestsPlaylistName
+        }?.id
+    }
+
     /// Extracts the published `globalId` (the `pl.u-...` catalog id) from a
     /// library playlist response, or `nil` when the playlist isn't public.
     static func parseGlobalID(fromLibraryData data: Data) -> String? {
@@ -345,10 +488,24 @@ final class AppleMusicLibraryService {
         return page?.data.first?.attributes?.playParams?.globalId
     }
 
+    /// Returns the first playlist whose name and description exactly match
+    /// WolfWave's ownership marker. Name alone is intentionally insufficient:
+    /// users are free to create their own `WolfWave Requests` playlist.
+    static func parseOwnedPlaylistID(fromLibraryData data: Data) -> String? {
+        let page = try? JSONCoders.default.decode(LibraryPlaylistsPage.self, from: data)
+        return page?.data.first(where: Self.isOwnedRequestsPlaylist)?.id
+    }
+
     /// Extracts the user's storefront id (e.g. `us`) from a storefront response.
     static func parseStorefront(fromData data: Data) -> String? {
         let page = try? JSONCoders.default.decode(StorefrontsPage.self, from: data)
         return page?.data.first?.id
+    }
+
+    private static func isOwnedRequestsPlaylist(_ resource: LibraryPlaylistResource) -> Bool {
+        resource.attributes?.name == AppConstants.Music.requestsPlaylistName
+            && resource.attributes?.description?.standard
+                == AppConstants.Music.requestsPlaylistDescription
     }
 }
 
@@ -366,7 +523,12 @@ private struct LibraryPlaylistResource: Decodable {
 
     struct Attributes: Decodable {
         let name: String?
+        let description: Description?
         let playParams: PlayParams?
+
+        struct Description: Decodable {
+            let standard: String?
+        }
 
         struct PlayParams: Decodable {
             /// Catalog id (e.g. `pl.u-...`), present once the playlist is public.
@@ -407,8 +569,6 @@ private struct CreatePlaylistRequest: Encodable {
     struct Attributes: Encodable {
         let name: String
         let description: String?
-        /// Shows as the playlist's creator in Music (e.g. "WolfWave").
-        var authorDisplayName: String?
     }
 }
 

@@ -189,6 +189,38 @@ struct AppleMusicControllerTests {
         #expect(AppleMusicController.ScriptTimeout.probe < AppleMusicController.ScriptTimeout.command)
     }
 
+    // MARK: - Playback Target Identity
+
+    @Test("Snapshot parser preserves the empty-artist framing tab")
+    func snapshotParserPreservesEmptyArtist() {
+        let snapshot = AppleMusicController.parsePlaybackSnapshot("playing\nSong\t")
+
+        #expect(snapshot == PlaybackSnapshot(state: .playing, trackKey: "Song\t"))
+    }
+
+    @Test("Snapshot parser preserves leading and trailing metadata whitespace")
+    func snapshotParserPreservesMetadataWhitespace() {
+        let key = " Song \t Artist "
+        let snapshot = AppleMusicController.parsePlaybackSnapshot("paused\n\(key)")
+
+        #expect(snapshot == PlaybackSnapshot(state: .paused, trackKey: key))
+    }
+
+    @Test("Target guard preserves an empty artist component")
+    func targetGuardPreservesEmptyArtist() {
+        let source = makeController().targetGuardSource(for: "Song\t")
+
+        #expect(source.contains("if currentKey is not (\"Song\" & tab & \"\")"))
+    }
+
+    @Test("Target guard preserves metadata whitespace")
+    func targetGuardPreservesMetadataWhitespace() {
+        let source = makeController().targetGuardSource(for: " Song \t Artist ")
+
+        #expect(source.contains(
+            "if currentKey is not (\" Song \" & tab & \" Artist \")"))
+    }
+
     // MARK: - Edge
 
     @Test("Very long input passes through without truncation")

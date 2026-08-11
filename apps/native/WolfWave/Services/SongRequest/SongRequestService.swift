@@ -235,9 +235,8 @@ final class SongRequestService {
         if !enabled {
             guard musicController.isMusicAppRunning else { return }
             if queue.nowPlaying == nil && !queue.isEmpty {
-                await playNextInQueue()
-                if let nowPlaying = queue.nowPlaying {
-                    sendChatMessage?("Now playing: \"\(nowPlaying.title)\" by \(nowPlaying.artist) (requested by \(nowPlaying.requesterUsername))")
+                if let started = await playNextInQueue() {
+                    sendChatMessage?("Now playing: \"\(started.title)\" by \(started.artist) (requested by \(started.requesterUsername))")
                 }
             }
         }
@@ -259,6 +258,38 @@ final class SongRequestService {
     /// `processRequest` calls while Music.app is closed) can't both dequeue and
     /// start playback for the same slot.
     private var isStartingPlayback = false
+
+    /// Invalidates every playback operation that began before clearQueue().
+    /// Successful stale starts are stopped instead of being committed back into
+    /// a queue the user explicitly cleared.
+    private var playbackGeneration = 0
+
+    /// Synchronously advanced by AppDelegate before it asynchronously tells the
+    /// vote manager about an observed track change. A poll target captures this
+    /// revision so actor scheduling cannot briefly make an old target look live.
+    private var playbackRevision: UInt64 = 0
+
+    /// One native clear shared by every overlapping `clearQueue()` caller.
+    /// Keeping the operation installed until the latest clear waiter publishes
+    /// its result also gates every other Music.app mutation while clear runs.
+    private var nativeClearOperation: (id: Int, task: Task<Void, Never>)?
+    private var nativeClearOperationSequence = 0
+
+    /// The latest completed clear that still needs to start a request which
+    /// arrived after that clear. A pre-clear playback command may still be
+    /// suspended; in that case reconciliation waits until its stale cleanup has
+    /// finished so an older completion cannot erase the replacement request.
+    private var pendingClearReconciliationGeneration: Int?
+
+    /// True only while a native Music.app clear command is active.
+    private var isNativeClearInFlight: Bool {
+        nativeClearOperation != nil
+    }
+
+    /// Small test seam for suspending or failing item playback without needing
+    /// to manufacture a MusicKit Song. Production leaves this nil and routes
+    /// through AppleMusicControlling.playNow(song:).
+    private let playbackOverride: ((SongRequestItem) async throws -> Void)?
 
     /// Track identifier of the streamer's own song that a queued request is
     /// waiting to follow. Set the first time the poll notices a pending request
@@ -350,18 +381,22 @@ final class SongRequestService {
     ///     `musicController`.
     ///   - pollInterval: Auto-advance poll cadence. Defaults to 2 seconds; tests
     ///     pass a small value to avoid waiting the full production interval.
+    ///   - playbackOverride: Test-only item playback seam. Production passes nil
+    ///     and uses musicController.
     init(
         queue: SongRequestQueue = SongRequestQueue(),
         blocklist: SongBlocklist = SongBlocklist(),
         musicController: any AppleMusicControlling = AppleMusicController(),
         searchResolver: SongSearchResolver? = nil,
-        pollInterval: Duration = .seconds(2)
+        pollInterval: Duration = .seconds(2),
+        playbackOverride: ((SongRequestItem) async throws -> Void)? = nil
     ) {
         self.queue = queue
         self.blocklist = blocklist
         self.musicController = musicController
         self.searchResolver = searchResolver ?? SongSearchResolver(musicController: musicController)
         self.pollInterval = pollInterval
+        self.playbackOverride = playbackOverride
     }
 
     // MARK: - Lifecycle
@@ -677,40 +712,60 @@ final class SongRequestService {
     /// request. Falls back to the drain policy (fallback playlist / autoplay /
     /// silence) when the queue empties.
     ///
-    /// - Returns: The newly-playing item, or `nil` when the queue empties.
+    /// The current request is not discarded until its replacement has started
+    /// and committed. A failed replacement leaves queue state intact.
+    ///
+    /// - Returns: The newly-playing item, or nil when no replacement started.
     func skip() async -> SongRequestItem? {
-        // Take the playback-transition guard so the auto-advance poll can't
-        // interleave a second dequeue across the `playNow` await and consume two
-        // tracks for one skip.
-        guard !isStartingPlayback else { return nil }
+        guard !isNativeClearInFlight, !isStartingPlayback else { return nil }
         isStartingPlayback = true
-        defer { isStartingPlayback = false }
-        resetTakeoverTracking()
-        // Drop the divergence baseline so the poll re-establishes it for the
-        // track Music.app loads next, instead of instantly re-skipping it.
-        resetRequestPlaybackTracking()
 
-        let next = queue.skip()
-        if let next {
-            // There's a next request: it's already `nowPlaying`; start it.
-            if let song = next.song {
-                do {
-                    try await musicController.playNow(song: song)
-                    Log.debug("SongRequestService: Skipped to \"\(next.title)\"", category: "SongRequest")
-                } catch {
-                    Log.debug("SongRequestService: Failed to play after skip: \(error)", category: "SongRequest")
-                }
-            }
-            isPlayingFallback = false
-            return next
+        let result: SongRequestItem?
+        guard !queue.isEmpty else {
+            isStartingPlayback = false
+            await handleQueueEmptied()
+            await reconcilePendingClearIfNeeded()
+            return nil
         }
-        // Queue emptied by the skip: honor the drain policy (fallback / autoplay /
-        // silence) instead of an unconditional stop.
-        await handleQueueEmptied()
-        return nil
+
+        let generation = playbackGeneration
+        if let next = await playNextInQueueUnguarded(generation: generation) {
+            resetTakeoverTracking()
+            resetRequestPlaybackTracking()
+            Log.debug("SongRequestService: Skipped to \"\(next.title)\"", category: "SongRequest")
+            result = next
+        } else {
+            result = nil
+        }
+        isStartingPlayback = false
+        await reconcilePendingClearIfNeeded()
+        return result
     }
 
-    /// Skips whatever is currently playing, used by the chat vote-skip feature.
+    /// Notes an observed Music track change before AppDelegate dispatches any
+    /// unstructured vote-manager work.
+    func notePlaybackTrackChanged() {
+        playbackRevision &+= 1
+    }
+
+    /// Captures the exact Music track and current in-process revision for a new
+    /// vote. The revision is rechecked after the snapshot await.
+    func capturePlaybackTarget() async -> PlaybackTarget? {
+        let revision = playbackRevision
+        guard let snapshot = await musicController.playbackSnapshot(),
+              revision == playbackRevision,
+              let trackKey = snapshot.trackKey,
+              !trackKey.isEmpty
+        else {
+            return nil
+        }
+        return PlaybackTarget(trackKey: trackKey, revision: revision)
+    }
+
+    /// Skips whatever is currently playing, used by direct/internal callers.
+    ///
+    /// The target is captured first and then routed through the same atomic
+    /// target-bound path as a Twitch poll result.
     ///
     /// When a queued request is playing, this delegates to `skip()` so the next
     /// request takes over. When the queue is idle, it advances Apple Music's own
@@ -719,27 +774,125 @@ final class SongRequestService {
     /// - Returns: The newly-playing request when one exists, otherwise `nil`.
     @discardableResult
     func voteSkip() async -> SongRequestItem? {
-        if queue.nowPlaying != nil {
-            return await skip()
+        guard let target = await capturePlaybackTarget() else { return nil }
+        let priorID = queue.nowPlaying?.id
+        guard await voteSkip(target: target) else { return nil }
+        return queue.nowPlaying?.id == priorID ? nil : queue.nowPlaying
+    }
+
+    /// Applies a passed vote only while Music.app still has `target` loaded.
+    ///
+    /// Queue policy is selected before the await, but neither the pending head
+    /// nor now-playing/fallback state is committed until the controller's single
+    /// PID-targeted AppleScript event reports that it performed the mutation.
+    @discardableResult
+    func voteSkip(target: PlaybackTarget) async -> Bool {
+        guard target.revision == playbackRevision,
+              !isNativeClearInFlight,
+              !isStartingPlayback
+        else {
+            return false
         }
+        isStartingPlayback = true
+        let generation = playbackGeneration
+
+        let reservedItem = queue.peekNext()
+        let action: TargetedPlaybackAction
+        if let reservedItem {
+            action = .request(reservedItem)
+        } else if queue.nowPlaying != nil {
+            let fallback = Foundation.UserDefaults.standard.string(
+                forKey: AppConstants.UserDefaults.songRequestFallbackPlaylist) ?? ""
+            if !fallback.isEmpty, !isHoldEnabled {
+                action = .fallbackPlaylist(name: fallback)
+            } else if isAutoplayWhenEmptyEnabled, !isHoldEnabled {
+                // Natural queue drain still leaves autoplay alone. A passed vote
+                // must actively advance the voted request to the next Music item.
+                action = .nextTrack
+            } else {
+                action = .stop
+            }
+        } else {
+            action = .nextTrack
+        }
+
+        let didMutate: Bool
         do {
-            try await musicController.skipToNext()
-            Log.debug("SongRequestService: Vote-skip advanced the Apple Music track", category: "SongRequest")
+            didMutate = try await musicController.performTargetedPlayback(
+                action,
+                ifCurrentTrackKeyEquals: target.trackKey)
         } catch {
-            Log.debug("SongRequestService: Vote-skip failed to advance track: \(error)", category: "SongRequest")
+            Log.debug(
+                "SongRequestService: Target-bound vote-skip failed: \(error)",
+                category: "SongRequest")
+            didMutate = false
         }
-        return nil
+
+        // A successful Music mutation can synchronously trigger the monitor and
+        // advance playbackRevision before this await resumes. The atomic script
+        // already proved the target; only queue-clear generation remains valid
+        // as a post-command gate.
+        guard didMutate, generation == playbackGeneration
+        else {
+            if generation != playbackGeneration {
+                await stopPlaybackStartedBeforeClear()
+            }
+            isStartingPlayback = false
+            await reconcilePendingClearIfNeeded()
+            return false
+        }
+
+        if let reservedItem {
+            guard queue.commitNext(id: reservedItem.id) != nil else {
+                await runCoalescedNativeClear()
+                isStartingPlayback = false
+                await reconcilePendingClearIfNeeded()
+                return false
+            }
+            playAttemptCounts[reservedItem.id] = nil
+            isPlayingFallback = false
+        } else {
+            queue.clearNowPlaying()
+            if case .fallbackPlaylist = action {
+                isPlayingFallback = true
+            } else {
+                isPlayingFallback = false
+            }
+        }
+
+        resetTakeoverTracking()
+        resetRequestPlaybackTracking()
+        isStartingPlayback = false
+        await reconcilePendingClearIfNeeded()
+        return true
     }
 
     /// Removes every request from the queue and clears Music.app's player.
     ///
+    /// Invalidates any playback await already in flight. If that stale operation
+    /// later succeeds, it observes the new generation and stops Music again.
+    ///
     /// - Returns: Number of items that were in the queue before clearing.
     func clearQueue() async -> Int {
+        playbackGeneration &+= 1
+        let generation = playbackGeneration
+        pendingClearReconciliationGeneration = nil
         let count = queue.clear()
         resetTakeoverTracking()
         resetRequestPlaybackTracking()
         playAttemptCounts.removeAll()
-        await musicController.clearPlayerQueue()
+        isPlayingFallback = false
+
+        let operation = beginNativeClear()
+        await operation.task.value
+
+        // Only the newest overlapping clear publishes completion. An older
+        // waiter must not release the shared gate or reconcile state erased by a
+        // later clear.
+        guard generation == playbackGeneration else { return count }
+        releaseNativeClear(operation.id)
+        pendingClearReconciliationGeneration = generation
+        await reconcilePendingClearIfNeeded()
         return count
     }
 
@@ -802,6 +955,83 @@ final class SongRequestService {
 
     // MARK: - Private Helpers
 
+    /// Returns the active native clear or starts one. No `await` occurs between
+    /// the state check and installation, so overlapping clear callers coalesce.
+    private func beginNativeClear() -> (id: Int, task: Task<Void, Never>) {
+        if let nativeClearOperation {
+            return nativeClearOperation
+        }
+        nativeClearOperationSequence &+= 1
+        let id = nativeClearOperationSequence
+        let task = Task { await self.musicController.clearPlayerQueue() }
+        let operation = (id: id, task: task)
+        nativeClearOperation = operation
+        return operation
+    }
+
+    /// Releases only the native clear operation the caller actually awaited.
+    /// This identity check prevents an older completion from clearing a newer
+    /// operation's playback gate.
+    private func releaseNativeClear(_ id: Int) {
+        guard nativeClearOperation?.id == id else { return }
+        nativeClearOperation = nil
+    }
+
+    /// Runs one clear, coalescing with an operation already in flight.
+    private func runCoalescedNativeClear() async {
+        let operation = beginNativeClear()
+        await operation.task.value
+        releaseNativeClear(operation.id)
+        await reconcilePendingClearIfNeeded()
+    }
+
+    /// A playback command that began before `clearQueue()` can complete after
+    /// the user's native clear. Wait for that command, then issue one serialized
+    /// cleanup clear after it so the stale song cannot revive. Request playback
+    /// remains guarded until this caller releases `isStartingPlayback`.
+    private func stopPlaybackStartedBeforeClear() async {
+        if isNativeClearInFlight {
+            await runCoalescedNativeClear()
+        }
+        await runCoalescedNativeClear()
+    }
+
+    /// Starts a request that arrived after the latest clear, once both the
+    /// native clear and any pre-clear playback command are fully settled.
+    private func reconcilePendingClearIfNeeded() async {
+        guard let generation = pendingClearReconciliationGeneration,
+              generation == playbackGeneration,
+              !isNativeClearInFlight,
+              !isStartingPlayback
+        else {
+            return
+        }
+        pendingClearReconciliationGeneration = nil
+        guard musicController.isMusicAppRunning,
+              !isHoldEnabled,
+              queue.nowPlaying == nil,
+              !queue.isEmpty
+        else {
+            return
+        }
+
+        // Re-check ownership after the snapshot await inside this helper. If a
+        // newer clear began, its own completion owns reconciliation.
+        if isPlayingFallback {
+            guard generation == playbackGeneration, !isNativeClearInFlight else { return }
+            await playNextInQueue()
+            return
+        }
+        guard let snapshot = await musicController.playbackSnapshot() else { return }
+        guard generation == playbackGeneration,
+              !isNativeClearInFlight,
+              snapshot.state != .playing
+        else {
+            return
+        }
+        await playNextInQueue()
+    }
+
     /// Starts the just-added (or just-boosted) request immediately, but only from
     /// a state where doing so won't cut a song off mid-play.
     ///
@@ -813,6 +1043,7 @@ final class SongRequestService {
     /// That is the "wait until the current song ends" rule, applied at the entry
     /// point so a request never interrupts a live read that happened to flake.
     private func startImmediatelyIfIdle() async {
+        guard !isNativeClearInFlight else { return }
         if isPlayingFallback {
             await playNextInQueue()
             return
@@ -881,67 +1112,127 @@ final class SongRequestService {
         }
     }
 
-    /// Dequeues the next item and asks Music.app to play it. Re-queues at the
-    /// head if Music.app is closed; advances past unplayable items otherwise.
+    /// Optimistically starts the current queue head and commits it only after
+    /// Music.app accepts the playback command.
     ///
     /// Guarded against reentrancy: the `isStartingPlayback` check and set happen
-    /// with no `await` between them, so two near-simultaneous callers can't both
-    /// dequeue and start playback for the same slot.
-    private func playNextInQueue() async {
-        guard !isStartingPlayback else { return }
+    /// with no `await` between them, so two near-simultaneous callers cannot both
+    /// reserve and start the same slot.
+    @discardableResult
+    func playNextInQueue() async -> SongRequestItem? {
+        guard !isNativeClearInFlight, !isStartingPlayback else { return nil }
         isStartingPlayback = true
-        defer { isStartingPlayback = false }
-        await playNextInQueueUnguarded()
+        let result = await playNextInQueueUnguarded(generation: playbackGeneration)
+        isStartingPlayback = false
+        await reconcilePendingClearIfNeeded()
+        return result
     }
 
     /// Body of `playNextInQueue` without the reentrancy guard, so the
-    /// skip-unplayable retry can recurse without deadlocking on the guard.
-    private func playNextInQueueUnguarded() async {
-        guard let item = queue.dequeue(), let song = item.song else { return }
+    /// skip-unplayable retry can recurse without deadlocking on the guard. The
+    /// queue head remains present across the playback await. Any intervening
+    /// clear, remove, move, or boost wins: the stale start is stopped and cannot
+    /// rewrite the user's newer queue state.
+    @discardableResult
+    private func playNextInQueueUnguarded(generation: Int) async -> SongRequestItem? {
+        guard let item = queue.peekNext() else { return nil }
 
         do {
-            try await musicController.playNow(song: song)
+            try await performPlayback(for: item)
+            guard generation == playbackGeneration else {
+                await stopPlaybackStartedBeforeClear()
+                Log.warn(
+                    "SongRequestService: Stopped stale playback start for \"\(item.title)\" after queue clear",
+                    category: "SongRequest"
+                )
+                return nil
+            }
+            guard let committed = queue.commitNext(id: item.id) else {
+                await runCoalescedNativeClear()
+                Log.warn(
+                    "SongRequestService: Stopped stale playback start for \"\(item.title)\" after queue changed",
+                    category: "SongRequest"
+                )
+                guard generation == playbackGeneration else { return nil }
+                return await playNextInQueueUnguarded(generation: generation)
+            }
             playAttemptCounts[item.id] = nil
             isPlayingFallback = false
             Log.debug("SongRequestService: Now playing \"\(item.title)\" by \(item.artist) (requested by \(item.requesterUsername))", category: "SongRequest")
-        } catch PlaybackError.musicAppNotRunning {
-            // Music.app closed: put the item back at the front so it plays first when Music.app re-opens
-            queue.insertAtHead(item)
-            queue.clearNowPlaying()
-            Log.debug("SongRequestService: Music.app closed, \"\(item.title)\" re-queued at head", category: "SongRequest")
-        } catch PlaybackError.notPlayable(let title) {
-            // The song was added to the library but isn't playable yet (usually
-            // still syncing down from iCloud right after the add). Keep it queued
-            // at the head and let the poll retry, but cap attempts so a genuinely
-            // unavailable track (no subscription) is eventually dropped instead of
-            // looping forever.
-            let attempts = (playAttemptCounts[item.id] ?? 0) + 1
-            if attempts >= maxPlayAttempts {
-                playAttemptCounts[item.id] = nil
-                queue.clearNowPlaying()
-                Log.debug("SongRequestService: Dropping \"\(title)\" after \(attempts) failed play attempts (unavailable or no subscription)", category: "SongRequest")
-                sendChatMessage?("Couldn't play \"\(title)\" (not available on Apple Music). Skipping it.")
-                await playNextInQueueUnguarded()
-            } else {
-                playAttemptCounts[item.id] = attempts
-                queue.insertAtHead(item)
-                queue.clearNowPlaying()
-                Log.debug("SongRequestService: \"\(title)\" not ready (attempt \(attempts)/\(maxPlayAttempts)), re-queued; will retry", category: "SongRequest")
-            }
-        } catch PlaybackError.commandFailed(let command, let message) {
-            // A timeout or rejected Apple Event is transient infrastructure
-            // failure, not proof that the catalog item is unplayable. Preserve
-            // queue order and retry on the next playback poll.
-            queue.insertAtHead(item)
-            queue.clearNowPlaying()
-            Log.warn(
-                "SongRequestService: \(command) failed for \"\(item.title)\": \(message); re-queued at head",
-                category: "SongRequest"
-            )
+            return committed
         } catch {
-            Log.debug("SongRequestService: Failed to play \"\(item.title)\": \(error)", category: "SongRequest")
-            await playNextInQueueUnguarded()
+            guard generation == playbackGeneration else {
+                await stopPlaybackStartedBeforeClear()
+                return nil
+            }
+
+            if error is CancellationError {
+                Log.debug(
+                    "SongRequestService: Playback start was cancelled; retained \"\(item.title)\" at queue head",
+                    category: "SongRequest"
+                )
+                return nil
+            }
+
+            switch error {
+            case PlaybackError.musicAppNotRunning:
+                Log.debug(
+                    "SongRequestService: Music.app closed, retained \"\(item.title)\" at queue head",
+                    category: "SongRequest"
+                )
+                return nil
+
+            case PlaybackError.notPlayable(let title):
+                let attempts = (playAttemptCounts[item.id] ?? 0) + 1
+                if attempts >= maxPlayAttempts {
+                    playAttemptCounts[item.id] = nil
+                    guard queue.removeNext(id: item.id) != nil else { return nil }
+                    Log.debug(
+                        "SongRequestService: Dropping \"\(title)\" after \(attempts) failed play attempts (unavailable or no subscription)",
+                        category: "SongRequest"
+                    )
+                    sendChatMessage?("Couldn't play \"\(title)\" (not available on Apple Music). Skipping it.")
+                    return await playNextInQueueUnguarded(generation: generation)
+                }
+                playAttemptCounts[item.id] = attempts
+                Log.debug(
+                    "SongRequestService: \"\(title)\" not ready (attempt \(attempts)/\(maxPlayAttempts)); retained at head",
+                    category: "SongRequest"
+                )
+                return nil
+
+            case PlaybackError.commandFailed(let command, let message):
+                Log.warn(
+                    "SongRequestService: \(command) failed for \"\(item.title)\": \(message); retained at head",
+                    category: "SongRequest"
+                )
+                return nil
+
+            default:
+                Log.debug("SongRequestService: Failed to play \"\(item.title)\": \(error)", category: "SongRequest")
+                guard queue.removeNext(id: item.id) != nil else { return nil }
+                return await playNextInQueueUnguarded(generation: generation)
+            }
         }
+    }
+
+    /// Routes playback through a narrow injectable seam for deterministic race
+    /// tests. Test-only items do not carry a MusicKit Song; only DEBUG builds
+    /// treat those fixtures as successful no-ops. A malformed production item is
+    /// handled as not playable rather than silently committing it.
+    private func performPlayback(for item: SongRequestItem) async throws {
+        if let playbackOverride {
+            try await playbackOverride(item)
+            return
+        }
+        guard let song = item.song else {
+            #if DEBUG
+            return
+            #else
+            throw PlaybackError.notPlayable(title: item.title)
+            #endif
+        }
+        try await musicController.playNow(song: song)
     }
 
     /// Advances to the next queued track when the current request finishes,
@@ -952,9 +1243,8 @@ final class SongRequestService {
             return
         }
         isPlayingFallback = false
-        await playNextInQueue()
-        if let nowPlaying = queue.nowPlaying {
-            sendChatMessage?("Now playing: \"\(nowPlaying.title)\" by \(nowPlaying.artist) (requested by \(nowPlaying.requesterUsername))")
+        if let started = await playNextInQueue() {
+            sendChatMessage?("Now playing: \"\(started.title)\" by \(started.artist) (requested by \(started.requesterUsername))")
         }
     }
 
@@ -965,6 +1255,7 @@ final class SongRequestService {
     /// either leave Apple Music autoplaying (toggle on) or stop for silence
     /// (toggle off). Honors hold mode and never relaunches a closed Music.app.
     private func handleQueueEmptied() async {
+        guard !isNativeClearInFlight else { return }
         queue.clearNowPlaying()
         guard !isHoldEnabled, musicController.isMusicAppRunning else { return }
 
@@ -976,7 +1267,7 @@ final class SongRequestService {
             isPlayingFallback = false
             Log.debug("SongRequestService: Queue empty, Apple Music continues normally", category: "SongRequest")
         } else {
-            await musicController.clearPlayerQueue()
+            await runCoalescedNativeClear()
             isPlayingFallback = false
             Log.debug("SongRequestService: Queue empty, autoplay off, stopping playback", category: "SongRequest")
         }
@@ -1004,16 +1295,26 @@ final class SongRequestService {
     /// so the stream is never silent. No-op when no playlist is configured
     /// or hold mode is active.
     private func startFallbackIfConfigured() async {
-        guard !isHoldEnabled else { return }
+        guard !isNativeClearInFlight, !isStartingPlayback, !isHoldEnabled else { return }
         let name = Foundation.UserDefaults.standard.string(forKey: AppConstants.UserDefaults.songRequestFallbackPlaylist) ?? ""
         guard !name.isEmpty else { return }
         guard musicController.isMusicAppRunning else { return }
+        isStartingPlayback = true
+        let generation = playbackGeneration
+        var didStart = false
         do {
             try await musicController.playFallbackPlaylist(name: name)
-            isPlayingFallback = true
-            Log.debug("SongRequestService: Fallback playlist '\(name)' playing", category: "SongRequest")
+            didStart = true
         } catch {
             Log.debug("SongRequestService: Failed to start fallback playlist: \(error)", category: "SongRequest")
         }
+        if generation != playbackGeneration {
+            await stopPlaybackStartedBeforeClear()
+        } else if didStart {
+            isPlayingFallback = true
+            Log.debug("SongRequestService: Fallback playlist '\(name)' playing", category: "SongRequest")
+        }
+        isStartingPlayback = false
+        await reconcilePendingClearIfNeeded()
     }
 }

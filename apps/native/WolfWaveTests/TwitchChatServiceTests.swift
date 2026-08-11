@@ -10,6 +10,49 @@ import Testing
 import Foundation
 @testable import WolfWave
 
+/// Holds one EventSub subscription attempt open so a second refresh can race
+/// it deterministically and prove the per-session in-flight latch is effective.
+private actor PollSubscriptionGate {
+    private var sessions: [String] = []
+    private var started = false
+    private var released = false
+    private var startWaiters: [CheckedContinuation<Void, Never>] = []
+    private var releaseWaiter: CheckedContinuation<Void, Never>?
+
+    func subscribe(sessionID: String) async -> Bool {
+        sessions.append(sessionID)
+        started = true
+        let waiters = startWaiters
+        startWaiters.removeAll()
+        waiters.forEach { $0.resume() }
+        await withCheckedContinuation { continuation in
+            if released {
+                continuation.resume()
+            } else {
+                releaseWaiter = continuation
+            }
+        }
+        return true
+    }
+
+    func waitUntilStarted() async {
+        guard !started else { return }
+        await withCheckedContinuation { continuation in
+            startWaiters.append(continuation)
+        }
+    }
+
+    func release() {
+        released = true
+        releaseWaiter?.resume()
+        releaseWaiter = nil
+    }
+
+    func subscribedSessions() -> [String] {
+        sessions
+    }
+}
+
 /// Comprehensive test suite for TwitchChatService
 @MainActor
 @Suite("Twitch Chat Service Tests", .serialized)
@@ -463,6 +506,188 @@ struct TwitchChatServiceTests {
         for status in [300, 400, 404, 409, 422] {
             #expect(TwitchChatService.helixResponseDisposition(for: status) == .permanentFailure)
         }
+    }
+
+    @Test("Create-poll response parser returns the exact Helix poll ID")
+    func testSkipPollIDParsing() {
+        let valid = Data(#"{"data":[{"id":"poll-123"}]}"#.utf8)
+        let missingID = Data(#"{"data":[{"title":"Skip?"}]}"#.utf8)
+        let emptyData = Data(#"{"data":[]}"#.utf8)
+
+        #expect(TwitchChatService.skipPollID(from: valid) == "poll-123")
+        #expect(TwitchChatService.skipPollID(from: missingID) == nil)
+        #expect(TwitchChatService.skipPollID(from: emptyData) == nil)
+        #expect(TwitchChatService.skipPollID(from: Data("not-json".utf8)) == nil)
+    }
+
+    @Test("Create-poll outcomes distinguish rejection from remote ambiguity")
+    func testSkipPollCreationOutcomeClassification() {
+        let valid = Data(#"{"data":[{"id":"poll-123"}]}"#.utf8)
+        let missingID = Data(#"{"data":[{"title":"Skip?"}]}"#.utf8)
+
+        #expect(
+            TwitchChatService.skipPollCreationOutcome(
+                statusCode: 200, responseData: valid)
+                == .created(id: "poll-123"))
+
+        // A malformed 2xx and a transport failure may still have created a
+        // remote poll, so neither is safe for chat fallback.
+        #expect(
+            TwitchChatService.skipPollCreationOutcome(
+                statusCode: 200, responseData: missingID)
+                == .indeterminate)
+        #expect(
+            TwitchChatService.skipPollCreationOutcome(
+                statusCode: nil, responseData: nil)
+                == .indeterminate)
+
+        for status in [401, 403, 404, 422] {
+            #expect(
+                TwitchChatService.skipPollCreationOutcome(
+                    statusCode: status, responseData: Data())
+                    == .definitiveFailure)
+        }
+        for status in [300, 429, 500, 503] {
+            #expect(
+                TwitchChatService.skipPollCreationOutcome(
+                    statusCode: status, responseData: Data())
+                    == .indeterminate)
+        }
+    }
+
+    @Test("Active-poll 400 is distinct from ordinary validation rejection")
+    func testSkipPollCreationDistinguishesActivePollFromOtherBadRequests() {
+        let activePoll = Data(
+            #"{"message":"The broadcaster already has a poll that's running; you may not create another poll until the current poll completes."}"#.utf8)
+        let invalidRequest = Data(
+            #"{"message":"The poll duration must be between 15 and 1800."}"#.utf8)
+
+        #expect(
+            TwitchChatService.skipPollCreationOutcome(
+                statusCode: 400, responseData: activePoll) == .pollAlreadyActive)
+        #expect(
+            TwitchChatService.skipPollCreationOutcome(
+                statusCode: 400, responseData: invalidRequest) == .definitiveFailure)
+        #expect(
+            TwitchChatService.skipPollCreationOutcome(
+                statusCode: 400, responseData: Data("not-json".utf8))
+                == .definitiveFailure)
+        #expect(
+            TwitchChatService.skipPollCreationOutcome(
+                statusCode: 409, responseData: Data()) == .indeterminate)
+        #expect(
+            TwitchChatService.skipPollCreationOutcome(
+                statusCode: 429, responseData: Data()) == .indeterminate)
+    }
+
+    @Test("Poll scope validation distinguishes present, missing, and inconclusive")
+    func testPollScopeValidationClassification() {
+        let present = Data(
+            #"{"scopes":["chat:read","channel:manage:polls"]}"#.utf8)
+        let missing = Data(#"{"scopes":["chat:read"]}"#.utf8)
+
+        #expect(TwitchChatService.pollScopeValidation(
+            statusCode: 200, responseData: present) == .present)
+        #expect(TwitchChatService.pollScopeValidation(
+            statusCode: 200, responseData: missing) == .missing)
+        #expect(TwitchChatService.pollScopeValidation(
+            statusCode: 401, responseData: Data()) == .missing)
+        #expect(TwitchChatService.pollScopeValidation(
+            statusCode: 200, responseData: Data("not-json".utf8)) == .indeterminate)
+        #expect(TwitchChatService.pollScopeValidation(
+            statusCode: 500, responseData: Data()) == .indeterminate)
+        #expect(TwitchChatService.pollScopeValidation(
+            statusCode: nil, responseData: nil) == .indeterminate)
+    }
+
+    @Test("Enabling polls live subscribes the current session exactly once")
+    func testLivePollEnableSubscribesCurrentSessionIdempotently() async {
+        let defaults = UserDefaults.standard
+        defer {
+            defaults.removeObject(forKey: AppConstants.UserDefaults.voteSkipEnabled)
+            defaults.removeObject(forKey: AppConstants.UserDefaults.voteSkipUsePolls)
+        }
+        defaults.set(true, forKey: AppConstants.UserDefaults.voteSkipEnabled)
+        defaults.set(true, forKey: AppConstants.UserDefaults.voteSkipUsePolls)
+        let subscriptions = PollSubscriptionGate()
+        let service = TwitchChatService()
+        await service.configurePollRefreshTestState(
+            sessionID: "session-live",
+            scopeValidation: { .present },
+            subscription: { sessionID in
+                await subscriptions.subscribe(sessionID: sessionID)
+            })
+
+        let first = Task {
+            await service.refreshPollSubscriptionIfNeeded(enabled: true)
+        }
+        await subscriptions.waitUntilStarted()
+        let overlapping = Task {
+            await service.refreshPollSubscriptionIfNeeded(enabled: true)
+        }
+        await overlapping.value
+        await subscriptions.release()
+        await first.value
+        await service.refreshPollSubscriptionIfNeeded(enabled: true)
+
+        #expect(await subscriptions.subscribedSessions() == ["session-live"])
+        #expect(await service.pollSubscriptionSessionForTesting() == "session-live")
+    }
+
+    @Test("Missing polls scope requests reauthorization without subscribing")
+    func testLivePollEnableMissingScopeSignalsReauthorization() async {
+        let defaults = UserDefaults.standard
+        defer {
+            defaults.removeObject(forKey: AppConstants.UserDefaults.voteSkipEnabled)
+            defaults.removeObject(forKey: AppConstants.UserDefaults.voteSkipUsePolls)
+            Preferences.setTwitchReauthNeeded(false)
+        }
+        defaults.set(true, forKey: AppConstants.UserDefaults.voteSkipEnabled)
+        defaults.set(true, forKey: AppConstants.UserDefaults.voteSkipUsePolls)
+        Preferences.setTwitchReauthNeeded(false)
+        let subscriptionCount = ThreadSafeBox(0)
+        let service = TwitchChatService()
+        await service.configurePollRefreshTestState(
+            sessionID: "session-missing-scope",
+            scopeValidation: { .missing },
+            subscription: { _ in
+                subscriptionCount.mutate { $0 += 1 }
+                return true
+            })
+
+        await service.refreshPollSubscriptionIfNeeded(enabled: true)
+
+        #expect(Preferences.twitchReauthNeeded)
+        #expect(subscriptionCount.value == 0)
+        #expect(await service.pollSubscriptionSessionForTesting() == nil)
+    }
+
+    @Test("Poll-end parser preserves ID and rejects missing identity")
+    func testSkipPollEndParsing() {
+        let choices: [[String: Any]] = [
+            ["title": TwitchChatService.skipPollSkipChoice, "votes": 7],
+            ["title": TwitchChatService.skipPollKeepChoice, "votes": 2],
+        ]
+        let valid: [String: Any] = [
+            "event": [
+                "id": "poll-123",
+                "title": TwitchChatService.skipPollTitle,
+                "choices": choices,
+            ]
+        ]
+        let result = TwitchChatService.skipPollResult(from: valid)
+
+        #expect(result?.pollID == "poll-123")
+        #expect(result?.skipVotes == 7)
+        #expect(result?.keepVotes == 2)
+
+        let missingID: [String: Any] = [
+            "event": [
+                "title": TwitchChatService.skipPollTitle,
+                "choices": choices,
+            ]
+        ]
+        #expect(TwitchChatService.skipPollResult(from: missingID) == nil)
     }
 
     @Test("Only a second 401 after token refresh requires re-authentication")

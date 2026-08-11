@@ -382,6 +382,9 @@ extension TwitchChatService {
         // session, so skip re-subscribing. Only fresh connects subscribe.
         if isMigratingSession {
             isMigratingSession = false
+            if pollSubscriptionSessionID != nil {
+                pollSubscriptionSessionID = sessionID
+            }
             Log.info(
                 "TwitchChatService: Session migration complete; subscriptions carried over",
                 category: "Twitch")
@@ -429,26 +432,36 @@ extension TwitchChatService {
     /// Parses a `channel.poll.end` event and, when it is our vote-skip poll,
     /// forwards the Skip/Keep tallies to the `skipPollResults` stream.
     private func handlePollEndEvent(_ payload: [String: Any]) {
+        guard let result = Self.skipPollResult(from: payload) else { return }
+
+        Log.info(
+            "TwitchChatService: Vote-skip poll \(result.pollID) ended: \(result.skipVotes) skip / \(result.keepVotes) keep",
+            category: "Twitch")
+        skipPollResultsContinuation.yield(result)
+    }
+
+    /// Pure parser used by EventSub handling and unit tests. Requiring both the
+    /// expected title and a non-empty Helix ID prevents unrelated or malformed
+    /// poll events from being mistaken for the active vote-skip poll.
+    nonisolated static func skipPollResult(from payload: [String: Any]) -> SkipPollResult? {
         guard let event = payload["event"] as? [String: Any],
+              let pollID = event["id"] as? String,
+              !pollID.isEmpty,
               let title = event["title"] as? String,
               title == TwitchChatService.skipPollTitle,
-              let choices = event["choices"] as? [[String: Any]] else { return }
+              let choices = event["choices"] as? [[String: Any]] else { return nil }
 
         var skipVotes = 0
         var keepVotes = 0
         for choice in choices {
             let votes = choice["votes"] as? Int ?? 0
             switch choice["title"] as? String {
-            case TwitchChatService.skipPollSkipChoice: skipVotes = votes
-            case TwitchChatService.skipPollKeepChoice: keepVotes = votes
+            case skipPollSkipChoice: skipVotes = votes
+            case skipPollKeepChoice: keepVotes = votes
             default: break
             }
         }
-
-        Log.info(
-            "TwitchChatService: Vote-skip poll ended: \(skipVotes) skip / \(keepVotes) keep",
-            category: "Twitch")
-        skipPollResultsContinuation.yield(SkipPollResult(skipVotes: skipVotes, keepVotes: keepVotes))
+        return SkipPollResult(pollID: pollID, skipVotes: skipVotes, keepVotes: keepVotes)
     }
 
     // MARK: - Vote-Skip Polls
@@ -456,17 +469,23 @@ extension TwitchChatService {
     /// Creates a native Twitch poll asking chat to vote on skipping the current song.
     ///
     /// Requires the `channel:manage:polls` scope and Affiliate/Partner status.
-    /// Missing either causes Twitch to reject the request, in which case this
-    /// returns `false` and `SkipVoteManager` falls back to a chat tally.
-    func createSkipPoll(title: String, durationSeconds: Int) async -> Bool {
+    /// A definitive rejection permits chat fallback; an ambiguous transport,
+    /// server, rate-limit, or malformed-success result stays latched so WolfWave
+    /// cannot accidentally run two voting mechanisms.
+    func createSkipPoll(
+        title: String,
+        durationSeconds: Int
+    ) async -> SkipPollCreationOutcome {
         guard let broadcasterID,
               let token = oauthToken,
               let clientID else {
             Log.warn("TwitchChatService: Cannot create poll: missing credentials", category: "Twitch")
-            return false
+            return .definitiveFailure
         }
 
-        guard let url = URL(string: apiBaseURL + "/polls") else { return false }
+        guard let url = URL(string: apiBaseURL + "/polls") else {
+            return .definitiveFailure
+        }
 
         let duration = min(max(durationSeconds, 15), 1800)
         let body: [String: Any] = [
@@ -488,26 +507,99 @@ extension TwitchChatService {
             Log.error(
                 "TwitchChatService: Failed to serialize poll body - \(error.localizedDescription)",
                 category: "Twitch")
-            return false
+            return .definitiveFailure
         }
 
         do {
             let (data, http) = try await HTTPClient.shared.send(request)
-            if (200..<300).contains(http.statusCode) {
-                Log.info("TwitchChatService: Vote-skip poll created", category: "Twitch")
-                return true
+            let outcome = Self.skipPollCreationOutcome(
+                statusCode: http.statusCode,
+                responseData: data)
+            switch outcome {
+            case .created(let pollID):
+                Log.info(
+                    "TwitchChatService: Vote-skip poll \(pollID) created",
+                    category: "Twitch")
+            case .definitiveFailure:
+                let text = String(data: data, encoding: .utf8) ?? "No response"
+                Log.warn(
+                    "TwitchChatService: Poll creation rejected: HTTP \(http.statusCode): \(text)",
+                    category: "Twitch")
+            case .pollAlreadyActive:
+                Log.info(
+                    "TwitchChatService: Poll creation rejected because a native poll is already active",
+                    category: "Twitch")
+            case .indeterminate where (200..<300).contains(http.statusCode):
+                Log.warn(
+                    "TwitchChatService: Poll creation succeeded without a usable poll ID",
+                    category: "Twitch")
+            case .indeterminate:
+                Log.warn(
+                    "TwitchChatService: Poll creation status is unknown after HTTP \(http.statusCode)",
+                    category: "Twitch")
             }
-            let text = String(data: data, encoding: .utf8) ?? "No response"
-            Log.warn(
-                "TwitchChatService: Poll creation failed: HTTP \(http.statusCode): \(text)",
-                category: "Twitch")
-            return false
+            return outcome
         } catch {
             Log.error(
-                "TwitchChatService: Poll creation request failed - \(error.localizedDescription)",
+                "TwitchChatService: Poll creation request outcome is unknown - \(error.localizedDescription)",
                 category: "Twitch")
+            return .indeterminate
+        }
+    }
+
+    /// Classifies create-poll results without conflating "rejected" with
+    /// "Twitch may have accepted it." A missing status models transport failure.
+    nonisolated static func skipPollCreationOutcome(
+        statusCode: Int?,
+        responseData: Data?
+    ) -> SkipPollCreationOutcome {
+        guard let statusCode else { return .indeterminate }
+        if (200..<300).contains(statusCode) {
+            guard let responseData,
+                  let pollID = skipPollID(from: responseData) else {
+                return .indeterminate
+            }
+            return .created(id: pollID)
+        }
+        if statusCode == 400 {
+            return isActivePollConflict(responseData)
+                ? .pollAlreadyActive
+                : .definitiveFailure
+        }
+        switch statusCode {
+        case 401, 403, 404, 422:
+            return .definitiveFailure
+        default:
+            return .indeterminate
+        }
+    }
+
+    /// Twitch uses HTTP 400 both for ordinary validation rejection and for the
+    /// special case where the broadcaster already has a poll running. Only the
+    /// latter means chat fallback would overlap a live native poll.
+    nonisolated static func isActivePollConflict(_ data: Data?) -> Bool {
+        guard let data,
+              let object = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let message = object["message"] as? String else {
             return false
         }
+        let normalized = message.lowercased()
+        return normalized.contains("poll")
+            && normalized.contains("already")
+            && (normalized.contains("active")
+                || normalized.contains("running")
+                || normalized.contains("in progress"))
+    }
+
+    /// Extracts the poll ID from Twitch's create-poll response.
+    nonisolated static func skipPollID(from data: Data) -> String? {
+        guard let object = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let polls = object["data"] as? [[String: Any]],
+              let pollID = polls.first?["id"] as? String,
+              !pollID.isEmpty else {
+            return nil
+        }
+        return pollID
     }
 
     /// Subscribes to `channel.poll.end` so finished vote-skip polls can be tallied.
@@ -524,10 +616,67 @@ extension TwitchChatService {
                 category: "Twitch")
             return
         }
+        guard pollSubscriptionSessionID != sessionID,
+              pollSubscriptionAttemptSessionID != sessionID else {
+            return
+        }
+        pollSubscriptionAttemptSessionID = sessionID
 
         let body = Self.eventSubBody(
             type: "channel.poll.end", broadcasterID: broadcasterID, sessionID: sessionID)
-        await postEventSubSubscription(body: body, token: token, clientID: clientID, label: "channel.poll.end")
+        let subscribed: Bool
+        if let pollSubscriptionOverride {
+            subscribed = await pollSubscriptionOverride(sessionID)
+        } else {
+            subscribed = await postEventSubSubscription(
+                body: body,
+                token: token,
+                clientID: clientID,
+                label: "channel.poll.end")
+        }
+        guard pollSubscriptionAttemptSessionID == sessionID else { return }
+        pollSubscriptionAttemptSessionID = nil
+        guard subscribed, self.sessionID == sessionID else { return }
+        pollSubscriptionSessionID = sessionID
+    }
+
+    /// Revalidates Polls scope and subscribes the current EventSub session when
+    /// the setting is enabled after connection. Safe to call repeatedly.
+    func refreshPollSubscriptionIfNeeded(enabled: Bool) async {
+        guard enabled, sessionID != nil else { return }
+        switch await validateLivePollScope() {
+        case .present:
+            await subscribeToPollEvents()
+        case .missing:
+            Log.warn(
+                "TwitchChatService: Polls scope missing after live enable; reauthorization required",
+                category: "Twitch")
+            signalReauthNeededAndStop()
+        case .indeterminate:
+            Log.warn(
+                "TwitchChatService: Polls scope refresh was inconclusive; keeping the current session",
+                category: "Twitch")
+        }
+    }
+
+    /// Narrow state injection used by focused live-toggle tests.
+    func configurePollRefreshTestState(
+        sessionID: String,
+        scopeValidation: @escaping @Sendable () async -> PollScopeValidation,
+        subscription: @escaping @Sendable (String) async -> Bool
+    ) {
+        self.sessionID = sessionID
+        broadcasterID = "broadcaster"
+        oauthToken = "token"
+        clientID = "client"
+        pollScopeValidationOverride = scopeValidation
+        pollSubscriptionOverride = subscription
+        pollSubscriptionSessionID = nil
+        pollSubscriptionAttemptSessionID = nil
+    }
+
+    func pollSubscriptionSessionForTesting() -> String? {
+        pollSubscriptionSessionID
     }
 
     /// Updates `streamLive` from a `stream.online` / `stream.offline` event.

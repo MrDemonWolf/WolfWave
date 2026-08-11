@@ -109,6 +109,72 @@ struct StatsAggregatorTests {
         #expect(snapshot.topAlbums.first?.name == "Real Album")
     }
 
+    @Test("Tied top items use canonical ID after localized names compare equal")
+    func testTopItemTieHasStableIDFallback() {
+        let now = date(2026, 5, 20)
+        let records = [
+            record(track: "Same", artist: "Beta", at: now),
+            record(track: "Same", artist: "Alpha", at: now),
+        ]
+
+        let forward = StatsAggregator.snapshot(
+            from: records, now: now, calendar: calendar).topTracks.map(\.id)
+        let reversed = StatsAggregator.snapshot(
+            from: Array(records.reversed()), now: now, calendar: calendar).topTracks.map(\.id)
+
+        #expect(forward == ["same|alpha", "same|beta"])
+        #expect(reversed == forward)
+    }
+
+    @Test("Equal-time display variants are independent of input order")
+    func testEqualTimeDisplayVariantIsStable() {
+        let now = date(2026, 5, 20)
+        let records = [
+            record(track: "same", artist: "ARTIST", at: now),
+            record(track: "Same", artist: "Artist", at: now),
+        ]
+
+        let forward = StatsAggregator.snapshot(
+            from: records, now: now, calendar: calendar).topTracks
+        let reversed = StatsAggregator.snapshot(
+            from: Array(records.reversed()), now: now, calendar: calendar).topTracks
+
+        #expect(forward == reversed)
+        #expect(forward.first?.count == 2)
+    }
+
+    @Test("Late plays can displace a capped item without changing deterministic order")
+    func testCappedTopItemsAcceptLateDisplacingKeyDeterministically() {
+        let now = date(2026, 5, 20)
+        var records: [PlayRecord] = []
+        for index in 0..<12 {
+            let title = index < 10 ? "Track 0\(index)" : "Track \(index)"
+            records.append(record(track: title, artist: "Artist", at: now))
+        }
+
+        // Track 11 would lose the alphabetical tie and sit outside the top ten.
+        // Two late plays make it the leader, so bounded insertion must displace
+        // the weakest retained candidate rather than discard this key.
+        records.append(record(track: "Track 11", artist: "Artist", at: now))
+        records.append(record(track: "Track 11", artist: "Artist", at: now))
+
+        let forward = StatsAggregator.snapshot(
+            from: records, now: now, calendar: calendar
+        ).topTracks
+        let reversed = StatsAggregator.snapshot(
+            from: Array(records.reversed()), now: now, calendar: calendar
+        ).topTracks
+
+        #expect(forward.count == StatsAggregator.topListLimit)
+        #expect(forward.first?.name == "Track 11")
+        #expect(forward.first?.count == 3)
+        #expect(forward == reversed)
+        #expect(
+            forward.dropFirst().map(\.name)
+                == (0..<9).map { "Track 0\($0)" }
+        )
+    }
+
     // MARK: - Day & Hour Buckets
 
     @Test("last7Days always has exactly 7 buckets")
@@ -163,6 +229,23 @@ struct StatsAggregatorTests {
         let snapshot = StatsAggregator.snapshot(from: records, now: now, calendar: calendar)
         #expect(snapshot.recent.first?.track == "Newest")
         #expect(snapshot.recent.last?.track == "Oldest")
+    }
+
+    @Test("Recent records with equal timestamps have stable content ordering")
+    func testRecentEqualTimestampOrdering() {
+        let now = date(2026, 5, 20)
+        let records = [
+            record(track: "Zulu", artist: "X", at: now),
+            record(track: "Alpha", artist: "X", at: now),
+        ]
+
+        let forward = StatsAggregator.snapshot(
+            from: records, now: now, calendar: calendar).recent.map(\.track)
+        let reversed = StatsAggregator.snapshot(
+            from: Array(records.reversed()), now: now, calendar: calendar).recent.map(\.track)
+
+        #expect(forward == ["Alpha", "Zulu"])
+        #expect(reversed == forward)
     }
 
     // MARK: - Lifetime Tally Merge

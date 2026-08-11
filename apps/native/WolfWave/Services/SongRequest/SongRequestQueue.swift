@@ -210,6 +210,54 @@ final class SongRequestQueue {
         return count
     }
 
+    // MARK: - Two-Phase Playback
+
+    /// Returns the current queue head without removing it.
+    ///
+    /// SongRequestService uses this as an optimistic reservation while Music.app
+    /// starts playback. Keeping the item in place means a failed start cannot
+    /// lose or reorder a viewer request.
+    func peekNext() -> SongRequestItem? {
+        lock.withLock { items.first }
+    }
+
+    /// Commits an optimistically reserved head after playback succeeds.
+    ///
+    /// The commit succeeds only while the same item is still first. A clear,
+    /// remove, move, or boost during the playback await changes the head and
+    /// makes this a no-op, allowing the service to stop the stale Music start
+    /// without undoing the user's newer queue mutation.
+    ///
+    /// - Parameter id: Identifier captured by peekNext().
+    /// - Returns: The committed now-playing item, or nil when the head changed.
+    @discardableResult
+    func commitNext(id: UUID) -> SongRequestItem? {
+        let item: SongRequestItem? = lock.withLock {
+            guard items.first?.id == id else { return nil }
+            let item = items.removeFirst()
+            nowPlaying = item
+            return item
+        }
+        if item != nil { postQueueChanged() }
+        return item
+    }
+
+    /// Removes an optimistically reserved head after a definitive playback
+    /// failure. Like commitNext(id:), this never searches by ID: if a user
+    /// reordered the queue during the await, their new order wins unchanged.
+    ///
+    /// - Parameter id: Identifier captured by peekNext().
+    /// - Returns: The removed item, or nil when the head changed.
+    @discardableResult
+    func removeNext(id: UUID) -> SongRequestItem? {
+        let item: SongRequestItem? = lock.withLock {
+            guard items.first?.id == id else { return nil }
+            return items.removeFirst()
+        }
+        if item != nil { postQueueChanged() }
+        return item
+    }
+
     /// Append an already-approved item to the live queue, checking only queue
     /// capacity. The streamer vetted it, so the per-user and duplicate gates that
     /// `add(_:)` enforces don't apply to a manual approval.
@@ -236,23 +284,6 @@ final class SongRequestQueue {
         }
         if item != nil { postQueueChanged() }
         return item
-    }
-
-    /// Skip the currently playing request and advance to the next in queue.
-    ///
-    /// - Returns: The next song request that is now playing, or nil if queue is empty.
-    @discardableResult
-    func skip() -> SongRequestItem? {
-        let result: SongRequestItem? = lock.withLock {
-            if !items.isEmpty {
-                nowPlaying = items.removeFirst()
-            } else {
-                nowPlaying = nil
-            }
-            return nowPlaying
-        }
-        postQueueChanged()
-        return result
     }
 
     /// Remove all items from the queue and clear now-playing.
@@ -339,14 +370,4 @@ final class SongRequestQueue {
         postQueueChanged()
     }
 
-    /// Re-insert an item at the front of the queue without re-running limit checks.
-    ///
-    /// Used when Music.app is closed mid-play. The item is placed back so it will be
-    /// the first to play when Music.app re-opens.
-    func insertAtHead(_ item: SongRequestItem) {
-        lock.withLock {
-            items.insert(item, at: 0)
-        }
-        postQueueChanged()
-    }
 }

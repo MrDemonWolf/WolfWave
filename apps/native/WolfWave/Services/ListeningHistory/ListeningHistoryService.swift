@@ -40,6 +40,11 @@ final class ListeningHistoryService {
 
     private let store: PlayLogStore
     private let tallyStore: LifetimeTallyStore
+    private let clearMarkerStore: HistoryClearMarkerStore
+
+    /// While true, the durable clear tombstone remains and no new record may be
+    /// appended: recovery would intentionally delete anything written behind it.
+    private var clearIsPending: Bool
 
     /// Lifetime tally of trimmed plays. Merged into every snapshot so
     /// totals/top-N stay accurate after the rolling window evicts records.
@@ -48,6 +53,14 @@ final class ListeningHistoryService {
     /// Set to `true` when `records` has been mutated past the cap but the
     /// NDJSON file has not yet been compacted. Drives `shutdown()` rewrite.
     private var needsCompaction = false
+
+    /// The in-memory lifetime high-water mark has not yet been saved. A tally
+    /// save must succeed before compaction may remove its source NDJSON lines.
+    private var needsTallyPersistence = false
+
+    /// Sequence assigned to the next live record. Disk load establishes this
+    /// before buffered plays are appended, avoiding collisions across launches.
+    private var nextSequence: UInt64 = 1
 
     /// `true` while `loadFromDisk()` is awaiting its background read. Plays that
     /// arrive in this window are buffered (see `deferredDuringLoad`) instead of
@@ -64,6 +77,13 @@ final class ListeningHistoryService {
     /// single running load instead of starting a second one that would interleave
     /// the shared stores and re-fold overflow.
     private var loadTask: Task<Void, Never>?
+    /// Invalidates disk-load results captured before a user clear. The detached
+    /// reader is side-effect free; only a matching generation may publish.
+    private var historyGeneration = 0
+
+    /// Deterministic test seam invoked by the detached loader immediately after
+    /// its disk read. Production leaves it nil.
+    private let loadReadBarrier: (@Sendable () -> Void)?
 
     // MARK: - Init
 
@@ -72,15 +92,25 @@ final class ListeningHistoryService {
     /// - Parameters:
     ///   - store: Backing play-log store. Defaults to the Application Support log.
     ///   - tallyStore: Lifetime tally store. Defaults to the Application Support sidecar.
+    ///   - clearMarkerStore: Durable cross-store clear marker. Tests may inject
+    ///     failure behavior; production derives it from the play-log directory.
     ///   - enabled: Initial enabled state (typically the persisted UserDefaults value).
+    ///   - loadReadBarrier: Test-only hook after the detached disk read.
     init(
         store: PlayLogStore = PlayLogStore(),
         tallyStore: LifetimeTallyStore = LifetimeTallyStore(),
-        enabled: Bool
+        clearMarkerStore: HistoryClearMarkerStore? = nil,
+        enabled: Bool,
+        loadReadBarrier: (@Sendable () -> Void)? = nil
     ) {
+        let markerStore = clearMarkerStore ?? HistoryClearMarkerStore(
+            directory: store.fileURL.deletingLastPathComponent())
         self.store = store
         self.tallyStore = tallyStore
+        self.clearMarkerStore = markerStore
+        self.clearIsPending = markerStore.isPending
         self.isEnabled = enabled
+        self.loadReadBarrier = loadReadBarrier
     }
 
     // MARK: - Lifecycle
@@ -106,8 +136,12 @@ final class ListeningHistoryService {
     /// and tally stores and re-fold overflow or drop a deferred play.
     private func scheduleLoad() {
         guard loadTask == nil else { return }
+        // Claim load ownership before spawning the task. A track callback can
+        // run immediately after start()/enable() returns and must be buffered.
+        isLoading = true
+        let generation = historyGeneration
         loadTask = Task { [weak self] in
-            await self?.loadFromDisk()
+            await self?.loadFromDisk(generation: generation)
             self?.loadTask = nil
         }
     }
@@ -129,10 +163,46 @@ final class ListeningHistoryService {
     /// before `applicationWillTerminate` returns and the process exits, a
     /// detached `Task` would be racing termination.
     func shutdown() {
-        if needsCompaction {
-            store.replaceAll(with: records)
-            tallyStore.save(lifetime)
-            needsCompaction = false
+        guard completePendingClear() else {
+            store.flush()
+            return
+        }
+        if isLoading {
+            // The loader owns qualified plays only in `deferredDuringLoad`.
+            // Invalidate its eventual result, reconstruct the disk watermark,
+            // append those plays synchronously via flush, and leave the full
+            // NDJSON untouched for next-launch normalization/compaction.
+            historyGeneration &+= 1
+            loadTask?.cancel()
+            loadTask = nil
+            isLoading = false
+            establishNextSequenceFromDisk()
+            let buffered = deferredDuringLoad
+            deferredDuringLoad.removeAll()
+            for record in buffered {
+                appendRecord(record)
+            }
+            store.flush()
+            return
+        }
+
+        let preserveLifetime = usesLifetimeTally
+        var tallyIsDurable = true
+        if preserveLifetime {
+            if needsCompaction || needsTallyPersistence {
+                tallyIsDurable = tallyStore.save(lifetime)
+            }
+        } else {
+            lifetime = .empty
+            tallyIsDurable = tallyStore.clear()
+        }
+        if tallyIsDurable {
+            needsTallyPersistence = false
+        } else {
+            needsTallyPersistence = true
+        }
+        if needsCompaction, tallyIsDurable {
+            needsCompaction = !store.replaceAll(with: records)
         }
         store.flush()
     }
@@ -158,14 +228,25 @@ final class ListeningHistoryService {
         guard isEnabled else { return }
         let trimmedTrack = track.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmedTrack.isEmpty else { return }
-        guard Self.qualifiesAsPlay(duration: duration, playedSeconds: playedSeconds) else { return }
+        let safeDuration = DurationSanitizer.clampFiniteSeconds(duration)
+        let safePlayedSeconds = DurationSanitizer.clampFiniteSeconds(playedSeconds)
+        guard Self.qualifiesAsPlay(
+            duration: safeDuration,
+            playedSeconds: safePlayedSeconds
+        ) else { return }
+        guard completePendingClear() else {
+            Log.warn(
+                "ListeningHistoryService: Play not recorded while history clear is pending",
+                category: AppConstants.History.logCategory)
+            return
+        }
 
         let record = PlayRecord(
             track: trimmedTrack,
             artist: artist,
             album: album,
-            duration: duration,
-            playedSeconds: playedSeconds
+            duration: safeDuration,
+            playedSeconds: safePlayedSeconds
         )
 
         // A disk load is awaiting its background read. Buffer the play; it would
@@ -183,17 +264,28 @@ final class ListeningHistoryService {
     /// Appends one already-validated play to disk + the in-memory window and
     /// enforces the rolling-window cap. The hot path stays append-only; NDJSON
     /// compaction is deferred to `shutdown()`.
-    private func appendRecord(_ record: PlayRecord) {
+    private func appendRecord(_ pendingRecord: PlayRecord) {
+        let record = recordWithSequence(pendingRecord)
         store.append(record)
         records.append(record)
+        let preserveLifetime = usesLifetimeTally
+        if !preserveLifetime, !lifetime.isEmpty {
+            lifetime = .empty
+            needsTallyPersistence = !tallyStore.clear()
+        }
 
         let cap = AppConstants.History.maxRetainedRecords
         if records.count > cap {
             let overflow = records.count - cap
             let evicted = Array(records.prefix(overflow))
             records.removeFirst(overflow)
-            lifetime.fold(evicted)
-            tallyStore.save(lifetime)
+            if preserveLifetime {
+                lifetime.fold(evicted)
+                needsTallyPersistence = true
+                // Keep the full sidecar rewrite off the recording hot path.
+                // Until shutdown compacts the log, NDJSON still contains these
+                // plays so an unclean-exit reload can recover the tally.
+            }
             needsCompaction = true
         }
 
@@ -205,14 +297,57 @@ final class ListeningHistoryService {
     }
 
     /// Deletes all recorded history, on disk and in memory.
-    func clearHistory() {
-        store.clear()
-        tallyStore.clear()
+    ///
+    /// - Returns: `true` only when the clear marker, play log, and lifetime
+    ///   tally have all reached their durable final state.
+    @discardableResult
+    func clearHistory() -> Bool {
+        // The marker must exist before either data store is mutated. If it
+        // cannot be persisted, leave both disk and UI state untouched.
+        guard clearMarkerStore.begin() else {
+            Log.error(
+                "ListeningHistoryService: Could not persist history clear intent",
+                category: AppConstants.History.logCategory)
+            return false
+        }
+
+        clearIsPending = true
+        historyGeneration &+= 1
+        // Buffered plays accumulated before the clear belong to old history.
+        deferredDuringLoad.removeAll()
         records = []
         lifetime = .empty
         needsCompaction = false
+        needsTallyPersistence = false
+        nextSequence = 1
+        isLoaded = true
         rebuildSnapshot()
-        Log.info("ListeningHistoryService: History cleared by user", category: AppConstants.History.logCategory)
+
+        let completed = completePendingClear()
+        if completed {
+            Log.info(
+                "ListeningHistoryService: History cleared by user",
+                category: AppConstants.History.logCategory)
+        } else {
+            Log.error(
+                "ListeningHistoryService: History clear pending durable retry",
+                category: AppConstants.History.logCategory)
+        }
+        return completed
+    }
+
+    /// Replays a persisted clear intent. No caller may append while this returns
+    /// false, because a later recovery intentionally empties both data stores.
+    @discardableResult
+    private func completePendingClear() -> Bool {
+        guard clearIsPending else { return true }
+        clearIsPending = true
+        let logCleared = store.clear()
+        let tallyCleared = tallyStore.clear()
+        guard logCleared, tallyCleared else { return false }
+        guard clearMarkerStore.complete() else { return false }
+        clearIsPending = false
+        return true
     }
 
     // MARK: - Derived Data
@@ -268,7 +403,9 @@ final class ListeningHistoryService {
             since = nil
         }
 
-        let summary = StatsAggregator.windowSummary(from: records, since: since, lifetime: lifetime)
+        let summary = StatsAggregator.windowSummary(
+            from: records, since: since,
+            lifetime: usesLifetimeTally ? lifetime : .empty)
         return StatsChatLine.render(label: label, summary: summary, parts: parts)
     }
 
@@ -298,26 +435,80 @@ final class ListeningHistoryService {
     ///
     /// Internal rather than private so tests can await it directly.
     func loadFromDisk() async {
-        // Set synchronously before the first await so any play recorded during
-        // the background read is buffered, not lost to the `records` assignment.
+        if let loadTask {
+            await loadTask.value
+            return
+        }
         isLoading = true
+        await loadFromDisk(generation: historyGeneration)
+    }
+
+    /// Performs one load owned by `generation`. `scheduleLoad()` passes the
+    /// generation captured before its task is spawned so a same-turn clear can
+    /// invalidate work that has not begun executing yet.
+    private func loadFromDisk(generation: Int) async {
         let store = self.store
         let tallyStore = self.tallyStore
+        let clearMarkerStore = self.clearMarkerStore
+        let loadReadBarrier = self.loadReadBarrier
         let retentionDays = Foundation.UserDefaults.standard.integer(
             forKey: AppConstants.UserDefaults.historyRetentionDays
         )
         let cap = AppConstants.History.maxRetainedRecords
 
-        struct LoadResult {
+        struct LoadResult: Sendable {
             let records: [PlayRecord]
             let tally: LifetimeTally
-            let trimmedCount: Int
+            let retentionExpiredCount: Int
+            let foldedCount: Int
+            let shouldRewrite: Bool
+            let shouldClearTally: Bool
+            let shouldSaveTally: Bool
+            let nextSequence: UInt64
+            let clearRecoveryPending: Bool
         }
 
         let result = await Task.detached(priority: .utility) { () -> LoadResult in
-            var tally = tallyStore.load()
+            let preserveLifetime = retentionDays <= 0
+            if clearMarkerStore.isPending {
+                let logCleared = store.clear()
+                let tallyCleared = tallyStore.clear()
+                let completed = logCleared && tallyCleared
+                    && clearMarkerStore.complete()
+                guard completed else {
+                    return LoadResult(
+                        records: [], tally: .empty,
+                        retentionExpiredCount: 0, foldedCount: 0,
+                        shouldRewrite: false, shouldClearTally: false,
+                        shouldSaveTally: false, nextSequence: 1,
+                        clearRecoveryPending: true)
+                }
+            }
             var all = store.loadAll()
-            var rewrote = false
+            var tally = preserveLifetime ? tallyStore.load() : .empty
+            loadReadBarrier?()
+            var shouldRewrite = false
+            var shouldSaveTally = false
+            var retentionExpiredCount = 0
+
+            // Normalize legacy/malformed sequence values deterministically from
+            // file order alone. This must not depend on the persisted tally:
+            // when a tally save succeeds but the matching log rewrite fails,
+            // the same source lines must receive the same sequences next launch
+            // so the tally high-water mark prevents a second fold.
+            var previousSequence: UInt64 = 0
+            for index in all.indices {
+                if let sequence = all[index].sequence,
+                   sequence > previousSequence {
+                    previousSequence = sequence
+                } else if previousSequence < UInt64.max {
+                    previousSequence += 1
+                    all[index] = all[index].assigningSequence(previousSequence)
+                    shouldRewrite = true
+                }
+            }
+            let highestSequence = Swift.max(
+                previousSequence, tally.lastFoldedSequence ?? 0)
 
             // 1. Day-based retention (existing behavior. These records are
             //    *expired* by the user's setting, so they're dropped, NOT
@@ -326,8 +517,9 @@ final class ListeningHistoryService {
                 let cutoff = Date().addingTimeInterval(-Double(retentionDays) * 86_400)
                 let kept = all.filter { $0.timestamp >= cutoff }
                 if kept.count != all.count {
+                    retentionExpiredCount = all.count - kept.count
                     all = kept
-                    rewrote = true
+                    shouldRewrite = true
                 }
             }
 
@@ -339,44 +531,123 @@ final class ListeningHistoryService {
             //    persisted tally. Re-folding those would double-count lifetime
             //    stats, so skip anything at or before the mark while still
             //    trimming it out of the in-memory window (and off disk below).
-            var trimmedCount = 0
-            if all.count > cap {
-                let overflow = all.count - cap
-                let evicted = Array(all.prefix(overflow))
-                all.removeFirst(overflow)
-                let mark = tally.lastFoldedTimestamp ?? .distantPast
-                let toFold = evicted.filter { $0.timestamp > mark }
-                if !toFold.isEmpty {
-                    tally.fold(toFold)
-                    tallyStore.save(tally)
+            var foldedCount = 0
+            let overflow = Swift.max(0, all.count - cap)
+            let evicted = Array(all.prefix(overflow))
+
+            // Legacy tallies used timestamps as their crash-recovery marker.
+            // Translate that one time into the sequence boundary represented by
+            // the currently-evicted prefix. Future equal-timestamp records are
+            // then distinguished exactly by sequence.
+            if preserveLifetime,
+               tally.lastFoldedSequence == nil,
+               (!tally.isEmpty || tally.lastFoldedTimestamp != nil) {
+                let baseline: UInt64
+                if let firstSequence = all.first?.sequence {
+                    baseline = firstSequence > 0 ? firstSequence - 1 : 0
+                } else {
+                    baseline = highestSequence
                 }
-                trimmedCount = toFold.count
-                rewrote = true
+                var migratedMark = baseline
+                if let timestampMark = tally.lastFoldedTimestamp {
+                    for record in evicted {
+                        guard record.timestamp <= timestampMark else { break }
+                        migratedMark = record.sequence ?? migratedMark
+                    }
+                }
+                tally.lastFoldedSequence = migratedMark
+                shouldSaveTally = true
             }
 
-            if rewrote {
-                store.replaceAll(with: all)
+            if all.count > cap {
+                all.removeFirst(overflow)
+                if preserveLifetime {
+                    let mark = tally.lastFoldedSequence ?? 0
+                    let toFold = evicted.filter { ($0.sequence ?? 0) > mark }
+                    tally.fold(toFold)
+                    foldedCount = toFold.count
+                    shouldSaveTally = shouldSaveTally || !toFold.isEmpty
+                }
+                shouldRewrite = true
             }
-            return LoadResult(records: all, tally: tally, trimmedCount: trimmedCount)
+
+            let nextSequence = highestSequence < UInt64.max
+                ? highestSequence + 1
+                : UInt64.max
+
+            return LoadResult(
+                records: all, tally: tally,
+                retentionExpiredCount: retentionExpiredCount,
+                foldedCount: foldedCount,
+                shouldRewrite: shouldRewrite,
+                shouldClearTally: !preserveLifetime,
+                shouldSaveTally: preserveLifetime && shouldSaveTally,
+                nextSequence: nextSequence,
+                clearRecoveryPending: false)
         }.value
 
+        guard generation == historyGeneration else {
+            // A user clear won while the detached read was suspended. Never
+            // publish or persist the stale result; only flush post-clear plays.
+            isLoaded = true
+            finishLoading()
+            Log.info(
+                "ListeningHistoryService: Discarded stale disk load after history clear",
+                category: AppConstants.History.logCategory)
+            return
+        }
+
+        if result.clearRecoveryPending {
+            records = []
+            lifetime = .empty
+            nextSequence = 1
+            isLoaded = true
+            needsCompaction = false
+            needsTallyPersistence = false
+            if completePendingClear() {
+                finishLoading()
+            } else {
+                // Records captured while deletion is unresolved cannot be
+                // appended behind the tombstone; recovery would erase them.
+                deferredDuringLoad.removeAll()
+                isLoading = false
+                rebuildSnapshot()
+            }
+            Log.error(
+                "ListeningHistoryService: History clear still pending after launch recovery",
+                category: AppConstants.History.logCategory)
+            return
+        }
+        clearIsPending = false
+
+        var tallyIsDurable = true
+        if result.shouldClearTally {
+            tallyIsDurable = tallyStore.clear()
+        } else if result.shouldSaveTally {
+            tallyIsDurable = tallyStore.save(result.tally)
+        }
+        var rewriteSucceeded = !result.shouldRewrite
+        if result.shouldRewrite, tallyIsDurable {
+            rewriteSucceeded = store.replaceAll(with: result.records)
+        }
         records = result.records
         lifetime = result.tally
+        nextSequence = result.nextSequence
         isLoaded = true
-        needsCompaction = false
+        needsTallyPersistence = (result.shouldClearTally || result.shouldSaveTally)
+            && !tallyIsDurable
+        needsCompaction = result.shouldRewrite && !rewriteSucceeded
+        finishLoading()
 
-        // Flush plays recorded while the load was in flight, in arrival order.
-        // No await separates this from the assignment above, so recordTrackChange
-        // cannot interleave between them.
-        isLoading = false
-        let buffered = deferredDuringLoad
-        deferredDuringLoad = []
-        for record in buffered { appendRecord(record) }
-
-        rebuildSnapshot()
-        if result.trimmedCount > 0 {
+        if result.foldedCount > 0 {
             Log.info(
-                "ListeningHistoryService: Trimmed \(result.trimmedCount) old plays into lifetime tally (cap \(cap))",
+                "ListeningHistoryService: Folded \(result.foldedCount) old plays into lifetime tally (cap \(cap))",
+                category: AppConstants.History.logCategory
+            )
+        }
+        if result.retentionExpiredCount > 0 {
+            Log.info(
+                "ListeningHistoryService: Expired \(result.retentionExpiredCount) plays under finite retention",
                 category: AppConstants.History.logCategory
             )
         }
@@ -386,9 +657,67 @@ final class ListeningHistoryService {
         )
     }
 
-    /// Recomputes `snapshot` from the current `records` plus the persisted
-    /// `lifetime` tally so totals/top-N remain correct after trimming.
+    /// Ends load mode and flushes records captured while the disk read was in
+    /// flight, preserving their arrival order.
+    private func finishLoading() {
+        // No await separates clearing the flag, taking the buffer, and appending
+        // it, so a live record cannot interleave with this ordered flush.
+        isLoading = false
+        let buffered = deferredDuringLoad
+        deferredDuringLoad.removeAll()
+        for record in buffered {
+            appendRecord(record)
+        }
+        rebuildSnapshot()
+    }
+
+    /// Assigns a sequence at the last responsible moment, after initial disk
+    /// state is known. Existing sequenced records are preserved.
+    private func recordWithSequence(_ record: PlayRecord) -> PlayRecord {
+        if let sequence = record.sequence {
+            if sequence >= nextSequence, sequence < UInt64.max {
+                nextSequence = sequence + 1
+            }
+            return record
+        }
+        let sequenced = record.assigningSequence(nextSequence)
+        if nextSequence < UInt64.max {
+            nextSequence += 1
+        }
+        return sequenced
+    }
+
+    /// Reconstructs the next sequence without rewriting legacy disk records.
+    /// The virtual repair follows the same file-order-only rule as disk load so
+    /// deferred shutdown appends remain above the sequence migration will assign.
+    private func establishNextSequenceFromDisk() {
+        var previousSequence: UInt64 = 0
+        for record in store.loadAll() {
+            if let sequence = record.sequence, sequence > previousSequence {
+                previousSequence = sequence
+            } else if previousSequence < UInt64.max {
+                previousSequence += 1
+            }
+        }
+        let highWater = Swift.max(
+            previousSequence,
+            tallyStore.load().lastFoldedSequence ?? 0)
+        nextSequence = highWater < UInt64.max ? highWater + 1 : UInt64.max
+    }
+
+    /// Recomputes the snapshot, excluding the undated lifetime sidecar whenever
+    /// finite retention is active.
     private func rebuildSnapshot() {
-        snapshot = StatsAggregator.snapshot(from: records, lifetime: lifetime)
+        snapshot = StatsAggregator.snapshot(
+            from: records,
+            lifetime: usesLifetimeTally ? lifetime : .empty)
+    }
+
+    /// Finite retention intentionally reports only retained records. The
+    /// lifetime sidecar has no per-play dates, so merging it would resurrect
+    /// plays outside the user's chosen retention window.
+    private var usesLifetimeTally: Bool {
+        Foundation.UserDefaults.standard.integer(
+            forKey: AppConstants.UserDefaults.historyRetentionDays) <= 0
     }
 }

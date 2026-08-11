@@ -16,10 +16,6 @@ import Foundation
 ///
 /// The tally only accounts for the records no longer in memory. The live
 /// `records` array contributes separately when `StatsAggregator` merges them.
-///
-/// Per-dimension dictionaries are capped at
-/// `AppConstants.History.lifetimeTopKeyCap` entries; eviction drops the
-/// lowest-count entry to bound the on-disk size.
 nonisolated struct LifetimeTally: Codable, Equatable, Sendable {
 
     // MARK: - TallyEntry
@@ -52,6 +48,12 @@ nonisolated struct LifetimeTally: Codable, Equatable, Sendable {
     /// (absent key → `nil`).
     var lastFoldedTimestamp: Date?
 
+    /// Sequence of the newest log record represented by this tally. Unlike a
+    /// timestamp, this remains unambiguous when several plays share a timestamp.
+    /// Legacy tally files decode with `nil` and migrate from
+    /// `lastFoldedTimestamp` on the next load.
+    var lastFoldedSequence: UInt64?
+
     /// Per-artist counts (key: `PlayRecord.artistKey`).
     var artistCounts: [String: TallyEntry] = [:]
 
@@ -77,52 +79,51 @@ nonisolated struct LifetimeTally: Codable, Equatable, Sendable {
     // MARK: - Folding
 
     /// Folds a single record into the tally, incrementing totals and updating
-    /// per-key buckets. Evicts the lowest-count entry from each dimension when
-    /// its dictionary exceeds `keyCap`.
+    /// every per-key bucket. Keeping all keys makes lifetime top-N exact: an
+    /// evicted low-count key could otherwise accumulate later and become the
+    /// true leader without the tally knowing its earlier plays.
     ///
-    /// - Parameters:
-    ///   - record: Record being trimmed from the live window.
-    ///   - keyCap: Per-dimension cap. Defaults to
-    ///     `AppConstants.History.lifetimeTopKeyCap`.
-    mutating func fold(_ record: PlayRecord, keyCap: Int = AppConstants.History.lifetimeTopKeyCap) {
+    /// - Parameter record: Record being trimmed from the live window.
+    mutating func fold(_ record: PlayRecord) {
         trimmedPlayCount += 1
         trimmedListeningSeconds += record.playedSeconds
         lastFoldedTimestamp = Swift.max(lastFoldedTimestamp ?? record.timestamp, record.timestamp)
+        if let sequence = record.sequence {
+            lastFoldedSequence = Swift.max(lastFoldedSequence ?? sequence, sequence)
+        }
 
         Self.bump(
             &artistCounts, key: record.artistKey, name: record.artist,
-            detail: nil, played: record.playedSeconds, keyCap: keyCap
+            detail: nil, played: record.playedSeconds
         )
         Self.bump(
             &trackCounts, key: record.trackKey, name: record.track,
-            detail: record.artist, played: record.playedSeconds, keyCap: keyCap
+            detail: record.artist, played: record.playedSeconds
         )
         if !record.album.isEmpty {
             Self.bump(
                 &albumCounts, key: record.albumKey, name: record.album,
-                detail: record.artist, played: record.playedSeconds, keyCap: keyCap
+                detail: record.artist, played: record.playedSeconds
             )
         }
     }
 
-    /// Folds a batch of records, applying eviction once at the end.
-    mutating func fold(_ records: [PlayRecord], keyCap: Int = AppConstants.History.lifetimeTopKeyCap) {
+    /// Folds a batch of records.
+    mutating func fold(_ records: [PlayRecord]) {
         for record in records {
-            fold(record, keyCap: keyCap)
+            fold(record)
         }
     }
 
     // MARK: - Private
 
-    /// Increments `dict[key]` (creating the bucket if missing) and evicts the
-    /// lowest-count entry when `dict.count > keyCap`.
+    /// Increments `dict[key]`, creating the bucket when missing.
     private static func bump(
         _ dict: inout [String: TallyEntry],
         key: String,
         name: String,
         detail: String?,
-        played: TimeInterval,
-        keyCap: Int
+        played: TimeInterval
     ) {
         if var existing = dict[key] {
             existing.count += 1
@@ -132,19 +133,7 @@ nonisolated struct LifetimeTally: Codable, Equatable, Sendable {
             dict[key] = existing
         } else {
             dict[key] = TallyEntry(name: name, detail: detail, count: 1, seconds: played)
-            if dict.count > keyCap {
-                evictLowest(&dict)
-            }
         }
-    }
-
-    /// Drops the lowest-count entry. Ties broken by name (alphabetic last).
-    private static func evictLowest(_ dict: inout [String: TallyEntry]) {
-        guard let victim = dict.min(by: { lhs, rhs in
-            if lhs.value.count != rhs.value.count { return lhs.value.count < rhs.value.count }
-            return lhs.value.name.localizedCaseInsensitiveCompare(rhs.value.name) == .orderedDescending
-        }) else { return }
-        dict.removeValue(forKey: victim.key)
     }
 }
 
@@ -169,11 +158,19 @@ nonisolated final class LifetimeTallyStore: @unchecked Sendable {
     private let encoder = JSONCoders.defaultEncoder
     private let decoder = JSONCoders.default
 
+    /// Deterministic failure seam for deletion-order tests. Production leaves
+    /// it nil and removes the sidecar through FileManager.
+    private let clearOverride: (@Sendable () -> Bool)?
+
     // MARK: - Init
 
-    init(directory: URL? = nil) {
+    init(
+        directory: URL? = nil,
+        clearOverride: (@Sendable () -> Bool)? = nil
+    ) {
         let dir = directory ?? HistoryStoreSupport.defaultDirectory()
         fileURL = dir.appending(path: AppConstants.History.lifetimeTallyFileName)
+        self.clearOverride = clearOverride
     }
 
     // MARK: - Public API
@@ -191,7 +188,10 @@ nonisolated final class LifetimeTallyStore: @unchecked Sendable {
     }
 
     /// Atomically writes `tally` to disk.
-    func save(_ tally: LifetimeTally) {
+    ///
+    /// - Returns: `true` only after the atomic replacement succeeds.
+    @discardableResult
+    func save(_ tally: LifetimeTally) -> Bool {
         ioQueue.sync {
             ensureDirectoryExists()
             guard let data = try? encoder.encode(tally) else {
@@ -199,23 +199,40 @@ nonisolated final class LifetimeTallyStore: @unchecked Sendable {
                     "LifetimeTallyStore: Failed to encode tally",
                     category: AppConstants.History.logCategory
                 )
-                return
+                return false
             }
             do {
                 try data.write(to: fileURL, options: .atomic)
+                return true
             } catch {
                 Log.error(
                     "LifetimeTallyStore: Save failed: \(error.localizedDescription)",
                     category: AppConstants.History.logCategory
                 )
+                return false
             }
         }
     }
 
     /// Removes the tally file (used by `clearHistory`).
-    func clear() {
+    @discardableResult
+    func clear() -> Bool {
         ioQueue.sync {
-            try? FileManager.default.removeItem(at: fileURL)
+            if let clearOverride {
+                return clearOverride()
+            }
+            guard FileManager.default.fileExists(atPath: fileURL.path) else {
+                return true
+            }
+            do {
+                try FileManager.default.removeItem(at: fileURL)
+                return true
+            } catch {
+                Log.error(
+                    "LifetimeTallyStore: Clear failed: \(error.localizedDescription)",
+                    category: AppConstants.History.logCategory)
+                return false
+            }
         }
     }
 

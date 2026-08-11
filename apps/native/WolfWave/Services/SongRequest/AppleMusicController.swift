@@ -56,6 +56,27 @@ struct PlaybackSnapshot: Equatable {
     let trackKey: String?
 }
 
+/// Exact Music.app identity a vote-skip was opened against.
+///
+/// The track key is re-checked inside the final PID-targeted AppleScript event.
+/// `revision` is a cheap in-process guard that rejects work as soon as the music
+/// monitor has observed a replacement, without relying on actor task ordering.
+struct PlaybackTarget: Equatable, Sendable {
+    let trackKey: String
+    let revision: UInt64
+}
+
+/// Music mutation selected when a target-bound vote passes.
+///
+/// `SongRequestService` decides queue policy; `AppleMusicController` executes
+/// the selected action only if Music.app still has the exact target loaded.
+enum TargetedPlaybackAction: Sendable {
+    case nextTrack
+    case request(SongRequestItem)
+    case fallbackPlaylist(name: String)
+    case stop
+}
+
 /// Abstracts Apple Music search and playback control so the live
 /// `AppleMusicController` can be swapped for a stub in tests.
 protocol AppleMusicControlling {
@@ -93,6 +114,16 @@ protocol AppleMusicControlling {
 
     /// Advances to the next track in Music.app's player queue.
     func skipToNext() async throws
+
+    /// Performs a vote-skip mutation only while Music.app still has
+    /// `targetTrackKey` loaded. The identity check and mutation execute in one
+    /// PID-targeted AppleScript event, removing the read-then-command race.
+    ///
+    /// - Returns: `true` when the mutation ran; `false` for a stale target.
+    func performTargetedPlayback(
+        _ action: TargetedPlaybackAction,
+        ifCurrentTrackKeyEquals targetTrackKey: String
+    ) async throws -> Bool
 
     /// Rewinds to the previous track in Music.app's player queue.
     func previousTrack() async throws
@@ -264,7 +295,13 @@ final class AppleMusicController: AppleMusicControlling {
         return stateText & linefeed & keyText
         """, seconds: ScriptTimeout.probe)
         guard let raw = runAppleScript(source, targetPID: pid).output else { return nil }
+        return Self.parsePlaybackSnapshot(raw)
+    }
 
+    /// Parses the linefeed-delimited state and tab-framed track identity returned
+    /// by `playbackSnapshot()`. Internal so exact framing edge cases are tested
+    /// without sending Apple Events to Music.app.
+    static func parsePlaybackSnapshot(_ raw: String) -> PlaybackSnapshot {
         let parts = raw.split(separator: "\n", maxSplits: 1, omittingEmptySubsequences: false)
         let stateText = parts.first.map(String.init) ?? ""
         let keyText = parts.count > 1 ? String(parts[1]) : ""
@@ -276,8 +313,10 @@ final class AppleMusicController: AppleMusicControlling {
         default: state = .stopped
         }
 
-        let trimmedKey = keyText.trimmingCharacters(in: .whitespacesAndNewlines)
-        return PlaybackSnapshot(state: state, trackKey: trimmedKey.isEmpty ? nil : trimmedKey)
+        // The tab is part of the exact name-and-artist identity. Trimming the
+        // composite turns "Song\t" into "Song" and changes leading/trailing
+        // metadata, so only the truly empty no-track sentinel maps to nil.
+        return PlaybackSnapshot(state: state, trackKey: keyText.isEmpty ? nil : keyText)
     }
 
     // MARK: - Authorization
@@ -372,6 +411,25 @@ final class AppleMusicController: AppleMusicControlling {
     ///   track can't be played within the retry window (still syncing from iCloud
     ///   Music Library), so the caller keeps it queued and retries.
     func playNow(song: Song) async throws {
+        try await prepareForPlayback(song: song)
+        let songID = song.id.rawValue
+
+        // A freshly added track takes a moment to sync down before AppleScript
+        // can see it, so the play is retried over a few seconds.
+        guard try await playFromRequestsPlaylist(song: song) == .played else {
+            // The playlist may have been deleted and rebuilt mid-session.
+            // Drop the stale cache so the next attempt re-adds the song to the
+            // fresh playlist rather than skipping the add step.
+            addedSongIDs.remove(songID)
+            libraryService.resetCachedPlaylistID()
+            throw PlaybackError.notPlayable(title: song.title)
+        }
+        Log.debug("AppleMusicController: Now playing \"\(song.title)\" by \(song.artistName) from \(AppConstants.Music.requestsPlaylistName)", category: "SongRequest")
+    }
+
+    /// Ensures Music is running and the requested song belongs to the requests
+    /// playlist. Shared by ordinary playback and target-bound vote replacement.
+    private func prepareForPlayback(song: Song) async throws {
         guard isMusicAppRunning else {
             Log.debug("AppleMusicController: Music.app not running, buffering \"\(song.title)\"", category: "SongRequest")
             throw PlaybackError.musicAppNotRunning
@@ -385,23 +443,22 @@ final class AppleMusicController: AppleMusicControlling {
             do {
                 try await libraryService.addSongToRequestsPlaylist(song)
                 addedSongIDs.insert(songID)
+            } catch let error as CancellationError {
+                throw error
             } catch {
+                if Task.isCancelled || (error as? URLError)?.code == .cancelled {
+                    throw CancellationError()
+                }
                 Log.debug("AppleMusicController: Library add failed for \"\(song.title)\": \(error)", category: "SongRequest")
                 throw PlaybackError.notPlayable(title: song.title)
             }
         }
+    }
 
-        // A freshly added track takes a moment to sync down before AppleScript
-        // can see it, so the play is retried over a few seconds.
-        guard try await playFromRequestsPlaylist(song: song) else {
-            // The playlist may have been deleted and rebuilt mid-session.
-            // Drop the stale cache so the next attempt re-adds the song to the
-            // fresh playlist rather than skipping the add step.
-            addedSongIDs.remove(songID)
-            libraryService.resetCachedPlaylistID()
-            throw PlaybackError.notPlayable(title: song.title)
-        }
-        Log.debug("AppleMusicController: Now playing \"\(song.title)\" by \(song.artistName) from \(AppConstants.Music.requestsPlaylistName)", category: "SongRequest")
+    private enum RequestPlaybackResult: Equatable {
+        case played
+        case staleTarget
+        case unavailable
     }
 
     /// Plays a song from the `WolfWave Requests` playlist by matching title and
@@ -411,13 +468,18 @@ final class AppleMusicController: AppleMusicControlling {
     /// Requires title + artist. A title-only fallback can select an unrelated
     /// song when two artists use the same title, so a mismatch remains queued.
     ///
-    /// - Returns: `true` once playback starts, `false` if the track never appeared
-    ///   within the retry window.
-    private func playFromRequestsPlaylist(song: Song) async throws -> Bool {
+    /// - Returns: Whether playback started, the vote target changed, or the
+    ///   requested track never appeared within the retry window.
+    private func playFromRequestsPlaylist(
+        song: Song,
+        replacing targetTrackKey: String? = nil
+    ) async throws -> RequestPlaybackResult {
         let playlist = sanitizeForAppleScript(AppConstants.Music.requestsPlaylistName)
         let name = sanitizeForAppleScript(song.title)
         let artist = sanitizeForAppleScript(song.artistName)
+        let guardSource = targetTrackKey.map { targetGuardSource(for: $0) } ?? ""
         let script = Self.pidTargetedScript("""
+        \(guardSource)
         set ms to (every track of playlist "\(playlist)" whose name is "\(name)" and artist is "\(artist)")
         if (count of ms) > 0 then
             play (item 1 of ms)
@@ -435,7 +497,8 @@ final class AppleMusicController: AppleMusicControlling {
             switch result {
             case .success(let output):
                 lastFailure = nil
-                if output == "ok" { return true }
+                if output == "ok" { return .played }
+                if output == "stale" { return .staleTarget }
             case .failure(let failure):
                 if failure.number == -600 || failure.number == -609 {
                     throw PlaybackError.musicAppNotRunning
@@ -452,7 +515,7 @@ final class AppleMusicController: AppleMusicControlling {
                 message: lastFailure.message
             )
         }
-        return false
+        return .unavailable
     }
 
     /// Note that a song has been queued internally.
@@ -475,6 +538,64 @@ final class AppleMusicController: AppleMusicControlling {
             targetPID: pid
         )
         try requireCommandSuccess(result, command: "next track")
+    }
+
+    func performTargetedPlayback(
+        _ action: TargetedPlaybackAction,
+        ifCurrentTrackKeyEquals targetTrackKey: String
+    ) async throws -> Bool {
+        let command: String
+        let body: String
+        let preservesFocus: Bool
+        switch action {
+        case .request(let item):
+            guard let song = item.song else {
+                throw PlaybackError.notPlayable(title: item.title)
+            }
+            try await prepareForPlayback(song: song)
+            switch try await playFromRequestsPlaylist(
+                song: song,
+                replacing: targetTrackKey
+            ) {
+            case .played:
+                return true
+            case .staleTarget:
+                return false
+            case .unavailable:
+                addedSongIDs.remove(song.id.rawValue)
+                libraryService.resetCachedPlaylistID()
+                throw PlaybackError.notPlayable(title: song.title)
+            }
+        case .nextTrack:
+            command = "next track"
+            body = "next track"
+            preservesFocus = false
+        case .fallbackPlaylist(let name):
+            command = "play fallback playlist"
+            body = "play playlist \"\(sanitizeForAppleScript(name))\""
+            preservesFocus = true
+        case .stop:
+            command = "stop"
+            body = "stop"
+            preservesFocus = false
+        }
+
+        guard let pid = MusicProcess.pid else {
+            throw PlaybackError.musicAppNotRunning
+        }
+        let script = Self.pidTargetedScript("""
+        \(targetGuardSource(for: targetTrackKey))
+        \(body)
+        return "ok"
+        """, seconds: ScriptTimeout.command)
+        let result: ScriptExecutionResult
+        if preservesFocus {
+            result = await runAppleScriptPreservingFocus(script, targetPID: pid)
+        } else {
+            result = runAppleScript(script, targetPID: pid)
+        }
+        try requireCommandSuccess(result, command: command)
+        return result.output == "ok"
     }
 
     /// Rewind to the previous song in Music.app via AppleScript.
@@ -591,6 +712,22 @@ final class AppleMusicController: AppleMusicControlling {
             .filter { $0.value >= 32 && $0.value != 127 }
             .map(String.init)
             .joined()
+    }
+
+    /// AppleScript source that rejects a playback mutation unless the loaded
+    /// track still has the exact name-and-artist key captured for the vote.
+    func targetGuardSource(for trackKey: String) -> String {
+        let expected = trackKey
+            .components(separatedBy: "\t")
+            .map { "\"\(sanitizeForAppleScript($0))\"" }
+            .joined(separator: " & tab & ")
+        return """
+        set currentKey to ""
+        try
+            set currentKey to (get name of current track) & tab & (get artist of current track)
+        end try
+        if currentKey is not (\(expected)) then return "stale"
+        """
     }
 
     /// Builds a handler whose target is supplied at execution time as a process-id

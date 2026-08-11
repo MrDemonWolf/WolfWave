@@ -70,6 +70,13 @@ nonisolated func mapHelixError(_ error: Error) -> TwitchChatService.ConnectionEr
     return .networkError(error.localizedDescription)
 }
 
+/// What a live token-validation request proves about the Polls OAuth scope.
+nonisolated enum PollScopeValidation: Equatable, Sendable {
+    case present
+    case missing
+    case indeterminate
+}
+
 /// Service managing Twitch chat connection and bot commands via EventSub WebSocket.
 ///
 /// Handles:
@@ -218,6 +225,7 @@ actor TwitchChatService {
 
     /// Tuple-style payload posted on a `channel.poll.end` for a vote-skip poll.
     struct SkipPollResult: Sendable {
+        let pollID: String
         let skipVotes: Int
         let keepVotes: Int
     }
@@ -487,6 +495,13 @@ actor TwitchChatService {
     var webSocketTask: URLSessionWebSocketTask?
     var sessionID: String?
     var receiveTask: Task<Void, Never>?
+    /// EventSub session where channel.poll.end is known to be subscribed.
+    var pollSubscriptionSessionID: String?
+    /// Session currently awaiting a poll-subscription POST.
+    var pollSubscriptionAttemptSessionID: String?
+    /// Narrow deterministic seams for live-toggle tests.
+    var pollScopeValidationOverride: (@Sendable () async -> PollScopeValidation)?
+    var pollSubscriptionOverride: (@Sendable (String) async -> Bool)?
 
     /// One long-lived keepalive watchdog per EventSub session. Inbound frames
     /// update ``lastKeepaliveActivity`` instead of cancelling and allocating a
