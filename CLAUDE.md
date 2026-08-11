@@ -55,8 +55,10 @@ bun run --filter streamdeck test         # Stream Deck plugin tests (bun test)
 > lives at `apps/streamdeck/com.mrdemonwolf.wolfwave.sdPlugin/` (`manifest.json`
 > plus the `ui/` Property Inspector); `manifest.json` is a `streamdeck#build` turbo
 > input and both it and the Property Inspector have their own tests. The `streamdeck`
-> CI job runs `typecheck` + `bun test` on any change under `apps/streamdeck/`, so a
-> protocol mismatch fails the PR. See `apps/native/docs/streamdeck-control-api.md`
+> CI job runs `typecheck`, `bun test`, `pack`, and an icon-drift check on any change
+> under `apps/streamdeck/`, so a protocol mismatch fails the PR. Icons are generated
+> from the brand mark by `scripts/generate-icons.ts`; regenerate rather than hand-editing
+> them, or the drift check fails. See `apps/native/docs/streamdeck-control-api.md`
 > and `apps/streamdeck/README.md`.
 
 <!-- Separates the two blockquotes; a bare blank line between them trips markdownlint MD028. -->
@@ -329,7 +331,7 @@ Unit tests live in `apps/native/WolfWaveTests/` and use XCTest + Swift Testing w
   |---|---|---|
   | `test` | Build & Test | `xcodebuild test` on `macos-26`, plus three drift gates: `widget.html` in sync with `apps/widget/`, the generated design tokens in sync with `tokens.json`, and `SponsorConfig.generated.swift` in sync with `FUNDING.yml`. Creates a placeholder `Config.xcconfig` and sets `MallocNanoZone=0` to work around a runner-image allocator crash. |
   | `docs` | Docs Build | `types:check`, `lint`, and a full docs build |
-  | `streamdeck` | Stream Deck Plugin | `typecheck` + `bun test` for `apps/streamdeck/`, which keeps the TS protocol mirror honest against `StreamDeckCommand.swift` |
+  | `streamdeck` | Stream Deck Plugin | `typecheck`, `bun test`, `pack`, and an icon-generator drift check for `apps/streamdeck/`. Keeps the TS protocol mirror honest against `StreamDeckCommand.swift`, which is in the path filter so a Swift-only change still re-runs the TS tests |
   | `lint` | SwiftLint | SwiftLint against `swiftlint-baseline.json` |
   | `lint-crash-safety` | SwiftLint (crash-safety) | **Blocking.** No new force unwrap, `try!`, or `as!` |
   | `lint-headers` | Swift file headers | **Blocking.** File-header convention |
