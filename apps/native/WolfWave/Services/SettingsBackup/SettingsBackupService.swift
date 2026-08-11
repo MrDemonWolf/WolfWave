@@ -39,24 +39,29 @@ struct SettingsBackupService {
 
     private let defaults: Foundation.UserDefaults
     private let center: NotificationCenter
+    private let twitchChannelProvider: () throws -> String?
     private let coder = SettingsBackupCoder()
 
     init(
         defaults: Foundation.UserDefaults = .standard,
-        center: NotificationCenter = .default
+        center: NotificationCenter = .default,
+        twitchChannelProvider: @escaping () throws -> String? = {
+            try KeychainService.loadTwitchCredentialGrantChecked().channelID
+        }
     ) {
         self.defaults = defaults
         self.center = center
+        self.twitchChannelProvider = twitchChannelProvider
     }
 
     // MARK: - Export
 
     /// Builds a backup of the current portable preferences.
-    func makeBackup(exportedAt: Date = Date()) -> SettingsBackup {
+    func makeBackup(exportedAt: Date = Date()) throws -> SettingsBackup {
         coder.makeBackup(
             snapshot: snapshot(),
             exportableKeys: AppConstants.UserDefaults.exportableKeys,
-            twitchChannelName: defaults.string(forKey: AppConstants.UserDefaults.twitchChannelName),
+            twitchChannelName: try twitchChannelProvider(),
             appVersion: Self.appVersion,
             appBuild: Self.appBuild,
             exportedAt: exportedAt
@@ -65,7 +70,7 @@ struct SettingsBackupService {
 
     /// Builds a backup and serializes it to pretty-printed JSON for writing.
     func makeBackupData(exportedAt: Date = Date()) throws -> Data {
-        try coder.encode(makeBackup(exportedAt: exportedAt))
+        try coder.encode(try makeBackup(exportedAt: exportedAt))
     }
 
     /// Reads the current value of every exportable key from UserDefaults.
@@ -118,9 +123,13 @@ struct SettingsBackupService {
         }
 
         if plan.reconnectTwitch, let channel = plan.twitchChannelName {
-            // Restore the public channel name and mark re-auth needed. The token
-            // is not in the backup, so TwitchViewModel surfaces a sign-in CTA.
-            defaults.set(channel, forKey: AppConstants.UserDefaults.twitchChannelName)
+            // Keep the imported channel pending and non-authoritative. The token
+            // is not in the backup; OAuth later commits token + channel together.
+            defaults.set(
+                channel,
+                forKey: AppConstants.UserDefaults.twitchPendingImportedChannelName
+            )
+            defaults.removeObject(forKey: AppConstants.UserDefaults.twitchChannelName)
             defaults.set(true, forKey: AppConstants.UserDefaults.twitchReauthNeeded)
             center.post(name: .twitchReauthNeededChanged, object: nil)
         }

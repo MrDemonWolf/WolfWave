@@ -136,10 +136,14 @@ nonisolated struct HelixClient: Sendable {
         url: URL,
         method: String,
         credentials: Credentials,
-        body: [String: Any]? = nil
+        body: [String: Any]? = nil,
+        requestTimeout: TimeInterval? = nil
     ) async throws -> [String: Any]? {
-        let request = try makeRequest(
+        var request = try makeRequest(
             url: url, method: method, credentials: credentials, body: body)
+        if let requestTimeout {
+            request.timeoutInterval = requestTimeout
+        }
         let (data, http) = try await send(request)
         try validate(http: http, data: data)
         guard !data.isEmpty else { return nil }
@@ -159,6 +163,20 @@ nonisolated struct HelixClient: Sendable {
             url: url, method: method, credentials: credentials, body: body)
         let (data, http) = try await send(request)
         return (data, http.statusCode)
+    }
+
+    /// Performs a request without status validation while retaining all HTTP
+    /// response headers. Retry workers use this for server-directed backoff
+    /// (`Retry-After`) without rebuilding Helix authentication requests.
+    func sendRawResponse(
+        url: URL,
+        method: String,
+        credentials: Credentials,
+        body: [String: Any]? = nil
+    ) async throws -> (Data, HTTPURLResponse) {
+        let request = try makeRequest(
+            url: url, method: method, credentials: credentials, body: body)
+        return try await send(request)
     }
 
     // MARK: - Private Helpers

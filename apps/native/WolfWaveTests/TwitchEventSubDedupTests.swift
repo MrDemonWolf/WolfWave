@@ -143,4 +143,38 @@ struct TwitchEventSubDedupTests {
         #expect(!oldestWasEvicted)
         #expect(newestSurvived)
     }
+
+    @Test("TTL-only command reservations survive ordinary transport-cache eviction")
+    func commandReservationSurvivesTransportEviction() {
+        var transport = TwitchChatService.EventSubMessageDeduplicator(
+            ttl: 600,
+            maxEntries: 500)
+        var commands = TwitchChatService.EventSubMessageDeduplicator(
+            ttl: 600,
+            maxEntries: nil)
+
+        let firstTransport = transport.isDuplicate("command", now: base)
+        let firstCommand = commands.isDuplicate("command", now: base)
+        #expect(!firstTransport)
+        #expect(!firstCommand)
+        for index in 0..<1_000 {
+            let duplicate = transport.isDuplicate(
+                "chat-\(index)",
+                now: base.addingTimeInterval(Double(index) * 0.01))
+            #expect(!duplicate)
+        }
+
+        let transportAfterEviction = transport.isDuplicate(
+            "command",
+            now: base.addingTimeInterval(11))
+        let commandWithinTTL = commands.isDuplicate(
+            "command",
+            now: base.addingTimeInterval(11))
+        let commandAfterTTL = commands.isDuplicate(
+            "command",
+            now: base.addingTimeInterval(601))
+        #expect(!transportAfterEviction)
+        #expect(commandWithinTTL)
+        #expect(!commandAfterTTL)
+    }
 }

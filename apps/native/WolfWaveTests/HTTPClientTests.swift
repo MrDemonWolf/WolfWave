@@ -18,14 +18,16 @@ import XCTest
 final class HTTPClientTests: XCTestCase {
 
     private var client: HTTPClient!
+    private let handlerStore = MockURLProtocol.HandlerStore()
 
     override func setUp() {
         super.setUp()
-        client = HTTPClient(session: MockURLProtocol.makeSession())
+        handlerStore.handler = nil
+        client = HTTPClient(session: MockURLProtocol.makeSession(handlerStore: handlerStore))
     }
 
     override func tearDown() {
-        MockURLProtocol.reset()
+        handlerStore.handler = nil
         client = nil
         super.tearDown()
     }
@@ -39,10 +41,34 @@ final class HTTPClientTests: XCTestCase {
         URL(string: "https://example.invalid/resource")!
     }
 
+    func testConcurrentSessionsKeepIndependentHandlers() async throws {
+        let firstSession = MockURLProtocol.makeSession { request in
+            (
+                MockURLProtocol.httpResponse(for: request, status: 200),
+                Data(#"{"name":"first","count":1}"#.utf8)
+            )
+        }
+        let secondSession = MockURLProtocol.makeSession { request in
+            (
+                MockURLProtocol.httpResponse(for: request, status: 200),
+                Data(#"{"name":"second","count":2}"#.utf8)
+            )
+        }
+        let firstClient = HTTPClient(session: firstSession)
+        let secondClient = HTTPClient(session: secondSession)
+
+        async let first: Payload = firstClient.get(url: url())
+        async let second: Payload = secondClient.get(url: url())
+        let results = try await (first, second)
+
+        XCTAssertEqual(results.0, Payload(name: "first", count: 1))
+        XCTAssertEqual(results.1, Payload(name: "second", count: 2))
+    }
+
     // MARK: - GET
 
     func testGetDecodesJSONOnSuccess() async throws {
-        MockURLProtocol.requestHandler = { request in
+        handlerStore.handler = { request in
             (MockURLProtocol.httpResponse(for: request, status: 200),
              Data(#"{"name":"wolf","count":3}"#.utf8))
         }
@@ -53,7 +79,7 @@ final class HTTPClientTests: XCTestCase {
     }
 
     func testGetThrowsUnexpectedStatusOnNon2xx() async {
-        MockURLProtocol.requestHandler = { request in
+        handlerStore.handler = { request in
             (MockURLProtocol.httpResponse(for: request, status: 404), Data("missing".utf8))
         }
 
@@ -68,7 +94,7 @@ final class HTTPClientTests: XCTestCase {
     }
 
     func testGetThrowsDecodingFailedOnMalformedJSON() async {
-        MockURLProtocol.requestHandler = { request in
+        handlerStore.handler = { request in
             (MockURLProtocol.httpResponse(for: request, status: 200), Data("not json".utf8))
         }
 
@@ -83,7 +109,7 @@ final class HTTPClientTests: XCTestCase {
     }
 
     func testGetThrowsTransportOnNetworkFailure() async {
-        MockURLProtocol.requestHandler = { _ in throw URLError(.notConnectedToInternet) }
+        handlerStore.handler = { _ in throw URLError(.notConnectedToInternet) }
 
         do {
             let _: Payload = try await client.get(url: url())
@@ -99,7 +125,7 @@ final class HTTPClientTests: XCTestCase {
 
     func testDataReturnsRawBytes() async throws {
         let body = Data("raw-bytes".utf8)
-        MockURLProtocol.requestHandler = { request in
+        handlerStore.handler = { request in
             (MockURLProtocol.httpResponse(for: request, status: 200), body)
         }
 
@@ -109,7 +135,7 @@ final class HTTPClientTests: XCTestCase {
     }
 
     func testPostFormSetsURLEncodedContentTypeAndDecodes() async throws {
-        MockURLProtocol.requestHandler = { request in
+        handlerStore.handler = { request in
             XCTAssertEqual(
                 request.value(forHTTPHeaderField: "Content-Type"),
                 "application/x-www-form-urlencoded"
@@ -152,7 +178,7 @@ final class HTTPClientTests: XCTestCase {
     }
 
     func testDefaultUserAgentPresentOnOutboundGetRequest() async throws {
-        MockURLProtocol.requestHandler = { request in
+        handlerStore.handler = { request in
             XCTAssertEqual(
                 request.value(forHTTPHeaderField: "User-Agent"),
                 HTTPClient.defaultUserAgent
@@ -165,7 +191,7 @@ final class HTTPClientTests: XCTestCase {
     }
 
     func testCallerUserAgentOverrideReachesOutboundRequest() async throws {
-        MockURLProtocol.requestHandler = { request in
+        handlerStore.handler = { request in
             XCTAssertEqual(
                 request.value(forHTTPHeaderField: "User-Agent"),
                 "Caller/9.9"

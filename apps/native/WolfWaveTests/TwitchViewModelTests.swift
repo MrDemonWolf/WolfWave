@@ -243,6 +243,35 @@ struct TwitchViewModelTests {
         #expect(TwitchViewModel.TestAuthResult.failure == .failure)
     }
     
+    @Test("Temporary token validation failure preserves credentials and reauth state")
+    func testTemporaryValidationFailurePreservesSession() {
+        let viewModel = TwitchViewModel()
+        viewModel.oauthToken = "stored-token"
+        viewModel.botUsername = "stored-bot"
+        viewModel.credentialsSaved = true
+        viewModel.reauthNeeded = false
+
+        viewModel.applyTokenValidationResult(.temporarilyUnavailable)
+
+        #expect(viewModel.oauthToken == "stored-token")
+        #expect(viewModel.botUsername == "stored-bot")
+        #expect(viewModel.credentialsSaved)
+        #expect(!viewModel.reauthNeeded)
+    }
+
+    @Test("Only definitive token invalidation sets reauth")
+    func testDefinitiveValidationFailureSetsReauth() {
+        let viewModel = TwitchViewModel()
+        viewModel.credentialsSaved = true
+
+        viewModel.applyTokenValidationResult(.valid)
+        #expect(!viewModel.reauthNeeded)
+
+        viewModel.applyTokenValidationResult(.invalid)
+        #expect(viewModel.reauthNeeded)
+        #expect(viewModel.credentialsSaved)
+    }
+
     // MARK: - Clear Credentials Tests
     
     @Test("Clear credentials resets all state")
@@ -260,7 +289,7 @@ struct TwitchViewModelTests {
         viewModel.channelValidationState = .valid
         
         // Clear credentials
-        viewModel.clearCredentials()
+        await viewModel.clearCredentials()
         
         // Verify all state is reset
         #expect(viewModel.botUsername == "")
@@ -274,7 +303,7 @@ struct TwitchViewModelTests {
     }
     
     @Test("clearAuthOnly preserves channel ID")
-    func testClearAuthOnlyPreservesChannelID() {
+    func testClearAuthOnlyPreservesChannelID() async {
         let viewModel = TwitchViewModel()
 
         viewModel.botUsername = "testbot"
@@ -286,7 +315,7 @@ struct TwitchViewModelTests {
         viewModel.authState = .inProgress
         viewModel.channelValidationState = .valid
 
-        viewModel.clearAuthOnly()
+        await viewModel.clearAuthOnly()
 
         #expect(viewModel.channelID == "mrdemonwolf")
         #expect(viewModel.botUsername == "")
@@ -302,28 +331,40 @@ struct TwitchViewModelTests {
 
     @Test("Save credentials validates empty token")
     func testSaveCredentialsEmptyToken() async throws {
-        let viewModel = TwitchViewModel()
+        let validationCancellations = ThreadSafeBox(0)
+        let viewModel = TwitchViewModel(
+            cancelTokenValidationSchedule: {
+                validationCancellations.mutate { $0 += 1 }
+            }
+        )
         
         viewModel.oauthToken = ""
         viewModel.channelID = "testchannel"
         
-        viewModel.saveCredentials()
+        await viewModel.saveCredentials()
         
         #expect(viewModel.statusMessage == "❌ No OAuth token to save")
         #expect(viewModel.credentialsSaved == false)
+        #expect(validationCancellations.value == 0)
     }
     
     @Test("Save credentials validates empty channel")
     func testSaveCredentialsEmptyChannel() async throws {
-        let viewModel = TwitchViewModel()
+        let validationCancellations = ThreadSafeBox(0)
+        let viewModel = TwitchViewModel(
+            cancelTokenValidationSchedule: {
+                validationCancellations.mutate { $0 += 1 }
+            }
+        )
         
         viewModel.oauthToken = "test_token"
         viewModel.channelID = ""
         
-        viewModel.saveCredentials()
+        await viewModel.saveCredentials()
         
         #expect(viewModel.statusMessage == "❌ Please enter a channel name")
         #expect(viewModel.credentialsSaved == false)
+        #expect(validationCancellations.value == 0)
     }
     
     // MARK: - Cancel OAuth Tests
@@ -335,7 +376,7 @@ struct TwitchViewModelTests {
         viewModel.authState = .waitingForAuth(userCode: "ABC123", verificationURI: "https://test.com")
         viewModel.statusMessage = "Waiting for auth..."
         
-        viewModel.cancelOAuth()
+        await viewModel.cancelOAuth()
         
         #expect(viewModel.authState == .idle)
         #expect(viewModel.statusMessage == "")
