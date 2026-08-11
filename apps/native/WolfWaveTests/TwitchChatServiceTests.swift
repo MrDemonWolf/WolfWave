@@ -84,6 +84,75 @@ struct TwitchChatServiceTests {
             forKey: AppConstants.UserDefaults.songRequestChannelPointsRewardIdentity)
     }
 
+    @Test("Channel normalization rejects query delimiters and non-login characters")
+    func testChannelNameNormalization() {
+        #expect(TwitchChatService.normalizedChannelName("  Wolf_Name42  ") == "wolf_name42")
+        #expect(TwitchChatService.normalizedChannelName("abc") == "abc")
+        let maximumLengthLogin = String(repeating: "a", count: 25)
+        #expect(TwitchChatService.normalizedChannelName(maximumLengthLogin) == maximumLengthLogin)
+        for invalid in [
+            "wolf-name",
+            "wolf&login=other",
+            "wolf=other",
+            "wolf name",
+            "wolf/name",
+            "wölf",
+            String(repeating: "a", count: 26)
+        ] {
+            #expect(TwitchChatService.normalizedChannelName(invalid) == nil)
+        }
+    }
+
+    @Test("Username lookup encodes one normalized login and rejects injection before I/O")
+    func testUsernameLookupQueryConstruction() async throws {
+        let requests = ThreadSafeBox<[URLRequest]>([])
+        let service = TwitchChatService(
+            helixHTTPClient: HTTPClient(
+                session: MockURLProtocol.makeSession { request in
+                    requests.mutate { $0.append(request) }
+                    let body = #"""
+                    {"data":[{"id":"user_id","login":"wolf_name42",
+                    "display_name":"Wolf Name"}]}
+                    """#
+                    return (
+                        MockURLProtocol.httpResponse(for: request, status: 200),
+                        Data(body.utf8)
+                    )
+                }
+            )
+        )
+
+        let userID = try await service.resolveUsername(
+            "  Wolf_Name42  ",
+            token: "token",
+            clientID: "client"
+        )
+
+        #expect(userID == "user_id")
+        let request = try #require(requests.value.first)
+        let url = try #require(request.url)
+        let queryItems = try #require(
+            URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems
+        )
+        #expect(queryItems.count == 1)
+        #expect(queryItems.first?.name == "login")
+        #expect(queryItems.first?.value == "wolf_name42")
+
+        do {
+            _ = try await service.resolveUsername(
+                "wolf&login=other",
+                token: "token",
+                clientID: "client"
+            )
+            Issue.record("Expected invalid username rejection")
+        } catch is TwitchChatService.ConnectionError {
+            // Expected before the HTTP client is invoked.
+        } catch {
+            Issue.record("Unexpected error: \(error)")
+        }
+        #expect(requests.value.count == 1)
+    }
+
     #if DEBUG
     @Test("Debug viewer simulation matches canonical login and display-name fallback")
     func testDebugViewerSimulationUsernameMatching() {

@@ -100,7 +100,10 @@ struct SettingsView: View {
     // MARK: - State
 
     /// Twitch settings view model
-    @State private var twitchViewModel = TwitchViewModel()
+    @State private var twitchViewModel = TwitchViewModel.shared
+    /// Stable identity for this Settings presentation, including view recreation.
+    @State private var twitchOAuthOwner =
+        TwitchViewModel.OAuthPresentationOwner.settings(UUID())
 
     /// Shared Twitch service from the app delegate.
     private var appDelegate: AppDelegate? {
@@ -152,7 +155,7 @@ struct SettingsView: View {
             .onChange(of: selectedSection) { _, newSection in
                 // Cancel in-progress Twitch OAuth if user navigates away
                 if newSection != .twitchIntegration, twitchViewModel.authState.isInProgress {
-                    Task { @MainActor in await twitchViewModel.cancelOAuth() }
+                    twitchViewModel.requestOAuthCancellation(ifOwnedBy: twitchOAuthOwner)
                 }
             }
             .padding(.top, DSSpace.s2)
@@ -198,6 +201,9 @@ struct SettingsView: View {
             // Initialize the view model's connection state from the service so the UI
             // reflects whether we are already joined (prevents missed callbacks).
             twitchViewModel.channelConnected = appDelegate?.twitchService?.currentlyConnected ?? false
+        }
+        .onDisappear {
+            twitchViewModel.requestOAuthCancellation(ifOwnedBy: twitchOAuthOwner)
         }
         // `SettingsWindowConfigurator` hides the window title and makes the title
         // bar transparent for the clean full-height-sidebar look. The automatic
@@ -357,7 +363,10 @@ struct SettingsView: View {
     /// Twitch detail pane: auth settings plus the bot commands card.
     private func twitchIntegrationView() -> some View {
         VStack(alignment: .leading, spacing: AppConstants.SettingsUI.sectionSpacing) {
-            TwitchSettingsView(viewModel: twitchViewModel)
+            TwitchSettingsView(
+                viewModel: twitchViewModel,
+                oauthOwner: twitchOAuthOwner
+            )
 
             Divider()
                 .padding(.vertical, DSSpace.s1)

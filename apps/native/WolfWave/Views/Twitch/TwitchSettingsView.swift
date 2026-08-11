@@ -17,10 +17,14 @@ import SwiftUI
 struct TwitchSettingsView: View {
     /// The shared Twitch state manager driving this view.
     @Bindable var viewModel: TwitchViewModel
+    /// Stable owner supplied by the containing Settings presentation.
+    let oauthOwner: TwitchViewModel.OAuthPresentationOwner
     /// Tracks whether the user has copied/opened the device code at least once.
     @State private var hasStartedActivation = false
     /// Whether the one-time keychain + service wiring has run for this view model instance.
     @State private var didLoadCredentials = false
+    /// Owns re-authentication teardown so closing Settings cannot start OAuth later.
+    @State private var reauthTask: Task<Void, Never>?
     /// Global "commands only while live" switch. Applies to every chat command.
     @AppStorage(AppConstants.UserDefaults.commandsLiveOnly)
     private var commandsLiveOnly = false
@@ -79,6 +83,11 @@ struct TwitchSettingsView: View {
                     viewModel.leaveChannel()
                 }
             }
+        }
+        .onDisappear {
+            reauthTask?.cancel()
+            reauthTask = nil
+            viewModel.requestOAuthCancellation(ifOwnedBy: oauthOwner)
         }
     }
 
@@ -198,7 +207,7 @@ struct TwitchSettingsView: View {
         VStack(spacing: DSSpace.s4) {
             Button(action: {
                 hasStartedActivation = false
-                viewModel.startOAuth()
+                viewModel.startOAuth(owner: oauthOwner)
             }) {
                 HStack(spacing: DSSpace.s2) {
                     Image("TwitchLogo")
@@ -260,7 +269,7 @@ struct TwitchSettingsView: View {
                 Spacer()
 
                 Button("Cancel") {
-                    Task { @MainActor in await viewModel.cancelOAuth() }
+                    viewModel.requestOAuthCancellation(ifOwnedBy: oauthOwner)
                 }
                 .buttonStyle(.bordered)
                 .tint(.red)
@@ -285,10 +294,11 @@ struct TwitchSettingsView: View {
             isAccountTeardownInProgress: viewModel.isAccountTeardownInProgress,
             channelValidationState: viewModel.channelValidationState,
             onReauth: {
-                Task { @MainActor in
-                    if await viewModel.clearAuthOnly() {
-                        viewModel.startOAuth()
-                    }
+                reauthTask?.cancel()
+                reauthTask = Task { @MainActor in
+                    defer { reauthTask = nil }
+                    guard await viewModel.clearAuthOnly(), !Task.isCancelled else { return }
+                    viewModel.startOAuth(owner: oauthOwner)
                 }
             },
             onClearCredentials: {
@@ -308,7 +318,7 @@ struct TwitchSettingsView: View {
                 .font(.system(size: DSFont.Size.base))
                 .foregroundStyle(.red)
             HStack {
-                Button("Retry") { viewModel.startOAuth() }
+                Button("Retry") { viewModel.startOAuth(owner: oauthOwner) }
                     .buttonStyle(.bordered)
                     .pointerCursor()
                     .accessibilityLabel("Retry Twitch authorization")
@@ -707,7 +717,7 @@ private struct SignedInView: View {
         vm.channelConnected = false
         return vm
     }()
-    TwitchSettingsView(viewModel: mockViewModel)
+    TwitchSettingsView(viewModel: mockViewModel, oauthOwner: .settings(UUID()))
         .padding()
         .frame(width: 700)
 }
@@ -722,7 +732,7 @@ private struct SignedInView: View {
         vm.statusMessage = "Connected to mrdemonwolf"
         return vm
     }()
-    TwitchSettingsView(viewModel: mockViewModel)
+    TwitchSettingsView(viewModel: mockViewModel, oauthOwner: .settings(UUID()))
         .padding()
         .frame(width: 700)
 }
@@ -736,7 +746,7 @@ private struct SignedInView: View {
         )
         return vm
     }()
-    TwitchSettingsView(viewModel: mockViewModel)
+    TwitchSettingsView(viewModel: mockViewModel, oauthOwner: .settings(UUID()))
         .padding()
         .frame(width: 700)
 }
@@ -750,7 +760,7 @@ private struct SignedInView: View {
         vm.channelConnected = false
         return vm
     }()
-    TwitchSettingsView(viewModel: mockViewModel)
+    TwitchSettingsView(viewModel: mockViewModel, oauthOwner: .settings(UUID()))
         .padding()
         .frame(width: 700)
 }
@@ -765,7 +775,7 @@ private struct SignedInView: View {
         vm.reauthNeeded = true
         return vm
     }()
-    TwitchSettingsView(viewModel: mockViewModel)
+    TwitchSettingsView(viewModel: mockViewModel, oauthOwner: .settings(UUID()))
         .padding()
         .frame(width: 700)
 }
@@ -776,7 +786,7 @@ private struct SignedInView: View {
         vm.authState = .error("Failed to authenticate. Please try again.")
         return vm
     }()
-    TwitchSettingsView(viewModel: mockViewModel)
+    TwitchSettingsView(viewModel: mockViewModel, oauthOwner: .settings(UUID()))
         .padding()
         .frame(width: 700)
 }
@@ -791,7 +801,7 @@ private struct SignedInView: View {
         vm.channelValidationState = .validating
         return vm
     }()
-    TwitchSettingsView(viewModel: mockViewModel)
+    TwitchSettingsView(viewModel: mockViewModel, oauthOwner: .settings(UUID()))
         .padding()
         .frame(width: 700)
 }
@@ -806,7 +816,7 @@ private struct SignedInView: View {
         vm.channelValidationState = .valid
         return vm
     }()
-    TwitchSettingsView(viewModel: mockViewModel)
+    TwitchSettingsView(viewModel: mockViewModel, oauthOwner: .settings(UUID()))
         .padding()
         .frame(width: 700)
 }
@@ -821,7 +831,7 @@ private struct SignedInView: View {
         vm.channelValidationState = .invalid
         return vm
     }()
-    TwitchSettingsView(viewModel: mockViewModel)
+    TwitchSettingsView(viewModel: mockViewModel, oauthOwner: .settings(UUID()))
         .padding()
         .frame(width: 700)
 }
