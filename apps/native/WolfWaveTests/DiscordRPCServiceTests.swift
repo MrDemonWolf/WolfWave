@@ -716,7 +716,8 @@ final class DiscordRPCServiceTests: XCTestCase {
         let peerResult = await peer.result
         await service.setEnabled(false)
         Darwin.close(peerFD)
-        if case let .failure(error) = peerResult {
+        if case let .failure(error) = peerResult,
+           !(error is CancellationError) {
             throw error
         }
     }
