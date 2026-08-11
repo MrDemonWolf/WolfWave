@@ -285,15 +285,19 @@ Unit tests live in `apps/native/WolfWaveTests/` and use XCTest + Swift Testing w
 
 > Auto-discovery: `apps/native/WolfWaveTests/` is a `PBXFileSystemSynchronizedRootGroup`; dropping a new `*.swift` file in is enough, no Xcode project edit required.
 
+Test taxonomy is boundary-based:
+
+- **Unit/service tests** exercise in-process logic, models, view models, and injected collaborators.
+- **Integration tests** cross a real subsystem or transport boundary and assert an observable result. Loopback HTTP/WebSocket tests belong here.
+- **End-to-end/UI tests** launch and drive the app as a user would. WolfWave currently has no automated XCUITest target, so do not label hosted unit-bundle tests as E2E. Hardware-, account-, and live-service journeys remain explicit manual release checks.
+
 ### Test files
 
-- `SparkleUpdaterServiceTests.swift` - Sparkle wrapper init, manual check gating, Homebrew detection
+- `SparkleUpdaterServiceTests.swift` - Sparkle feed resolution, manual-check availability, and Homebrew gating
 - `TrackInfoCommandTests.swift` - `TrackInfoCommand` covering both `!song`/`!currentsong`/`!nowplaying` and `!last`/`!lastsong`/`!prevsong` trigger sets via shared fixtures (trigger matching, case insensitivity, enable/disable, callback, default message, 500-char truncation)
 - `BotCommandDispatcherTests.swift` - Message routing, callback wiring, length guards, whitespace handling
-- `CommandIntegrationTests.swift` - End-to-end dispatcher flow per command
 - `CooldownManagerTests.swift` - Global + per-user cooldown enforcement
 - `SongRequestServiceTests.swift`, `SongRequestQueueTests.swift`, `SongRequestCommandTests.swift`, `HoldCommandTests.swift`, `SongBlocklistTests.swift` - Song Request system (queue, hold mode, request command parse, blocklist)
-- `LaunchAtLoginServiceTests.swift` - SMAppService registration/unregister state
 - `SkipVoteManagerTests.swift`, `VoteSkipCommandTests.swift` - Chat vote-to-skip (threshold, dedup, window expiry, cooldown, subscriber gate, Polls mode, reply formatting)
 - `SongRequestAccessTests.swift` - `RequestAudience` permission rules, `SongRequestPreset` apply/detect, `RedemptionStatus` banner messages
 - `SongRequestQueueBoostTests.swift` - bit-cheer boost: moves a user's most-recent queued item to the front
@@ -310,14 +314,14 @@ Unit tests live in `apps/native/WolfWaveTests/` and use XCTest + Swift Testing w
 - `PreferencesResolvedPortTests.swift` - clamped widget/WebSocket port resolution (0 falls back to default, out-of-range clamps instead of trapping)
 - `AppleMusicControllerTests.swift` - PID-targeted AppleScript dispatch, structured errors, sanitization, timeout budgets, and guarded focus preservation
 - `LinkResolverServiceTests.swift`, `SongSearchResolverTests.swift` - MusicKit search + Apple Music link resolve
-- `MusicPermissionBannerTests.swift`, `MenuStatusFormatterTests.swift`, `OnboardingCompletionViewTests.swift`, `ActionGridTests.swift`, `LoadingRowTests.swift`, `CalloutBannerTests.swift` - Shared view + onboarding state coverage
-- `HTTPClientTests.swift`, `ArtworkServiceNetworkTests.swift`, `TwitchDeviceAuthNetworkTests.swift`, `AppConstantsConfigOverrideTests.swift` - Foundation utilities + config plumbing
+- `MenuStatusFormatterTests.swift`, `OnboardingCompletionViewTests.swift`, `ActionGridTests.swift`, `LoadingRowTests.swift`, `CalloutBannerTests.swift` - Shared view + onboarding state coverage
+- `HTTPClientTests.swift`, `TwitchDeviceAuthNetworkTests.swift`, `AppConstantsConfigOverrideTests.swift` - Foundation utilities + config plumbing
+- `ArtworkServiceNetworkTests.swift` - Stubbed iTunes request parsing, retry policy, cache keys, persistence, and eviction
 - `AppleMusicSourceTests.swift` - Playback source lifecycle, ScriptingBridge error delegate/status mapping, monotonic timing, and player-state parsing
 - `OnboardingViewModelTests.swift` + `OnboardingViewModelEdgeCaseTests.swift` - Step navigation, boundary conditions, UserDefaults persistence
 - `TwitchViewModelTests.swift`, `TwitchChatServiceTests.swift`, `TwitchDeviceAuthTests.swift`, `TwitchDeviceAuthErrorTests.swift` - Twitch auth + EventSub + view model state
 - `DiscordRPCServiceTests.swift` - IPC framing, reconnect backoff
 - `DiscordPresenceBuilderTests.swift` - Rich Presence payload construction (state/details, buttons, timestamps)
-- `ArtworkServiceTests.swift`, `ArtworkServiceCacheTests.swift` - iTunes Search artwork fetch + cache eviction
 - `WebSocketServerServiceTests.swift`, `WebSocketServerIntegrationTests.swift`, `WidgetHTTPServiceTests.swift` - Overlay broadcast + widget HTTP
 - `StreamDeckCommandTests.swift` - Stream Deck control-command envelope parse (type/protocol/action gating, args, ack JSON shape)
 - `KeychainServiceTests.swift` - Atomic Twitch grant migration and failure prefixes, save/load/delete, Unicode, and concurrent access
@@ -338,7 +342,6 @@ Unit tests live in `apps/native/WolfWaveTests/` and use XCTest + Swift Testing w
 - `UpdateChannelTests.swift` - Stable / Nightly channel resolution for the Sparkle dual feed
 - `DiscordIdlePresenceTests.swift` - Idle Rich Presence payload
 - `MonthlyWrapExportTests.swift`, `ArtworkTintTests.swift` - Monthly Wrap share-card export and album-art tint sampling
-- `OnboardingFlowIntegrationTests.swift` - End-to-end onboarding step traversal
 - `StreamerModeMaskingSweepTests.swift` - Sweeps every sensitive field for Streamer Mode masking
 - `AtomicTests.swift`, `ByteFormattingTests.swift`, `InlineMarkdownTests.swift`, `FeatureFlagsDefaultsTests.swift`, `JSONSerializationGuardTests.swift` - Core utility coverage
 - `HintRowTests.swift`, `LabeledSliderTests.swift`, `StatTileTests.swift`, `DestructiveButtonTests.swift`, `SectionEyebrowTests.swift`, `NowPlayingHeroCardTests.swift`, `TwitchConnectionNoticeTests.swift`, `WidgetAppearancePreviewTests.swift` - Shared view components
@@ -349,7 +352,7 @@ Unit tests live in `apps/native/WolfWaveTests/` and use XCTest + Swift Testing w
 - Test hosts default to `InMemoryKeychainBackend`; never replace it with `SystemKeychainBackend` or access the user's real Keychain
 - `SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor` applies to test classes too; XCTest runs on main thread
 - Test files are auto-discovered via `PBXFileSystemSynchronizedRootGroup`; just add `.swift` files to `apps/native/WolfWaveTests/`
-- Focus on pure logic (version comparison, command matching, state machines); avoid tests that need AppDelegate, Keychain, or network
+- Prefer pure logic (version comparison, command matching, state machines). Network integration tests must own a loopback endpoint, await observable readiness, and use bounded timeouts; never depend on a public service.
 
 ## CI/CD
 
