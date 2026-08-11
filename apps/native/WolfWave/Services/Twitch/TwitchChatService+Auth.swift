@@ -90,7 +90,7 @@ extension TwitchChatService {
 
         let response: HelixUsersResponse
         do {
-            response = try await HTTPClient.shared.get(
+            response = try await helixHTTPClient.get(
                 url: url,
                 headers: HelixClient.headers(for: .init(token: token, clientID: clientID)))
         } catch {
@@ -155,7 +155,10 @@ extension TwitchChatService {
                 }
             }
 
-            guard let parsed = try? JSONCoders.snakeCase.decode(TwitchValidateResponse.self, from: data) else {
+            guard let parsed = try? JSONCoders.default.decode(
+                TwitchValidateResponse.self,
+                from: data
+            ) else {
                 Log.warn("TwitchChatService: Could not parse token validate response", category: "Twitch")
                 return .temporarilyUnavailable
             }
@@ -254,7 +257,7 @@ extension TwitchChatService {
         if statusCode == 401 { return .missing }
         guard (200..<300).contains(statusCode),
               let responseData,
-              let parsed = try? JSONCoders.snakeCase.decode(
+              let parsed = try? JSONCoders.default.decode(
                   TwitchValidateResponse.self,
                   from: responseData),
               let scopes = parsed.scopes else {
