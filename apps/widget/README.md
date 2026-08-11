@@ -59,9 +59,28 @@ bundle, then `bun run --filter widget build` to roll a new widget.html.
 
 Runtime switching: themes are NOT compiled into utility variants; the theme
 and layout arrive at runtime via `widget_config` WebSocket messages, driven by
-the app's Stream Widgets settings. There is no URL param for them. The only
-URL params the widget reads are `port`/`wsPort`, `duration` (autohide
-seconds), `hideAlbumArt`, `token` (file:// fallback), and `preview`.
+the app's Stream Widgets settings. There is no URL param for them.
+
+`tokens.json` currently defines six themes (`Default`, `Dark`, `Light`, `Glass`,
+`Neon`, plus the hidden internal `WolfWave`) and five layouts (`Horizontal`,
+`Vertical`, `Compact`, `Vinyl`, `Classic`). Only the first five themes are
+user-selectable in the app.
+
+These are the only URL params the widget reads:
+
+| Param | Read as | Effect |
+|---|---|---|
+| `port` / `wsPort` | string, defaults `8765` | WebSocket port. `port` wins if both are set. |
+| `duration` | number, defaults `0` | Autohide seconds. `0` disables autohide. |
+| `hideAlbumArt` | presence | Drops the album art from every layout. Bare `?hideAlbumArt` is enough. |
+| `queueTicker` | exact `1` | Opt-in queue ticker panel. See below. |
+| `token` | string | Auth token, `file://` fallback only. Over loopback the app substitutes the live token server-side. |
+| `preview` | presence | Renders sample data without a live connection. |
+
+`queueTicker` is the one param that requires a literal `1`. That is deliberate:
+`?queueTicker=0`, `?queueTicker=false`, and a bare `?queueTicker` all stay off, so
+no existing OBS scene changes behavior on upgrade. The ticker ships as an
+independent fixed-position panel and is not part of any layout.
 
 > **Glass theme + OBS:** `backdrop-filter` cannot sample the video behind an
 > OBS Browser Source (the page backdrop is just transparent alpha), so Glass

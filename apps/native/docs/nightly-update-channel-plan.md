@@ -1,4 +1,11 @@
-# Nightly update channel — implementation plan
+# Nightly update channel: implementation plan
+
+> **Historical: shipped 2026-08, in 2.1.0.** Everything below is written in the
+> pre-implementation future tense and is kept for the dual-feed rationale and the
+> retired-timestamp-build-number postmortem (which `docs/build-versioning-standard.md`
+> cites). It is not a to-do list. For what actually shipped, see
+> `Services/UpdateChecker/UpdateChannel.swift`, `.github/workflows/nightly.yml`, and the
+> user docs at `apps/docs/content/docs/nightly.mdx`.
 
 Add an opt-in **Nightly** update channel to WolfWave's Sparkle auto-updater. Users
 pick a channel in Software Update settings; choosing Nightly shows a warning and,
@@ -112,7 +119,9 @@ work needed.
   user preference, alongside `updateCheckEnabled`). `SettingsBackupKeyCoverageTests` will
   fail until it is placed — add it there and add the matching assertion.
 
-### 2. New `Core/UpdateChannel.swift`
+### 2. New `UpdateChannel.swift`
+
+> Shipped at `Services/UpdateChecker/UpdateChannel.swift`, not in `Core/` as planned here.
 
 ```swift
 enum UpdateChannel: String, CaseIterable, Identifiable {
