@@ -28,7 +28,6 @@ import {
 } from "./state.js";
 
 export interface ClientSettings {
-  host: string;
   port: number;
   token: string;
 }
@@ -110,7 +109,6 @@ export class WolfWaveClient {
     if (
       !this.stopped &&
       this.settings &&
-      this.settings.host === settings.host &&
       this.settings.port === settings.port &&
       this.settings.token === settings.token
     ) {
@@ -185,7 +183,7 @@ export class WolfWaveClient {
 
     this.closeSocket();
 
-    const socket = new WebSocket(socketURL(settings.host, settings.port), [
+    const socket = new WebSocket(socketURL(settings.port), [
       subprotocol,
     ]);
     this.socket = socket;

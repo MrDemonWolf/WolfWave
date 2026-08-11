@@ -16,10 +16,10 @@
  * the app. On a mismatch WolfWave replies with `error: "protocol"` rather than
  * running the command, which is what drives the plugin's "update" key state.
  */
-export const PROTOCOL_VERSION = 1;
+export const PROTOCOL_VERSION = 2;
 
 /** Subprotocol prefix the app's handshake checks (`WebSocketAuthToken`). */
-export const TOKEN_SUBPROTOCOL_PREFIX = "wolfwave.token.";
+export const TOKEN_SUBPROTOCOL_PREFIX = "wolfwave.control.";
 
 /** Default WebSocket port (`AppConstants.WebSocketServer.defaultPort`). */
 export const DEFAULT_PORT = 8765;
@@ -27,7 +27,7 @@ export const DEFAULT_PORT = 8765;
 // MARK: - Actions
 
 /**
- * The v1 action set. Tokens match `StreamDeckAction`'s raw values exactly.
+ * The v2 action set. Tokens match `StreamDeckAction`'s raw values exactly.
  */
 export const ACTIONS = [
   "play_pause",
@@ -97,14 +97,14 @@ export function encodeCommand(
  * handshake rejection that looks identical to "WolfWave isn't running".
  */
 export function tokenSubprotocol(token: string): string | null {
-  const trimmed = token.trim().toLowerCase();
-  if (!/^[0-9a-f]{64}$/.test(trimmed)) return null;
+  const trimmed = token.trim();
+  if (!/^[0-9a-f]{64}$/i.test(trimmed)) return null;
   return TOKEN_SUBPROTOCOL_PREFIX + trimmed;
 }
 
-/** Builds the overlay WebSocket URL for a host/port pair. */
-export function socketURL(host: string, port: number): string {
-  return `ws://${host}:${port}`;
+/** Builds the loopback-only control WebSocket URL. */
+export function socketURL(port: number): string {
+  return `ws://127.0.0.1:${port}`;
 }
 
 // MARK: - Inbound frames

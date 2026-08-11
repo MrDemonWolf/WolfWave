@@ -11,7 +11,6 @@
  * so asking for the token once per key would be busywork.
  */
 
-const DEFAULT_HOST = "127.0.0.1";
 const DEFAULT_PORT = 8765;
 /** Matches the app's 64-hex token (`WebSocketAuthToken.generate`). */
 const TOKEN_PATTERN = /^[0-9a-fA-F]{64}$/;
@@ -22,7 +21,6 @@ let settings = {};
 
 const fields = {
   token: document.getElementById("token"),
-  host: document.getElementById("host"),
   port: document.getElementById("port"),
 };
 const status = document.getElementById("status");
@@ -67,7 +65,6 @@ function send(message) {
 
 function hydrate() {
   fields.token.value = settings.token ?? "";
-  fields.host.value = settings.host ?? "";
   fields.port.value = settings.port ?? "";
   refreshStatus();
 }
@@ -91,7 +88,7 @@ function parsePort(raw) {
 }
 
 /**
- * Validates both fields and paints the single status line.
+ * Validates the token and port and paints the single status line.
  *
  * Deliberately one function rather than one per field: there is only one status
  * element, so independent validators would overwrite each other's message and
@@ -118,9 +115,9 @@ function refreshStatus() {
   } else if (!portValid) {
     setStatus("Port must be a whole number between 1 and 65535.", false);
   } else if (!token) {
-    setStatus("Paste your access token to connect.", null);
+    setStatus("Paste your control token to connect.", null);
   } else {
-    setStatus("Token looks right.", true);
+    setStatus("Control token looks right.", true);
   }
 
   return { tokenValid, port };
@@ -145,7 +142,6 @@ function save() {
   const { port } = refreshStatus();
   settings = {
     token: fields.token.value.trim(),
-    host: fields.host.value.trim() || DEFAULT_HOST,
     // null (blank) and undefined (invalid) both fall back to the default, which
     // is what plugin.ts's readPort does with the same values.
     port: port ?? DEFAULT_PORT,

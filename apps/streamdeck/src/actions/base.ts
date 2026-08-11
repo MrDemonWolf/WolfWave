@@ -2,7 +2,7 @@
  * Shared behaviour for every WolfWave key.
  *
  * A key does two things: send a command on press and reflect live state. Both
- * are the same for all eleven v1 actions apart from which token they send and
+ * are the same for all eleven v2 actions apart from which token they send and
  * what they render, so subclasses override only that.
  */
 

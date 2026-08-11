@@ -140,10 +140,10 @@ Local WebSocket server for OBS stream overlays using:
 
 - **Network.framework `NWListener`**: Native WebSocket server with auto-ping and multi-client support.
 - **JSON Broadcasting**: Sends `welcome`, `now_playing`, `progress`, `playback_state`, `overlay_visibility`, `widget_config`, and (for the Stream Deck plugin) `queue_state` / `health` messages.
-- **Bidirectional control channel**: Parses inbound `command` frames from an authenticated client (the Stream Deck plugin) via an injected `onCommand` handler and replies with an `ack`. Envelope decode is pure (`StreamDeckControl.parse` in `Services/WebSocket/StreamDeckCommand.swift`); the command router lives in `AppDelegate+StreamDeck`. Full protocol on the [Stream Deck](/docs/stream-deck) page.
+- **Loopback-only control channel**: Parses inbound `command` frames only from a `wolfwave.control.<hex>` client on a literal loopback IP, via an injected `onCommand` handler, and replies with an `ack`. Envelope decode is pure (`StreamDeckControl.parse` in `Services/WebSocket/StreamDeckCommand.swift`); the command router lives in `AppDelegate+StreamDeck`. Full protocol on the [Stream Deck](/docs/stream-deck) page.
 - **Progress Timer**: 1-second interval broadcasts elapsed-time estimation to avoid polling ScriptingBridge.
 - **Auto-retry**: Reconnects the listener after failures with configurable delay.
-- **LAN-reachable, token-gated**: Binds to all interfaces on `:8765` so a second-PC OBS or phone on the same network can connect; every connection must present the per-install auth token — see [Security](/docs/security#websocket-server-security).
+- **Role-authenticated**: Binds to all interfaces on `:8765`; `wolfwave.overlay.<hex>` clients may receive state from LAN or loopback, while the separate `wolfwave.control.<hex>` role is accepted only from loopback and alone authorizes commands — see [Security](/docs/security#websocket-server-security).
 
 Owns a `WidgetHTTPService` instance that starts and stops alongside it.
 
@@ -151,7 +151,7 @@ Owns a `WidgetHTTPService` instance that starts and stops alongside it.
 
 Tiny companion HTTP server that serves the bundled `widget.html` to OBS:
 
-- **LAN-reachable**: Binds to all interfaces on `:8766` so remote browsers can pull the widget HTML. The static HTTP shell is not authenticated; the token bootstrap rules are covered in [Security](/docs/security#websocket-server-security).
+- **LAN-reachable**: Binds to all interfaces on `:8766` so remote browsers can pull the widget HTML. The static HTTP shell is not authenticated and injects only the read-only overlay token for loopback peers; bootstrap rules are covered in [Security](/docs/security#websocket-server-security).
 - **`GET /`** → `200 OK` with `widget.html` bytes from the app bundle.
 - **Generated assets**: `/widget-tokens.generated.js`, `/favicon.ico`, and `/favicon.png` are also served.
 - **All other paths** → `404 Not Found`.
@@ -173,11 +173,13 @@ workspace, bundled for Node (Stream Deck runs `CodePath` under its own bundled
 Node, not Bun) into `com.mrdemonwolf.wolfwave.sdPlugin/bin/plugin.js`. Unlike
 `widget.html`, this output is **not** committed and is not shipped inside the
 app — the plugin is distributed through Elgato, not through WolfWave.
+The client URL is fixed to `127.0.0.1`; remote command hosts are intentionally
+unsupported.
 
 - **`src/wolfwave/protocol.ts`** — pure wire layer and the TypeScript mirror of
   `StreamDeckCommand.swift`. Its `ACTIONS` list is the Swift enum's raw values
   and `PROTOCOL_VERSION` must equal `StreamDeckControl.protocolVersion`; a test
-  pins the full v1 set so the two can't drift silently.
+  pins the full v2 set so the two can't drift silently.
 - **`src/wolfwave/state.ts`** — pure reducer folding inbound frames into the
   state keys render from. Returns the same object reference when nothing
   changed, so per-second `progress` frames don't repaint every key.

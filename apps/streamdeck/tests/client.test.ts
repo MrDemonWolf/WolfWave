@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test";
 import { WolfWaveClient } from "../src/wolfwave/client.js";
 
 const HEX64 = "a".repeat(64);
-const settings = { host: "127.0.0.1", port: 8765, token: HEX64 };
+const settings = { port: 8765, token: HEX64 };
 
 /** Reaches the private fields the reconnect guard turns on. */
 function internals(client: WolfWaveClient): {

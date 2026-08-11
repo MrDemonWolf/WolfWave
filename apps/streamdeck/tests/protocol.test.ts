@@ -15,7 +15,7 @@ import {
 const HEX64 = "a".repeat(64);
 
 describe("action tokens", () => {
-  test("cover exactly the app's v1 action set", () => {
+  test("cover exactly the app's v2 action set", () => {
     // Mirrors StreamDeckAction's raw values. If the app adds a case, this fails
     // until the plugin is taught about it, which is the point.
     expect([...ACTIONS]).toEqual([
@@ -61,18 +61,18 @@ describe("buildCommand", () => {
     const decoded = JSON.parse(encodeCommand("play_pause"));
     expect(decoded.type).toBe("command");
     expect(decoded.action).toBe("play_pause");
-    expect(decoded.protocol).toBe(1);
+    expect(decoded.protocol).toBe(2);
   });
 });
 
 describe("tokenSubprotocol", () => {
   test("builds the prefixed subprotocol for a 64-hex token", () => {
-    expect(tokenSubprotocol(HEX64)).toBe(`wolfwave.token.${HEX64}`);
+    expect(tokenSubprotocol(HEX64)).toBe(`wolfwave.control.${HEX64}`);
   });
 
-  test("trims and lowercases", () => {
+  test("trims without changing credential case", () => {
     expect(tokenSubprotocol(`  ${"AB".repeat(32)}  `)).toBe(
-      `wolfwave.token.${"ab".repeat(32)}`,
+      `wolfwave.control.${"AB".repeat(32)}`,
     );
   });
 
@@ -86,7 +86,7 @@ describe("tokenSubprotocol", () => {
 
 describe("socketURL", () => {
   test("builds a ws:// URL", () => {
-    expect(socketURL("127.0.0.1", 8765)).toBe("ws://127.0.0.1:8765");
+    expect(socketURL(8765)).toBe("ws://127.0.0.1:8765");
   });
 });
 

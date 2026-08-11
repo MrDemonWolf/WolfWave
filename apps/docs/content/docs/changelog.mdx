@@ -42,6 +42,7 @@ The next release. These ship on the [Nightly channel](/docs/nightly) off `main` 
 
 ### Fixed
 
+- **Stream Deck control is local-only and no longer shares your overlay secret.** WolfWave now keeps separate read-only overlay and control tokens. Stream Deck protocol v2 always connects to this Mac, so LAN widgets can still receive track data but can never run playback or queue commands. After updating, copy the new **Stream Deck Control Token** into the plugin once.
 - **Twitch custom commands stay locked while disconnected.** The settings card now explains that Twitch must be connected and closes an open editor if the connection becomes unavailable.
 - **Twitch stays connected when its server moves you.** Twitch periodically hands your connection to a different server. WolfWave could flash "disconnected" and tear down the new, healthy connection while doing that. It rides through cleanly now.
 - **Low Power Mode no longer stalls launch.** Startup reads the posted power-state snapshot without recursively initializing the monitor.
