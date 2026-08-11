@@ -259,22 +259,6 @@ nonisolated final class TwitchCredentialStore: @unchecked Sendable {
         }
     }
 
-    /// Replaces a manually entered access token and configured channel in one
-    /// canonical Keychain write. The revision advances only after both values
-    /// are durable, so every process-exit prefix sees either the old pair or the
-    /// complete replacement pair.
-    func replaceWithManualCredentials(
-        accessToken: String,
-        channelID: String
-    ) throws {
-        try lock.withLock {
-            try KeychainService.saveTwitchCredentialGrant(
-                .init(accessToken: accessToken, channelID: channelID)
-            )
-            revision &+= 1
-        }
-    }
-
     /// Changes only the configured channel and advances the account revision
     /// after the canonical write commits. In-flight connect/reconnect work tied
     /// to the old channel therefore fails its existing revision checks.
@@ -1405,14 +1389,14 @@ actor TwitchTokenRefresher {
             } catch TwitchDeviceAuthError.invalidClient {
                 return .invalid
             } catch TwitchDeviceAuthError.invalidResponse {
-                return .invalid
+                retryDelay = nil
             } catch TwitchDeviceAuthError.http(let status, let retryAfter) {
                 guard Self.isRetryableRefreshStatus(status) else { return .invalid }
                 retryDelay = retryAfter
             } catch TwitchDeviceAuthError.transport(_) {
                 retryDelay = nil
             } catch {
-                return .invalid
+                retryDelay = nil
             }
 
             guard TwitchCredentialStore.shared.matches(expected) else {

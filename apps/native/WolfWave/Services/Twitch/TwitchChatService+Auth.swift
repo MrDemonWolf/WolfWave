@@ -267,6 +267,25 @@ extension TwitchChatService {
 
     // MARK: - Username Resolution
 
+    /// Normalizes a Twitch login and rejects characters that could change
+    /// Helix query structure. Twitch logins are lowercase ASCII letters,
+    /// digits, or underscores and are at most 25 characters.
+    nonisolated static func normalizedChannelName(_ raw: String) -> String? {
+        let normalized = raw
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .lowercased()
+        guard !normalized.isEmpty,
+              normalized.count <= 25,
+              normalized.utf8.allSatisfy({ byte in
+                  (97...122).contains(byte)
+                      || (48...57).contains(byte)
+                      || byte == 95
+              }) else {
+            return nil
+        }
+        return normalized
+    }
+
     /// Validates whether a Twitch channel name exists by resolving it to a user ID.
     func validateChannelExists(_ channelName: String, token: String, clientID: String) async -> ChannelValidationResult {
         do {
@@ -288,17 +307,16 @@ extension TwitchChatService {
 
     /// Resolves a Twitch username to a user ID.
     func resolveUsername(_ username: String, token: String, clientID: String) async throws -> String {
-        let sanitizedUsername = username
-            .trimmingCharacters(in: .whitespacesAndNewlines)
-            .lowercased()
-        guard !sanitizedUsername.isEmpty else {
-            throw ConnectionError.networkError("Username cannot be empty")
-        }
-        guard let encodedUsername = sanitizedUsername.addingPercentEncoding(
-            withAllowedCharacters: .urlQueryAllowed) else {
+        guard let sanitizedUsername = Self.normalizedChannelName(username) else {
             throw ConnectionError.networkError("Invalid username format")
         }
-        guard let url = URL(string: apiBaseURL + "/users?login=\(encodedUsername)") else {
+        guard var components = URLComponents(string: apiBaseURL + "/users") else {
+            throw ConnectionError.networkError("Invalid users endpoint")
+        }
+        components.queryItems = [
+            URLQueryItem(name: "login", value: sanitizedUsername)
+        ]
+        guard let url = components.url else {
             throw ConnectionError.networkError("Invalid users endpoint")
         }
 
