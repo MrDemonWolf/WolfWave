@@ -229,6 +229,8 @@ jobs:
             streamdeck:
               - 'apps/streamdeck/**'
               - 'apps/native/WolfWave/Services/WebSocket/StreamDeckCommand.swift'
+              - 'apps/native/WolfWave/Core/AppConstants.swift'
+              - 'apps/native/WolfWave/Services/WebSocket/WebSocketAuthToken.swift'
               - 'bun.lock'
 
       - name: Skip notice (no Stream Deck changes)

@@ -20,6 +20,13 @@ const SOURCE = readFileSync(
   ),
   "utf8",
 );
+const HTML = readFileSync(
+  new URL(
+    "../com.mrdemonwolf.wolfwave.sdPlugin/ui/connection.html",
+    import.meta.url,
+  ),
+  "utf8",
+);
 
 interface StubField {
   value: string;
@@ -124,6 +131,15 @@ function loadPanel(): Panel {
 }
 
 const HEX64 = "a".repeat(64);
+
+describe("property inspector document", () => {
+  test("provides the elements and script required by connection.js", () => {
+    expect(HTML).toContain(`id="token"`);
+    expect(HTML).toContain(`id="port"`);
+    expect(HTML).toContain(`id="status"`);
+    expect(HTML).toContain(`<script src="connection.js"></script>`);
+  });
+});
 
 describe("port parsing", () => {
   test("accepts a plain decimal port", () => {
