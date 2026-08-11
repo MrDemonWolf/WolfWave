@@ -1,4 +1,6 @@
 import { describe, expect, test } from "bun:test";
+import { existsSync } from "node:fs";
+import { join } from "node:path";
 import manifest from "../com.mrdemonwolf.wolfwave.sdPlugin/manifest.json";
 import { ACTION_CLASSES } from "../src/actions/index.js";
 import { WolfWaveClient } from "../src/wolfwave/client.js";
@@ -45,6 +47,33 @@ describe("manifest / action registration", () => {
 
   test("CodePath points at the built bundle", () => {
     expect(manifest.CodePath).toBe("bin/plugin.js");
+  });
+
+  test("every referenced image exists", () => {
+    // Image paths omit their extension, and a missing file is not an error to
+    // Stream Deck: it just draws a placeholder. Nothing else would catch it
+    // until the plugin is loaded on real hardware.
+    const bundle = join(import.meta.dir, "..", "com.mrdemonwolf.wolfwave.sdPlugin");
+    const stems = [
+      manifest.Icon,
+      manifest.CategoryIcon,
+      ...manifest.Actions.flatMap((entry) => [
+        entry.Icon,
+        ...entry.States.map((state) => state.Image),
+      ]),
+    ].filter((stem): stem is string => typeof stem === "string");
+
+    expect(stems.length).toBeGreaterThan(0);
+    for (const stem of stems) {
+      const found = [".svg", ".png", ".gif"].some((extension) =>
+        existsSync(join(bundle, `${stem}${extension}`)),
+      );
+      expect(found, `missing image for ${stem}`).toBe(true);
+    }
+  });
+
+  test("the plugin icon is a PNG, which is the only format Elgato accepts for it", () => {
+    expect(existsSync(join(import.meta.dir, "..", "com.mrdemonwolf.wolfwave.sdPlugin", `${manifest.Icon}.png`))).toBe(true);
   });
 
   test("multi-state actions declare exactly two states", () => {
