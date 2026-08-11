@@ -52,9 +52,10 @@ nonisolated enum DiscordPlaylistStyle: String, CaseIterable, Sendable {
 ///   actor `await`s the result without parking its executor. A stalled handshake
 ///   or slow peer can no longer delay `updatePresence` or any other
 ///   actor-isolated call. The serial queue keeps the connection lifecycle
-///   single-threaded (one connect / handshake / frame at a time), exactly as the
-///   actor-serialized version did. The blocking primitives are pure functions of
-///   an explicit `fd` parameter and never touch actor state.
+///   single-threaded. Each handshake or command write plus its matched reply is
+///   one queue block, so actor reentrancy cannot interleave transactions or leave
+///   replies unread. The blocking primitives are pure functions of an explicit
+///   `fd` parameter and never touch actor state.
 /// - State changes and resolved artwork URLs are published as `AsyncStream`s
 ///   on `stateChanges` and `artworkResolutions`. The streams are `nonisolated`
 ///   so consumers can iterate without an extra actor hop.
@@ -69,10 +70,63 @@ actor DiscordRPCService {
     /// IPC frame opcodes per Discord RPC spec.
     /// Widened from `private` to `internal` so the IPC extension
     /// (`DiscordRPCService+IPC.swift`) can reference it across files.
-    enum Opcode: UInt32 {
+    enum Opcode: UInt32, Sendable {
         case handshake = 0
         case frame     = 1
         case close     = 2
+        case ping      = 3
+        case pong      = 4
+    }
+
+    /// Partial frame bytes shared by idle reads and command transactions.
+    /// Access is confined to the serial IPC queue.
+    nonisolated final class IPCReadBuffer: @unchecked Sendable {
+        var data = Data()
+    }
+
+    /// One-shot completion shared by every waiter for a descriptor teardown.
+    ///
+    /// A dispatch-source cancellation handler is the only code allowed to close
+    /// a descriptor after the source is installed. Cancellation is asynchronous,
+    /// so actor calls that retire the same connection await this completion
+    /// instead of racing a second `close` against the source handler.
+    nonisolated final class IPCDescriptorClose: @unchecked Sendable {
+        private let lock = NSLock()
+        private var isComplete = false
+        private var waiters: [CheckedContinuation<Void, Never>] = []
+
+        func complete() {
+            lock.lock()
+            guard !isComplete else {
+                lock.unlock()
+                return
+            }
+            isComplete = true
+            let pending = waiters
+            waiters.removeAll(keepingCapacity: false)
+            lock.unlock()
+            pending.forEach { $0.resume() }
+        }
+
+        func wait() async {
+            await withCheckedContinuation { continuation in
+                lock.lock()
+                if isComplete {
+                    lock.unlock()
+                    continuation.resume()
+                } else {
+                    waiters.append(continuation)
+                    lock.unlock()
+                }
+            }
+        }
+
+        /// Test-only observation seam for deterministically proving that an
+        /// actor call is suspended on descriptor teardown before another
+        /// lifecycle intent interleaves.
+        var hasWaiters: Bool {
+            lock.withLock { !waiters.isEmpty }
+        }
     }
 
     /// Connection state.
@@ -154,6 +208,21 @@ actor DiscordRPCService {
     /// never concurrent access to `socketFD` from two IPC operations at once.
     /// Widened from `private` for `DiscordRPCService+IPC.swift`.
     nonisolated let ipcQueue = DispatchQueue(label: "com.mrdemonwolf.wolfwave.discord-ipc")
+    /// Socket opener injection used to reproduce connect/disable races without
+    /// touching a real Discord socket.
+    nonisolated let ipcSocketOpener: @Sendable (String, Int) -> Int32
+    /// Descriptor closer injection used to prove exactly-once teardown and fd
+    /// reuse safety without weakening production ownership rules.
+    nonisolated let ipcSocketCloser: @Sendable (Int32) -> Void
+
+    /// Whole-transaction timeout. One monotonic deadline derived from this value
+    /// covers the command write, every frame header/body read, PONG writes, and
+    /// the complete unmatched-frame drain.
+    nonisolated let ipcTransactionTimeoutNanoseconds: UInt64
+
+    /// Optional test observer called immediately after work is submitted to the
+    /// serial IPC queue. Nil in production.
+    var ipcWorkEnqueuedObserver: (@Sendable () -> Void)?
 
     /// Current reconnect delay (doubles on each failure, capped).
     /// Widened from `private` for `DiscordRPCService+IPC.swift`.
@@ -166,12 +235,22 @@ actor DiscordRPCService {
     /// Widened from `private` for `DiscordRPCService+IPC.swift`.
     var reconnectTask: Task<Void, Never>?
 
+    /// Event-driven queue-owned reader for unsolicited frames.
+    var ipcReadSource: DispatchSourceRead?
+    var ipcReadSourceClose: IPCDescriptorClose?
+    /// Close currently executing on ``ipcQueue``. Retained after actor ownership
+    /// is synchronously cleared so concurrent disconnects await the same close.
+    var ipcCloseInProgress: IPCDescriptorClose?
+    var ipcReadBuffer = IPCReadBuffer()
+
     /// Current availability poll interval (may be widened in reduced-power mode).
     private var currentPollInterval: TimeInterval = AppConstants.Discord.availabilityPollInterval
 
     /// Whether the service is enabled by the user.
     /// Widened from `private` for `DiscordRPCService+IPC.swift`.
     var isEnabled = false
+    /// Supersedes an older enable/disable continuation after any await.
+    private var enableIntentGeneration: UInt64 = 0
 
     /// Process ID sent with SET_ACTIVITY (Discord requires it).
     private let pid = ProcessInfo.processInfo.processIdentifier
@@ -208,8 +287,23 @@ actor DiscordRPCService {
     ///
     /// - Parameter clientID: Discord Application ID. If nil, attempts to resolve
     ///   from Info.plist (`DISCORD_CLIENT_ID`) or environment.
-    init(clientID: String? = nil) {
+    init(
+        clientID: String? = nil,
+        ipcSocketOpener: @escaping @Sendable (String, Int) -> Int32 = {
+            DiscordRPCService.openIPCSocket(at: $0, slot: $1)
+        },
+        ipcSocketCloser: @escaping @Sendable (Int32) -> Void = { fd in
+            guard fd >= 0 else { return }
+            Darwin.close(fd)
+        },
+        ipcTransactionTimeoutNanoseconds: UInt64 = UInt64(
+            AppConstants.Discord.socketTimeoutSeconds
+        ) * 1_000_000_000
+    ) {
         self.clientID = clientID ?? Self.resolveClientID() ?? ""
+        self.ipcSocketOpener = ipcSocketOpener
+        self.ipcSocketCloser = ipcSocketCloser
+        self.ipcTransactionTimeoutNanoseconds = ipcTransactionTimeoutNanoseconds
 
         let (stateStream, stateCont) = AsyncStream<ConnectionState>.makeStream()
         self.stateChanges = stateStream
@@ -239,14 +333,18 @@ actor DiscordRPCService {
         }
         pollTask?.cancel()
         reconnectTask?.cancel()
-        // `deinit` is nonisolated and cannot `await`, so dispatch the close onto
-        // `ipcQueue` (capturing the fd value, never `self`) so it still
-        // serializes after any queued read/write that holds the same descriptor.
-        // A bare `Darwin.close(socketFD)` here could double-close or close a
-        // recycled fd that a still-queued I/O block is mid-syscall on.
-        let fd = socketFD
-        if fd >= 0 {
-            ipcQueue.async { Darwin.close(fd) }
+        if let ipcReadSource {
+            // Its cancellation handler is now the descriptor's sole owner. It
+            // closes only after any final event handler has returned.
+            ipcReadSource.cancel()
+        } else if ipcCloseInProgress == nil {
+            // No source was ever installed (for example, deinit during a
+            // handshake), so queue-confined direct close is still required.
+            let fd = socketFD
+            let closer = ipcSocketCloser
+            if fd >= 0 {
+                ipcQueue.async { closer(fd) }
+            }
         }
         stateContinuation.finish()
         artworkContinuation.finish()
@@ -259,30 +357,49 @@ actor DiscordRPCService {
     /// When enabled, immediately attempts to connect to Discord.
     /// When disabled, disconnects and stops polling.
     func setEnabled(_ enabled: Bool) async {
+        enableIntentGeneration &+= 1
+        let intentGeneration = enableIntentGeneration
         isEnabled = enabled
 
         if enabled {
             await connectIfNeeded()
+            guard enableIntentGeneration == intentGeneration, isEnabled else { return }
             updateAvailabilityPolling()
         } else {
             stopPolling()
             reconnectTask?.cancel()
             reconnectTask = nil
             reconnectDelay = AppConstants.Discord.reconnectBaseDelay
-            await performClearPresence()
+            // Keep the latest snapshot until this disable still owns the intent.
+            // A concurrent re-enable can then restore the activity after this
+            // in-flight clear finishes instead of leaving Discord blank.
+            await performClearPresence(preservingLastPresence: true)
+            guard enableIntentGeneration == intentGeneration, !isEnabled else {
+                await reconcileLatestEnableIntent()
+                return
+            }
+            lastPresence = nil
             await disconnect()
+            guard enableIntentGeneration == intentGeneration else {
+                await reconcileLatestEnableIntent()
+                return
+            }
         }
     }
 
-    /// Tests the Discord IPC connection by attempting to connect if not already connected.
-    ///
-    /// If already connected, returns immediately with `true`. Otherwise triggers
-    /// a connection attempt and returns whether it succeeded.
-    func testConnection() async -> Bool {
-        if state == .connected { return true }
-        await connectIfNeeded()
-        return state == .connected
+    /// Re-applies the newest user intent after an older async transition loses
+    /// ownership. In particular, reconnects if clear/disconnect lost the socket
+    /// after a concurrent re-enable already observed it as connected.
+    private func reconcileLatestEnableIntent() async {
+        if isEnabled {
+            await connectIfNeeded()
+            updateAvailabilityPolling()
+            await refreshPresenceFromSettings()
+        } else {
+            stopPolling()
+        }
     }
+
 
     /// Updates the Rich Presence to show the currently playing track.
     ///
@@ -445,7 +562,7 @@ actor DiscordRPCService {
             "nonce": UUID().uuidString,
         ]
 
-        await sendFrame(opcode: .frame, payload: payload)
+        await sendCommandFrame(payload)
     }
 
     /// Builds and sends a SET_ACTIVITY frame with the given track metadata.
@@ -516,7 +633,7 @@ actor DiscordRPCService {
             "nonce": UUID().uuidString,
         ]
 
-        await sendFrame(opcode: .frame, payload: payload)
+        await sendCommandFrame(payload)
     }
 
     /// Re-sends the most recent presence with current settings applied.
@@ -760,19 +877,22 @@ actor DiscordRPCService {
     }
 
     // IPC connection, frame I/O, and reconnection (connectIfNeeded,
-    // openIPCSocket, performHandshake, disconnect, runOnIPCQueue,
-    // setSocketTimeouts, WriteResult/ReadResult, writeFully, readFully, closeFD,
-    // sendFrame, readFrame, decodeFramePayload, nextBackoff, handleConnectionLost,
-    // attemptReconnect) live in DiscordRPCService+IPC.swift.
+    // openIPCSocket, performHandshake, disconnect, runOnIPCQueue, writeFully,
+    // readFully, sendCommandFrame, performIPCTransaction, readIPCFrame,
+    // decodeFramePayload, nextBackoff, handleConnectionLost, attemptReconnect)
+    // live in DiscordRPCService+IPC.swift.
 
     // MARK: - Polling
 
     /// Pure lifecycle policy shared by connection transitions and tests.
     nonisolated static func shouldPollAvailability(
         isEnabled: Bool,
+        clientID: String,
         state: ConnectionState
     ) -> Bool {
-        isEnabled && state == .disconnected
+        isEnabled
+            && !clientID.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            && state == .disconnected
     }
 
     /// Whether the coarse availability timer currently exists.
@@ -780,7 +900,11 @@ actor DiscordRPCService {
 
     /// Synchronizes the timer with the current enabled/connection state.
     func updateAvailabilityPolling() {
-        if Self.shouldPollAvailability(isEnabled: isEnabled, state: state) {
+        if Self.shouldPollAvailability(
+            isEnabled: isEnabled,
+            clientID: clientID,
+            state: state
+        ) {
             startPolling()
         } else {
             stopPolling()
