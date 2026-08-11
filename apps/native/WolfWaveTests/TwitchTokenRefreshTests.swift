@@ -609,8 +609,7 @@ final class TwitchTokenRefreshTests: XCTestCase {
                 refreshToken: "REFRESH",
                 username: "wolf",
                 userID: "broadcaster"))
-        let directory = FileManager.default.temporaryDirectory
-            .appending(path: "wolfwave-opaque-reconciliation-\(UUID().uuidString)")
+        let directory = makeIsolatedTempDirectory(prefix: "wolfwave-opaque-reconciliation")
         defer { try? FileManager.default.removeItem(at: directory) }
         let file = directory.appending(path: "outbox.json")
         try Data("not-json".utf8).write(to: file, options: .atomic)
@@ -1361,8 +1360,7 @@ final class TwitchTokenRefreshTests: XCTestCase {
         enum InjectedFailure: Error {
             case quarantine
         }
-        let directory = FileManager.default.temporaryDirectory
-            .appending(path: "wolfwave-opaque-teardown-\(UUID().uuidString)")
+        let directory = makeIsolatedTempDirectory(prefix: "wolfwave-opaque-teardown")
         defer { try? FileManager.default.removeItem(at: directory) }
         let file = directory.appending(path: "outbox.json")
         try Data("not-json".utf8).write(to: file, options: .atomic)
@@ -1410,8 +1408,7 @@ final class TwitchTokenRefreshTests: XCTestCase {
         enum InjectedFailure: Error {
             case quarantine
         }
-        let directory = FileManager.default.temporaryDirectory
-            .appending(path: "wolfwave-opaque-fast-path-\(UUID().uuidString)")
+        let directory = makeIsolatedTempDirectory(prefix: "wolfwave-opaque-fast-path")
         defer { try? FileManager.default.removeItem(at: directory) }
         let file = directory.appending(path: "outbox.json")
         try Data("not-json".utf8).write(to: file, options: .atomic)
