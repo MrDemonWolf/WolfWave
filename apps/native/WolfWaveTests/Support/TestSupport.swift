@@ -35,6 +35,27 @@ func makeIsolatedTempDirectory(prefix: String = "wolfwave-test") -> URL {
     return dir
 }
 
+/// Reads the request body from either representation Foundation exposes to
+/// `URLProtocol` test doubles.
+func requestBodyString(_ request: URLRequest) -> String {
+    if let body = request.httpBody, !body.isEmpty {
+        return String(decoding: body, as: UTF8.self)
+    }
+    guard let stream = request.httpBodyStream else { return "" }
+    stream.open()
+    defer { stream.close() }
+    var body = Data()
+    let bufferSize = 1_024
+    let buffer = UnsafeMutablePointer<UInt8>.allocate(capacity: bufferSize)
+    defer { buffer.deallocate() }
+    while stream.hasBytesAvailable {
+        let count = stream.read(buffer, maxLength: bufferSize)
+        guard count > 0 else { break }
+        body.append(buffer, count: count)
+    }
+    return String(decoding: body, as: UTF8.self)
+}
+
 /// Thread-safe value box for capturing state from inside `@Sendable` closures
 /// (mock request handlers, actor callbacks) without violating strict
 /// concurrency. NSLock is fine here; tests aren't measuring lock perf.
