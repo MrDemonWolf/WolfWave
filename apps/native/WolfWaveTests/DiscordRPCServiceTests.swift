@@ -365,7 +365,10 @@ final class DiscordRPCServiceTests: XCTestCase {
 
             let clearPayload = try readRPCPayload(from: peerFD)
             clearReceived.signal()
-            guard releaseClearReply.wait(timeout: .now() + 2) == .success,
+            guard await waitForSemaphore(
+                releaseClearReply,
+                timeout: .now() + 2
+            ),
                   let clearCommand = clearPayload["cmd"] as? String,
                   let clearNonce = clearPayload["nonce"] as? String else {
                 throw DiscordTestSocketError.invalidPayload
@@ -690,7 +693,7 @@ final class DiscordRPCServiceTests: XCTestCase {
             let staleFrame = try makeRPCFrameData(opcode: .frame, payload: staleBody)
             for byte in staleFrame {
                 if Task.isCancelled { return }
-                usleep(50_000)
+                try await Task.sleep(for: .milliseconds(50))
                 guard sendDripByte(byte, to: peerFD) else { return }
             }
         }
