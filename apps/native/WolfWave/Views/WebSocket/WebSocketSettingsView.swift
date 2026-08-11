@@ -530,7 +530,7 @@ fileprivate struct WebSocketTokenEditorRow: View {
             return
         }
         guard WebSocketAuthToken.isValid(trimmed) else {
-            tokenError = "Use 16-128 hex chars (0-9, a-f)."
+            tokenError = "Use exactly 64 hex characters (0-9, a-f)."
             return
         }
         guard otherToken.isEmpty || !WebSocketAuthToken.constantTimeEquals(trimmed, otherToken) else {

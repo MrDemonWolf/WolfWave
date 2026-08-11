@@ -63,7 +63,7 @@ nonisolated enum WebSocketAuthToken {
             return sessionValue
         }
 
-        if let existing = load(for: role), !existing.isEmpty {
+        if let existing = load(for: role), isValid(existing) {
             return existing
         }
 
@@ -199,9 +199,9 @@ nonisolated enum WebSocketAuthToken {
         return diff == 0
     }
 
-    /// Returns `true` for a bounded, non-empty hexadecimal credential.
+    /// Returns `true` for the protocol's exact 32-byte hexadecimal credential.
     static func isValid(_ candidate: String) -> Bool {
-        guard (16...128).contains(candidate.count) else { return false }
+        guard candidate.count == 64 else { return false }
         return candidate.unicodeScalars.allSatisfy { scalar in
             (scalar >= "0" && scalar <= "9")
                 || (scalar >= "a" && scalar <= "f")
