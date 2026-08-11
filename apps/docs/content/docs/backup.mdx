@@ -2,12 +2,12 @@
 title: Back Up & Restore
 description: Export your WolfWave settings to a JSON file and restore them on another Mac. Accounts stay private. Reconnect Twitch on your terms.
 ogTitle: Back Up & Restore WolfWave Settings
-ogDescription: Export preferences to a file, import on another Mac. Accounts never leave the Keychain. Reconnect Twitch when you choose.
+ogDescription: Export preferences to a file, import on another Mac. Credentials never leave the Keychain. Reconnect Twitch when you choose.
 ogEyebrow: Guide
 ogChips:
   - Export to JSON
   - Import anywhere
-  - No accounts
+  - No credentials
   - Reconnect Twitch
 keywords:
   - wolfwave backup settings
@@ -16,7 +16,7 @@ keywords:
   - wolfwave settings file
 ---
 
-**Save your settings to a file, restore them anywhere.** Bring your setup to another Mac or back after a clean reinstall. Your accounts are never in the file, so backups are safe to keep and share.
+**Save your settings to a file, restore them anywhere.** Bring your setup to another Mac or back after a clean reinstall. Your credentials are never in the file, so backups are safe to keep and share.
 
 ## What gets backed up
 
@@ -25,17 +25,18 @@ keywords:
 - **Song Request rules** (limits, cooldowns, command names, vote-skip)
 - **Stream Widget look and ports** (theme, layout, colors, server port)
 - **Discord Rich Presence options** (buttons, playlist, idle and pause behavior)
+- **Your public Twitch channel name**, so WolfWave can offer to reconnect it
 - **Everything else**: notification toggles, History & Stats options, appearance, dock visibility
 
 ## What does NOT get backed up
 
-**Anything tied to an account or kept secret.** None of this leaves your Mac:
+**Credentials, private account IDs, and per-Mac access.** None of this leaves your Mac:
 
-- **Your Twitch sign-in** (the OAuth token, plus your user and channel IDs)
+- **Your Twitch sign-in** (OAuth access and refresh tokens, plus your resolved user ID)
 - **The Stream Widgets overlay and Stream Deck control tokens**
 - **System permissions**, like Apple Music control and notifications
 
-These live in the macOS Keychain, or macOS grants them per Mac, so they never get written to the file. A backup is just your settings, in plain JSON you can open and read. After importing on a new Mac, you may need to re-grant access (like Apple Music control) the first time WolfWave asks.
+These secrets live in the macOS Keychain, or macOS grants them per Mac, so they never get written to the file. The configured public Twitch channel name is the only account field included. A backup is plain JSON you can open and read. After importing on a new Mac, you may need to re-grant access (like Apple Music control) the first time WolfWave asks.
 
 ## Export
 
@@ -49,7 +50,7 @@ These live in the macOS Keychain, or macOS grants them per Mac, so they never ge
 2. **Click** **Import Settings** and choose a backup file.
 3. **Review.** A sheet shows how many preferences will be restored.
 4. **Decide on Twitch.** If the backup had Twitch connected, you choose:
-   - **On**: WolfWave restores your channel and asks you to sign in to Twitch again (your login was never in the file).
+   - **On**: WolfWave stages your channel, asks you to sign in to Twitch again, then commits the channel with the new account (your login was never in the file).
    - **Off**: Twitch is skipped. Everything else still imports.
 5. **Click** **Import**.
 
