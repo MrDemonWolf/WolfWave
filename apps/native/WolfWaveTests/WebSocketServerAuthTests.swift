@@ -213,9 +213,11 @@ final class WebSocketServerAuthTests: XCTestCase {
         let previous = KeychainService.backend
         KeychainService.backend = InMemoryKeychainBackend()
         defer {
+            WebSocketAuthToken.resetSessionCredentialsForTesting()
             KeychainService.backend = previous
             KeychainBackendTestIsolation.release()
         }
+        WebSocketAuthToken.resetSessionCredentialsForTesting()
         try body()
     }
 
@@ -280,14 +282,16 @@ final class WebSocketServerAuthTests: XCTestCase {
         }
     }
 
-    func testSessionFallbackStaysRoleScopedAndPersistsAfterRecovery() {
+    func testSessionFallbackDoesNotOverwriteCredentialInstalledDuringRecovery() {
         KeychainBackendTestIsolation.acquire()
         let previous = KeychainService.backend
         KeychainService.backend = FailingKeychainBackend()
         defer {
+            WebSocketAuthToken.resetSessionCredentialsForTesting()
             KeychainService.backend = previous
             KeychainBackendTestIsolation.release()
         }
+        WebSocketAuthToken.resetSessionCredentialsForTesting()
 
         let first = WebSocketAuthToken.currentOrCreate(for: .overlay)
         let second = WebSocketAuthToken.currentOrCreate(for: .overlay)
@@ -295,11 +299,52 @@ final class WebSocketServerAuthTests: XCTestCase {
 
         let recovered = InMemoryKeychainBackend()
         KeychainService.backend = recovered
-        try? KeychainService.saveToken(String(repeating: "a", count: 64))
+        let durable = String(repeating: "a", count: 64)
+        try? KeychainService.saveToken(durable)
 
         XCTAssertEqual(WebSocketAuthToken.currentOrCreate(for: .overlay), first)
-        XCTAssertEqual(KeychainService.loadToken(), first)
+        XCTAssertEqual(KeychainService.loadToken(), durable)
         XCTAssertNil(KeychainService.loadControlToken())
+    }
+
+    func testSessionFallbackPersistsAfterConfirmedAbsenceRecovers() {
+        KeychainBackendTestIsolation.acquire()
+        let previous = KeychainService.backend
+        KeychainService.backend = FailingKeychainBackend()
+        defer {
+            WebSocketAuthToken.resetSessionCredentialsForTesting()
+            KeychainService.backend = previous
+            KeychainBackendTestIsolation.release()
+        }
+        WebSocketAuthToken.resetSessionCredentialsForTesting()
+
+        let fallback = WebSocketAuthToken.currentOrCreate(for: .overlay)
+        let recovered = InMemoryKeychainBackend()
+        KeychainService.backend = recovered
+
+        XCTAssertEqual(
+            WebSocketAuthToken.currentOrCreate(for: .overlay),
+            fallback)
+        XCTAssertEqual(KeychainService.loadToken(), fallback)
+    }
+
+    func testReadFailureNeverAttemptsToPersistFallback() {
+        KeychainBackendTestIsolation.acquire()
+        let previous = KeychainService.backend
+        let failing = ReadFailingKeychainBackend()
+        KeychainService.backend = failing
+        defer {
+            WebSocketAuthToken.resetSessionCredentialsForTesting()
+            KeychainService.backend = previous
+            KeychainBackendTestIsolation.release()
+        }
+        WebSocketAuthToken.resetSessionCredentialsForTesting()
+
+        let first = WebSocketAuthToken.currentOrCreate(for: .control)
+        let second = WebSocketAuthToken.currentOrCreate(for: .control)
+
+        XCTAssertEqual(first, second)
+        XCTAssertEqual(failing.saveAttempts, 0)
     }
 
     func testRotateDoesNotPublishUnpersistedCredential() {
@@ -307,9 +352,12 @@ final class WebSocketServerAuthTests: XCTestCase {
         let previous = KeychainService.backend
         KeychainService.backend = FailingKeychainBackend()
         defer {
+            WebSocketAuthToken.resetSessionCredentialsForTesting()
             KeychainService.backend = previous
             KeychainBackendTestIsolation.release()
         }
+
+        WebSocketAuthToken.resetSessionCredentialsForTesting()
 
         XCTAssertThrowsError(try WebSocketAuthToken.rotate(.control))
         XCTAssertNil(KeychainService.loadControlToken())
@@ -321,7 +369,27 @@ private final class FailingKeychainBackend: KeychainBackend, @unchecked Sendable
         throw KeychainService.KeychainError.saveFailed(errSecInteractionNotAllowed)
     }
 
-    func load(account _: String) -> String? { nil }
-    func delete(account _: String) {}
-    func deleteAll() {}
+    func load(account _: String) throws -> String? { nil }
+    func delete(account _: String) throws {}
+    func deleteAll() throws {}
+}
+
+private final class ReadFailingKeychainBackend: KeychainBackend, @unchecked Sendable {
+    private let lock = NSLock()
+    private var _saveAttempts = 0
+
+    var saveAttempts: Int {
+        lock.withLock { _saveAttempts }
+    }
+
+    func save(account _: String, value _: String) throws {
+        lock.withLock { _saveAttempts += 1 }
+    }
+
+    func load(account _: String) throws -> String? {
+        throw KeychainService.KeychainError.loadFailed(errSecInteractionNotAllowed)
+    }
+
+    func delete(account _: String) throws {}
+    func deleteAll() throws {}
 }
