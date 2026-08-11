@@ -77,9 +77,9 @@ func waitForSemaphore(
     }
 }
 
-/// Inspectable process-local Keychain backend with a one-shot save failure.
-/// Shared by migration and transaction tests so failure semantics stay
-/// deterministic without reaching the user's real Keychain.
+/// Inspectable process-local Keychain backend with deterministic one-shot
+/// failures. Shared by migration and transaction tests so failure semantics
+/// stay deterministic without reaching the user's real Keychain.
 nonisolated final class InspectableKeychainBackend: KeychainBackend, @unchecked Sendable {
     enum InjectedError: Error {
         case save
@@ -88,9 +88,25 @@ nonisolated final class InspectableKeychainBackend: KeychainBackend, @unchecked 
     private let lock = NSLock()
     private var store: [String: String] = [:]
     private var nextFailingSaveAccount: String?
+    private var nextFailingLoad: (account: String, status: Int32)?
+    private var nextFailingDelete: (account: String, status: Int32)?
+    private var nextDeleteAllStatus: Int32?
+    private var loadedAccounts: [String] = []
 
     func failNextSave(for account: String) {
         lock.withLock { nextFailingSaveAccount = account }
+    }
+
+    func failNextLoad(for account: String, status: Int32 = -25308) {
+        lock.withLock { nextFailingLoad = (account, status) }
+    }
+
+    func failNextDelete(for account: String, status: Int32 = -25308) {
+        lock.withLock { nextFailingDelete = (account, status) }
+    }
+
+    func failNextDeleteAll(status: Int32 = -25308) {
+        lock.withLock { nextDeleteAllStatus = status }
     }
 
     func seed(account: String, value: String) {
@@ -99,6 +115,10 @@ nonisolated final class InspectableKeychainBackend: KeychainBackend, @unchecked 
 
     func rawValue(account: String) -> String? {
         lock.withLock { store[account] }
+    }
+
+    func loadCount(account: String) -> Int {
+        lock.withLock { loadedAccounts.filter { $0 == account }.count }
     }
 
     func save(account: String, value: String) throws {
@@ -111,16 +131,37 @@ nonisolated final class InspectableKeychainBackend: KeychainBackend, @unchecked 
         }
     }
 
-    func load(account: String) -> String? {
-        rawValue(account: account)
+    func load(account: String) throws -> String? {
+        try lock.withLock {
+            loadedAccounts.append(account)
+            if nextFailingLoad?.account == account {
+                let status = nextFailingLoad?.status ?? -25308
+                nextFailingLoad = nil
+                throw KeychainService.KeychainError.loadFailed(status)
+            }
+            return store[account]
+        }
     }
 
-    func delete(account: String) {
-        lock.withLock { store[account] = nil }
+    func delete(account: String) throws {
+        try lock.withLock {
+            if nextFailingDelete?.account == account {
+                let status = nextFailingDelete?.status ?? -25308
+                nextFailingDelete = nil
+                throw KeychainService.KeychainError.deleteFailed(status)
+            }
+            store[account] = nil
+        }
     }
 
-    func deleteAll() {
-        lock.withLock { store.removeAll() }
+    func deleteAll() throws {
+        try lock.withLock {
+            if let status = nextDeleteAllStatus {
+                nextDeleteAllStatus = nil
+                throw KeychainService.KeychainError.deleteFailed(status)
+            }
+            store.removeAll()
+        }
     }
 }
 
@@ -197,11 +238,11 @@ func assertKeychainRoundTrip(
     _ value: String,
     save: (String) throws -> Void,
     load: () -> String?,
-    delete: () -> Void,
+    delete: () throws -> Void,
     sourceLocation: Testing.SourceLocation = #_sourceLocation
 ) throws {
     try save(value)
     #expect(load() == value, sourceLocation: sourceLocation)
-    delete()
+    try delete()
     #expect(load() == nil, sourceLocation: sourceLocation)
 }

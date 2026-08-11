@@ -59,9 +59,8 @@ final class MyQueueCommandTests: WolfWaveTestCase {
         let command = MyQueueCommand()
         command.getQueue = { self.makeQueueWith(users: ["other_user"]) }
 
-        let reply = await captureReply { done in
-            command.execute(message: "!myqueue", context: self.context(username: "viewer")) { done($0) }
-        }
+        let reply = await command.execute(
+            message: "!myqueue", context: context(username: "viewer")) ?? ""
         XCTAssertTrue(reply.lowercased().contains("don't have any"))
         XCTAssertTrue(reply.contains("!sr"))
     }
@@ -72,9 +71,8 @@ final class MyQueueCommandTests: WolfWaveTestCase {
             self.makeQueueWith(users: ["alpha", "bravo", "alpha", "charlie"])
         }
 
-        let reply = await captureReply { done in
-            command.execute(message: "!myqueue", context: self.context(username: "alpha")) { done($0) }
-        }
+        let reply = await command.execute(
+            message: "!myqueue", context: context(username: "alpha")) ?? ""
 
         XCTAssertTrue(reply.contains("#1"))
         XCTAssertTrue(reply.contains("#3"))
@@ -84,12 +82,11 @@ final class MyQueueCommandTests: WolfWaveTestCase {
         XCTAssertFalse(reply.contains("Song 4"))
     }
 
-    func testMissingQueueIsSilent() {
+    func testMissingQueueIsSilent() async {
         let command = MyQueueCommand()
         command.getQueue = { nil }
 
-        var replyCalled = false
-        command.execute(message: "!myqueue", context: context(username: "alpha")) { _ in replyCalled = true }
-        XCTAssertFalse(replyCalled)
+        let reply = await command.execute(message: "!myqueue", context: context(username: "alpha"))
+        XCTAssertNil(reply)
     }
 }

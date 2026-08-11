@@ -30,6 +30,201 @@ private let scriptErrorStopThreshold = 3
 /// play from being recorded a second time; resets when a new track starts.
 private var currentPlayFlushedToHistory = false
 
+// MARK: - Twitch Token Validation
+
+/// Bounded, dependency-injected app-lifetime validation policy. Validation
+/// outages retry without expiring credentials; an invalid access token gets one
+/// single-flight refresh before interactive re-auth is considered. The cadence
+/// runner is the app's sole periodic owner, so opening Settings never creates a
+/// second validation loop.
+nonisolated enum TwitchBootTokenValidationRunner {
+    /// A token tied to the credential-store account revision that owns it.
+    struct Credential: Sendable, Equatable {
+        let token: String
+        let revision: UInt64
+
+        var accessExpectation: TwitchCredentialStore.AccessExpectation {
+            TwitchCredentialStore.AccessExpectation(
+                revision: revision,
+                accessToken: token
+            )
+        }
+    }
+
+    enum Outcome: Sendable, Equatable {
+        case valid(String)
+        case invalid(String)
+        case temporarilyUnavailable
+        case superseded
+        case cancelled
+    }
+
+    static func run(
+        initialCredential: Credential,
+        maxValidationAttempts: Int = 3,
+        validate: @escaping @Sendable (String) async -> TwitchChatService.TokenValidationResult,
+        refresh: @escaping @Sendable (Credential) async throws
+            -> TwitchTokenRefresher.RefreshResult,
+        isCurrent: @escaping @Sendable (Credential) -> Bool = { _ in true },
+        sleep: @escaping @Sendable (Duration) async throws -> Void = {
+            try await Task.sleep(for: $0)
+        },
+        onValid: @escaping @MainActor @Sendable (Credential) async -> Void = { _ in }
+    ) async -> Outcome {
+        var credential = initialCredential
+        var validationAttempt = 0
+        var didAttemptRefresh = false
+        let attemptLimit = max(1, maxValidationAttempts)
+
+        while validationAttempt < attemptLimit {
+            if Task.isCancelled { return .cancelled }
+            guard isCurrent(credential) else { return .superseded }
+            let validation = await validate(credential.token)
+            if Task.isCancelled { return .cancelled }
+            guard isCurrent(credential) else { return .superseded }
+
+            switch validation {
+            case .valid:
+                await onValid(credential)
+                if Task.isCancelled { return .cancelled }
+                return isCurrent(credential)
+                    ? .valid(credential.token)
+                    : .superseded
+            case .invalid:
+                guard !didAttemptRefresh else {
+                    return .invalid(credential.token)
+                }
+                didAttemptRefresh = true
+                do {
+                    switch try await refresh(credential) {
+                    case .refreshed(let replacement):
+                        if Task.isCancelled { return .cancelled }
+                        credential = Credential(
+                            token: replacement,
+                            revision: credential.revision
+                        )
+                        guard isCurrent(credential) else { return .superseded }
+                        validationAttempt = 0
+                        continue
+                    case .invalid:
+                        if Task.isCancelled { return .cancelled }
+                        return isCurrent(credential)
+                            ? .invalid(credential.token)
+                            : .superseded
+                    case .temporarilyUnavailable:
+                        if Task.isCancelled { return .cancelled }
+                        return isCurrent(credential)
+                            ? .temporarilyUnavailable
+                            : .superseded
+                    case .superseded:
+                        return .superseded
+                    }
+                } catch is CancellationError {
+                    return .cancelled
+                } catch {
+                    return isCurrent(credential)
+                        ? .temporarilyUnavailable
+                        : .superseded
+                }
+            case .temporarilyUnavailable:
+                validationAttempt += 1
+                guard validationAttempt < attemptLimit else {
+                    return .temporarilyUnavailable
+                }
+                do {
+                    let delay = Duration.milliseconds(
+                        250 * (1 << min(validationAttempt - 1, 10))
+                    )
+                    try await sleep(delay)
+                } catch {
+                    return .cancelled
+                }
+                if Task.isCancelled { return .cancelled }
+                guard isCurrent(credential) else { return .superseded }
+            }
+        }
+        return .temporarilyUnavailable
+    }
+
+    /// Runs validation immediately and then once per `validationInterval` for
+    /// as long as the owning app task lives. A credential revision change is a
+    /// new account lifecycle: stale work becomes inert and the first valid
+    /// result for the replacement account is identified separately.
+    static func runSchedule(
+        validationInterval: Duration = .seconds(3_600),
+        credentials: @escaping @Sendable () -> Credential?,
+        validate: @escaping @Sendable (String) async -> TwitchChatService.TokenValidationResult,
+        refresh: @escaping @Sendable (Credential) async throws
+            -> TwitchTokenRefresher.RefreshResult,
+        retrySleep: @escaping @Sendable (Duration) async throws -> Void = {
+            try await Task.sleep(for: $0)
+        },
+        cadenceSleep: @escaping @Sendable (Duration) async throws -> Void = {
+            try await Task.sleep(for: $0)
+        },
+        onValid: @escaping @MainActor @Sendable (
+            Credential,
+            Bool,
+            Credential?
+        ) async -> Void = { _, _, _ in },
+        onInvalid: @escaping @MainActor @Sendable (Credential) async -> Void = { _ in },
+        onTemporarilyUnavailable: @escaping @MainActor @Sendable (Credential) async -> Void = { _ in }
+    ) async {
+        var validatedRevision: UInt64?
+
+        while !Task.isCancelled {
+            guard let credential = credentials() else { return }
+            let outcome = await run(
+                initialCredential: credential,
+                validate: validate,
+                refresh: refresh,
+                isCurrent: { candidate in
+                    credentials() == candidate
+                },
+                sleep: retrySleep
+            )
+            if Task.isCancelled { return }
+
+            switch outcome {
+            case .valid(let token):
+                let resolved = Credential(token: token, revision: credential.revision)
+                guard credentials() == resolved else { continue }
+                let isFirstValidForRevision = validatedRevision != resolved.revision
+                let rotatedFrom = resolved.token == credential.token
+                    ? nil
+                    : credential
+                await onValid(
+                    resolved,
+                    isFirstValidForRevision,
+                    rotatedFrom
+                )
+                guard !Task.isCancelled else { return }
+                guard credentials() == resolved else { continue }
+                validatedRevision = resolved.revision
+            case .invalid(let token):
+                let resolved = Credential(token: token, revision: credential.revision)
+                guard credentials() == resolved else { continue }
+                await onInvalid(resolved)
+                return
+            case .temporarilyUnavailable:
+                guard credentials() == credential else { continue }
+                await onTemporarilyUnavailable(credential)
+                guard !Task.isCancelled, credentials() == credential else { continue }
+            case .superseded:
+                continue
+            case .cancelled:
+                return
+            }
+
+            do {
+                try await cadenceSleep(validationInterval)
+            } catch {
+                return
+            }
+        }
+    }
+}
+
 // MARK: - Service Initialization
 
 extension AppDelegate {
@@ -59,6 +254,9 @@ extension AppDelegate {
     /// Creates the Twitch chat service and wires up song info callbacks.
     func setupTwitchService() {
         twitchService = TwitchChatService()
+        Task { [weak self] in
+            await self?.twitchService?.replayPendingRedemptionResolutions()
+        }
 
         if TwitchChatService.resolveClientID() == nil {
             Log.error("AppDelegate: No Twitch Client ID found. Copy Config.xcconfig.example to Config.xcconfig and set your Client ID.", category: "Twitch")
@@ -487,6 +685,14 @@ extension AppDelegate {
         observeOnMain(Notification.Name.twitchConnectionStateChanged) { [weak self] n in
             self?.twitchConnectionStateChanged(n)
         }
+        observeOnMain(Notification.Name.twitchReauthNeededChanged) { [weak self] _ in
+            guard let self else { return }
+            if Preferences.twitchReauthNeeded {
+                self.cancelTwitchBootValidation()
+            } else if self.twitchBootValidationTask == nil {
+                self.restartTwitchTokenValidationSchedule()
+            }
+        }
 
         // Custom bodies (they drop the notification payload) — kept inline.
         // Refresh the Stream Deck queue-counter / health broadcasts whenever the
@@ -741,7 +947,14 @@ extension AppDelegate {
 
     @MainActor
     private func setReauthNeeded(_ needed: Bool) {
+        let changed = Preferences.twitchReauthNeeded != needed
         Preferences.setTwitchReauthNeeded(needed)
+        if changed {
+            NotificationCenter.default.post(
+                name: Notification.Name.twitchReauthNeededChanged,
+                object: nil
+            )
+        }
     }
 
     /// Posts the "Twitch session expired" banner via `NotificationService`.
@@ -762,26 +975,114 @@ extension AppDelegate {
         openSettings()
     }
 
-    /// Validates the stored Twitch token on launch; prompts for re-auth if expired.
+    /// Starts the app-lifetime Twitch validation owner. Kept async so the
+    /// existing launch/onboarding call sites can retain their structured task;
+    /// the cadence itself lives in `twitchBootValidationTask` and returns here.
     func validateTwitchTokenOnBoot() async {
-        guard let token = KeychainService.loadTwitchToken(), !token.isEmpty else {
-            await MainActor.run { setReauthNeeded(false) }
+        restartTwitchTokenValidationSchedule()
+    }
+
+    /// Restarts startup + hourly validation for the currently stored account.
+    /// Credential replacement/logout notifications and app shutdown all route
+    /// through this single owner, so stale network results cannot mutate the
+    /// replacement account.
+    func restartTwitchTokenValidationSchedule() {
+        cancelTwitchBootValidation()
+        guard currentTwitchValidationCredential() != nil else {
+            setReauthNeeded(false)
             return
         }
 
-        let isValid = await twitchService?.validateToken(token) ?? false
-        await MainActor.run {
-            setReauthNeeded(!isValid)
+        twitchBootValidationGeneration &+= 1
+        let generation = twitchBootValidationGeneration
+        let service = twitchService
+        let clientID = TwitchChatService.resolveClientID() ?? ""
+        let task = Task { [weak self] in
+            await TwitchBootTokenValidationRunner.runSchedule(
+                credentials: { Self.currentTwitchValidationCredential() },
+                validate: { candidate in
+                    await service?.validateToken(candidate) ?? .temporarilyUnavailable
+                },
+                refresh: { rejected in
+                    try await TwitchTokenRefresher.attemptReactiveRefresh(
+                        clientID: clientID,
+                        expected: rejected.accessExpectation
+                    )
+                },
+                onValid: {
+                    [weak self] credential, isFirstValidForAccount, rotatedFrom in
+                    guard let self,
+                          !Task.isCancelled,
+                          self.twitchBootValidationGeneration == generation,
+                          Self.currentTwitchValidationCredential() == credential else { return }
 
-            if !isValid {
-                showTwitchAuthNotification()
-                openSettingsToTwitch()
-            }
-        }
+                    if let rotatedFrom, let service {
+                        let adopted = await service.adoptRefreshedAccessCredential(
+                            credential.accessExpectation,
+                            replacing: rotatedFrom.accessExpectation
+                        )
+                        guard !Task.isCancelled,
+                              self.twitchBootValidationGeneration == generation,
+                              Self.currentTwitchValidationCredential() == credential else {
+                            return
+                        }
+                        if !adopted {
+                            Log.debug(
+                                "AppDelegate: Rotated Twitch credential had no matching active service state",
+                                category: "Twitch"
+                            )
+                        }
+                    }
 
-        if isValid {
-            await autoReconnectTwitchIfPossible(token: token)
+                    self.setReauthNeeded(false)
+                    guard !Task.isCancelled,
+                          self.twitchBootValidationGeneration == generation,
+                          Self.currentTwitchValidationCredential() == credential else { return }
+                    if isFirstValidForAccount, service?.currentlyConnected != true {
+                        await self.autoReconnectTwitchIfPossible(credential: credential)
+                    }
+                },
+                onInvalid: { [weak self] credential in
+                    guard let self,
+                          !Task.isCancelled,
+                          self.twitchBootValidationGeneration == generation,
+                          Self.currentTwitchValidationCredential() == credential else { return }
+                    self.setReauthNeeded(true)
+                    self.showTwitchAuthNotification()
+                    self.openSettingsToTwitch()
+                },
+                onTemporarilyUnavailable: { credential in
+                    guard Self.currentTwitchValidationCredential() == credential else { return }
+                    Log.warn(
+                        "AppDelegate: Twitch token validation temporarily unavailable; keeping credentials",
+                        category: "Twitch")
+                }
+            )
+
+            guard let self, self.twitchBootValidationGeneration == generation else { return }
+            self.twitchBootValidationTask = nil
         }
+        twitchBootValidationTask = task
+    }
+
+    /// Cancels any app-lifetime validation that an account change or shutdown
+    /// superseded.
+    func cancelTwitchBootValidation() {
+        twitchBootValidationGeneration &+= 1
+        twitchBootValidationTask?.cancel()
+        twitchBootValidationTask = nil
+    }
+
+    /// Reads access token and account revision in one credential-store critical
+    /// section so the hourly runner never constructs a cross-revision pair.
+    nonisolated private static func currentTwitchValidationCredential()
+        -> TwitchBootTokenValidationRunner.Credential? {
+        guard let snapshot = TwitchCredentialStore.shared
+            .connectionSnapshot() else { return nil }
+        return TwitchBootTokenValidationRunner.Credential(
+            token: snapshot.accessToken,
+            revision: snapshot.revision
+        )
     }
 
     /// Auto-reconnects EventSub on launch when a valid token + channel name exist.
@@ -789,24 +1090,36 @@ extension AppDelegate {
     /// Suppresses the "I'm online" chat ping that fires on explicit user-driven
     /// connects. Auto-reconnect is silent. Called only after the token has been
     /// validated against Twitch.
-    func autoReconnectTwitchIfPossible(token: String) async {
+    func autoReconnectTwitchIfPossible(
+        credential: TwitchBootTokenValidationRunner.Credential
+    ) async {
         guard let service = twitchService else { return }
         guard let clientID = TwitchChatService.resolveClientID(), !clientID.isEmpty else {
             Log.debug("AppDelegate: Skipping Twitch auto-reconnect: no Client ID", category: "Twitch")
             return
         }
-        guard let channel = KeychainService.loadTwitchChannelID(), !channel.isEmpty else {
+        guard let snapshot = TwitchCredentialStore.shared.connectionSnapshot(
+            matchingAccessToken: credential.token
+        ),
+              snapshot.revision == credential.revision,
+              let channel = snapshot.channelID,
+              !channel.isEmpty else {
             Log.debug("AppDelegate: Skipping Twitch auto-reconnect: no stored channel name", category: "Twitch")
             return
         }
 
         Log.info("AppDelegate: Auto-reconnecting Twitch to channel \(channel)", category: "Twitch")
+        guard !Task.isCancelled,
+              TwitchCredentialStore.shared.connectionSnapshot() == snapshot else { return }
         await service.setShouldSendConnectionMessageOnSubscribe(false)
+        guard !Task.isCancelled,
+              TwitchCredentialStore.shared.connectionSnapshot() == snapshot else { return }
         do {
             try await service.connectToChannel(
                 channelName: channel,
-                token: token,
-                clientID: clientID
+                token: credential.token,
+                clientID: clientID,
+                expectedCredentialRevision: credential.revision
             )
         } catch {
             Log.error(

@@ -455,8 +455,8 @@ struct MusicMonitorSettingsView: View {
     private func loadIntegrationStatuses() {
         if let appDelegate = AppDelegate.shared {
             twitchConnected = appDelegate.twitchService?.currentlyConnected ?? false
-            // Reads the persisted channel name (set during sign-in).
-            twitchChannel = UserDefaults.standard.string(forKey: AppConstants.UserDefaults.twitchChannelName)
+            // Display the channel paired with the active canonical credential.
+            twitchChannel = TwitchCredentialStore.shared.connectionSnapshot()?.channelID
             widgetRunning = appDelegate.websocketServer?.state == .listening
             if let discordService = appDelegate.discordService {
                 Task { @MainActor in
