@@ -1,27 +1,37 @@
 # TODO — follow-ups from PR #397
 
-Everything here is outstanding work that PR [#397](https://github.com/MrDemonWolf/wolfwave/pull/397) either could not do in the authoring environment or deliberately left out of scope. Ordered by what blocks what.
+Follow-ups that PR [#397](https://github.com/MrDemonWolf/wolfwave/pull/397) either could not do in the authoring environment or deliberately left out of scope. Ordered by what blocks what. Items closed since are kept in place and marked `(DONE)` rather than deleted, so the reasoning stays readable.
+
+**Blocking the 2.1.0 tag: 2 of 3 remain.** Item 1 is done; items 2 and 3 both need a human, not CI.
 
 ---
 
 ## Blocking the 2.1.0 tag
 
-### 1. Run the native test suite
+### 1. Run the native test suite (DONE)
 
-Nothing in PR #397's Swift changes has ever been compiled. The authoring environment is Linux with no Xcode, and `Config.xcconfig` was absent from both the worktree and the primary checkout.
+Run on `18f85b9` (current `main`) with Xcode 26.6:
 
-```bash
-make test
+```
+1364 tests, 0 failures (426 via Swift Testing)
 ```
 
-Touched Swift files:
+The original concern was that nothing in PR #397's Swift changes had ever been
+compiled: the authoring environment was Linux with no Xcode, and
+`Config.xcconfig` was absent from both the worktree and the primary checkout.
+That no longer holds. #397 merged as `0fbc07b`, three fix commits followed, and
+the suite is now green on main, so the four touched files
+(`WebSocketServerService.swift`, `AppDelegate+StreamDeck.swift`,
+`AppDelegate+Services.swift`, `WhatsNewView.swift`) are compiled and covered.
 
-- `apps/native/WolfWave/Services/WebSocket/WebSocketServerService.swift` — `broadcastQueueState` signature gained `held: Bool`
-- `apps/native/WolfWave/Core/AppDelegate+StreamDeck.swift` — reads `isHoldEnabled`, passes `held`
-- `apps/native/WolfWave/Core/AppDelegate+Services.swift` — observer loop now covers `songRequestHoldChanged`
-- `apps/native/WolfWave/Views/Shared/WhatsNewView.swift` — feature card array
+The specific risk called out here was the merge that combined two branches'
+edits to the *same* function, `broadcastStreamDeckState` gaining both `held` and
+WW-42's `upcoming`, with the conflict resolution verified by grep rather than by
+a compiler. A green build resolves that: the function compiles and its callers
+type-check.
 
-Extra care warranted: the merge with `main` combined two branches' edits to the *same* function (`broadcastStreamDeckState` gained both `held` and WW-42's `upcoming`). Conflict resolution was verified by grep, not by a compiler.
+Note this is the suite only. It does **not** cover item 2 below, which needs
+live Apple Music playback that no test host can exercise.
 
 ### 2. Request-takeover smoke test on macOS 26
 
