@@ -108,23 +108,20 @@ function CenterHead({
 // ── FAQ row (native details/summary, token-styled) ───────────
 function FaqRow({ q, a }: { q: string; a: React.ReactNode }) {
   return (
-    <details
-      className="group ww-card ww-bg-base"
-      style={{ border: "1px solid var(--hairline)" }}
-    >
+    <details className="group ww-faq">
       <summary
         className="cursor-pointer list-none flex items-center justify-between gap-4"
         style={{ fontWeight: 600 }}
       >
         <span className="ww-text-1 text-base sm:text-lg">{q}</span>
         <span
-          className="ww-text-2 text-2xl leading-none transition-transform group-open:rotate-45"
+          className="ww-text-brand text-2xl leading-none transition-transform group-open:rotate-45"
           aria-hidden="true"
         >
           +
         </span>
       </summary>
-      <div className="mt-4 ww-text-2 text-base leading-relaxed">{a}</div>
+      <div className="ww-faq-body ww-text-2 text-base leading-relaxed">{a}</div>
     </details>
   );
 }
