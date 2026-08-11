@@ -18,6 +18,7 @@ import Foundation
 /// restored after each test so other suites see unchanged behavior.
 ///
 /// Note: `.serialized` keeps tests sequential, matching the shared-backend model.
+@MainActor
 @Suite("Keychain Service Tests", .serialized)
 final class KeychainServiceTests {
 
@@ -846,7 +847,6 @@ final class KeychainServiceTests {
         #expect(KeychainService.loadToken() == "overlay-token")
     }
 
-    @MainActor
     @Test("Auth clear failure preserves credentials, UI, and validation owner")
     func testClearAuthFailurePreservesState() async throws {
         let originalBackend = KeychainService.backend
