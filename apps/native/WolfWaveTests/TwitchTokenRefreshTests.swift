@@ -31,7 +31,7 @@ final class TwitchTokenRefreshTests: XCTestCase {
     override func setUp() {
         super.setUp()
         handlerStore.handler = nil
-        resetRedemptionDefaults()
+        Self.resetRedemptionDefaults()
         KeychainBackendTestIsolation.acquire()
         previousBackend = KeychainService.backend
         backend = InMemoryKeychainBackend()
@@ -39,14 +39,14 @@ final class TwitchTokenRefreshTests: XCTestCase {
     }
 
     override func tearDown() {
-        resetRedemptionDefaults()
+        Self.resetRedemptionDefaults()
         handlerStore.handler = nil
         KeychainService.backend = previousBackend
         KeychainBackendTestIsolation.release()
         super.tearDown()
     }
 
-    private func resetRedemptionDefaults() {
+    nonisolated private static func resetRedemptionDefaults() {
         let defaults = UserDefaults.standard
         [
             AppConstants.UserDefaults.songRequestEnabled,
