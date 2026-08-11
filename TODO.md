@@ -39,25 +39,14 @@ It currently cannot (see below). Either finish it, or confirm the changelog's "N
 
 The plugin builds, typechecks, and passes 52 tests, but **has never run on a real device**. Three things need hardware or an Elgato account.
 
-### 4. Action icons
+### 4. Action icons (DONE)
 
-`com.mrdemonwolf.wolfwave.sdPlugin/manifest.json` references `imgs/…` paths that do not exist. Stream Deck renders placeholders until they are added. Needed per action, in `@1x` and `@2x`:
-
-| Action | Paths referenced |
-|---|---|
-| Play / Pause | `imgs/actions/playpause/icon`, `key-paused`, `key-playing` |
-| Skip | `imgs/actions/skip/icon`, `key` |
-| Hold Queue | `imgs/actions/queuehold/icon`, `key-running`, `key-held` |
-| Approve Next | `imgs/actions/approvenext/icon`, `key-empty`, `key-pending` |
-| Clear Queue | `imgs/actions/clearqueue/icon`, `key` |
-| Block Song | `imgs/actions/blockcurrent/icon`, `key` |
-| Overlay | `imgs/actions/overlaytoggle/icon`, `key-off`, `key-on` |
-| Discord Presence | `imgs/actions/discordtoggle/icon`, `key-off`, `key-on` |
-| Music Sync | `imgs/actions/musicsynctoggle/icon`, `key-off`, `key-on` |
-| Cycle Theme | `imgs/actions/cycletheme/icon`, `key` |
-| Status | `imgs/actions/status/icon`, `key-down`, `key-up` |
-
-Plus plugin-level `imgs/plugin/category-icon` and `imgs/plugin/marketplace`.
+Every `imgs/…` path the manifest references now exists, generated from the brand
+mark by `apps/streamdeck/scripts/generate-icons.ts` (`bun run --filter streamdeck
+icons`). SVG for the action icons, key art and category icon; PNG at 256/512 for
+the plugin icon, which is the only slot Elgato requires raster for. A manifest
+test asserts every referenced path resolves, and CI fails on drift between the
+committed icons and the generator.
 
 ### 5. Verify on a physical Stream Deck (or the Elgato simulator)
 
@@ -69,9 +58,16 @@ Every one of these is currently an assumption:
 - Two keys bound to the same action correlate acks in press order (the FIFO scheme has no correlation id — this is the case most likely to be wrong).
 - The Property Inspector saves global settings and the plugin picks them up.
 
-### 6. Package and submit to the Elgato Marketplace
+### 6. Submit to the Elgato Marketplace
 
-`.streamDeckPlugin` packaging (`streamdeck pack`) plus Marketplace submission. Needs an Elgato account.
+Packaging is done: `bun run --filter streamdeck pack` emits
+`apps/streamdeck/dist/com.mrdemonwolf.wolfwave.streamDeckPlugin` (gitignored), and
+CI runs it as a shippability check because packing validates the manifest and
+every asset it points at.
+
+What is left is the submission itself, which needs an Elgato Maker account. Do it
+after item 5. Once it lands, drop the "not on the Marketplace yet" callout in
+`apps/docs/content/docs/streamdeck.mdx` and close item 9.
 
 ### 7. Deferred v1 actions
 
