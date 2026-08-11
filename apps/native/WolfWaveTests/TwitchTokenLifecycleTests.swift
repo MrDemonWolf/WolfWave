@@ -1539,7 +1539,8 @@ final class TwitchTokenLifecycleTests: XCTestCase {
                 accessToken: "OLD_AT",
                 refreshToken: "OLD_RT",
                 username: "bot",
-                userID: "bot-user"))
+                userID: "bot-user",
+                channelID: "channel"))
         let rejected = try XCTUnwrap(
             TwitchCredentialStore.shared.connectionSnapshot(
                 matchingAccessToken: "OLD_AT")?.accessExpectation)
@@ -1622,7 +1623,8 @@ final class TwitchTokenLifecycleTests: XCTestCase {
                 accessToken: "NEW_AT",
                 refreshToken: "NEW_RT",
                 username: "bot",
-                userID: "bot-user"))
+                userID: "bot-user",
+                channelID: "channel"))
 
         let socketSession = URLSession(configuration: .ephemeral)
         defer { socketSession.invalidateAndCancel() }

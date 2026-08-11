@@ -856,7 +856,7 @@ struct TwitchChatServiceTests {
             operations.mutate {
                 $0.append((
                     url: request.url?.absoluteString ?? "",
-                    body: Self.requestBodyString(request)
+                    body: requestBodyString(request)
                 ))
             }
             return (MockURLProtocol.httpResponse(for: request, status: 204), Data())
@@ -934,7 +934,7 @@ struct TwitchChatServiceTests {
             operations.mutate {
                 $0.append((
                     url: request.url?.absoluteString ?? "",
-                    body: Self.requestBodyString(request)
+                    body: requestBodyString(request)
                 ))
             }
             return (MockURLProtocol.httpResponse(for: request, status: 204), Data())
@@ -983,7 +983,7 @@ struct TwitchChatServiceTests {
             operations.mutate {
                 $0.append((
                     url: request.url?.absoluteString ?? "",
-                    body: Self.requestBodyString(request)
+                    body: requestBodyString(request)
                 ))
             }
             return (
@@ -1075,25 +1075,6 @@ struct TwitchChatServiceTests {
         ]
         let data = try JSONSerialization.data(withJSONObject: object)
         return String(decoding: data, as: UTF8.self)
-    }
-
-    nonisolated private static func requestBodyString(_ request: URLRequest) -> String {
-        if let body = request.httpBody, !body.isEmpty {
-            return String(data: body, encoding: .utf8) ?? ""
-        }
-        guard let stream = request.httpBodyStream else { return "" }
-        stream.open()
-        defer { stream.close() }
-        var body = Data()
-        let bufferSize = 1_024
-        let buffer = UnsafeMutablePointer<UInt8>.allocate(capacity: bufferSize)
-        defer { buffer.deallocate() }
-        while stream.hasBytesAvailable {
-            let count = stream.read(buffer, maxLength: bufferSize)
-            guard count > 0 else { break }
-            body.append(buffer, count: count)
-        }
-        return String(data: body, encoding: .utf8) ?? ""
     }
 
     @Test("Service initializes with default values")
