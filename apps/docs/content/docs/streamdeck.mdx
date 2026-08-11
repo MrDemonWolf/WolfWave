@@ -46,15 +46,19 @@ Settings → Song Requests → Access. See [Song Requests](/docs/features#song-r
 
 ## Install
 
-1. Build the plugin from the repo:
+1. Package the plugin from the repo:
 
    ```bash
-   bun run --filter streamdeck build
+   bun run --filter streamdeck pack
    ```
 
-2. Copy `apps/streamdeck/com.mrdemonwolf.wolfwave.sdPlugin` into
-   `~/Library/Application Support/com.elgato.StreamDeck/Plugins/`.
-3. Restart the Stream Deck app.
+2. Double-click `apps/streamdeck/dist/com.mrdemonwolf.wolfwave.streamDeckPlugin`.
+   The Stream Deck app installs it and asks you to confirm.
+
+Prefer to work on the plugin itself? Run `bun run --filter streamdeck build` and
+copy (or symlink) `apps/streamdeck/com.mrdemonwolf.wolfwave.sdPlugin` into
+`~/Library/Application Support/com.elgato.StreamDeck/Plugins/`, then restart the
+Stream Deck app.
 
 ## Connect it to WolfWave
 

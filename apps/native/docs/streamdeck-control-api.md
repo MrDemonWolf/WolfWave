@@ -8,8 +8,9 @@ control WolfWave and reflect live state on physical keys.
 This doc is the app side only. The plugin that consumes it lives in
 [`apps/streamdeck/`](../../streamdeck/README.md) (WW-45, Phase B) — its
 `src/wolfwave/protocol.ts` is the TypeScript mirror of this contract, so a change
-here needs the matching change there. Packaging and Marketplace submission are
-still outstanding; they need real hardware and an Elgato account.
+here needs the matching change there. The plugin builds, carries its icons, and
+packages into a `.streamDeckPlugin`; what is still outstanding is verification on
+real hardware and the Marketplace submission itself.
 
 ## Transport & auth
 
