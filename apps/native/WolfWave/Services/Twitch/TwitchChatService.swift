@@ -973,8 +973,6 @@ actor TwitchChatService {
         redemptionTasks.values.forEach { $0.cancel() }
         paidRedemptionTasks.values.forEach { $0.cancel() }
         redemptionResolutionTasks.values.forEach { $0.cancel() }
-        TwitchRedemptionTeardownGate.removeService(
-            serviceID: ObjectIdentifier(self))
         networkPathMonitor?.cancel()
         webSocketTask?.cancel(with: .goingAway, reason: nil)
         migrationSourceWebSocketTask?.cancel(with: .goingAway, reason: nil)
@@ -985,6 +983,8 @@ actor TwitchChatService {
         // until the process exits. Throwaway instances (resolveBotIdentityStatic)
         // would otherwise leak one session each per OAuth/re-auth.
         urlSession.invalidateAndCancel()
+        TwitchRedemptionTeardownGate.removeService(
+            serviceID: ObjectIdentifier(self))
     }
 
     // MARK: - Wiring (called once at app startup)
