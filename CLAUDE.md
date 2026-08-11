@@ -107,6 +107,15 @@ it normally runs on its own. Invoke it directly only when regenerating after a
 
 Xcode project is at `apps/native/WolfWave.xcodeproj` with scheme `WolfWave`. Build and run with Cmd+R in Xcode. The Debug action must resolve to `WolfWave Dev.app`, display as **WolfWave Dev**, and use bundle ID `com.mrdemonwolf.wolfwave.dev`; Release remains `WolfWave.app` / `com.mrdemonwolf.wolfwave`. Do not collapse those identities or point the Debug scheme runnable at the Release product.
 
+Debug and Release also ship **different app icons**, so the two are distinguishable in the Dock, the app switcher, and Spotlight when both are installed. Both are Icon Composer bundles under `WolfWave/Resources/`:
+
+| Config | `ASSETCATALOG_COMPILER_APPICON_NAME` | Bundle | Background |
+|---|---|---|---|
+| Debug | `AppIcon-Dev` | `AppIcon-Dev.icon` | `#FF9F0A` (the `semantic.warning` token) |
+| Release | `AppIcon` | `AppIcon.icon` | brand blue |
+
+The two bundles share the same `Assets/logo.svg` wolf mark and differ only in `icon.json`: the Dev variant swaps the background fill and pins the glyph to white in both light and dark, since the dark-mode brand blue would clash on orange. **When the mark changes, update both `Assets/logo.svg` copies.** `Resources/` is a `PBXFileSystemSynchronizedRootGroup`, so a new `.icon` bundle is picked up without editing the project file.
+
 All `make test*` targets use the ignored `DerivedData/Tests` directory. This keeps their unsigned test host from replacing the signed Debug app in Xcode's normal DerivedData. Test hosts also default `KeychainService` to process-local storage before any suite setup, so tests must never read, write, or prompt for the user's real dev Keychain.
 
 ## Build Configuration
