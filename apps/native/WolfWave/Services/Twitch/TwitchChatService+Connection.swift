@@ -459,6 +459,8 @@ extension TwitchChatService {
         let task = webSocketTask
         webSocketTask = nil
         sessionID = nil
+        pollSubscriptionSessionID = nil
+        pollSubscriptionAttemptSessionID = nil
         task?.cancel(with: .goingAway, reason: nil)
 
         sessionWelcomeTask?.cancel()

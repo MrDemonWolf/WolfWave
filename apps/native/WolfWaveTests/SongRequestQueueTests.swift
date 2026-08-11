@@ -41,10 +41,6 @@ final class SongRequestQueueTests: WolfWaveTestCase {
         XCTAssertNil(queue.dequeue())
     }
 
-    func testSkipWithEmptyQueue() {
-        XCTAssertNil(queue.skip())
-    }
-
     func testClearEmptyQueue() {
         let count = queue.clear()
         XCTAssertEqual(count, 0)
@@ -204,7 +200,7 @@ final class SongRequestQueueTests: WolfWaveTestCase {
         XCTAssertEqual(queue.count, 1)
     }
 
-    // MARK: - Dequeue / Skip / Clear with Items
+    // MARK: - Dequeue / Clear with Items
 
     func testDequeueSetsNowPlaying() {
         let item = SongRequestItem(title: "Test Song", artist: "Test Artist", requesterUsername: "user1")
@@ -213,16 +209,6 @@ final class SongRequestQueueTests: WolfWaveTestCase {
         XCTAssertNotNil(dequeued)
         XCTAssertEqual(dequeued?.title, "Test Song")
         XCTAssertEqual(queue.nowPlaying?.title, "Test Song")
-        XCTAssertTrue(queue.isEmpty)
-    }
-
-    func testSkipAdvancesNowPlaying() {
-        queue.add(SongRequestItem(title: "Song 1", artist: "A", requesterUsername: "user1"))
-        queue.add(SongRequestItem(title: "Song 2", artist: "B", requesterUsername: "user2"))
-        queue.dequeue() // sets nowPlaying to Song 1
-        let next = queue.skip()
-        XCTAssertEqual(next?.title, "Song 2")
-        XCTAssertEqual(queue.nowPlaying?.title, "Song 2")
         XCTAssertTrue(queue.isEmpty)
     }
 

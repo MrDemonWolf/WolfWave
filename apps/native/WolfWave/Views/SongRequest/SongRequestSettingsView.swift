@@ -385,6 +385,21 @@ fileprivate struct VoteSkipCard: View {
                 accessibilityLabel: "Enable vote-skip",
                 accessibilityIdentifier: "voteSkip.enableToggle"
             )
+            .onChange(of: voteSkipEnabled) { _, enabled in
+                if !enabled {
+                    if let manager = AppDelegate.shared?.skipVoteManager {
+                        Task { await manager.reset() }
+                    }
+                    return
+                }
+                // Polls may remain selected while the master switch is off.
+                // Re-enabling must subscribe the already-connected EventSub
+                // session even though the Polls setting itself did not change.
+                guard usePolls else { return }
+                NotificationCenter.default.postEnabled(
+                    .voteSkipPollsSettingChanged,
+                    enabled: true)
+            }
 
             if voteSkipEnabled {
                 Divider()
@@ -417,6 +432,11 @@ fileprivate struct VoteSkipCard: View {
                     accessibilityLabel: "Use Twitch polls for vote-skip",
                     accessibilityIdentifier: "voteSkip.usePolls"
                 )
+                .onChange(of: usePolls) { _, enabled in
+                    NotificationCenter.default.postEnabled(
+                        .voteSkipPollsSettingChanged,
+                        enabled: enabled)
+                }
 
                 if usePolls {
                     HStack {

@@ -162,7 +162,7 @@ enum StatsAggregator {
         }
 
         let recent = records
-            .sorted { $0.timestamp > $1.timestamp }
+            .sorted(by: stableRecentOrder)
             .prefix(AppConstants.History.recentDisplayCount)
 
         return StatsSnapshot(
@@ -279,7 +279,10 @@ enum StatsAggregator {
             if var existing = buckets[groupKey] {
                 existing.count += 1
                 // Prefer the display strings from the most recent play.
-                if record.timestamp >= existing.latest {
+                if record.timestamp > existing.latest
+                    || (record.timestamp == existing.latest
+                        && displayNamePrecedes(
+                            displayName, displayDetail, existing.name, existing.detail)) {
                     existing.name = displayName
                     existing.detail = displayDetail
                     existing.latest = record.timestamp
@@ -295,14 +298,68 @@ enum StatsAggregator {
             }
         }
 
-        let items: [CountedItem] = buckets.map { key, value in
-            CountedItem(id: key, name: value.name, detail: value.detail, count: value.count)
+        // Keep only the best ten candidates while walking the buckets. This
+        // avoids materializing and sorting one CountedItem per historical key:
+        // the candidate list never grows beyond topListLimit.
+        // Ranking is O(keys * topListLimit) with O(topListLimit) storage.
+        var ranked: [CountedItem] = []
+        ranked.reserveCapacity(Swift.min(buckets.count, topListLimit))
+        for (groupKey, bucket) in buckets {
+            let candidate = CountedItem(
+                id: groupKey,
+                name: bucket.name,
+                detail: bucket.detail,
+                count: bucket.count
+            )
+            let insertionIndex = ranked.firstIndex {
+                rankedItemPrecedes(candidate, $0)
+            } ?? ranked.endIndex
+
+            guard insertionIndex < topListLimit else { continue }
+            if ranked.count == topListLimit {
+                ranked.removeLast()
+            }
+            ranked.insert(candidate, at: insertionIndex)
         }
-        let ranked = items.sorted { lhs, rhs in
-            if lhs.count != rhs.count { return lhs.count > rhs.count }
-            return lhs.name.localizedCaseInsensitiveCompare(rhs.name) == .orderedAscending
-        }
-        return Array(ranked.prefix(topListLimit))
+        return ranked
+    }
+
+    /// Total ordering shared by every insertion into a top-items list.
+    ///
+    /// Dictionary iteration is undefined, so ties use exact-string and stable-ID
+    /// fallbacks after localized comparison to make the capped result repeatable.
+    private static func rankedItemPrecedes(_ lhs: CountedItem, _ rhs: CountedItem) -> Bool {
+        if lhs.count != rhs.count { return lhs.count > rhs.count }
+        let localized = lhs.name.localizedCaseInsensitiveCompare(rhs.name)
+        if localized != .orderedSame { return localized == .orderedAscending }
+        if lhs.name != rhs.name { return lhs.name < rhs.name }
+        return lhs.id < rhs.id
+    }
+
+    /// Newest-first ordering with a deterministic content fallback for records
+    /// sharing a timestamp (common after timestamps are rounded on disk).
+    private static func stableRecentOrder(_ lhs: PlayRecord, _ rhs: PlayRecord) -> Bool {
+        if lhs.timestamp != rhs.timestamp { return lhs.timestamp > rhs.timestamp }
+        if lhs.trackKey != rhs.trackKey { return lhs.trackKey < rhs.trackKey }
+        if lhs.albumKey != rhs.albumKey { return lhs.albumKey < rhs.albumKey }
+        if lhs.track != rhs.track { return lhs.track < rhs.track }
+        if lhs.artist != rhs.artist { return lhs.artist < rhs.artist }
+        if lhs.album != rhs.album { return lhs.album < rhs.album }
+        if lhs.playedSeconds != rhs.playedSeconds { return lhs.playedSeconds > rhs.playedSeconds }
+        if lhs.duration != rhs.duration { return lhs.duration > rhs.duration }
+        return false
+    }
+
+    /// Total-orders display variants for equal-time records in the same
+    /// case-insensitive bucket, so input order cannot choose the visible casing.
+    private static func displayNamePrecedes(
+        _ name: String,
+        _ detail: String?,
+        _ otherName: String,
+        _ otherDetail: String?
+    ) -> Bool {
+        if name != otherName { return name < otherName }
+        return (detail ?? "") < (otherDetail ?? "")
     }
 
     /// Folds play records into per-day buckets keyed on the start of each

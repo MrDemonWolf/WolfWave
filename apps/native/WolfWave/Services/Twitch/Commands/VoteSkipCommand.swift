@@ -85,8 +85,18 @@ final class VoteSkipCommand: AsyncBotCommand {
             return "📊 Skip poll started. Vote in the Twitch poll!"
         case .pollInProgress:
             return "📊 A skip vote is already running."
+        case .pollTrackChanged:
+            return "🎵 The song changed while Twitch handled the poll. It won't skip the new song."
+        case .pollStatusUnknown:
+            return "📊 Twitch hasn't confirmed the poll yet. Waiting before another skip vote."
+        case .pollRequestCancelled:
+            return nil
         case .pollNotAllowed:
             return "🔒 Only the streamer or mods can start a skip poll."
+        case .playbackUnavailable:
+            return "🎵 WolfWave couldn't verify the current song, so no skip vote started."
+        case .skipUnavailable:
+            return "🎵 The voted song changed or couldn't be skipped. The current song was left alone."
         }
     }
 }

@@ -39,6 +39,7 @@ extension NSNotification.Name {
     nonisolated static let songRequestQueueChanged = NSNotification.Name(AppConstants.Notifications.songRequestQueueChanged)
     nonisolated static let songRequestHoldChanged = NSNotification.Name(AppConstants.Notifications.songRequestHoldChanged)
     nonisolated static let voteSkipStateChanged = NSNotification.Name(AppConstants.Notifications.voteSkipStateChanged)
+    nonisolated static let voteSkipPollsSettingChanged = NSNotification.Name(AppConstants.Notifications.voteSkipPollsSettingChanged)
     nonisolated static let musicPermissionDenied = NSNotification.Name(AppConstants.Notifications.musicPermissionDenied)
     nonisolated static let openSettingsSection = NSNotification.Name(AppConstants.Notifications.openSettingsSection)
     nonisolated static let openSettingsRequested = NSNotification.Name(AppConstants.Notifications.openSettingsRequested)
@@ -109,6 +110,9 @@ extension AppConstants {
         /// UserInfo contains "count" Int and "needed" Int when a session is active.
         static let voteSkipStateChanged = "VoteSkipStateChanged"
 
+        /// Posted when native Twitch Polls mode toggles. UserInfo contains "enabled" Bool.
+        static let voteSkipPollsSettingChanged = "VoteSkipPollsSettingChanged"
+
         /// Posted when the user toggles Listening History. UserInfo contains "enabled" Bool.
         static let listeningHistorySettingChanged = "ListeningHistorySettingChanged"
 
@@ -152,6 +156,7 @@ extension AppConstants {
             songRequestQueueChanged,
             songRequestHoldChanged,
             voteSkipStateChanged,
+            voteSkipPollsSettingChanged,
             listeningHistorySettingChanged,
             musicPermissionDenied,
             streamerModeChanged,

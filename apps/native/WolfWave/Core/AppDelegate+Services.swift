@@ -243,9 +243,13 @@ extension AppDelegate {
         let voteManager = SkipVoteManager()
         skipVoteManager = voteManager
 
-        let performSkip: @Sendable () async -> Void = { [weak self] in
+        let capturePlaybackTarget: @Sendable () async -> PlaybackTarget? = { [weak self] in
             let service = await MainActor.run { self?.songRequestService }
-            await service?.voteSkip()
+            return await service?.capturePlaybackTarget()
+        }
+        let performSkip: @Sendable (PlaybackTarget) async -> Bool = { [weak self] target in
+            let service = await MainActor.run { self?.songRequestService }
+            return await service?.voteSkip(target: target) ?? false
         }
         let sendChatMessage: @Sendable (String) -> Void = { [weak self] message in
             Task { @MainActor [weak self] in
@@ -253,9 +257,11 @@ extension AppDelegate {
                 await service.sendMessage(message)
             }
         }
-        let createPoll: @Sendable (String, Int) async -> Bool = { [weak self] title, duration in
+        let createPoll: @Sendable (String, Int) async -> SkipPollCreationOutcome = {
+            [weak self] title, duration in
             let service = await MainActor.run { self?.twitchService }
-            return await service?.createSkipPoll(title: title, durationSeconds: duration) ?? false
+            guard let service else { return .definitiveFailure }
+            return await service.createSkipPoll(title: title, durationSeconds: duration)
         }
         let onVoteEvent: @Sendable (SkipVoteManager.VoteEvent) -> Void = { [weak self] event in
             Task { @MainActor [weak self] in
@@ -265,6 +271,7 @@ extension AppDelegate {
 
         Task {
             await voteManager.configure(
+                capturePlaybackTarget: capturePlaybackTarget,
                 performSkip: performSkip,
                 sendChatMessage: sendChatMessage,
                 createPoll: createPoll,
@@ -285,6 +292,7 @@ extension AppDelegate {
             skipPollObserverTask = Task { [weak self] in
                 for await result in twitchService.skipPollResults {
                     await self?.skipVoteManager?.handlePollEnded(
+                        pollID: result.pollID,
                         skipVotes: result.skipVotes, keepVotes: result.keepVotes)
                 }
             }
@@ -453,6 +461,9 @@ extension AppDelegate {
         observeOnMain(Notification.Name.songRequestSettingChanged) { [weak self] n in
             self?.songRequestSettingChanged(n)
         }
+        observeOnMain(Notification.Name.voteSkipPollsSettingChanged) { [weak self] n in
+            self?.voteSkipPollsSettingChanged(n)
+        }
         observeOnMain(Notification.Name.listeningHistorySettingChanged) { [weak self] n in
             self?.listeningHistorySettingChanged(n)
         }
@@ -613,6 +624,15 @@ extension AppDelegate {
         // so re-evaluate them whenever it flips (subscribe on enable, drop the
         // managed reward setup on disable).
         Task { [weak self] in await self?.twitchService?.refreshRedemptionSubscriptions() }
+    }
+
+    /// Refreshes channel.poll.end on the current EventSub session when native
+    /// Polls mode is enabled after Twitch already connected.
+    @objc func voteSkipPollsSettingChanged(_ notification: Notification) {
+        guard let enabled = notification.enabledFlag else { return }
+        Task { [weak self] in
+            await self?.twitchService?.refreshPollSubscriptionIfNeeded(enabled: enabled)
+        }
     }
 
     /// Enables or disables listening-history recording when the toggle changes.
@@ -829,7 +849,10 @@ extension AppDelegate: PlaybackSourceDelegate {
 
             // Votes cast against the outgoing song must not carry over to the
             // incoming one. Ends any open chat-tally vote session without
-            // starting the inter-session cooldown.
+            // starting the inter-session cooldown. Advance the service revision
+            // synchronously before the unstructured actor task, so an old poll
+            // cannot win a scheduling window and target the replacement track.
+            songRequestService?.notePlaybackTrackChanged()
             Task { [weak self] in
                 await self?.skipVoteManager?.trackDidChange()
             }
