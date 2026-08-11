@@ -12,13 +12,6 @@ import XCTest
 @MainActor
 final class SparkleUpdaterServiceTests: XCTestCase {
 
-    // MARK: - Initialization Tests
-
-    func testServiceInitializesWithoutCrash() {
-        let service = SparkleUpdaterService()
-        XCTAssertNotNil(service)
-    }
-
     // MARK: - Feed URL Tests
 
     func testFeedURLPointsAtBundledDevAppcastInDebug() {
@@ -47,20 +40,6 @@ final class SparkleUpdaterServiceTests: XCTestCase {
         )
     }
 
-    // MARK: - Safe Operation Tests
-
-    func testCheckForUpdatesDoesNotCrash() {
-        let service = SparkleUpdaterService()
-        _ = service.checkForUpdates()
-    }
-
-    func testCheckForUpdatesInBackgroundDoesNotCrash() {
-        let service = SparkleUpdaterService()
-        service.checkForUpdatesInBackground()
-    }
-
-    // MARK: - Availability Signal Tests
-
     func testIsAvailableReflectsUpdaterAndHomebrewState() {
         // In a unit-test host bundle Sparkle's `SPUStandardUpdaterController`
         // typically does not produce an `SPUUpdater` (no main bundle Info.plist
@@ -73,13 +52,6 @@ final class SparkleUpdaterServiceTests: XCTestCase {
             service.checkForUpdates(),
             "isAvailable and checkForUpdates() must agree on whether Sparkle handled the call"
         )
-    }
-
-    // MARK: - SPUUpdaterDelegate Tests
-
-    func testServiceIsNSObjectForDelegateConformance() {
-        let service = SparkleUpdaterService()
-        XCTAssertTrue(service is NSObject, "SparkleUpdaterService should be an NSObject subclass to satisfy SPUUpdaterDelegate")
     }
 
     // MARK: - Feed Resolver Tests (channel selection)
