@@ -1,6 +1,6 @@
 ---
 title: Security
-description: How WolfWave keeps your Twitch and Discord tokens safe. MacOS Keychain storage, App Sandbox, OAuth Device Code flow, and EdDSA-signed Sparkle updates.
+description: How WolfWave protects Twitch and local WebSocket credentials with macOS Keychain, App Sandbox, OAuth Device Code flow, and signed updates.
 keywords:
   - wolfwave security
   - twitch token keychain mac
@@ -8,16 +8,16 @@ keywords:
   - oauth device code twitch swift
   - sparkle eddsa updates
 ogTitle: WolfWave Security. Keychain, Sandbox, OAuth
-ogDescription: Tokens stay in your macOS Keychain. App Sandbox, OAuth Device Code, EdDSA-signed updates. No servers.
+ogDescription: Credentials are stored in macOS Keychain and sent only to the services you enable. App Sandbox, OAuth Device Code, and signed updates.
 ogChips:
   - Keychain
   - App Sandbox
   - OAuth
   - EdDSA
-ogEyebrow: Tokens stay safe
+ogEyebrow: Credentials stay safe
 ---
 
-Your tokens never leave your Mac. Everything sensitive goes through macOS system APIs: Keychain storage, App Sandbox, OAuth Device Code, and EdDSA-signed updates.
+Credentials are stored in macOS Keychain. Twitch OAuth tokens go directly to Twitch over encrypted connections, while overlay and control tokens are presented only to your WolfWave server. WolfWave never sends these credentials to MrDemonWolf, Inc.
 
 ## Credential Storage
 
@@ -30,14 +30,11 @@ All credentials live in the macOS Keychain, accessed through the app's `Keychain
 - **WebSocket control token**. Separate same-Mac credential for Stream Deck commands
 
 ```swift
-// Store a credential
-KeychainService.shared.store(token: "your-token", for: .twitchOAuth)
-
-// Retrieve a credential
-let token = KeychainService.shared.retrieve(for: .twitchOAuth)
-
-// Delete a credential
-KeychainService.shared.delete(for: .twitchOAuth)
+try KeychainService.saveTwitchCredentialGrant(
+    .init(accessToken: "access-token", refreshToken: "refresh-token")
+)
+let grant = try KeychainService.loadTwitchCredentialGrantChecked()
+try KeychainService.deleteTwitchCredentialGrant()
 ```
 
 <Callout type="warn">
@@ -55,7 +52,7 @@ WolfWave uses the **OAuth Device Code Flow**:
 
 You never type credentials into the app, and authorization happens on Twitch's secure pages.
 
-On every launch, stored tokens are validated. Expired tokens refresh silently when possible; if refresh fails, you're prompted to re-authorize.
+On every launch, stored tokens are validated. An expired access token refreshes silently when Twitch accepts the refresh token. Only an explicit token rejection or confirmed missing permissions asks you to reconnect. Network errors, rate limits, and malformed responses keep the saved credentials and retry within a bounded window instead of signing you out.
 
 ## WebSocket Server Security
 
