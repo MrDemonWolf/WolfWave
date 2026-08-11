@@ -107,8 +107,8 @@ test-ci: sponsor-config
 		-resultBundlePath TestResults.xcresult \
 		test
 
-# Full SwiftLint pass, filtered through the committed baseline so only NEW
-# violations show. Mirrors the CI `lint` job (now blocking).
+# Full SwiftLint pass against the committed baseline. Hard errors block while
+# advisory warning debt stays visible. Mirrors the CI `lint` job.
 lint:
 	@if ! command -v swiftlint >/dev/null 2>&1; then \
 		echo "❌ SwiftLint not found. Install with: brew install swiftlint"; exit 1; fi

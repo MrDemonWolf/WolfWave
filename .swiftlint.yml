@@ -1,8 +1,8 @@
 # SwiftLint configuration for WolfWave
 #
-# Lenient to start: size rules emit warnings (never errors) and the CI lint
-# job is non-blocking. Tighten over time; eventually run with `--strict` and
-# drop `continue-on-error` from the CI job.
+# CI blocks error-severity violations. Warning thresholds remain advisory while
+# `swiftlint-baseline.json` records legacy debt; generous hard-error ceilings let
+# existing large files be split incrementally without growing further.
 #
 # Run locally with `make lint` (requires `brew install swiftlint`).
 
