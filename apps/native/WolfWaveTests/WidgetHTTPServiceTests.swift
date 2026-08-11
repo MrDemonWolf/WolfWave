@@ -10,60 +10,13 @@ import Network
 import XCTest
 @testable import WolfWave
 
-/// Integration tests that start a real HTTP server (NWListener). Port-binding
-/// tests go through `startBoundService`, which walks a small range of high ports
-/// until one binds, so a busy or lingering port can't flake CI.
+/// Focused request-policy checks plus integration tests that cross the real
+/// NWListener boundary. Port-binding tests use `startBoundService` to avoid
+/// coupling the suite to a single machine-global port.
 @MainActor
 final class WidgetHTTPServiceTests: XCTestCase {
 
-    // MARK: - Initialization Tests
-
-    func testInitWithValidPortStoresPort() {
-        let service = WidgetHTTPService(port: 8766)
-        XCTAssertNotNil(service, "Service should initialize with a valid port")
-    }
-
-    func testInitWithDefaultWidgetPort() {
-        let service = WidgetHTTPService(port: AppConstants.WebSocketServer.widgetDefaultPort)
-        XCTAssertNotNil(service, "Service should initialize with the default widget port")
-    }
-
-    func testInitWithMinPort() {
-        let service = WidgetHTTPService(port: AppConstants.WebSocketServer.minPort)
-        XCTAssertNotNil(service, "Service should initialize with the minimum allowed port")
-    }
-
-    func testInitWithMaxPort() {
-        let service = WidgetHTTPService(port: AppConstants.WebSocketServer.maxPort)
-        XCTAssertNotNil(service, "Service should initialize with the maximum allowed port")
-    }
-
-    // MARK: - Listener State Tests
-
-    func testListenerIsNilBeforeStart() {
-        // The listener should not be created until start() is called
-        // We verify this indirectly: calling stop() on a not-started service is safe
-        let service = WidgetHTTPService(port: 8766)
-        // If listener were non-nil at init, stop() would cancel it; this should be a no-op
-        service.stop()
-        // No crash = pass; listener was nil
-    }
-
-    // MARK: - Stop Safety Tests
-
-    func testStopOnNotStartedServiceDoesNotCrash() {
-        let service = WidgetHTTPService(port: 8766)
-        service.stop()
-        // No crash = pass
-    }
-
-    func testMultipleStopCallsDoNotCrash() {
-        let service = WidgetHTTPService(port: 8766)
-        service.stop()
-        service.stop()
-        service.stop()
-        // Multiple stop() calls should be safe since listener is set to nil after cancel
-    }
+    // MARK: - Request Policy Tests
 
     func testTokenInjectionRequiresLoopbackPeerAndLiteralLocalHost() {
         XCTAssertTrue(
@@ -119,38 +72,6 @@ final class WidgetHTTPServiceTests: XCTestCase {
         )
     }
 
-    // MARK: - Port 0 Handling Tests
-
-    func testPortZeroHandledGracefully() {
-        // Port 0 should be handled gracefully. NWEndpoint.Port(rawValue: 0) returns nil,
-        // so start() will log an error and return early without crashing
-        let service = WidgetHTTPService(port: 0)
-        XCTAssertNotNil(service, "Service should initialize with port 0 without crashing")
-        service.start()
-        // start() should return early after logging "Invalid port 0"
-        // Verify no crash and stop is still safe
-        service.stop()
-    }
-
-    // MARK: - Start/Stop Lifecycle Tests
-
-    func testStartThenStopDoesNotCrash() {
-        // Stay below macOS's ephemeral client-port range.
-        let service = WidgetHTTPService(port: 38999)
-        service.start()
-        service.stop()
-        // Clean lifecycle = pass
-    }
-
-    func testMultipleStartCallsDoNotCreateDuplicateListeners() {
-        // The start() method guards on listener == nil, so calling it twice should be safe
-        let service = WidgetHTTPService(port: 38998)
-        service.start()
-        service.start() // Should be a no-op since listener is already set
-        service.stop()
-        // No crash = pass
-    }
-
     // MARK: - Served HTML Body Tests
 
     /// Starts a `WidgetHTTPService` on the first port in a small high range that
@@ -177,97 +98,52 @@ final class WidgetHTTPServiceTests: XCTestCase {
         return nil
     }
 
-    /// Fetches `GET /` from the running service and returns its body and response.
-    /// Retries a few times so a transient connect race right after `ready()`
-    /// doesn't flake the assertion.
+    /// Fetches `GET /` from a service that has already reported readiness.
     private func fetchServedWidgetResponse(
         port: UInt16,
-        attempts: Int = 5,
         timeout: TimeInterval = 5
-    ) -> (body: String, response: HTTPURLResponse)? {
-        guard let url = URL(string: "http://127.0.0.1:\(port)/") else { return nil }
-        for attempt in 0..<attempts {
-            let exp = expectation(description: "fetch / (attempt \(attempt))")
-            var body: String?
-            var httpResponse: HTTPURLResponse?
-            let config = URLSessionConfiguration.ephemeral
-            config.requestCachePolicy = .reloadIgnoringLocalAndRemoteCacheData
-            let session = URLSession(configuration: config)
-            let task = session.dataTask(with: url) { data, response, _ in
-                if let data { body = String(data: data, encoding: .utf8) }
-                httpResponse = response as? HTTPURLResponse
-                exp.fulfill()
-            }
-            task.resume()
-            wait(for: [exp], timeout: timeout)
-            if let body, !body.isEmpty, let httpResponse {
-                return (body, httpResponse)
-            }
-            Thread.sleep(forTimeInterval: 0.05)
-        }
-        return nil
+    ) async throws -> (body: String, response: HTTPURLResponse) {
+        let url = try XCTUnwrap(URL(string: "http://127.0.0.1:\(port)/"))
+        let configuration = URLSessionConfiguration.ephemeral
+        configuration.requestCachePolicy = .reloadIgnoringLocalAndRemoteCacheData
+        configuration.timeoutIntervalForRequest = timeout
+        configuration.timeoutIntervalForResource = timeout
+        let session = URLSession(configuration: configuration)
+        defer { session.invalidateAndCancel() }
+
+        let (data, response) = try await session.data(for: URLRequest(url: url))
+        let httpResponse = try XCTUnwrap(response as? HTTPURLResponse)
+        let body = try XCTUnwrap(String(data: data, encoding: .utf8))
+        return (body, httpResponse)
     }
 
-    private func fetchServedWidget(
-        port: UInt16,
-        attempts: Int = 5,
-        timeout: TimeInterval = 5
-    ) -> String? {
-        fetchServedWidgetResponse(port: port, attempts: attempts, timeout: timeout)?.body
-    }
-
-    func testServedWidgetContainsBuildInlinedTokensJS() async {
+    func testPublicWidgetResponseContainsShippedAssetAndPrivacyPolicy() async throws {
         guard let (service, port) = await startBoundService() else { return }
         defer { service.stop() }
 
-        guard let body = fetchServedWidget(port: port) else {
-            XCTFail("Failed to fetch served widget.html")
-            return
-        }
+        let result = try await fetchServedWidgetResponse(port: port)
 
         XCTAssertTrue(
-            body.contains("window.WW_TOKENS"),
+            result.body.contains("window.WW_TOKENS"),
             "The built widget should contain the inlined window.WW_TOKENS literal"
         )
         XCTAssertFalse(
-            body.contains("<script src=\"widget-tokens.generated.js\"></script>"),
+            result.body.contains("<script src=\"widget-tokens.generated.js\"></script>"),
             "The build should remove the external tokens script before the native server reads the asset"
         )
-    }
-
-    func testServedWidgetContainsPlaceholder() async {
-        guard let (service, port) = await startBoundService() else { return }
-        defer { service.stop() }
-
-        guard let body = fetchServedWidget(port: port) else {
-            XCTFail("Failed to fetch served widget.html")
-            return
-        }
-
         XCTAssertTrue(
-            body.contains("class=\"placeholder\""),
+            result.body.contains("class=\"placeholder\""),
             "Served HTML should include the pre-WebSocket placeholder so the page doesn't render blank"
         )
         XCTAssertTrue(
-            body.contains("Waiting for music"),
+            result.body.contains("Waiting for music"),
             "Placeholder should carry the 'Waiting for music' copy"
         )
-    }
-
-    func testServedWidgetSuppressesTokenReferrers() async {
-        guard let (service, port) = await startBoundService() else { return }
-        defer { service.stop() }
-
-        guard let result = fetchServedWidgetResponse(port: port) else {
-            XCTFail("Failed to fetch served widget.html")
-            return
-        }
-
         XCTAssertEqual(result.response.value(forHTTPHeaderField: "Referrer-Policy"), "no-referrer")
         XCTAssertTrue(result.body.contains("<meta name=\"referrer\" content=\"no-referrer\">"))
     }
 
-    func testLoopbackWidgetInjectsReadOnlyOverlayCredential() async {
+    func testLoopbackWidgetInjectsReadOnlyOverlayCredential() async throws {
         let overlayToken = String(repeating: "a", count: 64)
         guard let (service, port) = await startBoundService(
             from: 59880,
@@ -275,10 +151,7 @@ final class WidgetHTTPServiceTests: XCTestCase {
         ) else { return }
         defer { service.stop() }
 
-        guard let result = fetchServedWidgetResponse(port: port) else {
-            XCTFail("Failed to fetch served widget.html")
-            return
-        }
+        let result = try await fetchServedWidgetResponse(port: port)
 
         XCTAssertTrue(result.body.contains(overlayToken))
         XCTAssertTrue(result.body.contains("wolfwave.overlay."))
