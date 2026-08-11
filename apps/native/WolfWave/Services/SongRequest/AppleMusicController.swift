@@ -818,8 +818,8 @@ final class AppleMusicController: AppleMusicControlling {
     /// address descriptor. Internal so the descriptor shape is unit-testable.
     static func scriptInvocationEvent(targetPID: pid_t) -> NSAppleEventDescriptor {
         let event = NSAppleEventDescriptor(
-            eventClass: kASAppleScriptSuite,
-            eventID: kASSubroutineEvent,
+            eventClass: AEEventClass(kASAppleScriptSuite),
+            eventID: AEEventID(kASSubroutineEvent),
             targetDescriptor: nil,
             returnID: AEReturnID(kAutoGenerateReturnID),
             transactionID: AETransactionID(kAnyTransactionID)
