@@ -35,7 +35,6 @@ enum NotificationKeys {
     nonisolated static let clients = "clients"
     nonisolated static let isConnected = "isConnected"
     nonisolated static let error = "error"
-    nonisolated static let section = "section"
     nonisolated static let mode = "mode"
     nonisolated static let isReducedMode = "isReducedMode"
     nonisolated static let count = "count"
@@ -136,15 +135,10 @@ extension NotificationCenter {
         post(name: .updateStateChanged, object: nil, userInfo: info)
     }
 
-    /// Posts `.openSettingsSection` requesting navigation to a settings pane.
-    nonisolated func postOpenSettingsSection(_ section: String) {
-        post(name: .openSettingsSection, object: nil, userInfo: [NotificationKeys.section: section])
-    }
-
     /// Posts `.openSettingsRequested`: a bare signal asking `SettingsSceneBridge`
     /// (hosted in the hidden helper window) to invoke the live `openSettings`
-    /// environment action. Carries no payload; section targeting is handled
-    /// separately via `Preferences.setSelectedSettingsSection` / `.openSettingsSection`.
+    /// environment action. Carries no payload; callers persist any requested
+    /// section through `Preferences.setSelectedSettingsSection` first.
     nonisolated func postOpenSettingsRequested() {
         post(name: .openSettingsRequested, object: nil)
     }
@@ -199,9 +193,6 @@ extension Notification {
 
     /// An `error` message string, when present.
     nonisolated var errorMessage: String? { userInfo?[NotificationKeys.error] as? String }
-
-    /// The target settings `section` raw value, when present.
-    nonisolated var sectionString: String? { userInfo?[NotificationKeys.section] as? String }
 
     /// The dock/app-visibility `mode` raw value, when present.
     nonisolated var modeString: String? { userInfo?[NotificationKeys.mode] as? String }

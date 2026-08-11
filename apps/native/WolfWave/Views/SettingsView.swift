@@ -169,11 +169,6 @@ struct SettingsView: View {
                     UserDefaults.standard.removeObject(forKey: AppConstants.UserDefaults.selectedSettingsSection)
                 }
             }
-            .onReceive(NotificationCenter.default.publisher(for: .openSettingsSection)) { note in
-                guard let raw = note.sectionString,
-                      let section = SettingsSection(rawValue: raw) else { return }
-                selectedSection = section
-            }
             // The sidebar toggle lives on the DETAIL toolbar, not the sidebar's.
             // SwiftUI's automatic toggle sits in the leading (sidebar) toolbar
             // segment; while the column animates to zero width that segment can't

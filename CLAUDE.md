@@ -350,7 +350,7 @@ Test taxonomy is boundary-based:
 
 - Use `@testable import WolfWave` (module name matches `PRODUCT_NAME`)
 - Test hosts default to `InMemoryKeychainBackend`; never replace it with `SystemKeychainBackend` or access the user's real Keychain
-- `SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor` applies to test classes too; XCTest runs on main thread
+- `WolfWaveTests` uses `SWIFT_DEFAULT_ACTOR_ISOLATION = nonisolated`; annotate UI-facing tests or helpers with `@MainActor` explicitly
 - Test files are auto-discovered via `PBXFileSystemSynchronizedRootGroup`; just add `.swift` files to `apps/native/WolfWaveTests/`
 - Prefer pure logic (version comparison, command matching, state machines). Network integration tests must own a loopback endpoint, await observable readiness, and use bounded timeouts; never depend on a public service.
 

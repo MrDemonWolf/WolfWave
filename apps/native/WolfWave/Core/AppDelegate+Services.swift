@@ -322,7 +322,7 @@ extension AppDelegate {
     /// Creates the WebSocket server on the configured port and enables if configured.
     func setupWebSocketServer() {
         // One off-main scan primes the LAN IP cache. Network path updates refresh
-        // it later; running both warmCache and refreshIPv4 here walked getifaddrs twice.
+        // it again after network-path changes.
         Task.detached(priority: .utility) {
             await NetworkInfoService.shared.refreshIPv4()
         }
