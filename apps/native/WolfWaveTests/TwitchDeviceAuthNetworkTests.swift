@@ -203,8 +203,10 @@ final class TwitchDeviceAuthNetworkTests: XCTestCase {
         let requestBody = ThreadSafeBox("")
         handlerStore.handler = { request in
             requestBody.value = String(data: request.httpBody ?? Data(), encoding: .utf8) ?? ""
-            (MockURLProtocol.httpResponse(for: request, status: 200),
-             Data(#"{"access_token":"ABC123","refresh_token":"REFRESH123"}"#.utf8))
+            return (
+                MockURLProtocol.httpResponse(for: request, status: 200),
+                Data(#"{"access_token":"ABC123","refresh_token":"REFRESH123"}"#.utf8)
+            )
         }
 
         let grant = try await makeAuth().pollForToken(deviceCode: "DEV", interval: 1) { _ in }
