@@ -134,6 +134,40 @@ final class ArtworkServiceNetworkTests: XCTestCase {
         )
     }
 
+    func testStructuredCacheKeysKeepDelimiterContainingTracksDistinct() async {
+        let counter = ThreadSafeBox(0)
+        MockURLProtocol.requestHandler = { request in
+            guard let url = request.url,
+                  let term = URLComponents(url: url, resolvingAgainstBaseURL: false)?
+                    .queryItems?
+                    .first(where: { $0.name == "term" })?
+                    .value
+            else { throw URLError(.badURL) }
+
+            let marker: String
+            switch term {
+            case "C A|B":
+                marker = "first"
+            case "B|C A":
+                marker = "second"
+            default:
+                throw URLError(.badServerResponse)
+            }
+
+            counter.mutate { $0 += 1 }
+            let json = #"{"results":[{"artworkUrl100":"https://cdn.example/\#(marker)/100x100.jpg"}]}"#
+            return (MockURLProtocol.httpResponse(for: request, status: 200), Data(json.utf8))
+        }
+
+        let first = await fetchLinks(track: "C", artist: "A|B")
+        let second = await fetchLinks(track: "B|C", artist: "A")
+
+        XCTAssertEqual(first.artworkURL, "https://cdn.example/first/512x512.jpg")
+        XCTAssertEqual(second.artworkURL, "https://cdn.example/second/512x512.jpg")
+        XCTAssertEqual(counter.value, 2)
+        XCTAssertEqual(service.cacheStats().entryCount, 2)
+    }
+
     func testMissIsNotRequeriedWithinTTL() async {
         let counter = ThreadSafeBox(0)
         handlerStore.handler = { request in
@@ -205,6 +239,44 @@ final class ArtworkServiceNetworkTests: XCTestCase {
         XCTAssertTrue(deleted, "Cache file should be deleted within the timeout")
     }
 
+    func testClearCacheRejectsOldResponseAndStartsFreshGeneration() async {
+        let gate = ArtworkRequestGate()
+        defer { gate.releaseAll() }
+        MockURLProtocol.requestHandler = { request in
+            try gate.response(for: request)
+        }
+
+        let staleCompletion = expectation(description: "stale request completes")
+        let staleLinks = ThreadSafeBox<TrackLinks?>(nil)
+        service.fetchTrackLinks(track: "Same", artist: "Artist") { links in
+            staleLinks.set(links)
+            staleCompletion.fulfill()
+        }
+        guard await waitUntil({ gate.requestCount == 1 }) else {
+            XCTFail("First request did not start")
+            return
+        }
+
+        service.clearCache()
+
+        gate.releaseFirst()
+        await fulfillment(of: [staleCompletion], timeout: 1)
+
+        XCTAssertEqual(staleLinks.value?.artworkURL, "https://cdn.example/stale/512x512.jpg")
+        XCTAssertNil(service.cachedArtworkURL(track: "Same", artist: "Artist"))
+        XCTAssertFalse(service.hasAttemptedTrackLinks(track: "Same", artist: "Artist"))
+
+        let freshLinks = await fetchLinks(track: "Same", artist: "Artist")
+
+        XCTAssertEqual(freshLinks.artworkURL, "https://cdn.example/fresh/512x512.jpg")
+        XCTAssertEqual(
+            service.cachedArtworkURL(track: "Same", artist: "Artist"),
+            "https://cdn.example/fresh/512x512.jpg"
+        )
+        XCTAssertEqual(service.cacheStats().entryCount, 1)
+        XCTAssertEqual(gate.requestCount, 2)
+    }
+
     func testCachedResultIsServedWithoutHittingNetwork() async {
         handlerStore.handler = { request in
             let json = #"{"results":[{"artworkUrl100":"https://cdn.example/100x100.jpg","trackId":7}]}"#
@@ -217,5 +289,50 @@ final class ArtworkServiceNetworkTests: XCTestCase {
         let links = await fetchLinks(track: "Track", artist: "Artist")
 
         XCTAssertEqual(links.artworkURL, "https://cdn.example/512x512.jpg")
+    }
+}
+
+/// Holds the first URLProtocol response so cache-generation ordering is fully
+/// deterministic instead of depending on scheduler timing.
+private final class ArtworkRequestGate: @unchecked Sendable {
+    private let lock = NSLock()
+    private var count = 0
+    private let firstRelease = DispatchSemaphore(value: 0)
+
+    var requestCount: Int {
+        lock.withLock { count }
+    }
+
+    func response(for request: URLRequest) throws -> (HTTPURLResponse, Data) {
+        let requestNumber = lock.withLock {
+            count += 1
+            return count
+        }
+
+        let marker: String
+        switch requestNumber {
+        case 1:
+            marker = "stale"
+        case 2:
+            marker = "fresh"
+        default:
+            throw URLError(.badServerResponse)
+        }
+
+        if requestNumber == 1 {
+            guard firstRelease.wait(timeout: .now() + 2) == .success else {
+                throw URLError(.timedOut)
+            }
+        }
+        let json = #"{"results":[{"artworkUrl100":"https://cdn.example/\#(marker)/100x100.jpg"}]}"#
+        return (MockURLProtocol.httpResponse(for: request, status: 200), Data(json.utf8))
+    }
+
+    func releaseFirst() {
+        firstRelease.signal()
+    }
+
+    func releaseAll() {
+        firstRelease.signal()
     }
 }
