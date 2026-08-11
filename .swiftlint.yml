@@ -4,7 +4,7 @@
 # `swiftlint-baseline.json` records legacy debt; generous hard-error ceilings let
 # existing large files be split incrementally without growing further.
 #
-# Run locally with `make lint` (requires `brew install swiftlint`).
+# Run locally with `make lint` (requires Docker).
 
 included:
   - apps/native/WolfWave
