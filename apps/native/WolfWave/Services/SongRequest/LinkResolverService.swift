@@ -15,6 +15,13 @@ import Foundation
 nonisolated final class LinkResolverService {
     // MARK: - Types
 
+    /// Supported destination identified from a validated URL.
+    private enum MusicService: Equatable, Sendable {
+        case spotify
+        case youtube
+        case appleMusic
+    }
+
     /// Result of resolving a music link.
     enum ResolveResult {
         /// Extracted song title and artist from the link.
@@ -51,35 +58,29 @@ nonisolated final class LinkResolverService {
 
     /// Detect if a string contains a Spotify track URL.
     static func isSpotifyLink(_ text: String) -> Bool {
-        text.contains("open.spotify.com/track/") || text.contains("spotify.link/")
+        containsService(.spotify, in: text)
     }
 
     /// Detect if a string contains a YouTube music URL.
     static func isYouTubeLink(_ text: String) -> Bool {
-        text.contains("youtube.com/watch") || text.contains("youtu.be/")
-            || text.contains("music.youtube.com/watch")
+        containsService(.youtube, in: text)
     }
 
     /// Detect if a string contains an Apple Music URL.
     static func isAppleMusicLink(_ text: String) -> Bool {
-        text.contains("music.apple.com/")
+        containsService(.appleMusic, in: text)
     }
 
     /// Detect if a string is any supported music service link.
     static func isMusicLink(_ text: String) -> Bool {
-        isSpotifyLink(text) || isYouTubeLink(text) || isAppleMusicLink(text)
+        detectedURLs(in: text).contains { service(for: $0) != nil }
     }
 
-    /// Extract the URL from a chat message that may contain other text.
+    /// Extract the first supported music URL from a chat message.
     static func extractURL(from text: String) -> String? {
-        let words = text.split(separator: " ")
-        for word in words {
-            let str = String(word)
-            if str.hasPrefix("http://") || str.hasPrefix("https://") {
-                return str
-            }
-        }
-        return nil
+        detectedURLs(in: text)
+            .first { service(for: $0) != nil }?
+            .absoluteString
     }
 
     // MARK: - Resolution
@@ -89,25 +90,103 @@ nonisolated final class LinkResolverService {
     /// - Parameter url: The music service URL to resolve.
     /// - Returns: The resolution result with title/artist or Apple Music URL.
     func resolve(url: String) async -> ResolveResult {
-        // Apple Music links: return directly for MusicKit resolution
-        if Self.isAppleMusicLink(url), let musicURL = URL(string: url) {
-            return .appleMusicURL(musicURL)
-        }
+        guard let sourceURL = URL(string: url),
+              let service = Self.service(for: sourceURL)
+        else { return .notFound }
 
-        // Spotify links: use Spotify oEmbed
-        if Self.isSpotifyLink(url) {
-            return await resolveViaOEmbed(base: AppConstants.API.spotifyOEmbed, sourceURL: url, includeFormat: false)
+        switch service {
+        case .appleMusic:
+            return .appleMusicURL(sourceURL)
+        case .spotify:
+            return await resolveViaOEmbed(
+                base: AppConstants.API.spotifyOEmbed,
+                sourceURL: sourceURL.absoluteString,
+                includeFormat: false
+            )
+        case .youtube:
+            return await resolveViaOEmbed(
+                base: AppConstants.API.youtubeOEmbed,
+                sourceURL: sourceURL.absoluteString,
+                includeFormat: true
+            )
         }
-
-        // YouTube links: use YouTube oEmbed
-        if Self.isYouTubeLink(url) {
-            return await resolveViaOEmbed(base: AppConstants.API.youtubeOEmbed, sourceURL: url, includeFormat: true)
-        }
-
-        return .notFound
     }
 
     // MARK: - Private Helpers
+
+    /// Finds URL-shaped content in natural-language chat text using
+    /// Foundation's system data detector. URL parsing below remains the
+    /// validation boundary, as recommended by Foundation.
+    private static func detectedURLs(in text: String) -> [URL] {
+        guard let detector = try? NSDataDetector(
+            types: NSTextCheckingResult.CheckingType.link.rawValue
+        ) else { return [] }
+
+        let range = NSRange(text.startIndex..<text.endIndex, in: text)
+        return detector.matches(in: text, options: [], range: range)
+            .compactMap { $0.url }
+    }
+
+    private static func containsService(_ expected: MusicService, in text: String) -> Bool {
+        detectedURLs(in: text).contains { service(for: $0) == expected }
+    }
+
+    /// Validates transport, exact host, and service-specific path before a URL
+    /// can enter either MusicKit or an oEmbed request.
+    private static func service(for url: URL) -> MusicService? {
+        guard url.scheme?.lowercased() == "https",
+              url.user == nil,
+              url.password == nil,
+              url.port == nil,
+              let host = url.host?.lowercased()
+        else { return nil }
+
+        let path = url.path.split(separator: "/", omittingEmptySubsequences: true).map(String.init)
+
+        switch host {
+        case "open.spotify.com":
+            guard isSpotifyTrackPath(path) else { return nil }
+            return .spotify
+        case "spotify.link":
+            guard path.count == 1 else { return nil }
+            return .spotify
+        case "youtube.com", "www.youtube.com", "m.youtube.com", "music.youtube.com":
+            guard path == ["watch"] else { return nil }
+            return .youtube
+        case "youtu.be":
+            guard path.count == 1 else { return nil }
+            return .youtube
+        case "music.apple.com":
+            guard isAppleMusicTrackPath(path) else { return nil }
+            return .appleMusic
+        default:
+            return nil
+        }
+    }
+
+    /// Spotify emits both canonical track links and locale-prefixed web links.
+    private static func isSpotifyTrackPath(_ path: [String]) -> Bool {
+        if path.count == 2 {
+            return path[0] == "track"
+        }
+        guard path.count == 3,
+              path[0].hasPrefix("intl-"),
+              path[0].count > "intl-".count
+        else { return false }
+        return path[1] == "track"
+    }
+
+    /// Apple Music share links use:
+    /// /<storefront>/(album|song)/<slug>/<numeric catalog id>
+    private static func isAppleMusicTrackPath(_ path: [String]) -> Bool {
+        guard path.count == 4,
+              path[0].utf8.count == 2,
+              path[0].utf8.allSatisfy({ (97...122).contains(Int($0)) }),
+              path[1] == "album" || path[1] == "song",
+              !path[2].isEmpty
+        else { return false }
+        return UInt64(path[3]) != nil
+    }
 
     /// Resolve a link via an oEmbed endpoint.
     private func resolveViaOEmbed(base: String, sourceURL: String, includeFormat: Bool) async -> ResolveResult {

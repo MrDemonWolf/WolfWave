@@ -34,6 +34,8 @@ All notable changes to this project will be documented in this file.
 
 - **Settings backups now restore live behavior, not just switches.** Appearance, update settings, and Launch at Login take effect during import; rejected login-item changes stay matched to macOS, unsafe queue limits are ignored, and the preview count matches what will actually restore.
 - **Notifications no longer stack or arrive out of order.** A new song or skip-vote banner removes the delivered banner it replaces, and a slow old artwork lookup can no longer overwrite the latest notification.
+- **Cleared artwork stays cleared.** An artwork lookup already in flight can no longer refill the cache after you clear it, and artist/title combinations containing punctuation no longer share cache entries.
+- **Pasted music links resolve reliably.** Song requests now find the first supported link in a message, ignore surrounding punctuation, and reject insecure or lookalike Apple Music URLs.
 - **Twitch custom commands stay locked while disconnected.** The settings card now explains that Twitch must be connected and closes an open editor if the connection becomes unavailable.
 - **Twitch stays connected when its server moves you.** Twitch periodically hands your connection to a different server. WolfWave could flash "disconnected" and tear down the new, healthy connection while doing that. It rides through cleanly now.
 - **Low Power Mode no longer stalls launch.** Startup reads the posted power-state snapshot without recursively initializing the monitor.
