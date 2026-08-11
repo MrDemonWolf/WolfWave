@@ -7,8 +7,9 @@ Single source of truth for WolfWave's visual language across the native app, the
 ```
 design-system/
   tokens.json          # canonical token source; edit this
-  tokens.schema.json   # (optional) JSON schema for editor validation
+  lint-allowlist.txt   # grandfathered literal spacing/font sites, ratchet-only
   scripts/generate.ts  # bun script that emits per-platform outputs
+  scripts/lint.ts      # design-system lint (bun run ds:lint)
   README.md            # this file
   components/          # markdown catalog (one .md per shared component)
 ```
@@ -59,7 +60,11 @@ WolfWave's primary brand color is **Apple System Blue `#0A84FF`** (matches macOS
 
 ## Component catalog
 
-Every reusable SwiftUI view under `apps/native/WolfWave/Views/Shared/` and `apps/native/WolfWave/Views/Onboarding/Components/` has a corresponding markdown file in `components/`. Each entry covers: purpose, props, tokens used, accessibility notes, do/don't, and an example snippet. The docs site renders these as a live styleguide at `/docs/design-system/components`.
+Every reusable SwiftUI view under `apps/native/WolfWave/Views/Shared/`, `apps/native/WolfWave/Views/Onboarding/Components/`, and `apps/native/WolfWave/Views/HistoryStats/` has a corresponding markdown file in `components/`. Each entry covers: purpose, props, tokens used, accessibility notes, do/don't, and an example snippet.
+
+The docs site does **not** re-render these. `/docs/design-system/components` links out to
+[`components/README.md`](components/) on GitHub on purpose, so the published page can never
+drift from the catalog the way a copied table would.
 
 ## Out of scope (for now)
 
