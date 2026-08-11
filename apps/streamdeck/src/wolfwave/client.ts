@@ -293,6 +293,10 @@ export class WolfWaveClient {
     // Drop handlers first: otherwise this deliberate close fires the `close`
     // handler and schedules a reconnect we're about to supersede.
     socket.removeAllListeners();
+    // `ws` emits an asynchronous error when a CONNECTING handshake is aborted.
+    // Keep one sink installed so that deliberate retirement cannot become an
+    // unhandled EventEmitter `error` and terminate the Stream Deck plugin.
+    socket.once("error", () => {});
     socket.close();
   }
 
