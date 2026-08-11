@@ -48,7 +48,7 @@ nonisolated final class MusicScriptingBridgeErrorDelegate:
     }
 }
 
-final class AppleMusicSource: PlaybackSource, @unchecked Sendable {
+final class AppleMusicSource: @unchecked Sendable {
 
     // MARK: - Properties
 
