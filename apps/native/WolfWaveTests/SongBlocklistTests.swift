@@ -104,6 +104,50 @@ final class SongBlocklistTests: XCTestCase {
         XCTAssertTrue(entries.isEmpty)
     }
 
+    func testFactoryResetDrainsQueuedMutationAndRejectsLaterWrites() async throws {
+        let storage = SuspendingFirstWriteBlocklistStorage()
+        let list = SongBlocklist(storage: storage)
+        let addTask = Task {
+            await list.add(BlocklistItem(value: "Queued Artist", type: .artist))
+        }
+        let firstWriteStarted = await waitForSemaphore(
+            storage.firstWriteStarted,
+            timeout: .now() + 1
+        )
+        XCTAssertTrue(firstWriteStarted)
+
+        let resetCallStarted = DispatchSemaphore(value: 0)
+        let resetFinished = ThreadSafeBox(false)
+        let resetTask = Task.detached {
+            resetCallStarted.signal()
+            await list.prepareForFactoryReset()
+            resetFinished.value = true
+        }
+        let resetStarted = await waitForSemaphore(
+            resetCallStarted,
+            timeout: .now() + 1
+        )
+        XCTAssertTrue(resetStarted)
+        await Task.yield()
+        XCTAssertFalse(resetFinished.value)
+
+        storage.releaseFirstWrite()
+        _ = await addTask.value
+        _ = await resetTask.value
+
+        let clearedData = try XCTUnwrap(storage.read())
+        let cleared = try JSONCoders.camelCase.decode([BlocklistItem].self, from: clearedData)
+        XCTAssertTrue(cleared.isEmpty)
+
+        let later = BlocklistItem(value: "Later Song", type: .song)
+        await list.add(later)
+        let laterData = try XCTUnwrap(storage.read())
+        let persisted = try JSONCoders.camelCase.decode([BlocklistItem].self, from: laterData)
+        XCTAssertTrue(persisted.isEmpty)
+        let liveEntries = await list.allEntries
+        XCTAssertTrue(liveEntries.isEmpty)
+    }
+
     // MARK: - Persistence
 
     func testEntriesSurviveReload() async {
@@ -140,6 +184,29 @@ final class SongBlocklistTests: XCTestCase {
         XCTAssertTrue(entries.isEmpty)
     }
 
+    func testUserDefaultsStorageUsesCentralizedResetAndBackupKey() throws {
+        let suiteName = "SongBlocklistTests.\(UUID().uuidString)"
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suiteName))
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+        let payload = Data("seed".utf8)
+        let storage = UserDefaultsBlocklistStorage(defaults: defaults)
+
+        storage.write(payload)
+
+        XCTAssertEqual(
+            defaults.data(forKey: AppConstants.UserDefaults.songRequestBlocklist),
+            payload
+        )
+        XCTAssertTrue(
+            AppConstants.UserDefaults.allKeys.contains(
+                AppConstants.UserDefaults.songRequestBlocklist)
+        )
+        XCTAssertTrue(
+            AppConstants.UserDefaults.exportableKeys.contains(
+                AppConstants.UserDefaults.songRequestBlocklist)
+        )
+    }
+
     // MARK: - In-Memory Storage Behavior
 
     func testInMemoryStorageInitialDataIsReturned() {
@@ -154,4 +221,29 @@ final class SongBlocklistTests: XCTestCase {
         storage.write(Data("second".utf8))
         XCTAssertEqual(storage.read(), Data("second".utf8))
     }
+}
+
+private final class SuspendingFirstWriteBlocklistStorage: BlocklistStorage, @unchecked Sendable {
+    let firstWriteStarted = DispatchSemaphore(value: 0)
+
+    private let lock = NSLock()
+    private let firstWriteRelease = DispatchSemaphore(value: 0)
+    private var data: Data?
+    private var writeCount = 0
+
+    func read() -> Data? { lock.withLock { data } }
+
+    func write(_ newData: Data) {
+        let shouldSuspend = lock.withLock {
+            writeCount += 1
+            return writeCount == 1
+        }
+        if shouldSuspend {
+            firstWriteStarted.signal()
+            firstWriteRelease.wait()
+        }
+        lock.withLock { data = newData }
+    }
+
+    func releaseFirstWrite() { firstWriteRelease.signal() }
 }

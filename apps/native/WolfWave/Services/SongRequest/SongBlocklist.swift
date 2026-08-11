@@ -27,7 +27,10 @@ nonisolated final class UserDefaultsBlocklistStorage: BlocklistStorage, @uncheck
     /// - Parameters:
     ///   - key: UserDefaults key holding the encoded blocklist.
     ///   - defaults: UserDefaults store to read/write. Defaults to `.standard`.
-    init(key: String = "songRequestBlocklist", defaults: UserDefaults = .standard) {
+    init(
+        key: String = AppConstants.UserDefaults.songRequestBlocklist,
+        defaults: UserDefaults = .standard
+    ) {
         self.key = key
         self.defaults = defaults
     }
@@ -64,6 +67,7 @@ actor SongBlocklist {
 
     private var entries: [BlocklistItem] = []
     private let storage: BlocklistStorage
+    private var acceptsMutations = true
 
     // MARK: - Init
 
@@ -86,6 +90,29 @@ actor SongBlocklist {
 
     /// All current blocklist entries.
     var allEntries: [BlocklistItem] { entries }
+
+    /// Drains earlier actor work, clears persistence, and permanently rejects
+    /// later writes from UI or Stream Deck tasks that captured this owner before
+    /// factory reset detached it. The app discards this instance after reset.
+    func prepareForFactoryReset() {
+        acceptsMutations = false
+        entries.removeAll()
+        save()
+    }
+
+    /// Atomically replaces the actor-isolated and persisted blocklist during
+    /// settings import. Invalid bytes leave the current entries untouched.
+    @discardableResult
+    func replaceFromImportedData(_ data: Data) -> Bool {
+        guard acceptsMutations else { return false }
+        guard let imported = try? JSONCoders.camelCase.decode(
+            [BlocklistItem].self,
+            from: data
+        ) else { return false }
+        entries = imported
+        storage.write(data)
+        return true
+    }
 
     /// Check if a song is blocked by title or artist.
     ///
@@ -111,6 +138,7 @@ actor SongBlocklist {
     ///
     /// - Parameter item: The blocklist entry to add.
     func add(_ item: BlocklistItem) {
+        guard acceptsMutations else { return }
         guard !entries.contains(where: {
             $0.type == item.type && $0.value.lowercased() == item.value.lowercased()
         }) else { return }
@@ -123,12 +151,14 @@ actor SongBlocklist {
     /// - Parameter id: Identifier of the `BlocklistItem` to delete. Unknown
     ///   IDs are a silent no-op.
     func remove(id: UUID) {
+        guard acceptsMutations else { return }
         entries.removeAll { $0.id == id }
         save()
     }
 
     /// Remove all entries from the blocklist.
     func clearAll() {
+        guard acceptsMutations else { return }
         entries.removeAll()
         save()
     }

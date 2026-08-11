@@ -40,6 +40,10 @@ struct SettingsBackupService {
     private let defaults: Foundation.UserDefaults
     private let center: NotificationCenter
     private let twitchChannelProvider: () throws -> String?
+    private let replaceCustomCommands:
+        @MainActor @Sendable (Data) -> Bool
+    private let replaceSongRequestBlocklist:
+        @MainActor @Sendable (Data) async -> Bool
     private let coder = SettingsBackupCoder()
 
     init(
@@ -47,11 +51,22 @@ struct SettingsBackupService {
         center: NotificationCenter = .default,
         twitchChannelProvider: @escaping () throws -> String? = {
             try KeychainService.loadTwitchCredentialGrantChecked().channelID
+        },
+        replaceCustomCommands: @escaping @MainActor @Sendable (Data) -> Bool = {
+            CustomCommandStore.shared.replaceFromImportedData($0)
+        },
+        replaceSongRequestBlocklist: @escaping @MainActor @Sendable
+            (Data) async -> Bool = { data in
+            let blocklist = AppDelegate.shared?.songRequestService?.blocklist
+                ?? SongBlocklist()
+            return await blocklist.replaceFromImportedData(data)
         }
     ) {
         self.defaults = defaults
         self.center = center
         self.twitchChannelProvider = twitchChannelProvider
+        self.replaceCustomCommands = replaceCustomCommands
+        self.replaceSongRequestBlocklist = replaceSongRequestBlocklist
     }
 
     // MARK: - Export
@@ -102,26 +117,42 @@ struct SettingsBackupService {
     /// flags re-auth, then broadcasts the service toggles so background
     /// components pick up the new state without a relaunch.
     @discardableResult
-    func apply(_ backup: SettingsBackup, choices: SettingsBackupCoder.ImportChoices) -> ApplySummary {
+    func apply(
+        _ backup: SettingsBackup,
+        choices: SettingsBackupCoder.ImportChoices
+    ) async -> ApplySummary {
         let plan = coder.makeApplyPlan(
             backup: backup,
             choices: choices,
             exportableKeys: AppConstants.UserDefaults.exportableKeys
         )
+        let keys = AppConstants.UserDefaults.self
+        var customCommandsData: Data?
+        if let value = plan.set[keys.customCommands],
+           case .data(let data) = value {
+            customCommandsData = data
+        }
+        var songRequestBlocklistData: Data?
+        if let value = plan.set[keys.songRequestBlocklist],
+           case .data(let data) = value {
+            songRequestBlocklistData = data
+        }
 
-        for (key, value) in plan.set {
+        // Publish every scalar preference and its safety correction before the
+        // first suspension. Encoded collections are committed by their live
+        // owners below so actor-queued edits cannot overwrite an imported value.
+        for (key, value) in plan.set
+        where key != keys.customCommands
+            && key != keys.songRequestBlocklist {
             defaults.set(value.userDefaultsValue, forKey: key)
         }
 
-        // If the backup turned Song Requests on but this machine has never
-        // completed setup, force it back off so the feature doesn't start in a
-        // broken state. The user can run setup from the Song Requests pane.
-        let keys = AppConstants.UserDefaults.self
         if defaults.bool(forKey: keys.songRequestEnabled),
            !defaults.bool(forKey: keys.songRequestSetupComplete) {
             defaults.set(false, forKey: keys.songRequestEnabled)
         }
 
+        var shouldPostTwitchReauth = false
         if plan.reconnectTwitch, let channel = plan.twitchChannelName {
             // Keep the imported channel pending and non-authoritative. The token
             // is not in the backup; OAuth later commits token + channel together.
@@ -131,16 +162,32 @@ struct SettingsBackupService {
             )
             defaults.removeObject(forKey: AppConstants.UserDefaults.twitchChannelName)
             defaults.set(true, forKey: AppConstants.UserDefaults.twitchReauthNeeded)
-            center.post(name: .twitchReauthNeededChanged, object: nil)
+            shouldPostTwitchReauth = true
         }
 
+        var restoredCount = plan.set.count
+        var ignoredCount = plan.ignoredKeyCount
+        if let customCommandsData,
+           !replaceCustomCommands(customCommandsData) {
+            restoredCount -= 1
+            ignoredCount += 1
+        }
+        if let songRequestBlocklistData,
+           !(await replaceSongRequestBlocklist(songRequestBlocklistData)) {
+            restoredCount -= 1
+            ignoredCount += 1
+        }
+
+        if shouldPostTwitchReauth {
+            center.post(name: .twitchReauthNeededChanged, object: nil)
+        }
         broadcastServiceState()
 
         return ApplySummary(
-            restoredCount: plan.set.count,
+            restoredCount: restoredCount,
             reconnectedTwitch: plan.reconnectTwitch,
             twitchChannel: plan.twitchChannelName,
-            ignoredCount: plan.ignoredKeyCount
+            ignoredCount: ignoredCount
         )
     }
 
