@@ -75,7 +75,20 @@ struct SettingsBackupCoderTests {
         #expect(decoded.settings[keys.songCommandGlobalCooldown] == .double(15.0))
         #expect(decoded.settings[keys.widgetTheme] == .string("Neon"))
         #expect(decoded.settings[keys.customCommands] == .data(customCommands))
-        #expect(decoded.settings[keys.songRequestBlocklist] == .data(blocklist))
+        guard case .data(let roundTrippedBlocklist)? =
+            decoded.settings[keys.songRequestBlocklist] else {
+            Issue.record("Expected blocklist Data")
+            return
+        }
+        let expectedBlocklist = try JSONCoders.camelCase.decode(
+            [BlocklistItem].self,
+            from: blocklist
+        )
+        let actualBlocklist = try JSONCoders.camelCase.decode(
+            [BlocklistItem].self,
+            from: roundTrippedBlocklist
+        )
+        #expect(actualBlocklist == expectedBlocklist)
         #expect(decoded.format == SettingsBackup.currentFormat)
         #expect(decoded.schemaVersion == SettingsBackup.currentSchemaVersion)
     }
