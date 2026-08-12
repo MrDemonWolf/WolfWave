@@ -57,10 +57,19 @@ nonisolated enum Preferences {
 
     // MARK: - Twitch
 
-    /// Lower-cased Twitch channel name configured in Settings. Empty when the
-    /// user has not entered one yet.
-    static var twitchChannelName: String {
-        defaults.string(forKey: AppConstants.UserDefaults.twitchChannelName) ?? ""
+    /// Backup-restored channel waiting for a successful OAuth grant. This value
+    /// is presentation/input state only; connection code reads canonical
+    /// Keychain credentials instead.
+    static var pendingImportedTwitchChannelName: String {
+        defaults.string(
+            forKey: AppConstants.UserDefaults.twitchPendingImportedChannelName
+        ) ?? ""
+    }
+
+    static func clearPendingImportedTwitchChannelName() {
+        defaults.removeObject(
+            forKey: AppConstants.UserDefaults.twitchPendingImportedChannelName
+        )
     }
 
     /// Public song-list URL echoed by the `!playlist` command (plus any

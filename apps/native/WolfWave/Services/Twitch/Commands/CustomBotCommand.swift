@@ -54,21 +54,14 @@ final class CustomBotCommand: AsyncBotCommand {
 
     // MARK: - AsyncBotCommand
 
-    func execute(message: String, context: BotCommandContext, reply: @escaping (String) -> Void) {
-        let template = definition.response
-        let sender = context.username
-        let args = CustomCommandRenderer.arguments(from: message)
-        let variables = self.variables
-        Task {
-            let vars = await variables()
-            let text = CustomCommandRenderer.render(
-                template: template,
-                sender: sender,
-                args: args,
-                vars: vars
-            )
-            guard !text.isEmpty else { return }
-            reply(text)
-        }
+    func execute(message: String, context: BotCommandContext) async -> String? {
+        let vars = await variables()
+        let text = CustomCommandRenderer.render(
+            template: definition.response,
+            sender: context.username,
+            args: CustomCommandRenderer.arguments(from: message),
+            vars: vars
+        )
+        return text.isEmpty ? nil : text
     }
 }

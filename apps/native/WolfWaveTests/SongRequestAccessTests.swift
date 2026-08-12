@@ -278,10 +278,14 @@ final class RedemptionStatusTests: XCTestCase {
         XCTAssertNotNil(RedemptionStatus.scopeMissing.bannerMessage)
         XCTAssertNotNil(RedemptionStatus.botAccount.bannerMessage)
         XCTAssertNotNil(RedemptionStatus.subscribeFailed.bannerMessage)
+        XCTAssertTrue(
+            RedemptionStatus.storageUnavailable.bannerMessage?
+                .contains("restart WolfWave") == true)
     }
 
     func testRawValueRoundTrips() {
         XCTAssertEqual(RedemptionStatus(rawValue: "ok"), .ok)
         XCTAssertEqual(RedemptionStatus(rawValue: "botAccount"), .botAccount)
+        XCTAssertEqual(RedemptionStatus(rawValue: "storageUnavailable"), .storageUnavailable)
     }
 }

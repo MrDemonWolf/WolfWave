@@ -19,15 +19,17 @@ import XCTest
 final class HelixClientTests: XCTestCase {
 
     private var helix: HelixClient!
+    private let handlerStore = MockURLProtocol.HandlerStore()
     private let credentials = HelixClient.Credentials(token: "tok_abc", clientID: "client_xyz")
 
     override func setUp() {
         super.setUp()
-        helix = HelixClient(http: HTTPClient(session: MockURLProtocol.makeSession()))
+        handlerStore.handler = nil
+        helix = HelixClient(http: HTTPClient(session: MockURLProtocol.makeSession(handlerStore: handlerStore)))
     }
 
     override func tearDown() {
-        MockURLProtocol.reset()
+        handlerStore.handler = nil
         helix = nil
         super.tearDown()
     }
@@ -48,7 +50,7 @@ final class HelixClientTests: XCTestCase {
 
     func testHeadersIncludeBearerTokenAndClientID() async throws {
         nonisolated(unsafe) var captured: URLRequest?
-        MockURLProtocol.requestHandler = { request in
+        handlerStore.handler = { request in
             captured = request
             return (
                 MockURLProtocol.httpResponse(for: request, status: 200),
@@ -70,7 +72,7 @@ final class HelixClientTests: XCTestCase {
     // MARK: - Success Decoding
 
     func testGetDecodesSnakeCaseResponse() async throws {
-        MockURLProtocol.requestHandler = { request in
+        handlerStore.handler = { request in
             (
                 MockURLProtocol.httpResponse(for: request, status: 200),
                 Data(#"{"data":[{"id":"r1","cost":100}]}"#.utf8)
@@ -83,7 +85,7 @@ final class HelixClientTests: XCTestCase {
 
     func testPostSerializesJSONBody() async throws {
         nonisolated(unsafe) var capturedBody: Data?
-        MockURLProtocol.requestHandler = { request in
+        handlerStore.handler = { request in
             if let stream = request.httpBodyStream {
                 stream.open()
                 defer { stream.close() }
@@ -117,7 +119,7 @@ final class HelixClientTests: XCTestCase {
     // MARK: - Status Mapping
 
     func testThrowsUnauthorizedOn401() async {
-        MockURLProtocol.requestHandler = { request in
+        handlerStore.handler = { request in
             (
                 MockURLProtocol.httpResponse(for: request, status: 401),
                 Data("token revoked".utf8)
@@ -135,7 +137,7 @@ final class HelixClientTests: XCTestCase {
     }
 
     func testThrowsRateLimitedOn429() async {
-        MockURLProtocol.requestHandler = { request in
+        handlerStore.handler = { request in
             (
                 MockURLProtocol.httpResponse(for: request, status: 429),
                 Data("slow down".utf8)
@@ -153,7 +155,7 @@ final class HelixClientTests: XCTestCase {
     }
 
     func testThrowsHTTPOnOther4xx() async {
-        MockURLProtocol.requestHandler = { request in
+        handlerStore.handler = { request in
             (
                 MockURLProtocol.httpResponse(for: request, status: 404),
                 Data("not found".utf8)
@@ -172,7 +174,7 @@ final class HelixClientTests: XCTestCase {
     }
 
     func testThrowsHTTPOn5xx() async {
-        MockURLProtocol.requestHandler = { request in
+        handlerStore.handler = { request in
             (
                 MockURLProtocol.httpResponse(for: request, status: 503),
                 Data("upstream".utf8)
@@ -192,7 +194,7 @@ final class HelixClientTests: XCTestCase {
     // MARK: - Decoding Failures
 
     func testThrowsDecodingFailedOnMalformedJSON() async {
-        MockURLProtocol.requestHandler = { request in
+        handlerStore.handler = { request in
             (
                 MockURLProtocol.httpResponse(for: request, status: 200),
                 Data("not json".utf8)
@@ -212,7 +214,7 @@ final class HelixClientTests: XCTestCase {
     // MARK: - Raw / JSON Object Paths
 
     func testSendJSONReturnsParsedDictionary() async throws {
-        MockURLProtocol.requestHandler = { request in
+        handlerStore.handler = { request in
             (
                 MockURLProtocol.httpResponse(for: request, status: 200),
                 Data(#"{"ok":true,"count":2}"#.utf8)
@@ -227,7 +229,7 @@ final class HelixClientTests: XCTestCase {
     }
 
     func testSendJSONReturnsNilForEmpty204() async throws {
-        MockURLProtocol.requestHandler = { request in
+        handlerStore.handler = { request in
             (
                 MockURLProtocol.httpResponse(for: request, status: 204),
                 Data()
@@ -241,7 +243,7 @@ final class HelixClientTests: XCTestCase {
     }
 
     func testSendRawReturnsStatusForBranching() async throws {
-        MockURLProtocol.requestHandler = { request in
+        handlerStore.handler = { request in
             (
                 MockURLProtocol.httpResponse(for: request, status: 403),
                 Data("missing scope".utf8)
@@ -258,7 +260,7 @@ final class HelixClientTests: XCTestCase {
     // MARK: - Transport Errors
 
     func testTransportErrorIsMapped() async {
-        MockURLProtocol.requestHandler = { _ in
+        handlerStore.handler = { _ in
             throw URLError(.notConnectedToInternet)
         }
 

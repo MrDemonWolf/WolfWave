@@ -91,46 +91,37 @@ final class HoldCommandTests: WolfWaveTestCase {
 
     // MARK: - Privilege Gate (silent ignore)
 
-    func testNonPrivilegedHoldIsSilent() {
+    func testNonPrivilegedHoldIsSilent() async {
         let command = HoldCommand()
         command.songRequestService = { self.makeService() }
-
-        var replyCalled = false
-        command.execute(message: "!hold", context: viewerContext()) { _ in replyCalled = true }
-        XCTAssertFalse(replyCalled)
+        let response = await command.execute(message: "!hold", context: viewerContext())
+        XCTAssertNil(response)
     }
 
-    func testNonPrivilegedResumeIsSilent() {
+    func testNonPrivilegedResumeIsSilent() async {
         let command = HoldCommand()
         command.songRequestService = { self.makeService() }
-
-        var replyCalled = false
-        command.execute(message: "!resume", context: viewerContext()) { _ in replyCalled = true }
-        XCTAssertFalse(replyCalled)
+        let response = await command.execute(message: "!resume", context: viewerContext())
+        XCTAssertNil(response)
     }
 
-    func testNonPrivilegedUnholdIsSilent() {
+    func testNonPrivilegedUnholdIsSilent() async {
         let command = HoldCommand()
         command.songRequestService = { self.makeService() }
-
-        var replyCalled = false
-        command.execute(message: "!unhold", context: viewerContext()) { _ in replyCalled = true }
-        XCTAssertFalse(replyCalled)
+        let response = await command.execute(message: "!unhold", context: viewerContext())
+        XCTAssertNil(response)
     }
 
-    func testSubscriberWithoutModBadgeIsSilent() {
+    func testSubscriberWithoutModBadgeIsSilent() async {
         let command = HoldCommand()
         command.songRequestService = { self.makeService() }
-
         let subscriber = BotCommandContext(
             userID: "3", username: "fan",
             isModerator: false, isBroadcaster: false,
             isSubscriber: true, isVIP: true, messageID: "m"
         )
-
-        var replyCalled = false
-        command.execute(message: "!hold", context: subscriber) { _ in replyCalled = true }
-        XCTAssertFalse(replyCalled)
+        let response = await command.execute(message: "!hold", context: subscriber)
+        XCTAssertNil(response)
     }
 
     // MARK: - Hold Path (privileged)
@@ -140,10 +131,7 @@ final class HoldCommandTests: WolfWaveTestCase {
         let service = makeService()
         command.songRequestService = { service }
 
-        let reply = await captureReply { done in
-            command.execute(message: "!hold", context: self.privilegedContext()) { done($0) }
-        }
-
+        let reply = await command.execute(message: "!hold", context: privilegedContext()) ?? ""
         XCTAssertTrue(service.isHoldEnabled)
         XCTAssertTrue(reply.contains("on hold"))
         XCTAssertTrue(reply.contains("!resume"))
@@ -154,13 +142,9 @@ final class HoldCommandTests: WolfWaveTestCase {
         let service = makeService()
         command.songRequestService = { service }
 
-        let reply = await captureReply { done in
-            command.execute(
-                message: "!hold",
-                context: self.privilegedContext(broadcaster: false, moderator: true)
-            ) { done($0) }
-        }
-
+        let reply = await command.execute(
+            message: "!hold",
+            context: privilegedContext(broadcaster: false, moderator: true)) ?? ""
         XCTAssertTrue(service.isHoldEnabled)
         XCTAssertFalse(reply.isEmpty)
     }
@@ -173,10 +157,7 @@ final class HoldCommandTests: WolfWaveTestCase {
         let service = makeService()
         command.songRequestService = { service }
 
-        let reply = await captureReply { done in
-            command.execute(message: "!resume", context: self.privilegedContext()) { done($0) }
-        }
-
+        let reply = await command.execute(message: "!resume", context: privilegedContext()) ?? ""
         XCTAssertFalse(service.isHoldEnabled)
         XCTAssertTrue(reply.lowercased().contains("resumed"))
     }
@@ -187,10 +168,7 @@ final class HoldCommandTests: WolfWaveTestCase {
         let service = makeService()
         command.songRequestService = { service }
 
-        let reply = await captureReply { done in
-            command.execute(message: "!unhold", context: self.privilegedContext()) { done($0) }
-        }
-
+        let reply = await command.execute(message: "!unhold", context: privilegedContext()) ?? ""
         XCTAssertFalse(service.isHoldEnabled)
         XCTAssertTrue(reply.lowercased().contains("resumed"))
     }
@@ -202,10 +180,7 @@ final class HoldCommandTests: WolfWaveTestCase {
         let service = makeService()
         command.songRequestService = { service }
 
-        _ = await captureReply { done in
-            command.execute(message: "!HOLD", context: self.privilegedContext()) { done($0) }
-        }
-
+        _ = await command.execute(message: "!HOLD", context: privilegedContext())
         XCTAssertTrue(service.isHoldEnabled, "Uppercase !HOLD should still enable hold mode")
     }
 
@@ -214,21 +189,16 @@ final class HoldCommandTests: WolfWaveTestCase {
         let service = makeService()
         command.songRequestService = { service }
 
-        _ = await captureReply { done in
-            command.execute(message: "!hold for a sec", context: self.privilegedContext()) { done($0) }
-        }
-
+        _ = await command.execute(message: "!hold for a sec", context: privilegedContext())
         XCTAssertTrue(service.isHoldEnabled)
     }
 
     // MARK: - Missing Service
 
-    func testMissingServiceCallbackResultsInSilentNoOp() {
+    func testMissingServiceIsSilent() async {
         let command = HoldCommand()
         command.songRequestService = { nil }
-
-        var replyCalled = false
-        command.execute(message: "!hold", context: self.privilegedContext()) { _ in replyCalled = true }
-        XCTAssertFalse(replyCalled)
+        let response = await command.execute(message: "!hold", context: privilegedContext())
+        XCTAssertNil(response)
     }
 }

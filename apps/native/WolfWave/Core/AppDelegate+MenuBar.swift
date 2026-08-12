@@ -565,12 +565,11 @@ extension AppDelegate: NSMenuDelegate {
         )
         menu.addItem(trackingItem)
 
-        if KeychainService.loadTwitchToken() != nil {
+        if let credential = TwitchCredentialStore.shared.connectionSnapshot() {
             let connected = twitchService?.currentlyConnected ?? false
-            let rawChannel = Preferences.twitchChannelName
-            let channel: String? = rawChannel.isEmpty
-                ? nil
-                : StreamerMode.mask(rawChannel, style: .channel, isOn: StreamerMode.isEnabled)
+            let channel = credential.channelID.map {
+                StreamerMode.mask($0, style: .channel, isOn: StreamerMode.isEnabled)
+            }
             let twitchItem = makeStatusItem(
                 title: "Twitch",
                 status: MenuStatusFormatter.twitchStatus(isConnected: connected, channelName: channel),
@@ -970,22 +969,38 @@ extension AppDelegate {
     @objc func reconnectAllServices() {
         // Twitch: leave then rejoin when creds + channel + clientID are all present.
         if let twitch = twitchService, twitch.currentlyConnected {
-            let token = KeychainService.loadTwitchToken()
-            let channelRaw = Preferences.twitchChannelName
-            let channel: String? = channelRaw.isEmpty ? nil : channelRaw
+            let credential = TwitchCredentialStore.shared.connectionSnapshot()
             let clientID = TwitchChatService.resolveClientID()
             Task {
-                await twitch.leaveChannel()
+                guard await twitch.leaveChannel() else {
+                    Log.warn(
+                        "AppDelegate: Aborted Twitch restart because channel teardown was not safe",
+                        category: "App")
+                    return
+                }
                 Log.info("AppDelegate: Twitch left channel for restart", category: "App")
-                guard let token, !token.isEmpty,
-                      let channel, !channel.isEmpty,
+                guard let credential,
+                      TwitchCredentialStore.shared.connectionSnapshot() == credential,
+                      let channel = credential.channelID, !channel.isEmpty,
                       let clientID, !clientID.isEmpty else {
                     Log.info("AppDelegate: Skipped Twitch rejoin (missing creds or channel)", category: "App")
                     return
                 }
                 try? await Task.sleep(for: .milliseconds(250))
+                guard TwitchCredentialStore.shared.connectionSnapshot() == credential else {
+                    Log.info(
+                        "AppDelegate: Skipped stale Twitch rejoin after credentials changed",
+                        category: "App"
+                    )
+                    return
+                }
                 do {
-                    try await twitch.connectToChannel(channelName: channel, token: token, clientID: clientID)
+                    try await twitch.connectToChannel(
+                        channelName: channel,
+                        token: credential.accessToken,
+                        clientID: clientID,
+                        expectedCredentialRevision: credential.revision
+                    )
                     Log.info("AppDelegate: Twitch rejoin requested for #\(channel)", category: "App")
                 } catch {
                     Log.warn("AppDelegate: Twitch rejoin failed: \(error.localizedDescription)", category: "App")

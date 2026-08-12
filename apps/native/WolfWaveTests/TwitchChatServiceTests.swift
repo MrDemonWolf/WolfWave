@@ -58,10 +58,99 @@ private actor PollSubscriptionGate {
 @Suite("Twitch Chat Service Tests", .serialized)
 struct TwitchChatServiceTests {
 
+    private let handlerStore = MockURLProtocol.HandlerStore()
+
     /// Reset UserDefaults keys that tests depend on to prevent cross-test contamination.
     init() {
         UserDefaults.standard.removeObject(forKey: AppConstants.UserDefaults.currentSongCommandEnabled)
         UserDefaults.standard.removeObject(forKey: AppConstants.UserDefaults.lastSongCommandEnabled)
+        clearManagedRewardIdentity()
+    }
+
+    private func installManagedRewardIdentity() {
+        clearManagedRewardIdentity()
+        #expect(
+            TwitchManagedRewardStore.store(
+                .init(
+                    rewardID: "reward",
+                    broadcasterID: "broadcaster"),
+                replacing: .none))
+    }
+
+    private func clearManagedRewardIdentity() {
+        UserDefaults.standard.removeObject(
+            forKey: AppConstants.UserDefaults.songRequestChannelPointsRewardID)
+        UserDefaults.standard.removeObject(
+            forKey: AppConstants.UserDefaults.songRequestChannelPointsRewardIdentity)
+    }
+
+    @Test("Channel normalization rejects query delimiters and non-login characters")
+    func testChannelNameNormalization() {
+        #expect(TwitchChatService.normalizedChannelName("  Wolf_Name42  ") == "wolf_name42")
+        #expect(TwitchChatService.normalizedChannelName("abc") == "abc")
+        let maximumLengthLogin = String(repeating: "a", count: 25)
+        #expect(TwitchChatService.normalizedChannelName(maximumLengthLogin) == maximumLengthLogin)
+        for invalid in [
+            "wolf-name",
+            "wolf&login=other",
+            "wolf=other",
+            "wolf name",
+            "wolf/name",
+            "wölf",
+            String(repeating: "a", count: 26)
+        ] {
+            #expect(TwitchChatService.normalizedChannelName(invalid) == nil)
+        }
+    }
+
+    @Test("Username lookup encodes one normalized login and rejects injection before I/O")
+    func testUsernameLookupQueryConstruction() async throws {
+        let requests = ThreadSafeBox<[URLRequest]>([])
+        let service = TwitchChatService(
+            helixHTTPClient: HTTPClient(
+                session: MockURLProtocol.makeSession { request in
+                    requests.mutate { $0.append(request) }
+                    let body = #"""
+                    {"data":[{"id":"user_id","login":"wolf_name42",
+                    "display_name":"Wolf Name"}]}
+                    """#
+                    return (
+                        MockURLProtocol.httpResponse(for: request, status: 200),
+                        Data(body.utf8)
+                    )
+                }
+            )
+        )
+
+        let userID = try await service.resolveUsername(
+            "  Wolf_Name42  ",
+            token: "token",
+            clientID: "client"
+        )
+
+        #expect(userID == "user_id")
+        let request = try #require(requests.value.first)
+        let url = try #require(request.url)
+        let queryItems = try #require(
+            URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems
+        )
+        #expect(queryItems.count == 1)
+        #expect(queryItems.first?.name == "login")
+        #expect(queryItems.first?.value == "wolf_name42")
+
+        do {
+            _ = try await service.resolveUsername(
+                "wolf&login=other",
+                token: "token",
+                clientID: "client"
+            )
+            Issue.record("Expected invalid username rejection")
+        } catch is TwitchChatService.ConnectionError {
+            // Expected before the HTTP client is invoked.
+        } catch {
+            Issue.record("Unexpected error: \(error)")
+        }
+        #expect(requests.value.count == 1)
     }
 
     #if DEBUG
@@ -97,6 +186,896 @@ struct TwitchChatServiceTests {
     #endif
 
     // MARK: - Initialization Tests
+
+    @Test("EventSub 409 deletes the exact stale subscription and retries POST once")
+    func testEventSubConflictRecovery() async {
+        let requests = ThreadSafeBox<[URLRequest]>([])
+        let requestNumber = ThreadSafeBox(0)
+        handlerStore.handler = { request in
+            requests.mutate { $0.append(request) }
+            let number = requestNumber.value
+            requestNumber.value = number + 1
+            switch number {
+            case 0:
+                return (
+                    MockURLProtocol.httpResponse(for: request, status: 409),
+                    Data(#"{"id":"stale-subscription"}"#.utf8))
+            case 1:
+                return (MockURLProtocol.httpResponse(for: request, status: 204), Data())
+            default:
+                return (
+                    MockURLProtocol.httpResponse(for: request, status: 202),
+                    Data(#"{"data":[{"id":"replacement"}]}"#.utf8))
+            }
+        }
+        defer { handlerStore.handler = nil }
+
+        let service = TwitchChatService(
+            eventSubHTTPClient: HTTPClient(session: MockURLProtocol.makeSession(handlerStore: handlerStore)))
+        let success = ThreadSafeBox(false)
+        let onSuccess: @Sendable () -> Void = { success.value = true }
+        let subscribed = await service.postEventSubSubscription(
+            body: ["type": "channel.chat.message"],
+            token: "token",
+            clientID: "client",
+            label: "chat messages",
+            onSuccess: onSuccess)
+
+        #expect(subscribed)
+        #expect(success.value)
+        #expect(requests.value.map(\.httpMethod) == ["POST", "DELETE", "POST"])
+        #expect(
+            requests.value[1].url?.query?.contains("id=stale-subscription") == true)
+    }
+
+    @Test("EventSub 409 without a subscription ID fails instead of claiming success")
+    func testEventSubConflictWithoutIDFailsClosed() async {
+        let count = ThreadSafeBox(0)
+        handlerStore.handler = { request in
+            count.mutate { $0 += 1 }
+            return (
+                MockURLProtocol.httpResponse(for: request, status: 409),
+                Data(#"{"error":"Conflict","status":409}"#.utf8))
+        }
+        defer { handlerStore.handler = nil }
+
+        let service = TwitchChatService(
+            eventSubHTTPClient: HTTPClient(session: MockURLProtocol.makeSession(handlerStore: handlerStore)))
+        let subscribed = await service.postEventSubSubscription(
+            body: ["type": "channel.chat.message"],
+            token: "token",
+            clientID: "client",
+            label: "chat messages")
+
+        #expect(!subscribed)
+        #expect(count.value == 1)
+    }
+
+    @Test("Suspended connection greeting cannot queue into a replacement channel")
+    func testConnectionGreetingIsGenerationScoped() async {
+        let requestStarted = DispatchSemaphore(value: 0)
+        let releaseRequest = DispatchSemaphore(value: 0)
+        let handler: MockURLProtocol.Handler = { request in
+            requestStarted.signal()
+            _ = releaseRequest.wait(timeout: .now() + 2)
+            return (MockURLProtocol.httpResponse(for: request, status: 503), Data())
+        }
+        defer { handlerStore.handler = nil }
+
+        let service = TwitchChatService(
+            helixHTTPClient: HTTPClient(
+                session: MockURLProtocol.makeSession(handler: handler)))
+        let generation = await service.configureChatSendForTesting(
+            broadcasterID: "old-channel")
+        let greeting = Task {
+            await service.sendConnectionMessageIfNeeded(
+                generation: generation,
+                broadcasterID: "old-channel")
+        }
+
+        let started = await waitForSemaphore(
+            requestStarted,
+            timeout: .now() + 2
+        )
+        #expect(started)
+        _ = await service.beginConnectionAttempt()
+        await service.switchBroadcasterForTesting(to: "new-channel")
+        releaseRequest.signal()
+        await greeting.value
+
+        #expect(await service.pendingMessageCount == 0)
+    }
+
+    @Test("Canceled generic chat send never enters the retry queue")
+    func testCanceledGenericSendDoesNotQueue() async {
+        let requestStarted = DispatchSemaphore(value: 0)
+        let releaseRequest = DispatchSemaphore(value: 0)
+        let handler: MockURLProtocol.Handler = { request in
+            requestStarted.signal()
+            _ = releaseRequest.wait(timeout: .now() + 2)
+            return (MockURLProtocol.httpResponse(for: request, status: 503), Data())
+        }
+        defer { handlerStore.handler = nil }
+
+        let service = TwitchChatService(
+            helixHTTPClient: HTTPClient(
+                session: MockURLProtocol.makeSession(handler: handler)))
+        _ = await service.configureChatSendForTesting(broadcasterID: "channel")
+        let send = Task { await service.sendMessage("hello") }
+        let started = await waitForSemaphore(
+            requestStarted,
+            timeout: .now() + 2
+        )
+        #expect(started)
+        send.cancel()
+        releaseRequest.signal()
+        await send.value
+
+        #expect(await service.pendingMessageCount == 0)
+    }
+
+    @Test("Bits processing survives an EventSub reconnect and only suppresses stale chat")
+    func testBitsProcessingSurvivesReconnect() async {
+        let directory = makeIsolatedTempDirectory(prefix: "bits-reconnect")
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let outbox = TwitchRedemptionResolutionOutbox(
+            fileURL: directory.appending(path: "outbox.json"))
+        let gate = DeterministicAsyncGate()
+        let searches = ThreadSafeBox(0)
+        let music = MockAppleMusicController()
+        music.searchProvider = { _ in
+            searches.mutate { $0 += 1 }
+            await gate.suspend()
+            return .notFound
+        }
+        let requests = SongRequestService(musicController: music)
+        let service = TwitchChatService(redemptionResolutionOutbox: outbox)
+
+        let defaults = UserDefaults.standard
+        defaults.set(true, forKey: AppConstants.UserDefaults.songRequestEnabled)
+        defaults.set(true, forKey: AppConstants.UserDefaults.songRequestBitsEnabled)
+        defaults.set(1, forKey: AppConstants.UserDefaults.songRequestBitsMinimum)
+        defer {
+            defaults.removeObject(forKey: AppConstants.UserDefaults.songRequestEnabled)
+            defaults.removeObject(forKey: AppConstants.UserDefaults.songRequestBitsEnabled)
+            defaults.removeObject(forKey: AppConstants.UserDefaults.songRequestBitsMinimum)
+        }
+
+        _ = await service.configureChatSendForTesting(broadcasterID: "channel")
+        await service.setSongRequestServiceReference(requests)
+        await service.handleBitsUse(
+            [
+                "event": [
+                    "type": "cheer",
+                    "bits": 100,
+                    "broadcaster_user_id": "channel",
+                    "user_name": "Viewer",
+                    "message": ["text": "Cheer100 a song"],
+                ]
+            ],
+            eventSubMessageID: "bits-reconnect")
+
+        #expect(await waitUntil { await gate.suspended })
+        #expect(await service.activePaidRedemptionTaskCount == 1)
+        _ = await service.beginConnectionAttempt()
+        await gate.resume()
+        #expect(await waitUntil { await service.activePaidRedemptionTaskCount == 0 })
+        #expect(searches.value == 1)
+        #expect(await service.pendingMessageCount == 0)
+    }
+
+    @Test("Durable Bits completion survives EventSub cache eviction and relaunch")
+    func testBitsCompletionSurvivesDedupEvictionAndRelaunch() async throws {
+        let directory = makeIsolatedTempDirectory(prefix: "bits-durable-dedup")
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let file = directory.appending(path: "outbox.json")
+        let searches = ThreadSafeBox(0)
+        let music = MockAppleMusicController()
+        music.searchProvider = { _ in
+            searches.mutate { $0 += 1 }
+            return .notFound
+        }
+        let requests = SongRequestService(musicController: music)
+        let chatHandler: MockURLProtocol.Handler = { request in
+            (
+                MockURLProtocol.httpResponse(for: request, status: 200),
+                Data(#"{"data":[{"is_sent":true}]}"#.utf8)
+            )
+        }
+        let chatClient = HTTPClient(
+            session: MockURLProtocol.makeSession(handler: chatHandler))
+        let defaults = UserDefaults.standard
+        defaults.set(true, forKey: AppConstants.UserDefaults.songRequestEnabled)
+        defaults.set(true, forKey: AppConstants.UserDefaults.songRequestBitsEnabled)
+        defaults.set(1, forKey: AppConstants.UserDefaults.songRequestBitsMinimum)
+        defer {
+            defaults.removeObject(forKey: AppConstants.UserDefaults.songRequestEnabled)
+            defaults.removeObject(forKey: AppConstants.UserDefaults.songRequestBitsEnabled)
+            defaults.removeObject(forKey: AppConstants.UserDefaults.songRequestBitsMinimum)
+        }
+
+        let paidEnvelope = try Self.eventSubEnvelope(
+            messageType: "notification",
+            messageID: "durable-paid-message",
+            payload: [
+                "subscription": [
+                    "type": AppConstants.Twitch.eventSubBitsUse
+                ],
+                "event": [
+                    "type": "cheer",
+                    "bits": 100,
+                    "broadcaster_user_id": "channel",
+                    "user_name": "Viewer",
+                    "message": ["text": "Cheer100 a song"],
+                ],
+            ])
+        let firstOutbox = TwitchRedemptionResolutionOutbox(fileURL: file)
+        let firstService = TwitchChatService(
+            helixHTTPClient: chatClient,
+            redemptionResolutionOutbox: firstOutbox)
+        _ = await firstService.configureChatSendForTesting(
+            broadcasterID: "channel")
+        await firstService.setSongRequestServiceReference(requests)
+
+        await firstService.handleWebSocketMessage(paidEnvelope)
+        await firstService.awaitPaidRedemptionTasksForTesting()
+        #expect(searches.value == 1)
+        #expect(firstOutbox.pendingBitsItems().isEmpty)
+
+        // The transport cache holds 500 IDs; overflow it so only the durable
+        // terminal record can suppress the late at-least-once delivery.
+        for index in 0..<500 {
+            await firstService.handleWebSocketMessage(
+                try Self.eventSubEnvelope(
+                    messageType: "session_keepalive",
+                    messageID: "cache-fill-\(index)",
+                    payload: [:]))
+        }
+        await firstService.handleWebSocketMessage(paidEnvelope)
+        await firstService.awaitPaidRedemptionTasksForTesting()
+        #expect(searches.value == 1)
+
+        let relaunchedOutbox = TwitchRedemptionResolutionOutbox(fileURL: file)
+        let relaunchedService = TwitchChatService(
+            helixHTTPClient: chatClient,
+            redemptionResolutionOutbox: relaunchedOutbox)
+        _ = await relaunchedService.configureChatSendForTesting(
+            broadcasterID: "channel")
+        await relaunchedService.setSongRequestServiceReference(requests)
+        await relaunchedService.handleWebSocketMessage(paidEnvelope)
+        await relaunchedService.awaitPaidRedemptionTasksForTesting()
+
+        #expect(searches.value == 1)
+        #expect(relaunchedOutbox.pendingBitsItems().isEmpty)
+    }
+
+    #if DEBUG
+    @Test("Leave drains a paid frame already returned at the receive boundary")
+    func testLeaveDrainsPaidFrameAtReceiveBoundary() async throws {
+        let directory = makeIsolatedTempDirectory(prefix: "bits-leave-boundary")
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let outbox = TwitchRedemptionResolutionOutbox(
+            fileURL: directory.appending(path: "outbox.json"))
+        let searches = ThreadSafeBox(0)
+        let receiveCalls = ThreadSafeBox(0)
+        let receiveGate = DeterministicAsyncGate()
+        let music = MockAppleMusicController()
+        music.searchProvider = { _ in
+            searches.mutate { $0 += 1 }
+            return .notFound
+        }
+        let requests = SongRequestService(musicController: music)
+        let paidEnvelope = try Self.eventSubEnvelope(
+            messageType: "notification",
+            messageID: "leave-boundary-paid-message",
+            payload: [
+                "subscription": [
+                    "type": AppConstants.Twitch.eventSubBitsUse
+                ],
+                "event": [
+                    "type": "cheer",
+                    "bits": 100,
+                    "broadcaster_user_id": "channel",
+                    "user_name": "Viewer",
+                    "message": ["text": "Cheer100 a song"],
+                ],
+            ])
+        let session = URLSession(configuration: .ephemeral)
+        defer { session.invalidateAndCancel() }
+        let socket = session.webSocketTask(
+            with: try #require(URL(string: "wss://eventsub.wss.twitch.tv/leave")))
+        let chatHandler: MockURLProtocol.Handler = { request in
+            (
+                MockURLProtocol.httpResponse(for: request, status: 200),
+                Data(#"{"data":[{"is_sent":true}]}"#.utf8)
+            )
+        }
+        let service = TwitchChatService(
+            helixHTTPClient: HTTPClient(
+                session: MockURLProtocol.makeSession(handler: chatHandler)),
+            redemptionResolutionOutbox: outbox,
+            eventSubWebSocketFactory: { _ in socket },
+            eventSubWebSocketResume: { _ in },
+            eventSubWebSocketReceive: { _ in
+                var call = 0
+                receiveCalls.mutate {
+                    $0 += 1
+                    call = $0
+                }
+                if call == 1 {
+                    await receiveGate.suspend()
+                    return .string(paidEnvelope)
+                }
+                throw URLError(.networkConnectionLost)
+            })
+        let defaults = UserDefaults.standard
+        defaults.set(true, forKey: AppConstants.UserDefaults.songRequestEnabled)
+        defaults.set(true, forKey: AppConstants.UserDefaults.songRequestBitsEnabled)
+        defaults.set(1, forKey: AppConstants.UserDefaults.songRequestBitsMinimum)
+        defer {
+            defaults.removeObject(forKey: AppConstants.UserDefaults.songRequestEnabled)
+            defaults.removeObject(forKey: AppConstants.UserDefaults.songRequestBitsEnabled)
+            defaults.removeObject(forKey: AppConstants.UserDefaults.songRequestBitsMinimum)
+        }
+
+        _ = await service.configureChatSendForTesting(broadcasterID: "channel")
+        await service.setSongRequestServiceReference(requests)
+        await service.connectToEventSub()
+        #expect(await waitUntil { await receiveGate.suspended })
+
+        let generationBeforeLeave = await service.connectionGeneration
+        let leaving = Task { await service.leaveChannel() }
+        #expect(await waitUntil {
+            service.eventSubTeardownQuiescing.value
+                && socket.state != .suspended
+        })
+
+        // Models the catch pre-check racing with leave: the actor-side guard
+        // must still reject the queued lifecycle error without invalidating the
+        // receive context that owns the paid frame.
+        await service.handleQueuedReceiveErrorForTesting(webSocketTask: socket)
+        #expect(await service.connectionGeneration == generationBeforeLeave)
+        await receiveGate.resume()
+
+        #expect(await leaving.value)
+        #expect(searches.value == 1)
+        #expect(outbox.pendingBitsItems().isEmpty)
+        #expect(await service.broadcasterID == nil)
+    }
+
+    @Test("Explicit join during quiesce supersedes stale leave")
+    func testExplicitJoinDuringQuiesceSupersedesLeave() async throws {
+        let directory = makeIsolatedTempDirectory(prefix: "leave-supersession")
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let oldReceiveGate = DeterministicAsyncGate()
+        let socketFactoryCalls = ThreadSafeBox(0)
+        let receiveCalls = ThreadSafeBox(0)
+        let session = URLSession(configuration: .ephemeral)
+        defer { session.invalidateAndCancel() }
+        let oldSocket = session.webSocketTask(
+            with: try #require(URL(string: "wss://eventsub.wss.twitch.tv/old")))
+        let replacementSocket = session.webSocketTask(
+            with: try #require(URL(string: "wss://eventsub.wss.twitch.tv/new")))
+        let service = TwitchChatService(
+            redemptionResolutionOutbox: TwitchRedemptionResolutionOutbox(
+                fileURL: directory.appending(path: "outbox.json")),
+            eventSubWebSocketFactory: { _ in
+                var call = 0
+                socketFactoryCalls.mutate {
+                    $0 += 1
+                    call = $0
+                }
+                return call == 1 ? oldSocket : replacementSocket
+            },
+            eventSubWebSocketResume: { _ in },
+            eventSubWebSocketReceive: { _ in
+                var call = 0
+                receiveCalls.mutate {
+                    $0 += 1
+                    call = $0
+                }
+                if call == 1 {
+                    await oldReceiveGate.suspend()
+                    try Task.checkCancellation()
+                    throw URLError(.cancelled)
+                }
+                try await Task.sleep(for: .seconds(3_600))
+                throw CancellationError()
+            })
+
+        try await service.joinChannel(
+            broadcasterID: "old-channel",
+            botID: "old-channel",
+            token: "old-token",
+            clientID: "old-client")
+        await service.connectToEventSub()
+        #expect(await waitUntil { await oldReceiveGate.suspended })
+
+        let leaving = Task { await service.leaveChannel() }
+        #expect(await waitUntil {
+            service.eventSubTeardownQuiescing.value
+                && oldSocket.state != .suspended
+        })
+
+        try await service.joinChannel(
+            broadcasterID: "new-channel",
+            botID: "new-channel",
+            token: "new-token",
+            clientID: "new-client")
+        await service.connectToEventSub()
+        await oldReceiveGate.resume()
+
+        #expect(!(await leaving.value))
+        #expect(await service.broadcasterID == "new-channel")
+        #expect(await service.clientID == "new-client")
+        #expect(await service.hasEventSubTransportForTesting)
+        await service.disconnectFromEventSub()
+    }
+    #endif
+
+    @Test("Bits storage failure uses one non-evicting process fallback")
+    func testBitsStorageFailureUsesSingleProcessFallback() async {
+        enum InjectedFailure: Error {
+            case write
+        }
+
+        let directory = makeIsolatedTempDirectory(prefix: "bits-fallback")
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let outbox = TwitchRedemptionResolutionOutbox(
+            fileURL: directory.appending(path: "outbox.json"),
+            atomicWriter: { _, _ in throw InjectedFailure.write })
+        let searches = ThreadSafeBox(0)
+        let music = MockAppleMusicController()
+        music.searchProvider = { _ in
+            searches.mutate { $0 += 1 }
+            return .notFound
+        }
+        let chatHandler: MockURLProtocol.Handler = { request in
+            (
+                MockURLProtocol.httpResponse(for: request, status: 200),
+                Data(#"{"data":[{"is_sent":true}]}"#.utf8)
+            )
+        }
+        let service = TwitchChatService(
+            helixHTTPClient: HTTPClient(
+                session: MockURLProtocol.makeSession(handler: chatHandler)),
+            redemptionResolutionOutbox: outbox)
+        let defaults = UserDefaults.standard
+        let statusKey = AppConstants.UserDefaults.songRequestRedemptionStatus
+        defaults.set(true, forKey: AppConstants.UserDefaults.songRequestEnabled)
+        defaults.set(true, forKey: AppConstants.UserDefaults.songRequestBitsEnabled)
+        defaults.set(1, forKey: AppConstants.UserDefaults.songRequestBitsMinimum)
+        defaults.removeObject(forKey: statusKey)
+        defer {
+            defaults.removeObject(forKey: AppConstants.UserDefaults.songRequestEnabled)
+            defaults.removeObject(forKey: AppConstants.UserDefaults.songRequestBitsEnabled)
+            defaults.removeObject(forKey: AppConstants.UserDefaults.songRequestBitsMinimum)
+            defaults.removeObject(forKey: statusKey)
+        }
+
+        _ = await service.configureChatSendForTesting(broadcasterID: "channel")
+        await service.setSongRequestServiceReference(
+            SongRequestService(musicController: music))
+        await service.handleBitsUse(
+            Self.bitsPayload(), eventSubMessageID: "bits-fallback")
+        await service.handleBitsUse(
+            Self.bitsPayload(), eventSubMessageID: "bits-fallback")
+        await service.awaitPaidRedemptionTasksForTesting()
+        await service.handleBitsUse(
+            Self.bitsPayload(), eventSubMessageID: "bits-fallback")
+        await service.awaitPaidRedemptionTasksForTesting()
+
+        #expect(searches.value == 1)
+        #expect(outbox.pendingBitsItems().isEmpty)
+        #expect(
+            RedemptionStatus(rawValue: defaults.string(forKey: statusKey) ?? "")
+                == .storageUnavailable)
+    }
+
+    @Test("Bits handler ignores power-up event variants")
+    func testBitsHandlerIgnoresPowerUpVariants() async {
+        let directory = makeIsolatedTempDirectory(prefix: "bits-subtypes")
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let outbox = TwitchRedemptionResolutionOutbox(
+            fileURL: directory.appending(path: "outbox.json"))
+        let searches = ThreadSafeBox(0)
+        let music = MockAppleMusicController()
+        music.searchProvider = { _ in
+            searches.mutate { $0 += 1 }
+            return .notFound
+        }
+        let service = TwitchChatService(redemptionResolutionOutbox: outbox)
+        let defaults = UserDefaults.standard
+        defaults.set(true, forKey: AppConstants.UserDefaults.songRequestEnabled)
+        defaults.set(true, forKey: AppConstants.UserDefaults.songRequestBitsEnabled)
+        defaults.set(1, forKey: AppConstants.UserDefaults.songRequestBitsMinimum)
+        defer {
+            defaults.removeObject(forKey: AppConstants.UserDefaults.songRequestEnabled)
+            defaults.removeObject(forKey: AppConstants.UserDefaults.songRequestBitsEnabled)
+            defaults.removeObject(forKey: AppConstants.UserDefaults.songRequestBitsMinimum)
+        }
+
+        _ = await service.configureChatSendForTesting(broadcasterID: "channel")
+        await service.setSongRequestServiceReference(
+            SongRequestService(musicController: music))
+        for type in ["power_up", "custom_power_up"] {
+            await service.handleBitsUse(
+                [
+                    "event": [
+                        "type": type,
+                        "bits": 100,
+                        "broadcaster_user_id": "channel",
+                        "user_name": "Viewer",
+                        "message": ["text": "a song"],
+                    ]
+                ],
+                eventSubMessageID: "bits-\(type)")
+        }
+
+        #expect(searches.value == 0)
+        #expect(outbox.pendingBitsItems().isEmpty)
+        #expect(await service.activePaidRedemptionTaskCount == 0)
+    }
+
+    @Test("Channel-point intake keeps its processor across reconnect replay and duplicate delivery")
+    func testChannelPointIntakeKeepsOwnerAcrossReconnectAndReplay() async throws {
+        let directory = makeIsolatedTempDirectory(prefix: "redemption-owner")
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let outbox = TwitchRedemptionResolutionOutbox(
+            fileURL: directory.appending(path: "outbox.json"))
+        let service = TwitchChatService(redemptionResolutionOutbox: outbox)
+        let gate = DeterministicAsyncGate()
+        let mutations = ThreadSafeBox(0)
+        let processorWasCancelled = ThreadSafeBox(false)
+        installManagedRewardIdentity()
+        defer { clearManagedRewardIdentity() }
+
+        _ = await service.configureChatSendForTesting(broadcasterID: "broadcaster")
+        let intake = try outbox.enqueueIntake(
+            broadcasterID: "broadcaster",
+            rewardID: "reward",
+            redemptionID: "redemption"
+        ).item
+        await service.installRedemptionPipelineForTesting(item: intake) {
+            await gate.suspend()
+            processorWasCancelled.value = Task.isCancelled
+            mutations.mutate { $0 += 1 }
+            _ = try? outbox.updateResolution(intake.id, to: .fulfilled)
+        }
+        #expect(await waitUntil { await gate.suspended })
+
+        // Socket invalidation used to cancel and erase the durable-intake
+        // owner. Replay could then persist CANCELED while that suspended task
+        // later mutated the queue and tried to fulfil the same redemption.
+        _ = await service.beginConnectionAttempt()
+        await service.replayPendingRedemptionResolutions()
+        await service.handleChannelPointsRedemption([
+            "event": [
+                "id": "redemption",
+                "broadcaster_user_id": "broadcaster",
+                "user_name": "Viewer",
+                "user_input": "A song",
+                "reward": ["id": "reward"],
+            ]
+        ])
+
+        #expect(outbox.pendingItems() == [intake])
+        #expect(await service.activeRedemptionPipelineCountForTesting == 1)
+        #expect(mutations.value == 0)
+
+        await gate.resume()
+        #expect(await waitUntil {
+            await service.activeRedemptionPipelineCountForTesting == 0
+        })
+        #expect(!processorWasCancelled.value)
+        #expect(mutations.value == 1)
+        #expect(outbox.pendingItems().first?.resolution == .fulfilled)
+    }
+
+    @Test("Atomic intake write failure pauses reward, exposes failure, and blocks later intake")
+    func testAtomicIntakeWriteFailureFailsClosed() async {
+        enum InjectedFailure: Error {
+            case write
+        }
+
+        let directory = makeIsolatedTempDirectory(prefix: "redemption-write-failure")
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let writes = ThreadSafeBox(0)
+        let outbox = TwitchRedemptionResolutionOutbox(
+            fileURL: directory.appending(path: "outbox.json"),
+            atomicWriter: { _, _ in
+                writes.mutate { $0 += 1 }
+                throw InjectedFailure.write
+            }
+        )
+
+        await assertRedemptionStorageFailureFailsClosed(
+            outbox: outbox,
+            intakeWrites: writes,
+            expectedWriteAttempts: 1)
+    }
+
+    @Test("Unquarantinable redemption store pauses reward, exposes failure, and blocks intake")
+    func testQuarantineFailureFailsClosed() async throws {
+        enum InjectedFailure: Error {
+            case quarantine
+        }
+
+        let directory = makeIsolatedTempDirectory(prefix: "redemption-quarantine-failure")
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let file = directory.appending(path: "outbox.json")
+        try Data("not-json".utf8).write(to: file, options: .atomic)
+        let writes = ThreadSafeBox(0)
+        let outbox = TwitchRedemptionResolutionOutbox(
+            fileURL: file,
+            atomicWriter: { data, url in
+                writes.mutate { $0 += 1 }
+                try data.write(to: url, options: .atomic)
+            },
+            quarantineMover: { _, _ in throw InjectedFailure.quarantine }
+        )
+
+        await assertRedemptionStorageFailureFailsClosed(
+            outbox: outbox,
+            intakeWrites: writes,
+            expectedWriteAttempts: 0)
+    }
+
+    @Test("Outcome write failure immediately exposes failure, pauses, and refunds")
+    func testOutcomeWriteFailureImmediatelyFailsClosed() async {
+        enum InjectedFailure: Error {
+            case write
+        }
+
+        let directory = makeIsolatedTempDirectory(prefix: "redemption-outcome-failure")
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let writes = ThreadSafeBox(0)
+        let outbox = TwitchRedemptionResolutionOutbox(
+            fileURL: directory.appending(path: "outbox.json"),
+            atomicWriter: { data, url in
+                var attempt = 0
+                writes.mutate {
+                    $0 += 1
+                    attempt = $0
+                }
+                if attempt == 2 { throw InjectedFailure.write }
+                try data.write(to: url, options: .atomic)
+            }
+        )
+        let defaults = UserDefaults.standard
+        let statusKey = AppConstants.UserDefaults.songRequestRedemptionStatus
+        installManagedRewardIdentity()
+        defaults.removeObject(forKey: statusKey)
+        defer {
+            clearManagedRewardIdentity()
+            defaults.removeObject(forKey: statusKey)
+        }
+
+        let operations = ThreadSafeBox<[(url: String, body: String)]>([])
+        let handler: MockURLProtocol.Handler = { request in
+            operations.mutate {
+                $0.append((
+                    url: request.url?.absoluteString ?? "",
+                    body: requestBodyString(request)
+                ))
+            }
+            return (MockURLProtocol.httpResponse(for: request, status: 204), Data())
+        }
+        let service = TwitchChatService(
+            channelPointsService: TwitchChannelPointsService(
+                session: MockURLProtocol.makeSession(handler: handler)),
+            redemptionResolutionOutbox: outbox)
+        await service.configureBroadcasterRedemptionCredentialsForTesting(
+            broadcasterID: "broadcaster")
+
+        // No song service is wired, so intake is persisted first and then the
+        // conservative CANCELED outcome hits the injected second-write failure.
+        await service.handleChannelPointsRedemption(
+            Self.redemptionPayload(id: "outcome-failure"))
+        await service.awaitRedemptionPipelinesForTesting()
+        await service.awaitPaidRedemptionTasksForTesting()
+
+        #expect(writes.value == 2)
+        #expect(outbox.intakeStorageIsUnavailable())
+        #expect(outbox.pendingItems().count == 1)
+        #expect(
+            RedemptionStatus(rawValue: defaults.string(forKey: statusKey) ?? "")
+                == .storageUnavailable)
+        #expect(operations.value.contains {
+            $0.url.contains("/channel_points/custom_rewards?")
+                && !$0.url.contains("/redemptions")
+                && $0.body.contains(#""is_paused":true"#)
+        })
+        #expect(operations.value.contains {
+            $0.url.contains("/redemptions?")
+                && $0.url.contains("id=outcome-failure")
+                && $0.body.contains(#""status":"CANCELED""#)
+        })
+    }
+
+    #if DEBUG
+    @Test("Acknowledgement write failure immediately exposes failure and pauses only")
+    func testAcknowledgementWriteFailureImmediatelyFailsClosed() async throws {
+        enum InjectedFailure: Error {
+            case write
+        }
+
+        let directory = makeIsolatedTempDirectory(prefix: "redemption-ack-failure")
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let writes = ThreadSafeBox(0)
+        let outbox = TwitchRedemptionResolutionOutbox(
+            fileURL: directory.appending(path: "outbox.json"),
+            atomicWriter: { data, url in
+                var attempt = 0
+                writes.mutate {
+                    $0 += 1
+                    attempt = $0
+                }
+                if attempt == 2 { throw InjectedFailure.write }
+                try data.write(to: url, options: .atomic)
+            }
+        )
+        let item = try outbox.enqueue(
+            broadcasterID: "broadcaster",
+            rewardID: "reward",
+            redemptionID: "ack-failure",
+            resolution: .canceled)
+        let defaults = UserDefaults.standard
+        let statusKey = AppConstants.UserDefaults.songRequestRedemptionStatus
+        installManagedRewardIdentity()
+        defaults.removeObject(forKey: statusKey)
+        defer {
+            clearManagedRewardIdentity()
+            defaults.removeObject(forKey: statusKey)
+        }
+
+        let operations = ThreadSafeBox<[(url: String, body: String)]>([])
+        let handler: MockURLProtocol.Handler = { request in
+            operations.mutate {
+                $0.append((
+                    url: request.url?.absoluteString ?? "",
+                    body: requestBodyString(request)
+                ))
+            }
+            return (MockURLProtocol.httpResponse(for: request, status: 204), Data())
+        }
+        let service = TwitchChatService(
+            channelPointsService: TwitchChannelPointsService(
+                session: MockURLProtocol.makeSession(handler: handler)),
+            redemptionResolutionOutbox: outbox)
+        await service.configureBroadcasterRedemptionCredentialsForTesting(
+            broadcasterID: "broadcaster")
+
+        await service.acknowledgeRedemptionResolutionForTesting(item)
+        await service.awaitPaidRedemptionTasksForTesting()
+
+        #expect(writes.value == 2)
+        #expect(outbox.intakeStorageIsUnavailable())
+        #expect(outbox.pendingItems() == [item])
+        #expect(
+            RedemptionStatus(rawValue: defaults.string(forKey: statusKey) ?? "")
+                == .storageUnavailable)
+        #expect(operations.value.contains {
+            $0.url.contains("/channel_points/custom_rewards?")
+                && !$0.url.contains("/redemptions")
+                && $0.body.contains(#""is_paused":true"#)
+        })
+        #expect(!operations.value.contains { $0.url.contains("/redemptions?") })
+    }
+    #endif
+
+    private func assertRedemptionStorageFailureFailsClosed(
+        outbox: TwitchRedemptionResolutionOutbox,
+        intakeWrites: ThreadSafeBox<Int>,
+        expectedWriteAttempts: Int
+    ) async {
+        let defaults = UserDefaults.standard
+        let statusKey = AppConstants.UserDefaults.songRequestRedemptionStatus
+        installManagedRewardIdentity()
+        defaults.removeObject(forKey: statusKey)
+        defer {
+            clearManagedRewardIdentity()
+            defaults.removeObject(forKey: statusKey)
+        }
+
+        let operations = ThreadSafeBox<[(url: String, body: String)]>([])
+        let handler: MockURLProtocol.Handler = { request in
+            operations.mutate {
+                $0.append((
+                    url: request.url?.absoluteString ?? "",
+                    body: requestBodyString(request)
+                ))
+            }
+            return (
+                MockURLProtocol.httpResponse(for: request, status: 204),
+                Data()
+            )
+        }
+        let service = TwitchChatService(
+            channelPointsService: TwitchChannelPointsService(
+                session: MockURLProtocol.makeSession(handler: handler)),
+            redemptionResolutionOutbox: outbox)
+        await service.configureBroadcasterRedemptionCredentialsForTesting(
+            broadcasterID: "broadcaster")
+
+        await service.handleChannelPointsRedemption(
+            Self.redemptionPayload(id: "redemption-1"))
+        await service.awaitPaidRedemptionTasksForTesting()
+
+        #expect(intakeWrites.value == expectedWriteAttempts)
+        #expect(outbox.pendingItems().isEmpty)
+        #expect(
+            RedemptionStatus(
+                rawValue: defaults.string(forKey: statusKey) ?? "")
+                == .storageUnavailable)
+        #expect(RedemptionStatus.storageUnavailable.bannerMessage != nil)
+        #expect(operations.value.contains {
+            $0.url.contains("/channel_points/custom_rewards?")
+                && !$0.url.contains("/redemptions")
+                && $0.body.contains(#""is_paused":true"#)
+        })
+        #expect(operations.value.contains {
+            $0.url.contains("/redemptions?")
+                && $0.url.contains("id=redemption-1")
+                && $0.body.contains(#""status":"CANCELED""#)
+        })
+
+        // A later delivery must not attempt another outbox write or enter the
+        // song-request pipeline. It is contained and refunded while the durable
+        // status keeps the integration visibly failed.
+        await service.handleChannelPointsRedemption(
+            Self.redemptionPayload(id: "redemption-2"))
+        await service.awaitPaidRedemptionTasksForTesting()
+
+        #expect(intakeWrites.value == expectedWriteAttempts)
+        #expect(outbox.pendingItems().isEmpty)
+        #expect(operations.value.contains {
+            $0.url.contains("/redemptions?")
+                && $0.url.contains("id=redemption-2")
+                && $0.body.contains(#""status":"CANCELED""#)
+        })
+    }
+
+    nonisolated private static func bitsPayload() -> [String: Any] {
+        [
+            "event": [
+                "type": "cheer",
+                "bits": 100,
+                "broadcaster_user_id": "channel",
+                "user_name": "Viewer",
+                "message": ["text": "Cheer100 a song"],
+            ]
+        ]
+    }
+
+    nonisolated private static func redemptionPayload(id: String) -> [String: Any] {
+        [
+            "event": [
+                "id": id,
+                "broadcaster_user_id": "broadcaster",
+                "user_name": "Viewer",
+                "user_input": "A song",
+                "reward": ["id": "reward"],
+            ]
+        ]
+    }
+
+    private static func eventSubEnvelope(
+        messageType: String,
+        messageID: String,
+        payload: [String: Any]
+    ) throws -> String {
+        let object: [String: Any] = [
+            "metadata": [
+                "message_type": messageType,
+                "message_id": messageID,
+                "message_timestamp": ISO8601DateFormatter().string(from: Date()),
+            ],
+            "payload": payload,
+        ]
+        let data = try JSONSerialization.data(withJSONObject: object)
+        return String(decoding: data, as: UTF8.self)
+    }
 
     @Test("Service initializes with default values")
     func testServiceInitialization() async throws {
@@ -155,6 +1134,108 @@ struct TwitchChatServiceTests {
         #expect(identity.displayName == "TestBot")
     }
     
+    // MARK: - Token Validation Tests
+
+    @Test("Token validation accepts a decoded 200 response with required scopes")
+    func testTokenValidationValid() async throws {
+        let scopes = [
+            "user:read:chat",
+            "user:write:chat",
+            AppConstants.Twitch.pollsScope,
+            AppConstants.Twitch.channelPointsScope,
+            AppConstants.Twitch.bitsScope,
+        ]
+        let body = try JSONSerialization.data(withJSONObject: ["scopes": scopes])
+
+        let result = await validateToken(status: 200, body: body)
+
+        #expect(result == .valid)
+    }
+
+    @Test("Only Twitch 401 definitively invalidates a token")
+    func testTokenValidationInvalidOn401() async {
+        let result = await validateToken(status: 401, body: Data())
+        #expect(result == .invalid)
+    }
+
+    @Test("Rate limits and server failures keep token validity unknown")
+    func testTokenValidationTransientHTTPFailures() async {
+        for status in [429, 500, 503] {
+            let result = await validateToken(status: status, body: Data())
+            #expect(result == .temporarilyUnavailable)
+        }
+    }
+
+    @Test("Malformed validate payload keeps token validity unknown")
+    func testTokenValidationMalformedPayload() async {
+        let result = await validateToken(status: 200, body: Data("not-json".utf8))
+        #expect(result == .temporarilyUnavailable)
+    }
+
+    @Test("Transport failure keeps token validity unknown")
+    func testTokenValidationTransportFailure() async {
+        handlerStore.handler = { _ in throw URLError(.notConnectedToInternet) }
+        defer { handlerStore.handler = nil }
+        let client = HTTPClient(session: MockURLProtocol.makeSession(handlerStore: handlerStore))
+        let service = TwitchChatService()
+
+        let result = await service.validateToken(
+            "stored-token", expectedClientID: nil, http: client)
+
+        #expect(result == .temporarilyUnavailable)
+    }
+
+    @Test("Confirmed missing required scopes invalidates the local grant")
+    func testTokenValidationMissingScopeIsInvalid() async throws {
+        let body = try JSONSerialization.data(withJSONObject: ["scopes": []])
+        let result = await validateToken(
+            status: 200,
+            body: body,
+            requiredScopes: ["user:read:chat"])
+        #expect(result == .invalid)
+    }
+
+    @Test("Token validation enforces the configured Twitch client ID")
+    func testTokenValidationClientIDBinding() async throws {
+        let scopes = ["user:read:chat", "user:write:chat"]
+        let matching = try JSONSerialization.data(withJSONObject: [
+            "client_id": "expected", "scopes": scopes,
+        ])
+        let mismatch = try JSONSerialization.data(withJSONObject: [
+            "client_id": "different", "scopes": scopes,
+        ])
+        let missing = try JSONSerialization.data(withJSONObject: ["scopes": scopes])
+
+        let matchingResult = await validateToken(
+            status: 200, body: matching, expectedClientID: "expected")
+        let mismatchResult = await validateToken(
+            status: 200, body: mismatch, expectedClientID: "expected")
+        let missingResult = await validateToken(
+            status: 200, body: missing, expectedClientID: "expected")
+        #expect(matchingResult == .valid)
+        #expect(mismatchResult == .invalid)
+        #expect(missingResult == .temporarilyUnavailable)
+    }
+
+    private func validateToken(
+        status: Int,
+        body: Data,
+        requiredScopes: [String] = ["user:read:chat", "user:write:chat"],
+        expectedClientID: String? = nil
+    ) async -> TwitchChatService.TokenValidationResult {
+        handlerStore.handler = { request in
+            (MockURLProtocol.httpResponse(for: request, status: status), body)
+        }
+        defer { handlerStore.handler = nil }
+        let client = HTTPClient(session: MockURLProtocol.makeSession(handlerStore: handlerStore))
+        let service = TwitchChatService()
+        return await service.validateToken(
+            "stored-token",
+            requiredScopes: requiredScopes,
+            expectedClientID: expectedClientID,
+            http: client)
+    }
+
     // MARK: - Chat Message Tests
     
     @Test("ChatMessage structure stores message data correctly")
@@ -634,6 +1715,79 @@ struct TwitchChatServiceTests {
         #expect(await service.pollSubscriptionSessionForTesting() == "session-live")
     }
 
+    @Test("Poll subscription in flight during migration retries on the target session")
+    func testInFlightPollSubscriptionRetriesAfterMigration() async throws {
+        let defaults = UserDefaults.standard
+        defer {
+            defaults.removeObject(forKey: AppConstants.UserDefaults.voteSkipEnabled)
+            defaults.removeObject(forKey: AppConstants.UserDefaults.voteSkipUsePolls)
+        }
+        defaults.set(true, forKey: AppConstants.UserDefaults.voteSkipEnabled)
+        defaults.set(true, forKey: AppConstants.UserDefaults.voteSkipUsePolls)
+
+        let session = URLSession(configuration: .ephemeral)
+        defer { session.invalidateAndCancel() }
+        let source = session.webSocketTask(
+            with: try #require(URL(string: "wss://eventsub.wss.twitch.tv/source")))
+        let target = session.webSocketTask(
+            with: try #require(URL(string: "wss://eventsub.wss.twitch.tv/target")))
+        let sourceGate = DeterministicAsyncGate()
+        let subscribedSessions = ThreadSafeBox<[String]>([])
+        let service = TwitchChatService(
+            eventSubWebSocketFactory: { _ in target },
+            eventSubWebSocketResume: { _ in },
+            eventSubWebSocketReceive: { _ in
+                try await Task.sleep(for: .seconds(3_600))
+                throw CancellationError()
+            }
+        )
+        let sourceContext = await service.installPollMigrationSourceForTesting(source)
+        await service.configurePollRefreshTestState(
+            sessionID: "source-session",
+            scopeValidation: { .present },
+            subscription: { sessionID in
+                subscribedSessions.mutate { $0.append(sessionID) }
+                if sessionID == "source-session" {
+                    await sourceGate.suspend()
+                }
+                return true
+            })
+
+        let sourceAttempt = Task {
+            await service.refreshPollSubscriptionIfNeeded(enabled: true)
+        }
+        #expect(await waitUntil { await sourceGate.suspended })
+
+        let reconnect = try Self.eventSubEnvelope(
+            messageType: "session_reconnect",
+            messageID: "poll-migration-reconnect",
+            payload: [
+                "session": [
+                    "id": "source-session",
+                    "reconnect_url": "wss://eventsub.wss.twitch.tv/target"
+                ]
+            ])
+        await service.handleWebSocketMessage(reconnect, receiveContext: sourceContext)
+
+        let targetContext = await service.pollMigrationContextForTesting(target)
+        let welcome = try Self.eventSubEnvelope(
+            messageType: "session_welcome",
+            messageID: "poll-migration-welcome",
+            payload: [
+                "session": [
+                    "id": "target-session",
+                    "keepalive_timeout_seconds": 10
+                ]
+            ])
+        await service.handleWebSocketMessage(welcome, receiveContext: targetContext)
+        await sourceGate.resume()
+        await sourceAttempt.value
+
+        #expect(subscribedSessions.value == ["source-session", "target-session"])
+        #expect(await service.pollSubscriptionSessionForTesting() == "target-session")
+        await service.disconnectFromEventSub()
+    }
+
     @Test("Missing polls scope requests reauthorization without subscribing")
     func testLivePollEnableMissingScopeSignalsReauthorization() async {
         let defaults = UserDefaults.standard
@@ -776,6 +1930,23 @@ struct TwitchChatServiceTests {
         #expect(!(await service.connectionAttemptIsCurrent(generation)))
     }
 
+    @Test("A new logical connection attempt retires the previous transport")
+    func testNewConnectionAttemptRetiresPreviousTransport() async {
+        let service = TwitchChatService(
+            eventSubWebSocketFactory: { url in
+                URLSession(configuration: .ephemeral).webSocketTask(with: url)
+            },
+            eventSubWebSocketResume: { _ in }
+        )
+
+        await service.connectToEventSub()
+        #expect(await service.hasEventSubTransportForTesting)
+
+        _ = await service.beginConnectionAttempt()
+
+        #expect(!(await service.hasEventSubTransportForTesting))
+    }
+
     @Test("session_welcome is the event that resets reconnect attempts")
     func testSessionWelcomeResetsReconnectAttempts() async throws {
         let service = TwitchChatService()
@@ -807,8 +1978,7 @@ struct TwitchChatServiceTests {
         let service = TwitchChatService()
         let stream = service.connectionStateChanges()
         let received = Task {
-            var iterator = stream.makeAsyncIterator()
-            return await iterator.next()
+            await collectFirst(1, from: stream)?.first
         }
 
         await service.setConnected(true)
@@ -845,21 +2015,208 @@ struct TwitchChatServiceTests {
     @Test("Leaving cancels and clears the pending message retry lifecycle")
     func testLeaveClearsPendingMessageRetry() async {
         let service = TwitchChatService()
-        await service.configureRetryChannelForTesting()
+        handlerStore.handler = { request in
+            (MockURLProtocol.httpResponse(for: request, status: 503), Data())
+        }
+        defer { handlerStore.handler = nil }
+        let networkedService = TwitchChatService(
+            helixHTTPClient: HTTPClient(session: MockURLProtocol.makeSession(handlerStore: handlerStore)))
+        _ = await networkedService.configureChatSendForTesting(broadcasterID: "channel")
 
-        // Missing send credentials produces one transient failure and therefore
-        // starts the bounded drain loop without touching the network.
-        await service.sendMessage("queued reply")
-        #expect(await service.hasPendingMessageRetry)
+        await networkedService.sendMessage("queued reply")
+        #expect(await networkedService.hasPendingMessageRetry)
 
-        await service.leaveChannel()
-        #expect(!(await service.hasPendingMessageRetry))
+        await networkedService.leaveChannel()
+        #expect(!(await networkedService.hasPendingMessageRetry))
+        #expect(await networkedService.pendingMessageCount == 0)
+    }
+
+    @Test("A suspended command does not block EventSub and reconnect cancels it")
+    func testTrackedCommandDoesNotBlockReceiveAndCancelsOnReconnect() async {
+        let service = TwitchChatService()
+        let gate = SuspendedCommandGate()
+        service.commandDispatcher.register(SuspendedTestCommand(gate: gate))
+        let generation = await service.configureCommandSessionForTesting(
+            broadcasterID: "channel-1")
+
+        await service.handleEventSubMessage(Self.chatEvent(
+            id: "command-message", text: "!suspend", broadcasterID: "channel-1"))
+
+        #expect(await waitUntil { await gate.started })
+        #expect(await service.activeCommandTaskCount == 1)
+
+        // A later event must be parsed and yielded while the command remains
+        // suspended; the WebSocket receive task must not await command work.
+        await service.handleEventSubMessage(Self.chatEvent(
+            id: "later-message", text: "still responsive", broadcasterID: "channel-1"))
+        let messages = await collectFirst(2, from: service.chatMessages)
+        #expect(messages?.map(\.messageID) == ["command-message", "later-message"])
+
+        _ = await service.beginConnectionAttempt()
+        #expect(await waitUntil { await gate.wasCancelled })
+        #expect(await waitUntil { await service.activeCommandTaskCount == 0 })
+        #expect(!(await service.commandReplyIsCurrent(
+            generation: generation, broadcasterID: "channel-1")))
         #expect(await service.pendingMessageCount == 0)
+    }
+
+    @Test("Duplicate command IDs start only one asynchronous command")
+    func testDuplicateCommandIDStartsOneTask() async {
+        let service = TwitchChatService()
+        let gate = SuspendedCommandGate()
+        service.commandDispatcher.register(SuspendedTestCommand(gate: gate))
+        _ = await service.configureCommandSessionForTesting(
+            broadcasterID: "channel-1")
+
+        await service.handleEventSubMessage(Self.chatEvent(
+            id: "duplicate-command",
+            text: "!suspend",
+            broadcasterID: "channel-1"))
+        #expect(await waitUntil { await gate.started })
+
+        await service.handleEventSubMessage(Self.chatEvent(
+            id: "duplicate-command",
+            text: "!suspend",
+            broadcasterID: "channel-1"))
+        await Task.yield()
+        #expect(await service.activeCommandTaskCount == 1)
+
+        _ = await service.beginConnectionAttempt()
+        #expect(await waitUntil { await gate.wasCancelled })
+    }
+
+    @Test("A command seen while disabled cannot execute from delayed redelivery")
+    func testDisabledCommandIDIsStillReserved() async {
+        let service = TwitchChatService()
+        let gate = SuspendedCommandGate()
+        service.commandDispatcher.register(SuspendedTestCommand(gate: gate))
+        _ = await service.configureCommandSessionForTesting(
+            broadcasterID: "channel-1")
+        await service.setCommandsEnabled(false)
+        await service.handleEventSubMessage(Self.chatEvent(
+            id: "disabled-command",
+            text: "!suspend",
+            broadcasterID: "channel-1"))
+        await service.setCommandsEnabled(true)
+        await service.handleEventSubMessage(Self.chatEvent(
+            id: "disabled-command",
+            text: "!suspend",
+            broadcasterID: "channel-1"))
+        await Task.yield()
+
+        #expect(!(await gate.started))
+        #expect(await service.activeCommandTaskCount == 0)
+    }
+
+    nonisolated private static func chatEvent(
+        id: String,
+        text: String,
+        broadcasterID: String
+    ) -> [String: Any] {
+        [
+            "event": [
+                "message_id": id,
+                "chatter_user_name": "Viewer",
+                "chatter_user_login": "viewer",
+                "chatter_user_id": "viewer-1",
+                "broadcaster_user_id": broadcasterID,
+                "message": ["text": text],
+                "badges": [],
+            ]
+        ]
     }
 
 }
 
 private extension TwitchChatService {
+    var hasEventSubTransportForTesting: Bool {
+        webSocketTask != nil || migrationSourceWebSocketTask != nil
+    }
+
+    func installPollMigrationSourceForTesting(
+        _ source: URLSessionWebSocketTask
+    ) -> EventSubReceiveContext {
+        webSocketTask = source
+        welcomedWebSocketTask = source
+        sessionID = "source-session"
+        setConnected(true)
+        receiveTask = Task {
+            try? await Task.sleep(for: .seconds(3_600))
+        }
+        return EventSubReceiveContext(
+            generation: connectionGeneration,
+            webSocketTask: source
+        )
+    }
+
+    func pollMigrationContextForTesting(
+        _ task: URLSessionWebSocketTask
+    ) -> EventSubReceiveContext {
+        EventSubReceiveContext(
+            generation: connectionGeneration,
+            webSocketTask: task
+        )
+    }
+
+    var activeRedemptionPipelineCountForTesting: Int {
+        redemptionTasks.count
+    }
+
+    func installRedemptionPipelineForTesting(
+        item: TwitchRedemptionResolutionOutbox.Item,
+        operation: @escaping @Sendable () async -> Void
+    ) {
+        redemptionTasks[item.id] = Task { [weak self] in
+            await operation()
+            await self?.finishRedemptionPipelineForTesting(item.id)
+        }
+    }
+
+    func finishRedemptionPipelineForTesting(_ id: UUID) {
+        redemptionTasks[id] = nil
+    }
+
+    func configureChatSendForTesting(broadcasterID: String) -> UInt64 {
+        let generation = beginConnectionAttempt()
+        self.broadcasterID = broadcasterID
+        botID = "bot"
+        oauthToken = "token"
+        clientID = "client"
+        reconnectChannelName = broadcasterID
+        reconnectToken = "token"
+        reconnectClientID = "client"
+        return generation
+    }
+
+    func configureBroadcasterRedemptionCredentialsForTesting(
+        broadcasterID: String
+    ) {
+        _ = beginConnectionAttempt()
+        self.broadcasterID = broadcasterID
+        botID = broadcasterID
+        oauthToken = "token"
+        clientID = "client"
+    }
+
+    func awaitPaidRedemptionTasksForTesting() async {
+        let tasks = Array(paidRedemptionTasks.values)
+        for task in tasks {
+            await task.value
+        }
+    }
+
+    func awaitRedemptionPipelinesForTesting() async {
+        let tasks = Array(redemptionTasks.values)
+        for task in tasks {
+            await task.value
+        }
+    }
+
+    func switchBroadcasterForTesting(to broadcasterID: String) {
+        self.broadcasterID = broadcasterID
+        reconnectChannelName = broadcasterID
+    }
+
     func configureReconnectStateForTesting(attempts: Int, migrating: Bool) {
         reconnectionAttempts = attempts
         isMigratingSession = migrating
@@ -867,6 +2224,13 @@ private extension TwitchChatService {
 
     func configureRetryChannelForTesting() {
         reconnectChannelName = "test-channel"
+    }
+
+    func configureCommandSessionForTesting(broadcasterID: String) -> UInt64 {
+        let generation = beginConnectionAttempt()
+        self.broadcasterID = broadcasterID
+        reconnectChannelName = broadcasterID
+        return generation
     }
 
     func configureReconnectCredentialsForTesting() {
@@ -884,5 +2248,58 @@ private extension TwitchChatService {
         networkReconnectCycles = 0
         isNetworkReachable = false
         lastNetworkReconnectTime = Date().timeIntervalSince1970
+    }
+}
+
+private actor SuspendedCommandGate {
+    private(set) var started = false
+    private(set) var wasCancelled = false
+
+    func waitForCancellation() async {
+        started = true
+        do {
+            try await Task.sleep(for: .seconds(3_600))
+        } catch {
+            wasCancelled = true
+        }
+    }
+}
+
+private actor DeterministicAsyncGate {
+    private(set) var suspended = false
+    private var released = false
+    private var resumeWaiters: [CheckedContinuation<Void, Never>] = []
+
+    func suspend() async {
+        suspended = true
+        guard !released else { return }
+        await withCheckedContinuation { continuation in
+            resumeWaiters.append(continuation)
+        }
+    }
+
+    func resume() {
+        released = true
+        resumeWaiters.forEach { $0.resume() }
+        resumeWaiters.removeAll()
+    }
+}
+
+@MainActor
+private final class SuspendedTestCommand: @MainActor AsyncBotCommand {
+    let triggers = ["!suspend"]
+    let description = "Suspends until its owning session is canceled"
+    let globalCooldown: TimeInterval = 0
+    let userCooldown: TimeInterval = 0
+
+    private let gate: SuspendedCommandGate
+
+    init(gate: SuspendedCommandGate) {
+        self.gate = gate
+    }
+
+    func execute(message: String, context: BotCommandContext) async -> String? {
+        await gate.waitForCancellation()
+        return "stale reply"
     }
 }
