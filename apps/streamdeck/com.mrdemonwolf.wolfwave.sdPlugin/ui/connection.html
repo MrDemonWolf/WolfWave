@@ -75,7 +75,7 @@
   </head>
   <body>
     <div class="row">
-      <label for="token">Access token</label>
+      <label for="token">Control token</label>
       <input
         id="token"
         type="password"
@@ -85,20 +85,16 @@
       />
     </div>
     <p class="hint">
-      In WolfWave: Settings &rarr; Stream Widgets &rarr; reveal and copy your
-      access token.
+      In WolfWave: Settings &rarr; Stream Widgets &rarr; copy the Stream Deck
+      control token.
     </p>
 
-    <div class="row">
-      <label for="host">Host</label>
-      <input id="host" type="text" spellcheck="false" placeholder="127.0.0.1" />
-    </div>
     <div class="row">
       <label for="port">Port</label>
       <input id="port" type="number" min="1" max="65535" placeholder="8765" />
     </div>
     <p class="hint">
-      Leave these alone if the Stream Deck app runs on the same Mac as WolfWave.
+      Stream Deck runs on this Mac. Change the port only if you changed it in WolfWave.
     </p>
 
     <p class="status" id="status" role="status"></p>

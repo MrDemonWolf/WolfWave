@@ -1,11 +1,11 @@
 # Stream Deck Control API
 
-> Living reference. This is the current wire contract for protocol v1, not a plan.
+> Living reference. This is the current wire contract for protocol v2, not a plan.
 > It is enforced by `apps/streamdeck/tests/protocol.test.ts` and the `streamdeck` CI job.
 
-Makes the overlay WebSocket **bidirectional**: it accepts inbound command frames and
-pushes two state broadcasts, so a Stream Deck (or any authenticated local client) can
-control WolfWave and reflect live state on physical keys. Originally shipped as WW-36.
+The WebSocket transport accepts role-authenticated command frames and pushes two
+state broadcasts, so a same-Mac Stream Deck can control WolfWave and reflect live
+state on physical keys. Originally shipped as WW-36.
 
 This doc is the app side only. The plugin that consumes it lives in
 [`apps/streamdeck/`](../../streamdeck/README.md) (WW-45); its
@@ -17,26 +17,28 @@ still outstanding is verification on real hardware and the Marketplace submissio
 
 ## Transport & auth
 
-Reuses `WebSocketServerService` (the overlay server). A client connects with the
-`wolfwave.token.<hex>` subprotocol; the handshake already rejects anything
-without the correct token, so a **connected client is already authenticated** and
-its commands are trusted. There is deliberately no per-command token — that would
-be dead weight (`StreamDeckCommand.swift`).
+Reuses `WebSocketServerService`, with a distinct role and credential at the
+handshake. A control client presents `wolfwave.control.<hex>` using the **Stream
+Deck Control Token** from Settings. The server accepts that role only from a
+literal loopback IP (`127/8` or `::1`) and revalidates the selected subprotocol
+before receiving frames. OBS uses a separate `wolfwave.overlay.<hex>` token that
+may receive broadcasts over the LAN but can never run commands. There is no
+per-command token (`StreamDeckCommand.swift`).
 
 ## Inbound command envelope
 
 Text frame, JSON:
 
 ```json
-{ "type": "command", "action": "skip", "protocol": 1, "args": {} }
+{ "type": "command", "action": "skip", "protocol": 2, "args": {} }
 ```
 
 - `type` must be `"command"`; anything else is ignored (no ack).
-- `protocol` must equal `StreamDeckControl.protocolVersion` (currently `1`).
+- `protocol` must equal `StreamDeckControl.protocolVersion` (currently `2`).
   A mismatch is rejected with `error:"protocol"` so an out-of-date plugin can show
   an "update" state. Bump the version on any breaking envelope change.
 - `action` must be a known `StreamDeckAction`; unknown → `error:"unknown_action"`.
-- `args` is optional (unused by v1 actions; reserved for future parameters).
+- `args` is optional (unused by v2 actions; reserved for future parameters).
 
 Decoding is pure (`StreamDeckControl.parse`) and unit-tested
 (`StreamDeckCommandTests`).
@@ -50,7 +52,7 @@ Every command that runs (or is rejected) gets a reply on the same connection:
 { "type": "ack", "action": "skip", "ok": false, "error": "music" }
 ```
 
-## v1 actions
+## v2 actions
 
 | `action` | Effect | Fail `error` |
 |---|---|---|
@@ -106,8 +108,9 @@ The version gates the *inbound* command envelope only.
 
 ## Manual end-to-end check
 
-With the overlay server enabled and Music playing, connect a WebSocket client
-using the `wolfwave.token.<hex>` subprotocol (copy the token from Stream Widgets
-settings), send `{"type":"command","action":"skip","protocol":1}`, and confirm
-the ack frame plus the track skipping. Watch for `queue_state` / `health` frames
+With the server enabled and Music playing, connect from the same Mac using the
+`wolfwave.control.<hex>` subprotocol (copy the Stream Deck Control Token from
+Stream Widgets settings), send
+`{"type":"command","action":"skip","protocol":2}`, and confirm the ack frame
+plus the track skipping. Watch for `queue_state` / `health` frames
 on request-queue and connection changes.

@@ -7,139 +7,183 @@
 //
 
 import Foundation
+import Network
 import os
 
-/// Manages the per-install authentication token used to gate WebSocket
-/// overlay connections.
+/// Manages the two per-install credentials used by WolfWave's WebSocket server.
 ///
-/// The token is minted on first launch (64 hex chars / 32 random bytes),
-/// stored in the macOS Keychain via `KeychainService.saveToken(_:)`, and
-/// presented by clients on the WebSocket handshake as the
-/// `wolfwave.token.<hex>` subprotocol. Only the first 4 characters are ever
-/// logged so the full credential never ends up in a diagnostics export.
-///
-/// Persistence routes through `KeychainService`, which carries its own
-/// injectable `KeychainBackend` seam (`KeychainService.backend`). Tests swap in
-/// an in-memory backend there so `currentOrCreate()` / `rotate()` can be covered
-/// without touching the real Keychain (which prompts under ad-hoc test signing).
+/// Overlay clients receive playback state but cannot execute commands. Control
+/// clients may execute commands, but the server accepts that role only from a
+/// loopback peer. Both credentials are 64 hex chars, live in the macOS Keychain,
+/// and travel in role-specific WebSocket subprotocols so a read-only OBS URL can
+/// never be promoted into a command channel.
 nonisolated enum WebSocketAuthToken {
-    /// Stable in-process fallback for the rare case where Keychain persistence
-    /// is temporarily unavailable. Without this guard every caller would mint
-    /// a different token, splitting the HTTP widget and WebSocket listener.
-    private static let sessionToken = OSAllocatedUnfairLock<String?>(initialState: nil)
+    enum Role: String, CaseIterable, Sendable, Hashable {
+        case overlay
+        case control
 
-    /// Serializes token lifecycle operations without holding the short-lived
+        var subprotocolPrefix: String {
+            switch self {
+            case .overlay:
+                return "wolfwave.overlay."
+            case .control:
+                return "wolfwave.control."
+            }
+        }
+    }
+
+    /// Stable in-process fallbacks for the rare case where Keychain persistence
+    /// is temporarily unavailable. Keeping each role separate prevents a failed
+    /// control-token write from changing the overlay credential (and vice versa).
+    private static let sessionTokens = OSAllocatedUnfairLock<[Role: String]>(initialState: [:])
+
+    /// Serializes credential lifecycle operations without holding the short-lived
     /// session-state lock across Keychain I/O.
     private static let operationGate = DispatchSemaphore(value: 1)
 
-    /// Subprotocol prefix advertised by the widget on `new WebSocket(url, [...])`
-    /// and checked server-side.
-    static let subprotocolPrefix = "wolfwave.token."
-
-    /// Returns the stored token, minting and persisting one on first call.
+    /// Returns the stored credential for `role`, minting and persisting it on
+    /// first call. A temporary session credential is retried before a stale
+    /// Keychain value is considered.
     @discardableResult
-    static func currentOrCreate() -> String {
+    static func currentOrCreate(for role: Role) -> String {
         operationGate.wait()
         defer { operationGate.signal() }
 
-        if let sessionValue = sessionToken.withLock({ $0 }) {
-            // Persistence can recover later in the same launch (for example,
-            // after the Keychain unlocks). Retry the same credential instead
-            // of switching back to a stale persisted token and splitting
-            // already-running HTTP/WebSocket consumers.
+        if let sessionValue = sessionTokens.withLock({ $0[role] }) {
             do {
-                try KeychainService.saveToken(sessionValue)
-                sessionToken.withLock { $0 = nil }
+                try save(sessionValue, for: role)
+                sessionTokens.withLock { $0[role] = nil }
             } catch {
                 Log.error(
-                    "WebSocketAuthToken: Failed to persist session token: \(error)",
+                    "WebSocketAuthToken: Failed to persist session \(role.rawValue) token: \(error)",
                     category: "WebSocket"
                 )
                 return sessionValue
             }
             return sessionValue
         }
-        if let existing = KeychainService.loadToken(), !existing.isEmpty {
+
+        if let existing = load(for: role), isValid(existing) {
             return existing
         }
 
         let fresh = generate()
         do {
-            try KeychainService.saveToken(fresh)
-            sessionToken.withLock { $0 = nil }
+            try save(fresh, for: role)
+            sessionTokens.withLock { $0[role] = nil }
         } catch {
-            Log.error("WebSocketAuthToken: Failed to persist new token: \(error)", category: "WebSocket")
-            sessionToken.withLock { $0 = fresh }
+            Log.error(
+                "WebSocketAuthToken: Failed to persist new \(role.rawValue) token: \(error)",
+                category: "WebSocket"
+            )
+            sessionTokens.withLock { $0[role] = fresh }
         }
         return fresh
     }
 
-    /// Persists an explicitly supplied token and makes it authoritative for the
-    /// current process. Settings uses this path so a successful manual edit also
-    /// clears any temporary session fallback created during a Keychain outage.
-    static func persist(_ token: String) throws {
+    /// Persists an explicitly supplied credential for `role` and clears any
+    /// temporary fallback for that role.
+    static func persist(_ token: String, for role: Role) throws {
         operationGate.wait()
         defer { operationGate.signal() }
 
-        try KeychainService.saveToken(token)
-        sessionToken.withLock { $0 = nil }
+        try save(token, for: role)
+        sessionTokens.withLock { $0[role] = nil }
     }
 
-    /// Mints a fresh token, replaces the stored one, and returns it.
-    /// Active connections continue using the previous token until they
-    /// disconnect. Caller is responsible for restarting the server when
-    /// it wants to invalidate every client.
-    /// - Throws: The Keychain persistence error. No in-memory token changes
-    ///   until the new credential has been saved successfully.
+    /// Mints, persists, and returns a fresh credential for `role`. The in-memory
+    /// value changes only after persistence succeeds.
     @discardableResult
-    static func rotate() throws -> String {
+    static func rotate(_ role: Role) throws -> String {
         operationGate.wait()
         defer { operationGate.signal() }
 
         let fresh = generate()
-        try KeychainService.saveToken(fresh)
-        sessionToken.withLock { $0 = nil }
+        try save(fresh, for: role)
+        sessionTokens.withLock { $0[role] = nil }
         return fresh
     }
 
-    /// Returns the subprotocol string a client must offer to be accepted.
-    static func expectedSubprotocol(for token: String) -> String {
-        subprotocolPrefix + token
+    /// Returns the exact subprotocol string a client in `role` must offer.
+    static func expectedSubprotocol(for token: String, role: Role) -> String {
+        role.subprotocolPrefix + token
     }
 
-    /// Decides whether a handshake should be accepted given the server's
-    /// configured token and the subprotocols the client offered.
+    /// Resolves the authenticated role from the offered subprotocols.
     ///
-    /// - When `expectedToken` is `nil` (test-only legacy init), any handshake
-    ///   passes. Preserves backward-compat for the lifecycle tests that
-    ///   construct the service via `init(port:)`.
-    /// - Otherwise the client must have offered `wolfwave.token.<expected>`
-    ///   in its `Sec-WebSocket-Protocol` list.
-    static func shouldAccept(expectedToken: String?, offeredSubprotocols: [String]) -> Bool {
-        guard let expected = expectedToken else { return true }
-        let want = expectedSubprotocol(for: expected)
-        // Walk every offered subprotocol and OR in each constant-time match so the
-        // work done (and therefore the timing) doesn't short-circuit on the first
-        // hit. The decision (accept iff one offer equals `want`) is identical to
-        // the previous `.contains`; only the timing characteristic changes.
-        var matched = false
-        for offered in offeredSubprotocols where constantTimeEquals(offered, want) {
-            matched = true
+    /// When both configured credentials are `nil` (the test-only legacy
+    /// initializer), the connection is treated as a read-only overlay. In
+    /// production an exact role-prefixed credential is required. Control wins
+    /// only when its own credential was offered; an overlay token can never be
+    /// promoted by changing the prefix.
+    static func authenticationRole(
+        overlayToken: String?,
+        controlToken: String?,
+        offeredSubprotocols: [String]
+    ) -> Role? {
+        guard overlayToken != nil || controlToken != nil else { return .overlay }
+
+        var matchedOverlay = false
+        var matchedControl = false
+        let controlCredentialIsDistinct: Bool
+        if let overlayToken, let controlToken {
+            controlCredentialIsDistinct = !constantTimeEquals(overlayToken, controlToken)
+        } else {
+            controlCredentialIsDistinct = true
         }
-        return matched
+        for offered in offeredSubprotocols {
+            if let overlayToken,
+               constantTimeEquals(offered, expectedSubprotocol(for: overlayToken, role: .overlay)) {
+                matchedOverlay = true
+            }
+            if controlCredentialIsDistinct, let controlToken,
+               constantTimeEquals(offered, expectedSubprotocol(for: controlToken, role: .control)) {
+                matchedControl = true
+            }
+        }
+        if matchedControl { return .control }
+        if matchedOverlay { return .overlay }
+        return nil
     }
 
-    /// Compares two strings for equality without leaking how many leading bytes
-    /// matched through timing.
-    ///
-    /// The two strings are compared as their UTF-8 byte buffers. Every byte of
-    /// the longer buffer is XOR-accumulated into a single accumulator (out-of-range
-    /// bytes on the shorter side are read as `0`), and a length mismatch seeds the
-    /// accumulator with a non-zero value up front. The function returns `true` only
-    /// when the accumulator is zero AND the lengths match. A length mismatch is detectable in
-    /// constant time relative to the inputs, which is acceptable for this threat
-    /// model: the secret is a fixed 64-hex-char token, so its length is not itself a
-    /// secret. The accept/reject decision is identical to `lhs == rhs`.
+    /// Validates the protocol Network.framework selected during the handshake
+    /// and maps it back to its role.
+    static func role(
+        forSelectedSubprotocol selectedSubprotocol: String?,
+        overlayToken: String?,
+        controlToken: String?
+    ) -> Role? {
+        guard overlayToken != nil || controlToken != nil else { return .overlay }
+        guard let selectedSubprotocol else { return nil }
+        return authenticationRole(
+            overlayToken: overlayToken,
+            controlToken: controlToken,
+            offeredSubprotocols: [selectedSubprotocol]
+        )
+    }
+
+    /// Returns whether a Network.framework endpoint is a literal loopback IP.
+    /// Unresolved hostnames are rejected; callers must not trust a name that can
+    /// be changed by DNS.
+    static func isLoopbackEndpoint(_ endpoint: NWEndpoint) -> Bool {
+        switch endpoint {
+        case .hostPort(let host, _):
+            switch host {
+            case .ipv4(let address):
+                return address.isLoopback
+            case .ipv6(let address):
+                return address.isLoopback
+            case .name:
+                return false
+            @unknown default:
+                return false
+            }
+        default:
+            return false
+        }
+    }
+
+    /// Compares two strings for equality without leaking matching prefix length.
     static func constantTimeEquals(_ lhs: String, _ rhs: String) -> Bool {
         let a = Array(lhs.utf8)
         let b = Array(rhs.utf8)
@@ -155,13 +199,9 @@ nonisolated enum WebSocketAuthToken {
         return diff == 0
     }
 
-    /// Returns `true` when `candidate` is a non-empty hex string (`[0-9a-fA-F]+`)
-    /// between 16 and 128 characters. Custom tokens entered by the user are
-    /// gated through this check before they are persisted or substituted into
-    /// the served `widget.html`, so a token can never contain `</script>` or
-    /// other characters that would break out of the JS string context.
+    /// Returns `true` for the protocol's exact 32-byte hexadecimal credential.
     static func isValid(_ candidate: String) -> Bool {
-        guard (16...128).contains(candidate.count) else { return false }
+        guard candidate.count == 64 else { return false }
         return candidate.unicodeScalars.allSatisfy { scalar in
             (scalar >= "0" && scalar <= "9")
                 || (scalar >= "a" && scalar <= "f")
@@ -169,26 +209,40 @@ nonisolated enum WebSocketAuthToken {
         }
     }
 
-    /// Redacts a token for safe logging. Keeps the first 4 chars and an ellipsis.
+    /// Redacts a credential for safe logging.
     static func redact(_ token: String) -> String {
         guard token.count > 4 else { return "…" }
         return token.prefix(4) + "…"
     }
 
-    // MARK: - Generation
-
-    /// Mints a fresh 64-hex-char (32 random byte) token. Exposed at module scope
-    /// so unit tests can verify token shape and uniqueness without round-tripping
-    /// through the Keychain (which prompts for access under ad-hoc test signing).
+    /// Mints a fresh 64-hex-char (32 random byte) credential.
     static func generate() -> String {
         var bytes = [UInt8](repeating: 0, count: 32)
         let status = SecRandomCopyBytes(kSecRandomDefault, bytes.count, &bytes)
         if status != errSecSuccess {
             var rng = SystemRandomNumberGenerator()
-            for i in 0..<bytes.count {
-                bytes[i] = UInt8.random(in: 0...255, using: &rng)
+            for index in bytes.indices {
+                bytes[index] = UInt8.random(in: 0...255, using: &rng)
             }
         }
         return bytes.map { String(format: "%02x", $0) }.joined()
+    }
+
+    private static func load(for role: Role) -> String? {
+        switch role {
+        case .overlay:
+            return KeychainService.loadToken()
+        case .control:
+            return KeychainService.loadControlToken()
+        }
+    }
+
+    private static func save(_ token: String, for role: Role) throws {
+        switch role {
+        case .overlay:
+            try KeychainService.saveToken(token)
+        case .control:
+            try KeychainService.saveControlToken(token)
+        }
     }
 }
