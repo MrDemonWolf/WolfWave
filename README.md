@@ -64,10 +64,10 @@ Your music plays. Everything else keeps up.
 
 ### Stream Overlays
 
-- **Stream Widgets.** Drop-in browser-source overlay powered by a local WebSocket server with a per-install auth token, five themes (`Default`, `Dark`, `Light`, `Glass`, `Neon`), and five layouts (`Horizontal`, `Vertical`, `Compact`, `Vinyl`, `Classic`). Two-PC streamers can connect from a second machine on the LAN.
+- **Stream Widgets.** Drop-in browser-source overlay powered by a local WebSocket server with a per-install read-only overlay token, five themes (`Default`, `Dark`, `Light`, `Glass`, `Neon`), and five layouts (`Horizontal`, `Vertical`, `Compact`, `Vinyl`, `Classic`). Two-PC streamers can receive now-playing data from a second machine on the LAN.
 - **Queue Ticker Overlay.** Opt-in `?queueTicker=1` panel showing the next 3 song requests, title and requester, so viewers see their spot in line without asking chat.
 - **OBS-friendly by design.** Visual progress is batched at 10 Hz, rendering sleeps while hidden or unloaded, and reduced-motion mode removes continuous animation work.
-- **Stream Deck Control.** The overlay WebSocket is bidirectional, so an authenticated local client can play/pause, skip, manage the request queue, and flip toggles, with live queue and health broadcasts. The Elgato plugin that drives it lives in this repo at `apps/streamdeck/`; the wire protocol is documented in [Stream Deck Control API](apps/native/docs/streamdeck-control-api.md).
+- **Stream Deck Control.** A separate control token authorizes play/pause, skip, request-queue, and toggle commands only from this Mac; the read-only overlay token can never run them. The Elgato plugin lives at `apps/streamdeck/`, and its protocol is documented in [Stream Deck Control API](apps/native/docs/streamdeck-control-api.md).
 
 ### History & Stats
 
@@ -81,7 +81,7 @@ Your music plays. Everything else keeps up.
 - **Light, Dark, or System.** Pick an appearance in Settings > General. System follows macOS; Light and Dark override it for the whole app, menu bar included.
 - **App Visibility.** Run menu-bar only, Dock only, or both, and set launch-at-login, from Settings > General. The menu bar icon stays reachable in every mode.
 - **Guided Apple Music Access.** Onboarding requests the Automation permission for Music.app and shows a recovery screen with the exact fix if macOS denies it later.
-- **Streamer Mode.** One-tap tray toggle that masks your Twitch channel name, widget URLs, and auth token across the UI, so the app is safe to show on camera.
+- **Streamer Mode.** One-tap tray toggle that masks your Twitch channel name, widget URLs, and overlay/control tokens across the UI, so the app is safe to show on camera.
 - **Backup & Restore.** Export your settings to a portable JSON file from Settings > Advanced and bring them back on another Mac or after a reinstall. Accounts and secrets stay in the Keychain, never in the file.
 - **Song-Change Notifications.** Opt-in macOS banner on every track change, with album art. The banner replaces in place instead of stacking.
 - **Secure by Default.** Credentials live in the macOS Keychain, never plain text.
@@ -151,9 +151,10 @@ your Discord profile. Album artwork is fetched automatically.
 
 Enable in **Settings > Stream Widgets** to start the local widget HTTP and
 WebSocket services. On the same Mac, copy the localhost link; WolfWave injects
-the WebSocket credential into the served page without exposing it in the URL.
-For a second computer or phone, use the token-bearing LAN link only on a trusted
-network.
+the read-only overlay credential into the served page without exposing it in the
+URL. For a second computer or phone, use the token-bearing LAN link only on a
+trusted network. Stream Deck uses its own control token and is intentionally
+limited to the same Mac.
 
 | Layout | Recommended OBS canvas |
 |---|---:|
@@ -164,8 +165,8 @@ network.
 | Classic | 472 x 144 |
 
 These sizes include the widget's transparent padding. The Stream Deck overlay
-action hides or shows cards without dropping its authenticated control socket,
-and regenerating the token disconnects active WebSocket clients.
+action hides or shows cards without dropping its authenticated local control
+socket. Regenerating either token disconnects active WebSocket clients.
 
 ## Tech Stack
 

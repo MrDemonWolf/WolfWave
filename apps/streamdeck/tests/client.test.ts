@@ -2,14 +2,22 @@ import { describe, expect, test } from "bun:test";
 import { WolfWaveClient } from "../src/wolfwave/client.js";
 
 const HEX64 = "a".repeat(64);
-const settings = { host: "127.0.0.1", port: 8765, token: HEX64 };
+const settings = { port: 8765, token: HEX64 };
 
 /** Reaches the private fields the reconnect guard turns on. */
-function internals(client: WolfWaveClient): {
+type ClientInternals = {
   stopped: boolean;
   settings: unknown;
-} {
-  return client as unknown as { stopped: boolean; settings: unknown };
+  socket: {
+    readyState: number;
+    send: (message: string) => void;
+    removeAllListeners: () => void;
+    close: () => void;
+  } | null;
+};
+
+function internals(client: WolfWaveClient): ClientInternals {
+  return client as unknown as ClientInternals;
 }
 
 describe("configure / stop", () => {
@@ -39,6 +47,35 @@ describe("configure / stop", () => {
     client.configure({ ...settings });
     expect(internals(client).settings).toBe(before);
 
+    client.stop();
+  });
+
+  test("invalid reconfiguration immediately revokes the old socket", () => {
+    const client = new WolfWaveClient();
+    const raw = internals(client);
+    let closes = 0;
+    let sends = 0;
+    raw.stopped = false;
+    raw.settings = settings;
+    raw.socket = {
+      readyState: 1,
+      send: () => {
+        sends += 1;
+      },
+      removeAllListeners: () => {},
+      close: () => {
+        closes += 1;
+      },
+    };
+
+    expect(client.send("skip")).toBe(true);
+    expect(sends).toBe(1);
+
+    client.configure({ port: 8765, token: "malformed" });
+
+    expect(closes).toBe(1);
+    expect(raw.socket).toBeNull();
+    expect(client.send("skip")).toBe(false);
     client.stop();
   });
 

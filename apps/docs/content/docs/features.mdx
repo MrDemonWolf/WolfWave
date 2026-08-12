@@ -116,18 +116,18 @@ hosted overlay service.
 - **Updates instantly** with smooth transitions — no strobing on stream.
 - **Queue ticker, opt-in.** Add `?queueTicker=1` to the URL for a panel showing
   the next requests so viewers see their spot in line.
-- **Token-gated.** Every install has its own access token; two-PC streamers can
-  connect over a trusted LAN. Details:
+- **Read-only token-gated.** Every install has an overlay token; two-PC streamers
+  can receive state over a trusted LAN without gaining command access. Details:
   [WebSocket security](/docs/security#websocket-server-security).
 
 Sizes, the message contract, and theming internals: [OBS Widget](/docs/widget).
 
 ## Stream Deck control
 
-The official plugin puts playback, your request queue, and your integrations
-on physical keys, with live state on every one. Setup: [Stream Deck](/docs/streamdeck).
-Building your own client instead? The same socket is documented at
-[Stream Deck Control API](/docs/stream-deck).
+The official plugin puts playback, your request queue, and your integrations on
+physical keys, with live state on every one. Its separate control token works
+only on the same Mac. Setup: [Stream Deck](/docs/streamdeck). Building your own
+local client instead? See [Stream Deck Control API](/docs/stream-deck).
 
 ## Discord Status
 
