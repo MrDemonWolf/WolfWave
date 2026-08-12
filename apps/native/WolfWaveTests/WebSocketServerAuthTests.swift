@@ -370,8 +370,8 @@ private final class FailingKeychainBackend: KeychainBackend, @unchecked Sendable
     }
 
     func load(account _: String) throws -> String? { nil }
-    func delete(account _: String) throws {}
-    func deleteAll() throws {}
+    func delete(account _: String) {}
+    func deleteAll() {}
 }
 
 private final class ReadFailingKeychainBackend: KeychainBackend, @unchecked Sendable {
@@ -390,6 +390,6 @@ private final class ReadFailingKeychainBackend: KeychainBackend, @unchecked Send
         throw KeychainService.KeychainError.loadFailed(errSecInteractionNotAllowed)
     }
 
-    func delete(account _: String) throws {}
-    func deleteAll() throws {}
+    func delete(account _: String) {}
+    func deleteAll() {}
 }
