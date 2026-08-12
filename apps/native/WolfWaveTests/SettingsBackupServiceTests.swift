@@ -89,12 +89,12 @@ final class SettingsBackupServiceTests: XCTestCase {
         let service = SettingsBackupService(
             defaults: defaults,
             center: NotificationCenter(),
-            twitchChannelProvider: { "canonical-channel" }
+            twitchChannelProvider: { "canonical_channel" }
         )
 
         let backup = try service.makeBackup(exportedAt: Date(timeIntervalSince1970: 0))
 
-        XCTAssertEqual(backup.integrations.twitch?.channelName, "canonical-channel")
+        XCTAssertEqual(backup.integrations.twitch?.channelName, "canonical_channel")
     }
 
     func testBackupRoundTripsPortableCollectionsThroughLiveOwners() async throws {
@@ -391,6 +391,194 @@ final class SettingsBackupServiceTests: XCTestCase {
         XCTAssertNil(defaults.string(forKey: AppConstants.UserDefaults.twitchChannelName))
         XCTAssertTrue(defaults.bool(forKey: AppConstants.UserDefaults.twitchReauthNeeded))
         XCTAssertEqual(KeychainService.loadTwitchCredentialGrant(), original)
+    }
+    func testApplyEnactsSystemBackedPreferences() async throws {
+        let suiteName = "SettingsBackupServiceTests.sideEffects.\(UUID().uuidString)"
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suiteName))
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+
+        var launchAtLoginEnabled = false
+        var launchRequests: [Bool] = []
+        var appliedAppearances: [String] = []
+        var appliedUpdates: [SettingsBackupService.UpdatePreferences] = []
+        let sideEffects = SettingsBackupService.SideEffects(
+            isLaunchAtLoginEnabled: { launchAtLoginEnabled },
+            setLaunchAtLogin: { enabled in
+                launchRequests.append(enabled)
+                launchAtLoginEnabled = enabled
+                return .success
+            },
+            applyAppearance: { appliedAppearances.append($0) },
+            applyUpdatePreferences: { appliedUpdates.append($0) }
+        )
+        let keys = AppConstants.UserDefaults.self
+        let backup = SettingsBackup(
+            format: SettingsBackup.currentFormat,
+            schemaVersion: SettingsBackup.currentSchemaVersion,
+            appVersion: "1.0.0",
+            appBuild: "1",
+            exportedAt: Date(timeIntervalSince1970: 0),
+            settings: [
+                keys.launchAtLogin: .bool(true),
+                keys.appearancePreference: .string(AppConstants.Appearance.dark),
+                keys.updateCheckEnabled: .bool(false),
+                keys.updateChannel: .string(UpdateChannel.nightly.rawValue)
+            ],
+            integrations: .init(twitch: nil)
+        )
+
+        let summary = await SettingsBackupService(
+            defaults: defaults,
+            center: NotificationCenter(),
+            replaceCustomCommands: { _ in false },
+            replaceSongRequestBlocklist: { _ in false },
+            sideEffects: sideEffects
+        ).apply(backup, choices: .init())
+
+        XCTAssertEqual(launchRequests, [true])
+        XCTAssertEqual(appliedAppearances, [AppConstants.Appearance.dark])
+        XCTAssertEqual(
+            appliedUpdates,
+            [.init(automaticCheckEnabled: false, channel: .nightly)]
+        )
+        XCTAssertEqual(summary.restoredCount, 4)
+        XCTAssertTrue(summary.warnings.isEmpty)
+    }
+
+    func testApplyReconcilesRejectedLaunchAtLoginChange() async throws {
+        let suiteName = "SettingsBackupServiceTests.loginFailure.\(UUID().uuidString)"
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suiteName))
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+
+        var launchRequests: [Bool] = []
+        let sideEffects = SettingsBackupService.SideEffects(
+            isLaunchAtLoginEnabled: { false },
+            setLaunchAtLogin: { enabled in
+                launchRequests.append(enabled)
+                return .failure
+            },
+            applyAppearance: { _ in },
+            applyUpdatePreferences: { _ in }
+        )
+        let key = AppConstants.UserDefaults.launchAtLogin
+        let backup = SettingsBackup(
+            format: SettingsBackup.currentFormat,
+            schemaVersion: SettingsBackup.currentSchemaVersion,
+            appVersion: "1.0.0",
+            appBuild: "1",
+            exportedAt: Date(timeIntervalSince1970: 0),
+            settings: [key: .bool(true)],
+            integrations: .init(twitch: nil)
+        )
+
+        let summary = await SettingsBackupService(
+            defaults: defaults,
+            center: NotificationCenter(),
+            replaceCustomCommands: { _ in false },
+            replaceSongRequestBlocklist: { _ in false },
+            sideEffects: sideEffects
+        ).apply(backup, choices: .init())
+
+        XCTAssertEqual(launchRequests, [true])
+        XCTAssertFalse(defaults.bool(forKey: key))
+        XCTAssertEqual(summary.restoredCount, 0)
+        XCTAssertEqual(
+            summary.warnings,
+            ["Launch at Login couldn't be restored and remains off."]
+        )
+    }
+    func testApplyCountsPendingLaunchAtLoginAndWarnsAboutSystemApproval() async {
+        let suiteName = "SettingsBackupServiceTests.loginApproval.\(UUID().uuidString)"
+        guard let defaults = UserDefaults(suiteName: suiteName) else {
+            XCTFail("Could not create isolated UserDefaults suite")
+            return
+        }
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+
+        var launchAtLoginEnabled = false
+        let sideEffects = SettingsBackupService.SideEffects(
+            isLaunchAtLoginEnabled: { launchAtLoginEnabled },
+            setLaunchAtLogin: { enabled in
+                launchAtLoginEnabled = enabled
+                return .requiresApproval
+            },
+            applyAppearance: { _ in },
+            applyUpdatePreferences: { _ in }
+        )
+        let key = AppConstants.UserDefaults.launchAtLogin
+        let backup = makeBackup(settings: [key: .bool(true)])
+
+        let summary = await SettingsBackupService(
+            defaults: defaults,
+            center: NotificationCenter(),
+            sideEffects: sideEffects
+        ).apply(backup, choices: .init())
+
+        XCTAssertTrue(defaults.bool(forKey: key))
+        XCTAssertEqual(summary.restoredCount, 1)
+        XCTAssertEqual(
+            summary.warnings,
+            ["Launch at Login requires approval in System Settings → General → Login Items."]
+        )
+    }
+
+    func testSongRequestsAreNotPreviewedOrRestoredBeforeSetupCompletes() async {
+        let suiteName = "SettingsBackupServiceTests.songRequestSetup.\(UUID().uuidString)"
+        guard let defaults = UserDefaults(suiteName: suiteName) else {
+            XCTFail("Could not create isolated UserDefaults suite")
+            return
+        }
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+
+        let keys = AppConstants.UserDefaults.self
+        defaults.set(true, forKey: keys.songRequestEnabled)
+        defaults.set(false, forKey: keys.songRequestSetupComplete)
+        let backup = makeBackup(settings: [keys.songRequestEnabled: .bool(true)])
+        let service = SettingsBackupService(defaults: defaults, center: NotificationCenter())
+
+        XCTAssertEqual(service.restorableCount(backup), 0)
+        let summary = await service.apply(backup, choices: .init())
+
+        XCTAssertFalse(defaults.bool(forKey: keys.songRequestEnabled))
+        XCTAssertEqual(summary.restoredCount, 0)
+        XCTAssertEqual(summary.ignoredCount, 1)
+        XCTAssertEqual(
+            summary.warnings,
+            ["Song Requests weren't restored because setup isn't complete on this Mac."]
+        )
+    }
+
+    func testSongRequestsArePreviewedAndRestoredAfterSetupCompletes() async {
+        let suiteName = "SettingsBackupServiceTests.songRequestReady.\(UUID().uuidString)"
+        guard let defaults = UserDefaults(suiteName: suiteName) else {
+            XCTFail("Could not create isolated UserDefaults suite")
+            return
+        }
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+
+        let keys = AppConstants.UserDefaults.self
+        defaults.set(true, forKey: keys.songRequestSetupComplete)
+        let backup = makeBackup(settings: [keys.songRequestEnabled: .bool(true)])
+        let service = SettingsBackupService(defaults: defaults, center: NotificationCenter())
+
+        XCTAssertEqual(service.restorableCount(backup), 1)
+        let summary = await service.apply(backup, choices: .init())
+
+        XCTAssertTrue(defaults.bool(forKey: keys.songRequestEnabled))
+        XCTAssertEqual(summary.restoredCount, 1)
+        XCTAssertTrue(summary.warnings.isEmpty)
+    }
+
+    private func makeBackup(settings: [String: BackupValue]) -> SettingsBackup {
+        SettingsBackup(
+            format: SettingsBackup.currentFormat,
+            schemaVersion: SettingsBackup.currentSchemaVersion,
+            appVersion: "1.0.0",
+            appBuild: "1",
+            exportedAt: Date(timeIntervalSince1970: 0),
+            settings: settings,
+            integrations: .init(twitch: nil)
+        )
     }
 }
 

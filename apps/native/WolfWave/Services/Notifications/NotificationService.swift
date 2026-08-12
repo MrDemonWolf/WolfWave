@@ -10,13 +10,33 @@ import AppKit
 import Foundation
 import UserNotifications
 
+/// Testable subset of `UNUserNotificationCenter` used by NotificationService.
+@MainActor
+protocol UserNotificationCenterProviding: AnyObject {
+    func installDelegate(_ delegate: (any UNUserNotificationCenterDelegate)?)
+    func authorizationStatus() async -> UNAuthorizationStatus
+    func requestAuthorization(options: UNAuthorizationOptions) async throws -> Bool
+    func removePendingNotificationRequests(withIdentifiers identifiers: [String])
+    func removeDeliveredNotifications(withIdentifiers identifiers: [String])
+    func add(_ request: UNNotificationRequest) async throws
+}
+
+extension UNUserNotificationCenter: UserNotificationCenterProviding {
+    func installDelegate(_ delegate: (any UNUserNotificationCenterDelegate)?) {
+        self.delegate = delegate
+    }
+
+    func authorizationStatus() async -> UNAuthorizationStatus {
+        await notificationSettings().authorizationStatus
+    }
+}
+
 /// Centralizes macOS User Notification delivery for WolfWave.
 ///
 /// Wraps `UNUserNotificationCenter` so callers don't repeat authorization and
 /// error-handling boilerplate. Posts song-change, skip-vote (started /
-/// passed), and Twitch re-auth notifications; the private
-/// `post(content:identifier:)` core is the shared extension point for any
-/// future notification type.
+/// passed), and Twitch re-auth notifications. The private post core is the
+/// shared extension point for future notification types.
 ///
 /// Also acts as the `UNUserNotificationCenterDelegate` (installed once at
 /// launch via `installCenterDelegate()`) so banners still present while
@@ -24,12 +44,39 @@ import UserNotifications
 /// requires it.
 final class NotificationService: NSObject {
 
+    typealias ArtworkAttachmentProvider = @MainActor @Sendable (
+        _ track: String,
+        _ artist: String
+    ) async -> UNNotificationAttachment?
+
+    /// Work that belongs to one logical notification lifecycle.
+    ///
+    /// Most notification types only supersede work for their own stable
+    /// identifier. Skip-vote started and passed use one shared domain so a slow
+    /// artwork lookup for "started" cannot publish after the vote has passed.
+    private enum PostGenerationDomain: Hashable {
+        case identifier(String)
+        case skipVoteLifecycle
+    }
+
     // MARK: - Singleton
 
     /// Shared instance used across the app.
-    static let shared = NotificationService()
+    static let shared = NotificationService(center: UNUserNotificationCenter.current())
 
-    private override init() {}
+    private let center: any UserNotificationCenterProviding
+    private let artworkAttachmentProvider: ArtworkAttachmentProvider?
+    private var latestPostToken: [PostGenerationDomain: UUID] = [:]
+    private var submissionTail: [PostGenerationDomain: Task<Bool, Never>] = [:]
+
+    init(
+        center: any UserNotificationCenterProviding,
+        artworkAttachmentProvider: ArtworkAttachmentProvider? = nil
+    ) {
+        self.center = center
+        self.artworkAttachmentProvider = artworkAttachmentProvider
+        super.init()
+    }
 
     // MARK: - Center Delegate Installation
 
@@ -39,7 +86,7 @@ final class NotificationService: NSObject {
     /// frontmost, which is exactly when the user is in Settings flipping the
     /// notification toggles and expecting to see one. Call once at launch.
     func installCenterDelegate() {
-        UNUserNotificationCenter.current().delegate = self
+        center.installDelegate(self)
     }
 
     // MARK: - Song Change
@@ -57,13 +104,12 @@ final class NotificationService: NSObject {
     ///   - artist: Artist name.
     ///   - album: Album title (may be empty).
     func postSongChange(track: String, artist: String, album: String) async {
-        let content = Self.makeSongChangeContent(track: track, artist: artist, album: album)
-
-        if let attachment = await songChangeArtworkAttachment(track: track, artist: artist) {
-            content.attachments = [attachment]
-        }
-
-        await post(content: content, identifier: AppConstants.UserNotification.songChangeIdentifier)
+        await postWithArtwork(
+            content: Self.makeSongChangeContent(track: track, artist: artist, album: album),
+            identifier: AppConstants.UserNotification.songChangeIdentifier,
+            track: track,
+            artist: artist
+        )
     }
 
     /// Builds the notification content for a song change.
@@ -109,9 +155,9 @@ final class NotificationService: NSObject {
     /// Posts a notification when a chat skip-vote starts.
     ///
     /// Silent (like song-change). The start is informational, not urgent.
-    /// Reuses a stable identifier so a fresh vote-start replaces the previous
-    /// one. Attaches current-track artwork when available. No-op without
-    /// notification authorization.
+    /// Reuses a stable identifier and retires the previous lifecycle banner.
+    /// Attaches current-track artwork when available. No-op without notification
+    /// authorization.
     ///
     /// - Parameters:
     ///   - track: Currently-playing song title (may be empty).
@@ -124,33 +170,39 @@ final class NotificationService: NSObject {
         votesNeeded: Int,
         viaPoll: Bool
     ) async {
-        let content = Self.makeSkipVoteStartedContent(
-            track: track, artist: artist, votesNeeded: votesNeeded, viaPoll: viaPoll)
-
-        if let attachment = await songChangeArtworkAttachment(track: track, artist: artist) {
-            content.attachments = [attachment]
-        }
-
-        await post(content: content, identifier: AppConstants.UserNotification.skipVoteStartedIdentifier)
+        await postWithArtwork(
+            content: Self.makeSkipVoteStartedContent(
+                track: track, artist: artist, votesNeeded: votesNeeded, viaPoll: viaPoll),
+            identifier: AppConstants.UserNotification.skipVoteStartedIdentifier,
+            track: track,
+            artist: artist,
+            generationDomain: .skipVoteLifecycle,
+            replacingDeliveredIdentifiers: [
+                AppConstants.UserNotification.skipVotePassedIdentifier,
+            ]
+        )
     }
 
     /// Posts a notification when a chat skip-vote passes.
     ///
-    /// Plays the default system sound. Passing is a rare, worth-a-chime event.
-    /// Attaches current-track artwork when available. No-op without
-    /// notification authorization.
+    /// Plays the default system sound and retires the delivered started banner.
+    /// Passing is a rare, worth-a-chime event. Attaches current-track artwork
+    /// when available. No-op without notification authorization.
     ///
     /// - Parameters:
     ///   - track: The skipped song's title (may be empty).
     ///   - artist: The skipped song's artist (may be empty).
     func postSkipVotePassed(track: String, artist: String) async {
-        let content = Self.makeSkipVotePassedContent(track: track, artist: artist)
-
-        if let attachment = await songChangeArtworkAttachment(track: track, artist: artist) {
-            content.attachments = [attachment]
-        }
-
-        await post(content: content, identifier: AppConstants.UserNotification.skipVotePassedIdentifier)
+        await postWithArtwork(
+            content: Self.makeSkipVotePassedContent(track: track, artist: artist),
+            identifier: AppConstants.UserNotification.skipVotePassedIdentifier,
+            track: track,
+            artist: artist,
+            generationDomain: .skipVoteLifecycle,
+            replacingDeliveredIdentifiers: [
+                AppConstants.UserNotification.skipVoteStartedIdentifier,
+            ]
+        )
     }
 
     /// Builds the notification content for a skip-vote start.
@@ -217,9 +269,14 @@ final class NotificationService: NSObject {
     /// never requests authorization, it simply drops the banner unless the
     /// user already granted it. The in-app re-auth banner covers that case.
     func postTwitchReauthNeeded() async {
+        let identifier = AppConstants.UserNotification.twitchReauthIdentifier
+        let generationDomain = PostGenerationDomain.identifier(identifier)
+        let token = beginPost(generationDomain: generationDomain)
         await post(
             content: Self.makeTwitchReauthContent(),
-            identifier: AppConstants.UserNotification.twitchReauthIdentifier
+            identifier: identifier,
+            token: token,
+            generationDomain: generationDomain
         )
     }
 
@@ -250,7 +307,7 @@ final class NotificationService: NSObject {
 
     /// Returns the current notification authorization status.
     func authorizationStatus() async -> UNAuthorizationStatus {
-        await UNUserNotificationCenter.current().notificationSettings().authorizationStatus
+        await center.authorizationStatus()
     }
 
     /// Requests notification authorization (`.alert`, `.sound`, `.badge`).
@@ -258,8 +315,7 @@ final class NotificationService: NSObject {
     /// - Returns: `true` when the user grants authorization.
     @discardableResult
     func requestAuthorization() async -> Bool {
-        (try? await UNUserNotificationCenter.current()
-            .requestAuthorization(options: [.alert, .sound, .badge])) ?? false
+        (try? await center.requestAuthorization(options: [.alert, .sound, .badge])) ?? false
     }
 
     /// Opens System Settings → Notifications. macOS 13+ deep-link.
@@ -273,14 +329,13 @@ final class NotificationService: NSObject {
     /// (`trigger: nil`) request.
     ///
     /// Pure, performs no system calls, so tests can assert that each
-    /// notification type reuses its stable identifier (the dedup contract:
-    /// a new request with the same identifier replaces the previous one rather
-    /// than stacking in Notification Center).
+    /// notification type reuses its stable identifier. The delivery path uses
+    /// that identifier to remove an already-delivered banner before adding its
+    /// replacement.
     ///
     /// - Parameters:
     ///   - content: The notification content to deliver.
-    ///   - identifier: Request identifier. Reuse a stable value per type so a
-    ///     fresh notification replaces the previous one.
+    ///   - identifier: Stable request identifier for one notification type.
     /// - Returns: A configured, immediately-firing notification request.
     static func makeRequest(
         content: UNNotificationContent,
@@ -302,29 +357,138 @@ final class NotificationService: NSObject {
     ///
     /// - Parameters:
     ///   - content: The notification content to deliver.
-    ///   - identifier: Request identifier. Reuse a stable value to replace an
-    ///     existing notification rather than stacking a new one.
-    private func post(content: UNNotificationContent, identifier: String) async {
-        let center = UNUserNotificationCenter.current()
+    ///   - identifier: Stable request identifier used for replacement.
+    @discardableResult
+    private func post(
+        content: UNNotificationContent,
+        identifier: String,
+        token: UUID,
+        generationDomain: PostGenerationDomain,
+        replacingDeliveredIdentifiers: [String] = []
+    ) async -> Bool {
+        guard isLatestPost(token, generationDomain: generationDomain) else { return false }
 
-        switch await center.notificationSettings().authorizationStatus {
+        switch await center.authorizationStatus() {
         case .notDetermined, .denied:
             // No prompt, no delivery. Authorization happens only via the primed
             // button paths, never as a side effect of a notification firing.
-            return
+            return false
         default:
             break
         }
+        guard isLatestPost(token, generationDomain: generationDomain) else { return false }
 
         let request = Self.makeRequest(content: content, identifier: identifier)
+        let identifiers = [identifier] + replacingDeliveredIdentifiers
+        let previousSubmission = submissionTail[generationDomain]
+        let submission = Task { @MainActor [weak self] in
+            if let previousSubmission {
+                _ = await previousSubmission.value
+            }
+            guard let self,
+                  self.isLatestPost(token, generationDomain: generationDomain)
+            else { return false }
+
+            return await self.submit(
+                request,
+                identifiers: identifiers,
+                token: token,
+                generationDomain: generationDomain
+            )
+        }
+        submissionTail[generationDomain] = submission
+        return await submission.value
+    }
+
+    /// Submits one request while holding its lifecycle's ordered turn.
+    ///
+    /// The per-domain task chain prevents main-actor reentrancy at `center.add`
+    /// from allowing an older suspended request to finish after a newer one.
+    /// Pending and delivered requests are both cleared because stable request
+    /// identifiers only replace pending requests reliably before delivery.
+    private func submit(
+        _ request: UNNotificationRequest,
+        identifiers: [String],
+        token: UUID,
+        generationDomain: PostGenerationDomain
+    ) async -> Bool {
         do {
+            center.removePendingNotificationRequests(withIdentifiers: identifiers)
+            center.removeDeliveredNotifications(withIdentifiers: identifiers)
             try await center.add(request)
+
+            // A newer post may start while add() is suspended. No newer request
+            // in this domain can enter submit() until this method returns, so it
+            // is safe to retract the stale request before releasing the turn.
+            guard isLatestPost(token, generationDomain: generationDomain) else {
+                center.removePendingNotificationRequests(withIdentifiers: identifiers)
+                center.removeDeliveredNotifications(withIdentifiers: identifiers)
+                return false
+            }
+            return true
         } catch {
             Log.error(
                 "NotificationService: Failed to post notification: \(error.localizedDescription)",
                 category: "App"
             )
+            return false
         }
+    }
+
+    /// Fetches optional artwork, then posts only if no newer notification in
+    /// the same lifecycle started while the lookup was suspended.
+    private func postWithArtwork(
+        content: UNMutableNotificationContent,
+        identifier: String,
+        track: String,
+        artist: String,
+        generationDomain: PostGenerationDomain? = nil,
+        replacingDeliveredIdentifiers: [String] = []
+    ) async {
+        let generationDomain = generationDomain ?? .identifier(identifier)
+        let token = beginPost(generationDomain: generationDomain)
+        let attachment: UNNotificationAttachment?
+        if let artworkAttachmentProvider {
+            attachment = await artworkAttachmentProvider(track, artist)
+        } else {
+            attachment = await songChangeArtworkAttachment(track: track, artist: artist)
+        }
+        guard isLatestPost(token, generationDomain: generationDomain) else {
+            removeTemporaryAttachment(attachment)
+            return
+        }
+        if let attachment {
+            content.attachments = [attachment]
+        }
+        let posted = await post(
+            content: content,
+            identifier: identifier,
+            token: token,
+            generationDomain: generationDomain,
+            replacingDeliveredIdentifiers: replacingDeliveredIdentifiers
+        )
+        if !posted {
+            removeTemporaryAttachment(attachment)
+        }
+    }
+
+    /// Marks a new post as the latest work for its notification lifecycle.
+    private func beginPost(generationDomain: PostGenerationDomain) -> UUID {
+        let token = UUID()
+        latestPostToken[generationDomain] = token
+        return token
+    }
+
+    private func isLatestPost(_ token: UUID, generationDomain: PostGenerationDomain) -> Bool {
+        latestPostToken[generationDomain] == token
+    }
+
+    /// Deletes only files created by this service. Injected test/providers may
+    /// return attachments backed by files they own and must not be touched.
+    private func removeTemporaryAttachment(_ attachment: UNNotificationAttachment?) {
+        guard let attachment,
+              attachment.url.lastPathComponent.hasPrefix("wolfwave-artwork-") else { return }
+        try? FileManager.default.removeItem(at: attachment.url)
     }
 
     /// Fetches album artwork and writes it to a temporary file for use as a

@@ -259,6 +259,42 @@ final class SongRequestLimitsTests: XCTestCase {
             20)
     }
 
+    func testStackedModeSaturatesInsteadOfOverflowing() {
+        defaults.set(
+            QueueLimitMode.stacked.rawValue,
+            forKey: AppConstants.UserDefaults.songRequestLimitStackMode)
+        setLimits(everyone: Int.max, sub: Int.max, vip: Int.max, mod: Int.max)
+
+        XCTAssertEqual(
+            SongRequestLimits.effectiveLimit(
+                isSubscriber: true,
+                isVIP: true,
+                isModerator: true,
+                isBroadcaster: false,
+                in: defaults
+            ),
+            Int.max
+        )
+    }
+
+    func testNonPositiveStoredLimitsFallBackToTwo() {
+        defaults.set(
+            QueueLimitMode.stacked.rawValue,
+            forKey: AppConstants.UserDefaults.songRequestLimitStackMode)
+        setLimits(everyone: 0, sub: -1, vip: 0, mod: -100)
+
+        XCTAssertEqual(
+            SongRequestLimits.effectiveLimit(
+                isSubscriber: true,
+                isVIP: true,
+                isModerator: true,
+                isBroadcaster: false,
+                in: defaults
+            ),
+            8
+        )
+    }
+
     func testNonChatLimitUsesEveryoneTier() {
         setLimits(everyone: 4, sub: 9, vip: 9, mod: 9)
         XCTAssertEqual(SongRequestLimits.nonChatLimit(in: defaults), 4)

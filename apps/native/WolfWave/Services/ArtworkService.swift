@@ -35,36 +35,63 @@ nonisolated final class ArtworkService: @unchecked Sendable {
     /// Shared instance used across the app.
     static let shared = ArtworkService()
 
+    // MARK: - Types
+
+    /// Unambiguous cache identity for a track.
+    ///
+    /// Keeping artist and track as separate fields avoids collisions that a
+    /// delimiter-joined string cannot distinguish.
+    private struct CacheKey: Codable, Hashable, Sendable {
+        let artist: String
+        let track: String
+    }
+
+    /// Identity of one single-flight request within a cache generation.
+    ///
+    /// A generation is part of the identity so a request started after
+    /// clearCache() never joins, or gets completed by, an older request for
+    /// the same track.
+    private struct InFlightKey: Hashable, Sendable {
+        let cacheKey: CacheKey
+        let generation: UInt64
+    }
+
     // MARK: - Properties
 
-    /// In-memory cache of artwork URLs. Key: "artist|track", Value: artwork URL string.
-    private var cache: [String: String] = [:]
+    /// In-memory cache of artwork URLs.
+    private var cache: [CacheKey: String] = [:]
 
-    /// In-memory cache of Apple Music track view URLs. Key: "artist|track".
-    private var trackViewURLCache: [String: String] = [:]
+    /// In-memory cache of Apple Music track view URLs.
+    private var trackViewURLCache: [CacheKey: String] = [:]
 
-    /// In-memory cache of song.link URLs. Key: "artist|track".
-    private var songLinkURLCache: [String: String] = [:]
+    /// In-memory cache of song.link URLs.
+    private var songLinkURLCache: [CacheKey: String] = [:]
 
     /// Timestamp of the last completed lookup per `cacheKey`, success or miss.
     /// A miss caches nothing in the URL maps, so without this a track absent from
     /// iTunes would re-hit the network on every playback tick. An entry here means
     /// "already looked up recently", so callers within `AppConstants.API.artworkLookupTTL`
     /// short-circuit to the (possibly empty) cached value instead of re-querying.
-    private var resolvedAt: [String: Date] = [:]
+    private var resolvedAt: [CacheKey: Date] = [:]
 
     /// Insertion-ordered keys. Used to evict the oldest entry when caches are full.
-    private var cacheKeyOrder: [String] = []
+    private var cacheKeyOrder: [CacheKey] = []
 
     /// Maximum number of entries retained across all three caches.
     private let cacheMaxEntries = 200
 
-    /// Pending completion handlers for in-flight requests, keyed by `cacheKey`.
+    /// Monotonically changing identity for the current cache contents.
+    ///
+    /// Network responses only populate the generation in which they started.
+    private var cacheGeneration: UInt64 = 0
+
+    /// Pending completion handlers for in-flight requests, keyed by track and
+    /// cache generation.
     /// A non-nil entry means a network request is already running for that key;
     /// additional callers append their completion and wait instead of issuing
     /// a duplicate request. Single-flight dedupes concurrent misses (e.g.
     /// menu bar + Discord both fetching on the same track change).
-    private var inFlight: [String: [@Sendable (TrackLinks) -> Void]] = [:]
+    private var inFlight: [InFlightKey: [@Sendable (TrackLinks) -> Void]] = [:]
 
     /// Serial queue protecting cache mutations.
     private let cacheQueue = DispatchQueue(
@@ -72,12 +99,9 @@ nonisolated final class ArtworkService: @unchecked Sendable {
         qos: .utility
     )
 
-    /// Serial queue for disk reads/writes of the persisted cache, kept separate
-    /// from `cacheQueue` so file I/O never blocks a lookup decision.
-    private let ioQueue = DispatchQueue(
-        label: "com.mrdemonwolf.wolfwave.artworkCacheIO",
-        qos: .utility
-    )
+    /// Tail of the ordered persistence chain. Access only while holding
+    /// `cacheQueue`, so submissions preserve cache-generation order.
+    private var persistenceTail: Task<Void, Never>?
 
     /// URL session used for iTunes Search API requests. Injectable for testing.
     private let session: URLSession
@@ -139,7 +163,7 @@ nonisolated final class ArtworkService: @unchecked Sendable {
     ///   - artist: Artist name.
     /// - Returns: The cached artwork URL, or nil if not yet fetched.
     func cachedArtworkURL(track: String, artist: String) -> String? {
-        let cacheKey = "\(artist)|\(track)"
+        let cacheKey = CacheKey(artist: artist, track: track)
         return cacheQueue.sync { cache[cacheKey] }
     }
 
@@ -155,12 +179,12 @@ nonisolated final class ArtworkService: @unchecked Sendable {
     ///   - artist: Artist name.
     ///   - completion: Called with a `TrackLinks` value. Called on an arbitrary URLSession queue.
     func fetchTrackLinks(track: String, artist: String, completion: @escaping @Sendable (TrackLinks) -> Void) {
-        let cacheKey = "\(artist)|\(track)"
+        let cacheKey = CacheKey(artist: artist, track: track)
 
         // Atomically check cache + register as in-flight waiter under one lock.
         // Returns the cached value if hit, otherwise indicates whether this
         // caller should issue the network request (first miss) or just wait.
-        enum Decision { case hit(TrackLinks), leader, waiter }
+        enum Decision { case hit(TrackLinks), leader(InFlightKey), waiter }
         let decision: Decision = cacheQueue.sync {
             let cached = TrackLinks(
                 artworkURL: cache[cacheKey],
@@ -176,27 +200,32 @@ nonisolated final class ArtworkService: @unchecked Sendable {
                Date().timeIntervalSince(resolved) < AppConstants.API.artworkLookupTTL {
                 return .hit(cached)
             }
-            if inFlight[cacheKey] != nil {
-                inFlight[cacheKey]?.append(completion)
+            let inFlightKey = InFlightKey(cacheKey: cacheKey, generation: cacheGeneration)
+            if inFlight[inFlightKey] != nil {
+                inFlight[inFlightKey]?.append(completion)
                 return .waiter
             }
-            inFlight[cacheKey] = [completion]
-            return .leader
+            inFlight[inFlightKey] = [completion]
+            return .leader(inFlightKey)
         }
 
+        let inFlightKey: InFlightKey
         switch decision {
         case .hit(let cached):
             completion(cached)
             return
         case .waiter:
             return
-        case .leader:
-            break
+        case .leader(let key):
+            inFlightKey = key
         }
 
         // Leader path: issue one network request and fan out the result to all waiters.
         guard var components = URLComponents(string: AppConstants.API.itunesSearch) else {
-            finishInFlight(cacheKey: cacheKey, with: TrackLinks(artworkURL: nil, trackViewURL: nil, songLinkURL: nil))
+            finishInFlight(
+                inFlightKey: inFlightKey,
+                with: TrackLinks(artworkURL: nil, trackViewURL: nil, songLinkURL: nil)
+            )
             return
         }
         components.queryItems = [
@@ -206,7 +235,10 @@ nonisolated final class ArtworkService: @unchecked Sendable {
             URLQueryItem(name: "term", value: "\(track) \(artist)"),
         ]
         guard let url = components.url else {
-            finishInFlight(cacheKey: cacheKey, with: TrackLinks(artworkURL: nil, trackViewURL: nil, songLinkURL: nil))
+            finishInFlight(
+                inFlightKey: inFlightKey,
+                with: TrackLinks(artworkURL: nil, trackViewURL: nil, songLinkURL: nil)
+            )
             return
         }
 
@@ -219,7 +251,7 @@ nonisolated final class ArtworkService: @unchecked Sendable {
                     "Artwork: iTunes transport failed for \"\(track)\" by \(artist)",
                     category: "Artwork"
                 )
-                self.finishInFlight(cacheKey: cacheKey, with: emptyLinks)
+                self.finishInFlight(inFlightKey: inFlightKey, with: emptyLinks)
                 return
             }
             guard let http = response as? HTTPURLResponse,
@@ -229,7 +261,7 @@ nonisolated final class ArtworkService: @unchecked Sendable {
                     "Artwork: iTunes lookup returned HTTP \(status) for \"\(track)\"",
                     category: "Artwork"
                 )
-                self.finishInFlight(cacheKey: cacheKey, with: emptyLinks)
+                self.finishInFlight(inFlightKey: inFlightKey, with: emptyLinks)
                 return
             }
             guard let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
@@ -238,15 +270,18 @@ nonisolated final class ArtworkService: @unchecked Sendable {
                     "Artwork: iTunes lookup returned malformed JSON for \"\(track)\"",
                     category: "Artwork"
                 )
-                self.finishInFlight(cacheKey: cacheKey, with: emptyLinks)
+                self.finishInFlight(inFlightKey: inFlightKey, with: emptyLinks)
                 return
             }
 
             guard let first = results.first else {
                 // A valid 2xx empty result is a real miss. Persist only this case;
                 // transient transport/HTTP/decoding failures above remain retryable.
-                self.cacheQueue.sync { self.recordResolution(cacheKey) }
-                self.finishInFlight(cacheKey: cacheKey, with: emptyLinks)
+                self.cacheQueue.sync {
+                    guard self.cacheGeneration == inFlightKey.generation else { return }
+                    self.recordResolution(cacheKey)
+                }
+                self.finishInFlight(inFlightKey: inFlightKey, with: emptyLinks)
                 return
             }
 
@@ -258,6 +293,7 @@ nonisolated final class ArtworkService: @unchecked Sendable {
             let links = TrackLinks(artworkURL: artworkURL, trackViewURL: trackViewURL, songLinkURL: songLinkURL)
 
             self.cacheQueue.sync {
+                guard self.cacheGeneration == inFlightKey.generation else { return }
                 if let artworkURL { self.cache[cacheKey] = artworkURL }
                 if let trackViewURL { self.trackViewURLCache[cacheKey] = trackViewURL }
                 if let songLinkURL { self.songLinkURLCache[cacheKey] = songLinkURL }
@@ -265,7 +301,7 @@ nonisolated final class ArtworkService: @unchecked Sendable {
             }
 
             Log.debug("Artwork: Found track links for \"\(track)\"", category: "Artwork")
-            self.finishInFlight(cacheKey: cacheKey, with: links)
+            self.finishInFlight(inFlightKey: inFlightKey, with: links)
         }.resume()
     }
 
@@ -274,7 +310,7 @@ nonisolated final class ArtworkService: @unchecked Sendable {
     ///
     /// Must be called while holding `cacheQueue`. Tracking misses here is what stops
     /// not-found tracks from re-querying the network on every playback tick.
-    private func recordResolution(_ cacheKey: String) {
+    private func recordResolution(_ cacheKey: CacheKey) {
         if resolvedAt[cacheKey] == nil {
             cacheKeyOrder.append(cacheKey)
         }
@@ -289,13 +325,13 @@ nonisolated final class ArtworkService: @unchecked Sendable {
         scheduleSave()
     }
 
-    /// Pops all pending waiters for `cacheKey` and invokes them with `links`.
+    /// Pops all pending waiters for `inFlightKey` and invokes them with `links`.
     /// Called outside the cache lock to avoid holding it while running arbitrary
     /// caller code.
-    private func finishInFlight(cacheKey: String, with links: TrackLinks) {
+    private func finishInFlight(inFlightKey: InFlightKey, with links: TrackLinks) {
         let waiters: [@Sendable (TrackLinks) -> Void] = cacheQueue.sync {
-            let pending = inFlight[cacheKey] ?? []
-            inFlight.removeValue(forKey: cacheKey)
+            let pending = inFlight[inFlightKey] ?? []
+            inFlight.removeValue(forKey: inFlightKey)
             return pending
         }
         for waiter in waiters {
@@ -310,7 +346,7 @@ nonisolated final class ArtworkService: @unchecked Sendable {
     ///   - artist: Artist name.
     /// - Returns: A `TrackLinks` value; fields are nil if not yet fetched.
     func cachedTrackLinks(track: String, artist: String) -> TrackLinks {
-        let cacheKey = "\(artist)|\(track)"
+        let cacheKey = CacheKey(artist: artist, track: track)
         return cacheQueue.sync {
             TrackLinks(
                 artworkURL: cache[cacheKey],
@@ -327,7 +363,7 @@ nonisolated final class ArtworkService: @unchecked Sendable {
     ///
     /// - Returns: `true` once a lookup has finished, regardless of outcome.
     func hasAttemptedTrackLinks(track: String, artist: String) -> Bool {
-        let cacheKey = "\(artist)|\(track)"
+        let cacheKey = CacheKey(artist: artist, track: track)
         return cacheQueue.sync {
             // Mirror `fetchTrackLinks`' TTL check: an expired miss is treated as
             // not-yet-attempted so callers re-drive resolution instead of
@@ -360,35 +396,41 @@ nonisolated final class ArtworkService: @unchecked Sendable {
     }
 
     /// Clears all cached artwork links from memory and deletes the on-disk file.
-    func clearCache() {
-        cacheQueue.sync {
+    func clearCache() async {
+        let deletion: Task<Void, Never>? = cacheQueue.sync {
+            // Responses already on the wire may still finish their callers, but
+            // the generation guard prevents them from rebuilding this cache.
+            cacheGeneration &+= 1
             cache.removeAll()
             trackViewURLCache.removeAll()
             songLinkURLCache.removeAll()
             resolvedAt.removeAll()
             cacheKeyOrder.removeAll()
+
+            guard let url = persistenceURL else { return nil }
+            return enqueuePersistenceOperation {
+                try? FileManager.default.removeItem(at: url)
+            }
         }
-        if let url = persistenceURL {
-            ioQueue.async { try? FileManager.default.removeItem(at: url) }
-        }
+        await deletion?.value
         Log.info("Artwork: cache cleared", category: "Artwork")
     }
 
     // MARK: - Persistence
 
     /// One persisted track's links plus its resolution timestamp.
-    private struct PersistedEntry: Codable {
+    private struct PersistedEntry: Codable, Sendable {
+        let key: CacheKey
         let artworkURL: String?
         let trackViewURL: String?
         let songLinkURL: String?
         let resolvedAt: Date
     }
 
-    /// On-disk shape of the links cache: entries keyed by `cacheKey` plus the
-    /// insertion order used for eviction.
-    private struct PersistedCache: Codable {
-        let entries: [String: PersistedEntry]
-        let order: [String]
+    /// On-disk shape of the links cache. Array order is the insertion order used
+    /// for eviction; each entry retains its structured track identity.
+    private struct PersistedCache: Codable, Sendable {
+        let entries: [PersistedEntry]
     }
 
     /// Loads the persisted cache into memory at init, dropping entries already
@@ -401,9 +443,9 @@ nonisolated final class ArtworkService: @unchecked Sendable {
         else { return }
 
         let now = Date()
-        for key in snapshot.order {
-            guard let entry = snapshot.entries[key] else { continue }
+        for entry in snapshot.entries {
             if now.timeIntervalSince(entry.resolvedAt) >= AppConstants.API.artworkLookupTTL { continue }
+            let key = entry.key
             if let artworkURL = entry.artworkURL { cache[key] = artworkURL }
             if let trackViewURL = entry.trackViewURL { trackViewURLCache[key] = trackViewURL }
             if let songLinkURL = entry.songLinkURL { songLinkURLCache[key] = songLinkURL }
@@ -417,20 +459,35 @@ nonisolated final class ArtworkService: @unchecked Sendable {
     /// Must be called while holding `cacheQueue` (snapshot read is unsynchronized).
     private func scheduleSave() {
         guard let url = persistenceURL else { return }
-        var entries: [String: PersistedEntry] = [:]
-        for key in cacheKeyOrder {
-            guard let timestamp = resolvedAt[key] else { continue }
-            entries[key] = PersistedEntry(
+        let entries = cacheKeyOrder.compactMap { key -> PersistedEntry? in
+            guard let timestamp = resolvedAt[key] else { return nil }
+            return PersistedEntry(
+                key: key,
                 artworkURL: cache[key],
                 trackViewURL: trackViewURLCache[key],
                 songLinkURL: songLinkURLCache[key],
                 resolvedAt: timestamp
             )
         }
-        let snapshot = PersistedCache(entries: entries, order: cacheKeyOrder)
-        ioQueue.async {
+        let snapshot = PersistedCache(entries: entries)
+        enqueuePersistenceOperation {
             guard let data = try? JSONCoders.defaultEncoder.encode(snapshot) else { return }
             try? data.write(to: url, options: .atomic)
         }
+    }
+
+    /// Enqueues a disk operation after every previously submitted operation.
+    /// Must be called while holding `cacheQueue`.
+    @discardableResult
+    private func enqueuePersistenceOperation(
+        _ operation: @escaping @Sendable () -> Void
+    ) -> Task<Void, Never> {
+        let previous = persistenceTail
+        let task = Task.detached(priority: .utility) {
+            if let previous { await previous.value }
+            operation()
+        }
+        persistenceTail = task
+        return task
     }
 }

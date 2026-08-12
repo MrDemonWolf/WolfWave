@@ -61,6 +61,11 @@ nonisolated enum CommandPermission: String, Codable, CaseIterable, Sendable, Ide
 /// a runtime ``CustomBotCommand`` for the dispatcher.
 nonisolated struct CustomCommand: Codable, Identifiable, Sendable, Equatable {
 
+    /// Bounds shared by persisted-command validation and the settings controls.
+    static let globalCooldownRange: ClosedRange<Double> = 0...30
+    static let userCooldownRange: ClosedRange<Double> = 0...60
+    static let cooldownStep: Double = 5
+
     /// Stable identity across edits (also the SwiftUI list id).
     var id: UUID
 
@@ -118,6 +123,83 @@ nonisolated struct CustomCommand: Codable, Identifiable, Sendable, Equatable {
             .lowercased()
             .drop { $0 == "!" }
         return stripped.isEmpty ? "" : "!\(stripped)"
+    }
+
+    /// Validates and canonicalizes a decoded persisted command collection.
+    ///
+    /// Imports use the same trigger normalization as matching and reject the
+    /// ambiguous identities that the editor prevents: empty or overlapping
+    /// triggers, duplicate UUIDs, and cooldowns the sliders cannot represent.
+    static func normalizedForImport(_ commands: [CustomCommand]) -> [CustomCommand]? {
+        normalized(commands, droppingConflictingAliases: false)
+    }
+
+    /// Canonicalizes commands saved before alias-conflict validation existed.
+    /// Primary triggers win; only shadowed or empty legacy aliases are dropped.
+    static func normalizedForExistingStorage(_ commands: [CustomCommand]) -> [CustomCommand]? {
+        normalized(commands, droppingConflictingAliases: true)
+    }
+
+    private static func normalized(
+        _ commands: [CustomCommand],
+        droppingConflictingAliases: Bool
+    ) -> [CustomCommand]? {
+        var seenIDs: Set<UUID> = []
+        var primaryTriggers: Set<String> = []
+        for command in commands {
+            let primary = normalizeTrigger(command.trigger)
+            guard !primary.isEmpty,
+                  seenIDs.insert(command.id).inserted,
+                  primaryTriggers.insert(primary).inserted,
+                  isValidCooldown(command.globalCooldown, in: globalCooldownRange),
+                  isValidCooldown(command.userCooldown, in: userCooldownRange) else {
+                return nil
+            }
+        }
+
+        var seenAliases: Set<String> = []
+        var result: [CustomCommand] = []
+        result.reserveCapacity(commands.count)
+
+        for var command in commands {
+            let trigger = normalizeTrigger(command.trigger)
+            let rawAliases = command.aliases.trimmingCharacters(in: .whitespaces).isEmpty
+                ? []
+                : command.aliases
+                    .split(separator: ",", omittingEmptySubsequences: false)
+                    .map { normalizeTrigger(String($0)) }
+
+            var aliases: [String] = []
+            for alias in rawAliases {
+                let conflicts = alias.isEmpty
+                    || primaryTriggers.contains(alias)
+                    || !seenAliases.insert(alias).inserted
+                if conflicts {
+                    guard droppingConflictingAliases else { return nil }
+                } else {
+                    aliases.append(alias)
+                }
+            }
+
+            command.trigger = trigger
+            command.aliases = aliases
+                .map { String($0.dropFirst()) }
+                .joined(separator: ", ")
+            result.append(command)
+        }
+
+        return result
+    }
+
+    private static func isValidCooldown(
+        _ value: Double,
+        in range: ClosedRange<Double>
+    ) -> Bool {
+        guard value.isFinite, range.contains(value), cooldownStep > 0 else {
+            return false
+        }
+        let stepCount = (value - range.lowerBound) / cooldownStep
+        return abs(stepCount - stepCount.rounded()) < 1e-9
     }
 }
 

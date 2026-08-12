@@ -200,8 +200,8 @@ struct AdvancedSettingsView: View {
     }
 
     /// Clears the persisted artwork links cache (memory + disk).
-    private func clearArtworkCache() {
-        ArtworkService.shared.clearCache()
+    private func clearArtworkCache() async {
+        await ArtworkService.shared.clearCache()
         Log.info("Artwork cache cleared by user", category: "App")
         refreshArtworkStats()
     }
@@ -453,7 +453,9 @@ struct AdvancedSettingsView: View {
         .cardStyle()
         .alert("Clear artwork cache?", isPresented: $showingClearArtworkAlert) {
             Button("Cancel", role: .cancel) {}
-            Button("Clear", role: .destructive) { clearArtworkCache() }
+            Button("Clear", role: .destructive) {
+                Task { await clearArtworkCache() }
+            }
         } message: {
             Text("Saved album art links will be erased. They'll be fetched again as tracks play.")
         }
@@ -638,6 +640,8 @@ struct AdvancedSettingsView: View {
             return "That file couldn't be read. It may be damaged or not a WolfWave backup."
         case .notWolfWaveFile:
             return "That's not a WolfWave settings file."
+        case .unsupportedOlderSchema:
+            return "This backup uses an unsupported settings format."
         case .unsupportedNewerSchema:
             return "This backup was made by a newer version of WolfWave. Update WolfWave, then try again."
         }
@@ -649,6 +653,9 @@ struct AdvancedSettingsView: View {
         var message = "Restored \(summary.restoredCount) \(noun)."
         if summary.reconnectedTwitch {
             message += " Open the Twitch tab to finish signing in."
+        }
+        if !summary.warnings.isEmpty {
+            message += " " + summary.warnings.joined(separator: " ")
         }
         return message
     }
@@ -663,4 +670,3 @@ struct AdvancedSettingsView: View {
         .padding()
         .frame(width: 700)
 }
-
