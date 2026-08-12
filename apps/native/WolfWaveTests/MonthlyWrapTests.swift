@@ -142,7 +142,7 @@ struct MonthlyWrapTests {
         #expect(reversed.busiestDay?.day == expected)
     }
 
-    @Test("MonthlyWrapCard renders without crashing on the WolfWave gradient")
+    @Test("MonthlyWrapCard renders an image on the WolfWave gradient")
     func testCardRenders() {
         let data = MonthlyWrap.data(from: [], month: date(2026, 5, 15), calendar: calendar)
         let renderer = ImageRenderer(content: MonthlyWrapCard(data: data).frame(width: 380))

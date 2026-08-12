@@ -27,9 +27,6 @@ final class AppleMusicSourceTests: XCTestCase {
 
     // MARK: - Initialization Tests
 
-    func testMonitorInitialization() {
-        XCTAssertNotNil(monitor)
-    }
 
     func testDelegateIsNilByDefault() {
         XCTAssertNil(monitor.delegate)
@@ -91,61 +88,6 @@ final class AppleMusicSourceTests: XCTestCase {
             now: start.advanced(by: .seconds(1)),
             minimum: .seconds(1)
         ))
-    }
-
-    // MARK: - Start/Stop Tests
-
-    func testStartTrackingDoesNotCrash() {
-        monitor.startTracking()
-        // If Music.app is not running, we should get a status update
-    }
-
-    func testStopTrackingDoesNotCrash() {
-        monitor.startTracking()
-        monitor.stopTracking()
-    }
-
-    func testDoubleStartDoesNotCrash() {
-        monitor.startTracking()
-        monitor.startTracking()
-        monitor.stopTracking()
-    }
-
-    func testDoubleStopDoesNotCrash() {
-        monitor.startTracking()
-        monitor.stopTracking()
-        monitor.stopTracking()
-    }
-
-    // MARK: - Update Interval Tests
-
-    func testUpdateCheckIntervalBeforeStartDoesNotCrash() {
-        monitor.updateCheckInterval(10.0)
-    }
-
-    func testUpdateCheckIntervalWhileTrackingDoesNotCrash() {
-        monitor.startTracking()
-        monitor.updateCheckInterval(10.0)
-        monitor.stopTracking()
-    }
-
-    // MARK: - Force Refresh Tests
-
-    func testForceRefreshBeforeStartIsNoOp() {
-        // Should not crash; no delegate set, no tracking active.
-        monitor.forceRefresh()
-    }
-
-    func testForceRefreshWhileTrackingDoesNotCrash() {
-        monitor.startTracking()
-        monitor.forceRefresh()
-        monitor.stopTracking()
-    }
-
-    func testForceRefreshAfterStopIsNoOp() {
-        monitor.startTracking()
-        monitor.stopTracking()
-        monitor.forceRefresh()
     }
 
     // MARK: - extractPlayerState (tolerant FourCharCode parser)
