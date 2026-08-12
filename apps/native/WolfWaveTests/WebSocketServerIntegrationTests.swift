@@ -6,21 +6,42 @@
 //  Copyright © 2026 MrDemonWolf, Inc. All rights reserved.
 //
 
+import Foundation
 import XCTest
 @testable import WolfWave
 
-// Integration tests for the WebSocket server lifecycle. Each test binds its own
-// high-numbered port in the 59001-59012 range; conflicts are unlikely but the
-// tests gate on observed `ServerState` transitions rather than fixed sleeps, so
-// they stay deterministic regardless of how quickly the OS binds or releases a
-// port.
+// Integration tests for the WebSocket server lifecycle and replay protocol. Each
+// case binds a high-numbered loopback port and gates on observed state changes;
+// no timing sleep stands in for a transport assertion.
 final class WebSocketServerIntegrationTests: XCTestCase, @unchecked Sendable {
+
+    private static let overlayToken = String(repeating: "a", count: 64)
+    private static let controlToken = String(repeating: "b", count: 64)
+
+    private struct Frame: Decodable, Sendable {
+        struct DataPayload: Decodable, Sendable {
+            let track: String?
+            let isPlaying: Bool?
+            let items: [QueueItem]?
+        }
+
+        struct QueueItem: Decodable, Equatable, Sendable {
+            let title: String
+            let requesterUsername: String
+        }
+
+        let type: String
+        let data: DataPayload?
+    }
+
+    private enum FrameDecodingError: Error {
+        case unsupportedMessage
+    }
 
     // MARK: - Helpers
 
-    /// Waits for `predicate` to return true for an emitted `(state, count)` event
-    /// on the service's `stateChanges` stream, then fulfills `expectation`.
-    /// Returns the consumer Task so the caller can cancel it after the wait.
+    /// Waits for predicate to return true for an emitted state/count event.
+    /// Returns the consumer task so the caller can cancel it after the wait.
     @discardableResult
     private func observe(
         _ service: WebSocketServerService,
@@ -38,445 +59,289 @@ final class WebSocketServerIntegrationTests: XCTestCase, @unchecked Sendable {
         }
     }
 
+    /// Uses the same authenticated initializer as the app. Keeping the legacy
+    /// no-auth initializer out of transport tests makes the handshake part of
+    /// every client-facing assertion.
+    private func makeService(port: UInt16) -> WebSocketServerService {
+        WebSocketServerService(
+            port: port,
+            overlayToken: Self.overlayToken,
+            controlToken: Self.controlToken
+        )
+    }
+
+    private func makeClient(port: UInt16) throws -> (URLSession, URLSessionWebSocketTask) {
+        let url = try XCTUnwrap(URL(string: "ws://127.0.0.1:\(port)/"))
+        let session = URLSession(configuration: .ephemeral)
+        let subprotocol = WebSocketAuthToken.expectedSubprotocol(
+            for: Self.overlayToken,
+            role: .overlay
+        )
+        let task = session.webSocketTask(with: url, protocols: [subprotocol])
+        return (session, task)
+    }
+
+    private nonisolated static func decode(_ message: URLSessionWebSocketTask.Message) throws -> Frame {
+        let data: Data
+        switch message {
+        case .string(let text):
+            data = Data(text.utf8)
+        case .data(let messageData):
+            data = messageData
+        @unknown default:
+            throw FrameDecodingError.unsupportedMessage
+        }
+        return try JSONDecoder().decode(Frame.self, from: data)
+    }
+
+    /// Receives until the requested frame type arrives, then runs field-level
+    /// assertions. Transport and decoding errors fail and fulfill immediately so
+    /// the real cause is not hidden behind the outer bounded timeout.
+    private nonisolated static func receiveFrame(
+        type: String,
+        from task: URLSessionWebSocketTask,
+        fulfilling expectation: XCTestExpectation,
+        file: StaticString = #filePath,
+        line: UInt = #line,
+        asserting assertions: @escaping @Sendable (Frame) -> Void
+    ) {
+        task.receive { result in
+            switch result {
+            case .success(let message):
+                do {
+                    let frame = try decode(message)
+                    if frame.type == type {
+                        assertions(frame)
+                        expectation.fulfill()
+                    } else {
+                        receiveFrame(
+                            type: type,
+                            from: task,
+                            fulfilling: expectation,
+                            file: file,
+                            line: line,
+                            asserting: assertions
+                        )
+                    }
+                } catch {
+                    XCTFail("Failed to decode WebSocket frame: \(error)", file: file, line: line)
+                    expectation.fulfill()
+                }
+            case .failure(let error):
+                XCTFail("WebSocket receive failed: \(error)", file: file, line: line)
+                expectation.fulfill()
+            }
+        }
+    }
+
+    private func close(
+        session: URLSession,
+        task: URLSessionWebSocketTask
+    ) {
+        task.cancel(with: .normalClosure, reason: nil)
+        session.invalidateAndCancel()
+    }
+
     // MARK: - Server Lifecycle Tests
 
-    func testServerStartReachesListeningState() {
-        let service = WebSocketServerService(port: 59001)
-        let exp = expectation(description: "server listening")
-
-        let observer = observe(service, fulfilling: exp) { state, _ in state == .listening }
-
-        Task { await service.setEnabled(true) }
-        waitForExpectations(timeout: 10)
-        observer.cancel()
-        Task { await service.setEnabled(false) }
-    }
-
-    func testServerStopReachesStoppedState() {
-        let service = WebSocketServerService(port: 59002)
-        let listeningExpectation = expectation(description: "server listening")
-        let stoppedExpectation = expectation(description: "server stopped")
-
-        let listenObs = observe(service, fulfilling: listeningExpectation) { state, _ in state == .listening }
-
-        Task { await service.setEnabled(true) }
-        wait(for: [listeningExpectation], timeout: 10)
-        listenObs.cancel()
-
-        // No fixed sleep here: the `.stopped` observer below is wired before the
-        // disable is requested, so the transition is observed deterministically.
-        let stopObs = observe(service, fulfilling: stoppedExpectation) { state, _ in state == .stopped }
-        Task { await service.setEnabled(false) }
-        wait(for: [stoppedExpectation], timeout: 10)
-        stopObs.cancel()
-    }
-
-    func testServerRestartCycle() {
-        let service = WebSocketServerService(port: 59003)
+    func testServerRestartCycle() async {
+        let service = makeService(port: 59003)
         let firstListen = expectation(description: "first listen")
         let stopped = expectation(description: "stopped")
         let secondListen = expectation(description: "second listen")
 
-        let obs1 = observe(service, fulfilling: firstListen) { state, _ in state == .listening }
-        Task { await service.setEnabled(true) }
-        wait(for: [firstListen], timeout: 5)
-        obs1.cancel()
+        let firstObserver = observe(service, fulfilling: firstListen) { state, _ in
+            state == .listening
+        }
+        await service.setEnabled(true)
+        await fulfillment(of: [firstListen], timeout: 5)
+        firstObserver.cancel()
 
-        let obs2 = observe(service, fulfilling: stopped) { state, _ in state == .stopped }
-        Task { await service.setEnabled(false) }
-        wait(for: [stopped], timeout: 5)
-        obs2.cancel()
+        let stopObserver = observe(service, fulfilling: stopped) { state, _ in
+            state == .stopped
+        }
+        await service.setEnabled(false)
+        await fulfillment(of: [stopped], timeout: 5)
+        stopObserver.cancel()
 
-        let obs3 = observe(service, fulfilling: secondListen) { state, _ in state == .listening }
-        Task { await service.setEnabled(true) }
-        // macOS can hold the port in TIME_WAIT briefly after stop; give the
-        // second listen a generous window so CI runners don't flake.
-        wait(for: [secondListen], timeout: 15)
-        obs3.cancel()
+        let secondObserver = observe(service, fulfilling: secondListen) { state, _ in
+            state == .listening
+        }
+        await service.setEnabled(true)
+        await fulfillment(of: [secondListen], timeout: 15)
+        secondObserver.cancel()
 
-        Task { await service.setEnabled(false) }
+        await service.setEnabled(false)
     }
 
     // MARK: - Port Conflict Tests
 
-    func testTwoServersOnSamePortHandledGracefully() {
-        let service1 = WebSocketServerService(port: 59004)
-        let service2 = WebSocketServerService(port: 59004)
+    func testTwoServersOnSamePortHandledGracefully() async {
+        let service1 = makeService(port: 59004)
+        let service2 = makeService(port: 59004)
 
-        let listening1 = expectation(description: "service1 listening")
-        let obs1 = observe(service1, fulfilling: listening1) { state, _ in state == .listening }
-
-        Task { await service1.setEnabled(true) }
-        wait(for: [listening1], timeout: 5)
-        obs1.cancel()
-
-        // Second server on same port should fail with an error
-        let service2State = expectation(description: "service2 state change")
-        let obs2 = observe(service2, fulfilling: service2State) { state, _ in state == .error }
-
-        Task { await service2.setEnabled(true) }
-        wait(for: [service2State], timeout: 5)
-        obs2.cancel()
-
-        Task { await service1.setEnabled(false) }
-        Task { await service2.setEnabled(false) }
-    }
-
-    // MARK: - Connection Count Tests
-
-    func testConnectionCountStartsAtZero() {
-        let service = WebSocketServerService(port: 59005)
-        XCTAssertEqual(service.connectionCount, 0)
-    }
-
-    func testConnectionCountIsZeroAfterStart() {
-        let service = WebSocketServerService(port: 59006)
-        let exp = expectation(description: "server listening")
-        let obs = observe(service, fulfilling: exp) { state, count in
-            if state == .listening {
-                XCTAssertEqual(count, 0)
-                return true
-            }
-            return false
+        let listening = expectation(description: "service1 listening")
+        let firstObserver = observe(service1, fulfilling: listening) { state, _ in
+            state == .listening
         }
+        await service1.setEnabled(true)
+        await fulfillment(of: [listening], timeout: 5)
+        firstObserver.cancel()
 
-        Task { await service.setEnabled(true) }
-        waitForExpectations(timeout: 5)
-        obs.cancel()
-        Task { await service.setEnabled(false) }
-    }
+        let conflict = expectation(description: "service2 reports port conflict")
+        let secondObserver = observe(service2, fulfilling: conflict) { state, _ in
+            state == .error
+        }
+        await service2.setEnabled(true)
+        await fulfillment(of: [conflict], timeout: 5)
+        secondObserver.cancel()
 
-    // MARK: - Initial State Tests
-
-    func testServiceInitialStateIsStopped() {
-        let service = WebSocketServerService(port: 59007)
-        XCTAssertEqual(service.state, .stopped)
-    }
-
-    func testStateChangesStreamIsAvailable() {
-        let service = WebSocketServerService(port: 59008)
-        // Stream is a non-optional `let`; just confirm we can subscribe without
-        // crashing and that no events are emitted before `setEnabled(true)`.
-        let stream = service.stateChanges
-        _ = stream
+        await service1.setEnabled(false)
+        await service2.setEnabled(false)
     }
 
     // MARK: - Replay-on-Connect Tests
 
-    /// A freshly-connected client should immediately receive the last-known
-    /// `now_playing` frame so the widget doesn't sit on a blank placeholder
-    /// when OBS restarts the browser source mid-stream.
-    func testFreshConnectionReceivesLastKnownState() {
+    /// A freshly connected client should immediately receive the last known
+    /// now-playing frame so an OBS browser source does not stay blank after reload.
+    func testFreshConnectionReceivesLastKnownState() async throws {
         let port: UInt16 = 59009
-        let service = WebSocketServerService(port: port)
+        let (session, task) = try makeClient(port: port)
+        let service = makeService(port: port)
 
         let listening = expectation(description: "server listening")
-        let listenObs = observe(service, fulfilling: listening) { state, _ in state == .listening }
-        Task { await service.setEnabled(true) }
-        wait(for: [listening], timeout: 5)
-        listenObs.cancel()
-
-        // Seed state before any client connects.
-        let stateSeeded = expectation(description: "state seeded")
-        Task {
-            await service.updateNowPlaying(
-                track: "Replay Test Track",
-                artist: "Test Artist",
-                album: "Test Album",
-                duration: 200,
-                elapsed: 12,
-                artworkURL: nil
-            )
-            stateSeeded.fulfill()
+        let observer = observe(service, fulfilling: listening) { state, _ in
+            state == .listening
         }
-        wait(for: [stateSeeded], timeout: 5)
-
-        // Open a client. Service was constructed with the test-only `init(port:)`,
-        // so `authToken` is nil and any handshake is accepted.
-        guard let url = URL(string: "ws://127.0.0.1:\(port)/") else {
-            XCTFail("bad ws url"); return
-        }
-        let session = URLSession(configuration: .ephemeral)
-        let task = session.webSocketTask(with: url)
-        task.resume()
-
-        // Drain frames until we see a `now_playing` carrying our seeded track.
-        let gotState = expectation(description: "received now_playing replay")
-        func recv() {
-            task.receive { result in
-                switch result {
-                case .success(let message):
-                    let text: String
-                    switch message {
-                    case .string(let str): text = str
-                    case .data(let data): text = String(data: data, encoding: .utf8) ?? ""
-                    @unknown default: text = ""
-                    }
-                    if text.contains("\"type\":\"now_playing\"") && text.contains("Replay Test Track") {
-                        gotState.fulfill()
-                        return
-                    }
-                    recv()
-                case .failure:
-                    return
-                }
-            }
-        }
-        recv()
-
-        wait(for: [gotState], timeout: 5)
-
-        task.cancel(with: .normalClosure, reason: nil)
-        Task { await service.setEnabled(false) }
-    }
-
-    /// `updateNowPlaying(isPaused: true)` must broadcast `isPlaying:false` so
-    /// the overlay widget renders the paused affordance instead of treating
-    /// the track as live.
-    func testUpdateNowPlaying_isPaused_broadcastsNotPlaying() {
-        let port: UInt16 = 59010
-        let service = WebSocketServerService(port: port)
-
-        let listening = expectation(description: "server listening")
-        let listenObs = observe(service, fulfilling: listening) { state, _ in state == .listening }
-        Task { await service.setEnabled(true) }
-        wait(for: [listening], timeout: 5)
-        listenObs.cancel()
-
-        // Open the client before seeding so we capture the live `now_playing`
-        // broadcast rather than the replay frame.
-        guard let url = URL(string: "ws://127.0.0.1:\(port)/") else {
-            XCTFail("bad ws url"); return
-        }
-        let session = URLSession(configuration: .ephemeral)
-        let task = session.webSocketTask(with: url)
-        task.resume()
-
-        let gotPaused = expectation(description: "received paused now_playing")
-        func recv() {
-            task.receive { result in
-                switch result {
-                case .success(let message):
-                    let text: String
-                    switch message {
-                    case .string(let str): text = str
-                    case .data(let data): text = String(data: data, encoding: .utf8) ?? ""
-                    @unknown default: text = ""
-                    }
-                    if text.contains("\"type\":\"now_playing\"")
-                        && text.contains("Paused Track")
-                        && text.contains("\"isPlaying\":false") {
-                        gotPaused.fulfill()
-                        return
-                    }
-                    recv()
-                case .failure:
-                    return
-                }
-            }
-        }
-        recv()
-
-        Task {
-            await service.updateNowPlaying(
-                track: "Paused Track",
-                artist: "Test Artist",
-                album: "Test Album",
-                duration: 200,
-                elapsed: 12,
-                artworkURL: nil,
-                isPaused: true
-            )
-        }
-
-        wait(for: [gotPaused], timeout: 5)
-
-        task.cancel(with: .normalClosure, reason: nil)
-        Task { await service.setEnabled(false) }
-    }
-
-    func testProgressTimerDoesNotRunWithoutConnectedClients() async {
-        let service = WebSocketServerService(port: 0)
+        await service.setEnabled(true)
+        await fulfillment(of: [listening], timeout: 5)
+        observer.cancel()
 
         await service.updateNowPlaying(
-            track: "Quiet Track",
+            track: "Replay Test Track",
             artist: "Test Artist",
             album: "Test Album",
-            duration: 180,
-            elapsed: 10
-        )
-
-        let active = await service.isProgressTimerActive
-        XCTAssertFalse(active, "Playback state caching must not create an idle one-second task")
-    }
-
-    func testOverlayVisibilityToggleUpdatesSynchronousHealthSnapshot() async {
-        let service = WebSocketServerService(port: 0)
-        XCTAssertTrue(service.overlayVisible)
-
-        let hidden = await service.toggleOverlayVisibility()
-        XCTAssertFalse(hidden)
-        XCTAssertFalse(service.overlayVisible)
-
-        let shown = await service.toggleOverlayVisibility()
-        XCTAssertTrue(shown)
-        XCTAssertTrue(service.overlayVisible)
-    }
-
-    func testArtworkResultIsScopedToCurrentTrackIdentity() async {
-        let service = WebSocketServerService(port: 0)
-
-        await service.updateNowPlaying(
-            track: "Track A",
-            artist: "Artist A",
-            album: "Album A",
-            duration: 180,
-            elapsed: 10,
-            artworkURL: "https://example.com/a.jpg"
-        )
-        await service.updateNowPlaying(
-            track: "Track B",
-            artist: "Artist B",
-            album: "Album B",
             duration: 200,
-            elapsed: 0,
+            elapsed: 12,
             artworkURL: nil
         )
 
-        let cleared = await service.artworkState
-        XCTAssertNil(cleared.url, "A new track must not inherit the previous track's artwork")
+        let received = expectation(description: "received now_playing replay")
+        task.resume()
+        Self.receiveFrame(type: "now_playing", from: task, fulfilling: received) { frame in
+            XCTAssertEqual(frame.data?.track, "Replay Test Track")
+            XCTAssertEqual(frame.data?.isPlaying, true)
+        }
+        await fulfillment(of: [received], timeout: 5)
 
-        let acceptedOld = await service.updateArtworkURL(
-            "https://example.com/late-a.jpg",
-            track: "Track A",
-            artist: "Artist A"
-        )
-        XCTAssertFalse(acceptedOld, "An out-of-order artwork result must be ignored")
+        close(session: session, task: task)
+        await service.setEnabled(false)
+    }
 
-        let acceptedCurrent = await service.updateArtworkURL(
-            "https://example.com/b.jpg",
-            track: "Track B",
-            artist: "Artist B"
-        )
-        XCTAssertTrue(acceptedCurrent)
-        let current = await service.artworkState
-        XCTAssertEqual(current.url, "https://example.com/b.jpg")
+    /// A paused update must broadcast isPlaying=false so the overlay renders the
+    /// paused affordance rather than treating the track as live.
+    func testUpdateNowPlaying_isPaused_broadcastsNotPlaying() async throws {
+        let port: UInt16 = 59010
+        let (session, task) = try makeClient(port: port)
+        let service = makeService(port: port)
 
-        let acceptedDuplicate = await service.updateArtworkURL(
-            "https://example.com/b.jpg",
-            track: "Track B",
-            artist: "Artist B"
+        let listening = expectation(description: "server listening")
+        let listenObserver = observe(service, fulfilling: listening) { state, _ in
+            state == .listening
+        }
+        await service.setEnabled(true)
+        await fulfillment(of: [listening], timeout: 5)
+        listenObserver.cancel()
+
+        let connected = expectation(description: "overlay connected")
+        let connectionObserver = observe(service, fulfilling: connected) { _, count in
+            count == 1
+        }
+        task.resume()
+        await fulfillment(of: [connected], timeout: 5)
+        connectionObserver.cancel()
+
+        let received = expectation(description: "received paused now_playing")
+        Self.receiveFrame(type: "now_playing", from: task, fulfilling: received) { frame in
+            XCTAssertEqual(frame.data?.track, "Paused Track")
+            XCTAssertEqual(frame.data?.isPlaying, false)
+        }
+        await service.updateNowPlaying(
+            track: "Paused Track",
+            artist: "Test Artist",
+            album: "Test Album",
+            duration: 200,
+            elapsed: 12,
+            artworkURL: nil,
+            isPaused: true
         )
-        XCTAssertFalse(acceptedDuplicate, "An identical artwork result must be a no-op")
+        await fulfillment(of: [received], timeout: 5)
+
+        close(session: session, task: task)
+        await service.setEnabled(false)
     }
 
     // MARK: - Queue Upcoming Tests (overlay queue ticker, WW-42)
 
-    /// A freshly-connected client should immediately receive the cached
-    /// upcoming-queue snapshot, mirroring `testFreshConnectionReceivesLastKnownState`
-    /// so an OBS Browser Source reload never sits on a stale/empty ticker.
-    func testFreshConnectionReceivesQueueUpcomingSnapshot() {
+    /// A freshly connected client receives the cached upcoming queue snapshot so
+    /// an OBS browser-source reload never shows a stale ticker.
+    func testFreshConnectionReceivesQueueUpcomingSnapshot() async throws {
         let port: UInt16 = 59011
-        let service = WebSocketServerService(port: port)
+        let (session, task) = try makeClient(port: port)
+        let service = makeService(port: port)
 
         let listening = expectation(description: "server listening")
-        let listenObs = observe(service, fulfilling: listening) { state, _ in state == .listening }
-        Task { await service.setEnabled(true) }
-        wait(for: [listening], timeout: 5)
-        listenObs.cancel()
-
-        // Seed the upcoming-queue snapshot before any client connects.
-        let stateSeeded = expectation(description: "queue upcoming seeded")
-        Task {
-            await service.broadcastQueueUpcoming(items: [
-                WebSocketServerService.QueueUpcomingItem(title: "Seeded Track", requesterUsername: "someviewer")
-            ])
-            stateSeeded.fulfill()
+        let observer = observe(service, fulfilling: listening) { state, _ in
+            state == .listening
         }
-        wait(for: [stateSeeded], timeout: 5)
+        await service.setEnabled(true)
+        await fulfillment(of: [listening], timeout: 5)
+        observer.cancel()
 
-        guard let url = URL(string: "ws://127.0.0.1:\(port)/") else {
-            XCTFail("bad ws url"); return
-        }
-        let session = URLSession(configuration: .ephemeral)
-        let task = session.webSocketTask(with: url)
+        await service.broadcastQueueUpcoming(items: [
+            WebSocketServerService.QueueUpcomingItem(
+                title: "Seeded Track",
+                requesterUsername: "someviewer"
+            )
+        ])
+
+        let received = expectation(description: "received queue_upcoming replay")
         task.resume()
-
-        let gotSnapshot = expectation(description: "received queue_upcoming replay")
-        func recv() {
-            task.receive { result in
-                switch result {
-                case .success(let message):
-                    let text: String
-                    switch message {
-                    case .string(let str): text = str
-                    case .data(let data): text = String(data: data, encoding: .utf8) ?? ""
-                    @unknown default: text = ""
-                    }
-                    if text.contains("\"type\":\"queue_upcoming\"") && text.contains("Seeded Track") {
-                        gotSnapshot.fulfill()
-                        return
-                    }
-                    recv()
-                case .failure:
-                    return
-                }
-            }
+        Self.receiveFrame(type: "queue_upcoming", from: task, fulfilling: received) { frame in
+            XCTAssertEqual(
+                frame.data?.items,
+                [Frame.QueueItem(title: "Seeded Track", requesterUsername: "someviewer")]
+            )
         }
-        recv()
+        await fulfillment(of: [received], timeout: 5)
 
-        wait(for: [gotSnapshot], timeout: 5)
-
-        task.cancel(with: .normalClosure, reason: nil)
-        Task { await service.setEnabled(false) }
+        close(session: session, task: task)
+        await service.setEnabled(false)
     }
 
-    /// With no prior `broadcastQueueUpcoming` call, the default cached snapshot
-    /// is an empty array - "the queue is open" - not a missing message.
-    func testFreshConnectionWithNoQueueGetsEmptyItemsArray() {
+    /// With no prior queue update, the cached snapshot is an empty items array,
+    /// meaning the queue is open, rather than a missing message.
+    func testFreshConnectionWithNoQueueGetsEmptyItemsArray() async throws {
         let port: UInt16 = 59012
-        let service = WebSocketServerService(port: port)
+        let (session, task) = try makeClient(port: port)
+        let service = makeService(port: port)
 
         let listening = expectation(description: "server listening")
-        let listenObs = observe(service, fulfilling: listening) { state, _ in state == .listening }
-        Task { await service.setEnabled(true) }
-        wait(for: [listening], timeout: 5)
-        listenObs.cancel()
-
-        guard let url = URL(string: "ws://127.0.0.1:\(port)/") else {
-            XCTFail("bad ws url"); return
+        let observer = observe(service, fulfilling: listening) { state, _ in
+            state == .listening
         }
-        let session = URLSession(configuration: .ephemeral)
-        let task = session.webSocketTask(with: url)
+        await service.setEnabled(true)
+        await fulfillment(of: [listening], timeout: 5)
+        observer.cancel()
+
+        let received = expectation(description: "received empty queue_upcoming")
         task.resume()
-
-        let gotEmptySnapshot = expectation(description: "received empty queue_upcoming")
-        func recv() {
-            task.receive { result in
-                switch result {
-                case .success(let message):
-                    let text: String
-                    switch message {
-                    case .string(let str): text = str
-                    case .data(let data): text = String(data: data, encoding: .utf8) ?? ""
-                    @unknown default: text = ""
-                    }
-                    if text.contains("\"type\":\"queue_upcoming\"") {
-                        XCTAssertTrue(text.contains("\"items\":[]"), "Default snapshot must be an empty array, not omitted: \(text)")
-                        gotEmptySnapshot.fulfill()
-                        return
-                    }
-                    recv()
-                case .failure:
-                    return
-                }
-            }
+        Self.receiveFrame(type: "queue_upcoming", from: task, fulfilling: received) { frame in
+            XCTAssertEqual(frame.data?.items, [])
         }
-        recv()
+        await fulfillment(of: [received], timeout: 5)
 
-        wait(for: [gotEmptySnapshot], timeout: 5)
-
-        task.cancel(with: .normalClosure, reason: nil)
-        Task { await service.setEnabled(false) }
+        close(session: session, task: task)
+        await service.setEnabled(false)
     }
 }

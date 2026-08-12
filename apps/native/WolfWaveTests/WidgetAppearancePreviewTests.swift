@@ -20,10 +20,10 @@ final class WidgetAppearancePreviewTests: XCTestCase {
 
     // MARK: - Generated theme table
 
-    func testKnownThemesResolve() {
+    func testPickerThemesExistInGeneratedTable() {
         for name in ["Default", "Dark", "Light", "Glass", "Neon"] {
             // Resolve returns a real palette (not the fallback by accident).
-            // Smoke check: every picker theme exists in the generated table.
+            // Drift contract: every picker theme exists in the generated table.
             XCTAssertNotNil(DSWidgetThemes.all[name], "missing generated theme: \(name)")
         }
     }

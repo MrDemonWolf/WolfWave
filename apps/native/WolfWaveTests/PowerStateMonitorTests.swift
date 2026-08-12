@@ -14,10 +14,6 @@ final class PowerStateMonitorTests: XCTestCase {
 
     // MARK: - Initial State Tests
 
-    func testSharedInstanceExists() {
-        let monitor = PowerStateMonitor.shared
-        XCTAssertNotNil(monitor)
-    }
 
     func testSharedInstanceIsSingleton() {
         let a = PowerStateMonitor.shared
@@ -27,10 +23,6 @@ final class PowerStateMonitorTests: XCTestCase {
 
     // MARK: - State Property Tests
 
-    func testIsReducedModePropertyAccessible() {
-        // isReducedMode should be readable without crashing
-        let _ = PowerStateMonitor.shared.isReducedMode
-    }
 
     func testIsReducedModeMatchesCurrentPowerState() {
         let info = ProcessInfo.processInfo

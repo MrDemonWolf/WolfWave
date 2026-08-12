@@ -57,9 +57,4 @@ final class BundleInstallMethodTests: XCTestCase {
         XCTAssertTrue(Bundle.isHomebrewPath("/Users/alice/Homebrew/Caskroom/wolfwave/1.0.0/WolfWave.app"))
     }
 
-    // MARK: - Bundle.main accessor compiles
-
-    func testMainBundleAccessorReturnsBool() {
-        _ = Bundle.main.isHomebrewInstall
-    }
 }

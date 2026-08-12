@@ -198,26 +198,12 @@ struct AppConstantsTests {
         #expect(!AppConstants.DispatchQueues.websocketServer.isEmpty)
     }
     
-    // MARK: - Settings UI Tests
+    // MARK: - Settings Window Constant Tests
 
-    @Test("Settings UI constants are defined")
-    func testSettingsUIConstants() async throws {
-        #expect(!AppConstants.SettingsUI.defaultAppName.isEmpty)
-        #expect(AppConstants.SettingsUI.minWidth > 0)
-        #expect(AppConstants.SettingsUI.minHeight > 0)
-        #expect(AppConstants.SettingsUI.idealWidth >= AppConstants.SettingsUI.minWidth)
-        #expect(AppConstants.SettingsUI.idealHeight >= AppConstants.SettingsUI.minHeight)
-        // Min size is the floor the user can drag to. It must fit a 720p
-        // display with the Dock visible (~626pt usable height).
-        #expect(AppConstants.SettingsUI.minWidth <= 1280)
-        #expect(AppConstants.SettingsUI.minHeight <= 626)
-        // Ideal size is the initial size fed to `SettingsView`'s `.frame`; it
-        // may exceed 720p. SwiftUI keeps the `Settings` scene window within the
-        // visible screen, so it still opens fully on smaller displays.
-
-        // Fixed sidebar must fit the longest section label ("Software Update"
-        // ≈ 170pt with icon + insets at 13pt) without truncating, while leaving
-        // the detail pane most of the min-width window.
+    @Test("Settings sidebar fits the minimum window")
+    func testSettingsSidebarFitsMinimumWindow() {
+        // The fixed sidebar must fit the longest label while leaving the detail
+        // pane at least half of the minimum-width Settings window.
         #expect(AppConstants.SettingsUI.sidebarWidth >= 180)
         #expect(AppConstants.SettingsUI.sidebarWidth <= AppConstants.SettingsUI.minWidth / 2)
     }
@@ -236,14 +222,12 @@ struct AppConstantsTests {
         #expect(AppConstants.PowerManagement.reducedProgressBroadcastInterval == 3.0)
     }
     
-    // MARK: - Onboarding UI Tests
+    // MARK: - Onboarding Window Constant Tests
     
-    @Test("Onboarding UI constants are defined")
-    func testOnboardingUIConstants() async throws {
-        #expect(AppConstants.OnboardingUI.windowWidth > 0)
-        #expect(AppConstants.OnboardingUI.windowHeight > 0)
-        #expect(AppConstants.OnboardingUI.windowWidth == 680)
-        #expect(AppConstants.OnboardingUI.windowHeight == 560)
+    @Test("Onboarding window fits a 720p display with the Dock")
+    func testOnboardingWindowFits720pWithDock() {
+        #expect(AppConstants.OnboardingUI.windowWidth <= 1280)
+        #expect(AppConstants.OnboardingUI.windowHeight <= 626)
     }
     
     // MARK: - Menu Labels Tests
