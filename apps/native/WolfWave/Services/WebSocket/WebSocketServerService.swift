@@ -39,6 +39,15 @@ import Network
 ///   grants only the read-only overlay role.
 actor WebSocketServerService {
 
+    /// Hard receive bound applied by Network.framework before a complete
+    /// WebSocket message is materialized. Current control frames are tiny;
+    /// 16 KiB leaves generous protocol headroom without permitting an
+    /// authenticated peer to force an unbounded fragmented-message allocation.
+    nonisolated static let maximumInboundMessageSize = 16 * 1024
+    nonisolated static let maximumPendingConnectionCount = 16
+    nonisolated static let maximumConnectionCount = 64
+    private static let handshakeTimeout: Duration = .seconds(10)
+
     // MARK: - Types
 
     enum ServerState: String, Sendable {
@@ -112,6 +121,11 @@ actor WebSocketServerService {
     private var controlToken: String?
     private var listener: NWListener?
     private var connections: [NWConnection] = []
+    /// Accepted TCP peers that have not completed the authenticated WebSocket
+    /// handshake. They are capped, timed out, and owned across listener stop.
+    private var pendingConnections: [NWConnection] = []
+    private var handshakeTimeoutTasks: [ObjectIdentifier: Task<Void, Never>] = [:]
+    private var listenerGeneration: UInt64 = 0
     /// Dispatch queue used only for Network.framework callbacks. All state is actor-confined.
     private nonisolated let networkQueue = DispatchQueue(
         label: AppConstants.DispatchQueues.websocketServer,
@@ -184,7 +198,15 @@ actor WebSocketServerService {
         retryTask?.cancel()
         progressTask?.cancel()
         listener?.cancel()
-        for conn in connections { conn.cancel() }
+        for conn in connections {
+            conn.stateUpdateHandler = nil
+            conn.cancel()
+        }
+        for conn in pendingConnections {
+            conn.stateUpdateHandler = nil
+            conn.cancel()
+        }
+        for task in handshakeTimeoutTasks.values { task.cancel() }
         widgetHTTP?.stop()
         stateContinuation.finish()
     }
@@ -492,11 +514,15 @@ actor WebSocketServerService {
     private func startServer() {
         guard listener == nil else { return }
 
+        listenerGeneration &+= 1
+        let generation = listenerGeneration
+
         transition(to: .starting)
 
         let parameters = NWParameters.tcp
         let wsOptions = NWProtocolWebSocket.Options()
         wsOptions.autoReplyPing = true
+        wsOptions.maximumMessageSize = Self.maximumInboundMessageSize
 
         // Resolve an explicit role during the handshake. The selected
         // subprotocol is validated again when the connection becomes ready.
@@ -548,12 +574,20 @@ actor WebSocketServerService {
 
         listener?.stateUpdateHandler = { [weak self] newState in
             guard let self else { return }
-            Task { await self.handleListenerState(newState) }
+            Task {
+                await self.handleListenerState(
+                    newState,
+                    generation: generation)
+            }
         }
 
         listener?.newConnectionHandler = { [weak self] connection in
             guard let self else { return }
-            Task { await self.handleNewConnection(connection) }
+            Task {
+                await self.handleNewConnection(
+                    connection,
+                    listenerGeneration: generation)
+            }
         }
 
         listener?.start(queue: networkQueue)
@@ -567,14 +601,27 @@ actor WebSocketServerService {
     }
 
     /// Handles `NWListener.stateUpdateHandler` transitions inside the actor.
-    private func handleListenerState(_ newState: NWListener.State) {
+    private func handleListenerState(
+        _ newState: NWListener.State,
+        generation: UInt64
+    ) {
+        guard generation == listenerGeneration else { return }
         switch newState {
         case .ready:
             Log.info("WebSocketServerService: Listening on port \(port)", category: "WebSocket")
             transition(to: .listening)
         case .failed(let error):
             Log.error("WebSocketServerService: Listener failed: \(error)", category: "WebSocket")
+            listenerGeneration &+= 1
+            listener?.stateUpdateHandler = nil
+            listener?.newConnectionHandler = nil
+            listener?.cancel()
             listener = nil
+            widgetHTTP?.stop()
+            widgetHTTP = nil
+            widgetHTTPPort = nil
+            stopProgressTimer()
+            cancelOwnedConnections()
             transition(to: .error)
             scheduleRetry()
         case .cancelled:
@@ -587,6 +634,7 @@ actor WebSocketServerService {
     /// Tears down the listener, cancels all open connections, and transitions
     /// the service to `.stopped`. Safe to call when no server is running.
     private func stopServer() {
+        listenerGeneration &+= 1
         retryTask?.cancel()
         retryTask = nil
 
@@ -607,11 +655,7 @@ actor WebSocketServerService {
         listener?.cancel()
         listener = nil
 
-        let conns = connections
-        connections.removeAll()
-        writeConnectionCountSnapshot(0)
-
-        for conn in conns { conn.cancel() }
+        cancelOwnedConnections()
 
         transition(to: .stopped)
         Log.info("WebSocketServerService: Server stopped", category: "WebSocket")
@@ -640,17 +684,64 @@ actor WebSocketServerService {
     /// Wires the per-connection state callback. On `.ready`, records the
     /// connection and sends a welcome + current state + widget config snapshot.
     /// On failure or cancellation, removes the connection from the active set.
-    private func handleNewConnection(_ connection: NWConnection) {
+    private func handleNewConnection(
+        _ connection: NWConnection,
+        listenerGeneration generation: UInt64
+    ) {
+        guard generation == listenerGeneration,
+              isEnabled,
+              listener != nil,
+              Self.shouldAcceptNewConnection(
+                  activeCount: connections.count,
+                  pendingCount: pendingConnections.count
+              ) else {
+            connection.cancel()
+            return
+        }
+
+        pendingConnections.append(connection)
+        let connectionID = ObjectIdentifier(connection)
+        handshakeTimeoutTasks[connectionID] = Task { [weak self] in
+            do {
+                try await Task.sleep(for: Self.handshakeTimeout)
+            } catch {
+                return
+            }
+            await self?.expirePendingConnection(
+                connection,
+                listenerGeneration: generation
+            )
+        }
         connection.stateUpdateHandler = { [weak self] state in
             guard let self else { return }
-            Task { await self.handleConnectionState(connection, state: state) }
+            Task {
+                await self.handleConnectionState(
+                    connection,
+                    state: state,
+                    listenerGeneration: generation
+                )
+            }
         }
         connection.start(queue: networkQueue)
     }
 
-    private func handleConnectionState(_ connection: NWConnection, state: NWConnection.State) {
+    private func handleConnectionState(
+        _ connection: NWConnection,
+        state: NWConnection.State,
+        listenerGeneration generation: UInt64
+    ) {
+        guard generation == listenerGeneration else {
+            connection.cancel()
+            return
+        }
         switch state {
         case .ready:
+            guard !connections.contains(where: { $0 === connection }) else { return }
+            guard promotePendingConnection(connection) else {
+                removeConnection(connection)
+                connection.cancel()
+                return
+            }
             let metadata = connection.metadata(definition: NWProtocolWebSocket.definition)
                 as? NWProtocolWebSocket.Metadata
             guard let role = WebSocketAuthToken.role(
@@ -662,6 +753,7 @@ actor WebSocketServerService {
                     "WebSocketServerService: Cancelling client with unvalidated selected subprotocol",
                     category: "WebSocket"
                 )
+                removeConnection(connection)
                 connection.cancel()
                 return
             }
@@ -671,13 +763,18 @@ actor WebSocketServerService {
                     "WebSocketServerService: Refusing non-loopback control connection",
                     category: "WebSocket"
                 )
+                removeConnection(connection)
                 connection.cancel()
                 return
             }
             // Ignore a late .ready that lands after stopServer(); re-adding would
             // inflate the count. `state` the param is NWConnection.State; qualify
             // with self to read the server's lifecycle state.
-            guard self.state == .listening else { connection.cancel(); return }
+            guard self.state == .listening else {
+                removeConnection(connection)
+                connection.cancel()
+                return
+            }
             connections.append(connection)
             let count = connections.count
             writeConnectionCountSnapshot(count)
@@ -697,13 +794,10 @@ actor WebSocketServerService {
             reconcileProgressTimer()
         case .failed(let error):
             Log.debug("WebSocketServerService: Client failed: \(error)", category: "WebSocket")
-            // A failed connection keeps its stateUpdateHandler (and any pending
-            // receive closure), which strongly retains the connection, until it
-            // reaches .cancelled. Without this explicit cancel the connection ↔
-            // handler cycle leaks per abruptly-dropped overlay client. The
-            // follow-up .cancelled re-enters removeConnection as a safe no-op.
-            connection.cancel()
+            // Clear actor ownership and the callback before cancelling so an
+            // abruptly-dropped peer cannot leave a connection/handler cycle.
             removeConnection(connection)
+            connection.cancel()
         case .cancelled:
             removeConnection(connection)
         default:
@@ -713,13 +807,62 @@ actor WebSocketServerService {
 
     /// Drops `connection` from the active set and broadcasts the new count.
     private func removeConnection(_ connection: NWConnection) {
+        let previousActiveCount = connections.count
+        handshakeTimeoutTasks.removeValue(forKey: ObjectIdentifier(connection))?.cancel()
+        pendingConnections.removeAll { $0 === connection }
         connections.removeAll { $0 === connection }
+        connection.stateUpdateHandler = nil
         let count = connections.count
+        guard count != previousActiveCount else { return }
         writeConnectionCountSnapshot(count)
 
         Log.debug("WebSocketServerService: Client disconnected (\(count) remaining)", category: "WebSocket")
         notifyStateChange()
         reconcileProgressTimer()
+    }
+
+    private func cancelOwnedConnections() {
+        let ownedConnections = connections + pendingConnections
+        let timeoutTasks = Array(handshakeTimeoutTasks.values)
+        connections.removeAll()
+        pendingConnections.removeAll()
+        handshakeTimeoutTasks.removeAll()
+        writeConnectionCountSnapshot(0)
+
+        for task in timeoutTasks { task.cancel() }
+        for connection in ownedConnections {
+            connection.stateUpdateHandler = nil
+            connection.cancel()
+        }
+    }
+
+    private func promotePendingConnection(_ connection: NWConnection) -> Bool {
+        guard let index = pendingConnections.firstIndex(where: { $0 === connection }) else {
+            return false
+        }
+        pendingConnections.remove(at: index)
+        handshakeTimeoutTasks.removeValue(forKey: ObjectIdentifier(connection))?.cancel()
+        return true
+    }
+
+    private func expirePendingConnection(
+        _ connection: NWConnection,
+        listenerGeneration generation: UInt64
+    ) {
+        guard generation == listenerGeneration,
+              pendingConnections.contains(where: { $0 === connection }) else { return }
+        removeConnection(connection)
+        connection.cancel()
+    }
+
+    nonisolated static func shouldAcceptNewConnection(
+        activeCount: Int,
+        pendingCount: Int
+    ) -> Bool {
+        activeCount >= 0
+            && pendingCount >= 0
+            && pendingCount < maximumPendingConnectionCount
+            && activeCount < maximumConnectionCount - pendingCount
     }
 
     /// Pure authorization seams shared by the ready-state gate and tests.

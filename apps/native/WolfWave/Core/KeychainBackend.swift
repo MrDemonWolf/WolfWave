@@ -22,8 +22,9 @@ nonisolated protocol KeychainBackend: Sendable {
     /// - Throws: `KeychainService.KeychainError.saveFailed` on a store failure.
     func save(account: String, value: String) throws
 
-    /// Returns the stored string for `account`, or nil if absent / on error.
-    func load(account: String) -> String?
+    /// Returns the stored string for `account`, or nil when absent.
+    /// - Throws: A status-bearing `KeychainService.KeychainError` on read failure.
+    func load(account: String) throws -> String?
 
     /// Removes the entry for `account`. Succeeds silently if absent.
     func delete(account: String)
@@ -48,7 +49,7 @@ nonisolated final class InMemoryKeychainBackend: KeychainBackend, @unchecked Sen
         store[account] = value
     }
 
-    func load(account: String) -> String? {
+    func load(account: String) throws -> String? {
         lock.lock()
         defer { lock.unlock() }
         return store[account]
@@ -141,8 +142,8 @@ nonisolated final class SystemKeychainBackend: KeychainBackend {
     }
 
     /// Returns the stored string for `account` via `SecItemCopyMatching`, or nil
-    /// if absent or on a non-`errSecItemNotFound` error.
-    func load(account: String) -> String? {
+    /// when absent. Other Security errors retain their OSStatus for callers.
+    func load(account: String) throws -> String? {
         var query = queryFor(account: account)
         query[kSecReturnData as String] = true
         query[kSecMatchLimit as String] = kSecMatchLimitOne
@@ -150,14 +151,16 @@ nonisolated final class SystemKeychainBackend: KeychainBackend {
         var item: CFTypeRef?
         let status = SecItemCopyMatching(query as CFDictionary, &item)
 
-        guard status == errSecSuccess,
-            let data = item as? Data,
-            let value = String(data: data, encoding: .utf8)
-        else {
-            if status != errSecSuccess && status != errSecItemNotFound {
-                Log.error("KeychainService: Failed to load item '\(account)' - OSStatus \(status)", category: "Keychain")
-            }
-            return nil
+        if status == errSecItemNotFound { return nil }
+        guard status == errSecSuccess else {
+            Log.error(
+                "KeychainService: Failed to load item '\(account)' - OSStatus \(status)",
+                category: "Keychain")
+            throw KeychainService.KeychainError.loadFailed(status)
+        }
+        guard let data = item as? Data,
+              let value = String(data: data, encoding: .utf8) else {
+            throw KeychainService.KeychainError.invalidData
         }
 
         return value
