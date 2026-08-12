@@ -37,6 +37,10 @@ extension AppConstants {
         /// Connected Twitch channel/login name shown in the menu bar status line (String)
         static let twitchChannelName = "twitchChannelName"
 
+        /// Channel restored from a backup but not yet paired with a newly
+        /// authenticated account. Never used for connection decisions.
+        static let twitchPendingImportedChannelName = "twitchPendingImportedChannelName"
+
         /// Settings section to open next time (String, "twitchIntegration", etc.)
         static let selectedSettingsSection = "selectedSettingsSection"
 
@@ -208,6 +212,9 @@ extension AppConstants {
         /// Whether requests wait for streamer approval before queueing (Bool, default: false)
         static let songRequestApprovalRequired = "songRequestApprovalRequired"
 
+        /// Song and artist entries blocked from song requests, stored as JSON.
+        static let songRequestBlocklist = "songRequestBlocklist"
+
         /// Whether !sr command is enabled (Bool, default: true)
         static let srCommandEnabled = "srCommandEnabled"
 
@@ -275,6 +282,10 @@ extension AppConstants {
         /// ID of the WolfWave-managed custom channel-point reward (String, default: "")
         static let songRequestChannelPointsRewardID = "songRequestChannelPointsRewardID"
 
+        /// Atomic encoded {rewardID, broadcasterID} identity for the managed reward.
+        static let songRequestChannelPointsRewardIdentity =
+            "songRequestChannelPointsRewardIdentity"
+
         /// Whether bit-cheer song requests are enabled (Bool, default: false)
         static let songRequestBitsEnabled = "songRequestBitsEnabled"
 
@@ -301,6 +312,10 @@ extension AppConstants {
         /// top-of-pane "needs setup again" banner and the fallback policy
         /// (String, default: "ok").
         static let songRequestPlaylistStatus = "songRequestPlaylistStatus"
+
+        /// Verified Apple Music library ID of WolfWave's owned requests playlist.
+        /// Runtime state: account-specific and revalidated before use.
+        static let songRequestPlaylistID = "songRequestPlaylistID"
 
         /// Whether `!sr` replies "Song requests are off right now." when used while
         /// the feature is disabled. Off = stay silent (Bool, default: false).
@@ -431,6 +446,7 @@ extension AppConstants {
             dockVisibility,
             twitchReauthNeeded,
             twitchChannelName,
+            twitchPendingImportedChannelName,
             selectedSettingsSection,
             websocketEnabled,
             currentSongCommandEnabled,
@@ -485,6 +501,7 @@ extension AppConstants {
             songRequestAutoAdvance,
             songRequestAutoplayWhenEmpty,
             songRequestApprovalRequired,
+            songRequestBlocklist,
             srCommandEnabled,
             queueCommandEnabled,
             myQueueCommandEnabled,
@@ -506,12 +523,14 @@ extension AppConstants {
             songRequestChannelPointsEnabled,
             songRequestChannelPointsCost,
             songRequestChannelPointsRewardID,
+            songRequestChannelPointsRewardIdentity,
             songRequestBitsEnabled,
             songRequestBitsMinimum,
             songRequestBitsBoostEnabled,
             songRequestRedemptionStatus,
             songRequestSetupComplete,
             songRequestPlaylistStatus,
+            songRequestPlaylistID,
             songRequestDisabledReplyEnabled,
             songRequestPolicyMode,
             songRequestLimitStackMode,
@@ -789,6 +808,7 @@ extension AppConstants {
         /// server with an auto-regenerated token, so neither is account-linked.
         static let accountLinkedKeys: [String] = [
             twitchChannelName,
+            twitchPendingImportedChannelName,
             twitchReauthNeeded,
         ]
 
@@ -805,9 +825,11 @@ extension AppConstants {
             updateSkippedVersion,
             lastSeenWhatsNewVersion,
             songRequestChannelPointsRewardID,
+            songRequestChannelPointsRewardIdentity,
             songRequestRedemptionStatus,
             songRequestSetupComplete,
             songRequestPlaylistStatus,
+            songRequestPlaylistID,
         ] + debugKeys
 
         /// Canonical default values for settings whose default was otherwise
