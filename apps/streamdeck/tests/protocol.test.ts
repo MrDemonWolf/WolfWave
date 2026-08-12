@@ -1,36 +1,83 @@
 import { describe, expect, test } from "bun:test";
+import { readFileSync } from "node:fs";
 import {
   ACTIONS,
   buildCommand,
+  DEFAULT_PORT,
   encodeCommand,
   isAction,
   isProtocolMismatch,
   parseFrame,
   PROTOCOL_VERSION,
   socketURL,
+  TOKEN_SUBPROTOCOL_PREFIX,
   tokenSubprotocol,
   type AckFrame,
 } from "../src/wolfwave/protocol.js";
 
 const HEX64 = "a".repeat(64);
 
-describe("action tokens", () => {
-  test("cover exactly the app's v2 action set", () => {
-    // Mirrors StreamDeckAction's raw values. If the app adds a case, this fails
-    // until the plugin is taught about it, which is the point.
-    expect([...ACTIONS]).toEqual([
-      "play_pause",
-      "skip",
-      "hold_queue",
-      "resume_queue",
-      "approve_next",
-      "clear_queue",
-      "block_current",
-      "overlay_toggle",
-      "discord_toggle",
-      "music_sync_toggle",
-      "cycle_theme",
-    ]);
+function requiredMatch(source: string, pattern: RegExp, label: string): string {
+  const value = pattern.exec(source)?.[1];
+  if (value === undefined) {
+    throw new Error("Could not read " + label + " from Swift source");
+  }
+  return value;
+}
+
+const SWIFT_COMMAND_SOURCE = readFileSync(
+  new URL(
+    "../../native/WolfWave/Services/WebSocket/StreamDeckCommand.swift",
+    import.meta.url,
+  ),
+  "utf8",
+);
+const SWIFT_CONSTANTS_SOURCE = readFileSync(
+  new URL("../../native/WolfWave/Core/AppConstants.swift", import.meta.url),
+  "utf8",
+);
+const SWIFT_AUTH_SOURCE = readFileSync(
+  new URL(
+    "../../native/WolfWave/Services/WebSocket/WebSocketAuthToken.swift",
+    import.meta.url,
+  ),
+  "utf8",
+);
+
+describe("native control contract", () => {
+  test("matches Swift actions, version, port, and auth prefix", () => {
+    const actionBody = requiredMatch(
+      SWIFT_COMMAND_SOURCE,
+      /enum StreamDeckAction[^\{]*\{([\s\S]*?)\n\}/,
+      "StreamDeckAction",
+    );
+    const swiftActions = [
+      ...actionBody.matchAll(/^\s*case\s+(\w+)(?:\s*=\s*"([^"]+)")?/gm),
+    ].map(([, caseName, rawValue]) => rawValue ?? caseName);
+    const swiftProtocolVersion = Number(
+      requiredMatch(
+        SWIFT_COMMAND_SOURCE,
+        /static let protocolVersion\s*=\s*(\d+)/,
+        "StreamDeckControl.protocolVersion",
+      ),
+    );
+    const swiftDefaultPort = Number(
+      requiredMatch(
+        SWIFT_CONSTANTS_SOURCE,
+        /static let defaultPort:\s*UInt16\s*=\s*(\d+)/,
+        "AppConstants.WebSocketServer.defaultPort",
+      ),
+    );
+    const swiftControlPrefix = requiredMatch(
+      SWIFT_AUTH_SOURCE,
+      /case \.control:\s*\n\s*return "([^"]+)"/,
+      "WebSocketAuthToken control subprotocol prefix",
+    );
+
+    expect(swiftActions).toEqual([...ACTIONS]);
+    expect(PROTOCOL_VERSION).toBe(swiftProtocolVersion);
+    expect(DEFAULT_PORT).toBe(swiftDefaultPort);
+    expect(TOKEN_SUBPROTOCOL_PREFIX).toBe(swiftControlPrefix);
   });
 
   test("isAction narrows known tokens only", () => {
