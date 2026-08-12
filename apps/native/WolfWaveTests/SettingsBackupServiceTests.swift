@@ -163,13 +163,25 @@ final class SettingsBackupServiceTests: XCTestCase {
         XCTAssertEqual(commandStore.commands, importedCommands)
         let liveBlocklist = await blocklist.allEntries
         XCTAssertEqual(liveBlocklist, expectedBlocklist)
-        XCTAssertEqual(
-            defaults.data(forKey: AppConstants.UserDefaults.customCommands),
-            importedCommandsData
+        let persistedCommandsData = try XCTUnwrap(
+            defaults.data(forKey: AppConstants.UserDefaults.customCommands)
         )
         XCTAssertEqual(
-            defaults.data(forKey: AppConstants.UserDefaults.songRequestBlocklist),
-            importedBlocklistData
+            try JSONCoders.default.decode(
+                [CustomCommand].self,
+                from: persistedCommandsData
+            ),
+            importedCommands
+        )
+        let persistedBlocklistData = try XCTUnwrap(
+            defaults.data(forKey: AppConstants.UserDefaults.songRequestBlocklist)
+        )
+        XCTAssertEqual(
+            try JSONCoders.camelCase.decode(
+                [BlocklistItem].self,
+                from: persistedBlocklistData
+            ),
+            expectedBlocklist
         )
 
         let expectedImportedBlockID = try XCTUnwrap(expectedBlocklist.first?.id)
