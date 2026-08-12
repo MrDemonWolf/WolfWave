@@ -87,6 +87,9 @@ nonisolated enum KeychainService {
         /// Failed to save data to Keychain with given Security framework status code.
         case saveFailed(OSStatus)
 
+        /// Failed to load data from Keychain with the Security framework status.
+        case loadFailed(OSStatus)
+
         /// Invalid or corrupted data read from Keychain.
         case invalidData
 
@@ -94,6 +97,8 @@ nonisolated enum KeychainService {
             switch self {
             case .saveFailed(let status):
                 return "Failed to save token to Keychain (status: \(status))"
+            case .loadFailed(let status):
+                return "Failed to load token from Keychain (status: \(status))"
             case .invalidData:
                 return "Invalid token data"
             }
@@ -119,6 +124,12 @@ nonisolated enum KeychainService {
         loadItem(account: websocketAuthToken)
     }
 
+    /// Status-bearing read for credential lifecycle code that must distinguish
+    /// confirmed absence from a temporarily unavailable Keychain.
+    static func loadTokenChecked() throws -> String? {
+        try backend.load(account: websocketAuthToken)
+    }
+
     /// Deletes the read-only overlay authentication token from Keychain.
     ///
     /// Succeeds silently if token doesn't exist.
@@ -134,6 +145,11 @@ nonisolated enum KeychainService {
     /// Loads the privileged, loopback-only control token from Keychain.
     static func loadControlToken() -> String? {
         loadItem(account: websocketControlToken)
+    }
+
+    /// Status-bearing counterpart to ``loadControlToken()``.
+    static func loadControlTokenChecked() throws -> String? {
+        try backend.load(account: websocketControlToken)
     }
 
     /// Deletes the privileged, loopback-only control token from Keychain.
@@ -277,7 +293,14 @@ nonisolated enum KeychainService {
 
     /// Loads a string value for the given account via the active backend.
     private static func loadItem(account: String) -> String? {
-        backend.load(account: account)
+        do {
+            return try backend.load(account: account)
+        } catch {
+            Log.error(
+                "KeychainService: Failed to load item '\(account)' - \(error.localizedDescription)",
+                category: "Keychain")
+            return nil
+        }
     }
 
     /// Deletes the item for the given account via the active backend.

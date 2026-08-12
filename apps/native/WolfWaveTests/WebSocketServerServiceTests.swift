@@ -47,4 +47,39 @@ final class WebSocketServerServiceTests: XCTestCase {
             connectionCount: 1
         ))
     }
+
+    func testInboundMessageLimitIsExplicitAndSmall() {
+        XCTAssertGreaterThan(WebSocketServerService.maximumInboundMessageSize, 0)
+        XCTAssertLessThanOrEqual(
+            WebSocketServerService.maximumInboundMessageSize,
+            64 * 1024
+        )
+    }
+
+    func testConnectionAdmissionCapsPendingAndTotalPeers() {
+        XCTAssertTrue(WebSocketServerService.shouldAcceptNewConnection(
+            activeCount: 0,
+            pendingCount: 0
+        ))
+        XCTAssertFalse(WebSocketServerService.shouldAcceptNewConnection(
+            activeCount: 0,
+            pendingCount: WebSocketServerService.maximumPendingConnectionCount
+        ))
+        XCTAssertFalse(WebSocketServerService.shouldAcceptNewConnection(
+            activeCount: WebSocketServerService.maximumConnectionCount,
+            pendingCount: 0
+        ))
+        XCTAssertTrue(WebSocketServerService.shouldAcceptNewConnection(
+            activeCount: WebSocketServerService.maximumConnectionCount - 1,
+            pendingCount: 0
+        ))
+        XCTAssertFalse(WebSocketServerService.shouldAcceptNewConnection(
+            activeCount: WebSocketServerService.maximumConnectionCount - 1,
+            pendingCount: 1
+        ))
+        XCTAssertFalse(WebSocketServerService.shouldAcceptNewConnection(
+            activeCount: -1,
+            pendingCount: 0
+        ))
+    }
 }
