@@ -17,7 +17,10 @@ struct OnboardingView: View {
     // MARK: - State
 
     @State private var viewModel = OnboardingViewModel()
-    @State private var twitchViewModel = TwitchViewModel()
+    @State private var twitchViewModel = TwitchViewModel.shared
+    /// Stable identity for this Onboarding presentation.
+    @State private var twitchOAuthOwner =
+        TwitchViewModel.OAuthPresentationOwner.onboarding(UUID())
 
     @AppStorage(AppConstants.UserDefaults.discordPresenceEnabled)
     private var discordPresenceEnabled = false
@@ -82,6 +85,9 @@ struct OnboardingView: View {
         .onChange(of: viewModel.currentStep) { _, _ in
             musicPermissionState = MusicPermissionChecker.currentState()
         }
+        .onDisappear {
+            twitchViewModel.requestOAuthCancellation(ifOwnedBy: twitchOAuthOwner)
+        }
     }
 
     // MARK: - Progress Dots
@@ -123,7 +129,10 @@ struct OnboardingView: View {
             case .discordConnect:
                 OnboardingDiscordStepView(presenceEnabled: $discordPresenceEnabled)
             case .twitchConnect:
-                OnboardingTwitchStepView(twitchViewModel: twitchViewModel)
+                OnboardingTwitchStepView(
+                    twitchViewModel: twitchViewModel,
+                    oauthOwner: twitchOAuthOwner
+                )
             case .obsWidget:
                 OnboardingOBSWidgetStepView(websocketEnabled: $websocketEnabled)
             case .preferences:
@@ -246,7 +255,7 @@ struct OnboardingView: View {
     private func cancelTwitchOAuthIfNeeded() {
         guard viewModel.currentStep == .twitchConnect else { return }
         if case .authorizing = twitchViewModel.integrationState {
-            twitchViewModel.cancelOAuth()
+            twitchViewModel.requestOAuthCancellation(ifOwnedBy: twitchOAuthOwner)
         }
     }
 

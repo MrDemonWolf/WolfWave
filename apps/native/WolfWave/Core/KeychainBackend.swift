@@ -27,11 +27,13 @@ nonisolated protocol KeychainBackend: Sendable {
     func load(account: String) throws -> String?
 
     /// Removes the entry for `account`. Succeeds silently if absent.
-    func delete(account: String)
+    /// - Throws: `KeychainService.KeychainError.deleteFailed` on failure.
+    func delete(account: String) throws
 
     /// Removes every entry for the backend's service in one sweep.
     /// Succeeds silently if nothing is stored. Used by the factory reset.
-    func deleteAll()
+    /// - Throws: `KeychainService.KeychainError.deleteFailed` on failure.
+    func deleteAll() throws
 }
 
 /// Process-local credential storage used whenever WolfWave runs as a test host.
@@ -55,13 +57,13 @@ nonisolated final class InMemoryKeychainBackend: KeychainBackend, @unchecked Sen
         return store[account]
     }
 
-    func delete(account: String) {
+    func delete(account: String) throws {
         lock.lock()
         defer { lock.unlock() }
         store[account] = nil
     }
 
-    func deleteAll() {
+    func deleteAll() throws {
         lock.lock()
         defer { lock.unlock() }
         store.removeAll()
@@ -98,8 +100,8 @@ nonisolated final class SystemKeychainBackend: KeychainBackend {
     // MARK: - KeychainBackend
 
     /// Stores `value` for `account` via `SecItemUpdate`, falling back to
-    /// `SecItemAdd`, and self-healing a duplicate whose only difference is
-    /// `kSecAttrAccessible`. Throws `KeychainService.KeychainError.saveFailed`.
+    /// `SecItemAdd`. A duplicate add is recovered with a non-destructive,
+    /// value-only update so the old credential survives every failure prefix.
     func save(account: String, value: String) throws {
         let data = Data(value.utf8)
         let searchQuery = queryFor(account: account)
@@ -118,12 +120,13 @@ nonisolated final class SystemKeychainBackend: KeychainBackend {
             let addStatus = SecItemAdd(addQuery as CFDictionary, nil)
 
             if addStatus == errSecDuplicateItem {
-                // Update said "not found" but Add says "duplicate": an existing
-                // entry differs only in `kSecAttrAccessible`, which `searchQuery`
-                // doesn't include and `SecItemUpdate` evaluates as a non-match.
-                // Self-heal: delete the mismatched entry and retry once.
-                SecItemDelete(searchQuery as CFDictionary)
-                let retryStatus = SecItemAdd(addQuery as CFDictionary, nil)
+                // Generic-password identity is service + account. If another
+                // writer won the update/add race, retry updating only the value;
+                // never delete the credential as part of recovery.
+                let retryStatus = SecItemUpdate(
+                    searchQuery as CFDictionary,
+                    [kSecValueData as String: data] as CFDictionary
+                )
                 guard retryStatus == errSecSuccess else {
                     Log.error(
                         "Failed to save \(account) after duplicate-item recovery - OSStatus \(retryStatus)",
@@ -168,17 +171,18 @@ nonisolated final class SystemKeychainBackend: KeychainBackend {
 
     /// Removes the entry for `account` via `SecItemDelete`. Treats a missing
     /// item as success.
-    func delete(account: String) {
+    func delete(account: String) throws {
         let query = queryFor(account: account)
         let status = SecItemDelete(query as CFDictionary)
         if status != errSecSuccess && status != errSecItemNotFound {
             Log.error("KeychainService: Failed to delete item '\(account)' - OSStatus \(status)", category: "Keychain")
+            throw KeychainService.KeychainError.deleteFailed(status)
         }
     }
 
     /// Removes every generic-password item for this service via a single
     /// account-less `SecItemDelete`. Treats "nothing matched" as success.
-    func deleteAll() {
+    func deleteAll() throws {
         var query: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
             kSecAttrService as String: service,
@@ -189,6 +193,7 @@ nonisolated final class SystemKeychainBackend: KeychainBackend {
         let status = SecItemDelete(query as CFDictionary)
         if status != errSecSuccess && status != errSecItemNotFound {
             Log.error("KeychainService: Failed to delete all items - OSStatus \(status)", category: "Keychain")
+            throw KeychainService.KeychainError.deleteFailed(status)
         }
     }
 

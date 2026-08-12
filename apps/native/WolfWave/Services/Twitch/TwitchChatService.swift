@@ -23,7 +23,13 @@ nonisolated struct HelixUsersResponse: Decodable {
 
 /// `GET https://id.twitch.tv/oauth2/validate` response. Used by `validateToken`.
 nonisolated struct TwitchValidateResponse: Decodable {
+    let clientID: String?
     let scopes: [String]?
+
+    private enum CodingKeys: String, CodingKey {
+        case clientID = "client_id"
+        case scopes
+    }
 }
 
 /// `POST /helix/chat/messages` response. Used by `sendMessage` to confirm delivery.
@@ -223,6 +229,18 @@ actor TwitchChatService {
         case error(String)
     }
 
+    /// Outcome of checking a stored OAuth token with Twitch.
+    ///
+    /// Only ``invalid`` authorizes callers to expire the local session. Network
+    /// failures, rate limits, server errors, and malformed success payloads are
+    /// deliberately ``temporarilyUnavailable`` so an outage cannot erase or
+    /// revoke otherwise usable credentials.
+    enum TokenValidationResult: Sendable, Equatable {
+        case valid
+        case invalid
+        case temporarilyUnavailable
+    }
+
     /// Tuple-style payload posted on a `channel.poll.end` for a vote-skip poll.
     struct SkipPollResult: Sendable {
         let pollID: String
@@ -232,20 +250,41 @@ actor TwitchChatService {
 
     /// How a `revocation` EventSub message should be handled.
     ///
-    /// Twitch revokes a subscription when the user de-authorizes the app
-    /// (`authorization_revoked`), removes their account (`user_removed`), or the
-    /// subscription version is retired (`version_removed`). Only the first means
-    /// the token is dead; the others are recoverable by re-subscribing.
+    /// Twitch revocation statuses have materially different recovery paths.
+    /// Keeping those paths explicit prevents terminal permission/account states
+    /// from entering an endless reconnect loop while still recovering transport
+    /// and maintenance revocations with the normal bounded backoff.
     enum RevocationDisposition: Sendable, Equatable {
         /// Token is no longer valid; surface the re-auth banner and stop reconnecting.
         case reauth
-        /// Subscription was dropped but the token is fine; re-subscribe.
-        case resubscribe
+        /// The Twitch account no longer exists; stop without asking for re-auth.
+        case accountUnavailable
+        /// Twitch retired the subscription version; a client update is required.
+        case clientUpdateRequired
+        /// Moderator/chat access was removed; the channel capability is terminal.
+        case permissionLost
+        /// Twitch maintenance or WebSocket delivery failure; reconnect with backoff.
+        case reconnect
         /// Unrecognized status; do nothing (log only).
         case ignore
     }
 
     // MARK: - EventSub Decision Helpers (nonisolated, pure, testable)
+
+    private nonisolated static let minimumKeepaliveTimeoutSeconds: TimeInterval = 10
+    private nonisolated static let maximumKeepaliveTimeoutSeconds: TimeInterval = 600
+    nonisolated static let maximumKeepaliveDeadlineSeconds: TimeInterval =
+        maximumKeepaliveTimeoutSeconds + AppConstants.Twitch.keepaliveGraceSeconds
+
+    private nonisolated static func validatedKeepaliveTimeout(
+        _ seconds: TimeInterval
+    ) -> TimeInterval? {
+        guard seconds.isFinite,
+              seconds.rounded(.towardZero) == seconds,
+              seconds >= minimumKeepaliveTimeoutSeconds,
+              seconds <= maximumKeepaliveTimeoutSeconds else { return nil }
+        return seconds
+    }
 
     /// Extracts a session reconnect URL from a `session_reconnect` message.
     ///
@@ -262,7 +301,7 @@ actor TwitchChatService {
         guard !trimmed.isEmpty,
               let url = URL(string: trimmed),
               let scheme = url.scheme?.lowercased(),
-              scheme == "wss" || scheme == "ws",
+              scheme == "wss",
               url.host != nil else {
             return nil
         }
@@ -270,37 +309,59 @@ actor TwitchChatService {
     }
 
     /// Reads `payload.session.keepalive_timeout_seconds` from a `session_welcome`
-    /// message. Returns `nil` when the field is missing or non-positive so the
-    /// caller can substitute a safe default.
+    /// message. Returns `nil` when the field is missing, non-integral, or outside
+    /// the documented 10...600-second range so the caller uses a safe default.
     nonisolated static func keepaliveTimeoutSeconds(from json: [String: Any]) -> TimeInterval? {
         guard let payload = json["payload"] as? [String: Any],
               let session = payload["session"] as? [String: Any] else {
             return nil
         }
         // Twitch sends an integer, but tolerate a numeric string too.
-        if let intValue = session["keepalive_timeout_seconds"] as? Int, intValue > 0 {
+        if let intValue = session["keepalive_timeout_seconds"] as? Int {
+            guard intValue >= Int(minimumKeepaliveTimeoutSeconds),
+                  intValue <= Int(maximumKeepaliveTimeoutSeconds) else { return nil }
             return TimeInterval(intValue)
         }
-        if let doubleValue = session["keepalive_timeout_seconds"] as? Double, doubleValue > 0 {
-            return doubleValue
+        if let doubleValue = session["keepalive_timeout_seconds"] as? Double {
+            return validatedKeepaliveTimeout(doubleValue)
         }
         if let stringValue = session["keepalive_timeout_seconds"] as? String,
-           let parsed = TimeInterval(stringValue), parsed > 0 {
-            return parsed
+           let parsed = TimeInterval(
+               stringValue.trimmingCharacters(in: .whitespacesAndNewlines)) {
+            return validatedKeepaliveTimeout(parsed)
         }
         return nil
     }
 
     /// Computes the keepalive watchdog deadline: the advertised timeout plus a
-    /// grace period. Clamped to a small positive minimum so a degenerate input
-    /// can never produce a zero-or-negative deadline that fires immediately.
+    /// grace period. Invalid values fall back to the protocol default, and the
+    /// result is capped so watchdog sleep can never receive an unsafe duration.
     nonisolated static func keepaliveDeadline(
         timeoutSeconds: TimeInterval,
         grace: TimeInterval
     ) -> TimeInterval {
-        let safeTimeout = max(0, timeoutSeconds)
-        let safeGrace = max(0, grace)
-        return max(1, safeTimeout + safeGrace)
+        let safeTimeout = validatedKeepaliveTimeout(timeoutSeconds)
+            ?? AppConstants.Twitch.keepaliveDefaultTimeoutSeconds
+        let safeGrace = grace.isFinite ? max(0, grace) : 0
+        let deadline = safeTimeout + safeGrace
+        guard deadline.isFinite else {
+            return AppConstants.Twitch.keepaliveDefaultTimeoutSeconds
+                + AppConstants.Twitch.keepaliveGraceSeconds
+        }
+        return min(deadline, maximumKeepaliveDeadlineSeconds)
+    }
+
+    nonisolated static func normalizedKeepaliveDeadline(
+        _ seconds: TimeInterval
+    ) -> TimeInterval {
+        guard seconds.isFinite,
+              seconds >= minimumKeepaliveTimeoutSeconds,
+              seconds <= maximumKeepaliveDeadlineSeconds else {
+            return keepaliveDeadline(
+                timeoutSeconds: AppConstants.Twitch.keepaliveDefaultTimeoutSeconds,
+                grace: AppConstants.Twitch.keepaliveGraceSeconds)
+        }
+        return seconds
     }
 
     /// Classifies a Helix response without conflating permanent client errors
@@ -347,32 +408,48 @@ actor TwitchChatService {
     /// Maps a `revocation` subscription `(type, status)` to a disposition.
     ///
     /// `status` drives the decision; `type` is accepted for future per-type
-    /// granularity and logging. `authorization_revoked` is fatal (re-auth);
-    /// `user_removed` / `version_removed` are recoverable (re-subscribe).
+    /// granularity and logging. The mapping follows Twitch's EventSub status
+    /// table and deliberately separates terminal identity/version/permission
+    /// outcomes from transient WebSocket and maintenance failures.
     nonisolated static func revocationDisposition(
         type: String,
         status: String
     ) -> RevocationDisposition {
+        _ = type
         switch status {
         case "authorization_revoked":
             return .reauth
-        case "user_removed", "version_removed":
-            return .resubscribe
+        case "user_removed":
+            return .accountUnavailable
+        case "version_removed":
+            return .clientUpdateRequired
+        case "moderator_removed", "chat_user_banned":
+            return .permissionLost
+        case "beta_maintenance",
+             "websocket_disconnected",
+             "websocket_failed_ping_pong",
+             "websocket_received_inbound_traffic",
+             "websocket_connection_unused",
+             "websocket_internal_error",
+             "websocket_network_timeout",
+             "websocket_network_error",
+             "websocket_failed_to_reconnect":
+            return .reconnect
         default:
             return .ignore
         }
     }
 
-    /// Bounded, time-limited store of seen EventSub `message_id`s.
+    /// Time-limited store of seen EventSub `message_id`s, optionally count-capped.
     ///
     /// Twitch EventSub is at-least-once delivery: duplicate notification frames
     /// (especially around `session_reconnect`) would re-run chat commands,
     /// channel-point redemptions, and bits events. IDs are remembered for `ttl`
     /// seconds (matching the 10-minute replay-age window in
-    /// `handleWebSocketMessage`) and the store is capped, evicting oldest-first,
-    /// so it can never grow without bound. A plain value type with an injectable
-    /// clock so the insert/prune/duplicate contract is unit-testable without the
-    /// actor or a live socket.
+    /// `handleWebSocketMessage`). The general transport store is count-capped;
+    /// command reservations use TTL-only retention so unrelated chat cannot
+    /// evict them. A plain value type with an injectable clock keeps the
+    /// insert/prune/duplicate contract testable without the actor or a socket.
     struct EventSubMessageDeduplicator {
         private struct Entry {
             let id: String
@@ -382,8 +459,8 @@ actor TwitchChatService {
         /// How long a message ID stays remembered. Matches the replay-age
         /// rejection window applied to `metadata.message_timestamp`.
         private let ttl: TimeInterval
-        /// Maximum number of remembered IDs; the oldest are evicted first.
-        private let maxEntries: Int
+        /// Optional maximum number of remembered IDs; oldest are evicted first.
+        private let maxEntries: Int?
         private var seen: [String: Date] = [:]
         /// Append-only insertion order with a moving head. This makes normal
         /// prune/evict operations O(1) amortized instead of filtering and sorting
@@ -391,14 +468,16 @@ actor TwitchChatService {
         private var insertionOrder: [Entry] = []
         private var insertionHead = 0
 
-        init(ttl: TimeInterval = 600, maxEntries: Int = 500) {
+        var entryCount: Int { seen.count }
+
+        init(ttl: TimeInterval = 600, maxEntries: Int? = 500) {
             self.ttl = ttl
-            self.maxEntries = max(1, maxEntries)
+            self.maxEntries = maxEntries.map { max(1, $0) }
         }
 
         /// Records `id` as seen at `now` and reports whether it was already
         /// seen within the `ttl` window. Expired entries are pruned first; the
-        /// size cap evicts the oldest entries after insertion.
+        /// optional size cap evicts the oldest entries after insertion.
         mutating func isDuplicate(_ id: String, now: Date = Date()) -> Bool {
             pruneExpired(now: now)
             if seen[id] != nil { return true }
@@ -406,13 +485,15 @@ actor TwitchChatService {
             seen[id] = now
             insertionOrder.append(Entry(id: id, seenAt: now))
 
-            while seen.count > maxEntries, insertionHead < insertionOrder.count {
-                let oldest = insertionOrder[insertionHead]
-                insertionHead += 1
-                // An ID can be reinserted after an earlier entry expired or was
-                // evicted. Remove only if this queue node is still authoritative.
-                if seen[oldest.id] == oldest.seenAt {
-                    seen.removeValue(forKey: oldest.id)
+            if let maxEntries {
+                while seen.count > maxEntries, insertionHead < insertionOrder.count {
+                    let oldest = insertionOrder[insertionHead]
+                    insertionHead += 1
+                    // An ID can be reinserted after an earlier entry expired or was
+                    // evicted. Remove only if this queue node is still authoritative.
+                    if seen[oldest.id] == oldest.seenAt {
+                        seen.removeValue(forKey: oldest.id)
+                    }
                 }
             }
             compactInsertionOrderIfNeeded()
@@ -474,7 +555,13 @@ actor TwitchChatService {
     /// holds it as `nonisolated` (it's auto-Sendable since it's MainActor) and
     /// hops to `MainActor.run` for every call into it.
     nonisolated let commandDispatcher: BotCommandDispatcher
-    let channelPointsService = TwitchChannelPointsService()
+    let channelPointsService: TwitchChannelPointsService
+    let redemptionResolutionOutbox: TwitchRedemptionResolutionOutbox
+    let redemptionClientIDProvider: @Sendable () -> String?
+    let eventSubWebSocketFactory: (@Sendable (URL) -> URLSessionWebSocketTask)?
+    let eventSubWebSocketResume: @Sendable (URLSessionWebSocketTask) -> Void
+    let eventSubWebSocketReceive: @Sendable (URLSessionWebSocketTask) async throws
+        -> URLSessionWebSocketTask.Message
     private let rateLimiter = RateLimiter()
 
     let urlSession: URLSession = {
@@ -485,6 +572,10 @@ actor TwitchChatService {
         config.requestCachePolicy = .reloadIgnoringLocalCacheData
         return URLSession(configuration: config)
     }()
+    /// Narrow injection seam for EventSub subscription POST/DELETE tests.
+    let eventSubHTTPClient: HTTPClient
+    /// Helix request client used by chat sends and other actor-owned API calls.
+    let helixHTTPClient: HTTPClient
 
     let maxReconnectionAttempts = AppConstants.Twitch.maxReconnectionAttempts
     let maxNetworkReconnectCycles = AppConstants.Twitch.maxNetworkReconnectCycles
@@ -502,6 +593,16 @@ actor TwitchChatService {
     /// Narrow deterministic seams for live-toggle tests.
     var pollScopeValidationOverride: (@Sendable () async -> PollScopeValidation)?
     var pollSubscriptionOverride: (@Sendable (String) async -> Bool)?
+
+    /// During Twitch's `session_reconnect` handoff the source socket must stay
+    /// open and continue delivering events until the replacement sends welcome.
+    /// These fields retain that source independently from the new current socket.
+    var migrationSourceWebSocketTask: URLSessionWebSocketTask?
+    var migrationSourceReceiveTask: Task<Void, Never>?
+    /// Socket that most recently completed the welcome handshake. Unlike
+    /// `sessionID`, object identity distinguishes the old welcomed session from
+    /// a replacement socket that is still waiting for its own welcome.
+    var welcomedWebSocketTask: URLSessionWebSocketTask?
 
     /// One long-lived keepalive watchdog per EventSub session. Inbound frames
     /// update ``lastKeepaliveActivity`` instead of cancelling and allocating a
@@ -526,6 +627,9 @@ actor TwitchChatService {
     /// so `handleWebSocketMessage` drops any frame whose `metadata.message_id`
     /// was already seen. Actor-isolated, mutated only on the actor.
     var messageDeduplicator = EventSubMessageDeduplicator()
+    /// Command-shaped chat IDs retain the complete replay TTL. Ordinary chat
+    /// volume must not evict a delayed duplicate before it can rerun a command.
+    var commandMessageDeduplicator = EventSubMessageDeduplicator(maxEntries: nil)
 
     // MARK: - Credentials
 
@@ -633,6 +737,9 @@ actor TwitchChatService {
     /// - Parameter error: Optional failure description attached to the
     ///   notification payload (transport errors only).
     func broadcastConnectionState(_ connected: Bool, error: String? = nil) {
+        // State streams model transitions, not repeated teardown calls. Preserve
+        // an explicit error notification even if the state was already false.
+        guard _connected != connected || error != nil else { return }
         setConnected(connected)
         // Post on the main actor: this runs on the actor's background executor,
         // and SwiftUI panes observe via NotificationCenter.publisher + .onReceive,
@@ -648,8 +755,32 @@ actor TwitchChatService {
     // MARK: - Disconnect / Network State
 
     var isProcessingDisconnect = false
+    /// Synchronous signal observed by the receive loop after its socket is
+    /// closed for credential teardown. Unlike cancelling the receive task, this
+    /// lets a frame already awaiting actor admission finish paid-event intake.
+    nonisolated let eventSubTeardownQuiescing = Atomic(false)
+    var eventSubCredentialTeardownFenceDepth = 0
     /// Invalidates channel joins that resume after a leave or a newer connect attempt.
     var connectionGeneration: UInt64 = 0
+    /// Changes only for an explicit public join/connect, not automatic transport
+    /// reconnects. A leave suspended on its final reward pause uses this to avoid
+    /// clearing a newer same-account user-initiated join.
+    var channelOwnershipGeneration: UInt64 = 0
+
+    /// Ownership captured by one EventSub receive loop. Both the logical
+    /// generation and WebSocket object identity must still match after an await.
+    struct EventSubReceiveContext: Sendable {
+        let generation: UInt64
+        let webSocketTask: URLSessionWebSocketTask
+    }
+
+    func receiveContextIsCurrent(_ context: EventSubReceiveContext?) -> Bool {
+        guard !Task.isCancelled else { return false }
+        guard let context else { return true }
+        return connectionAttemptIsCurrent(context.generation)
+            && (webSocketTask === context.webSocketTask
+                || migrationSourceWebSocketTask === context.webSocketTask)
+    }
     var networkPathMonitor: NWPathMonitor?
     /// Invalidates callbacks already queued by a canceled/replaced path monitor.
     var networkMonitorGeneration: UInt64 = 0
@@ -673,6 +804,46 @@ actor TwitchChatService {
     var reconnectToken: String?
     var reconnectClientID: String?
 
+    /// Single service seam for every live 401. The rejected access expectation
+    /// is mandatory so an old request can never refresh a replacement account.
+    private var reactiveTokenRefreshOperation: @Sendable (
+        String,
+        TwitchCredentialStore.AccessExpectation
+    ) async throws -> TwitchTokenRefresher.RefreshResult = { clientID, expected in
+        try await TwitchTokenRefresher.attemptReactiveRefresh(
+            clientID: clientID,
+            expected: expected
+        )
+    }
+
+    var redemptionResolutionSleep: @Sendable (Duration) async throws -> Void = {
+        try await Task.sleep(for: $0)
+    }
+
+    func setReactiveTokenRefresh(
+        _ operation: @escaping @Sendable (
+            String,
+            TwitchCredentialStore.AccessExpectation
+        ) async throws -> TwitchTokenRefresher.RefreshResult
+    ) {
+        reactiveTokenRefreshOperation = operation
+    }
+
+    /// Runs the injectable refresher for the exact credential rejected by an
+    /// earlier request.
+    func reactiveTokenRefresh(
+        _ clientID: String,
+        expected: TwitchCredentialStore.AccessExpectation
+    ) async throws -> TwitchTokenRefresher.RefreshResult {
+        try await reactiveTokenRefreshOperation(clientID, expected)
+    }
+
+    func setRedemptionResolutionSleep(
+        _ operation: @escaping @Sendable (Duration) async throws -> Void
+    ) {
+        redemptionResolutionSleep = operation
+    }
+
     // MARK: - Pending Messages
 
     private var pendingMessages: [PendingMessage] = []
@@ -684,13 +855,50 @@ actor TwitchChatService {
     var pendingMessageCount: Int { pendingMessages.count }
     var hasPendingMessageRetry: Bool { pendingRetryTask != nil }
 
+    // MARK: - Command Tasks
+
+    /// In-flight command pipelines. Each task awaits its command but does not
+    /// block the serial EventSub receive loop, and is owned by one connection
+    /// generation so reconnect/leave can cancel it deterministically.
+    var commandTasks: [UUID: Task<Void, Never>] = [:]
+
+    var activeCommandTaskCount: Int { commandTasks.count }
+
     // MARK: - Redemption Pipeline Tasks
 
-    /// In-flight channel-point / bits pipeline tasks, keyed so each removes
-    /// itself on completion. Tracked so `leaveChannel()` and `deinit` cancel
-    /// them instead of letting them outlive the connection (every other
-    /// long-running task in this actor is tracked the same way).
+    struct VolatileBitsFallbackKey: Hashable {
+        let messageID: String
+        let broadcasterID: String
+    }
+
+    struct VolatileBitsFallback {
+        let item: TwitchRedemptionResolutionOutbox.BitsItem
+        let claimedAt: Date
+        var completed: Bool
+    }
+
+    /// Process-owned fallback used only when the atomic outbox write fails.
+    /// Completed entries remain non-evicting for the full EventSub freshness
+    /// horizon; incomplete entries remain until they can run or the process exits.
+    var volatileBitsFallbacks:
+        [VolatileBitsFallbackKey: VolatileBitsFallback] = [:]
+
+    /// In-flight channel-point pipelines, keyed by their durable intake item so
+    /// duplicate EventSub delivery cannot process the same payment twice.
+    /// Like bits work, these pipelines survive socket reconnects: only their
+    /// chat reply is generation-bound. Deinit still cancels them.
     var redemptionTasks: [UUID: Task<Void, Never>] = [:]
+    /// Bits represent an irreversible viewer payment. Their request pipeline
+    /// therefore outlives EventSub socket generations; only the eventual chat
+    /// reply is gated to the originating session.
+    var paidRedemptionTasks: [UUID: Task<Void, Never>] = [:]
+    var activePaidRedemptionTaskCount: Int { paidRedemptionTasks.count }
+    /// Fulfillment/refund HTTP work outlives its originating EventSub session so
+    /// reconnect/leave can never strand already-spent viewer points.
+    var redemptionResolutionTasks: [UUID: Task<Void, Never>] = [:]
+    /// Ownership token preventing a canceled worker's deferred cleanup from
+    /// deleting a newer replay task for the same persisted item.
+    var redemptionResolutionWorkerIDs: [UUID: UUID] = [:]
 
     // MARK: - AsyncStream Outputs
 
@@ -720,7 +928,21 @@ actor TwitchChatService {
     /// Marked `@MainActor` so `BotCommandDispatcher()` (a MainActor type under
     /// project default isolation) can be constructed at init time. AppDelegate
     /// runs on MainActor; tests call from MainActor (Swift Testing) or wrap.
-    @MainActor init() {
+    @MainActor init(
+        eventSubHTTPClient: HTTPClient = .shared,
+        helixHTTPClient: HTTPClient = .shared,
+        channelPointsService: TwitchChannelPointsService = TwitchChannelPointsService(),
+        redemptionResolutionOutbox: TwitchRedemptionResolutionOutbox = .shared,
+        redemptionClientIDProvider: @escaping @Sendable () -> String? = {
+            TwitchChatService.resolveClientID()
+        },
+        eventSubWebSocketFactory: (@Sendable (URL) -> URLSessionWebSocketTask)? = nil,
+        eventSubWebSocketResume: @escaping @Sendable (URLSessionWebSocketTask) -> Void = {
+            $0.resume()
+        },
+        eventSubWebSocketReceive: @escaping @Sendable (URLSessionWebSocketTask) async throws
+            -> URLSessionWebSocketTask.Message = { try await $0.receive() }
+    ) {
         let chat = AsyncStream.makeStream(
             of: ChatMessage.self,
             bufferingPolicy: .bufferingNewest(AppConstants.Twitch.chatMessageStreamBuffer))
@@ -733,6 +955,14 @@ actor TwitchChatService {
         self.skipPollResults = skip.stream
         self.skipPollResultsContinuation = skip.continuation
         self.commandDispatcher = BotCommandDispatcher()
+        self.eventSubHTTPClient = eventSubHTTPClient
+        self.helixHTTPClient = helixHTTPClient
+        self.channelPointsService = channelPointsService
+        self.redemptionResolutionOutbox = redemptionResolutionOutbox
+        self.redemptionClientIDProvider = redemptionClientIDProvider
+        self.eventSubWebSocketFactory = eventSubWebSocketFactory
+        self.eventSubWebSocketResume = eventSubWebSocketResume
+        self.eventSubWebSocketReceive = eventSubWebSocketReceive
     }
 
     deinit {
@@ -740,12 +970,17 @@ actor TwitchChatService {
         sessionWelcomeTask?.cancel()
         reconnectTask?.cancel()
         receiveTask?.cancel()
+        migrationSourceReceiveTask?.cancel()
         keepaliveWatchdogTask?.cancel()
         connectionMessageTask?.cancel()
         pendingRetryTask?.cancel()
+        commandTasks.values.forEach { $0.cancel() }
         redemptionTasks.values.forEach { $0.cancel() }
+        paidRedemptionTasks.values.forEach { $0.cancel() }
+        redemptionResolutionTasks.values.forEach { $0.cancel() }
         networkPathMonitor?.cancel()
         webSocketTask?.cancel(with: .goingAway, reason: nil)
+        migrationSourceWebSocketTask?.cancel(with: .goingAway, reason: nil)
         chatMessagesContinuation.finish()
         connectionStateHub.finish()
         skipPollResultsContinuation.finish()
@@ -753,6 +988,8 @@ actor TwitchChatService {
         // until the process exits. Throwaway instances (resolveBotIdentityStatic)
         // would otherwise leak one session each per OAuth/re-auth.
         urlSession.invalidateAndCancel()
+        TwitchRedemptionTeardownGate.removeService(
+            serviceID: ObjectIdentifier(self))
     }
 
     // MARK: - Wiring (called once at app startup)
@@ -776,6 +1013,9 @@ actor TwitchChatService {
     /// Set the live `SongRequestService` used by redemption handlers.
     func setSongRequestServiceReference(_ service: SongRequestService?) {
         self.songRequestService = service
+        if service != nil {
+            replayPendingBitsEvents()
+        }
     }
 
     /// Provide the `!song` lookup. Called from MainActor by AppDelegate.
@@ -830,17 +1070,11 @@ actor TwitchChatService {
 
         /// Sleeps until `endpoint`'s bucket has capacity. Loops in case multiple
         /// callers race for the same window.
-        func awaitCapacity(endpoint: String) async {
+        func awaitCapacity(endpoint: String) async throws {
             while let wait = waitTimeIfRateLimited(endpoint: endpoint) {
-                do {
-                    try await Task.sleep(for: .seconds(wait))
-                } catch {
-                    // Task cancelled: unwind instead of busy-spinning. A bare
-                    // `try?` would swallow the CancellationError and re-enter
-                    // the still-true time-based loop, pegging this actor's core.
-                    return
-                }
+                try await Task.sleep(for: .seconds(wait))
             }
+            try Task.checkCancellation()
         }
 
         /// Records a hard 429 backoff: marks `endpoint` saturated until
@@ -848,17 +1082,23 @@ actor TwitchChatService {
         /// sleeps until the bucket is allowed to refill. Used by the reactive
         /// 429 retry path after parsing `Ratelimit-Reset` / `Retry-After`.
         func noteRateLimited(endpoint: String, untilEpoch resetEpoch: TimeInterval) {
+            let now = Date().timeIntervalSince1970
+            let delta = resetEpoch - now
+            guard delta.isFinite,
+                  let wait = TwitchDeviceAuth.boundedServerRetryDelay(max(0, delta)) else {
+                return
+            }
             var state = states[endpoint] ?? RateLimitState()
             state.remaining = 0
-            state.resetTime = resetEpoch
+            state.resetTime = now + wait
             states[endpoint] = state
         }
 
         /// Parses the seconds to wait after a `429 Too Many Requests` response.
         ///
-        /// Prefers a `Retry-After` delta (seconds from now); falls back to
-        /// `Ratelimit-Reset` (epoch seconds). Returns `nil` when neither header
-        /// is present or parseable. The result is clamped to be non-negative.
+        /// Parses `Retry-After` (delta or HTTP date) and `Ratelimit-Reset`
+        /// (epoch seconds), choosing the later bounded signal so a retry never
+        /// fires before either server deadline.
         ///
         /// `nonisolated` + `static` so it is unit-testable without the actor or a
         /// live socket.
@@ -879,15 +1119,21 @@ actor TwitchChatService {
                 return nil
             }
 
-            if let retryAfter = headerValue("Retry-After"),
-               let seconds = TimeInterval(retryAfter.trimmingCharacters(in: .whitespaces)) {
-                return max(0, seconds)
+            let retryAfterSeconds = headerValue("Retry-After").flatMap {
+                TwitchDeviceAuth.retryAfterSeconds(
+                    $0,
+                    now: Date(timeIntervalSince1970: now))
             }
-            if let reset = headerValue("Ratelimit-Reset"),
-               let resetEpoch = TimeInterval(reset.trimmingCharacters(in: .whitespaces)) {
-                return max(0, resetEpoch - now)
+            let resetSeconds: TimeInterval? = headerValue("Ratelimit-Reset").flatMap { reset in
+                guard let resetEpoch = TimeInterval(
+                    reset.trimmingCharacters(in: .whitespacesAndNewlines)) else {
+                    return nil
+                }
+                let delta = resetEpoch - now
+                guard delta.isFinite else { return nil }
+                return TwitchDeviceAuth.boundedServerRetryDelay(max(0, delta))
             }
-            return nil
+            return [retryAfterSeconds, resetSeconds].compactMap { $0 }.max()
         }
 
         /// Records Twitch's `Ratelimit-*` headers after a Helix response.
@@ -900,7 +1146,12 @@ actor TwitchChatService {
             }
             if let reset = headers["Ratelimit-Reset"] as? String,
                let resetInt = TimeInterval(reset) {
-                state.resetTime = resetInt
+                let now = Date().timeIntervalSince1970
+                let delta = resetInt - now
+                if delta.isFinite,
+                   let wait = TwitchDeviceAuth.boundedServerRetryDelay(max(0, delta)) {
+                    state.resetTime = now + wait
+                }
             }
             if let limit = headers["Ratelimit-Limit"] as? String,
                let limitInt = Int(limit) {
@@ -941,7 +1192,8 @@ actor TwitchChatService {
         botID: String,
         token: String,
         clientID: String,
-        attemptGeneration: UInt64? = nil
+        attemptGeneration: UInt64? = nil,
+        credentialRevision: UInt64? = nil
     ) async throws {
         guard !broadcasterID.isEmpty, !botID.isEmpty, !token.isEmpty else {
             Log.error("TwitchChatService: Invalid credentials for channel join", category: "Twitch")
@@ -950,6 +1202,17 @@ actor TwitchChatService {
         guard !clientID.isEmpty else {
             Log.error("TwitchChatService: Missing client ID for channel join", category: "Twitch")
             throw ConnectionError.missingClientID
+        }
+        if attemptGeneration == nil {
+            // A new explicit connection supersedes a suspended account
+            // teardown. The older leave observes the ownership-generation
+            // change and preserves credentials instead of clearing this join.
+            eventSubTeardownQuiescing.set(false)
+            channelOwnershipGeneration &+= 1
+            // A direct connection owns recovery now; a delayed backoff must not
+            // wake and supersede the socket this call is about to establish.
+            reconnectTask?.cancel()
+            reconnectTask = nil
         }
 
         let generation: UInt64
@@ -960,12 +1223,9 @@ actor TwitchChatService {
             generation = beginConnectionAttempt()
         }
 
-        self.broadcasterID = broadcasterID
-        self.botID = botID
-        self.oauthToken = token
-        self.clientID = clientID
-        self.botUsername = nil
-        self.hasSentConnectionMessage = false
+        // Defer publishing credentials and starting durable replay until every
+        // suspension below has completed and the connection/account revisions
+        // are still current. A superseded join must leave no stale actor state.
 
         // Wire dispatcher providers. The dispatcher is `@MainActor`, so wiring
         // hops to MainActor. Track-info providers are wired as async closures
@@ -1034,9 +1294,23 @@ actor TwitchChatService {
         // `leaveChannel()` or a newer join may have run while MainActor was
         // wiring the dispatcher. Never let this superseded attempt open a socket.
         try ensureConnectionAttempt(generation)
+        if let credentialRevision {
+            guard TwitchCredentialStore.shared.revision(
+                matchingAccessToken: token) == credentialRevision else {
+                throw CancellationError()
+            }
+        }
 
-        // Don't set connected state here - wait for EventSub session_welcome
-        connectToEventSub()
+        self.broadcasterID = broadcasterID
+        self.botID = botID
+        self.oauthToken = token
+        self.clientID = clientID
+        self.botUsername = nil
+        self.hasSentConnectionMessage = false
+        replayPendingRedemptionResolutions()
+
+        // The caller publishes reconnect ownership before starting transport.
+        // Connected state still waits for EventSub session_welcome.
     }
 
     /// Connects to a Twitch channel by name, resolving usernames to IDs.
@@ -1044,7 +1318,8 @@ actor TwitchChatService {
         channelName: String,
         token: String,
         clientID: String,
-        attemptGeneration: UInt64? = nil
+        attemptGeneration: UInt64? = nil,
+        expectedCredentialRevision: UInt64? = nil
     ) async throws {
         guard !channelName.isEmpty, !token.isEmpty else {
             Log.error("TwitchChatService: Invalid channel name or token", category: "Twitch")
@@ -1053,6 +1328,26 @@ actor TwitchChatService {
         guard !clientID.isEmpty else {
             Log.error("TwitchChatService: Missing client ID for channel connect", category: "Twitch")
             throw ConnectionError.missingClientID
+        }
+        guard let credentialSnapshot = TwitchCredentialStore.shared.connectionSnapshot(
+            matchingAccessToken: token
+        ), credentialSnapshot.channelID == channelName else {
+            throw CancellationError()
+        }
+        if let expectedCredentialRevision {
+            guard credentialSnapshot.revision == expectedCredentialRevision else {
+                throw CancellationError()
+            }
+        }
+        let credentialRevision = credentialSnapshot.revision
+
+        if attemptGeneration == nil {
+            eventSubTeardownQuiescing.set(false)
+            channelOwnershipGeneration &+= 1
+            // A direct connection owns recovery now; a delayed backoff must not
+            // wake and supersede the socket this call is about to establish.
+            reconnectTask?.cancel()
+            reconnectTask = nil
         }
 
         let generation: UInt64
@@ -1063,16 +1358,23 @@ actor TwitchChatService {
             generation = beginConnectionAttempt()
         }
 
-        var botUserID = KeychainService.loadTwitchBotUserID()
-        var resolvedUsername = KeychainService.loadTwitchUsername() ?? ""
+        var botUserID = credentialSnapshot.userID
 
         if botUserID?.isEmpty ?? true {
             let identity = try await fetchBotIdentity(token: token, clientID: clientID)
             try ensureConnectionAttempt(generation)
             botUserID = identity.userID
-            resolvedUsername = identity.displayName.isEmpty ? identity.login : identity.displayName
-            try KeychainService.saveTwitchUsername(resolvedUsername)
-            try KeychainService.saveTwitchBotUserID(identity.userID)
+            let resolvedUsername = identity.displayName.isEmpty
+                ? identity.login
+                : identity.displayName
+            guard try TwitchCredentialStore.shared.commitIdentity(
+                username: resolvedUsername,
+                userID: identity.userID,
+                matchingAccessToken: token,
+                expectedRevision: credentialRevision
+            ) else {
+                throw CancellationError()
+            }
         }
 
         guard let botUserID else { throw ConnectionError.invalidCredentials }
@@ -1080,6 +1382,10 @@ actor TwitchChatService {
         let broadcasterUserID = try await resolveUsername(
             channelName, token: token, clientID: clientID)
         try ensureConnectionAttempt(generation)
+        guard TwitchCredentialStore.shared.revision(
+            matchingAccessToken: token) == credentialRevision else {
+            throw CancellationError()
+        }
 
         guard !broadcasterUserID.isEmpty else {
             throw ConnectionError.networkError("Could not resolve channel name to user ID")
@@ -1090,9 +1396,15 @@ actor TwitchChatService {
             botID: botUserID,
             token: token,
             clientID: clientID,
-            attemptGeneration: generation)
+            attemptGeneration: generation,
+            credentialRevision: credentialRevision)
 
         try ensureConnectionAttempt(generation)
+        guard TwitchCredentialStore.shared.revision(
+            matchingAccessToken: token) == credentialRevision else {
+            disconnectFromEventSub()
+            throw CancellationError()
+        }
 
         // Store credentials for automatic reconnection
         reconnectChannelName = channelName
@@ -1103,20 +1415,58 @@ actor TwitchChatService {
             startNetworkMonitoring()
         }
 
+        // Reconnect ownership must exist before a fast session_welcome can run
+        // subscription setup and tear down this socket on a critical failure.
+        connectToEventSub()
+
         Log.info("TwitchChatService: Connected to channel \(channelName)", category: "Twitch")
     }
 
     /// Starts a new logical connection attempt and supersedes any older one.
     @discardableResult
     func beginConnectionAttempt() -> UInt64 {
-        connectionGeneration &+= 1
+        // A new logical attempt owns the transport, not just the receive
+        // generation. Retire an existing socket immediately so a validation or
+        // account-supersede failure cannot leave a ghost connection whose
+        // frames are forever rejected by the new generation.
+        if webSocketTask != nil || migrationSourceWebSocketTask != nil {
+            disconnectFromEventSub()
+        } else {
+            invalidateSessionBoundChatWork()
+        }
         isProcessingDisconnect = false
         return connectionGeneration
+    }
+
+    /// Invalidates chat work owned by the current EventSub session.
+    ///
+    /// Called both when starting a new attempt and as soon as any socket is
+    /// disconnected/migrated. That closes the backoff window where an old
+    /// command could otherwise finish before the replacement attempt begins.
+    func invalidateSessionBoundChatWork() {
+        connectionGeneration &+= 1
+        connectionMessageTask?.cancel()
+        connectionMessageTask = nil
+        commandTasks.values.forEach { $0.cancel() }
+        commandTasks.removeAll()
+        // Channel-point redemptions represent spent viewer points. Their
+        // durable-intake owner must finish across socket generations; dropping
+        // it here would let replay refund while the old pipeline still mutates
+        // the queue. Session-bound chat sends reject the stale generation.
+        pendingRetryTask?.cancel()
+        pendingRetryTask = nil
+        pendingRetryGeneration &+= 1
+        pendingMessages.removeAll(keepingCapacity: false)
     }
 
     /// Actor-isolated intent check used at every suspension boundary and by tests.
     func connectionAttemptIsCurrent(_ generation: UInt64) -> Bool {
         generation == connectionGeneration && !isProcessingDisconnect
+    }
+
+    /// True only while an async command still belongs to the active channel session.
+    func commandReplyIsCurrent(generation: UInt64, broadcasterID: String) -> Bool {
+        connectionAttemptIsCurrent(generation) && self.broadcasterID == broadcasterID
     }
 
     private func ensureConnectionAttempt(_ generation: UInt64) throws {
@@ -1127,13 +1477,137 @@ actor TwitchChatService {
 
     // Bot identity + token/username resolution lives in TwitchChatService+Auth.swift
 
-    /// Leaves the current channel and disconnects from EventSub.
-    func leaveChannel() {
+    /// Leaves the current channel and disconnects from EventSub. The managed
+    /// reward is held while this actor still owns the only credentials that can
+    /// mutate it, before account teardown is allowed to clear those credentials.
+    @discardableResult
+    func leaveChannel(
+        allowDiscardingOpaqueRedemptionRecovery: Bool = false
+    ) async -> Bool {
         Log.info("TwitchChatService:leaveChannel() called", category: "Twitch")
-        isProcessingDisconnect = true
-        connectionGeneration &+= 1
+        eventSubCredentialTeardownFenceDepth += 1
+        eventSubTeardownQuiescing.set(true)
+        defer {
+            eventSubCredentialTeardownFenceDepth -= 1
+            if eventSubCredentialTeardownFenceDepth == 0 {
+                eventSubTeardownQuiescing.set(false)
+            }
+        }
+        let teardownOwnershipGeneration = channelOwnershipGeneration
+        let teardownConnectionGeneration = connectionGeneration
+        let teardownRewardSnapshot = TwitchManagedRewardStore.snapshot()
+        let storedRewardBroadcasterID: String?
+        switch teardownRewardSnapshot {
+        case let .owned(identity):
+            storedRewardBroadcasterID = identity.broadcasterID
+        case .none, .legacy, .corrupt:
+            storedRewardBroadcasterID = nil
+        }
 
-        disconnectFromEventSub()
+        let teardownBroadcasterID = broadcasterID
+        let teardownBotID = botID
+        let teardownClientID = clientID
+        let teardownManagedBroadcasterID = teardownBroadcasterID
+            ?? storedRewardBroadcasterID
+            ?? TwitchCredentialStore.shared.accessSnapshot()?.userID
+        guard await pauseManagedRewardBeforeCredentialTeardown(
+            allowDiscardingOpaqueRedemptionRecovery:
+                allowDiscardingOpaqueRedemptionRecovery
+        ) else {
+            Log.error(
+                "TwitchChatService: Refusing credential teardown while the managed reward may still accept redemptions",
+                category: "Twitch")
+            return false
+        }
+
+        // `leaveChannel` now suspends for bounded setup/drain/pause work.
+        // Reject a newer actor session or a reward owned by another broadcaster;
+        // legacy/corrupt identities are never sufficient teardown authority.
+        let rewardOwnershipIsCurrent: Bool
+        switch TwitchManagedRewardStore.snapshot() {
+        case .none:
+            rewardOwnershipIsCurrent = true
+        case let .owned(identity):
+            rewardOwnershipIsCurrent =
+                identity.broadcasterID == teardownManagedBroadcasterID
+        case .legacy, .corrupt:
+            rewardOwnershipIsCurrent = false
+        }
+        guard channelOwnershipGeneration == teardownOwnershipGeneration,
+              connectionGeneration == teardownConnectionGeneration,
+              rewardOwnershipIsCurrent,
+              broadcasterID == teardownBroadcasterID,
+              botID == teardownBotID,
+              clientID == teardownClientID else {
+            if let teardownManagedBroadcasterID {
+                TwitchRedemptionTeardownGate.cancelTeardown(
+                    serviceID: ObjectIdentifier(self),
+                    broadcasterID: teardownManagedBroadcasterID,
+                    generation: teardownOwnershipGeneration)
+            }
+            Log.info(
+                "TwitchChatService: Account changed during reward pause; skipping stale teardown",
+                category: "Twitch")
+            // A newer session owns any subsequent reconciliation.
+            await refreshRedemptionSubscriptions()
+            return false
+        }
+
+        // Close the socket without cancelling a receive task that may already
+        // be queued on this actor with a paid frame. Only after that intake
+        // boundary is quiescent can the final durable drain be authoritative.
+        guard await quiesceEventSubReceiveBeforeCredentialTeardown(
+            expectedOwnershipGeneration: teardownOwnershipGeneration,
+            expectedConnectionGeneration: teardownConnectionGeneration
+        ) else {
+            if let teardownManagedBroadcasterID {
+                TwitchRedemptionTeardownGate.cancelTeardown(
+                    serviceID: ObjectIdentifier(self),
+                    broadcasterID: teardownManagedBroadcasterID,
+                    generation: teardownOwnershipGeneration)
+            }
+            return false
+        }
+        if let teardownManagedBroadcasterID {
+            guard await settleRedemptionWorkBeforeCredentialTeardown(
+                broadcasterID: teardownManagedBroadcasterID
+            ) else {
+                TwitchRedemptionTeardownGate.cancelTeardown(
+                    serviceID: ObjectIdentifier(self),
+                    broadcasterID: teardownManagedBroadcasterID,
+                    generation: teardownOwnershipGeneration)
+                Log.error(
+                    "TwitchChatService: Refusing credential teardown because paid work arrived at the final EventSub intake boundary",
+                    category: "Twitch")
+                return false
+            }
+        }
+
+        guard eventSubTeardownQuiescing.value,
+              channelOwnershipGeneration == teardownOwnershipGeneration,
+              connectionGeneration == teardownConnectionGeneration,
+              broadcasterID == teardownBroadcasterID,
+              botID == teardownBotID,
+              clientID == teardownClientID else {
+            if let teardownManagedBroadcasterID {
+                TwitchRedemptionTeardownGate.cancelTeardown(
+                    serviceID: ObjectIdentifier(self),
+                    broadcasterID: teardownManagedBroadcasterID,
+                    generation: teardownOwnershipGeneration)
+            }
+            return false
+        }
+
+        isProcessingDisconnect = true
+        disconnectFromEventSub(allowDuringCredentialTeardown: true)
+        if let teardownManagedBroadcasterID {
+            // Setup cannot restart for the old receive context after disconnect,
+            // so the process-local fence can now be released without an unpause race.
+            TwitchRedemptionTeardownGate.cancelTeardown(
+                serviceID: ObjectIdentifier(self),
+                broadcasterID: teardownManagedBroadcasterID,
+                generation: teardownOwnershipGeneration)
+        }
 
         // Clear reconnection credentials
         reconnectChannelName = nil
@@ -1144,16 +1618,6 @@ actor TwitchChatService {
         reconnectTask?.cancel()
         reconnectTask = nil
 
-        // A delayed connection greeting or queued bot reply must never outlive
-        // the channel it belongs to. Otherwise a later join could send the stale
-        // text using the new channel's credentials.
-        connectionMessageTask?.cancel()
-        connectionMessageTask = nil
-        pendingRetryTask?.cancel()
-        pendingRetryTask = nil
-        pendingRetryGeneration &+= 1
-        pendingMessages.removeAll(keepingCapacity: false)
-
         // Network monitoring is needed only while a Twitch channel is active.
         // Recreate it on the next join rather than keeping a process-lifetime
         // path monitor after the integration is disabled.
@@ -1163,21 +1627,14 @@ actor TwitchChatService {
         networkMonitorGeneration &+= 1
         isNetworkReachable = true
 
-        // Signal in-flight redemption pipelines to stop chatting; each still
-        // resolves (fulfils/refunds) its redemption so viewer points never
-        // strand in the pending state.
-        redemptionTasks.values.forEach { $0.cancel() }
-        redemptionTasks.removeAll()
-
         broadcasterID = nil
         botID = nil
         oauthToken = nil
         clientID = nil
         hasSentConnectionMessage = false
 
-        broadcastConnectionState(false)
-
         Log.info("TwitchChatService: Left channel", category: "Twitch")
+        return true
     }
 
     // Token validation lives in TwitchChatService+Auth.swift
@@ -1187,17 +1644,34 @@ actor TwitchChatService {
     /// Called automatically when the bot successfully subscribes to channel chat messages.
     func sendConnectionMessage() {
         connectionMessageTask?.cancel()
+        guard let broadcasterID else { return }
+        let generation = connectionGeneration
         connectionMessageTask = Task { [weak self] in
             try? await Task.sleep(for: .seconds(AppConstants.Twitch.connectionMessageDelay))
             if Task.isCancelled { return }
-            await self?.sendConnectionMessageIfNeeded()
+            await self?.sendConnectionMessageIfNeeded(
+                generation: generation,
+                broadcasterID: broadcasterID
+            )
         }
     }
 
-    private func sendConnectionMessageIfNeeded() async {
-        guard !hasSentConnectionMessage else { return }
+    func sendConnectionMessageIfNeeded(
+        generation: UInt64,
+        broadcasterID: String
+    ) async {
+        guard !Task.isCancelled,
+              commandReplyIsCurrent(
+                generation: generation,
+                broadcasterID: broadcasterID
+              ),
+              !hasSentConnectionMessage else { return }
         hasSentConnectionMessage = true
-        await sendMessage(AppConstants.Twitch.connectionMessage)
+        await sendSessionBoundMessage(
+            AppConstants.Twitch.connectionMessage,
+            replyTo: nil,
+            generation: generation,
+            broadcasterID: broadcasterID)
     }
 
     // MARK: - Message Sending
@@ -1214,10 +1688,54 @@ actor TwitchChatService {
     /// failures. Permanent/indeterminate failures stay dropped so a successful
     /// request with a malformed response can never produce duplicate chat text.
     func sendMessage(_ message: String, replyTo parentMessageID: String?) async {
+        guard let broadcasterID else { return }
+        await sendSessionBoundMessage(
+            message,
+            replyTo: parentMessageID,
+            generation: connectionGeneration,
+            broadcasterID: broadcasterID)
+    }
+
+    /// Sends a command response only to the session that received its command.
+    ///
+    /// The identity checks bracket the network suspension. If a disconnect or
+    /// reconnect happens while command work or the send is in flight, the
+    /// response cannot be queued for the replacement channel. Starting any new
+    /// connection also clears the shared retry queue.
+    func sendCommandReply(
+        _ message: String,
+        replyTo parentMessageID: String,
+        generation: UInt64,
+        broadcasterID: String
+    ) async {
+        await sendSessionBoundMessage(
+            message,
+            replyTo: parentMessageID,
+            generation: generation,
+            broadcasterID: broadcasterID)
+    }
+
+    /// Sends and optionally queues a message only while one exact channel
+    /// generation owns it. Used for both command replies and the delayed
+    /// connection greeting so neither can leak into a replacement channel.
+    func sendSessionBoundMessage(
+        _ message: String,
+        replyTo parentMessageID: String?,
+        generation: UInt64,
+        broadcasterID: String
+    ) async {
+        guard !Task.isCancelled,
+              commandReplyIsCurrent(generation: generation, broadcasterID: broadcasterID) else {
+            return
+        }
+
         let outcome = await sendMessageOnce(message, replyTo: parentMessageID)
-        if Self.shouldRetryChatSend(outcome),
-           !isProcessingDisconnect,
-           reconnectChannelName != nil {
+        guard !Task.isCancelled,
+              commandReplyIsCurrent(generation: generation, broadcasterID: broadcasterID) else {
+            return
+        }
+
+        if Self.shouldRetryChatSend(outcome) {
             queueMessageForRetry(message: message, parentMessageID: parentMessageID, attempts: 0)
         }
     }
@@ -1229,6 +1747,20 @@ actor TwitchChatService {
         _ message: String,
         replyTo parentMessageID: String?
     ) async -> ChatSendOutcome {
+        await sendMessageOnce(
+            message,
+            replyTo: parentMessageID,
+            allowsRefreshRetry: true
+        )
+    }
+
+    /// Internal bounded 401 retry. Twitch rejected the original request before
+    /// delivery, so retrying it once with a newly-issued token is duplicate-safe.
+    private func sendMessageOnce(
+        _ message: String,
+        replyTo parentMessageID: String?,
+        allowsRefreshRetry: Bool
+    ) async -> ChatSendOutcome {
         guard let broadcasterID,
               let botID,
               let token = oauthToken,
@@ -1239,6 +1771,11 @@ actor TwitchChatService {
 
         let trimmed = message.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return .sent }
+        let generation = connectionGeneration
+        let expectedCredential = TwitchCredentialStore.shared
+            .connectionSnapshot(
+                matchingAccessToken: token
+            )?.accessExpectation
 
         let finalMessage = trimmed.truncatedForChat()
 
@@ -1284,13 +1821,49 @@ actor TwitchChatService {
             }
             return .sent
         } catch ConnectionError.authenticationFailed {
-            // Token rejected mid-session. Surface the re-auth banner and stop
-            // the reconnect loop instead of silently dropping every send.
             Log.error(
-                "TwitchChatService: Send rejected (401) - token invalid. Signaling re-auth.",
+                "TwitchChatService: Send rejected (401); attempting token refresh",
                 category: "Twitch")
-            signalReauthNeededAndStop()
-            return .permanentFailure
+            guard let expectedCredential else {
+                return .permanentFailure
+            }
+            guard allowsRefreshRetry else {
+                guard rejectedCredentialIsCurrent(
+                    expectedCredential,
+                    clientID: clientID,
+                    generation: generation,
+                    broadcasterID: broadcasterID
+                ) else { return .permanentFailure }
+                Log.error(
+                    "TwitchChatService: Refreshed token was rejected by chat send",
+                    category: "Twitch")
+                signalReauthNeededAndStop()
+                return .permanentFailure
+            }
+            guard let recovery = await recoverRejectedAccessToken(
+                expectedCredential,
+                clientID: clientID,
+                generation: generation,
+                broadcasterID: broadcasterID
+            ) else { return .permanentFailure }
+
+            switch recovery {
+            case .refreshed:
+                return await sendMessageOnce(
+                    message,
+                    replyTo: parentMessageID,
+                    allowsRefreshRetry: false
+                )
+            case .invalid:
+                signalReauthNeededAndStop()
+                return .permanentFailure
+            case .temporarilyUnavailable:
+                disconnectFromEventSub()
+                if isNetworkReachable { scheduleReconnect() }
+                return .retryableFailure
+            case .superseded:
+                return .permanentFailure
+            }
         } catch HelixRequestError.permanentHTTP(let statusCode) {
             Log.error(
                 "TwitchChatService: Chat send permanently rejected with HTTP \(statusCode)",
@@ -1450,7 +2023,7 @@ actor TwitchChatService {
             Log.info(
                 "TwitchChatService: Request queued due to rate limit. Retry after \(String(format: "%.1f", waitTime))s",
                 category: "Twitch")
-            await rateLimiter.awaitCapacity(endpoint: endpoint)
+            try await rateLimiter.awaitCapacity(endpoint: endpoint)
         }
 
         guard let url = URL(string: apiBaseURL + endpoint) else {
@@ -1469,7 +2042,8 @@ actor TwitchChatService {
             throw ConnectionError.networkError("Failed to serialize request body")
         }
 
-        var (data, http) = try await HTTPClient.shared.send(request)
+        try Task.checkCancellation()
+        var (data, http) = try await helixHTTPClient.send(request)
 
         await rateLimiter.updateRateLimitState(
             endpoint: endpoint, from: http.allHeaderFields)
@@ -1485,14 +2059,15 @@ actor TwitchChatService {
                     category: "Twitch")
                 await rateLimiter.noteRateLimited(
                     endpoint: endpoint, untilEpoch: Date().timeIntervalSince1970 + wait)
-                await rateLimiter.awaitCapacity(endpoint: endpoint)
+                try await rateLimiter.awaitCapacity(endpoint: endpoint)
             } else {
                 Log.info(
                     "TwitchChatService: API \(endpoint) hit 429 without a reset header; one immediate retry",
                     category: "Twitch")
             }
 
-            (data, http) = try await HTTPClient.shared.send(request)
+            try Task.checkCancellation()
+            (data, http) = try await helixHTTPClient.send(request)
             await rateLimiter.updateRateLimitState(
                 endpoint: endpoint, from: http.allHeaderFields)
         }

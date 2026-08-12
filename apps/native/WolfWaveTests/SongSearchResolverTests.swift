@@ -23,21 +23,23 @@ import XCTest
 final class SongSearchResolverTests: XCTestCase {
 
     private var controller: MockAppleMusicController!
+    private let handlerStore = MockURLProtocol.HandlerStore()
 
     override func setUp() {
         super.setUp()
+        handlerStore.handler = nil
         controller = MockAppleMusicController()
     }
 
     override func tearDown() {
-        MockURLProtocol.reset()
+        handlerStore.handler = nil
         controller = nil
         super.tearDown()
     }
 
     private func makeResolver() -> SongSearchResolver {
         SongSearchResolver(
-            linkResolver: LinkResolverService(session: MockURLProtocol.makeSession()),
+            linkResolver: LinkResolverService(session: MockURLProtocol.makeSession(handlerStore: handlerStore)),
             musicController: controller
         )
     }
@@ -74,7 +76,7 @@ final class SongSearchResolverTests: XCTestCase {
     }
 
     func testSpotifyLinkResolvesViaOEmbedThenSearchesCatalog() async {
-        MockURLProtocol.requestHandler = { request in
+        handlerStore.handler = { request in
             (MockURLProtocol.httpResponse(for: request, status: 200),
              Data(#"{"title":"Tune","author_name":"Band"}"#.utf8))
         }

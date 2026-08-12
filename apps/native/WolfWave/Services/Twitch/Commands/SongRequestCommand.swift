@@ -61,79 +61,79 @@ final class SongRequestCommand: AsyncBotCommand {
     /// - Parameters:
     ///   - message: Raw chat message; trigger prefix is stripped to recover the query.
     ///   - context: Sender context; `username` is recorded with the queued item.
-    ///   - reply: Closure invoked with the chat response.
-    func execute(message: String, context: BotCommandContext, reply: @escaping (String) -> Void) {
+    ///   - Returns: The eventual chat response, or nil to stay silent.
+    func execute(message: String, context: BotCommandContext) async -> String? {
+        guard !Task.isCancelled else { return nil }
         // Master feature gate. When song requests are off, the empty-query
         // "Usage:" hint below would otherwise leak even though requests can't
         // flow, so bail here first. Default is silence; the streamer can opt into
         // a "requests are off" reply.
         let defaults = Foundation.UserDefaults.standard
         guard defaults.bool(forKey: AppConstants.UserDefaults.songRequestEnabled) else {
-            if defaults.bool(forKey: AppConstants.UserDefaults.songRequestDisabledReplyEnabled) {
-                reply("Song requests are off right now.")
-            }
-            return
+            return defaults.bool(forKey: AppConstants.UserDefaults.songRequestDisabledReplyEnabled)
+                ? "Song requests are off right now."
+                : nil
         }
 
         // Extract the query (everything after the trigger)
         let query = extractQuery(from: message)
 
         guard !query.isEmpty else {
-            reply("Usage: !sr <song name or Spotify/YouTube link>")
-            return
+            return "Usage: !sr <song name or Spotify/YouTube link>"
         }
 
         guard let service = songRequestService?() else {
-            reply("Song requests aren't available right now.")
-            return
+            return "Song requests aren't available right now."
         }
 
-        Task {
-            let result = await service.processRequest(
-                query: query,
-                username: context.username,
-                source: .chatCommand(context)
-            )
+        guard !Task.isCancelled else { return nil }
+        let result = await service.processRequest(
+            query: query,
+            username: context.username,
+            source: .chatCommand(context)
+        )
+        guard !Task.isCancelled else { return nil }
 
-            let response: String
-            switch result {
-            case .added(let item, let position):
-                response = "Added \"\(item.title)\" by \(item.artist), #\(position) in queue"
+        let response: String
+        switch result {
+        case .cancelled:
+            return nil
+        case .added(let item, let position):
+            response = "Added \"\(item.title)\" by \(item.artist), #\(position) in queue"
 
-            case .pendingApproval(let item):
-                response = "Sent \"\(item.title)\" by \(item.artist) to the streamer for approval."
+        case .pendingApproval(let item):
+            response = "Sent \"\(item.title)\" by \(item.artist) to the streamer for approval."
 
-            case .queueFull(let max):
-                response = "Queue is full (\(max)/\(max)). Try again later!"
+        case .queueFull(let max):
+            response = "Queue is full (\(max)/\(max)). Try again later!"
 
-            case .userLimitReached(let max):
-                response = "You already have \(max) songs queued. Wait for one to play!"
+        case .userLimitReached(let max):
+            response = "You already have \(max) songs queued. Wait for one to play!"
 
-            case .alreadyInQueue:
-                response = "That song is already in your queue."
+        case .alreadyInQueue:
+            response = "That song is already in your queue."
 
-            case .blocked:
-                response = "Sorry, that song/artist is on the blocklist."
+        case .blocked:
+            response = "Sorry, that song/artist is on the blocklist."
 
-            case .notFound(let query):
-                let truncated = StringFormatting.truncatedWithEllipsis(query)
-                response = "No results for \"\(truncated)\". Try a different search!"
+        case .notFound(let query):
+            let truncated = StringFormatting.truncatedWithEllipsis(query)
+            response = "No results for \"\(truncated)\". Try a different search!"
 
-            case .linkNotFound:
-                response = "Couldn't find that on Apple Music. Try a song name instead!"
+        case .linkNotFound:
+            response = "Couldn't find that on Apple Music. Try a song name instead!"
 
-            case .notAuthorized:
-                response = "Song requests aren't available right now."
+        case .notAuthorized:
+            response = "Song requests aren't available right now."
 
-            case .featureDisabled:
-                response = "Song requests are off right now."
+        case .featureDisabled:
+            response = "Song requests are off right now."
 
-            case .error(let message):
-                response = message
-            }
-
-            reply(response)
+        case .error(let message):
+            response = message
         }
+
+        return response
     }
 
     // MARK: - Private Helpers

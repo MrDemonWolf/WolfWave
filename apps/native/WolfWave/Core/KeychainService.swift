@@ -19,12 +19,12 @@ import Foundation
 /// - **Twitch OAuth Token**: User's OAuth token for Twitch API and chat
 /// - **Twitch Username**: Bot account username for display and identification
 /// - **Twitch User ID**: Bot account user ID for EventSub subscriptions
-/// - **Twitch Channel ID**: Target channel for bot commands
+/// - **Twitch Channel Login**: Normalized public channel name for bot commands
 ///
 /// Error Handling:
 /// - All save operations throw `KeychainError` on failure
-/// - Load operations return nil if not found or on error
-/// - Delete operations succeed silently if item doesn't exist
+/// - Load operations return nil if not found; checked grant reads preserve failures
+/// - Delete operations throw on failure and succeed silently if absent
 ///
 /// Thread Safety:
 /// - Keychain operations are thread-safe (backed by Security framework)
@@ -32,12 +32,50 @@ import Foundation
 ///
 /// Usage Example:
 /// ```swift
-/// try KeychainService.saveTwitchToken("oauth_token_here")
+/// try KeychainService.saveTwitchCredentialGrant(
+///     .init(accessToken: "oauth_token_here", channelID: "channel")
+/// )
 /// if let token = KeychainService.loadTwitchToken() {
 ///     // Use token for Twitch API calls
 /// }
 /// ```
 nonisolated enum KeychainService {
+    /// One crash-atomic Twitch account record. Keeping access, refresh, resolved
+    /// identity, and the configured channel in one Keychain item prevents
+    /// force-quit windows from cross-pairing different account configurations.
+    nonisolated struct TwitchCredentialGrant: Codable, Equatable, Sendable {
+        var accessToken: String?
+        var refreshToken: String?
+        var username: String?
+        var userID: String?
+        /// Legacy field name; stores a normalized channel login, not a numeric Helix ID.
+        var channelID: String?
+
+        static let empty = TwitchCredentialGrant()
+
+        var isEmpty: Bool {
+            accessToken == nil
+                && refreshToken == nil
+                && username == nil
+                && userID == nil
+                && channelID == nil
+        }
+
+        init(
+            accessToken: String? = nil,
+            refreshToken: String? = nil,
+            username: String? = nil,
+            userID: String? = nil,
+            channelID: String? = nil
+        ) {
+            self.accessToken = accessToken
+            self.refreshToken = refreshToken
+            self.username = username
+            self.userID = userID
+            self.channelID = channelID
+        }
+    }
+
     // MARK: - Constants
 
     /// Service identifier for Keychain items.
@@ -77,7 +115,26 @@ nonisolated enum KeychainService {
     /// Account identifier for Twitch bot user ID.
     private static let twitchBotAccountUserID = "twitchBotAccountUserID"
 
-    /// Account identifier for Twitch channel ID.
+    /// Versioned crash-atomic replacement for the legacy Twitch items. Version 2
+    /// adds the configured channel so manual token/channel saves are one write.
+    /// Internal so migration/failure tests can identify the one atomic write.
+    static let twitchCredentialGrantAccount = "twitchBotCredentialGrant.v2"
+
+    /// Version 1 held access, refresh, username, and user ID while channel was a
+    /// separate item. It remains readable only as a copy-before-delete source.
+    static let legacyTwitchCredentialGrantAccount = "twitchBotCredentialGrant.v1"
+
+    /// Serializes read-modify-write access and one-time legacy migration.
+    private static let twitchCredentialLock = NSLock()
+
+    /// Precedence-preserving result of reading the pre-v2 Twitch accounts.
+    private enum LegacyTwitchCredentialSource {
+        case absent
+        case valid(TwitchCredentialGrant)
+        case malformed
+    }
+
+    /// Legacy account identifier for the normalized Twitch channel login.
     private static let twitchChannelIDAccount = "twitchChannelIDAccount"
 
     // MARK: - Error Types
@@ -90,6 +147,9 @@ nonisolated enum KeychainService {
         /// Failed to load data from Keychain with the Security framework status.
         case loadFailed(OSStatus)
 
+        /// Failed to delete data from Keychain with the Security framework status.
+        case deleteFailed(OSStatus)
+
         /// Invalid or corrupted data read from Keychain.
         case invalidData
 
@@ -99,6 +159,8 @@ nonisolated enum KeychainService {
                 return "Failed to save token to Keychain (status: \(status))"
             case .loadFailed(let status):
                 return "Failed to load token from Keychain (status: \(status))"
+            case .deleteFailed(let status):
+                return "Failed to delete token from Keychain (status: \(status))"
             case .invalidData:
                 return "Invalid token data"
             }
@@ -133,8 +195,8 @@ nonisolated enum KeychainService {
     /// Deletes the read-only overlay authentication token from Keychain.
     ///
     /// Succeeds silently if token doesn't exist.
-    static func deleteToken() {
-        deleteItem(account: websocketAuthToken)
+    static func deleteToken() throws {
+        try deleteItem(account: websocketAuthToken)
     }
 
     /// Saves the privileged, loopback-only control token to Keychain.
@@ -153,97 +215,286 @@ nonisolated enum KeychainService {
     }
 
     /// Deletes the privileged, loopback-only control token from Keychain.
-    static func deleteControlToken() {
-        deleteItem(account: websocketControlToken)
+    static func deleteControlToken() throws {
+        try deleteItem(account: websocketControlToken)
     }
 
-    // MARK: - Public Methods - Twitch OAuth Token
-
-    /// Saves the Twitch OAuth token to Keychain.
-    ///
-    /// - Parameter token: The OAuth token obtained from Twitch OAuth flow.
-    /// - Throws: `KeychainError.saveFailed(status)` if Keychain operation fails.
-    static func saveTwitchToken(_ token: String) throws {
-        try upsertItem(account: twitchBotAccountOauthToken, value: token)
-    }
-
-    static func saveTwitchUsernameIfChanged(_ username: String) throws {
-        if let existing = loadTwitchUsername(), existing == username {
-            return
-        }
-        try saveTwitchUsername(username)
-    }
+    // MARK: - Public Methods - Twitch Credential Reads
 
     static func loadTwitchToken() -> String? {
-        loadItem(account: twitchBotAccountOauthToken)
-    }
-
-    static func deleteTwitchToken() {
-        deleteItem(account: twitchBotAccountOauthToken)
-    }
-
-    // MARK: - Public Methods - Twitch Refresh Token
-
-    /// Saves the Twitch OAuth refresh token to Keychain.
-    ///
-    /// Used by the reactive token refresh flow: when a live API call returns 401,
-    /// WolfWave POSTs `grant_type=refresh_token` once before falling back to
-    /// interactive re-auth.
-    ///
-    /// - Parameter token: The refresh token from the OAuth token response.
-    /// - Throws: `KeychainError.saveFailed(status)` if the Keychain operation fails.
-    static func saveTwitchRefreshToken(_ token: String) throws {
-        try upsertItem(account: twitchBotAccountRefreshToken, value: token)
+        loadTwitchCredentialGrant().accessToken
     }
 
     static func loadTwitchRefreshToken() -> String? {
-        loadItem(account: twitchBotAccountRefreshToken)
-    }
-
-    static func deleteTwitchRefreshToken() {
-        deleteItem(account: twitchBotAccountRefreshToken)
-    }
-
-    // MARK: - Twitch Username Methods
-
-    static func saveTwitchUsername(_ username: String) throws {
-        try upsertItem(account: twitchBotAccountUsername, value: username)
+        loadTwitchCredentialGrant().refreshToken
     }
 
     static func loadTwitchUsername() -> String? {
-        loadItem(account: twitchBotAccountUsername)
-    }
-
-    static func deleteTwitchUsername() {
-        deleteItem(account: twitchBotAccountUsername)
-    }
-
-    // MARK: - Twitch Bot User ID Methods
-
-    static func saveTwitchBotUserID(_ userID: String) throws {
-        try upsertItem(account: twitchBotAccountUserID, value: userID)
+        loadTwitchCredentialGrant().username
     }
 
     static func loadTwitchBotUserID() -> String? {
-        loadItem(account: twitchBotAccountUserID)
+        loadTwitchCredentialGrant().userID
     }
 
-    static func deleteTwitchBotUserID() {
-        deleteItem(account: twitchBotAccountUserID)
+    // MARK: - Atomic Twitch Grant
+
+    /// Loads one internally consistent Twitch account snapshot. Read failures
+    /// fail closed and never fall through to legacy migration.
+    static func loadTwitchCredentialGrant() -> TwitchCredentialGrant {
+        do {
+            return try loadTwitchCredentialGrantChecked()
+        } catch {
+            Log.error(
+                "KeychainService: Failed to load Twitch credential grant - \(error.localizedDescription)",
+                category: "Keychain")
+            return .empty
+        }
     }
 
-    // MARK: - Twitch Channel ID Methods
+    /// Checked variant used by account transactions that must distinguish a
+    /// missing grant from an unavailable Keychain.
+    static func loadTwitchCredentialGrantChecked() throws -> TwitchCredentialGrant {
+        try twitchCredentialLock.withLock {
+            try loadTwitchCredentialGrantLocked()
+        }
+    }
 
-    static func saveTwitchChannelID(_ channelID: String) throws {
-        try upsertItem(account: twitchChannelIDAccount, value: channelID)
+    /// Replaces the complete Twitch account in one atomic backend write.
+    static func saveTwitchCredentialGrant(_ grant: TwitchCredentialGrant) throws {
+        try validateTwitchCredentialGrant(grant)
+        try twitchCredentialLock.withLock {
+            try saveTwitchCredentialGrantLocked(grant)
+            if !grant.isEmpty {
+                deleteLegacyTwitchCredentialsBestEffortLocked()
+            }
+        }
+    }
+
+    /// Clears legacy Twitch fields first and the canonical grant last. The
+    /// canonical grant therefore remains authoritative after any failed delete.
+    static func deleteTwitchCredentialGrant() throws {
+        try twitchCredentialLock.withLock {
+            try deleteTwitchCredentialGrantLocked()
+        }
+    }
+
+    /// Atomically reads, conditionally mutates, validates, and saves the complete
+    /// Twitch record while holding one Keychain lock. Credential-store CAS paths
+    /// use this so a concurrent channel edit can never be overwritten by a stale
+    /// snapshot captured before the edit.
+    @discardableResult
+    static func mutateTwitchCredentialGrant(
+        _ mutation: (inout TwitchCredentialGrant) throws -> Bool
+    ) throws -> Bool {
+        try twitchCredentialLock.withLock {
+            var grant = try loadTwitchCredentialGrantLocked()
+            guard try mutation(&grant) else { return false }
+            try validateTwitchCredentialGrant(grant)
+            try saveTwitchCredentialGrantLocked(grant)
+            if !grant.isEmpty {
+                deleteLegacyTwitchCredentialsBestEffortLocked()
+            }
+            return true
+        }
+    }
+
+    private static func loadTwitchCredentialGrantLocked() throws -> TwitchCredentialGrant {
+        // A backend error is not "not found": return it without inspecting or
+        // mutating legacy fields, which might belong to an older account.
+        if let encoded = try backend.load(account: twitchCredentialGrantAccount) {
+            return decodeCurrentTwitchCredentialGrantOrFailClosed(encoded)
+        }
+
+        switch try loadLegacyTwitchCredentialSourceLocked() {
+        case .absent:
+            return .empty
+        case .malformed:
+            markMalformedTwitchCredentialsForReauthentication()
+            return .empty
+        case .valid(let legacy):
+            migrateTwitchCredentialGrantBestEffortLocked(legacy)
+            return legacy
+        }
+    }
+
+    /// Reads legacy sources without mutating them. Version 1 remains
+    /// authoritative over per-field values even when malformed, preventing a
+    /// stale partial account from becoming visible on a later read.
+    private static func loadLegacyTwitchCredentialSourceLocked() throws
+        -> LegacyTwitchCredentialSource {
+        if let encoded = try backend.load(
+            account: legacyTwitchCredentialGrantAccount
+        ) {
+            guard let data = encoded.data(using: .utf8),
+                  var migrated = try? JSONDecoder().decode(
+                    TwitchCredentialGrant.self,
+                    from: data
+                  ),
+                  (try? validateTwitchCredentialGrant(migrated)) != nil else {
+                return .malformed
+            }
+            if migrated.channelID == nil {
+                migrated.channelID = try backend.load(account: twitchChannelIDAccount)
+            }
+            guard (try? validateTwitchCredentialGrant(migrated)) != nil else {
+                return .malformed
+            }
+            return .valid(migrated)
+        }
+
+        let legacy = TwitchCredentialGrant(
+            accessToken: try backend.load(account: twitchBotAccountOauthToken),
+            refreshToken: try backend.load(account: twitchBotAccountRefreshToken),
+            username: try backend.load(account: twitchBotAccountUsername),
+            userID: try backend.load(account: twitchBotAccountUserID),
+            channelID: try backend.load(account: twitchChannelIDAccount)
+        )
+        guard !legacy.isEmpty else { return .absent }
+        guard (try? validateTwitchCredentialGrant(legacy)) != nil else {
+            return .malformed
+        }
+        return .valid(legacy)
+    }
+
+    private static func decodeCurrentTwitchCredentialGrantOrFailClosed(
+        _ encoded: String
+    ) -> TwitchCredentialGrant {
+        guard let data = encoded.data(using: .utf8),
+              let decoded = try? JSONDecoder().decode(
+                TwitchCredentialGrant.self,
+                from: data
+              ),
+              (try? validateTwitchCredentialGrant(decoded)) != nil else {
+            markMalformedTwitchCredentialsForReauthentication()
+            return .empty
+        }
+        // A v2 record is authoritative even when its channel is nil. Never
+        // re-adopt a stale separate channel left by best-effort cleanup.
+        return decoded
+    }
+
+    private static func migrateTwitchCredentialGrantBestEffortLocked(
+        _ grant: TwitchCredentialGrant
+    ) {
+        do {
+            try saveTwitchCredentialGrantLocked(grant)
+            deleteLegacyTwitchCredentialsBestEffortLocked()
+        } catch {
+            // Migration is copy-then-delete. Returning the unchanged in-memory
+            // snapshot preserves existing users and retries on the next read.
+            Log.error(
+                "KeychainService: Twitch credential migration deferred - \(error.localizedDescription)",
+                category: "Keychain"
+            )
+        }
+    }
+
+    private static func markMalformedTwitchCredentialsForReauthentication() {
+        // Retain the malformed authoritative source unchanged. Partially deleting
+        // v1/per-field sources could expose a valid-looking stale fragment on the
+        // next launch. A later valid v2 commit or factory reset safely cleans it.
+        requireTwitchReauthentication()
+    }
+
+    private static func saveTwitchCredentialGrantLocked(
+        _ grant: TwitchCredentialGrant
+    ) throws {
+        guard !grant.isEmpty else {
+            try deleteTwitchCredentialGrantLocked()
+            return
+        }
+        try saveTwitchCredentialGrantRecordLocked(grant)
+    }
+
+    /// Writes an authoritative v2 record, including the encoded-empty tombstone
+    /// used as a clear barrier when legacy input is malformed.
+    private static func saveTwitchCredentialGrantRecordLocked(
+        _ grant: TwitchCredentialGrant
+    ) throws {
+        try validateTwitchCredentialGrant(grant)
+        let data = try JSONEncoder().encode(grant)
+        guard let encoded = String(data: data, encoding: .utf8) else {
+            throw KeychainError.invalidData
+        }
+        try backend.save(account: twitchCredentialGrantAccount, value: encoded)
+    }
+
+    private static func validateTwitchCredentialGrant(
+        _ grant: TwitchCredentialGrant
+    ) throws {
+        let values = [
+            grant.accessToken,
+            grant.refreshToken,
+            grant.username,
+            grant.userID,
+            grant.channelID,
+        ]
+        guard values.compactMap({ $0 }).allSatisfy({ !$0.isEmpty }) else {
+            throw KeychainError.invalidData
+        }
+    }
+
+    private static var legacyTwitchCredentialAccounts: [String] {
+        [
+            legacyTwitchCredentialGrantAccount,
+            twitchBotAccountOauthToken,
+            twitchBotAccountRefreshToken,
+            twitchBotAccountUsername,
+            twitchBotAccountUserID,
+            twitchChannelIDAccount,
+        ]
+    }
+
+    private static func deleteTwitchCredentialGrantLocked() throws {
+        if try backend.load(account: twitchCredentialGrantAccount) == nil {
+            switch try loadLegacyTwitchCredentialSourceLocked() {
+            case .absent:
+                break
+            case .valid(let grant):
+                // Publish the complete legacy snapshot before the first delete.
+                try saveTwitchCredentialGrantRecordLocked(grant)
+            case .malformed:
+                // An encoded-empty v2 item is an authoritative tombstone. It
+                // blocks partially deleted malformed sources from exposing a
+                // stale fallback if any subsequent delete fails.
+                markMalformedTwitchCredentialsForReauthentication()
+                try saveTwitchCredentialGrantRecordLocked(.empty)
+            }
+        }
+        for account in legacyTwitchCredentialAccounts {
+            try backend.delete(account: account)
+        }
+        try backend.delete(account: twitchCredentialGrantAccount)
+    }
+
+    /// Cleanup after a successful canonical save is best effort because the
+    /// canonical record wins every future read even if a stale legacy field
+    /// cannot be removed immediately.
+    private static func deleteLegacyTwitchCredentialsBestEffortLocked() {
+        for account in legacyTwitchCredentialAccounts {
+            do {
+                try backend.delete(account: account)
+            } catch {
+                Log.error(
+                    "KeychainService: Could not remove legacy Twitch item '\(account)' - \(error.localizedDescription)",
+                    category: "Keychain")
+            }
+        }
+    }
+
+    private static func requireTwitchReauthentication() {
+        Preferences.setTwitchReauthNeeded(true)
+        Task { @MainActor in
+            NotificationCenter.default.post(
+                name: Notification.Name.twitchReauthNeededChanged,
+                object: nil
+            )
+        }
     }
 
     static func loadTwitchChannelID() -> String? {
-        loadItem(account: twitchChannelIDAccount)
-    }
-
-    static func deleteTwitchChannelID() {
-        deleteItem(account: twitchChannelIDAccount)
+        loadTwitchCredentialGrant().channelID
     }
 
     // MARK: - Public Methods - Factory Reset
@@ -253,9 +504,11 @@ nonisolated enum KeychainService {
     /// Wipes the entire generic-password class for the app's service, so it
     /// covers both WebSocket tokens, all Twitch tokens, and any credential
     /// added later without needing a per-account call. Used by the factory
-    /// reset. Succeeds silently if nothing is stored.
-    static func deleteAll() {
-        backend.deleteAll()
+    /// reset. Succeeds silently if nothing is stored and throws on failure.
+    static func deleteAll() throws {
+        try twitchCredentialLock.withLock {
+            try backend.deleteAll()
+        }
     }
 
     // MARK: - Backend Injection
@@ -304,7 +557,7 @@ nonisolated enum KeychainService {
     }
 
     /// Deletes the item for the given account via the active backend.
-    private static func deleteItem(account: String) {
-        backend.delete(account: account)
+    private static func deleteItem(account: String) throws {
+        try backend.delete(account: account)
     }
 }

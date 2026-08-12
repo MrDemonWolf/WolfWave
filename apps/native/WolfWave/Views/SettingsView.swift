@@ -100,7 +100,10 @@ struct SettingsView: View {
     // MARK: - State
 
     /// Twitch settings view model
-    @State private var twitchViewModel = TwitchViewModel()
+    @State private var twitchViewModel = TwitchViewModel.shared
+    /// Stable identity for this Settings presentation, including view recreation.
+    @State private var twitchOAuthOwner =
+        TwitchViewModel.OAuthPresentationOwner.settings(UUID())
 
     /// Shared Twitch service from the app delegate.
     private var appDelegate: AppDelegate? {
@@ -152,7 +155,7 @@ struct SettingsView: View {
             .onChange(of: selectedSection) { _, newSection in
                 // Cancel in-progress Twitch OAuth if user navigates away
                 if newSection != .twitchIntegration, twitchViewModel.authState.isInProgress {
-                    twitchViewModel.cancelOAuth()
+                    twitchViewModel.requestOAuthCancellation(ifOwnedBy: twitchOAuthOwner)
                 }
             }
             .padding(.top, DSSpace.s2)
@@ -198,6 +201,9 @@ struct SettingsView: View {
             // Initialize the view model's connection state from the service so the UI
             // reflects whether we are already joined (prevents missed callbacks).
             twitchViewModel.channelConnected = appDelegate?.twitchService?.currentlyConnected ?? false
+        }
+        .onDisappear {
+            twitchViewModel.requestOAuthCancellation(ifOwnedBy: twitchOAuthOwner)
         }
         // `SettingsWindowConfigurator` hides the window title and makes the title
         // bar transparent for the clean full-height-sidebar look. The automatic
@@ -357,7 +363,10 @@ struct SettingsView: View {
     /// Twitch detail pane: auth settings plus the bot commands card.
     private func twitchIntegrationView() -> some View {
         VStack(alignment: .leading, spacing: AppConstants.SettingsUI.sectionSpacing) {
-            TwitchSettingsView(viewModel: twitchViewModel)
+            TwitchSettingsView(
+                viewModel: twitchViewModel,
+                oauthOwner: twitchOAuthOwner
+            )
 
             Divider()
                 .padding(.vertical, DSSpace.s1)
@@ -395,16 +404,41 @@ struct SettingsView: View {
     /// 6. Relaunch into a clean state so onboarding returns and live services
     ///    boot without stale in-memory state
     private func resetSettings() {
-        // Disconnect outward integrations before clearing their config.
+        Task { @MainActor in await performResetSettings() }
+    }
+
+    /// Performs factory-reset teardown in order; notably, Twitch must finish
+    /// leaving before a later account or relaunch can reuse the service.
+    private func performResetSettings() async {
+        // Twitch must be proven safe first; an aborted reset should not partially
+        // disable unrelated outward integrations.
+        // Twitch: disconnect + clear in-memory view-model state.
+        // clearCredentials() leaves the channel first when connected.
+        guard await twitchViewModel.clearCredentials(
+            discardOpaqueRedemptionRecovery: true
+        ) else {
+            Log.warn(
+                "SettingsView: Factory reset aborted because Twitch teardown was not safe",
+                category: "App")
+            return
+        }
+
+        // Disconnect remaining outward integrations before clearing their config.
         NotificationCenter.default.postEnabled(.discordPresenceChanged, enabled: false)
         NotificationCenter.default.postWebSocketServerChanged(enabled: false)
 
-        // Twitch: disconnect + clear in-memory view-model state.
-        // clearCredentials() leaves the channel first when connected.
-        twitchViewModel.clearCredentials()
-
-        // Keychain: wipe every stored credential in one sweep.
-        KeychainService.deleteAll()
+        // Keychain: wipe every stored credential in one sweep. Abort before
+        // preferences or files are removed if macOS refuses the deletion.
+        do {
+            try KeychainService.deleteAll()
+        } catch {
+            twitchViewModel.statusMessage =
+                "⚠️ Factory reset could not clear saved credentials. Please try again."
+            Log.error(
+                "SettingsView: Factory reset Keychain deletion failed - \(error.localizedDescription)",
+                category: "App")
+            return
+        }
 
         // UserDefaults: remove every key the app writes.
         AppConstants.UserDefaults.allKeys.forEach {

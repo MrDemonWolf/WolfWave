@@ -163,15 +163,13 @@ struct CustomCommandNormalizationTests {
 @MainActor
 struct CustomBotCommandTests {
 
-    @Test("renders the reply via callback")
+    @Test("returns the rendered reply")
     func execute() async {
         let definition = CustomCommand(trigger: "hug", response: "$user hugs $touser")
         let command = CustomBotCommand(definition: definition, variables: { .empty })
         let ctx = makeContext(username: "Luna")
 
-        let reply = await withCheckedContinuation { continuation in
-            command.execute(message: "!hug @Bob", context: ctx) { continuation.resume(returning: $0) }
-        }
+        let reply = await command.execute(message: "!hug @Bob", context: ctx)
         #expect(reply == "Luna hugs Bob")
     }
 

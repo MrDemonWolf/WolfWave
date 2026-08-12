@@ -11,10 +11,10 @@ import Foundation
 /// On-disk representation of an exported WolfWave settings backup.
 ///
 /// A backup carries portable preferences only. It never contains secrets:
-/// Twitch OAuth tokens, user/channel IDs, and the WebSocket auth token live in
-/// Keychain and are not read by the backup pipeline at all. The lone piece of
-/// account identity a backup records is the Twitch channel *name* (public, shown
-/// as your channel URL) so the import flow can offer "Reconnect Twitch (#name)".
+/// Twitch OAuth tokens, resolved user IDs, and the WebSocket auth token are
+/// never serialized. The lone canonical account field read from Keychain is the
+/// configured Twitch channel *name* (public, shown as your channel URL), which
+/// lets the import flow offer "Reconnect Twitch (#name)".
 ///
 /// The file is plain JSON so a user can open and inspect it. `format` and
 /// `schemaVersion` let the importer reject foreign or future files cleanly.

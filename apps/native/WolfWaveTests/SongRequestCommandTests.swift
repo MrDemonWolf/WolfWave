@@ -299,7 +299,7 @@ final class SongRequestCommandTests: WolfWaveTestCase {
 
     // MARK: - MyQueueCommand Output
 
-    func testMyQueueCommandWithItems() {
+    func testMyQueueCommandWithItems() async {
         let command = MyQueueCommand()
         let queue = SongRequestQueue()
         command.getQueue = { queue }
@@ -315,8 +315,7 @@ final class SongRequestCommandTests: WolfWaveTestCase {
             isSubscriber: false, isVIP: false, messageID: "m1"
         )
 
-        var reply: String?
-        command.execute(message: "!myqueue", context: context) { reply = $0 }
+        let reply = await command.execute(message: "!myqueue", context: context)
 
         XCTAssertNotNil(reply)
         XCTAssertTrue(reply!.contains("My Song 1"))
@@ -328,7 +327,7 @@ final class SongRequestCommandTests: WolfWaveTestCase {
         UserDefaults.standard.removeObject(forKey: AppConstants.UserDefaults.songRequestPerUserLimit)
     }
 
-    func testMyQueueCommandNoItemsPrompt() {
+    func testMyQueueCommandNoItemsPrompt() async {
         let command = MyQueueCommand()
         let queue = SongRequestQueue()
         command.getQueue = { queue }
@@ -339,8 +338,7 @@ final class SongRequestCommandTests: WolfWaveTestCase {
             isSubscriber: false, isVIP: false, messageID: "m2"
         )
 
-        var reply: String?
-        command.execute(message: "!myqueue", context: context) { reply = $0 }
+        let reply = await command.execute(message: "!myqueue", context: context)
 
         XCTAssertNotNil(reply)
         XCTAssertTrue(reply!.contains("!sr"))
@@ -348,31 +346,23 @@ final class SongRequestCommandTests: WolfWaveTestCase {
 
     // MARK: - Privilege Checks (silent ignore)
 
-    func testSkipCommandSilentlyIgnoresNonPrivileged() {
+    func testSkipCommandSilentlyIgnoresNonPrivileged() async {
         let command = SkipCommand()
-        var replyCalled = false
-        command.execute(
-            message: "!skip",
-            context: BotCommandContext(
-                userID: "1", username: "viewer",
-                isModerator: false, isBroadcaster: false,
-                isSubscriber: false, isVIP: false, messageID: "m"
-            )
-        ) { _ in replyCalled = true }
-        XCTAssertFalse(replyCalled)
+        let context = BotCommandContext(
+            userID: "1", username: "viewer",
+            isModerator: false, isBroadcaster: false,
+            isSubscriber: false, isVIP: false, messageID: "m")
+        let reply = await command.execute(message: "!skip", context: context)
+        XCTAssertNil(reply)
     }
 
-    func testClearQueueCommandSilentlyIgnoresNonPrivileged() {
+    func testClearQueueCommandSilentlyIgnoresNonPrivileged() async {
         let command = ClearQueueCommand()
-        var replyCalled = false
-        command.execute(
-            message: "!clearqueue",
-            context: BotCommandContext(
-                userID: "1", username: "viewer",
-                isModerator: false, isBroadcaster: false,
-                isSubscriber: false, isVIP: false, messageID: "m"
-            )
-        ) { _ in replyCalled = true }
-        XCTAssertFalse(replyCalled)
+        let context = BotCommandContext(
+            userID: "1", username: "viewer",
+            isModerator: false, isBroadcaster: false,
+            isSubscriber: false, isVIP: false, messageID: "m")
+        let reply = await command.execute(message: "!clearqueue", context: context)
+        XCTAssertNil(reply)
     }
 }

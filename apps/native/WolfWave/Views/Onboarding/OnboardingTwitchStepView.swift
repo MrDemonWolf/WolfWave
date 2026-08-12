@@ -15,6 +15,8 @@ struct OnboardingTwitchStepView: View {
     // MARK: - Properties
 
     @Bindable var twitchViewModel: TwitchViewModel
+    /// Stable owner supplied by the containing Onboarding presentation.
+    let oauthOwner: TwitchViewModel.OAuthPresentationOwner
 
     @State private var hasStartedActivation = false
 
@@ -69,7 +71,7 @@ struct OnboardingTwitchStepView: View {
                 background: AnyShapeStyle(AppConstants.Brand.twitch),
                 action: {
                     hasStartedActivation = false
-                    twitchViewModel.startOAuth()
+                    twitchViewModel.startOAuth(owner: oauthOwner)
                 },
                 label: {
                     HStack(spacing: 8) {
@@ -115,7 +117,7 @@ struct OnboardingTwitchStepView: View {
 
                 Button("Cancel") {
                     hasStartedActivation = false
-                    twitchViewModel.cancelOAuth()
+                    twitchViewModel.requestOAuthCancellation(ifOwnedBy: oauthOwner)
                 }
                 .buttonStyle(.bordered)
                 .controlSize(.small)
@@ -157,11 +159,14 @@ struct OnboardingTwitchStepView: View {
             Spacer()
 
             Button("Sign Out") {
-                twitchViewModel.cancelOAuth()
+                Task { @MainActor in
+                    await twitchViewModel.clearCredentials()
+                }
             }
             .buttonStyle(.bordered)
             .controlSize(.small)
             .pointerCursor()
+            .disabled(twitchViewModel.isAccountTeardownInProgress)
         }
         .padding(DSSpace.s5)
         .cardStyle()
@@ -215,7 +220,7 @@ struct OnboardingTwitchStepView: View {
                             }
                             if oldValue.lowercased()
                                 .trimmingCharacters(in: .whitespacesAndNewlines) != sanitized {
-                                twitchViewModel.saveChannelID()
+                                twitchViewModel.channelDraftChanged()
                             }
                         }
 
@@ -300,7 +305,7 @@ struct OnboardingTwitchStepView: View {
             .cardStyle()
 
             Button("Try Again") {
-                twitchViewModel.startOAuth()
+                twitchViewModel.startOAuth(owner: oauthOwner)
             }
             .buttonStyle(.bordered)
             .pointerCursor()
@@ -332,7 +337,7 @@ struct OnboardingTwitchStepView: View {
         twitchViewModel.channelID = twitchViewModel.botUsername
             .lowercased()
             .trimmingCharacters(in: .whitespacesAndNewlines)
-        twitchViewModel.saveChannelID()
+        twitchViewModel.channelDraftChanged()
     }
 
     private var stateKey: Int {
@@ -348,7 +353,10 @@ struct OnboardingTwitchStepView: View {
 // MARK: - Previews
 
 #Preview("Not connected") {
-    OnboardingTwitchStepView(twitchViewModel: TwitchViewModel())
+    OnboardingTwitchStepView(
+        twitchViewModel: TwitchViewModel(),
+        oauthOwner: .onboarding(UUID())
+    )
         .frame(
             width: AppConstants.OnboardingUI.windowWidth,
             height: AppConstants.OnboardingUI.windowHeight
