@@ -213,6 +213,9 @@ extension AppConstants {
         /// Whether requests wait for streamer approval before queueing (Bool, default: false)
         static let songRequestApprovalRequired = "songRequestApprovalRequired"
 
+        /// Song and artist entries blocked from song requests, stored as JSON.
+        static let songRequestBlocklist = "songRequestBlocklist"
+
         /// Whether !sr command is enabled (Bool, default: true)
         static let srCommandEnabled = "srCommandEnabled"
 
@@ -500,6 +503,7 @@ extension AppConstants {
             songRequestAutoAdvance,
             songRequestAutoplayWhenEmpty,
             songRequestApprovalRequired,
+            songRequestBlocklist,
             srCommandEnabled,
             queueCommandEnabled,
             myQueueCommandEnabled,
@@ -631,6 +635,7 @@ extension AppConstants {
             songRequestAutoAdvance,
             songRequestAutoplayWhenEmpty,
             songRequestApprovalRequired,
+            songRequestBlocklist,
             srCommandEnabled,
             queueCommandEnabled,
             myQueueCommandEnabled,

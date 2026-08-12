@@ -68,16 +68,16 @@ Settings changes (e.g. `TrackingSettingChanged`, `DockVisibilityChanged`) flow t
 
 ### Thread Safety
 
-- `TwitchChatService`: `NSLock` for shared state mutations.
+- `TwitchChatService`: actor isolation, with small lock-backed snapshots only for synchronous observation bridges.
 - `DiscordRPCService`: serial `ipcQueue` confinement + `enabledLock`.
 - `Logger`: serial `DispatchQueue` for thread-safe file I/O.
-- `WebSocketServerService`: separate `NSLock`s for connections, playback state, and enabled flag.
+- `WebSocketServerService`: actor-confined listener, connection, and playback state; an `NSLock` protects only synchronous UI snapshots. Network.framework rejects messages over 16 KiB, and pre-handshake peers are capped and timed out before promotion.
 
 ## Key Components
 
 ### KeychainService
 
-Secure storage for sensitive credentials using the macOS Keychain API. All tokens and secrets are stored securely, never in UserDefaults or plain text. Keys defined in `AppConstants.Keychain`.
+Secure storage for sensitive credentials using the macOS Keychain API. All tokens and secrets are stored securely, never in UserDefaults or plain text. Twitch access, refresh, username, user ID, and configured channel live in one versioned record, so an account or channel change is a single crash-atomic Keychain write. A channel edit is validated before it replaces the canonical record. Existing per-field records migrate copy-first and are deleted only after that write succeeds. A channel restored from backup stays a nonauthoritative UserDefaults hint until a successful OAuth commit. Keys are defined in `AppConstants.Keychain`.
 
 ### PlaybackSource
 
@@ -91,6 +91,7 @@ Full Twitch integration using:
 - **EventSub WebSocket** for real-time chat message notifications.
 - **OAuth Device Code Flow** for secure authentication.
 - **Network path monitoring** for automatic reconnection.
+- **Durable paid-event intake and resolution** via one atomic disk-backed outbox. Channel-point intake is saved before song lookup or queue work, then atomically replaced with the known fulfill/refund result before Helix delivery. Qualifying Bits cheers persist the complete replayable boost/request action before touching the in-memory queue, and atomically become a short-lived duplicate tombstone after completion. Relaunch refunds an unknown points intake conservatively and replays known point outcomes or pending Bits actions. Payment-bound processing survives socket reconnects while chat replies remain generation-scoped. A failed storage preflight pauses the managed reward; an already-paid Bits event falls back to process-owned execution and surfaces the same storage warning.
 
 ### SongRequestService
 
