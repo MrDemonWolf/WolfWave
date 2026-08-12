@@ -101,7 +101,7 @@ final class LinkResolverServiceTests: XCTestCase {
     func testResolveRejectsAppleMusicUserInfoAndInsecureTransport() async {
         let rejectedURLs = [
             "https://attacker@music.apple.com/us/album/x/123",
-            "http://music.apple.com/us/album/x/123",
+            "http://music.apple.com/us/album/x/123"
         ]
 
         for url in rejectedURLs {
