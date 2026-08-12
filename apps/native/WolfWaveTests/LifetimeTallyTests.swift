@@ -19,12 +19,13 @@ struct LifetimeTallyTests {
 
     private func record(
         track: String, artist: String, album: String = "Album",
-        played: TimeInterval = 200
+        played: TimeInterval = 200,
+        sequence: UInt64? = nil
     ) -> PlayRecord {
         PlayRecord(
             timestamp: Date(),
             track: track, artist: artist, album: album,
-            duration: 220, playedSeconds: played
+            duration: 220, playedSeconds: played, sequence: sequence
         )
     }
 
@@ -33,13 +34,14 @@ struct LifetimeTallyTests {
     @Test("Folding a record increments totals and per-key buckets")
     func testFoldSingle() {
         var tally = LifetimeTally.empty
-        tally.fold(record(track: "A", artist: "Wolf", played: 180))
+        tally.fold(record(track: "A", artist: "Wolf", played: 180, sequence: 9))
 
         #expect(tally.trimmedPlayCount == 1)
         #expect(tally.trimmedListeningSeconds == 180)
         #expect(tally.artistCounts["wolf"]?.count == 1)
         #expect(tally.trackCounts["a|wolf"]?.count == 1)
         #expect(tally.albumCounts["album|wolf"]?.count == 1)
+        #expect(tally.lastFoldedSequence == 9)
     }
 
     @Test("Folding the same track multiple times accumulates count + seconds")
@@ -65,21 +67,18 @@ struct LifetimeTallyTests {
         #expect(tally.albumCounts.isEmpty)
     }
 
-    // MARK: - Eviction
+    // MARK: - Exact Keys
 
-    @Test("Per-dimension cap evicts the lowest-count entry")
-    func testEvictionAtCap() {
+    @Test("Folding retains every key so later plays can change the true top item")
+    func testFoldRetainsAllKeys() {
         var tally = LifetimeTally.empty
-        // Cap = 3. Seed with three artists at counts 3, 2, 1.
-        for _ in 0..<3 { tally.fold(record(track: "T1", artist: "AlphaArtist"), keyCap: 3) }
-        for _ in 0..<2 { tally.fold(record(track: "T2", artist: "BetaArtist"), keyCap: 3) }
-        tally.fold(record(track: "T3", artist: "GammaArtist"), keyCap: 3)
-        #expect(tally.artistCounts.count == 3)
+        for _ in 0..<3 { tally.fold(record(track: "T1", artist: "AlphaArtist")) }
+        for _ in 0..<2 { tally.fold(record(track: "T2", artist: "BetaArtist")) }
+        tally.fold(record(track: "T3", artist: "GammaArtist"))
+        tally.fold(record(track: "T4", artist: "DeltaArtist"))
 
-        // A fourth, brand-new artist arrives. Gamma (lowest) should be evicted.
-        tally.fold(record(track: "T4", artist: "DeltaArtist"), keyCap: 3)
-        #expect(tally.artistCounts.count == 3)
-        #expect(tally.artistCounts["gammaartist"] == nil)
+        #expect(tally.artistCounts.count == 4)
+        #expect(tally.artistCounts["gammaartist"]?.count == 1)
         #expect(tally.artistCounts["deltaartist"]?.count == 1)
         #expect(tally.artistCounts["alphaartist"]?.count == 3)
     }
@@ -114,10 +113,21 @@ struct LifetimeTallyTests {
         let store = LifetimeTallyStore(directory: dir)
         var tally = LifetimeTally.empty
         tally.fold(record(track: "S", artist: "Wolf", played: 99))
-        store.save(tally)
+        #expect(store.save(tally))
 
         let loaded = store.load()
         #expect(loaded == tally)
+    }
+
+    @Test("Store save reports an unwritable destination")
+    func testStoreSaveFailureResult() throws {
+        let dir = makeIsolatedTempDirectory(prefix: "wolfwave-tally")
+        defer { try? FileManager.default.removeItem(at: dir) }
+        let blocked = dir.appending(path: "not-a-directory")
+        try Data("blocked".utf8).write(to: blocked)
+        let store = LifetimeTallyStore(directory: blocked)
+
+        #expect(!store.save(.empty))
     }
 
     @Test("Store clear removes the file so the next load is empty")

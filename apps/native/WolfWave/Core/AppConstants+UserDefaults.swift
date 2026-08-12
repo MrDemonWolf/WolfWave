@@ -302,6 +302,10 @@ extension AppConstants {
         /// (String, default: "ok").
         static let songRequestPlaylistStatus = "songRequestPlaylistStatus"
 
+        /// Verified Apple Music library ID of WolfWave's owned requests playlist.
+        /// Runtime state: account-specific and revalidated before use.
+        static let songRequestPlaylistID = "songRequestPlaylistID"
+
         /// Whether `!sr` replies "Song requests are off right now." when used while
         /// the feature is disabled. Off = stay silent (Bool, default: false).
         static let songRequestDisabledReplyEnabled = "songRequestDisabledReplyEnabled"
@@ -512,6 +516,7 @@ extension AppConstants {
             songRequestRedemptionStatus,
             songRequestSetupComplete,
             songRequestPlaylistStatus,
+            songRequestPlaylistID,
             songRequestDisabledReplyEnabled,
             songRequestPolicyMode,
             songRequestLimitStackMode,
@@ -699,6 +704,7 @@ extension AppConstants {
             songRequestRedemptionStatus,
             songRequestSetupComplete,
             songRequestPlaylistStatus,
+            songRequestPlaylistID,
         ] + debugKeys
 
         /// Canonical default values for settings whose default was otherwise

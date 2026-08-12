@@ -3,9 +3,9 @@
 <plist version="1.0">
 <dict>
 	<key>NSAppleMusicUsageDescription</key>
-	<string>WolfWave reads your currently playing track from Apple Music to display Now Playing information in your menu bar and share it with your Twitch community. Your music library is never modified.</string>
+	<string>WolfWave reads your currently playing track and, when Song Requests are enabled, creates and updates a WolfWave Requests playlist in your Apple Music library so approved viewer requests can play.</string>
 	<key>NSAppleEventsUsageDescription</key>
-	<string>WolfWave uses Apple Events to communicate with Apple Music and retrieve the currently playing track information. This allows real-time Now Playing updates without modifying your music playback or library.</string>
+	<string>WolfWave uses Apple Events to read Now Playing information and, when you use Song Requests or playback controls, play approved requests, skip tracks, and control Apple Music playback.</string>
 	<key>NSLocalNetworkUsageDescription</key>
 	<string>WolfWave runs a local WebSocket and HTTP server on your Mac to stream now-playing data to OBS browser source overlays. No data is sent outside your local network.</string>
 	<key>CFBundleDisplayName</key>

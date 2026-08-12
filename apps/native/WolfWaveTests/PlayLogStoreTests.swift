@@ -22,14 +22,19 @@ struct PlayLogStoreTests {
         makeIsolatedTempDirectory(prefix: "playlog-test")
     }
 
-    private func sampleRecord(track: String, artist: String = "The Weeknd") -> PlayRecord {
+    private func sampleRecord(
+        track: String,
+        artist: String = "The Weeknd",
+        sequence: UInt64? = nil
+    ) -> PlayRecord {
         PlayRecord(
             timestamp: Date(timeIntervalSince1970: 1_716_000_000),
             track: track,
             artist: artist,
             album: "After Hours",
             duration: 200,
-            playedSeconds: 188
+            playedSeconds: 188,
+            sequence: sequence
         )
     }
 
@@ -65,7 +70,7 @@ struct PlayLogStoreTests {
         let dir = makeTempDirectory()
         let store = PlayLogStore(directory: dir)
 
-        let original = sampleRecord(track: "Out of Time")
+        let original = sampleRecord(track: "Out of Time", sequence: 42)
         store.append(original)
         store.flush()
 
@@ -75,9 +80,26 @@ struct PlayLogStoreTests {
         #expect(loaded.album == original.album)
         #expect(loaded.duration == original.duration)
         #expect(loaded.playedSeconds == original.playedSeconds)
+        #expect(loaded.sequence == 42)
         #expect(Int(loaded.timestamp.timeIntervalSince1970) == Int(original.timestamp.timeIntervalSince1970))
 
         try? FileManager.default.removeItem(at: dir)
+    }
+
+    @Test("Legacy NDJSON without a sequence remains readable")
+    func testLegacyRecordWithoutSequenceDecodes() async throws {
+        let dir = makeTempDirectory()
+        defer { try? FileManager.default.removeItem(at: dir) }
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        let store = PlayLogStore(directory: dir)
+        let legacy = """
+        {"t":1716000000,"track":"Legacy","artist":"Wolf","album":"","dur":200,"played":180}
+        """
+        try Data((legacy + "\n").utf8).write(to: store.fileURL)
+
+        let loaded = try #require(store.loadAll().first)
+        #expect(loaded.track == "Legacy")
+        #expect(loaded.sequence == nil)
     }
 
     // MARK: - Malformed Lines
@@ -113,12 +135,24 @@ struct PlayLogStoreTests {
         store.append(sampleRecord(track: "Old 2"))
         store.flush()
 
-        store.replaceAll(with: [sampleRecord(track: "Kept")])
+        #expect(store.replaceAll(with: [sampleRecord(track: "Kept")]))
         let loaded = store.loadAll()
         #expect(loaded.count == 1)
         #expect(loaded.first?.track == "Kept")
 
         try? FileManager.default.removeItem(at: dir)
+    }
+
+    @Test("replaceAll reports an unwritable destination")
+    func testReplaceAllFailureResult() async throws {
+        let dir = makeTempDirectory()
+        defer { try? FileManager.default.removeItem(at: dir) }
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        let blocked = dir.appending(path: "not-a-directory")
+        try Data("blocked".utf8).write(to: blocked)
+        let store = PlayLogStore(directory: blocked)
+
+        #expect(!store.replaceAll(with: [sampleRecord(track: "Cannot Write")]))
     }
 
     @Test("clear empties the log")
