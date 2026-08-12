@@ -58,6 +58,16 @@ final class CustomCommandStore {
         save()
     }
 
+    /// Removes every command and persists the empty live snapshot.
+    ///
+    /// Factory reset calls this before deleting the backing preference so the
+    /// shared store cannot later re-save a stale in-memory command list after a
+    /// failed relaunch.
+    func clearAll() {
+        commands.removeAll()
+        save()
+    }
+
     /// Whether `trigger` (any alias too) is already claimed by a command other
     /// than `excluding`. Used by the editor to block duplicate triggers, which
     /// the dispatcher resolves by first-match and would otherwise shadow.
@@ -72,8 +82,24 @@ final class CustomCommandStore {
     // MARK: - Persistence
 
     private func load() {
-        guard let data = defaults.data(forKey: key) else { return }
+        guard let data = defaults.data(forKey: key) else {
+            commands = []
+            return
+        }
         commands = (try? JSONCoders.default.decode([CustomCommand].self, from: data)) ?? []
+    }
+
+    /// Atomically replaces the live and persisted command snapshot during
+    /// settings import. Invalid bytes leave the current commands untouched.
+    @discardableResult
+    func replaceFromImportedData(_ data: Data) -> Bool {
+        guard let imported = try? JSONCoders.default.decode(
+            [CustomCommand].self,
+            from: data
+        ) else { return false }
+        commands = imported
+        defaults.set(data, forKey: key)
+        return true
     }
 
     private func save() {

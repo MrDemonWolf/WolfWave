@@ -23,7 +23,7 @@ export function ContactEmail() {
 }
 
 **Effective Date:** February 12, 2026
-**Last Updated:** August 10, 2026
+**Last Updated:** August 11, 2026
 
 MrDemonWolf, Inc. ("we", "us", or "our") operates the WolfWave application. This Privacy Policy explains how we handle information when you use WolfWave.
 
@@ -31,18 +31,18 @@ MrDemonWolf, Inc. ("we", "us", or "our") operates the WolfWave application. This
 
 ### Information You Provide
 
-- **Twitch Account Credentials**. When you connect your Twitch account via OAuth Device Code Flow, WolfWave receives an OAuth access token from Twitch. This token is stored locally in your macOS Keychain and is never transmitted to us.
-- **Channel Name**. The Twitch channel name you connect to is stored locally in your macOS UserDefaults so the menu bar can display it.
+- **Twitch Account Credentials**. When you connect your Twitch account via OAuth Device Code Flow, WolfWave receives OAuth access and refresh tokens from Twitch. These tokens are stored locally in your macOS Keychain and are never transmitted to us.
+- **Channel Name**. The Twitch channel you connect to is stored with your Twitch account record in the macOS Keychain. If you restore a backup while signed out, WolfWave temporarily stages that public channel name in UserDefaults only until a successful Twitch sign-in commits it with the account.
 - **Discord Application ID**. Your Discord Application ID is stored in the app's build configuration and used to connect to Discord's local IPC socket.
-- **Song Request Blocklist**. Song titles and artist names you choose to block from song requests are stored locally in your macOS UserDefaults. You can remove individual entries or clear the entire list at any time from **Settings → Song Requests → Blocklist → Clear All**.
+- **Song Request Blocklist**. Song titles and artist names you choose to block from song requests are stored locally in your macOS UserDefaults and included in a settings backup if you export one. You can remove individual entries or clear the entire list at any time from **Settings → Song Requests → Blocklist → Clear All**.
 - **Custom Bot Commands**. The triggers, replies, aliases, cooldowns, and permission levels of chat commands you author are stored locally in your macOS UserDefaults and included in a settings backup if you export one.
-- **Settings Backups**. When you export your settings, WolfWave writes a plain JSON file to the location you choose. Backups contain preferences only — they never include Twitch tokens, account identifiers, the overlay or Stream Deck control tokens, or anything else from the Keychain.
+- **Settings Backups**. When you export your settings, WolfWave writes a plain JSON file to the location you choose. Backups contain portable preferences and the public Twitch channel name used to offer reconnection. They never include OAuth tokens, resolved Twitch user IDs, overlay or Stream Deck control tokens, or other Keychain secrets.
 
 ### Information Collected Automatically
 
 - **Now Playing Data**. WolfWave reads the currently playing track, artist, and album from Apple Music on your device using ScriptingBridge. This data is only used locally and shared with the services you explicitly enable (Twitch chat, Discord Rich Presence, WebSocket).
 - **Listening History (opt-in)**. When you enable **Settings → History & Stats → Listening History**, WolfWave records each scrobbled play (track, artist, album, timestamp, duration) to a local NDJSON file under Application Support. Recording only happens while the toggle is on. You set the retention window in days (0 = keep everything) and can clear all recorded history at any time from the same pane.
-- **Twitch Viewer Activity (transient)**. When the Song Request, vote-skip, or chat-command features are enabled, WolfWave receives chat messages, channel-point redemptions, and bit cheers via the Twitch EventSub WebSocket. Viewer usernames and message bodies are held in memory for the lifetime of the queue or vote session and discarded when the queue is cleared, the session ends, or the app quits. None of this data is written to disk except for the optional blocklist entries you create yourself.
+- **Twitch Viewer Activity.** When the Song Request, vote-skip, or chat-command features are enabled, WolfWave receives chat messages, channel-point redemptions, and bit cheers via the Twitch EventSub WebSocket. Ordinary chat usernames and message bodies are held in memory for the queue or vote session and discarded when that state is cleared or the app quits. Paid song-request features also use a temporary recovery queue under Application Support. A channel-point record contains broadcaster, reward, and redemption IDs, its fulfill/refund state, and a timestamp; it does not contain the viewer name or request text. A qualifying Bits-cheer record contains the EventSub message and broadcaster IDs, viewer display name, Bits amount, the boost setting, the extracted song query, and a timestamp until the action is acknowledged. Completed paid-event identifiers remain for up to 10 minutes 30 seconds to suppress Twitch redelivery. Live records are removed after completion; a damaged queue file may be retained locally with a `.corrupt-*` suffix for recovery. Optional blocklist entries you create are also stored locally.
 
 ## How We Use Information
 
@@ -66,8 +66,9 @@ These reports are aggregated by macOS on your device and stored locally on your 
 
 ## Data Storage
 
-- **Credentials** are stored in the macOS Keychain, encrypted by the operating system.
-- **User preferences** are stored in the app's UserDefaults on your device.
+- **Credentials and the configured Twitch channel** are stored in the macOS Keychain, encrypted by the operating system.
+- **User preferences** are stored in the app's UserDefaults on your device. A channel imported from backup may be staged there temporarily, but it cannot drive a connection until Twitch sign-in commits it to Keychain.
+- **Temporary paid-event recovery records** are stored under Application Support and removed after processing and the short duplicate-delivery window described above.
 - **No data is stored on external servers** operated by MrDemonWolf, Inc.
 
 ## Third-Party Services
@@ -90,7 +91,8 @@ All data is stored locally on your device. You can clear each category at any ti
 
 | Category | Location | How to clear |
 |----------|----------|--------------|
-| Twitch / Discord tokens | macOS Keychain | **Settings → Advanced → Reset Settings** |
+| Paid-event recovery records | `~/Library/Application Support/WolfWave/State/twitch-redemption-resolution-outbox.json*` | Removed automatically after processing; **Settings → Advanced → Reset Settings** clears all live or quarantined records |
+| Twitch account record / WebSocket tokens | macOS Keychain | **Settings → Advanced → Reset Settings** |
 | App preferences | UserDefaults | **Settings → Advanced → Reset Settings** |
 | Application logs | `~/Library/Application Support/WolfWave/Logs/` | **Settings → Advanced → Clear Logs** |
 | Listening history (opt-in) | `~/Library/Application Support/WolfWave/History/plays.ndjson` | **Settings → History & Stats → Clear History** (retention window is also enforced on its own) |
@@ -100,13 +102,13 @@ All data is stored locally on your device. You can clear each category at any ti
 | Settings backups | Wherever you saved the export | Delete the JSON file yourself |
 | MetricKit diagnostics (opt-in) | `~/Library/Application Support/WolfWave/Diagnostics/` | Disable the toggle in **Settings → Advanced** and delete the directory |
 
-Uninstalling WolfWave removes UserDefaults, but Keychain items may persist on macOS. Use the in-app reset above or manually remove entries via Keychain Access.
+Deleting WolfWave may leave UserDefaults, Application Support files, and Keychain items on macOS. Use the in-app reset before uninstalling, or remove the remaining local files and Keychain entries manually.
 
 ## Security
 
 - External service traffic uses encrypted transport (HTTPS/WSS)
 - The local OBS transport uses plaintext HTTP/WS; WebSocket connections require the per-install token, so LAN access should be limited to trusted networks
-- Credentials are stored in the macOS Keychain with hardware-backed encryption
+- Credentials are encrypted and protected by the macOS Keychain
 - The app is sandboxed with minimum required entitlements
 - The app is signed with a Developer ID certificate
 

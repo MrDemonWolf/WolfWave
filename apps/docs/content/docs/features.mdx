@@ -86,6 +86,11 @@ so nothing half-configured ever goes live.
 
 - **Channel-point reward.** One toggle and WolfWave creates, reconciles, and
   fulfills a "Request a Song" reward for you. Redemptions feed the same queue.
+- **Crash-safe paid actions.** WolfWave saves a recovery record before touching
+  the queue and replays point fulfill/refund results or qualifying Bits actions
+  after a quit or outage. If storage is unavailable, it pauses the managed
+  reward and shows a fix-it banner; an already-paid Bits cheer still gets one
+  process-owned attempt.
 - **Bit boost.** When a viewer cheers past your minimum, their most-recent
   queued request jumps to the front. Same queue, same blocklist, same rules.
 - **Same controls as `!sr`.** Points and bits respect the request audience,

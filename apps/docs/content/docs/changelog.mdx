@@ -42,6 +42,16 @@ The next release. These ship on the [Nightly channel](/docs/nightly) off `main` 
 
 ### Fixed
 
+- **Twitch sign-in survives service hiccups.** Device-code login now uses the original expiry deadline, follows the required polling slowdown and timeout backoff, and keeps trying through rate limits plus temporary network or server failures instead of failing early.
+- **Twitch no longer mistakes an outage for an expired sign-in.** Only Twitch's explicit token rejection or confirmed missing permissions prompts a reconnect. Network errors, rate limits, and malformed refresh responses retry within a bounded window and leave saved credentials intact when Twitch remains unavailable.
+- **Twitch account changes stay internally consistent.** Access tokens, refresh tokens, account identity, and the configured channel now change together in one Keychain write. Existing saved fields migrate without deleting the originals until the new record is safe. Imported and edited channel names are checked with Twitch before becoming canonical; invalid, missing, stale, or temporarily unverifiable names stay pending.
+- **Settings backups preserve authored rules.** Custom bot commands and the Song Request blocklist now round-trip with other portable preferences, and Reset Settings clears the centralized blocklist data.
+- **Slow Twitch commands no longer hold up chat.** Song requests and custom commands run as tracked connection work, so keepalives and later messages continue; disconnecting or switching channels cancels old replies before they can land in the wrong chat.
+- **Paid Twitch actions recover after quits and outages.** Channel-point intake and fulfill/refund outcomes are durable until Twitch acknowledges them. Qualifying Bits cheers persist the complete boost/request action before queue work and replay after relaunch. If local recovery storage fails, WolfWave pauses the managed reward, shows a warning, and still gives an already-paid Bits cheer one process-owned attempt.
+- **Discord presence replies no longer cross wires or hang indefinitely.** Each local IPC command consumes the response with its own nonce, the handshake accepts only Discord's READY dispatch, and stalled local connects or replies now stop at one bounded deadline.
+- **Duplicate Twitch commands stay single-shot.** Command message IDs keep their complete replay window even in busy chat, including while commands are disabled, so delayed EventSub redelivery cannot rerun queue or playback actions.
+- **Local WebSocket peers can no longer hold unlimited resources.** WolfWave caps pre-handshake peers, expires stalled handshakes, limits inbound messages to 16 KiB, and cleans every old listener generation before retrying.
+- **Stream Deck reconnects no longer crash while a socket is still opening.** Retiring a connecting socket now keeps the required error sink until close.
 - **Stream Deck control is local-only and no longer shares your overlay secret.** WolfWave now keeps separate read-only overlay and control tokens. Stream Deck protocol v2 always connects to this Mac, so LAN widgets can still receive track data but can never run playback or queue commands. After updating, copy the new **Stream Deck Control Token** into the plugin once.
 - **Twitch custom commands stay locked while disconnected.** The settings card now explains that Twitch must be connected and closes an open editor if the connection becomes unavailable.
 - **Twitch stays connected when its server moves you.** Twitch periodically hands your connection to a different server. WolfWave could flash "disconnected" and tear down the new, healthy connection while doing that. It rides through cleanly now.
@@ -141,7 +151,7 @@ The next release. These ship on the [Nightly channel](/docs/nightly) off `main` 
 
 **The app**
 - **Light, Dark, or System appearance.** Pick one in Settings → General. The menu bar follows too. See [Appearance](/docs/settings#general).
-- **Back up and restore your settings.** Export to a JSON file, restore on another Mac. Accounts and secrets stay in the Keychain. On import, you choose whether to reconnect Twitch. See [Back Up & Restore](/docs/backup).
+- **Back up and restore your settings.** Export to a JSON file, restore on another Mac. Credentials and private account IDs stay in the Keychain; the public Twitch channel name travels with your preferences. On import, you choose whether to reconnect Twitch. See [Back Up & Restore](/docs/backup).
 - **macOS 26 Liquid Glass redesign.** Settings, menu bar, and a rebuilt onboarding wizard for Tahoe.
 - **Nightly update channel.** Opt into dev builds off main from Settings → Software Update. Clearly warned, easy to leave, and Stable stays the default. See [Nightly Builds](/docs/nightly).
 - **Diagnostics and bug reporting.** Export/Clear Logs and a one-click Report a Bug, with sensitive details redacted.

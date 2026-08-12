@@ -79,7 +79,8 @@ nonisolated struct SettingsBackupCoder {
     ///   - exportedAt: Creation timestamp.
     ///
     /// Keys outside `exportableKeys`, and values of unsupported types, are
-    /// silently skipped. A backup can only ever contain portable scalars.
+    /// silently skipped. A backup can only ever contain portable scalar or
+    /// explicitly allow-listed data values.
     func makeBackup(
         snapshot: [String: Any],
         exportableKeys: [String],
@@ -91,7 +92,8 @@ nonisolated struct SettingsBackupCoder {
         let allow = Set(exportableKeys)
         var settings: [String: BackupValue] = [:]
         for (key, raw) in snapshot where allow.contains(key) {
-            if let value = BackupValue.make(from: raw) {
+            if let value = BackupValue.make(from: raw),
+               isValueAllowed(value, forKey: key) {
                 settings[key] = value
             }
         }
@@ -154,9 +156,33 @@ nonisolated struct SettingsBackupCoder {
         AppConstants.UserDefaults.widgetPort,
     ]
 
+    /// Exportable preferences that intentionally persist encoded `Data`.
+    private static let dataKeys: Set<String> = [
+        AppConstants.UserDefaults.customCommands,
+        AppConstants.UserDefaults.songRequestBlocklist,
+    ]
+
     /// Whether a backup value is safe to write for the given key.
-    /// Port keys must be integers in `0...65535`; everything else passes.
+    /// Data is accepted only for explicitly allow-listed keys; port keys must be
+    /// integers in `0...65535`; every other scalar passes.
     private func isValueAllowed(_ value: BackupValue, forKey key: String) -> Bool {
+        if Self.dataKeys.contains(key) {
+            guard case .data(let data) = value else { return false }
+            if key == AppConstants.UserDefaults.customCommands {
+                return (try? JSONCoders.default.decode(
+                    [CustomCommand].self,
+                    from: data
+                )) != nil
+            }
+            if key == AppConstants.UserDefaults.songRequestBlocklist {
+                return (try? JSONCoders.camelCase.decode(
+                    [BlocklistItem].self,
+                    from: data
+                )) != nil
+            }
+            return false
+        }
+        if case .data = value { return false }
         guard Self.portKeys.contains(key) else { return true }
         guard case .int(let port) = value else { return false }
         return (0...Int(UInt16.max)).contains(port)
@@ -205,8 +231,10 @@ nonisolated struct SettingsBackupCoder {
     /// review summary). Counts only keys that are still exportable.
     func restorableCount(backup: SettingsBackup, exportableKeys: [String]) -> Int {
         let allow = Set(exportableKeys)
-        return backup.settings.keys.reduce(into: 0) { count, key in
-            if allow.contains(key) { count += 1 }
+        return backup.settings.reduce(into: 0) { count, entry in
+            if allow.contains(entry.key), isValueAllowed(entry.value, forKey: entry.key) {
+                count += 1
+            }
         }
     }
 }
