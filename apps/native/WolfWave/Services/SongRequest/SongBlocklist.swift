@@ -105,12 +105,15 @@ actor SongBlocklist {
     @discardableResult
     func replaceFromImportedData(_ data: Data) -> Bool {
         guard acceptsMutations else { return false }
-        guard let imported = try? JSONCoders.camelCase.decode(
+        guard let decoded = try? JSONCoders.camelCase.decode(
             [BlocklistItem].self,
             from: data
-        ) else { return false }
+        ),
+        let imported = BlocklistItem.normalizedForImport(decoded),
+        let normalizedData = try? JSONCoders.camelCaseEncoder.encode(imported)
+        else { return false }
         entries = imported
-        storage.write(data)
+        storage.write(normalizedData)
         return true
     }
 

@@ -640,6 +640,8 @@ struct AdvancedSettingsView: View {
             return "That file couldn't be read. It may be damaged or not a WolfWave backup."
         case .notWolfWaveFile:
             return "That's not a WolfWave settings file."
+        case .unsupportedOlderSchema:
+            return "This backup uses an unsupported settings format."
         case .unsupportedNewerSchema:
             return "This backup was made by a newer version of WolfWave. Update WolfWave, then try again."
         }
