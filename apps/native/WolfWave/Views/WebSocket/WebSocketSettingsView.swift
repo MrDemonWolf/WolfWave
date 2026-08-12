@@ -340,7 +340,7 @@ fileprivate struct WebSocketServerCard: View {
 /// Shared editor for the two role-specific credentials. Keeping one row
 /// implementation prevents overlay and Stream Deck validation or masking
 /// behavior from drifting while preserving the existing settings-card design.
-fileprivate struct WebSocketTokenEditorRow: View {
+private struct WebSocketTokenEditorRow: View {
     let role: WebSocketAuthToken.Role
     let title: String
     let subtitle: String

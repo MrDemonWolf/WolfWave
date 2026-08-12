@@ -143,7 +143,7 @@ Local WebSocket server for OBS stream overlays using:
 - **Loopback-only control channel**: Parses inbound `command` frames only from a `wolfwave.control.<hex>` client on a literal loopback IP, via an injected `onCommand` handler, and replies with an `ack`. Envelope decode is pure (`StreamDeckControl.parse` in `Services/WebSocket/StreamDeckCommand.swift`); the command router lives in `AppDelegate+StreamDeck`. Full protocol on the [Stream Deck](/docs/stream-deck) page.
 - **Progress Timer**: 1-second interval broadcasts elapsed-time estimation to avoid polling ScriptingBridge.
 - **Auto-retry**: Reconnects the listener after failures with configurable delay.
-- **Role-authenticated**: Binds to all interfaces on `:8765`; `wolfwave.overlay.<hex>` clients may receive state from LAN or loopback, while the separate `wolfwave.control.<hex>` role is accepted only from loopback and alone authorizes commands — see [Security](/docs/security#websocket-server-security).
+- **Role-authenticated**: Binds to all interfaces on the configured WebSocket port (`:8765` by default); `wolfwave.overlay.<hex>` clients may receive state from LAN or loopback, while the separate `wolfwave.control.<hex>` role is accepted only from loopback and alone authorizes commands — see [Security](/docs/security#websocket-server-security).
 
 Owns a `WidgetHTTPService` instance that starts and stops alongside it.
 
