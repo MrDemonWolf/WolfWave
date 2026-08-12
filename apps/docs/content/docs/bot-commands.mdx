@@ -155,7 +155,9 @@ Build your own chat commands in **Settings → Twitch → Custom Commands**. Giv
 
 **Who can use it.** Set each command to Everyone, Subscribers, VIPs, Moderators, or Broadcaster only. More privileged viewers always clear a lower bar (a mod passes a Subscribers-only command).
 
-Custom commands travel with your [settings backup](/docs/backup).
+**No two commands can answer the same word.** The editor rejects a trigger or alias another custom command already uses, so one of the pair can never be left dead. Cooldowns are limited to what the sliders set: up to 30s for Everyone and 60s per person, in 5s steps.
+
+Custom commands travel with your [settings backup](/docs/backup). A backup holding a command that breaks either rule is refused rather than partly imported.
 
 ---
 
@@ -172,6 +174,8 @@ Supported commands take comma-separated aliases. Add `np, track` to `!song` and 
 | `!sr`, `!queue`, `!myqueue`, `!skip`, `!clearqueue`, `!voteskip`, `!playlist` | Settings → Song Requests |
 
 Aliases honor the same enable, cooldown, audience, and live-gate rules as the canonical command. The `!` prefix is added for you. `!hold` and `!resume` are fixed — no custom aliases.
+
+An alias that shadows another custom command's trigger or alias is refused. If you saved one before WolfWave checked for this, it gets dropped the next time your commands load, and the command it was shadowing keeps working.
 
 ---
 

@@ -59,6 +59,8 @@ These secrets live in the macOS Keychain, or macOS grants them per Mac, so they 
 
 System-backed preferences take effect during import too. WolfWave updates its appearance and update settings immediately and asks macOS to apply Launch at Login. If macOS rejects that login-item change, WolfWave keeps the real system setting and tells you instead of showing a switch that did not take effect.
 
+**A file it can't apply safely is refused whole, not partly restored.** That covers a backup saved in an older, unsupported format, and one holding custom commands with a blank, duplicated, or clashing trigger, or with cooldowns outside what the sliders can set. You get a message saying so, and nothing changes. Individual values that are merely out of range are skipped instead, and the review count tells you what will actually restore.
+
 ## Move to a new Mac
 
 1. **Old Mac:** **Export Settings**.
@@ -73,3 +75,5 @@ System-backed preferences take effect during import too. WolfWave updates its ap
 - **Newer-version backups** ask you to update WolfWave before they'll import.
 - **Listening History stays put.** Your play log and stats are personal data, not settings, so they're not in a settings backup.
 - **Hand-edited values are checked before import.** Unsafe ports and queue limits are skipped, and the review count includes only preferences WolfWave can restore.
+- **Blocked titles and artists are cleaned on the way in.** Blank and duplicate entries are dropped and spacing is trimmed, but the date you added each one is kept.
+- **Your channel name is tidied on both ends.** Export and import normalize it the same way the connect screen does, so a stray space or a pasted URL fragment doesn't become a channel that never connects.
