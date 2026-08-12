@@ -569,7 +569,7 @@ private final class TestUserNotificationCenter: UserNotificationCenterProviding 
             authorizationCheckWaiter?.resume()
             authorizationCheckWaiter = nil
         }
-        status
+        return status
     }
 
     func requestAuthorization(options: UNAuthorizationOptions) async throws -> Bool {
