@@ -8,6 +8,9 @@ PROD_ARCHS = arm64
 BUILD_DIR   = build
 BUILDS_DIR  = builds
 TEST_DERIVED_DATA = $(CURDIR)/DerivedData/Tests
+# SwiftLint 0.65.0, pinned by immutable official-image digest.
+SWIFTLINT_IMAGE = ghcr.io/realm/swiftlint:0.65.0@sha256:a482729f4b58741875af1566f23397f3f6db300372756fc31606d0a4527fab9e
+SWIFTLINT_DOCKER = docker run --rm -v "$(CURDIR):/work" -w /work $(SWIFTLINT_IMAGE)
 
 # Resolve version from Xcode project (Release config)
 VERSION = $(shell xcodebuild -project $(PROJECT) -scheme $(SCHEME) -configuration Release -showBuildSettings 2>/dev/null | awk -F'= ' '/MARKETING_VERSION/ {gsub(/^[ \t]+/,"",$$2); print $$2; exit}')
@@ -35,7 +38,7 @@ else
 LOCAL_SIGN = CODE_SIGN_IDENTITY="$(LOCAL_SIGN_ID)" CODE_SIGN_STYLE=Manual
 endif
 
-.PHONY: help build clean test test-verbose test-ci lint lint-crash-safety lint-headers update-deps open-xcode ci prod-build prod-install notarize verify-notarize sponsor-config widget
+.PHONY: help build clean test test-verbose test-ci lint lint-baseline lint-crash-safety lint-headers update-deps open-xcode ci prod-build prod-install notarize verify-notarize sponsor-config widget
 
 help:
 	@echo "Available targets:"
@@ -43,7 +46,8 @@ help:
 	@echo "  widget         Rebuild the OBS overlay widget (apps/widget -> Resources/widget.html)"
 	@echo "  clean          Clean build artifacts"
 	@echo "  test           Run tests"
-	@echo "  lint           Run SwiftLint (requires: brew install swiftlint)"
+	@echo "  lint           Run pinned SwiftLint in Docker"
+	@echo "  lint-baseline  Regenerate the pinned SwiftLint baseline"
 	@echo "  lint-crash-safety  Run crash-safety SwiftLint (blocking CI gate)"
 	@echo "  lint-headers   Verify Swift file headers match the Xcode template"
 	@echo "  prod-build     Release build + DMG  (-> builds/$(DMG_NAME))"
@@ -107,28 +111,28 @@ test-ci: sponsor-config
 		-resultBundlePath TestResults.xcresult \
 		test
 
-# Full SwiftLint pass, filtered through the committed baseline so only NEW
-# violations show. Mirrors the CI `lint` job (now blocking).
+# Full SwiftLint pass against the committed baseline. Hard errors block while
+# advisory warning debt stays visible. Mirrors the CI `lint` job.
 lint:
-	@if ! command -v swiftlint >/dev/null 2>&1; then \
-		echo "❌ SwiftLint not found. Install with: brew install swiftlint"; exit 1; fi
-	swiftlint lint --config .swiftlint.yml --baseline swiftlint-baseline.json
+	@if ! command -v docker >/dev/null 2>&1; then \
+		echo "❌ Docker not found. Install Docker Desktop."; exit 1; fi
+	$(SWIFTLINT_DOCKER) lint --config .swiftlint.yml --baseline swiftlint-baseline.json
 
 # Regenerate the SwiftLint baseline of grandfathered legacy violations.
 # The baseline is a ratchet: it should only ever SHRINK as legacy violations
 # get fixed. Regenerate and commit after any change that moves code between
 # files or shifts line numbers (the baseline is keyed by file + line).
 lint-baseline:
-	@if ! command -v swiftlint >/dev/null 2>&1; then \
-		echo "❌ SwiftLint not found. Install with: brew install swiftlint"; exit 1; fi
-	swiftlint lint --config .swiftlint.yml --write-baseline swiftlint-baseline.json
+	@if ! command -v docker >/dev/null 2>&1; then \
+		echo "❌ Docker not found. Install Docker Desktop."; exit 1; fi
+	$(SWIFTLINT_DOCKER) lint --config .swiftlint.yml --write-baseline swiftlint-baseline.json
 
 # Blocking crash-class gate: force-unwrap / try! / as! on production source.
 # Mirrors the CI `lint-crash-safety` job. Must stay clean.
 lint-crash-safety:
-	@if ! command -v swiftlint >/dev/null 2>&1; then \
-		echo "❌ SwiftLint not found. Install with: brew install swiftlint"; exit 1; fi
-	swiftlint lint --strict --config .swiftlint-crash-safety.yml
+	@if ! command -v docker >/dev/null 2>&1; then \
+		echo "❌ Docker not found. Install Docker Desktop."; exit 1; fi
+	$(SWIFTLINT_DOCKER) lint --strict --config .swiftlint-crash-safety.yml
 
 # Blocking header gate: every Swift file must carry the canonical Xcode header
 # that IDETemplateMacros.plist generates, with a Created-by date matching the
