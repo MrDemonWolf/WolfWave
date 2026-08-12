@@ -41,14 +41,20 @@ final class CustomCommandStore {
 
     /// Appends a new command and persists.
     func add(_ command: CustomCommand) {
-        commands.append(command)
+        guard let normalized = CustomCommand.normalizedForImport(commands + [command]) else {
+            return
+        }
+        commands = normalized
         save()
     }
 
     /// Replaces the command with the same `id` (no-op if absent) and persists.
     func update(_ command: CustomCommand) {
         guard let index = commands.firstIndex(where: { $0.id == command.id }) else { return }
-        commands[index] = command
+        var updated = commands
+        updated[index] = command
+        guard let normalized = CustomCommand.normalizedForImport(updated) else { return }
+        commands = normalized
         save()
     }
 
@@ -71,12 +77,14 @@ final class CustomCommandStore {
     /// Whether `trigger` (any alias too) is already claimed by a command other
     /// than `excluding`. Used by the editor to block duplicate triggers, which
     /// the dispatcher resolves by first-match and would otherwise shadow.
-    func triggerConflicts(_ trigger: String, excluding id: UUID?) -> Bool {
-        let candidate = CustomCommand.normalizeTrigger(trigger)
-        guard !candidate.isEmpty else { return false }
-        return commands.contains { command in
-            command.id != id && command.allTriggerTokens.contains(candidate)
-        }
+    func commandConflicts(_ candidate: CustomCommand) -> Bool {
+        guard CustomCommand.normalizedForImport([candidate]) != nil else { return true }
+        let claimed = Set(
+            commands
+                .filter { $0.id != candidate.id }
+                .flatMap(\.allTriggerTokens)
+        )
+        return candidate.allTriggerTokens.contains { claimed.contains($0) }
     }
 
     // MARK: - Persistence
@@ -86,19 +94,28 @@ final class CustomCommandStore {
             commands = []
             return
         }
-        commands = (try? JSONCoders.default.decode([CustomCommand].self, from: data)) ?? []
+        guard let decoded = try? JSONCoders.default.decode([CustomCommand].self, from: data),
+              let normalized = CustomCommand.normalizedForExistingStorage(decoded) else {
+            commands = []
+            return
+        }
+        commands = normalized
+        if normalized != decoded { save() }
     }
 
     /// Atomically replaces the live and persisted command snapshot during
     /// settings import. Invalid bytes leave the current commands untouched.
     @discardableResult
     func replaceFromImportedData(_ data: Data) -> Bool {
-        guard let imported = try? JSONCoders.default.decode(
+        guard let decoded = try? JSONCoders.default.decode(
             [CustomCommand].self,
             from: data
-        ) else { return false }
+        ),
+        let imported = CustomCommand.normalizedForImport(decoded),
+        let normalizedData = try? JSONCoders.defaultEncoder.encode(imported)
+        else { return false }
         commands = imported
-        defaults.set(data, forKey: key)
+        defaults.set(normalizedData, forKey: key)
         return true
     }
 

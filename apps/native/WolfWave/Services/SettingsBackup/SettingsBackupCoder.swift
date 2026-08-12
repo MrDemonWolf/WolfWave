@@ -25,6 +25,8 @@ nonisolated struct SettingsBackupCoder {
         case notReadable
         /// Valid JSON, but not a WolfWave settings backup (wrong `format`).
         case notWolfWaveFile
+        /// A schema value below the first supported on-disk format.
+        case unsupportedOlderSchema(Int)
         /// A backup written by a newer WolfWave with an unsupported schema.
         case unsupportedNewerSchema(Int)
     }
@@ -50,8 +52,8 @@ nonisolated struct SettingsBackupCoder {
         var reconnectTwitch: Bool
         /// Twitch channel name to restore, when reconnecting.
         var twitchChannelName: String?
-        /// Count of backup keys ignored because they are not exportable
-        /// (account/runtime/unknown). Surfaced for transparency, never applied.
+        /// Count of backup keys ignored because they are non-exportable, unknown,
+        /// or fail validation. Surfaced for transparency, never applied.
         var ignoredKeyCount: Int
     }
 
@@ -72,35 +74,42 @@ nonisolated struct SettingsBackupCoder {
     ///
     /// - Parameters:
     ///   - snapshot: Raw `key -> value` pairs (typically from UserDefaults).
-    ///   - exportableKeys: The allow-list of keys permitted in a backup.
+    ///   - exportablePreferences: Portable keys and their value validation rules.
     ///   - twitchChannelName: Connected channel name, if any (non-secret).
     ///   - appVersion: Marketing version stamped into the file.
     ///   - appBuild: Build number stamped into the file.
     ///   - exportedAt: Creation timestamp.
     ///
-    /// Keys outside `exportableKeys`, and values of unsupported types, are
-    /// silently skipped. A backup can only ever contain portable scalar or
-    /// explicitly allow-listed data values.
+    /// Keys outside `exportablePreferences`, unsupported value shapes, and
+    /// values that fail their preference rule are silently skipped.
     func makeBackup(
         snapshot: [String: Any],
-        exportableKeys: [String],
+        exportablePreferences: [AppConstants.UserDefaults.ExportablePreference],
         twitchChannelName: String?,
         appVersion: String,
         appBuild: String,
         exportedAt: Date
     ) -> SettingsBackup {
-        let allow = Set(exportableKeys)
+        let schema = Dictionary(
+            uniqueKeysWithValues: exportablePreferences.map { ($0.key, $0.rule) }
+        )
         var settings: [String: BackupValue] = [:]
-        for (key, raw) in snapshot where allow.contains(key) {
-            if let value = BackupValue.make(from: raw),
-               isValueAllowed(value, forKey: key) {
-                settings[key] = value
-            }
+        for (key, raw) in snapshot {
+            guard
+                let rule = schema[key],
+                let value = BackupValue.make(from: raw),
+                let normalizedValue = normalizedValue(
+                    value,
+                    by: rule,
+                    normalizingLegacyStorage: true
+                )
+            else { continue }
+            settings[key] = normalizedValue
         }
 
         let twitch = twitchChannelName
-            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
-            .flatMap { $0.isEmpty ? nil : SettingsBackup.Integrations.Twitch(channelName: $0) }
+            .flatMap(TwitchChatService.normalizedChannelName)
+            .map { SettingsBackup.Integrations.Twitch(channelName: $0) }
 
         return SettingsBackup(
             format: SettingsBackup.currentFormat,
@@ -136,11 +145,19 @@ nonisolated struct SettingsBackupCoder {
         guard header.format == SettingsBackup.currentFormat else {
             throw BackupError.notWolfWaveFile
         }
+        guard header.schemaVersion >= 1 else {
+            throw BackupError.unsupportedOlderSchema(header.schemaVersion)
+        }
         guard header.schemaVersion <= SettingsBackup.currentSchemaVersion else {
             throw BackupError.unsupportedNewerSchema(header.schemaVersion)
         }
         do {
-            return try decoder.decode(SettingsBackup.self, from: data)
+            var backup = try decoder.decode(SettingsBackup.self, from: data)
+            if let rawChannel = backup.integrations.twitch?.channelName {
+                backup.integrations.twitch = TwitchChatService.normalizedChannelName(rawChannel)
+                    .map { SettingsBackup.Integrations.Twitch(channelName: $0) }
+            }
+            return backup
         } catch {
             throw BackupError.notReadable
         }
@@ -148,65 +165,88 @@ nonisolated struct SettingsBackupCoder {
 
     // MARK: - Apply Planning
 
-    /// UserDefaults keys holding network ports. Their integer values must fit
-    /// `UInt16` (`0` means "use the default"), so an out-of-range value from a
-    /// hand-edited backup is ignored rather than persisted.
-    private static let portKeys: Set<String> = [
-        AppConstants.UserDefaults.websocketServerPort,
-        AppConstants.UserDefaults.widgetPort,
-    ]
-
-    /// Exportable preferences that intentionally persist encoded `Data`.
-    private static let dataKeys: Set<String> = [
-        AppConstants.UserDefaults.customCommands,
-        AppConstants.UserDefaults.songRequestBlocklist,
-    ]
-
-    /// Whether a backup value is safe to write for the given key.
-    /// Data is accepted only for explicitly allow-listed keys; port keys must be
-    /// integers in `0...65535`; every other scalar passes.
-    private func isValueAllowed(_ value: BackupValue, forKey key: String) -> Bool {
-        if Self.dataKeys.contains(key) {
-            guard case .data(let data) = value else { return false }
-            if key == AppConstants.UserDefaults.customCommands {
-                return (try? JSONCoders.default.decode(
-                    [CustomCommand].self,
-                    from: data
-                )) != nil
+    /// Returns a validated and canonicalized backup value for a schema rule.
+    ///
+    /// This is the sole validator used for export, import preview, and apply.
+    /// Hand-edited backups therefore cannot exploit type bridging in
+    /// `UserDefaults` or install unknown raw values for a picker-backed enum.
+    private func normalizedValue(
+        _ value: BackupValue,
+        by rule: AppConstants.UserDefaults.ExportedValueRule,
+        normalizingLegacyStorage: Bool = false
+    ) -> BackupValue? {
+        switch (rule, value) {
+        case (.bool, .bool):
+            return value
+        case (.int(let domain), .int(let integer)):
+            switch domain {
+            case .values(let values):
+                return values.contains(integer) ? value : nil
+            case .zeroOrRange(let range):
+                return integer == 0 || range.contains(integer) ? value : nil
             }
-            if key == AppConstants.UserDefaults.songRequestBlocklist {
-                return (try? JSONCoders.camelCase.decode(
-                    [BlocklistItem].self,
-                    from: data
-                )) != nil
+        case (.double(let domain), .double(let number)):
+            guard number.isFinite, domain.range.contains(number), domain.step > 0 else {
+                return nil
             }
-            return false
+            let stepCount = (number - domain.range.lowerBound) / domain.step
+            return abs(stepCount - stepCount.rounded()) < 1e-9 ? value : nil
+        case (.string(let allowedValues), .string(let string)):
+            return (allowedValues?.contains(string) ?? true) ? value : nil
+        case (.stringList(let allowedValues), .string(let string)):
+            let values = string
+                .split(separator: ",", omittingEmptySubsequences: false)
+                .map { $0.trimmingCharacters(in: .whitespaces) }
+            guard !values.isEmpty,
+                  values.allSatisfy({ !$0.isEmpty && allowedValues.contains($0) }) else {
+                return nil
+            }
+            return value
+        case (.data(let format), .data(let data)):
+            switch format {
+            case .customCommands:
+                guard let decoded = try? JSONCoders.default.decode([CustomCommand].self, from: data),
+                      let normalized = normalizingLegacyStorage
+                        ? CustomCommand.normalizedForExistingStorage(decoded)
+                        : CustomCommand.normalizedForImport(decoded),
+                      let encoded = try? JSONCoders.defaultEncoder.encode(normalized) else {
+                    return nil
+                }
+                return .data(encoded)
+            case .songRequestBlocklist:
+                guard let decoded = try? JSONCoders.camelCase.decode([BlocklistItem].self, from: data),
+                      let normalized = BlocklistItem.normalizedForImport(decoded),
+                      let encoded = try? JSONCoders.camelCaseEncoder.encode(normalized) else {
+                    return nil
+                }
+                return .data(encoded)
+            }
+        default:
+            return nil
         }
-        if case .data = value { return false }
-        guard Self.portKeys.contains(key) else { return true }
-        guard case .int(let port) = value else { return false }
-        return (0...Int(UInt16.max)).contains(port)
     }
 
     /// Resolves a backup plus the user's choices into an `ApplyPlan`.
     ///
     /// Merge semantics: only keys in `backup.settings` that are also in
-    /// `exportableKeys` are written. Account-linked and unknown keys are ignored,
-    /// as are out-of-range port values (see `isValueAllowed(_:forKey:)`).
+    /// `exportablePreferences` are written. Account-linked and unknown keys are
+    /// ignored, as are values rejected by the centralized validation schema.
     /// No key is ever removed, so an import never wipes unrelated settings.
     /// Twitch is restored only when `choices.reconnectTwitch` is set and the
     /// backup actually had a Twitch channel.
     func makeApplyPlan(
         backup: SettingsBackup,
         choices: ImportChoices,
-        exportableKeys: [String]
+        exportablePreferences: [AppConstants.UserDefaults.ExportablePreference]
     ) -> ApplyPlan {
-        let allow = Set(exportableKeys)
+        let schema = Dictionary(
+            uniqueKeysWithValues: exportablePreferences.map { ($0.key, $0.rule) }
+        )
         var set: [String: BackupValue] = [:]
         var ignored = 0
         for (key, value) in backup.settings {
-            if allow.contains(key), isValueAllowed(value, forKey: key) {
-                set[key] = value
+            if let rule = schema[key], let normalizedValue = normalizedValue(value, by: rule) {
+                set[key] = normalizedValue
             } else {
                 ignored += 1
             }
@@ -214,9 +254,11 @@ nonisolated struct SettingsBackupCoder {
 
         var reconnectTwitch = false
         var twitchChannelName: String?
-        if choices.reconnectTwitch, let twitch = backup.integrations.twitch {
+        if choices.reconnectTwitch,
+           let twitch = backup.integrations.twitch,
+           let channelName = TwitchChatService.normalizedChannelName(twitch.channelName) {
             reconnectTwitch = true
-            twitchChannelName = twitch.channelName
+            twitchChannelName = channelName
         }
 
         return ApplyPlan(
@@ -228,13 +270,16 @@ nonisolated struct SettingsBackupCoder {
     }
 
     /// How many portable preferences a backup would restore (for the import
-    /// review summary). Counts only keys that are still exportable.
-    func restorableCount(backup: SettingsBackup, exportableKeys: [String]) -> Int {
-        let allow = Set(exportableKeys)
-        return backup.settings.reduce(into: 0) { count, entry in
-            if allow.contains(entry.key), isValueAllowed(entry.value, forKey: entry.key) {
-                count += 1
-            }
-        }
+    /// review summary). Uses the same validation as apply so the preview can
+    /// never promise a preference that import will reject.
+    func restorableCount(
+        backup: SettingsBackup,
+        exportablePreferences: [AppConstants.UserDefaults.ExportablePreference]
+    ) -> Int {
+        makeApplyPlan(
+            backup: backup,
+            choices: ImportChoices(),
+            exportablePreferences: exportablePreferences
+        ).set.count
     }
 }

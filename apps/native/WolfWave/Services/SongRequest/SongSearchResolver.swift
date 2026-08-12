@@ -51,8 +51,8 @@ final class SongSearchResolver {
             return .error("No search query provided")
         }
 
-        if LinkResolverService.isMusicLink(trimmed) {
-            return await resolveLink(trimmed)
+        if let musicURL = LinkResolverService.extractURL(from: trimmed) {
+            return await resolveLink(musicURL)
         }
 
         return await resolveText(trimmed)
@@ -60,16 +60,12 @@ final class SongSearchResolver {
 
     // MARK: - Private Helpers
 
-    /// Resolves a chat message that contains a URL (Apple Music, Spotify, or
-    /// YouTube) into a catalog track via `LinkResolverService` + MusicKit.
+    /// Resolves a validated Apple Music, Spotify, or YouTube URL into a catalog
+    /// track via `LinkResolverService` + MusicKit.
     ///
-    /// - Parameter text: Raw chat text. The first URL-shaped substring is used.
+    /// - Parameter urlString: The validated music URL extracted from chat text.
     /// - Returns: `.found`, `.linkNotFound`, or `.error`.
-    private func resolveLink(_ text: String) async -> Result {
-        guard let urlString = LinkResolverService.extractURL(from: text) else {
-            return await resolveText(text)
-        }
-
+    private func resolveLink(_ urlString: String) async -> Result {
         Log.debug("SongSearchResolver: Resolving link: \(urlString)", category: "SongRequest")
 
         let result = await linkResolver.resolve(url: urlString)

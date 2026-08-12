@@ -246,7 +246,7 @@ struct CustomCommandStoreTests {
         )
         #expect(try JSONCoders.default.decode([CustomCommand].self, from: data).isEmpty)
 
-        let later = CustomCommand(trigger: "wave", response: "hello")
+        let later = CustomCommand(trigger: "!wave", response: "hello")
         store.add(later)
         let reloaded = CustomCommandStore(defaults: defaults)
         #expect(reloaded.commands == [later])
@@ -261,16 +261,49 @@ struct CustomCommandStoreTests {
         #expect(store.enabledCommands.map(\.normalizedTrigger) == ["!on"])
     }
 
-    @Test("triggerConflicts detects duplicate triggers and aliases")
+    @Test("commandConflicts detects primary and alias overlap")
     func conflicts() {
         let (store, _) = makeStore()
         let existing = CustomCommand(trigger: "hug", aliases: "embrace")
         store.add(existing)
 
-        #expect(store.triggerConflicts("hug", excluding: nil))
-        #expect(store.triggerConflicts("!embrace", excluding: nil))
-        #expect(!store.triggerConflicts("wave", excluding: nil))
-        // Editing the same command must not conflict with itself.
-        #expect(!store.triggerConflicts("hug", excluding: existing.id))
+        #expect(store.commandConflicts(CustomCommand(trigger: "hug")))
+        #expect(store.commandConflicts(CustomCommand(trigger: "wave", aliases: "embrace")))
+        #expect(store.commandConflicts(CustomCommand(trigger: "wave", aliases: "cheer, cheer")))
+        #expect(!store.commandConflicts(CustomCommand(trigger: "wave")))
+        #expect(!store.commandConflicts(existing))
+    }
+
+    @Test("direct mutations reject invalid or overlapping command definitions")
+    func rejectsInvalidMutations() {
+        let (store, _) = makeStore()
+        let existing = CustomCommand(trigger: "!hug", aliases: "embrace")
+        store.add(existing)
+        store.add(CustomCommand(trigger: "wave", aliases: "embrace"))
+        #expect(store.commands == [existing])
+
+        var invalidUpdate = existing
+        invalidUpdate.aliases = "wave, wave"
+        store.update(invalidUpdate)
+        #expect(store.commands == [existing])
+    }
+
+    @Test("load migrates shadowed legacy aliases without dropping commands")
+    func migratesLegacyAliases() throws {
+        let (_, defaults) = makeStore()
+        let first = CustomCommand(trigger: "hug", aliases: "wave, hug, , cheer")
+        let second = CustomCommand(trigger: "wave", aliases: "cheer, salute")
+        let raw = try JSONCoders.defaultEncoder.encode([first, second])
+        defaults.set(raw, forKey: AppConstants.UserDefaults.customCommands)
+
+        let migrated = CustomCommandStore(defaults: defaults)
+        #expect(migrated.commands.count == 2)
+        #expect(migrated.commands[0].aliases == "cheer")
+        #expect(migrated.commands[1].aliases == "salute")
+
+        let persisted = try #require(
+            defaults.data(forKey: AppConstants.UserDefaults.customCommands)
+        )
+        #expect(try JSONCoders.default.decode([CustomCommand].self, from: persisted) == migrated.commands)
     }
 }
