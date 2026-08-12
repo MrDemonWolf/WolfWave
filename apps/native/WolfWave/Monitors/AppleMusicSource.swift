@@ -48,7 +48,11 @@ nonisolated final class MusicScriptingBridgeErrorDelegate:
     }
 }
 
+// The monitor keeps one lock-protected lifecycle and its parsing helpers together.
+// swiftlint:disable:next type_body_length
 final class AppleMusicSource: @unchecked Sendable {
+
+    typealias TrackInfoProvider = @Sendable () async -> String
 
     // MARK: - Properties
 
@@ -116,6 +120,9 @@ final class AppleMusicSource: @unchecked Sendable {
     nonisolated(unsafe) private var lastTrackSeenAt: ContinuousClock.Instant?
     nonisolated(unsafe) private var lastNotificationAt: ContinuousClock.Instant?
     nonisolated(unsafe) private var isTracking = false
+    /// Monotonic identity for one start/stop lifecycle. A plain `isTracking`
+    /// check cannot distinguish work from before a stop/start ABA transition.
+    nonisolated(unsafe) private var trackingGeneration: UInt64 = 0
     /// Dedup gate for guard-failure logs. Same key won't log twice in a row.
     /// A successful track read resets this so the next failure logs again.
     nonisolated(unsafe) private var lastGuardLogged: String?
@@ -127,6 +134,19 @@ final class AppleMusicSource: @unchecked Sendable {
     private let backgroundQueue = DispatchQueue(label: Constants.queueLabel, qos: .utility)
     private let clock = ContinuousClock()
     private let scriptingBridgeErrorDelegate = MusicScriptingBridgeErrorDelegate()
+    private let trackInfoProvider: TrackInfoProvider?
+    private let didScheduleFallbackTimer: (@Sendable (TimeInterval) -> Void)?
+    private let didCompleteTrackCheck: (@Sendable () -> Void)?
+
+    init(
+        trackInfoProvider: TrackInfoProvider? = nil,
+        didScheduleFallbackTimer: (@Sendable (TimeInterval) -> Void)? = nil,
+        didCompleteTrackCheck: (@Sendable () -> Void)? = nil
+    ) {
+        self.trackInfoProvider = trackInfoProvider
+        self.didScheduleFallbackTimer = didScheduleFallbackTimer
+        self.didCompleteTrackCheck = didCompleteTrackCheck
+    }
 
     /// Whether Music.app is genuinely running. Filters out instances that have
     /// already terminated, so the quit window (still listed, not yet gone)
@@ -136,15 +156,16 @@ final class AppleMusicSource: @unchecked Sendable {
     // MARK: - Protocol Conformance
 
     func startTracking() {
-        let alreadyTracking = stateLock.withLock { () -> Bool in
-            guard !isTracking else { return true }
+        let generation = stateLock.withLock { () -> UInt64? in
+            guard !isTracking else { return nil }
             isTracking = true
-            return false
+            trackingGeneration &+= 1
+            return trackingGeneration
         }
-        guard !alreadyTracking else { return }
-        subscribeToMusicNotifications()
-        performInitialTrackCheck()
-        setupFallbackTimer()
+        guard let generation else { return }
+        subscribeToMusicNotifications(generation: generation)
+        performInitialTrackCheck(generation: generation)
+        setupFallbackTimer(generation: generation)
     }
 
     /// Stops playback tracking and drains any in-flight timer work.
@@ -158,6 +179,7 @@ final class AppleMusicSource: @unchecked Sendable {
         let wasTracking = stateLock.withLock { () -> Bool in
             guard isTracking else { return false }
             isTracking = false
+            trackingGeneration &+= 1
             return true
         }
         guard wasTracking else { return }
@@ -181,41 +203,49 @@ final class AppleMusicSource: @unchecked Sendable {
     }
 
     func updateCheckInterval(_ interval: TimeInterval) {
-        guard stateLock.withLock({ isTracking }) else { return }
-        let cancelled = stateLock.withLock { () -> DispatchSourceTimer? in
+        let (cancelled, generation) = stateLock.withLock {
+            () -> (DispatchSourceTimer?, UInt64?) in
             currentCheckInterval = max(interval, 1.0)
+            guard isTracking else { return (nil, nil) }
             let existing = timer
             timer = nil
-            return existing
+            return (existing, trackingGeneration)
         }
         cancelled?.cancel()
-        setupFallbackTimer()
+        if let generation {
+            setupFallbackTimer(generation: generation)
+        }
     }
 
     nonisolated func forceRefresh() {
-        guard stateLock.withLock({ isTracking }) else { return }
-        // Clear the notification dedup gate so a user-initiated refresh
-        // immediately after a system notification is not dropped.
-        stateLock.withLock { lastNotificationAt = nil }
-        scheduleTrackCheck(reason: "force-refresh")
+        let generation = stateLock.withLock { () -> UInt64? in
+            guard isTracking else { return nil }
+            // Clear the notification dedup gate so a user-initiated refresh
+            // immediately after a system notification is not dropped.
+            lastNotificationAt = nil
+            return trackingGeneration
+        }
+        guard let generation else { return }
+        scheduleTrackCheck(reason: "force-refresh", generation: generation)
     }
 
     // MARK: - Playback Monitoring
 
     @objc nonisolated private func musicPlayerInfoChanged(_ notification: Notification) {
         let now = clock.now
-        let shouldSchedule = stateLock.withLock { () -> Bool in
+        let generation = stateLock.withLock { () -> UInt64? in
+            guard isTracking else { return nil }
             guard Self.intervalElapsed(
                 since: lastNotificationAt,
                 now: now,
                 minimum: Constants.notificationDedupWindow
             ) else {
-                return false
+                return nil
             }
             lastNotificationAt = now
-            return true
+            return trackingGeneration
         }
-        guard shouldSchedule else { return }
+        guard let generation else { return }
 
         // Music fires a final "Stopped" `playerInfo` notification as it quits.
         // Round-tripping an Apple event back to a quitting app is exactly what
@@ -227,13 +257,21 @@ final class AppleMusicSource: @unchecked Sendable {
         if AppleMusicSource.isStoppedNotification(notification.userInfo) {
             // Cancel any idle-grace recheck: a recheck would send the very
             // Apple event we are avoiding. We already know nothing is playing.
-            stateLock.withLock { lastTrackSeenAt = nil }
-            handleTrackInfo(musicIsRunning ? Constants.Status.notPlaying : Constants.Status.notRunning)
+            let isCurrent = stateLock.withLock { () -> Bool in
+                guard isTracking, trackingGeneration == generation else { return false }
+                lastTrackSeenAt = nil
+                return true
+            }
+            guard isCurrent else { return }
+            handleTrackInfo(
+                musicIsRunning ? Constants.Status.notPlaying : Constants.Status.notRunning,
+                generation: generation
+            )
             return
         }
 
         Log.debug("AppleMusicSource: Music notification received", category: "Music")
-        scheduleTrackCheck(reason: "notification")
+        scheduleTrackCheck(reason: "notification", generation: generation)
     }
 
     /// `true` when a `com.apple.Music.playerInfo` payload reports the player as
@@ -269,18 +307,23 @@ final class AppleMusicSource: @unchecked Sendable {
         }
     }
 
+    // swiftlint:disable cyclomatic_complexity function_body_length
     /// Fetches the currently-playing track via ScriptingBridge.
     ///
     /// ScriptingBridge dispatches AppleEvents through the AE bridge, which
     /// requires main-thread access. We hop to `@MainActor` for the SB calls
     /// and back out for the cheap string/delegate work.
-    nonisolated private func checkCurrentTrack() async {
-        // Bail if tracking was stopped after this Task was scheduled. Keeps
-        // in-flight checks from outliving stopTracking() and emitting stale
-        // state. Mirrors the guard in forceRefresh and the timer handler.
-        guard stateLock.withLock({ isTracking }) else { return }
+    nonisolated private func checkCurrentTrack(generation: UInt64) async {
+        guard isCurrentTrackingGeneration(generation) else { return }
+        defer { didCompleteTrackCheck?() }
+        if let trackInfoProvider {
+            let trackInfo = await trackInfoProvider()
+            guard isCurrentTrackingGeneration(generation) else { return }
+            handleTrackInfo(trackInfo, generation: generation)
+            return
+        }
         guard musicIsRunning else {
-            handleTrackInfo(Constants.Status.notRunning)
+            handleTrackInfo(Constants.Status.notRunning, generation: generation)
             return
         }
 
@@ -378,6 +421,7 @@ final class AppleMusicSource: @unchecked Sendable {
             return (combined, diag)
         }
 
+        guard isCurrentTrackingGeneration(generation) else { return }
         if result.status == Constants.Status.notPlaying, let diag = result.diagnostic {
             // Diagnostic-only: capture what ScriptingBridge actually returned
             // when Music is running but we resolved to notPlaying. Helps
@@ -392,8 +436,9 @@ final class AppleMusicSource: @unchecked Sendable {
                 message: "AppleMusicSource: playerState bridge unknown: trusting currentTrack.name. \(diag)"
             )
         }
-        handleTrackInfo(result.status)
+        handleTrackInfo(result.status, generation: generation)
     }
+    // swiftlint:enable cyclomatic_complexity function_body_length
 
     /// Tolerant FourCharCode extractor for Music.app's `playerState`.
     ///
@@ -445,21 +490,32 @@ final class AppleMusicSource: @unchecked Sendable {
 
     // MARK: - Private Helpers
 
-    nonisolated private func notifyDelegate(status: String) {
+    nonisolated private func notifyDelegate(status: String, generation: UInt64) {
         Task { @MainActor [weak self] in
-            guard let self else { return }
+            guard let self, self.isCurrentTrackingGeneration(generation) else { return }
             self.delegate?.playbackSource(didUpdateStatus: status)
         }
     }
 
-    nonisolated private func notifyDelegate(track: String, artist: String, album: String, playlist: String, duration: TimeInterval, elapsed: TimeInterval, isPaused: Bool) {
+    // Mirrors PlaybackSourceDelegate plus the lifecycle generation guard.
+    // swiftlint:disable:next function_parameter_count
+    nonisolated private func notifyDelegate(
+        track: String,
+        artist: String,
+        album: String,
+        playlist: String,
+        duration: TimeInterval,
+        elapsed: TimeInterval,
+        isPaused: Bool,
+        generation: UInt64
+    ) {
         Task { @MainActor [weak self] in
-            guard let self else { return }
+            guard let self, self.isCurrentTrackingGeneration(generation) else { return }
             self.delegate?.playbackSource(didUpdateTrack: track, artist: artist, album: album, playlist: playlist, duration: duration, elapsed: elapsed, isPaused: isPaused)
         }
     }
 
-    nonisolated private func processTrackInfoString(_ trackInfo: String) {
+    nonisolated private func processTrackInfoString(_ trackInfo: String, generation: UInt64) {
         let components = trackInfo.components(separatedBy: Constants.trackSeparator)
         guard components.count >= 3 else { return }
         let trackName = components[0]
@@ -471,33 +527,46 @@ final class AppleMusicSource: @unchecked Sendable {
         // Component 6 is the paused flag ("1"/"0"). Older callers that
         // don't append it fall back to "playing".
         let isPaused = components.count > 6 ? (components[6] == "1") : false
-        stateLock.withLock {
+        let isCurrent = stateLock.withLock { () -> Bool in
+            guard isTracking, trackingGeneration == generation else { return false }
             lastTrackSeenAt = clock.now
             // Reset the guard-log dedup gate so a future failure logs again.
             lastGuardLogged = nil
+            return true
         }
-        notifyDelegate(track: trackName, artist: artist, album: album, playlist: playlist, duration: duration, elapsed: elapsed, isPaused: isPaused)
+        guard isCurrent else { return }
+        notifyDelegate(
+            track: trackName,
+            artist: artist,
+            album: album,
+            playlist: playlist,
+            duration: duration,
+            elapsed: elapsed,
+            isPaused: isPaused,
+            generation: generation
+        )
         logTrackIfNew(trackInfo, trackName: trackName, artist: artist, album: album)
     }
 
-    nonisolated private func handleTrackInfo(_ trackInfo: String) {
+    nonisolated private func handleTrackInfo(_ trackInfo: String, generation: UInt64) {
+        guard isCurrentTrackingGeneration(generation) else { return }
         if trackInfo.hasPrefix(Constants.Status.errorPrefix) {
             logGuardOnce(key: "script-error", message: "AppleMusicSource: ScriptingBridge returned error: \(trackInfo)")
-            notifyDelegate(status: Constants.DelegateStatus.scriptError)
+            notifyDelegate(status: Constants.DelegateStatus.scriptError, generation: generation)
         } else if trackInfo == Constants.Status.notRunning {
             logGuardOnce(key: "not-running", message: "AppleMusicSource: Music.app not running")
-            notifyDelegate(status: Constants.DelegateStatus.musicNotRunning)
+            notifyDelegate(status: Constants.DelegateStatus.musicNotRunning, generation: generation)
         } else if trackInfo == Constants.Status.accessDenied {
             // Music IS running but ScriptingBridge can't read state. TCC denied.
             logGuardOnce(key: "access-denied", message: "AppleMusicSource: Music.app running but ScriptingBridge read returned nil: Automation permission likely denied")
-            notifyDelegate(status: Constants.DelegateStatus.accessDenied)
+            notifyDelegate(status: Constants.DelegateStatus.accessDenied, generation: generation)
         } else if trackInfo == Constants.Status.scriptBridgeNil {
             logGuardOnce(key: "sb-nil", message: "AppleMusicSource: SBApplication(processIdentifier:) returned nil")
-            notifyDelegate(status: Constants.DelegateStatus.noTrackInfo)
+            notifyDelegate(status: Constants.DelegateStatus.noTrackInfo, generation: generation)
         } else if trackInfo == Constants.Status.notPlaying {
-            handleNotPlayingState()
+            handleNotPlayingState(generation: generation)
         } else {
-            processTrackInfoString(trackInfo)
+            processTrackInfoString(trackInfo, generation: generation)
         }
     }
 
@@ -514,17 +583,21 @@ final class AppleMusicSource: @unchecked Sendable {
         Log.warn(message, category: "Music")
     }
 
-    nonisolated private func handleNotPlayingState() {
+    nonisolated private func handleNotPlayingState(generation: UInt64) {
         let lastSeen = stateLock.withLock { lastTrackSeenAt }
         guard let lastSeen else {
-            notifyDelegate(status: Constants.DelegateStatus.noTrackPlaying)
+            notifyDelegate(status: Constants.DelegateStatus.noTrackPlaying, generation: generation)
             return
         }
         if lastSeen.duration(to: clock.now) < Constants.idleGraceWindow {
-            scheduleTrackCheck(after: 0.5, reason: "idle-grace-recheck")
+            scheduleTrackCheck(
+                after: 0.5,
+                reason: "idle-grace-recheck",
+                generation: generation
+            )
             return
         }
-        notifyDelegate(status: Constants.DelegateStatus.noTrackPlaying)
+        notifyDelegate(status: Constants.DelegateStatus.noTrackPlaying, generation: generation)
     }
 
     nonisolated private func logTrackIfNew(_ trackInfo: String, trackName: String, artist: String, album: String) {
@@ -538,7 +611,7 @@ final class AppleMusicSource: @unchecked Sendable {
         Log.debug("AppleMusicSource: Now Playing → \(trackName) by \(artist) [\(album)]", category: "Music")
     }
 
-    nonisolated private func subscribeToMusicNotifications() {
+    nonisolated private func subscribeToMusicNotifications(generation: UInt64) {
         DistributedNotificationCenter.default().addObserver(self, selector: #selector(musicPlayerInfoChanged), name: NSNotification.Name(Constants.notificationName), object: nil)
 
         // Flip to NOT_RUNNING the moment Music.app quits, instead of waiting
@@ -552,27 +625,35 @@ final class AppleMusicSource: @unchecked Sendable {
             guard let self else { return }
             let bundleID = (note.userInfo?[NSWorkspace.applicationUserInfoKey] as? NSRunningApplication)?.bundleIdentifier
             guard bundleID == Constants.musicBundleIdentifier else { return }
-            self.handleMusicTerminated()
+            self.handleMusicTerminated(generation: generation)
         }
         stateLock.withLock { musicTerminateObserver = token }
     }
 
-    nonisolated private func handleMusicTerminated() {
+    nonisolated private func handleMusicTerminated(generation: UInt64) {
         // Clear the "recently seen a track" gate so the idle-grace path can't
         // hold a stale track on screen after Music is gone.
-        stateLock.withLock {
+        let isCurrent = stateLock.withLock { () -> Bool in
+            guard isTracking, trackingGeneration == generation else { return false }
             lastTrackSeenAt = nil
             lastNotificationAt = nil
+            return true
         }
-        handleTrackInfo(Constants.Status.notRunning)
+        guard isCurrent else { return }
+        handleTrackInfo(Constants.Status.notRunning, generation: generation)
     }
 
-    nonisolated private func performInitialTrackCheck() {
-        scheduleTrackCheck(reason: "initial")
+    nonisolated private func performInitialTrackCheck(generation: UInt64) {
+        scheduleTrackCheck(reason: "initial", generation: generation)
     }
 
-    nonisolated private func setupFallbackTimer() {
-        let interval = stateLock.withLock { currentCheckInterval }
+    nonisolated private func setupFallbackTimer(generation: UInt64) {
+        let interval = stateLock.withLock { () -> TimeInterval? in
+            guard isTracking, trackingGeneration == generation else { return nil }
+            return currentCheckInterval
+        }
+        guard let interval else { return }
+        didScheduleFallbackTimer?(interval)
         let newTimer = DispatchSource.makeTimerSource(queue: backgroundQueue)
         // This is a *fallback* poll. Real-time track changes arrive via the
         // distributed notification. Give the timer generous leeway (20% of the
@@ -585,33 +666,50 @@ final class AppleMusicSource: @unchecked Sendable {
             leeway: .milliseconds(Int(interval * 200))
         )
         newTimer.setEventHandler { [weak self] in
-            guard let self, self.stateLock.withLock({ self.isTracking }) else { return }
-            self.scheduleTrackCheck(reason: "timer")
+            guard let self, self.isCurrentTrackingGeneration(generation) else { return }
+            self.scheduleTrackCheck(reason: "timer", generation: generation)
         }
         // Swap the timer reference and cancel any prior one in a single
         // critical section so a future off-main caller cannot orphan a live
         // DispatchSourceTimer between the read and the assignment.
-        let previousTimer = stateLock.withLock { () -> DispatchSourceTimer? in
+        let (previousTimer, installed) = stateLock.withLock {
+            () -> (DispatchSourceTimer?, Bool) in
+            guard isTracking, trackingGeneration == generation else { return (nil, false) }
             let existing = timer
             timer = newTimer
-            return existing
+            return (existing, true)
+        }
+        guard installed else {
+            newTimer.activate()
+            newTimer.cancel()
+            return
         }
         previousTimer?.cancel()
         newTimer.activate()
     }
 
-    nonisolated private func scheduleTrackCheck(reason: String) {
+    nonisolated private func scheduleTrackCheck(reason: String, generation: UInt64) {
+        guard isCurrentTrackingGeneration(generation) else { return }
         Task { [weak self] in
             Log.debug("AppleMusicSource: track check scheduled (\(reason))", category: "Music")
-            await self?.checkCurrentTrack()
+            await self?.checkCurrentTrack(generation: generation)
         }
     }
 
-    nonisolated private func scheduleTrackCheck(after delay: TimeInterval, reason: String) {
+    nonisolated private func scheduleTrackCheck(
+        after delay: TimeInterval,
+        reason: String,
+        generation: UInt64
+    ) {
+        guard isCurrentTrackingGeneration(generation) else { return }
         Task { [weak self] in
             try? await Task.sleep(for: .seconds(delay))
             Log.debug("AppleMusicSource: delayed track check fired (\(reason))", category: "Music")
-            await self?.checkCurrentTrack()
+            await self?.checkCurrentTrack(generation: generation)
         }
+    }
+
+    nonisolated private func isCurrentTrackingGeneration(_ generation: UInt64) -> Bool {
+        stateLock.withLock { isTracking && trackingGeneration == generation }
     }
 }

@@ -726,9 +726,6 @@ extension AppDelegate {
         guard let enabled = notification.enabledFlag else { return }
         if enabled {
             appleMusicSource?.startTracking()
-            // Guarantee the ON edge yields a fresh now-playing read even
-            // when the monitor was already running.
-            appleMusicSource?.forceRefresh()
         } else {
             stopTrackingAndUpdate()
         }
