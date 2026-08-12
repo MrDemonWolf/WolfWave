@@ -16,6 +16,7 @@ protocol UserNotificationCenterProviding: AnyObject {
     func installDelegate(_ delegate: (any UNUserNotificationCenterDelegate)?)
     func authorizationStatus() async -> UNAuthorizationStatus
     func requestAuthorization(options: UNAuthorizationOptions) async throws -> Bool
+    func removePendingNotificationRequests(withIdentifiers identifiers: [String])
     func removeDeliveredNotifications(withIdentifiers identifiers: [String])
     func add(_ request: UNNotificationRequest) async throws
 }
@@ -66,6 +67,7 @@ final class NotificationService: NSObject {
     private let center: any UserNotificationCenterProviding
     private let artworkAttachmentProvider: ArtworkAttachmentProvider?
     private var latestPostToken: [PostGenerationDomain: UUID] = [:]
+    private var submissionTail: [PostGenerationDomain: Task<Bool, Never>] = [:]
 
     init(
         center: any UserNotificationCenterProviding,
@@ -377,13 +379,52 @@ final class NotificationService: NSObject {
         guard isLatestPost(token, generationDomain: generationDomain) else { return false }
 
         let request = Self.makeRequest(content: content, identifier: identifier)
-        do {
-            // A stable request identifier only replaces a pending request. Once
-            // delivered, it must be removed explicitly to prevent banner stacks.
-            center.removeDeliveredNotifications(
-                withIdentifiers: [identifier] + replacingDeliveredIdentifiers
+        let identifiers = [identifier] + replacingDeliveredIdentifiers
+        let previousSubmission = submissionTail[generationDomain]
+        let submission = Task { @MainActor [weak self] in
+            if let previousSubmission {
+                _ = await previousSubmission.value
+            }
+            guard let self,
+                  self.isLatestPost(token, generationDomain: generationDomain)
+            else { return false }
+
+            return await self.submit(
+                request,
+                identifiers: identifiers,
+                token: token,
+                generationDomain: generationDomain
             )
+        }
+        submissionTail[generationDomain] = submission
+        return await submission.value
+    }
+
+    /// Submits one request while holding its lifecycle's ordered turn.
+    ///
+    /// The per-domain task chain prevents main-actor reentrancy at `center.add`
+    /// from allowing an older suspended request to finish after a newer one.
+    /// Pending and delivered requests are both cleared because stable request
+    /// identifiers only replace pending requests reliably before delivery.
+    private func submit(
+        _ request: UNNotificationRequest,
+        identifiers: [String],
+        token: UUID,
+        generationDomain: PostGenerationDomain
+    ) async -> Bool {
+        do {
+            center.removePendingNotificationRequests(withIdentifiers: identifiers)
+            center.removeDeliveredNotifications(withIdentifiers: identifiers)
             try await center.add(request)
+
+            // A newer post may start while add() is suspended. No newer request
+            // in this domain can enter submit() until this method returns, so it
+            // is safe to retract the stale request before releasing the turn.
+            guard isLatestPost(token, generationDomain: generationDomain) else {
+                center.removePendingNotificationRequests(withIdentifiers: identifiers)
+                center.removeDeliveredNotifications(withIdentifiers: identifiers)
+                return false
+            }
             return true
         } catch {
             Log.error(

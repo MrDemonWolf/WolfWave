@@ -260,9 +260,16 @@ struct NotificationServiceTests {
         #expect(first.identifier != AppConstants.UserNotification.songChangeIdentifier)
     }
 
+}
+
+/// Verifies ordered replacement across pending and delivered notification state.
+@MainActor
+@Suite("Notification Lifecycle Tests")
+struct NotificationServiceLifecycleTests {
+
     // MARK: - Delivery Ordering
 
-    @Test("Posting removes a delivered notification before adding its replacement")
+    @Test("Posting removes pending and delivered notifications before replacement")
     func testPostRemovesDeliveredIdentifierBeforeAdd() async {
         let center = TestUserNotificationCenter()
         let identifier = AppConstants.UserNotification.songChangeIdentifier
@@ -274,8 +281,9 @@ struct NotificationServiceTests {
         await service.postSongChange(track: "Track", artist: "Artist", album: "Album")
 
         #expect(center.operations == [
-            .remove(identifier),
-            .add(identifier: identifier, subtitle: "Track"),
+            .removePending([identifier]),
+            .removeDelivered([identifier]),
+            .add(identifier: identifier, subtitle: "Track")
         ])
     }
 
@@ -306,11 +314,64 @@ struct NotificationServiceTests {
         await first.value
 
         #expect(center.operations == [
-            .remove(AppConstants.UserNotification.songChangeIdentifier),
+            .removePending([AppConstants.UserNotification.songChangeIdentifier]),
+            .removeDelivered([AppConstants.UserNotification.songChangeIdentifier]),
             .add(
                 identifier: AppConstants.UserNotification.songChangeIdentifier,
                 subtitle: "Second"
-            ),
+            )
+        ])
+        #expect(center.pendingSubtitles == [
+            AppConstants.UserNotification.songChangeIdentifier: "Second"
+        ])
+    }
+
+    @Test("A newer song retracts an older suspended notification submission")
+    func testNewerSongRetractsOlderSuspendedSubmission() async {
+        let center = TestUserNotificationCenter()
+        let artwork = ControlledArtworkProvider()
+        let service = NotificationService(
+            center: center,
+            artworkAttachmentProvider: { track, artist in
+                await artwork.attachment(track: track, artist: artist)
+            }
+        )
+        center.suspendNextAdd()
+
+        let first = Task {
+            await service.postSongChange(track: "First", artist: "Artist", album: "Album")
+        }
+        await artwork.waitUntilRequested(track: "First")
+        artwork.complete(track: "First")
+        await center.waitUntilAddSuspends()
+
+        let second = Task {
+            await service.postSongChange(track: "Second", artist: "Artist", album: "Album")
+        }
+        await artwork.waitUntilRequested(track: "Second")
+        artwork.complete(track: "Second")
+        await center.waitUntilAuthorizationChecks(2)
+
+        let identifier = AppConstants.UserNotification.songChangeIdentifier
+        #expect(Array(center.operations.suffix(1)) == [
+            .add(identifier: identifier, subtitle: "First")
+        ])
+
+        center.resumeSuspendedAdd()
+        await first.value
+        await second.value
+
+        #expect(center.pendingSubtitles == [identifier: "Second"])
+        #expect(center.deliveredSubtitles.isEmpty)
+        #expect(center.operations == [
+            .removePending([identifier]),
+            .removeDelivered([identifier]),
+            .add(identifier: identifier, subtitle: "First"),
+            .removePending([identifier]),
+            .removeDelivered([identifier]),
+            .removePending([identifier]),
+            .removeDelivered([identifier]),
+            .add(identifier: identifier, subtitle: "Second")
         ])
     }
 
@@ -346,16 +407,22 @@ struct NotificationServiceTests {
         await started.value
 
         #expect(center.operations == [
-            .remove(AppConstants.UserNotification.skipVotePassedIdentifier),
-            .remove(AppConstants.UserNotification.skipVoteStartedIdentifier),
+            .removePending([
+                AppConstants.UserNotification.skipVotePassedIdentifier,
+                AppConstants.UserNotification.skipVoteStartedIdentifier
+            ]),
+            .removeDelivered([
+                AppConstants.UserNotification.skipVotePassedIdentifier,
+                AppConstants.UserNotification.skipVoteStartedIdentifier
+            ]),
             .add(
                 identifier: AppConstants.UserNotification.skipVotePassedIdentifier,
                 subtitle: "Skipping Passed Track · Artist"
-            ),
+            )
         ])
     }
 
-    @Test("A passed skip vote removes an already-delivered started notification")
+    @Test("A passed skip vote removes an already-pending started notification")
     func testSkipVotePassedRemovesDeliveredStartedNotification() async {
         let center = TestUserNotificationCenter()
         let service = NotificationService(
@@ -369,22 +436,41 @@ struct NotificationServiceTests {
             votesNeeded: 3,
             viaPoll: false
         )
+        #expect(center.pendingSubtitles == [
+            AppConstants.UserNotification.skipVoteStartedIdentifier: "Track · Artist"
+        ])
         await service.postSkipVotePassed(track: "Track", artist: "Artist")
 
         #expect(center.operations == [
-            .remove(AppConstants.UserNotification.skipVoteStartedIdentifier),
-            .remove(AppConstants.UserNotification.skipVotePassedIdentifier),
+            .removePending([
+                AppConstants.UserNotification.skipVoteStartedIdentifier,
+                AppConstants.UserNotification.skipVotePassedIdentifier
+            ]),
+            .removeDelivered([
+                AppConstants.UserNotification.skipVoteStartedIdentifier,
+                AppConstants.UserNotification.skipVotePassedIdentifier
+            ]),
             .add(
                 identifier: AppConstants.UserNotification.skipVoteStartedIdentifier,
                 subtitle: "Track · Artist"
             ),
-            .remove(AppConstants.UserNotification.skipVotePassedIdentifier),
-            .remove(AppConstants.UserNotification.skipVoteStartedIdentifier),
+            .removePending([
+                AppConstants.UserNotification.skipVotePassedIdentifier,
+                AppConstants.UserNotification.skipVoteStartedIdentifier
+            ]),
+            .removeDelivered([
+                AppConstants.UserNotification.skipVotePassedIdentifier,
+                AppConstants.UserNotification.skipVoteStartedIdentifier
+            ]),
             .add(
                 identifier: AppConstants.UserNotification.skipVotePassedIdentifier,
                 subtitle: "Skipping Track · Artist"
-            ),
+            )
         ])
+        #expect(center.pendingSubtitles == [
+            AppConstants.UserNotification.skipVotePassedIdentifier: "Skipping Track · Artist"
+        ])
+        #expect(center.deliveredSubtitles.isEmpty)
     }
 
     @Test("A new skip vote removes the previous vote's delivered passed notification")
@@ -396,6 +482,11 @@ struct NotificationServiceTests {
         )
 
         await service.postSkipVotePassed(track: "Old Track", artist: "Artist")
+        center.deliver(AppConstants.UserNotification.skipVotePassedIdentifier)
+        #expect(center.deliveredSubtitles == [
+            AppConstants.UserNotification.skipVotePassedIdentifier:
+                "Skipping Old Track · Artist"
+        ])
         await service.postSkipVoteStarted(
             track: "New Track",
             artist: "Artist",
@@ -404,19 +495,35 @@ struct NotificationServiceTests {
         )
 
         #expect(center.operations == [
-            .remove(AppConstants.UserNotification.skipVotePassedIdentifier),
-            .remove(AppConstants.UserNotification.skipVoteStartedIdentifier),
+            .removePending([
+                AppConstants.UserNotification.skipVotePassedIdentifier,
+                AppConstants.UserNotification.skipVoteStartedIdentifier
+            ]),
+            .removeDelivered([
+                AppConstants.UserNotification.skipVotePassedIdentifier,
+                AppConstants.UserNotification.skipVoteStartedIdentifier
+            ]),
             .add(
                 identifier: AppConstants.UserNotification.skipVotePassedIdentifier,
                 subtitle: "Skipping Old Track · Artist"
             ),
-            .remove(AppConstants.UserNotification.skipVoteStartedIdentifier),
-            .remove(AppConstants.UserNotification.skipVotePassedIdentifier),
+            .removePending([
+                AppConstants.UserNotification.skipVoteStartedIdentifier,
+                AppConstants.UserNotification.skipVotePassedIdentifier
+            ]),
+            .removeDelivered([
+                AppConstants.UserNotification.skipVoteStartedIdentifier,
+                AppConstants.UserNotification.skipVotePassedIdentifier
+            ]),
             .add(
                 identifier: AppConstants.UserNotification.skipVoteStartedIdentifier,
                 subtitle: "New Track · Artist"
-            ),
+            )
         ])
+        #expect(center.pendingSubtitles == [
+            AppConstants.UserNotification.skipVoteStartedIdentifier: "New Track · Artist"
+        ])
+        #expect(center.deliveredSubtitles.isEmpty)
     }
 
     // MARK: - UserDefaults Keys
@@ -437,16 +544,31 @@ struct NotificationServiceTests {
 @MainActor
 private final class TestUserNotificationCenter: UserNotificationCenterProviding {
     enum Operation: Equatable {
-        case remove(String)
+        case removePending([String])
+        case removeDelivered([String])
         case add(identifier: String, subtitle: String)
     }
 
     var status: UNAuthorizationStatus = .authorized
     var operations: [Operation] = []
+    private(set) var pendingSubtitles: [String: String] = [:]
+    private(set) var deliveredSubtitles: [String: String] = [:]
+    private var shouldSuspendNextAdd = false
+    private var addIsSuspended = false
+    private var addSuspendedWaiter: CheckedContinuation<Void, Never>?
+    private var suspendedAddContinuation: CheckedContinuation<Void, Never>?
+    private var authorizationCheckCount = 0
+    private var authorizationCheckTarget = 0
+    private var authorizationCheckWaiter: CheckedContinuation<Void, Never>?
 
     func installDelegate(_ delegate: (any UNUserNotificationCenterDelegate)?) {}
 
     func authorizationStatus() async -> UNAuthorizationStatus {
+        authorizationCheckCount += 1
+        if authorizationCheckCount >= authorizationCheckTarget {
+            authorizationCheckWaiter?.resume()
+            authorizationCheckWaiter = nil
+        }
         status
     }
 
@@ -454,16 +576,65 @@ private final class TestUserNotificationCenter: UserNotificationCenterProviding 
         true
     }
 
-    func removeDeliveredNotifications(withIdentifiers identifiers: [String]) {
+    func removePendingNotificationRequests(withIdentifiers identifiers: [String]) {
+        operations.append(.removePending(identifiers))
         for identifier in identifiers {
-            operations.append(.remove(identifier))
+            pendingSubtitles.removeValue(forKey: identifier)
+        }
+    }
+
+    func removeDeliveredNotifications(withIdentifiers identifiers: [String]) {
+        operations.append(.removeDelivered(identifiers))
+        for identifier in identifiers {
+            deliveredSubtitles.removeValue(forKey: identifier)
         }
     }
 
     func add(_ request: UNNotificationRequest) async throws {
+        let subtitle = request.content.subtitle
         operations.append(
-            .add(identifier: request.identifier, subtitle: request.content.subtitle)
+            .add(identifier: request.identifier, subtitle: subtitle)
         )
+        pendingSubtitles[request.identifier] = subtitle
+
+        guard shouldSuspendNextAdd else { return }
+        shouldSuspendNextAdd = false
+        addIsSuspended = true
+        addSuspendedWaiter?.resume()
+        addSuspendedWaiter = nil
+        await withCheckedContinuation { continuation in
+            suspendedAddContinuation = continuation
+        }
+        addIsSuspended = false
+    }
+
+    func deliver(_ identifier: String) {
+        guard let subtitle = pendingSubtitles.removeValue(forKey: identifier) else { return }
+        deliveredSubtitles[identifier] = subtitle
+    }
+
+    func suspendNextAdd() {
+        shouldSuspendNextAdd = true
+    }
+
+    func waitUntilAddSuspends() async {
+        if addIsSuspended { return }
+        await withCheckedContinuation { continuation in
+            addSuspendedWaiter = continuation
+        }
+    }
+
+    func resumeSuspendedAdd() {
+        suspendedAddContinuation?.resume()
+        suspendedAddContinuation = nil
+    }
+
+    func waitUntilAuthorizationChecks(_ count: Int) async {
+        if authorizationCheckCount >= count { return }
+        authorizationCheckTarget = count
+        await withCheckedContinuation { continuation in
+            authorizationCheckWaiter = continuation
+        }
     }
 }
 

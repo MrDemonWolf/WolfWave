@@ -161,14 +161,39 @@ struct SettingsBackupCoderTests {
         #expect(decoded.format == SettingsBackup.currentFormat)
     }
 
-    @Test func decodeAcceptsOlderSchemaBackup() throws {
-        var backup = makeBackup(snapshot: [AppConstants.UserDefaults.trackingEnabled: true])
-        backup.schemaVersion = 1
+    @Test func decodeAcceptsHandWrittenHistoricalSchemaOneBackup() throws {
+        let historicalSchemaOneJSON = """
+        {
+          "format": "com.mrdemonwolf.wolfwave.settings",
+          "schemaVersion": 1,
+          "appVersion": "1.0.0",
+          "appBuild": "42",
+          "exportedAt": "2026-06-02T00:00:00Z",
+          "settings": {
+            "trackingEnabled": {"type": "bool", "value": true}
+          },
+          "integrations": {
+            "twitch": {"channelName": "legacy_streamer"}
+          }
+        }
+        """
 
-        let decoded = try coder.decode(coder.encode(backup))
+        let decoded = try coder.decode(Data(historicalSchemaOneJSON.utf8))
 
         #expect(decoded.schemaVersion == 1)
         #expect(decoded.settings[AppConstants.UserDefaults.trackingEnabled] == .bool(true))
+        #expect(decoded.integrations.twitch?.channelName == "legacy_streamer")
+    }
+
+    @Test func decodeRejectsSchemasOlderThanOne() {
+        for version in [0, -1] {
+            let json = """
+            {"format":"\(SettingsBackup.currentFormat)","schemaVersion":\(version)}
+            """
+            #expect(throws: SettingsBackupCoder.BackupError.unsupportedOlderSchema(version)) {
+                try coder.decode(Data(json.utf8))
+            }
+        }
     }
 
     // MARK: - Apply planning
@@ -409,6 +434,171 @@ struct SettingsBackupCoderTests {
 
         #expect(plan.set.isEmpty)
         #expect(plan.ignoredKeyCount == 10)
+    }
+
+}
+
+extension SettingsBackupCoderTests {
+
+    @Test func applyPlanNormalizesCustomCommandsAndBlocklist() throws {
+        let keys = AppConstants.UserDefaults.self
+        let command = CustomCommand(
+            trigger: "  !!HELLO ",
+            response: "Hi",
+            aliases: " Wave, !CHEER ",
+            globalCooldown: 15,
+            userCooldown: 30
+        )
+        let blocklistItem = BlocklistItem(
+            id: UUID(),
+            value: "  Artist Name\n",
+            type: .artist,
+            addedAt: Date(timeIntervalSince1970: 123)
+        )
+        var backup = makeBackup(snapshot: [:])
+        backup.settings[keys.customCommands] = .data(try JSONCoders.defaultEncoder.encode([command]))
+        backup.settings[keys.songRequestBlocklist] = .data(
+            try JSONCoders.camelCaseEncoder.encode([blocklistItem])
+        )
+
+        let plan = coder.makeApplyPlan(
+            backup: backup,
+            choices: SettingsBackupCoder.ImportChoices(),
+            exportablePreferences: exportable
+        )
+
+        guard case .data(let commandData)? = plan.set[keys.customCommands],
+              case .data(let blocklistData)? = plan.set[keys.songRequestBlocklist] else {
+            Issue.record("Expected both portable collections in the apply plan")
+            return
+        }
+        let commands = try JSONCoders.default.decode([CustomCommand].self, from: commandData)
+        let blocklist = try JSONCoders.camelCase.decode([BlocklistItem].self, from: blocklistData)
+        #expect(commands.first?.trigger == "!hello")
+        #expect(commands.first?.aliases == "wave, cheer")
+        #expect(blocklist.first?.value == "Artist Name")
+        #expect(plan.ignoredKeyCount == 0)
+    }
+
+    @Test func exportPreservesLegacyCommandsWhileDroppingShadowedAliases() throws {
+        let keys = AppConstants.UserDefaults.self
+        let first = CustomCommand(trigger: "hug", aliases: "wave, hug, , cheer")
+        let second = CustomCommand(trigger: "wave", aliases: "cheer, salute")
+        let data = try JSONCoders.defaultEncoder.encode([first, second])
+
+        let backup = makeBackup(snapshot: [keys.customCommands: data])
+
+        guard case .data(let exported)? = backup.settings[keys.customCommands] else {
+            Issue.record("Expected legacy commands to remain exportable")
+            return
+        }
+        let commands = try JSONCoders.default.decode([CustomCommand].self, from: exported)
+        #expect(commands.count == 2)
+        #expect(commands[0].aliases == "cheer")
+        #expect(commands[1].aliases == "salute")
+    }
+
+    @Test func applyPlanRejectsSemanticallyInvalidCustomCommands() throws {
+        let keys = AppConstants.UserDefaults.self
+        let sharedID = UUID()
+        let valid = CustomCommand(id: sharedID, trigger: "!hello")
+        let invalidCollections = [
+            [CustomCommand(trigger: "   ")],
+            [CustomCommand(trigger: "!hello", aliases: ",wave")],
+            [valid, CustomCommand(trigger: "hello")],
+            [valid, CustomCommand(id: sharedID, trigger: "!other")],
+            [CustomCommand(trigger: "!offstep", globalCooldown: 7)],
+            [CustomCommand(trigger: "!range", userCooldown: 65)]
+        ]
+
+        for commands in invalidCollections {
+            var backup = makeBackup(snapshot: [:])
+            backup.settings[keys.customCommands] = .data(
+                try JSONCoders.defaultEncoder.encode(commands)
+            )
+            let plan = coder.makeApplyPlan(
+                backup: backup,
+                choices: SettingsBackupCoder.ImportChoices(),
+                exportablePreferences: exportable
+            )
+            #expect(plan.set[keys.customCommands] == nil)
+            #expect(plan.ignoredKeyCount == 1)
+        }
+
+        var nonfinite = CustomCommand(trigger: "!nonfinite")
+        nonfinite.globalCooldown = .infinity
+        #expect(CustomCommand.normalizedForImport([nonfinite]) == nil)
+        nonfinite.globalCooldown = .nan
+        #expect(CustomCommand.normalizedForImport([nonfinite]) == nil)
+    }
+
+    @Test func applyPlanRejectsSemanticallyInvalidBlocklist() throws {
+        let keys = AppConstants.UserDefaults.self
+        let sharedID = UUID()
+        let first = BlocklistItem(
+            id: sharedID,
+            value: "Artist Name",
+            type: .artist,
+            addedAt: .distantPast
+        )
+        let invalidCollections = [
+            [BlocklistItem(value: "  ", type: .song)],
+            [first, BlocklistItem(value: " artist name ", type: .artist)],
+            [first, BlocklistItem(
+                id: sharedID,
+                value: "Different Artist",
+                type: .artist,
+                addedAt: .distantFuture
+            )]
+        ]
+
+        for items in invalidCollections {
+            var backup = makeBackup(snapshot: [:])
+            backup.settings[keys.songRequestBlocklist] = .data(
+                try JSONCoders.camelCaseEncoder.encode(items)
+            )
+            let plan = coder.makeApplyPlan(
+                backup: backup,
+                choices: SettingsBackupCoder.ImportChoices(),
+                exportablePreferences: exportable
+            )
+            #expect(plan.set[keys.songRequestBlocklist] == nil)
+            #expect(plan.ignoredKeyCount == 1)
+        }
+    }
+
+    @Test func twitchMetadataIsNormalizedBeforeStagingReconnect() throws {
+        var backup = makeBackup(snapshot: [:])
+        backup.integrations.twitch = .init(channelName: "  Mixed_CASE12  ")
+
+        let decoded = try coder.decode(coder.encode(backup))
+        let plan = coder.makeApplyPlan(
+            backup: decoded,
+            choices: SettingsBackupCoder.ImportChoices(reconnectTwitch: true),
+            exportablePreferences: exportable
+        )
+
+        #expect(decoded.integrations.twitch?.channelName == "mixed_case12")
+        #expect(plan.reconnectTwitch)
+        #expect(plan.twitchChannelName == "mixed_case12")
+    }
+
+    @Test func twitchMetadataRejectsBlankAndInvalidChannels() throws {
+        for channelName in ["   ", "bad/channel"] {
+            var backup = makeBackup(snapshot: [:])
+            backup.integrations.twitch = .init(channelName: channelName)
+
+            let decoded = try coder.decode(coder.encode(backup))
+            let plan = coder.makeApplyPlan(
+                backup: backup,
+                choices: SettingsBackupCoder.ImportChoices(reconnectTwitch: true),
+                exportablePreferences: exportable
+            )
+
+            #expect(decoded.integrations.twitch == nil)
+            #expect(plan.reconnectTwitch == false)
+            #expect(plan.twitchChannelName == nil)
+        }
     }
 
     @Test func applyPlanRejectsMalformedPortableData() {

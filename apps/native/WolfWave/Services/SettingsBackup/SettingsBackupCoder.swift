@@ -25,6 +25,8 @@ nonisolated struct SettingsBackupCoder {
         case notReadable
         /// Valid JSON, but not a WolfWave settings backup (wrong `format`).
         case notWolfWaveFile
+        /// A schema value below the first supported on-disk format.
+        case unsupportedOlderSchema(Int)
         /// A backup written by a newer WolfWave with an unsupported schema.
         case unsupportedNewerSchema(Int)
     }
@@ -96,14 +98,18 @@ nonisolated struct SettingsBackupCoder {
             guard
                 let rule = schema[key],
                 let value = BackupValue.make(from: raw),
-                isValueAllowed(value, by: rule)
+                let normalizedValue = normalizedValue(
+                    value,
+                    by: rule,
+                    normalizingLegacyStorage: true
+                )
             else { continue }
-            settings[key] = value
+            settings[key] = normalizedValue
         }
 
         let twitch = twitchChannelName
-            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
-            .flatMap { $0.isEmpty ? nil : SettingsBackup.Integrations.Twitch(channelName: $0) }
+            .flatMap(TwitchChatService.normalizedChannelName)
+            .map { SettingsBackup.Integrations.Twitch(channelName: $0) }
 
         return SettingsBackup(
             format: SettingsBackup.currentFormat,
@@ -139,11 +145,19 @@ nonisolated struct SettingsBackupCoder {
         guard header.format == SettingsBackup.currentFormat else {
             throw BackupError.notWolfWaveFile
         }
+        guard header.schemaVersion >= 1 else {
+            throw BackupError.unsupportedOlderSchema(header.schemaVersion)
+        }
         guard header.schemaVersion <= SettingsBackup.currentSchemaVersion else {
             throw BackupError.unsupportedNewerSchema(header.schemaVersion)
         }
         do {
-            return try decoder.decode(SettingsBackup.self, from: data)
+            var backup = try decoder.decode(SettingsBackup.self, from: data)
+            if let rawChannel = backup.integrations.twitch?.channelName {
+                backup.integrations.twitch = TwitchChatService.normalizedChannelName(rawChannel)
+                    .map { SettingsBackup.Integrations.Twitch(channelName: $0) }
+            }
+            return backup
         } catch {
             throw BackupError.notReadable
         }
@@ -151,48 +165,64 @@ nonisolated struct SettingsBackupCoder {
 
     // MARK: - Apply Planning
 
-    /// Whether a tagged backup value exactly matches a schema rule.
+    /// Returns a validated and canonicalized backup value for a schema rule.
     ///
     /// This is the sole validator used for export, import preview, and apply.
     /// Hand-edited backups therefore cannot exploit type bridging in
     /// `UserDefaults` or install unknown raw values for a picker-backed enum.
-    private func isValueAllowed(
+    private func normalizedValue(
         _ value: BackupValue,
-        by rule: AppConstants.UserDefaults.ExportedValueRule
-    ) -> Bool {
+        by rule: AppConstants.UserDefaults.ExportedValueRule,
+        normalizingLegacyStorage: Bool = false
+    ) -> BackupValue? {
         switch (rule, value) {
         case (.bool, .bool):
-            return true
+            return value
         case (.int(let domain), .int(let integer)):
             switch domain {
             case .values(let values):
-                return values.contains(integer)
+                return values.contains(integer) ? value : nil
             case .zeroOrRange(let range):
-                return integer == 0 || range.contains(integer)
+                return integer == 0 || range.contains(integer) ? value : nil
             }
         case (.double(let domain), .double(let number)):
             guard number.isFinite, domain.range.contains(number), domain.step > 0 else {
-                return false
+                return nil
             }
             let stepCount = (number - domain.range.lowerBound) / domain.step
-            return abs(stepCount - stepCount.rounded()) < 1e-9
+            return abs(stepCount - stepCount.rounded()) < 1e-9 ? value : nil
         case (.string(let allowedValues), .string(let string)):
-            return allowedValues?.contains(string) ?? true
+            return (allowedValues?.contains(string) ?? true) ? value : nil
         case (.stringList(let allowedValues), .string(let string)):
             let values = string
                 .split(separator: ",", omittingEmptySubsequences: false)
                 .map { $0.trimmingCharacters(in: .whitespaces) }
-            return !values.isEmpty
-                && values.allSatisfy { !$0.isEmpty && allowedValues.contains($0) }
+            guard !values.isEmpty,
+                  values.allSatisfy({ !$0.isEmpty && allowedValues.contains($0) }) else {
+                return nil
+            }
+            return value
         case (.data(let format), .data(let data)):
             switch format {
             case .customCommands:
-                return (try? JSONCoders.default.decode([CustomCommand].self, from: data)) != nil
+                guard let decoded = try? JSONCoders.default.decode([CustomCommand].self, from: data),
+                      let normalized = normalizingLegacyStorage
+                        ? CustomCommand.normalizedForExistingStorage(decoded)
+                        : CustomCommand.normalizedForImport(decoded),
+                      let encoded = try? JSONCoders.defaultEncoder.encode(normalized) else {
+                    return nil
+                }
+                return .data(encoded)
             case .songRequestBlocklist:
-                return (try? JSONCoders.camelCase.decode([BlocklistItem].self, from: data)) != nil
+                guard let decoded = try? JSONCoders.camelCase.decode([BlocklistItem].self, from: data),
+                      let normalized = BlocklistItem.normalizedForImport(decoded),
+                      let encoded = try? JSONCoders.camelCaseEncoder.encode(normalized) else {
+                    return nil
+                }
+                return .data(encoded)
             }
         default:
-            return false
+            return nil
         }
     }
 
@@ -215,8 +245,8 @@ nonisolated struct SettingsBackupCoder {
         var set: [String: BackupValue] = [:]
         var ignored = 0
         for (key, value) in backup.settings {
-            if let rule = schema[key], isValueAllowed(value, by: rule) {
-                set[key] = value
+            if let rule = schema[key], let normalizedValue = normalizedValue(value, by: rule) {
+                set[key] = normalizedValue
             } else {
                 ignored += 1
             }
@@ -224,9 +254,11 @@ nonisolated struct SettingsBackupCoder {
 
         var reconnectTwitch = false
         var twitchChannelName: String?
-        if choices.reconnectTwitch, let twitch = backup.integrations.twitch {
+        if choices.reconnectTwitch,
+           let twitch = backup.integrations.twitch,
+           let channelName = TwitchChatService.normalizedChannelName(twitch.channelName) {
             reconnectTwitch = true
-            twitchChannelName = twitch.channelName
+            twitchChannelName = channelName
         }
 
         return ApplyPlan(

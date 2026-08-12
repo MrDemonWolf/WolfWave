@@ -200,9 +200,7 @@ private struct CustomCommandEditor: View {
     }
 
     private var triggerEmpty: Bool { draft.normalizedTrigger.isEmpty }
-    private var triggerConflicts: Bool {
-        store.triggerConflicts(draft.trigger, excluding: draft.id)
-    }
+    private var triggerConflicts: Bool { store.commandConflicts(draft) }
     private var isValid: Bool { !triggerEmpty && !triggerConflicts }
 
     var body: some View {
@@ -216,7 +214,7 @@ private struct CustomCommandEditor: View {
                     .textFieldStyle(.roundedBorder)
                     .accessibilityIdentifier("customCommandTrigger")
                 if triggerConflicts {
-                    Text("Another command already uses that trigger.")
+                    Text("Each trigger and alias must be complete and unique.")
                         .font(.system(size: DSFont.Size.sm))
                         .foregroundStyle(.red)
                 }
@@ -254,15 +252,15 @@ private struct CustomCommandEditor: View {
                 everyone: .init(
                     label: "Everyone",
                     value: $draft.globalCooldown,
-                    range: 0...30,
-                    step: 5,
+                    range: CustomCommand.globalCooldownRange,
+                    step: CustomCommand.cooldownStep,
                     accessibilityIdentifier: "customCommand.everyoneCooldown"
                 ),
                 perPerson: .init(
                     label: "Per person",
                     value: $draft.userCooldown,
-                    range: 0...60,
-                    step: 5,
+                    range: CustomCommand.userCooldownRange,
+                    step: CustomCommand.cooldownStep,
                     accessibilityIdentifier: "customCommand.perUserCooldown"
                 )
             )
