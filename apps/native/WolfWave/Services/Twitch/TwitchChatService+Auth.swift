@@ -162,6 +162,56 @@ extension TwitchChatService {
         }
     }
 
+    /// Revalidates the stored token when Polls mode is enabled on an already
+    /// connected EventSub session. Only a parsed missing scope or 401 is
+    /// definitive enough to require interactive reauthorization.
+    func validateLivePollScope() async -> PollScopeValidation {
+        if let pollScopeValidationOverride {
+            return await pollScopeValidationOverride()
+        }
+        guard let token = oauthToken,
+              let url = URL(string: "https://id.twitch.tv/oauth2/validate") else {
+            return .missing
+        }
+        var request = URLRequest(url: url)
+        request.httpMethod = "GET"
+        request.timeoutInterval = 15
+        request.setValue("OAuth \(token)", forHTTPHeaderField: "Authorization")
+        request.setValue(HTTPClient.defaultUserAgent, forHTTPHeaderField: "User-Agent")
+
+        do {
+            let (data, http) = try await HTTPClient.shared.send(request)
+            return Self.pollScopeValidation(
+                statusCode: http.statusCode,
+                responseData: data)
+        } catch {
+            Log.warn(
+                "TwitchChatService: Poll scope validation was inconclusive - \(error.localizedDescription)",
+                category: "Twitch")
+            return .indeterminate
+        }
+    }
+
+    /// Pure classifier used by live refresh and focused tests.
+    nonisolated static func pollScopeValidation(
+        statusCode: Int?,
+        responseData: Data?
+    ) -> PollScopeValidation {
+        guard let statusCode else { return .indeterminate }
+        if statusCode == 401 { return .missing }
+        guard (200..<300).contains(statusCode),
+              let responseData,
+              let parsed = try? JSONCoders.snakeCase.decode(
+                  TwitchValidateResponse.self,
+                  from: responseData),
+              let scopes = parsed.scopes else {
+            return .indeterminate
+        }
+        return scopes.contains(AppConstants.Twitch.pollsScope)
+            ? .present
+            : .missing
+    }
+
     // MARK: - Username Resolution
 
     /// Validates whether a Twitch channel name exists by resolving it to a user ID.

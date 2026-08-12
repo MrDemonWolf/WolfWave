@@ -42,6 +42,10 @@ nonisolated final class PlayLogStore: @unchecked Sendable {
     private let encoder = JSONCoders.defaultEncoder
     private let decoder = JSONCoders.default
 
+    /// Deterministic failure seam for compaction tests. Production leaves it
+    /// nil and always uses the atomic filesystem rewrite below.
+    private let replaceAllOverride: (@Sendable ([PlayRecord]) -> Bool)?
+
     // MARK: - Init
 
     /// Creates a store writing to `directory`, or to
@@ -49,9 +53,13 @@ nonisolated final class PlayLogStore: @unchecked Sendable {
     ///
     /// - Parameter directory: Override directory, primarily for tests. The
     ///   directory is created lazily on first write.
-    init(directory: URL? = nil) {
+    init(
+        directory: URL? = nil,
+        replaceAllOverride: (@Sendable ([PlayRecord]) -> Bool)? = nil
+    ) {
         let dir = directory ?? HistoryStoreSupport.defaultDirectory()
         fileURL = dir.appending(path: AppConstants.History.logFileName)
+        self.replaceAllOverride = replaceAllOverride
     }
 
     // MARK: - Public API
@@ -80,13 +88,20 @@ nonisolated final class PlayLogStore: @unchecked Sendable {
     /// and retention trimming. The only operation that rewrites the file.
     ///
     /// - Parameter records: The records the log should contain afterwards.
-    func replaceAll(with records: [PlayRecord]) {
-        ioQueue.sync { replaceSync(records) }
+    @discardableResult
+    func replaceAll(with records: [PlayRecord]) -> Bool {
+        ioQueue.sync {
+            if let replaceAllOverride {
+                return replaceAllOverride(records)
+            }
+            return replaceSync(records)
+        }
     }
 
     /// Deletes all recorded history, leaving an empty log file.
-    func clear() {
-        ioQueue.sync { replaceSync([]) }
+    @discardableResult
+    func clear() -> Bool {
+        replaceAll(with: [])
     }
 
     /// Current on-disk size of the log in bytes (0 when the file is absent).
@@ -147,7 +162,7 @@ nonisolated final class PlayLogStore: @unchecked Sendable {
     }
 
     /// Rewrites the file with exactly `records`. Runs on `ioQueue`.
-    private func replaceSync(_ records: [PlayRecord]) {
+    private func replaceSync(_ records: [PlayRecord]) -> Bool {
         try? fileHandle?.close()
         fileHandle = nil
 
@@ -158,9 +173,12 @@ nonisolated final class PlayLogStore: @unchecked Sendable {
             .joined(separator: "\n")
         let contents = records.isEmpty ? "" : body + "\n"
         do {
-            try contents.data(using: .utf8)?.write(to: fileURL, options: .atomic)
+            guard let data = contents.data(using: .utf8) else { return false }
+            try data.write(to: fileURL, options: .atomic)
+            return true
         } catch {
             Log.error("PlayLogStore: Rewrite failed: \(error.localizedDescription)", category: AppConstants.History.logCategory)
+            return false
         }
     }
 

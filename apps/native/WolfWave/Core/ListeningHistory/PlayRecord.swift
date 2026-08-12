@@ -35,6 +35,10 @@ nonisolated struct PlayRecord: Codable, Equatable, Hashable, Sendable {
     /// How long the track actually played in seconds.
     let playedSeconds: TimeInterval
 
+    /// Monotonic identity within the history log. Legacy NDJSON lines decode
+    /// with `nil` and receive a sequence during the next disk load/rewrite.
+    let sequence: UInt64?
+
     // MARK: - Init
 
     /// Creates a play record.
@@ -52,7 +56,8 @@ nonisolated struct PlayRecord: Codable, Equatable, Hashable, Sendable {
         artist: String,
         album: String,
         duration: TimeInterval,
-        playedSeconds: TimeInterval
+        playedSeconds: TimeInterval,
+        sequence: UInt64? = nil
     ) {
         self.timestamp = timestamp
         self.track = track
@@ -60,6 +65,7 @@ nonisolated struct PlayRecord: Codable, Equatable, Hashable, Sendable {
         self.album = album
         self.duration = duration
         self.playedSeconds = playedSeconds
+        self.sequence = sequence
     }
 
     // MARK: - Codable
@@ -73,6 +79,7 @@ nonisolated struct PlayRecord: Codable, Equatable, Hashable, Sendable {
         case album
         case duration = "dur"
         case playedSeconds = "played"
+        case sequence = "seq"
     }
 
     init(from decoder: Decoder) throws {
@@ -87,6 +94,7 @@ nonisolated struct PlayRecord: Codable, Equatable, Hashable, Sendable {
         // trap a downstream `Int(_:)` conversion in stats/formatting.
         duration = Self.sanitize(try? container.decode(Double.self, forKey: .duration))
         playedSeconds = Self.sanitize(try? container.decode(Double.self, forKey: .playedSeconds))
+        sequence = try container.decodeIfPresent(UInt64.self, forKey: .sequence)
     }
 
     /// Clamps a decoded duration to a finite, non-negative, in-Int-range value.
@@ -102,6 +110,19 @@ nonisolated struct PlayRecord: Codable, Equatable, Hashable, Sendable {
         try container.encode(album, forKey: .album)
         try container.encode(duration.rounded(), forKey: .duration)
         try container.encode(playedSeconds.rounded(), forKey: .playedSeconds)
+        try container.encodeIfPresent(sequence, forKey: .sequence)
+    }
+
+    /// Returns the same play with a durable log sequence assigned.
+    func assigningSequence(_ sequence: UInt64) -> PlayRecord {
+        PlayRecord(
+            timestamp: timestamp,
+            track: track,
+            artist: artist,
+            album: album,
+            duration: duration,
+            playedSeconds: playedSeconds,
+            sequence: sequence)
     }
 
     // MARK: - Grouping Keys

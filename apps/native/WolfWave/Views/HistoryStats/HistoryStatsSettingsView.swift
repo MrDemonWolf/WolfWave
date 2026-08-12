@@ -57,6 +57,7 @@ struct HistoryStatsSettingsView: View {
 
     @State private var showWrapSheet = false
     @State private var showClearAlert = false
+    @State private var showClearFailureAlert = false
     @State private var musicPermission: MusicPermissionState = MusicPermissionCache.read() ?? .unknown
     @State private var visibleRecentCount: Int = AppConstants.History.recentDisplayCount
 
@@ -142,11 +143,18 @@ struct HistoryStatsSettingsView: View {
         .alert("Clear listening history?", isPresented: $showClearAlert) {
             Button("Cancel", role: .cancel) {}
             Button("Clear", role: .destructive) {
-                service?.clearHistory()
+                if let service, !service.clearHistory() {
+                    showClearFailureAlert = true
+                }
             }
             .accessibilityIdentifier("clearHistoryConfirmButton")
         } message: {
             Text("This permanently deletes every recorded play. Can't be undone.")
+        }
+        .alert("Couldn't finish clearing history", isPresented: $showClearFailureAlert) {
+            Button("OK") {}
+        } message: {
+            Text("WolfWave will retry before saving any new plays.")
         }
     }
 

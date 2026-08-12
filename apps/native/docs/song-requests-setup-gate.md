@@ -34,13 +34,19 @@ silently posted a dead link.
 
 ## Data model
 
-Two `UserDefaults` keys (both `runtimeStateKeys`, machine-local, never exported):
+Three `UserDefaults` keys (all `runtimeStateKeys`, machine-local, never exported):
 
 - `songRequestSetupComplete` (Bool): the gate. Set by the wizard, or by a
   one-time migration that grandfathers anyone who already had the feature on.
 - `songRequestPlaylistStatus` (String): raw value of `PlaylistSetupStatus`
   (`ok` / `playlistMissing` / `linkUnshared` / `musicAccessLost`). Drives the
   banner. Mirrors `songRequestRedemptionStatus`.
+- `songRequestPlaylistID` (String): last verified library-playlist ID. Discovery
+  validates that exact resource's ID and name before use, allowing the streamer
+  to edit its description after WolfWave established ownership. If that resource
+  is gone or renamed, discovery follows pagination to exhaustion (with a loop
+  guard for repeated paths) and requires the exact WolfWave description marker so it never
+  adopts a same-name user playlist.
 
 `PlaylistSetupStatus` (in `SongRequestAccess.swift`, beside `RedemptionStatus`)
 exposes `bannerMessage`, `isEssential`, `actionLabel`.
@@ -51,7 +57,11 @@ exposes `bannerMessage`, `isEssential`, `actionLabel`.
 (`ok(shareURL:)` / `missing` / `notPublic` / `unreachable`). It never creates the
 playlist (so a deletion is visible) and treats a transport failure as
 `.unreachable`. The decision is split out into the pure
-`classifyProbe(foundPlaylistID:resolvedShareURL:)`.
+`classifyProbe(foundPlaylistID:shareURL:)`.
+
+`ensureRequestsPlaylist()` shares one lookup/create task across concurrent
+callers and persists the verified ID. Reset cancels and invalidates that task,
+clears the ID, and forces the next call to revalidate or rebuild.
 
 `SongRequestService.runSetupHealthCheck()` orchestrates: skip if setup not done →
 `musicAccessLost` if not authorized → probe (rebuild a `missing` playlist once) →
@@ -67,7 +77,7 @@ flips a toggle.
 
 ## Key files
 
-- `Core/AppConstants.swift`: the two keys + `allKeys`/`runtimeStateKeys`.
+- `Core/AppConstants+UserDefaults.swift`: the three keys + `allKeys`/`runtimeStateKeys`.
 - `Core/FeatureFlags.swift`: `songRequestSetupComplete` accessor.
 - `Services/SongRequest/SongRequestAccess.swift`: `PlaylistSetupStatus`.
 - `Services/SongRequest/AppleMusicLibraryService.swift`: `PlaylistProbe`,
@@ -83,5 +93,6 @@ flips a toggle.
 ## Tests
 
 `PlaylistSetupStatusTests`, `SongRequestSetupHealthTests` (resolveHealth +
-classifyProbe + migration), `SongRequestSetupViewModelTests`. All pure, no network
-or Keychain, isolated `UserDefaults` suites.
+classifyProbe + migration), `SongRequestSetupViewModelTests`, and
+`AppleMusicLibraryServiceTests` (transport seams; no live network). No Keychain;
+isolated `UserDefaults` suites.

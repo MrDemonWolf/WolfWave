@@ -8,6 +8,19 @@
 
 import Foundation
 
+/// What WolfWave can prove after asking Twitch to create a skip poll.
+nonisolated enum SkipPollCreationOutcome: Equatable, Sendable {
+    /// Twitch confirmed creation and returned the poll's Helix identity.
+    case created(id: String)
+    /// The request was invalid or Twitch safely rejected it, so no poll exists.
+    case definitiveFailure
+    /// Twitch rejected creation because a native poll is already running.
+    case pollAlreadyActive
+    /// Twitch may have created the poll, but transport/server ambiguity or a
+    /// malformed success response means WolfWave cannot prove its identity.
+    case indeterminate
+}
+
 /// Coordinates chat vote-to-skip sessions.
 ///
 /// Two modes, selected by the `voteSkipUsePolls` preference:
@@ -44,8 +57,18 @@ actor SkipVoteManager {
         case pollStarted
         /// Polls mode: a Twitch poll is already running.
         case pollInProgress
+        /// The target track changed while Twitch was creating the poll.
+        case pollTrackChanged
+        /// Twitch may have created the poll, so another mechanism is blocked.
+        case pollStatusUnknown
+        /// Poll creation was invalidated by reset/disconnect; stay silent.
+        case pollRequestCancelled
         /// Polls mode: a non-moderator tried to start a poll.
         case pollNotAllowed
+        /// Music.app's current track could not be bound safely.
+        case playbackUnavailable
+        /// The bound target changed or Music rejected the final skip command.
+        case skipUnavailable
     }
 
     /// A lifecycle signal emitted to the optional `onVoteEvent` hook so a consumer
@@ -63,16 +86,22 @@ actor SkipVoteManager {
 
     // MARK: - Wiring
 
-    /// Skips the current song. Wired by `AppDelegate` to `SongRequestService.voteSkip()`.
-    private var performSkip: (@Sendable () async -> Void)?
+    /// Captures the exact Music track before a native poll is created.
+    private var capturePlaybackTarget: (@Sendable () async -> PlaybackTarget?)?
+
+    /// Skips only the supplied poll target. Wired by `AppDelegate` to
+    /// `SongRequestService.voteSkip(target:)`.
+    private var performSkip: (@Sendable (PlaybackTarget) async -> Bool)?
 
     /// Sends a message to Twitch chat (for window-expiry and poll-result notices,
     /// which have no triggering message to reply to). Wired by `AppDelegate`.
     private var sendChatMessage: (@Sendable (String) -> Void)?
 
-    /// Creates a Twitch poll. Returns `true` on success. Wired by `AppDelegate` to
-    /// `TwitchChatService.createSkipPoll(...)`. Unset until Polls mode is used.
-    private var createPoll: (@Sendable (_ title: String, _ durationSeconds: Int) async -> Bool)?
+    /// Creates a Twitch poll and reports whether Twitch proved creation,
+    /// definitively rejected it, or left the result ambiguous. Wired by
+    /// `AppDelegate` to `TwitchChatService.createSkipPoll(...)`.
+    private var createPoll: (@Sendable (_ title: String, _ durationSeconds: Int) async
+        -> SkipPollCreationOutcome)?
 
     /// Lifecycle hook for vote events (start / poll-start / pass). Wired by
     /// `AppDelegate` to post macOS notifications. The manager does no gating here.
@@ -83,11 +112,14 @@ actor SkipVoteManager {
     /// `AppDelegate.setupSkipVoteManager()` so the actor's mutable closure
     /// properties are only assigned from inside the actor.
     func configure(
-        performSkip: (@Sendable () async -> Void)?,
+        capturePlaybackTarget: (@Sendable () async -> PlaybackTarget?)?,
+        performSkip: (@Sendable (PlaybackTarget) async -> Bool)?,
         sendChatMessage: (@Sendable (String) -> Void)?,
-        createPoll: (@Sendable (_ title: String, _ durationSeconds: Int) async -> Bool)?,
+        createPoll: (@Sendable (_ title: String, _ durationSeconds: Int) async
+            -> SkipPollCreationOutcome)?,
         onVoteEvent: (@Sendable (VoteEvent) -> Void)? = nil
     ) {
+        self.capturePlaybackTarget = capturePlaybackTarget
         self.performSkip = performSkip
         self.sendChatMessage = sendChatMessage
         self.createPoll = createPoll
@@ -122,16 +154,35 @@ actor SkipVoteManager {
 
     private var voters: Set<String> = []
     private var sessionStart: Date?
+    /// Exact Music track captured when the active chat tally opened.
+    private var activeChatTarget: PlaybackTarget?
     private var windowTask: Task<Void, Never>?
     private var lastSessionEnd: Date?
     private var pollActive = false
     private var pollTimeoutTask: Task<Void, Never>?
+    /// Helix ID of the active native poll. Poll-end events must match exactly.
+    private var activePollID: String?
+    /// Track generation captured before the create-poll request suspends.
+    private var activePollTrackGeneration: Int?
+    /// Exact Music track captured before the active poll was created.
+    private var activePollTarget: PlaybackTarget?
+
+    /// Monotonic identity of the track vote-skip currently targets. This advances
+    /// for every observed track change, even when no chat-tally session exists,
+    /// so a native poll can never skip the song that replaced its original target.
+    private var trackGeneration = 0
 
     /// Monotonic id bumped each time a new chat-tally session opens. The window
     /// timer captures the id at spawn time and checks it before expiring, so a
     /// stale timer (whose sleep ran past a fast pass + immediate re-open with a
     /// zero cooldown) can't clear the session that replaced it.
     private var sessionGeneration = 0
+
+    /// Invalidates a chat-vote target capture when Twitch disconnects or the
+    /// manager is reset while the Music.app read is suspended. Kept separate
+    /// from `sessionGeneration` so two concurrent first votes can still join
+    /// the same newly-opened tally instead of treating each other as a reset.
+    private var lifecycleGeneration = 0
 
     /// Monotonic id bumped each time a new Twitch poll opens. The poll-end
     /// fallback timer captures the id at spawn time and checks it before firing,
@@ -193,6 +244,13 @@ actor SkipVoteManager {
     /// Records a `!voteskip` from `context` and returns the outcome.
     func recordVote(context: BotCommandContext) async -> VoteOutcome {
         guard isEnabled else { return .disabled }
+        // A native poll remains remote state even if the local mode toggle is
+        // changed. Never open a simultaneous chat tally while it is latched.
+        if pollActive { return .pollInProgress }
+        // A definitive Helix failure may have opened the chat fallback while
+        // Polls remains selected. Keep counting that session instead of trying
+        // to start a native poll beside it.
+        if sessionStart != nil { return await recordChatVote(context: context) }
         if usePolls {
             return await handlePollVote(context: context)
         }
@@ -217,14 +275,44 @@ actor SkipVoteManager {
     /// - Parameters:
     ///   - skipVotes: Vote count for the "Skip" choice.
     ///   - keepVotes: Vote count for the "Keep playing" choice.
-    func handlePollEnded(skipVotes: Int, keepVotes: Int) async {
-        pollTimeoutTask?.cancel()
-        pollTimeoutTask = nil
-        pollActive = false
+    func handlePollEnded(pollID: String, skipVotes: Int, keepVotes: Int) async {
+        guard pollActive, activePollID == pollID else {
+            Log.debug(
+                "SkipVoteManager: Ignoring poll.end for non-active poll \(pollID)",
+                category: "SongRequest"
+            )
+            return
+        }
+
+        let appliesToCurrentTrack = activePollTrackGeneration == trackGeneration
+        let target = activePollTarget
+        clearPollState()
+        guard appliesToCurrentTrack, let target else {
+            Log.info(
+                "SkipVoteManager: Poll \(pollID) targeted an earlier track; result ignored",
+                category: "SongRequest"
+            )
+            return
+        }
+
+        guard isEnabled else {
+            Log.info(
+                "SkipVoteManager: Poll \(pollID) drained after vote-skip was disabled",
+                category: "SongRequest"
+            )
+            return
+        }
+
         let needed = minVotes
         if skipVotes > keepVotes && skipVotes >= needed {
+            guard await performSkip?(target) == true else {
+                Log.info(
+                    "SkipVoteManager: Poll \(pollID) target became stale before mutation",
+                    category: "SongRequest"
+                )
+                return
+            }
             sendChatMessage?("✅ The vote passed, skipping! (\(skipVotes) skip / \(keepVotes) keep)")
-            await performSkip?()
             onVoteEvent?(.passed)
         } else {
             sendChatMessage?("📊 Vote over, the song stays. (\(skipVotes) skip / \(keepVotes) keep)")
@@ -243,11 +331,13 @@ actor SkipVoteManager {
     /// native poll runs on Twitch's side and still resolves via
     /// `channel.poll.end` or the timeout fallback.
     func trackDidChange() {
+        trackGeneration &+= 1
         guard sessionStart != nil else { return }
         windowTask?.cancel()
         windowTask = nil
         voters.removeAll()
         sessionStart = nil
+        activeChatTarget = nil
         postState()
         Log.debug(
             "SkipVoteManager: track changed, chat-tally vote session cleared",
@@ -259,26 +349,49 @@ actor SkipVoteManager {
     func reset() {
         windowTask?.cancel()
         windowTask = nil
-        pollTimeoutTask?.cancel()
-        pollTimeoutTask = nil
+        lifecycleGeneration &+= 1
+        pollGeneration &+= 1
+        clearPollState()
         voters.removeAll()
         sessionStart = nil
+        activeChatTarget = nil
         lastSessionEnd = nil
-        pollActive = false
     }
 
     // MARK: - Chat-tally Voting
 
-    private func recordChatVote(context: BotCommandContext) async -> VoteOutcome {
+    private func recordChatVote(
+        context: BotCommandContext,
+        fallbackTarget: PlaybackTarget? = nil
+    ) async -> VoteOutcome {
         if isSubscriberOnly && !context.isSubscriber && !context.isPrivileged {
             return .subscriberOnly
         }
 
         let needed = minVotes
+        let openingTarget: PlaybackTarget?
+        if sessionStart == nil, let fallbackTarget {
+            openingTarget = fallbackTarget
+        } else if sessionStart == nil {
+            let openingTrackGeneration = trackGeneration
+            let openingLifecycleGeneration = lifecycleGeneration
+            guard let captured = await targetForNewVote() else {
+                return .playbackUnavailable
+            }
+            guard openingTrackGeneration == trackGeneration,
+                  openingLifecycleGeneration == lifecycleGeneration else {
+                return .playbackUnavailable
+            }
+            guard isEnabled else { return .disabled }
+            guard !usePolls else { return .playbackUnavailable }
+            openingTarget = captured
+        } else {
+            openingTarget = nil
+        }
 
         enum Decision {
             case outcome(VoteOutcome)
-            case pass(count: Int)
+            case pass(count: Int, target: PlaybackTarget)
         }
 
         let decision: Decision = {
@@ -294,11 +407,15 @@ actor SkipVoteManager {
                 }
                 voters = [context.userID]
                 sessionStart = now
+                activeChatTarget = openingTarget
                 sessionGeneration += 1
                 if voters.count >= needed {
                     let count = voters.count
+                    guard let target = activeChatTarget else {
+                        return .outcome(.playbackUnavailable)
+                    }
                     finishSession()
-                    return .pass(count: count)
+                    return .pass(count: count, target: target)
                 }
                 startWindowTask()
                 return .outcome(.started(count: voters.count, needed: needed))
@@ -311,8 +428,11 @@ actor SkipVoteManager {
             voters.insert(context.userID)
             if voters.count >= needed {
                 let count = voters.count
+                guard let target = activeChatTarget else {
+                    return .outcome(.playbackUnavailable)
+                }
                 finishSession()
-                return .pass(count: count)
+                return .pass(count: count, target: target)
             }
             return .outcome(.counted(count: voters.count, needed: needed))
         }()
@@ -329,9 +449,11 @@ actor SkipVoteManager {
                 break
             }
             return outcome
-        case .pass(let count):
+        case .pass(let count, let target):
             postState()
-            await performSkip?()
+            guard await performSkip?(target) == true else {
+                return .skipUnavailable
+            }
             onVoteEvent?(.passed)
             return .passed(count: count)
         }
@@ -343,24 +465,100 @@ actor SkipVoteManager {
         guard context.isPrivileged else { return .pollNotAllowed }
 
         if pollActive { return .pollInProgress }
+        let requestTrackGeneration = trackGeneration
+        let requestPollGeneration = pollGeneration
+        guard let target = await targetForNewVote() else {
+            return .playbackUnavailable
+        }
+        guard requestTrackGeneration == trackGeneration else {
+            return .pollTrackChanged
+        }
+        // Another moderator can claim the poll while this request is suspended
+        // in Music.app. Report the active poll rather than issuing a second
+        // Helix create or misclassifying the request as a reset cancellation.
+        if pollActive { return .pollInProgress }
+        guard requestPollGeneration == pollGeneration else {
+            return .pollRequestCancelled
+        }
+        guard isEnabled else { return .disabled }
+        guard usePolls else { return .pollRequestCancelled }
+        pollGeneration &+= 1
+        let generation = pollGeneration
+        let targetTrackGeneration = trackGeneration
         pollActive = true
+        activePollID = nil
+        activePollTrackGeneration = targetTrackGeneration
+        activePollTarget = target
 
-        let success = await createPoll?("Skip the current song?", pollDuration) ?? false
-        if success {
-            pollGeneration += 1
+        let creation = await createPoll?("Skip the current song?", pollDuration)
+            ?? .definitiveFailure
+        guard generation == pollGeneration, pollActive else {
+            // reset()/disconnect deliberately invalidated this request. It says
+            // nothing about a track change and must not reply or mutate a newer
+            // poll generation when the suspended request eventually returns.
+            return .pollRequestCancelled
+        }
+        guard targetTrackGeneration == trackGeneration else {
+            switch creation {
+            case .created(let pollID):
+                // The poll exists remotely and Twitch permits only one active
+                // poll. Keep its identity latched until poll.end (or timeout)
+                // drains it, but its old track generation prevents any skip.
+                activePollID = pollID
+                startPollTimeoutTask()
+            case .indeterminate:
+                // A poll may exist but its ID is unknown. Latch until timeout;
+                // never open a simultaneous chat tally or second Twitch poll.
+                startPollTimeoutTask()
+            case .pollAlreadyActive:
+                // Twitch proved another native poll exists. Its identity is
+                // unknown, so hold the latch until poll timeout.
+                startPollTimeoutTask()
+            case .definitiveFailure:
+                clearPollState()
+            }
+            return .pollTrackChanged
+        }
+
+        switch creation {
+        case .created(let pollID):
+            activePollID = pollID
             startPollTimeoutTask()
             onVoteEvent?(.pollStarted)
             return .pollStarted
+        case .definitiveFailure:
+            clearPollState()
+            // Twitch proved this request did not create a poll, so a chat tally
+            // is safe only while the same enabled Polls mode still owns the
+            // request. A disable or mode change cancels without a stale reply.
+            guard isEnabled else { return .disabled }
+            guard usePolls else { return .pollRequestCancelled }
+            sendChatMessage?("📊 Twitch couldn't open a poll, counting chat votes instead.")
+            return await recordChatVote(
+                context: context,
+                fallbackTarget: target)
+        case .pollAlreadyActive:
+            startPollTimeoutTask()
+            return .pollInProgress
+        case .indeterminate:
+            // The remote result is unknown. Treat the maybe-poll as active until
+            // timeout so Twitch and chat can never run two skip votes at once.
+            startPollTimeoutTask()
+            return .pollStatusUnknown
         }
-
-        // Poll creation failed (commonly: the channel is not a Twitch Affiliate).
-        // Fall back to a chat tally so the vote still works.
-        pollActive = false
-        sendChatMessage?("📊 Twitch polls need Affiliate status, counting chat votes instead.")
-        return await recordChatVote(context: context)
     }
 
     // MARK: - Session Helpers
+
+    /// Captures through the configured production boundary. An entirely unwired
+    /// manager uses a sentinel only so pure state-machine tests can exercise
+    /// tally logic; it has no skip or poll closures capable of external effects.
+    private func targetForNewVote() async -> PlaybackTarget? {
+        guard let capturePlaybackTarget else {
+            return PlaybackTarget(trackKey: "", revision: 0)
+        }
+        return await capturePlaybackTarget()
+    }
 
     /// Tears down the active session and starts the inter-session cooldown.
     private func finishSession() {
@@ -368,6 +566,7 @@ actor SkipVoteManager {
         windowTask = nil
         voters.removeAll()
         sessionStart = nil
+        activeChatTarget = nil
         lastSessionEnd = Date()
     }
 
@@ -392,10 +591,22 @@ actor SkipVoteManager {
         let count = voters.count
         voters.removeAll()
         sessionStart = nil
+        activeChatTarget = nil
         windowTask = nil
         lastSessionEnd = Date()
         postState()
         sendChatMessage?("⏳ Vote-skip failed, only \(count) of \(minVotes) needed. The song stays!")
+    }
+
+    /// Clears native-poll state. Matching poll.end, timeout, failed creation,
+    /// and reset share this path; wrong poll IDs never call it.
+    private func clearPollState() {
+        pollTimeoutTask?.cancel()
+        pollTimeoutTask = nil
+        pollActive = false
+        activePollID = nil
+        activePollTrackGeneration = nil
+        activePollTarget = nil
     }
 
     /// Spawns the fallback timer that clears a latched poll when the
@@ -421,6 +632,9 @@ actor SkipVoteManager {
     private func pollTimedOut(generation: Int) {
         guard pollActive, generation == pollGeneration else { return }
         pollActive = false
+        activePollID = nil
+        activePollTrackGeneration = nil
+        activePollTarget = nil
         pollTimeoutTask = nil
         Log.warn(
             "SkipVoteManager: Twitch poll result never arrived; clearing stuck poll state",

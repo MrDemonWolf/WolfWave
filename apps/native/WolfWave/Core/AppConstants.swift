@@ -214,16 +214,9 @@ nonisolated enum AppConstants {
         /// Branded and explanatory so the playlist reads as WolfWave's, not a
         /// stray user playlist. (Apple builds the cover art from the songs;
         /// custom playlist artwork can't be set through the Apple Music API or
-        /// Music's AppleScript, so the author name and description carry the
-        /// branding instead.)
+        /// Music's AppleScript, so the description carries the branding.)
         static let requestsPlaylistDescription =
             "Live song requests from your Twitch chat, collected by WolfWave. Viewers add tracks with !sr and they play from here. Safe to clear anytime."
-
-        /// Author shown on the WolfWave Requests playlist. The Apple Music API's
-        /// create-playlist call accepts `authorDisplayName`, so the playlist's
-        /// creator reads as "WolfWave" in Music. This is the one piece of real,
-        /// API-supported branding available for the playlist.
-        static let requestsPlaylistAuthor = "WolfWave"
     }
 
     // MARK: - Twitch Integration
@@ -306,6 +299,10 @@ nonisolated enum AppConstants {
         /// that survives rolling-window record trimming.
         static let lifetimeTallyFileName = "lifetime-tally.json"
 
+        /// Versioned tombstone persisted before clearing either history store.
+        /// A leftover marker is replayed at launch before any records are loaded.
+        static let clearPendingFileName = "clear-pending-v1"
+
         /// Minimum fraction of a track that must play before it counts as a play.
         static let scrobbleFraction: Double = 0.5
 
@@ -324,10 +321,6 @@ nonisolated enum AppConstants {
         /// Maximum number of `PlayRecord`s retained on disk and in memory.
         /// Older plays are folded into the lifetime tally and dropped.
         static let maxRetainedRecords = 10_000
-
-        /// Per-dimension (artist/track/album) cap on the number of entries the
-        /// lifetime tally retains. When full, the lowest-count entry is evicted.
-        static let lifetimeTopKeyCap = 2_000
 
         /// Logging category for history-related log lines.
         static let logCategory = "History"

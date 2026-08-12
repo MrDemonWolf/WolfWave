@@ -33,9 +33,11 @@ struct MonthlyWrapTests {
         return calendar.date(from: components)!
     }
 
-    private func record(track: String, artist: String, at date: Date) -> PlayRecord {
+    private func record(
+        track: String, artist: String, at date: Date, played: TimeInterval = 180
+    ) -> PlayRecord {
         PlayRecord(timestamp: date, track: track, artist: artist, album: "Album",
-                   duration: 200, playedSeconds: 180)
+                   duration: 200, playedSeconds: played)
     }
 
     // MARK: - Tests
@@ -116,6 +118,28 @@ struct MonthlyWrapTests {
         ]
         let wrap = MonthlyWrap.data(from: records, month: date(2026, 5, 15), calendar: calendar)
         #expect(wrap.busiestDay?.count == 2)
+    }
+
+    @Test("Busiest-day ties prefer seconds then the earliest date")
+    func testBusiestDayStableTieBreaks() {
+        let records = [
+            record(track: "A", artist: "X", at: date(2026, 5, 10), played: 100),
+            record(track: "B", artist: "X", at: date(2026, 5, 10), played: 100),
+            record(track: "C", artist: "X", at: date(2026, 5, 11), played: 150),
+            record(track: "D", artist: "X", at: date(2026, 5, 11), played: 150),
+            record(track: "E", artist: "X", at: date(2026, 5, 12), played: 150),
+            record(track: "F", artist: "X", at: date(2026, 5, 12), played: 150),
+        ]
+
+        let forward = MonthlyWrap.data(
+            from: records, month: date(2026, 5, 15), calendar: calendar)
+        let reversed = MonthlyWrap.data(
+            from: Array(records.reversed()), month: date(2026, 5, 15), calendar: calendar)
+        let expected = calendar.startOfDay(for: date(2026, 5, 11))
+
+        #expect(forward.busiestDay?.day == expected)
+        #expect(forward.busiestDay?.seconds == 300)
+        #expect(reversed.busiestDay?.day == expected)
     }
 
     @Test("MonthlyWrapCard renders without crashing on the WolfWave gradient")

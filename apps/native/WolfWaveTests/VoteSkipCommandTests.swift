@@ -66,6 +66,7 @@ final class VoteSkipCommandTests: WolfWaveTestCase {
     // MARK: - Reply Formatting
 
     func testFormatDisabledIsSilent() {
+        XCTAssertNil(VoteSkipCommand.format(.pollRequestCancelled))
         XCTAssertNil(VoteSkipCommand.format(.disabled))
     }
 
@@ -79,13 +80,26 @@ final class VoteSkipCommandTests: WolfWaveTestCase {
         XCTAssertEqual(VoteSkipCommand.format(.onCooldown(remaining: 12))?.contains("12"), true)
     }
 
+    func testStaleTargetRepliesDoNotInviteUnsafeRetry() {
+        XCTAssertEqual(
+            VoteSkipCommand.format(.pollTrackChanged),
+            "🎵 The song changed while Twitch handled the poll. It won't skip the new song.")
+        XCTAssertEqual(
+            VoteSkipCommand.format(.skipUnavailable),
+            "🎵 The voted song changed or couldn't be skipped. The current song was left alone.")
+    }
+
     func testFormatNonDisabledOutcomesProduceReplies() {
         let outcomes: [SkipVoteManager.VoteOutcome] = [
             .subscriberOnly,
             .alreadyVoted(count: 1, needed: 3),
             .pollStarted,
             .pollInProgress,
+            .pollTrackChanged,
             .pollNotAllowed,
+            .pollStatusUnknown,
+            .playbackUnavailable,
+            .skipUnavailable,
         ]
         for outcome in outcomes {
             XCTAssertNotNil(VoteSkipCommand.format(outcome), "\(outcome) should produce a reply")
@@ -99,7 +113,13 @@ final class VoteSkipCommandTests: WolfWaveTestCase {
         UserDefaults.standard.set(1, forKey: AppConstants.UserDefaults.voteSkipMinVotes)
 
         let manager = SkipVoteManager()
-        await manager.configure(performSkip: {}, sendChatMessage: nil, createPoll: nil)
+        await manager.configure(
+            capturePlaybackTarget: {
+                PlaybackTarget(trackKey: "Current\tArtist", revision: 0)
+            },
+            performSkip: { _ in true },
+            sendChatMessage: nil,
+            createPoll: nil)
         let command = VoteSkipCommand()
         command.skipVoteManager = { manager }
 

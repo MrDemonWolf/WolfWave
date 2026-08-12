@@ -6,6 +6,7 @@
 //  Copyright © 2026 MrDemonWolf, Inc. All rights reserved.
 //
 
+import Foundation
 import XCTest
 @testable import WolfWave
 
@@ -32,6 +33,64 @@ final class AppleMusicSourceTests: XCTestCase {
 
     func testDelegateIsNilByDefault() {
         XCTAssertNil(monitor.delegate)
+    }
+
+    // MARK: - ScriptingBridge Failure Handling
+
+    func testBridgeDelegateReturnsAndClearsRecordedError() {
+        let delegate = MusicScriptingBridgeErrorDelegate()
+        let expected = NSError(
+            domain: "AppleMusicSourceTests",
+            code: 42,
+            userInfo: [NSLocalizedDescriptionKey: "Bridge failed"]
+        )
+
+        delegate.record(expected)
+
+        guard let captured = delegate.takeError() else {
+            XCTFail("Expected the recorded bridge error")
+            return
+        }
+        XCTAssertEqual((captured as NSError).code, 42)
+        XCTAssertEqual(captured.localizedDescription, "Bridge failed")
+        XCTAssertNil(delegate.takeError())
+    }
+
+    func testBridgeErrorStatusMapsTargetAndPermissionFailures() {
+        let domain = "AppleMusicSourceTests"
+        XCTAssertEqual(
+            AppleMusicSource.status(forBridgeError: NSError(domain: domain, code: -600)),
+            "NOT_RUNNING"
+        )
+        XCTAssertEqual(
+            AppleMusicSource.status(forBridgeError: NSError(domain: domain, code: -609)),
+            "NOT_RUNNING"
+        )
+        XCTAssertEqual(
+            AppleMusicSource.status(forBridgeError: NSError(domain: domain, code: -1_743)),
+            "ACCESS_DENIED"
+        )
+    }
+
+    func testIntervalElapsedUsesMonotonicInstants() {
+        let clock = ContinuousClock()
+        let start = clock.now
+
+        XCTAssertTrue(AppleMusicSource.intervalElapsed(
+            since: nil,
+            now: start,
+            minimum: .seconds(1)
+        ))
+        XCTAssertFalse(AppleMusicSource.intervalElapsed(
+            since: start,
+            now: start.advanced(by: .milliseconds(500)),
+            minimum: .seconds(1)
+        ))
+        XCTAssertTrue(AppleMusicSource.intervalElapsed(
+            since: start,
+            now: start.advanced(by: .seconds(1)),
+            minimum: .seconds(1)
+        ))
     }
 
     // MARK: - Start/Stop Tests
