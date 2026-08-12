@@ -136,7 +136,7 @@ final class ArtworkServiceNetworkTests: XCTestCase {
 
     func testStructuredCacheKeysKeepDelimiterContainingTracksDistinct() async {
         let counter = ThreadSafeBox(0)
-        MockURLProtocol.requestHandler = { request in
+        handlerStore.handler = { request in
             guard let url = request.url,
                   let term = URLComponents(url: url, resolvingAgainstBaseURL: false)?
                     .queryItems?
@@ -225,7 +225,10 @@ final class ArtworkServiceNetworkTests: XCTestCase {
             return (MockURLProtocol.httpResponse(for: request, status: 200), Data(json.utf8))
         }
 
-        let svc = ArtworkService(session: MockURLProtocol.makeSession(handlerStore: handlerStore), persistenceURL: url)
+        let svc = ArtworkService(
+            session: MockURLProtocol.makeSession(handlerStore: handlerStore),
+            persistenceURL: url
+        )
         _ = await withCheckedContinuation { (cont: CheckedContinuation<TrackLinks, Never>) in
             svc.fetchTrackLinks(track: "Doomed", artist: "Artist") { cont.resume(returning: $0) }
         }
@@ -243,12 +246,12 @@ final class ArtworkServiceNetworkTests: XCTestCase {
             .appendingPathComponent("artwork-test-\(UUID().uuidString).json")
         defer { try? FileManager.default.removeItem(at: url) }
 
-        MockURLProtocol.requestHandler = { request in
+        handlerStore.handler = { request in
             let json = #"{"results":[{"artworkUrl100":"https://cdn.example/old/100x100.jpg"}]}"#
             return (MockURLProtocol.httpResponse(for: request, status: 200), Data(json.utf8))
         }
 
-        let svc = ArtworkService(session: MockURLProtocol.makeSession(), persistenceURL: url)
+        let svc = ArtworkService(session: MockURLProtocol.makeSession(handlerStore: handlerStore), persistenceURL: url)
         _ = await withCheckedContinuation { (cont: CheckedContinuation<TrackLinks, Never>) in
             svc.fetchTrackLinks(track: "Old", artist: "Artist") { cont.resume(returning: $0) }
         }
@@ -259,7 +262,7 @@ final class ArtworkServiceNetworkTests: XCTestCase {
 
         await svc.clearCache()
 
-        MockURLProtocol.requestHandler = { request in
+        handlerStore.handler = { request in
             let json = #"{"results":[{"artworkUrl100":"https://cdn.example/fresh/100x100.jpg"}]}"#
             return (MockURLProtocol.httpResponse(for: request, status: 200), Data(json.utf8))
         }
@@ -270,7 +273,7 @@ final class ArtworkServiceNetworkTests: XCTestCase {
 
         let persistedFreshGeneration = await waitUntil {
             let reloaded = ArtworkService(
-                session: MockURLProtocol.makeSession(),
+                session: MockURLProtocol.makeSession(handlerStore: handlerStore),
                 persistenceURL: url
             )
             return reloaded.cachedArtworkURL(track: "Fresh", artist: "Artist")
@@ -281,7 +284,10 @@ final class ArtworkServiceNetworkTests: XCTestCase {
             "Clear deletion must run before the fresh-generation persistence write"
         )
 
-        let reloaded = ArtworkService(session: MockURLProtocol.makeSession(), persistenceURL: url)
+        let reloaded = ArtworkService(
+            session: MockURLProtocol.makeSession(handlerStore: handlerStore),
+            persistenceURL: url
+        )
         XCTAssertNil(reloaded.cachedArtworkURL(track: "Old", artist: "Artist"))
         XCTAssertEqual(
             reloaded.cachedArtworkURL(track: "Fresh", artist: "Artist"),
@@ -292,7 +298,7 @@ final class ArtworkServiceNetworkTests: XCTestCase {
     func testClearCacheRejectsOldResponseAndStartsFreshGeneration() async {
         let gate = ArtworkRequestGate()
         defer { gate.releaseAll() }
-        MockURLProtocol.requestHandler = { request in
+        handlerStore.handler = { request in
             try gate.response(for: request)
         }
 
