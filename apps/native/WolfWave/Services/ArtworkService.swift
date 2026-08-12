@@ -99,12 +99,9 @@ nonisolated final class ArtworkService: @unchecked Sendable {
         qos: .utility
     )
 
-    /// Serial queue for disk reads/writes of the persisted cache, kept separate
-    /// from `cacheQueue` so file I/O never blocks a lookup decision.
-    private let ioQueue = DispatchQueue(
-        label: "com.mrdemonwolf.wolfwave.artworkCacheIO",
-        qos: .utility
-    )
+    /// Tail of the ordered persistence chain. Access only while holding
+    /// `cacheQueue`, so submissions preserve cache-generation order.
+    private var persistenceTail: Task<Void, Never>?
 
     /// URL session used for iTunes Search API requests. Injectable for testing.
     private let session: URLSession
@@ -399,8 +396,8 @@ nonisolated final class ArtworkService: @unchecked Sendable {
     }
 
     /// Clears all cached artwork links from memory and deletes the on-disk file.
-    func clearCache() {
-        cacheQueue.sync {
+    func clearCache() async {
+        let deletion: Task<Void, Never>? = cacheQueue.sync {
             // Responses already on the wire may still finish their callers, but
             // the generation guard prevents them from rebuilding this cache.
             cacheGeneration &+= 1
@@ -410,13 +407,12 @@ nonisolated final class ArtworkService: @unchecked Sendable {
             resolvedAt.removeAll()
             cacheKeyOrder.removeAll()
 
-            // Enqueue deletion while still holding the generation barrier.
-            // Any fresh-generation save must acquire cacheQueue first, so its
-            // disk write is guaranteed to follow this deletion on ioQueue.
-            if let url = persistenceURL {
-                ioQueue.async { try? FileManager.default.removeItem(at: url) }
+            guard let url = persistenceURL else { return nil }
+            return enqueuePersistenceOperation {
+                try? FileManager.default.removeItem(at: url)
             }
         }
+        await deletion?.value
         Log.info("Artwork: cache cleared", category: "Artwork")
     }
 
@@ -474,9 +470,24 @@ nonisolated final class ArtworkService: @unchecked Sendable {
             )
         }
         let snapshot = PersistedCache(entries: entries)
-        ioQueue.async {
+        enqueuePersistenceOperation {
             guard let data = try? JSONCoders.defaultEncoder.encode(snapshot) else { return }
             try? data.write(to: url, options: .atomic)
         }
+    }
+
+    /// Enqueues a disk operation after every previously submitted operation.
+    /// Must be called while holding `cacheQueue`.
+    @discardableResult
+    private func enqueuePersistenceOperation(
+        _ operation: @escaping @Sendable () -> Void
+    ) -> Task<Void, Never> {
+        let previous = persistenceTail
+        let task = Task.detached(priority: .utility) {
+            if let previous { await previous.value }
+            operation()
+        }
+        persistenceTail = task
+        return task
     }
 }

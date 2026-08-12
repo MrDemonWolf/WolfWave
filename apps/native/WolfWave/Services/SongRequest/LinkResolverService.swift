@@ -151,7 +151,14 @@ nonisolated final class LinkResolverService {
             guard path.count == 1 else { return nil }
             return .spotify
         case "youtube.com", "www.youtube.com", "m.youtube.com", "music.youtube.com":
-            guard path == ["watch"] else { return nil }
+            guard
+                path == ["watch"],
+                let videoID = URLComponents(url: url, resolvingAgainstBaseURL: false)?
+                    .queryItems?
+                    .first(where: { $0.name == "v" })?
+                    .value,
+                !videoID.isEmpty
+            else { return nil }
             return .youtube
         case "youtu.be":
             guard path.count == 1 else { return nil }

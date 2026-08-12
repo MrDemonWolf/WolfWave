@@ -200,8 +200,8 @@ struct AdvancedSettingsView: View {
     }
 
     /// Clears the persisted artwork links cache (memory + disk).
-    private func clearArtworkCache() {
-        ArtworkService.shared.clearCache()
+    private func clearArtworkCache() async {
+        await ArtworkService.shared.clearCache()
         Log.info("Artwork cache cleared by user", category: "App")
         refreshArtworkStats()
     }
@@ -453,7 +453,9 @@ struct AdvancedSettingsView: View {
         .cardStyle()
         .alert("Clear artwork cache?", isPresented: $showingClearArtworkAlert) {
             Button("Cancel", role: .cancel) {}
-            Button("Clear", role: .destructive) { clearArtworkCache() }
+            Button("Clear", role: .destructive) {
+                Task { await clearArtworkCache() }
+            }
         } message: {
             Text("Saved album art links will be erased. They'll be fetched again as tracks play.")
         }
