@@ -422,7 +422,7 @@ final class SettingsBackupServiceTests: XCTestCase {
                 keys.launchAtLogin: .bool(true),
                 keys.appearancePreference: .string(AppConstants.Appearance.dark),
                 keys.updateCheckEnabled: .bool(false),
-                keys.updateChannel: .string(UpdateChannel.nightly.rawValue),
+                keys.updateChannel: .string(UpdateChannel.nightly.rawValue)
             ],
             integrations: .init(twitch: nil)
         )
