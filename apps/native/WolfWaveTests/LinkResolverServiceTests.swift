@@ -45,6 +45,8 @@ final class LinkResolverServiceTests: XCTestCase {
     func testDetectsYouTubeLink() {
         XCTAssertTrue(LinkResolverService.isYouTubeLink("https://youtu.be/abc"))
         XCTAssertTrue(LinkResolverService.isYouTubeLink("https://www.youtube.com/watch?v=abc"))
+        XCTAssertFalse(LinkResolverService.isYouTubeLink("https://www.youtube.com/watch"))
+        XCTAssertFalse(LinkResolverService.isYouTubeLink("https://www.youtube.com/watch?v="))
         XCTAssertFalse(LinkResolverService.isYouTubeLink("https://example.com"))
         XCTAssertFalse(LinkResolverService.isYouTubeLink("https://notyoutube.com/watch?v=abc"))
     }

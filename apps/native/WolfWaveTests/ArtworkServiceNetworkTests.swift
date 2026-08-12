@@ -231,12 +231,11 @@ final class ArtworkServiceNetworkTests: XCTestCase {
         }
         await waitUntil { FileManager.default.fileExists(atPath: url.path) }
 
-        svc.clearCache()
-        let deleted = await waitUntil { !FileManager.default.fileExists(atPath: url.path) }
+        await svc.clearCache()
 
         XCTAssertNil(svc.cachedArtworkURL(track: "Doomed", artist: "Artist"))
         XCTAssertEqual(svc.cacheStats().entryCount, 0)
-        XCTAssertTrue(deleted, "Cache file should be deleted within the timeout")
+        XCTAssertFalse(FileManager.default.fileExists(atPath: url.path))
     }
 
     func testFreshGenerationPersistsWhenFetchedImmediatelyAfterClear() async {
@@ -258,7 +257,7 @@ final class ArtworkServiceNetworkTests: XCTestCase {
         }
         XCTAssertTrue(wroteOldGeneration, "Initial cache generation should reach disk")
 
-        svc.clearCache()
+        await svc.clearCache()
 
         MockURLProtocol.requestHandler = { request in
             let json = #"{"results":[{"artworkUrl100":"https://cdn.example/fresh/100x100.jpg"}]}"#
@@ -308,7 +307,7 @@ final class ArtworkServiceNetworkTests: XCTestCase {
             return
         }
 
-        service.clearCache()
+        await service.clearCache()
 
         gate.releaseFirst()
         await fulfillment(of: [staleCompletion], timeout: 1)
