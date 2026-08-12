@@ -89,12 +89,12 @@ final class SettingsBackupServiceTests: XCTestCase {
         let service = SettingsBackupService(
             defaults: defaults,
             center: NotificationCenter(),
-            twitchChannelProvider: { "canonical-channel" }
+            twitchChannelProvider: { "canonical_channel" }
         )
 
         let backup = try service.makeBackup(exportedAt: Date(timeIntervalSince1970: 0))
 
-        XCTAssertEqual(backup.integrations.twitch?.channelName, "canonical-channel")
+        XCTAssertEqual(backup.integrations.twitch?.channelName, "canonical_channel")
     }
 
     func testBackupRoundTripsPortableCollectionsThroughLiveOwners() async throws {

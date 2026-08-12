@@ -246,7 +246,7 @@ struct CustomCommandStoreTests {
         )
         #expect(try JSONCoders.default.decode([CustomCommand].self, from: data).isEmpty)
 
-        let later = CustomCommand(trigger: "wave", response: "hello")
+        let later = CustomCommand(trigger: "!wave", response: "hello")
         store.add(later)
         let reloaded = CustomCommandStore(defaults: defaults)
         #expect(reloaded.commands == [later])
@@ -277,7 +277,7 @@ struct CustomCommandStoreTests {
     @Test("direct mutations reject invalid or overlapping command definitions")
     func rejectsInvalidMutations() {
         let (store, _) = makeStore()
-        let existing = CustomCommand(trigger: "hug", aliases: "embrace")
+        let existing = CustomCommand(trigger: "!hug", aliases: "embrace")
         store.add(existing)
         store.add(CustomCommand(trigger: "wave", aliases: "embrace"))
         #expect(store.commands == [existing])
