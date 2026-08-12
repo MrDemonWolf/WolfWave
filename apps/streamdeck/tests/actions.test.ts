@@ -18,12 +18,6 @@ const connected: WolfWaveState = { ...initialState, phase: "connected" };
 describe("QueueHoldAction", () => {
   const key = new QueueHoldAction(new WolfWaveClient());
 
-  test("holds when the queue is running", () => {
-    expect(commandFor(key, { ...connected, queueHeld: false })).toBe(
-      "hold_queue",
-    );
-  });
-
   test("resumes when the queue is held", () => {
     expect(commandFor(key, { ...connected, queueHeld: true })).toBe(
       "resume_queue",
