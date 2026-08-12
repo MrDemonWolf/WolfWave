@@ -41,7 +41,6 @@ extension NSNotification.Name {
     nonisolated static let voteSkipStateChanged = NSNotification.Name(AppConstants.Notifications.voteSkipStateChanged)
     nonisolated static let voteSkipPollsSettingChanged = NSNotification.Name(AppConstants.Notifications.voteSkipPollsSettingChanged)
     nonisolated static let musicPermissionDenied = NSNotification.Name(AppConstants.Notifications.musicPermissionDenied)
-    nonisolated static let openSettingsSection = NSNotification.Name(AppConstants.Notifications.openSettingsSection)
     nonisolated static let openSettingsRequested = NSNotification.Name(AppConstants.Notifications.openSettingsRequested)
     nonisolated static let listeningHistorySettingChanged = NSNotification.Name(AppConstants.Notifications.listeningHistorySettingChanged)
     nonisolated static let streamerModeChanged = NSNotification.Name(AppConstants.Notifications.streamerModeChanged)
@@ -125,10 +124,6 @@ extension AppConstants {
         /// the next `AEDeterminePermissionToAutomateTarget` poll.
         static let musicPermissionDenied = "MusicPermissionDenied"
 
-        /// Posted to request that the Settings window switch to a specific sidebar
-        /// section. UserInfo contains "section" String matching `SettingsView.SettingsSection.rawValue`.
-        static let openSettingsSection = "OpenSettingsSection"
-
         /// Posted by AppKit entry points (tray menu, Dock menu, Dock reopen, Twitch
         /// re-auth) to ask the live SwiftUI scene tree (`SettingsSceneBridge`) to
         /// open the `Settings` scene via `@Environment(\.openSettings)`. Replaces the
@@ -160,7 +155,6 @@ extension AppConstants {
             listeningHistorySettingChanged,
             musicPermissionDenied,
             streamerModeChanged,
-            openSettingsSection,
             openSettingsRequested,
         ]
     }

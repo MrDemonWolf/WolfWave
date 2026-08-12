@@ -27,7 +27,6 @@ final class AppleMusicSourceTests: XCTestCase {
 
     // MARK: - Initialization Tests
 
-
     func testDelegateIsNilByDefault() {
         XCTAssertNil(monitor.delegate)
     }
@@ -88,6 +87,90 @@ final class AppleMusicSourceTests: XCTestCase {
             now: start.advanced(by: .seconds(1)),
             minimum: .seconds(1)
         ))
+    }
+
+    // MARK: - Tracking lifecycle
+
+    func testIntervalUpdatedWhileStoppedIsClampedAndUsedOnNextStart() {
+        let scheduledIntervals = ThreadSafeBox<[TimeInterval]>([])
+        monitor = AppleMusicSource(
+            trackInfoProvider: { "NOT_RUNNING" },
+            didScheduleFallbackTimer: { interval in
+                scheduledIntervals.mutate { $0.append(interval) }
+            }
+        )
+
+        monitor.updateCheckInterval(0.25)
+        XCTAssertEqual(scheduledIntervals.value, [])
+
+        monitor.startTracking()
+        XCTAssertEqual(scheduledIntervals.value, [1.0])
+
+        monitor.updateCheckInterval(12)
+        XCTAssertEqual(scheduledIntervals.value, [1.0, 12.0])
+
+        monitor.stopTracking()
+        monitor.updateCheckInterval(20)
+        XCTAssertEqual(scheduledIntervals.value, [1.0, 12.0])
+
+        monitor.startTracking()
+        XCTAssertEqual(scheduledIntervals.value, [1.0, 12.0, 20.0])
+    }
+
+    func testProbeFinishingAfterStopCannotPublish() async {
+        let probe = SuspendedAppleMusicProbe()
+        let completedChecks = ThreadSafeBox(0)
+        let capture = AppleMusicSourceCaptureDelegate()
+        monitor = AppleMusicSource(
+            trackInfoProvider: { await probe.next() },
+            didCompleteTrackCheck: {
+                completedChecks.mutate { $0 += 1 }
+            }
+        )
+        monitor.delegate = capture
+
+        monitor.startTracking()
+        let firstProbeStarted = await waitUntil { await probe.callCount == 1 }
+        XCTAssertTrue(firstProbeStarted)
+        monitor.stopTracking()
+        await probe.releaseFirst(with: "NOT_RUNNING")
+        let stoppedProbeCompleted = await waitUntil { completedChecks.value == 1 }
+        XCTAssertTrue(stoppedProbeCompleted)
+        await Task.yield()
+
+        XCTAssertEqual(capture.statuses, [])
+    }
+
+    func testProbeFromPreviousGenerationCannotPublishAfterRestart() async {
+        let probe = SuspendedAppleMusicProbe()
+        let completedChecks = ThreadSafeBox(0)
+        let capture = AppleMusicSourceCaptureDelegate()
+        monitor = AppleMusicSource(
+            trackInfoProvider: { await probe.next() },
+            didCompleteTrackCheck: {
+                completedChecks.mutate { $0 += 1 }
+            }
+        )
+        monitor.delegate = capture
+
+        monitor.startTracking()
+        let firstGenerationStarted = await waitUntil { await probe.callCount == 1 }
+        XCTAssertTrue(firstGenerationStarted)
+        monitor.stopTracking()
+        monitor.startTracking()
+
+        let restartedProbePublished = await waitUntil {
+            let callCount = await probe.callCount
+            return callCount == 2 && capture.statuses == ["Music not running"]
+        }
+        XCTAssertTrue(restartedProbePublished)
+
+        await probe.releaseFirst(with: "NOT_RUNNING")
+        let bothProbesCompleted = await waitUntil { completedChecks.value == 2 }
+        XCTAssertTrue(bothProbesCompleted)
+        await Task.yield()
+
+        XCTAssertEqual(capture.statuses, ["Music not running"])
     }
 
     // MARK: - extractPlayerState (tolerant FourCharCode parser)
@@ -234,5 +317,44 @@ final class AppleMusicSourceTests: XCTestCase {
 
     func testIsStoppedNotificationFalseWhenStateKeyMissing() {
         XCTAssertFalse(AppleMusicSource.isStoppedNotification(["Name": "Some Song"]))
+    }
+}
+
+private actor SuspendedAppleMusicProbe {
+    private(set) var callCount = 0
+    private var firstContinuation: CheckedContinuation<String, Never>?
+
+    func next() async -> String {
+        callCount += 1
+        guard callCount == 1 else { return "NOT_RUNNING" }
+        return await withCheckedContinuation { continuation in
+            firstContinuation = continuation
+        }
+    }
+
+    func releaseFirst(with value: String) {
+        firstContinuation?.resume(returning: value)
+        firstContinuation = nil
+    }
+}
+
+@MainActor
+private final class AppleMusicSourceCaptureDelegate: PlaybackSourceDelegate {
+    private(set) var statuses: [String] = []
+
+    // Protocol conformance intentionally mirrors all playback fields.
+    // swiftlint:disable:next function_parameter_count
+    func playbackSource(
+        didUpdateTrack track: String,
+        artist: String,
+        album: String,
+        playlist: String,
+        duration: TimeInterval,
+        elapsed: TimeInterval,
+        isPaused: Bool
+    ) {}
+
+    func playbackSource(didUpdateStatus status: String) {
+        statuses.append(status)
     }
 }

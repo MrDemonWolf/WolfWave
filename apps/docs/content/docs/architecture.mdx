@@ -29,7 +29,7 @@ WolfWave/
 ├── WolfWaveApp.swift              # @main + NSApplicationDelegateAdaptor
 ├── AppDelegate+*.swift            # MenuBar / Services / Windows / DockMenu / StreamDeck splits
 ├── Core/                          # Constants, Keychain, Logger, StreamerMode, …
-├── Monitors/                      # PlaybackSource protocol + AppleMusicSource (ScriptingBridge)
+├── Monitors/                      # AppleMusicSource + playback update delegate
 ├── Services/
 │   ├── Discord/                   # DiscordRPCService. Local IPC socket
 │   ├── ListeningHistory/          # Opt-in NDJSON play log + stats + monthly wrap
@@ -79,9 +79,9 @@ Settings changes (e.g. `TrackingSettingChanged`, `DockVisibilityChanged`) flow t
 
 Secure storage for sensitive credentials using the macOS Keychain API. All tokens and secrets are stored securely, never in UserDefaults or plain text. Twitch access, refresh, username, user ID, and configured channel live in one versioned record, so an account or channel change is a single crash-atomic Keychain write. A channel edit is validated before it replaces the canonical record. Existing per-field records migrate copy-first and are deleted only after that write succeeds. A channel restored from backup stays a nonauthoritative UserDefaults hint until a successful OAuth commit. Keys are defined in `AppConstants.Keychain`.
 
-### PlaybackSource
+### AppleMusicSource
 
-Source abstraction backed by `AppleMusicSource`, which uses ScriptingBridge for direct Apple Music communication without spawning subprocesses. Provides real-time track updates (including duration and elapsed time) via distributed notifications plus delegation, with a 5-second fallback poll (throttled slower in low-power mode). `PlaybackSourceManager` selects and multiplexes sources.
+AppDelegate owns `AppleMusicSource` directly. It uses PID-targeted ScriptingBridge for Apple Music communication without spawning subprocesses or relaunching Music.app. It provides real-time track updates (including duration and elapsed time) through `PlaybackSourceDelegate`, distributed notifications, monotonic event deduplication, and a 5-second fallback poll that slows in low-power mode.
 
 ### TwitchChatService
 

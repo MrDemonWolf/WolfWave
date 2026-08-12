@@ -32,12 +32,4 @@ nonisolated enum SharedFormatters {
         formatter.dateFormat = "HH:mm:ss.SSS"
         return formatter
     }()
-
-    /// Short medium date (e.g. `May 28, 2026`).
-    static let mediumDate: DateFormatter = {
-        let formatter = DateFormatter()
-        formatter.dateStyle = .medium
-        formatter.timeStyle = .none
-        return formatter
-    }()
 }
