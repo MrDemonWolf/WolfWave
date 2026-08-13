@@ -86,8 +86,17 @@ final class StreamerModeTests: XCTestCase {
 
     func testIsEnabledReadsUserDefaults() {
         let key = AppConstants.UserDefaults.streamerModeEnabled
-        let originalValue = DefaultsStore.store.bool(forKey: key)
-        defer { DefaultsStore.store.set(originalValue, forKey: key) }
+        // Capture the object, not `bool(forKey:)`. That returns `false` for an
+        // absent key, so restoring it would write an explicit `false` and leave
+        // the key set where it started unset.
+        let original = DefaultsStore.store.object(forKey: key)
+        defer {
+            if let original {
+                DefaultsStore.store.set(original, forKey: key)
+            } else {
+                DefaultsStore.store.removeObject(forKey: key)
+            }
+        }
 
         DefaultsStore.store.set(true, forKey: key)
         XCTAssertTrue(StreamerMode.isEnabled)

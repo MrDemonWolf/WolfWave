@@ -130,6 +130,73 @@ nonisolated enum Preferences {
         stored > 0 ? UInt16(clamping: stored) : defaultPort
     }
 
+    // MARK: - Domain-Resolved Reads
+
+    /// `stored` when it is one of `allowed`, otherwise `defaultValue`.
+    ///
+    /// Pure, so the UI layer can share it. See ``resolvedInt(_:default:)`` for
+    /// why an out-of-domain value has to be caught before it reaches a control.
+    static func resolveAllowed(_ stored: Int, allowed: Set<Int>, default defaultValue: Int) -> Int {
+        allowed.contains(stored) ? stored : defaultValue
+    }
+
+    /// `stored` clamped into `range`; non-finite falls back to `defaultValue`.
+    ///
+    /// The `isFinite` check is the load-bearing half. `Int(Double.nan)` and
+    /// `Int(1e300)` both trap, and a `Double` read out of `UserDefaults` is
+    /// attacker-shaped in the sense that anything can put it there.
+    static func resolveClamped(
+        _ stored: Double,
+        range: ClosedRange<Double>,
+        default defaultValue: Double
+    ) -> Double {
+        stored.isFinite ? min(max(stored, range.lowerBound), range.upperBound) : defaultValue
+    }
+
+    /// Reads an integer preference validated against the domain declared for
+    /// `key` in `AppConstants.UserDefaults.exportablePreferences`.
+    ///
+    /// Import validation already rejects out-of-domain values, but nothing
+    /// guards a value that arrives another way: a hand-edited plist,
+    /// `defaults write`, a key written by an older build, or a test process
+    /// sharing the app's domain. Such a value reaching a SwiftUI `Picker` as its
+    /// selection is not a cosmetic problem. The segmented style traps inside
+    /// SwiftUI ("Double value cannot be converted to Int"), taking the whole
+    /// settings window with it, after logging only
+    /// `Picker: the selection "1" is invalid and does not have an associated tag`.
+    ///
+    /// Keys without a declared domain keep ``int(_:default:)`` semantics.
+    static func resolvedInt(_ key: String, default defaultValue: Int) -> Int {
+        guard case .int(let domain)? = AppConstants.UserDefaults.exportRule(for: key) else {
+            return int(key, default: defaultValue)
+        }
+        // `integer(forKey:)` bridges a stored huge Double or string through
+        // `NSNumber` without trapping, so the domain check below is what
+        // actually rejects it.
+        let stored = defaults.integer(forKey: key)
+        switch domain {
+        case .values(let allowed):
+            return resolveAllowed(stored, allowed: allowed, default: defaultValue)
+        case .zeroOrRange(let range):
+            return stored == 0
+                ? defaultValue
+                : min(max(stored, range.lowerBound), range.upperBound)
+        }
+    }
+
+    /// The `Double` sibling of ``resolvedInt(_:default:)``.
+    ///
+    /// NaN and infinity resolve to `defaultValue`; a finite value clamps into
+    /// the declared range. Step is deliberately not enforced: import validation
+    /// owns step, and clamping alone is what makes a downstream `Int(…)` total.
+    static func resolvedDouble(_ key: String, default defaultValue: Double) -> Double {
+        let stored = double(key, default: defaultValue)
+        guard case .double(let domain)? = AppConstants.UserDefaults.exportRule(for: key) else {
+            return stored.isFinite ? stored : defaultValue
+        }
+        return resolveClamped(stored, range: domain.range, default: defaultValue)
+    }
+
     static func setWebSocketEnabled(_ value: Bool) {
         defaults.set(value, forKey: AppConstants.UserDefaults.websocketEnabled)
     }

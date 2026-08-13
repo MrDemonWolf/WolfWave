@@ -78,9 +78,15 @@ nonisolated enum DiscordPresenceBuilder {
             let nowEpoch = now.timeIntervalSince1970
             let start = nowEpoch - elapsed
             let end = start + duration
+            // `isFinite` above is not enough on its own. A finite `Double` runs
+            // to ~1.8e308, and `Int(_: Double)` traps past `Int.max`, so a
+            // nonsense duration reported by Music would crash the presence
+            // update. 9e15 ms is exactly representable, comfortably under
+            // `Int.max`, and roughly 285,000 years past the epoch.
+            let maxEpochMilliseconds = 9e15
             activity["timestamps"] = [
-                "start": Int(start * 1000),
-                "end": Int(end * 1000),
+                "start": Int(min(max(start * 1000, 0), maxEpochMilliseconds)),
+                "end": Int(min(max(end * 1000, 0), maxEpochMilliseconds)),
             ]
         }
 

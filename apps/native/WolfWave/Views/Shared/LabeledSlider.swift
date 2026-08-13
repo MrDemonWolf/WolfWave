@@ -24,17 +24,39 @@ struct LabeledSlider<V: BinaryFloatingPoint>: View where V.Stride: BinaryFloatin
 
     // MARK: - Body
 
+    /// The value as rendered: clamped into `range`, with a non-finite value
+    /// falling back to `range.lowerBound`.
+    ///
+    /// Every caller binds an `@AppStorage` double, so the stored value can be
+    /// anything a hand-edited plist or `defaults write` put there. That matters
+    /// twice over: `Slider` misbehaves outside its bounds, and the default
+    /// `format` below is `Int($0)`, which traps outright on NaN or a value past
+    /// `Int.max`. Clamping here covers every call site, including the ones that
+    /// pass their own `"\(Int($0))s"` closure.
+    static func displayValue(_ value: V, in range: ClosedRange<V>) -> V {
+        guard value.isFinite else { return range.lowerBound }
+        return min(max(value, range.lowerBound), range.upperBound)
+    }
+
     var body: some View {
-        HStack(spacing: DSSpace.s3) {
+        let display = Self.displayValue(value, in: range)
+        return HStack(spacing: DSSpace.s3) {
             Text(label)
                 .font(.system(size: DSFont.Size.sm))
                 .foregroundStyle(.secondary)
                 .frame(minWidth: 80, alignment: .leading)
 
-            Slider(value: $value, in: range, step: step)
-                .controlSize(.small)
+            Slider(
+                value: Binding(
+                    get: { Self.displayValue(value, in: range) },
+                    set: { value = $0 }
+                ),
+                in: range,
+                step: step
+            )
+            .controlSize(.small)
 
-            Text(format(value))
+            Text(format(display))
                 .font(.system(size: DSFont.Size.sm, weight: .medium))
                 .monospacedDigit()
                 .foregroundStyle(.primary)
@@ -42,7 +64,7 @@ struct LabeledSlider<V: BinaryFloatingPoint>: View where V.Stride: BinaryFloatin
         }
         .accessibilityElement(children: .combine)
         .accessibilityLabel(label)
-        .accessibilityValue(format(value))
+        .accessibilityValue(format(display))
         .accessibilityIdentifier(accessibilityIdentifier ?? "labeledSlider.\(label)")
     }
 }
