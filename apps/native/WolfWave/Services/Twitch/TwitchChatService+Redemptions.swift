@@ -164,6 +164,21 @@ nonisolated enum TwitchRedemptionTeardownGate {
     }
 }
 
+/// Result of one storage-failure containment attempt.
+private enum RedemptionContainmentOutcome {
+    /// The pause and (when requested) the refund were both confirmed.
+    case settled
+    /// A transient failure. The paid redemption still needs this containment.
+    case retry
+    /// No live account can act on this redemption any more (reward identity
+    /// replaced, or the broadcaster credentials were torn down). Retrying with
+    /// the same captured inputs can never succeed, so containment ends here.
+    /// The refund is not dropped: Twitch still holds the redemption as
+    /// UNFULFILLED, and `reconcileManagedRewardRedemptions` enqueues and drains
+    /// every unfulfilled ID before the reward is redeemable again.
+    case accountGone
+}
+
 extension TwitchChatService {
 
     // MARK: - Redemption EventSub Subscriptions
@@ -1601,10 +1616,10 @@ extension TwitchChatService {
 
     private func clearContainmentTask(
         _ id: UUID,
-        settled: Bool
+        releasingGate: Bool
     ) {
         paidRedemptionTasks[id] = nil
-        if settled {
+        if releasingGate {
             TwitchRedemptionTeardownGate.endContainment(id: id)
         }
     }
@@ -1626,10 +1641,14 @@ extension TwitchChatService {
             id: taskID,
             serviceID: ObjectIdentifier(self),
             broadcasterID: broadcasterID)
-        paidRedemptionTasks[taskID] = Task { [weak self] in
+        // Detached so `[weak self]` means what it says. An unstructured `Task`
+        // started here would inherit this actor's isolation and retain the
+        // service for its whole life, so an unsettled containment would keep a
+        // dropped service (and its retry loop) alive after every owner is gone.
+        paidRedemptionTasks[taskID] = Task.detached { [weak self] in
             var attempt = 0
             while !Task.isCancelled {
-                guard let settled = await self?
+                guard let outcome = await self?
                     .pauseRewardAndResolveUnpersistedIntake(
                         broadcasterID: broadcasterID,
                         rewardID: rewardID,
@@ -1638,11 +1657,18 @@ extension TwitchChatService {
                     TwitchRedemptionTeardownGate.endContainment(id: taskID)
                     return
                 }
-                if settled {
+                switch outcome {
+                case .settled, .accountGone:
+                    // `.accountGone` releases the gate too: it can only be
+                    // reached once no live credential owns this redemption, so
+                    // holding the gate would block teardown forever while doing
+                    // nothing for the viewer's points.
                     await self?.clearContainmentTask(
                         taskID,
-                        settled: true)
+                        releasingGate: true)
                     return
+                case .retry:
+                    break
                 }
 
                 attempt += 1
@@ -1652,13 +1678,13 @@ extension TwitchChatService {
                       shouldRetry else {
                     await self?.clearContainmentTask(
                         taskID,
-                        settled: false)
+                        releasingGate: false)
                     return
                 }
             }
             await self?.clearContainmentTask(
                 taskID,
-                settled: false)
+                releasingGate: false)
         }
     }
 
@@ -1670,7 +1696,7 @@ extension TwitchChatService {
         rewardID: String,
         redemptionID: String,
         resolution: TwitchChannelPointsService.Resolution?
-    ) async -> Bool {
+    ) async -> RedemptionContainmentOutcome {
         let identity = TwitchManagedRewardStore.Identity(
             rewardID: rewardID,
             broadcasterID: eventBroadcasterID)
@@ -1681,11 +1707,17 @@ extension TwitchChatService {
               activeBotID == eventBroadcasterID,
               let credentials = currentChannelPointCredentials(),
               credentials.broadcasterID == eventBroadcasterID else {
-            Log.warn(
-                "TwitchChatService: Storage failed for redemption \(redemptionID), but active "
-                    + "broadcaster credentials no longer match; retaining unresolved containment",
+            // Every Helix call this containment could make is authorized by
+            // credentials that no longer exist, so a retry with the same inputs
+            // is guaranteed to land here again. Ending it hands the redemption
+            // to the session-join reconcile, which reads Twitch's own
+            // UNFULFILLED list and refunds from there.
+            Log.error(
+                "TwitchChatService: Storage failed for redemption \(redemptionID) and the "
+                    + "broadcaster credentials that could resolve it are gone; ending containment. "
+                    + "The next session for this reward refunds it from its unfulfilled list",
                 category: "Twitch")
-            return false
+            return .accountGone
         }
 
         let sourceIsSafe: Bool
@@ -1702,7 +1734,7 @@ extension TwitchChatService {
             where status == 404 {
             sourceIsSafe = true
         } catch is CancellationError {
-            return false
+            return .retry
         } catch {
             sourceIsSafe = false
             Log.error(
@@ -1711,7 +1743,9 @@ extension TwitchChatService {
                 category: "Twitch")
         }
 
-        guard let resolution else { return sourceIsSafe }
+        guard let resolution else {
+            return sourceIsSafe ? .settled : .retry
+        }
 
         let redemptionIsSettled: Bool
         do {
@@ -1728,7 +1762,7 @@ extension TwitchChatService {
         ) where status == 404 {
             redemptionIsSettled = TwitchManagedRewardStore.matches(identity)
         } catch is CancellationError {
-            return false
+            return .retry
         } catch {
             redemptionIsSettled = false
             Log.error(
@@ -1736,7 +1770,7 @@ extension TwitchChatService {
                     + "\(redemptionID) after storage failure - \(error.localizedDescription)",
                 category: "Twitch")
         }
-        return sourceIsSafe && redemptionIsSettled
+        return sourceIsSafe && redemptionIsSettled ? .settled : .retry
     }
 
     /// Atomically records a known outcome before starting any Helix request.
