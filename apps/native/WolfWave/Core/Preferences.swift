@@ -25,7 +25,7 @@ import Foundation
 ///   are searchable and intent is explicit.
 nonisolated enum Preferences {
 
-    private static var defaults: Foundation.UserDefaults { .standard }
+    private static var defaults: Foundation.UserDefaults { DefaultsStore.store }
 
     // MARK: - Defaulted Primitive Reads
 

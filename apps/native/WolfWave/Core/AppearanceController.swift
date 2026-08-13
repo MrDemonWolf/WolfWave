@@ -37,7 +37,7 @@ enum AppearanceController {
     /// Reads the persisted preference and applies it. Call once on launch.
     @MainActor
     static func applyStored() {
-        let mode = UserDefaults.standard.string(forKey: AppConstants.UserDefaults.appearancePreference)
+        let mode = DefaultsStore.store.string(forKey: AppConstants.UserDefaults.appearancePreference)
             ?? AppConstants.Appearance.default
         apply(mode)
     }

@@ -36,7 +36,7 @@ final class SongRequestCommandTests: WolfWaveTestCase {
     }
 
     func testSongRequestCommandDisabled() {
-        UserDefaults.standard.set(false, forKey: AppConstants.UserDefaults.srCommandEnabled)
+        DefaultsStore.store.set(false, forKey: AppConstants.UserDefaults.srCommandEnabled)
         let command = SongRequestCommand()
         XCTAssertFalse(command.isCommandEnabled)
     }
@@ -86,7 +86,7 @@ final class SongRequestCommandTests: WolfWaveTestCase {
     // MARK: - Custom Aliases
 
     func testCustomAliasesAdded() {
-        UserDefaults.standard.set("play, add", forKey: AppConstants.UserDefaults.srCommandAliases)
+        DefaultsStore.store.set("play, add", forKey: AppConstants.UserDefaults.srCommandAliases)
         let command = SongRequestCommand()
         let allTriggers = command.allTriggers
         XCTAssertTrue(allTriggers.contains("!play"))
@@ -97,7 +97,7 @@ final class SongRequestCommandTests: WolfWaveTestCase {
     }
 
     func testCustomAliasesWithBangPrefix() {
-        UserDefaults.standard.set("!play", forKey: AppConstants.UserDefaults.srCommandAliases)
+        DefaultsStore.store.set("!play", forKey: AppConstants.UserDefaults.srCommandAliases)
         let command = SongRequestCommand()
         let allTriggers = command.allTriggers
         XCTAssertTrue(allTriggers.contains("!play"))
@@ -106,7 +106,7 @@ final class SongRequestCommandTests: WolfWaveTestCase {
     }
 
     func testEmptyAliases() {
-        UserDefaults.standard.set("", forKey: AppConstants.UserDefaults.srCommandAliases)
+        DefaultsStore.store.set("", forKey: AppConstants.UserDefaults.srCommandAliases)
         let command = SongRequestCommand()
         // Should just have original triggers
         XCTAssertEqual(command.allTriggers.count, command.triggers.count)
@@ -115,7 +115,7 @@ final class SongRequestCommandTests: WolfWaveTestCase {
     // MARK: - Enable/Disable via Dispatcher
 
     func testDispatcherSkipsDisabledCommand() {
-        UserDefaults.standard.set(false, forKey: AppConstants.UserDefaults.queueCommandEnabled)
+        DefaultsStore.store.set(false, forKey: AppConstants.UserDefaults.queueCommandEnabled)
         let dispatcher = BotCommandDispatcher()
         let result = dispatcher.processMessage("!queue")
         XCTAssertNil(result)
@@ -263,8 +263,8 @@ final class SongRequestCommandTests: WolfWaveTestCase {
         let command = QueueCommand()
         let queue = SongRequestQueue()
         command.getQueue = { queue }
-        UserDefaults.standard.set(10, forKey: AppConstants.UserDefaults.songRequestMaxQueueSize)
-        UserDefaults.standard.set(10, forKey: AppConstants.UserDefaults.songRequestPerUserLimit)
+        DefaultsStore.store.set(10, forKey: AppConstants.UserDefaults.songRequestMaxQueueSize)
+        DefaultsStore.store.set(10, forKey: AppConstants.UserDefaults.songRequestPerUserLimit)
 
         for i in 1...7 {
             queue.add(makeTestRequestItem(title: "Song \(i)", artist: "Artist", requesterUsername: "user\(i)"))
@@ -274,16 +274,16 @@ final class SongRequestCommandTests: WolfWaveTestCase {
         XCTAssertNotNil(response)
         XCTAssertTrue(response!.contains("...and 2 more"))
 
-        UserDefaults.standard.removeObject(forKey: AppConstants.UserDefaults.songRequestMaxQueueSize)
-        UserDefaults.standard.removeObject(forKey: AppConstants.UserDefaults.songRequestPerUserLimit)
+        DefaultsStore.store.removeObject(forKey: AppConstants.UserDefaults.songRequestMaxQueueSize)
+        DefaultsStore.store.removeObject(forKey: AppConstants.UserDefaults.songRequestPerUserLimit)
     }
 
     func testQueueCommandExactlyFiveItemsNoOverflow() {
         let command = QueueCommand()
         let queue = SongRequestQueue()
         command.getQueue = { queue }
-        UserDefaults.standard.set(10, forKey: AppConstants.UserDefaults.songRequestMaxQueueSize)
-        UserDefaults.standard.set(10, forKey: AppConstants.UserDefaults.songRequestPerUserLimit)
+        DefaultsStore.store.set(10, forKey: AppConstants.UserDefaults.songRequestMaxQueueSize)
+        DefaultsStore.store.set(10, forKey: AppConstants.UserDefaults.songRequestPerUserLimit)
 
         for i in 1...5 {
             queue.add(makeTestRequestItem(title: "Song \(i)", artist: "Artist", requesterUsername: "user\(i)"))
@@ -293,8 +293,8 @@ final class SongRequestCommandTests: WolfWaveTestCase {
         XCTAssertNotNil(response)
         XCTAssertFalse(response!.contains("more"))
 
-        UserDefaults.standard.removeObject(forKey: AppConstants.UserDefaults.songRequestMaxQueueSize)
-        UserDefaults.standard.removeObject(forKey: AppConstants.UserDefaults.songRequestPerUserLimit)
+        DefaultsStore.store.removeObject(forKey: AppConstants.UserDefaults.songRequestMaxQueueSize)
+        DefaultsStore.store.removeObject(forKey: AppConstants.UserDefaults.songRequestPerUserLimit)
     }
 
     // MARK: - MyQueueCommand Output
@@ -303,7 +303,7 @@ final class SongRequestCommandTests: WolfWaveTestCase {
         let command = MyQueueCommand()
         let queue = SongRequestQueue()
         command.getQueue = { queue }
-        UserDefaults.standard.set(10, forKey: AppConstants.UserDefaults.songRequestPerUserLimit)
+        DefaultsStore.store.set(10, forKey: AppConstants.UserDefaults.songRequestPerUserLimit)
 
         queue.add(makeTestRequestItem(title: "My Song 1", artist: "Artist", requesterUsername: "testuser"))
         queue.add(makeTestRequestItem(title: "Other Song", artist: "Artist", requesterUsername: "other"))
@@ -324,7 +324,7 @@ final class SongRequestCommandTests: WolfWaveTestCase {
         XCTAssertTrue(reply!.contains("#1"))
         XCTAssertTrue(reply!.contains("#3"))
 
-        UserDefaults.standard.removeObject(forKey: AppConstants.UserDefaults.songRequestPerUserLimit)
+        DefaultsStore.store.removeObject(forKey: AppConstants.UserDefaults.songRequestPerUserLimit)
     }
 
     func testMyQueueCommandNoItemsPrompt() async {

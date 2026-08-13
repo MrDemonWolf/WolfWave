@@ -173,7 +173,7 @@ final class BotCommandDispatcherTests: XCTestCase {
         dispatcher.setCurrentSongInfo { "Artist - Song" }
 
         // Set a non-zero cooldown so the second call is blocked
-        let defaults = UserDefaults.standard
+        let defaults = DefaultsStore.store
         defaults.set(15.0, forKey: AppConstants.UserDefaults.songCommandGlobalCooldown)
         defaults.set(15.0, forKey: AppConstants.UserDefaults.songCommandUserCooldown)
 
@@ -194,7 +194,7 @@ final class BotCommandDispatcherTests: XCTestCase {
     func testBroadcasterAlwaysBypassesCooldown() {
         dispatcher.setCurrentSongInfo { "Artist - Song" }
 
-        let defaults = UserDefaults.standard
+        let defaults = DefaultsStore.store
         defaults.set(15.0, forKey: AppConstants.UserDefaults.songCommandGlobalCooldown)
         defaults.set(15.0, forKey: AppConstants.UserDefaults.songCommandUserCooldown)
 
@@ -213,7 +213,7 @@ final class BotCommandDispatcherTests: XCTestCase {
     func testLastSongAliasesShareCooldown() {
         dispatcher.setLastSongInfo { "Previous Artist - Song" }
 
-        let defaults = UserDefaults.standard
+        let defaults = DefaultsStore.store
         defaults.set(15.0, forKey: AppConstants.UserDefaults.lastSongCommandGlobalCooldown)
         defaults.set(15.0, forKey: AppConstants.UserDefaults.lastSongCommandUserCooldown)
 

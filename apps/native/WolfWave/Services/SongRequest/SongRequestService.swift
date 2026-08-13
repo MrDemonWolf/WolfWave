@@ -50,13 +50,13 @@ final class SongRequestService {
 
     /// Who may request a song via the `!sr` chat command.
     var chatAudience: RequestAudience {
-        let raw = Foundation.UserDefaults.standard.string(forKey: AppConstants.UserDefaults.songRequestChatAudience)
+        let raw = DefaultsStore.store.string(forKey: AppConstants.UserDefaults.songRequestChatAudience)
         return RequestAudience(rawValue: raw ?? "") ?? .everyone
     }
 
     /// One-time migration of the legacy `songRequestSubscriberOnly` boolean to
     /// the `songRequestChatAudience` setting. No-op once the new key exists.
-    static func migrateAccessSettings(defaults: Foundation.UserDefaults = .standard) {
+    static func migrateAccessSettings(defaults: Foundation.UserDefaults = DefaultsStore.store) {
         guard defaults.string(forKey: AppConstants.UserDefaults.songRequestChatAudience) == nil else { return }
         let legacySubOnly = defaults.bool(forKey: AppConstants.UserDefaults.songRequestSubscriberOnly)
         let audience: RequestAudience = legacySubOnly ? .subscribers : .everyone
@@ -70,7 +70,7 @@ final class SongRequestService {
     /// setup existed is marked complete, so the update never bounces an existing
     /// streamer back through setup. No-op once `songRequestSetupComplete` has
     /// been written. Mirrors `migrateAccessSettings`.
-    static func migrateSetupState(defaults: Foundation.UserDefaults = .standard) {
+    static func migrateSetupState(defaults: Foundation.UserDefaults = DefaultsStore.store) {
         guard defaults.object(forKey: AppConstants.UserDefaults.songRequestSetupComplete) == nil else { return }
         let alreadyEnabled = defaults.bool(forKey: AppConstants.UserDefaults.songRequestEnabled)
         let link = defaults.string(forKey: AppConstants.UserDefaults.songRequestSongListURL) ?? ""
@@ -153,7 +153,7 @@ final class SongRequestService {
     /// probe the playlist (rebuilding it once if it was deleted) and resolve the
     /// link state. An unreachable API changes nothing.
     func runSetupHealthCheck() async {
-        let defaults = Foundation.UserDefaults.standard
+        let defaults = DefaultsStore.store
 
         // Before setup is finished the pane shows the "Set up" call to action,
         // not a banner, so there is nothing to police yet.
@@ -200,7 +200,7 @@ final class SongRequestService {
     /// on a cosmetic break, re-engages the gate and stops the feature on an
     /// essential break, then records the status that drives the banner.
     private func applyHealth(_ outcome: HealthOutcome) {
-        let defaults = Foundation.UserDefaults.standard
+        let defaults = DefaultsStore.store
         if let updated = outcome.updatedShareURL {
             defaults.set(updated, forKey: AppConstants.UserDefaults.songRequestSongListURL)
         }
@@ -219,7 +219,7 @@ final class SongRequestService {
     /// Writes the playlist health status that backs the pane's `@AppStorage`
     /// banner. Only writes on a change to avoid waking observers needlessly.
     private func setPlaylistStatus(_ status: PlaylistSetupStatus) {
-        let defaults = Foundation.UserDefaults.standard
+        let defaults = DefaultsStore.store
         let key = AppConstants.UserDefaults.songRequestPlaylistStatus
         guard defaults.string(forKey: key) != status.rawValue else { return }
         defaults.set(status.rawValue, forKey: key)
@@ -258,7 +258,7 @@ final class SongRequestService {
     /// auto-advance is suspended. When disabled, the first buffered song plays immediately.
     func setHold(_ enabled: Bool) async {
         guard !Task.isCancelled else { return }
-        Foundation.UserDefaults.standard.set(enabled, forKey: AppConstants.UserDefaults.songRequestHoldEnabled)
+        DefaultsStore.store.set(enabled, forKey: AppConstants.UserDefaults.songRequestHoldEnabled)
         NotificationCenter.default.postEnabled(.songRequestHoldChanged, enabled: enabled)
         Log.debug("SongRequestService: Hold \(enabled ? "enabled" : "released")", category: "SongRequest")
         defer { reconcilePlaybackMonitoring() }
@@ -849,7 +849,7 @@ final class SongRequestService {
         if let reservedItem {
             action = .request(reservedItem)
         } else if queue.nowPlaying != nil {
-            let fallback = Foundation.UserDefaults.standard.string(
+            let fallback = DefaultsStore.store.string(
                 forKey: AppConstants.UserDefaults.songRequestFallbackPlaylist) ?? ""
             if !fallback.isEmpty, !isHoldEnabled {
                 action = .fallbackPlaylist(name: fallback)
@@ -1308,7 +1308,7 @@ final class SongRequestService {
         queue.clearNowPlaying()
         guard !isHoldEnabled, musicController.isMusicAppRunning else { return }
 
-        let fallback = Foundation.UserDefaults.standard
+        let fallback = DefaultsStore.store
             .string(forKey: AppConstants.UserDefaults.songRequestFallbackPlaylist) ?? ""
         if !fallback.isEmpty {
             await startFallbackIfConfigured()
@@ -1345,7 +1345,7 @@ final class SongRequestService {
     /// or hold mode is active.
     private func startFallbackIfConfigured() async {
         guard !isNativeClearInFlight, !isStartingPlayback, !isHoldEnabled else { return }
-        let name = Foundation.UserDefaults.standard.string(forKey: AppConstants.UserDefaults.songRequestFallbackPlaylist) ?? ""
+        let name = DefaultsStore.store.string(forKey: AppConstants.UserDefaults.songRequestFallbackPlaylist) ?? ""
         guard !name.isEmpty else { return }
         guard musicController.isMusicAppRunning else { return }
         isStartingPlayback = true

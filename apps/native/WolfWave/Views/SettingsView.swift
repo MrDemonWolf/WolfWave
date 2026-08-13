@@ -166,7 +166,7 @@ struct SettingsView: View {
                     if requestedSection == AppConstants.Twitch.settingsSection {
                         selectedSection = .twitchIntegration
                     }
-                    UserDefaults.standard.removeObject(forKey: AppConstants.UserDefaults.selectedSettingsSection)
+                    DefaultsStore.store.removeObject(forKey: AppConstants.UserDefaults.selectedSettingsSection)
                 }
             }
             // The sidebar toggle lives on the DETAIL toolbar, not the sidebar's.
@@ -453,7 +453,7 @@ struct SettingsView: View {
 
         // UserDefaults: remove every key the app writes.
         AppConstants.UserDefaults.allKeys.forEach {
-            UserDefaults.standard.removeObject(forKey: $0)
+            DefaultsStore.store.removeObject(forKey: $0)
         }
 
         // On-disk data: logs, listening history, artwork cache, crash

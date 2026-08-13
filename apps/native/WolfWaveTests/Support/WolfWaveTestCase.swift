@@ -37,9 +37,14 @@ class WolfWaveTestCase: XCTestCase {
 
     // MARK: - UserDefaults
 
-    /// Removes every key listed in `AppConstants.UserDefaults.allKeys`.
+    /// Removes every key listed in `AppConstants.UserDefaults.allKeys` from the
+    /// isolated test suite.
+    ///
+    /// Goes through ``DefaultsStore/store``, which is why a mass delete is safe
+    /// here: before that seam existed this wiped ~393 keys out of the dev app's
+    /// live domain, because the test bundle is hosted by `WolfWave Dev.app`.
     func resetAllSettings() {
-        let defaults = Foundation.UserDefaults.standard
+        let defaults = DefaultsStore.store
         for key in AppConstants.UserDefaults.allKeys {
             defaults.removeObject(forKey: key)
         }

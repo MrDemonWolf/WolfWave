@@ -599,7 +599,7 @@ actor DiscordRPCService {
             appleMusicURL: appleMusicURL,
             songLinkURL: songLinkURL,
             isPaused: isPaused,
-            defaults: .standard,
+            defaults: DefaultsStore.store,
             now: Date()
         )
 

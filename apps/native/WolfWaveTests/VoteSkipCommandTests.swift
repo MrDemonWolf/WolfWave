@@ -48,12 +48,12 @@ final class VoteSkipCommandTests: WolfWaveTestCase {
     }
 
     func testDisabledViaUserDefaults() {
-        UserDefaults.standard.set(false, forKey: AppConstants.UserDefaults.voteSkipCommandEnabled)
+        DefaultsStore.store.set(false, forKey: AppConstants.UserDefaults.voteSkipCommandEnabled)
         XCTAssertFalse(VoteSkipCommand().isCommandEnabled)
     }
 
     func testCustomAliasesAppendToTriggers() {
-        UserDefaults.standard.set("skipvote, sv", forKey: AppConstants.UserDefaults.voteSkipCommandAliases)
+        DefaultsStore.store.set("skipvote, sv", forKey: AppConstants.UserDefaults.voteSkipCommandAliases)
         let triggers = VoteSkipCommand().allTriggers
         XCTAssertTrue(triggers.contains("!skipvote"))
         XCTAssertTrue(triggers.contains("!sv"))
@@ -109,8 +109,8 @@ final class VoteSkipCommandTests: WolfWaveTestCase {
     // MARK: - Execution
 
     func testExecuteRepliesWhenVotePasses() async {
-        UserDefaults.standard.set(true, forKey: AppConstants.UserDefaults.voteSkipEnabled)
-        UserDefaults.standard.set(1, forKey: AppConstants.UserDefaults.voteSkipMinVotes)
+        DefaultsStore.store.set(true, forKey: AppConstants.UserDefaults.voteSkipEnabled)
+        DefaultsStore.store.set(1, forKey: AppConstants.UserDefaults.voteSkipMinVotes)
 
         let manager = SkipVoteManager()
         await manager.configure(

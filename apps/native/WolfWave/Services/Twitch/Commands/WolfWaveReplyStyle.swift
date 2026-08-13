@@ -81,7 +81,7 @@ nonisolated enum WolfWaveReplyStyle: String, CaseIterable, Identifiable, Sendabl
     ///
     /// - Parameter defaults: Store to read from (injectable for tests).
     /// - Returns: The stored style, or ``default`` when unset or unrecognized.
-    static func current(_ defaults: Foundation.UserDefaults = .standard) -> WolfWaveReplyStyle {
+    static func current(_ defaults: Foundation.UserDefaults = DefaultsStore.store) -> WolfWaveReplyStyle {
         guard
             let raw = defaults.string(forKey: AppConstants.UserDefaults.wolfwaveCommandReplyStyle),
             let style = WolfWaveReplyStyle(rawValue: raw)

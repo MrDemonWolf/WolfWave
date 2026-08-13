@@ -86,13 +86,13 @@ final class StreamerModeTests: XCTestCase {
 
     func testIsEnabledReadsUserDefaults() {
         let key = AppConstants.UserDefaults.streamerModeEnabled
-        let originalValue = UserDefaults.standard.bool(forKey: key)
-        defer { UserDefaults.standard.set(originalValue, forKey: key) }
+        let originalValue = DefaultsStore.store.bool(forKey: key)
+        defer { DefaultsStore.store.set(originalValue, forKey: key) }
 
-        UserDefaults.standard.set(true, forKey: key)
+        DefaultsStore.store.set(true, forKey: key)
         XCTAssertTrue(StreamerMode.isEnabled)
 
-        UserDefaults.standard.set(false, forKey: key)
+        DefaultsStore.store.set(false, forKey: key)
         XCTAssertFalse(StreamerMode.isEnabled)
     }
 

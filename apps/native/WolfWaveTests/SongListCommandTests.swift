@@ -23,7 +23,7 @@ final class SongListCommandTests: XCTestCase {
     private let command = SongListCommand()
 
     private func clearKeys() {
-        let defaults = UserDefaults.standard
+        let defaults = DefaultsStore.store
         defaults.removeObject(forKey: AppConstants.UserDefaults.songListCommandEnabled)
         defaults.removeObject(forKey: AppConstants.UserDefaults.songListCommandAliases)
         defaults.removeObject(forKey: AppConstants.UserDefaults.songRequestSongListURL)
@@ -32,7 +32,7 @@ final class SongListCommandTests: XCTestCase {
     /// Resets keys, then enables the command with a configured link.
     private func enable(url: String) {
         clearKeys()
-        let defaults = UserDefaults.standard
+        let defaults = DefaultsStore.store
         defaults.set(true, forKey: AppConstants.UserDefaults.songListCommandEnabled)
         defaults.set(url, forKey: AppConstants.UserDefaults.songRequestSongListURL)
     }
@@ -40,7 +40,7 @@ final class SongListCommandTests: XCTestCase {
     func testDisabledByDefaultReturnsNil() {
         // A link is set, but the toggle defaults off, so the command stays silent.
         clearKeys()
-        UserDefaults.standard.set(
+        DefaultsStore.store.set(
             "https://music.apple.com/x",
             forKey: AppConstants.UserDefaults.songRequestSongListURL
         )
@@ -55,8 +55,8 @@ final class SongListCommandTests: XCTestCase {
 
     func testEnabledButBlankLinkReturnsNil() {
         clearKeys()
-        UserDefaults.standard.set(true, forKey: AppConstants.UserDefaults.songListCommandEnabled)
-        UserDefaults.standard.set("   ", forKey: AppConstants.UserDefaults.songRequestSongListURL)
+        DefaultsStore.store.set(true, forKey: AppConstants.UserDefaults.songListCommandEnabled)
+        DefaultsStore.store.set("   ", forKey: AppConstants.UserDefaults.songRequestSongListURL)
         XCTAssertNil(command.execute(message: "!playlist"))
     }
 
@@ -72,7 +72,7 @@ final class SongListCommandTests: XCTestCase {
 
     func testCustomAliasResolves() {
         enable(url: "https://music.apple.com/x")
-        UserDefaults.standard.set("list", forKey: AppConstants.UserDefaults.songListCommandAliases)
+        DefaultsStore.store.set("list", forKey: AppConstants.UserDefaults.songListCommandAliases)
         XCTAssertEqual(command.execute(message: "!list"), "Song list: https://music.apple.com/x")
     }
 

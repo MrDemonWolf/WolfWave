@@ -198,7 +198,7 @@ actor SkipVoteManager {
 
     // MARK: - Configuration
 
-    private nonisolated var defaults: Foundation.UserDefaults { .standard }
+    private nonisolated var defaults: Foundation.UserDefaults { DefaultsStore.store }
 
     /// Whether the vote-skip feature is enabled.
     nonisolated var isEnabled: Bool {

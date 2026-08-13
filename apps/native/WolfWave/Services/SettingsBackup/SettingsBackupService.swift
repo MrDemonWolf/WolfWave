@@ -94,7 +94,7 @@ struct SettingsBackupService {
     private let coder = SettingsBackupCoder()
 
     init(
-        defaults: Foundation.UserDefaults = .standard,
+        defaults: Foundation.UserDefaults = DefaultsStore.store,
         center: NotificationCenter = .default,
         twitchChannelProvider: @escaping () throws -> String? = {
             try KeychainService.loadTwitchCredentialGrantChecked().channelID

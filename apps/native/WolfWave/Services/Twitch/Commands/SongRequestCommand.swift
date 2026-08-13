@@ -68,7 +68,7 @@ final class SongRequestCommand: AsyncBotCommand {
         // "Usage:" hint below would otherwise leak even though requests can't
         // flow, so bail here first. Default is silence; the streamer can opt into
         // a "requests are off" reply.
-        let defaults = Foundation.UserDefaults.standard
+        let defaults = DefaultsStore.store
         guard defaults.bool(forKey: AppConstants.UserDefaults.songRequestEnabled) else {
             return defaults.bool(forKey: AppConstants.UserDefaults.songRequestDisabledReplyEnabled)
                 ? "Song requests are off right now."

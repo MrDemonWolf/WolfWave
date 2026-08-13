@@ -672,8 +672,8 @@ actor TwitchChatService {
     /// Whether the `!stats` command should respond. Both the Stats feature and
     /// the command itself must be enabled (computed from UserDefaults).
     nonisolated var statsCommandActive: Bool {
-        let stats = UserDefaults.standard.bool(forKey: AppConstants.UserDefaults.statsEnabled)
-        let command = UserDefaults.standard.bool(forKey: AppConstants.UserDefaults.statsCommandEnabled)
+        let stats = DefaultsStore.store.bool(forKey: AppConstants.UserDefaults.statsEnabled)
+        let command = DefaultsStore.store.bool(forKey: AppConstants.UserDefaults.statsCommandEnabled)
         return stats && command
     }
 
@@ -1250,7 +1250,7 @@ actor TwitchChatService {
         // On → every command (incl. !stats) waits for stream.online. Read per
         // message so toggling the setting or going live takes effect at once.
         let commandsGlobalGate: @Sendable () -> Bool = {
-            guard UserDefaults.standard.bool(forKey: AppConstants.UserDefaults.commandsLiveOnly) else {
+            guard DefaultsStore.store.bool(forKey: AppConstants.UserDefaults.commandsLiveOnly) else {
                 return true
             }
             return streamLiveSnapshot.value

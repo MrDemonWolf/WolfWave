@@ -81,13 +81,13 @@ extension AppDelegate {
 
         case .discordToggle:
             let newValue = !FeatureFlags.discordEnabled
-            UserDefaults.standard.set(newValue, forKey: AppConstants.UserDefaults.discordPresenceEnabled)
+            DefaultsStore.store.set(newValue, forKey: AppConstants.UserDefaults.discordPresenceEnabled)
             NotificationCenter.default.postEnabled(.discordPresenceChanged, enabled: newValue)
             return .success(action)
 
         case .musicSyncToggle:
             let newValue = !FeatureFlags.trackingEnabled
-            UserDefaults.standard.set(newValue, forKey: AppConstants.UserDefaults.trackingEnabled)
+            DefaultsStore.store.set(newValue, forKey: AppConstants.UserDefaults.trackingEnabled)
             NotificationCenter.default.postEnabled(.trackingSettingChanged, enabled: newValue)
             return .success(action)
 
@@ -104,9 +104,9 @@ extension AppDelegate {
         let themes = AppConstants.Widget.themes
         guard !themes.isEmpty else { return }
         let key = AppConstants.UserDefaults.widgetTheme
-        let current = UserDefaults.standard.string(forKey: key) ?? themes[0]
+        let current = DefaultsStore.store.string(forKey: key) ?? themes[0]
         let index = themes.firstIndex(of: current) ?? 0
-        UserDefaults.standard.set(themes[(index + 1) % themes.count], forKey: key)
+        DefaultsStore.store.set(themes[(index + 1) % themes.count], forKey: key)
     }
 
     /// Gathers current queue counts + connection health and pushes the Stream

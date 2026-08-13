@@ -548,11 +548,11 @@ struct ListeningHistoryServiceTests {
     func testFiniteRetentionExcludesLifetimeTally() async {
         let dir = makeTempDirectory()
         defer {
-            UserDefaults.standard.removeObject(
+            DefaultsStore.store.removeObject(
                 forKey: AppConstants.UserDefaults.historyRetentionDays)
             try? FileManager.default.removeItem(at: dir)
         }
-        UserDefaults.standard.set(
+        DefaultsStore.store.set(
             30, forKey: AppConstants.UserDefaults.historyRetentionDays)
 
         let old = PlayRecord(
@@ -588,11 +588,11 @@ struct ListeningHistoryServiceTests {
     func testFiniteRetentionClearFailureDefersRewriteUntilShutdownRetry() async {
         let dir = makeTempDirectory()
         defer {
-            UserDefaults.standard.removeObject(
+            DefaultsStore.store.removeObject(
                 forKey: AppConstants.UserDefaults.historyRetentionDays)
             try? FileManager.default.removeItem(at: dir)
         }
-        UserDefaults.standard.set(
+        DefaultsStore.store.set(
             30, forKey: AppConstants.UserDefaults.historyRetentionDays)
         let old = PlayRecord(
             timestamp: Date().addingTimeInterval(-60 * 86_400),

@@ -196,7 +196,7 @@ final class SongRequestServiceTests: WolfWaveTestCase {
     }
 
     private func clearAccessDefaults() {
-        let defaults = UserDefaults.standard
+        let defaults = DefaultsStore.store
         defaults.removeObject(forKey: AppConstants.UserDefaults.songRequestSubscriberOnly)
         defaults.removeObject(forKey: AppConstants.UserDefaults.songRequestChatAudience)
         defaults.removeObject(forKey: AppConstants.UserDefaults.songRequestMaxQueueSize)
@@ -234,7 +234,7 @@ final class SongRequestServiceTests: WolfWaveTestCase {
         // The master toggle defaults off (feature hidden until a streamer turns
         // it on). These tests exercise the request pipeline, so turn it on after
         // clearing defaults; the feature-disabled gate is covered explicitly.
-        UserDefaults.standard.set(true, forKey: AppConstants.UserDefaults.songRequestEnabled)
+        DefaultsStore.store.set(true, forKey: AppConstants.UserDefaults.songRequestEnabled)
     }
 
     override func tearDown() {
@@ -264,7 +264,7 @@ final class SongRequestServiceTests: WolfWaveTestCase {
     }
 
     func testBoostRejectedWhenFeatureDisabled() async {
-        UserDefaults.standard.set(false, forKey: AppConstants.UserDefaults.songRequestEnabled)
+        DefaultsStore.store.set(false, forKey: AppConstants.UserDefaults.songRequestEnabled)
         queue.add(makeTestRequestItem(title: "A", artist: "x", requesterUsername: "alice"))
 
         let boosted = await service.boost(username: "alice")
@@ -276,7 +276,7 @@ final class SongRequestServiceTests: WolfWaveTestCase {
     func testFallbackPlaylistStartsWhenLastRequestEnds() async {
         service = SongRequestService(
             queue: queue, musicController: mockController, pollInterval: .milliseconds(20))
-        UserDefaults.standard.set(
+        DefaultsStore.store.set(
             "Gaming Vibes", forKey: AppConstants.UserDefaults.songRequestFallbackPlaylist)
 
         mockController.isMusicAppRunning = true
@@ -292,14 +292,14 @@ final class SongRequestServiceTests: WolfWaveTestCase {
 
         XCTAssertTrue(started, "Fallback playlist should start when the queue drains during playback")
 
-        UserDefaults.standard.removeObject(
+        DefaultsStore.store.removeObject(
             forKey: AppConstants.UserDefaults.songRequestFallbackPlaylist)
     }
 
     // MARK: - Audience Gate
 
     func testProcessRequestSubscriberAudienceBlocksViewer() async {
-        UserDefaults.standard.set(
+        DefaultsStore.store.set(
             RequestAudience.subscribers.rawValue,
             forKey: AppConstants.UserDefaults.songRequestChatAudience)
 
@@ -313,7 +313,7 @@ final class SongRequestServiceTests: WolfWaveTestCase {
     }
 
     func testProcessRequestSubscriberAudienceAllowsSubscriber() async {
-        UserDefaults.standard.set(
+        DefaultsStore.store.set(
             RequestAudience.subscribers.rawValue,
             forKey: AppConstants.UserDefaults.songRequestChatAudience)
 
@@ -327,7 +327,7 @@ final class SongRequestServiceTests: WolfWaveTestCase {
     }
 
     func testProcessRequestSubscriberAudienceAllowsModerator() async {
-        UserDefaults.standard.set(
+        DefaultsStore.store.set(
             RequestAudience.subscribers.rawValue,
             forKey: AppConstants.UserDefaults.songRequestChatAudience)
 
@@ -341,7 +341,7 @@ final class SongRequestServiceTests: WolfWaveTestCase {
     }
 
     func testProcessRequestVipAudienceBlocksRegularViewer() async {
-        UserDefaults.standard.set(
+        DefaultsStore.store.set(
             RequestAudience.vipsAndSubs.rawValue,
             forKey: AppConstants.UserDefaults.songRequestChatAudience)
 
@@ -354,7 +354,7 @@ final class SongRequestServiceTests: WolfWaveTestCase {
     }
 
     func testProcessRequestVipAudienceAllowsVIP() async {
-        UserDefaults.standard.set(
+        DefaultsStore.store.set(
             RequestAudience.vipsAndSubs.rawValue,
             forKey: AppConstants.UserDefaults.songRequestChatAudience)
 
@@ -377,7 +377,7 @@ final class SongRequestServiceTests: WolfWaveTestCase {
         // to cover every source would have rejected every channel-point and bit
         // request on a mods-only channel with this test still green.
         mockController.stubSearchSuccess()
-        UserDefaults.standard.set(
+        DefaultsStore.store.set(
             RequestAudience.modsOnly.rawValue,
             forKey: AppConstants.UserDefaults.songRequestChatAudience)
 
@@ -410,7 +410,7 @@ final class SongRequestServiceTests: WolfWaveTestCase {
     // MARK: - Feature Master Gate
 
     func testProcessRequestRejectedWhenFeatureDisabled() async {
-        UserDefaults.standard.set(false, forKey: AppConstants.UserDefaults.songRequestEnabled)
+        DefaultsStore.store.set(false, forKey: AppConstants.UserDefaults.songRequestEnabled)
 
         let result = await service.processRequest(
             query: "any song", username: "viewer", source: chatSource(username: "viewer"))
@@ -423,7 +423,7 @@ final class SongRequestServiceTests: WolfWaveTestCase {
     }
 
     func testRedemptionRejectedWhenFeatureDisabled() async {
-        UserDefaults.standard.set(false, forKey: AppConstants.UserDefaults.songRequestEnabled)
+        DefaultsStore.store.set(false, forKey: AppConstants.UserDefaults.songRequestEnabled)
 
         let result = await service.processRequest(
             query: "any song", username: "viewer",
@@ -437,7 +437,7 @@ final class SongRequestServiceTests: WolfWaveTestCase {
     // MARK: - Access Migration
 
     func testMigrateAccessSettingsConvertsLegacySubscriberOnly() {
-        let defaults = UserDefaults.standard
+        let defaults = DefaultsStore.store
         defaults.removeObject(forKey: AppConstants.UserDefaults.songRequestChatAudience)
         defaults.set(true, forKey: AppConstants.UserDefaults.songRequestSubscriberOnly)
 
@@ -449,7 +449,7 @@ final class SongRequestServiceTests: WolfWaveTestCase {
     }
 
     func testMigrateAccessSettingsDefaultsToEveryone() {
-        let defaults = UserDefaults.standard
+        let defaults = DefaultsStore.store
         defaults.removeObject(forKey: AppConstants.UserDefaults.songRequestChatAudience)
         defaults.set(false, forKey: AppConstants.UserDefaults.songRequestSubscriberOnly)
 
@@ -493,14 +493,14 @@ final class SongRequestServiceTests: WolfWaveTestCase {
 
     func testSkipCallsNativeSkip() async {
         // No fallback + autoplay-off → draining the queue via skip stops Music.app.
-        UserDefaults.standard.set(false, forKey: AppConstants.UserDefaults.songRequestAutoplayWhenEmpty)
+        DefaultsStore.store.set(false, forKey: AppConstants.UserDefaults.songRequestAutoplayWhenEmpty)
         queue.add(makeTestRequestItem(title: "Song A", artist: "Artist", requesterUsername: "user1"))
         queue.dequeue()
 
         _ = await service.skip()
         XCTAssertTrue(mockController.clearCalled)
 
-        UserDefaults.standard.removeObject(forKey: AppConstants.UserDefaults.songRequestAutoplayWhenEmpty)
+        DefaultsStore.store.removeObject(forKey: AppConstants.UserDefaults.songRequestAutoplayWhenEmpty)
     }
 
     // MARK: - ClearQueue
@@ -750,7 +750,7 @@ final class SongRequestServiceTests: WolfWaveTestCase {
     // MARK: - Fallback Playlist
 
     func testFallbackPlaylistPlaysWhenQueueEmpties() async {
-        UserDefaults.standard.set(
+        DefaultsStore.store.set(
             "Gaming Vibes", forKey: AppConstants.UserDefaults.songRequestFallbackPlaylist)
         mockController.isMusicAppRunning = true
 
@@ -759,12 +759,12 @@ final class SongRequestServiceTests: WolfWaveTestCase {
         XCTAssertFalse(
             mockController.playFallbackCalled, "clearQueue should not trigger fallback playlist")
 
-        UserDefaults.standard.removeObject(
+        DefaultsStore.store.removeObject(
             forKey: AppConstants.UserDefaults.songRequestFallbackPlaylist)
     }
 
     func testSkippingLastRequestStartsConfiguredFallback() async {
-        UserDefaults.standard.set(
+        DefaultsStore.store.set(
             "Gaming Vibes",
             forKey: AppConstants.UserDefaults.songRequestFallbackPlaylist)
         mockController.isMusicAppRunning = true
@@ -780,12 +780,12 @@ final class SongRequestServiceTests: WolfWaveTestCase {
         XCTAssertTrue(mockController.playFallbackCalled)
         XCTAssertEqual(mockController.fallbackPlaylistName, "Gaming Vibes")
 
-        UserDefaults.standard.removeObject(
+        DefaultsStore.store.removeObject(
             forKey: AppConstants.UserDefaults.songRequestFallbackPlaylist)
     }
 
     func testClearQueueDoesNotStartFallback() async {
-        UserDefaults.standard.set(
+        DefaultsStore.store.set(
             "Gaming Vibes", forKey: AppConstants.UserDefaults.songRequestFallbackPlaylist)
         queue.add(makeTestRequestItem(title: "Song 1", artist: "A", requesterUsername: "user1"))
 
@@ -795,14 +795,14 @@ final class SongRequestServiceTests: WolfWaveTestCase {
             mockController.playFallbackCalled, "clearQueue should never auto-start fallback playlist")
         XCTAssertTrue(mockController.clearCalled, "clearQueue should stop Music.app")
 
-        UserDefaults.standard.removeObject(
+        DefaultsStore.store.removeObject(
             forKey: AppConstants.UserDefaults.songRequestFallbackPlaylist)
     }
 
     // MARK: - Hold Mode
 
     func testHoldBlocksAutoPlayOnRequest() async {
-        UserDefaults.standard.set(true, forKey: AppConstants.UserDefaults.songRequestHoldEnabled)
+        DefaultsStore.store.set(true, forKey: AppConstants.UserDefaults.songRequestHoldEnabled)
         mockController.stubSearchSuccess()
         mockController.isMusicAppRunning = true
         mockController.isPlaying = false
@@ -824,7 +824,7 @@ final class SongRequestServiceTests: WolfWaveTestCase {
         // The control for `testHoldBlocksAutoPlayOnRequest`. Identical setup with
         // hold off must reach playNow, which is what proves the assertion above
         // is about hold and not about some unrelated short-circuit.
-        UserDefaults.standard.removeObject(forKey: AppConstants.UserDefaults.songRequestHoldEnabled)
+        DefaultsStore.store.removeObject(forKey: AppConstants.UserDefaults.songRequestHoldEnabled)
         mockController.stubSearchSuccess()
         mockController.isMusicAppRunning = true
         mockController.isPlaying = false
@@ -846,15 +846,15 @@ final class SongRequestServiceTests: WolfWaveTestCase {
     }
 
     func testHoldBlocksFallbackStart() async {
-        UserDefaults.standard.set(true, forKey: AppConstants.UserDefaults.songRequestHoldEnabled)
-        UserDefaults.standard.set(
+        DefaultsStore.store.set(true, forKey: AppConstants.UserDefaults.songRequestHoldEnabled)
+        DefaultsStore.store.set(
             "Gaming Vibes", forKey: AppConstants.UserDefaults.songRequestFallbackPlaylist)
 
         _ = await service.clearQueue()
         XCTAssertFalse(
             mockController.playFallbackCalled, "No fallback should start while hold is enabled")
 
-        UserDefaults.standard.removeObject(
+        DefaultsStore.store.removeObject(
             forKey: AppConstants.UserDefaults.songRequestFallbackPlaylist)
     }
 
@@ -1154,7 +1154,7 @@ final class SongRequestServiceTests: WolfWaveTestCase {
 
     func testAutoAdvanceToggleReconcilesPlaybackPolling() async {
         service = makeServiceWithLiveRequest(pollInterval: .milliseconds(20))
-        UserDefaults.standard.set(
+        DefaultsStore.store.set(
             false, forKey: AppConstants.UserDefaults.songRequestAutoAdvance)
 
         service.startPlaybackMonitoring()
@@ -1164,7 +1164,7 @@ final class SongRequestServiceTests: WolfWaveTestCase {
             0,
             "Disabled auto-advance should not own a periodic playback task")
 
-        UserDefaults.standard.set(
+        DefaultsStore.store.set(
             true, forKey: AppConstants.UserDefaults.songRequestAutoAdvance)
         service.reconcilePlaybackMonitoring()
         let beganPolling = await waitUntil(timeout: .seconds(1)) {
@@ -1172,7 +1172,7 @@ final class SongRequestServiceTests: WolfWaveTestCase {
         }
         XCTAssertTrue(beganPolling, "Enabling auto-advance should start polling")
 
-        UserDefaults.standard.set(
+        DefaultsStore.store.set(
             false, forKey: AppConstants.UserDefaults.songRequestAutoAdvance)
         service.reconcilePlaybackMonitoring()
         let callsAfterDisable = mockController.playbackSnapshotCallCount
@@ -1237,7 +1237,7 @@ final class SongRequestServiceTests: WolfWaveTestCase {
     }
 
     func testVoteSkipLastRequestUsesTargetedFallback() async {
-        UserDefaults.standard.set(
+        DefaultsStore.store.set(
             "Gaming Vibes",
             forKey: AppConstants.UserDefaults.songRequestFallbackPlaylist)
         let current = makeTestRequestItem(
@@ -1254,7 +1254,7 @@ final class SongRequestServiceTests: WolfWaveTestCase {
     }
 
     func testVoteSkipLastRequestStopsWhenAutoplayIsDisabled() async {
-        UserDefaults.standard.set(
+        DefaultsStore.store.set(
             false,
             forKey: AppConstants.UserDefaults.songRequestAutoplayWhenEmpty)
         let current = makeTestRequestItem(
@@ -1431,7 +1431,7 @@ final class SongRequestServiceTests: WolfWaveTestCase {
         // wall-clock poll Task is MainActor-bound and gets starved under parallel
         // CI load, so even a 3s waitUntil flaked (PR #341, run 27247125149).
         // Direct ticks make the debounce counts exact and remove all timing.
-        UserDefaults.standard.set(
+        DefaultsStore.store.set(
             "Gaming Vibes", forKey: AppConstants.UserDefaults.songRequestFallbackPlaylist)
 
         mockController.isMusicAppRunning = true
@@ -1451,7 +1451,7 @@ final class SongRequestServiceTests: WolfWaveTestCase {
         await service.pollTick()
         guard mockController.playFallbackCalled else {
             XCTFail("Precondition: fallback should start once the last request finishes")
-            UserDefaults.standard.removeObject(forKey: AppConstants.UserDefaults.songRequestFallbackPlaylist)
+            DefaultsStore.store.removeObject(forKey: AppConstants.UserDefaults.songRequestFallbackPlaylist)
             return
         }
 
@@ -1464,7 +1464,7 @@ final class SongRequestServiceTests: WolfWaveTestCase {
             queue.nowPlaying?.title, "RequestedSong",
             "A request added while the fallback is playing should take over on the next poll tick (fallback yields)")
 
-        UserDefaults.standard.removeObject(forKey: AppConstants.UserDefaults.songRequestFallbackPlaylist)
+        DefaultsStore.store.removeObject(forKey: AppConstants.UserDefaults.songRequestFallbackPlaylist)
     }
 
     func testFallbackYieldsViaIsPlayingFallbackFlag() async {
@@ -1472,7 +1472,7 @@ final class SongRequestServiceTests: WolfWaveTestCase {
         // name, to confirm the dequeue is driven by the isPlayingFallback flag
         // (not just a stopped-state coincidence). Same deterministic pollTick()
         // driving; see the sibling test for the CI-flake rationale.
-        UserDefaults.standard.set(
+        DefaultsStore.store.set(
             "Chill Mix", forKey: AppConstants.UserDefaults.songRequestFallbackPlaylist)
 
         mockController.isMusicAppRunning = true
@@ -1489,7 +1489,7 @@ final class SongRequestServiceTests: WolfWaveTestCase {
         await service.pollTick()
         guard mockController.playFallbackCalled else {
             XCTFail("Precondition: fallback must activate before the request is added")
-            UserDefaults.standard.removeObject(forKey: AppConstants.UserDefaults.songRequestFallbackPlaylist)
+            DefaultsStore.store.removeObject(forKey: AppConstants.UserDefaults.songRequestFallbackPlaylist)
             return
         }
 
@@ -1504,7 +1504,7 @@ final class SongRequestServiceTests: WolfWaveTestCase {
             queue.nowPlaying?.title, "LiveRequest",
             "A request added while isPlayingFallback is true should dequeue on the next tick even if music is playing")
 
-        UserDefaults.standard.removeObject(forKey: AppConstants.UserDefaults.songRequestFallbackPlaylist)
+        DefaultsStore.store.removeObject(forKey: AppConstants.UserDefaults.songRequestFallbackPlaylist)
     }
 
     // MARK: - SendChatMessage on Queue Advance
@@ -1552,7 +1552,7 @@ final class SongRequestServiceTests: WolfWaveTestCase {
     func testSendChatMessageFiresOnHoldRelease() async {
         // setHold(false) also sends a "Now playing:" message when there's a
         // buffered request waiting. Verify this independently of the poll loop.
-        UserDefaults.standard.set(true, forKey: AppConstants.UserDefaults.songRequestHoldEnabled)
+        DefaultsStore.store.set(true, forKey: AppConstants.UserDefaults.songRequestHoldEnabled)
         var capturedMessages: [String] = []
         service.sendChatMessage = { capturedMessages.append($0) }
 

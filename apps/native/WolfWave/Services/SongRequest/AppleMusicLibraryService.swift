@@ -69,7 +69,7 @@ final class AppleMusicLibraryService {
     /// Creates the library service. Network overrides are narrow test seams;
     /// production uses MusicDataRequest for both.
     init(
-        defaults: Foundation.UserDefaults = .standard,
+        defaults: Foundation.UserDefaults = DefaultsStore.store,
         getOverride: (@Sendable (String) async throws -> Data?)? = nil,
         postOverride: (@Sendable (String, Data) async throws -> Data)? = nil
     ) {

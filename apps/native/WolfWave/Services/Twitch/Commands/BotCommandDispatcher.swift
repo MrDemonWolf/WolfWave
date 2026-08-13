@@ -498,7 +498,7 @@ final class BotCommandDispatcher {
     /// Commands declare their own UserDefaults keys via `globalCooldownKey`/`userCooldownKey`.
     /// If a key is nil or the stored value is absent, the command's default is used.
     private func cooldownValues(for trigger: String, command: BotCommand) -> (TimeInterval, TimeInterval) {
-        let defaults = Foundation.UserDefaults.standard
+        let defaults = DefaultsStore.store
         let globalCD = command.globalCooldownKey
             .flatMap { defaults.object(forKey: $0) as? TimeInterval }
             ?? command.globalCooldown

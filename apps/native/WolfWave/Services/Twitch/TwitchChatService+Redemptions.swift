@@ -191,7 +191,7 @@ extension TwitchChatService {
         receiveContext: EventSubReceiveContext? = nil
     ) async {
         guard receiveContextIsCurrent(receiveContext) else { return }
-        let defaults = UserDefaults.standard
+        let defaults = DefaultsStore.store
 
         // Channel-point and bit toggles are independent of the master switch, so
         // skip every redemption subscription while the feature as a whole is off.
@@ -1286,7 +1286,7 @@ extension TwitchChatService {
 
         // Channel-point requests off (toggle flipped between subscribe and
         // redemption, or the reward wasn't paused in time): refund.
-        guard UserDefaults.standard.bool(
+        guard DefaultsStore.store.bool(
             forKey: AppConstants.UserDefaults.songRequestChannelPointsEnabled) else {
             finalizeRedemptionIntake(intake, as: .canceled)
             await sendSessionBoundMessage(
@@ -1337,7 +1337,7 @@ extension TwitchChatService {
         _ payload: [String: Any],
         eventSubMessageID: String
     ) {
-        let defaults = UserDefaults.standard
+        let defaults = DefaultsStore.store
         guard
             defaults.bool(forKey: AppConstants.UserDefaults.songRequestBitsEnabled),
             let event = payload["event"] as? [String: Any],
@@ -2164,7 +2164,7 @@ extension TwitchChatService {
 
     /// Persists the redemption integration health for the settings UI.
     nonisolated func setRedemptionStatus(_ status: RedemptionStatus) {
-        UserDefaults.standard.set(
+        DefaultsStore.store.set(
             status.rawValue, forKey: AppConstants.UserDefaults.songRequestRedemptionStatus)
     }
 

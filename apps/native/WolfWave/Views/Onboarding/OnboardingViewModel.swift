@@ -81,7 +81,7 @@ final class OnboardingViewModel {
 
     /// Persists the onboarding-completed flag so the wizard won't show again.
     func completeOnboarding() {
-        UserDefaults.standard.set(true, forKey: AppConstants.UserDefaults.hasCompletedOnboarding)
+        DefaultsStore.store.set(true, forKey: AppConstants.UserDefaults.hasCompletedOnboarding)
         showCompletion = true
         Log.info("OnboardingViewModel: Onboarding completed", category: "App")
     }

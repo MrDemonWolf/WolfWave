@@ -32,7 +32,7 @@ struct DebugUIPreviewsCard: View {
             .pointerCursor()
 
             Button {
-                UserDefaults.standard.removeObject(forKey: AppConstants.UserDefaults.lastSeenWhatsNewVersion)
+                DefaultsStore.store.removeObject(forKey: AppConstants.UserDefaults.lastSeenWhatsNewVersion)
                 Log.info("Reset lastSeenWhatsNewVersion (dev)", category: "WhatsNew")
             } label: {
                 Label("Reset 'Seen' Flag (next launch shows popup)", systemImage: "arrow.counterclockwise")
@@ -53,7 +53,7 @@ struct DebugUIPreviewsCard: View {
             .pointerCursor()
 
             Button {
-                UserDefaults.standard.removeObject(forKey: AppConstants.UserDefaults.hasCompletedOnboarding)
+                DefaultsStore.store.removeObject(forKey: AppConstants.UserDefaults.hasCompletedOnboarding)
                 Log.info("Reset hasCompletedOnboarding (dev)", category: "Onboarding")
             } label: {
                 Label("Reset Onboarding Completion Flag", systemImage: "arrow.counterclockwise")

@@ -50,7 +50,7 @@ final class SongRequestQueuePendingTests: WolfWaveTestCase {
         // Per-user limit of 1: two pending items from the same user must both be
         // approvable, since the manual approval is the gate (addApproved skips the
         // per-user check).
-        Foundation.UserDefaults.standard.set(1, forKey: AppConstants.UserDefaults.songRequestPerUserLimit)
+        DefaultsStore.store.set(1, forKey: AppConstants.UserDefaults.songRequestPerUserLimit)
         let a = makeTestRequestItem(title: "Song A", artist: "Wolf", requesterUsername: "viewer1")
         let b = makeTestRequestItem(title: "Song B", artist: "Wolf", requesterUsername: "viewer1")
         _ = queue.addPending(a)
@@ -88,7 +88,7 @@ final class SongRequestQueuePendingTests: WolfWaveTestCase {
     func testApproveRePendsWhenLiveQueueFull() async {
         // Live queue capped at 1 and already full; approving a pending item must
         // keep it in the pending pen rather than dropping it.
-        Foundation.UserDefaults.standard.set(1, forKey: AppConstants.UserDefaults.songRequestMaxQueueSize)
+        DefaultsStore.store.set(1, forKey: AppConstants.UserDefaults.songRequestMaxQueueSize)
         let service = SongRequestService(
             queue: queue,
             musicController: MockAppleMusicController()

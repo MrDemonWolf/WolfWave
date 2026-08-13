@@ -237,7 +237,7 @@ struct DebugInspectorsCard: View {
 
     private func userDefaultsRow(key: String) -> some View {
         _ = refreshTick
-        let value = UserDefaults.standard.object(forKey: key)
+        let value = DefaultsStore.store.object(forKey: key)
         return HStack(alignment: .top, spacing: DSSpace.s2) {
             Text(key)
                 .font(.system(size: DSFont.Size.sm, design: .monospaced))
@@ -252,7 +252,7 @@ struct DebugInspectorsCard: View {
                 .textSelection(.enabled)
                 .frame(maxWidth: .infinity, alignment: .leading)
             Button {
-                UserDefaults.standard.removeObject(forKey: key)
+                DefaultsStore.store.removeObject(forKey: key)
                 refreshTick &+= 1
             } label: {
                 Image(systemName: "xmark.circle")

@@ -100,4 +100,34 @@ custom_rules:
       - string
     severity: error
 
+  # The unit test bundle is hosted: TEST_HOST is `WolfWave Dev.app`, so a test
+  # process's `UserDefaults.standard` IS the dev app's live preference domain.
+  # Tests writing settings there edited the developer's real app, and one such
+  # write (`voteSkipWindowSeconds = 1`, not a valid picker tag) crashed the Song
+  # Requests pane inside SwiftUI on the next launch. Production is routed the
+  # same way so the rule can be a single repo-wide invariant.
+  # Use `DefaultsStore.store`, or a throwaway `UserDefaults(suiteName:)` for a
+  # SUT that takes an injected store.
+  # The alternation matters. The first migration pass only rewrote
+  # `UserDefaults.standard` and `= .standard`, so it silently skipped the
+  # computed-property form `private static var defaults: UserDefaults
+  # { .standard }` that `Preferences` and `FeatureFlags` both use. Tests then
+  # wrote the isolated suite while the code under test still read the live
+  # domain: no build error, no failed assertion, just reads returning defaults
+  # and one vote-skip test deadlocking 512 tests into the run.
+  user_defaults_standard:
+    name: "Direct UserDefaults.standard"
+    regex: 'UserDefaults\s*(\.standard\b|=\s*\.standard\b|\{\s*\.standard\b)'
+    excluded:
+      - ".*/Core/DefaultsStore\\.swift"
+      - ".*/WolfWaveTests/DefaultsStoreTests\\.swift"
+    message: "The hosted test bundle shares the live app's .standard domain. Route through DefaultsStore.store (or a private UserDefaults(suiteName:) in tests)."
+    # Code only. The doc comments explaining this trap have to name the API.
+    excluded_match_kinds:
+      - comment
+      - doccomment
+      - doccomment.field
+      - string
+    severity: error
+
 reporter: "xcode"

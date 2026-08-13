@@ -14,7 +14,7 @@ import Testing
 /// were migrated onto `Preferences.bool(_:default:)`: an unset key must resolve
 /// to the documented default, and an explicitly-written value must win.
 ///
-/// Serialized because every case mutates a shared `UserDefaults.standard` key.
+/// Serialized because every case mutates a shared `DefaultsStore.store` key.
 @Suite("FeatureFlags Defaults", .serialized)
 struct FeatureFlagsDefaultsTests {
 
@@ -22,7 +22,7 @@ struct FeatureFlagsDefaultsTests {
     /// `value` is nil), restoring the previous stored value afterwards so the
     /// suite never leaks state into other tests.
     private func withStoredBool(_ value: Bool?, forKey key: String, body: () -> Void) {
-        let defaults = UserDefaults.standard
+        let defaults = DefaultsStore.store
         let previous = defaults.object(forKey: key)
         defer {
             if let previous {
