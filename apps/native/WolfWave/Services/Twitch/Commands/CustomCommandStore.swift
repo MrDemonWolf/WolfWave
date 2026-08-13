@@ -31,7 +31,8 @@ final class CustomCommandStore {
     private let defaults: UserDefaults
     private let key = AppConstants.UserDefaults.customCommands
 
-    /// - Parameter defaults: Injection seam for tests; production uses `.standard`.
+    /// - Parameter defaults: Injection seam for tests; defaults to
+    ///   ``DefaultsStore/store``.
     init(defaults: UserDefaults = DefaultsStore.store) {
         self.defaults = defaults
         load()
