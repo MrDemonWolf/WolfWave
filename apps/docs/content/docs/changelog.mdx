@@ -82,6 +82,7 @@ The next release. These ship on the [Nightly channel](/docs/nightly) off `main` 
 - **Steadier under the hood.** Hardened Discord Rich Presence against a rare bad-playback-position crash, stopped a Twitch rate-limit wait from spinning the CPU when a connection drops, and made LAN IP detection skip a bad network interface instead of showing a blank overlay address.
 - **"Open in Music" works in Song Requests setup.** The button in step 4 (Share your playlist) did nothing. It now brings Music forward and selects your WolfWave Requests playlist.
 - **Nightly testers can get back to Stable.** Switching the Update Channel back to Stable now works on its own: the next stable release offers itself like any other update, instead of leaving you stuck until you manually reinstalled the DMG. One exception, one time: if you installed the August 5, 2026 nightly, grab any newer DMG once — that specific build can't update itself. See [Nightly Builds](/docs/nightly).
+- **WolfWave can talk to Apple Music again.** Nightly builds from August 4, 2026 onward couldn't reach Music.app at all. The now-playing card sat on "Nothing playing right now" while a song played, the request queue never advanced to the next song, `!skip` and the tray play/pause did nothing, and Song Requests setup kept sending you back to step one. Stable 2.0.1 was never affected. Music still stays closed when you close it.
 
 ### Developer
 

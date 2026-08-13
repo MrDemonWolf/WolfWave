@@ -122,30 +122,55 @@ struct AppleMusicControllerTests {
         #expect(makeController().sanitizeForAppleScript("a b") == "a b")
     }
 
-    // MARK: - PID-targeted scripts
+    // MARK: - Script targeting
 
-    @Test("PID-targeted script wraps Music terminology in a timeout handler")
-    func pidTargetedScriptShape() {
-        let script = AppleMusicController.pidTargetedScript("playpause", seconds: 5)
+    @Test("Script addresses Music by bundle id inside a timeout")
+    func musicTargetedScriptShape() {
+        let script = AppleMusicController.musicTargetedScript("playpause", seconds: 5)
 
-        #expect(script.contains("using terms from application \"Music\""))
-        #expect(script.contains("on wolfWaveRun(musicTarget)"))
         #expect(script.contains("with timeout of 5 seconds"))
-        #expect(script.contains("tell musicTarget"))
+        #expect(script.contains("tell application id \"com.apple.Music\""))
         #expect(script.contains("playpause"))
-        #expect(script.contains("end wolfWaveRun"))
-        #expect(!script.contains("tell application \"Music\""))
-        #expect(!script.contains("if application \"Music\" is running"))
+        #expect(script.contains("end timeout"))
     }
 
-    @Test("Reveal script never sends activate to a PID specifier")
+    @Test("Liveness guard runs before the tell block, not after")
+    func musicTargetedScriptGuardsBeforeTell() {
+        let script = AppleMusicController.musicTargetedScript("playpause", seconds: 5)
+
+        // Ordering is the whole point. A bundle-id `tell` is auto-launched by
+        // LaunchServices, so a running-check placed after it would relaunch the
+        // Music the user just quit before it ever ran. That bug shipped twice
+        // (PR #203, PR #273). The guard itself shipped in PR #392 and was lost
+        // in PR #410, which is what broke every Apple Event in 2.1.0.
+        let guardIndex = script.range(of: "is not running then error")?.lowerBound
+        let tellIndex = script.range(of: "tell application id")?.lowerBound
+
+        #expect(guardIndex != nil)
+        #expect(tellIndex != nil)
+        if let guardIndex, let tellIndex {
+            #expect(guardIndex < tellIndex)
+        }
+    }
+
+    @Test("Closed Music raises -600, the code callers already map to musicAppNotRunning")
+    func musicTargetedScriptRaisesProcNotFound() {
+        let script = AppleMusicController.musicTargetedScript("playpause", seconds: 5)
+
+        // `requireCommandSuccess` and `playFromRequestsPlaylist` both branch on
+        // -600. Any other number silently degrades a closed Music into a generic
+        // commandFailed, which the request queue treats as a real failure rather
+        // than "buffer and retry when Music comes back".
+        #expect(script.contains("error \"Music is not running\" number -600"))
+    }
+
+    @Test("Reveal script contains only the reveal command")
     func revealScriptOmitsActivate() {
         let script = makeController().revealScript(playlistName: "WolfWave Requests")
 
         #expect(script.contains("reveal playlist \"WolfWave Requests\""))
-        // A raw process-id specifier does not implement `activate`; including it
-        // aborts the script with -1708 before `reveal` runs. Music is raised from
-        // Swift via NSRunningApplication instead.
+        // Music is raised from Swift via NSRunningApplication so macOS
+        // cooperative activation and focus restoration stay in AppKit's hands.
         #expect(!script.contains("activate"))
     }
 
@@ -156,17 +181,19 @@ struct AppleMusicControllerTests {
         #expect(script.contains("reveal playlist \"a\\\"bc\""))
     }
 
-    @Test("Invocation event carries a kernel process ID argument")
-    func invocationEventTargetsPID() {
-        let event = AppleMusicController.scriptInvocationEvent(targetPID: 4_242)
-        let handler = event.paramDescriptor(forKeyword: AEKeyword(keyASSubroutineName))
-        let arguments = event.paramDescriptor(forKeyword: AEKeyword(keyDirectObject))
-        let target = arguments?.atIndex(1)
+    @Test("Script never addresses Music by a raw pid descriptor")
+    func musicTargetedScriptRejectsPIDAddressing() {
+        // Regression guard. Passing `NSAppleEventDescriptor(processIdentifier:)`
+        // as a `tell` argument compiles and unit-tests clean, but at runtime
+        // AppleScript sees an opaque «data kpid…» with no terminology: every
+        // property read fails -1728 and every verb -1708. That silently killed
+        // song requests, the now-playing card, and the setup gate on macOS 26,
+        // and no test caught it because the shape was asserted, not the behavior.
+        let script = AppleMusicController.musicTargetedScript("get player state", seconds: 5)
 
-        #expect(handler?.stringValue == "wolfWaveRun")
-        #expect(target?.descriptorType == typeKernelProcessID)
-        let expectedPIDData = withUnsafeBytes(of: pid_t(4_242)) { Data($0) }
-        #expect(target?.data == expectedPIDData)
+        #expect(!script.contains("musicTarget"))
+        #expect(!script.contains("wolfWaveRun"))
+        #expect(!script.contains("using terms from"))
     }
 
     @Test("Focus restores only when Music remains frontmost")
