@@ -108,6 +108,14 @@ nonisolated final class WidgetHTTPService: @unchecked Sendable {
         connectionsLock.withLock { activeConnections.count }
     }
 
+    /// The port the listener actually bound, or `nil` before it binds. Differs
+    /// from the configured `port` only when that was `0`, which asks the kernel
+    /// for a free ephemeral port. Tests bind `0` and read this back so they can
+    /// never collide with an unrelated process holding a hardcoded port.
+    var boundPort: UInt16? {
+        listener?.port?.rawValue
+    }
+
     /// Readiness latch, fulfilled once on the first `NWListener.State.ready`.
     /// Lets callers (notably tests) await the listener actually binding the
     /// port instead of sleeping a fixed interval. Guarded by `readyLock` so the
@@ -126,7 +134,8 @@ nonisolated final class WidgetHTTPService: @unchecked Sendable {
     ///
     /// - Parameters:
     ///   - port: TCP port to listen on. Bound on all interfaces so LAN peers
-    ///     can reach the widget for two-PC streaming setups.
+    ///     can reach the widget for two-PC streaming setups. Pass `0` to let
+    ///     the kernel pick a free port and read it back from ``boundPort``.
     ///   - overlayToken: read-only overlay token to inject into the served HTML
     ///     **for loopback requests only**. Pass `nil` to ship the file
     ///     untouched. Only useful for tests.
@@ -179,7 +188,10 @@ nonisolated final class WidgetHTTPService: @unchecked Sendable {
             guard let self else { return }
             switch state {
             case .ready:
-                Log.info("WidgetHTTPService: Listening on port \(self.port)", category: "WebSocket")
+                Log.info(
+                    "WidgetHTTPService: Listening on port \(self.boundPort ?? self.port)",
+                    category: "WebSocket"
+                )
                 self.markReady()
             case .failed(let error):
                 Log.error("WidgetHTTPService: Listener failed: \(error)", category: "WebSocket")
