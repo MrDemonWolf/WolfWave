@@ -33,6 +33,10 @@ struct SongRequestSetupView: View {
 
     @State private var ensuringPlaylist = false
     @State private var playlistError: String?
+    /// Whether Music.app can actually see the playlist WolfWave just created in
+    /// the cloud library. Surfaced here because the cloud create succeeding is
+    /// not the same thing as playback being able to find it.
+    @State private var playlistLocalVisibility: PlaylistLocalVisibility = .unknown
 
     @State private var fetchingLink = false
     @State private var fetchStatus: String?
@@ -237,7 +241,17 @@ struct SongRequestSetupView: View {
                                 .foregroundStyle(.secondary)
                         }
                     } else if viewModel.playlistReady {
-                        CalloutBanner("\(AppConstants.Music.requestsPlaylistName) is ready.", style: .success)
+                        if playlistLocalVisibility == .notVisible {
+                            CalloutBanner(
+                                "\(AppConstants.Music.requestsPlaylistName) was made in your Apple Music library, but Music on this Mac can't see it yet. Songs play out of Music, so turn on Sync Library in Music, Settings, General, then check again.",
+                                style: .warning
+                            )
+                            Button("Check Again") { Task { await refreshPlaylistLocalVisibility() } }
+                                .buttonStyle(.bordered)
+                                .controlSize(.small)
+                        } else {
+                            CalloutBanner("\(AppConstants.Music.requestsPlaylistName) is ready.", style: .success)
+                        }
                         Text("Made by WolfWave, with a description so chat knows what it is. Apple builds the cover from the songs as they come in.")
                             .font(.system(size: DSFont.Size.xs))
                             .foregroundStyle(.tertiary)
@@ -490,6 +504,13 @@ struct SongRequestSetupView: View {
 
     /// Ensures the WolfWave Requests playlist exists, flipping `playlistReady`
     /// so the step's Next button unlocks. Surfaces a retry on failure.
+    ///
+    /// The create call talks to the Apple Music cloud library; playback reads
+    /// Music.app's local library. So the local visibility probe runs straight
+    /// after, and a `.notVisible` answer warns instead of blocking: Sync Library
+    /// can take a moment, and stranding a streamer in the wizard over a state
+    /// that clears itself would be worse than letting them finish and showing the
+    /// same warning in the pane.
     @MainActor
     private func ensurePlaylist() async {
         ensuringPlaylist = true
@@ -498,10 +519,18 @@ struct SongRequestSetupView: View {
         do {
             _ = try await libraryService.ensureRequestsPlaylist()
             viewModel.playlistReady = true
+            await refreshPlaylistLocalVisibility()
         } catch {
             viewModel.playlistReady = false
             playlistError = "Couldn't create the playlist. Check your Apple Music subscription, then try again."
         }
+    }
+
+    /// Re-asks Music.app whether it can see the playlist, for the step's "Check
+    /// Again" button after the streamer turns Sync Library on.
+    @MainActor
+    private func refreshPlaylistLocalVisibility() async {
+        playlistLocalVisibility = await musicController.requestsPlaylistLocalVisibility()
     }
 
     /// Resolves the playlist's public share link, fills the field, and turns

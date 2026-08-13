@@ -420,10 +420,12 @@ enum RedemptionStatus: String {
 /// - **Essential** (`playlistMissing`, `musicAccessLost`): nothing can play, so
 ///   the live feature is held and the banner walks the streamer back through
 ///   setup.
-/// - **Cosmetic** (`linkUnshared`): only the `!playlist` link is dead, so just
-///   that command is turned off. `!sr`, channel points, and bits keep working,
-///   never killing a live stream over a broken link.
-enum PlaylistSetupStatus: String {
+/// - **Cosmetic** (`linkUnshared`, `playlistNotInMusic`): the feature is not held.
+///   `linkUnshared` kills only the `!playlist` link, so just that command is
+///   turned off. `playlistNotInMusic` is a warning about a sync problem WolfWave
+///   cannot fix from here, so it changes no settings at all, never killing a live
+///   stream over a state that may clear itself a second later.
+enum PlaylistSetupStatus: String, CaseIterable {
     /// Working, or setup not started yet. No banner.
     case ok
     /// The WolfWave Requests playlist is gone and couldn't be rebuilt.
@@ -432,6 +434,10 @@ enum PlaylistSetupStatus: String {
     case linkUnshared
     /// Apple Music access (or an active subscription) is no longer available.
     case musicAccessLost
+    /// The playlist exists in the Apple Music cloud library but Music.app can't
+    /// see it, so AppleScript playback has nothing to play from. Almost always
+    /// Sync Library being off, which only the streamer can turn on.
+    case playlistNotInMusic
 
     /// Banner message shown at the top of the pane, or `nil` when healthy.
     var bannerMessage: String? {
@@ -444,6 +450,8 @@ enum PlaylistSetupStatus: String {
             return "Your song list link stopped working. Re-share your requests playlist so !playlist works again."
         case .musicAccessLost:
             return "WolfWave lost access to Apple Music. Grant access again to keep song requests playing."
+        case .playlistNotInMusic:
+            return "Music can't see your WolfWave Requests playlist yet, so requests have nothing to play from. Turn on Sync Library in Music, Settings, General, then check again."
         }
     }
 
@@ -452,7 +460,7 @@ enum PlaylistSetupStatus: String {
     /// re-engage the setup gate; cosmetic breaks leave requests flowing.
     var isEssential: Bool {
         switch self {
-        case .ok, .linkUnshared:
+        case .ok, .linkUnshared, .playlistNotInMusic:
             return false
         case .playlistMissing, .musicAccessLost:
             return true
@@ -470,6 +478,8 @@ enum PlaylistSetupStatus: String {
             return "Re-share Playlist"
         case .musicAccessLost:
             return "Grant Access"
+        case .playlistNotInMusic:
+            return "Check Again"
         }
     }
 
