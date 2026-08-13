@@ -180,6 +180,10 @@ struct SongRequestSettingsView: View {
             openSetup(at: .intro)
         case .linkUnshared:
             openSetup(at: .shareLink)
+        case .playlistNotInMusic:
+            // Only the streamer can turn Sync Library on, so the action is simply
+            // to re-probe once they have.
+            Task { await runHealthCheck() }
         }
     }
 }

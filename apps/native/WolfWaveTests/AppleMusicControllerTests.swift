@@ -181,6 +181,18 @@ struct AppleMusicControllerTests {
         #expect(script.contains("reveal playlist \"a\\\"bc\""))
     }
 
+    @Test("Local visibility parses only the two definitive sentinels")
+    func localVisibilityParsing() {
+        #expect(AppleMusicController.parseLocalVisibility("yes") == .visible)
+        #expect(AppleMusicController.parseLocalVisibility("no") == .notVisible)
+        #expect(AppleMusicController.parseLocalVisibility(" yes\n") == .visible)
+        // A failed or empty read must never read as a definitive "playlist gone",
+        // because the health check turns .notVisible into a user-facing banner.
+        #expect(AppleMusicController.parseLocalVisibility(nil) == .unknown)
+        #expect(AppleMusicController.parseLocalVisibility("") == .unknown)
+        #expect(AppleMusicController.parseLocalVisibility("missing value") == .unknown)
+    }
+
     @Test("Script never addresses Music by a raw pid descriptor")
     func musicTargetedScriptRejectsPIDAddressing() {
         // Regression guard. Passing `NSAppleEventDescriptor(processIdentifier:)`
