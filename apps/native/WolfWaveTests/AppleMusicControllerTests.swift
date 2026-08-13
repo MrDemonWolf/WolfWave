@@ -138,6 +138,24 @@ struct AppleMusicControllerTests {
         #expect(!script.contains("if application \"Music\" is running"))
     }
 
+    @Test("Reveal script never sends activate to a PID specifier")
+    func revealScriptOmitsActivate() {
+        let script = makeController().revealScript(playlistName: "WolfWave Requests")
+
+        #expect(script.contains("reveal playlist \"WolfWave Requests\""))
+        // A raw process-id specifier does not implement `activate`; including it
+        // aborts the script with -1708 before `reveal` runs. Music is raised from
+        // Swift via NSRunningApplication instead.
+        #expect(!script.contains("activate"))
+    }
+
+    @Test("Reveal script escapes quotes in the playlist name")
+    func revealScriptSanitizesName() {
+        let script = makeController().revealScript(playlistName: "a\"b\nc")
+
+        #expect(script.contains("reveal playlist \"a\\\"bc\""))
+    }
+
     @Test("Invocation event carries a kernel process ID argument")
     func invocationEventTargetsPID() {
         let event = AppleMusicController.scriptInvocationEvent(targetPID: 4_242)
