@@ -80,6 +80,7 @@ The next release. These ship on the [Nightly channel](/docs/nightly) off `main` 
 - **History clears and rankings stay exact.** Clearing history during its launch-time disk read can no longer restore old plays, finite retention no longer resurrects undated lifetime data, and tied stats and Monthly Wrap results are deterministic.
 - **Clean Twitch sign-in cancel.** Cancelling the Twitch connect flow no longer flashes a false "OAuth setup failed" error.
 - **Steadier under the hood.** Hardened Discord Rich Presence against a rare bad-playback-position crash, stopped a Twitch rate-limit wait from spinning the CPU when a connection drops, and made LAN IP detection skip a bad network interface instead of showing a blank overlay address.
+- **"Open in Music" works in Song Requests setup.** The button in step 4 (Share your playlist) did nothing. It now brings Music forward and selects your WolfWave Requests playlist.
 - **Nightly testers can get back to Stable.** Switching the Update Channel back to Stable now works on its own: the next stable release offers itself like any other update, instead of leaving you stuck until you manually reinstalled the DMG. One exception, one time: if you installed the August 5, 2026 nightly, grab any newer DMG once — that specific build can't update itself. See [Nightly Builds](/docs/nightly).
 
 ### Developer
