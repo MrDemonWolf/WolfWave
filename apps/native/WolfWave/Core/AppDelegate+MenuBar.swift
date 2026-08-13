@@ -840,9 +840,9 @@ extension AppDelegate {
     ///   - includeEnabledInUserInfo: When `true`, attaches
     ///     `["enabled": newValue]` to the posted notification.
     func toggleBoolSetting(key: String, notification: String, includeEnabledInUserInfo: Bool = true) {
-        let current = UserDefaults.standard.bool(forKey: key)
+        let current = DefaultsStore.store.bool(forKey: key)
         let newValue = !current
-        UserDefaults.standard.set(newValue, forKey: key)
+        DefaultsStore.store.set(newValue, forKey: key)
         let name = NSNotification.Name(notification)
         if includeEnabledInUserInfo {
             NotificationCenter.default.postEnabled(name, enabled: newValue)

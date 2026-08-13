@@ -109,7 +109,7 @@ final class SongRequestSetupViewModel {
     /// flips on; the streamer can turn it off in the pane afterward. The pane
     /// re-runs the playlist health check on dismiss to confirm the optimistic
     /// `.ok` status.
-    func complete(defaults: Foundation.UserDefaults = .standard) {
+    func complete(defaults: Foundation.UserDefaults = DefaultsStore.store) {
         defaults.set(true, forKey: AppConstants.UserDefaults.songRequestSetupComplete)
         defaults.set(PlaylistSetupStatus.ok.rawValue, forKey: AppConstants.UserDefaults.songRequestPlaylistStatus)
         defaults.set(true, forKey: AppConstants.UserDefaults.songRequestEnabled)

@@ -182,7 +182,7 @@ struct WidgetAppearanceConfig: Equatable {
     var fontFamily: String
 
     /// Snapshot the currently-applied values from `UserDefaults`.
-    static func loadApplied(_ defaults: UserDefaults = .standard) -> WidgetAppearanceConfig {
+    static func loadApplied(_ defaults: UserDefaults = DefaultsStore.store) -> WidgetAppearanceConfig {
         WidgetAppearanceConfig(
             theme: defaults.string(forKey: AppConstants.UserDefaults.widgetTheme) ?? AppConstants.Widget.Defaults.theme,
             layout: defaults.string(forKey: AppConstants.UserDefaults.widgetLayout) ?? AppConstants.Widget.Defaults.layout,

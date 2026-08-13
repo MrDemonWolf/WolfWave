@@ -138,7 +138,7 @@ enum MusicPermissionChecker {
     /// Reads the last definitively-resolved grant from `UserDefaults`. Returns
     /// nil when never resolved, or when the stored value isn't a real decision.
     nonisolated static func loadPersisted() -> MusicPermissionState? {
-        guard let raw = UserDefaults.standard.string(
+        guard let raw = DefaultsStore.store.string(
             forKey: AppConstants.UserDefaults.lastResolvedMusicPermission
         ), let state = MusicPermissionState(rawValue: raw), state != .unknown else {
             return nil
@@ -151,7 +151,7 @@ enum MusicPermissionChecker {
     /// read) never overwrites a real grant.
     nonisolated static func persistIfDefinitive(_ state: MusicPermissionState) {
         guard state == .granted || state == .denied else { return }
-        UserDefaults.standard.set(
+        DefaultsStore.store.set(
             state.rawValue,
             forKey: AppConstants.UserDefaults.lastResolvedMusicPermission
         )

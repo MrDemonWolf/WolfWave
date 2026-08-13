@@ -88,7 +88,7 @@ extension BotCommand {
     var allTriggers: [String] {
         var result = triggers
         if let key = aliasesKey,
-           let custom = Foundation.UserDefaults.standard.string(forKey: key) {
+           let custom = DefaultsStore.store.string(forKey: key) {
             let aliases = custom.split(separator: ",")
                 .map { $0.trimmingCharacters(in: .whitespaces).lowercased() }
                 .filter { !$0.isEmpty }
@@ -108,7 +108,7 @@ extension BotCommand {
     var isCommandEnabled: Bool {
         guard let key = enabledKey else { return true }
         // Use object(forKey:) to distinguish "not set" (default true) from explicit false
-        let defaults = Foundation.UserDefaults.standard
+        let defaults = DefaultsStore.store
         if defaults.object(forKey: key) == nil { return true }
         return defaults.bool(forKey: key)
     }

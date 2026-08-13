@@ -66,12 +66,12 @@ final class SongRequestQueueTests: WolfWaveTestCase {
     // MARK: - Custom Limits via UserDefaults
 
     func testCustomMaxQueueSize() {
-        UserDefaults.standard.set(5, forKey: AppConstants.UserDefaults.songRequestMaxQueueSize)
+        DefaultsStore.store.set(5, forKey: AppConstants.UserDefaults.songRequestMaxQueueSize)
         XCTAssertEqual(queue.maxQueueSize, 5)
     }
 
     func testCustomPerUserLimit() {
-        UserDefaults.standard.set(3, forKey: AppConstants.UserDefaults.songRequestPerUserLimit)
+        DefaultsStore.store.set(3, forKey: AppConstants.UserDefaults.songRequestPerUserLimit)
         XCTAssertEqual(queue.perUserLimit, 3)
     }
 
@@ -127,8 +127,8 @@ final class SongRequestQueueTests: WolfWaveTestCase {
     }
 
     func testAddQueueFull() {
-        UserDefaults.standard.set(2, forKey: AppConstants.UserDefaults.songRequestMaxQueueSize)
-        UserDefaults.standard.set(5, forKey: AppConstants.UserDefaults.songRequestPerUserLimit)
+        DefaultsStore.store.set(2, forKey: AppConstants.UserDefaults.songRequestMaxQueueSize)
+        DefaultsStore.store.set(5, forKey: AppConstants.UserDefaults.songRequestPerUserLimit)
         queue.add(makeTestRequestItem(title: "Song 1", artist: "A", requesterUsername: "user1"))
         queue.add(makeTestRequestItem(title: "Song 2", artist: "B", requesterUsername: "user2"))
         let result = queue.add(makeTestRequestItem(title: "Song 3", artist: "C", requesterUsername: "user3"))
@@ -140,7 +140,7 @@ final class SongRequestQueueTests: WolfWaveTestCase {
     }
 
     func testAddUserLimitReached() {
-        UserDefaults.standard.set(1, forKey: AppConstants.UserDefaults.songRequestPerUserLimit)
+        DefaultsStore.store.set(1, forKey: AppConstants.UserDefaults.songRequestPerUserLimit)
         queue.add(makeTestRequestItem(title: "Song 1", artist: "A", requesterUsername: "user1"))
         let result = queue.add(makeTestRequestItem(title: "Song 2", artist: "B", requesterUsername: "user1"))
         guard case .userLimitReached(let max) = result else {
@@ -176,7 +176,7 @@ final class SongRequestQueueTests: WolfWaveTestCase {
 
     func testAddDuplicateOfNowPlayingRejected() {
         // High per-user limit so the duplicate check, not the user limit, decides.
-        UserDefaults.standard.set(5, forKey: AppConstants.UserDefaults.songRequestPerUserLimit)
+        DefaultsStore.store.set(5, forKey: AppConstants.UserDefaults.songRequestPerUserLimit)
         queue.add(makeTestRequestItem(title: "Now Playing Song", artist: "Artist", requesterUsername: "user1"))
         queue.dequeue() // moves the request into the now-playing slot
         let result = queue.add(
@@ -269,8 +269,8 @@ final class SongRequestQueueTests: WolfWaveTestCase {
     }
 
     func testIsFull() {
-        UserDefaults.standard.set(2, forKey: AppConstants.UserDefaults.songRequestMaxQueueSize)
-        UserDefaults.standard.set(5, forKey: AppConstants.UserDefaults.songRequestPerUserLimit)
+        DefaultsStore.store.set(2, forKey: AppConstants.UserDefaults.songRequestMaxQueueSize)
+        DefaultsStore.store.set(5, forKey: AppConstants.UserDefaults.songRequestPerUserLimit)
         XCTAssertFalse(queue.isFull)
         queue.add(makeTestRequestItem(title: "Song 1", artist: "A", requesterUsername: "user1"))
         queue.add(makeTestRequestItem(title: "Song 2", artist: "B", requesterUsername: "user2"))
@@ -303,7 +303,7 @@ final class SongRequestQueueTests: WolfWaveTestCase {
     /// insertion order - it's a prefix read of `items`, which is already
     /// reordered at insert time.
     func testUpcomingReflectsFairShareOrder() {
-        UserDefaults.standard.set(true, forKey: AppConstants.UserDefaults.songRequestFairShare)
+        DefaultsStore.store.set(true, forKey: AppConstants.UserDefaults.songRequestFairShare)
         queue.add(makeTestRequestItem(title: "A1", artist: "x", requesterUsername: "user1"))
         queue.add(makeTestRequestItem(title: "A2", artist: "x", requesterUsername: "user1"))
         queue.add(makeTestRequestItem(title: "B1", artist: "x", requesterUsername: "user2"))
@@ -315,7 +315,7 @@ final class SongRequestQueueTests: WolfWaveTestCase {
     /// A newcomer's first request slots ahead of a regular's second, so
     /// everyone's Nth request plays before anyone's (N+1)th.
     func testFairShareInterleavesByRound() {
-        UserDefaults.standard.set(true, forKey: AppConstants.UserDefaults.songRequestFairShare)
+        DefaultsStore.store.set(true, forKey: AppConstants.UserDefaults.songRequestFairShare)
         queue.add(makeTestRequestItem(title: "A1", artist: "x", requesterUsername: "user1"))
         queue.add(makeTestRequestItem(title: "A2", artist: "x", requesterUsername: "user1"))
         queue.add(makeTestRequestItem(title: "B1", artist: "x", requesterUsername: "user2"))
@@ -324,7 +324,7 @@ final class SongRequestQueueTests: WolfWaveTestCase {
 
     /// With fair-share off, ordering is classic FIFO (insertion order).
     func testFifoPreservesInsertionOrder() {
-        UserDefaults.standard.set(false, forKey: AppConstants.UserDefaults.songRequestFairShare)
+        DefaultsStore.store.set(false, forKey: AppConstants.UserDefaults.songRequestFairShare)
         queue.add(makeTestRequestItem(title: "A1", artist: "x", requesterUsername: "user1"))
         queue.add(makeTestRequestItem(title: "A2", artist: "x", requesterUsername: "user1"))
         queue.add(makeTestRequestItem(title: "B1", artist: "x", requesterUsername: "user2"))
@@ -333,7 +333,7 @@ final class SongRequestQueueTests: WolfWaveTestCase {
 
     /// FIFO order holds within a single round (two users, one request each).
     func testFairShareKeepsFifoWithinRound() {
-        UserDefaults.standard.set(true, forKey: AppConstants.UserDefaults.songRequestFairShare)
+        DefaultsStore.store.set(true, forKey: AppConstants.UserDefaults.songRequestFairShare)
         queue.add(makeTestRequestItem(title: "A1", artist: "x", requesterUsername: "user1"))
         queue.add(makeTestRequestItem(title: "B1", artist: "x", requesterUsername: "user2"))
         XCTAssertEqual(queue.items.map(\.title), ["A1", "B1"])
@@ -344,7 +344,7 @@ final class SongRequestQueueTests: WolfWaveTestCase {
     /// A priority request slots ahead of same-round non-priority requests, but
     /// stays behind earlier rounds. Normal requests never jump a priority one.
     func testPriorityJumpsAheadWithinRound() {
-        UserDefaults.standard.set(true, forKey: AppConstants.UserDefaults.songRequestFairShare)
+        DefaultsStore.store.set(true, forKey: AppConstants.UserDefaults.songRequestFairShare)
         queue.add(makeTestRequestItem(title: "A1", artist: "x", requesterUsername: "user1"))
         queue.add(makeTestRequestItem(title: "A2", artist: "x", requesterUsername: "user1"))
         queue.add(makeTestRequestItem(title: "SubFirst", artist: "x", requesterUsername: "sub", isPriority: true))
@@ -355,7 +355,7 @@ final class SongRequestQueueTests: WolfWaveTestCase {
     /// Priority requests keep FIFO among themselves and all lead the round ahead
     /// of a non-priority request.
     func testPriorityKeepsFifoAmongPriority() {
-        UserDefaults.standard.set(true, forKey: AppConstants.UserDefaults.songRequestFairShare)
+        DefaultsStore.store.set(true, forKey: AppConstants.UserDefaults.songRequestFairShare)
         queue.add(makeTestRequestItem(title: "Sub1", artist: "x", requesterUsername: "sub1", isPriority: true))
         queue.add(makeTestRequestItem(title: "Normal", artist: "x", requesterUsername: "reg"))
         queue.add(makeTestRequestItem(title: "Sub2", artist: "x", requesterUsername: "sub2", isPriority: true))
@@ -365,7 +365,7 @@ final class SongRequestQueueTests: WolfWaveTestCase {
     /// Priority is an in-round reorder, not a FIFO override: with fair-share off
     /// the queue stays classic first-in, first-out and ignores the flag.
     func testPriorityIgnoredWhenFifo() {
-        UserDefaults.standard.set(false, forKey: AppConstants.UserDefaults.songRequestFairShare)
+        DefaultsStore.store.set(false, forKey: AppConstants.UserDefaults.songRequestFairShare)
         queue.add(makeTestRequestItem(title: "Normal", artist: "x", requesterUsername: "reg"))
         queue.add(makeTestRequestItem(title: "Sub", artist: "x", requesterUsername: "sub", isPriority: true))
         XCTAssertEqual(queue.items.map(\.title), ["Normal", "Sub"])

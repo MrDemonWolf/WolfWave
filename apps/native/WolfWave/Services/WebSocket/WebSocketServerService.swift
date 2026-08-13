@@ -410,7 +410,7 @@ actor WebSocketServerService {
     /// prefs. Shared by the broadcast-to-all and send-to-one paths so the two
     /// snapshots can never drift.
     private func widgetConfigPayload() -> [String: Any] {
-        let defaults = UserDefaults.standard
+        let defaults = DefaultsStore.store
         return [
             "type": "widget_config",
             "data": [

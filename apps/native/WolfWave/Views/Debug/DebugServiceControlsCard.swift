@@ -305,7 +305,7 @@ struct DebugServiceControlsCard: View {
                 .pointerCursor()
 
                 Button {
-                    UserDefaults.standard.removeObject(forKey: AppConstants.UserDefaults.updateSkippedVersion)
+                    DefaultsStore.store.removeObject(forKey: AppConstants.UserDefaults.updateSkippedVersion)
                     Log.info("Cleared updateSkippedVersion (dev)", category: "Update")
                 } label: {
                     Label("Clear Skipped Version", systemImage: "trash")
@@ -353,7 +353,7 @@ struct DebugServiceControlsCard: View {
                 let current = FeatureFlags.songRequestHoldEnabled
                 Task {
                     await appDelegate?.songRequestService?.setHold(!current)
-                    UserDefaults.standard.set(!current, forKey: AppConstants.UserDefaults.songRequestHoldEnabled)
+                    DefaultsStore.store.set(!current, forKey: AppConstants.UserDefaults.songRequestHoldEnabled)
                 }
             } label: {
                 Label("Toggle Hold Mode", systemImage: "pause.circle")

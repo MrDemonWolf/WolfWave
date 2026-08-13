@@ -62,8 +62,8 @@ struct TwitchChatServiceTests {
 
     /// Reset UserDefaults keys that tests depend on to prevent cross-test contamination.
     init() {
-        UserDefaults.standard.removeObject(forKey: AppConstants.UserDefaults.currentSongCommandEnabled)
-        UserDefaults.standard.removeObject(forKey: AppConstants.UserDefaults.lastSongCommandEnabled)
+        DefaultsStore.store.removeObject(forKey: AppConstants.UserDefaults.currentSongCommandEnabled)
+        DefaultsStore.store.removeObject(forKey: AppConstants.UserDefaults.lastSongCommandEnabled)
         clearManagedRewardIdentity()
     }
 
@@ -78,9 +78,9 @@ struct TwitchChatServiceTests {
     }
 
     private func clearManagedRewardIdentity() {
-        UserDefaults.standard.removeObject(
+        DefaultsStore.store.removeObject(
             forKey: AppConstants.UserDefaults.songRequestChannelPointsRewardID)
-        UserDefaults.standard.removeObject(
+        DefaultsStore.store.removeObject(
             forKey: AppConstants.UserDefaults.songRequestChannelPointsRewardIdentity)
     }
 
@@ -331,7 +331,7 @@ struct TwitchChatServiceTests {
         let requests = SongRequestService(musicController: music)
         let service = TwitchChatService(redemptionResolutionOutbox: outbox)
 
-        let defaults = UserDefaults.standard
+        let defaults = DefaultsStore.store
         defaults.set(true, forKey: AppConstants.UserDefaults.songRequestEnabled)
         defaults.set(true, forKey: AppConstants.UserDefaults.songRequestBitsEnabled)
         defaults.set(1, forKey: AppConstants.UserDefaults.songRequestBitsMinimum)
@@ -384,7 +384,7 @@ struct TwitchChatServiceTests {
         }
         let chatClient = HTTPClient(
             session: MockURLProtocol.makeSession(handler: chatHandler))
-        let defaults = UserDefaults.standard
+        let defaults = DefaultsStore.store
         defaults.set(true, forKey: AppConstants.UserDefaults.songRequestEnabled)
         defaults.set(true, forKey: AppConstants.UserDefaults.songRequestBitsEnabled)
         defaults.set(1, forKey: AppConstants.UserDefaults.songRequestBitsMinimum)
@@ -508,7 +508,7 @@ struct TwitchChatServiceTests {
                 }
                 throw URLError(.networkConnectionLost)
             })
-        let defaults = UserDefaults.standard
+        let defaults = DefaultsStore.store
         defaults.set(true, forKey: AppConstants.UserDefaults.songRequestEnabled)
         defaults.set(true, forKey: AppConstants.UserDefaults.songRequestBitsEnabled)
         defaults.set(1, forKey: AppConstants.UserDefaults.songRequestBitsMinimum)
@@ -640,7 +640,7 @@ struct TwitchChatServiceTests {
             helixHTTPClient: HTTPClient(
                 session: MockURLProtocol.makeSession(handler: chatHandler)),
             redemptionResolutionOutbox: outbox)
-        let defaults = UserDefaults.standard
+        let defaults = DefaultsStore.store
         let statusKey = AppConstants.UserDefaults.songRequestRedemptionStatus
         defaults.set(true, forKey: AppConstants.UserDefaults.songRequestEnabled)
         defaults.set(true, forKey: AppConstants.UserDefaults.songRequestBitsEnabled)
@@ -685,7 +685,7 @@ struct TwitchChatServiceTests {
             return .notFound
         }
         let service = TwitchChatService(redemptionResolutionOutbox: outbox)
-        let defaults = UserDefaults.standard
+        let defaults = DefaultsStore.store
         defaults.set(true, forKey: AppConstants.UserDefaults.songRequestEnabled)
         defaults.set(true, forKey: AppConstants.UserDefaults.songRequestBitsEnabled)
         defaults.set(1, forKey: AppConstants.UserDefaults.songRequestBitsMinimum)
@@ -842,7 +842,7 @@ struct TwitchChatServiceTests {
                 try data.write(to: url, options: .atomic)
             }
         )
-        let defaults = UserDefaults.standard
+        let defaults = DefaultsStore.store
         let statusKey = AppConstants.UserDefaults.songRequestRedemptionStatus
         installManagedRewardIdentity()
         defaults.removeObject(forKey: statusKey)
@@ -920,7 +920,7 @@ struct TwitchChatServiceTests {
             rewardID: "reward",
             redemptionID: "ack-failure",
             resolution: .canceled)
-        let defaults = UserDefaults.standard
+        let defaults = DefaultsStore.store
         let statusKey = AppConstants.UserDefaults.songRequestRedemptionStatus
         installManagedRewardIdentity()
         defaults.removeObject(forKey: statusKey)
@@ -1010,7 +1010,7 @@ struct TwitchChatServiceTests {
             rewardID: "reward",
             redemptionID: "abandoned",
             resolution: .canceled)
-        let defaults = UserDefaults.standard
+        let defaults = DefaultsStore.store
         let statusKey = AppConstants.UserDefaults.songRequestRedemptionStatus
         if installingManagedRewardIdentity {
             installManagedRewardIdentity()
@@ -1062,7 +1062,7 @@ struct TwitchChatServiceTests {
         intakeWrites: ThreadSafeBox<Int>,
         expectedWriteAttempts: Int
     ) async {
-        let defaults = UserDefaults.standard
+        let defaults = DefaultsStore.store
         let statusKey = AppConstants.UserDefaults.songRequestRedemptionStatus
         installManagedRewardIdentity()
         defaults.removeObject(forKey: statusKey)
@@ -1381,14 +1381,14 @@ struct TwitchChatServiceTests {
         let service = TwitchChatService()
         
         // Clear any existing value
-        UserDefaults.standard.removeObject(forKey: AppConstants.UserDefaults.currentSongCommandEnabled)
-        defer { UserDefaults.standard.removeObject(forKey: AppConstants.UserDefaults.currentSongCommandEnabled) }
+        DefaultsStore.store.removeObject(forKey: AppConstants.UserDefaults.currentSongCommandEnabled)
+        defer { DefaultsStore.store.removeObject(forKey: AppConstants.UserDefaults.currentSongCommandEnabled) }
         
         // Should default to false
         #expect(service.currentSongCommandEnabled == false)
         
         // Set to true
-        UserDefaults.standard.set(true, forKey: AppConstants.UserDefaults.currentSongCommandEnabled)
+        DefaultsStore.store.set(true, forKey: AppConstants.UserDefaults.currentSongCommandEnabled)
         
         // Should now read true
         #expect(service.currentSongCommandEnabled == true)
@@ -1400,14 +1400,14 @@ struct TwitchChatServiceTests {
         let service = TwitchChatService()
 
         // Clear any existing value
-        UserDefaults.standard.removeObject(forKey: AppConstants.UserDefaults.lastSongCommandEnabled)
-        defer { UserDefaults.standard.removeObject(forKey: AppConstants.UserDefaults.lastSongCommandEnabled) }
+        DefaultsStore.store.removeObject(forKey: AppConstants.UserDefaults.lastSongCommandEnabled)
+        defer { DefaultsStore.store.removeObject(forKey: AppConstants.UserDefaults.lastSongCommandEnabled) }
 
         // Should default to false
         #expect(service.lastSongCommandEnabled == false)
 
         // Set to true
-        UserDefaults.standard.set(true, forKey: AppConstants.UserDefaults.lastSongCommandEnabled)
+        DefaultsStore.store.set(true, forKey: AppConstants.UserDefaults.lastSongCommandEnabled)
 
         // Should now read true
         #expect(service.lastSongCommandEnabled == true)
@@ -1669,7 +1669,7 @@ struct TwitchChatServiceTests {
 
     @Test("Enabling polls live subscribes the current session exactly once")
     func testLivePollEnableSubscribesCurrentSessionIdempotently() async {
-        let defaults = UserDefaults.standard
+        let defaults = DefaultsStore.store
         defer {
             defaults.removeObject(forKey: AppConstants.UserDefaults.voteSkipEnabled)
             defaults.removeObject(forKey: AppConstants.UserDefaults.voteSkipUsePolls)
@@ -1703,7 +1703,7 @@ struct TwitchChatServiceTests {
 
     @Test("Poll subscription in flight during migration retries on the target session")
     func testInFlightPollSubscriptionRetriesAfterMigration() async throws {
-        let defaults = UserDefaults.standard
+        let defaults = DefaultsStore.store
         defer {
             defaults.removeObject(forKey: AppConstants.UserDefaults.voteSkipEnabled)
             defaults.removeObject(forKey: AppConstants.UserDefaults.voteSkipUsePolls)
@@ -1776,7 +1776,7 @@ struct TwitchChatServiceTests {
 
     @Test("Missing polls scope requests reauthorization without subscribing")
     func testLivePollEnableMissingScopeSignalsReauthorization() async {
-        let defaults = UserDefaults.standard
+        let defaults = DefaultsStore.store
         defer {
             defaults.removeObject(forKey: AppConstants.UserDefaults.voteSkipEnabled)
             defaults.removeObject(forKey: AppConstants.UserDefaults.voteSkipUsePolls)

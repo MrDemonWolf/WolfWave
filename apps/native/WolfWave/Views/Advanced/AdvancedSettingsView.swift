@@ -288,7 +288,7 @@ struct AdvancedSettingsView: View {
             .alert("Rerun Setup Wizard?", isPresented: $showingOnboardingResetAlert) {
                 Button("Cancel", role: .cancel) {}
                 Button("Reset") {
-                    UserDefaults.standard.removeObject(forKey: AppConstants.UserDefaults.hasCompletedOnboarding)
+                    DefaultsStore.store.removeObject(forKey: AppConstants.UserDefaults.hasCompletedOnboarding)
                     Log.info("Onboarding reset by user", category: "Onboarding")
                     AppDelegate.shared?.showOnboarding()
                 }

@@ -18,7 +18,7 @@ final class MusicPermissionCheckerTests: XCTestCase {
     private let key = AppConstants.UserDefaults.lastResolvedMusicPermission
 
     override func tearDown() {
-        UserDefaults.standard.removeObject(forKey: key)
+        DefaultsStore.store.removeObject(forKey: key)
         super.tearDown()
     }
 
@@ -58,7 +58,7 @@ final class MusicPermissionCheckerTests: XCTestCase {
     // MARK: - Durable persistence
 
     func testPersistStoresDefinitiveDecisions() {
-        UserDefaults.standard.removeObject(forKey: key)
+        DefaultsStore.store.removeObject(forKey: key)
         MusicPermissionChecker.persistIfDefinitive(.granted)
         XCTAssertEqual(MusicPermissionChecker.loadPersisted(), .granted)
 
@@ -74,7 +74,7 @@ final class MusicPermissionCheckerTests: XCTestCase {
     }
 
     func testLoadPersistedNilWhenNeverResolved() {
-        UserDefaults.standard.removeObject(forKey: key)
+        DefaultsStore.store.removeObject(forKey: key)
         XCTAssertNil(MusicPermissionChecker.loadPersisted())
     }
 }

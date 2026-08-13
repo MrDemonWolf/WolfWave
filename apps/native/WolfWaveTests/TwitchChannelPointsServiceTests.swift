@@ -94,7 +94,7 @@ final class TwitchChannelPointsServiceTests: WolfWaveTestCase {
         let rewardID = try await service.ensureReward(credentials: creds, cost: 500)
 
         XCTAssertEqual(rewardID, "reward_new")
-        XCTAssertEqual(UserDefaults.standard.string(forKey: storageKey), "reward_new")
+        XCTAssertEqual(DefaultsStore.store.string(forKey: storageKey), "reward_new")
         XCTAssertEqual(
             TwitchManagedRewardStore.snapshot(),
             .owned(
@@ -318,7 +318,7 @@ final class TwitchChannelPointsServiceTests: WolfWaveTestCase {
     // MARK: - Reconcile Diff
 
     func testEnsureRewardReturnsStoredIDWhenHelixConfirmsExistence() async throws {
-        UserDefaults.standard.set("existing_id", forKey: storageKey)
+        DefaultsStore.store.set("existing_id", forKey: storageKey)
 
         struct State { var callCount = 0; var lastMethod: String?; var lastURL: URL? }
         let state = ThreadSafeBox(State())
@@ -357,7 +357,7 @@ final class TwitchChannelPointsServiceTests: WolfWaveTestCase {
     }
 
     func testLegacyReward404StaysOwnerlessAndIsNotReplaced() async {
-        UserDefaults.standard.set("stale_id", forKey: storageKey)
+        DefaultsStore.store.set("stale_id", forKey: storageKey)
         let methods = ThreadSafeBox<[String]>([])
 
         handlerStore.handler = { request in
@@ -384,7 +384,7 @@ final class TwitchChannelPointsServiceTests: WolfWaveTestCase {
             TwitchManagedRewardStore.snapshot(),
             .legacy(rewardID: "stale_id"))
         XCTAssertEqual(
-            UserDefaults.standard.string(forKey: storageKey),
+            DefaultsStore.store.string(forKey: storageKey),
             "stale_id")
     }
 
@@ -475,7 +475,7 @@ final class TwitchChannelPointsServiceTests: WolfWaveTestCase {
 
         // Removal writes the mirror first and authoritative owner record last.
         // This simulates a process exit between those operations.
-        UserDefaults.standard.removeObject(forKey: storageKey)
+        DefaultsStore.store.removeObject(forKey: storageKey)
 
         XCTAssertEqual(
             TwitchManagedRewardStore.snapshot(),
@@ -484,7 +484,7 @@ final class TwitchChannelPointsServiceTests: WolfWaveTestCase {
                     rewardID: "reward_a",
                     broadcasterID: "account_a")))
         XCTAssertEqual(
-            UserDefaults.standard.string(forKey: storageKey),
+            DefaultsStore.store.string(forKey: storageKey),
             "reward_a")
         XCTAssertTrue(
             TwitchManagedRewardStore.remove(
@@ -497,7 +497,7 @@ final class TwitchChannelPointsServiceTests: WolfWaveTestCase {
     // MARK: - Errors
 
     func testCreateRewardMalformedResponseThrows() async {
-        UserDefaults.standard.removeObject(forKey: storageKey)
+        DefaultsStore.store.removeObject(forKey: storageKey)
         handlerStore.handler = { request in
             let body: [String: Any] = ["data": []]
             return (

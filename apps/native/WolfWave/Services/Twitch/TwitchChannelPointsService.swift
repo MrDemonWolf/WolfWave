@@ -29,7 +29,7 @@ nonisolated enum TwitchManagedRewardStore {
     }
 
     private static let lock = NSLock()
-    private static var defaults: UserDefaults { .standard }
+    private static var defaults: UserDefaults { DefaultsStore.store }
 
     static func snapshot() -> Snapshot {
         lock.withLock { snapshotUnlocked(repairingLegacyMirror: true) }

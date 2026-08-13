@@ -237,7 +237,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         // animation) would truncate every section label on the next launch.
         // The sidebar width is fixed (not user-resizable), so clearing this
         // never discards a user choice.
-        UserDefaults.standard.removeObject(
+        DefaultsStore.store.removeObject(
             forKey: "NSSplitView Subview Frames \(WolfWaveApp.settingsWindowID), SidebarNavigationSplitView"
         )
 
@@ -286,7 +286,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         // UserDefaults flag the Advanced pane reads, then clear the marker so the
         // callout shows exactly once (next clean launch is silent).
         let crashedLastLaunch = CrashReporter.didCrashLastLaunch()
-        Foundation.UserDefaults.standard.set(crashedLastLaunch, forKey: AppConstants.UserDefaults.lastLaunchCrashed)
+        DefaultsStore.store.set(crashedLastLaunch, forKey: AppConstants.UserDefaults.lastLaunchCrashed)
         if crashedLastLaunch {
             Log.warn("AppDelegate: previous launch ended in a crash (breadcrumb found)", category: "App")
         }

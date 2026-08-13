@@ -392,7 +392,7 @@ struct DiscordSettingsView: View {
         DiscordPresenceBuilder.resolvePlaylistDisplay(
             playlist: nowPlaying.playlist,
             album: nowPlaying.album,
-            defaults: .standard
+            defaults: DefaultsStore.store
         )
     }
 

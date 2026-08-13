@@ -29,7 +29,7 @@ nonisolated final class UserDefaultsBlocklistStorage: BlocklistStorage, @uncheck
     ///   - defaults: UserDefaults store to read/write. Defaults to `.standard`.
     init(
         key: String = AppConstants.UserDefaults.songRequestBlocklist,
-        defaults: UserDefaults = .standard
+        defaults: UserDefaults = DefaultsStore.store
     ) {
         self.key = key
         self.defaults = defaults

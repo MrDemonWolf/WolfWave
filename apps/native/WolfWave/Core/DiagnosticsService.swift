@@ -49,7 +49,7 @@ nonisolated final class DiagnosticsService: NSObject, MXMetricManagerSubscriber,
 
     /// Internal so unit tests can inject an isolated `UserDefaults`; app code
     /// uses `shared`.
-    init(defaults: UserDefaults = .standard) {
+    init(defaults: UserDefaults = DefaultsStore.store) {
         self.defaults = defaults
         super.init()
     }
