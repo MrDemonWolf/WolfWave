@@ -55,6 +55,12 @@ struct SongRequestItem: Identifiable, Equatable, Sendable {
 
     #if DEBUG
     /// Test-only initializer that does not require a MusicKit `Song`.
+    ///
+    /// Only for pure queue bookkeeping. An item built this way can never be
+    /// played: `SongRequestService.performPlayback` treats a missing song as
+    /// `notPlayable`, so it never commits to now-playing and never reaches the
+    /// controller. Any test whose subject is downstream of playback must use
+    /// `makeTestRequestItem`, which carries a real `Song`.
     init(title: String, artist: String, album: String = "Unknown Album", requesterUsername: String, isPriority: Bool = false) {
         self.id = UUID()
         self.title = title

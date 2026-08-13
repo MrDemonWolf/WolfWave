@@ -66,12 +66,8 @@ final class MockAppleMusicController: AppleMusicControlling {
     /// Pass `title` only when a test needs one fixed title.
     func stubSearchSuccess(title: String? = nil, artist: String = "Test Artist") {
         searchProvider = { query in
-            let slug = query.unicodeScalars
-                .filter { CharacterSet.alphanumerics.contains($0) }
-                .map(String.init)
-                .joined()
-            return .found(makeTestSong(
-                id: slug.isEmpty ? "1440857781" : slug,
+            .found(makeTestSong(
+                id: testSongID(for: query),
                 title: title ?? query,
                 artist: artist
             ))
@@ -215,7 +211,7 @@ final class SongRequestServiceTests: WolfWaveTestCase {
     private func makeServiceWithLiveRequest(
         pollInterval: Duration
     ) -> SongRequestService {
-        queue.add(SongRequestItem(
+        queue.add(makeTestRequestItem(
             title: "Later", artist: "Artist", requesterUsername: "viewer"))
         mockController.isPlaying = true
         mockController.currentTrackID = "streamer-track"
@@ -486,8 +482,8 @@ final class SongRequestServiceTests: WolfWaveTestCase {
     }
 
     func testSkipWithQueueItemsAdvancesInternalQueue() async {
-        queue.add(SongRequestItem(title: "Song A", artist: "Artist", requesterUsername: "user1"))
-        queue.add(SongRequestItem(title: "Song B", artist: "Artist", requesterUsername: "user2"))
+        queue.add(makeTestRequestItem(title: "Song A", artist: "Artist", requesterUsername: "user1"))
+        queue.add(makeTestRequestItem(title: "Song B", artist: "Artist", requesterUsername: "user2"))
         queue.dequeue()
 
         let next = await service.skip()
@@ -882,7 +878,7 @@ final class SongRequestServiceTests: WolfWaveTestCase {
         mockController.isPaused = false
         mockController.currentTrackID = "streamer-track-A"
 
-        queue.add(SongRequestItem(title: "Requested", artist: "A", requesterUsername: "viewer"))
+        queue.add(makeTestRequestItem(title: "Requested", artist: "A", requesterUsername: "viewer"))
 
         service.startPlaybackMonitoring()
 
@@ -928,7 +924,7 @@ final class SongRequestServiceTests: WolfWaveTestCase {
             }
         }
 
-        queue.add(SongRequestItem(title: "Requested", artist: "A", requesterUsername: "viewer"))
+        queue.add(makeTestRequestItem(title: "Requested", artist: "A", requesterUsername: "viewer"))
         service.startPlaybackMonitoring()
 
         // Across many poll ticks of flaky reads, the request must never take over.
@@ -960,7 +956,7 @@ final class SongRequestServiceTests: WolfWaveTestCase {
             return PlaybackSnapshot(state: .playing, trackKey: key)
         }
 
-        queue.add(SongRequestItem(title: "Requested", artist: "A", requesterUsername: "viewer"))
+        queue.add(makeTestRequestItem(title: "Requested", artist: "A", requesterUsername: "viewer"))
         service.startPlaybackMonitoring()
 
         let tookOver = await waitUntil(timeout: .milliseconds(400)) {
@@ -969,6 +965,7 @@ final class SongRequestServiceTests: WolfWaveTestCase {
         service.stopPlaybackMonitoring()
 
         XCTAssertFalse(tookOver, "A single transient track-id blip must not trigger a takeover")
+        XCTAssertFalse(mockController.playNowCalled, "No blip may reach the controller")
     }
 
     func testBoostDoesNotInterruptStreamersPlayingTrack() async {
@@ -984,7 +981,7 @@ final class SongRequestServiceTests: WolfWaveTestCase {
         mockController.isMusicAppRunning = true
         mockController.isPlaying = true
         mockController.currentTrackID = "streamer-A"
-        queue.add(SongRequestItem(title: "A", artist: "x", requesterUsername: "alice"))
+        queue.add(makeTestRequestItem(title: "A", artist: "x", requesterUsername: "alice"))
 
         let boosted = await service.boost(username: "alice")
 
@@ -1004,7 +1001,7 @@ final class SongRequestServiceTests: WolfWaveTestCase {
         mockController.isMusicAppRunning = true
         mockController.isPlaying = false  // idle / stopped
         mockController.isPaused = false
-        queue.add(SongRequestItem(title: "A", artist: "x", requesterUsername: "alice"))
+        queue.add(makeTestRequestItem(title: "A", artist: "x", requesterUsername: "alice"))
 
         let boosted = await service.boost(username: "alice")
 
@@ -1024,8 +1021,8 @@ final class SongRequestServiceTests: WolfWaveTestCase {
             pollInterval: .milliseconds(20)
         )
 
-        queue.add(SongRequestItem(title: "Current", artist: "A", requesterUsername: "user1"))
-        queue.add(SongRequestItem(title: "Next", artist: "B", requesterUsername: "user2"))
+        queue.add(makeTestRequestItem(title: "Current", artist: "A", requesterUsername: "user1"))
+        queue.add(makeTestRequestItem(title: "Next", artist: "B", requesterUsername: "user2"))
         queue.dequeue()  // nowPlaying = "Current", "Next" still queued
 
         mockController.isMusicAppRunning = true
@@ -1049,10 +1046,11 @@ final class SongRequestServiceTests: WolfWaveTestCase {
         service.stopPlaybackMonitoring()
 
         // Advancing now-playing to the next queued item is the proof the
-        // divergence handoff fired. (The fixture carries no MusicKit `Song`, so
-        // `playNow` is intentionally skipped (same as the takeover test above).)
+        // divergence handoff fired, and the item only commits after the
+        // controller accepts its song.
         XCTAssertTrue(advanced, "Skipping inside Music.app should advance to the next queued request")
         XCTAssertEqual(queue.nowPlaying?.title, "Next")
+        XCTAssertTrue(mockController.playNowCalled, "The handoff must actually start the next request")
     }
 
     func testAutoAdvanceDoesNotFireWhenPaused() async {
@@ -1064,8 +1062,8 @@ final class SongRequestServiceTests: WolfWaveTestCase {
             pollInterval: .milliseconds(20)
         )
 
-        queue.add(SongRequestItem(title: "Next Song", artist: "A", requesterUsername: "user1"))
-        queue.add(SongRequestItem(title: "Current", artist: "B", requesterUsername: "user2"))
+        queue.add(makeTestRequestItem(title: "Next Song", artist: "A", requesterUsername: "user1"))
+        queue.add(makeTestRequestItem(title: "Current", artist: "B", requesterUsername: "user2"))
         queue.dequeue()
 
         mockController.isPlaying = false
@@ -1102,7 +1100,7 @@ final class SongRequestServiceTests: WolfWaveTestCase {
             0,
             "An empty queue should not own a periodic playback task")
 
-        queue.add(SongRequestItem(
+        queue.add(makeTestRequestItem(
             title: "Later", artist: "Artist", requesterUsername: "viewer"))
         let beganPolling = await waitUntil(timeout: .seconds(1)) {
             self.mockController.playbackSnapshotCallCount > 0
@@ -1447,7 +1445,7 @@ final class SongRequestServiceTests: WolfWaveTestCase {
         mockController.currentTrackID = "req-track"
 
         // Seed nowPlaying with an item so the poll is in the "request playing" branch.
-        queue.add(SongRequestItem(title: "Finishing", artist: "A", requesterUsername: "u1"))
+        queue.add(makeTestRequestItem(title: "Finishing", artist: "A", requesterUsername: "u1"))
         queue.dequeue()
 
         // One playing tick establishes the request baseline, then stop playback.
@@ -1465,7 +1463,7 @@ final class SongRequestServiceTests: WolfWaveTestCase {
 
         // isPlayingFallback is now true. Add a request and verify the very next
         // poll tick dequeues it (fallback yields to a real request immediately).
-        queue.add(SongRequestItem(title: "RequestedSong", artist: "B", requesterUsername: "viewer"))
+        queue.add(makeTestRequestItem(title: "RequestedSong", artist: "B", requesterUsername: "viewer"))
         await service.pollTick()
 
         XCTAssertEqual(
@@ -1487,7 +1485,7 @@ final class SongRequestServiceTests: WolfWaveTestCase {
         mockController.isPlaying = true
         mockController.currentTrackID = "req-track"
 
-        queue.add(SongRequestItem(title: "LastReq", artist: "A", requesterUsername: "u1"))
+        queue.add(makeTestRequestItem(title: "LastReq", artist: "A", requesterUsername: "u1"))
         queue.dequeue()
 
         // Baseline playing tick, then two confirmed stopped ticks start the fallback.
@@ -1505,7 +1503,7 @@ final class SongRequestServiceTests: WolfWaveTestCase {
         // stopped-debounce can't be what dequeues; only the isPlayingFallback
         // branch can take over on the next tick.
         mockController.snapshotProvider = { PlaybackSnapshot(state: .playing, trackKey: "fallback-track") }
-        queue.add(SongRequestItem(title: "LiveRequest", artist: "B", requesterUsername: "fan"))
+        queue.add(makeTestRequestItem(title: "LiveRequest", artist: "B", requesterUsername: "fan"))
         await service.pollTick()
 
         XCTAssertEqual(
@@ -1532,8 +1530,8 @@ final class SongRequestServiceTests: WolfWaveTestCase {
         mockController.isPlaying = true
         mockController.currentTrackID = "playing-A"
 
-        queue.add(SongRequestItem(title: "Howl at the Moon", artist: "Wolf Pack", requesterUsername: "fanviewer"))
-        queue.add(SongRequestItem(title: "Midnight Run", artist: "Luna", requesterUsername: "nightowl"))
+        queue.add(makeTestRequestItem(title: "Howl at the Moon", artist: "Wolf Pack", requesterUsername: "fanviewer"))
+        queue.add(makeTestRequestItem(title: "Midnight Run", artist: "Luna", requesterUsername: "nightowl"))
         queue.dequeue()  // nowPlaying = "Howl at the Moon", "Midnight Run" still queued
 
         service.startPlaybackMonitoring()
@@ -1568,15 +1566,16 @@ final class SongRequestServiceTests: WolfWaveTestCase {
         mockController.isPlaying = false
         mockController.isPaused = false
 
-        queue.add(SongRequestItem(title: "Released Track", artist: "SomeArtist", requesterUsername: "waitingfan"))
+        queue.add(makeTestRequestItem(title: "Released Track", artist: "SomeArtist", requesterUsername: "waitingfan"))
         // Do not dequeue: nowPlaying is nil, item is queued, hold is on.
         XCTAssertNil(queue.nowPlaying, "Precondition: nothing playing while hold is on")
 
         await service.setHold(false)
 
-        // After hold releases, playNextInQueue fires, dequeuing the item into
-        // nowPlaying (nil-song item returns early from playNow, but nowPlaying is set).
-        // setHold then sends the "Now playing:" message.
+        // After hold releases, playNextInQueue fires: the controller plays the
+        // item's song, the item commits into nowPlaying, and setHold sends the
+        // "Now playing:" message.
+        XCTAssertTrue(mockController.playNowCalled, "Hold release must actually start the buffered request")
         let sentMessage = capturedMessages.contains { $0.hasPrefix("Now playing:") }
         XCTAssertTrue(sentMessage, "'Now playing:' message must be sent when hold is released with a buffered request")
         XCTAssertTrue(
