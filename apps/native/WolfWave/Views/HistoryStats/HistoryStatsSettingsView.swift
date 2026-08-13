@@ -53,6 +53,8 @@ struct HistoryStatsSettingsView: View {
     @AppStorage(AppConstants.UserDefaults.historyRetentionDays)
     private var historyRetentionDays = 0
 
+    fileprivate static let retentionOptions = [0, 7, 30, 90, 180, 365]
+
     // MARK: - State
 
     @State private var showWrapSheet = false
@@ -638,7 +640,12 @@ struct HistoryStatsSettingsView: View {
             Text("Window")
                 .sectionEyebrow()
             Spacer()
-            Picker("Stats window", selection: $statsCommandWindow) {
+            Picker(
+                "Stats window",
+                selection: $statsCommandWindow.snapped(
+                    to: StatsWindow.allCases.map(\.rawValue),
+                    fallback: StatsWindow.default.rawValue)
+            ) {
                 ForEach(StatsWindow.allCases) { window in
                     Text(window.pickerLabel).tag(window.rawValue)
                 }
@@ -735,7 +742,15 @@ struct HistoryStatsSettingsView: View {
                 Text("Keep for")
                     .font(.system(size: DSFont.Size.body))
                 Spacer()
-                Picker("Keep for", selection: $historyRetentionDays) {
+                // `0` is a real tag here ("Forever"), not an unset sentinel, so
+                // this snaps against the allowlist rather than going through
+                // `Preferences.int`, whose "non-positive means unset" rule
+                // would be wrong for this key.
+                Picker(
+                    "Keep for",
+                    selection: $historyRetentionDays.snapped(
+                        to: Self.retentionOptions, fallback: 0)
+                ) {
                     Text("Forever").tag(0)
                     Text("7 days").tag(7)
                     Text("30 days").tag(30)
