@@ -99,6 +99,19 @@ final class AppleMusicSource: @unchecked Sendable {
             static let scriptBridgeNil = "SB_NIL_APP"
         }
 
+        /// Names the ScriptingBridge read a failure came from.
+        ///
+        /// Two jobs. It rides along in the diagnostic so a logged bridge failure
+        /// says *which* Apple Event was refused, and it gates the `-1728`
+        /// permission mapping in `status(forBridgeError:in:)` to the one read
+        /// where that code cannot also mean "nothing loaded".
+        enum BridgeStage {
+            static let isRunning = "isRunning"
+            static let playerState = "playerState"
+            static let currentTrack = "currentTrack"
+            static let trackMetadata = "trackMetadata"
+        }
+
         enum DelegateStatus {
             static let musicNotRunning = "Music not running"
             static let noTrackInfo = "No track info"
@@ -295,12 +308,35 @@ final class AppleMusicSource: @unchecked Sendable {
 
     /// Maps bridge failures that have actionable lifecycle/permission meaning to
     /// their existing sentinels; all other errors retain a diagnostic message.
-    nonisolated static func status(forBridgeError error: any Error) -> String {
+    ///
+    /// - Parameter stage: which ScriptingBridge read failed. See
+    ///   `Constants.BridgeStage`. Only `playerState` may treat `-1728` as a
+    ///   permission answer.
+    nonisolated static func status(forBridgeError error: any Error, in stage: String) -> String {
         let cocoaError = error as NSError
         switch cocoaError.code {
         case -600, -609:
             return Constants.Status.notRunning
         case -1743:
+            return Constants.Status.accessDenied
+        case -1728 where stage == Constants.BridgeStage.playerState:
+            // macOS 26 answers a refused Automation request with -1728
+            // (errAENoSuchObject), not the documented -1743. Confirmed on
+            // macOS 26: a client without the grant gets
+            // "osascript is not allowed assistive access. (-1728)".
+            //
+            // This is only safe to read as "denied" for `player state`. It is an
+            // application-level property that always resolves while Music is
+            // running, and both `isRunning` and `responds(to:)` have already
+            // passed by the time we ask, so there is no object for it to be
+            // legitimately missing. On the `currentTrack` and metadata stages
+            // -1728 genuinely means "nothing loaded", so those keep the generic
+            // mapping. Getting this wrong in the other direction would show a
+            // permission banner every time Music sat idle.
+            //
+            // Without this, a denied grant surfaced as "Script error" and the
+            // permission banner never appeared, so the user had no way to learn
+            // that Automation needed granting.
             return Constants.Status.accessDenied
         default:
             return Constants.Status.errorPrefix + cocoaError.localizedDescription
@@ -344,11 +380,16 @@ final class AppleMusicSource: @unchecked Sendable {
             let bridgeDelegate = scriptingBridgeErrorDelegate
             bridgeDelegate.reset()
             musicApp.delegate = bridgeDelegate
-            func bridgeFailure() -> (status: String, diagnostic: String?)? {
+            // `stage` names the read that failed. It rides along in the
+            // diagnostic so a future failure says *which* Apple Event was
+            // refused instead of only that one was, and it gates the
+            // permission-denial mapping to the one read where -1728 cannot mean
+            // anything else. See `status(forBridgeError:in:)`.
+            func bridgeFailure(_ stage: String) -> (status: String, diagnostic: String?)? {
                 guard let error = bridgeDelegate.takeError() else { return nil }
                 return (
-                    AppleMusicSource.status(forBridgeError: error),
-                    nil
+                    AppleMusicSource.status(forBridgeError: error, in: stage),
+                    "stage=\(stage) code=\((error as NSError).code)"
                 )
             }
             // `SBApplication(processIdentifier:)` does NOT return nil for a pid it
@@ -360,14 +401,14 @@ final class AppleMusicSource: @unchecked Sendable {
             // `isRunning == true` and responds to the accessor; an unresolved one
             // fails both. Verified on macOS 26 with a bogus pid.
             guard musicApp.isRunning else {
-                if let failure = bridgeFailure() { return failure }
+                if let failure = bridgeFailure(Constants.BridgeStage.isRunning) { return failure }
                 return (Constants.Status.notRunning, nil)
             }
             guard musicApp.responds(to: NSSelectorFromString("playerState")) else {
                 return (Constants.Status.notRunning, nil)
             }
             guard let stateObj = musicApp.value(forKey: "playerState") else {
-                if let failure = bridgeFailure() { return failure }
+                if let failure = bridgeFailure(Constants.BridgeStage.playerState) { return failure }
                 // Music is running (checked above) but ScriptingBridge can't
                 // read its state. The canonical TCC Automation-denied
                 // signature. Surface it as a distinct sentinel so the UI
@@ -394,7 +435,7 @@ final class AppleMusicSource: @unchecked Sendable {
                 let trackPresence = trackObj == nil ? "nil" : "present"
                 let probeArtist = (trackObj?.value(forKey: "artist") as? String) ?? ""
                 let diag = "playerState=\(stateRawDesc) type=\(stateTypeDesc) currentTrack=\(trackPresence) name=\"\(trackName)\" artist=\"\(probeArtist)\""
-                if let failure = bridgeFailure() { return failure }
+                if let failure = bridgeFailure(Constants.BridgeStage.currentTrack) { return failure }
                 return (Constants.Status.notPlaying, diag)
             }
 
@@ -417,7 +458,7 @@ final class AppleMusicSource: @unchecked Sendable {
             let diag: String? = fallbackFired
                 ? "raw=\(stateObj) type=\(stateTypeDesc)"
                 : nil
-            if let failure = bridgeFailure() { return failure }
+            if let failure = bridgeFailure(Constants.BridgeStage.trackMetadata) { return failure }
             return (combined, diag)
         }
 

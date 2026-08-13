@@ -14,10 +14,10 @@ import Testing
 
 /// Covers `AppleMusicController`'s pure helpers: `sanitizeForAppleScript(_:)`
 /// (escapes user-supplied strings before they are embedded in an AppleScript
-/// double-quoted literal), the PID-addressed invocation descriptor, structured
-/// error parsing, and focus-restoration policy. Playback paths (`playNow`,
-/// `playPause`, …) dispatch through `NSAppleScript` and are not exercised
-/// here.
+/// double-quoted literal), the generated script's addressing and liveness
+/// guard, structured error parsing, and focus-restoration policy. Playback
+/// paths (`playNow`, `playPause`, …) dispatch through `NSAppleScript` and are
+/// not exercised here; use the Debug tab's Music access self-test for those.
 @MainActor
 @Suite("AppleMusicController Tests")
 struct AppleMusicControllerTests {

@@ -58,7 +58,7 @@ struct PlaybackSnapshot: Equatable {
 
 /// Exact Music.app identity a vote-skip was opened against.
 ///
-/// The track key is re-checked inside the final PID-targeted AppleScript event.
+/// The track key is re-checked inside the final AppleScript event.
 /// `revision` is a cheap in-process guard that rejects work as soon as the music
 /// monitor has observed a replacement, without relying on actor task ordering.
 struct PlaybackTarget: Equatable, Sendable {
@@ -117,7 +117,7 @@ protocol AppleMusicControlling {
 
     /// Performs a vote-skip mutation only while Music.app still has
     /// `targetTrackKey` loaded. The identity check and mutation execute in one
-    /// PID-targeted AppleScript event, removing the read-then-command race.
+    /// AppleScript event, removing the read-then-command race.
     ///
     /// - Returns: `true` when the mutation ran; `false` for a stale target.
     func performTargetedPlayback(
@@ -525,8 +525,11 @@ final class AppleMusicController: AppleMusicControlling {
 
     /// Skip the current song in Music.app via AppleScript.
     ///
-    /// Throws when Music.app is closed or rejects the command. The event targets
-    /// the observed PID, so a quit target cannot be relaunched accidentally.
+    /// Throws when Music.app is closed or rejects the command. The event is
+    /// addressed by bundle id; a quit Music is caught by the caller's
+    /// `MusicProcess.pid` check and, decisively, by the in-script `is running`
+    /// guard in `musicTargetedScript`. Nothing about the *address* prevents a
+    /// relaunch, so that guard is load-bearing.
     func skipToNext() async throws {
         guard let pid = MusicProcess.pid else { throw PlaybackError.musicAppNotRunning }
         let result = runAppleScript(
@@ -599,8 +602,11 @@ final class AppleMusicController: AppleMusicControlling {
     /// Uses `previous track` (not `back track`) so Music.app moves to the
     /// prior queue entry rather than restarting the current track.
     ///
-    /// Throws when Music.app is closed or rejects the command. The event targets
-    /// the observed PID, so a quit target cannot be relaunched accidentally.
+    /// Throws when Music.app is closed or rejects the command. The event is
+    /// addressed by bundle id; a quit Music is caught by the caller's
+    /// `MusicProcess.pid` check and, decisively, by the in-script `is running`
+    /// guard in `musicTargetedScript`. Nothing about the *address* prevents a
+    /// relaunch, so that guard is load-bearing.
     func previousTrack() async throws {
         guard let pid = MusicProcess.pid else { throw PlaybackError.musicAppNotRunning }
         let result = runAppleScript(
@@ -614,8 +620,11 @@ final class AppleMusicController: AppleMusicControlling {
     /// preserving runner so calling from the tray does not steal focus from
     /// the frontmost app.
     ///
-    /// Throws when Music.app is closed or rejects the command. The event targets
-    /// the observed PID, so a quit target cannot be relaunched accidentally.
+    /// Throws when Music.app is closed or rejects the command. The event is
+    /// addressed by bundle id; a quit Music is caught by the caller's
+    /// `MusicProcess.pid` check and, decisively, by the in-script `is running`
+    /// guard in `musicTargetedScript`. Nothing about the *address* prevents a
+    /// relaunch, so that guard is load-bearing.
     func playPause() async throws {
         guard let pid = MusicProcess.pid else { throw PlaybackError.musicAppNotRunning }
         let result = await runAppleScriptPreservingFocus(

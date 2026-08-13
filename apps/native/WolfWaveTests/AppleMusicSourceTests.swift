@@ -54,18 +54,49 @@ final class AppleMusicSourceTests: XCTestCase {
 
     func testBridgeErrorStatusMapsTargetAndPermissionFailures() {
         let domain = "AppleMusicSourceTests"
+        let anyStage = "playerState"
         XCTAssertEqual(
-            AppleMusicSource.status(forBridgeError: NSError(domain: domain, code: -600)),
+            AppleMusicSource.status(forBridgeError: NSError(domain: domain, code: -600), in: anyStage),
             "NOT_RUNNING"
         )
         XCTAssertEqual(
-            AppleMusicSource.status(forBridgeError: NSError(domain: domain, code: -609)),
+            AppleMusicSource.status(forBridgeError: NSError(domain: domain, code: -609), in: anyStage),
             "NOT_RUNNING"
         )
         XCTAssertEqual(
-            AppleMusicSource.status(forBridgeError: NSError(domain: domain, code: -1_743)),
+            AppleMusicSource.status(forBridgeError: NSError(domain: domain, code: -1_743), in: anyStage),
             "ACCESS_DENIED"
         )
+    }
+
+    /// macOS 26 answers a refused Automation request with -1728, not the
+    /// documented -1743, so the old bare -1743 check reported a denial as a
+    /// generic "Script error" and the permission banner never appeared. Reading
+    /// -1728 as denial is only sound for `player state`: it is an
+    /// application-level property that always resolves while Music is running,
+    /// and `isRunning` plus `responds(to:)` have already passed by then.
+    func testPlayerStateMinusOneSevenTwoEightIsTreatedAsPermissionDenial() {
+        let error = NSError(domain: "AppleMusicSourceTests", code: -1_728)
+
+        XCTAssertEqual(
+            AppleMusicSource.status(forBridgeError: error, in: "playerState"),
+            "ACCESS_DENIED"
+        )
+    }
+
+    /// The other direction matters more. On the track stages -1728 genuinely
+    /// means "nothing loaded", so mapping it to a denial there would raise a
+    /// permission banner every time Music sat idle.
+    func testTrackStageMinusOneSevenTwoEightIsNotAPermissionDenial() {
+        let error = NSError(domain: "AppleMusicSourceTests", code: -1_728)
+
+        for stage in ["isRunning", "currentTrack", "trackMetadata"] {
+            XCTAssertNotEqual(
+                AppleMusicSource.status(forBridgeError: error, in: stage),
+                "ACCESS_DENIED",
+                "stage \(stage) must not report an idle Music as a permission denial"
+            )
+        }
     }
 
     func testIntervalElapsedUsesMonotonicInstants() {
