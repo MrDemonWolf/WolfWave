@@ -87,13 +87,20 @@ struct ListeningHistoryServiceTests {
         makeIsolatedTempDirectory(prefix: "history-svc-test")
     }
 
+    /// - Parameter store: Pass the same `PlayLogStore` the test asserts through
+    ///   whenever it inspects the log without a preceding `shutdown()`.
+    ///   `PlayLogStore.append` is async on the instance's own serial `ioQueue`,
+    ///   so `loadAll()` is ordered after an append only on that same instance.
+    ///   A second instance over the same file shares no queue and can read the
+    ///   file before the append lands.
     private func makeService(
         enabled: Bool,
         directory: URL,
+        store: PlayLogStore? = nil,
         loadReadBarrier: (@Sendable () -> Void)? = nil
     ) -> ListeningHistoryService {
         ListeningHistoryService(
-            store: PlayLogStore(directory: directory),
+            store: store ?? PlayLogStore(directory: directory),
             tallyStore: LifetimeTallyStore(directory: directory),
             enabled: enabled,
             loadReadBarrier: loadReadBarrier
@@ -503,9 +510,13 @@ struct ListeningHistoryServiceTests {
 
         let barrier = HistoryLoadBarrier()
         defer { barrier.release() }
+        // Share the store instance: the post-clear play is flushed by an async
+        // append and this test asserts the log without a shutdown() flush, so
+        // the read must be enqueued behind that append on the same serial queue.
         let service = makeService(
             enabled: true,
             directory: dir,
+            store: store,
             loadReadBarrier: { barrier.blockAfterRead() }
         )
         let load = Task { await service.loadFromDisk() }
