@@ -83,7 +83,7 @@ The next release. These ship on the [Nightly channel](/docs/nightly) off `main` 
 - **"Open in Music" works in Song Requests setup.** The button in step 4 (Share your playlist) did nothing. It now brings Music forward and selects your WolfWave Requests playlist.
 - **Nightly testers can get back to Stable.** Switching the Update Channel back to Stable now works on its own: the next stable release offers itself like any other update, instead of leaving you stuck until you manually reinstalled the DMG. One exception, one time: if you installed the August 5, 2026 nightly, grab any newer DMG once — that specific build can't update itself. See [Nightly Builds](/docs/nightly).
 - **Song requests and playback controls reach Apple Music again.** Nightly builds from August 4, 2026 onward couldn't send Music.app a single command. The request queue never advanced to the next song, and `!skip`, `!voteskip`, the tray play/pause, and "Open in Music" all did nothing. Stable 2.0.1 was never affected. Music still stays closed when you close it.
-- **A blank now-playing card now says why.** If macOS hasn't granted WolfWave permission to control Music, the card shows the permission notice instead of a generic "Script error", so you know to allow it in System Settings → Privacy & Security → Automation.
+- **The now-playing card stopped going blank while music played.** If you played an album or a song straight from your library rather than from a playlist, WolfWave threw away a perfectly good track reading and showed nothing. The card, Discord Rich Presence, and your overlay all went empty until you happened to play from a playlist. Also affected nightly builds only; stable 2.0.1 was fine.
 
 ### Developer
 

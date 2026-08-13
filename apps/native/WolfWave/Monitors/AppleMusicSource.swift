@@ -319,25 +319,12 @@ final class AppleMusicSource: @unchecked Sendable {
             return Constants.Status.notRunning
         case -1743:
             return Constants.Status.accessDenied
-        case -1728 where stage == Constants.BridgeStage.playerState:
-            // macOS 26 answers a refused Automation request with -1728
-            // (errAENoSuchObject), not the documented -1743. Confirmed on
-            // macOS 26: a client without the grant gets
-            // "osascript is not allowed assistive access. (-1728)".
-            //
-            // This is only safe to read as "denied" for `player state`. It is an
-            // application-level property that always resolves while Music is
-            // running, and both `isRunning` and `responds(to:)` have already
-            // passed by the time we ask, so there is no object for it to be
-            // legitimately missing. On the `currentTrack` and metadata stages
-            // -1728 genuinely means "nothing loaded", so those keep the generic
-            // mapping. Getting this wrong in the other direction would show a
-            // permission banner every time Music sat idle.
-            //
-            // Without this, a denied grant surfaced as "Script error" and the
-            // permission banner never appeared, so the user had no way to learn
-            // that Automation needed granting.
-            return Constants.Status.accessDenied
+        case -1728 where stage == Constants.BridgeStage.currentTrack:
+            // `errAENoSuchObject` on `current track` is Music's ordinary answer
+            // for "nothing is loaded", not a failure. Music running with an
+            // empty player is exactly the not-playing state, so report it as
+            // such instead of as a script error the UI cannot act on.
+            return Constants.Status.notPlaying
         default:
             return Constants.Status.errorPrefix + cocoaError.localizedDescription
         }
@@ -385,11 +372,15 @@ final class AppleMusicSource: @unchecked Sendable {
             // refused instead of only that one was, and it gates the
             // permission-denial mapping to the one read where -1728 cannot mean
             // anything else. See `status(forBridgeError:in:)`.
-            func bridgeFailure(_ stage: String) -> (status: String, diagnostic: String?)? {
+            func bridgeFailure(
+                _ stage: String,
+                detail: String? = nil
+            ) -> (status: String, diagnostic: String?)? {
                 guard let error = bridgeDelegate.takeError() else { return nil }
+                let base = "stage=\(stage) code=\((error as NSError).code)"
                 return (
                     AppleMusicSource.status(forBridgeError: error, in: stage),
-                    "stage=\(stage) code=\((error as NSError).code)"
+                    detail.map { "\(base) \($0)" } ?? base
                 )
             }
             // `SBApplication(processIdentifier:)` does NOT return nil for a pid it
@@ -435,7 +426,13 @@ final class AppleMusicSource: @unchecked Sendable {
                 let trackPresence = trackObj == nil ? "nil" : "present"
                 let probeArtist = (trackObj?.value(forKey: "artist") as? String) ?? ""
                 let diag = "playerState=\(stateRawDesc) type=\(stateTypeDesc) currentTrack=\(trackPresence) name=\"\(trackName)\" artist=\"\(probeArtist)\""
-                if let failure = bridgeFailure(Constants.BridgeStage.currentTrack) { return failure }
+                // Carry `diag` into the failure. It is the only place that
+                // records what ScriptingBridge actually returned, and returning
+                // the bare failure first threw it away exactly when a bridge
+                // error made it most worth having.
+                if let failure = bridgeFailure(Constants.BridgeStage.currentTrack, detail: diag) {
+                    return failure
+                }
                 return (Constants.Status.notPlaying, diag)
             }
 
@@ -458,7 +455,20 @@ final class AppleMusicSource: @unchecked Sendable {
             let diag: String? = fallbackFired
                 ? "raw=\(stateObj) type=\(stateTypeDesc)"
                 : nil
-            if let failure = bridgeFailure(Constants.BridgeStage.trackMetadata) { return failure }
+            // Deliberately NOT a failure point. `currentPlaylist` raises -1728
+            // whenever the track is not playing from a playlist, which is the
+            // normal case for an album or a direct library play, and Music
+            // answers several of these optional fields that way. Every read in
+            // this block already falls back to a safe default and `trackName`
+            // was validated above, so the track we just assembled is good.
+            //
+            // Returning a failure here instead discarded a complete, correct
+            // read and reported "Script error", which is what blanked the
+            // now-playing card while Music was playing perfectly. v2.0.1 had no
+            // check here at all and was unaffected; #410 added one.
+            //
+            // The error is still consumed so it cannot leak into the next pass.
+            _ = bridgeDelegate.takeError()
             return (combined, diag)
         }
 
@@ -468,6 +478,12 @@ final class AppleMusicSource: @unchecked Sendable {
             // when Music is running but we resolved to notPlaying. Helps
             // disambiguate genuine pause vs. partial-TCC placeholder reads.
             logGuardOnce(key: "diagnose-not-playing", message: "AppleMusicSource: diagnose-not-playing → \(diag)")
+        } else if result.status.hasPrefix(Constants.Status.errorPrefix), let diag = result.diagnostic {
+            // A ScriptingBridge error, not a parse fallback. These two used to
+            // share the "playerState bridge unknown" wording, which mislabelled
+            // every bridge failure as an unrecognised player-state type and sent
+            // debugging down the wrong path.
+            logGuardOnce(key: "bridge-error", message: "AppleMusicSource: bridge error → \(diag)")
         } else if result.status != Constants.Status.notPlaying, let diag = result.diagnostic {
             // Fallback emit path. State parse failed but currentTrack.name
             // was non-empty so we trusted the track. Surface the unknown
