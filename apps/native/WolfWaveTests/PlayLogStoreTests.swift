@@ -113,7 +113,7 @@ struct PlayLogStoreTests {
 
         // Manually append a junk line, simulating a partial write before a crash.
         if let handle = FileHandle(forWritingAtPath: store.fileURL.path) {
-            try? handle.seekToEnd()
+            _ = try? handle.seekToEnd()
             handle.write(Data("{not valid json\n".utf8))
             try? handle.close()
         }

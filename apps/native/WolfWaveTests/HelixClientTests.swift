@@ -22,16 +22,16 @@ final class HelixClientTests: XCTestCase {
     private let handlerStore = MockURLProtocol.HandlerStore()
     private let credentials = HelixClient.Credentials(token: "tok_abc", clientID: "client_xyz")
 
-    override func setUp() {
-        super.setUp()
+    override func setUp() async throws {
+        try await super.setUp()
         handlerStore.handler = nil
         helix = HelixClient(http: HTTPClient(session: MockURLProtocol.makeSession(handlerStore: handlerStore)))
     }
 
-    override func tearDown() {
+    override func tearDown() async throws {
         handlerStore.handler = nil
         helix = nil
-        super.tearDown()
+        try await super.tearDown()
     }
 
     private func url() -> URL {

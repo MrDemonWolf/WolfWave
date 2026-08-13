@@ -21,8 +21,8 @@ final class TwitchTokenLifecycleTests: XCTestCase {
     private var backend: InMemoryKeychainBackend!
     private let handlerStore = MockURLProtocol.HandlerStore()
 
-    override func setUp() {
-        super.setUp()
+    override func setUp() async throws {
+        try await super.setUp()
         handlerStore.handler = nil
         Self.resetRedemptionDefaults()
         KeychainBackendTestIsolation.acquire()
@@ -31,12 +31,12 @@ final class TwitchTokenLifecycleTests: XCTestCase {
         KeychainService.backend = backend
     }
 
-    override func tearDown() {
+    override func tearDown() async throws {
         Self.resetRedemptionDefaults()
         handlerStore.handler = nil
         KeychainService.backend = previousBackend
         KeychainBackendTestIsolation.release()
-        super.tearDown()
+        try await super.tearDown()
     }
 
     nonisolated private static func resetRedemptionDefaults() {
@@ -535,7 +535,7 @@ final class TwitchTokenLifecycleTests: XCTestCase {
         XCTAssertEqual(KeychainService.loadTwitchToken(), "ACCESS")
         completion.cancel()
         await gate.resume()
-        await completion.value
+        _ = await completion.value
 
         XCTAssertEqual(restarts.value, 1)
         XCTAssertEqual(KeychainService.loadTwitchCredentialGrant().accessToken, "ACCESS")
@@ -907,7 +907,7 @@ final class TwitchTokenLifecycleTests: XCTestCase {
         viewModel.channelID = "replacement_channel"
         viewModel.channelDraftChanged()
         releaseRequest.signal()
-        await completion.value
+        _ = await completion.value
 
         let committed = try KeychainService.loadTwitchCredentialGrantChecked()
         XCTAssertEqual(committed.accessToken, "NEW_ACCESS")

@@ -20,16 +20,16 @@ final class LinkResolverServiceTests: XCTestCase {
     private var resolver: LinkResolverService!
     private let handlerStore = MockURLProtocol.HandlerStore()
 
-    override func setUp() {
-        super.setUp()
+    override func setUp() async throws {
+        try await super.setUp()
         handlerStore.handler = nil
         resolver = LinkResolverService(session: MockURLProtocol.makeSession(handlerStore: handlerStore))
     }
 
-    override func tearDown() {
+    override func tearDown() async throws {
         handlerStore.handler = nil
         resolver = nil
-        super.tearDown()
+        try await super.tearDown()
     }
 
     // MARK: - Link Detection

@@ -19,14 +19,14 @@ final class MetricsServiceTests: XCTestCase {
 
     private var service: MetricsService!
 
-    override func setUp() {
-        super.setUp()
+    override func setUp() async throws {
+        try await super.setUp()
         service = MetricsService()
     }
 
-    override func tearDown() {
+    override func tearDown() async throws {
         service = nil
-        super.tearDown()
+        try await super.tearDown()
     }
 
     // MARK: - WebSocket

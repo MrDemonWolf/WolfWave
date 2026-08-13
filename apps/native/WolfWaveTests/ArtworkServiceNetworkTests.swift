@@ -20,16 +20,16 @@ final class ArtworkServiceNetworkTests: XCTestCase {
     private var service: ArtworkService!
     private let handlerStore = MockURLProtocol.HandlerStore()
 
-    override func setUp() {
-        super.setUp()
+    override func setUp() async throws {
+        try await super.setUp()
         handlerStore.handler = nil
         service = ArtworkService(session: MockURLProtocol.makeSession(handlerStore: handlerStore), persistenceURL: nil)
     }
 
-    override func tearDown() {
+    override func tearDown() async throws {
         handlerStore.handler = nil
         service = nil
-        super.tearDown()
+        try await super.tearDown()
     }
 
     /// Awaits the callback-based `fetchTrackLinks` as an async value.
